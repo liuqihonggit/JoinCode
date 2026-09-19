@@ -1,13 +1,11 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed class BridgeRemoteCoreTests
-{
+public sealed class BridgeRemoteCoreTests {
     #region withRetry
 
     [Fact]
-    public async Task WithRetry_SucceedsOnFirstAttempt_ReturnsResult()
-    {
+    public async Task WithRetry_SucceedsOnFirstAttempt_ReturnsResult() {
         var callCount = 0;
         var result = await BridgeRemoteCore.WithRetryAsync<string>(
             () => { callCount++; return Task.FromResult<string?>("ok"); },
@@ -21,8 +19,7 @@ public sealed class BridgeRemoteCoreTests
     }
 
     [Fact]
-    public async Task WithRetry_Passthrough_FirstNull_ReturnsNull()
-    {
+    public async Task WithRetry_Passthrough_FirstNull_ReturnsNull() {
         // 降级为透传后：单次执行，第一次 null 直接返回 null，不重试（重试交给 Gateway）
         var callCount = 0;
         var result = await BridgeRemoteCore.WithRetryAsync<string>(
@@ -37,8 +34,7 @@ public sealed class BridgeRemoteCoreTests
     }
 
     [Fact]
-    public async Task WithRetry_ExhaustsAttempts_ReturnsNull()
-    {
+    public async Task WithRetry_ExhaustsAttempts_ReturnsNull() {
         var result = await BridgeRemoteCore.WithRetryAsync<string>(
             () => Task.FromResult<string?>(null),
             "test",
@@ -54,10 +50,8 @@ public sealed class BridgeRemoteCoreTests
     #region EnvLessBridgeParams
 
     [Fact]
-    public void EnvLessBridgeParams_Defaults_AreSet()
-    {
-        var params_ = new V2BridgeParams
-        {
+    public void EnvLessBridgeParams_Defaults_AreSet() {
+        var params_ = new V2BridgeParams {
             BaseUrl = "https://api.example.com",
             OrgUUID = "org-123",
             Title = "Test",
@@ -76,8 +70,7 @@ public sealed class BridgeRemoteCoreTests
     #region archiveSession
 
     [Fact]
-    public async Task ArchiveSession_NullToken_ReturnsSkipped()
-    {
+    public async Task ArchiveSession_NullToken_ReturnsSkipped() {
         var result = await BridgeSessionApi.ArchiveAsync(
             sessionId: "cse_test",
             baseUrl: "https://api.example.com",
@@ -93,30 +86,26 @@ public sealed class BridgeRemoteCoreTests
     #region deriveTitle
 
     [Fact]
-    public void DeriveTitle_ShortText_ReturnsAsIs()
-    {
+    public void DeriveTitle_ShortText_ReturnsAsIs() {
         var result = BridgeRemoteCore.DeriveTitle("Hello world");
         Assert.Equal("Hello world", result);
     }
 
     [Fact]
-    public void DeriveTitle_LongText_Truncates()
-    {
+    public void DeriveTitle_LongText_Truncates() {
         var longText = new string('a', 200);
         var result = BridgeRemoteCore.DeriveTitle(longText);
         Assert.True(result.Length <= 50);
     }
 
     [Fact]
-    public void DeriveTitle_Multiline_TakesFirstLine()
-    {
+    public void DeriveTitle_Multiline_TakesFirstLine() {
         var result = BridgeRemoteCore.DeriveTitle("First line\nSecond line");
         Assert.Equal("First line", result);
     }
 
     [Fact]
-    public void DeriveTitle_EmptyText_ReturnsEmpty()
-    {
+    public void DeriveTitle_EmptyText_ReturnsEmpty() {
         var result = BridgeRemoteCore.DeriveTitle("");
         Assert.Equal(string.Empty, result);
     }
@@ -126,8 +115,7 @@ public sealed class BridgeRemoteCoreTests
     #region makeResultMessage
 
     [Fact]
-    public void MakeResultMessage_ContainsSessionId()
-    {
+    public void MakeResultMessage_ContainsSessionId() {
         var result = BridgeMessaging.MakeResultMessage("cse_test123");
         Assert.Contains("cse_test123", result);
         Assert.Contains("\"type\":\"result\"", result);
@@ -139,8 +127,7 @@ public sealed class BridgeRemoteCoreTests
     #region flushHistory
 
     [Fact]
-    public async Task FlushHistory_NoMessages_NoWrite()
-    {
+    public async Task FlushHistory_NoMessages_NoWrite() {
         var transport = new MockTransport();
         await BridgeRemoteCore.FlushHistoryAsync(
             [], 0, null, transport, "cse_test", CancellationToken.None).ConfigureAwait(true);
@@ -148,8 +135,7 @@ public sealed class BridgeRemoteCoreTests
     }
 
     [Fact]
-    public async Task FlushHistory_WithCap_TruncatesFromStart()
-    {
+    public async Task FlushHistory_WithCap_TruncatesFromStart() {
         var transport = new MockTransport();
         var messages = new[] { "msg1", "msg2", "msg3", "msg4", "msg5" };
         await BridgeRemoteCore.FlushHistoryAsync(
@@ -163,8 +149,7 @@ public sealed class BridgeRemoteCoreTests
     }
 
     [Fact]
-    public async Task FlushHistory_NoCap_SendsAll()
-    {
+    public async Task FlushHistory_NoCap_SendsAll() {
         var transport = new MockTransport();
         var messages = new[] { "msg1", "msg2", "msg3" };
         await BridgeRemoteCore.FlushHistoryAsync(
@@ -174,8 +159,7 @@ public sealed class BridgeRemoteCoreTests
     }
 
     [Fact]
-    public async Task FlushHistory_WithToSDKMessages_ConvertsAndSends()
-    {
+    public async Task FlushHistory_WithToSDKMessages_ConvertsAndSends() {
         var transport = new MockTransport();
         var messages = new[] { "raw1", "raw2" };
         Func<string, string[]> toSDK = msg => [$"sdk_{msg}"];
@@ -192,8 +176,7 @@ public sealed class BridgeRemoteCoreTests
     #region drainFlushGate
 
     [Fact]
-    public void DrainFlushGate_NoPending_NoWrite()
-    {
+    public void DrainFlushGate_NoPending_NoWrite() {
         var flushGate = new BridgeFlushGate<string>();
         var transport = new MockTransport();
         var uuidSet = new BoundedUUIDSet(100);
@@ -206,8 +189,7 @@ public sealed class BridgeRemoteCoreTests
     }
 
     [Fact]
-    public void DrainFlushGate_WithPending_SendsAll()
-    {
+    public void DrainFlushGate_WithPending_SendsAll() {
         var flushGate = new BridgeFlushGate<string>();
         var transport = new MockTransport();
         var uuidSet = new BoundedUUIDSet(100);
@@ -223,8 +205,7 @@ public sealed class BridgeRemoteCoreTests
     }
 
     [Fact]
-    public void DrainFlushGate_WithToSDKMessages_ConvertsAndSends()
-    {
+    public void DrainFlushGate_WithToSDKMessages_ConvertsAndSends() {
         var flushGate = new BridgeFlushGate<string>();
         var transport = new MockTransport();
         var uuidSet = new BoundedUUIDSet(100);
@@ -242,15 +223,13 @@ public sealed class BridgeRemoteCoreTests
     #endregion
 
     /// <summary>模拟传输层 — 用于测试</summary>
-    private sealed class MockTransport : IReplBridgeTransport
-    {
+    private sealed class MockTransport : IReplBridgeTransport {
         public int WriteBatchCallCount { get; private set; }
         public List<string> LastBatch { get; private set; } = [];
 
         public Task WriteAsync(string message, CancellationToken ct = default) => Task.CompletedTask;
 
-        public Task WriteBatchAsync(IReadOnlyList<string> messages, CancellationToken ct = default)
-        {
+        public Task WriteBatchAsync(IReadOnlyList<string> messages, CancellationToken ct = default) {
             WriteBatchCallCount++;
             LastBatch = [.. messages];
             return Task.CompletedTask;

@@ -3,8 +3,7 @@ namespace Core.Hooks.ToolPermission;
 /// <summary>
 /// 权限日志上下文
 /// </summary>
-public sealed record PermissionLogContext
-{
+public sealed record PermissionLogContext {
     /// <summary>
     /// 工具名称
     /// </summary>
@@ -39,8 +38,7 @@ public sealed record PermissionLogContext
 /// <summary>
 /// 权限决策日志参数
 /// </summary>
-public abstract record PermissionDecisionArgs
-{
+public abstract record PermissionDecisionArgs {
     /// <summary>
     /// 决策类型标识（accept/reject）
     /// </summary>
@@ -55,8 +53,7 @@ public abstract record PermissionDecisionArgs
 /// <summary>
 /// 批准决策参数
 /// </summary>
-public sealed record AcceptDecisionArgs : PermissionDecisionArgs
-{
+public sealed record AcceptDecisionArgs : PermissionDecisionArgs {
     /// <summary>
     /// 决策类型标识 — 固定为 "accept"
     /// </summary>
@@ -76,8 +73,7 @@ public sealed record AcceptDecisionArgs : PermissionDecisionArgs
 /// <summary>
 /// 拒绝决策参数
 /// </summary>
-public sealed record RejectDecisionArgs : PermissionDecisionArgs
-{
+public sealed record RejectDecisionArgs : PermissionDecisionArgs {
     /// <summary>
     /// 决策类型标识 — 固定为 "reject"
     /// </summary>
@@ -97,8 +93,7 @@ public sealed record RejectDecisionArgs : PermissionDecisionArgs
 /// <summary>
 /// 权限结果类型
 /// </summary>
-public enum PermissionResultType
-{
+public enum PermissionResultType {
     /// <summary>已批准</summary>
     [EnumValue("granted")] Granted,
 
@@ -112,8 +107,7 @@ public enum PermissionResultType
 /// <summary>
 /// 权限结果
 /// </summary>
-public sealed record PermissionResult
-{
+public sealed record PermissionResult {
     /// <summary>
     /// 权限结果类型
     /// </summary>
@@ -139,5 +133,3 @@ public sealed record PermissionResult
     /// </summary>
     public static PermissionResult PendingConfirmation(string message) => new() { Type = PermissionResultType.Pending, Message = message };
 }
-
-

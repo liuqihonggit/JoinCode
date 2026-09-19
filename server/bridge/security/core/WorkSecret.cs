@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// 工作密钥生命周期状态 — 归纳 IsRevoked/IsRotated 两个 bool 的隐式约束
 /// <para>Active: 可用; Revoked: 已撤销; Rotated: 已轮换(被新密钥替代); Expired: 已过期</para>
 /// </summary>
-public enum SecretLifecycle
-{
+public enum SecretLifecycle {
     /// <summary>活跃 — 未撤销未轮换</summary>
     [EnumValue("active")] Active,
     /// <summary>已撤销 — 不可轮换不可验证</summary>
@@ -19,8 +18,7 @@ public enum SecretLifecycle
 /// <summary>
 /// 工作密钥条目 - 记录加密的 API 密钥或工作秘密
 /// </summary>
-public sealed partial class WorkSecretEntry
-{
+public sealed partial class WorkSecretEntry {
     /// <summary>密钥唯一标识</summary>
     [JsonPropertyName("secretId")]
     public required string SecretId { get; init; }
@@ -68,8 +66,7 @@ public sealed partial class WorkSecretEntry
 /// <summary>
 /// 工作密钥存储接口 - 密钥管理抽象
 /// </summary>
-public interface IWorkSecretStore : JoinCode.Abstractions.State.IStore
-{
+public interface IWorkSecretStore : JoinCode.Abstractions.State.IStore {
     /// <summary>创建新的工作密钥</summary>
     ValueTask<WorkSecretEntry> CreateAsync(string name, string plainValue, DateTimeOffset? expiresAt = null, CancellationToken ct = default);
 
@@ -91,8 +88,7 @@ public interface IWorkSecretStore : JoinCode.Abstractions.State.IStore
 /// 使用 AES-GCM 加密密钥值，兼容 NativeAOT
 /// </summary>
 [Register(typeof(IWorkSecretStore), ServiceLifetime.Singleton)]
-public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, IDisposable
-{
+public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, IDisposable {
     private readonly ConcurrentDictionary<string, WorkSecretEntry> _secrets;
     private readonly ILogger<WorkSecretStore>? _logger;
     private readonly IClockService _clock;
@@ -110,8 +106,7 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     /// <param name="config">桥接配置 — null 表示使用随机加密密钥</param>
     /// <param name="logger">日志器 — null 表示不记录日志</param>
     /// <param name="clock">时钟服务 — null 使用系统时钟</param>
-    public WorkSecretStore(BridgeConfig? config = null, ILogger<WorkSecretStore>? logger = null, IClockService? clock = null)
-    {
+    public WorkSecretStore(BridgeConfig? config = null, ILogger<WorkSecretStore>? logger = null, IClockService? clock = null) {
         var keyBytes = string.IsNullOrEmpty(config?.EncryptionKeyBase64)
             ? RandomNumberGenerator.GetBytes(KeySizeBytes)
             : Convert.FromBase64String(config.EncryptionKeyBase64);
@@ -126,24 +121,21 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     }
 
     /// <inheritdoc />
-    public ValueTask<WorkSecretEntry> CreateAsync(string name, string plainValue, DateTimeOffset? expiresAt = null, CancellationToken ct = default)
-    {
+    public ValueTask<WorkSecretEntry> CreateAsync(string name, string plainValue, DateTimeOffset? expiresAt = null, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(plainValue);
 
         var secretId = Guid.NewGuid().ToString("N");
         var encryptedValue = Encrypt(plainValue);
 
-        var entry = new WorkSecretEntry
-        {
+        var entry = new WorkSecretEntry {
             SecretId = secretId,
             Name = name,
             EncryptedValue = encryptedValue,
             ExpiresAt = expiresAt
         };
 
-        if (!_secrets.TryAdd(secretId, entry))
-        {
+        if (!_secrets.TryAdd(secretId, entry)) {
             throw new InvalidOperationException($"[BRG005] 密钥 ID 冲突: {secretId}");
         }
 
@@ -152,8 +144,7 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     }
 
     /// <inheritdoc />
-    public ValueTask<WorkSecretEntry?> GetAsync(string secretId, CancellationToken ct = default)
-    {
+    public ValueTask<WorkSecretEntry?> GetAsync(string secretId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(secretId);
 
         _secrets.TryGetValue(secretId, out var entry);
@@ -161,18 +152,15 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     }
 
     /// <inheritdoc />
-    public ValueTask<WorkSecretEntry> RotateAsync(string secretId, string newPlainValue, DateTimeOffset? expiresAt = null, CancellationToken ct = default)
-    {
+    public ValueTask<WorkSecretEntry> RotateAsync(string secretId, string newPlainValue, DateTimeOffset? expiresAt = null, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(secretId);
         ArgumentException.ThrowIfNullOrWhiteSpace(newPlainValue);
 
-        if (!_secrets.TryGetValue(secretId, out var oldEntry))
-        {
+        if (!_secrets.TryGetValue(secretId, out var oldEntry)) {
             throw new InvalidOperationException($"[BRG006] 密钥不存在: {secretId}");
         }
 
-        if (oldEntry.IsRevoked)
-        {
+        if (oldEntry.IsRevoked) {
             throw new InvalidOperationException($"[BRG007] 密钥已撤销，无法轮换: {secretId}");
         }
 
@@ -180,16 +168,14 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
         var newSecretId = Guid.NewGuid().ToString("N");
         var encryptedValue = Encrypt(newPlainValue);
 
-        var newEntry = new WorkSecretEntry
-        {
+        var newEntry = new WorkSecretEntry {
             SecretId = newSecretId,
             Name = oldEntry.Name,
             EncryptedValue = encryptedValue,
             ExpiresAt = expiresAt ?? oldEntry.ExpiresAt
         };
 
-        if (!_secrets.TryAdd(newSecretId, newEntry))
-        {
+        if (!_secrets.TryAdd(newSecretId, newEntry)) {
             throw new InvalidOperationException($"[BRG008] 密钥 ID 冲突: {newSecretId}");
         }
 
@@ -202,18 +188,15 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     }
 
     /// <inheritdoc />
-    public ValueTask<bool> RevokeAsync(string secretId, CancellationToken ct = default)
-    {
+    public ValueTask<bool> RevokeAsync(string secretId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(secretId);
 
-        if (!_secrets.TryGetValue(secretId, out var entry))
-        {
+        if (!_secrets.TryGetValue(secretId, out var entry)) {
             _logger?.LogWarning("[WorkSecret] 密钥不存在，无法撤销: {SecretId}", secretId);
             return new ValueTask<bool>(false);
         }
 
-        if (entry.IsRevoked)
-        {
+        if (entry.IsRevoked) {
             _logger?.LogWarning("[WorkSecret] 密钥已被撤销: {SecretId}", secretId);
             return new ValueTask<bool>(false);
         }
@@ -224,46 +207,38 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     }
 
     /// <inheritdoc />
-    public ValueTask<bool> ValidateAsync(string secretId, string plainValue, CancellationToken ct = default)
-    {
+    public ValueTask<bool> ValidateAsync(string secretId, string plainValue, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(secretId);
         ArgumentException.ThrowIfNullOrWhiteSpace(plainValue);
 
-        if (!_secrets.TryGetValue(secretId, out var entry))
-        {
+        if (!_secrets.TryGetValue(secretId, out var entry)) {
             _logger?.LogWarning("[WorkSecret] 密钥不存在: {SecretId}", secretId);
             return new ValueTask<bool>(false);
         }
 
         // 检查是否已撤销
-        if (entry.IsRevoked)
-        {
+        if (entry.IsRevoked) {
             _logger?.LogWarning("[WorkSecret] 密钥已撤销: {SecretId}", secretId);
             return new ValueTask<bool>(false);
         }
 
         // 检查是否已过期
-        if (entry.ExpiresAt.HasValue && entry.ExpiresAt.Value < _clock.GetUtcNowOffset())
-        {
+        if (entry.ExpiresAt.HasValue && entry.ExpiresAt.Value < _clock.GetUtcNowOffset()) {
             _logger?.LogWarning("[WorkSecret] 密钥已过期: {SecretId}", secretId);
             return new ValueTask<bool>(false);
         }
 
         // 解密并比对值
-        try
-        {
+        try {
             var decryptedValue = Decrypt(entry.EncryptedValue);
             var isValid = string.Equals(decryptedValue, plainValue, StringComparison.Ordinal);
 
-            if (!isValid)
-            {
+            if (!isValid) {
                 _logger?.LogWarning("[WorkSecret] 密钥值不匹配: {SecretId}", secretId);
             }
 
             return new ValueTask<bool>(isValid);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[WorkSecret] 解密失败: {SecretId}", secretId);
             return new ValueTask<bool>(false);
         }
@@ -273,8 +248,7 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     /// 使用 AES-GCM 加密明文
     /// 输出格式: Base64(nonce || tag || ciphertext)
     /// </summary>
-    private string Encrypt(string plainText)
-    {
+    private string Encrypt(string plainText) {
         var plainBytes = Encoding.UTF8.GetBytes(plainText);
         var nonce = new byte[NonceSizeBytes];
         RandomNumberGenerator.Fill(nonce);
@@ -298,8 +272,7 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     /// 使用 AES-GCM 解密密文
     /// 输入格式: Base64(nonce || tag || ciphertext)
     /// </summary>
-    private string Decrypt(string encryptedBase64)
-    {
+    private string Decrypt(string encryptedBase64) {
         var data = Convert.FromBase64String(encryptedBase64);
 
         if (data.Length < NonceSizeBytes + TagSizeBytes)
@@ -325,10 +298,9 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     /// <summary>
     /// 释放资源 — 清零加密密钥
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return; _disposed = true;
         Array.Clear(_encryptionKey);
-            base.Dispose();
+        base.Dispose();
     }
 }

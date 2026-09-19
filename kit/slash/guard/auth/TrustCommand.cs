@@ -6,16 +6,14 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Trust, Description = "管理工作区信任目录", Usage = "/trust [add|remove|list|clear]", Category = ChatCommandCategory.Auth, ArgumentHint = "[add|remove|list|clear]")]
 [ChatCommandArg("action", Type = "string", Description = "信任目录操作", Enum = new[] { "add", "remove", "list", "clear" }, Default = "list")]
-public sealed class TrustCommand : ChatCommandBase
-{
+public sealed class TrustCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /trust 命令 — 管理工作区信任目录
     /// 根据子命令执行对应操作:status 显示状态、add 添加信任、remove 移除信任、list 列出全部、clear 清除全部
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var manager = ChatCommandBase.GetService<ITrustFolderManager>(context, typeof(ITrustFolderManager));
         if (manager is null)
             return Task.FromResult(ChatCommandResult.Continue());
@@ -23,32 +21,21 @@ public sealed class TrustCommand : ChatCommandBase
         var workspacePath = context.GetCommandServices().FileSystem.GetCurrentDirectory();
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args) || args.Equals("status", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.IsNullOrEmpty(args) || args.Equals("status", StringComparison.OrdinalIgnoreCase)) {
             ShowStatus(manager, workspacePath);
-        }
-        else if (args.Equals("add", StringComparison.OrdinalIgnoreCase))
-        {
+        } else if (args.Equals("add", StringComparison.OrdinalIgnoreCase)) {
             manager.Trust(workspacePath);
             TerminalHelper.WriteLine($"{TerminalColors.Success}已信任当前工作区: {workspacePath}{AnsiStyleEnumConstants.Reset}");
-        }
-        else if (args.Equals("remove", StringComparison.OrdinalIgnoreCase))
-        {
+        } else if (args.Equals("remove", StringComparison.OrdinalIgnoreCase)) {
             manager.Untrust(workspacePath);
             TerminalHelper.WriteLine($"已移除工作区信任: {workspacePath}");
-        }
-        else if (args.Equals("list", StringComparison.OrdinalIgnoreCase))
-        {
+        } else if (args.Equals("list", StringComparison.OrdinalIgnoreCase)) {
             ListAll(manager, context.GetCommandServices().FileSystem);
-        }
-        else if (args.Equals("clear", StringComparison.OrdinalIgnoreCase))
-        {
+        } else if (args.Equals("clear", StringComparison.OrdinalIgnoreCase)) {
             var count = manager.GetAllTrustedFolders().Count;
             manager.ClearAll();
             TerminalHelper.WriteLine($"已清除所有信任目录 ({count} 个)");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"用法: {Usage}");
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine("  /trust        显示当前工作区信任状态");
@@ -61,33 +48,26 @@ public sealed class TrustCommand : ChatCommandBase
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    private static void ShowStatus(ITrustFolderManager manager, string workspacePath)
-    {
+    private static void ShowStatus(ITrustFolderManager manager, string workspacePath) {
         var isTrusted = manager.IsTrusted(workspacePath);
-        if (isTrusted)
-        {
+        if (isTrusted) {
             TerminalHelper.WriteLine($"{TerminalColors.Success}当前工作区已信任: {workspacePath}{AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"当前工作区未信任: {workspacePath}");
             TerminalHelper.WriteLine("使用 /trust add 添加信任");
         }
     }
 
-    private static void ListAll(ITrustFolderManager manager, IFileSystem fs)
-    {
+    private static void ListAll(ITrustFolderManager manager, IFileSystem fs) {
         var folders = manager.GetAllTrustedFolders();
-        if (folders.Count == 0)
-        {
+        if (folders.Count == 0) {
             TerminalHelper.WriteLine("暂无信任目录");
             return;
         }
 
         TerminalHelper.WriteLine($"信任目录 ({folders.Count} 个):");
         TerminalHelper.NewLine();
-        foreach (var folder in folders)
-        {
+        foreach (var folder in folders) {
             var exists = fs.DirectoryExists(folder);
             var marker = exists ? " " : " [不存在]";
             TerminalHelper.WriteLine($"  {folder}{marker}");

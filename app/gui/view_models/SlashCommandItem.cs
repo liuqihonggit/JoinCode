@@ -4,8 +4,7 @@ namespace JoinCode.Gui.ViewModels;
 /// 斜杠命令项 — 命令面板中展示的单条命令元数据。
 /// 命令列表对齐 CLI 端常用命令子集，GUI 端仅保留高频命令。
 /// </summary>
-public sealed class SlashCommandItem
-{
+public sealed class SlashCommandItem {
     /// <summary>命令名（如 "/clear"）</summary>
     public required string Name { get; init; }
 
@@ -61,11 +60,9 @@ public sealed class SlashCommandItem
     /// 从 <see cref="SlashCommandMetadata"/> 列表创建 <see cref="SlashCommandItem"/> 列表。
     /// 由源码生成器从 [ChatCommand] 特性自动提取，替代硬编码 BuiltInCommands。
     /// </summary>
-    public static IReadOnlyList<SlashCommandItem> FromMetadata(IReadOnlyList<SlashCommandMetadata> commands)
-    {
+    public static IReadOnlyList<SlashCommandItem> FromMetadata(IReadOnlyList<SlashCommandMetadata> commands) {
         return commands
-            .Select(c => new SlashCommandItem
-            {
+            .Select(c => new SlashCommandItem {
                 Name = "/" + c.Name,
                 Description = c.Description,
                 Usage = c.Usage,
@@ -78,11 +75,9 @@ public sealed class SlashCommandItem
     /// 从 <see cref="SubAgentSummary"/> 列表创建 <see cref="SlashCommandItem"/> 列表。
     /// 统一构造方式（对齐 <see cref="FromMetadata"/>），供 AgentCompletionProvider 消费。
     /// </summary>
-    public static IReadOnlyList<SlashCommandItem> FromAgents(IReadOnlyList<SubAgentSummary> agents)
-    {
+    public static IReadOnlyList<SlashCommandItem> FromAgents(IReadOnlyList<SubAgentSummary> agents) {
         var items = new SlashCommandItem[agents.Count];
-        for (var i = 0; i < agents.Count; i++)
-        {
+        for (var i = 0; i < agents.Count; i++) {
             var a = agents[i];
             items[i] = new SlashCommandItem { Name = a.Name, Description = a.Description };
         }
@@ -90,8 +85,7 @@ public sealed class SlashCommandItem
     }
 
     /// <summary>按输入前缀过滤命令（如 "/c" 匹配 /clear、/compact、/copy、/config），并排除禁用命令</summary>
-    public static IReadOnlyList<SlashCommandItem> Filter(string prefix, IReadOnlyList<SlashCommandItem>? commands = null)
-    {
+    public static IReadOnlyList<SlashCommandItem> Filter(string prefix, IReadOnlyList<SlashCommandItem>? commands = null) {
         var source = commands ?? BuiltInCommands;
         var matched = TrieCache.GetValue(source, list => new SlashCommandTrie(list)).Match(prefix);
         return matched.All(c => c.IsEnabled) ? matched : matched.Where(c => c.IsEnabled).ToList();

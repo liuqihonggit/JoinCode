@@ -3,8 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 目标规格 — 结构化目标定义，由 LLM 向用户收集 6 个字段后生成。
 /// </summary>
-public sealed record GoalSpec
-{
+public sealed record GoalSpec {
     /// <summary>目标 (Outcome)：最终要达成的具体状态，最好有数字指标。</summary>
     [JsonPropertyName("outcome")]
     public string Outcome { get; init; } = string.Empty;
@@ -40,20 +39,17 @@ public partial class GoalSpecJsonContext : JsonSerializerContext;
 /// <summary>
 /// 解析 LLM 输出的 GoalSpec JSON — 复用 LlmJsonHelper 统一门控（ExtractJsonBlock + RepairJson + 宽容反序列化）。
 /// </summary>
-internal static class GoalSpecParser
-{
+internal static class GoalSpecParser {
     /// <summary>
     /// 尝试从 LLM 输出文本中解析 GoalSpec，失败返回 null。
     /// </summary>
     /// <param name="llmOutput">LLM 输出文本（可能包含 ```json 代码块或内联 JSON）。</param>
     /// <param name="logger">可选日志器。</param>
     /// <returns>解析成功的 GoalSpec，失败返回 null。</returns>
-    public static GoalSpec? TryParse(string? llmOutput, ILogger? logger = null)
-    {
+    public static GoalSpec? TryParse(string? llmOutput, ILogger? logger = null) {
         var result = LlmJsonHelper.Deserialize(llmOutput, GoalSpecJsonContext.Default.GoalSpec, out _, logger);
         if (result is null) return null;
-        return result with
-        {
+        return result with {
             Outcome = result.Outcome ?? string.Empty,
             Verification = result.Verification ?? string.Empty,
             Constraints = result.Constraints ?? string.Empty,
@@ -67,16 +63,14 @@ internal static class GoalSpecParser
 /// <summary>
 /// 构造 GoalSpec 收集 prompt — 要求 LLM 向用户逐个询问 6 个字段并输出 JSON。
 /// </summary>
-internal static class GoalSpecPromptBuilder
-{
+internal static class GoalSpecPromptBuilder {
     /// <summary>
     /// 构造要求 LLM 向用户收集 GoalSpec 的 prompt。
     /// </summary>
     /// <param name="initialHint">用户提供的初始目标提示（可为空）。</param>
     /// <param name="presetConstraints">预填约束列表（可为空）。</param>
     /// <returns>完整的 GoalSpec 收集 prompt。</returns>
-    public static string Build(string? initialHint = null, IReadOnlyList<string>? presetConstraints = null)
-    {
+    public static string Build(string? initialHint = null, IReadOnlyList<string>? presetConstraints = null) {
         var sb = new StringBuilder();
         sb.AppendLine("你需要向用户收集目标规格（GoalSpec），逐个询问以下 6 个字段。");
         sb.AppendLine("每问完一个字段，等待用户回答后再问下一个。");
@@ -107,8 +101,7 @@ internal static class GoalSpecPromptBuilder
         sb.AppendLine("```");
         sb.AppendLine();
 
-        if (!string.IsNullOrWhiteSpace(initialHint))
-        {
+        if (!string.IsNullOrWhiteSpace(initialHint)) {
             sb.AppendLine("## 用户初始目标提示");
             sb.AppendLine();
             sb.AppendLine(initialHint);
@@ -116,13 +109,11 @@ internal static class GoalSpecPromptBuilder
             sb.AppendLine();
         }
 
-        if (presetConstraints is { Count: > 0 })
-        {
+        if (presetConstraints is { Count: > 0 }) {
             sb.AppendLine("## 预填约束");
             sb.AppendLine();
             sb.AppendLine("已知约束：");
-            foreach (var c in presetConstraints)
-            {
+            foreach (var c in presetConstraints) {
                 sb.AppendLine($"- {c}");
             }
             sb.AppendLine("这些约束已预填，询问 Constraints 字段时可确认或补充。");

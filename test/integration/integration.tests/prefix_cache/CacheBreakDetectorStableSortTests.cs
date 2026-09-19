@@ -1,12 +1,10 @@
 namespace Integration.Tests.PrefixCache.Unit;
 
-public sealed class CacheBreakDetectorStableSortTests
-{
+public sealed class CacheBreakDetectorStableSortTests {
     private readonly CacheBreakDetector _detector = new();
 
     [Fact]
-    public void RecordPromptState_SameToolsDifferentOrder_SameSnapshot()
-    {
+    public void RecordPromptState_SameToolsDifferentOrder_SameSnapshot() {
         var toolsAb = new List<ToolSpec>
         {
             new("alpha", "Alpha tool"),
@@ -32,8 +30,7 @@ public sealed class CacheBreakDetectorStableSortTests
     }
 
     [Fact]
-    public void CheckCacheBreak_SameToolsDifferentOrder_NoBreak()
-    {
+    public void CheckCacheBreak_SameToolsDifferentOrder_NoBreak() {
         var toolsAb = new List<ToolSpec>
         {
             new("alpha", "Alpha tool"),
@@ -57,8 +54,7 @@ public sealed class CacheBreakDetectorStableSortTests
     }
 
     [Fact]
-    public void CheckCacheBreak_ToolContentChanged_StillDetectsBreak()
-    {
+    public void CheckCacheBreak_ToolContentChanged_StillDetectsBreak() {
         var tools1 = new List<ToolSpec> { new("read", "Read files v1") };
         var tools2 = new List<ToolSpec> { new("read", "Read files v2") };
 
@@ -75,8 +71,7 @@ public sealed class CacheBreakDetectorStableSortTests
     }
 
     [Fact]
-    public void CheckCacheBreak_AppendOnly_NoBreakWhenCacheHit()
-    {
+    public void CheckCacheBreak_AppendOnly_NoBreakWhenCacheHit() {
         var toolsBefore = new List<ToolSpec> { new("read", "Read files") };
         var toolsAfter = new List<ToolSpec>
         {
@@ -96,8 +91,7 @@ public sealed class CacheBreakDetectorStableSortTests
     }
 
     [Fact]
-    public void CheckCacheBreak_AppendOnlyButCacheMiss_ReportsBreak()
-    {
+    public void CheckCacheBreak_AppendOnlyButCacheMiss_ReportsBreak() {
         var toolsBefore = new List<ToolSpec> { new("read", "Read files") };
         var toolsAfter = new List<ToolSpec>
         {
@@ -121,8 +115,7 @@ public sealed class CacheBreakDetectorStableSortTests
     }
 
     [Fact]
-    public void RecordPromptState_ThreeToolsDifferentOrder_SameSnapshot()
-    {
+    public void RecordPromptState_ThreeToolsDifferentOrder_SameSnapshot() {
         var tools123 = new List<ToolSpec>
         {
             new("read", "Read files"),

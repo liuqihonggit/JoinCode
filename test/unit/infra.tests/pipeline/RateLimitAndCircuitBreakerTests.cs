@@ -1,13 +1,11 @@
 namespace Infrastructure.Pipeline.Tests;
 
 
-public sealed class RateLimitAndCircuitBreakerTests
-{
+public sealed class RateLimitAndCircuitBreakerTests {
     // === FixedRateLimitMiddleware ===
 
     [Fact]
-    public async Task RateLimit_WithinLimit_Succeeds()
-    {
+    public async Task RateLimit_WithinLimit_Succeeds() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedRateLimitMiddleware<SimpleContext>(3, TimeSpan.FromSeconds(10)))
             .Use(new SimpleTrackingMiddleware("work"))
@@ -20,8 +18,7 @@ public sealed class RateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task RateLimit_ExceedsLimit_ThrowsRateLimitExceededException()
-    {
+    public async Task RateLimit_ExceedsLimit_ThrowsRateLimitExceededException() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedRateLimitMiddleware<SimpleContext>(2, TimeSpan.FromSeconds(10)))
             .Use(new SimpleTrackingMiddleware("work"))
@@ -36,8 +33,7 @@ public sealed class RateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task RateLimit_WindowResets_AllowsNewRequests()
-    {
+    public async Task RateLimit_WindowResets_AllowsNewRequests() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedRateLimitMiddleware<SimpleContext>(1, TimeSpan.FromMilliseconds(100)))
             .Use(new SimpleTrackingMiddleware("work"))
@@ -56,8 +52,7 @@ public sealed class RateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task RateLimit_LimitOne_SingleRequestOnly()
-    {
+    public async Task RateLimit_LimitOne_SingleRequestOnly() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedRateLimitMiddleware<SimpleContext>(1, TimeSpan.FromSeconds(10)))
             .Use(new SimpleTrackingMiddleware("work"))
@@ -72,8 +67,7 @@ public sealed class RateLimitAndCircuitBreakerTests
     // === FixedCircuitBreakerMiddleware ===
 
     [Fact]
-    public async Task CircuitBreaker_BelowThreshold_Succeeds()
-    {
+    public async Task CircuitBreaker_BelowThreshold_Succeeds() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedCircuitBreakerMiddleware<SimpleContext>(3, TimeSpan.FromSeconds(10)))
             .Use(new SimpleTrackingMiddleware("work"))
@@ -86,8 +80,7 @@ public sealed class RateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task CircuitBreaker_ReachesThreshold_ThrowsCircuitBreakerOpenException()
-    {
+    public async Task CircuitBreaker_ReachesThreshold_ThrowsCircuitBreakerOpenException() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedCircuitBreakerMiddleware<SimpleContext>(2, TimeSpan.FromSeconds(10)))
             .Use(new SimpleAlwaysFailMiddleware())
@@ -104,8 +97,7 @@ public sealed class RateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task CircuitBreaker_SuccessResetsFailureCount()
-    {
+    public async Task CircuitBreaker_SuccessResetsFailureCount() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedCircuitBreakerMiddleware<SimpleContext>(3, TimeSpan.FromSeconds(10)))
             .Use(new SimpleFailThenSucceedMiddleware(1, () => { }))
@@ -121,8 +113,7 @@ public sealed class RateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task CircuitBreaker_CooldownExpires_AllowsRetry()
-    {
+    public async Task CircuitBreaker_CooldownExpires_AllowsRetry() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedCircuitBreakerMiddleware<SimpleContext>(1, TimeSpan.FromMilliseconds(100)))
             .Use(new SimpleAlwaysFailMiddleware())
@@ -141,8 +132,7 @@ public sealed class RateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task CircuitBreaker_OperationCanceledException_DoesNotCountAsFailure()
-    {
+    public async Task CircuitBreaker_OperationCanceledException_DoesNotCountAsFailure() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedCircuitBreakerMiddleware<SimpleContext>(1, TimeSpan.FromSeconds(10)))
             .Use(new SimpleCancelMiddleware())
@@ -166,35 +156,29 @@ public sealed class RateLimitAndCircuitBreakerTests
 
     // === 测试辅助类 ===
 
-    private sealed class SimpleContext
-    {
+    private sealed class SimpleContext {
         public List<string> Log { get; } = [];
     }
 
-    private sealed class SimpleTrackingMiddleware(string label) : IMiddleware<SimpleContext>
-    {
+    private sealed class SimpleTrackingMiddleware(string label) : IMiddleware<SimpleContext> {
         public ErrorBehavior OnError => ErrorBehavior.Continue;
 
-        public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct) {
             context.Log.Add(label);
             await next(context, ct).ConfigureAwait(true);
         }
     }
 
-    private sealed class SimpleAlwaysFailMiddleware : IMiddleware<SimpleContext>
-    {
+    private sealed class SimpleAlwaysFailMiddleware : IMiddleware<SimpleContext> {
 
         public Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
             => throw new InvalidOperationException("always fail");
     }
 
-    private sealed class SimpleFailThenSucceedMiddleware(int failCount, Action onAttempt) : IMiddleware<SimpleContext>
-    {
+    private sealed class SimpleFailThenSucceedMiddleware(int failCount, Action onAttempt) : IMiddleware<SimpleContext> {
         private int _attempts;
 
-        public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct) {
             _attempts++;
             onAttempt();
             if (_attempts <= failCount)
@@ -205,8 +189,7 @@ public sealed class RateLimitAndCircuitBreakerTests
         }
     }
 
-    private sealed class SimpleCancelMiddleware : IMiddleware<SimpleContext>
-    {
+    private sealed class SimpleCancelMiddleware : IMiddleware<SimpleContext> {
 
         public Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
             => Task.FromCanceled(ct);

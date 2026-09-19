@@ -4,16 +4,13 @@ namespace JoinCode.Gui.Tests.Hosting;
 /// 占位会话门面测试 — 验证 UI 边界（IJccChatSession）在无真实引擎下可独立工作。
 /// 不依赖真实引擎，确保解耦边界成立。
 /// </summary>
-public class PlaceholderChatSessionTests
-{
+public class PlaceholderChatSessionTests {
     [Fact]
-    public async Task StreamAsync_YieldsContentThenComplete()
-    {
+    public async Task StreamAsync_YieldsContentThenComplete() {
         await using var session = new PlaceholderChatSession();
         var events = new List<ChatStreamEvent>();
 
-        await foreach (var evt in session.StreamAsync("hello").ConfigureAwait(false))
-        {
+        await foreach (var evt in session.StreamAsync("hello").ConfigureAwait(false)) {
             events.Add(evt);
         }
 
@@ -22,23 +19,20 @@ public class PlaceholderChatSessionTests
     }
 
     [Fact]
-    public async Task IsReady_DefaultsTrue()
-    {
+    public async Task IsReady_DefaultsTrue() {
         await using var session = new PlaceholderChatSession();
         session.IsReady.Should().BeTrue();
     }
 
     [Fact]
-    public async Task ClearHistory_Completes()
-    {
+    public async Task ClearHistory_Completes() {
         await using var session = new PlaceholderChatSession();
         await session.Invoking(s => s.ClearHistoryAsync()).Should().NotThrowAsync();
     }
 
     /// <summary>占位会话无 configService 时 CurrentVendor/CurrentModelId 回退空字符串(不硬编码供应商)</summary>
     [Fact]
-    public async Task CurrentModelId_AlignsWithConfigDefault()
-    {
+    public async Task CurrentModelId_AlignsWithConfigDefault() {
         await using var session = new PlaceholderChatSession();
         session.CurrentVendor.Should().BeEmpty("无 configService 时回退空字符串,不硬编码供应商");
         session.CurrentModelId.Should().BeEmpty("无 configService 时回退空字符串");

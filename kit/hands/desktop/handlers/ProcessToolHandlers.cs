@@ -4,8 +4,7 @@ namespace Tools.Handlers;
 /// 进程干预工具处理器 — 枚举/结束/启动进程（PRD S-01）
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
-public class ProcessToolHandlers
-{
+public class ProcessToolHandlers {
     private readonly ILogger<ProcessToolHandlers>? _logger;
 
     /// <summary>构造进程干预工具处理器实例。</summary>
@@ -17,8 +16,7 @@ public class ProcessToolHandlers
     public Task<ToolResult> ListProcessesAsync(
         [McpToolParameter("进程名过滤（不传则返回全部）", Required = false)] string? nameFilter = null,
         [McpToolParameter("最大返回数量", Required = false)] int maxCount = 50,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var processes = System.Diagnostics.Process.GetProcesses();
         var filtered = processes
             .Where(p => string.IsNullOrEmpty(nameFilter) || p.ProcessName.Contains(nameFilter, StringComparison.OrdinalIgnoreCase))
@@ -28,8 +26,7 @@ public class ProcessToolHandlers
 
         var sb = new StringBuilder(256);
         sb.AppendLine($"共 {filtered.Count} 个进程" + (nameFilter is not null ? $"（过滤: {nameFilter}）" : string.Empty) + ":");
-        foreach (var p in filtered)
-        {
+        foreach (var p in filtered) {
             sb.AppendLine($"  PID={p.Id} {p.ProcessName}" +
                 (!string.IsNullOrEmpty(p.Title) ? $" [{p.Title}]" : string.Empty));
         }
@@ -45,8 +42,7 @@ public class ProcessToolHandlers
         [McpToolParameter("进程ID（优先使用）", Required = false)] int? pid = null,
         [McpToolParameter("进程名称（pid 未传时使用）", Required = false)] string? name = null,
         [McpToolParameter("是否强制终止", Required = false)] bool force = true,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (pid is null && string.IsNullOrEmpty(name))
             return ToolResultBuilder.Error().WithText("必须提供 pid 或 name").Build();
 
@@ -58,20 +54,15 @@ public class ProcessToolHandlers
             return ToolResultBuilder.Error().WithText($"未找到进程: {name}").Build();
 
         var sb = new StringBuilder(128);
-        for (var i = 0; i < targets.Length; i++)
-        {
+        for (var i = 0; i < targets.Length; i++) {
             using var p = targets[i];
             var procName = "unknown";
-            try { procName = p.ProcessName; }
-            catch (Exception ex) { _logger?.LogWarning(ex, "获取进程名失败 PID={Pid}", p.Id); }
-            try
-            {
+            try { procName = p.ProcessName; } catch (Exception ex) { _logger?.LogWarning(ex, "获取进程名失败 PID={Pid}", p.Id); }
+            try {
                 if (force) p.Kill(); else p.CloseMainWindow();
                 p.WaitForExit(3000);
                 sb.AppendLine($"结束进程 PID={p.Id} {procName}: {(p.HasExited ? "成功" : "超时")}");
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 sb.AppendLine($"结束进程 PID={p.Id} {procName} 失败: {ex.Message}");
             }
         }
@@ -85,10 +76,8 @@ public class ProcessToolHandlers
         [McpToolParameter("可执行文件路径或名称", Required = true)] string fileName,
         [McpToolParameter("命令行参数", Required = false)] string? arguments = null,
         [McpToolParameter("工作目录", Required = false)] string? workingDir = null,
-        CancellationToken ct = default)
-    {
-        var psi = new System.Diagnostics.ProcessStartInfo(fileName)
-        {
+        CancellationToken ct = default) {
+        var psi = new System.Diagnostics.ProcessStartInfo(fileName) {
             UseShellExecute = true
         };
 
@@ -108,9 +97,7 @@ public class ProcessToolHandlers
             .Build();
     }
 
-    private static string TryGetMainWindowTitle(System.Diagnostics.Process p)
-    {
-        try { return p.MainWindowTitle; }
-        catch { return string.Empty; }
+    private static string TryGetMainWindowTitle(System.Diagnostics.Process p) {
+        try { return p.MainWindowTitle; } catch { return string.Empty; }
     }
 }

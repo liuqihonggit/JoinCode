@@ -1,11 +1,9 @@
 namespace Infrastructure.Pipeline.Tests;
 
 
-public sealed class StreamRateLimitAndCircuitBreakerTests
-{
+public sealed class StreamRateLimitAndCircuitBreakerTests {
     [Fact]
-    public async Task StreamRateLimit_WithinLimit_Succeeds()
-    {
+    public async Task StreamRateLimit_WithinLimit_Succeeds() {
         var pipeline = new StreamPipelineBuilder<StreamTestContext, string>()
             .Use(new FixedStreamRateLimitMiddleware<StreamTestContext, string>(3, TimeSpan.FromSeconds(10)))
             .Use(new StreamTrackingMiddleware("work"))
@@ -13,8 +11,7 @@ public sealed class StreamRateLimitAndCircuitBreakerTests
 
         var ctx = new StreamTestContext();
         var events = new List<string>();
-        await foreach (var evt in pipeline.ExecuteAsync(ctx, CancellationToken.None).ConfigureAwait(true))
-        {
+        await foreach (var evt in pipeline.ExecuteAsync(ctx, CancellationToken.None).ConfigureAwait(true)) {
             events.Add(evt);
         }
 
@@ -22,8 +19,7 @@ public sealed class StreamRateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task StreamRateLimit_ExceedsLimit_ThrowsRateLimitExceededException()
-    {
+    public async Task StreamRateLimit_ExceedsLimit_ThrowsRateLimitExceededException() {
         var pipeline = new StreamPipelineBuilder<StreamTestContext, string>()
             .Use(new FixedStreamRateLimitMiddleware<StreamTestContext, string>(2, TimeSpan.FromSeconds(10)))
             .Use(new StreamTrackingMiddleware("work"))
@@ -37,8 +33,7 @@ public sealed class StreamRateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task StreamRateLimit_WindowResets_AllowsNewRequests()
-    {
+    public async Task StreamRateLimit_WindowResets_AllowsNewRequests() {
         var pipeline = new StreamPipelineBuilder<StreamTestContext, string>()
             .Use(new FixedStreamRateLimitMiddleware<StreamTestContext, string>(1, TimeSpan.FromMilliseconds(100)))
             .Use(new StreamTrackingMiddleware("work"))
@@ -56,8 +51,7 @@ public sealed class StreamRateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task StreamCircuitBreaker_BelowThreshold_Succeeds()
-    {
+    public async Task StreamCircuitBreaker_BelowThreshold_Succeeds() {
         var pipeline = new StreamPipelineBuilder<StreamTestContext, string>()
             .Use(new FixedStreamCircuitBreakerMiddleware<StreamTestContext, string>(3, TimeSpan.FromSeconds(10)))
             .Use(new StreamTrackingMiddleware("work"))
@@ -68,8 +62,7 @@ public sealed class StreamRateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task StreamCircuitBreaker_ReachesThreshold_ThrowsCircuitBreakerOpenException()
-    {
+    public async Task StreamCircuitBreaker_ReachesThreshold_ThrowsCircuitBreakerOpenException() {
         var pipeline = new StreamPipelineBuilder<StreamTestContext, string>()
             .Use(new FixedStreamCircuitBreakerMiddleware<StreamTestContext, string>(2, TimeSpan.FromSeconds(10)))
             .Use(new StreamAlwaysFailMiddleware())
@@ -86,8 +79,7 @@ public sealed class StreamRateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task StreamCircuitBreaker_SuccessResetsFailureCount()
-    {
+    public async Task StreamCircuitBreaker_SuccessResetsFailureCount() {
         var failPipeline = new StreamPipelineBuilder<StreamTestContext, string>()
             .Use(new FixedStreamCircuitBreakerMiddleware<StreamTestContext, string>(3, TimeSpan.FromSeconds(10)))
             .Use(new StreamAlwaysFailMiddleware())
@@ -106,8 +98,7 @@ public sealed class StreamRateLimitAndCircuitBreakerTests
     }
 
     [Fact]
-    public async Task StreamCircuitBreaker_CooldownExpires_AllowsRetry()
-    {
+    public async Task StreamCircuitBreaker_CooldownExpires_AllowsRetry() {
         var pipeline = new StreamPipelineBuilder<StreamTestContext, string>()
             .Use(new FixedStreamCircuitBreakerMiddleware<StreamTestContext, string>(1, TimeSpan.FromMilliseconds(100)))
             .Use(new StreamAlwaysFailMiddleware())
@@ -127,42 +118,35 @@ public sealed class StreamRateLimitAndCircuitBreakerTests
 
     private static async Task<List<string>> CollectEventsAsync(
         StreamMiddlewarePipeline<StreamTestContext, string> pipeline,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var events = new List<string>();
-        await foreach (var evt in pipeline.ExecuteAsync(new StreamTestContext(), ct).ConfigureAwait(true))
-        {
+        await foreach (var evt in pipeline.ExecuteAsync(new StreamTestContext(), ct).ConfigureAwait(true)) {
             events.Add(evt);
         }
 
         return events;
     }
 
-    private sealed class StreamTestContext
-    {
+    private sealed class StreamTestContext {
         public List<string> Log { get; } = [];
     }
 
-    private sealed class StreamTrackingMiddleware(string label) : IStreamMiddleware<StreamTestContext, string>
-    {
+    private sealed class StreamTrackingMiddleware(string label) : IStreamMiddleware<StreamTestContext, string> {
         public ErrorBehavior OnError => ErrorBehavior.Continue;
 
         public async IAsyncEnumerable<string> InvokeAsync(
             StreamTestContext context,
             StreamMiddlewareDelegate<StreamTestContext, string> next,
-            [EnumeratorCancellation] CancellationToken ct)
-        {
+            [EnumeratorCancellation] CancellationToken ct) {
             context.Log.Add(label);
             yield return label;
-            await foreach (var evt in next(context, ct).ConfigureAwait(false))
-            {
+            await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
                 yield return evt;
             }
         }
     }
 
-    private sealed class StreamAlwaysFailMiddleware : IStreamMiddleware<StreamTestContext, string>
-    {
+    private sealed class StreamAlwaysFailMiddleware : IStreamMiddleware<StreamTestContext, string> {
 
         public IAsyncEnumerable<string> InvokeAsync(
             StreamTestContext context,

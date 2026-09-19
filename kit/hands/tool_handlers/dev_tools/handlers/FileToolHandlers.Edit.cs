@@ -1,7 +1,6 @@
 namespace Tools.Handlers;
 
-public partial class FileToolHandlers
-{
+public partial class FileToolHandlers {
     /// <summary>通过搜索替换编辑文件内容，经过统一写入防御链</summary>
     [McpTool(FileToolNameEnumConstants.FileEdit, "Edit file contents by search-and-replace", "file")]
     public async Task<ToolResult> FileEditAsync(
@@ -9,14 +8,12 @@ public partial class FileToolHandlers
         [McpToolParameter("String to replace (must match exactly)")] string old_string,
         [McpToolParameter("Replacement string")] string new_string,
         [McpToolParameter("Replace all occurrences, default false", Required = false, DefaultValue = "false")] bool replace_all = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // ── 参数校验 ──
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateStringLength(file_path, 4096, "file_path"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var validationDiag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
@@ -42,21 +39,16 @@ public partial class FileToolHandlers
 
         // ── 执行编辑 ──
         FileEditResult result;
-        try
-        {
+        try {
             result = await _fileOperationService.EditFileAsync(
                 file_path,
                 old_string,
                 new_string,
                 replace_all,
                 cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
             _logger?.LogError(ex, "FileEdit 调用抛出异常: {FilePath}", file_path);
             var exDiagnostic = ToolDiagnostic.Create("EditFailed",
@@ -66,8 +58,7 @@ public partial class FileToolHandlers
             return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
         }
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
             var builder = ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to edit file");
             if (result.Diagnostic is not null)
@@ -84,8 +75,7 @@ public partial class FileToolHandlers
 
         // 附加 structuredPatch 到 ToolResult — 对齐 TS FileEditTool 返回 structuredPatch
         var toolResult = ToolResultBuilder.Success().WithText(response).Build();
-        if (result.StructuredPatch.Any())
-        {
+        if (result.StructuredPatch.Any()) {
             toolResult.StructuredPatch = result.StructuredPatch.ToArray();
         }
 
@@ -101,10 +91,8 @@ public partial class FileToolHandlers
         [McpToolParameter("Regex pattern")] string pattern,
         [McpToolParameter("Replacement string")] string replacement,
         [McpToolParameter("Replace all matches, default true", Required = false, DefaultValue = "true")] bool replace_all = true,
-        CancellationToken cancellationToken = default)
-    {
-        if (_ctx.FileEditLogic == null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_ctx.FileEditLogic == null) {
             var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
         }
@@ -113,8 +101,7 @@ public partial class FileToolHandlers
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRequired(pattern, "pattern"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var validationDiag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
@@ -136,16 +123,11 @@ public partial class FileToolHandlers
 
         // ── 执行正则编辑 ──
         FileEditResult result;
-        try
-        {
+        try {
             result = await _ctx.FileEditLogic.EditWithRegexAsync(file_path, pattern, replacement, replace_all, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             RecordFileMetrics(FileOperationType.EditRegex, FileOperationResult.Failed);
             _logger?.LogError(ex, "FileEditRegex 调用抛出异常: {FilePath}", file_path);
             var exDiagnostic = ToolDiagnostic.Create("EditRegexFailed",
@@ -155,8 +137,7 @@ public partial class FileToolHandlers
             return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
         }
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             RecordFileMetrics(FileOperationType.EditRegex, FileOperationResult.Failed);
             var builder = ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Regex edit failed");
             if (result.Diagnostic is not null)
@@ -183,10 +164,8 @@ public partial class FileToolHandlers
         [McpToolParameter("File path, relative or absolute")] string file_path,
         [McpToolParameter("Line number after which to insert (0 for file beginning)")] int after_line,
         [McpToolParameter("New content to insert")] string new_content,
-        CancellationToken cancellationToken = default)
-    {
-        if (_ctx.FileEditLogic == null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_ctx.FileEditLogic == null) {
             var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
         }
@@ -196,8 +175,7 @@ public partial class FileToolHandlers
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRequired(new_content, "new_content"),
             ValidationHelper.ValidateRange(after_line, 0, int.MaxValue, "after_line"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var validationDiag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
@@ -219,16 +197,11 @@ public partial class FileToolHandlers
 
         // ── 执行插入行 ──
         FileLineEditResult result;
-        try
-        {
+        try {
             result = await _ctx.FileEditLogic.InsertLinesAfterAsync(file_path, after_line, new_content, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             RecordFileMetrics(FileOperationType.InsertLines, FileOperationResult.Failed);
             _logger?.LogError(ex, "FileInsertLines 调用抛出异常: {FilePath}", file_path);
             var exDiagnostic = ToolDiagnostic.Create("InsertLinesFailed",
@@ -238,8 +211,7 @@ public partial class FileToolHandlers
             return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
         }
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             RecordFileMetrics(FileOperationType.InsertLines, FileOperationResult.Failed);
             var builder = ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to insert lines");
             if (result.Diagnostic is not null)
@@ -266,10 +238,8 @@ public partial class FileToolHandlers
         [McpToolParameter("File path, relative or absolute")] string file_path,
         [McpToolParameter("Start line number (1-based)")] int start_line,
         [McpToolParameter("End line number (1-based)")] int end_line,
-        CancellationToken cancellationToken = default)
-    {
-        if (_ctx.FileEditLogic == null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_ctx.FileEditLogic == null) {
             var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
         }
@@ -279,8 +249,7 @@ public partial class FileToolHandlers
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRange(start_line, 1, int.MaxValue, "start_line"),
             ValidationHelper.ValidateRange(end_line, 1, int.MaxValue, "end_line"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var validationDiag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
@@ -301,16 +270,11 @@ public partial class FileToolHandlers
 
         // ── 执行删除行 ──
         FileLineEditResult result;
-        try
-        {
+        try {
             result = await _ctx.FileEditLogic.DeleteLinesAsync(file_path, start_line, end_line, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             RecordFileMetrics(FileOperationType.DeleteLines, FileOperationResult.Failed);
             _logger?.LogError(ex, "FileDeleteLines 调用抛出异常: {FilePath}", file_path);
             var exDiagnostic = ToolDiagnostic.Create("DeleteLinesFailed",
@@ -320,8 +284,7 @@ public partial class FileToolHandlers
             return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
         }
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             RecordFileMetrics(FileOperationType.DeleteLines, FileOperationResult.Failed);
             var builder = ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to delete lines");
             if (result.Diagnostic is not null)
@@ -357,32 +320,27 @@ public partial class FileToolHandlers
         [McpToolParameter("Replacement string")] string new_string,
         [McpToolParameter("List of file paths")] string[]? file_paths = null,
         [McpToolParameter("Replace all matches, default true", Required = false, DefaultValue = "true")] bool replace_all = true,
-        CancellationToken cancellationToken = default)
-    {
-        if (_ctx.FileEditLogic == null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_ctx.FileEditLogic == null) {
             var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
         }
 
         // ── 参数校验 ──
         var validationError = ValidationHelper.ValidateRequired(old_string, "old_string");
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var validationDiag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
 
-        if (file_paths == null || file_paths.Length == 0)
-        {
+        if (file_paths == null || file_paths.Length == 0) {
             var noPathsDiag = BuildFilePathRequiredDiagnostic();
             return ToolResultBuilder.Error().WithText(noPathsDiag.FormattedMessage).WithDiagnostic(noPathsDiag).Build();
         }
 
         // ── 统一写入防御链 — 对每个文件并行跑防御链，任一拒绝则该文件跳过编辑 ──
         var defenses = await Task.WhenAll(
-            file_paths.Select(async path =>
-            {
+            file_paths.Select(async path => {
                 var safety = await WriteDefense
                     .Begin(path, new_string, FileOperationType.BatchEdit, "batch-editing", old_string, new_string, replace_all)
                     .Then(_writeDefense.RejectUncPath)           // UNC 路径拒绝
@@ -409,18 +367,12 @@ public partial class FileToolHandlers
             .ToArray();
 
         List<BatchEditResult> results;
-        if (resolvedPaths.Length > 0)
-        {
-            try
-            {
+        if (resolvedPaths.Length > 0) {
+            try {
                 results = [.. await _ctx.FileEditLogic.BatchEditAsync(resolvedPaths, old_string, new_string, replace_all, cancellationToken).ConfigureAwait(false)];
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 throw;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 RecordFileMetrics(FileOperationType.BatchEdit, FileOperationResult.Failed);
                 _logger?.LogError(ex, "FileBatchEdit 调用抛出异常");
                 var exDiagnostic = ToolDiagnostic.Create("BatchEditFailed",
@@ -429,9 +381,7 @@ public partial class FileToolHandlers
                     ["检查文件权限、是否被其他进程锁定。"]);
                 return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
             }
-        }
-        else
-        {
+        } else {
             results = [];
         }
 
@@ -444,25 +394,20 @@ public partial class FileToolHandlers
         var failureCount = 0;
 
         // 防御被拒绝的文件
-        foreach (var (rejectedPath, rejection) in rejectedFiles)
-        {
+        foreach (var (rejectedPath, rejection) in rejectedFiles) {
             failureCount++;
             response.AppendLine($"  {StatusSymbol.Cross.ToValue()} {rejectedPath}: {rejection.Content}");
         }
 
         // 编辑执行结果
-        foreach (var item in results)
-        {
-            if (item.Result.Success)
-            {
+        foreach (var item in results) {
+            if (item.Result.Success) {
                 successCount++;
                 // ── 统一写入后通知（每个成功文件） ──
                 _writeDefense.NotifyWriteComplete(item.FilePath, null, "batch-edit", FileOperationType.BatchEdit);
                 var batchSize = ContentReplacementConstants.FormatFileSize(item.Result.UpdatedContent.Length);
                 response.AppendLine($"  {StatusSymbol.Tick.ToValue()} {item.FilePath} ({item.Result.ReplaceCount} replacement(s), {batchSize})");
-            }
-            else
-            {
+            } else {
                 failureCount++;
                 response.AppendLine($"  {StatusSymbol.Cross.ToValue()} {item.FilePath}: {item.Result.ErrorMessage}");
             }

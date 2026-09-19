@@ -5,8 +5,7 @@ namespace Infrastructure.Pipeline.Middlewares;
 /// 通用崩溃快照中间件 — 捕获管道异常自动记录 CrashSnapshot 后重新抛出
 /// 注册为管道第一个中间件（最外层），零侵入覆盖所有异常
 /// </summary>
-public sealed class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext>
-{
+public sealed class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext> {
     private readonly ICrashSnapshotStore _store;
     private readonly string _pipelineName;
     private readonly Func<TContext, CrashExecutionContext?>? _contextExtractor;
@@ -20,8 +19,7 @@ public sealed class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext>
     public CrashSnapshotMiddleware(
         ICrashSnapshotStore store,
         string pipelineName,
-        Func<TContext, CrashExecutionContext?>? contextExtractor = null)
-    {
+        Func<TContext, CrashExecutionContext?>? contextExtractor = null) {
         ArgumentException.ThrowIfNullOrEmpty(pipelineName);
         ArgumentNullException.ThrowIfNull(store);
 
@@ -41,15 +39,10 @@ public sealed class CrashSnapshotMiddleware<TContext> : IMiddleware<TContext>
     /// <param name="context">管道上下文</param>
     /// <param name="next">下一中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
-    {
-        try
-        {
+    public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct) {
+        try {
             await next(context, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             var execCtx = _contextExtractor?.Invoke(context)
                 ?? new CrashExecutionContext { OperationName = _pipelineName };
 

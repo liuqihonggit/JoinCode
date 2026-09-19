@@ -3,8 +3,7 @@ namespace Infrastructure.Subprocess;
 /// <summary>
 /// 弹性子进程 — 包装交互式进程，提供健康监控、自动重启、断路器与弹性通道读写能力
 /// </summary>
-public sealed class ResilientSubprocess : IAsyncDisposable
-{
+public sealed class ResilientSubprocess : IAsyncDisposable {
     private readonly SubprocessResiliencePolicy _policy;
     private readonly Func<CancellationToken, Task<IInteractiveProcess>> _spawnFunc;
     private readonly ILogger? _logger;
@@ -45,8 +44,7 @@ public sealed class ResilientSubprocess : IAsyncDisposable
         IInteractiveProcess process,
         Func<CancellationToken, Task<IInteractiveProcess>> spawnFunc,
         SubprocessResiliencePolicy policy,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         _process = process ?? throw new ArgumentNullException(nameof(process));
         _spawnFunc = spawnFunc ?? throw new ArgumentNullException(nameof(spawnFunc));
         _policy = policy ?? throw new ArgumentNullException(nameof(policy));
@@ -63,16 +61,13 @@ public sealed class ResilientSubprocess : IAsyncDisposable
         InitializeResilience();
     }
 
-    private void InitializeResilience()
-    {
-        if (_policy.HealthCheck.Interval > TimeSpan.Zero)
-        {
+    private void InitializeResilience() {
+        if (_policy.HealthCheck.Interval > TimeSpan.Zero) {
             _healthMonitor = new ProcessHealthMonitor(_process, _policy.HealthCheck, _logger);
             _healthMonitor.Unhealthy += OnProcessUnhealthy;
         }
 
-        if (_policy.MaxRestarts > 0)
-        {
+        if (_policy.MaxRestarts > 0) {
             _restartManager = new ProcessRestartManager(_policy.MaxRestarts, _logger);
             _restartManager.AfterRestart += OnProcessRestarted;
         }
@@ -85,8 +80,7 @@ public sealed class ResilientSubprocess : IAsyncDisposable
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步写入操作的任务</returns>
     public Task WriteStdinAsync(string data, CancellationToken ct = default) =>
-        _inputChannel.ExecuteAsync(async token =>
-        {
+        _inputChannel.ExecuteAsync(async token => {
             await _process.StandardInput.WriteAsync(data.AsMemory(), token).ConfigureAwait(false);
             await _process.StandardInput.FlushAsync(token).ConfigureAwait(false);
         }, ct);
@@ -105,10 +99,8 @@ public sealed class ResilientSubprocess : IAsyncDisposable
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <exception cref="InvalidOperationException">未配置重启策略时抛出</exception>
-    public async Task RestartAsync(CancellationToken ct = default)
-    {
-        if (_restartManager is null)
-        {
+    public async Task RestartAsync(CancellationToken ct = default) {
+        if (_restartManager is null) {
             throw new InvalidOperationException($"[INF041] [{_policy.Name}] 未配置重启");
         }
 
@@ -119,8 +111,7 @@ public sealed class ResilientSubprocess : IAsyncDisposable
 
         _process = newProcess;
 
-        if (_policy.HealthCheck.Interval > TimeSpan.Zero)
-        {
+        if (_policy.HealthCheck.Interval > TimeSpan.Zero) {
             _healthMonitor = new ProcessHealthMonitor(_process, _policy.HealthCheck, _logger);
             _healthMonitor.Unhealthy += OnProcessUnhealthy;
         }
@@ -131,34 +122,25 @@ public sealed class ResilientSubprocess : IAsyncDisposable
     /// <summary>
     /// 终止底层进程，异常被吞并并记录到日志
     /// </summary>
-    public void Kill()
-    {
-        try
-        {
+    public void Kill() {
+        try {
             _process.Kill();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ResilientSubprocess] 终止进程失败");
         }
     }
 
-    private void OnProcessUnhealthy(object? sender, ProcessUnhealthyEventArgs e)
-    {
+    private void OnProcessUnhealthy(object? sender, ProcessUnhealthyEventArgs e) {
         Unhealthy?.Invoke(this, e);
 
-        if (e.Action == UnhealthyAction.KillAndRestart && _restartManager is not null && _restartManager.CanRestart)
-        {
+        if (e.Action == UnhealthyAction.KillAndRestart && _restartManager is not null && _restartManager.CanRestart) {
             _ = RestartAsync(_disposeCts.Token);
-        }
-        else if (e.Action == UnhealthyAction.Kill)
-        {
+        } else if (e.Action == UnhealthyAction.Kill) {
             Kill();
         }
     }
 
-    private void OnProcessRestarted(object? sender, ProcessRestartedEventArgs e)
-    {
+    private void OnProcessRestarted(object? sender, ProcessRestartedEventArgs e) {
         Restarted?.Invoke(this, e);
     }
 
@@ -166,8 +148,7 @@ public sealed class ResilientSubprocess : IAsyncDisposable
     /// 异步释放资源 — 取消内部令牌、销毁健康监控、释放通道与底层进程
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _disposeCts.Cancel();

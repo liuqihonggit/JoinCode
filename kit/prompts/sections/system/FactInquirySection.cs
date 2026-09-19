@@ -5,13 +5,11 @@ namespace Core.Prompts.Sections;
 /// 关键词触发：帮/写/分析/总结/规划/设计/生成/制作/优化/重构/修复/实现
 /// </summary>
 [PromptSection(Name = "fact_inquiry", Keywords = new[] { "写一", "做一", "分析", "总结", "规划", "设计方案", "生成", "制作", "周报", "报告", "文档", "方案", "整理", "梳理", "analyze", "summarize", "plan", "generate", "report", "document", "帮我" }, InjectOn = PromptSectionInject.Keyword, Order = 82)]
-public static class FactInquirySection
-{
+public static class FactInquirySection {
     /// <summary>
     /// 事实追问规则提示词
     /// </summary>
-    public static string GetContent()
-    {
+    public static string GetContent() {
         return """
 # 事实完整性原则
 

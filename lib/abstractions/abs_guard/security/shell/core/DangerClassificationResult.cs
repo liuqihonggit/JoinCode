@@ -9,8 +9,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 public sealed record DangerClassificationResult(
     CommandDangerLevel Level,
     CommandRisk RiskType = CommandRisk.None,
-    string? Details = null)
-{
+    string? Details = null) {
     /// <summary>
     /// 是否需要拦截（非 Safe 级别都需要拦截）
     /// </summary>

@@ -6,8 +6,7 @@ namespace Core.Permission;
 /// Auto 模式: 根据风险类型返回拒绝/引导消息
 /// Ask 模式: 返回待确认，附带风险说明和建议
 /// </summary>
-public interface ICommandRiskHandler
-{
+public interface ICommandRiskHandler {
     /// <summary>
     /// 处理器负责的风险类型
     /// </summary>
@@ -31,8 +30,7 @@ public interface ICommandRiskHandler
 /// <summary>
 /// 命令风险上下文 — 描述检测到的风险操作详情
 /// </summary>
-public sealed record CommandRiskContext
-{
+public sealed record CommandRiskContext {
     /// <summary>
     /// 工具名称
     /// </summary>

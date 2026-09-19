@@ -11,8 +11,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - FromValue("ENTER") → PlanSubCommand.On (OrdinalIgnoreCase)
 /// - PlanSubCommand.Open.ToValue() → "open"
 /// </summary>
-public enum PlanSubCommand
-{
+public enum PlanSubCommand {
     /// <summary>进入计划模式</summary>
     [EnumValue("on")] On,
 

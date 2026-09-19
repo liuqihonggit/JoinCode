@@ -1,19 +1,16 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class ContextFoldSnipTests
-{
+public sealed class ContextFoldSnipTests {
     private const int CtxMax = 4000;
 
-    private static string BigResult(int length)
-    {
+    private static string BigResult(int length) {
         var sb = new StringBuilder();
         for (var i = 0; i < length; i++)
             sb.Append((char)('a' + i % 26));
         return sb.ToString();
     }
 
-    private static AppendOnlyLog LogWithStaleToolResult(int resultLength)
-    {
+    private static AppendOnlyLog LogWithStaleToolResult(int resultLength) {
         var log = new AppendOnlyLog();
         log.Append(new ApiMessage(MessageRole.User, "turn 1"));
         log.Append(new ApiMessage(MessageRole.Assistant, "tool call",
@@ -25,8 +22,7 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void Snip_StaleLargeToolResult_RewritesToPlaceholder()
-    {
+    public void Snip_StaleLargeToolResult_RewritesToPlaceholder() {
         var log = LogWithStaleToolResult(5000);
 
         var stats = ContextFoldDecider.SnipStaleToolResults(log, CtxMax);
@@ -40,8 +36,7 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void Snip_SkipsSmallToolResults()
-    {
+    public void Snip_SkipsSmallToolResults() {
         var log = LogWithStaleToolResult(200);
 
         var stats = ContextFoldDecider.SnipStaleToolResults(log, CtxMax);
@@ -51,8 +46,7 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void Snip_KeepsProtectedTailVerbatim()
-    {
+    public void Snip_KeepsProtectedTailVerbatim() {
         var log = new AppendOnlyLog();
         log.Append(new ApiMessage(MessageRole.User, "old turn"));
         log.Append(new ApiMessage(MessageRole.Assistant, "old tool call",
@@ -72,8 +66,7 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void Snip_IsIdempotent()
-    {
+    public void Snip_IsIdempotent() {
         var log = LogWithStaleToolResult(5000);
 
         var first = ContextFoldDecider.SnipStaleToolResults(log, CtxMax);
@@ -84,18 +77,15 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void Snip_KeepsToolCallPairingMetadata()
-    {
+    public void Snip_KeepsToolCallPairingMetadata() {
         var log = new AppendOnlyLog();
         log.Append(new ApiMessage(MessageRole.User, "turn 1"));
         log.Append(new ApiMessage(MessageRole.Assistant, "tool call",
-            new Dictionary<string, JsonElement>
-            {
+            new Dictionary<string, JsonElement> {
                 ["ToolCalls"] = JsonSerializer.SerializeToElement("[{\"Id\":\"call_1\",\"Name\":\"bash\"}]")
             }));
         var toolMsg = new ApiMessage(MessageRole.Tool, BigResult(5000),
-            new Dictionary<string, JsonElement>
-            {
+            new Dictionary<string, JsonElement> {
                 ["ToolName"] = JsonSerializer.SerializeToElement("bash"),
                 ["ToolCallId"] = JsonSerializer.SerializeToElement("call_1")
             });
@@ -109,8 +99,7 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void Snip_LineBranch_KeepsHeadAndTailLines()
-    {
+    public void Snip_LineBranch_KeepsHeadAndTailLines() {
         var lines = Enumerable.Range(0, 200)
             .Select(i => $"LINE_{i}_" + new string('x', 40));
         var content = string.Join("\n", lines);
@@ -126,8 +115,7 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void Snip_LineBranch_TrailingNewlineCountsNoEmptyLine()
-    {
+    public void Snip_LineBranch_TrailingNewlineCountsNoEmptyLine() {
         // 内容以 \n 结尾时，Split 会产生尾部空行；它不应被当作"最后一行"保留，
         // 否则 marker 出现冗余尾空行且 omitted 行数虚高
         var lines = Enumerable.Range(0, 100)
@@ -143,8 +131,7 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void Snip_LastMessageHuge_StillSnipsEarlierStale()
-    {
+    public void Snip_LastMessageHuge_StillSnipsEarlierStale() {
         // 当最后一条消息单独超预算时，ComputeTailBoundary 返回 0（整个日志视为保护区）。
         // 但剪裁仍应保留最近一小段（对齐 Go tailStart 的 minKeep 下限），
         // 剪掉更早的过期大工具结果，否则最后一条巨大时前面再也无法瘦身。
@@ -167,8 +154,7 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void Snip_SkipsWhenRewriteIsNotShorter()
-    {
+    public void Snip_SkipsWhenRewriteIsNotShorter() {
         // 81 行×~40 字符：只略超 40+40 行阈值，保留 80 行 + 2 个 marker 反而比原文更长。
         // 剪裁必须承诺严格变短，否则跳过（避免上下文膨胀与负 SavedChars）。
         var lines = Enumerable.Repeat(new string('b', 40), 81);
@@ -182,16 +168,14 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void Snip_SkipsMultimodalToolResults()
-    {
+    public void Snip_SkipsMultimodalToolResults() {
         // Bash 图片/二进制工具结果带 ContentBlocks，剪裁只改文本会静默丢失多模态块并破坏配对
         var log = new AppendOnlyLog();
         log.Append(new ApiMessage(MessageRole.User, "turn 1"));
         log.Append(new ApiMessage(MessageRole.Assistant, "tool call",
             new Dictionary<string, JsonElement> { ["ToolCalls"] = JsonSerializer.SerializeToElement("[]") }));
         log.Append(new ApiMessage(MessageRole.Tool, BigResult(5000),
-            new Dictionary<string, JsonElement> { ["ToolName"] = JsonSerializer.SerializeToElement("bash") })
-        {
+            new Dictionary<string, JsonElement> { ["ToolName"] = JsonSerializer.SerializeToElement("bash") }) {
             ContentBlocks = [new ToolContent { Type = ToolContentType.Image }]
         });
         log.Append(new ApiMessage(MessageRole.User, "recent follow-up"));
@@ -204,8 +188,7 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void Snip_KeepsModelAndUsageMetadata()
-    {
+    public void Snip_KeepsModelAndUsageMetadata() {
         var log = new AppendOnlyLog();
         log.Append(new ApiMessage(MessageRole.User, "turn 1"));
         log.Append(new ApiMessage(MessageRole.Assistant, "tool call",
@@ -224,16 +207,14 @@ public sealed class ContextFoldSnipTests
     }
 
     [Fact]
-    public void ToMessages_RoundTripsMultimodalFields()
-    {
+    public void ToMessages_RoundTripsMultimodalFields() {
         // 回归守卫：AppendOnlyLog.ToMessages 必须无损拷贝，否则剪裁判定会丢失
         // ContentBlocks/ModelId/TokenUsage（曾导致多模态结果被误剪、配对损坏）
         var log = new AppendOnlyLog();
         log.Append(new ApiMessage(MessageRole.Tool, "result",
             new Dictionary<string, JsonElement> { ["ToolName"] = JsonSerializer.SerializeToElement("bash") },
             modelId: "gpt-4o",
-            tokenUsage: new TokenUsage { PromptTokens = 1 })
-        {
+            tokenUsage: new TokenUsage { PromptTokens = 1 }) {
             ContentBlocks = [new ToolContent { Type = ToolContentType.Image }]
         });
 
@@ -244,8 +225,7 @@ public sealed class ContextFoldSnipTests
         snapshot[0].TokenUsage.Should().NotBeNull();
     }
 
-    private static AppendOnlyLog BuildToolResult(string content)
-    {
+    private static AppendOnlyLog BuildToolResult(string content) {
         var log = new AppendOnlyLog();
         log.Append(new ApiMessage(MessageRole.User, "turn 1"));
         log.Append(new ApiMessage(MessageRole.Assistant, "tool call",

@@ -4,8 +4,7 @@ namespace McpToolRegistry;
 /// <summary>
 /// 远程同步操作类型
 /// </summary>
-public enum RemoteSyncOperation
-{
+public enum RemoteSyncOperation {
     /// <summary>工具同步</summary>
     [EnumValue("tools")]
     Tools,
@@ -20,8 +19,7 @@ public enum RemoteSyncOperation
 /// <summary>
 /// 远程同步管道共享上下文 — 在中间件各阶段间传递状态
 /// </summary>
-public sealed class RemoteSyncContext : IPipelineContext
-{
+public sealed class RemoteSyncContext : IPipelineContext {
     // === 输入 ===
 
     /// <summary>客户端 ID</summary>
@@ -75,8 +73,7 @@ public sealed class RemoteSyncContext : IPipelineContext
 
     bool IPipelineContext.Failed { get; set; }
     string? IPipelineContext.ErrorMessage { get; set; }
-    void IPipelineContext.Fail(string message)
-    {
+    void IPipelineContext.Fail(string message) {
         ((IPipelineContext)this).Failed = true;
         ((IPipelineContext)this).ErrorMessage = message;
         Success = false;

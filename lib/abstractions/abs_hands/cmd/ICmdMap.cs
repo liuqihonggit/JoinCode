@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Cmd;
 /// <summary>
 /// 统一命令门面接口 — 归纳斜杠命令注册表和 MCP 工具注册表，提供统一查询和执行入口
 /// </summary>
-public interface ICmdMap
-{
+public interface ICmdMap {
     /// <summary>
     /// 解析命令名称 — 先查斜杠，再查 MCP（斜杠优先，避免重名时 MCP 覆盖用户命令）
     /// </summary>

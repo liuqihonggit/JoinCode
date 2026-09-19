@@ -1,8 +1,6 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class JsonSerializerAotRules : DiagnosticAnalyzer
-    {
+    public sealed class JsonSerializerAotRules : DiagnosticAnalyzer {
         private static readonly DiagnosticDescriptor RuleSerializerMissingTypeInfo = new(
             "JCC1011",
             "AOT incompatible: JsonSerializer call missing JsonTypeInfo parameter",
@@ -36,22 +34,19 @@ namespace AotSafety.Generator
             "SerializeToDocument", "SerializeToNode",
         };
 
-        private static bool IsJsonSerializerType(INamedTypeSymbol? type)
-        {
+        private static bool IsJsonSerializerType(INamedTypeSymbol? type) {
             if (type is null) return false;
             var name = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             return name is "global::System.Text.Json.JsonSerializer" or "System.Text.Json.JsonSerializer";
         }
 
-        private static bool IsJsonSerializerOptionsType(ITypeSymbol? type)
-        {
+        private static bool IsJsonSerializerOptionsType(ITypeSymbol? type) {
             if (type is null) return false;
             var name = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             return name is "global::System.Text.Json.JsonSerializerOptions" or "System.Text.Json.JsonSerializerOptions";
         }
 
-        public override void Initialize(AnalysisContext context)
-        {
+        public override void Initialize(AnalysisContext context) {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
@@ -59,8 +54,7 @@ namespace AotSafety.Generator
             context.RegisterSyntaxNodeAction(AnalyzeImplicitObjectCreation, SyntaxKind.ImplicitObjectCreationExpression);
         }
 
-        private static void AnalyzeInvocation(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeInvocation(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not InvocationExpressionSyntax invocation) return;
@@ -87,16 +81,14 @@ namespace AotSafety.Generator
                 method.Name));
         }
 
-        private static void AnalyzeObjectCreation(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeObjectCreation(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not ObjectCreationExpressionSyntax creation) return;
 
             var typeSymbol = ctx.SemanticModel.GetTypeInfo(creation.Type, ctx.CancellationToken).Type;
 
-            if (typeSymbol is null)
-            {
+            if (typeSymbol is null) {
                 var ctorSymbol = ctx.SemanticModel.GetSymbolInfo(creation, ctx.CancellationToken).Symbol;
                 if (ctorSymbol is IMethodSymbol ctor)
                     typeSymbol = ctor.ContainingType;
@@ -120,8 +112,7 @@ namespace AotSafety.Generator
                 details));
         }
 
-        private static void AnalyzeImplicitObjectCreation(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeImplicitObjectCreation(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not ImplicitObjectCreationExpressionSyntax creation) return;
@@ -146,10 +137,8 @@ namespace AotSafety.Generator
                 details));
         }
 
-        private static bool HasJsonTypeInfoParameter(IMethodSymbol method)
-        {
-            foreach (var param in method.Parameters)
-            {
+        private static bool HasJsonTypeInfoParameter(IMethodSymbol method) {
+            foreach (var param in method.Parameters) {
                 var paramType = param.Type;
                 if (paramType is null) continue;
 
@@ -167,22 +156,18 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsInsideTestCode(SyntaxNode node)
-        {
+        private static bool IsInsideTestCode(SyntaxNode node) {
             return AotSafetyHelpers.IsInsideTestMethod(node);
         }
 
-        private static bool IsJsonElementOnlySerializeToElement(IMethodSymbol method, InvocationExpressionSyntax invocation)
-        {
+        private static bool IsJsonElementOnlySerializeToElement(IMethodSymbol method, InvocationExpressionSyntax invocation) {
             if (method.Name != "SerializeToElement") return false;
 
             if (method.Parameters.Length == 0) return false;
 
-            if (method.IsGenericMethod)
-            {
+            if (method.IsGenericMethod) {
                 var typeArgs = method.TypeArguments;
-                if (typeArgs.Length > 0)
-                {
+                if (typeArgs.Length > 0) {
                     var firstTypeArg = typeArgs[0];
                     var fullName = firstTypeArg.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
@@ -210,35 +195,28 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool UsesOptionsWithResolver(InvocationExpressionSyntax invocation, SyntaxNodeAnalysisContext ctx)
-        {
-            foreach (var arg in invocation.ArgumentList.Arguments)
-            {
+        private static bool UsesOptionsWithResolver(InvocationExpressionSyntax invocation, SyntaxNodeAnalysisContext ctx) {
+            foreach (var arg in invocation.ArgumentList.Arguments) {
                 var argSymbol = ctx.SemanticModel.GetSymbolInfo(arg.Expression, ctx.CancellationToken).Symbol;
 
-                if (argSymbol is IPropertySymbol property)
-                {
-                    if (IsJsonSerializerOptionsType(property.ContainingType))
-                    {
+                if (argSymbol is IPropertySymbol property) {
+                    if (IsJsonSerializerOptionsType(property.ContainingType)) {
                         if (property.Name == "TypeInfoResolver")
                             return true;
                     }
                 }
 
-                if (argSymbol is ILocalSymbol local)
-                {
+                if (argSymbol is ILocalSymbol local) {
                     if (IsJsonSerializerOptionsType(local.Type))
                         return true;
                 }
 
-                if (argSymbol is IParameterSymbol param)
-                {
+                if (argSymbol is IParameterSymbol param) {
                     if (IsJsonSerializerOptionsType(param.Type))
                         return true;
                 }
 
-                if (argSymbol is IFieldSymbol field)
-                {
+                if (argSymbol is IFieldSymbol field) {
                     if (IsJsonSerializerOptionsType(field.Type))
                         return true;
                 }
@@ -247,12 +225,9 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool HasTypeInfoResolverInitializer(ObjectCreationExpressionSyntax creation)
-        {
-            foreach (var initializer in creation.Initializer?.Expressions ?? [])
-            {
-                if (initializer is AssignmentExpressionSyntax assignment)
-                {
+        private static bool HasTypeInfoResolverInitializer(ObjectCreationExpressionSyntax creation) {
+            foreach (var initializer in creation.Initializer?.Expressions ?? []) {
+                if (initializer is AssignmentExpressionSyntax assignment) {
                     var left = assignment.Left.ToString().Trim();
                     if (left == "TypeInfoResolver")
                         return true;
@@ -262,15 +237,13 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool InheritsFromContextOptions(ObjectCreationExpressionSyntax creation, SyntaxNodeAnalysisContext ctx)
-        {
+        private static bool InheritsFromContextOptions(ObjectCreationExpressionSyntax creation, SyntaxNodeAnalysisContext ctx) {
             if (creation.ArgumentList is null || creation.ArgumentList.Arguments.Count == 0) return false;
 
             var firstArg = creation.ArgumentList.Arguments[0].Expression;
             var argSymbol = ctx.SemanticModel.GetSymbolInfo(firstArg, ctx.CancellationToken).Symbol;
 
-            if (argSymbol is IPropertySymbol prop)
-            {
+            if (argSymbol is IPropertySymbol prop) {
                 if (IsJsonSerializerOptionsType(prop.ContainingType))
                     return true;
 
@@ -283,19 +256,15 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static string ExtractOptionsDetails(ObjectCreationExpressionSyntax creation)
-        {
+        private static string ExtractOptionsDetails(ObjectCreationExpressionSyntax creation) {
             var props = new List<string>();
-            foreach (var initializer in creation.Initializer?.Expressions ?? [])
-            {
-                if (initializer is AssignmentExpressionSyntax assignment)
-                {
+            foreach (var initializer in creation.Initializer?.Expressions ?? []) {
+                if (initializer is AssignmentExpressionSyntax assignment) {
                     props.Add(assignment.Left.ToString().Trim());
                 }
             }
 
-            if (creation.ArgumentList is not null && creation.ArgumentList.Arguments.Count > 0)
-            {
+            if (creation.ArgumentList is not null && creation.ArgumentList.Arguments.Count > 0) {
                 var firstArg = creation.ArgumentList.Arguments[0].ToString().Trim();
                 if (!string.IsNullOrEmpty(firstArg))
                     props.Insert(0, $"从 {firstArg} 继承");
@@ -304,12 +273,9 @@ namespace AotSafety.Generator
             return props.Count > 0 ? string.Join(", ", props) : "无初始化器";
         }
 
-        private static bool HasTypeInfoResolverInitializerForImplicit(ImplicitObjectCreationExpressionSyntax creation)
-        {
-            foreach (var initializer in creation.Initializer?.Expressions ?? [])
-            {
-                if (initializer is AssignmentExpressionSyntax assignment)
-                {
+        private static bool HasTypeInfoResolverInitializerForImplicit(ImplicitObjectCreationExpressionSyntax creation) {
+            foreach (var initializer in creation.Initializer?.Expressions ?? []) {
+                if (initializer is AssignmentExpressionSyntax assignment) {
                     var left = assignment.Left.ToString().Trim();
                     if (left == "TypeInfoResolver")
                         return true;
@@ -319,19 +285,15 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static string ExtractImplicitOptionsDetails(ImplicitObjectCreationExpressionSyntax creation)
-        {
+        private static string ExtractImplicitOptionsDetails(ImplicitObjectCreationExpressionSyntax creation) {
             var props = new List<string>();
-            foreach (var initializer in creation.Initializer?.Expressions ?? [])
-            {
-                if (initializer is AssignmentExpressionSyntax assignment)
-                {
+            foreach (var initializer in creation.Initializer?.Expressions ?? []) {
+                if (initializer is AssignmentExpressionSyntax assignment) {
                     props.Add(assignment.Left.ToString().Trim());
                 }
             }
 
-            if (creation.ArgumentList.Arguments.Count > 0)
-            {
+            if (creation.ArgumentList.Arguments.Count > 0) {
                 var firstArg = creation.ArgumentList.Arguments[0].ToString().Trim();
                 if (!string.IsNullOrEmpty(firstArg))
                     props.Insert(0, $"从 {firstArg} 继承");

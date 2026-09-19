@@ -5,8 +5,7 @@ namespace Api.LLM.QueryServices;
 /// 不发起任何真实 API 请求；所有方法抛 NotSupportedException
 /// 真实场景请通过 QueryServiceFactory 创建对应派生类
 /// </summary>
-internal sealed class EmptyQueryService : IQueryService
-{
+internal sealed class EmptyQueryService : IQueryService {
     public Task<IReadOnlyList<ApiMessage>> GetApiMessageContentsAsync(
         MessageList chatHistory,
         ChatOptions? executionSettings = null,

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// 文件读取工具提示词
 /// </summary>
 [ToolPrompt(ToolName = FileToolName.FileRead, Category = ToolPromptCategory.File)]
-public static class FileReadToolPrompt
-{
+public static class FileReadToolPrompt {
     public const int MaxLinesToRead = 2000;
 
     public static string GetDescription() => $"""

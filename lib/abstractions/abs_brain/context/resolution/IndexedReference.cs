@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Brain.Context.Resolution;
 
-public sealed record IndexedReference
-{
+public sealed record IndexedReference {
     public required string Path { get; init; }
 
     public required string FileType { get; init; }
@@ -18,8 +17,7 @@ public sealed record IndexedReference
         IEnumerable<string> keywords,
         DateTimeOffset lastModified,
         long fileSize)
-        => new()
-        {
+        => new() {
             Path = path,
             FileType = fileType,
             Keywords = keywords.ToList(),

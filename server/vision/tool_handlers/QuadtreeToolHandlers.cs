@@ -6,8 +6,7 @@ namespace JoinCode.Vision.ToolHandlers;
 /// 编码：数字点分路径 L0.2.1，象限序 SW=0/SE=1/NW=2/NE=3（左下起算）
 /// </summary>
 [McpToolDispatch(ToolCategory.Vision)]
-public class QuadtreeToolHandlers
-{
+public class QuadtreeToolHandlers {
     private readonly IQuadtreeAnnotator _annotator;
     private readonly IQuadtreeRenderer _renderer;
     private readonly ILogger<QuadtreeToolHandlers>? _logger;
@@ -21,8 +20,7 @@ public class QuadtreeToolHandlers
     public QuadtreeToolHandlers(
         IQuadtreeAnnotator annotator,
         IQuadtreeRenderer renderer,
-        ILogger<QuadtreeToolHandlers>? logger = null)
-    {
+        ILogger<QuadtreeToolHandlers>? logger = null) {
         _annotator = annotator ?? throw new ArgumentNullException(nameof(annotator));
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _logger = logger;
@@ -37,8 +35,7 @@ public class QuadtreeToolHandlers
     public Task<ToolResult> QuadtreeBuildAsync(
         [McpToolParameter("图片 base64 PNG/JPG 编码", Required = true)] string imageBase64,
         [McpToolParameter("四叉树层数（1=4格, 2=16格, 3=64格），默认2", Required = false)] int depth = 2,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(imageBase64))
             return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS100] imageBase64 不能为空").Build());
         if (depth < 0)
@@ -65,8 +62,7 @@ public class QuadtreeToolHandlers
         [McpToolParameter("要聚焦的格子编码（如 L0.2.1）", Required = true)] string cellCode,
         [McpToolParameter("源格子所在的四叉树层数", Required = true)] int sourceDepth,
         [McpToolParameter("子图新网格层数，默认2", Required = false)] int targetDepth = 2,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(imageBase64))
             return ToolResultBuilder.Error().WithText("[VIS110] imageBase64 不能为空").Build();
         if (string.IsNullOrWhiteSpace(cellCode))
@@ -76,12 +72,9 @@ public class QuadtreeToolHandlers
             return ToolResultBuilder.Error().WithText($"[VIS113] {dimError}").Build();
 
         QuadtreeZoomResult zoomResult;
-        try
-        {
+        try {
             zoomResult = await _renderer.ZoomAsync(imageBase64, cellCode, width, height, sourceDepth, targetDepth, ct).ConfigureAwait(false);
-        }
-        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS112]", StringComparison.Ordinal) || ex.Message.StartsWith("[VIS013]", StringComparison.Ordinal))
-        {
+        } catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS112]", StringComparison.Ordinal) || ex.Message.StartsWith("[VIS013]", StringComparison.Ordinal)) {
             return ToolResultBuilder.Error().WithText(ex.Message).Build();
         }
         var text = FormatGrid(zoomResult.Grid, $"聚焦格子 {cellCode} → 子图 {zoomResult.Grid.ImageWidth}x{zoomResult.Grid.ImageHeight}");
@@ -105,20 +98,16 @@ public class QuadtreeToolHandlers
         [McpToolParameter("原图高度（像素）", Required = true)] int imageHeight,
         [McpToolParameter("四叉树层数", Required = true)] int depth,
         [McpToolParameter("染色映射JSON: {\"格子编码\":alpha}，alpha范围0..1", Required = true)] string paintsJson,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (imageWidth <= 0 || imageHeight <= 0)
             return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS120] 图片尺寸必须为正").Build());
         if (string.IsNullOrWhiteSpace(paintsJson))
             return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS121] paintsJson 不能为空").Build());
 
         Dictionary<string, double>? paints;
-        try
-        {
+        try {
             paints = RelaxedJsonSerializer.Deserialize(paintsJson, VisionJsonContext.Default.DictionaryStringDouble);
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS122] paintsJson 解析失败或为空").Build());
         }
         if (paints is null || paints.Count == 0)
@@ -145,8 +134,7 @@ public class QuadtreeToolHandlers
         [McpToolParameter("原图高度（像素）", Required = true)] int imageHeight,
         [McpToolParameter("四叉树层数", Required = true)] int depth,
         [McpToolParameter("染色映射JSON（可选），不传则显示全部网格线", Required = false)] string? paintsJson = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(imageBase64))
             return ToolResultBuilder.Error().WithText("[VIS130] imageBase64 不能为空").Build();
         if (imageWidth <= 0 || imageHeight <= 0)
@@ -154,22 +142,16 @@ public class QuadtreeToolHandlers
 
         var grid = _annotator.BuildGrid(imageWidth, imageHeight, depth);
 
-        if (!string.IsNullOrWhiteSpace(paintsJson))
-        {
+        if (!string.IsNullOrWhiteSpace(paintsJson)) {
             Dictionary<string, double>? paints;
-            try
-            {
+            try {
                 paints = RelaxedJsonSerializer.Deserialize(paintsJson, VisionJsonContext.Default.DictionaryStringDouble);
-            }
-            catch (JsonException)
-            {
+            } catch (JsonException) {
                 return ToolResultBuilder.Error().WithText("[VIS132] paintsJson 解析失败").Build();
             }
             if (paints is not null && paints.Count > 0)
                 grid = _annotator.PaintCells(grid, paints);
-        }
-        else
-        {
+        } else {
             var defaultPaints = new Dictionary<string, double>(grid.Cells.Count);
             foreach (var cell in grid.Cells)
                 defaultPaints[cell.Code] = 0.3;
@@ -177,12 +159,9 @@ public class QuadtreeToolHandlers
         }
 
         QuadtreeRenderResult renderResult;
-        try
-        {
+        try {
             renderResult = await _renderer.RenderAsync(imageBase64, grid, ct).ConfigureAwait(false);
-        }
-        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS020]", StringComparison.Ordinal))
-        {
+        } catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS020]", StringComparison.Ordinal)) {
             return ToolResultBuilder.Error().WithText(ex.Message).Build();
         }
 
@@ -207,8 +186,7 @@ public class QuadtreeToolHandlers
         [McpToolParameter("原图宽度（像素）", Required = true)] int imageWidth,
         [McpToolParameter("原图高度（像素）", Required = true)] int imageHeight,
         [McpToolParameter("四叉树层数", Required = true)] int depth,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(cellCode))
             return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS140] cellCode 不能为空").Build());
 
@@ -239,8 +217,7 @@ public class QuadtreeToolHandlers
         [McpToolParameter("原图宽度（像素）", Required = true)] int imageWidth,
         [McpToolParameter("原图高度（像素）", Required = true)] int imageHeight,
         [McpToolParameter("四叉树层数", Required = true)] int depth,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(imageBase64))
             return ToolResultBuilder.Error().WithText("[VIS150] imageBase64 不能为空").Build();
         if (string.IsNullOrWhiteSpace(cellCode))
@@ -251,12 +228,9 @@ public class QuadtreeToolHandlers
         var paintedGrid = _annotator.PaintCells(grid, paints);
 
         QuadtreeRenderResult renderResult;
-        try
-        {
+        try {
             renderResult = await _renderer.RenderAsync(imageBase64, paintedGrid, ct).ConfigureAwait(false);
-        }
-        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS020]", StringComparison.Ordinal))
-        {
+        } catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS020]", StringComparison.Ordinal)) {
             return ToolResultBuilder.Error().WithText(ex.Message).Build();
         }
 
@@ -267,17 +241,14 @@ public class QuadtreeToolHandlers
     }
 
     /// <summary>从 base64 解码图片获取尺寸 — 容错版，失败返回 false + 错误描述</summary>
-    private static bool TryGetImageDimensions(string imageBase64, out int width, out int height, out string error)
-    {
-        if (!VisionBase64.TryDecode(imageBase64, out var bytes, out error))
-        {
+    private static bool TryGetImageDimensions(string imageBase64, out int width, out int height, out string error) {
+        if (!VisionBase64.TryDecode(imageBase64, out var bytes, out error)) {
             width = 0;
             height = 0;
             return false;
         }
         using var bitmap = SKBitmap.Decode(bytes);
-        if (bitmap is null)
-        {
+        if (bitmap is null) {
             width = 0;
             height = 0;
             error = "无法解码图片，请检查 base64 编码";
@@ -290,8 +261,7 @@ public class QuadtreeToolHandlers
     }
 
     /// <summary>格式化网格为可读文本 — 供 LLM 理解格子布局</summary>
-    private static string FormatGrid(QuadtreeGrid grid, string title)
-    {
+    private static string FormatGrid(QuadtreeGrid grid, string title) {
         var size = 1 << grid.Depth;
         var sb = new StringBuilder(256 + grid.Cells.Count * 80);
         sb.AppendLine(title);
@@ -299,8 +269,7 @@ public class QuadtreeToolHandlers
         sb.AppendLine($"四叉树层数: {grid.Depth} ({size}x{size} = {grid.Cells.Count} 格)");
         sb.AppendLine();
         sb.AppendLine("格子列表:");
-        foreach (var cell in grid.Cells)
-        {
+        foreach (var cell in grid.Cells) {
             var alphaStr = cell.Alpha <= -1 ? "-" : cell.Alpha.ToString("F2", CultureInfo.InvariantCulture);
             sb.Append("  ").Append(cell.Code).Append(" [").Append(cell.Quadrant.ToValue()).Append("] ");
             sb.Append(cell.Region is not null ? cell.Region : "").Append(' ', 4);

@@ -1,11 +1,9 @@
 
 namespace Bridge.Tests.Phase7B;
 
-public sealed class BridgeWorkSecretTests
-{
+public sealed class BridgeWorkSecretTests {
     [Fact]
-    public void DecodeWorkSecret_ValidBase64Url_ReturnsSecret()
-    {
+    public void DecodeWorkSecret_ValidBase64Url_ReturnsSecret() {
         var json = """{"version":1,"session_ingress_token":"tok123","api_base_url":"https://api.example.com","sources":[{"type":"git","git_info":{"repo":"https://github.com/test","ref":"main"}}]}""";
         var base64Url = ToBase64UrlString(System.Text.Encoding.UTF8.GetBytes(json));
 
@@ -21,28 +19,24 @@ public sealed class BridgeWorkSecretTests
     }
 
     [Fact]
-    public void DecodeWorkSecret_InvalidBase64_ThrowsException()
-    {
+    public void DecodeWorkSecret_InvalidBase64_ThrowsException() {
         Assert.ThrowsAny<Exception>(() => BridgeWorkSecretDecoder.DecodeWorkSecret("not-valid-base64!!!"));
     }
 
     [Fact]
-    public void BuildSdkUrl_ReturnsCorrectUrl()
-    {
+    public void BuildSdkUrl_ReturnsCorrectUrl() {
         var url = BridgeWorkSecretDecoder.BuildSdkUrl("https://api.example.com", "env123");
         Assert.Contains("env123", url);
         Assert.Contains("api.example.com", url);
     }
 
     [Fact]
-    public void BuildCCRv2SdkUrl_ReturnsCorrectUrl()
-    {
+    public void BuildCCRv2SdkUrl_ReturnsCorrectUrl() {
         var url = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl("https://api2.example.com", "env456");
         Assert.Contains("env456", url);
     }
 
-    private static string ToBase64UrlString(byte[] bytes)
-    {
+    private static string ToBase64UrlString(byte[] bytes) {
         return Convert.ToBase64String(bytes)
             .Replace('+', '-')
             .Replace('/', '_')

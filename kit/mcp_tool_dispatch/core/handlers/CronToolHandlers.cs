@@ -5,19 +5,17 @@ namespace McpToolDispatch;
 /// 定时任务工具处理器 — 提供 cron 表达式驱动的定时任务创建、列表、删除和校验能力
 /// </summary>
 [McpToolDispatch(ToolCategory.Cron)]
-public class CronToolHandlers
-{
+public class CronToolHandlers {
     private const int MaxTasks = 50;
 
     private static readonly string[] CommonCronPatterns =
-    new[] { 
+    new[] {
         CronPresetEnumConstants.Every5Minutes, CronPresetEnumConstants.Every15Minutes, CronPresetEnumConstants.Every30Minutes,
         CronPresetEnumConstants.EveryHour, CronPresetEnumConstants.Every6Hours, CronPresetEnumConstants.EveryDayAt9,
         CronPresetEnumConstants.EveryWeekdayAt9, CronPresetEnumConstants.EveryDayAtMidnight
      };
 
-    private static readonly FrozenDictionary<string, string> CronHumanMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly FrozenDictionary<string, string> CronHumanMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
         [CronPresetEnumConstants.Every5Minutes] = "every 5 minutes",
         [CronPresetEnumConstants.Every10Minutes] = "every 10 minutes",
         [CronPresetEnumConstants.Every15Minutes] = "every 15 minutes",
@@ -44,8 +42,7 @@ public class CronToolHandlers
     /// <param name="schedulerRef">调度器引用，用于创建/删除任务后通知刷新（可选）</param>
     /// <param name="subAgentContextAccessor">子代理上下文访问器，用于获取当前 teammate 的 agentId（可选）</param>
     /// <param name="clock">时钟服务，用于计算下次运行时间（可选，默认系统时钟）</param>
-    public CronToolHandlers(ICronTaskStore taskStore, ICronSchedulerRef? schedulerRef = null, ISubAgentContextAccessor? subAgentContextAccessor = null, IClockService? clock = null)
-    {
+    public CronToolHandlers(ICronTaskStore taskStore, ICronSchedulerRef? schedulerRef = null, ISubAgentContextAccessor? subAgentContextAccessor = null, IClockService? clock = null) {
         _taskStore = taskStore ?? throw new ArgumentNullException(nameof(taskStore));
         _schedulerRef = schedulerRef;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
@@ -67,17 +64,14 @@ public class CronToolHandlers
         [McpToolParameter("The prompt/instruction to execute when the task fires")] string prompt,
         [McpToolParameter("Whether this is a recurring task (default: true). Set to false for one-shot tasks.", Required = false)] bool? recurring = true,
         [McpToolParameter("Whether to persist the task to disk (default: false). Session-only tasks are lost when the session ends.", Required = false)] bool? durable = false,
-        CancellationToken cancellationToken = default)
-    {
-        if (!CronExpressionParser.IsValid(cron))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!CronExpressionParser.IsValid(cron)) {
             return ToolResultBuilder.Error()
                 .WithText($"Invalid cron expression: {cron}\nFormat: minute hour day month weekday\nExamples: \"0 9 * * *\" (daily 9am), \"0 */6 * * *\" (every 6h), \"0 9 * * 1-5\" (weekdays 9am)")
                 .Build();
         }
 
-        if (string.IsNullOrWhiteSpace(prompt))
-        {
+        if (string.IsNullOrWhiteSpace(prompt)) {
             return ToolResultBuilder.Error()
                 .WithText("prompt cannot be empty")
                 .Build();
@@ -88,31 +82,27 @@ public class CronToolHandlers
 
         // 对齐 TS: teammate 不允许创建 durable 任务 — teammate 不跨会话持久化
         var agentId = _subAgentContextAccessor.Current?.AgentId;
-        if (agentId is not null && isDurable)
-        {
+        if (agentId is not null && isDurable) {
             return ToolResultBuilder.Error()
                 .WithText("Sub-agents cannot create durable (persisted) cron tasks. Durable tasks persist across sessions but sub-agents do not.")
                 .Build();
         }
 
         var nextRun = CronJitterHelper.NextCronRunMs(cron, _clock.GetUtcNowOffset().ToUnixTimeMilliseconds());
-        if (nextRun == null)
-        {
+        if (nextRun == null) {
             return ToolResultBuilder.Error()
                 .WithText($"Cron expression \"{cron}\" does not match any date in the next year. Please verify the expression is correct.")
                 .Build();
         }
 
         var existingTasks = await _taskStore.GetAllTasksAsync(cancellationToken).ConfigureAwait(false);
-        if (existingTasks.Count >= MaxTasks)
-        {
+        if (existingTasks.Count >= MaxTasks) {
             return ToolResultBuilder.Error()
                 .WithText($"Maximum number of scheduled tasks reached ({MaxTasks}). Delete existing tasks before creating new ones.")
                 .Build();
         }
 
-        var request = new CreateCronTaskRequest
-        {
+        var request = new CreateCronTaskRequest {
             CronExpression = cron,
             Prompt = prompt,
             IsRecurring = isRecurring,
@@ -129,22 +119,17 @@ public class CronToolHandlers
         var response = new StringBuilder();
         response.Append($"Created scheduled task {task.Id}: {humanSchedule} ({(isRecurring ? "recurring" : "one-shot")})");
 
-        if (isDurable)
-        {
+        if (isDurable) {
             response.Append(" [persisted to disk]");
-        }
-        else
-        {
+        } else {
             response.Append(" [session-only]");
         }
 
-        if (agentId is not null)
-        {
+        if (agentId is not null) {
             response.Append($" [agent: {agentId}]");
         }
 
-        if (nextRun != null)
-        {
+        if (nextRun != null) {
             var nextTime = DateTimeOffset.FromUnixTimeMilliseconds(nextRun.Value).ToLocalTime();
             response.AppendLine();
             response.Append($"Next run: {nextTime:yyyy-MM-dd HH:mm}");
@@ -160,15 +145,13 @@ public class CronToolHandlers
     /// <returns>工具执行结果</returns>
     [McpTool(CronToolNameEnumConstants.CronList, "List all scheduled tasks", "cron")]
     public async Task<ToolResult> ListCronTasksAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var agentId = _subAgentContextAccessor.Current?.AgentId;
         var tasks = agentId is not null
             ? await _taskStore.GetTasksByAgentIdAsync(agentId, cancellationToken).ConfigureAwait(false)
             : await _taskStore.GetAllTasksAsync(cancellationToken).ConfigureAwait(false);
 
-        if (tasks.Count == 0)
-        {
+        if (tasks.Count == 0) {
             return ToolResultBuilder.Success()
                 .WithText("No scheduled tasks")
                 .Build();
@@ -178,8 +161,7 @@ public class CronToolHandlers
         response.AppendLine($"Scheduled Tasks ({tasks.Count})");
         response.AppendLine();
 
-        foreach (var task in tasks.OrderBy(t => t.CreatedAt))
-        {
+        foreach (var task in tasks.OrderBy(t => t.CreatedAt)) {
             var humanSchedule = CronToHuman(task.CronExpression);
             var promptDisplay = task.Prompt.Length > 80
                 ? string.Concat(task.Prompt.AsSpan(0, 77), "...")
@@ -204,18 +186,15 @@ public class CronToolHandlers
     [McpTool(CronToolNameEnumConstants.CronDelete, "Delete a scheduled task by ID", "cron")]
     public async Task<ToolResult> DeleteCronTaskAsync(
         [McpToolParameter("The ID of the scheduled task to delete")] string task_id,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(task_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(task_id)) {
             return ToolResultBuilder.Error()
                 .WithText("task_id cannot be empty")
                 .Build();
         }
 
         var task = await _taskStore.GetTaskByIdAsync(task_id, cancellationToken).ConfigureAwait(false);
-        if (task is null)
-        {
+        if (task is null) {
             return ToolResultBuilder.Error()
                 .WithText($"Scheduled task {task_id} not found")
                 .Build();
@@ -223,8 +202,7 @@ public class CronToolHandlers
 
         // 对齐 TS: teammate 只能删除自己的 cron 任务 — 校验所有权
         var agentId = _subAgentContextAccessor.Current?.AgentId;
-        if (agentId is not null && task.AgentId != agentId)
-        {
+        if (agentId is not null && task.AgentId != agentId) {
             return ToolResultBuilder.Error()
                 .WithText($"Cannot delete cron job '{task_id}': owned by another agent")
                 .Build();
@@ -249,18 +227,15 @@ public class CronToolHandlers
     [McpTool(CronToolNameEnumConstants.CronValidate, "Validate a cron expression and show its parsed fields", "cron")]
     public Task<ToolResult> ValidateCronExpressionAsync(
         [McpToolParameter("Cron expression to validate")] string cron,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(cron))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(cron)) {
             return Task.FromResult(ToolResultBuilder.Error()
                 .WithText("cron cannot be empty")
                 .Build());
         }
 
         var fields = CronExpressionParser.Parse(cron);
-        if (fields == null)
-        {
+        if (fields == null) {
             return Task.FromResult(ToolResultBuilder.Error()
                 .WithText($"Invalid cron expression: {cron}\n\nFormat: minute hour day month weekday\nExamples:\n- \"0 9 * * *\" daily at 9am\n- \"0 */6 * * *\" every 6 hours\n- \"0 9 * * 1-5\" weekdays at 9am")
                 .Build());
@@ -278,8 +253,7 @@ public class CronToolHandlers
         response.AppendLine($"  Weekday: {string.Join(",", fields.DayOfWeek)}");
 
         var nextRun = CronJitterHelper.NextCronRunMs(cron, _clock.GetUtcNowOffset().ToUnixTimeMilliseconds());
-        if (nextRun != null)
-        {
+        if (nextRun != null) {
             var nextTime = DateTimeOffset.FromUnixTimeMilliseconds(nextRun.Value).ToLocalTime();
             response.AppendLine();
             response.AppendLine($"Next run: {nextTime:yyyy-MM-dd HH:mm}");
@@ -290,10 +264,8 @@ public class CronToolHandlers
             .Build());
     }
 
-    private static string CronToHuman(string cron)
-    {
-        if (CronHumanMap.TryGetValue(cron, out var human))
-        {
+    private static string CronToHuman(string cron) {
+        if (CronHumanMap.TryGetValue(cron, out var human)) {
             return human;
         }
 
@@ -302,20 +274,13 @@ public class CronToolHandlers
 
         var sb = new StringBuilder();
 
-        if (parts[0].StartsWith("*/"))
-        {
+        if (parts[0].StartsWith("*/")) {
             sb.Append($"every {parts[0][2..]} minutes");
-        }
-        else if (parts[1].StartsWith("*/"))
-        {
+        } else if (parts[1].StartsWith("*/")) {
             sb.Append($"every {parts[1][2..]} hours");
-        }
-        else if (parts[2] == "*" && parts[3] == "*" && parts[4] == "*")
-        {
+        } else if (parts[2] == "*" && parts[3] == "*" && parts[4] == "*") {
             sb.Append($"daily at {parts[1]}:{parts[0].PadLeft(2, '0')}");
-        }
-        else
-        {
+        } else {
             sb.Append(cron);
         }
 

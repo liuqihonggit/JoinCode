@@ -1,63 +1,53 @@
 namespace Core.Tests.Context.Compression;
 
-public class CodeContentCompressorTests
-{
+public class CodeContentCompressorTests {
     private readonly CodeContentCompressor _compressor = new();
     private readonly ITestOutputHelper _output;
 
-    public CodeContentCompressorTests(ITestOutputHelper output)
-    {
+    public CodeContentCompressorTests(ITestOutputHelper output) {
         _output = output;
     }
 
     [Fact]
-    public void Name_ShouldReturnCorrectValue()
-    {
+    public void Name_ShouldReturnCorrectValue() {
         _compressor.Name.Should().Be("CodeContentCompressor");
     }
 
     [Fact]
-    public void SupportedContentTypes_ShouldContainCode()
-    {
+    public void SupportedContentTypes_ShouldContainCode() {
         _compressor.SupportedContentTypes.Should().Contain(ContentType.Code);
     }
 
     [Fact]
-    public void CanHandle_CodeContent_ShouldReturnTrue()
-    {
+    public void CanHandle_CodeContent_ShouldReturnTrue() {
         var code = "public class Test { public void Method() { var x = 1; Console.WriteLine(x); } }";
         _compressor.CanHandle(code, ContentType.Code).Should().BeTrue();
     }
 
     [Fact]
-    public void CanHandle_NonCodeContent_ShouldReturnFalse()
-    {
+    public void CanHandle_NonCodeContent_ShouldReturnFalse() {
         var content = "Some dialogue content";
         _compressor.CanHandle(content, ContentType.Dialogue).Should().BeFalse();
     }
 
     [Fact]
-    public void CanHandle_EmptyContent_ShouldReturnFalse()
-    {
+    public void CanHandle_EmptyContent_ShouldReturnFalse() {
         _compressor.CanHandle("", ContentType.Code).Should().BeFalse();
     }
 
     [Fact]
-    public void CanHandle_ShortContent_ShouldReturnFalse()
-    {
+    public void CanHandle_ShortContent_ShouldReturnFalse() {
         _compressor.CanHandle("abc", ContentType.Code).Should().BeFalse();
     }
 
     [Fact]
-    public async Task CompressAsync_EmptyContent_ShouldReturnEmpty()
-    {
+    public async Task CompressAsync_EmptyContent_ShouldReturnEmpty() {
         var result = await _compressor.CompressAsync("", CompressionOptions.Default).ConfigureAwait(true);
         result.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldPreserveClassSignature()
-    {
+    public async Task CompressAsync_ShouldPreserveClassSignature() {
         var code = @"
 using System;
 
@@ -75,8 +65,7 @@ public class TestClass
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldRemoveMethodBody()
-    {
+    public async Task CompressAsync_ShouldRemoveMethodBody() {
         var code = @"
 public class TestClass
 {
@@ -88,8 +77,7 @@ public class TestClass
 }";
 
         // 使用 Aggressive 选项来确保方法体被移除
-        var options = new CompressionOptions
-        {
+        var options = new CompressionOptions {
             PreserveSignatures = true,
             PreserveTypeDefinitions = true,
             MaxMethodBodyLines = 0,
@@ -111,8 +99,7 @@ public class TestClass
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldPreserveImports()
-    {
+    public async Task CompressAsync_ShouldPreserveImports() {
         var code = @"
 using System;
 using System.Collections.Generic;
@@ -127,8 +114,7 @@ public class Test { }";
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldRemoveImportsWhenNotPreserved()
-    {
+    public async Task CompressAsync_ShouldRemoveImportsWhenNotPreserved() {
         var code = @"
 using System;
 using System.Collections.Generic;
@@ -148,8 +134,7 @@ public class Test {
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldPreserveKeyComments()
-    {
+    public async Task CompressAsync_ShouldPreserveKeyComments() {
         var code = @"
 public class Test
 {
@@ -163,8 +148,7 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldRemoveRegularComments()
-    {
+    public async Task CompressAsync_ShouldRemoveRegularComments() {
         var code = @"
 public class Test
 {
@@ -179,8 +163,7 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldPreserveInterfaceDefinition()
-    {
+    public async Task CompressAsync_ShouldPreserveInterfaceDefinition() {
         var code = @"
 public interface ITest
 {
@@ -193,8 +176,7 @@ public interface ITest
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldPreserveEnumDefinition()
-    {
+    public async Task CompressAsync_ShouldPreserveEnumDefinition() {
         var code = @"
 public enum Status
 {
@@ -209,8 +191,7 @@ public enum Status
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldPreserveConstants()
-    {
+    public async Task CompressAsync_ShouldPreserveConstants() {
         var code = @"
 public class Test
 {
@@ -225,8 +206,7 @@ public class Test
     }
 
     [Fact]
-    public void EstimateCompressionRatio_CodeWithLargeMethodBodies_ShouldReturnLowerRatio()
-    {
+    public void EstimateCompressionRatio_CodeWithLargeMethodBodies_ShouldReturnLowerRatio() {
         var code = @"
 public class Test
 {
@@ -252,15 +232,13 @@ public class Test
     }
 
     [Fact]
-    public void EstimateCompressionRatio_EmptyContent_ShouldReturnOne()
-    {
+    public void EstimateCompressionRatio_EmptyContent_ShouldReturnOne() {
         var ratio = _compressor.EstimateCompressionRatio("", CompressionOptions.Default);
         ratio.Should().Be(1.0);
     }
 
     [Fact]
-    public void EstimateCompressionRatio_NoMethodBodies_ShouldReturnHigherRatio()
-    {
+    public void EstimateCompressionRatio_NoMethodBodies_ShouldReturnHigherRatio() {
         var code = @"
 public interface ITest
 {
@@ -274,8 +252,7 @@ public interface ITest
     }
 
     [Fact]
-    public async Task CompressAsync_CancellationRequested_ShouldThrowOperationCanceledException()
-    {
+    public async Task CompressAsync_CancellationRequested_ShouldThrowOperationCanceledException() {
         var code = "public class Test { public void Method() { } }";
         var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -285,8 +262,7 @@ public interface ITest
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldHandleExpressionBodiedMembers()
-    {
+    public async Task CompressAsync_ShouldHandleExpressionBodiedMembers() {
         var code = @"
 public class Test
 {

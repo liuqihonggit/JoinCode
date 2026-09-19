@@ -11,8 +11,7 @@ namespace Core.Hooks.Execution;
 /// </para>
 /// </summary>
 [Register(typeof(ToolFixHookRegistry), ServiceLifetime.Singleton)]
-public sealed partial class ToolFixHookRegistry : ServiceEntity
-{
+public sealed partial class ToolFixHookRegistry : ServiceEntity {
     private readonly List<IToolFixHook> _hooks = [];
     private readonly IToolHealthMonitor _healthMonitor;
     private readonly ILogger<ToolFixHookRegistry>? _logger;
@@ -27,8 +26,7 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity
     public ToolFixHookRegistry(
         IToolHealthMonitor healthMonitor,
         ILogger<ToolFixHookRegistry>? logger = null,
-        int threshold = 3)
-    {
+        int threshold = 3) {
         _healthMonitor = healthMonitor ?? throw new ArgumentNullException(nameof(healthMonitor));
         _logger = logger;
         _threshold = threshold;
@@ -38,8 +36,7 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity
     /// 注册默认修正器 — GhPrBodyFixHook + JsonFixHook + GhTimeoutFixHook
     /// <para>由 FixHooksPlugin 在 InitializeAsync 中调用,实现万物皆插件(ADR 0098)</para>
     /// </summary>
-    public void RegisterDefaultFixHooks()
-    {
+    public void RegisterDefaultFixHooks() {
         Register(new FixHooks.GhPrBodyFixHook());
         Register(new FixHooks.JsonFixHook());
         Register(new FixHooks.GhTimeoutFixHook());
@@ -48,12 +45,10 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity
     /// <summary>
     /// 撤销注册指定名称的修正器 — 插件卸载时调用
     /// </summary>
-    public bool Unregister(string hookName)
-    {
+    public bool Unregister(string hookName) {
         ArgumentException.ThrowIfNullOrWhiteSpace(hookName);
         var removed = _hooks.RemoveAll(h => h.Name == hookName);
-        if (removed > 0)
-        {
+        if (removed > 0) {
             _logger?.LogDebug("撤销工具修正器: {Name} (移除 {Count} 个)", hookName, removed);
         }
         return removed > 0;
@@ -62,8 +57,7 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity
     /// <summary>
     /// 注册修正器
     /// </summary>
-    public void Register(IToolFixHook hook)
-    {
+    public void Register(IToolFixHook hook) {
         ArgumentNullException.ThrowIfNull(hook);
         _hooks.Add(hook);
         _logger?.LogDebug("注册工具修正器: {Name} (优先级: {Priority})", hook.Name, hook.Priority);
@@ -75,28 +69,23 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity
     public async Task<ToolFixResult> TryFixAsync(
         string toolName,
         Exception error,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
         ArgumentNullException.ThrowIfNull(error);
 
         // 检查是否应该自动修正
         var shouldFix = await _healthMonitor.ShouldAutoFixAsync(toolName, _threshold, ct).ConfigureAwait(false);
-        if (!shouldFix)
-        {
+        if (!shouldFix) {
             return new ToolFixResult { Success = false, Description = "错误次数未达阈值" };
         }
 
         // 按优先级从高到低尝试修正
-        foreach (var hook in _hooks.OrderByDescending(static h => h.Priority))
-        {
+        foreach (var hook in _hooks.OrderByDescending(static h => h.Priority)) {
             if (!hook.CanFix(toolName, error)) continue;
 
-            try
-            {
+            try {
                 var result = await hook.FixAsync(toolName, error, ct).ConfigureAwait(false);
-                if (result.Success)
-                {
+                if (result.Success) {
                     _logger?.LogInformation(
                         "工具 {ToolName} 自动修正成功 (修正器: {Name}): {Description}",
                         toolName,
@@ -105,9 +94,7 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity
 
                     return result;
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "工具 {ToolName} 修正器 {Name} 执行失败", toolName, hook.Name);
             }
         }

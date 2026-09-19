@@ -3,16 +3,14 @@ namespace Core.Bridge.Gate;
 /// <summary>
 /// 桥门控核心分发中间件 — 根据配置分发到 V1 或 V2 桥核心初始化路径
 /// </summary>
-public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
-{
+public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware {
     private readonly INetworkConnectivityService? _networkService;
 
     /// <summary>
     /// 构造桥门控核心分发中间件
     /// </summary>
     /// <param name="networkService">网络连通性服务（可选）</param>
-    public BridgeGateCoreDispatchMiddleware(INetworkConnectivityService? networkService = null)
-    {
+    public BridgeGateCoreDispatchMiddleware(INetworkConnectivityService? networkService = null) {
         _networkService = networkService;
     }
 
@@ -22,16 +20,14 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
     /// <param name="ctx">桥初始化门控上下文</param>
     /// <param name="next">下一中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(BridgeInitGateContext ctx, MiddlewareDelegate<BridgeInitGateContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(BridgeInitGateContext ctx, MiddlewareDelegate<BridgeInitGateContext> next, CancellationToken ct) {
         var title = BridgeInit.DeriveSessionTitle(ctx.Options);
         ctx.Title = title;
 
         var baseUrl = ctx.GetBaseUrl();
         ctx.BaseUrl = baseUrl;
 
-        if (ctx.HttpClient is not { } httpClient || ctx.TransportFactory is not { } transportFactory)
-        {
+        if (ctx.HttpClient is not { } httpClient || ctx.TransportFactory is not { } transportFactory) {
             ctx.Logger?.LogError("Bridge: httpClient or transportFactory not provided");
             ctx.Fail("httpClient or transportFactory not provided");
             return;
@@ -43,10 +39,8 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
 
         await BridgeRuntimeGate.WaitForNetworkAsync(_networkService, ctx.Logger, ct).ConfigureAwait(false);
 
-        if (useCcrV2)
-        {
-            var envLessParams = new V2BridgeParams
-            {
+        if (useCcrV2) {
+            var envLessParams = new V2BridgeParams {
                 BaseUrl = baseUrl,
                 OrgUUID = orgUUID,
                 Title = title,
@@ -68,11 +62,8 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
 
             ctx.Handle = await BridgeRemoteCore.InitV2BridgeCoreAsync(
                 envLessParams, httpClient, transportFactory, ctx.V2Pipeline ?? throw new InvalidOperationException("V2Pipeline is not set."), ctx.Logger, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            var coreParams = new BridgeCoreParams
-            {
+        } else {
+            var coreParams = new BridgeCoreParams {
                 Dir = Environment.CurrentDirectory,
                 MachineName = Environment.MachineName,
                 Branch = "main",

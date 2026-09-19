@@ -5,16 +5,14 @@ namespace Services.Todo.ToolHandlers;
 /// 任务工具处理器 - 提供任务管理功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Task)]
-public class TaskToolHandlers
-{
+public class TaskToolHandlers {
     private readonly ITaskService _taskService;
 
     /// <summary>
     /// 构造函数 — 注入任务服务依赖。
     /// </summary>
     /// <param name="taskService">任务服务实例。</param>
-    public TaskToolHandlers(ITaskService taskService)
-    {
+    public TaskToolHandlers(ITaskService taskService) {
         _taskService = taskService ?? throw new ArgumentNullException(nameof(taskService));
     }
 
@@ -29,12 +27,10 @@ public class TaskToolHandlers
         [McpToolParameter("Due date (optional)", Required = false)] DateTime? due_date = null,
         [McpToolParameter("Priority: low, medium, high, default medium", Required = false, DefaultValue = TodoPriorityEnumConstants.Medium)] string priority = TodoPriorityEnumConstants.Medium,
         [McpToolParameter("Tag list (optional)", Required = false)] List<string>? tags = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TaskCreateCommand(title, description, assignee, due_date, priority, tags);
         var validationError = ValidateCommand(command);
-        if (validationError is not null)
-        {
+        if (validationError is not null) {
             return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
@@ -47,8 +43,7 @@ public class TaskToolHandlers
             command.Tags,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultCreateTaskFailed);
             var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
                 [new DiagnosticDetail("operation", "CreateTask")],
@@ -70,8 +65,7 @@ public class TaskToolHandlers
         [McpToolParameter("Priority filter (optional)", Required = false)] string? priority = null,
         [McpToolParameter("Result count limit, default 20", Required = false, DefaultValue = "20")] int? limit = null,
         [McpToolParameter("Offset for pagination", Required = false)] int? offset = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TaskListCommand(status, assignee, priority, limit, offset);
 
         var result = await _taskService.ListTasksAsync(
@@ -82,8 +76,7 @@ public class TaskToolHandlers
             command.Offset ?? 0,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultListTaskFailed);
             var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
                 [new DiagnosticDetail("operation", "ListTask")],
@@ -96,8 +89,7 @@ public class TaskToolHandlers
         response.AppendLine(L.T(StringKey.VaultDisplayRange, (command.Offset ?? 0) + 1, Math.Min((command.Offset ?? 0) + result.Tasks.Count, result.TotalCount)));
         response.AppendLine();
 
-        foreach (var task in result.Tasks)
-        {
+        foreach (var task in result.Tasks) {
             response.AppendLine(FormatTaskSummary(task));
         }
 
@@ -110,18 +102,15 @@ public class TaskToolHandlers
     [McpTool(TaskToolNameEnumConstants.TaskUpdate, "Update task information", "task")]
     public async Task<ToolResult> TaskUpdateAsync(
         [McpToolOptions] TaskUpdateOptions options,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TaskUpdateCommand(options.TaskId, options.Title, options.Description, options.Status, options.Assignee, options.DueDate, options.Priority, options.Tags);
         var validationError = ValidateCommand(command);
-        if (validationError is not null)
-        {
+        if (validationError is not null) {
             return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
         var result = await _taskService.UpdateTaskAsync(
-            new UpdateTaskRequest
-            {
+            new UpdateTaskRequest {
                 TaskId = command.TaskId,
                 Title = command.Title,
                 Description = command.Description,
@@ -133,8 +122,7 @@ public class TaskToolHandlers
             },
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultUpdateTaskFailed);
             var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
                 [new DiagnosticDetail("operation", "UpdateTask"), new DiagnosticDetail("taskId", command.TaskId)],
@@ -153,12 +141,10 @@ public class TaskToolHandlers
     public async Task<ToolResult> TaskStopAsync(
         [McpToolParameter("Task ID")] string task_id,
         [McpToolParameter("Stop reason (optional)", Required = false)] string? reason = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TaskStopCommand(task_id, reason);
         var validationError = ValidateCommand(command);
-        if (validationError is not null)
-        {
+        if (validationError is not null) {
             return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
@@ -167,8 +153,7 @@ public class TaskToolHandlers
             command.Reason,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultStopTaskFailed);
             var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
                 [new DiagnosticDetail("operation", "StopTask"), new DiagnosticDetail("taskId", command.TaskId)],
@@ -179,8 +164,7 @@ public class TaskToolHandlers
         var response = new System.Text.StringBuilder();
         response.AppendLine(L.T(StringKey.VaultTaskStopped, command.TaskId));
 
-        if (!string.IsNullOrEmpty(command.Reason))
-        {
+        if (!string.IsNullOrEmpty(command.Reason)) {
             response.AppendLine(L.T(StringKey.VaultLabelReason, command.Reason));
         }
 
@@ -193,19 +177,16 @@ public class TaskToolHandlers
     [McpTool(TaskToolNameEnumConstants.TaskGet, "Get task details", "task")]
     public async Task<ToolResult> TaskGetAsync(
         [McpToolParameter("Task ID")] string task_id,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TaskGetCommand(task_id);
         var validationError = ValidateCommand(command);
-        if (validationError is not null)
-        {
+        if (validationError is not null) {
             return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
         var task = await _taskService.GetTaskAsync(command.TaskId, cancellationToken).ConfigureAwait(false);
 
-        if (task == null)
-        {
+        if (task == null) {
             var errorMsg = L.T(StringKey.VaultTaskNotFound, command.TaskId);
             var diagnostic = ToolDiagnostic.Create("TaskNotFound", errorMsg,
                 [new DiagnosticDetail("taskId", command.TaskId)],
@@ -225,12 +206,10 @@ public class TaskToolHandlers
         [McpToolParameter("Task ID")] string task_id,
         [McpToolParameter("Depends-on task ID")] string depends_on_task_id,
         [McpToolParameter("Dependency type: blocks, soft, subtask, default blocks", Required = false, DefaultValue = "blocks")] string? dependency_type = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TaskSetDependencyCommand(task_id, depends_on_task_id, dependency_type);
         var validationError = ValidateCommand(command);
-        if (validationError is not null)
-        {
+        if (validationError is not null) {
             return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
@@ -242,8 +221,7 @@ public class TaskToolHandlers
             dependencyType,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultSetDependencyFailed);
             var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
                 [new DiagnosticDetail("operation", "SetTaskDependency"), new DiagnosticDetail("taskId", command.TaskId), new DiagnosticDetail("dependsOnTaskId", command.DependsOnTaskId)],
@@ -267,12 +245,10 @@ public class TaskToolHandlers
     public async Task<ToolResult> TaskRemoveDependencyAsync(
         [McpToolParameter("Task ID")] string task_id,
         [McpToolParameter("Depends-on task ID")] string depends_on_task_id,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TaskRemoveDependencyCommand(task_id, depends_on_task_id);
         var validationError = ValidateCommand(command);
-        if (validationError is not null)
-        {
+        if (validationError is not null) {
             return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
@@ -281,8 +257,7 @@ public class TaskToolHandlers
             command.DependsOnTaskId,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultRemoveDependencyFailed);
             var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
                 [new DiagnosticDetail("operation", "RemoveTaskDependency"), new DiagnosticDetail("taskId", command.TaskId), new DiagnosticDetail("dependsOnTaskId", command.DependsOnTaskId)],
@@ -304,12 +279,10 @@ public class TaskToolHandlers
     [McpTool(TaskToolNameEnumConstants.TaskGetDependencies, "Get task dependency list", "task")]
     public async Task<ToolResult> TaskGetDependenciesAsync(
         [McpToolParameter("Task ID")] string task_id,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TaskGetDependenciesCommand(task_id);
         var validationError = ValidateCommand(command);
-        if (validationError is not null)
-        {
+        if (validationError is not null) {
             return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
@@ -319,12 +292,9 @@ public class TaskToolHandlers
         response.AppendLine(L.T(StringKey.VaultTaskDependencyList, command.TaskId));
         response.AppendLine();
 
-        if (dependencies.Count == 0)
-        {
+        if (dependencies.Count == 0) {
             response.AppendLine(L.T(StringKey.VaultNoDependencies));
-        }
-        else
-        {
+        } else {
             response.Append(string.Join(Environment.NewLine,
                 dependencies.Select(dep =>
                     $"{dep.DependencyType switch { TaskDependencyType.Blocks => StatusSymbol.Prohibited.ToValue(), TaskDependencyType.Soft => ObjectSymbol.ArrowRight.ToValue(), TaskDependencyType.Subtask => ObjectSymbol.List.ToValue(), _ => StatusSymbol.Info.ToValue() }} {dep.DependsOnTaskId} ({dep.DependencyType})")));
@@ -340,12 +310,10 @@ public class TaskToolHandlers
     [McpTool(TaskToolNameEnumConstants.TaskCanExecute, "Check if a task can execute (dependencies satisfied)", "task")]
     public async Task<ToolResult> TaskCanExecuteAsync(
         [McpToolParameter("Task ID")] string task_id,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TaskCanExecuteCommand(task_id);
         var validationError = ValidateCommand(command);
-        if (validationError is not null)
-        {
+        if (validationError is not null) {
             return ToolResultBuilder.Error().WithText(validationError.FormattedMessage).WithDiagnostic(validationError).Build();
         }
 
@@ -355,13 +323,10 @@ public class TaskToolHandlers
         response.AppendLine(L.T(StringKey.VaultTaskExecutionCheck, command.TaskId));
         response.AppendLine();
 
-        if (canExecute)
-        {
+        if (canExecute) {
             response.AppendLine(L.T(StringKey.VaultTaskCanExecute, StatusSymbol.Tick.ToValue()));
             response.AppendLine(L.T(StringKey.VaultAllDependenciesSatisfied));
-        }
-        else
-        {
+        } else {
             response.AppendLine(L.T(StringKey.VaultTaskCannotExecute, StatusSymbol.Cross.ToValue()));
             response.AppendLine(L.T(StringKey.VaultPossibleReasons));
             response.AppendLine(L.T(StringKey.VaultReasonTaskNotExist));
@@ -377,8 +342,7 @@ public class TaskToolHandlers
     /// <summary>
     /// task_id 为空的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildEmptyTaskIdDiagnostic()
-    {
+    internal static ToolDiagnostic BuildEmptyTaskIdDiagnostic() {
         return ToolDiagnostic.Create("EmptyTaskId", L.T(StringKey.VaultTaskIdCannotBeEmpty),
             [new DiagnosticDetail("field", "task_id")],
             ["提供非空的 task_id，可先调用 task_list 获取已有任务的 ID。"]);
@@ -387,8 +351,7 @@ public class TaskToolHandlers
     /// <summary>
     /// 通用字段为空的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildEmptyFieldDiagnostic(string reason, string fieldName, string message)
-    {
+    internal static ToolDiagnostic BuildEmptyFieldDiagnostic(string reason, string fieldName, string message) {
         return ToolDiagnostic.Create(reason, message,
             [new DiagnosticDetail("field", fieldName)],
             [$"提供非空的 {fieldName} 字段。"]);
@@ -398,10 +361,8 @@ public class TaskToolHandlers
 
     #region Private Methods
 
-    private static ToolDiagnostic? ValidateCommand<TCommand>(TCommand command)
-    {
-        return command switch
-        {
+    private static ToolDiagnostic? ValidateCommand<TCommand>(TCommand command) {
+        return command switch {
             TaskCreateCommand cmd => string.IsNullOrWhiteSpace(cmd.Title) ? BuildEmptyFieldDiagnostic("EmptyTitle", "title", L.T(StringKey.VaultTitleCannotBeEmpty)) : null,
             TaskUpdateCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic() : null,
             TaskStopCommand cmd => string.IsNullOrWhiteSpace(cmd.TaskId) ? BuildEmptyTaskIdDiagnostic() : null,
@@ -416,61 +377,52 @@ public class TaskToolHandlers
         };
     }
 
-    private static TaskDependencyType ParseDependencyType(string? type)
-    {
+    private static TaskDependencyType ParseDependencyType(string? type) {
         return TaskDependencyTypeExtensions.FromValue(type) ?? TaskDependencyType.Blocks;
     }
 
-    private static string FormatTaskResponse(TaskItem task, string header)
-    {
+    private static string FormatTaskResponse(TaskItem task, string header) {
         var response = new System.Text.StringBuilder();
         response.AppendLine($"{header}");
         response.AppendLine($"ID: {task.Id}");
         response.AppendLine(L.T(StringKey.VaultLabelTitle, task.Title));
 
-        if (!string.IsNullOrEmpty(task.Description))
-        {
+        if (!string.IsNullOrEmpty(task.Description)) {
             response.AppendLine(L.T(StringKey.VaultLabelDescription, task.Description));
         }
 
         response.AppendLine(L.T(StringKey.VaultLabelStatus, task.Status));
         response.AppendLine(L.T(StringKey.VaultLabelPriority, task.Priority));
 
-        if (!string.IsNullOrEmpty(task.Assignee))
-        {
+        if (!string.IsNullOrEmpty(task.Assignee)) {
             response.AppendLine(L.T(StringKey.VaultLabelAssignee, task.Assignee));
         }
 
-        if (task.DueDate.HasValue)
-        {
+        if (task.DueDate.HasValue) {
             response.AppendLine(L.T(StringKey.VaultLabelDueDate, task.DueDate.Value.ToString("yyyy-MM-dd")));
         }
 
         response.AppendLine(L.T(StringKey.VaultLabelCreatedAt, task.CreatedAt.ToString("yyyy-MM-dd HH:mm")));
 
-        if (task.Tags.Count > 0)
-        {
+        if (task.Tags.Count > 0) {
             response.AppendLine(L.T(StringKey.VaultLabelTags, string.Join(", ", task.Tags)));
         }
 
         return response.ToString();
     }
 
-    private static string FormatTaskSummary(TaskItem task)
-    {
+    private static string FormatTaskSummary(TaskItem task) {
         var priorityIcon = TodoIcons.PriorityIcons.GetValueOrDefault(task.Priority.ToValue(), "⚪");
         var statusIcon = TodoIcons.TaskStatusIcons.GetValueOrDefault(task.Status, StatusSymbol.Info.ToValue());
 
         var sb = new StringBuilder();
         sb.Append(statusIcon).Append(' ').Append(priorityIcon).Append(" [").Append(task.Id).Append("] ").Append(task.Title);
 
-        if (!string.IsNullOrEmpty(task.Assignee))
-        {
+        if (!string.IsNullOrEmpty(task.Assignee)) {
             sb.Append(L.T(StringKey.VaultSummaryAssignee, task.Assignee));
         }
 
-        if (task.DueDate.HasValue)
-        {
+        if (task.DueDate.HasValue) {
             sb.Append(L.T(StringKey.VaultSummaryDueDate, task.DueDate.Value.ToString("MM-dd")));
         }
 

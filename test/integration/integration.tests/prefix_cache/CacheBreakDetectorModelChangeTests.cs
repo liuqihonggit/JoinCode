@@ -1,19 +1,16 @@
 namespace Integration.Tests.PrefixCache.Unit;
 
-public sealed class CacheBreakDetectorModelChangeTests
-{
+public sealed class CacheBreakDetectorModelChangeTests {
     private readonly CacheBreakDetector _detector = new();
 
     [Fact]
-    public void CheckCacheBreak_ModelChanged_ShouldDetectBreak()
-    {
+    public void CheckCacheBreak_ModelChanged_ShouldDetectBreak() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix = new ImmutablePrefix("System prompt", tools, []);
 
         var snapshot = _detector.RecordPromptState(prefix, "dynamic", modelId: "claude-sonnet-4-20250514");
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 0,
             CacheCreationInputTokens = 100
         };
@@ -27,15 +24,13 @@ public sealed class CacheBreakDetectorModelChangeTests
     }
 
     [Fact]
-    public void CheckCacheBreak_SameModel_NoBreak()
-    {
+    public void CheckCacheBreak_SameModel_NoBreak() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix = new ImmutablePrefix("System prompt", tools, []);
 
         var snapshot = _detector.RecordPromptState(prefix, "dynamic", modelId: "claude-sonnet-4-20250514");
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 80,
             CacheCreationInputTokens = 0
         };
@@ -47,8 +42,7 @@ public sealed class CacheBreakDetectorModelChangeTests
     }
 
     [Fact]
-    public void CheckCacheBreak_ModelChanged_DetectedBeforeOtherChanges()
-    {
+    public void CheckCacheBreak_ModelChanged_DetectedBeforeOtherChanges() {
         var toolsBefore = new List<ToolSpec> { new("read", "Read files") };
         var toolsAfter = new List<ToolSpec> { new("read", "Read files v2") };
         var prefixBefore = new ImmutablePrefix("System", toolsBefore, []);
@@ -56,8 +50,7 @@ public sealed class CacheBreakDetectorModelChangeTests
 
         var snapshot = _detector.RecordPromptState(prefixBefore, "dynamic", modelId: "claude-sonnet-4-20250514");
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 0,
             CacheCreationInputTokens = 100
         };
@@ -71,15 +64,13 @@ public sealed class CacheBreakDetectorModelChangeTests
     }
 
     [Fact]
-    public void CheckCacheBreak_NullModel_NoModelDetection()
-    {
+    public void CheckCacheBreak_NullModel_NoModelDetection() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix = new ImmutablePrefix("System prompt", tools, []);
 
         var snapshot = _detector.RecordPromptState(prefix, "dynamic", modelId: null);
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 80,
             CacheCreationInputTokens = 0
         };
@@ -91,15 +82,13 @@ public sealed class CacheBreakDetectorModelChangeTests
     }
 
     [Fact]
-    public void CheckCacheBreak_FastModeChanged_ShouldDetectBreak()
-    {
+    public void CheckCacheBreak_FastModeChanged_ShouldDetectBreak() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix = new ImmutablePrefix("System prompt", tools, []);
 
         var snapshot = _detector.RecordPromptState(prefix, "dynamic", modelId: "claude-sonnet-4-20250514", fastMode: false);
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 0,
             CacheCreationInputTokens = 100
         };

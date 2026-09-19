@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 聊天管理操作类型
 /// </summary>
-public enum ChatAdminOperation
-{
+public enum ChatAdminOperation {
     /// <summary>初始化会话</summary>
     [EnumValue("initialize")] Initialize,
     /// <summary>清空聊天历史</summary>

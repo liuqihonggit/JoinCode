@@ -1,29 +1,25 @@
+using Microsoft.CodeAnalysis;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using Microsoft.CodeAnalysis;
 
-internal abstract class AttributeRegistrationGeneratorBase<TInfo> : IIncrementalGenerator
-{
+internal abstract class AttributeRegistrationGeneratorBase<TInfo> : IIncrementalGenerator {
     internal abstract string AttributeFullName { get; }
 
     internal abstract TInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation);
 
     internal abstract void GenerateRegistration(SourceProductionContext context, ImmutableArray<TInfo> infos);
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
+    public void Initialize(IncrementalGeneratorInitializationContext context) {
         var infos = context.CompilationProvider
-            .SelectMany((compilation, _) =>
-            {
+            .SelectMany((compilation, _) => {
                 var types = AttributeScanner.ScanTypesWithAttribute(compilation, AttributeFullName);
                 var attrSymbol = compilation.GetTypeByMetadataName(AttributeFullName);
                 if (attrSymbol is null)
                     return ImmutableArray<TInfo>.Empty;
 
                 var results = new List<TInfo>();
-                foreach (var typeSymbol in types)
-                {
+                foreach (var typeSymbol in types) {
                     var attr = AttributeScanner.GetAttribute(typeSymbol, attrSymbol);
                     if (attr is null) continue;
 
@@ -35,8 +31,7 @@ internal abstract class AttributeRegistrationGeneratorBase<TInfo> : IIncremental
             })
             .Collect();
 
-        context.RegisterSourceOutput(infos, (ctx, infos) =>
-        {
+        context.RegisterSourceOutput(infos, (ctx, infos) => {
             GenerateRegistration(ctx, infos);
         });
     }

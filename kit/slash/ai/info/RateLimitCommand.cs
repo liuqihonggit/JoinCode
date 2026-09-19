@@ -6,27 +6,22 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.RateLimitOptions, Description = "配置速率限制选项", Usage = "/rate-limit-options [show]", Category = ChatCommandCategory.Model, Aliases = ["rate-limit"], ArgumentHint = "[show]", IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "操作类型,目前仅支持 show(显示速率限制快照)", Enum = new[] { "show" }, Default = "show")]
-public sealed class RateLimitCommand : ChatCommandBase
-{
+public sealed class RateLimitCommand : ChatCommandBase {
     /// <summary>
     /// 执行速率限制命令,显示当前速率限制快照(请求/Token 的限制、剩余与重置时间)
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数与速率限制追踪器</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context);
         var tracker = context.GetCommandServices().RateLimitTracker;
 
-        if (string.IsNullOrEmpty(args) || args.Equals("show", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.IsNullOrEmpty(args) || args.Equals("show", StringComparison.OrdinalIgnoreCase)) {
             TerminalHelper.WriteLine("速率限制:");
 
-            if (tracker is not null)
-            {
+            if (tracker is not null) {
                 var snapshot = tracker.GetLatestSnapshot();
-                if (snapshot is not null)
-                {
+                if (snapshot is not null) {
                     TerminalHelper.WriteLine($"  请求限制: {FormatNullable(snapshot.RequestLimit)}");
                     TerminalHelper.WriteLine($"  请求剩余: {FormatNullable(snapshot.RequestRemaining)}");
                     TerminalHelper.WriteLine($"  请求重置: {FormatDateTime(snapshot.RequestResetsAt)}");
@@ -34,20 +29,14 @@ public sealed class RateLimitCommand : ChatCommandBase
                     TerminalHelper.WriteLine($"  Token 剩余: {FormatNullable(snapshot.TokenRemaining)}");
                     TerminalHelper.WriteLine($"  Token 重置: {FormatDateTime(snapshot.TokenResetsAt)}");
                     TerminalHelper.WriteLine($"  捕获时间: {snapshot.CapturedAt:HH:mm:ss}");
-                }
-                else
-                {
+                } else {
                     TerminalHelper.WriteLine("  暂无速率限制数据");
                     TerminalHelper.WriteLine("  数据将在下次 API 请求后更新");
                 }
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine("  速率限制追踪器未初始化");
             }
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"未知操作: {args}");
             TerminalHelper.WriteLine("支持: show");
         }

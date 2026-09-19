@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>注册表持久化到 ~/.jcc/agents/registry.json，用 FileMailboxLock 保护写入。</para>
 /// <para>心跳超时（默认30秒）的 agent 自动注销。</para>
 /// </summary>
-public interface IAgentDiscovery : IAsyncDisposable
-{
+public interface IAgentDiscovery : IAsyncDisposable {
     /// <summary>注册本进程的 agent 到注册表</summary>
     /// <param name="info">Agent 注册信息</param>
     /// <param name="cancellationToken">取消令牌</param>

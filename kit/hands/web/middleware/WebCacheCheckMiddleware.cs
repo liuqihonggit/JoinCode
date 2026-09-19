@@ -5,16 +5,14 @@ namespace Services.Web;
 /// Order=200 在验证之后执行
 /// </summary>
 [Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WebCacheCheckMiddleware : ServiceEntity, IWebMiddleware
-{
+public sealed partial class WebCacheCheckMiddleware : ServiceEntity, IWebMiddleware {
 
     /// <summary>
     /// 初始化 <see cref="WebCacheCheckMiddleware"/> 实例。
     /// </summary>
     /// <param name="cache">Web 抓取缓存，用于查询缓存命中。</param>
     /// <param name="telemetryService">可选的遥测服务，用于记录缓存命中指标。</param>
-    public WebCacheCheckMiddleware(IWebFetchCache cache, ITelemetryService? telemetryService = null)
-    {
+    public WebCacheCheckMiddleware(IWebFetchCache cache, ITelemetryService? telemetryService = null) {
         _cache = cache;
         _telemetryService = telemetryService;
     }
@@ -27,12 +25,10 @@ public sealed partial class WebCacheCheckMiddleware : ServiceEntity, IWebMiddlew
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct) {
         // 用原始URL作键，非升级后的HTTPS URL
         var cached = _cache.TryGet(context.Url);
-        if (cached != null)
-        {
+        if (cached != null) {
             RecordWebMetrics("fetch", true, cached.ContentBytes);
             context.CachedResult = new WebFetchResult(
                 true, context.Url,

@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// REPL 桥初始化选项 — 对齐 TS 端 initReplBridge.ts InitBridgeOptions
 /// </summary>
-public sealed class BridgeInitOptions
-{
+public sealed class BridgeInitOptions {
     /// <summary>入站消息回调</summary>
     public Action<string>? OnInboundMessage { get; init; }
 
@@ -95,8 +94,7 @@ public sealed class BridgeInitOptions
 /// 5. 派生会话标题
 /// 6. 选择 v2 (env-less) 路径
 /// </summary>
-public static class BridgeInit
-{
+public static class BridgeInit {
     private const int TitleMaxLen = 50;
 
     /// <summary>
@@ -131,8 +129,7 @@ public static class BridgeInit
         MiddlewarePipeline<V2BridgeInitContext>? v2Pipeline = null,
         IClockService? clock = null,
         INetworkConnectivityService? networkService = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(options);
 
         var gatePipeline = new PipelineBuilder<BridgeInitGateContext>()
@@ -147,8 +144,7 @@ public static class BridgeInit
             .Use(new BridgeGateCoreDispatchMiddleware(networkService))
             .Build();
 
-        var gateCtx = new BridgeInitGateContext
-        {
+        var gateCtx = new BridgeInitGateContext {
             Options = options,
             BridgeEnabled = bridgeEnabled,
             GetAccessToken = getAccessToken,
@@ -172,8 +168,7 @@ public static class BridgeInit
     /// 从原始文本派生占位标题 — 对齐 TS 端 deriveTitle
     /// 去标签、取首句、折叠空白、截断50字符
     /// </summary>
-    public static string? DeriveTitle(string raw)
-    {
+    public static string? DeriveTitle(string raw) {
         if (string.IsNullOrEmpty(raw)) return null;
 
         // 去除标签（XML 标签）
@@ -181,34 +176,26 @@ public static class BridgeInit
 
         // 取第一句 — 对齐 TS 端: /^(.*?[.!?])\s/.exec(clean)?.[1] ?? clean
         var firstSentence = text.AsSpan();
-        for (var i = 0; i < firstSentence.Length; i++)
-        {
+        for (var i = 0; i < firstSentence.Length; i++) {
             var c = firstSentence[i];
-            if ((c == '.' || c == '!' || c == '?') && i + 1 < firstSentence.Length && char.IsWhiteSpace(firstSentence[i + 1]))
-            {
+            if ((c == '.' || c == '!' || c == '?') && i + 1 < firstSentence.Length && char.IsWhiteSpace(firstSentence[i + 1])) {
                 firstSentence = firstSentence[..(i + 1)];
                 break;
             }
         }
 
         // 折叠空白 — 对齐 TS 端: replace(/\s+/g, ' ')
-        var flat = string.Create(firstSentence.Length, firstSentence, (span, src) =>
-        {
+        var flat = string.Create(firstSentence.Length, firstSentence, (span, src) => {
             var j = 0;
             var prevWasSpace = false;
-            for (var i = 0; i < src.Length; i++)
-            {
+            for (var i = 0; i < src.Length; i++) {
                 var c = src[i];
-                if (char.IsWhiteSpace(c))
-                {
-                    if (!prevWasSpace)
-                    {
+                if (char.IsWhiteSpace(c)) {
+                    if (!prevWasSpace) {
                         span[j++] = ' ';
                         prevWasSpace = true;
                     }
-                }
-                else
-                {
+                } else {
                     span[j++] = c;
                     prevWasSpace = false;
                 }
@@ -221,8 +208,7 @@ public static class BridgeInit
         if (string.IsNullOrEmpty(flat)) return null;
 
         // 截断到 50 字符 — 对齐 TS 端: flat.length > TITLE_MAX_LEN ? flat.slice(0, -1) + '\u2026'
-        if (flat.Length > TitleMaxLen)
-        {
+        if (flat.Length > TitleMaxLen) {
             return string.Concat(flat.AsSpan(0, TitleMaxLen - 1), "\u2026");
         }
 
@@ -233,12 +219,10 @@ public static class BridgeInit
     /// 解析 sessionIngressUrl — 对齐 TS 端: USER_TYPE=ant + CLAUDE_BRIDGE_SESSION_INGRESS_URL
     /// 生产环境下与 baseUrl 相同，ant 开发环境可独立配置
     /// </summary>
-    internal static string ResolveSessionIngressUrl(string baseUrl)
-    {
+    internal static string ResolveSessionIngressUrl(string baseUrl) {
         var userType = Environment.GetEnvironmentVariable("USER_TYPE");
         var ingressOverride = Environment.GetEnvironmentVariable(JccEnvVar.BridgeSessionIngressUrl.ToValue());
-        if (string.Equals(userType, "ant", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(ingressOverride))
-        {
+        if (string.Equals(userType, "ant", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(ingressOverride)) {
             return ingressOverride;
         }
         return baseUrl;
@@ -248,22 +232,17 @@ public static class BridgeInit
     /// 派生会话标题 — 对齐 TS 端标题优先级:
     /// initialName → 消息推导 → 默认 slug
     /// </summary>
-    internal static string DeriveSessionTitle(BridgeInitOptions options)
-    {
+    internal static string DeriveSessionTitle(BridgeInitOptions options) {
         // 优先级 1: 显式名称 — 对齐 TS 端: if (initialName)
-        if (!string.IsNullOrEmpty(options.InitialName))
-        {
+        if (!string.IsNullOrEmpty(options.InitialName)) {
             return options.InitialName ?? throw new InvalidOperationException("InitialName should not be null after null check");
         }
 
         // 优先级 2: 从初始消息推导 — 对齐 TS 端: if (initialMessages && initialMessages.length > 0)
-        if (options.InitialMessages is { Length: > 0 })
-        {
-            for (var i = options.InitialMessages.Length - 1; i >= 0; i--)
-            {
+        if (options.InitialMessages is { Length: > 0 }) {
+            for (var i = options.InitialMessages.Length - 1; i >= 0; i--) {
                 var derived = DeriveTitle(options.InitialMessages[i]);
-                if (derived is not null)
-                {
+                if (derived is not null) {
                     return derived;
                 }
             }
@@ -278,27 +257,22 @@ public static class BridgeInit
     /// 在 count-1 和 count-3 时派生标题
     /// </summary>
     internal static Func<string, string, bool>? CreateOnUserMessage(
-        BridgeInitOptions options, string baseUrl, Func<string?> getAccessToken)
-    {
+        BridgeInitOptions options, string baseUrl, Func<string?> getAccessToken) {
         // 如果有显式名称，直接返回 done
-        if (!string.IsNullOrEmpty(options.InitialName))
-        {
+        if (!string.IsNullOrEmpty(options.InitialName)) {
             return (_, _) => true;
         }
 
         var userMessageCount = 0;
         var hasTitle = false;
 
-        return (text, sessionId) =>
-        {
+        return (text, sessionId) => {
             userMessageCount++;
 
             // count-1: 立即派生占位标题
-            if (userMessageCount == 1 && !hasTitle)
-            {
+            if (userMessageCount == 1 && !hasTitle) {
                 var placeholder = DeriveTitle(text);
-                if (placeholder is not null)
-                {
+                if (placeholder is not null) {
                     hasTitle = true;
                 }
             }
@@ -314,8 +288,7 @@ public static class BridgeInit
     /// </summary>
     internal static async Task<string?> CreateSessionViaApiAsync(
         string baseUrl, string? accessToken, string environmentId,
-        string title, HttpClient httpClient, CancellationToken ct)
-    {
+        string title, HttpClient httpClient, CancellationToken ct) {
         if (string.IsNullOrEmpty(accessToken)) return null;
 
         return await BridgeCodeSessionApi.CreateCodeSessionAsync(
@@ -327,8 +300,7 @@ public static class BridgeInit
 /// 跨进程死令牌退避状态 — 对齐 TS 端 globalConfig.bridgeOauthDeadExpiresAt/FailCount
 /// 内容寻址键: 使用 expiresAt 标识死令牌，/login → 新令牌 → 新 expiresAt → 退避自动失效
 /// </summary>
-public interface IBridgeOAuthDeadTokenState
-{
+public interface IBridgeOAuthDeadTokenState {
     /// <summary>死令牌的过期时间（内容寻址键）</summary>
     DateTimeOffset? DeadExpiresAt { get; }
 

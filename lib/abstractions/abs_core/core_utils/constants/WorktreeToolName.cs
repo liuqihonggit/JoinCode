@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// Worktree 工具名称枚举
 /// </summary>
-public enum WorktreeToolName
-{
+public enum WorktreeToolName {
     [EnumValue("worktree_create")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     WorktreeCreate,

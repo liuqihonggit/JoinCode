@@ -3,8 +3,7 @@ namespace Services.Lsp.Internal;
 /// <summary>
 /// LSP 被动反馈接口 — 注册 LSP 服务器的通知和请求处理器
 /// </summary>
-public interface ILspPassiveFeedback
-{
+public interface ILspPassiveFeedback {
     /// <summary>
     /// 注册通知处理器 — 为所有 LSP 服务器注册诊断发布和 workspace/configuration 处理器
     /// </summary>
@@ -16,16 +15,14 @@ public interface ILspPassiveFeedback
 /// LSP 被动反馈实现 — 处理 textDocument/publishDiagnostics 通知和 workspace/configuration 请求
 /// </summary>
 [Register(typeof(ILspPassiveFeedback), ServiceLifetime.Singleton)]
-public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedback
-{
+public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedback {
 
     /// <summary>
     /// 构造 LSP 被动反馈处理器
     /// </summary>
     /// <param name="diagnosticRegistry">诊断注册表</param>
     /// <param name="logger">可选日志记录器</param>
-    public LspPassiveFeedback(ILspDiagnosticRegistry diagnosticRegistry, ILogger<LspPassiveFeedback>? logger = null)
-    {
+    public LspPassiveFeedback(ILspDiagnosticRegistry diagnosticRegistry, ILogger<LspPassiveFeedback>? logger = null) {
         _diagnosticRegistry = diagnosticRegistry;
         _logger = logger;
     }
@@ -36,24 +33,19 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
     /// 注册通知处理器 — 为所有 LSP 服务器注册诊断发布和 workspace/configuration 处理器
     /// </summary>
     /// <param name="manager">LSP 管理器</param>
-    public void RegisterNotificationHandlers(ILspManager manager)
-    {
+    public void RegisterNotificationHandlers(ILspManager manager) {
         var servers = manager.GetAllServers();
         var successCount = 0;
 
-        foreach (var kvp in servers)
-        {
+        foreach (var kvp in servers) {
             var serverName = kvp.Key;
             var serverInstance = kvp.Value;
 
-            try
-            {
+            try {
                 RegisterDiagnosticsHandler(serverName, serverInstance);
                 RegisterWorkspaceConfigurationHandler(serverName, serverInstance);
                 successCount++;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "Failed to register diagnostics handler for {ServerName}", serverName);
             }
         }
@@ -62,25 +54,20 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
             successCount, servers.Count);
     }
 
-    private void RegisterDiagnosticsHandler(string serverName, ILspServerInstance serverInstance)
-    {
+    private void RegisterDiagnosticsHandler(string serverName, ILspServerInstance serverInstance) {
         serverInstance.OnNotification("textDocument/publishDiagnostics",
-            async (node, ct) =>
-            {
-                try
-                {
+            async (node, ct) => {
+                try {
                     if (node is not JsonObject obj ||
                         !obj.TryGetPropertyValue("uri", out var uriNode) ||
-                        !obj.TryGetPropertyValue("diagnostics", out var diagsNode))
-                    {
+                        !obj.TryGetPropertyValue("diagnostics", out var diagsNode)) {
                         _logger?.LogDebug("Invalid publishDiagnostics params from {ServerName}", serverName);
                         return;
                     }
 
                     var uri = uriNode?.GetValue<string>() ?? "";
                     var diagsArray = diagsNode as JsonArray;
-                    if (diagsArray == null || diagsArray.Count == 0)
-                    {
+                    if (diagsArray == null || diagsArray.Count == 0) {
                         return;
                     }
 
@@ -88,9 +75,7 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
                     if (diagnosticFiles.Diagnostics.Count == 0) return;
 
                     _diagnosticRegistry.RegisterPending(serverName, [diagnosticFiles]);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogDebug(ex, "Error processing diagnostics from {ServerName}", serverName);
                 }
 
@@ -98,20 +83,16 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
             });
     }
 
-    private void RegisterWorkspaceConfigurationHandler(string serverName, ILspServerInstance serverInstance)
-    {
+    private void RegisterWorkspaceConfigurationHandler(string serverName, ILspServerInstance serverInstance) {
         serverInstance.OnRequest("workspace/configuration",
-            (requestId, node, ct) =>
-            {
+            (requestId, node, ct) => {
                 _logger?.LogDebug("LSP: Received workspace/configuration request from {ServerName}", serverName);
 
                 var result = new JsonArray();
                 if (node is JsonObject pObj &&
                     pObj.TryGetPropertyValue("items", out var itemsNode) &&
-                    itemsNode is JsonArray items)
-                {
-                    for (var i = 0; i < items.Count; i++)
-                    {
+                    itemsNode is JsonArray items) {
+                    for (var i = 0; i < items.Count; i++) {
                         result.Add(null);
                     }
                 }
@@ -120,12 +101,10 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
             });
     }
 
-    private static LspDiagnosticFile FormatDiagnosticsForAttachment(string uri, JsonArray diagsArray)
-    {
+    private static LspDiagnosticFile FormatDiagnosticsForAttachment(string uri, JsonArray diagsArray) {
         var diagnostics = new List<LspDiagnosticItem>();
 
-        foreach (var diagNode in diagsArray)
-        {
+        foreach (var diagNode in diagsArray) {
             if (diagNode is not JsonObject diag) continue;
 
             var message = diag.TryGetPropertyValue("message", out var msgNode) ? msgNode?.GetValue<string>() : null;
@@ -135,16 +114,14 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
                 diag.TryGetPropertyValue("severity", out var sevNode) ? sevNode?.GetValue<int>() : null);
 
             LspRange? range = null;
-            if (diag.TryGetPropertyValue("range", out var rangeNode) && rangeNode is JsonObject rangeObj)
-            {
+            if (diag.TryGetPropertyValue("range", out var rangeNode) && rangeNode is JsonObject rangeObj) {
                 range = ParseRange(rangeObj);
             }
 
             var source = diag.TryGetPropertyValue("source", out var srcNode) ? srcNode?.GetValue<string>() : null;
             var code = diag.TryGetPropertyValue("code", out var codeNode) ? codeNode?.ToString() : null;
 
-            diagnostics.Add(new LspDiagnosticItem
-            {
+            diagnostics.Add(new LspDiagnosticItem {
                 Message = message ?? string.Empty,
                 Severity = severity,
                 Range = range,
@@ -157,15 +134,13 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
             ? Uri.TryCreate(uri, UriKind.Absolute, out var u) ? u.LocalPath : uri
             : uri;
 
-        return new LspDiagnosticFile
-        {
+        return new LspDiagnosticFile {
             Uri = fileUri,
             Diagnostics = diagnostics
         };
     }
 
-    private static string MapLspSeverity(int? lspSeverity) => lspSeverity switch
-    {
+    private static string MapLspSeverity(int? lspSeverity) => lspSeverity switch {
         1 => "Error",
         2 => "Warning",
         3 => "Info",
@@ -173,8 +148,7 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
         _ => "Error"
     };
 
-    private static LspRange ParseRange(JsonObject rangeObj)
-    {
+    private static LspRange ParseRange(JsonObject rangeObj) {
         var start = rangeObj.TryGetPropertyValue("start", out var startNode) && startNode is JsonObject sObj
             ? ParsePosition(sObj)
             : new LspPosition();
@@ -186,8 +160,7 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
         return new LspRange { Start = start, End = end };
     }
 
-    private static LspPosition ParsePosition(JsonObject posObj)
-    {
+    private static LspPosition ParsePosition(JsonObject posObj) {
         var line = posObj.TryGetPropertyValue("line", out var lineNode) ? lineNode?.GetValue<int>() ?? 0 : 0;
         var character = posObj.TryGetPropertyValue("character", out var charNode) ? charNode?.GetValue<int>() ?? 0 : 0;
         return new LspPosition { Line = line, Character = character };

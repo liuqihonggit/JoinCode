@@ -4,8 +4,7 @@ namespace Core.Agents;
 /// 统一 Spawn 管道上下文 — 合并 AgentSpawnContext(路径A) 与 AgentSpawnCoordContext(路径B)
 /// 主代理/子代理/协调层共用此上下文，通过 IsMainAgent 标志区分主代理 no-op 分支
 /// </summary>
-public sealed class UnifiedSpawnContext : PipelineContextBase
-{
+public sealed class UnifiedSpawnContext : PipelineContextBase {
     // ═══════════════════════════════════════════════════════════
     // 输入（init）
     // ═══════════════════════════════════════════════════════════

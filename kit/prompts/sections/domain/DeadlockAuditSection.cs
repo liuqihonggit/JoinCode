@@ -8,13 +8,11 @@ namespace Core.Prompts.Sections;
     Keywords = new[] { "死锁", "卡死", "卡住了", "竞态条件", "分片锁", "锁排序", "并发安全", "flaky test", "线程安全", "互斥锁", "阻塞", "deadlock", "thread safety", "race condition", "concurrent" },
     InjectOn = PromptSectionInject.Keyword,
     Order = 61)]
-public static class DeadlockAuditSection
-{
+public static class DeadlockAuditSection {
     /// <summary>
     /// 获取 deadlock_audit 部分内容；死锁与并发审计规则文本。
     /// </summary>
-    public static string GetContent()
-    {
+    public static string GetContent() {
         return """
 # 死锁与并发审计规则
 
@@ -71,8 +69,7 @@ for ($i = 0; $i -lt 5; $i++) {
     /// <summary>
     /// 创建 deadlock_audit 提示词部分。
     /// </summary>
-    public static SystemPromptSection Create()
-    {
+    public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("deadlock_audit", GetContent);
     }
 }

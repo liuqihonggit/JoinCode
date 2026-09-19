@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// Headless 模式永久性错误 — 对齐 TS 端 BridgeHeadlessPermanentError
 /// 表示配置性问题，supervisor 不应重试，应停放（park）该 worker
 /// </summary>
-public sealed class BridgeHeadlessPermanentError : Exception
-{
+public sealed class BridgeHeadlessPermanentError : Exception {
     /// <summary>初始化永久性错误</summary>
     public BridgeHeadlessPermanentError(string message) : base(message) { }
 }
@@ -15,8 +14,7 @@ public sealed class BridgeHeadlessPermanentError : Exception
 /// Headless 模式选项 — 对齐 TS 端 HeadlessBridgeOpts
 /// 用于守护进程（daemon worker）场景，无 TUI、无交互、无 readline
 /// </summary>
-public sealed class BridgeHeadlessOpts
-{
+public sealed class BridgeHeadlessOpts {
     /// <summary>工作目录 — 对齐 TS 端 dir</summary>
     public required string Dir { get; init; }
 
@@ -66,8 +64,7 @@ public sealed class BridgeHeadlessOpts
 /// <summary>
 /// Bridge 独立进程依赖注入 — 对齐 TS 端 bridgeMain 的外部依赖
 /// </summary>
-public sealed class BridgeMainDeps
-{
+public sealed class BridgeMainDeps {
     /// <summary>Bridge API 客户端</summary>
     public required BridgeApiClient ApiClient { get; init; }
 
@@ -236,8 +233,7 @@ public sealed class BridgeMainDeps
 /// <summary>
 /// Bridge 主循环轮询配置 — 对齐 TS 端 getPollIntervalConfig
 /// </summary>
-public sealed class BridgeMainPollConfig
-{
+public sealed class BridgeMainPollConfig {
     /// <summary>轮询间隔（毫秒）— 空闲时</summary>
     public int PollIntervalMs { get; init; } = 5000;
 
@@ -272,8 +268,7 @@ public sealed class BridgeMainPollConfig
 /// <summary>
 /// Bridge 独立进程运行结果
 /// </summary>
-public sealed class BridgeMainResult
-{
+public sealed class BridgeMainResult {
     /// <summary>是否正常完成</summary>
     public bool Completed { get; init; }
 
@@ -290,8 +285,7 @@ public sealed class BridgeMainResult
 /// <summary>
 /// 创建初始会话请求 — 对齐 TS 端 createBridgeSession 参数
 /// </summary>
-public sealed class BridgeCreateSessionRequest
-{
+public sealed class BridgeCreateSessionRequest {
     /// <summary>环境 ID</summary>
     public required string EnvironmentId { get; init; }
 

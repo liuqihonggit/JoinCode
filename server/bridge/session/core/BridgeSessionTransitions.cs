@@ -6,8 +6,7 @@ namespace Core.Bridge;
 /// <para>原 SessionRunner 各方法内联 if 检查分散，现统一提取为命名 guard 方法</para>
 /// <para>不同动作对同一目标状态有不同 guard：Resume 仅 Suspended→Active，KeepAlive 允许非终态→Active</para>
 /// </summary>
-public static class BridgeSessionTransitions
-{
+public static class BridgeSessionTransitions {
     /// <summary>
     /// 是否为终态 — Closed 为终态，不可再转换
     /// </summary>

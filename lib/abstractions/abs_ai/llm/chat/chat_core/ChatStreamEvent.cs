@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public enum ChatStreamEventType
-{
+public enum ChatStreamEventType {
     [EnumValue("content")] Content,
     [EnumValue("thinking")] Thinking,
     [EnumValue("toolCallStart")] ToolCallStart,
@@ -15,8 +14,7 @@ public enum ChatStreamEventType
     [EnumValue("agentFinished")] AgentFinished
 }
 
-public sealed class ChatStreamEvent
-{
+public sealed class ChatStreamEvent {
     public ChatStreamEventType Type { get; init; }
     public string? Content { get; init; }
     public string? ThinkingContent { get; init; }
@@ -80,28 +78,24 @@ public sealed class ChatStreamEvent
     /// <summary>是否为子代理活动事件（AgentId 非 null 即是，含 Started/Finished 与中间活动）</summary>
     public bool IsSubAgentActivity => AgentId is not null;
 
-    public static ChatStreamEvent Text(string content) => new()
-    {
+    public static ChatStreamEvent Text(string content) => new() {
         Type = ChatStreamEventType.Content,
         Content = content
     };
 
-    public static ChatStreamEvent Thinking(string thinkingContent) => new()
-    {
+    public static ChatStreamEvent Thinking(string thinkingContent) => new() {
         Type = ChatStreamEventType.Thinking,
         ThinkingContent = thinkingContent
     };
 
-    public static ChatStreamEvent ToolStart(string toolName, string? toolCallId = null, string? arguments = null) => new()
-    {
+    public static ChatStreamEvent ToolStart(string toolName, string? toolCallId = null, string? arguments = null) => new() {
         Type = ChatStreamEventType.ToolCallStart,
         ToolName = toolName,
         ToolCallId = toolCallId,
         ToolArguments = arguments
     };
 
-    public static ChatStreamEvent ToolEnd(string toolName, string? resultText = null, string? toolCallId = null, bool isError = false, StructuredPatchHunk[]? structuredPatch = null) => new()
-    {
+    public static ChatStreamEvent ToolEnd(string toolName, string? resultText = null, string? toolCallId = null, bool isError = false, StructuredPatchHunk[]? structuredPatch = null) => new() {
         Type = ChatStreamEventType.ToolCallEnd,
         ToolName = toolName,
         ToolCallId = toolCallId,
@@ -114,8 +108,7 @@ public sealed class ChatStreamEvent
     /// 工具进度事件 — 对齐 TS WebSearchTool onProgress
     /// 传递搜索进度（query_update/search_results_received）给 TUI 层
     /// </summary>
-    public static ChatStreamEvent ToolProgress(string toolName, string progressType, string progressMessage, string? toolCallId = null) => new()
-    {
+    public static ChatStreamEvent ToolProgress(string toolName, string progressType, string progressMessage, string? toolCallId = null) => new() {
         Type = ChatStreamEventType.ToolProgress,
         ToolName = toolName,
         ToolCallId = toolCallId,
@@ -123,22 +116,19 @@ public sealed class ChatStreamEvent
         ProgressMessage = progressMessage
     };
 
-    public static ChatStreamEvent LoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern = null) => new()
-    {
+    public static ChatStreamEvent LoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern = null) => new() {
         Type = ChatStreamEventType.LoopDetected,
         LoopTriggerCount = triggerCount,
         LoopStartIndex = loopStartIndex,
         Content = repeatedPattern
     };
 
-    public static ChatStreamEvent TimingSummary(string summary) => new()
-    {
+    public static ChatStreamEvent TimingSummary(string summary) => new() {
         Type = ChatStreamEventType.TimingSummary,
         Content = summary
     };
 
-    public static ChatStreamEvent Done(TokenUsage? usage = null, string? modelId = null) => new()
-    {
+    public static ChatStreamEvent Done(TokenUsage? usage = null, string? modelId = null) => new() {
         Type = ChatStreamEventType.Complete,
         Usage = usage,
         ModelId = modelId
@@ -147,8 +137,7 @@ public sealed class ChatStreamEvent
     /// <summary>
     /// 子代理启动事件 — 携带身份元数据（名称/描述/角色），GUI 据此创建运行卡片
     /// </summary>
-    public static ChatStreamEvent AgentStarted(string agentId, string? name = null, string? description = null, string? role = null) => new()
-    {
+    public static ChatStreamEvent AgentStarted(string agentId, string? name = null, string? description = null, string? role = null) => new() {
         Type = ChatStreamEventType.AgentStarted,
         AgentId = agentId,
         AgentName = name,
@@ -160,15 +149,14 @@ public sealed class ChatStreamEvent
     /// 子代理结束事件 — 携带成功标记/执行时长/token 用量/最终输出，GUI 定格统计卡片
     /// </summary>
     public static ChatStreamEvent AgentFinished(
-        string agentId, bool success, long? executionTimeMs = null, TokenUsage? usage = null, string? finalOutput = null) => new()
-    {
-        Type = ChatStreamEventType.AgentFinished,
-        AgentId = agentId,
-        AgentSuccess = success,
-        AgentExecutionTimeMs = executionTimeMs,
-        Usage = usage,
-        Content = finalOutput
-    };
+        string agentId, bool success, long? executionTimeMs = null, TokenUsage? usage = null, string? finalOutput = null) => new() {
+            Type = ChatStreamEventType.AgentFinished,
+            AgentId = agentId,
+            AgentSuccess = success,
+            AgentExecutionTimeMs = executionTimeMs,
+            Usage = usage,
+            Content = finalOutput
+        };
 
     public T Match<T>(
         Func<string, T> onText,
@@ -180,10 +168,8 @@ public sealed class ChatStreamEvent
         Func<string, T> onTimingSummary,
         Func<TokenUsage?, string?, T> onDone,
         Func<string, T>? onAgentStarted = null,
-        Func<string, bool?, T>? onAgentFinished = null)
-    {
-        return Type switch
-        {
+        Func<string, bool?, T>? onAgentFinished = null) {
+        return Type switch {
             ChatStreamEventType.Content => onText(Content ?? string.Empty),
             ChatStreamEventType.Thinking => onThinking(ThinkingContent ?? string.Empty),
             ChatStreamEventType.ToolCallStart => onToolStart(ToolName ?? string.Empty, ToolCallId, ToolArguments),
@@ -212,43 +198,41 @@ public sealed class ChatStreamEvent
         Action<string> onTimingSummary,
         Action<TokenUsage?, string?> onDone,
         Action<string>? onAgentStarted = null,
-        Action<string, bool?>? onAgentFinished = null)
-    {
-        switch (Type)
-        {
+        Action<string, bool?>? onAgentFinished = null) {
+        switch (Type) {
             case ChatStreamEventType.Content:
-                onText(Content ?? string.Empty);
-                break;
+            onText(Content ?? string.Empty);
+            break;
             case ChatStreamEventType.Thinking:
-                onThinking(ThinkingContent ?? string.Empty);
-                break;
+            onThinking(ThinkingContent ?? string.Empty);
+            break;
             case ChatStreamEventType.ToolCallStart:
-                onToolStart(ToolName ?? string.Empty, ToolCallId, ToolArguments);
-                break;
+            onToolStart(ToolName ?? string.Empty, ToolCallId, ToolArguments);
+            break;
             case ChatStreamEventType.ToolCallEnd:
-                onToolEnd(ToolName ?? string.Empty, ToolResultText, ToolCallId, IsToolError, StructuredPatch);
-                break;
+            onToolEnd(ToolName ?? string.Empty, ToolResultText, ToolCallId, IsToolError, StructuredPatch);
+            break;
             case ChatStreamEventType.ToolProgress:
-                onToolProgress(ToolName ?? string.Empty, ProgressType ?? "", ProgressMessage ?? "");
-                break;
+            onToolProgress(ToolName ?? string.Empty, ProgressType ?? "", ProgressMessage ?? "");
+            break;
             case ChatStreamEventType.LoopDetected:
-                onLoopDetected(LoopTriggerCount, LoopStartIndex, Content);
-                break;
+            onLoopDetected(LoopTriggerCount, LoopStartIndex, Content);
+            break;
             case ChatStreamEventType.TimingSummary:
-                onTimingSummary(Content ?? "");
-                break;
+            onTimingSummary(Content ?? "");
+            break;
             case ChatStreamEventType.Complete:
-                onDone(Usage, ModelId);
-                break;
+            onDone(Usage, ModelId);
+            break;
             // Agent 事件在未提供回调时静默忽略 — 保证既有消费方（AskClarifyCommand/SessionController）零改动兼容
             case ChatStreamEventType.AgentStarted:
-                onAgentStarted?.Invoke(AgentId ?? string.Empty);
-                break;
+            onAgentStarted?.Invoke(AgentId ?? string.Empty);
+            break;
             case ChatStreamEventType.AgentFinished:
-                onAgentFinished?.Invoke(AgentId ?? string.Empty, AgentSuccess);
-                break;
+            onAgentFinished?.Invoke(AgentId ?? string.Empty, AgentSuccess);
+            break;
             default:
-                throw new InvalidOperationException($"Unknown event type: {Type}");
+            throw new InvalidOperationException($"Unknown event type: {Type}");
         }
     }
 }

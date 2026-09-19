@@ -6,8 +6,7 @@ namespace Tools.Handlers;
 /// 提供 resume/continue/stop 三个工具，形成纵深防御 Layer 2+3
 /// </summary>
 [McpToolDispatch(ToolCategory.ErrorRecovery, Kind = ToolKind.OnError)]
-public class TimeoutRecoveryToolHandlers
-{
+public class TimeoutRecoveryToolHandlers {
     private readonly LongRunningTaskRegistry _taskRegistry;
     private readonly ILogger<TimeoutRecoveryToolHandlers>? _logger;
 
@@ -16,8 +15,7 @@ public class TimeoutRecoveryToolHandlers
     /// </summary>
     /// <param name="taskRegistry">长时间任务注册表，跟踪续期任务状态</param>
     /// <param name="logger">可选日志记录器</param>
-    public TimeoutRecoveryToolHandlers(LongRunningTaskRegistry taskRegistry, ILogger<TimeoutRecoveryToolHandlers>? logger = null)
-    {
+    public TimeoutRecoveryToolHandlers(LongRunningTaskRegistry taskRegistry, ILogger<TimeoutRecoveryToolHandlers>? logger = null) {
         _taskRegistry = taskRegistry ?? throw new ArgumentNullException(nameof(taskRegistry));
         _logger = logger;
     }
@@ -33,10 +31,8 @@ public class TimeoutRecoveryToolHandlers
         [McpToolParameter("原始工具名称 (Bash/PowerShell)", Required = true)] string original_tool,
         [McpToolParameter("续期超时分钟数 (默认10)", Required = false, DefaultValue = "10")] int? timeout_minutes = 10,
         [McpToolParameter("工作目录", Required = false)] string? working_directory = null,
-        CancellationToken ct = default)
-    {
-        try
-        {
+        CancellationToken ct = default) {
+        try {
             var timeoutMin = timeout_minutes is null or <= 0 ? 10 : timeout_minutes.Value;
 
             _logger?.LogInformation("恢复超时任务: tool={Tool}, timeout={Min}min, command={Cmd}", original_tool, timeoutMin, original_command);
@@ -44,9 +40,7 @@ public class TimeoutRecoveryToolHandlers
             var result = await _taskRegistry.StartTaskAsync(original_command, original_tool, working_directory, timeoutMin, ct).ConfigureAwait(false);
 
             return BuildResult(result, original_command);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult(SystemToolNameEnumConstants.ResumeTimedOutTask, ex, _logger, "original_command", original_command, "original_tool", original_tool);
         }
     }
@@ -59,10 +53,8 @@ public class TimeoutRecoveryToolHandlers
     public async Task<ToolResult> ContinueLongRunningTaskAsync(
         [McpToolParameter("任务ID", Required = true)] string task_id,
         [McpToolParameter("额外等待分钟数 (默认10)", Required = false, DefaultValue = "10")] int? additional_minutes = 10,
-        CancellationToken ct = default)
-    {
-        try
-        {
+        CancellationToken ct = default) {
+        try {
             var additionalMin = additional_minutes is null or <= 0 ? 10 : additional_minutes.Value;
 
             _logger?.LogInformation("继续长期任务: taskId={Id}, additional={Min}min", task_id, additionalMin);
@@ -71,9 +63,7 @@ public class TimeoutRecoveryToolHandlers
 
             var task = _taskRegistry.GetTask(task_id);
             return BuildResult(result, task?.Command ?? "(unknown)");
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("continue_long_running_task", ex, _logger, "task_id", task_id);
         }
     }
@@ -85,10 +75,8 @@ public class TimeoutRecoveryToolHandlers
         Kind = JoinCode.Abstractions.Attributes.ToolKindEnumConstants.OnError, GroupName = ShellToolNameEnumConstants.Bash)]
     public Task<ToolResult> StopLongRunningTaskAsync(
         [McpToolParameter("任务ID", Required = true)] string task_id,
-        CancellationToken ct = default)
-    {
-        try
-        {
+        CancellationToken ct = default) {
+        try {
             var stopped = _taskRegistry.StopTask(task_id);
 
             var text = stopped
@@ -96,77 +84,71 @@ public class TimeoutRecoveryToolHandlers
                 : $"任务 {task_id} 不存在或已完成。";
 
             return Task.FromResult(ToolResultBuilder.Success().WithText(text).Build());
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("stop_long_running_task", ex, _logger, "task_id", task_id));
         }
     }
 
-    private static ToolResult BuildResult(LongRunningTaskResult result, string command)
-    {
+    private static ToolResult BuildResult(LongRunningTaskResult result, string command) {
         var sb = new StringBuilder(512);
 
-        switch (result.State)
-        {
+        switch (result.State) {
             case LongRunningTaskState.Completed:
-                sb.AppendLine($"## 任务完成 (耗时 {result.Elapsed.TotalSeconds:F1}s)");
+            sb.AppendLine($"## 任务完成 (耗时 {result.Elapsed.TotalSeconds:F1}s)");
+            sb.AppendLine();
+            if (!string.IsNullOrEmpty(result.Stdout))
+                sb.AppendLine(result.Stdout);
+            if (!string.IsNullOrEmpty(result.Stderr)) {
                 sb.AppendLine();
-                if (!string.IsNullOrEmpty(result.Stdout))
-                    sb.AppendLine(result.Stdout);
-                if (!string.IsNullOrEmpty(result.Stderr))
-                {
-                    sb.AppendLine();
-                    sb.AppendLine("### stderr");
-                    sb.AppendLine(result.Stderr);
-                }
-                return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
+                sb.AppendLine("### stderr");
+                sb.AppendLine(result.Stderr);
+            }
+            return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
 
             case LongRunningTaskState.Failed:
-                sb.AppendLine($"## 任务失败 (退出码 {result.ExitCode}, 耗时 {result.Elapsed.TotalSeconds:F1}s)");
+            sb.AppendLine($"## 任务失败 (退出码 {result.ExitCode}, 耗时 {result.Elapsed.TotalSeconds:F1}s)");
+            sb.AppendLine();
+            sb.AppendLine($"**命令**: `{command}`");
+            if (!string.IsNullOrEmpty(result.Stderr)) {
                 sb.AppendLine();
-                sb.AppendLine($"**命令**: `{command}`");
-                if (!string.IsNullOrEmpty(result.Stderr))
-                {
-                    sb.AppendLine();
-                    sb.AppendLine(result.Stderr);
-                }
-                return ToolResultBuilder.Error().WithText(sb.ToString())
-                    .WithDiagnostic(BuildTaskFailedDiagnostic(command, result.ExitCode ?? -1)).Build();
+                sb.AppendLine(result.Stderr);
+            }
+            return ToolResultBuilder.Error().WithText(sb.ToString())
+                .WithDiagnostic(BuildTaskFailedDiagnostic(command, result.ExitCode ?? -1)).Build();
 
             case LongRunningTaskState.TimedOut:
-                sb.AppendLine($"## 任务再次超时 (已运行 {result.Elapsed.TotalMinutes:F1}min, 第 {result.RetryCount} 次续期)");
-                sb.AppendLine();
-                sb.AppendLine($"**命令**: `{command}`");
-                sb.AppendLine();
-                sb.AppendLine($"任务在续期超时后仍未完成。可以：");
-                sb.AppendLine($"- 调用 `continue_long_running_task` 继续等待（task_id: {result.TaskId}）");
-                sb.AppendLine($"- 调用 `stop_long_running_task` 放弃此任务（task_id: {result.TaskId}）");
-                sb.AppendLine($"- 检查命令是否正确，或拆分为更小的步骤");
-                return ToolResultBuilder.Error().WithText(sb.ToString())
-                    .WithDiagnostic(BuildTimedOutDiagnostic(command, result.TaskId, result.RetryCount)).Build();
+            sb.AppendLine($"## 任务再次超时 (已运行 {result.Elapsed.TotalMinutes:F1}min, 第 {result.RetryCount} 次续期)");
+            sb.AppendLine();
+            sb.AppendLine($"**命令**: `{command}`");
+            sb.AppendLine();
+            sb.AppendLine($"任务在续期超时后仍未完成。可以：");
+            sb.AppendLine($"- 调用 `continue_long_running_task` 继续等待（task_id: {result.TaskId}）");
+            sb.AppendLine($"- 调用 `stop_long_running_task` 放弃此任务（task_id: {result.TaskId}）");
+            sb.AppendLine($"- 检查命令是否正确，或拆分为更小的步骤");
+            return ToolResultBuilder.Error().WithText(sb.ToString())
+                .WithDiagnostic(BuildTimedOutDiagnostic(command, result.TaskId, result.RetryCount)).Build();
 
             case LongRunningTaskState.NotFound:
-                sb.AppendLine($"## 任务不存在");
-                sb.AppendLine(result.Stderr);
-                return ToolResultBuilder.Error().WithText(sb.ToString())
-                    .WithDiagnostic(BuildTaskNotFoundDiagnostic()).Build();
+            sb.AppendLine($"## 任务不存在");
+            sb.AppendLine(result.Stderr);
+            return ToolResultBuilder.Error().WithText(sb.ToString())
+                .WithDiagnostic(BuildTaskNotFoundDiagnostic()).Build();
 
             case LongRunningTaskState.MaxRetriesExceeded:
-                sb.AppendLine($"## 已达到最大续期次数 ({result.RetryCount})");
-                sb.AppendLine();
-                sb.AppendLine($"**命令**: `{command}`");
-                sb.AppendLine();
-                sb.AppendLine("任务已多次超时，建议：");
-                sb.AppendLine("- 检查命令是否可以优化");
-                sb.AppendLine("- 拆分为更小的步骤分别执行");
-                sb.AppendLine("- 考虑在后台运行此任务");
-                return ToolResultBuilder.Error().WithText(sb.ToString())
-                    .WithDiagnostic(BuildMaxRetriesExceededDiagnostic(command, result.RetryCount)).Build();
+            sb.AppendLine($"## 已达到最大续期次数 ({result.RetryCount})");
+            sb.AppendLine();
+            sb.AppendLine($"**命令**: `{command}`");
+            sb.AppendLine();
+            sb.AppendLine("任务已多次超时，建议：");
+            sb.AppendLine("- 检查命令是否可以优化");
+            sb.AppendLine("- 拆分为更小的步骤分别执行");
+            sb.AppendLine("- 考虑在后台运行此任务");
+            return ToolResultBuilder.Error().WithText(sb.ToString())
+                .WithDiagnostic(BuildMaxRetriesExceededDiagnostic(command, result.RetryCount)).Build();
 
             default:
-                var unknownDiag = BuildUnknownStateDiagnostic(result.State.ToString());
-                return ToolResultBuilder.Error().WithText(unknownDiag.FormattedMessage).WithDiagnostic(unknownDiag).Build();
+            var unknownDiag = BuildUnknownStateDiagnostic(result.State.ToString());
+            return ToolResultBuilder.Error().WithText(unknownDiag.FormattedMessage).WithDiagnostic(unknownDiag).Build();
         }
     }
 

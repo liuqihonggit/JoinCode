@@ -19,14 +19,12 @@ public sealed record ForkManagerDependencies(
 /// <para>已接管 IForkSubAgentManager 注册(原 ForkSubAgentManager 已归档至 .xxx/)。</para>
 /// </summary>
 [Register(typeof(IForkSubAgentManager), ServiceLifetime.Singleton)]
-public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentManagerActor.IForkCommand, Unit>, IForkSubAgentManager, IAsyncDisposable, ISubAgentConcurrencyUpdater
-{
+public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentManagerActor.IForkCommand, Unit>, IForkSubAgentManager, IAsyncDisposable, ISubAgentConcurrencyUpdater {
     /// <summary>
     /// Fork 条目 — 持有不可变身份(<see cref="ForkIdentity"/>)与可变运行时状态(<see cref="ForkRuntime"/>)。
     /// <para>身份字段创建时设定后不再变更;运行时字段由 Consumer 线程独占访问,执行过程中反复读写。</para>
     /// </summary>
-    private sealed class ForkEntry
-    {
+    private sealed class ForkEntry {
         /// <summary>Fork 身份信息 — 创建时设定,生命周期内不可变</summary>
         public required ForkIdentity Identity { get; init; }
 
@@ -84,8 +82,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         ILogger<ForkSubAgentManagerActor>? logger = null,
         IClockService? clock = null,
         SubAgentConcurrencyOptions? concurrencyOptions = null)
-        : base()
-    {
+        : base() {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _deps = deps ?? throw new ArgumentNullException(nameof(deps));
         _logger = logger;
@@ -104,19 +101,14 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// <param name="options">Fork 选项</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>Fork 结果</returns>
-    public async Task<ForkResult> ForkAsync(ForkOptions options, CancellationToken ct = default)
-    {
+    public async Task<ForkResult> ForkAsync(ForkOptions options, CancellationToken ct = default) {
         var sem = _forkSemaphore;
         IDisposable? releaser = null;
-        if (sem is not null)
-        {
-            try
-            {
+        if (sem is not null) {
+            try {
                 releaser = await sem.TryLockAsync(ct).ConfigureAwait(false)
                     ?? throw new System.TimeoutException($"锁 '{sem.Name}' 等待超时");
-            }
-            catch (ObjectDisposedException)
-            {
+            } catch (ObjectDisposedException) {
                 sem = _forkSemaphore;
                 if (sem is not null)
                     releaser = await sem.TryLockAsync(ct).ConfigureAwait(false)
@@ -124,15 +116,13 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             }
         }
         var semaphoreTransferredToBackground = false;
-        try
-        {
+        try {
             var forkDepth = await AskForkDepthAsync(options.ParentSessionId, ct).ConfigureAwait(false);
 
             var forkId = $"fork-{Guid.NewGuid():N}";
             var createdAt = _clock.GetUtcNow();
 
-            var context = new ForkContext
-            {
+            var context = new ForkContext {
                 Options = options,
                 ForkId = forkId,
                 CreatedAt = createdAt,
@@ -142,12 +132,9 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
 
             await SendAsync(new SetupForkEntryCmd(options, forkId, createdAt, context), ct).ConfigureAwait(false);
 
-            try
-            {
+            try {
                 await _pipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 await SendAsync(new SetForkStateCmd(forkId, ForkState.Cancelled, null), ct).ConfigureAwait(false);
                 RecordForkMetrics("fork_cancelled", false);
                 _logger?.LogInformation("Fork {ForkId} was cancelled", forkId);
@@ -155,9 +142,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
                 await FireForkCompletedAsync(forkId, options.TaskDescription, ct).ConfigureAwait(false);
 
                 return await AskBuildForkResultAsync(forkId, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 await SendAsync(new SetForkStateCmd(forkId, ForkState.Failed, ex.Message), ct).ConfigureAwait(false);
                 RecordForkMetrics("fork_error", false);
                 _logger?.LogError(ex, "Fork {ForkId} failed with exception", forkId);
@@ -167,32 +152,27 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
                 return await AskBuildForkResultAsync(forkId, ct).ConfigureAwait(false);
             }
 
-            if (!context.IsValidated)
-            {
+            if (!context.IsValidated) {
                 await SendAsync(new RemoveForkEntryCmd(forkId), ct).ConfigureAwait(false);
-                return new ForkResult
-                {
+                return new ForkResult {
                     ForkId = context.ForkId,
                     State = ForkState.Failed,
                     Result = context.ValidationFailureReason
                 };
             }
 
-            if (context.Agent is not null)
-            {
+            if (context.Agent is not null) {
                 await SendAsync(new SetForkAgentIdCmd(forkId, context.Agent.ObjectId.UniqueId), ct).ConfigureAwait(false);
             }
 
-            if (context.IsBackground && context.Agent is not null)
-            {
+            if (context.IsBackground && context.Agent is not null) {
                 var forkCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 await SendAsync(new SetForkCtsCmd(forkId, forkCts), ct).ConfigureAwait(false);
 
                 var forkToken = forkCts.Token;
                 semaphoreTransferredToBackground = true;
                 var capturedReleaser = releaser;
-                Func<Task> runWithReleaser = async () =>
-                {
+                Func<Task> runWithReleaser = async () => {
                     using var r = capturedReleaser;
                     await RunBackgroundForkAsync(forkId, context.Agent, options.TaskDescription, options.EventChannel, forkToken)
                         .ConfigureAwait(false);
@@ -200,8 +180,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
                 _ = runWithReleaser()
                     .WaitAsync(TimeSpan.FromSeconds(10), forkToken).ConfigureAwait(false);
 
-                return new ForkResult
-                {
+                return new ForkResult {
                     ForkId = forkId,
                     State = ForkState.Running,
                     SharedCache = context.SharedCache
@@ -213,11 +192,8 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             await FireForkCompletedAsync(forkId, options.TaskDescription, ct).ConfigureAwait(false);
 
             return await AskBuildForkResultAsync(forkId, ct).ConfigureAwait(false);
-        }
-        finally
-        {
-            if (!semaphoreTransferredToBackground)
-            {
+        } finally {
+            if (!semaphoreTransferredToBackground) {
                 releaser.DisposeSafe(_logger);
             }
         }
@@ -228,8 +204,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>活跃 Fork 子智能体只读列表</returns>
-    public async Task<IReadOnlyList<ForkSubAgent>> GetActiveForksAsync(CancellationToken ct = default)
-    {
+    public async Task<IReadOnlyList<ForkSubAgent>> GetActiveForksAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<IReadOnlyList<ForkSubAgent>>();
         await SendAsync(new GetActiveForksQuery(tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
@@ -241,8 +216,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// <param name="forkId">Fork 标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>合并结果</returns>
-    public async Task<ForkResult> MergeForkAsync(string forkId, CancellationToken ct = default)
-    {
+    public async Task<ForkResult> MergeForkAsync(string forkId, CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<ForkResult>();
         await SendAsync(new MergeForkQuery(forkId, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
@@ -255,22 +229,19 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// <param name="forkId">Fork 标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task CancelForkAsync(string forkId, CancellationToken ct = default)
-    {
+    public async Task CancelForkAsync(string forkId, CancellationToken ct = default) {
         var snapshot = await AskForkEntryAsync(forkId, ct).ConfigureAwait(false);
         if (snapshot is null || snapshot.State != ForkState.Running)
             return;
 
-        if (snapshot.Cts is not null)
-        {
+        if (snapshot.Cts is not null) {
             await snapshot.Cts.CancelAsync().ConfigureAwait(false);
             snapshot.Cts.Dispose();
         }
         await SendAsync(new SetForkCtsCmd(forkId, null), ct).ConfigureAwait(false);
 
         string? agentIdToCancel = snapshot.AgentId;
-        if (agentIdToCancel is not null)
-        {
+        if (agentIdToCancel is not null) {
             await SendAsync(new SetForkAgentIdCmd(forkId, null), ct).ConfigureAwait(false);
             StopMailboxPollingIfNeeded(agentIdToCancel);
             await _deps.LifecycleManager.CancelAgentAsync(agentIdToCancel, ct).ConfigureAwait(false);
@@ -284,69 +255,63 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     }
 
     /// <summary>Consumer 命令处理 — 串行访问所有可变状态,无锁</summary>
-    protected override ValueTask HandleAsync(IForkCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
+    protected override ValueTask HandleAsync(IForkCommand command, CancellationToken ct) {
+        switch (command) {
             case CalculateForkDepthQuery(var parentId, var tcs):
-                tcs.SetResult(CalculateForkDepth(parentId));
-                return ValueTask.CompletedTask;
+            tcs.SetResult(CalculateForkDepth(parentId));
+            return ValueTask.CompletedTask;
             case SetupForkEntryCmd(var options, var forkId, var createdAt, var context):
-                SetupForkEntry(options, forkId, createdAt, context);
-                return ValueTask.CompletedTask;
+            SetupForkEntry(options, forkId, createdAt, context);
+            return ValueTask.CompletedTask;
             case RemoveForkEntryCmd(var forkId):
-                _entries.Remove(forkId);
-                _sharedCache.Remove(forkId);
-                return ValueTask.CompletedTask;
+            _entries.Remove(forkId);
+            _sharedCache.Remove(forkId);
+            return ValueTask.CompletedTask;
             case SetForkStateCmd(var forkId, var state, var result):
-                if (_entries.TryGetValue(forkId, out var stateEntry))
-                {
-                    stateEntry.Runtime.State = state;
-                    if (result is not null)
-                        stateEntry.Runtime.Result = result;
-                }
-                return ValueTask.CompletedTask;
+            if (_entries.TryGetValue(forkId, out var stateEntry)) {
+                stateEntry.Runtime.State = state;
+                if (result is not null)
+                    stateEntry.Runtime.Result = result;
+            }
+            return ValueTask.CompletedTask;
             case SetForkAgentIdCmd(var forkId, var agentId):
-                if (_entries.TryGetValue(forkId, out var agentEntry))
-                    agentEntry.Runtime.AgentId = agentId;
-                return ValueTask.CompletedTask;
+            if (_entries.TryGetValue(forkId, out var agentEntry))
+                agentEntry.Runtime.AgentId = agentId;
+            return ValueTask.CompletedTask;
             case SetForkCtsCmd(var forkId, var cts):
-                if (_entries.TryGetValue(forkId, out var ctsEntry))
-                    ctsEntry.Runtime.Cts = cts;
-                return ValueTask.CompletedTask;
+            if (_entries.TryGetValue(forkId, out var ctsEntry))
+                ctsEntry.Runtime.Cts = cts;
+            return ValueTask.CompletedTask;
             case BuildForkResultQuery(var forkId, var tcs):
-                tcs.SetResult(BuildForkResult(forkId));
-                return ValueTask.CompletedTask;
+            tcs.SetResult(BuildForkResult(forkId));
+            return ValueTask.CompletedTask;
             case GetForkEntrySnapshotQuery(var forkId, var tcs):
-                tcs.SetResult(GetForkEntrySnapshot(forkId));
-                return ValueTask.CompletedTask;
+            tcs.SetResult(GetForkEntrySnapshot(forkId));
+            return ValueTask.CompletedTask;
             case GetActiveForksQuery(var tcs):
-                tcs.SetResult(GetActiveForksList());
-                return ValueTask.CompletedTask;
+            tcs.SetResult(GetActiveForksList());
+            return ValueTask.CompletedTask;
             case MergeForkQuery(var forkId, var tcs):
-                tcs.SetResult(MergeFork(forkId));
-                return ValueTask.CompletedTask;
+            tcs.SetResult(MergeFork(forkId));
+            return ValueTask.CompletedTask;
             case CleanupAllCmd:
-                CleanupAll();
-                return ValueTask.CompletedTask;
+            CleanupAll();
+            return ValueTask.CompletedTask;
             default:
-                return ValueTask.CompletedTask;
+            return ValueTask.CompletedTask;
         }
     }
 
     /// <inheritdoc/>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogError(ex, "[ForkSubAgentManagerActor] Consumer 命令处理异常");
     }
 
-    private int CalculateForkDepth(string parentSessionId)
-    {
+    private int CalculateForkDepth(string parentSessionId) {
         var depth = 0;
         var current = parentSessionId;
 
-        for (var i = 0; i < 100; i++)
-        {
+        for (var i = 0; i < 100; i++) {
             if (!_entries.TryGetValue(current, out var entry)) break;
             depth++;
             current = entry.Identity.ParentSessionId;
@@ -355,35 +320,28 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         return depth;
     }
 
-    private void SetupForkEntry(ForkOptions options, string forkId, DateTime createdAt, ForkContext context)
-    {
-        if (options.ShareCache)
-        {
+    private void SetupForkEntry(ForkOptions options, string forkId, DateTime createdAt, ForkContext context) {
+        if (options.ShareCache) {
             var parentCache = _sharedCache.GetValueOrDefault(options.ParentSessionId, []);
             _sharedCache[options.ParentSessionId] = parentCache;
             _sharedCache[forkId] = parentCache;
             context.SharedCache = parentCache;
-        }
-        else
-        {
+        } else {
             var forkCache = new Dictionary<string, string>();
             _sharedCache[forkId] = forkCache;
             context.SharedCache = forkCache;
         }
 
-        _entries[forkId] = new ForkEntry
-        {
+        _entries[forkId] = new ForkEntry {
             Identity = new ForkIdentity(options.ParentSessionId, createdAt)
         };
     }
 
-    private ForkResult BuildForkResult(string forkId)
-    {
+    private ForkResult BuildForkResult(string forkId) {
         var cache = _sharedCache.GetValueOrDefault(forkId, []);
         var entry = _entries.GetValueOrDefault(forkId);
 
-        return new ForkResult
-        {
+        return new ForkResult {
             ForkId = forkId,
             State = entry?.Runtime.State ?? ForkState.Failed,
             Result = entry?.Runtime.Result,
@@ -391,8 +349,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         };
     }
 
-    private ForkEntrySnapshot? GetForkEntrySnapshot(string forkId)
-    {
+    private ForkEntrySnapshot? GetForkEntrySnapshot(string forkId) {
         if (!_entries.TryGetValue(forkId, out var entry)) return null;
         return new ForkEntrySnapshot(
             entry.Runtime.State,
@@ -403,14 +360,12 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             entry.Identity.CreatedAt);
     }
 
-    private IReadOnlyList<ForkSubAgent> GetActiveForksList()
-    {
+    private IReadOnlyList<ForkSubAgent> GetActiveForksList() {
         return _entries
             .Where(kvp => kvp.Value.Runtime.State == ForkState.Running
                        || kvp.Value.Runtime.State == ForkState.Completed
                        || kvp.Value.Runtime.State == ForkState.Failed)
-            .Select(kvp => new ForkSubAgent
-            {
+            .Select(kvp => new ForkSubAgent {
                 ForkId = kvp.Key,
                 ParentSessionId = kvp.Value.Identity.ParentSessionId,
                 State = kvp.Value.Runtime.State,
@@ -420,22 +375,17 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             .ToList();
     }
 
-    private ForkResult MergeFork(string forkId)
-    {
-        if (!_entries.TryGetValue(forkId, out var entry))
-        {
-            return new ForkResult
-            {
+    private ForkResult MergeFork(string forkId) {
+        if (!_entries.TryGetValue(forkId, out var entry)) {
+            return new ForkResult {
                 ForkId = forkId,
                 State = ForkState.Failed,
                 Result = "Fork not found"
             };
         }
 
-        if (entry.Runtime.State != ForkState.Completed)
-        {
-            return new ForkResult
-            {
+        if (entry.Runtime.State != ForkState.Completed) {
+            return new ForkResult {
                 ForkId = forkId,
                 State = entry.Runtime.State,
                 Result = $"Fork is in {entry.Runtime.State} state, cannot merge"
@@ -444,13 +394,11 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
 
         var parentSessionId = entry.Identity.ParentSessionId;
 
-        if (IsSharedCacheForFork(forkId, parentSessionId))
-        {
+        if (IsSharedCacheForFork(forkId, parentSessionId)) {
             var forkCache = _sharedCache.GetValueOrDefault(forkId, []);
             var parentCache = _sharedCache.GetValueOrDefault(parentSessionId, []);
 
-            foreach (var kvp in forkCache)
-            {
+            foreach (var kvp in forkCache) {
                 parentCache[kvp.Key] = kvp.Value;
             }
 
@@ -465,8 +413,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         var cache = _sharedCache.GetValueOrDefault(forkId, []);
         var mergedEntry = _entries.GetValueOrDefault(forkId);
 
-        return new ForkResult
-        {
+        return new ForkResult {
             ForkId = forkId,
             State = ForkState.Merged,
             Result = mergedEntry?.Runtime.Result,
@@ -474,21 +421,18 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         };
     }
 
-    private bool IsSharedCacheForFork(string forkId, string parentSessionId)
-    {
+    private bool IsSharedCacheForFork(string forkId, string parentSessionId) {
         if (!_sharedCache.TryGetValue(forkId, out var forkCache)) return false;
         if (!_sharedCache.TryGetValue(parentSessionId, out var parentCache)) return false;
         return ReferenceEquals(forkCache, parentCache);
     }
 
-    private void CleanupAll()
-    {
+    private void CleanupAll() {
         var ctsEntries = _entries.Values
             .Select(e => e.Runtime.Cts)
             .OfType<CancellationTokenSource>()
             .ToList();
-        foreach (var cts in ctsEntries)
-        {
+        foreach (var cts in ctsEntries) {
             cts.Cancel();
             cts.Dispose();
         }
@@ -496,32 +440,27 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         _sharedCache.Clear();
     }
 
-    private async Task<int> AskForkDepthAsync(string parentSessionId, CancellationToken ct)
-    {
+    private async Task<int> AskForkDepthAsync(string parentSessionId, CancellationToken ct) {
         var tcs = new TaskCompletionSource<int>();
         await SendAsync(new CalculateForkDepthQuery(parentSessionId, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
-    private async Task<ForkResult> AskBuildForkResultAsync(string forkId, CancellationToken ct)
-    {
+    private async Task<ForkResult> AskBuildForkResultAsync(string forkId, CancellationToken ct) {
         var tcs = new TaskCompletionSource<ForkResult>();
         await SendAsync(new BuildForkResultQuery(forkId, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
-    private async Task<ForkEntrySnapshot?> AskForkEntryAsync(string forkId, CancellationToken ct)
-    {
+    private async Task<ForkEntrySnapshot?> AskForkEntryAsync(string forkId, CancellationToken ct) {
         var tcs = new TaskCompletionSource<ForkEntrySnapshot?>();
         await SendAsync(new GetForkEntrySnapshotQuery(forkId, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
     private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription,
-        JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel? eventChannel, CancellationToken cancellationToken)
-    {
-        async Task EmitFinishedAsync(bool success, string? output)
-        {
+        JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel? eventChannel, CancellationToken cancellationToken) {
+        async Task EmitFinishedAsync(bool success, string? output) {
             if (eventChannel is null)
                 return;
             var snapshot = await AskForkEntryAsync(forkId, CancellationToken.None).ConfigureAwait(false);
@@ -531,18 +470,14 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
                 finalOutput: output));
         }
 
-        try
-        {
+        try {
             var result = await _deps.LifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
 
-            if (result.IsSuccess)
-            {
+            if (result.IsSuccess) {
                 await SendAsync(new SetForkStateCmd(forkId, ForkState.Completed, result.Output), CancellationToken.None).ConfigureAwait(false);
                 RecordForkMetrics("fork_background", true);
                 _logger?.LogInformation("Background Fork {ForkId} completed successfully", forkId);
-            }
-            else
-            {
+            } else {
                 await SendAsync(new SetForkStateCmd(forkId, ForkState.Failed, result.Error ?? "Unknown error"), CancellationToken.None).ConfigureAwait(false);
                 RecordForkMetrics("fork_background", false);
                 _logger?.LogWarning("Background Fork {ForkId} failed: {Error}", forkId, result.Error);
@@ -550,48 +485,38 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
 
             await EmitFinishedAsync(result.IsSuccess, result.IsSuccess ? result.Output : result.Error).ConfigureAwait(false);
             await FireForkCompletedAsync(forkId, taskDescription, CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             await SendAsync(new SetForkStateCmd(forkId, ForkState.Cancelled, null), CancellationToken.None).ConfigureAwait(false);
             RecordForkMetrics("fork_background_cancelled", false);
             _logger?.LogInformation("Background Fork {ForkId} was cancelled", forkId);
 
             await EmitFinishedAsync(success: false, "已取消").ConfigureAwait(false);
             await FireForkCompletedAsync(forkId, taskDescription, CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             await SendAsync(new SetForkStateCmd(forkId, ForkState.Failed, ex.Message), CancellationToken.None).ConfigureAwait(false);
             RecordForkMetrics("fork_background_error", false);
             _logger?.LogError(ex, "Background Fork {ForkId} failed with exception", forkId);
 
             await EmitFinishedAsync(success: false, ex.Message).ConfigureAwait(false);
             await FireForkCompletedAsync(forkId, taskDescription, CancellationToken.None).ConfigureAwait(false);
-        }
-        finally
-        {
+        } finally {
             await SendAsync(new SetForkCtsCmd(forkId, null), CancellationToken.None).ConfigureAwait(false);
         }
     }
 
-    private async Task FireForkCompletedAsync(string forkId, string taskDescription, CancellationToken ct)
-    {
-        try
-        {
+    private async Task FireForkCompletedAsync(string forkId, string taskDescription, CancellationToken ct) {
+        try {
             var snapshot = await AskForkEntryAsync(forkId, ct).ConfigureAwait(false);
             if (snapshot is null) return;
 
             string? worktreePath = null;
 
-            if (_deps.WorktreeManager != null && snapshot.AgentId is not null)
-            {
+            if (_deps.WorktreeManager != null && snapshot.AgentId is not null) {
                 var session = await _deps.WorktreeManager.GetWorktreeSessionAsync(snapshot.AgentId).ConfigureAwait(false);
                 worktreePath = session?.WorktreePath;
             }
 
-            ForkCompleted?.Invoke(this, new ForkCompletedEventArgs
-            {
+            ForkCompleted?.Invoke(this, new ForkCompletedEventArgs {
                 ForkId = forkId,
                 State = snapshot.State,
                 TaskDescription = taskDescription,
@@ -599,9 +524,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
                 Error = snapshot.State == ForkState.Failed ? snapshot.Result : null,
                 WorktreePath = worktreePath
             });
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to fire ForkCompleted event for {ForkId}", forkId);
         }
     }
@@ -609,20 +532,15 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     private void RecordForkMetrics(string operation, bool isSuccess)
         => ToolTelemetryHelper.RecordToolCount(_deps.TelemetryService, "fork.operation.count", operation, isSuccess, "Fork operation count");
 
-    private void StopMailboxPollingIfNeeded(string agentId)
-    {
+    private void StopMailboxPollingIfNeeded(string agentId) {
         if (_deps.MailboxPoller == null) return;
 
-        try
-        {
+        try {
             var sessionId = _deps.MessageBroker.GetSessionId(agentId);
-            if (sessionId is not null)
-            {
+            if (sessionId is not null) {
                 _deps.MailboxPoller.StopPolling(agentId, sessionId);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to stop mailbox polling for agent {AgentId}", agentId);
         }
     }
@@ -630,8 +548,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// <summary>
     /// 热重载 fork 并发上限 — 原子替换 SemaphoreSlim，旧的 Dispose（ADR 0048）
     /// </summary>
-    public void UpdateConcurrencyOptions(SubAgentConcurrencyOptions options)
-    {
+    public void UpdateConcurrencyOptions(SubAgentConcurrencyOptions options) {
         var maxForks = options.MaxConcurrentForks;
         var newSem = maxForks > 0
             ? new AsyncLock(nameof(ForkSubAgentManagerActor) + ".Concurrency", maxForks, maxForks)
@@ -653,8 +570,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// <para><b>规则</b>:Dispose/DisposeAsync 路径禁止出现 await tcs.Task / await xxx.Task.ConfigureAwait,违者由分析器锁死。</para>
     /// </remarks>
     /// <returns>表示异步操作的任务</returns>
-    public override ValueTask DisposeAsync()
-    {
+    public override ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         TrySend(new CleanupAllCmd());
         _forkSemaphore?.Dispose();

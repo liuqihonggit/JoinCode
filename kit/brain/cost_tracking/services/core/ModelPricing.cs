@@ -4,25 +4,21 @@ namespace Core.CostTracking;
 /// 模型定价 — 封装自定义模型成本字典与默认定价表
 /// 从 CostTracker 提取,统一管理模型定价的设置、查询、成本计算
 /// </summary>
-internal sealed class ModelPricing
-{
+internal sealed class ModelPricing {
     private readonly ConcurrentDictionary<string, ModelCostInfo> _modelCosts = new(StringComparer.OrdinalIgnoreCase);
     private readonly ModelPricingTable _pricingTable;
     private readonly ILogger? _logger;
 
     /// <summary>构造 ModelPricing — 加载默认定价表</summary>
-    public ModelPricing(ILogger? logger = null, IModelConfigLoader? modelConfigLoader = null)
-    {
+    public ModelPricing(ILogger? logger = null, IModelConfigLoader? modelConfigLoader = null) {
         _logger = logger;
         _pricingTable = new ModelPricingTable(modelConfigLoader ?? new ModelConfigLoader());
         LoadDefaults();
     }
 
     /// <summary>设置模型定价 — 覆盖默认定价表</summary>
-    public void Set(string model, decimal promptCostPer1K, decimal completionCostPer1K)
-    {
-        _modelCosts[model] = new ModelCostInfo
-        {
+    public void Set(string model, decimal promptCostPer1K, decimal completionCostPer1K) {
+        _modelCosts[model] = new ModelCostInfo {
             Model = model,
             PromptCostPer1KTokens = promptCostPer1K,
             CompletionCostPer1KTokens = completionCostPer1K
@@ -45,10 +41,8 @@ internal sealed class ModelPricing
     public IReadOnlyDictionary<string, ModelCostInfo> GetAll() => _modelCosts.ToFrozenDictionary();
 
     /// <summary>计算单次调用的成本 — 含 prompt/completion/cacheCreation/cacheRead</summary>
-    public decimal CalculateCost(string model, int promptTokens, int completionTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0)
-    {
-        if (!_modelCosts.TryGetValue(model, out var costInfo))
-        {
+    public decimal CalculateCost(string model, int promptTokens, int completionTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0) {
+        if (!_modelCosts.TryGetValue(model, out var costInfo)) {
             costInfo = GetDefaultCostInfo(model);
         }
 
@@ -61,27 +55,21 @@ internal sealed class ModelPricing
     }
 
     /// <summary>加载默认模型定价 — 从定价表注入到自定义字典</summary>
-    private void LoadDefaults()
-    {
-        foreach (var (keyword, promptCost, completionCost) in _pricingTable.GetAllEntries())
-        {
+    private void LoadDefaults() {
+        foreach (var (keyword, promptCost, completionCost) in _pricingTable.GetAllEntries()) {
             Set(keyword, promptCost, completionCost);
         }
     }
 
     /// <summary>获取默认成本信息 — 按关键字模糊匹配,未命中则用全局默认</summary>
-    public ModelCostInfo GetDefaultCostInfo(string model)
-    {
-        foreach (var kvp in _modelCosts)
-        {
-            if (model.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase))
-            {
+    public ModelCostInfo GetDefaultCostInfo(string model) {
+        foreach (var kvp in _modelCosts) {
+            if (model.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase)) {
                 return kvp.Value;
             }
         }
 
-        return new ModelCostInfo
-        {
+        return new ModelCostInfo {
             Model = model,
             PromptCostPer1KTokens = ModelPricingTable.DefaultPromptCostPer1K,
             CompletionCostPer1KTokens = ModelPricingTable.DefaultCompletionCostPer1K

@@ -4,8 +4,7 @@ namespace JoinCode.Transport.Bridge;
 /// 有界UUID集合 - 基于FIFO环形缓冲区的去重集合
 /// 用于消息去重，防止重复处理相同的消息
 /// </summary>
-public sealed class BoundedUUIDSet : IAsyncDisposable
-{
+public sealed class BoundedUUIDSet : IAsyncDisposable {
     private readonly string[] _buffer;
     private readonly int _capacity;
     private readonly HashSet<string> _set;
@@ -19,8 +18,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// 创建有界UUID集合
     /// </summary>
     /// <param name="capacity">最大容量</param>
-    public BoundedUUIDSet(int capacity)
-    {
+    public BoundedUUIDSet(int capacity) {
         if (capacity <= 0)
             throw new ArgumentOutOfRangeException(nameof(capacity), "[TRN012] 容量必须大于0");
 
@@ -35,12 +33,11 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// <summary>
     /// 当前元素数量
     /// </summary>
-    public async Task<int> GetCountAsync(CancellationToken ct = default)
-    {
+    public async Task<int> GetCountAsync(CancellationToken ct = default) {
         using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _count;
-    
+
     }
 
     /// <summary>
@@ -55,8 +52,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// <param name="uuid">UUID字符串</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>是否成功添加（false表示已存在）</returns>
-    public async Task<bool> AddAsync(string uuid, CancellationToken ct = default)
-    {
+    public async Task<bool> AddAsync(string uuid, CancellationToken ct = default) {
         if (string.IsNullOrEmpty(uuid))
             throw new ArgumentException("[TRN013] UUID不能为空", nameof(uuid));
 
@@ -66,13 +62,10 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
             return false;
 
         // 如果已满，移除最旧的元素
-        if (_count == _capacity)
-        {
+        if (_count == _capacity) {
             var oldest = _buffer[_head];
             _set.Remove(oldest);
-        }
-        else
-        {
+        } else {
             _count++;
         }
 
@@ -84,7 +77,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         _head = (_head + 1) % _capacity;
 
         return true;
-    
+
     }
 
     /// <summary>
@@ -93,22 +86,20 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// <param name="uuid">UUID字符串</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>是否存在</returns>
-    public async Task<bool> HasAsync(string uuid, CancellationToken ct = default)
-    {
+    public async Task<bool> HasAsync(string uuid, CancellationToken ct = default) {
         if (string.IsNullOrEmpty(uuid))
             return false;
 
         using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _set.Contains(uuid);
-    
+
     }
 
     /// <summary>
     /// 同步检查 UUID 是否存在 — 用于 handleIngressMessage 等同步上下文
     /// </summary>
-    public bool Contains(string uuid)
-    {
+    public bool Contains(string uuid) {
         if (string.IsNullOrEmpty(uuid))
             return false;
 
@@ -116,8 +107,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         if (guard is null)
             return false; // 无法获取锁，保守返回 false
 
-        using (guard)
-        {
+        using (guard) {
             return _set.Contains(uuid);
         }
     }
@@ -125,8 +115,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// <summary>
     /// 同步添加 UUID — 用于 handleIngressMessage 等同步上下文
     /// </summary>
-    public void Add(string uuid)
-    {
+    public void Add(string uuid) {
         if (string.IsNullOrEmpty(uuid))
             return;
 
@@ -134,19 +123,15 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         if (guard is null)
             return; // 无法获取锁，保守跳过
 
-        using (guard)
-        {
+        using (guard) {
             if (_set.Contains(uuid))
                 return;
 
             // 如果已满，移除最旧的元素
-            if (_count == _capacity)
-            {
+            if (_count == _capacity) {
                 var oldest = _buffer[_head];
                 _set.Remove(oldest);
-            }
-            else
-            {
+            } else {
                 _count++;
             }
 
@@ -160,15 +145,14 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// 异步清空集合
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    public async Task ClearAsync(CancellationToken ct = default)
-    {
+    public async Task ClearAsync(CancellationToken ct = default) {
         using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         Array.Clear(_buffer, 0, _buffer.Length);
         _set.Clear();
         _head = 0;
         _count = 0;
-    
+
     }
 
     /// <summary>
@@ -176,8 +160,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>UUID列表</returns>
-    public async Task<IReadOnlyList<string>> ToListAsync(CancellationToken ct = default)
-    {
+    public async Task<IReadOnlyList<string>> ToListAsync(CancellationToken ct = default) {
         using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (_count == 0)
@@ -189,12 +172,11 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         return Enumerable.Range(0, _count)
             .Select(i => _buffer[(startIndex + i) % _capacity])
             .ToList();
-    
+
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
     }

@@ -4,20 +4,17 @@ namespace Core.Agents;
 /// 代理定义提供者 — 加载内置、用户、项目及插件代理定义，支持缓存与变更刷新
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider), ServiceLifetime.Singleton)]
-public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider
-{
+public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider {
 
     /// <summary>
     /// 构造 AgentDefinitionProvider 实例，注入文件系统、日志器及可选的插件代理加载器
     /// </summary>
-    public AgentDefinitionProvider(IFileSystem fs, ILogger<AgentDefinitionProvider>? logger = null, IPluginAgentLoader? pluginAgentLoader = null)
-    {
+    public AgentDefinitionProvider(IFileSystem fs, ILogger<AgentDefinitionProvider>? logger = null, IPluginAgentLoader? pluginAgentLoader = null) {
         _fs = fs;
         _logger = logger;
         _pluginAgentLoader = pluginAgentLoader;
         _actor = new DefinitionLoaderActor(this, logger);
-        if (pluginAgentLoader is not null)
-        {
+        if (pluginAgentLoader is not null) {
             pluginAgentLoader.Changed += (_, _) => ClearCache();
         }
     }
@@ -31,7 +28,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     private volatile bool _cacheLoaded;
 
     private static readonly string[] ProjectAgentDirs =
-    new[] { 
+    new[] {
         Path.Combine(AppDataConstants.AppDataFolder, "agents"),
         Path.Combine(".trae", "agents"),
         Path.Combine(".claude", "agents")
@@ -45,8 +42,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     /// <returns>去重后的代理定义列表</returns>
     public async Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>> GetAgentDefinitionsAsync(
         string? workingDirectory = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_cacheLoaded)
             return _cachedDefinitions;
 
@@ -63,29 +59,25 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     /// <returns>去重后的代理定义列表</returns>
     private async Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>> GetDefinitionsInternalAsync(
         string? workingDirectory,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         if (_cacheLoaded)
             return _cachedDefinitions;
 
         var definitions = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>();
         definitions.AddRange(GetBuiltInDefinitions());
 
-        if (_pluginAgentLoader is not null)
-        {
+        if (_pluginAgentLoader is not null) {
             definitions.AddRange(_pluginAgentLoader.GetAll());
         }
 
         // 并行加载用户定义和项目定义
         var loadTasks = new List<Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>>();
         loadTasks.Add(LoadUserDefinitionsAsync(cancellationToken));
-        if (workingDirectory is not null)
-        {
+        if (workingDirectory is not null) {
             loadTasks.Add(LoadProjectDefinitionsAsync(workingDirectory, cancellationToken));
         }
         var loadResults = await Task.WhenAll(loadTasks).ConfigureAwait(false);
-        foreach (var loaded in loadResults)
-        {
+        foreach (var loaded in loadResults) {
             definitions.AddRange(loaded);
         }
 
@@ -107,15 +99,13 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         JoinCode.Abstractions.Models.Agent.AgentRole role,
         JoinCode.Abstractions.Models.Agent.ExecutorVariant? variant = null,
         string? workingDirectory = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         await GetAgentDefinitionsAsync(workingDirectory, cancellationToken).ConfigureAwait(false);
         return _cachedDefinitionMap[(role, variant)].FirstOrDefault();
     }
 
     /// <inheritdoc />
-    public void ClearCache()
-    {
+    public void ClearCache() {
         _cachedDefinitions = [];
         _cachedDefinitionMap = Array.Empty<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>().ToLookup(d => (d.Role, d.Variant));
         _cacheLoaded = false;
@@ -126,8 +116,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     /// 获取内置代理定义列表 — 对齐 TS builtInAgents.ts，包含 Coordinator/Executor 各变体
     /// </summary>
     /// <returns>内置代理定义列表</returns>
-    internal static List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> GetBuiltInDefinitions()
-    {
+    internal static List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> GetBuiltInDefinitions() {
         // 对齐 TS builtInAgents.ts — Explore/Plan 禁止 Agent/FileEdit/FileWrite/NotebookEdit
         var readOnlyDisallowedTools = new List<string>
         {
@@ -234,14 +223,12 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     }
 
     private async Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>> LoadUserDefinitionsAsync(
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var definitions = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>();
         var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var agentsPath = Path.Combine(appDataRoot, AppDataConstants.AppDataFolder, AppDataConstants.AgentsFolderName);
 
-        if (_fs.DirectoryExists(agentsPath))
-        {
+        if (_fs.DirectoryExists(agentsPath)) {
             var loaded = await LoadDefinitionsFromDirectoryAsync(agentsPath, cancellationToken).ConfigureAwait(false);
             definitions.AddRange(loaded);
         }
@@ -251,26 +238,21 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
 
     private async Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>> LoadProjectDefinitionsAsync(
         string workingDirectory,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var definitions = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>();
         var currentDirPath = _fs.GetFullPath(workingDirectory);
 
-        while (currentDirPath != null)
-        {
+        while (currentDirPath != null) {
             // 并行扫描所有项目代理目录
             var dirTasks = new List<Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>>();
-            foreach (var agentDir in ProjectAgentDirs)
-            {
+            foreach (var agentDir in ProjectAgentDirs) {
                 var fullPath = Path.Combine(currentDirPath, agentDir);
-                if (_fs.DirectoryExists(fullPath))
-                {
+                if (_fs.DirectoryExists(fullPath)) {
                     dirTasks.Add(LoadDefinitionsFromDirectoryAsync(fullPath, cancellationToken));
                 }
             }
             var dirResults = await Task.WhenAll(dirTasks).ConfigureAwait(false);
-            foreach (var loaded in dirResults)
-            {
+            foreach (var loaded in dirResults) {
                 definitions.AddRange(loaded);
             }
 
@@ -282,50 +264,39 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
 
     private async Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>> LoadDefinitionsFromDirectoryAsync(
         string directoryPath,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var definitions = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>();
 
-        try
-        {
+        try {
             var mdFiles = _fs.GetFiles(directoryPath, "*.md", SearchOption.AllDirectories);
 
             // 并行读取所有 md 文件
             var readTasks = new List<Task<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition?>>();
-            foreach (var filePath in mdFiles)
-            {
+            foreach (var filePath in mdFiles) {
                 readTasks.Add(TryReadDefinitionFileAsync(filePath, cancellationToken));
             }
             var readResults = await Task.WhenAll(readTasks).ConfigureAwait(false);
-            foreach (var definition in readResults)
-            {
-                if (definition is not null)
-                {
+            foreach (var definition in readResults) {
+                if (definition is not null) {
                     definitions.Add(definition);
                     _logger?.LogInformation("已加载代理定义: {DisplayId} ({Path})", definition.DisplayId, definition.SourcePath);
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.ScanAgentDefinitionFailedLog, directoryPath));
         }
 
         return definitions;
     }
 
-    private async Task<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition?> TryReadDefinitionFileAsync(string filePath, CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition?> TryReadDefinitionFileAsync(string filePath, CancellationToken cancellationToken) {
+        try {
             if (!_fs.FileExists(filePath)) return null;
             var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(content)) return null;
 
             return ParseDefinitionFile(content, filePath);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "读取代理定义文件失败: {Path}", filePath);
             return null;
         }
@@ -337,8 +308,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     /// <param name="content">文件内容</param>
     /// <param name="sourcePath">源文件路径</param>
     /// <returns>解析后的代理定义；解析失败时返回 null</returns>
-    internal static JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? ParseDefinitionFile(string content, string sourcePath)
-    {
+    internal static JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? ParseDefinitionFile(string content, string sourcePath) {
         var result = FrontmatterParser.Parse(content);
 
         var agentType = GetFileNameWithoutExtension(sourcePath);
@@ -353,8 +323,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         if (string.IsNullOrWhiteSpace(whenToUse))
             whenToUse = $"自定义代理: {effectiveName}";
 
-        var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
-        {
+        var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
             Role = role,
             Variant = variant,
             WhenToUse = whenToUse,
@@ -380,8 +349,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return definition;
     }
 
-    private static string GetFileNameWithoutExtension(string path)
-    {
+    private static string GetFileNameWithoutExtension(string path) {
         var fileName = Path.GetFileNameWithoutExtension(path);
         if (string.IsNullOrEmpty(fileName)) return string.Empty;
 
@@ -389,8 +357,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         if (string.IsNullOrEmpty(dirPart)) return fileName;
 
         var baseDirLength = dirPart.Length + 1;
-        if (path.Length > baseDirLength)
-        {
+        if (path.Length > baseDirLength) {
             var relativePath = path[baseDirLength..];
             var relativeNoExt = Path.ChangeExtension(relativePath, null);
             return relativeNoExt.Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/');
@@ -404,8 +371,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     /// <para>"inherit" 不区分大小写归一化为小写 "inherit",其他值原样返回</para>
     /// <para>避免配置写 "Inherit"/"INHERIT" 时解析失败</para>
     /// </summary>
-    private static string? NormalizeModelName(string? model)
-    {
+    private static string? NormalizeModelName(string? model) {
         if (string.IsNullOrWhiteSpace(model))
             return model;
         return SubAgentModelResolver.IsInheritKeyword(model)
@@ -413,25 +379,20 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             : model;
     }
 
-    private static string? GetStringFromData(Dictionary<string, System.Text.Json.JsonElement> data, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
+    private static string? GetStringFromData(Dictionary<string, System.Text.Json.JsonElement> data, params string[] keys) {
+        foreach (var key in keys) {
             if (data.TryGetValue(key, out var element) && element.ValueKind == System.Text.Json.JsonValueKind.String)
                 return element.GetString();
         }
         return null;
     }
 
-    private static List<string>? GetStringListFromData(Dictionary<string, System.Text.Json.JsonElement> data, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
+    private static List<string>? GetStringListFromData(Dictionary<string, System.Text.Json.JsonElement> data, params string[] keys) {
+        foreach (var key in keys) {
             if (!data.TryGetValue(key, out var element))
                 continue;
 
-            return element.ValueKind switch
-            {
+            return element.ValueKind switch {
                 System.Text.Json.JsonValueKind.String => [element.GetString() ?? string.Empty],
                 System.Text.Json.JsonValueKind.Array => element.EnumerateArray()
                     .Where(e => e.ValueKind == System.Text.Json.JsonValueKind.String)
@@ -443,12 +404,9 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return null;
     }
 
-    private static float? GetFloatFromData(Dictionary<string, System.Text.Json.JsonElement> data, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
-            if (data.TryGetValue(key, out var element))
-            {
+    private static float? GetFloatFromData(Dictionary<string, System.Text.Json.JsonElement> data, params string[] keys) {
+        foreach (var key in keys) {
+            if (data.TryGetValue(key, out var element)) {
                 if (element.ValueKind == System.Text.Json.JsonValueKind.Number && element.TryGetSingle(out var value))
                     return value;
                 if (element.ValueKind == System.Text.Json.JsonValueKind.String && float.TryParse(element.GetString(), out var parsed))
@@ -458,12 +416,9 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return null;
     }
 
-    private static int? GetIntFromData(Dictionary<string, System.Text.Json.JsonElement> data, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
-            if (data.TryGetValue(key, out var element))
-            {
+    private static int? GetIntFromData(Dictionary<string, System.Text.Json.JsonElement> data, params string[] keys) {
+        foreach (var key in keys) {
+            if (data.TryGetValue(key, out var element)) {
                 if (element.ValueKind == System.Text.Json.JsonValueKind.Number && element.TryGetInt32(out var value))
                     return value;
                 if (element.ValueKind == System.Text.Json.JsonValueKind.String && int.TryParse(element.GetString(), out var parsed))
@@ -473,12 +428,9 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return null;
     }
 
-    private static bool GetBoolFromData(Dictionary<string, System.Text.Json.JsonElement> data, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
-            if (data.TryGetValue(key, out var element))
-            {
+    private static bool GetBoolFromData(Dictionary<string, System.Text.Json.JsonElement> data, params string[] keys) {
+        foreach (var key in keys) {
+            if (data.TryGetValue(key, out var element)) {
                 if (element.ValueKind == System.Text.Json.JsonValueKind.True) return true;
                 if (element.ValueKind == System.Text.Json.JsonValueKind.False) return false;
                 if (element.ValueKind == System.Text.Json.JsonValueKind.String)
@@ -491,28 +443,24 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     /// <summary>
     /// 解析 memory 作用域 — 对齐 TS builtInAgents.ts 的 memory 字段
     /// </summary>
-    private static AgentMemoryScope? ParseMemoryScopeFromData(Dictionary<string, System.Text.Json.JsonElement> data)
-    {
+    private static AgentMemoryScope? ParseMemoryScopeFromData(Dictionary<string, System.Text.Json.JsonElement> data) {
         var memoryStr = GetStringFromData(data, "memory");
         return AgentMemoryScopeExtensions.FromValue(memoryStr);
     }
 
     private static Dictionary<string, List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookMatcher>>? ParseHooksFromData(
-        Dictionary<string, System.Text.Json.JsonElement> data)
-    {
+        Dictionary<string, System.Text.Json.JsonElement> data) {
         if (!data.TryGetValue("hooks", out var hooksElement) || hooksElement.ValueKind != System.Text.Json.JsonValueKind.Object)
             return null;
 
         var result = new Dictionary<string, List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookMatcher>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var eventProp in hooksElement.EnumerateObject())
-        {
+        foreach (var eventProp in hooksElement.EnumerateObject()) {
             if (eventProp.Value.ValueKind != System.Text.Json.JsonValueKind.Array)
                 continue;
 
             var matchers = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookMatcher>();
-            foreach (var matcherElement in eventProp.Value.EnumerateArray())
-            {
+            foreach (var matcherElement in eventProp.Value.EnumerateArray()) {
                 var matcher = ParseHookMatcher(matcherElement);
                 if (matcher is not null)
                     matchers.Add(matcher);
@@ -525,8 +473,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return result.Count > 0 ? result : null;
     }
 
-    private static JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookMatcher? ParseHookMatcher(System.Text.Json.JsonElement element)
-    {
+    private static JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookMatcher? ParseHookMatcher(System.Text.Json.JsonElement element) {
         if (element.ValueKind != System.Text.Json.JsonValueKind.Object)
             return null;
 
@@ -538,8 +485,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             return null;
 
         var hooks = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookCommand>();
-        foreach (var hookElement in hooksProp.EnumerateArray())
-        {
+        foreach (var hookElement in hooksProp.EnumerateArray()) {
             var hook = ParseHookCommand(hookElement);
             if (hook is not null)
                 hooks.Add(hook);
@@ -551,8 +497,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return new JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookMatcher { Matcher = matcher, Hooks = hooks };
     }
 
-    private static JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookCommand? ParseHookCommand(System.Text.Json.JsonElement element)
-    {
+    private static JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookCommand? ParseHookCommand(System.Text.Json.JsonElement element) {
         if (element.ValueKind != System.Text.Json.JsonValueKind.Object)
             return null;
 
@@ -580,8 +525,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             ? timeoutVal
             : (int?)null;
 
-        return new JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookCommand
-        {
+        return new JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookCommand {
             Type = type,
             Command = command,
             Prompt = prompt,
@@ -591,8 +535,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     }
 
     private static List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerSpec>? ParseMcpServersFromData(
-        Dictionary<string, System.Text.Json.JsonElement> data)
-    {
+        Dictionary<string, System.Text.Json.JsonElement> data) {
         if (!data.TryGetValue("mcpServers", out var element) && !data.TryGetValue("mcp_servers", out element))
             return null;
 
@@ -600,8 +543,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             return null;
 
         var specs = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerSpec>();
-        foreach (var item in element.EnumerateArray())
-        {
+        foreach (var item in element.EnumerateArray()) {
             var spec = ParseSingleMcpServerSpec(item);
             if (spec is not null)
                 specs.Add(spec);
@@ -610,18 +552,14 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return specs.Count > 0 ? specs : null;
     }
 
-    private static JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerSpec? ParseSingleMcpServerSpec(System.Text.Json.JsonElement item)
-    {
-        if (item.ValueKind == System.Text.Json.JsonValueKind.String)
-        {
+    private static JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerSpec? ParseSingleMcpServerSpec(System.Text.Json.JsonElement item) {
+        if (item.ValueKind == System.Text.Json.JsonValueKind.String) {
             var name = item.GetString();
             return string.IsNullOrEmpty(name) ? null : JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerSpec.FromReference(name);
         }
 
-        if (item.ValueKind == System.Text.Json.JsonValueKind.Object)
-        {
-            foreach (var prop in item.EnumerateObject())
-            {
+        if (item.ValueKind == System.Text.Json.JsonValueKind.Object) {
+            foreach (var prop in item.EnumerateObject()) {
                 if (prop.Value.ValueKind != System.Text.Json.JsonValueKind.Object)
                     continue;
 
@@ -633,8 +571,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return null;
     }
 
-    private static JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerInlineConfig ParseInlineMcpConfig(System.Text.Json.JsonElement obj)
-    {
+    private static JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerInlineConfig ParseInlineMcpConfig(System.Text.Json.JsonElement obj) {
         string? command = null;
         if (obj.TryGetProperty("command", out var cmdProp) && cmdProp.ValueKind == System.Text.Json.JsonValueKind.String)
             command = cmdProp.GetString();
@@ -647,11 +584,9 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 .ToList();
 
         Dictionary<string, string>? env = null;
-        if (obj.TryGetProperty("env", out var envProp) && envProp.ValueKind == System.Text.Json.JsonValueKind.Object)
-        {
+        if (obj.TryGetProperty("env", out var envProp) && envProp.ValueKind == System.Text.Json.JsonValueKind.Object) {
             env = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var envItem in envProp.EnumerateObject())
-            {
+            foreach (var envItem in envProp.EnumerateObject()) {
                 if (envItem.Value.ValueKind == System.Text.Json.JsonValueKind.String)
                     env[envItem.Name] = envItem.Value.GetString() ?? string.Empty;
             }
@@ -666,18 +601,15 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             transportType = typeProp.GetString();
 
         Dictionary<string, string>? headers = null;
-        if (obj.TryGetProperty("headers", out var headersProp) && headersProp.ValueKind == System.Text.Json.JsonValueKind.Object)
-        {
+        if (obj.TryGetProperty("headers", out var headersProp) && headersProp.ValueKind == System.Text.Json.JsonValueKind.Object) {
             headers = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var hdr in headersProp.EnumerateObject())
-            {
+            foreach (var hdr in headersProp.EnumerateObject()) {
                 if (hdr.Value.ValueKind == System.Text.Json.JsonValueKind.String)
                     headers[hdr.Name] = hdr.Value.GetString() ?? string.Empty;
             }
         }
 
-        return new JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerInlineConfig
-        {
+        return new JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerInlineConfig {
             Command = command,
             Args = args ?? [],
             Env = env ?? [],
@@ -688,19 +620,14 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     }
 
     private static List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> Deduplicate(
-        List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> definitions)
-    {
+        List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> definitions) {
         var result = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>();
         var indexMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var def in definitions)
-        {
-            if (indexMap.TryAdd(def.DisplayId, result.Count))
-            {
+        foreach (var def in definitions) {
+            if (indexMap.TryAdd(def.DisplayId, result.Count)) {
                 result.Add(def);
-            }
-            else if (def.SourcePath is not null)
-            {
+            } else if (def.SourcePath is not null) {
                 var existingIdx = indexMap[def.DisplayId];
                 result[existingIdx] = def;
             }
@@ -712,10 +639,8 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     /// <summary>
     /// 从字符串解析角色和变体 — 支持 "coordinator"、"executor:code"、"code"（简写）等格式
     /// </summary>
-    private static (AgentRole Role, ExecutorVariant? Variant) ParseRoleAndVariant(string name)
-    {
-        if (name.Contains(':'))
-        {
+    private static (AgentRole Role, ExecutorVariant? Variant) ParseRoleAndVariant(string name) {
+        if (name.Contains(':')) {
             var parts = name.Split(':', 2);
             var roleStr = parts[0].Trim();
             var variantStr = parts[1].Trim();
@@ -737,8 +662,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     }
 
     /// <summary>异步释放资源 — await Actor 完全退出</summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
@@ -748,13 +672,11 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// <para>读快速路径（_cacheLoaded volatile 检查）不经 Actor，命中缓存直接返回。</para>
     /// </summary>
-    private sealed class DefinitionLoaderActor : ActorBase<GetDefinitionsCmd, Unit>
-    {
+    private sealed class DefinitionLoaderActor : ActorBase<GetDefinitionsCmd, Unit> {
         private readonly AgentDefinitionProvider _owner;
         private readonly ILogger<AgentDefinitionProvider>? _logger;
 
-        public DefinitionLoaderActor(AgentDefinitionProvider owner, ILogger<AgentDefinitionProvider>? logger) : base()
-        {
+        public DefinitionLoaderActor(AgentDefinitionProvider owner, ILogger<AgentDefinitionProvider>? logger) : base() {
             _owner = owner;
             _logger = logger;
         }
@@ -763,15 +685,11 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(GetDefinitionsCmd cmd, CancellationToken ct)
-        {
-            try
-            {
+        protected override async ValueTask HandleAsync(GetDefinitionsCmd cmd, CancellationToken ct) {
+            try {
                 var result = await _owner.GetDefinitionsInternalAsync(cmd.WorkingDirectory, ct).ConfigureAwait(false);
                 cmd.Reply.SetResult(result);
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex) { cmd.Reply.SetException(ex); }
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.Reply.SetException(ex); }
         }
 
         protected override void OnConsumerError(Exception ex)

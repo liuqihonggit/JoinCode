@@ -3,8 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// MCP 服务器配置条目 — 描述单个 MCP 服务器的传输方式、命令、参数和环境变量
 /// </summary>
-public sealed class McpServerConfigEntry
-{
+public sealed class McpServerConfigEntry {
     /// <summary>传输类型（stdio、sse、http 等），默认 stdio</summary>
     public string Type { get; set; } = "stdio";
     /// <summary>stdio 模式下要执行的命令</summary>
@@ -22,8 +21,7 @@ public sealed class McpServerConfigEntry
 /// <summary>
 /// MCP 配置文件 — 包含所有 MCP 服务器条目的根容器
 /// </summary>
-public sealed class McpConfigFile
-{
+public sealed class McpConfigFile {
     /// <summary>MCP 服务器名到配置条目的映射</summary>
     public Dictionary<string, McpServerConfigEntry> McpServers { get; set; } = new();
 }

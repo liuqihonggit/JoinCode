@@ -5,8 +5,7 @@ namespace Core.Bridge.Init.V1;
 /// V1 注册 Bridge 环境 — 对齐 TS 端: registerBridgeEnvironment
 /// </summary>
 [Register(typeof(IMiddleware<V1BridgeInitContext>), ServiceLifetime.Singleton)]
-internal sealed partial class V1EnvRegistrationMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
-{
+internal sealed partial class V1EnvRegistrationMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext> {
 
     /// <summary>
     /// 执行 V1 环境注册 — 创建 API 客户端、注册 Bridge 环境并将结果写入上下文
@@ -14,10 +13,8 @@ internal sealed partial class V1EnvRegistrationMiddleware : ServiceEntity, IMidd
     /// <param name="ctx">V1 桥初始化上下文</param>
     /// <param name="next">下一中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct)
-    {
-        var apiClient = new BridgeApiClient(ctx.HttpClient, new BridgeApiOptions
-        {
+    public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct) {
+        var apiClient = new BridgeApiClient(ctx.HttpClient, new BridgeApiOptions {
             BaseUrl = ctx.Parameters.BaseUrl,
             ApiKey = ctx.AccessToken ?? throw new InvalidOperationException("AccessToken not set"),
             GetAccessToken = ctx.Parameters.GetAccessToken,
@@ -27,8 +24,7 @@ internal sealed partial class V1EnvRegistrationMiddleware : ServiceEntity, IMidd
                 : null,
         });
 
-        var bridgeConfig = new BridgeEnvironmentRegistration
-        {
+        var bridgeConfig = new BridgeEnvironmentRegistration {
             BridgeId = Guid.NewGuid().ToString("N"),
             MachineName = ctx.Parameters.MachineName,
             Dir = ctx.Parameters.Dir,
@@ -41,8 +37,7 @@ internal sealed partial class V1EnvRegistrationMiddleware : ServiceEntity, IMidd
 
         var regResponse = await apiClient.RegisterBridgeEnvironmentAsync(bridgeConfig, ct).ConfigureAwait(false);
 
-        if (regResponse is null)
-        {
+        if (regResponse is null) {
             ctx.Fail("Environment registration returned null");
             return;
         }

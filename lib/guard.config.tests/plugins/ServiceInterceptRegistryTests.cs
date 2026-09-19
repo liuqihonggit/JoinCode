@@ -1,17 +1,14 @@
 namespace Core.Tests.Plugins;
 
-public sealed class ServiceInterceptRegistryTests
-{
-    private sealed class TestConfig
-    {
+public sealed class ServiceInterceptRegistryTests {
+    private sealed class TestConfig {
         public string Name { get; set; } = "";
         public int Timeout { get; set; }
         public bool Enabled { get; set; } = true;
     }
 
     [Fact]
-    public void ResolveConfig_NoIntercept_ReturnsBase()
-    {
+    public void ResolveConfig_NoIntercept_ReturnsBase() {
         var registry = new ServiceInterceptRegistry();
         var config = new TestConfig { Name = "base", Timeout = 100 };
         var result = registry.ResolveConfig("svc", config);
@@ -20,11 +17,9 @@ public sealed class ServiceInterceptRegistryTests
     }
 
     [Fact]
-    public void Intercept_AppliesToConfig()
-    {
+    public void Intercept_AppliesToConfig() {
         var registry = new ServiceInterceptRegistry();
-        registry.Intercept("svc", c =>
-        {
+        registry.Intercept("svc", c => {
             var cfg = (TestConfig)c;
             cfg.Timeout = 500;
         });
@@ -34,8 +29,7 @@ public sealed class ServiceInterceptRegistryTests
     }
 
     [Fact]
-    public void MultipleIntercepts_AppliedInOrder()
-    {
+    public void MultipleIntercepts_AppliedInOrder() {
         var registry = new ServiceInterceptRegistry();
         var order = new List<int>();
         registry.Intercept("svc", c => { order.Add(1); ((TestConfig)c).Name = "first"; });
@@ -48,8 +42,7 @@ public sealed class ServiceInterceptRegistryTests
     }
 
     [Fact]
-    public void Disposer_RemovesIntercept()
-    {
+    public void Disposer_RemovesIntercept() {
         var registry = new ServiceInterceptRegistry();
         var disposer = registry.Intercept("svc", c => ((TestConfig)c).Timeout = 500);
         Assert.True(registry.HasIntercept("svc"));
@@ -60,8 +53,7 @@ public sealed class ServiceInterceptRegistryTests
     }
 
     [Fact]
-    public void Disposer_CalledTwice_IsIdempotent()
-    {
+    public void Disposer_CalledTwice_IsIdempotent() {
         var registry = new ServiceInterceptRegistry();
         var disposer = registry.Intercept("svc", _ => { });
         disposer.Dispose();
@@ -70,8 +62,7 @@ public sealed class ServiceInterceptRegistryTests
     }
 
     [Fact]
-    public void HasIntercept_TrueAfterRegister()
-    {
+    public void HasIntercept_TrueAfterRegister() {
         var registry = new ServiceInterceptRegistry();
         registry.Intercept("svc", _ => { });
         Assert.True(registry.HasIntercept("svc"));
@@ -79,8 +70,7 @@ public sealed class ServiceInterceptRegistryTests
     }
 
     [Fact]
-    public void InterceptCount_MultipleRegistrations()
-    {
+    public void InterceptCount_MultipleRegistrations() {
         var registry = new ServiceInterceptRegistry();
         var d1 = registry.Intercept("svc", _ => { });
         var d2 = registry.Intercept("svc", _ => { });
@@ -92,8 +82,7 @@ public sealed class ServiceInterceptRegistryTests
     }
 
     [Fact]
-    public void Clear_RemovesAllIntercepts()
-    {
+    public void Clear_RemovesAllIntercepts() {
         var registry = new ServiceInterceptRegistry();
         registry.Intercept("svc", _ => { });
         registry.Intercept("svc", _ => { });
@@ -102,29 +91,25 @@ public sealed class ServiceInterceptRegistryTests
     }
 
     [Fact]
-    public void Intercept_NullServiceName_Throws()
-    {
+    public void Intercept_NullServiceName_Throws() {
         var registry = new ServiceInterceptRegistry();
         Assert.Throws<ArgumentNullException>(() => registry.Intercept(null!, _ => { }));
     }
 
     [Fact]
-    public void Intercept_NullOverride_Throws()
-    {
+    public void Intercept_NullOverride_Throws() {
         var registry = new ServiceInterceptRegistry();
         Assert.Throws<ArgumentNullException>(() => registry.Intercept("svc", null!));
     }
 
     [Fact]
-    public void ResolveConfig_NullBase_Throws()
-    {
+    public void ResolveConfig_NullBase_Throws() {
         var registry = new ServiceInterceptRegistry();
         Assert.Throws<ArgumentNullException>(() => registry.ResolveConfig<TestConfig>("svc", null!));
     }
 
     [Fact]
-    public void DifferentServices_IndependentIntercepts()
-    {
+    public void DifferentServices_IndependentIntercepts() {
         var registry = new ServiceInterceptRegistry();
         registry.Intercept("svc-a", c => ((TestConfig)c).Name = "A");
         registry.Intercept("svc-b", c => ((TestConfig)c).Name = "B");

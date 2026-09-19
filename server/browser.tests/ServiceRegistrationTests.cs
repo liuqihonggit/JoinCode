@@ -1,10 +1,8 @@
 namespace Browser.Tests;
 
-public class ServiceRegistrationTests
-{
+public class ServiceRegistrationTests {
     [Fact]
-    public void AddBrowserServices_ReturnsServiceCollection()
-    {
+    public void AddBrowserServices_ReturnsServiceCollection() {
         var services = new ServiceCollection();
         var result = services.AddBrowserServices();
 
@@ -12,8 +10,7 @@ public class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddBrowserServices_DoesNotAddDuplicateRegistration()
-    {
+    public void AddBrowserServices_DoesNotAddDuplicateRegistration() {
         var services = new ServiceCollection();
         var countBefore = services.Count(d => d.ServiceType == typeof(IBrowserAutomationService));
 

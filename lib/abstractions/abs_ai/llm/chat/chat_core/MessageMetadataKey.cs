@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.LLM.Chat;
 /// ApiMessage.Metadata 字典键名枚举 — 统一管理，消除硬编码字符串
 /// 对齐 ChatService 写入格式，确保读写一致
 /// </summary>
-public enum MessageMetadataKey
-{
+public enum MessageMetadataKey {
     /// <summary>Assistant 工具调用列表 — 格式: [{Id, Name, Arguments}]</summary>
     [EnumValue("ToolCalls")] ToolCalls,
 

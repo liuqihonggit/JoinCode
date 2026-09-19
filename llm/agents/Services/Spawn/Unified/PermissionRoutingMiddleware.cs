@@ -6,14 +6,12 @@ namespace Core.Agents;
 /// 主代理保留（作为 Leader 需启动权限路由）
 /// </summary>
 [Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
-{
+public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifiedSpawnMiddleware {
 
     /// <summary>
     /// 构造 PermissionRoutingMiddleware 实例，注入消息代理、子代理上下文访问器、日志器及可选路由器
     /// </summary>
-    public PermissionRoutingMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<PermissionRoutingMiddleware> logger, SwarmPermissionMessageRouter? permissionRouter = null, PlanApprovalMessageRouter? planApprovalRouter = null)
-    {
+    public PermissionRoutingMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<PermissionRoutingMiddleware> logger, SwarmPermissionMessageRouter? permissionRouter = null, PlanApprovalMessageRouter? planApprovalRouter = null) {
         _messageBroker = messageBroker;
         _subAgentContextAccessor = subAgentContextAccessor;
         _logger = logger;
@@ -35,10 +33,8 @@ public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifie
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
-    {
-        if (context.Agent is null)
-        {
+    public Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
+        if (context.Agent is null) {
             return next(context, ct);
         }
 
@@ -52,8 +48,7 @@ public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifie
     }
 
     private bool _permissionRoutingStarted;
-    private void EnsurePermissionRoutingStarted()
-    {
+    private void EnsurePermissionRoutingStarted() {
         if (_permissionRoutingStarted || _permissionRouter == null) return;
 
         var coordinatorId = _subAgentContextAccessor.Current?.AgentId ?? "coordinator";

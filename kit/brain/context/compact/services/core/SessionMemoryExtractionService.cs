@@ -6,8 +6,7 @@ namespace Core.Context.Compact;
 /// 核心消费点：SessionMemoryPromptTemplate.BuildSessionMemoryUpdatePrompt()
 /// </summary>
 [Register(typeof(ISessionMemoryExtractionService), ServiceLifetime.Singleton)]
-public sealed partial class SessionMemoryExtractionService : ServiceEntity, ISessionMemoryExtractionService
-{
+public sealed partial class SessionMemoryExtractionService : ServiceEntity, ISessionMemoryExtractionService {
     private readonly ISessionMemoryCompactService _compactService;
     private readonly IFileSystem _fileSystem;
     private readonly SessionMemoryCompactConfig _config;
@@ -22,26 +21,22 @@ public sealed partial class SessionMemoryExtractionService : ServiceEntity, ISes
     public SessionMemoryExtractionService(
         ISessionMemoryCompactService compactService,
         IFileSystem fileSystem,
-        IOptions<SessionMemoryCompactConfig>? config = null)
-    {
+        IOptions<SessionMemoryCompactConfig>? config = null) {
         _compactService = compactService ?? throw new ArgumentNullException(nameof(compactService));
         _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
         _config = config?.Value ?? SessionMemoryCompactConfig.Default;
     }
 
     /// <inheritdoc />
-    public async Task<string> InitializeSessionMemoryFileAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<string> InitializeSessionMemoryFileAsync(CancellationToken cancellationToken = default) {
         var path = GetMemoryFilePath();
         var dir = Path.GetDirectoryName(path)!;
 
-        if (!_fileSystem.DirectoryExists(dir))
-        {
+        if (!_fileSystem.DirectoryExists(dir)) {
             _fileSystem.CreateDirectory(dir);
         }
 
-        if (!_fileSystem.FileExists(path))
-        {
+        if (!_fileSystem.FileExists(path)) {
             var template = SessionMemoryPromptTemplate.DefaultSessionMemoryTemplate;
             await _fileSystem.WriteAllTextAsync(path, template, cancellationToken).ConfigureAwait(false);
             await _compactService.UpdateSessionMemoryAsync(template, cancellationToken).ConfigureAwait(false);
@@ -54,8 +49,7 @@ public sealed partial class SessionMemoryExtractionService : ServiceEntity, ISes
     }
 
     /// <inheritdoc />
-    public async Task<string> BuildExtractionPromptAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<string> BuildExtractionPromptAsync(CancellationToken cancellationToken = default) {
         var path = GetMemoryFilePath();
         var currentNotes = _fileSystem.FileExists(path)
             ? await _fileSystem.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false)
@@ -65,10 +59,8 @@ public sealed partial class SessionMemoryExtractionService : ServiceEntity, ISes
     }
 
     /// <inheritdoc />
-    public bool ShouldExtract(int currentTokenCount, int toolCallsSinceLastUpdate)
-    {
-        if (_tokensAtLastExtraction == 0)
-        {
+    public bool ShouldExtract(int currentTokenCount, int toolCallsSinceLastUpdate) {
+        if (_tokensAtLastExtraction == 0) {
             return currentTokenCount >= _config.MinMessageTokensToInit;
         }
 
@@ -78,15 +70,13 @@ public sealed partial class SessionMemoryExtractionService : ServiceEntity, ISes
     }
 
     /// <inheritdoc />
-    public string GetMemoryFilePath()
-    {
+    public string GetMemoryFilePath() {
         var cwd = _fileSystem.GetCurrentDirectory();
         return Path.Combine(cwd, AppDataConstants.AppDataFolder, "session-memory.md");
     }
 
     /// <inheritdoc />
-    public void RecordExtractionCompleted(int tokenCountAtExtraction)
-    {
+    public void RecordExtractionCompleted(int tokenCountAtExtraction) {
         _tokensAtLastExtraction = tokenCountAtExtraction;
     }
 }

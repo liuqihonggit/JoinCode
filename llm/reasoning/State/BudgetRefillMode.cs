@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.State;
 /// <summary>
 /// 预算续费方式
 /// </summary>
-public enum BudgetRefillMode
-{
+public enum BudgetRefillMode {
     /// <summary>
     /// 按配置的默认续费量续费
     /// </summary>

@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>实现在上层（Composition/Brain），Agents 层只依赖此接口。</para>
 /// <para>依赖倒置：Agents 不能依赖 Brain/Dream，通过此接口解耦。</para>
 /// </summary>
-public interface ISubAgentSummaryClient
-{
+public interface ISubAgentSummaryClient {
     /// <summary>
     /// 将文本压缩为不超过 maxOutputTokens 的连贯摘要
     /// </summary>

@@ -6,44 +6,37 @@ namespace JoinCode.CliCommands;
 /// <para>ADR: 0090 — 扁平元动词形态，工具名按 <c>gh_{group}_{action}</c> 约定拼接，
 /// 位置参数按工具 schema 的 required 顺序绑定，执行与输出复用 <see cref="McpCliCommand"/>。</para>
 /// </summary>
-internal static class GhSubCommand
-{
+internal static class GhSubCommand {
     /// <summary>
     /// 执行 <c>jcc gh ...</c>（<paramref name="args"/>[0] 为子命令名 <c>gh</c>）。
     /// </summary>
     /// <param name="args">完整命令行参数。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>进程退出码：0 成功，1 参数/执行失败。</returns>
-    public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
-    {
+    public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         if (Array.IndexOf(args, CliArgCliOptionConstants.HelpLongName) >= 0
-            || Array.IndexOf(args, CliArgCliOptionConstants.HelpShortName) >= 0)
-        {
+            || Array.IndexOf(args, CliArgCliOptionConstants.HelpShortName) >= 0) {
             TerminalHelper.WriteLine(GhCommandResolver.Usage);
             return 0;
         }
 
         var resolved = GhCommandResolver.Resolve(args, out var resolveError);
-        if (resolved is null)
-        {
+        if (resolved is null) {
             TerminalHelper.WriteError(resolveError!);
             return 1;
         }
 
-        return await McpCliCommand.WithHostAsync(async services =>
-        {
+        return await McpCliCommand.WithHostAsync(async services => {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
             var info = await registry.GetToolInfoAsync(resolved.ToolName, ct).ConfigureAwait(false);
-            if (info is null)
-            {
+            if (info is null) {
                 TerminalHelper.WriteError(await ToolNotFoundMessage(registry, resolved, ct).ConfigureAwait(false));
                 return 1;
             }
 
             var parameters = GhParamSchemaParser.Parse(info.InputSchema);
             var bound = GhArgsBinder.Bind(resolved.Tail, parameters, resolved.ToolName, out var bindError);
-            if (bound is null)
-            {
+            if (bound is null) {
                 TerminalHelper.WriteError(bindError!);
                 return 1;
             }
@@ -61,8 +54,7 @@ internal static class GhSubCommand
     /// 工具不存在时的报错 — 反查同分组下已注册的 <c>gh_*</c> 工具给出可选项（约定大于配置，无静态表）。
     /// </summary>
     private static async Task<string> ToolNotFoundMessage(
-        IMcpToolRegistry registry, GhResolvedCommand resolved, CancellationToken ct)
-    {
+        IMcpToolRegistry registry, GhResolvedCommand resolved, CancellationToken ct) {
         var all = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
         var prefix = resolved.Action is null
             ? $"gh_{resolved.Group}"

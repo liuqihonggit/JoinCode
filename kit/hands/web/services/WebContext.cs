@@ -3,8 +3,7 @@ namespace Services.Web;
 /// <summary>
 /// Web获取中间件共享上下文 — 在管道各阶段间传递状态
 /// </summary>
-public sealed class WebContext : PipelineContextBase, IMetricsContext
-{
+public sealed class WebContext : PipelineContextBase, IMetricsContext {
     // === IMetricsContext ===
 
     /// <summary>

@@ -4,8 +4,7 @@ namespace IO.Services;
 /// 伙伴精灵服务 — 基于用户 ID 确定性生成专属伙伴（物种/稀有度/外观），结果按用户缓存
 /// </summary>
 [Register(typeof(IBuddyService), ServiceLifetime.Singleton)]
-public sealed partial class BuddyService : ServiceEntity, IBuddyService
-{
+public sealed partial class BuddyService : ServiceEntity, IBuddyService {
     private static readonly string[] Species = new[] { "duck", "goose", "blob", "cat", "dragon", "octopus", "owl", "penguin", "turtle", "snail", "ghost", "axolotl", "capybara", "cactus", "robot", "rabbit", "mushroom", "chonk" };
     private static readonly string[] Eyes = new[] { "·", "✦", "×", "◉", "@", "°" };
     private static readonly string[] Hats = new[] { "", "^", "~", "=", "*", "#", "+", "@" };
@@ -19,8 +18,7 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService
     /// </summary>
     /// <param name="userId">用户标识</param>
     /// <returns>伙伴精灵信息</returns>
-    public BuddyInfo GetBuddy(string userId)
-    {
+    public BuddyInfo GetBuddy(string userId) {
         return _cache.GetOrAdd(userId, GenerateBuddy);
     }
 
@@ -29,20 +27,17 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService
     /// </summary>
     /// <param name="userId">用户标识</param>
     /// <returns>伙伴精灵系统提示词文本</returns>
-    public string GetBuddyPrompt(string userId)
-    {
+    public string GetBuddyPrompt(string userId) {
         var buddy = GetBuddy(userId);
         return $"[系统: 用户有一个伙伴精灵 {buddy.Name}（{buddy.Species}，{buddy.Rarity}稀有度）。当用户直接对伙伴说话时，让路给伙伴回应。伙伴不是AI助手本身。]";
     }
 
-    private static BuddyInfo GenerateBuddy(string userId)
-    {
+    private static BuddyInfo GenerateBuddy(string userId) {
         var seed = HashUserId(userId);
         var rng = new Mulberry32(seed);
 
         var rarityRoll = rng.NextDouble();
-        var rarity = rarityRoll switch
-        {
+        var rarity = rarityRoll switch {
             < 0.01 => BuddyRarity.Legendary,
             < 0.05 => BuddyRarity.Epic,
             < 0.15 => BuddyRarity.Rare,
@@ -60,8 +55,7 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService
 
         var asciiArt = GenerateAsciiArt(species, Eyes[eyeIndex], Hats[hatIndex], shiny);
 
-        return new BuddyInfo
-        {
+        return new BuddyInfo {
             Name = name,
             Species = species,
             Rarity = rarity,
@@ -72,10 +66,8 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService
         };
     }
 
-    private static int HashUserId(string userId)
-    {
-        unchecked
-        {
+    private static int HashUserId(string userId) {
+        unchecked {
             int hash = 5381;
             var combined = userId + Salt;
             foreach (var c in combined)
@@ -84,19 +76,16 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService
         }
     }
 
-    private static string GenerateAsciiArt(string species, string eye, string hat, bool shiny)
-    {
+    private static string GenerateAsciiArt(string species, string eye, string hat, bool shiny) {
         var prefix = shiny ? "* " : "";
         var hatLine = string.IsNullOrEmpty(hat) ? "   " : $" {hat} ";
         return $"{prefix}{hatLine}\n   {eye}_{eye}\n   >^<";
     }
 
-    private sealed class Mulberry32(int seed)
-    {
+    private sealed class Mulberry32(int seed) {
         private int _state = seed;
 
-        public int Next()
-        {
+        public int Next() {
             _state += 0x6D2B79F5;
             var t = _state;
             t = (t ^ (t >> 15)) * (t | 1);

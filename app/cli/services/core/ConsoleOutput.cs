@@ -4,29 +4,25 @@ namespace JoinCode.Services;
 /// 控制台输出 — 纯 CLI 模式，无 TUI 依赖
 /// </summary>
 [Register(typeof(IConsoleOutput), ServiceLifetime.Singleton)]
-public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
-{
+public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput {
     private readonly ILogger<ConsoleOutput>? _logger;
 
     /// <summary>初始化 <see cref="ConsoleOutput"/> 实例</summary>
     /// <param name="logger">可选的日志记录器，为 null 时不记录日志</param>
-    public ConsoleOutput(ILogger<ConsoleOutput>? logger = null)
-    {
+    public ConsoleOutput(ILogger<ConsoleOutput>? logger = null) {
         _logger = logger;
     }
 
     /// <summary>向标准输出写入一行消息，并记录信息日志</summary>
     /// <param name="message">要输出的消息文本</param>
-    public void WriteLine(string message)
-    {
+    public void WriteLine(string message) {
         System.Console.WriteLine(message);
         _logger?.LogInformation("{Message}", message);
     }
 
     /// <summary>以红色输出错误消息，并记录错误日志</summary>
     /// <param name="message">错误消息文本</param>
-    public void WriteError(string message)
-    {
+    public void WriteError(string message) {
         System.Console.ForegroundColor = ConsoleColor.Red;
         System.Console.WriteLine($"错误: {message}");
         System.Console.ResetColor();
@@ -35,8 +31,7 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
 
     /// <summary>以绿色输出成功消息，并记录信息日志</summary>
     /// <param name="message">成功消息文本</param>
-    public void WriteSuccess(string message)
-    {
+    public void WriteSuccess(string message) {
         System.Console.ForegroundColor = ConsoleColor.Green;
         System.Console.WriteLine(message);
         System.Console.ResetColor();
@@ -45,8 +40,7 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
 
     /// <summary>以黄色输出警告消息，并记录警告日志</summary>
     /// <param name="message">警告消息文本</param>
-    public void WriteWarning(string message)
-    {
+    public void WriteWarning(string message) {
         System.Console.ForegroundColor = ConsoleColor.Yellow;
         System.Console.WriteLine($"警告: {message}");
         System.Console.ResetColor();
@@ -56,10 +50,8 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
     /// <summary>在控制台显示提示并等待用户输入；非交互环境返回 null</summary>
     /// <param name="message">提示文本</param>
     /// <returns>用户输入的响应；非交互或输入重定向时返回 null</returns>
-    public string? Prompt(string message)
-    {
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive || System.Console.IsInputRedirected)
-        {
+    public string? Prompt(string message) {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive || System.Console.IsInputRedirected) {
             System.Console.WriteLine(message);
             return null;
         }
@@ -72,10 +64,8 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
     /// <summary>显示 y/N 确认提示并解析用户响应；非交互环境返回 false</summary>
     /// <param name="message">确认提示文本</param>
     /// <returns>用户输入 y 时返回 true，否则返回 false</returns>
-    public bool Confirm(string message)
-    {
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive || System.Console.IsInputRedirected)
-        {
+    public bool Confirm(string message) {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive || System.Console.IsInputRedirected) {
             System.Console.WriteLine(message);
             return false;
         }
@@ -89,8 +79,7 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
     /// <summary>以指定颜色向标准输出写入一行消息，并记录信息日志</summary>
     /// <param name="message">要输出的消息文本</param>
     /// <param name="color">前景色</param>
-    public void WriteLine(string message, ConsoleColor color)
-    {
+    public void WriteLine(string message, ConsoleColor color) {
         System.Console.ForegroundColor = color;
         System.Console.WriteLine(message);
         System.Console.ResetColor();
@@ -100,26 +89,20 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
     /// <summary>读取密码输入，按键以 * 回显，回车结束；非交互环境返回空字符串</summary>
     /// <param name="prompt">密码输入提示文本</param>
     /// <returns>用户输入的密码明文</returns>
-    public string ReadPassword(string prompt)
-    {
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive || System.Console.IsInputRedirected)
-        {
+    public string ReadPassword(string prompt) {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive || System.Console.IsInputRedirected) {
             System.Console.WriteLine(prompt);
             return string.Empty;
         }
         System.Console.Write(prompt);
         var secret = new System.Text.StringBuilder();
         ConsoleKeyInfo key;
-        do
-        {
+        do {
             key = Cli.TerminalHelper.ReadKey(true);
-            if (key.Key == ConsoleKey.Backspace && secret.Length > 0)
-            {
+            if (key.Key == ConsoleKey.Backspace && secret.Length > 0) {
                 secret.Length--;
                 System.Console.Write("\b \b");
-            }
-            else if (!char.IsControl(key.KeyChar))
-            {
+            } else if (!char.IsControl(key.KeyChar)) {
                 secret.Append(key.KeyChar);
                 System.Console.Write('*');
             }

@@ -4,16 +4,14 @@ namespace Tools.Handlers;
 /// 桌面情景模式 look 工具处理器 — 截图 + 四叉树网格标注，返回 suggested_next 引导 AI 调 zoom
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
-public sealed class DesktopSceneLookToolHandlers
-{
+public sealed class DesktopSceneLookToolHandlers {
     private readonly IDesktopSceneCaptureService _captureService;
 
     /// <summary>
     /// 初始化 look 工具处理器
     /// </summary>
     /// <param name="captureService">桌面场景截图编排服务</param>
-    public DesktopSceneLookToolHandlers(IDesktopSceneCaptureService captureService)
-    {
+    public DesktopSceneLookToolHandlers(IDesktopSceneCaptureService captureService) {
         _captureService = captureService ?? throw new ArgumentNullException(nameof(captureService));
     }
 
@@ -26,8 +24,7 @@ public sealed class DesktopSceneLookToolHandlers
     [McpTool("desktop_look", "截图并构建四叉树网格，返回带网格标注的截图。场景第一步，AI 看图后调 desktop_zoom 选目标所在象限缩小。", "desktop")]
     public async Task<ToolResult> LookAsync(
         [McpToolParameter("场景 ID，首次调用可留空自动创建", Required = false)] string? sceneId = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var newSceneId = string.IsNullOrEmpty(sceneId)
             ? $"sc_{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}"
             : sceneId;

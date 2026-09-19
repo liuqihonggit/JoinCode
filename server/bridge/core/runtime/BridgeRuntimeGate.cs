@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// Bridge 运行时门控 — 对齐 TS 端 bridgeEnabled.ts
 /// 检查 Bridge 功能是否在运行时可用
 /// </summary>
-public static class BridgeRuntimeGate
-{
+public static class BridgeRuntimeGate {
     private static volatile bool _initialized;
     private static volatile bool _bridgeEnabled = true; // 默认启用
     private static volatile bool _v2BridgeEnabled;
@@ -19,8 +18,7 @@ public static class BridgeRuntimeGate
     private static readonly TaskCompletionSource<bool> _initTcs = new();
 
     /// <summary>初始化门控状态 — 从配置/环境变量/特性标志加载</summary>
-    public static void Initialize(BridgeConfig config)
-    {
+    public static void Initialize(BridgeConfig config) {
         ArgumentNullException.ThrowIfNull(config);
 
         _bridgeEnabled = config.Enabled;
@@ -39,8 +37,7 @@ public static class BridgeRuntimeGate
     /// Bridge 是否启用 — 对齐 TS 端 isBridgeEnabled()
     /// 运行时检查（非阻塞）
     /// </summary>
-    public static bool IsBridgeEnabled()
-    {
+    public static bool IsBridgeEnabled() {
         if (!_initialized) return false;
         return _bridgeEnabled;
     }
@@ -49,18 +46,14 @@ public static class BridgeRuntimeGate
     /// Bridge 是否启用（阻塞式）— 对齐 TS 端 isBridgeEnabledBlocking()
     /// 等待初始化完成
     /// </summary>
-    public static async Task<bool> IsBridgeEnabledBlockingAsync(CancellationToken ct = default)
-    {
+    public static async Task<bool> IsBridgeEnabledBlockingAsync(CancellationToken ct = default) {
         if (_initialized) return _bridgeEnabled;
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromSeconds(10));
 
-        try
-        {
+        try {
             return await _initTcs.Task.WaitAsync(cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             return false;
         }
     }
@@ -68,16 +61,14 @@ public static class BridgeRuntimeGate
     /// <summary>
     /// 获取 Bridge 禁用原因 — 对齐 TS 端 getBridgeDisabledReason()
     /// </summary>
-    public static Task<string?> GetBridgeDisabledReasonAsync()
-    {
+    public static Task<string?> GetBridgeDisabledReasonAsync() {
         return Task.FromResult(_disabledReason);
     }
 
     /// <summary>
     /// v2 env-less 路径是否启用 — 对齐 TS 端 isEnvLessBridgeEnabled()
     /// </summary>
-    public static bool IsV2BridgeEnabled()
-    {
+    public static bool IsV2BridgeEnabled() {
         if (!_initialized) return false;
         return _v2BridgeEnabled;
     }
@@ -86,8 +77,7 @@ public static class BridgeRuntimeGate
     /// CCR v2 (env-less) 是否启用 — 对齐 TS 端 serverUseCcrV2 || CLAUDE_BRIDGE_USE_CCR_V2
     /// true = v2 env-less 路径; false = v1 env-based 路径
     /// </summary>
-    public static bool IsCcrV2Enabled()
-    {
+    public static bool IsCcrV2Enabled() {
         if (!_initialized) return true; // 默认 v2
         return _useCcrV2;
     }
@@ -101,8 +91,7 @@ public static class BridgeRuntimeGate
     /// </summary>
     /// <param name="secretUseCodeSessions">work 密钥中的 UseCodeSessions 标志(无密钥传 null)</param>
     /// <returns>true=V2(env-less), false=V1(env-based)</returns>
-    public static bool ShouldUseCcrV2(bool? secretUseCodeSessions = null)
-    {
+    public static bool ShouldUseCcrV2(bool? secretUseCodeSessions = null) {
         if (secretUseCodeSessions == true) return true;
         var envOverride = Environment.GetEnvironmentVariable(JccEnvVar.BridgeUseCcrV2.ToValue());
         return envOverride is "1" or "true" or "TRUE";
@@ -115,32 +104,24 @@ public static class BridgeRuntimeGate
     public static async Task WaitForNetworkAsync(
         INetworkConnectivityService? networkService,
         ILogger? logger,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         if (networkService is null) return;
         if (networkService.IsNetworkAvailable()) return;
 
         logger?.LogWarning("Bridge V1/V2 切换:网络不可用,等待恢复...");
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
-        {
+        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) => {
             if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
         };
         networkService.StateChanged += handler;
-        try
-        {
-            if (!networkService.IsNetworkAvailable())
-            {
+        try {
+            if (!networkService.IsNetworkAvailable()) {
                 await tcs.Task.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
             }
-        }
-        catch (TimeoutException)
-        {
+        } catch (TimeoutException) {
             logger?.LogWarning("Bridge V1/V2 切换:等待网络恢复超时(30s),继续切换");
-        }
-        finally
-        {
+        } finally {
             networkService.StateChanged -= handler;
         }
 
@@ -150,8 +131,7 @@ public static class BridgeRuntimeGate
     /// <summary>
     /// cse_ shim 是否启用 — 对齐 TS 端 isCseShimEnabled()
     /// </summary>
-    public static bool IsCseShimEnabled()
-    {
+    public static bool IsCseShimEnabled() {
         if (!_initialized) return true; // 默认启用
         return _cseShimEnabled;
     }
@@ -160,8 +140,7 @@ public static class BridgeRuntimeGate
     /// 检查 Bridge 最低版本 — 对齐 TS 端 checkBridgeMinVersion()
     /// 返回 null 表示通过，否则返回错误消息
     /// </summary>
-    public static string? CheckBridgeMinVersion()
-    {
+    public static string? CheckBridgeMinVersion() {
         if (_minVersion is null) return null;
 
         // 简单版本比较 — 后续可接入实际版本号
@@ -171,16 +150,14 @@ public static class BridgeRuntimeGate
     /// <summary>
     /// CCR 自动连接默认值 — 对齐 TS 端 getCcrAutoConnectDefault()
     /// </summary>
-    public static bool GetCcrAutoConnectDefault()
-    {
+    public static bool GetCcrAutoConnectDefault() {
         return _ccrAutoConnectDefault;
     }
 
     /// <summary>
     /// CCR 镜像模式是否启用 — 对齐 TS 端 isCcrMirrorEnabled()
     /// </summary>
-    public static bool IsCcrMirrorEnabled()
-    {
+    public static bool IsCcrMirrorEnabled() {
         return _ccrMirrorEnabled;
     }
 
@@ -194,8 +171,7 @@ public static class BridgeRuntimeGate
     public static void SetCcrMirrorEnabled(bool enabled) => _ccrMirrorEnabled = enabled;
 
     /// <summary>重置为未初始化状态（用于测试）</summary>
-    public static void Reset()
-    {
+    public static void Reset() {
         _initialized = false;
         _bridgeEnabled = true;
         _v2BridgeEnabled = false;

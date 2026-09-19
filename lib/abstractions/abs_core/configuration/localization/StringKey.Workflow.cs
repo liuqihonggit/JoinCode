@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Localization;
 
-public static partial class StringKey
-{
+public static partial class StringKey {
     // === WorkflowToolHandlers ===
     public const string WorkflowPromptModeReceivedMessage = "WorkflowPromptModeReceivedMessage";
     public const string WorkflowPromptModeHistoryCleared = "WorkflowPromptModeHistoryCleared";

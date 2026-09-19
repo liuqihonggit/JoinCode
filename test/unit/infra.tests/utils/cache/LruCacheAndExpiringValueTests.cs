@@ -1,10 +1,8 @@
 namespace Infra.Tests.Utils.Cache;
 
-public class LruCacheTests
-{
+public class LruCacheTests {
     [Fact]
-    public void TryGetValue_ExistingKey_ShouldReturnValue()
-    {
+    public void TryGetValue_ExistingKey_ShouldReturnValue() {
         var cache = new LruCache<string, int>(maxEntries: 10);
         cache.Set("a", 1);
         cache.TryGetValue("a", out var value).Should().BeTrue();
@@ -12,15 +10,13 @@ public class LruCacheTests
     }
 
     [Fact]
-    public void TryGetValue_MissingKey_ShouldReturnFalse()
-    {
+    public void TryGetValue_MissingKey_ShouldReturnFalse() {
         var cache = new LruCache<string, int>(maxEntries: 10);
         cache.TryGetValue("a", out _).Should().BeFalse();
     }
 
     [Fact]
-    public void Set_ShouldEvictOldestWhenFull()
-    {
+    public void Set_ShouldEvictOldestWhenFull() {
         var cache = new LruCache<string, int>(maxEntries: 2);
         cache.Set("a", 1);
         cache.Set("b", 2);
@@ -31,8 +27,7 @@ public class LruCacheTests
     }
 
     [Fact]
-    public void TryGetValue_ShouldPromoteKey()
-    {
+    public void TryGetValue_ShouldPromoteKey() {
         var cache = new LruCache<string, int>(maxEntries: 2);
         cache.Set("a", 1);
         cache.Set("b", 2);
@@ -43,8 +38,7 @@ public class LruCacheTests
     }
 
     [Fact]
-    public void Remove_ExistingKey_ShouldReturnTrue()
-    {
+    public void Remove_ExistingKey_ShouldReturnTrue() {
         var cache = new LruCache<string, int>(maxEntries: 10);
         cache.Set("a", 1);
         cache.Remove("a").Should().BeTrue();
@@ -52,15 +46,13 @@ public class LruCacheTests
     }
 
     [Fact]
-    public void Remove_MissingKey_ShouldReturnFalse()
-    {
+    public void Remove_MissingKey_ShouldReturnFalse() {
         var cache = new LruCache<string, int>(maxEntries: 10);
         cache.Remove("a").Should().BeFalse();
     }
 
     [Fact]
-    public void Clear_ShouldRemoveAll()
-    {
+    public void Clear_ShouldRemoveAll() {
         var cache = new LruCache<string, int>(maxEntries: 10);
         cache.Set("a", 1);
         cache.Set("b", 2);
@@ -69,8 +61,7 @@ public class LruCacheTests
     }
 
     [Fact]
-    public void Set_Overwrite_ShouldUpdateValue()
-    {
+    public void Set_Overwrite_ShouldUpdateValue() {
         var cache = new LruCache<string, int>(maxEntries: 10);
         cache.Set("a", 1);
         cache.Set("a", 2);
@@ -79,8 +70,7 @@ public class LruCacheTests
     }
 
     [Fact]
-    public void Count_ShouldReturnCurrentCount()
-    {
+    public void Count_ShouldReturnCurrentCount() {
         var cache = new LruCache<string, int>(maxEntries: 10);
         cache.Count.Should().Be(0);
         cache.Set("a", 1);
@@ -90,8 +80,7 @@ public class LruCacheTests
     }
 
     [Fact]
-    public void SizeBytes_ShouldTrackSize()
-    {
+    public void SizeBytes_ShouldTrackSize() {
         var cache = new LruCache<string, int>(maxEntries: 10, sizeCalculator: v => v);
         cache.Set("a", 100);
         cache.CurrentSizeBytes.Should().Be(100);
@@ -100,11 +89,9 @@ public class LruCacheTests
     }
 }
 
-public class ExpiringValueTests
-{
+public class ExpiringValueTests {
     [Fact]
-    public void GetOrRefresh_FirstCall_ShouldInitialize()
-    {
+    public void GetOrRefresh_FirstCall_ShouldInitialize() {
         var callCount = 0;
         var expiring = new ExpiringValue<int>(() => { callCount++; return 42; }, TimeSpan.FromMinutes(1));
         expiring.GetOrRefresh().Should().Be(42);
@@ -112,8 +99,7 @@ public class ExpiringValueTests
     }
 
     [Fact]
-    public void GetOrRefresh_WithinInterval_ShouldReturnCached()
-    {
+    public void GetOrRefresh_WithinInterval_ShouldReturnCached() {
         var callCount = 0;
         var expiring = new ExpiringValue<int>(() => { callCount++; return 42; }, TimeSpan.FromMinutes(1));
         expiring.GetOrRefresh();
@@ -122,8 +108,7 @@ public class ExpiringValueTests
     }
 
     [Fact]
-    public void Invalidate_ShouldForceRefresh()
-    {
+    public void Invalidate_ShouldForceRefresh() {
         var callCount = 0;
         var expiring = new ExpiringValue<int>(() => { callCount++; return 42; }, TimeSpan.FromMinutes(1));
         expiring.GetOrRefresh();

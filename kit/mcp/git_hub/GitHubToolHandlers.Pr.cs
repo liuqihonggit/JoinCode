@@ -3,8 +3,7 @@ namespace McpToolDispatch;
 /// <summary>
 /// GitHub PR 工具 — 直调 GitHub REST API（ADR 0073），替代原 gh pr 子命令包装
 /// </summary>
-public partial class GitHubToolHandlers
-{
+public partial class GitHubToolHandlers {
     /// <summary>
     /// 查看 PR 详情 — 调 REST API 获取 PR 信息，verbose=true 返回完整 JSON（从缓存读），默认精简输出
     /// </summary>
@@ -14,8 +13,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选,默认当前目录)", Required = false)] string? working_dir = null,
         [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -24,8 +22,7 @@ public partial class GitHubToolHandlers
 
         var cacheKey = BuildGhCacheKey("gh_pr_view", $"{owner}/{repoName}/{number}");
 
-        if (verbose == true)
-        {
+        if (verbose == true) {
             var cached = TryGetGhCache(cacheKey);
             if (cached is not null)
                 return Ok(cached);
@@ -48,8 +45,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("作者过滤(可选)", Required = false)] string? author = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -71,8 +67,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -83,13 +78,10 @@ public partial class GitHubToolHandlers
         if (!prResult.Success) return Fail(prResult.Error);
 
         string? diffUrl;
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(prResult.Body);
             diffUrl = doc.RootElement.TryGetProperty("diff_url", out var diffEl) ? diffEl.GetString() : null;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "解析 PR diff_url 失败");
             diffUrl = null;
         }
@@ -108,8 +100,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -120,12 +111,10 @@ public partial class GitHubToolHandlers
         if (!prResult.Success) return Fail(prResult.Error);
 
         string? headSha;
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(prResult.Body);
             headSha = doc.RootElement.GetProperty("head").GetProperty("sha").GetString();
-        }
-        catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
+        } catch (Exception ex) { return Fail($"解析 PR head sha 失败: {ex.Message}"); }
 
         if (string.IsNullOrEmpty(headSha)) return Fail("无法从 PR 响应中解析 head.sha");
 
@@ -134,15 +123,12 @@ public partial class GitHubToolHandlers
 
         var sb = new StringBuilder();
         var passCount = 0; var failCount = 0; var pendingCount = 0; var skipCount = 0;
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(checksResult.Body);
-            foreach (var run in doc.RootElement.GetProperty("check_runs").EnumerateArray())
-            {
+            foreach (var run in doc.RootElement.GetProperty("check_runs").EnumerateArray()) {
                 var name = run.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "" : "";
                 var status = run.TryGetProperty("conclusion", out var conclEl) ? conclEl.GetString() ?? "pending" : "pending";
-                var displayStatus = status switch
-                {
+                var displayStatus = status switch {
                     "success" => "pass",
                     "failure" or "cancelled" or "timed_out" => "fail",
                     "skipped" or "neutral" => "skipping",
@@ -151,8 +137,7 @@ public partial class GitHubToolHandlers
                 sb.AppendLine($"{name}\t{displayStatus}");
                 switch (displayStatus) { case "pass": passCount++; break; case "fail": failCount++; break; case "pending": pendingCount++; break; case "skipping": skipCount++; break; }
             }
-        }
-        catch (Exception ex) { return Fail($"解析 check-runs 失败: {ex.Message}"); }
+        } catch (Exception ex) { return Fail($"解析 check-runs 失败: {ex.Message}"); }
 
         sb.AppendLine();
         sb.Append($"汇总: {passCount} 通过, {failCount} 失败, {pendingCount} 进行中, {skipCount} 跳过(依赖链跳过,非失败)");
@@ -170,8 +155,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("合并后是否删除分支", Required = false)] bool? delete_branch = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -179,17 +163,14 @@ public partial class GitHubToolHandlers
         var number = ParsePrNumber(pr_number);
         var method = string.IsNullOrWhiteSpace(merge_method) ? "squash" : merge_method;
 
-        if (auto_merge == true)
-        {
+        if (auto_merge == true) {
             var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
             if (!prResult.Success) return Fail(prResult.Error);
             string? nodeId;
-            try
-            {
+            try {
                 using var doc = JsonDocument.Parse(prResult.Body);
                 nodeId = doc.RootElement.GetProperty("node_id").GetString();
-            }
-            catch (Exception ex) { return Fail($"解析 PR node_id 失败: {ex.Message}"); }
+            } catch (Exception ex) { return Fail($"解析 PR node_id 失败: {ex.Message}"); }
             if (string.IsNullOrEmpty(nodeId)) return Fail("无法从 PR 响应中解析 node_id");
 
             var graphqlMethod = method.ToUpperInvariant() switch { "SQUASH" => "SQUASH", "REBASE" => "REBASE", _ => "MERGE" };
@@ -203,18 +184,14 @@ public partial class GitHubToolHandlers
         var result = await _apiClient.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/pulls/{number}/merge", body, ct: cancellationToken).ConfigureAwait(false);
         if (!result.Success) return Fail(result.Error);
 
-        if (delete_branch == true)
-        {
+        if (delete_branch == true) {
             var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
-            if (prResult.Success)
-            {
-                try
-                {
+            if (prResult.Success) {
+                try {
                     using var doc = JsonDocument.Parse(prResult.Body);
                     var branchName = doc.RootElement.GetProperty("head").GetProperty("ref").GetString();
                     if (!string.IsNullOrEmpty(branchName)) await _apiClient.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/git/refs/heads/{branchName}", ct: cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception ex) { _logger?.LogDebug(ex, "删除 PR 分支失败(非致命)"); }
+                } catch (Exception ex) { _logger?.LogDebug(ex, "删除 PR 分支失败(非致命)"); }
             }
         }
         return Ok(result.Body, "PR 合并成功");
@@ -227,8 +204,7 @@ public partial class GitHubToolHandlers
     public async Task<ToolResult> GhPrCheckoutAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
         var number = ParsePrNumber(pr_number);
         var branchName = $"pr-{number}";
@@ -249,16 +225,14 @@ public partial class GitHubToolHandlers
         [McpToolParameter("关闭评论(可选)", Required = false)] string? comment = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
         var (owner, repoName) = resolved.Value;
         var number = ParsePrNumber(pr_number);
 
-        if (!string.IsNullOrWhiteSpace(comment))
-        {
+        if (!string.IsNullOrWhiteSpace(comment)) {
             var commentBody = $$"""{"body":{{JsonEscapeString(comment)}}}""";
             await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/issues/{number}/comments", commentBody, ct: cancellationToken).ConfigureAwait(false);
         }
@@ -276,8 +250,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -301,8 +274,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("是否 draft PR(可选,默认 false)", Required = false)] bool? draft = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -316,20 +288,17 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 构建 PR 创建 JSON 请求体 — 手动拼接避免 JsonSerializer 序列化开销(AOT 友好)
     /// </summary>
-    private static string BuildPrCreateJson(string title, string head, string? @base, string? body, bool? draft)
-    {
+    private static string BuildPrCreateJson(string title, string head, string? @base, string? body, bool? draft) {
         var sb = new StringBuilder(256);
         sb.Append("""{"title":""");
         sb.Append(JsonEscapeString(title));
         sb.Append(""","head":""");
         sb.Append(JsonEscapeString(head));
-        if (!string.IsNullOrWhiteSpace(@base))
-        {
+        if (!string.IsNullOrWhiteSpace(@base)) {
             sb.Append(""","base":""");
             sb.Append(JsonEscapeString(@base));
         }
-        if (!string.IsNullOrWhiteSpace(body))
-        {
+        if (!string.IsNullOrWhiteSpace(body)) {
             sb.Append(""","body":""");
             sb.Append(JsonEscapeString(body));
         }
@@ -342,8 +311,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 从 PR 编号或 URL 提取数字编号
     /// </summary>
-    private static string ParsePrNumber(string prNumber)
-    {
+    private static string ParsePrNumber(string prNumber) {
         if (string.IsNullOrEmpty(prNumber)) return prNumber;
         var lastSlash = prNumber.LastIndexOf('/');
         if (lastSlash < 0) return prNumber;
@@ -353,14 +321,11 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// JSON 字符串转义（AOT 友好，替代 JsonSerializer.Serialize）
     /// </summary>
-    private static string JsonEscapeString(string value)
-    {
+    private static string JsonEscapeString(string value) {
         var sb = new StringBuilder(value.Length + 2);
         sb.Append('"');
-        foreach (var c in value)
-        {
-            switch (c)
-            {
+        foreach (var c in value) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;
@@ -369,9 +334,9 @@ public partial class GitHubToolHandlers
                 case '\b': sb.Append("\\b"); break;
                 case '\f': sb.Append("\\f"); break;
                 default:
-                    if (c < 0x20) sb.Append($"\\u{(int)c:X4}");
-                    else sb.Append(c);
-                    break;
+                if (c < 0x20) sb.Append($"\\u{(int)c:X4}");
+                else sb.Append(c);
+                break;
             }
         }
         sb.Append('"');

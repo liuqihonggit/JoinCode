@@ -4,8 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 任务目录配置选项
 /// </summary>
-public sealed class TaskDirectoryOptions
-{
+public sealed class TaskDirectoryOptions {
     /// <summary>
     /// 任务目录路径，默认为 .jcc/tasks
     /// </summary>
@@ -31,24 +30,21 @@ public sealed class TaskDirectoryOptions
     /// <summary>
     /// 获取高水位标记文件完整路径
     /// </summary>
-    public string GetHighWaterMarkPath()
-    {
+    public string GetHighWaterMarkPath() {
         return Path.Combine(TaskDirectoryPath, HighWaterMarkFileName);
     }
 
     /// <summary>
     /// 获取任务文件完整路径
     /// </summary>
-    public string GetTaskFilePath(string taskId)
-    {
+    public string GetTaskFilePath(string taskId) {
         return Path.Combine(TaskDirectoryPath, $"{TaskFilePrefix}{taskId}{TaskFileExtension}");
     }
 
     /// <summary>
     /// 从文件名解析任务ID
     /// </summary>
-    public static string? ParseTaskIdFromFileName(string fileName)
-    {
+    public static string? ParseTaskIdFromFileName(string fileName) {
         if (!fileName.StartsWith(TaskFilePrefix, StringComparison.OrdinalIgnoreCase))
             return null;
 
@@ -68,14 +64,12 @@ public sealed class TaskDirectoryOptions
 /// <summary>
 /// 任务目录配置构建器 - 支持链式配置
 /// </summary>
-public sealed class TaskDirectoryOptionsBuilder
-{
+public sealed class TaskDirectoryOptionsBuilder {
     private string _taskDirectoryPath = Path.Combine(
         AppDataConstants.Paths.JccDirectory,
         "tasks");
 
-    private TaskDirectoryOptionsBuilder()
-    {
+    private TaskDirectoryOptionsBuilder() {
     }
 
     /// <summary>
@@ -86,8 +80,7 @@ public sealed class TaskDirectoryOptionsBuilder
     /// <summary>
     /// 设置任务目录路径
     /// </summary>
-    public TaskDirectoryOptionsBuilder WithTaskDirectoryPath(string path)
-    {
+    public TaskDirectoryOptionsBuilder WithTaskDirectoryPath(string path) {
         _taskDirectoryPath = path;
         return this;
     }
@@ -95,8 +88,7 @@ public sealed class TaskDirectoryOptionsBuilder
     /// <summary>
     /// 使用用户配置文件目录
     /// </summary>
-    public TaskDirectoryOptionsBuilder UseUserProfileDirectory()
-    {
+    public TaskDirectoryOptionsBuilder UseUserProfileDirectory() {
         _taskDirectoryPath = Path.Combine(
             AppDataConstants.Paths.JccDirectory,
             "tasks");
@@ -106,8 +98,7 @@ public sealed class TaskDirectoryOptionsBuilder
     /// <summary>
     /// 使用本地应用数据目录
     /// </summary>
-    public TaskDirectoryOptionsBuilder UseLocalAppDataDirectory()
-    {
+    public TaskDirectoryOptionsBuilder UseLocalAppDataDirectory() {
         _taskDirectoryPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             AppDataConstants.AppDataFolder,
@@ -118,8 +109,7 @@ public sealed class TaskDirectoryOptionsBuilder
     /// <summary>
     /// 使用应用数据目录
     /// </summary>
-    public TaskDirectoryOptionsBuilder UseAppDataDirectory()
-    {
+    public TaskDirectoryOptionsBuilder UseAppDataDirectory() {
         _taskDirectoryPath = Path.Combine(
             AppDataConstants.Paths.JccDirectory,
             "tasks");
@@ -129,8 +119,7 @@ public sealed class TaskDirectoryOptionsBuilder
     /// <summary>
     /// 使用临时目录
     /// </summary>
-    public TaskDirectoryOptionsBuilder UseTempDirectory()
-    {
+    public TaskDirectoryOptionsBuilder UseTempDirectory() {
         _taskDirectoryPath = Path.Combine(Path.GetTempPath(), AppDataConstants.AppDataFolder, "tasks");
         return this;
     }
@@ -138,8 +127,7 @@ public sealed class TaskDirectoryOptionsBuilder
     /// <summary>
     /// 使用当前工作目录
     /// </summary>
-    public TaskDirectoryOptionsBuilder UseCurrentDirectory(IFileSystem fs, string? subPath = null)
-    {
+    public TaskDirectoryOptionsBuilder UseCurrentDirectory(IFileSystem fs, string? subPath = null) {
         _taskDirectoryPath = Path.Combine(fs.GetCurrentDirectory(), subPath ?? $"{AppDataConstants.AppDataFolder}/tasks");
         return this;
     }
@@ -147,8 +135,7 @@ public sealed class TaskDirectoryOptionsBuilder
     /// <summary>
     /// 使用自定义基础目录
     /// </summary>
-    public TaskDirectoryOptionsBuilder UseCustomBaseDirectory(string baseDirectory, string subPath = "tasks")
-    {
+    public TaskDirectoryOptionsBuilder UseCustomBaseDirectory(string baseDirectory, string subPath = "tasks") {
         _taskDirectoryPath = Path.Combine(baseDirectory, subPath);
         return this;
     }
@@ -156,10 +143,8 @@ public sealed class TaskDirectoryOptionsBuilder
     /// <summary>
     /// 构建任务目录配置
     /// </summary>
-    public TaskDirectoryOptions Build()
-    {
-        return new TaskDirectoryOptions
-        {
+    public TaskDirectoryOptions Build() {
+        return new TaskDirectoryOptions {
             TaskDirectoryPath = _taskDirectoryPath
         };
     }

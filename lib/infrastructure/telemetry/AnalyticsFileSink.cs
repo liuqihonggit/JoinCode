@@ -3,8 +3,7 @@ namespace Core.Telemetry;
 /// <summary>
 /// 分析事件 — 记录到 .jcc/analytics/ 目录的 JSONL 文件
 /// </summary>
-public sealed record AnalyticsEvent
-{
+public sealed record AnalyticsEvent {
     /// <summary>事件名称（如 "tool.invoked"、"cache.break"）</summary>
     public required string Name { get; init; }
     /// <summary>时间戳（UTC ISO 8601）</summary>
@@ -20,8 +19,7 @@ public sealed record AnalyticsEvent
 /// <summary>
 /// 分析事件汇熔断开关 — 控制事件写入的启用/禁用和采样率
 /// </summary>
-public sealed class AnalyticsSinkKillswitch
-{
+public sealed class AnalyticsSinkKillswitch {
     private volatile bool _enabled = true;
     private double _sampleRate = 1.0;
     private long _droppedCount;
@@ -43,42 +41,34 @@ public sealed class AnalyticsSinkKillswitch
     public void SetEnabled(bool enabled) => _enabled = enabled;
 
     /// <summary>设置采样率（0.0-1.0）</summary>
-    public void SetSampleRate(double rate)
-    {
+    public void SetSampleRate(double rate) {
         if (rate < 0) rate = 0;
         if (rate > 1) rate = 1;
         Volatile.Write(ref _sampleRate, rate);
     }
 
     /// <summary>检查事件是否应该写入（启用 + 采样率通过）</summary>
-    public bool ShouldWrite()
-    {
-        if (!_enabled)
-        {
+    public bool ShouldWrite() {
+        if (!_enabled) {
             Interlocked.Increment(ref _droppedCount);
             return false;
         }
 
         var sampleRate = Volatile.Read(ref _sampleRate);
-        if (sampleRate >= 1.0)
-        {
+        if (sampleRate >= 1.0) {
             Interlocked.Increment(ref _writtenCount);
             return true;
         }
 
-        if (sampleRate <= 0.0)
-        {
+        if (sampleRate <= 0.0) {
             Interlocked.Increment(ref _droppedCount);
             return false;
         }
 
         var sampled = Random.Shared.NextDouble() < sampleRate;
-        if (sampled)
-        {
+        if (sampled) {
             Interlocked.Increment(ref _writtenCount);
-        }
-        else
-        {
+        } else {
             Interlocked.Increment(ref _droppedCount);
         }
 
@@ -91,8 +81,7 @@ public sealed class AnalyticsSinkKillswitch
 /// 使用 Channel&lt;T&gt; 异步队列，定时 flush，不阻塞调用方
 /// </summary>
 [Register(typeof(IAnalyticsFileSink), ServiceLifetime.Singleton)]
-public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDisposable
-{
+public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDisposable {
     private readonly IFileSystem? _fileSystem;
     private readonly ILogger<AnalyticsFileSink>? _logger;
     private readonly AnalyticsSinkKillswitch _killswitch;
@@ -120,24 +109,21 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
         ILogger<AnalyticsFileSink>? logger = null,
         TimeSpan? flushInterval = null,
         int batchSize = 100,
-        string? outputDirectory = null)
-    {
+        string? outputDirectory = null) {
         _fileSystem = fileSystem;
         _killswitch = killswitch ?? new AnalyticsSinkKillswitch();
         _logger = logger;
         _flushInterval = flushInterval ?? TimeSpan.FromSeconds(5);
         _batchSize = batchSize;
         _outputDirectory = outputDirectory ?? JoinCode.Abstractions.Configuration.AppData.AppDataConstants.AnalyticsDirectory;
-        _channel = Channel.CreateBounded<AnalyticsEvent>(new BoundedChannelOptions(1000)
-        {
+        _channel = Channel.CreateBounded<AnalyticsEvent>(new BoundedChannelOptions(1000) {
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
             SingleWriter = false
         });
         _cts = new CancellationTokenSource();
 
-        if (_fileSystem is not null)
-        {
+        if (_fileSystem is not null) {
             _flushTask = Task.Run(() => FlushLoopAsync(_cts.Token));
         }
     }
@@ -146,24 +132,19 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
     public AnalyticsSinkKillswitch Killswitch => _killswitch;
 
     /// <inheritdoc />
-    public void LogEvent(AnalyticsEvent @event)
-    {
-        if (_fileSystem is null || !_killswitch.ShouldWrite())
-        {
+    public void LogEvent(AnalyticsEvent @event) {
+        if (_fileSystem is null || !_killswitch.ShouldWrite()) {
             return;
         }
 
-        if (!_channel.Writer.TryWrite(@event))
-        {
+        if (!_channel.Writer.TryWrite(@event)) {
             _logger?.LogDebug("分析事件队列已满，丢弃事件: {EventName}", @event.Name);
         }
     }
 
     /// <inheritdoc />
-    public void LogEvent(string name, Dictionary<string, string>? tags = null, double? value = null, string? sessionId = null)
-    {
-        LogEvent(new AnalyticsEvent
-        {
+    public void LogEvent(string name, Dictionary<string, string>? tags = null, double? value = null, string? sessionId = null) {
+        LogEvent(new AnalyticsEvent {
             Name = name,
             Timestamp = DateTimeOffset.UtcNow,
             Tags = tags ?? [],
@@ -173,70 +154,51 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
     }
 
     /// <inheritdoc />
-    public async Task FlushAsync(CancellationToken cancellationToken = default)
-    {
-        if (_fileSystem is null)
-        {
+    public async Task FlushAsync(CancellationToken cancellationToken = default) {
+        if (_fileSystem is null) {
             return;
         }
 
         var events = new List<AnalyticsEvent>(_batchSize);
-        while (_channel.Reader.TryRead(out var evt))
-        {
+        while (_channel.Reader.TryRead(out var evt)) {
             events.Add(evt);
-            if (events.Count >= _batchSize)
-            {
+            if (events.Count >= _batchSize) {
                 await WriteBatchAsync(events, cancellationToken).ConfigureAwait(false);
                 events.Clear();
             }
         }
 
-        if (events.Count > 0)
-        {
+        if (events.Count > 0) {
             await WriteBatchAsync(events, cancellationToken).ConfigureAwait(false);
         }
     }
 
-    private async Task FlushLoopAsync(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
+    private async Task FlushLoopAsync(CancellationToken ct) {
+        while (!ct.IsCancellationRequested) {
+            try {
                 await Task.Delay(_flushInterval, ct).ConfigureAwait(false);
                 await FlushAsync(ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 break;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "分析事件 flush 循环异常");
             }
         }
 
-        try
-        {
+        try {
             await FlushAsync(CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "分析事件最终 flush 异常");
         }
     }
 
-    private async Task WriteBatchAsync(List<AnalyticsEvent> events, CancellationToken ct)
-    {
-        if (events.Count == 0 || _fileSystem is null)
-        {
+    private async Task WriteBatchAsync(List<AnalyticsEvent> events, CancellationToken ct) {
+        if (events.Count == 0 || _fileSystem is null) {
             return;
         }
 
-        try
-        {
-            if (!_fileSystem.DirectoryExists(_outputDirectory))
-            {
+        try {
+            if (!_fileSystem.DirectoryExists(_outputDirectory)) {
                 _fileSystem.CreateDirectory(_outputDirectory);
             }
 
@@ -246,32 +208,26 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
             var filePath = _fileSystem.CombinePath(_outputDirectory, fileName);
 
             var sb = new StringBuilder(events.Count * 128);
-            foreach (var evt in events)
-            {
+            foreach (var evt in events) {
                 var json = JsonSerializer.Serialize(evt, AnalyticsJsonContext.Default.AnalyticsEvent);
                 sb.Append(json).Append('\n');
             }
 
             await _fileSystem.WriteAllTextAsync(filePath, sb.ToString(), ct).ConfigureAwait(false);
             _logger?.LogDebug("分析事件已写入: {FilePath} ({Count} events)", filePath, events.Count);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "分析事件写入失败（不影响主流程）");
         }
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
-        {
+    public async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
             return;
         }
 
         _cts.Cancel();
-        if (_flushTask is not null)
-        {
+        if (_flushTask is not null) {
             await _flushTask.ConfigureAwait(false);
         }
         _cts.Dispose();
@@ -281,8 +237,7 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
 /// <summary>
 /// 分析事件文件汇接口
 /// </summary>
-public interface IAnalyticsFileSink : IAsyncDisposable
-{
+public interface IAnalyticsFileSink : IAsyncDisposable {
     /// <summary>熔断开关</summary>
     AnalyticsSinkKillswitch Killswitch { get; }
 

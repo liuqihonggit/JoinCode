@@ -7,8 +7,7 @@ namespace Core.Telemetry;
 /// <para>基于 System.Diagnostics.ActivitySource 与 Meter 实现,支持控制台导出器插件化加载</para>
 /// </summary>
 [Register(typeof(ITelemetryService), ServiceLifetime.Singleton)]
-public sealed partial class TelemetryService : ITelemetryService
-{
+public sealed partial class TelemetryService : ITelemetryService {
     private readonly TelemetryConfig _config;
     private readonly ActivitySource _activitySource;
     private readonly Meter _meter;
@@ -32,16 +31,14 @@ public sealed partial class TelemetryService : ITelemetryService
     /// <param name="config">遥测配置,定义服务名、采样策略与默认标签</param>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="analyticsSink">可选分析文件下沉器,用于将指标写入文件</param>
-    public TelemetryService(TelemetryConfig config, ILogger? logger = null, IAnalyticsFileSink? analyticsSink = null)
-    {
+    public TelemetryService(TelemetryConfig config, ILogger? logger = null, IAnalyticsFileSink? analyticsSink = null) {
         ArgumentNullException.ThrowIfNull(config);
         _config = config;
         _analyticsSink = analyticsSink;
         _activitySource = new ActivitySource(config.ServiceName, config.ServiceVersion);
         _meter = new Meter(config.ServiceName, config.ServiceVersion);
 
-        _listener = new ActivityListener
-        {
+        _listener = new ActivityListener {
             ShouldListenTo = source => source.Name == config.ServiceName,
             SampleUsingParentId = (ref ActivityCreationOptions<string> _) => ActivitySamplingResult.AllDataAndRecorded,
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded
@@ -53,8 +50,7 @@ public sealed partial class TelemetryService : ITelemetryService
     /// 启用控制台导出器 — 插件加载时调用(ADR 0098 万物皆插件)
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
-    public void EnableConsoleExporter(ILogger? logger)
-    {
+    public void EnableConsoleExporter(ILogger? logger) {
         _consoleExporter?.Dispose();
         _consoleExporter = new ConsoleTelemetryExporter(_config.ServiceName, logger);
     }
@@ -62,8 +58,7 @@ public sealed partial class TelemetryService : ITelemetryService
     /// <summary>
     /// 禁用控制台导出器 — 插件卸载时调用
     /// </summary>
-    public void DisableConsoleExporter()
-    {
+    public void DisableConsoleExporter() {
         _consoleExporter?.Dispose();
         _consoleExporter = null;
     }
@@ -72,10 +67,8 @@ public sealed partial class TelemetryService : ITelemetryService
     public ITelemetrySpan StartSpan(
         string name,
         TelemetrySpanKind kind = TelemetrySpanKind.Internal,
-        ITelemetrySpan? parent = null)
-    {
-        if (!_config.TracingEnabled)
-        {
+        ITelemetrySpan? parent = null) {
+        if (!_config.TracingEnabled) {
             return new NoOpTelemetrySpan(name, kind);
         }
 
@@ -88,13 +81,11 @@ public sealed partial class TelemetryService : ITelemetryService
             ? _activitySource.StartActivity(name, activityKind, parentActivity.Context)
             : _activitySource.StartActivity(name, activityKind);
 
-        if (activity == null)
-        {
+        if (activity == null) {
             return new NoOpTelemetrySpan(name, kind);
         }
 
-        foreach (var (key, value) in _config.DefaultTags)
-        {
+        foreach (var (key, value) in _config.DefaultTags) {
             activity.SetTag(key, value);
         }
 
@@ -104,12 +95,9 @@ public sealed partial class TelemetryService : ITelemetryService
     }
 
     /// <inheritdoc/>
-    public ITelemetryCounter GetCounter(string name, string? unit = null, string? description = null)
-    {
-        var metric = _metrics.GetOrAdd(name, n =>
-        {
-            if (!_config.MetricsEnabled)
-            {
+    public ITelemetryCounter GetCounter(string name, string? unit = null, string? description = null) {
+        var metric = _metrics.GetOrAdd(name, n => {
+            if (!_config.MetricsEnabled) {
                 return new NoOpTelemetryCounter(n);
             }
 
@@ -123,12 +111,9 @@ public sealed partial class TelemetryService : ITelemetryService
     }
 
     /// <inheritdoc/>
-    public ITelemetryHistogram GetHistogram(string name, string? unit = null, string? description = null)
-    {
-        var metric = _metrics.GetOrAdd(name, n =>
-        {
-            if (!_config.MetricsEnabled)
-            {
+    public ITelemetryHistogram GetHistogram(string name, string? unit = null, string? description = null) {
+        var metric = _metrics.GetOrAdd(name, n => {
+            if (!_config.MetricsEnabled) {
                 return new NoOpTelemetryHistogram(n);
             }
 
@@ -142,12 +127,9 @@ public sealed partial class TelemetryService : ITelemetryService
     }
 
     /// <inheritdoc/>
-    public ITelemetryGauge GetGauge(string name, string? unit = null, string? description = null)
-    {
-        var metric = _metrics.GetOrAdd(name, n =>
-        {
-            if (!_config.MetricsEnabled)
-            {
+    public ITelemetryGauge GetGauge(string name, string? unit = null, string? description = null) {
+        var metric = _metrics.GetOrAdd(name, n => {
+            if (!_config.MetricsEnabled) {
                 return new NoOpTelemetryGauge(n);
             }
 
@@ -161,15 +143,13 @@ public sealed partial class TelemetryService : ITelemetryService
     }
 
     /// <inheritdoc/>
-    public IEnumerable<TelemetrySpanData> GetActiveSpans()
-    {
+    public IEnumerable<TelemetrySpanData> GetActiveSpans() {
         return _activeSpans.Values
             .Select(s => s.ToSpanData());
     }
 
     /// <inheritdoc/>
-    public IEnumerable<string> GetRegisteredMetrics()
-    {
+    public IEnumerable<string> GetRegisteredMetrics() {
         return _metrics.Keys;
     }
 
@@ -177,18 +157,15 @@ public sealed partial class TelemetryService : ITelemetryService
     /// 从活动 Span 表中移除指定 Span — 由 TelemetrySpan.DisposeAsync 调用
     /// </summary>
     /// <param name="spanId">要移除的 Span 标识</param>
-    internal void RemoveActiveSpan(string spanId)
-    {
+    internal void RemoveActiveSpan(string spanId) {
         _activeSpans.TryRemove(spanId, out _);
     }
 
     /// <summary>
     /// 异步释放遥测服务 — 关闭所有活动 Span、导出器、监听器、ActivitySource 与 Meter
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
-        {
+    public ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
             return ValueTask.CompletedTask;
         }
 
@@ -199,8 +176,7 @@ public sealed partial class TelemetryService : ITelemetryService
         return new ValueTask(Task.WhenAll(_activeSpans.Values.ToList().Select(span => span.DisposeAsync().AsTask())));
     }
 
-    private static ActivityKind MapActivityKind(TelemetrySpanKind kind) => kind switch
-    {
+    private static ActivityKind MapActivityKind(TelemetrySpanKind kind) => kind switch {
         TelemetrySpanKind.Internal => ActivityKind.Internal,
         TelemetrySpanKind.Server => ActivityKind.Server,
         TelemetrySpanKind.Client => ActivityKind.Client,

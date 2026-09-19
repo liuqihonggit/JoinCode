@@ -4,8 +4,7 @@ namespace JoinCode.Hands.Desktop;
 /// 屏幕截图服务 — GDI BitBlt + GetDIBits + ImageSharp PNG 编码，返回 base64
 /// </summary>
 [Register(typeof(IScreenCaptureService), ServiceLifetime.Singleton)]
-public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCaptureService
-{
+public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCaptureService {
     private readonly ILogger<GdiScreenCaptureService>? _logger;
 
     /// <summary>构造屏幕截图服务实例。</summary>
@@ -13,24 +12,21 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
     public GdiScreenCaptureService(ILogger<GdiScreenCaptureService>? logger = null) => _logger = logger;
 
     /// <summary>全屏截图</summary>
-    public Task<string> CaptureFullScreenAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<string> CaptureFullScreenAsync(CancellationToken cancellationToken = default) {
         var width = User32NativeMethods.GetSystemMetrics(NativeConstants.SM_CXSCREEN);
         var height = User32NativeMethods.GetSystemMetrics(NativeConstants.SM_CYSCREEN);
         return CaptureRegionAsync(0, 0, width, height, cancellationToken);
     }
 
     /// <summary>指定窗口客户区截图（按窗口矩形从屏幕截取）</summary>
-    public Task<string> CaptureWindowAsync(IntPtr hWnd, CancellationToken cancellationToken = default)
-    {
+    public Task<string> CaptureWindowAsync(IntPtr hWnd, CancellationToken cancellationToken = default) {
         if (!User32NativeMethods.GetWindowRect(hWnd, out var rect))
             return Task.FromResult(string.Empty);
         return CaptureRegionAsync(rect.Left, rect.Top, rect.Width, rect.Height, cancellationToken);
     }
 
     /// <summary>指定屏幕区域截图</summary>
-    public Task<string> CaptureRegionAsync(int x, int y, int width, int height, CancellationToken cancellationToken = default)
-    {
+    public Task<string> CaptureRegionAsync(int x, int y, int width, int height, CancellationToken cancellationToken = default) {
         if (width <= 0 || height <= 0) return Task.FromResult(string.Empty);
         return Task.FromResult(CaptureRegionCore(x, y, width, height));
     }
@@ -38,8 +34,7 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
     /// <summary>释放屏幕截图服务资源 — 无外部资源需释放。</summary>
     public override void Dispose() => base.Dispose();
 
-    private string CaptureRegionCore(int x, int y, int width, int height)
-    {
+    private string CaptureRegionCore(int x, int y, int width, int height) {
         var hdcScreen = User32NativeMethods.GetDC(IntPtr.Zero);
         if (hdcScreen == IntPtr.Zero) return string.Empty;
 
@@ -47,8 +42,7 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
         IntPtr hBitmap = IntPtr.Zero;
         IntPtr hOld = IntPtr.Zero;
 
-        try
-        {
+        try {
             hdcMem = Gdi32NativeMethods.CreateCompatibleDC(hdcScreen);
             if (hdcMem == IntPtr.Zero) return string.Empty;
 
@@ -59,10 +53,8 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
             if (Gdi32NativeMethods.BitBlt(hdcMem, 0, 0, width, height, hdcScreen, x, y, NativeConstants.SRCCOPY) == IntPtr.Zero)
                 return string.Empty;
 
-            var bmi = new BITMAPINFO
-            {
-                bmiHeader = new BITMAPINFOHEADER
-                {
+            var bmi = new BITMAPINFO {
+                bmiHeader = new BITMAPINFOHEADER {
                     biSize = (uint)Marshal.SizeOf<BITMAPINFOHEADER>(),
                     biWidth = width,
                     biHeight = -height,
@@ -75,12 +67,9 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
 
             var bytes = new byte[width * height * 4];
             var pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-            try
-            {
+            try {
                 Gdi32NativeMethods.GetDIBits(hdcMem, hBitmap, 0, height, pinned.AddrOfPinnedObject(), ref bmi, NativeConstants.DIB_RGB_COLORS);
-            }
-            finally
-            {
+            } finally {
                 pinned.Free();
             }
 
@@ -90,14 +79,10 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
             using var ms = new MemoryStream();
             image.Save(ms, new PngEncoder());
             return Convert.ToBase64String(ms.ToArray());
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "截图失败: ({X},{Y},{W},{H})", x, y, width, height);
             return string.Empty;
-        }
-        finally
-        {
+        } finally {
             if (hOld != IntPtr.Zero && hdcMem != IntPtr.Zero) Gdi32NativeMethods.SelectObject(hdcMem, hOld);
             if (hBitmap != IntPtr.Zero) Gdi32NativeMethods.DeleteObject(hBitmap);
             if (hdcMem != IntPtr.Zero) Gdi32NativeMethods.DeleteDC(hdcMem);

@@ -20,15 +20,13 @@ public sealed record McpClientToolDeps(
     IMcpToolRegistry? ToolRegistry = null,
     IElicitationHandler? ElicitationHandler = null,
     McpServerStateManager? ServerStateManager = null,
-    IMcpClientFactory? ClientFactory = null)
-{
+    IMcpClientFactory? ClientFactory = null) {
     /// <summary>
     /// 从服务提供者构造依赖项集合
     /// </summary>
     /// <param name="sp">服务提供者</param>
     /// <returns>从服务提供者解析得到的依赖项集合</returns>
-    public static McpClientToolDeps FromServiceProvider(IServiceProvider sp)
-    {
+    public static McpClientToolDeps FromServiceProvider(IServiceProvider sp) {
         return new McpClientToolDeps(
             OAuthService: sp.GetService<McpOAuthService>(),
             OutputStorage: sp.GetService<IMcpOutputStorage>(),

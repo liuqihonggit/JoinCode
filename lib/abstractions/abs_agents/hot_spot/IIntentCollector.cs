@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 意图收集器 — 收集 Worker 上报的文件修改意图，供 HotSpotTracker 统计热点
 /// 线程安全，支持多 Worker 并发上报
 /// </summary>
-public interface IIntentCollector
-{
+public interface IIntentCollector {
     /// <summary>
     /// Worker 上报修改意图（启动时计划 + 执行中实时）
     /// </summary>

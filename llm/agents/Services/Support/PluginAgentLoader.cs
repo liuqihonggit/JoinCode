@@ -9,8 +9,7 @@ namespace Core.Agents;
 /// <para>- Theorem 63 (Ordering): 卸载提供者时，先连带卸载所有依赖方，最后卸载提供者本身</para>
 /// </summary>
 [Register(typeof(IPluginAgentLoader), ServiceLifetime.Singleton)]
-public sealed class PluginAgentLoader : ServiceEntity, IPluginAgentLoader
-{
+public sealed class PluginAgentLoader : ServiceEntity, IPluginAgentLoader {
     private FrozenDictionary<string, (AgentDefinition Def, string PluginName)> _pluginAgents
         = FrozenDictionary<string, (AgentDefinition, string)>.Empty;
 
@@ -27,14 +26,12 @@ public sealed class PluginAgentLoader : ServiceEntity, IPluginAgentLoader
     /// 加载插件 agent — 可逆效应，返回撤销函数
     /// <para>插件卸载时调用返回的 Action，触发连带卸载（Cordis Theorem 63）</para>
     /// </summary>
-    public Action LoadFromPlugin(string pluginName, IPluginAgentProvider provider)
-    {
+    public Action LoadFromPlugin(string pluginName, IPluginAgentProvider provider) {
         var definitions = provider.GetAgentDefinitions();
         var addedKeys = new List<string>(definitions.Count);
 
         var map = new Dictionary<string, (AgentDefinition, string)>(_pluginAgents);
-        foreach (var def in definitions)
-        {
+        foreach (var def in definitions) {
             PluginAgentValidator.Validate(def);
             map[def.DisplayId] = (def, pluginName);
             addedKeys.Add(def.DisplayId);
@@ -47,8 +44,7 @@ public sealed class PluginAgentLoader : ServiceEntity, IPluginAgentLoader
     }
 
     /// <summary>获取所有插件 agent 定义</summary>
-    public IReadOnlyList<AgentDefinition> GetAll()
-    {
+    public IReadOnlyList<AgentDefinition> GetAll() {
         var snapshot = _pluginAgents;
         var list = new List<AgentDefinition>(snapshot.Count);
         foreach (var kv in snapshot)
@@ -57,8 +53,7 @@ public sealed class PluginAgentLoader : ServiceEntity, IPluginAgentLoader
     }
 
     /// <summary>按名查找</summary>
-    public AgentDefinition? Find(string name)
-    {
+    public AgentDefinition? Find(string name) {
         return _pluginAgents.TryGetValue(name, out var entry) ? entry.Def : null;
     }
 
@@ -68,14 +63,11 @@ public sealed class PluginAgentLoader : ServiceEntity, IPluginAgentLoader
     /// <para>2. 按注册逆序遍历，先连带卸载所有依赖提供者 agent 的消费者插件</para>
     /// <para>3. 最后卸载提供者本身（Theorem 63: 提供者最后卸载）</para>
     /// </summary>
-    private void UnloadWithCascade(string pluginName)
-    {
+    private void UnloadWithCascade(string pluginName) {
         // 1. 找到此插件贡献的 agent 名集合
         var providerAgentNames = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var entry in _loadOrder)
-        {
-            if (entry.PluginName == pluginName)
-            {
+        foreach (var entry in _loadOrder) {
+            if (entry.PluginName == pluginName) {
                 foreach (var key in entry.AgentKeys)
                     providerAgentNames.Add(key);
             }
@@ -91,17 +83,14 @@ public sealed class PluginAgentLoader : ServiceEntity, IPluginAgentLoader
 
         // 不动点迭代：每轮按注册逆序遍历，标记新依赖方，直到无新标记
         bool changed;
-        do
-        {
+        do {
             changed = false;
-            for (int i = _loadOrder.Count - 1; i >= 0; i--)
-            {
+            for (int i = _loadOrder.Count - 1; i >= 0; i--) {
                 var entry = _loadOrder[i];
                 if (pluginsToRemove.Contains(entry.PluginName))
                     continue;
 
-                if (PluginDependsOnAgents(entry.PluginName, removedAgentNames))
-                {
+                if (PluginDependsOnAgents(entry.PluginName, removedAgentNames)) {
                     pluginsToRemove.Add(entry.PluginName);
                     foreach (var key in entry.AgentKeys)
                         removedAgentNames.Add(key);
@@ -113,18 +102,13 @@ public sealed class PluginAgentLoader : ServiceEntity, IPluginAgentLoader
         // 3. 从 Map 中移除所有被标记插件的 agent（Theorem 63: 提供者最后卸载）
         var unloadMap = new Dictionary<string, (AgentDefinition, string)>(_pluginAgents);
         var newLoadOrder = new List<(string PluginName, List<string> AgentKeys)>(_loadOrder.Count);
-        foreach (var entry in _loadOrder)
-        {
-            if (pluginsToRemove.Contains(entry.PluginName))
-            {
-                foreach (var key in entry.AgentKeys)
-                {
+        foreach (var entry in _loadOrder) {
+            if (pluginsToRemove.Contains(entry.PluginName)) {
+                foreach (var key in entry.AgentKeys) {
                     if (unloadMap.TryGetValue(key, out var existing) && existing.Item2 == entry.PluginName)
                         unloadMap.Remove(key);
                 }
-            }
-            else
-            {
+            } else {
                 newLoadOrder.Add(entry);
             }
         }
@@ -141,31 +125,25 @@ public sealed class PluginAgentLoader : ServiceEntity, IPluginAgentLoader
     /// <para>1. 消费者 agent 的 Skills 列表引用了被卸载的 agent 名</para>
     /// <para>2. 消费者 agent 的 Tools 列表引用了被卸载的 agent 名（agent 专属工具）</para>
     /// </summary>
-    private bool PluginDependsOnAgents(string consumerPlugin, HashSet<string> providerAgentNames)
-    {
+    private bool PluginDependsOnAgents(string consumerPlugin, HashSet<string> providerAgentNames) {
         var snapshot = _pluginAgents;
-        foreach (var kv in snapshot)
-        {
+        foreach (var kv in snapshot) {
             if (kv.Value.PluginName != consumerPlugin)
                 continue;
 
             var agent = kv.Value.Def;
 
             // 检查1: Skills 引用了被卸载的 agent 名
-            if (agent.Skills is not null)
-            {
-                foreach (var skill in agent.Skills)
-                {
+            if (agent.Skills is not null) {
+                foreach (var skill in agent.Skills) {
                     if (providerAgentNames.Contains(skill))
                         return true;
                 }
             }
 
             // 检查2: Tools 引用了被卸载的 agent 名（agent 专属工具，如 "agent:worker"）
-            if (agent.Tools is not null)
-            {
-                foreach (var tool in agent.Tools)
-                {
+            if (agent.Tools is not null) {
+                foreach (var tool in agent.Tools) {
                     if (providerAgentNames.Contains(tool))
                         return true;
                 }

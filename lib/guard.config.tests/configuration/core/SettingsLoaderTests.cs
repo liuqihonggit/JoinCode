@@ -7,8 +7,7 @@ namespace Guard.Tests.Configuration;
 /// 与 ProjectRulesLoaderTests 共享 AppDataConstants 全局状态,需串行执行避免相互污染
 /// </summary>
 [Collection("AppDataConstantsCollection")]
-public class SettingsLoaderTests : IDisposable
-{
+public class SettingsLoaderTests : IDisposable {
     private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
     private static readonly string DefaultOpenAiModelId = Loader.GetDefaultModelId("openai");
     private static readonly string DefaultAnthropicModelId = Loader.GetDefaultModelId("anthropic");
@@ -22,8 +21,7 @@ public class SettingsLoaderTests : IDisposable
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private bool _disposed;
 
-    public SettingsLoaderTests()
-    {
+    public SettingsLoaderTests() {
         _tempDir = $"/test/jcc_settings_test_{Guid.NewGuid().ToString("N")[..8]}";
         _fs.CreateDirectory(_tempDir);
 
@@ -47,8 +45,7 @@ public class SettingsLoaderTests : IDisposable
         AppDataConstants.SettingsFileName = "settings.json";
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         // 还原全局 AppDataConstants,避免污染后续测试
@@ -59,21 +56,16 @@ public class SettingsLoaderTests : IDisposable
     #region 场景1: 多源加载 + 优先级合并
 
     [Fact]
-    public async Task Given_用户设置和项目设置_When_加载全部_Then_项目设置覆盖用户设置()
-    {
+    public async Task Given_用户设置和项目设置_When_加载全部_Then_项目设置覆盖用户设置() {
         // Given: 用户设置 profile 指向 openai, 项目设置 profile 指向 anthropic
-        var userSettings = new SettingsJson
-        {
-            Vendor = new Dictionary<string, ProfileSettings>
-            {
+        var userSettings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
                 ["openai"] = new ProfileSettings { Model = DefaultOpenAiModelId },
             },
             Current = new CurrentSettings { Profile = "openai" },
         };
-        var projectSettings = new SettingsJson
-        {
-            Vendor = new Dictionary<string, ProfileSettings>
-            {
+        var projectSettings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
                 ["anthropic"] = new ProfileSettings { Model = DefaultAnthropicModelId },
             },
             Current = new CurrentSettings { Profile = "anthropic" },
@@ -94,8 +86,7 @@ public class SettingsLoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task Given_用户设置和本地设置_When_加载全部_Then_本地设置覆盖用户设置()
-    {
+    public async Task Given_用户设置和本地设置_When_加载全部_Then_本地设置覆盖用户设置() {
         // Given: 用户设置 language=en-US, 本地设置 language=zh-CN
         var userSettings = new SettingsJson { Current = new CurrentSettings { Language = "en-US" } };
         var localSettings = new SettingsJson { Current = new CurrentSettings { Language = "zh-CN" } };
@@ -112,8 +103,7 @@ public class SettingsLoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task Given_用户设置有env_项目设置也有env_When_加载全部_Then_env字典合并()
-    {
+    public async Task Given_用户设置有env_项目设置也有env_When_加载全部_Then_env字典合并() {
         // Given
         var userSettings = new SettingsJson { Current = new CurrentSettings { Env = new Dictionary<string, string> { ["KEY1"] = "user1", ["KEY2"] = "user2" } } };
         var projectSettings = new SettingsJson { Current = new CurrentSettings { Env = new Dictionary<string, string> { ["KEY2"] = "project2", ["KEY3"] = "project3" } } };
@@ -137,8 +127,7 @@ public class SettingsLoaderTests : IDisposable
     #region 场景2: 无配置文件时返回默认值
 
     [Fact]
-    public async Task Given_无任何配置文件_When_加载全部_Then_返回默认骨架()
-    {
+    public async Task Given_无任何配置文件_When_加载全部_Then_返回默认骨架() {
         // Given: 无配置文件
 
         // When
@@ -160,17 +149,14 @@ public class SettingsLoaderTests : IDisposable
     #region 场景3: 损坏文件不影响其他来源
 
     [Fact]
-    public async Task Given_用户设置损坏_项目设置正常_When_加载全部_Then_项目设置仍可用()
-    {
+    public async Task Given_用户设置损坏_项目设置正常_When_加载全部_Then_项目设置仍可用() {
         // Given: 用户设置损坏
         var userPath = GetUserSettingsPath();
         var dir = Path.GetDirectoryName(userPath);
         if (!string.IsNullOrEmpty(dir)) _fs.CreateDirectory(dir);
         await _fs.WriteAllTextAsync(userPath, "{ invalid json }").ConfigureAwait(true);
-        var projectSettings = new SettingsJson
-        {
-            Vendor = new Dictionary<string, ProfileSettings>
-            {
+        var projectSettings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
                 ["anthropic"] = new ProfileSettings { Model = DefaultAnthropicModelId },
             },
             Current = new CurrentSettings { Profile = "anthropic" },
@@ -193,13 +179,10 @@ public class SettingsLoaderTests : IDisposable
     #region 场景4: 保存到指定来源
 
     [Fact]
-    public async Task Given_保存到UserSettings_When_重新加载_Then_数据一致()
-    {
+    public async Task Given_保存到UserSettings_When_重新加载_Then_数据一致() {
         // Given
-        var settings = new SettingsJson
-        {
-            Vendor = new Dictionary<string, ProfileSettings>
-            {
+        var settings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
                 ["openai"] = new ProfileSettings { Model = DefaultOpenAiModelId },
             },
             Current = new CurrentSettings { Profile = "openai", FastMode = true },
@@ -224,20 +207,15 @@ public class SettingsLoaderTests : IDisposable
     #region 场景5: 权限数组拼接去重
 
     [Fact]
-    public async Task Given_用户权限和项目权限_When_加载全部_Then_权限数组拼接去重()
-    {
+    public async Task Given_用户权限和项目权限_When_加载全部_Then_权限数组拼接去重() {
         // Given
-        var userSettings = new SettingsJson
-        {
-            Current = new CurrentSettings
-            {
+        var userSettings = new SettingsJson {
+            Current = new CurrentSettings {
                 Permissions = new PermissionsSettings { Allow = ["Bash(npm test)"], Deny = ["Bash(rm)"] },
             },
         };
-        var projectSettings = new SettingsJson
-        {
-            Current = new CurrentSettings
-            {
+        var projectSettings = new SettingsJson {
+            Current = new CurrentSettings {
                 Permissions = new PermissionsSettings { Allow = ["ReadFile"], DefaultMode = "autoAccept" },
             },
         };
@@ -265,8 +243,7 @@ public class SettingsLoaderTests : IDisposable
     /// 骨架含所有5个供应商的预设入口点,models 数组留空由 AutoFetchModels 填充
     /// </summary>
     [Fact]
-    public async Task Given_用户设置文件为空_When_加载用户设置_Then_返回默认骨架并写入磁盘()
-    {
+    public async Task Given_用户设置文件为空_When_加载用户设置_Then_返回默认骨架并写入磁盘() {
         // Given: 用户设置文件存在但为空(0字节)
         var userPath = GetUserSettingsPath();
         var dir = Path.GetDirectoryName(userPath);
@@ -305,8 +282,7 @@ public class SettingsLoaderTests : IDisposable
     /// 且能反序列化为 ActorSettings,值与默认预设一致(ADR 0074)
     /// </summary>
     [Fact]
-    public void Given_默认骨架_When_解析_Then_包含Actor配置且值正确()
-    {
+    public void Given_默认骨架_When_解析_Then_包含Actor配置且值正确() {
         // Given
         var json = SettingsLoader.BuildDefaultSettingsJson();
 
@@ -342,24 +318,18 @@ public class SettingsLoaderTests : IDisposable
 
     private string GetUserSettingsPath() => SettingsLoader.GetUserSettingsPath();
 
-    private async Task WriteSettingsAsync(string path, SettingsJson settings)
-    {
+    private async Task WriteSettingsAsync(string path, SettingsJson settings) {
         var dir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(dir))
-        {
+        if (!string.IsNullOrEmpty(dir)) {
             // Windows 并行测试时偶发 UnauthorizedAccessException(目录刚被前一个测试清理),
             // 增加重试机制,确保临时目录稳定创建
             const int maxRetries = 3;
-            for (int i = 0; i < maxRetries; i++)
-            {
-                try
-                {
+            for (int i = 0; i < maxRetries; i++) {
+                try {
                     if (!_fs.DirectoryExists(dir))
                         _fs.CreateDirectory(dir);
                     break;
-                }
-                catch (UnauthorizedAccessException) when (i < maxRetries - 1)
-                {
+                } catch (UnauthorizedAccessException) when (i < maxRetries - 1) {
                     await Task.Delay(50).ConfigureAwait(true);
                 }
             }
@@ -368,14 +338,12 @@ public class SettingsLoaderTests : IDisposable
         _fs.WriteAllText(path, json);
     }
 
-    private async Task WriteProjectSettingsAsync(SettingsJson settings)
-    {
+    private async Task WriteProjectSettingsAsync(SettingsJson settings) {
         var path = Path.Combine(_projectAppDataDir, "settings.json");
         await WriteSettingsAsync(path, settings).ConfigureAwait(true);
     }
 
-    private async Task WriteLocalSettingsAsync(SettingsJson settings)
-    {
+    private async Task WriteLocalSettingsAsync(SettingsJson settings) {
         var path = Path.Combine(_projectAppDataDir, "settings.local.json");
         await WriteSettingsAsync(path, settings).ConfigureAwait(true);
     }

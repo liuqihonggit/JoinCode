@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterCoreEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterCoreEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === PolicyToolHandlers ===
         defaultEntries[StringKey.ActionCannotBeEmpty] = "Action name cannot be empty";
         defaultEntries[StringKey.PolicyCheckResult] = "Policy check result: {0}";

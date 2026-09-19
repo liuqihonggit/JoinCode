@@ -3,41 +3,36 @@ namespace JoinCode.Cli;
 /// <summary>
 /// 统计渲染器 — 纯文本终端输出
 /// </summary>
-public sealed class StatsRenderer
-{
+public sealed class StatsRenderer {
     /// <summary>
     /// 渲染统计数据为纯文本终端输出
     /// </summary>
     /// <param name="data">统计数据源</param>
     /// <param name="tab">当前激活的标签页（默认 Overview）</param>
     /// <returns>渲染后的纯文本字符串</returns>
-    public string Render(StatsData data, StatsTab tab = StatsTab.Overview)
-    {
+    public string Render(StatsData data, StatsTab tab = StatsTab.Overview) {
         var sb = new StringBuilder();
 
         RenderTabHeader(sb, tab, data);
 
-        switch (tab)
-        {
+        switch (tab) {
             case StatsTab.Overview:
-                RenderOverview(sb, data);
-                break;
+            RenderOverview(sb, data);
+            break;
             case StatsTab.Models:
-                RenderModels(sb, data);
-                break;
+            RenderModels(sb, data);
+            break;
             case StatsTab.Daily:
-                RenderDaily(sb, data);
-                break;
+            RenderDaily(sb, data);
+            break;
         }
 
         return sb.ToString();
     }
 
-    private static void RenderTabHeader(StringBuilder sb, StatsTab activeTab, StatsData data)
-    {
+    private static void RenderTabHeader(StringBuilder sb, StatsTab activeTab, StatsData data) {
         var range = "";
-        if (data.DateRangeStart.HasValue && data.DateRangeEnd.HasValue)
-        {
+        if (data.DateRangeStart.HasValue && data.DateRangeEnd.HasValue) {
             range = $" ({data.DateRangeStart.Value:MMM d} - {data.DateRangeEnd.Value:MMM d})";
         }
 
@@ -46,14 +41,10 @@ public sealed class StatsRenderer
 
         var tabs = new[] { ("Overview", StatsTab.Overview), ("Models", StatsTab.Models), ("Daily", StatsTab.Daily) };
         var tabParts = new List<string>();
-        foreach (var (label, t) in tabs)
-        {
-            if (t == activeTab)
-            {
+        foreach (var (label, t) in tabs) {
+            if (t == activeTab) {
                 tabParts.Add($"{TerminalColors.Accent}{AnsiStyleEnumConstants.Bold}{label}{AnsiStyleEnumConstants.Reset}");
-            }
-            else
-            {
+            } else {
                 tabParts.Add($"{AnsiStyleEnumConstants.Dim}{label}{AnsiStyleEnumConstants.Reset}");
             }
         }
@@ -64,8 +55,7 @@ public sealed class StatsRenderer
         sb.AppendLine();
     }
 
-    private static void RenderOverview(StringBuilder sb, StatsData data)
-    {
+    private static void RenderOverview(StringBuilder sb, StatsData data) {
         sb.Append(TerminalColors.Muted);
         sb.Append("  Sessions: ");
         sb.Append(AnsiStyleEnumConstants.Reset);
@@ -101,17 +91,14 @@ public sealed class StatsRenderer
         sb.Append(AnsiStyleEnumConstants.Reset);
         sb.AppendLine($"{data.LongestSessionMinutes}m");
 
-        if (data.DailyUsage.Count > 0)
-        {
+        if (data.DailyUsage.Count > 0) {
             sb.AppendLine();
             RenderSparkline(sb, data.DailyUsage);
         }
     }
 
-    private static void RenderModels(StringBuilder sb, StatsData data)
-    {
-        if (data.ModelBreakdown.Count == 0)
-        {
+    private static void RenderModels(StringBuilder sb, StatsData data) {
+        if (data.ModelBreakdown.Count == 0) {
             sb.Append($"  {AnsiStyleEnumConstants.Dim}No model data available{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
             return;
@@ -120,10 +107,8 @@ public sealed class StatsRenderer
         RenderModelTable(sb, data);
     }
 
-    private static void RenderDaily(StringBuilder sb, StatsData data)
-    {
-        if (data.DailyUsage.Count == 0)
-        {
+    private static void RenderDaily(StringBuilder sb, StatsData data) {
+        if (data.DailyUsage.Count == 0) {
             sb.Append($"  {AnsiStyleEnumConstants.Dim}No daily usage data available{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
             return;
@@ -132,8 +117,7 @@ public sealed class StatsRenderer
         var maxTokens = data.DailyUsage.Max(d => d.TotalTokens);
         if (maxTokens == 0) maxTokens = 1;
 
-        foreach (var day in data.DailyUsage)
-        {
+        foreach (var day in data.DailyUsage) {
             var barWidth = 25;
             var filled = (int)Math.Round((double)day.TotalTokens / maxTokens * barWidth);
             var bar = new string('█', filled) + new string('░', barWidth - filled);
@@ -147,8 +131,7 @@ public sealed class StatsRenderer
         }
     }
 
-    private static void RenderSparkline(StringBuilder sb, List<DailyUsage> daily)
-    {
+    private static void RenderSparkline(StringBuilder sb, List<DailyUsage> daily) {
         sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Last 14 days{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
 
@@ -161,8 +144,7 @@ public sealed class StatsRenderer
         var blocks = new[] { "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█" };
 
         sb.Append("  ");
-        foreach (var day in recent)
-        {
+        foreach (var day in recent) {
             var idx = (int)Math.Round((double)day.TotalTokens / maxTokens * (blocks.Length - 1));
             if (idx < 0) idx = 0;
             if (idx >= blocks.Length) idx = blocks.Length - 1;
@@ -173,8 +155,7 @@ public sealed class StatsRenderer
         sb.AppendLine();
     }
 
-    private static void RenderModelTable(StringBuilder sb, StatsData data)
-    {
+    private static void RenderModelTable(StringBuilder sb, StatsData data) {
         var models = data.ModelBreakdown;
         var totalCost = models.Sum(m => m.CostUsd);
 
@@ -197,8 +178,7 @@ public sealed class StatsRenderer
 
         sb.AppendLine($"  {TerminalColors.Muted}{separator}{AnsiStyleEnumConstants.Reset}");
 
-        foreach (var model in models)
-        {
+        foreach (var model in models) {
             var inputFmt = NumberFormatter.FormatCompact(model.InputTokens);
             var outputFmt = NumberFormatter.FormatCompact(model.OutputTokens);
             var costFmt = $"${model.CostUsd:F2}";
@@ -223,8 +203,7 @@ public sealed class StatsRenderer
         sb.AppendLine($"  {TerminalColors.Muted}{separator}{AnsiStyleEnumConstants.Reset}");
     }
 
-    private static void RenderCostBar(StringBuilder sb, double percentage)
-    {
+    private static void RenderCostBar(StringBuilder sb, double percentage) {
         const int barWidth = 30;
         var filled = (int)Math.Round(percentage / 100 * barWidth);
         if (filled < 0) filled = 0;

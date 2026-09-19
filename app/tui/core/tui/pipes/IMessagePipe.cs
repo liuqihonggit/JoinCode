@@ -4,8 +4,7 @@ namespace JoinCode.Tui.Pipes;
 /// 消息管道 — 每个 Agent 拥有独立的消息队列，UI 通过轮询拉取。
 /// 管道隔离保证各 Agent 消息互不干扰，统一渲染时按时间戳排序。
 /// </summary>
-public interface IMessagePipe
-{
+public interface IMessagePipe {
     /// <summary>Agent 唯一标识。</summary>
     string AgentId { get; }
 

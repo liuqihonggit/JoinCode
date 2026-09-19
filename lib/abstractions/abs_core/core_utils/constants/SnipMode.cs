@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 上下文裁剪模式枚举
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 SnipModeEnumConstants + SnipModeExtensions
 /// </summary>
-public enum SnipMode
-{
+public enum SnipMode {
     /// <summary>回退上一轮</summary>
     [EnumValue("rewind")] Rewind = 0,
 

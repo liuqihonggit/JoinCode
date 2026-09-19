@@ -4,8 +4,7 @@ namespace Memdir.Sync;
 /// <summary>
 /// 记忆同步事件 — 描述一次文件同步操作的元数据
 /// </summary>
-public sealed class MemorySyncEvent
-{
+public sealed class MemorySyncEvent {
     /// <summary>事件唯一标识</summary>
     public required string EventId { get; init; }
     /// <summary>涉及的文件路径</summary>
@@ -25,8 +24,7 @@ public sealed class MemorySyncEvent
 /// <summary>
 /// 同步事件类型枚举
 /// </summary>
-public enum SyncEventType
-{
+public enum SyncEventType {
     /// <summary>本地文件发生变更。</summary>
     [EnumValue("localChanged")]
     LocalChanged,

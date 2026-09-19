@@ -3,8 +3,7 @@ namespace JoinCode.Dream;
 /// <summary>
 /// 做梦执行结果
 /// </summary>
-public sealed record DreamResult
-{
+public sealed record DreamResult {
     /// <summary>
     /// 是否执行成功
     /// </summary>
@@ -38,10 +37,8 @@ public sealed record DreamResult
     /// <summary>
     /// 创建成功结果
     /// </summary>
-    public static DreamResult Success(string content, string taskId, int sessionsProcessed, long executionTimeMs)
-    {
-        return new DreamResult
-        {
+    public static DreamResult Success(string content, string taskId, int sessionsProcessed, long executionTimeMs) {
+        return new DreamResult {
             IsSuccess = true,
             IsSkipped = false,
             Content = content,
@@ -54,10 +51,8 @@ public sealed record DreamResult
     /// <summary>
     /// 创建跳过结果
     /// </summary>
-    public static DreamResult Skipped(string reason)
-    {
-        return new DreamResult
-        {
+    public static DreamResult Skipped(string reason) {
+        return new DreamResult {
             IsSuccess = false,
             IsSkipped = true,
             Content = reason
@@ -67,10 +62,8 @@ public sealed record DreamResult
     /// <summary>
     /// 创建失败结果
     /// </summary>
-    public static DreamResult Failure(string error)
-    {
-        return new DreamResult
-        {
+    public static DreamResult Failure(string error) {
+        return new DreamResult {
             IsSuccess = false,
             IsSkipped = false,
             Content = error

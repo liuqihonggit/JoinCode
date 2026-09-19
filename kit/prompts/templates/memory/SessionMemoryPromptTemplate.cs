@@ -5,8 +5,7 @@ namespace Core.Prompts.Templates.Memory;
 /// 会话记忆提示词模板 - 用于更新会话笔记
 /// </summary>
 [PromptTemplate(Name = "session_memory", Category = PromptTemplateCategory.Memory, Description = "会话记忆更新提示词模板", HasParameters = true)]
-public static class SessionMemoryPromptTemplate
-{
+public static class SessionMemoryPromptTemplate {
     private const int MaxSectionLength = 2000;
     private const int MaxTotalSessionMemoryTokens = 12000;
 
@@ -48,8 +47,7 @@ public static class SessionMemoryPromptTemplate
     /// <summary>
     /// 获取默认更新提示词
     /// </summary>
-    public static string GetDefaultUpdatePrompt(string notesPath, string currentNotes)
-    {
+    public static string GetDefaultUpdatePrompt(string notesPath, string currentNotes) {
         return $@"
             重要：此消息和这些说明不是实际用户对话的一部分。不要在笔记内容中包含任何对""记笔记""、""会话笔记提取""或这些更新说明的引用。
 
@@ -94,33 +92,26 @@ public static class SessionMemoryPromptTemplate
     /// <summary>
     /// 分析各部分大小
     /// </summary>
-    public static Dictionary<string, int> AnalyzeSectionSizes(string content)
-    {
+    public static Dictionary<string, int> AnalyzeSectionSizes(string content) {
         var sections = new Dictionary<string, int>();
         var lines = content.Split('\n');
         var currentSection = "";
         var currentContent = new List<string>();
 
-        foreach (var line in lines)
-        {
-            if (line.StartsWith("# "))
-            {
-                if (!string.IsNullOrEmpty(currentSection) && currentContent.Count > 0)
-                {
+        foreach (var line in lines) {
+            if (line.StartsWith("# ")) {
+                if (!string.IsNullOrEmpty(currentSection) && currentContent.Count > 0) {
                     var sectionContent = string.Join("\n", currentContent).Trim();
                     sections[currentSection] = RoughTokenCountEstimation(sectionContent);
                 }
                 currentSection = line;
                 currentContent = [];
-            }
-            else
-            {
+            } else {
                 currentContent.Add(line);
             }
         }
 
-        if (!string.IsNullOrEmpty(currentSection) && currentContent.Count > 0)
-        {
+        if (!string.IsNullOrEmpty(currentSection) && currentContent.Count > 0) {
             var sectionContent = string.Join("\n", currentContent).Trim();
             sections[currentSection] = RoughTokenCountEstimation(sectionContent);
         }
@@ -131,8 +122,7 @@ public static class SessionMemoryPromptTemplate
     /// <summary>
     /// 生成部分大小提醒
     /// </summary>
-    public static string GenerateSectionReminders(Dictionary<string, int> sectionSizes, int totalTokens)
-    {
+    public static string GenerateSectionReminders(Dictionary<string, int> sectionSizes, int totalTokens) {
         var overBudget = totalTokens > MaxTotalSessionMemoryTokens;
         var oversizedSections = sectionSizes
             .Where(x => x.Value > MaxSectionLength)
@@ -140,22 +130,19 @@ public static class SessionMemoryPromptTemplate
             .Select(x => $"- \"{x.Key}\" 约为 {x.Value} 个词（限制：{MaxSectionLength}）")
             .ToList();
 
-        if (oversizedSections.Count == 0 && !overBudget)
-        {
+        if (oversizedSections.Count == 0 && !overBudget) {
             return "";
         }
 
         var parts = new List<string>();
 
-        if (overBudget)
-        {
+        if (overBudget) {
             parts.Add($@"
                 关键：会话记忆文件当前约为 {totalTokens} 个词，超过了 {MaxTotalSessionMemoryTokens} 个词的最大值。你必须压缩文件以适应此预算。通过删除不太重要的细节、合并相关项目和摘要旧条目来积极缩短超长的部分。优先保持""当前状态""和""错误与修正""准确而详细。
                 ");
         }
 
-        if (oversizedSections.Count > 0)
-        {
+        if (oversizedSections.Count > 0) {
             parts.Add($@"
                 {(overBudget ? "需要压缩的超长部分" : "重要：以下部分超过了每部分限制，必须压缩")}：
                 {string.Join("\n", oversizedSections)}
@@ -168,8 +155,7 @@ public static class SessionMemoryPromptTemplate
     /// <summary>
     /// 粗略估算 token 数量
     /// </summary>
-    private static int RoughTokenCountEstimation(string text)
-    {
+    private static int RoughTokenCountEstimation(string text) {
         // 简单估算：每4个字符约1个token
         return text.Length / 4;
     }
@@ -177,8 +163,7 @@ public static class SessionMemoryPromptTemplate
     /// <summary>
     /// 构建会话记忆更新提示词
     /// </summary>
-    public static string BuildSessionMemoryUpdatePrompt(string currentNotes, string notesPath)
-    {
+    public static string BuildSessionMemoryUpdatePrompt(string currentNotes, string notesPath) {
         var prompt = GetDefaultUpdatePrompt(notesPath, currentNotes);
 
         // 分析部分大小并生成提醒
@@ -192,8 +177,7 @@ public static class SessionMemoryPromptTemplate
     /// <summary>
     /// 截断会话记忆用于压缩
     /// </summary>
-    public static (string TruncatedContent, bool WasTruncated) TruncateSessionMemoryForCompact(string content)
-    {
+    public static (string TruncatedContent, bool WasTruncated) TruncateSessionMemoryForCompact(string content) {
         var lines = content.Split('\n');
         var maxCharsPerSection = MaxSectionLength * 4;
         var outputLines = new List<string>();
@@ -201,18 +185,14 @@ public static class SessionMemoryPromptTemplate
         var currentSectionHeader = "";
         var wasTruncated = false;
 
-        foreach (var line in lines)
-        {
-            if (line.StartsWith("# "))
-            {
+        foreach (var line in lines) {
+            if (line.StartsWith("# ")) {
                 var result = FlushSessionSection(currentSectionHeader, currentSectionLines, maxCharsPerSection);
                 outputLines.AddRange(result.Lines);
                 wasTruncated = wasTruncated || result.WasTruncated;
                 currentSectionHeader = line;
                 currentSectionLines = [];
-            }
-            else
-            {
+            } else {
                 currentSectionLines.Add(line);
             }
         }
@@ -228,16 +208,13 @@ public static class SessionMemoryPromptTemplate
     private static (List<string> Lines, bool WasTruncated) FlushSessionSection(
         string sectionHeader,
         List<string> sectionLines,
-        int maxCharsPerSection)
-    {
-        if (string.IsNullOrEmpty(sectionHeader))
-        {
+        int maxCharsPerSection) {
+        if (string.IsNullOrEmpty(sectionHeader)) {
             return (sectionLines, false);
         }
 
         var sectionContent = string.Join("\n", sectionLines);
-        if (sectionContent.Length <= maxCharsPerSection)
-        {
+        if (sectionContent.Length <= maxCharsPerSection) {
             var lines = new List<string> { sectionHeader };
             lines.AddRange(sectionLines);
             return (lines, false);
@@ -246,10 +223,8 @@ public static class SessionMemoryPromptTemplate
         // 在接近限制的行边界处截断
         var charCount = 0;
         var keptLines = new List<string> { sectionHeader };
-        foreach (var line in sectionLines)
-        {
-            if (charCount + line.Length + 1 > maxCharsPerSection)
-            {
+        foreach (var line in sectionLines) {
+            if (charCount + line.Length + 1 > maxCharsPerSection) {
                 break;
             }
             keptLines.Add(line);

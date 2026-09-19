@@ -4,8 +4,7 @@ namespace JoinCode.Dream.Persistence;
 /// <summary>
 /// 做梦任务持久化接口
 /// </summary>
-public interface IDreamTaskPersistence
-{
+public interface IDreamTaskPersistence {
     /// <summary>
     /// 保存任务状态
     /// </summary>
@@ -39,8 +38,7 @@ public interface IDreamTaskPersistence
 /// JSON文件持久化实现
 /// </summary>
 [Register(typeof(IDreamTaskPersistence), ServiceLifetime.Singleton)]
-public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence, IAsyncDisposable
-{
+public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence, IAsyncDisposable {
     private string _storageDir;
     private readonly string _baseStorageDir;
     private readonly ILogger<JsonFileDreamTaskPersistence>? _logger;
@@ -56,9 +54,8 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
     public JsonFileDreamTaskPersistence(
         AutoDreamConfig config,
         IFileOperationService fileOperationService,
-        
-        ILogger<JsonFileDreamTaskPersistence>? logger = null)
-    {
+
+        ILogger<JsonFileDreamTaskPersistence>? logger = null) {
         var storageDir = Path.Combine(
             config?.AutoMemoryPath ?? AppDataConstants.Paths.JccDirectory,
             "tasks");
@@ -69,23 +66,20 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
     }
 
     /// <inheritdoc />
-    public void SetSessionId(string sessionId)
-    {
+    public void SetSessionId(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         _storageDir = Path.Combine(_baseStorageDir, sessionId);
     }
 
     /// <inheritdoc />
-    public async Task SaveAsync(DreamTaskState task, CancellationToken ct = default)
-    {
+    public async Task SaveAsync(DreamTaskState task, CancellationToken ct = default) {
         var filePath = GetFilePath(task.Id);
         var dto = DreamTaskDto.FromState(task);
 
         await using var fileLock = await FileLock.AcquireAsync(filePath, TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
         var json = JsonSerializer.Serialize(dto, DreamJsonContext.Default.DreamTaskDto);
         var result = await _fileOperationService.WriteFileAsync(filePath, json, ct).ConfigureAwait(false);
-        if (!result.Success)
-        {
+        if (!result.Success) {
             _logger?.LogError("[DreamTaskPersistence] 保存任务 {TaskId} 失败: {Error}", task.Id, result.ErrorMessage);
         }
 
@@ -93,62 +87,47 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
     }
 
     /// <inheritdoc />
-    public async Task<DreamTaskState?> LoadAsync(string taskId, CancellationToken ct = default)
-    {
+    public async Task<DreamTaskState?> LoadAsync(string taskId, CancellationToken ct = default) {
         var filePath = GetFilePath(taskId);
 
-        try
-        {
+        try {
             await using var fileLock = await FileLock.AcquireAsync(filePath, TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
             var result = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: ct).ConfigureAwait(false);
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 return null;
             }
 
             var dto = RelaxedJsonSerializer.Deserialize(result.Content, DreamJsonContext.Default.DreamTaskDto);
             return dto?.ToState();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[DreamTaskPersistence] 加载任务 {TaskId} 失败", taskId);
             return null;
         }
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<DreamTaskState>> LoadAllAsync(CancellationToken ct = default)
-    {
+    public async Task<IReadOnlyList<DreamTaskState>> LoadAllAsync(CancellationToken ct = default) {
         var tasks = new List<DreamTaskState>();
 
-        try
-        {
-            if (!_fileOperationService.DirectoryExists(_storageDir))
-            {
+        try {
+            if (!_fileOperationService.DirectoryExists(_storageDir)) {
                 return tasks;
             }
 
             var files = _fileOperationService.GetFiles(_storageDir, "*.json", SearchOption.TopDirectoryOnly);
 
-            foreach (var file in files)
-            {
-                try
-                {
+            foreach (var file in files) {
+                try {
                     var taskId = Path.GetFileNameWithoutExtension(file);
                     var task = await LoadAsync(taskId, ct).ConfigureAwait(false);
-                    if (task != null)
-                    {
+                    if (task != null) {
                         tasks.Add(task);
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogError(ex, "[DreamTaskPersistence] 加载任务文件失败: {File}", file);
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[DreamTaskPersistence] 加载所有任务失败");
         }
 
@@ -156,8 +135,7 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
     }
 
     /// <inheritdoc />
-    public async Task DeleteAsync(string taskId, CancellationToken ct = default)
-    {
+    public async Task DeleteAsync(string taskId, CancellationToken ct = default) {
         var filePath = GetFilePath(taskId);
 
         await using var fileLock = await FileLock.AcquireAsync(filePath, TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
@@ -167,8 +145,7 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
     }
 
     /// <inheritdoc />
-    public async Task CleanupCompletedAsync(int keepCount, CancellationToken ct = default)
-    {
+    public async Task CleanupCompletedAsync(int keepCount, CancellationToken ct = default) {
         var allTasks = await LoadAllAsync(ct).ConfigureAwait(false);
 
         var completedTasks = allTasks
@@ -180,14 +157,12 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
         var deleteTasks = completedTasks.Select(task => DeleteAsync(task.Id, ct));
         await Task.WhenAll(deleteTasks).ConfigureAwait(false);
 
-        if (completedTasks.Count > 0)
-        {
+        if (completedTasks.Count > 0) {
             _logger?.LogInformation("[DreamTaskPersistence] 清理了 {Count} 个已完成任务", completedTasks.Count);
         }
     }
 
-    private string GetFilePath(string taskId)
-    {
+    private string GetFilePath(string taskId) {
         return Path.Combine(_storageDir, $"{taskId}.json");
     }
 
@@ -195,8 +170,7 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
     /// 异步释放资源
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (_disposed) return ValueTask.CompletedTask; _disposed = true;
         return ValueTask.CompletedTask;
     }

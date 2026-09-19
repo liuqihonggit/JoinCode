@@ -4,8 +4,7 @@ namespace Dream.Tests;
 /// <summary>
 /// 任务ID生成器测试
 /// </summary>
-public sealed class TaskIdGeneratorTests
-{
+public sealed class TaskIdGeneratorTests {
     [Theory]
     [InlineData(TaskType.Dream, 'd')]
     [InlineData(TaskType.LocalBash, 'b')]
@@ -14,8 +13,7 @@ public sealed class TaskIdGeneratorTests
     [InlineData(TaskType.InProcessTeammate, 't')]
     [InlineData(TaskType.LocalWorkflow, 'w')]
     [InlineData(TaskType.MonitorMcp, 'm')]
-    public void GenerateTaskId_ShouldStartWithCorrectPrefix(TaskType type, char expectedPrefix)
-    {
+    public void GenerateTaskId_ShouldStartWithCorrectPrefix(TaskType type, char expectedPrefix) {
         // Act
         var taskId = TaskIdGenerator.GenerateTaskId(type);
 
@@ -24,8 +22,7 @@ public sealed class TaskIdGeneratorTests
     }
 
     [Fact]
-    public void GenerateTaskId_DreamType_ShouldHaveCorrectLength()
-    {
+    public void GenerateTaskId_DreamType_ShouldHaveCorrectLength() {
         // Act
         var taskId = TaskIdGenerator.GenerateTaskId(TaskType.Dream);
 
@@ -34,12 +31,10 @@ public sealed class TaskIdGeneratorTests
     }
 
     [Fact]
-    public void GenerateTaskId_ShouldGenerateUniqueIds()
-    {
+    public void GenerateTaskId_ShouldGenerateUniqueIds() {
         // Act
         var ids = new HashSet<string>();
-        for (var i = 0; i < 100; i++)
-        {
+        for (var i = 0; i < 100; i++) {
             ids.Add(TaskIdGenerator.GenerateTaskId(TaskType.Dream));
         }
 
@@ -48,8 +43,7 @@ public sealed class TaskIdGeneratorTests
     }
 
     [Fact]
-    public void GenerateTaskId_ShouldOnlyContainValidCharacters()
-    {
+    public void GenerateTaskId_ShouldOnlyContainValidCharacters() {
         // Arrange
         const string validChars = "0123456789abcdefghijklmnopqrstuvwxyz";
 
@@ -57,8 +51,7 @@ public sealed class TaskIdGeneratorTests
         var taskId = TaskIdGenerator.GenerateTaskId(TaskType.Dream);
 
         // Assert
-        foreach (var c in taskId.ToLowerInvariant())
-        {
+        foreach (var c in taskId.ToLowerInvariant()) {
             Assert.Contains(c, validChars);
         }
     }

@@ -1,8 +1,7 @@
 namespace Llm.Tests.Adapters.LLM;
 
 
-public class AnthropicEnumsTests
-{
+public class AnthropicEnumsTests {
     #region AnthropicContentBlockTypeConverter
 
     [Theory]
@@ -12,8 +11,7 @@ public class AnthropicEnumsTests
     [InlineData("\"tool_result\"", AnthropicContentBlockType.ToolResult)]
     [InlineData("\"server_tool_use\"", AnthropicContentBlockType.ServerToolUse)]
     [InlineData("\"web_search_tool_result\"", AnthropicContentBlockType.WebSearchToolResult)]
-    public void ContentBlockTypeConverter_ReadValidValue_ReturnsExpected(string json, AnthropicContentBlockType expected)
-    {
+    public void ContentBlockTypeConverter_ReadValidValue_ReturnsExpected(string json, AnthropicContentBlockType expected) {
         var converter = new AnthropicContentBlockTypeConverter();
         var result = Read(json, converter);
         result.Should().Be(expected);
@@ -22,8 +20,7 @@ public class AnthropicEnumsTests
     [Theory]
     [InlineData("\"unknown\"")]
     [InlineData("null")]
-    public void ContentBlockTypeConverter_ReadInvalidValue_FallsBackToText(string json)
-    {
+    public void ContentBlockTypeConverter_ReadInvalidValue_FallsBackToText(string json) {
         var converter = new AnthropicContentBlockTypeConverter();
         var result = Read(json, converter);
         result.Should().Be(AnthropicContentBlockType.Text);
@@ -36,8 +33,7 @@ public class AnthropicEnumsTests
     [InlineData(AnthropicContentBlockType.ToolResult, "\"tool_result\"")]
     [InlineData(AnthropicContentBlockType.ServerToolUse, "\"server_tool_use\"")]
     [InlineData(AnthropicContentBlockType.WebSearchToolResult, "\"web_search_tool_result\"")]
-    public void ContentBlockTypeConverter_WriteValue_ReturnsExpectedString(AnthropicContentBlockType value, string expected)
-    {
+    public void ContentBlockTypeConverter_WriteValue_ReturnsExpectedString(AnthropicContentBlockType value, string expected) {
         var converter = new AnthropicContentBlockTypeConverter();
         Write(value, converter).Should().Be(expected);
     }
@@ -54,8 +50,7 @@ public class AnthropicEnumsTests
     [InlineData("\"message_stop\"", AnthropicStreamingEventType.MessageStop)]
     [InlineData("\"content_block_stop\"", AnthropicStreamingEventType.ContentBlockStop)]
     [InlineData("\"ping\"", AnthropicStreamingEventType.Ping)]
-    public void StreamingEventTypeConverter_ReadValidValue_ReturnsExpected(string json, AnthropicStreamingEventType expected)
-    {
+    public void StreamingEventTypeConverter_ReadValidValue_ReturnsExpected(string json, AnthropicStreamingEventType expected) {
         var converter = new AnthropicStreamingEventTypeConverter();
         Read(json, converter).Should().Be(expected);
     }
@@ -63,15 +58,13 @@ public class AnthropicEnumsTests
     [Theory]
     [InlineData("\"unknown\"")]
     [InlineData("null")]
-    public void StreamingEventTypeConverter_ReadInvalidValue_FallsBackToDefault(string json)
-    {
+    public void StreamingEventTypeConverter_ReadInvalidValue_FallsBackToDefault(string json) {
         var converter = new AnthropicStreamingEventTypeConverter();
         Read(json, converter).Should().Be(default(AnthropicStreamingEventType));
     }
 
     [Fact]
-    public void StreamingEventTypeConverter_WriteValue_ReturnsExpectedString()
-    {
+    public void StreamingEventTypeConverter_WriteValue_ReturnsExpectedString() {
         var converter = new AnthropicStreamingEventTypeConverter();
         Write(AnthropicStreamingEventType.ContentBlockDelta, converter).Should().Be("\"content_block_delta\"");
     }
@@ -84,8 +77,7 @@ public class AnthropicEnumsTests
     [InlineData("\"thinking_delta\"", AnthropicDeltaType.ThinkingDelta)]
     [InlineData("\"text_delta\"", AnthropicDeltaType.TextDelta)]
     [InlineData("\"input_json_delta\"", AnthropicDeltaType.InputJsonDelta)]
-    public void DeltaTypeConverter_ReadValidValue_ReturnsExpected(string json, AnthropicDeltaType expected)
-    {
+    public void DeltaTypeConverter_ReadValidValue_ReturnsExpected(string json, AnthropicDeltaType expected) {
         var converter = new AnthropicDeltaTypeConverter();
         Read(json, converter).Should().Be(expected);
     }
@@ -93,15 +85,13 @@ public class AnthropicEnumsTests
     [Theory]
     [InlineData("\"unknown\"")]
     [InlineData("null")]
-    public void DeltaTypeConverter_ReadInvalidValue_FallsBackToDefault(string json)
-    {
+    public void DeltaTypeConverter_ReadInvalidValue_FallsBackToDefault(string json) {
         var converter = new AnthropicDeltaTypeConverter();
         Read(json, converter).Should().Be(default(AnthropicDeltaType));
     }
 
     [Fact]
-    public void DeltaTypeConverter_WriteValue_ReturnsExpectedString()
-    {
+    public void DeltaTypeConverter_WriteValue_ReturnsExpectedString() {
         var converter = new AnthropicDeltaTypeConverter();
         Write(AnthropicDeltaType.InputJsonDelta, converter).Should().Be("\"input_json_delta\"");
     }
@@ -115,8 +105,7 @@ public class AnthropicEnumsTests
     [InlineData("\"tool_use\"", AnthropicStopReason.ToolUse)]
     [InlineData("\"stop_sequence\"", AnthropicStopReason.StopSequence)]
     [InlineData("\"max_tokens\"", AnthropicStopReason.MaxTokens)]
-    public void StopReasonConverter_ReadValidValue_ReturnsExpected(string json, AnthropicStopReason expected)
-    {
+    public void StopReasonConverter_ReadValidValue_ReturnsExpected(string json, AnthropicStopReason expected) {
         var converter = new AnthropicStopReasonConverter();
         Read(json, converter).Should().Be(expected);
     }
@@ -124,15 +113,13 @@ public class AnthropicEnumsTests
     [Theory]
     [InlineData("\"unknown\"")]
     [InlineData("null")]
-    public void StopReasonConverter_ReadInvalidValue_FallsBackToDefault(string json)
-    {
+    public void StopReasonConverter_ReadInvalidValue_FallsBackToDefault(string json) {
         var converter = new AnthropicStopReasonConverter();
         Read(json, converter).Should().Be(default(AnthropicStopReason));
     }
 
     [Fact]
-    public void StopReasonConverter_WriteValue_ReturnsExpectedString()
-    {
+    public void StopReasonConverter_WriteValue_ReturnsExpectedString() {
         var converter = new AnthropicStopReasonConverter();
         Write(AnthropicStopReason.ToolUse, converter).Should().Be("\"tool_use\"");
     }
@@ -142,8 +129,7 @@ public class AnthropicEnumsTests
     #region Enum value constants
 
     [Fact]
-    public void AnthropicContentBlockTypeValues_AreDefined()
-    {
+    public void AnthropicContentBlockTypeValues_AreDefined() {
         var values = Enum.GetValues<AnthropicContentBlockType>();
         values.Should().Contain(AnthropicContentBlockType.Text);
         values.Should().Contain(AnthropicContentBlockType.ToolUse);
@@ -151,31 +137,27 @@ public class AnthropicEnumsTests
     }
 
     [Fact]
-    public void AnthropicStreamingEventTypeValues_AreDefined()
-    {
+    public void AnthropicStreamingEventTypeValues_AreDefined() {
         var values = Enum.GetValues<AnthropicStreamingEventType>();
         values.Should().Contain(AnthropicStreamingEventType.MessageStart);
         values.Should().Contain(AnthropicStreamingEventType.MessageStop);
     }
 
     [Fact]
-    public void AnthropicStopReason_ToValue_MapsCorrectly()
-    {
+    public void AnthropicStopReason_ToValue_MapsCorrectly() {
         AnthropicStopReason.EndTurn.ToValue().Should().Be("end_turn");
         AnthropicStopReason.ToolUse.ToValue().Should().Be("tool_use");
     }
 
     #endregion
 
-    private static T Read<T>(string json, JsonConverter<T> converter)
-    {
+    private static T Read<T>(string json, JsonConverter<T> converter) {
         var reader = new Utf8JsonReader(Encoding.UTF8.GetBytes(json));
         reader.Read();
         return converter.Read(ref reader, typeof(T), null!)!;
     }
 
-    private static string Write<T>(T value, JsonConverter<T> converter)
-    {
+    private static string Write<T>(T value, JsonConverter<T> converter) {
         using var stream = new MemoryStream();
         using var writer = new Utf8JsonWriter(stream);
         converter.Write(writer, value, null!);

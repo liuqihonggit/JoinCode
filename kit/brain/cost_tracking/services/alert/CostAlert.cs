@@ -4,8 +4,7 @@ namespace Core.CostTracking;
 /// <summary>
 /// 成本告警信息类
 /// </summary>
-public sealed class CostAlert
-{
+public sealed class CostAlert {
     /// <summary>
     /// 告警级别
     /// </summary>
@@ -49,14 +48,12 @@ public sealed class CostAlert
         CostAlertLevel level,
         string message,
         decimal currentCost,
-        decimal budgetLimit)
-    {
+        decimal budgetLimit) {
         var percentageUsed = budgetLimit > 0
             ? (double)(currentCost / budgetLimit)
             : 0.0;
 
-        return new CostAlert
-        {
+        return new CostAlert {
             Level = level,
             Message = message,
             Timestamp = DateTime.UtcNow,

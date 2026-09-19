@@ -5,10 +5,8 @@ namespace Core.Agents.Tests.Unit.Agents;
 /// T5.0: Worker 主循环查邮箱 — ContractChangeNotifications 队列消费测试
 /// 验证每轮 LLM 调用前消费契约变更通知，追加到 chatHistory
 /// </summary>
-public sealed class AgentBaseContractChangeTests
-{
-    private static Mock<IQueryEngine> CreateQueryEngineMock()
-    {
+public sealed class AgentBaseContractChangeTests {
+    private static Mock<IQueryEngine> CreateQueryEngineMock() {
         var mock = new Mock<IQueryEngine>();
         mock.Setup(x => x.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<QueryOptions?>(), It.IsAny<CancellationToken>()))
             .Returns(Array.Empty<QueryStreamChunk>().ToAsyncEnumerable());
@@ -16,8 +14,7 @@ public sealed class AgentBaseContractChangeTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithContractChange_ShouldAddNotificationToChatHistory()
-    {
+    public async Task ExecuteAsync_WithContractChange_ShouldAddNotificationToChatHistory() {
         var queryEngine = CreateQueryEngineMock();
         var initialMessages = new MessageList();
         initialMessages.AddSystemMessage("test system");
@@ -34,8 +31,7 @@ public sealed class AgentBaseContractChangeTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithMultipleContractChanges_ShouldAddAllNotifications()
-    {
+    public async Task ExecuteAsync_WithMultipleContractChanges_ShouldAddAllNotifications() {
         var queryEngine = CreateQueryEngineMock();
         var initialMessages = new MessageList();
         initialMessages.AddSystemMessage("test system");
@@ -54,8 +50,7 @@ public sealed class AgentBaseContractChangeTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithEmptyContractChangeQueue_ShouldNotAddNotification()
-    {
+    public async Task ExecuteAsync_WithEmptyContractChangeQueue_ShouldNotAddNotification() {
         var queryEngine = CreateQueryEngineMock();
         var initialMessages = new MessageList();
         initialMessages.AddSystemMessage("test system");
@@ -70,8 +65,7 @@ public sealed class AgentBaseContractChangeTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithNullContractChangeQueue_ShouldNotThrow()
-    {
+    public async Task ExecuteAsync_WithNullContractChangeQueue_ShouldNotThrow() {
         var queryEngine = CreateQueryEngineMock();
         var options = new SubAgentOptions { MaxIterations = 1 };
         var agent = new AgentBase("test task", options, queryEngine.Object, null);
@@ -81,8 +75,7 @@ public sealed class AgentBaseContractChangeTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ContractChangeQueue_ShouldBeDrainedAfterExecution()
-    {
+    public async Task ExecuteAsync_ContractChangeQueue_ShouldBeDrainedAfterExecution() {
         var queryEngine = CreateQueryEngineMock();
         var initialMessages = new MessageList();
         initialMessages.AddSystemMessage("test system");
@@ -99,8 +92,7 @@ public sealed class AgentBaseContractChangeTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithMaturedDeferredMail_ShouldAddToChatHistory()
-    {
+    public async Task ExecuteAsync_WithMaturedDeferredMail_ShouldAddToChatHistory() {
         var queryEngine = CreateQueryEngineMock();
         var initialMessages = new MessageList();
         initialMessages.AddSystemMessage("test system");
@@ -112,8 +104,7 @@ public sealed class AgentBaseContractChangeTests
         queue.Enqueue("任务进行中");
         agent.ContractChangeNotifications = queue;
 
-        var mail = new DeferredMail
-        {
+        var mail = new DeferredMail {
             To = agent.ObjectId.UniqueId,
             From = "w1",
             Subject = "测试文件冲突",
@@ -133,8 +124,7 @@ public sealed class AgentBaseContractChangeTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithNullDeferredMailService_ShouldNotThrow()
-    {
+    public async Task ExecuteAsync_WithNullDeferredMailService_ShouldNotThrow() {
         var queryEngine = CreateQueryEngineMock();
         var options = new SubAgentOptions { MaxIterations = 1 };
         var agent = new AgentBase("test task", options, queryEngine.Object, null);
@@ -144,8 +134,7 @@ public sealed class AgentBaseContractChangeTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_IdleWithDeferredMail_ShouldReadImmediately()
-    {
+    public async Task ExecuteAsync_IdleWithDeferredMail_ShouldReadImmediately() {
         var queryEngine = CreateQueryEngineMock();
         var initialMessages = new MessageList();
         initialMessages.AddSystemMessage("test system");
@@ -153,8 +142,7 @@ public sealed class AgentBaseContractChangeTests
         var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
         var agent = new AgentBase("test task", options, queryEngine.Object, null);
 
-        var mail = new DeferredMail
-        {
+        var mail = new DeferredMail {
             To = agent.ObjectId.UniqueId,
             From = "captain",
             Subject = "拉取通知",
@@ -174,8 +162,7 @@ public sealed class AgentBaseContractChangeTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithTaskInput_ShouldNotReadImmaturedMail()
-    {
+    public async Task ExecuteAsync_WithTaskInput_ShouldNotReadImmaturedMail() {
         var queryEngine = CreateQueryEngineMock();
         var initialMessages = new MessageList();
         initialMessages.AddSystemMessage("test system");
@@ -187,8 +174,7 @@ public sealed class AgentBaseContractChangeTests
         queue.Enqueue("IFoo 变更");
         agent.ContractChangeNotifications = queue;
 
-        var immatured = new DeferredMail
-        {
+        var immatured = new DeferredMail {
             To = agent.ObjectId.UniqueId,
             From = "captain",
             Subject = "不应出现",

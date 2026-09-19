@@ -4,8 +4,7 @@ namespace AsyncFileLock;
 /// <summary>
 /// 批量文件锁，确保原子性获取多个文件的锁，防止死锁
 /// </summary>
-public sealed class BatchLock : IAsyncDisposable
-{
+public sealed class BatchLock : IAsyncDisposable {
     private readonly IReadOnlyList<FileLock> _locks;
     private int _disposed;
 
@@ -18,8 +17,7 @@ public sealed class BatchLock : IAsyncDisposable
     /// 内部构造函数 — 由 FileLockService.AcquireBatchAsync 在成功获取所有锁后调用
     /// </summary>
     /// <param name="locks">已获取的文件锁列表</param>
-    internal BatchLock(IReadOnlyList<FileLock> locks)
-    {
+    internal BatchLock(IReadOnlyList<FileLock> locks) {
         _locks = locks;
         FilePaths = locks.Select(l => l.FilePath).ToList();
     }
@@ -27,8 +25,7 @@ public sealed class BatchLock : IAsyncDisposable
     /// <summary>
     /// 释放所有锁（按相反顺序）
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
 
         return new ValueTask(Task.WhenAll(_locks.Select(l => l.DisposeAsync().AsTask())));
@@ -38,8 +35,7 @@ public sealed class BatchLock : IAsyncDisposable
 /// <summary>
 /// 批量锁获取结果
 /// </summary>
-public sealed class BatchLockResult
-{
+public sealed class BatchLockResult {
     /// <summary>
     /// 是否成功获取所有锁
     /// </summary>
@@ -60,8 +56,7 @@ public sealed class BatchLockResult
     /// </summary>
     public TimeSpan? AcquisitionTime { get; }
 
-    private BatchLockResult(bool success, BatchLock? batchLock, string? errorMessage, TimeSpan? acquisitionTime)
-    {
+    private BatchLockResult(bool success, BatchLock? batchLock, string? errorMessage, TimeSpan? acquisitionTime) {
         Success = success;
         Lock = batchLock;
         ErrorMessage = errorMessage;
@@ -69,28 +64,24 @@ public sealed class BatchLockResult
     }
 
     /// <summary>构造成功结果</summary>
-    internal static BatchLockResult SuccessResult(BatchLock batchLock, TimeSpan acquisitionTime)
-    {
+    internal static BatchLockResult SuccessResult(BatchLock batchLock, TimeSpan acquisitionTime) {
         return new BatchLockResult(true, batchLock, null, acquisitionTime);
     }
 
     /// <summary>构造错误结果</summary>
-    internal static BatchLockResult ErrorResult(string errorMessage)
-    {
+    internal static BatchLockResult ErrorResult(string errorMessage) {
         return new BatchLockResult(false, null, errorMessage, null);
     }
 
     /// <summary>构造超时结果，记录超时文件路径与已耗时</summary>
-    internal static BatchLockResult TimeoutResult(string filePath, TimeSpan elapsed)
-    {
+    internal static BatchLockResult TimeoutResult(string filePath, TimeSpan elapsed) {
         return new BatchLockResult(false, null, $"Timeout acquiring lock for '{filePath}' after {elapsed.TotalSeconds}s", elapsed);
     }
 
     /// <summary>
     /// 获取锁对象（仅当 Success 为 true 时调用）
     /// </summary>
-    public BatchLock GetLock()
-    {
+    public BatchLock GetLock() {
         return Lock ?? throw new InvalidOperationException("Lock is not available when Success is false");
     }
 }
@@ -98,8 +89,7 @@ public sealed class BatchLockResult
 /// <summary>
 /// 文件锁服务，提供批量获取文件锁的功能
 /// </summary>
-public static class FileLockService
-{
+public static class FileLockService {
     /// <summary>
     /// 批量获取文件锁
     /// </summary>
@@ -116,11 +106,9 @@ public static class FileLockService
         IReadOnlyList<string> filePaths,
         TimeSpan timeout,
         CancellationToken cancellationToken = default,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         var c = clock ?? SystemClockService.Instance;
-        if (filePaths.Count == 0)
-        {
+        if (filePaths.Count == 0) {
             return BatchLockResult.ErrorResult("No files specified");
         }
 
@@ -134,28 +122,20 @@ public static class FileLockService
         var acquired = new List<FileLock>();
         var startTime = c.GetUtcNow();
 
-        try
-        {
-            foreach (var filePath in sorted)
-            {
+        try {
+            foreach (var filePath in sorted) {
                 var remaining = timeout - (c.GetUtcNow() - startTime);
-                if (remaining <= TimeSpan.Zero)
-                {
+                if (remaining <= TimeSpan.Zero) {
                     return BatchLockResult.TimeoutResult(filePath, c.GetUtcNow() - startTime);
                 }
 
-                try
-                {
+                try {
                     var fileLock = await FileLock.AcquireAsync(filePath, remaining, cancellationToken)
                         .ConfigureAwait(false);
                     acquired.Add(fileLock);
-                }
-                catch (TimeoutException)
-                {
+                } catch (TimeoutException) {
                     return BatchLockResult.TimeoutResult(filePath, c.GetUtcNow() - startTime);
-                }
-                catch (OperationCanceledException)
-                {
+                } catch (OperationCanceledException) {
                     ReleaseAllReverse(acquired);
                     throw;
                 }
@@ -163,14 +143,10 @@ public static class FileLockService
 
             var batchLock = new BatchLock(acquired);
             return BatchLockResult.SuccessResult(batchLock, c.GetUtcNow() - startTime);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             ReleaseAllReverse(acquired);
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ReleaseAllReverse(acquired);
             return BatchLockResult.ErrorResult($"Failed to acquire batch lock: {ex.Message}");
         }
@@ -188,15 +164,12 @@ public static class FileLockService
         string filePath,
         TimeSpan timeout,
         CancellationToken cancellationToken = default,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         return AcquireBatchAsync([filePath], timeout, cancellationToken, clock);
     }
 
-    private static void ReleaseAllReverse(List<FileLock> acquired, ILogger? logger = null)
-    {
-        for (var i = acquired.Count - 1; i >= 0; i--)
-        {
+    private static void ReleaseAllReverse(List<FileLock> acquired, ILogger? logger = null) {
+        for (var i = acquired.Count - 1; i >= 0; i--) {
             try { acquired[i].Release(); } catch (Exception ex) { logger?.LogWarning(ex, "BatchLock: failed to release lock during rollback"); }
         }
     }

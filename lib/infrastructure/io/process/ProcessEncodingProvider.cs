@@ -7,8 +7,7 @@ namespace IO.ProcessService;
 /// 切换编码后，新启动的进程立即生效；已运行的进程不受影响（编码在 ProcessStartInfo 创建时快照）。
 /// </para>
 /// </summary>
-public sealed class ProcessEncodingProvider : IProcessEncodingProvider
-{
+public sealed class ProcessEncodingProvider : IProcessEncodingProvider {
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
     private volatile Encoding _output = Utf8NoBom;
     private volatile Encoding _error = Utf8NoBom;
@@ -28,8 +27,7 @@ public sealed class ProcessEncodingProvider : IProcessEncodingProvider
     public bool IsUtf8Mode => _isUtf8Mode;
 
     /// <inheritdoc />
-    public void UseUtf8()
-    {
+    public void UseUtf8() {
         _output = Utf8NoBom;
         _error = Utf8NoBom;
         _input = Utf8NoBom;
@@ -37,8 +35,7 @@ public sealed class ProcessEncodingProvider : IProcessEncodingProvider
     }
 
     /// <inheritdoc />
-    public void UseLocal()
-    {
+    public void UseLocal() {
         var local = Encoding.Default;
         _output = local;
         _error = local;
@@ -51,8 +48,7 @@ public sealed class ProcessEncodingProvider : IProcessEncodingProvider
     /// 如果传入带 BOM 的 UTF-8（如 <see cref="System.Text.Encoding.UTF8"/>），
     /// 自动转换为无 BOM 变体，防止管道通信被 BOM 字节破坏。
     /// </remarks>
-    public void SetEncoding(Encoding encoding)
-    {
+    public void SetEncoding(Encoding encoding) {
         ArgumentNullException.ThrowIfNull(encoding);
 
         var safeEncoding = StripBomIfUtf8(encoding);
@@ -65,8 +61,7 @@ public sealed class ProcessEncodingProvider : IProcessEncodingProvider
     /// <summary>
     /// 如果编码是带 BOM 的 UTF-8，返回无 BOM 变体；否则原样返回。
     /// </summary>
-    private static Encoding StripBomIfUtf8(Encoding encoding)
-    {
+    private static Encoding StripBomIfUtf8(Encoding encoding) {
         if (encoding.Preamble.Length == 0) return encoding;
         if (!string.Equals(encoding.WebName, "utf-8", StringComparison.OrdinalIgnoreCase)) return encoding;
         return Utf8NoBom;

@@ -6,8 +6,7 @@ namespace Tools.Handlers;
 /// 返回 null 表示安全，返回错误消息表示检测到密钥。
 /// </summary>
 [Register(typeof(SecretGuardNode), ServiceLifetime.Singleton)]
-public sealed class SecretGuardNode
-{
+public sealed class SecretGuardNode {
     private readonly ITeamMemSecretGuard? _guard;
     private readonly ILogger<SecretGuardNode>? _logger;
 
@@ -18,8 +17,7 @@ public sealed class SecretGuardNode
     /// <param name="logger">可选日志记录器</param>
     public SecretGuardNode(
         ITeamMemSecretGuard? guard = null,
-        ILogger<SecretGuardNode>? logger = null)
-    {
+        ILogger<SecretGuardNode>? logger = null) {
         _guard = guard;
         _logger = logger;
     }
@@ -31,8 +29,7 @@ public sealed class SecretGuardNode
     /// <param name="filePath">文件路径（沙箱解析后）</param>
     /// <param name="content">待检测内容；null 表示跳过（如纯删除行不引入新内容）</param>
     /// <returns>null 表示安全，错误消息表示检测到密钥</returns>
-    public string? CheckSecrets(string filePath, string? content)
-    {
+    public string? CheckSecrets(string filePath, string? content) {
         if (content is null || _guard is null)
             return null;
 

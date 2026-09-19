@@ -4,8 +4,7 @@ namespace McpClient;
 /// <summary>
 /// MCP Channel 通知处理器 — 接收并分发 Channel 消息和权限响应通知
 /// </summary>
-public sealed partial class McpChannelNotificationHandler
-{
+public sealed partial class McpChannelNotificationHandler {
     private readonly ILogger<McpChannelNotificationHandler>? _logger;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<ChannelPermissionResponse>> _pendingRequests = new();
 
@@ -18,8 +17,7 @@ public sealed partial class McpChannelNotificationHandler
     /// 初始化 MCP Channel 通知处理器
     /// </summary>
     /// <param name="logger">日志记录器（可选）</param>
-    public McpChannelNotificationHandler(ILogger<McpChannelNotificationHandler>? logger = null)
-    {
+    public McpChannelNotificationHandler(ILogger<McpChannelNotificationHandler>? logger = null) {
         _logger = logger;
     }
 
@@ -28,8 +26,7 @@ public sealed partial class McpChannelNotificationHandler
     /// </summary>
     /// <param name="capabilities">服务器能力声明</param>
     /// <returns>当前实现始终返回 false（保留接口）</returns>
-    public static bool SupportsChannel(ServerCapabilities? capabilities)
-    {
+    public static bool SupportsChannel(ServerCapabilities? capabilities) {
         return false;
     }
 
@@ -38,8 +35,7 @@ public sealed partial class McpChannelNotificationHandler
     /// </summary>
     /// <param name="capabilities">服务器能力声明</param>
     /// <returns>当前实现始终返回 false（保留接口）</returns>
-    public static bool SupportsChannelPermission(ServerCapabilities? capabilities)
-    {
+    public static bool SupportsChannelPermission(ServerCapabilities? capabilities) {
         return false;
     }
 
@@ -48,19 +44,14 @@ public sealed partial class McpChannelNotificationHandler
     /// </summary>
     /// <param name="capabilitiesExperimental">experimental 能力 JSON 元素</param>
     /// <returns>若存在 "claude/channel" 字段返回 true；否则 false</returns>
-    public static bool SupportsChannel(JsonElement? capabilitiesExperimental)
-    {
+    public static bool SupportsChannel(JsonElement? capabilitiesExperimental) {
         if (capabilitiesExperimental == null) return false;
-        try
-        {
-            if (capabilitiesExperimental.Value.TryGetProperty("claude/channel", out _))
-            {
+        try {
+            if (capabilitiesExperimental.Value.TryGetProperty("claude/channel", out _)) {
                 return true;
             }
             return false;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
@@ -70,19 +61,14 @@ public sealed partial class McpChannelNotificationHandler
     /// </summary>
     /// <param name="capabilitiesExperimental">experimental 能力 JSON 元素</param>
     /// <returns>若存在 "claude/channel/permission" 字段返回 true；否则 false</returns>
-    public static bool SupportsChannelPermission(JsonElement? capabilitiesExperimental)
-    {
+    public static bool SupportsChannelPermission(JsonElement? capabilitiesExperimental) {
         if (capabilitiesExperimental == null) return false;
-        try
-        {
-            if (capabilitiesExperimental.Value.TryGetProperty("claude/channel/permission", out _))
-            {
+        try {
+            if (capabilitiesExperimental.Value.TryGetProperty("claude/channel/permission", out _)) {
                 return true;
             }
             return false;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
@@ -92,25 +78,20 @@ public sealed partial class McpChannelNotificationHandler
     /// </summary>
     /// <param name="serverName">来源服务器名称</param>
     /// <param name="Params">通知参数 JSON 元素</param>
-    public void HandleChannelNotification(string serverName, JsonElement? Params)
-    {
+    public void HandleChannelNotification(string serverName, JsonElement? Params) {
         if (Params == null) return;
 
         string? content = null;
         Dictionary<string, string>? meta = null;
 
-        if (Params.Value.TryGetProperty("content", out var contentEl))
-        {
+        if (Params.Value.TryGetProperty("content", out var contentEl)) {
             content = contentEl.GetString();
         }
 
-        if (Params.Value.TryGetProperty("meta", out var metaEl) && metaEl.ValueKind == JsonValueKind.Object)
-        {
+        if (Params.Value.TryGetProperty("meta", out var metaEl) && metaEl.ValueKind == JsonValueKind.Object) {
             meta = new Dictionary<string, string>();
-            foreach (var prop in metaEl.EnumerateObject())
-            {
-                if (prop.Value.ValueKind == JsonValueKind.String)
-                {
+            foreach (var prop in metaEl.EnumerateObject()) {
+                if (prop.Value.ValueKind == JsonValueKind.String) {
                     meta[prop.Name] = prop.Value.GetString() ?? string.Empty;
                 }
             }
@@ -122,8 +103,7 @@ public sealed partial class McpChannelNotificationHandler
 
         _logger?.LogInformation("Channel 消息: server={Server}, content={Content}", serverName, content);
 
-        ChannelMessageReceived?.Invoke(this, new McpChannelMessageEventArgs
-        {
+        ChannelMessageReceived?.Invoke(this, new McpChannelMessageEventArgs {
             ServerName = serverName,
             Content = content,
             Meta = meta ?? [],
@@ -136,20 +116,17 @@ public sealed partial class McpChannelNotificationHandler
     /// </summary>
     /// <param name="serverName">来源服务器名称</param>
     /// <param name="Params">通知参数 JSON 元素（含 request_id 和 behavior）</param>
-    public void HandleChannelPermissionNotification(string serverName, JsonElement? Params)
-    {
+    public void HandleChannelPermissionNotification(string serverName, JsonElement? Params) {
         if (Params == null) return;
 
         string? requestId = null;
         string? behavior = null;
 
-        if (Params.Value.TryGetProperty("request_id", out var reqEl))
-        {
+        if (Params.Value.TryGetProperty("request_id", out var reqEl)) {
             requestId = reqEl.GetString();
         }
 
-        if (Params.Value.TryGetProperty("behavior", out var behEl))
-        {
+        if (Params.Value.TryGetProperty("behavior", out var behEl)) {
             behavior = behEl.GetString();
         }
 
@@ -157,18 +134,15 @@ public sealed partial class McpChannelNotificationHandler
 
         _logger?.LogInformation("Channel 权限回复: server={Server}, requestId={RequestId}, behavior={Behavior}", serverName, requestId, behavior);
 
-        if (_pendingRequests.TryGetValue(requestId, out var tcs))
-        {
-            tcs.TrySetResult(new ChannelPermissionResponse
-            {
+        if (_pendingRequests.TryGetValue(requestId, out var tcs)) {
+            tcs.TrySetResult(new ChannelPermissionResponse {
                 Behavior = behavior,
                 FromServer = serverName
             });
             _pendingRequests.TryRemove(requestId, out _);
         }
 
-        PermissionResponseReceived?.Invoke(this, new McpChannelPermissionResponseEventArgs
-        {
+        PermissionResponseReceived?.Invoke(this, new McpChannelPermissionResponseEventArgs {
             RequestId = requestId,
             Behavior = behavior,
             FromServer = serverName
@@ -182,18 +156,14 @@ public sealed partial class McpChannelNotificationHandler
     /// <param name="timeout">等待超时时间</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>权限响应；超时或取消时返回 null</returns>
-    public async Task<ChannelPermissionResponse?> WaitForPermissionResponseAsync(string requestId, TimeSpan timeout, CancellationToken cancellationToken = default)
-    {
+    public async Task<ChannelPermissionResponse?> WaitForPermissionResponseAsync(string requestId, TimeSpan timeout, CancellationToken cancellationToken = default) {
         var tcs = new TaskCompletionSource<ChannelPermissionResponse>();
         _pendingRequests[requestId] = tcs;
 
-        try
-        {
+        try {
             using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, timeout);
             return await tcs.Task.WaitAsync(cts.Token).ConfigureAwait(false);
-        }
-        catch
-        {
+        } catch {
             _pendingRequests.TryRemove(requestId, out _);
             return null;
         }
@@ -206,17 +176,13 @@ public sealed partial class McpChannelNotificationHandler
     /// <param name="content">消息内容</param>
     /// <param name="meta">元数据键值对（可选，仅合法 XML 属性名会被输出）</param>
     /// <returns>包装后的 XML 字符串</returns>
-    public static string WrapChannelMessage(string serverName, string content, Dictionary<string, string>? meta)
-    {
+    public static string WrapChannelMessage(string serverName, string content, Dictionary<string, string>? meta) {
         var sb = new System.Text.StringBuilder();
         sb.Append($"<channel source=\"{EscapeXmlAttr(serverName)}\"");
 
-        if (meta != null)
-        {
-            foreach (var kvp in meta)
-            {
-                if (IsValidMetaKey(kvp.Key))
-                {
+        if (meta != null) {
+            foreach (var kvp in meta) {
+                if (IsValidMetaKey(kvp.Key)) {
                     sb.Append($" {kvp.Key}=\"{EscapeXmlAttr(kvp.Value)}\"");
                 }
             }
@@ -231,19 +197,16 @@ public sealed partial class McpChannelNotificationHandler
         return sb.ToString();
     }
 
-    private static bool IsValidMetaKey(string key)
-    {
+    private static bool IsValidMetaKey(string key) {
         if (string.IsNullOrEmpty(key)) return false;
         if (!char.IsLetter(key[0]) && key[0] != '_') return false;
-        foreach (var c in key)
-        {
+        foreach (var c in key) {
             if (!char.IsLetterOrDigit(c) && c != '_') return false;
         }
         return true;
     }
 
-    private static string EscapeXmlAttr(string value)
-    {
+    private static string EscapeXmlAttr(string value) {
         return value.Replace("&", "&amp;").Replace("\"", "&quot;").Replace("<", "&lt;").Replace(">", "&gt;");
     }
 }
@@ -251,8 +214,7 @@ public sealed partial class McpChannelNotificationHandler
 /// <summary>
 /// Channel 消息事件参数
 /// </summary>
-public sealed partial class McpChannelMessageEventArgs : EventArgs
-{
+public sealed partial class McpChannelMessageEventArgs : EventArgs {
     /// <summary>来源服务器名称</summary>
     public required string ServerName { get; init; }
     /// <summary>消息内容</summary>
@@ -266,8 +228,7 @@ public sealed partial class McpChannelMessageEventArgs : EventArgs
 /// <summary>
 /// Channel 权限响应事件参数
 /// </summary>
-public sealed partial class McpChannelPermissionResponseEventArgs : EventArgs
-{
+public sealed partial class McpChannelPermissionResponseEventArgs : EventArgs {
     /// <summary>请求标识</summary>
     public required string RequestId { get; init; }
     /// <summary>权限行为（allow/deny 等）</summary>
@@ -279,8 +240,7 @@ public sealed partial class McpChannelPermissionResponseEventArgs : EventArgs
 /// <summary>
 /// Channel 权限响应数据
 /// </summary>
-public sealed partial class ChannelPermissionResponse
-{
+public sealed partial class ChannelPermissionResponse {
     /// <summary>权限行为（allow/deny 等）</summary>
     public required string Behavior { get; init; }
     /// <summary>来源服务器名称</summary>

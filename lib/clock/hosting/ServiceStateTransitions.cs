@@ -5,8 +5,7 @@ namespace Core.Hosting;
 /// <para>原 ServiceHost 直接赋值 _serviceStatuses[name]=status 无校验,现统一提取为转换表</para>
 /// <para>Stopped→Starting, Starting→Running/Failed, Running→Stopping/Failed, Stopping→Stopped/Failed, Failed→Starting/Stopped</para>
 /// </summary>
-public static class ServiceStateTransitions
-{
+public static class ServiceStateTransitions {
     /// <summary>
     /// 状态转换位掩码表 — 索引为 (int)ServiceStatus，值为目标状态位掩码。
     /// 替代 FrozenDictionary&lt;ServiceStatus, FrozenSet&lt;ServiceStatus&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
@@ -23,10 +22,8 @@ public static class ServiceStateTransitions
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法
     /// </summary>
-    public static bool CanTransitionTo(ServiceStatus current, ServiceStatus target)
-    {
-        if (current == target)
-        {
+    public static bool CanTransitionTo(ServiceStatus current, ServiceStatus target) {
+        if (current == target) {
             return true;
         }
 

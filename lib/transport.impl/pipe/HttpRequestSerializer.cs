@@ -3,8 +3,7 @@ namespace JoinCode.Transport;
 /// <summary>
 /// HTTP 请求序列化器
 /// </summary>
-public static class HttpRequestSerializer
-{
+public static class HttpRequestSerializer {
     private const string HttpVersion = "HTTP/1.1";
     private const string HeaderSeparator = ": ";
     private const string LineTerminator = "\r\n";
@@ -16,8 +15,7 @@ public static class HttpRequestSerializer
     /// <param name="request">HTTP 请求消息</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>HTTP 格式字符串</returns>
-    public static async Task<string> SerializeAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
-    {
+    public static async Task<string> SerializeAsync(HttpRequestMessage request, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(request);
 
         var builder = new StringBuilder(DefaultBufferSize);
@@ -32,10 +30,8 @@ public static class HttpRequestSerializer
         builder.Append(LineTerminator);
 
         // 请求头
-        foreach (var header in request.Headers)
-        {
-            foreach (var value in header.Value)
-            {
+        foreach (var header in request.Headers) {
+            foreach (var value in header.Value) {
                 builder.Append(header.Key);
                 builder.Append(HeaderSeparator);
                 builder.Append(value);
@@ -44,12 +40,9 @@ public static class HttpRequestSerializer
         }
 
         // 内容头
-        if (request.Content != null)
-        {
-            foreach (var header in request.Content.Headers)
-            {
-                foreach (var value in header.Value)
-                {
+        if (request.Content != null) {
+            foreach (var header in request.Content.Headers) {
+                foreach (var value in header.Value) {
                     builder.Append(header.Key);
                     builder.Append(HeaderSeparator);
                     builder.Append(value);
@@ -62,8 +55,7 @@ public static class HttpRequestSerializer
         builder.Append(LineTerminator);
 
         // 请求体
-        if (request.Content != null)
-        {
+        if (request.Content != null) {
             var body = await request.Content.ReadAsStringAsync(cancellationToken);
             builder.Append(body);
         }
@@ -76,8 +68,7 @@ public static class HttpRequestSerializer
     /// </summary>
     /// <param name="responseText">HTTP 响应字符串</param>
     /// <returns>HTTP 响应消息</returns>
-    public static HttpResponseMessage Deserialize(string responseText)
-    {
+    public static HttpResponseMessage Deserialize(string responseText) {
         ArgumentException.ThrowIfNullOrEmpty(responseText);
 
         using var reader = new StringReader(responseText);
@@ -85,8 +76,7 @@ public static class HttpRequestSerializer
 
         // 解析状态行
         var statusLine = reader.ReadLine();
-        if (string.IsNullOrEmpty(statusLine))
-        {
+        if (string.IsNullOrEmpty(statusLine)) {
             throw new InvalidOperationException("[TRN009] 无效的 HTTP 响应: 空状态行");
         }
 
@@ -95,20 +85,17 @@ public static class HttpRequestSerializer
         // 解析响应头
         var contentHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         string? line;
-        while (!string.IsNullOrEmpty(line = reader.ReadLine()))
-        {
+        while (!string.IsNullOrEmpty(line = reader.ReadLine())) {
             ParseHeaderLine(line, response, contentHeaders);
         }
 
         // 读取响应体
         var body = reader.ReadToEnd();
-        if (!string.IsNullOrEmpty(body))
-        {
+        if (!string.IsNullOrEmpty(body)) {
             response.Content = new StringContent(body);
 
             // 将内容头应用到内容
-            foreach (var header in contentHeaders)
-            {
+            foreach (var header in contentHeaders) {
                 response.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
             }
         }
@@ -116,36 +103,28 @@ public static class HttpRequestSerializer
         return response;
     }
 
-    private static void ParseStatusLine(string statusLine, HttpResponseMessage response)
-    {
+    private static void ParseStatusLine(string statusLine, HttpResponseMessage response) {
         var parts = statusLine.Split(' ', 3);
-        if (parts.Length < 2)
-        {
+        if (parts.Length < 2) {
             throw new InvalidOperationException($"[TRN014] 无效的 HTTP 状态行: {statusLine}");
         }
 
         // 解析状态码
-        if (int.TryParse(parts[1], out var statusCode))
-        {
+        if (int.TryParse(parts[1], out var statusCode)) {
             response.StatusCode = (System.Net.HttpStatusCode)statusCode;
-        }
-        else
-        {
+        } else {
             throw new InvalidOperationException($"[TRN015] 无效的 HTTP 状态码: {parts[1]}");
         }
 
         // 解析原因短语（可选）
-        if (parts.Length > 2)
-        {
+        if (parts.Length > 2) {
             response.ReasonPhrase = parts[2];
         }
     }
 
-    private static void ParseHeaderLine(string line, HttpResponseMessage response, Dictionary<string, string> contentHeaders)
-    {
+    private static void ParseHeaderLine(string line, HttpResponseMessage response, Dictionary<string, string> contentHeaders) {
         var separatorIndex = line.IndexOf(HeaderSeparator, StringComparison.Ordinal);
-        if (separatorIndex <= 0)
-        {
+        if (separatorIndex <= 0) {
             return;
         }
 
@@ -153,12 +132,9 @@ public static class HttpRequestSerializer
         var value = line[(separatorIndex + HeaderSeparator.Length)..];
 
         // 内容相关的头需要特殊处理
-        if (IsContentHeader(key))
-        {
+        if (IsContentHeader(key)) {
             contentHeaders[key] = value;
-        }
-        else
-        {
+        } else {
             response.Headers.TryAddWithoutValidation(key, value);
         }
     }
@@ -175,8 +151,7 @@ public static class HttpRequestSerializer
         "Expires",
         "Last-Modified");
 
-    private static bool IsContentHeader(string headerName)
-    {
+    private static bool IsContentHeader(string headerName) {
         return ContentHeaders.Contains(headerName);
     }
 }

@@ -1,20 +1,16 @@
 namespace Infra.Tests.Process;
 
 [Trait("Category", "Unit")]
-public sealed class ProcessStartInfoBuilderTests
-{
-    private static ProcessStartInfoBuilder CreateBuilder()
-    {
+public sealed class ProcessStartInfoBuilderTests {
+    private static ProcessStartInfoBuilder CreateBuilder() {
         return new ProcessStartInfoBuilder(new ProcessEncodingProvider());
     }
 
     [Fact]
-    public void Build_WithArgumentList_UsesArgumentListNotArguments()
-    {
+    public void Build_WithArgumentList_UsesArgumentListNotArguments() {
         var builder = CreateBuilder();
 
-        var psi = builder.Build(new ProcessOptions
-        {
+        var psi = builder.Build(new ProcessOptions {
             FileName = "dotnet",
             Arguments = "--should-be-ignored",
             ArgumentList = ["build", "-c", "Release"],
@@ -28,12 +24,10 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void Build_WithoutArgumentList_UsesArguments()
-    {
+    public void Build_WithoutArgumentList_UsesArguments() {
         var builder = CreateBuilder();
 
-        var psi = builder.Build(new ProcessOptions
-        {
+        var psi = builder.Build(new ProcessOptions {
             FileName = "dotnet",
             Arguments = "--version",
         });
@@ -43,8 +37,7 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void Build_EnforcesUseShellExecuteFalse()
-    {
+    public void Build_EnforcesUseShellExecuteFalse() {
         var builder = CreateBuilder();
 
         var psi = builder.Build(new ProcessOptions { FileName = "test" });
@@ -54,8 +47,7 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void Build_AppliesEncodingFromProvider()
-    {
+    public void Build_AppliesEncodingFromProvider() {
         var provider = new ProcessEncodingProvider();
         var builder = new ProcessStartInfoBuilder(provider);
 
@@ -66,15 +58,13 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void Build_OptionsEncodingOverridesProvider()
-    {
+    public void Build_OptionsEncodingOverridesProvider() {
         var provider = new ProcessEncodingProvider();
         provider.UseLocal();
         var builder = new ProcessStartInfoBuilder(provider);
         var custom = Encoding.ASCII;
 
-        var psi = builder.Build(new ProcessOptions
-        {
+        var psi = builder.Build(new ProcessOptions {
             FileName = "test",
             StandardOutputEncoding = custom,
         });
@@ -84,12 +74,10 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void Build_WithDangerousArgument_Throws()
-    {
+    public void Build_WithDangerousArgument_Throws() {
         var builder = CreateBuilder();
 
-        var act = () => builder.Build(new ProcessOptions
-        {
+        var act = () => builder.Build(new ProcessOptions {
             FileName = "test",
             Arguments = "echo $HOME",
         });
@@ -99,12 +87,10 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void Build_WithDangerousArgumentList_Throws()
-    {
+    public void Build_WithDangerousArgumentList_Throws() {
         var builder = CreateBuilder();
 
-        var act = () => builder.Build(new ProcessOptions
-        {
+        var act = () => builder.Build(new ProcessOptions {
             FileName = "test",
             ArgumentList = ["safe", "danger;ous"],
         });
@@ -114,12 +100,10 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void Build_WithSkipValidation_DoesNotThrow()
-    {
+    public void Build_WithSkipValidation_DoesNotThrow() {
         var builder = CreateBuilder();
 
-        var psi = builder.Build(new ProcessOptions
-        {
+        var psi = builder.Build(new ProcessOptions {
             FileName = "bash",
             Arguments = "-c \"echo hello && echo world\"",
             SkipArgumentValidation = true,
@@ -129,15 +113,12 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void Build_WithEnvironmentVariables_SetsAll()
-    {
+    public void Build_WithEnvironmentVariables_SetsAll() {
         var builder = CreateBuilder();
 
-        var psi = builder.Build(new ProcessOptions
-        {
+        var psi = builder.Build(new ProcessOptions {
             FileName = "test",
-            EnvironmentVariables = new Dictionary<string, string>
-            {
+            EnvironmentVariables = new Dictionary<string, string> {
                 ["FOO"] = "bar",
                 ["BAZ"] = "qux",
             },
@@ -148,12 +129,10 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void BuildInteractive_RedirectsAllStreams()
-    {
+    public void BuildInteractive_RedirectsAllStreams() {
         var builder = CreateBuilder();
 
-        var psi = builder.BuildInteractive(new InteractiveProcessOptions
-        {
+        var psi = builder.BuildInteractive(new InteractiveProcessOptions {
             FileName = "test",
         });
 
@@ -164,12 +143,10 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void BuildInteractive_WithArgumentList_UsesArgumentList()
-    {
+    public void BuildInteractive_WithArgumentList_UsesArgumentList() {
         var builder = CreateBuilder();
 
-        var psi = builder.BuildInteractive(new InteractiveProcessOptions
-        {
+        var psi = builder.BuildInteractive(new InteractiveProcessOptions {
             FileName = "jcc",
             ArgumentList = [JccCliArgEnumConstants.Print, JccCliArgEnumConstants.SessionId, "abc123"],
         });
@@ -179,8 +156,7 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void BuildShellOpen_UsesShellExecuteTrue()
-    {
+    public void BuildShellOpen_UsesShellExecuteTrue() {
         var builder = CreateBuilder();
 
         var psi = builder.BuildShellOpen("https://example.com");
@@ -190,8 +166,7 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void BuildShellOpen_WithEmptyPath_Throws()
-    {
+    public void BuildShellOpen_WithEmptyPath_Throws() {
         var builder = CreateBuilder();
 
         var act = () => builder.BuildShellOpen("");
@@ -200,8 +175,7 @@ public sealed class ProcessStartInfoBuilderTests
     }
 
     [Fact]
-    public void Build_LocalEncodingMode_AppliesLocalEncoding()
-    {
+    public void Build_LocalEncodingMode_AppliesLocalEncoding() {
         var provider = new ProcessEncodingProvider();
         var builder = new ProcessStartInfoBuilder(provider);
         provider.UseLocal();
@@ -211,8 +185,7 @@ public sealed class ProcessStartInfoBuilderTests
         psi.StandardOutputEncoding.Should().BeSameAs(Encoding.Default);
     }
 
-    private static void AssertUtf8WithoutBom(Encoding encoding)
-    {
+    private static void AssertUtf8WithoutBom(Encoding encoding) {
         encoding.WebName.Should().Be("utf-8");
         encoding.Preamble.Length.Should().Be(0);
     }

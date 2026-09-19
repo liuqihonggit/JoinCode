@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Weight.Topology;
 /// <summary>
 /// 拓扑评分结果
 /// </summary>
-public sealed class TopologyScore
-{
+public sealed class TopologyScore {
     /// <summary>
     /// 链长度评分 — 过长的链可能不可靠
     /// </summary>

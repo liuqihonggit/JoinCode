@@ -4,8 +4,7 @@ namespace JoinCode.Hands.Desktop;
 /// 桌面场景缩放服务实现 — 四叉树象限缩小 + 状态更新 + 清晰度判断
 /// </summary>
 [Register(typeof(IDesktopSceneZoomService), ServiceLifetime.Singleton)]
-public sealed class DesktopSceneZoomService : ServiceEntity, IDesktopSceneZoomService
-{
+public sealed class DesktopSceneZoomService : ServiceEntity, IDesktopSceneZoomService {
     private const int ClearThreshold = 64;
 
     private readonly IQuadtreeRenderer _renderer;
@@ -18,8 +17,7 @@ public sealed class DesktopSceneZoomService : ServiceEntity, IDesktopSceneZoomSe
     public DesktopSceneZoomService(
         IQuadtreeRenderer renderer,
         IDesktopSceneStateStore stateStore,
-        IFileSystem fileSystem)
-    {
+        IFileSystem fileSystem) {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
         _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
@@ -28,8 +26,7 @@ public sealed class DesktopSceneZoomService : ServiceEntity, IDesktopSceneZoomSe
     /// <summary>
     /// 选象限缩小或退回上一层，返回子图 + 更新后的格子编码/层数 + 清晰度判断
     /// </summary>
-    public async Task<DesktopSceneZoom> ZoomAsync(string sceneId, int quadrant, bool back = false, CancellationToken cancellationToken = default)
-    {
+    public async Task<DesktopSceneZoom> ZoomAsync(string sceneId, int quadrant, bool back = false, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNullOrWhiteSpace(sceneId);
 
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
@@ -66,8 +63,7 @@ public sealed class DesktopSceneZoomService : ServiceEntity, IDesktopSceneZoomSe
 
         var zoomHistory = state.ZoomHistory.ToList();
         zoomHistory.Add(new ZoomHistoryEntry(newDepth, newCellCode, quadrant, DateTimeOffset.UtcNow));
-        var newState = state with
-        {
+        var newState = state with {
             CurrentDepth = newDepth,
             CurrentCellCode = newCellCode,
             ZoomHistory = zoomHistory,
@@ -79,8 +75,7 @@ public sealed class DesktopSceneZoomService : ServiceEntity, IDesktopSceneZoomSe
         return new DesktopSceneZoom(zoomResult.SubImageBase64, newCellCode, newDepth, subWidth, subHeight, isClearEnough);
     }
 
-    private async Task<DesktopSceneZoom> ZoomBackAsync(string sceneId, DesktopSceneState state, CancellationToken ct)
-    {
+    private async Task<DesktopSceneZoom> ZoomBackAsync(string sceneId, DesktopSceneState state, CancellationToken ct) {
         if (state.CurrentDepth <= 0)
             throw new InvalidOperationException("已在第 0 层，无法退回");
 
@@ -98,8 +93,7 @@ public sealed class DesktopSceneZoomService : ServiceEntity, IDesktopSceneZoomSe
         var zoomHistory = state.ZoomHistory.ToList();
         if (zoomHistory.Count > 0)
             zoomHistory.RemoveAt(zoomHistory.Count - 1);
-        var newState = state with
-        {
+        var newState = state with {
             CurrentDepth = newDepth,
             CurrentCellCode = newCellCode,
             ZoomHistory = zoomHistory,
@@ -111,8 +105,7 @@ public sealed class DesktopSceneZoomService : ServiceEntity, IDesktopSceneZoomSe
         return new DesktopSceneZoom(subImageBase64, newCellCode, newDepth, subWidth, subHeight, isClearEnough);
     }
 
-    private static int MapQuadrant(int quadrant) => quadrant switch
-    {
+    private static int MapQuadrant(int quadrant) => quadrant switch {
         1 => 2,
         2 => 3,
         3 => 0,
@@ -120,15 +113,13 @@ public sealed class DesktopSceneZoomService : ServiceEntity, IDesktopSceneZoomSe
         _ => throw new ArgumentOutOfRangeException(nameof(quadrant))
     };
 
-    private async Task<string> SaveSubImageAsync(string sceneId, int depth, string base64, CancellationToken ct)
-    {
+    private async Task<string> SaveSubImageAsync(string sceneId, int depth, string base64, CancellationToken ct) {
         var path = GetScreenshotPath(sceneId, depth);
         await _fileSystem.WriteAllTextAsync(path, base64, ct).ConfigureAwait(false);
         return path;
     }
 
-    private string GetScreenshotPath(string sceneId, int depth)
-    {
+    private string GetScreenshotPath(string sceneId, int depth) {
         var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jcc", "scenarios");
         if (!_fileSystem.DirectoryExists(dir))
             _fileSystem.CreateDirectory(dir);

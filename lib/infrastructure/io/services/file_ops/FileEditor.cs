@@ -4,8 +4,7 @@ namespace IO;
 /// <summary>
 /// File edit service - provides file editing capabilities
 /// </summary>
-public sealed class FileEditor
-{
+public sealed class FileEditor {
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
     private readonly FileOperationConfig _config;
@@ -16,8 +15,7 @@ public sealed class FileEditor
     /// <param name="fs">文件系统抽象</param>
     /// <param name="config">文件操作配置</param>
     /// <param name="logger">可选日志记录器</param>
-    public FileEditor(IFileSystem fs, FileOperationConfig config, ILogger? logger = null)
-    {
+    public FileEditor(IFileSystem fs, FileOperationConfig config, ILogger? logger = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
@@ -31,24 +29,18 @@ public sealed class FileEditor
         string oldString,
         string newString,
         bool replaceAll = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // Empty old_string with non-empty new_string means creating a new file (TS behavior)
-        if (string.IsNullOrEmpty(oldString))
-        {
-            if (string.IsNullOrEmpty(newString))
-            {
+        if (string.IsNullOrEmpty(oldString)) {
+            if (string.IsNullOrEmpty(newString)) {
                 return FileEditResult.FailureResult(filePath, oldString, newString, "old_string and new_string are both empty");
             }
 
             var normalizedPath = NormalizePath(filePath);
-            try
-            {
-                if (_fs.FileExists(normalizedPath))
-                {
+            try {
+                if (_fs.FileExists(normalizedPath)) {
                     var (existingContent, _) = await ReadFileWithEncodingAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
-                    if (existingContent.Trim() != string.Empty)
-                    {
+                    if (existingContent.Trim() != string.Empty) {
                         return FileEditResult.FailureResult(normalizedPath, oldString, newString,
                             "Cannot create new file - file already exists and is not empty");
                     }
@@ -57,8 +49,7 @@ public sealed class FileEditor
 
                 // Ensure parent directory exists
                 var dir = Path.GetDirectoryName(normalizedPath);
-                if (!string.IsNullOrEmpty(dir) && !_fs.DirectoryExists(dir))
-                {
+                if (!string.IsNullOrEmpty(dir) && !_fs.DirectoryExists(dir)) {
                     _fs.CreateDirectory(dir);
                 }
 
@@ -69,9 +60,7 @@ public sealed class FileEditor
 
                 return FileEditResult.SuccessResult(normalizedPath, oldString, newString, string.Empty, normalizedNew, 1,
                     StructuredPatchGenerator.Generate(normalizedPath, string.Empty, normalizedNew, cancellationToken: cancellationToken));
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "Create file via edit failed: {FilePath}", normalizedPath);
                 var diagnostic = ToolDiagnostic.Create("EditFailed",
                     $"创建文件失败: {ex.Message}",
@@ -81,25 +70,21 @@ public sealed class FileEditor
             }
         }
 
-        if (oldString == newString)
-        {
+        if (oldString == newString) {
             return FileEditResult.FailureResult(filePath, oldString, newString, "old_string and new_string must be different");
         }
 
         var normalizedPath2 = NormalizePath(filePath);
 
-        try
-        {
-            if (!_fs.FileExists(normalizedPath2))
-            {
+        try {
+            if (!_fs.FileExists(normalizedPath2)) {
                 return FileEditResult.FailureResult(normalizedPath2, oldString, newString,
                     FileSuggestionHelper.BuildFileNotFoundDiagnostic(normalizedPath2, _fs));
             }
 
             var fileLength = _fs.GetFileLength(normalizedPath2);
             const long maxEditFileSize = 1024L * 1024 * 1024;
-            if (fileLength > maxEditFileSize)
-            {
+            if (fileLength > maxEditFileSize) {
                 return FileEditResult.FailureResult(normalizedPath2, oldString, newString,
                     $"File too large ({fileLength} bytes) to edit. Maximum editable file size is 1 GB");
             }
@@ -118,27 +103,22 @@ public sealed class FileEditor
             // Step 1: Try exact match, then findActualString (quote normalization), then desanitize
             var actualOldString = FindActualString(normalizedContent, normalizedOld);
 
-            if (actualOldString is null)
-            {
+            if (actualOldString is null) {
                 // Try desanitizing the old_string (reverse API sanitization of XML tags)
                 var (desanitizedOld, appliedReplacements) = DesanitizeMatchString(normalizedOld);
-                if (desanitizedOld != normalizedOld)
-                {
+                if (desanitizedOld != normalizedOld) {
                     actualOldString = FindActualString(normalizedContent, desanitizedOld);
-                    if (actualOldString is not null)
-                    {
+                    if (actualOldString is not null) {
                         normalizedOld = desanitizedOld;
                         // Apply same desanitization to new_string
-                        foreach (var (from, to) in appliedReplacements)
-                        {
+                        foreach (var (from, to) in appliedReplacements) {
                             normalizedNew = normalizedNew.Replace(from, to);
                         }
                     }
                 }
             }
 
-            if (actualOldString is null)
-            {
+            if (actualOldString is null) {
                 var diagnostic = EditDiagnosticBuilder.BuildDiagnostic(normalizedContent, normalizedOld);
                 return FileEditResult.FailureResult(normalizedPath2, oldString, newString,
                     diagnostic.ToToolDiagnostic());
@@ -151,16 +131,13 @@ public sealed class FileEditor
             var ext = Path.GetExtension(normalizedPath2);
             var isMarkdown = ext.Equals(".md", StringComparison.OrdinalIgnoreCase)
                           || ext.Equals(".mdx", StringComparison.OrdinalIgnoreCase);
-            if (!isMarkdown)
-            {
+            if (!isMarkdown) {
                 actualNewString = StripTrailingWhitespace(actualNewString);
             }
 
-            if (!replaceAll)
-            {
+            if (!replaceAll) {
                 var occurrenceCount = CountOccurrences(normalizedContent, normalizedOld);
-                if (occurrenceCount > 1)
-                {
+                if (occurrenceCount > 1) {
                     return FileEditResult.FailureResult(normalizedPath2, oldString, newString,
                         $"old_string matched {occurrenceCount} times in the file, but replace_all is false. " +
                         "Provide more context to make old_string unique, or set replace_all to true to replace all occurrences.");
@@ -170,32 +147,25 @@ public sealed class FileEditor
             string updatedContent;
             int replaceCount;
 
-            if (replaceAll)
-            {
+            if (replaceAll) {
                 updatedContent = normalizedContent.Replace(actualOldString, actualNewString);
                 replaceCount = CountOccurrences(normalizedContent, actualOldString);
-            }
-            else
-            {
+            } else {
                 var index = normalizedContent.IndexOf(actualOldString, StringComparison.Ordinal);
-                if (index >= 0)
-                {
+                if (index >= 0) {
                     var sb = new StringBuilder(normalizedContent.Length + actualNewString.Length - actualOldString.Length);
                     sb.Append(normalizedContent, 0, index);
                     sb.Append(actualNewString);
                     sb.Append(normalizedContent, index + actualOldString.Length, normalizedContent.Length - index - actualOldString.Length);
                     updatedContent = sb.ToString();
                     replaceCount = 1;
-                }
-                else
-                {
+                } else {
                     updatedContent = normalizedContent;
                     replaceCount = 0;
                 }
             }
 
-            if (hasCrlf)
-            {
+            if (hasCrlf) {
                 updatedContent = updatedContent.Replace("\n", "\r\n");
             }
 
@@ -214,9 +184,7 @@ public sealed class FileEditor
                 updatedContent,
                 replaceCount,
                 StructuredPatchGenerator.Generate(normalizedPath2, originalContent, updatedContent, cancellationToken: cancellationToken));
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Edit file failed: {FilePath}", normalizedPath2);
             var diagnostic = ToolDiagnostic.Create("EditFailed",
                 $"编辑文件失败: {ex.Message}",
@@ -231,28 +199,23 @@ public sealed class FileEditor
     /// </summary>
     public async Task<FileLineEditResult> EditByLineRangeAsync(
         LineRangeEditRequest request,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(request);
 
         var (filePath, startLine, endLine, newContent) = (request.FilePath, request.StartLine, request.EndLine, request.NewContent);
 
-        if (startLine < 1)
-        {
+        if (startLine < 1) {
             return FileLineEditResult.FailureResult(filePath, startLine, endLine, "Start line must be at least 1");
         }
 
-        if (endLine < startLine)
-        {
+        if (endLine < startLine) {
             return FileLineEditResult.FailureResult(filePath, startLine, endLine, "End line must not be less than start line");
         }
 
         var normalizedPath = NormalizePath(filePath);
 
-        try
-        {
-            if (!_fs.FileExists(normalizedPath))
-            {
+        try {
+            if (!_fs.FileExists(normalizedPath)) {
                 return FileLineEditResult.FailureResult(normalizedPath, startLine, endLine,
                     FileSuggestionHelper.BuildFileNotFoundDiagnostic(normalizedPath, _fs));
             }
@@ -262,16 +225,13 @@ public sealed class FileEditor
 
             // Read all lines — UTF-8 用 mmap + LineSpanIndexer，其他编码走 StreamReader
             List<string> allLines;
-            if (fileEncoding is UTF8Encoding)
-            {
+            if (fileEncoding is UTF8Encoding) {
                 var content = await _fs.ReadAllTextAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
                 var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan(), cancellationToken);
                 allLines = new List<string>(ranges.Count);
                 foreach (var (start, length) in ranges)
                     allLines.Add(content.Substring(start, length));
-            }
-            else
-            {
+            } else {
                 allLines = new List<string>();
                 using var stream = _fs.CreateStream(normalizedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 using var reader = new StreamReader(stream, fileEncoding);
@@ -281,8 +241,7 @@ public sealed class FileEditor
             }
             var totalLines = allLines.Count;
 
-            if (startLine > totalLines)
-            {
+            if (startLine > totalLines) {
                 return FileLineEditResult.FailureResult(normalizedPath, startLine, endLine, $"Start line ({startLine}) exceeds total line count ({totalLines})");
             }
 
@@ -301,8 +260,7 @@ public sealed class FileEditor
             var resultLines = new List<string>();
 
             // Add lines before replacement
-            if (startLine > 1)
-            {
+            if (startLine > 1) {
                 resultLines.AddRange(allLines.Take(startLine - 1));
             }
 
@@ -310,8 +268,7 @@ public sealed class FileEditor
             resultLines.AddRange(newLines);
 
             // Add lines after replacement
-            if (actualEndLine < totalLines)
-            {
+            if (actualEndLine < totalLines) {
                 resultLines.AddRange(allLines.Skip(actualEndLine));
             }
 
@@ -335,9 +292,7 @@ public sealed class FileEditor
                 newContent,
                 updatedFileContent,
                 replacedLinesCount);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Edit file by line range failed: {FilePath}", normalizedPath);
             var diagnostic = ToolDiagnostic.Create("LineEditFailed",
                 $"按行范围编辑失败: {ex.Message}",
@@ -347,16 +302,14 @@ public sealed class FileEditor
         }
     }
 
-    private static int CountOccurrences(string text, string substring)
-    {
+    private static int CountOccurrences(string text, string substring) {
         if (string.IsNullOrEmpty(substring) || string.IsNullOrEmpty(text))
             return 0;
 
         var count = 0;
         var index = 0;
 
-        while ((index = text.IndexOf(substring, index, StringComparison.Ordinal)) != -1)
-        {
+        while ((index = text.IndexOf(substring, index, StringComparison.Ordinal)) != -1) {
             count++;
             index += substring.Length;
         }
@@ -364,25 +317,21 @@ public sealed class FileEditor
         return count;
     }
 
-    private string NormalizePath(string path)
-    {
-        if (Path.IsPathFullyQualified(path))
-        {
+    private string NormalizePath(string path) {
+        if (Path.IsPathFullyQualified(path)) {
             return _fs.GetFullPath(path);
         }
 
         return _fs.GetFullPath(_fs.CombinePath(_fs.GetCurrentDirectory(), path));
     }
 
-    private async Task<(string Content, bool HasCrlf, Encoding Encoding)> ReadFileWithLineEndingDetectionAsync(string path, CancellationToken ct)
-    {
+    private async Task<(string Content, bool HasCrlf, Encoding Encoding)> ReadFileWithLineEndingDetectionAsync(string path, CancellationToken ct) {
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
         var result = await FileLockService.AcquireAsync(path, timeout, ct);
         if (!result.Success)
             throw new TimeoutException($"Lock acquisition timed out: {path}");
 
-        await using (result.GetLock())
-        {
+        await using (result.GetLock()) {
             if (!_fs.FileExists(path))
                 return (string.Empty, false, Encoding.UTF8);
 
@@ -397,15 +346,13 @@ public sealed class FileEditor
         }
     }
 
-    private async Task<(string Content, Encoding Encoding)> ReadFileWithEncodingAsync(string path, CancellationToken ct)
-    {
+    private async Task<(string Content, Encoding Encoding)> ReadFileWithEncodingAsync(string path, CancellationToken ct) {
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
         var result = await FileLockService.AcquireAsync(path, timeout, ct);
         if (!result.Success)
             throw new TimeoutException($"Lock acquisition timed out: {path}");
 
-        await using (result.GetLock())
-        {
+        await using (result.GetLock()) {
             if (!_fs.FileExists(path))
                 return (string.Empty, Encoding.UTF8);
 
@@ -419,32 +366,26 @@ public sealed class FileEditor
         }
     }
 
-    private async Task WriteFileWithLockAsync(string path, string content, CancellationToken ct, Encoding? encoding = null)
-    {
+    private async Task WriteFileWithLockAsync(string path, string content, CancellationToken ct, Encoding? encoding = null) {
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
         var result = await FileLockService.AcquireAsync(path, timeout, ct);
         if (!result.Success)
             throw new TimeoutException($"Lock acquisition timed out: {path}");
 
-        await using (result.GetLock())
-        {
+        await using (result.GetLock()) {
             var effectiveEncoding = encoding ?? Encoding.UTF8;
             var tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
-            {
+            try {
                 await _fs.WriteAllTextAsync(tempPath, content, effectiveEncoding, ct).ConfigureAwait(false);
                 _fs.MoveFile(tempPath, path, overwrite: true);
-            }
-            catch
-            {
+            } catch {
                 if (_fs.FileExists(tempPath)) _fs.DeleteFile(tempPath);
                 throw;
             }
         }
     }
 
-    private static bool IsTestEnvironment()
-    {
+    private static bool IsTestEnvironment() {
         return TestEnvironmentDetector.IsTestEnvironment;
     }
 
@@ -461,8 +402,7 @@ public sealed class FileEditor
     /// then with quote normalization (curly → straight). Mirrors TS findActualString.
     /// Returns null if not found.
     /// </summary>
-    internal static string? FindActualString(string fileContent, string searchString)
-    {
+    internal static string? FindActualString(string fileContent, string searchString) {
         // First try exact match
         if (fileContent.Contains(searchString))
             return searchString;
@@ -472,8 +412,7 @@ public sealed class FileEditor
         var normalizedFile = NormalizeQuotes(fileContent);
 
         var searchIndex = normalizedFile.IndexOf(normalizedSearch, StringComparison.Ordinal);
-        if (searchIndex >= 0)
-        {
+        if (searchIndex >= 0) {
             // Return the actual string from the file (preserving curly quotes)
             return fileContent.Substring(searchIndex, searchString.Length);
         }
@@ -486,20 +425,16 @@ public sealed class FileEditor
     /// 对齐 TS: stripLineNumberPrefix — 兼容紧凑(行号+\t)和宽(空格填充+行号+→)两种格式。
     /// 若没有任何行被剥离，返回原 text 避免无谓分配。
     /// </summary>
-    internal static string StripLineNumberPrefixes(string text)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
+    internal static string StripLineNumberPrefixes(string text) {
+        if (string.IsNullOrEmpty(text)) {
             return text;
         }
 
         var lines = text.Split('\n');
         var anyStripped = false;
-        for (var i = 0; i < lines.Length; i++)
-        {
+        for (var i = 0; i < lines.Length; i++) {
             var stripped = StripPrefixFromLine(lines[i]);
-            if (stripped.Length != lines[i].Length)
-            {
+            if (stripped.Length != lines[i].Length) {
                 anyStripped = true;
                 lines[i] = stripped.ToString();
             }
@@ -511,22 +446,18 @@ public sealed class FileEditor
     /// <summary>
     /// 剥离单行行号前缀：^\s*\d+[\u2192\t]，返回前缀之后的内容。无前缀则原样返回。
     /// </summary>
-    private static ReadOnlySpan<char> StripPrefixFromLine(ReadOnlySpan<char> line)
-    {
+    private static ReadOnlySpan<char> StripPrefixFromLine(ReadOnlySpan<char> line) {
         var i = 0;
-        while (i < line.Length && line[i] == ' ')
-        {
+        while (i < line.Length && line[i] == ' ') {
             i++;
         }
 
         var digitStart = i;
-        while (i < line.Length && char.IsDigit(line[i]))
-        {
+        while (i < line.Length && char.IsDigit(line[i])) {
             i++;
         }
 
-        if (i == digitStart || i >= line.Length)
-        {
+        if (i == digitStart || i >= line.Length) {
             return line;
         }
 
@@ -537,8 +468,7 @@ public sealed class FileEditor
     /// <summary>
     /// Normalize curly quotes to straight quotes for matching.
     /// </summary>
-    private static string NormalizeQuotes(string str)
-    {
+    private static string NormalizeQuotes(string str) {
         if (str.IndexOfAny([LeftSingleCurlyQuote, RightSingleCurlyQuote, LeftDoubleCurlyQuote, RightDoubleCurlyQuote]) < 0)
             return str;
 
@@ -553,8 +483,7 @@ public sealed class FileEditor
     /// Preserve quote style: if the file uses curly quotes, apply them to new_string.
     /// Mirrors TS preserveQuoteStyle.
     /// </summary>
-    internal static string PreserveQuoteStyle(string oldString, string actualOldString, string newString)
-    {
+    internal static string PreserveQuoteStyle(string oldString, string actualOldString, string newString) {
         // If they're the same, no normalization happened
         if (oldString == actualOldString)
             return newString;
@@ -577,8 +506,7 @@ public sealed class FileEditor
         return result;
     }
 
-    private static bool IsOpeningContext(ReadOnlySpan<char> chars, int index)
-    {
+    private static bool IsOpeningContext(ReadOnlySpan<char> chars, int index) {
         if (index == 0)
             return true;
 
@@ -588,54 +516,41 @@ public sealed class FileEditor
             or '\u2013';  // en dash
     }
 
-    private static string ApplyCurlyDoubleQuotes(string str)
-    {
+    private static string ApplyCurlyDoubleQuotes(string str) {
         var chars = str.AsSpan();
         var result = new StringBuilder(str.Length);
-        for (var i = 0; i < chars.Length; i++)
-        {
-            if (chars[i] == '"')
-            {
+        for (var i = 0; i < chars.Length; i++) {
+            if (chars[i] == '"') {
                 result.Append(IsOpeningContext(chars, i)
                     ? LeftDoubleCurlyQuote
                     : RightDoubleCurlyQuote);
-            }
-            else
-            {
+            } else {
                 result.Append(chars[i]);
             }
         }
         return result.ToString();
     }
 
-    private static string ApplyCurlySingleQuotes(string str)
-    {
+    private static string ApplyCurlySingleQuotes(string str) {
         var chars = str.AsSpan();
         var result = new StringBuilder(str.Length);
-        for (var i = 0; i < chars.Length; i++)
-        {
-            if (chars[i] == '\'')
-            {
+        for (var i = 0; i < chars.Length; i++) {
+            if (chars[i] == '\'') {
                 // Don't convert apostrophes in contractions (e.g., "don't", "it's")
                 var prev = i > 0 ? chars[i - 1] : '\0';
                 var next = i < chars.Length - 1 ? chars[i + 1] : '\0';
                 var prevIsLetter = char.IsLetter(prev);
                 var nextIsLetter = char.IsLetter(next);
 
-                if (prevIsLetter && nextIsLetter)
-                {
+                if (prevIsLetter && nextIsLetter) {
                     // Apostrophe in a contraction — use right single curly quote
                     result.Append(RightSingleCurlyQuote);
-                }
-                else
-                {
+                } else {
                     result.Append(IsOpeningContext(chars, i)
                         ? LeftSingleCurlyQuote
                         : RightSingleCurlyQuote);
                 }
-            }
-            else
-            {
+            } else {
                 result.Append(chars[i]);
             }
         }
@@ -646,8 +561,7 @@ public sealed class FileEditor
     /// Strip trailing whitespace from each line. Mirrors TS stripTrailingWhitespace.
     /// Preserves line endings (CRLF, LF, CR).
     /// </summary>
-    internal static string StripTrailingWhitespace(string str)
-    {
+    internal static string StripTrailingWhitespace(string str) {
         if (string.IsNullOrEmpty(str))
             return str;
 
@@ -655,10 +569,8 @@ public sealed class FileEditor
         var result = new StringBuilder(str.Length);
         var lineStart = 0;
 
-        for (var i = 0; i < str.Length; i++)
-        {
-            if (str[i] == '\n' || str[i] == '\r')
-            {
+        for (var i = 0; i < str.Length; i++) {
+            if (str[i] == '\n' || str[i] == '\r') {
                 // Trim trailing whitespace from the line content
                 var lineEnd = i;
                 while (lineEnd > lineStart && char.IsWhiteSpace(str[lineEnd - 1]))
@@ -668,8 +580,7 @@ public sealed class FileEditor
 
                 // Preserve the line ending
                 result.Append(str[i]);
-                if (str[i] == '\r' && i + 1 < str.Length && str[i + 1] == '\n')
-                {
+                if (str[i] == '\r' && i + 1 < str.Length && str[i + 1] == '\n') {
                     result.Append('\n');
                     i++;
                 }
@@ -679,8 +590,7 @@ public sealed class FileEditor
         }
 
         // Handle last line (no trailing newline)
-        if (lineStart < str.Length)
-        {
+        if (lineStart < str.Length) {
             var lineEnd = str.Length;
             while (lineEnd > lineStart && char.IsWhiteSpace(str[lineEnd - 1]))
                 lineEnd--;
@@ -696,17 +606,14 @@ public sealed class FileEditor
     /// Mirrors TS desanitizeMatchString.
     /// Returns the desanitized string and the list of applied replacements.
     /// </summary>
-    internal static (string Result, (string From, string To)[] AppliedReplacements) DesanitizeMatchString(string matchString)
-    {
+    internal static (string Result, (string From, string To)[] AppliedReplacements) DesanitizeMatchString(string matchString) {
         var result = matchString;
         var applied = new List<(string From, string To)>();
 
-        foreach (var (from, to) in DesanitizationMap)
-        {
+        foreach (var (from, to) in DesanitizationMap) {
             var before = result;
             result = result.Replace(from, to);
-            if (before != result)
-            {
+            if (before != result) {
                 applied.Add((from, to));
             }
         }

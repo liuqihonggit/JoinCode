@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class ContextFoldThresholds
-{
+public sealed class ContextFoldThresholds {
     public double FoldThreshold { get; init; } = 0.5;
     public double AggressiveThreshold { get; init; } = 0.7;
     public double ForceSummaryThreshold { get; init; } = 0.8;

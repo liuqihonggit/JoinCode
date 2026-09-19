@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// Shell/PowerShell 工具名称枚举
 /// </summary>
-public enum ShellToolName
-{
+public enum ShellToolName {
     [EnumValue("bash")]
     [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
     Bash,

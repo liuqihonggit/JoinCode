@@ -6,8 +6,7 @@ namespace Core.Utils;
 /// <para>大规模 Actor 改造时，此接口是"发消息不关心具体 Actor 类型"的基础设施。</para>
 /// </summary>
 /// <typeparam name="TCommand">命令类型 — 建议用 record 或 sealed class</typeparam>
-public interface IActor<TCommand> : IAsyncDisposable
-{
+public interface IActor<TCommand> : IAsyncDisposable {
     /// <summary>Actor 唯一标识 — 用于日志和监控</summary>
     string Id { get; }
 

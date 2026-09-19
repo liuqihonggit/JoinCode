@@ -4,8 +4,7 @@ namespace McpToolDispatch;
 /// 简洁模式工具处理器 — 提供简洁模式开关、状态查询和用户消息发送功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Brief)]
-public class BriefToolHandlers
-{
+public class BriefToolHandlers {
     private readonly IBriefModeService _briefModeService;
     private readonly IBriefService? _briefService;
     private readonly IEntitlementService? _entitlementService;
@@ -16,8 +15,7 @@ public class BriefToolHandlers
     /// <param name="briefModeService">简洁模式服务</param>
     /// <param name="briefService">简洁消息服务（可选）</param>
     /// <param name="entitlementService">权益服务（可选）</param>
-    public BriefToolHandlers(IBriefModeService briefModeService, IBriefService? briefService = null, IEntitlementService? entitlementService = null)
-    {
+    public BriefToolHandlers(IBriefModeService briefModeService, IBriefService? briefService = null, IEntitlementService? entitlementService = null) {
         _briefModeService = briefModeService ?? throw new ArgumentNullException(nameof(briefModeService));
         _briefService = briefService;
         _entitlementService = entitlementService;
@@ -32,11 +30,9 @@ public class BriefToolHandlers
     [McpTool(SystemToolNameEnumConstants.BriefMode, "Enable or disable brief mode (compact output)", "mode")]
     public Task<ToolResult> BriefModeAsync(
         [McpToolParameter("true to enable, false to disable")] bool enabled,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 对齐 TS: Entitlement check only gates the on-transition — off is always allowed
-        if (enabled && _entitlementService is not null && !_entitlementService.IsBriefEntitled)
-        {
+        if (enabled && _entitlementService is not null && !_entitlementService.IsBriefEntitled) {
             return Task.FromResult(ToolResultBuilder.Error().WithText("Brief tool is not enabled for your account").Build());
         }
 
@@ -65,8 +61,7 @@ public class BriefToolHandlers
     /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameEnumConstants.BriefStatus, "Get current brief mode status", "mode")]
     public Task<ToolResult> BriefStatusAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var status = _briefModeService.GetStatus();
         var sb = new StringBuilder(128);
         sb.AppendLine($"Brief mode: {(status.IsEnabled ? "enabled" : "disabled")}");
@@ -90,11 +85,9 @@ public class BriefToolHandlers
         [McpToolParameter("The message for the user. Supports markdown formatting.")] string message,
         [McpToolParameter("Optional file paths to attach (photos, screenshots, diffs, logs)", Required = false)] string[]? attachments = null,
         [McpToolParameter("Use 'proactive' for unsolicited updates, 'normal' for replies", Required = false)] string? status = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 对齐 TS: isBriefEnabled() — 需要 entitlement + userMsgOptIn
-        if (_entitlementService is not null && !_entitlementService.IsBriefEnabled)
-        {
+        if (_entitlementService is not null && !_entitlementService.IsBriefEnabled) {
             return Task.FromResult(ToolResultBuilder.Error().WithText("Brief tool is not currently enabled").Build());
         }
 
@@ -104,17 +97,14 @@ public class BriefToolHandlers
         if (string.IsNullOrWhiteSpace(message))
             return Task.FromResult(ToolResultBuilder.Error().WithText("Message cannot be empty").Build());
 
-        if (attachments is not null)
-        {
-            foreach (var path in attachments)
-            {
+        if (attachments is not null) {
+            foreach (var path in attachments) {
                 if (string.IsNullOrWhiteSpace(path))
                     return Task.FromResult(ToolResultBuilder.Error().WithText("Attachment path cannot be empty").Build());
             }
         }
 
-        try
-        {
+        try {
             var messageStatus = MessageStatusExtensions.FromValue(status);
             var isProactive = messageStatus == MessageStatus.Proactive;
             var result = _briefService.FormatMessageWithPaths(message, attachments, isProactive);
@@ -125,9 +115,7 @@ public class BriefToolHandlers
             return Task.FromResult(ToolResultBuilder.Success()
                 .WithText($"Message delivered to user.{suffix}")
                 .Build());
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("brief", ex, null));
         }
     }

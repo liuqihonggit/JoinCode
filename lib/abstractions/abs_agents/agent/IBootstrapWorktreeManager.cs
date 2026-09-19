@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 /// <summary>
 /// 自举 worktree 管理器 — 为 Doctor 的自修改创建隔离的 git worktree
 /// </summary>
-public interface IBootstrapWorktreeManager
-{
+public interface IBootstrapWorktreeManager {
     /// <summary>
     /// 创建 Doctor 专属 worktree
     /// </summary>

@@ -3,19 +3,16 @@ namespace Tui.Tests.Pipes;
 /// <summary>
 /// PipeRegistry 单元测试 — 验证注册、注销、获取、主管道查找。
 /// </summary>
-public class PipeRegistryTests
-{
+public class PipeRegistryTests {
     [Fact]
-    public void Register_IncreasesCount()
-    {
+    public void Register_IncreasesCount() {
         var registry = new PipeRegistry();
         registry.Register(new MessagePipe("main", "Main", isMain: true));
         Assert.Equal(1, registry.Count);
     }
 
     [Fact]
-    public void Register_DuplicateId_Overwrites()
-    {
+    public void Register_DuplicateId_Overwrites() {
         var registry = new PipeRegistry();
         registry.Register(new MessagePipe("agent1", "Agent One"));
         registry.Register(new MessagePipe("agent1", "Agent One Updated"));
@@ -24,8 +21,7 @@ public class PipeRegistryTests
     }
 
     [Fact]
-    public void Unregister_RemovesPipe()
-    {
+    public void Unregister_RemovesPipe() {
         var registry = new PipeRegistry();
         registry.Register(new MessagePipe("agent1", "Agent One"));
         Assert.True(registry.Unregister("agent1"));
@@ -34,22 +30,19 @@ public class PipeRegistryTests
     }
 
     [Fact]
-    public void Unregister_NonExistent_ReturnsFalse()
-    {
+    public void Unregister_NonExistent_ReturnsFalse() {
         var registry = new PipeRegistry();
         Assert.False(registry.Unregister("nonexistent"));
     }
 
     [Fact]
-    public void Get_NonExistent_ReturnsNull()
-    {
+    public void Get_NonExistent_ReturnsNull() {
         var registry = new PipeRegistry();
         Assert.Null(registry.Get("nonexistent"));
     }
 
     [Fact]
-    public void MainPipe_ReturnsMainAgentPipe()
-    {
+    public void MainPipe_ReturnsMainAgentPipe() {
         var registry = new PipeRegistry();
         registry.Register(new MessagePipe("sub1", "Sub One"));
         registry.Register(new MessagePipe("main", "Main", isMain: true));
@@ -62,16 +55,14 @@ public class PipeRegistryTests
     }
 
     [Fact]
-    public void MainPipe_NoMainRegistered_ReturnsNull()
-    {
+    public void MainPipe_NoMainRegistered_ReturnsNull() {
         var registry = new PipeRegistry();
         registry.Register(new MessagePipe("sub1", "Sub One"));
         Assert.Null(registry.MainPipe);
     }
 
     [Fact]
-    public void All_ReturnsAllPipes()
-    {
+    public void All_ReturnsAllPipes() {
         var registry = new PipeRegistry();
         registry.Register(new MessagePipe("a1", "Agent 1"));
         registry.Register(new MessagePipe("a2", "Agent 2"));
@@ -80,8 +71,7 @@ public class PipeRegistryTests
     }
 
     [Fact]
-    public void Clear_RemovesAllPipes()
-    {
+    public void Clear_RemovesAllPipes() {
         var registry = new PipeRegistry();
         registry.Register(new MessagePipe("a1", "Agent 1"));
         registry.Register(new MessagePipe("a2", "Agent 2"));
@@ -90,8 +80,7 @@ public class PipeRegistryTests
     }
 
     [Fact]
-    public void Contains_ReturnsTrueForRegistered()
-    {
+    public void Contains_ReturnsTrueForRegistered() {
         var registry = new PipeRegistry();
         registry.Register(new MessagePipe("a1", "Agent 1"));
         Assert.True(registry.Contains("a1"));

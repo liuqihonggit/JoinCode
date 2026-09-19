@@ -4,8 +4,7 @@ namespace Services.Voice;
 /// <summary>
 /// 语音服务接口 — 提供音频录制、停止、转录等能力。
 /// </summary>
-public interface IVoiceService
-{
+public interface IVoiceService {
     /// <summary>
     /// 异步开始录制音频。
     /// </summary>
@@ -53,4 +52,3 @@ public interface IVoiceService
     /// </summary>
     event EventHandler<VoiceRecordingState>? StateChanged;
 }
-

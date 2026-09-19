@@ -1,10 +1,8 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class ContentHashTests
-{
+public sealed class ContentHashTests {
     [Fact]
-    public void ComputeContentHash_String_Empty_ReturnsKnownSha256()
-    {
+    public void ComputeContentHash_String_Empty_ReturnsKnownSha256() {
         var hash = HashUtility.ComputeContentHash(string.Empty);
 
         Assert.Equal(64, hash.Length);
@@ -12,8 +10,7 @@ public sealed class ContentHashTests
     }
 
     [Fact]
-    public void ComputeContentHash_String_KnownContent_IsDeterministic()
-    {
+    public void ComputeContentHash_String_KnownContent_IsDeterministic() {
         var hash1 = HashUtility.ComputeContentHash("hello world");
         var hash2 = HashUtility.ComputeContentHash("hello world");
 
@@ -22,8 +19,7 @@ public sealed class ContentHashTests
     }
 
     [Fact]
-    public void ComputeContentHash_String_DifferentContent_DifferentHash()
-    {
+    public void ComputeContentHash_String_DifferentContent_DifferentHash() {
         var hash1 = HashUtility.ComputeContentHash("a");
         var hash2 = HashUtility.ComputeContentHash("b");
 
@@ -31,8 +27,7 @@ public sealed class ContentHashTests
     }
 
     [Fact]
-    public void ComputeContentHash_Utf8Span_MatchesStringHash()
-    {
+    public void ComputeContentHash_Utf8Span_MatchesStringHash() {
         var content = "hello world";
         var bytes = System.Text.Encoding.UTF8.GetBytes(content);
 
@@ -43,8 +38,7 @@ public sealed class ContentHashTests
     }
 
     [Fact]
-    public async Task ReadFileAndComputeHashAsync_ExistingFile_ReturnsContentAndHash()
-    {
+    public async Task ReadFileAndComputeHashAsync_ExistingFile_ReturnsContentAndHash() {
         var fs = new InMemoryFileSystem();
         fs.WriteAllText("/tmp/sample.cs", "public class Foo { }");
 
@@ -55,8 +49,7 @@ public sealed class ContentHashTests
     }
 
     [Fact]
-    public void ComputeContentHash_NullString_Throws()
-    {
+    public void ComputeContentHash_NullString_Throws() {
         Assert.Throws<ArgumentNullException>(() => HashUtility.ComputeContentHash((string)null!));
     }
 }

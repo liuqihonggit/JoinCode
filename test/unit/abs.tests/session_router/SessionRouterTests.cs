@@ -1,16 +1,13 @@
 namespace Abs.Tests.SessionRouterTests;
 
 [Collection(nameof(SessionRouterCollection))]
-public sealed class SessionRouterTests
-{
-    public SessionRouterTests()
-    {
+public sealed class SessionRouterTests {
+    public SessionRouterTests() {
         SessionRouter.Clear();
     }
 
     [Fact]
-    public void GetOrCreateScope_相同SessionId_返回同一实例()
-    {
+    public void GetOrCreateScope_相同SessionId_返回同一实例() {
         var sessionId = new ObjectId(ObjectType.Session);
 
         var scope1 = SessionRouter.GetOrCreateScope(sessionId);
@@ -21,8 +18,7 @@ public sealed class SessionRouterTests
     }
 
     [Fact]
-    public void GetOrCreateScope_不同SessionId_返回不同实例()
-    {
+    public void GetOrCreateScope_不同SessionId_返回不同实例() {
         var sessionId1 = new ObjectId(ObjectType.Session);
         var sessionId2 = new ObjectId(ObjectType.Session);
 
@@ -34,8 +30,7 @@ public sealed class SessionRouterTests
     }
 
     [Fact]
-    public void Resolve_跨会话跳转_可获取()
-    {
+    public void Resolve_跨会话跳转_可获取() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         using var goal = new Goal("测试目标");
@@ -48,8 +43,7 @@ public sealed class SessionRouterTests
     }
 
     [Fact]
-    public void Resolve_跨会话隔离_不可见()
-    {
+    public void Resolve_跨会话隔离_不可见() {
         var sessionIdA = new ObjectId(ObjectType.Session);
         var sessionIdB = new ObjectId(ObjectType.Session);
         var scopeA = SessionRouter.GetOrCreateScope(sessionIdA);
@@ -68,8 +62,7 @@ public sealed class SessionRouterTests
     }
 
     [Fact]
-    public void Resolve_会话不存在_返回null()
-    {
+    public void Resolve_会话不存在_返回null() {
         var sessionId = new ObjectId(ObjectType.Session);
         var entityId = new ObjectId(ObjectType.Goal);
 
@@ -77,8 +70,7 @@ public sealed class SessionRouterTests
     }
 
     [Fact]
-    public void RemoveScope_清理其所有Entity()
-    {
+    public void RemoveScope_清理其所有Entity() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         var goal1 = new Goal("目标1", sessionId: sessionId);
@@ -93,15 +85,13 @@ public sealed class SessionRouterTests
     }
 
     [Fact]
-    public void RemoveScope_不存在_返回False()
-    {
+    public void RemoveScope_不存在_返回False() {
         var sessionId = new ObjectId(ObjectType.Session);
         SessionRouter.RemoveScope(sessionId).Should().BeFalse();
     }
 
     [Fact]
-    public void GetAllScopes_遍历所有会话()
-    {
+    public void GetAllScopes_遍历所有会话() {
         var sessionId1 = new ObjectId(ObjectType.Session);
         var sessionId2 = new ObjectId(ObjectType.Session);
         SessionRouter.GetOrCreateScope(sessionId1);
@@ -111,8 +101,7 @@ public sealed class SessionRouterTests
     }
 
     [Fact]
-    public void TryGetScope_存在_返回True()
-    {
+    public void TryGetScope_存在_返回True() {
         var sessionId = new ObjectId(ObjectType.Session);
         SessionRouter.GetOrCreateScope(sessionId);
 
@@ -121,16 +110,14 @@ public sealed class SessionRouterTests
     }
 
     [Fact]
-    public void TryGetScope_不存在_返回False()
-    {
+    public void TryGetScope_不存在_返回False() {
         var sessionId = new ObjectId(ObjectType.Session);
         SessionRouter.TryGetScope(sessionId, out var scope).Should().BeFalse();
         scope.Should().BeNull();
     }
 
     [Fact]
-    public void GetOrCreateScope_空SessionId_抛ArgumentException()
-    {
+    public void GetOrCreateScope_空SessionId_抛ArgumentException() {
         var act = () => SessionRouter.GetOrCreateScope(ObjectId.Empty);
         act.Should().Throw<ArgumentException>();
     }

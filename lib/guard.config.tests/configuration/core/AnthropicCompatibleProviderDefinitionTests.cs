@@ -10,18 +10,14 @@ namespace Guard.Tests.Configuration;
 /// - API Key 环境变量从构造参数读取,不硬编码回退到 ANTHROPIC_API_KEY
 /// - 认证头用 Anthropic 协议(x-api-key + anthropic-version),这是协议固有,与供应商无关
 /// </summary>
-public class AnthropicCompatibleProviderDefinitionTests : IDisposable
-{
+public class AnthropicCompatibleProviderDefinitionTests : IDisposable {
     private readonly ModelConfigLoader _modelConfigLoader;
     private bool _disposed;
 
-    public AnthropicCompatibleProviderDefinitionTests()
-    {
+    public AnthropicCompatibleProviderDefinitionTests() {
         _modelConfigLoader = new ModelConfigLoader();
-        _modelConfigLoader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["deepseek"] = new ModelProviderConfig
-            {
+        _modelConfigLoader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase) {
+            ["deepseek"] = new ModelProviderConfig {
                 DefaultModelId = "deepseek-v4-pro",
                 DefaultFastModelId = "deepseek-v4-flash",
                 Models =
@@ -37,8 +33,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
                     }
                 ]
             },
-            ["anthropic"] = new ModelProviderConfig
-            {
+            ["anthropic"] = new ModelProviderConfig {
                 DefaultModelId = "claude-sonnet-4-5",
                 DefaultFastModelId = "claude-haiku-4-5",
                 Models =
@@ -57,8 +52,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
         });
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         GC.SuppressFinalize(this);
@@ -67,8 +61,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     #region 供应商身份保持验证(核心:不硬编码 Anthropic)
 
     [Fact]
-    public void ConstructedWithDeepSeek_Vendor_ShouldBeDeepSeek_NotAnthropic()
-    {
+    public void ConstructedWithDeepSeek_Vendor_ShouldBeDeepSeek_NotAnthropic() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
 
         definition.Vendor.Should().Be(VendorKind.DeepSeek,
@@ -76,8 +69,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void ConstructedWithDeepSeek_DisplayName_ShouldBeDeepSeek()
-    {
+    public void ConstructedWithDeepSeek_DisplayName_ShouldBeDeepSeek() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
 
         definition.DisplayName.Should().Be("deepseek",
@@ -85,16 +77,14 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void ConstructedWithDeepSeek_ProviderName_ShouldBeDeepSeek()
-    {
+    public void ConstructedWithDeepSeek_ProviderName_ShouldBeDeepSeek() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
 
         definition.ProviderName.Should().Be("deepseek");
     }
 
     [Fact]
-    public void ConstructedWithAnthropic_Vendor_ShouldBeAnthropic()
-    {
+    public void ConstructedWithAnthropic_Vendor_ShouldBeAnthropic() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "anthropic", "ANTHROPIC_API_KEY");
 
         definition.Vendor.Should().Be(VendorKind.Anthropic,
@@ -102,8 +92,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void ConstructedWithDeepSeek_Protocol_ShouldBeAnthropic()
-    {
+    public void ConstructedWithDeepSeek_Protocol_ShouldBeAnthropic() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
 
         definition.Protocol.Should().Be(ProtocolKind.Anthropic,
@@ -115,8 +104,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     #region 端点配置验证(配置大于代码)
 
     [Fact]
-    public void GetBaseUrl_WithEndpoint_ShouldUseConfiguredEndpoint()
-    {
+    public void GetBaseUrl_WithEndpoint_ShouldUseConfiguredEndpoint() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var config = new ProviderConfig { Endpoint = "https://api.deepseek.com/anthropic" };
 
@@ -127,8 +115,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void GetBaseUrl_WithCustomEndpoint_ShouldUseCustomEndpoint()
-    {
+    public void GetBaseUrl_WithCustomEndpoint_ShouldUseCustomEndpoint() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var config = new ProviderConfig { Endpoint = "https://custom.example.com/anthropic" };
 
@@ -138,8 +125,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void GetBaseUrl_WithoutEndpoint_ForAnthropic_ShouldReturnAnthropicOfficial()
-    {
+    public void GetBaseUrl_WithoutEndpoint_ForAnthropic_ShouldReturnAnthropicOfficial() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "anthropic", "ANTHROPIC_API_KEY");
         var config = new ProviderConfig { Endpoint = null };
 
@@ -150,8 +136,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void GetBaseUrl_WithoutEndpoint_ForDeepSeek_ShouldThrow()
-    {
+    public void GetBaseUrl_WithoutEndpoint_ForDeepSeek_ShouldThrow() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var config = new ProviderConfig { Endpoint = null };
 
@@ -162,8 +147,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void GetChatEndpoint_ShouldReturnV1Messages()
-    {
+    public void GetChatEndpoint_ShouldReturnV1Messages() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var config = new ProviderConfig { Endpoint = "https://api.deepseek.com/anthropic" };
 
@@ -174,8 +158,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void FullUrl_Composition_ForDeepSeekAnthropicProtocol_ShouldBeDeepSeekAnthropicMessages()
-    {
+    public void FullUrl_Composition_ForDeepSeekAnthropicProtocol_ShouldBeDeepSeekAnthropicMessages() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var config = new ProviderConfig { Endpoint = "https://api.deepseek.com/anthropic" };
 
@@ -192,8 +175,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     #region HttpClient 配置验证(Anthropic 协议认证头)
 
     [Fact]
-    public void ConfigureHttpClient_ShouldAddXApiKeyHeader()
-    {
+    public void ConfigureHttpClient_ShouldAddXApiKeyHeader() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var config = new ProviderConfig { ApiKey = "sk-deepseek-test" };
         using var client = new HttpClient();
@@ -206,8 +188,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void ConfigureHttpClient_ShouldAddAnthropicVersionHeader()
-    {
+    public void ConfigureHttpClient_ShouldAddAnthropicVersionHeader() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var config = new ProviderConfig { ApiKey = "sk-test" };
         using var client = new HttpClient();
@@ -220,8 +201,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void ConfigureHttpClient_WithEmptyApiKey_ShouldNotAddHeaders()
-    {
+    public void ConfigureHttpClient_WithEmptyApiKey_ShouldNotAddHeaders() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var config = new ProviderConfig { ApiKey = "" };
         using var client = new HttpClient();
@@ -236,8 +216,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     #region API Key 解析验证(不硬编码回退 ANTHROPIC_API_KEY)
 
     [Fact]
-    public void ApiKeyEnvironmentVariable_ShouldBeFromConstructor()
-    {
+    public void ApiKeyEnvironmentVariable_ShouldBeFromConstructor() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
 
         definition.ApiKeyEnvironmentVariable.Should().Be("DEEPSEEK_API_KEY",
@@ -245,32 +224,26 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void ResolveApiKeyFromEnv_WithCustomEnvVar_ShouldReturnIt()
-    {
+    public void ResolveApiKeyFromEnv_WithCustomEnvVar_ShouldReturnIt() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var oldValue = Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
-        try
-        {
+        try {
             Environment.SetEnvironmentVariable("DEEPSEEK_API_KEY", "sk-from-deepseek-env");
 
             var apiKey = definition.ResolveApiKeyFromEnv();
 
             apiKey.Should().Be("sk-from-deepseek-env");
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("DEEPSEEK_API_KEY", oldValue);
         }
     }
 
     [Fact]
-    public void ResolveApiKeyFromEnv_WithoutEnvVar_ShouldReturnNull()
-    {
+    public void ResolveApiKeyFromEnv_WithoutEnvVar_ShouldReturnNull() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var oldValue = Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
         var oldAnthropicKey = Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
-        try
-        {
+        try {
             Environment.SetEnvironmentVariable("DEEPSEEK_API_KEY", null);
             Environment.SetEnvironmentVariable("ANTHROPIC_API_KEY", null);
 
@@ -278,9 +251,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
 
             apiKey.Should().BeNull(
                 "DeepSeek 的 key 未设时不应回退到 ANTHROPIC_API_KEY");
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("DEEPSEEK_API_KEY", oldValue);
             Environment.SetEnvironmentVariable("ANTHROPIC_API_KEY", oldAnthropicKey);
         }
@@ -291,8 +262,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     #region 模型能力验证(从 providerName 查询,不硬编码)
 
     [Fact]
-    public void ConstructedWithDeepSeek_DefaultModelId_ShouldBeDeepSeekV4Pro()
-    {
+    public void ConstructedWithDeepSeek_DefaultModelId_ShouldBeDeepSeekV4Pro() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
 
         definition.DefaultModelId.Should().Be("deepseek-v4-pro",
@@ -300,16 +270,14 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void ConstructedWithDeepSeek_AvailableModels_ShouldNotBeEmpty()
-    {
+    public void ConstructedWithDeepSeek_AvailableModels_ShouldNotBeEmpty() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
 
         definition.AvailableModels.Should().NotBeEmpty();
     }
 
     [Fact]
-    public void ConstructedWithDeepSeek_SupportsThinkingMode_ShouldReturnTrue()
-    {
+    public void ConstructedWithDeepSeek_SupportsThinkingMode_ShouldReturnTrue() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
 
         definition.SupportsThinkingMode("deepseek-v4-pro").Should().BeTrue();
@@ -320,8 +288,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     #region 配置有效性验证
 
     [Fact]
-    public void IsValid_WithApiKey_ShouldReturnTrue()
-    {
+    public void IsValid_WithApiKey_ShouldReturnTrue() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var config = new ProviderConfig { ApiKey = "sk-test" };
 
@@ -329,8 +296,7 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void IsValid_WithEmptyApiKey_ShouldReturnFalse()
-    {
+    public void IsValid_WithEmptyApiKey_ShouldReturnFalse() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
         var config = new ProviderConfig { ApiKey = "" };
 

@@ -67,6 +67,5 @@ namespace McpProtocol.Contracts;
     AllowTrailingCommas = true,
     ReadCommentHandling = JsonCommentHandling.Skip,
     PropertyNameCaseInsensitive = true)]
-public partial class McpJsonContext : JsonSerializerContext
-{
+public partial class McpJsonContext : JsonSerializerContext {
 }

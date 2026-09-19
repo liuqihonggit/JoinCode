@@ -3,12 +3,10 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// AC-07 detect+click mock 完整链路测试 — 验证识别到按钮后推荐 click，点击后推荐 look
 /// </summary>
-public sealed class DesktopSceneDetectClickTests
-{
+public sealed class DesktopSceneDetectClickTests {
     /// <summary>AC-07: detect 识别到"="按钮后 suggested_next 含 desktop_click</summary>
     [Fact]
-    public async Task Detect_FindsEqualsButton_SuggestsClick()
-    {
+    public async Task Detect_FindsEqualsButton_SuggestsClick() {
         var detectMock = new Mock<IDesktopSceneDetectService>();
         detectMock.Setup(d => d.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopSceneDetection("sc_calc", [
@@ -30,8 +28,7 @@ public sealed class DesktopSceneDetectClickTests
 
     /// <summary>AC-07: detect 识别到输入框后 suggested_next 含 desktop_type</summary>
     [Fact]
-    public async Task Detect_FindsInput_SuggestsType()
-    {
+    public async Task Detect_FindsInput_SuggestsType() {
         var detectMock = new Mock<IDesktopSceneDetectService>();
         detectMock.Setup(d => d.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopSceneDetection("sc_form", [
@@ -48,8 +45,7 @@ public sealed class DesktopSceneDetectClickTests
 
     /// <summary>AC-07: click 成功后 suggested_next 含 desktop_look</summary>
     [Fact]
-    public async Task Click_Succeeds_SuggestsLook()
-    {
+    public async Task Click_Succeeds_SuggestsLook() {
         var inputMock = new Mock<IDesktopInputService>();
         inputMock.Setup(i => i.ClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<MouseAction>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopOperation(DesktopOperationKind.Click, 500, 300, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null));
@@ -72,8 +68,7 @@ public sealed class DesktopSceneDetectClickTests
 
     /// <summary>AC-07: click 失败（危险坐标拦截）后 suggested_next 含 desktop_look 重新确认</summary>
     [Fact]
-    public async Task Click_BlockedBySafety_SuggestsLookToRetry()
-    {
+    public async Task Click_BlockedBySafety_SuggestsLookToRetry() {
         var inputMock = new Mock<IDesktopInputService>();
         inputMock.Setup(i => i.ClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<MouseAction>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopOperation(DesktopOperationKind.Click, 0, 1080, null, MouseAction.Click, null, DateTimeOffset.UtcNow, false, "DangerousCoordinate"));
@@ -94,8 +89,7 @@ public sealed class DesktopSceneDetectClickTests
 
     /// <summary>AC-07: 完整链路 mock — look → zoom → detect → click 全链路 suggested_next 串联</summary>
     [Fact]
-    public async Task FullChain_LookZoomDetectClick_SuggestedNextChain()
-    {
+    public async Task FullChain_LookZoomDetectClick_SuggestedNextChain() {
         var captureMock = new Mock<IDesktopSceneCaptureService>();
         captureMock.Setup(c => c.CaptureWithGridAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopSceneCapture("fake", "fake", 1920, 1080, 2));

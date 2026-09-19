@@ -1,25 +1,21 @@
 namespace Infrastructure.Tests.Services;
 
-public sealed class PdfPageRendererTests
-{
+public sealed class PdfPageRendererTests {
     private static readonly IFileSystem PhysicalFs = new PhysicalFileSystem();
 
-    private static string GetTestPdfPath()
-    {
+    private static string GetTestPdfPath() {
         // 使用预生成的 3 页测试 PDF（QuestPDF 生成，PDFium 可正确解析）
         var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "test_data", "test-3page.pdf");
         return PhysicalFs.FileExists(path) ? path : throw new FileNotFoundException($"Test PDF not found: {path}");
     }
 
     [Fact]
-    public void IsAvailable_ReturnsTrue()
-    {
+    public void IsAvailable_ReturnsTrue() {
         PdfPageRenderer.IsAvailable().Should().BeTrue();
     }
 
     [Fact]
-    public async Task ExtractPagesAsync_NonExistentFile_ReturnsFail()
-    {
+    public async Task ExtractPagesAsync_NonExistentFile_ReturnsFail() {
         var result = await PdfPageRenderer.ExtractPagesAsync(
             Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.pdf"),
             PhysicalFs).ConfigureAwait(true);
@@ -29,25 +25,20 @@ public sealed class PdfPageRendererTests
     }
 
     [Fact]
-    public async Task ExtractPagesAsync_EmptyFile_ReturnsFail()
-    {
+    public async Task ExtractPagesAsync_EmptyFile_ReturnsFail() {
         var tempFile = Path.Combine(Path.GetTempPath(), $"empty_{Guid.NewGuid()}.pdf");
-        try
-        {
+        try {
             await PhysicalFs.WriteAllTextAsync(tempFile, "").ConfigureAwait(true);
             var result = await PdfPageRenderer.ExtractPagesAsync(tempFile, PhysicalFs).ConfigureAwait(true);
             result.Success.Should().BeFalse();
             result.ErrorReason.Should().Be("empty");
-        }
-        finally
-        {
+        } finally {
             if (PhysicalFs.FileExists(tempFile)) PhysicalFs.DeleteFile(tempFile);
         }
     }
 
     [Fact]
-    public async Task ExtractPagesAsync_ValidPdf_ExtractsAllPages()
-    {
+    public async Task ExtractPagesAsync_ValidPdf_ExtractsAllPages() {
         var result = await PdfPageRenderer.ExtractPagesAsync(
             GetTestPdfPath(), PhysicalFs).ConfigureAwait(true);
 
@@ -58,8 +49,7 @@ public sealed class PdfPageRendererTests
         result.OriginalSize.Should().BeGreaterThan(0);
 
         // 每页应有有效的 JPEG 数据
-        foreach (var page in result.Pages)
-        {
+        foreach (var page in result.Pages) {
             page.JpegBytes.Length.Should().BeGreaterThan(0);
             page.Width.Should().BeGreaterThan(0);
             page.Height.Should().BeGreaterThan(0);
@@ -71,8 +61,7 @@ public sealed class PdfPageRendererTests
     }
 
     [Fact]
-    public async Task ExtractPagesAsync_WithPageRange_ExtractsOnlySpecifiedPages()
-    {
+    public async Task ExtractPagesAsync_WithPageRange_ExtractsOnlySpecifiedPages() {
         var result = await PdfPageRenderer.ExtractPagesAsync(
             GetTestPdfPath(), PhysicalFs, firstPage: 2, lastPage: 2).ConfigureAwait(true);
 
@@ -84,8 +73,7 @@ public sealed class PdfPageRendererTests
     }
 
     [Fact]
-    public async Task ExtractPagesAsync_PageOutOfRange_ReturnsFail()
-    {
+    public async Task ExtractPagesAsync_PageOutOfRange_ReturnsFail() {
         var result = await PdfPageRenderer.ExtractPagesAsync(
             GetTestPdfPath(), PhysicalFs, firstPage: 99).ConfigureAwait(true);
 
@@ -94,8 +82,7 @@ public sealed class PdfPageRendererTests
     }
 
     [Fact]
-    public async Task ExtractPagesAsync_PageNumbers_AreOneIndexed()
-    {
+    public async Task ExtractPagesAsync_PageNumbers_AreOneIndexed() {
         var result = await PdfPageRenderer.ExtractPagesAsync(
             GetTestPdfPath(), PhysicalFs).ConfigureAwait(true);
 
@@ -106,8 +93,7 @@ public sealed class PdfPageRendererTests
     }
 
     [Fact]
-    public async Task ExtractPagesAsync_WithFirstPageOnly_ExtractsOnePage()
-    {
+    public async Task ExtractPagesAsync_WithFirstPageOnly_ExtractsOnePage() {
         var result = await PdfPageRenderer.ExtractPagesAsync(
             GetTestPdfPath(), PhysicalFs, firstPage: 1, lastPage: 1).ConfigureAwait(true);
 

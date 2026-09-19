@@ -4,8 +4,7 @@ namespace JoinCode.Hands.Desktop;
 /// 桌面场景截图编排服务实现 — 截图 + 四叉树网格构建 + 网格叠加渲染 + 状态持久化
 /// </summary>
 [Register(typeof(IDesktopSceneCaptureService), ServiceLifetime.Singleton)]
-public sealed class DesktopSceneCaptureService : ServiceEntity, IDesktopSceneCaptureService
-{
+public sealed class DesktopSceneCaptureService : ServiceEntity, IDesktopSceneCaptureService {
     private readonly IScreenCaptureService _screenCapture;
     private readonly IQuadtreeAnnotator _annotator;
     private readonly IQuadtreeRenderer _renderer;
@@ -20,8 +19,7 @@ public sealed class DesktopSceneCaptureService : ServiceEntity, IDesktopSceneCap
         IQuadtreeAnnotator annotator,
         IQuadtreeRenderer renderer,
         IDesktopSceneStateStore stateStore,
-        IFileSystem fileSystem)
-    {
+        IFileSystem fileSystem) {
         _screenCapture = screenCapture ?? throw new ArgumentNullException(nameof(screenCapture));
         _annotator = annotator ?? throw new ArgumentNullException(nameof(annotator));
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
@@ -32,8 +30,7 @@ public sealed class DesktopSceneCaptureService : ServiceEntity, IDesktopSceneCap
     /// <summary>
     /// 全屏截图并构建四叉树网格叠加渲染图，同时持久化场景状态
     /// </summary>
-    public async Task<DesktopSceneCapture> CaptureWithGridAsync(string sceneId, int depth = 2, CancellationToken cancellationToken = default)
-    {
+    public async Task<DesktopSceneCapture> CaptureWithGridAsync(string sceneId, int depth = 2, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNullOrWhiteSpace(sceneId);
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         if (!env.IsInteractive)
@@ -55,8 +52,7 @@ public sealed class DesktopSceneCaptureService : ServiceEntity, IDesktopSceneCap
         return new DesktopSceneCapture(screenshotBase64, renderResult.RenderedBase64, width, height, depth);
     }
 
-    private async Task<string> SaveScreenshotAsync(string sceneId, string base64, CancellationToken ct)
-    {
+    private async Task<string> SaveScreenshotAsync(string sceneId, string base64, CancellationToken ct) {
         var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jcc", "scenarios");
         if (!_fileSystem.DirectoryExists(dir))
             _fileSystem.CreateDirectory(dir);
@@ -69,13 +65,11 @@ public sealed class DesktopSceneCaptureService : ServiceEntity, IDesktopSceneCap
 /// <summary>
 /// PNG 头解析器 — 从 base64 PNG 提取宽高（无需图像库依赖）
 /// </summary>
-internal static class PngHeaderParser
-{
+internal static class PngHeaderParser {
     /// <summary>
     /// 从 base64 PNG 解析图片尺寸（PNG IHDR chunk 偏移 16-23 字节）
     /// </summary>
-    public static (int Width, int Height) ParseDimensions(string base64Png)
-    {
+    public static (int Width, int Height) ParseDimensions(string base64Png) {
         var bytes = Convert.FromBase64String(base64Png);
         if (bytes.Length < 24 || bytes[0] != 0x89 || bytes[1] != 0x50)
             throw new ArgumentException("无效 PNG 数据", nameof(base64Png));

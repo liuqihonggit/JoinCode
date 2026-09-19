@@ -1,13 +1,11 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
-public abstract class JsonRpcMessage
-{
+public abstract class JsonRpcMessage {
     [JsonPropertyName("jsonrpc")]
     public string JsonRpc { get; set; } = "2.0";
 }
 
-public class JsonRpcRequest : JsonRpcMessage
-{
+public class JsonRpcRequest : JsonRpcMessage {
     [JsonPropertyName("id")]
     public JsonRpcId Id { get; set; }
 
@@ -18,8 +16,7 @@ public class JsonRpcRequest : JsonRpcMessage
     public JsonElement? Params { get; set; }
 }
 
-public class JsonRpcResponse : JsonRpcMessage
-{
+public class JsonRpcResponse : JsonRpcMessage {
     [JsonPropertyName("id")]
     public JsonRpcId Id { get; set; }
 
@@ -32,8 +29,7 @@ public class JsonRpcResponse : JsonRpcMessage
     public JsonRpcError? Error { get; set; }
 }
 
-public class JsonRpcError
-{
+public class JsonRpcError {
     [JsonPropertyName("code")]
     public int Code { get; set; }
 
@@ -44,8 +40,7 @@ public class JsonRpcError
     public JsonElement? Data { get; set; }
 }
 
-public class JsonRpcNotification : JsonRpcMessage
-{
+public class JsonRpcNotification : JsonRpcMessage {
     [JsonPropertyName("method")]
     public string Method { get; set; } = string.Empty;
 

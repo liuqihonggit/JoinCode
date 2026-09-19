@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 通过 settings.json 的 update.sourceType 或 JCC_UPDATE_SOURCE_TYPE 环境变量配置
 /// > ADR: 0064
 /// </summary>
-public enum UpdateSourceType
-{
+public enum UpdateSourceType {
     /// <summary>
     /// 静态文件托管 — 服务器只托管 manifest.json + exe 二进制，无服务端逻辑
     /// </summary>

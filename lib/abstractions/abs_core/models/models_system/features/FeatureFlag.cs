@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Features;
 
-public sealed class FeatureFlag
-{
+public sealed class FeatureFlag {
     public required string Key { get; init; }
     public bool Enabled { get; init; }
     public double RolloutPercentage { get; init; }

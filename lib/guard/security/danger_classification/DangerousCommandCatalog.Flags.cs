@@ -4,12 +4,9 @@ namespace Core.Security.DangerClassification;
 /// 参数、组合、路径映射表构建 — 危险参数和危险组合的统一定义
 /// 5级分级: 黄灯=未知, 绿灯=可撤回, 红灯=不可撤回, 黑灯=直接拒绝
 /// </summary>
-public static partial class DangerousCommandCatalog
-{
-    private static FrozenDictionary<string, FlagEntry> BuildFlags()
-    {
-        var entries = new Dictionary<string, FlagEntry>(StringComparer.OrdinalIgnoreCase)
-        {
+public static partial class DangerousCommandCatalog {
+    private static FrozenDictionary<string, FlagEntry> BuildFlags() {
+        var entries = new Dictionary<string, FlagEntry>(StringComparer.OrdinalIgnoreCase) {
             // 递归操作 — Execution（不可撤回）
             ["-r"] = new("-r", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回"),
             ["-R"] = new("-R", CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归操作 — 不可撤回"),
@@ -46,8 +43,7 @@ public static partial class DangerousCommandCatalog
         return entries.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static IReadOnlyList<CombinationEntry> BuildCombinations()
-    {
+    private static IReadOnlyList<CombinationEntry> BuildCombinations() {
         var hardcoded = new List<CombinationEntry>
         {
             // === Dangerous（直接拒绝）— 格式化系统盘/直接写入块设备/清盘 ===
@@ -99,10 +95,8 @@ public static partial class DangerousCommandCatalog
         return [.. hardcoded, .. pipeToInterpreters];
     }
 
-    private static FrozenDictionary<string, CommandDangerLevel> BuildDangerousPaths()
-    {
-        var entries = new Dictionary<string, CommandDangerLevel>(StringComparer.OrdinalIgnoreCase)
-        {
+    private static FrozenDictionary<string, CommandDangerLevel> BuildDangerousPaths() {
+        var entries = new Dictionary<string, CommandDangerLevel>(StringComparer.OrdinalIgnoreCase) {
             // Dangerous — 根目录/系统盘/通配符根（直接拒绝）
             ["/"] = CommandDangerLevel.Dangerous,
             ["C:\\"] = CommandDangerLevel.Dangerous,
@@ -133,10 +127,8 @@ public static partial class DangerousCommandCatalog
         return entries.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static FrozenDictionary<CommandRisk, CommandDangerLevel> BuildRiskToLevelMap()
-    {
-        return new Dictionary<CommandRisk, CommandDangerLevel>
-        {
+    private static FrozenDictionary<CommandRisk, CommandDangerLevel> BuildRiskToLevelMap() {
+        return new Dictionary<CommandRisk, CommandDangerLevel> {
             [CommandRisk.None] = CommandDangerLevel.Safe,
             [CommandRisk.FileDeletion] = CommandDangerLevel.Execution,
             [CommandRisk.DirectoryDeletion] = CommandDangerLevel.Execution,
@@ -159,11 +151,9 @@ public static partial class DangerousCommandCatalog
     /// <summary>
     /// 合并多个 CommandDangerLevel，取最高危险等级
     /// </summary>
-    public static CommandDangerLevel MergeLevels(params CommandDangerLevel[] levels)
-    {
+    public static CommandDangerLevel MergeLevels(params CommandDangerLevel[] levels) {
         var max = CommandDangerLevel.Safe;
-        foreach (var level in levels)
-        {
+        foreach (var level in levels) {
             if (level > max)
                 max = level;
         }

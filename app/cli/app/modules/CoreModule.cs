@@ -4,8 +4,7 @@ namespace JoinCode.App.Modules;
 /// 核心模块 — 注册 AI 工作流服务（AddAiWorkflowServices 包含 AddAutoRegisteredServices + 全部子系统）
 /// </summary>
 [AppModule(Order = 30)]
-public sealed class CoreModule : IAppModule
-{
+public sealed class CoreModule : IAppModule {
     /// <summary>模块加载顺序，值为 30</summary>
     public int Order => 30;
 
@@ -14,8 +13,7 @@ public sealed class CoreModule : IAppModule
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <param name="context">应用模块上下文，提供配置信息</param>
-    public void ConfigureServices(IServiceCollection services, AppModuleContext context)
-    {
+    public void ConfigureServices(IServiceCollection services, AppModuleContext context) {
         services.AddAiWorkflowServices(context.Config);
 
         // JoinCode 项目的 [Register] 类型（如 OnboardingFlowController、ExecutionSettingsProvider 等）

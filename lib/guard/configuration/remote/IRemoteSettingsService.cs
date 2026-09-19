@@ -4,8 +4,7 @@ namespace Core.Configuration.Remote;
 /// <summary>
 /// 远程设置服务接口 — 提供远程托管设置的读取、刷新与本地合并能力
 /// </summary>
-public interface IRemoteSettingsService : IAsyncDisposable
-{
+public interface IRemoteSettingsService : IAsyncDisposable {
     /// <summary>
     /// 异步按键获取设置原始字符串值
     /// </summary>
@@ -49,8 +48,7 @@ public interface IRemoteSettingsService : IAsyncDisposable
 /// <summary>
 /// 设置变更事件参数 — 当托管设置发生变更时携带的事件数据
 /// </summary>
-public sealed class SettingChangedEventArgs : EventArgs
-{
+public sealed class SettingChangedEventArgs : EventArgs {
     /// <summary>设置键名</summary>
     public required string Key { get; init; }
     /// <summary>旧值，可为空</summary>

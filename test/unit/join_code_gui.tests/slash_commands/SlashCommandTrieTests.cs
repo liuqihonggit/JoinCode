@@ -3,14 +3,12 @@ namespace JoinCode.Gui.Tests.SlashCommands;
 /// <summary>
 /// SlashCommandTrie 单元测试 — 验证前缀匹配、大小写不敏感、动态增删、边界行为。
 /// </summary>
-public class SlashCommandTrieTests
-{
+public class SlashCommandTrieTests {
     private static SlashCommandItem Item(string name, string desc = "") =>
         new() { Name = name, Description = desc };
 
     [Fact]
-    public void Search_ByPrefix_ReturnsMatchingCommands()
-    {
+    public void Search_ByPrefix_ReturnsMatchingCommands() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/apple"));
         trie.Insert(Item("/apply"));
@@ -22,8 +20,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Search_CaseInsensitive_MatchesButPreservesOriginalCase()
-    {
+    public void Search_CaseInsensitive_MatchesButPreservesOriginalCase() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/Apple"));
 
@@ -33,8 +30,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Search_UpperCasePrefix_MatchesLowerCaseCommand()
-    {
+    public void Search_UpperCasePrefix_MatchesLowerCaseCommand() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/apple"));
 
@@ -43,8 +39,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Search_EmptyPrefix_ReturnsAll()
-    {
+    public void Search_EmptyPrefix_ReturnsAll() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/apple"));
         trie.Insert(Item("/banana"));
@@ -53,8 +48,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Search_OnlySlash_ReturnsAll()
-    {
+    public void Search_OnlySlash_ReturnsAll() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/apple"));
         trie.Insert(Item("/banana"));
@@ -63,8 +57,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Search_NoMatch_ReturnsEmpty()
-    {
+    public void Search_NoMatch_ReturnsEmpty() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/apple"));
 
@@ -72,8 +65,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Search_PrefixWithoutSlash_AlsoMatches()
-    {
+    public void Search_PrefixWithoutSlash_AlsoMatches() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/apple"));
 
@@ -82,8 +74,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Insert_DuplicateName_Overwrites()
-    {
+    public void Insert_DuplicateName_Overwrites() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/apple", "old"));
         trie.Insert(Item("/apple", "new"));
@@ -94,8 +85,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Insert_CaseVariantName_TreatedAsSame()
-    {
+    public void Insert_CaseVariantName_TreatedAsSame() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/Apple", "first"));
         trie.Insert(Item("/apple", "second"));
@@ -105,8 +95,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Remove_EliminatesCommand_FromSearch()
-    {
+    public void Remove_EliminatesCommand_FromSearch() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/apple"));
         trie.Insert(Item("/apply"));
@@ -118,15 +107,13 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Remove_NonExisting_ReturnsFalse()
-    {
+    public void Remove_NonExisting_ReturnsFalse() {
         var trie = new SlashCommandTrie();
         trie.Remove("/nope").Should().BeFalse();
     }
 
     [Fact]
-    public void Remove_CleansUpIntermediateNodes()
-    {
+    public void Remove_CleansUpIntermediateNodes() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/abc"));
         trie.Insert(Item("/abd"));
@@ -138,8 +125,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Clear_RemovesAll()
-    {
+    public void Clear_RemovesAll() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/apple"));
         trie.Insert(Item("/banana"));
@@ -150,8 +136,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Count_TracksInsertedCommands()
-    {
+    public void Count_TracksInsertedCommands() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/apple"));
         trie.Insert(Item("/banana"));
@@ -161,8 +146,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void InsertRange_BatchInsertsAll()
-    {
+    public void InsertRange_BatchInsertsAll() {
         var trie = new SlashCommandTrie();
         trie.InsertRange([Item("/apple"), Item("/banana"), Item("/cherry")]);
 
@@ -171,8 +155,7 @@ public class SlashCommandTrieTests
     }
 
     [Fact]
-    public void Search_SingleCharacterPrefix_MatchesAllStartingWithThatChar()
-    {
+    public void Search_SingleCharacterPrefix_MatchesAllStartingWithThatChar() {
         var trie = new SlashCommandTrie();
         trie.Insert(Item("/clear"));
         trie.Insert(Item("/compact"));

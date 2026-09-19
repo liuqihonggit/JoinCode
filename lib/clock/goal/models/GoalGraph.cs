@@ -4,8 +4,7 @@ namespace Core.Goal;
 /// <summary>
 /// Goal Graph — 基于 Dag&lt;GoalNodePayload&gt; 的图定义
 /// </summary>
-public sealed class GoalGraph
-{
+public sealed class GoalGraph {
     private readonly HashSet<string> _endNodeIds;
 
     /// <summary>图名称</summary>
@@ -25,8 +24,7 @@ public sealed class GoalGraph
     /// <summary>
     /// 构造 GoalGraph — 初始化可变终止节点集合
     /// </summary>
-    public GoalGraph()
-    {
+    public GoalGraph() {
         _endNodeIds = [];
     }
 
@@ -50,8 +48,7 @@ public sealed class GoalGraph
     /// 追加终止节点 — 运行时动态添加终止节点到可变集合
     /// </summary>
     /// <param name="nodeId">节点 ID</param>
-    public void AddEndNode(string nodeId)
-    {
+    public void AddEndNode(string nodeId) {
         _endNodeIds.Add(nodeId);
     }
 

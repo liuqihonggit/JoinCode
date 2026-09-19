@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// <summary>
 /// 标志参数类型 — 对齐 TS FlagArgType
 /// </summary>
-internal enum FlagArgType
-{
+internal enum FlagArgType {
     /// <summary>
     /// 无参数的布尔标志
     /// </summary>

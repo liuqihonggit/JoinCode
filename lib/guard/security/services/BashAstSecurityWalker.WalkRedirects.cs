@@ -1,28 +1,21 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
-public sealed partial class BashAstSecurityWalker
-{
-    private static BashAstSecurityResult? WalkHeredocRedirect(Node node)
-    {
+public sealed partial class BashAstSecurityWalker {
+    private static BashAstSecurityResult? WalkHeredocRedirect(Node node) {
         var hasQuotedDelimiter = false;
 
-        foreach (var child in node.Children)
-        {
+        foreach (var child in node.Children) {
             if (child is null) continue;
 
-            if (child.Type == "heredoc_beginning" || child.Type == "word")
-            {
+            if (child.Type == "heredoc_beginning" || child.Type == "word") {
                 var text = child.Text;
-                if (text.Contains('\'') || text.Contains('"'))
-                {
+                if (text.Contains('\'') || text.Contains('"')) {
                     hasQuotedDelimiter = true;
                 }
             }
 
-            if (child.Type == "heredoc_content" || child.Type == "heredoc_body")
-            {
-                if (!hasQuotedDelimiter)
-                {
+            if (child.Type == "heredoc_content" || child.Type == "heredoc_body") {
+                if (!hasQuotedDelimiter) {
                     return new BashAstSecurityResult.TooComplex(
                         "非引号分隔符heredoc — body经历变量/命令替换展开", "UNQUOTED_HEREDOC");
                 }
@@ -33,37 +26,28 @@ public sealed partial class BashAstSecurityWalker
     }
 
     private static BashAstSecurityResult? WalkHerestringRedirect(
-        Node node, List<BashSimpleCommandInfo> innerCommands, Dictionary<string, string> varScope)
-    {
-        foreach (var child in node.Children)
-        {
+        Node node, List<BashSimpleCommandInfo> innerCommands, Dictionary<string, string> varScope) {
+        foreach (var child in node.Children) {
             if (child is null) continue;
 
-            switch (child.Type)
-            {
+            switch (child.Type) {
                 case "<<<":
-                    continue;
+                continue;
 
                 case "word":
                 case "raw_string":
                 case "string":
                 case "simple_expansion":
                 case "command_substitution":
-                case "concatenation":
-                {
-                    if (child.Type == "command_substitution")
-                    {
+                case "concatenation": {
+                    if (child.Type == "command_substitution") {
                         var innerScope = new Dictionary<string, string>(varScope);
                         var err = CollectCommandSubstitution(child, innerCommands, innerScope);
                         if (err is not null) return err;
-                    }
-                    else if (child.Type == "string")
-                    {
+                    } else if (child.Type == "string") {
                         var result = WalkString(child, innerCommands, varScope);
                         if (result.IsTooComplex) return result.TooComplex;
-                    }
-                    else if (child.Type == "simple_expansion")
-                    {
+                    } else if (child.Type == "simple_expansion") {
                         var v = ResolveSimpleExpansion(child, varScope, insideString: true);
                         if (v.IsTooComplex) return v.TooComplex;
                     }
@@ -71,7 +55,7 @@ public sealed partial class BashAstSecurityWalker
                 }
 
                 default:
-                    return TooComplexNode(child);
+                return TooComplexNode(child);
             }
         }
 
@@ -79,19 +63,16 @@ public sealed partial class BashAstSecurityWalker
     }
 
     private static RedirectOrTooComplex WalkFileRedirect(
-        Node node, List<BashSimpleCommandInfo> innerCommands, Dictionary<string, string> varScope)
-    {
+        Node node, List<BashSimpleCommandInfo> innerCommands, Dictionary<string, string> varScope) {
         var op = "";
         var target = "";
 
-        foreach (var child in node.Children)
-        {
+        foreach (var child in node.Children) {
             if (child is null) continue;
 
-            switch (child.Type)
-            {
+            switch (child.Type) {
                 case "file_descriptor":
-                    break;
+                break;
                 case ">":
                 case ">>":
                 case "<":
@@ -100,22 +81,20 @@ public sealed partial class BashAstSecurityWalker
                 case ">|":
                 case "<&":
                 case ">&":
-                    op = child.Type;
-                    break;
+                op = child.Type;
+                break;
                 case "word":
                 case "raw_string":
-                    target = child.Type == "raw_string" ? StripRawString(child.Text) : child.Text;
-                    break;
-                case "string":
-                {
+                target = child.Type == "raw_string" ? StripRawString(child.Text) : child.Text;
+                break;
+                case "string": {
                     var result = WalkString(child, innerCommands, varScope);
                     if (result.IsTooComplex)
                         return new RedirectOrTooComplex(result.GetTooComplex());
                     target = result.Value;
                     break;
                 }
-                case "simple_expansion":
-                {
+                case "simple_expansion": {
                     var v = ResolveSimpleExpansion(child, varScope, insideString: false);
                     if (v.IsTooComplex)
                         return new RedirectOrTooComplex(v.GetTooComplex());
@@ -123,10 +102,10 @@ public sealed partial class BashAstSecurityWalker
                     break;
                 }
                 case "command_substitution":
-                    return new RedirectOrTooComplex(new BashAstSecurityResult.TooComplex(
-                        "重定向目标包含命令替换", "CMDSUB_REDIRECT"));
+                return new RedirectOrTooComplex(new BashAstSecurityResult.TooComplex(
+                    "重定向目标包含命令替换", "CMDSUB_REDIRECT"));
                 default:
-                    return new RedirectOrTooComplex(TooComplexNode(child));
+                return new RedirectOrTooComplex(TooComplexNode(child));
             }
         }
 
@@ -138,10 +117,8 @@ public sealed partial class BashAstSecurityWalker
     }
 
     private static BashAstSecurityResult? CollectCommandSubstitution(
-        Node node, List<BashSimpleCommandInfo> innerCommands, Dictionary<string, string> varScope)
-    {
-        foreach (var child in node.Children)
-        {
+        Node node, List<BashSimpleCommandInfo> innerCommands, Dictionary<string, string> varScope) {
+        foreach (var child in node.Children) {
             if (child is null) continue;
             var err = CollectCommands(child, innerCommands, varScope);
             if (err is not null) return err;

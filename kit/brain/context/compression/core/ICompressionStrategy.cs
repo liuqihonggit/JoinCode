@@ -3,8 +3,7 @@ namespace Core.Context.Compression;
 /// <summary>
 /// 压缩策略接口
 /// </summary>
-public interface ICompressionStrategy
-{
+public interface ICompressionStrategy {
     /// <summary>
     /// 策略名称
     /// </summary>
@@ -57,8 +56,7 @@ public interface ICompressionStrategy
 /// <summary>
 /// 压缩策略基类
 /// </summary>
-public abstract class CompressionStrategyBase : ICompressionStrategy
-{
+public abstract class CompressionStrategyBase : ICompressionStrategy {
     /// <summary>
     /// 策略名称
     /// </summary>
@@ -94,8 +92,7 @@ public abstract class CompressionStrategyBase : ICompressionStrategy
     /// <param name="content">内容</param>
     /// <param name="contentType">内容类型</param>
     /// <returns>是否可以处理</returns>
-    public virtual bool CanHandle(string content, ContentType contentType)
-    {
+    public virtual bool CanHandle(string content, ContentType contentType) {
         return SupportedContentTypes.Contains(contentType) &&
                !string.IsNullOrEmpty(content) &&
                content.Length >= GetMinLengthThreshold();
@@ -117,12 +114,10 @@ public abstract class CompressionStrategyBase : ICompressionStrategy
     /// <summary>
     /// 验证选项
     /// </summary>
-    protected virtual void ValidateOptions(CompressionOptions options)
-    {
+    protected virtual void ValidateOptions(CompressionOptions options) {
         ArgumentNullException.ThrowIfNull(options);
 
-        if (options.TargetCompressionRatio < 0 || options.TargetCompressionRatio > 1)
-        {
+        if (options.TargetCompressionRatio < 0 || options.TargetCompressionRatio > 1) {
             throw new ArgumentException(
                 "TargetCompressionRatio must be between 0 and 1",
                 nameof(options));
@@ -132,8 +127,7 @@ public abstract class CompressionStrategyBase : ICompressionStrategy
     /// <summary>
     /// 计算实际压缩比率
     /// </summary>
-    protected double CalculateActualRatio(int originalLength, int compressedLength)
-    {
+    protected double CalculateActualRatio(int originalLength, int compressedLength) {
         if (originalLength <= 0) return 0;
         return (double)compressedLength / originalLength;
     }
@@ -144,8 +138,7 @@ public abstract class CompressionStrategyBase : ICompressionStrategy
     protected bool NeedsFurtherCompression(
         int originalLength,
         int currentLength,
-        CompressionOptions options)
-    {
+        CompressionOptions options) {
         var currentRatio = CalculateActualRatio(originalLength, currentLength);
         return currentRatio > options.TargetCompressionRatio;
     }

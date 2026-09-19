@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces.Scheduling;
 /// 目标节点检查器 — 统一节点级检查操作：健康检查 + 循环观察 + 质量评分。
 /// 对齐文档 NodeHealthChecker + QualityScorer + Observer，合并为一个接口避免类爆炸。
 /// </summary>
-public interface IGoalNodeInspector
-{
+public interface IGoalNodeInspector {
     /// <summary>
     /// 检查活跃节点的健康状况（超时/死循环/文件冲突）。
     /// </summary>
@@ -39,8 +38,7 @@ public interface IGoalNodeInspector
 /// <summary>
 /// 循环观察上下文 — 传递给检查器的循环状态快照
 /// </summary>
-public sealed record LoopObservationContext
-{
+public sealed record LoopObservationContext {
     public required string GoalId { get; init; }
     public required string NodeId { get; init; }
     public required int LoopIteration { get; init; }
@@ -54,8 +52,7 @@ public sealed record LoopObservationContext
 /// <summary>
 /// 节点质量评分结果
 /// </summary>
-public sealed class NodeQualityScore
-{
+public sealed class NodeQualityScore {
     public double Overall { get; init; }
     public IReadOnlyDictionary<string, double> Dimensions { get; init; } = new Dictionary<string, double>();
     public string Reason { get; init; } = string.Empty;

@@ -4,8 +4,7 @@ namespace Infrastructure.Utils.Diagnostics;
 /// 调试日志缓冲区 — 订阅 Diag.DiagnosticLineWritten 事件，捕获诊断输出到环形缓冲区
 /// </summary>
 [Register(typeof(IDebugLogBuffer), ServiceLifetime.Singleton)]
-public sealed partial class DebugLogBuffer : IDebugLogBuffer
-{
+public sealed partial class DebugLogBuffer : IDebugLogBuffer {
     private readonly ConcurrentQueue<DebugLogEntry> _entries = new();
     private readonly int _maxCapacity;
 
@@ -13,8 +12,7 @@ public sealed partial class DebugLogBuffer : IDebugLogBuffer
     /// 构造调试日志缓冲区并订阅 Diag.DiagnosticLineWritten 事件
     /// </summary>
     /// <param name="maxCapacity">最大容量，超出后淘汰最旧条目</param>
-    public DebugLogBuffer(int maxCapacity = 2000)
-    {
+    public DebugLogBuffer(int maxCapacity = 2000) {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCapacity);
         _maxCapacity = maxCapacity;
 
@@ -31,8 +29,7 @@ public sealed partial class DebugLogBuffer : IDebugLogBuffer
     /// </summary>
     /// <param name="count">要获取的条数</param>
     /// <returns>日志条目列表（最新在前）</returns>
-    public IReadOnlyList<DebugLogEntry> GetRecent(int count = 100)
-    {
+    public IReadOnlyList<DebugLogEntry> GetRecent(int count = 100) {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         return _entries.Reverse().Take(count).ToList();
     }
@@ -43,8 +40,7 @@ public sealed partial class DebugLogBuffer : IDebugLogBuffer
     /// <param name="level">日志级别</param>
     /// <param name="count">要获取的条数</param>
     /// <returns>匹配的日志条目列表（最新在前）</returns>
-    public IReadOnlyList<DebugLogEntry> GetByLevel(DebugLogLevel level, int count = 100)
-    {
+    public IReadOnlyList<DebugLogEntry> GetByLevel(DebugLogLevel level, int count = 100) {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         return _entries.Where(e => e.Level == level).Reverse().Take(count).ToList();
     }
@@ -55,8 +51,7 @@ public sealed partial class DebugLogBuffer : IDebugLogBuffer
     /// <param name="minLevel">最低日志级别（含）</param>
     /// <param name="count">要获取的条数</param>
     /// <returns>匹配的日志条目列表（最新在前）</returns>
-    public IReadOnlyList<DebugLogEntry> GetByMinLevel(DebugLogLevel minLevel, int count = 100)
-    {
+    public IReadOnlyList<DebugLogEntry> GetByMinLevel(DebugLogLevel minLevel, int count = 100) {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         return _entries.Where(e => e.Level >= minLevel).Reverse().Take(count).ToList();
     }
@@ -64,13 +59,11 @@ public sealed partial class DebugLogBuffer : IDebugLogBuffer
     /// <summary>
     /// 清空所有缓冲区条目
     /// </summary>
-    public void Clear()
-    {
+    public void Clear() {
         while (_entries.TryDequeue(out _)) { }
     }
 
-    private void OnDiagnosticLineWritten(object? sender, string message)
-    {
+    private void OnDiagnosticLineWritten(object? sender, string message) {
         var (level, category) = ClassifyMessage(message);
         var entry = new DebugLogEntry(DateTimeOffset.UtcNow, level, category, message);
 
@@ -83,8 +76,7 @@ public sealed partial class DebugLogBuffer : IDebugLogBuffer
     /// 根据消息前缀分类日志级别和类别
     /// 已知前缀: [DIAG-ERR], [DIAG-ERR-STACK], [DIAG-ERR-INNER-N], [WIRE], [STEP], [READY], [DI], [ALIVE], [DIAG-TERM] 等
     /// </summary>
-    private static (DebugLogLevel Level, string Category) ClassifyMessage(string message)
-    {
+    private static (DebugLogLevel Level, string Category) ClassifyMessage(string message) {
         if (message.StartsWith("[DIAG-ERR", StringComparison.Ordinal))
             return (DebugLogLevel.Error, "ERROR");
 
@@ -114,8 +106,7 @@ public sealed partial class DebugLogBuffer : IDebugLogBuffer
 
         var span = message.AsSpan();
         var bracketEnd = span.IndexOf(']');
-        if (bracketEnd > 0 && span[0] == '[')
-        {
+        if (bracketEnd > 0 && span[0] == '[') {
             var category = span[..(bracketEnd + 1)].ToString();
             return (DebugLogLevel.Info, category);
         }

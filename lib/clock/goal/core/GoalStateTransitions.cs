@@ -6,8 +6,7 @@ namespace Core.Goal;
 /// <para>Pursuing 可转 Paused/Achieved/Unmet/BudgetLimited,Paused 仅可转 Pursuing/Unmet</para>
 /// <para>Achieved/Unmet/BudgetLimited 仅可转 Pursuing(Start重新开始)或 Unmet(Clear放弃)</para>
 /// </summary>
-public static class GoalStateTransitions
-{
+public static class GoalStateTransitions {
     /// <summary>
     /// 状态转换位掩码表 — 索引为 (int)GoalStatus，值为目标状态位掩码。
     /// 替代 FrozenDictionary&lt;GoalStatus, FrozenSet&lt;GoalStatus&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
@@ -24,10 +23,8 @@ public static class GoalStateTransitions
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法
     /// </summary>
-    public static bool CanTransitionTo(GoalStatus current, GoalStatus target)
-    {
-        if (current == target)
-        {
+    public static bool CanTransitionTo(GoalStatus current, GoalStatus target) {
+        if (current == target) {
             return true;
         }
 

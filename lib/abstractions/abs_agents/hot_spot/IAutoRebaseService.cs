@@ -9,8 +9,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 自动 rebase 模式优势：确定性执行 + 时机可控 + 冲突可检测 + 可追溯 + 减少归因偏差
 /// </para>
 /// </summary>
-public interface IAutoRebaseService
-{
+public interface IAutoRebaseService {
     /// <summary>
     /// 自动 rebase 同步主干 — SubagentStop 时调用
     /// <para>流程：git fetch → 检测有无新提交 → (有则) stash 脏工作区 → git rebase → 冲突则 abort + 邮箱通知</para>
@@ -24,8 +23,7 @@ public interface IAutoRebaseService
 /// <summary>
 /// rebase 同步状态机状态 — 显式枚举驱动状态转换（参考 ADR 0018 状态机设计风格）
 /// </summary>
-public enum RebaseSyncState : byte
-{
+public enum RebaseSyncState : byte {
     /// <summary>初始空闲状态</summary>
     [EnumValue("idle")] Idle,
     /// <summary>正在 fetch 远程</summary>
@@ -51,8 +49,7 @@ public enum RebaseSyncState : byte
 /// <summary>
 /// 自动 rebase 同步请求
 /// </summary>
-public sealed record AutoRebaseRequest
-{
+public sealed record AutoRebaseRequest {
     /// <summary>worktree 路径（rebase 在此目录执行）</summary>
     public required string WorktreePath { get; init; }
 
@@ -69,8 +66,7 @@ public sealed record AutoRebaseRequest
 /// <summary>
 /// 自动 rebase 同步结果
 /// </summary>
-public sealed record AutoRebaseResult
-{
+public sealed record AutoRebaseResult {
     /// <summary>最终状态机状态</summary>
     public required RebaseSyncState FinalState { get; init; }
 

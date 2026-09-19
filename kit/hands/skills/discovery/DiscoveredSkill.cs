@@ -4,8 +4,7 @@ namespace Core.Skills.Discovery;
 /// <summary>
 /// 已发现的技能记录 — 描述技能文件加载后的元信息和验证状态
 /// </summary>
-public sealed record DiscoveredSkill
-{
+public sealed record DiscoveredSkill {
     /// <summary>
     /// 技能名称
     /// </summary>

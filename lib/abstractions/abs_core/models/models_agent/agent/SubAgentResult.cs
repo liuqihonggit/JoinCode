@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Agent;
 
-public sealed class SubAgentResult
-{
+public sealed class SubAgentResult {
     public required string AgentId { get; init; }
     public bool IsSuccess { get; init; }
     public required string Output { get; init; }

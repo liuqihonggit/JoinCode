@@ -7,13 +7,11 @@ namespace JoinCode.Abstractions.Interfaces;
 /// ToString() 由各实现类自行重写为简洁单行摘要(用于日志/调试)
 /// </para>
 /// </summary>
-public static class CommandExecutionResultExtensions
-{
+public static class CommandExecutionResultExtensions {
     /// <summary>
     /// 将命令执行结果渲染为 Markdown 表格 — 包含退出码/成功状态/执行时长/输出摘要/错误摘要
     /// </summary>
-    public static string ToMarkdownTable(this ICommandExecutionResult result)
-    {
+    public static string ToMarkdownTable(this ICommandExecutionResult result) {
         var builder = new MarkdownTableBuilder()
             .WithTitle("命令执行结果")
             .AddHeader("字段", "值")
@@ -29,8 +27,7 @@ public static class CommandExecutionResultExtensions
     /// <summary>
     /// 将命令执行结果渲染为简洁 Markdown 表格 — 仅包含元数据(不含输出/错误正文),适合嵌入日志
     /// </summary>
-    public static string ToMarkdownSummary(this ICommandExecutionResult result)
-    {
+    public static string ToMarkdownSummary(this ICommandExecutionResult result) {
         return new MarkdownTableBuilder()
             .AddHeader("ExitCode", "Success", "Duration")
             .AddRow(
@@ -46,8 +43,7 @@ public static class CommandExecutionResultExtensions
     /// 手写 JSON 拼接(AOT 友好,无反射),格式: ```json{"exit_code":0,"success":true,"duration_ms":1500}```
     /// </para>
     /// </summary>
-    public static string ToJsonBlock(this ICommandExecutionResult result)
-    {
+    public static string ToJsonBlock(this ICommandExecutionResult result) {
         var sb = new StringBuilder(128);
         sb.Append("```json\n");
         sb.Append("{\"exit_code\":");
@@ -61,11 +57,9 @@ public static class CommandExecutionResultExtensions
         return sb.ToString();
     }
 
-    private static string FormatDuration(TimeSpan duration)
-    {
+    private static string FormatDuration(TimeSpan duration) {
         var ms = duration.TotalMilliseconds;
-        return ms switch
-        {
+        return ms switch {
             0 => "0ms",
             < 1 => $"{ms:F2}ms",
             < 1000 => $"{ms:F0}ms",
@@ -74,8 +68,7 @@ public static class CommandExecutionResultExtensions
         };
     }
 
-    private static string Summarize(string text)
-    {
+    private static string Summarize(string text) {
         if (string.IsNullOrEmpty(text)) return "(空)";
         var trimmed = text.Trim();
         if (trimmed.Length <= 80) return trimmed;

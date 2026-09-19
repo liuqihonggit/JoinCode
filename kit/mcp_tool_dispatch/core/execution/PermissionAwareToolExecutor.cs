@@ -6,8 +6,7 @@ namespace McpToolRegistry;
 /// 权限模式统一从 IToolPermissionManager 获取，不再自行维护
 /// </summary>
 [Register(typeof(IToolExecutionGateway), ServiceLifetime.Singleton)]
-public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolExecutionGateway
-{
+public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolExecutionGateway {
     private readonly IToolRegistry _toolRegistry;
     private readonly ITelemetryService? _telemetryService;
     private readonly IToolPermissionManager _permissionManager;
@@ -35,8 +34,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         IToolPermissionManager permissionManager,
         ITelemetryService? telemetryService = null,
         IPermissionConfirmationHandler? confirmationHandler = null,
-        ILogger<PermissionAwareToolExecutor>? logger = null)
-    {
+        ILogger<PermissionAwareToolExecutor>? logger = null) {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _permissionManager = permissionManager ?? throw new ArgumentNullException(nameof(permissionManager));
@@ -52,22 +50,19 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         string toolName,
         Dictionary<string, JsonElement> arguments,
         CancellationToken cancellationToken = default,
-        ToolProgressCallback? onProgress = null)
-    {
+        ToolProgressCallback? onProgress = null) {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
         ArgumentNullException.ThrowIfNull(arguments);
 
         var handler = await _toolRegistry.GetToolAsync(toolName, cancellationToken).ConfigureAwait(false);
 
-        if (handler is null)
-        {
+        if (handler is null) {
             _logger.LogWarning(L.T(StringKey.ToolNotFoundLog, toolName));
             return CreateErrorResult($"Tool '{toolName}' not found.");
         }
 
         await using var span = _telemetryService?.StartSpan($"tool.{toolName}", TelemetrySpanKind.Client);
-        if (span is not null)
-        {
+        if (span is not null) {
             span.SetTag("tool.name", toolName);
         }
 
@@ -79,8 +74,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
 
         var currentMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
 
-        var context = new ToolExecutionContext
-        {
+        var context = new ToolExecutionContext {
             ToolName = toolName,
             Arguments = arguments,
             Handler = handler,
@@ -90,17 +84,14 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             ExecutionEntity = executionEntity,
         };
 
-        try
-        {
+        try {
             await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-            if (context.PermissionDecision == PermissionDecision.PendingConfirmation)
-            {
+            if (context.PermissionDecision == PermissionDecision.PendingConfirmation) {
                 return await HandlePendingConfirmationAsync(toolName, arguments, handler, onProgress, currentMode, span, executionEntity, context, cancellationToken).ConfigureAwait(false);
             }
 
-            if (context.Result is not null)
-            {
+            if (context.Result is not null) {
                 CompleteExecutionEntity(context);
                 RaiseToolExecutionCompleted(toolName, context.Result, arguments);
                 return context.Result;
@@ -111,18 +102,14 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             CompleteExecutionEntity(context);
             RaiseToolExecutionCompleted(toolName, noResultError, arguments);
             return noResultError;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             _logger.LogInformation(L.T(StringKey.ToolExecCancelledLog, toolName));
             span?.SetStatus(TelemetryStatusCode.Error, "Cancelled");
             executionEntity.LifecycleState = EntityLifecycle.Completed;
             executionEntity.CompletedAt = DateTime.UtcNow;
             executionEntity.IsError = true;
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogError(ex, L.T(StringKey.ToolExecFailedLog, toolName));
             span?.RecordException(ex);
             Diag.WriteError($"[ToolExec] Tool={toolName}", ex);
@@ -148,10 +135,8 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         ITelemetrySpan? span,
         ToolExecutionEntity executionEntity,
         ToolExecutionContext context,
-        CancellationToken cancellationToken)
-    {
-        if (_confirmationHandler is null)
-        {
+        CancellationToken cancellationToken) {
+        if (_confirmationHandler is null) {
             _logger.LogWarning("无确认处理器,工具权限待确认作为拒绝返回: {ToolName}", toolName);
             var noHandlerError = context.Result ?? CreateErrorResult($"工具 '{toolName}' 需要确认但无确认处理器");
             CompleteExecutionEntity(context);
@@ -162,8 +147,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         var prompt = context.PermissionConfirmationPrompt ?? "需要确认";
         var action = _confirmationHandler.Confirm(toolName, prompt);
 
-        if (action != PermissionConfirmAction.Allow && action != PermissionConfirmAction.AlwaysAllow)
-        {
+        if (action != PermissionConfirmAction.Allow && action != PermissionConfirmAction.AlwaysAllow) {
             _logger.LogWarning("用户拒绝工具执行: {ToolName}", toolName);
             var deniedError = CreateErrorResult($"用户拒绝工具执行: {toolName}");
             CompleteExecutionEntity(context);
@@ -173,8 +157,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
 
         _logger.LogInformation("用户确认允许工具执行: {ToolName}", toolName);
 
-        var retryContext = new ToolExecutionContext
-        {
+        var retryContext = new ToolExecutionContext {
             ToolName = toolName,
             Arguments = arguments,
             Handler = handler,
@@ -186,8 +169,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
 
         await _pipeline.ExecuteAsync(retryContext, cancellationToken).ConfigureAwait(false);
 
-        if (retryContext.Result is not null)
-        {
+        if (retryContext.Result is not null) {
             CompleteExecutionEntity(retryContext);
             RaiseToolExecutionCompleted(toolName, retryContext.Result, arguments);
             return retryContext.Result;
@@ -200,16 +182,14 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         return retryNoResultError;
     }
 
-    private void RecordPermissionDenied(string toolName)
-    {
+    private void RecordPermissionDenied(string toolName) {
         if (_telemetryService is null) return;
 
         var counter = _telemetryService.GetCounter("tool.permission.denied", "count", "Tool permission denied count");
         counter.Add(1, new Dictionary<string, string> { ["tool"] = toolName });
     }
 
-    private static void CompleteExecutionEntity(ToolExecutionContext context)
-    {
+    private static void CompleteExecutionEntity(ToolExecutionContext context) {
         var entity = context.ExecutionEntity!;
         entity.CompletedAt = DateTime.UtcNow;
         entity.LifecycleState = EntityLifecycle.Completed;
@@ -225,40 +205,36 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
     /// 从 ToolResult.EntityMetadata 回填子类 Entity 特有字段
     /// Key 约定: exit_code, process_id, http_status_code, content_length, interrupted, background_task_id
     /// </summary>
-    private static void BackfillEntityMetadata(ToolExecutionEntity entity, List<EntityMetadataEntry>? metadata)
-    {
+    private static void BackfillEntityMetadata(ToolExecutionEntity entity, List<EntityMetadataEntry>? metadata) {
         if (metadata is null || metadata.Count == 0) return;
 
         var dict = new Dictionary<string, EntityMetadataEntry>(metadata.Count, StringComparer.Ordinal);
         foreach (var m in metadata)
             dict.TryAdd(m.Key, m);
 
-        switch (entity)
-        {
+        switch (entity) {
             case BashProcessEntity bash:
-                if (dict.TryGetValue("exit_code", out var exitCodeEntry) && exitCodeEntry.IntValue is int exitCode)
-                    bash.ExitCode = exitCode;
-                if (dict.TryGetValue("process_id", out var processIdEntry) && processIdEntry.IntValue is int processId)
-                    bash.ProcessId = processId;
-                if (dict.TryGetValue("interrupted", out var interruptedEntry) && interruptedEntry.BoolValue == true)
-                    bash.Status = BashProcessStatus.TimedOut;
-                else if (bash.ExitCode.HasValue)
-                    bash.Status = BashProcessStatus.Exited;
-                break;
+            if (dict.TryGetValue("exit_code", out var exitCodeEntry) && exitCodeEntry.IntValue is int exitCode)
+                bash.ExitCode = exitCode;
+            if (dict.TryGetValue("process_id", out var processIdEntry) && processIdEntry.IntValue is int processId)
+                bash.ProcessId = processId;
+            if (dict.TryGetValue("interrupted", out var interruptedEntry) && interruptedEntry.BoolValue == true)
+                bash.Status = BashProcessStatus.TimedOut;
+            else if (bash.ExitCode.HasValue)
+                bash.Status = BashProcessStatus.Exited;
+            break;
 
             case WebFetchEntity web:
-                if (dict.TryGetValue("http_status_code", out var httpStatusEntry) && httpStatusEntry.IntValue is int statusCode)
-                    web.HttpStatusCode = statusCode;
-                if (dict.TryGetValue("content_length", out var contentLengthEntry) && contentLengthEntry.LongValue is long contentLength)
-                    web.ContentLength = contentLength;
-                break;
+            if (dict.TryGetValue("http_status_code", out var httpStatusEntry) && httpStatusEntry.IntValue is int statusCode)
+                web.HttpStatusCode = statusCode;
+            if (dict.TryGetValue("content_length", out var contentLengthEntry) && contentLengthEntry.LongValue is long contentLength)
+                web.ContentLength = contentLength;
+            break;
         }
     }
 
-    private static ToolResult CreateErrorResult(string errorMessage)
-    {
-        return new ToolResult
-        {
+    private static ToolResult CreateErrorResult(string errorMessage) {
+        return new ToolResult {
             Content =
             [
                 new ToolContent
@@ -275,10 +251,8 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         string toolName,
         ToolResult? result,
         Dictionary<string, JsonElement> arguments,
-        string? errorMessage = null)
-    {
-        ToolExecutionCompleted?.Invoke(this, new ToolExecutionCompletedEventArgs
-        {
+        string? errorMessage = null) {
+        ToolExecutionCompleted?.Invoke(this, new ToolExecutionCompletedEventArgs {
             ToolName = toolName,
             IsError = result?.IsError ?? true,
             ErrorMessage = errorMessage ?? result?.Content?.FirstOrDefault(c => c.Type == ToolContentType.Text)?.Text,
@@ -291,8 +265,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
 /// <summary>
 /// 工具执行完成事件参数
 /// </summary>
-public sealed class ToolExecutionCompletedEventArgs : EventArgs
-{
+public sealed class ToolExecutionCompletedEventArgs : EventArgs {
     /// <summary>工具名称</summary>
     public required string ToolName { get; init; }
 

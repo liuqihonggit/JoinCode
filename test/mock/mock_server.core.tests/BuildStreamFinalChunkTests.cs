@@ -15,18 +15,15 @@ namespace MockServer.Core.Tests;
 /// 注意: BuildStreamFinalChunk 是 IResponseStrategy 的默认接口方法 (DIM)。
 /// 测试中通过 IResponseStrategy 引用调用, 派生类 override 后即可直接通过类引用调用。
 /// </summary>
-public sealed class BuildStreamFinalChunkTests
-{
-    private static readonly CacheStats MissStats = new()
-    {
+public sealed class BuildStreamFinalChunkTests {
+    private static readonly CacheStats MissStats = new() {
         CacheCreationTokens = 100,
         CacheReadTokens = 0,
         InputTokens = 100,
         OutputTokens = 50
     };
 
-    private static readonly CacheStats HitStats = new()
-    {
+    private static readonly CacheStats HitStats = new() {
         CacheCreationTokens = 0,
         CacheReadTokens = 100,
         InputTokens = 100,
@@ -36,8 +33,7 @@ public sealed class BuildStreamFinalChunkTests
     // ============== OpenAI ==============
 
     [Fact]
-    public void OpenAI_BuildStreamFinalChunk_IncludesUsageAndCachedTokens()
-    {
+    public void OpenAI_BuildStreamFinalChunk_IncludesUsageAndCachedTokens() {
         IResponseStrategy strategy = new OpenAIResponseStrategy(turns: null, defaultResponse: "test");
         var id = "chatcmpl-test123";
 
@@ -56,8 +52,7 @@ public sealed class BuildStreamFinalChunkTests
     }
 
     [Fact]
-    public void OpenAI_BuildStreamFinalChunk_OnCacheMiss_HasZeroCachedTokens()
-    {
+    public void OpenAI_BuildStreamFinalChunk_OnCacheMiss_HasZeroCachedTokens() {
         IResponseStrategy strategy = new OpenAIResponseStrategy(turns: null, defaultResponse: "test");
 
         var chunk = strategy.BuildStreamFinalChunk("id-miss", MissStats);
@@ -71,8 +66,7 @@ public sealed class BuildStreamFinalChunkTests
     // ============== Anthropic ==============
 
     [Fact]
-    public void Anthropic_BuildStreamFinalChunk_IncludesCacheStatsInMessageDelta()
-    {
+    public void Anthropic_BuildStreamFinalChunk_IncludesCacheStatsInMessageDelta() {
         IResponseStrategy strategy = new AnthropicResponseStrategy(turns: null, defaultResponse: "test");
         var id = "msg-test123";
 
@@ -90,8 +84,7 @@ public sealed class BuildStreamFinalChunkTests
     }
 
     [Fact]
-    public void Anthropic_BuildStreamFinalChunk_OnCacheMiss_HasCacheCreationTokens()
-    {
+    public void Anthropic_BuildStreamFinalChunk_OnCacheMiss_HasCacheCreationTokens() {
         IResponseStrategy strategy = new AnthropicResponseStrategy(turns: null, defaultResponse: "test");
 
         var chunk = strategy.BuildStreamFinalChunk("id-miss", MissStats);
@@ -104,8 +97,7 @@ public sealed class BuildStreamFinalChunkTests
     // ============== DeepSeek ==============
 
     [Fact]
-    public void DeepSeek_BuildStreamFinalChunk_IncludesPromptCacheHitMissTokens()
-    {
+    public void DeepSeek_BuildStreamFinalChunk_IncludesPromptCacheHitMissTokens() {
         IResponseStrategy strategy = new DeepSeekResponseStrategy(turns: null, defaultResponse: "test");
         var id = "chatcmpl-test123";
 
@@ -124,8 +116,7 @@ public sealed class BuildStreamFinalChunkTests
     }
 
     [Fact]
-    public void DeepSeek_BuildStreamFinalChunk_OnCacheMiss_HasCacheMissTokens()
-    {
+    public void DeepSeek_BuildStreamFinalChunk_OnCacheMiss_HasCacheMissTokens() {
         IResponseStrategy strategy = new DeepSeekResponseStrategy(turns: null, defaultResponse: "test");
 
         var chunk = strategy.BuildStreamFinalChunk("id-miss", MissStats);
@@ -138,8 +129,7 @@ public sealed class BuildStreamFinalChunkTests
     // ============== Default interface impl ==============
 
     [Fact]
-    public void DefaultBuildStreamFinalChunk_FallsBackToBuildStreamChunkLast()
-    {
+    public void DefaultBuildStreamFinalChunk_FallsBackToBuildStreamChunkLast() {
         // 默认接口实现回退到 BuildStreamChunk(id, "", true)
         // 用于验证向后兼容: 未实现 BuildStreamFinalChunk 的策略仍能工作
         IResponseStrategy strategy = new DefaultImplStrategy();
@@ -149,8 +139,7 @@ public sealed class BuildStreamFinalChunkTests
         chunk.Should().Be("default-last-chunk");
     }
 
-    private sealed class DefaultImplStrategy : IResponseStrategy
-    {
+    private sealed class DefaultImplStrategy : IResponseStrategy {
         public string BuildResponse(JsonElement request, CacheStats cacheStats) => "";
         public bool SupportsStreaming => true;
         public string BuildStreamChunk(string id, string content, bool isLast)

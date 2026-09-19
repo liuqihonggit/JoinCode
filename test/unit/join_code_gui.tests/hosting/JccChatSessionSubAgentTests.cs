@@ -5,12 +5,10 @@ namespace JoinCode.Gui.Tests.Hosting;
 /// 全部代理定义并映射为 SubAgentSummary（Name=DisplayId, Description, DisplayId）。
 /// 任务2红测试：JccChatSession 未显式实现时走接口默认方法返回空，与期望非空冲突。
 /// </summary>
-public class JccChatSessionSubAgentTests
-{
+public class JccChatSessionSubAgentTests {
     /// <summary>注册 IAgentDefinitionProvider 后，GetAvailableSubAgentsAsync 返回其全部代理定义</summary>
     [Fact]
-    public async Task GetAvailableSubAgentsAsync_ReturnsFromAgentDefinitionProvider()
-    {
+    public async Task GetAvailableSubAgentsAsync_ReturnsFromAgentDefinitionProvider() {
         var mockProvider = new MockAgentDefinitionProvider([
             new() { Role = AgentRole.Coordinator, WhenToUse = "General tasks", Description = "Coordinator agent" },
             new() { Role = AgentRole.Executor, Variant = ExecutorVariant.Code, WhenToUse = "Code editing", Description = "Code agent" },
@@ -18,8 +16,7 @@ public class JccChatSessionSubAgentTests
         var services = new ServiceCollection();
         services.AddSingleton<IAgentDefinitionProvider>(mockProvider);
         var sp = services.BuildServiceProvider();
-        var session = new JccChatSession(sp, null!, new WorkflowConfig
-        {
+        var session = new JccChatSession(sp, null!, new WorkflowConfig {
             Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
         });
 
@@ -32,11 +29,9 @@ public class JccChatSessionSubAgentTests
 
     /// <summary>未注册 IAgentDefinitionProvider 时返回空列表（兜底）</summary>
     [Fact]
-    public async Task GetAvailableSubAgentsAsync_NoProvider_ReturnsEmpty()
-    {
+    public async Task GetAvailableSubAgentsAsync_NoProvider_ReturnsEmpty() {
         var sp = new ServiceCollection().BuildServiceProvider();
-        var session = new JccChatSession(sp, null!, new WorkflowConfig
-        {
+        var session = new JccChatSession(sp, null!, new WorkflowConfig {
             Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
         });
 
@@ -47,16 +42,14 @@ public class JccChatSessionSubAgentTests
 
     /// <summary>Description 为空时回退 WhenToUse 作为展示描述</summary>
     [Fact]
-    public async Task GetAvailableSubAgentsAsync_MapsDescription_WhenToUseFallback()
-    {
+    public async Task GetAvailableSubAgentsAsync_MapsDescription_WhenToUseFallback() {
         var mockProvider = new MockAgentDefinitionProvider([
             new() { Role = AgentRole.Coordinator, WhenToUse = "General fallback", Description = null },
         ]);
         var services = new ServiceCollection();
         services.AddSingleton<IAgentDefinitionProvider>(mockProvider);
         var sp = services.BuildServiceProvider();
-        var session = new JccChatSession(sp, null!, new WorkflowConfig
-        {
+        var session = new JccChatSession(sp, null!, new WorkflowConfig {
             Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
         });
 
@@ -68,8 +61,7 @@ public class JccChatSessionSubAgentTests
 }
 
 /// <summary>mock IAgentDefinitionProvider — 返回预设代理定义列表，供 GetAvailableSubAgentsAsync 测试</summary>
-internal sealed class MockAgentDefinitionProvider : IAgentDefinitionProvider
-{
+internal sealed class MockAgentDefinitionProvider : IAgentDefinitionProvider {
     private readonly List<AgentDefinition> _definitions;
     public MockAgentDefinitionProvider(List<AgentDefinition> definitions) => _definitions = definitions;
 

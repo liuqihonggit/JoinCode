@@ -5,11 +5,9 @@ namespace Core.Agents.Tests.Unit.Agents;
 /// AgentBase MaxIterations 最大迭代次数限制测试
 /// 验证执行循环在超过 MaxIterations 时停止
 /// </summary>
-public sealed class AgentBaseMaxIterationsTests
-{
+public sealed class AgentBaseMaxIterationsTests {
     [Fact]
-    public async Task ExecuteAsync_ExceedsMaxIterations_ReturnsMaxIterationsMessage()
-    {
+    public async Task ExecuteAsync_ExceedsMaxIterations_ReturnsMaxIterationsMessage() {
         var queryEngineMock = new Mock<IQueryEngine>();
         queryEngineMock
             .Setup(x => x.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<QueryOptions?>(), It.IsAny<CancellationToken>()))
@@ -28,8 +26,7 @@ public sealed class AgentBaseMaxIterationsTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_DefaultMaxIterations_Allows50Executions()
-    {
+    public async Task ExecuteAsync_DefaultMaxIterations_Allows50Executions() {
         var queryEngineMock = new Mock<IQueryEngine>();
         queryEngineMock
             .Setup(x => x.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<QueryOptions?>(), It.IsAny<CancellationToken>()))

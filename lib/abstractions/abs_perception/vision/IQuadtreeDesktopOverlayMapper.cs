@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 四叉树桌面叠加坐标转换器 — 把四叉树格子坐标转换为屏幕绝对坐标
 /// 纯计算,无 GDI 依赖,可独立单测。配合 show_desktop_overlay(ADR 0032 延伸应用)实现桌面实际叠加显示
 /// </summary>
-public interface IQuadtreeDesktopOverlayMapper
-{
+public interface IQuadtreeDesktopOverlayMapper {
     /// <summary>
     /// 把网格中所有可见格子(alpha≠-1)转换为屏幕坐标矩形
     /// </summary>

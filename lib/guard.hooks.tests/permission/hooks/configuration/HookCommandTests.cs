@@ -4,14 +4,11 @@ namespace Core.Tests.Hooks.Configuration;
 /// <summary>
 /// HookCommand 测试
 /// </summary>
-public class HookCommandTests
-{
+public class HookCommandTests {
     [Fact]
-    public void BashCommandHook_ShouldHaveCorrectType()
-    {
+    public void BashCommandHook_ShouldHaveCorrectType() {
         // Arrange
-        var hook = new BashCommandHook
-        {
+        var hook = new BashCommandHook {
             Command = "echo test"
         };
 
@@ -20,11 +17,9 @@ public class HookCommandTests
     }
 
     [Fact]
-    public void BashCommandHook_GetDisplayText_WithStatusMessage_ShouldReturnStatusMessage()
-    {
+    public void BashCommandHook_GetDisplayText_WithStatusMessage_ShouldReturnStatusMessage() {
         // Arrange
-        var hook = new BashCommandHook
-        {
+        var hook = new BashCommandHook {
             Command = "echo test",
             StatusMessage = "Running test command"
         };
@@ -37,11 +32,9 @@ public class HookCommandTests
     }
 
     [Fact]
-    public void BashCommandHook_GetDisplayText_WithoutStatusMessage_ShouldReturnCommand()
-    {
+    public void BashCommandHook_GetDisplayText_WithoutStatusMessage_ShouldReturnCommand() {
         // Arrange
-        var hook = new BashCommandHook
-        {
+        var hook = new BashCommandHook {
             Command = "echo test"
         };
 
@@ -53,8 +46,7 @@ public class HookCommandTests
     }
 
     [Fact]
-    public void BashCommandHook_IsEqualTo_SameCommand_ShouldReturnTrue()
-    {
+    public void BashCommandHook_IsEqualTo_SameCommand_ShouldReturnTrue() {
         // Arrange
         var hook1 = new BashCommandHook { Command = "git status", Shell = ShellToolNameEnumConstants.Bash };
         var hook2 = new BashCommandHook { Command = "git status", Shell = ShellToolNameEnumConstants.Bash };
@@ -67,8 +59,7 @@ public class HookCommandTests
     }
 
     [Fact]
-    public void BashCommandHook_IsEqualTo_DifferentCommand_ShouldReturnFalse()
-    {
+    public void BashCommandHook_IsEqualTo_DifferentCommand_ShouldReturnFalse() {
         // Arrange
         var hook1 = new BashCommandHook { Command = "git status" };
         var hook2 = new BashCommandHook { Command = "git log" };
@@ -81,11 +72,9 @@ public class HookCommandTests
     }
 
     [Fact]
-    public void PromptHook_ShouldHaveCorrectType()
-    {
+    public void PromptHook_ShouldHaveCorrectType() {
         // Arrange
-        var hook = new PromptHook
-        {
+        var hook = new PromptHook {
             Prompt = "Validate this command"
         };
 
@@ -94,11 +83,9 @@ public class HookCommandTests
     }
 
     [Fact]
-    public void AgentHook_ShouldHaveCorrectType()
-    {
+    public void AgentHook_ShouldHaveCorrectType() {
         // Arrange
-        var hook = new AgentHook
-        {
+        var hook = new AgentHook {
             Prompt = "Check security"
         };
 
@@ -107,11 +94,9 @@ public class HookCommandTests
     }
 
     [Fact]
-    public void HttpHook_ShouldHaveCorrectType()
-    {
+    public void HttpHook_ShouldHaveCorrectType() {
         // Arrange
-        var hook = new HttpHook
-        {
+        var hook = new HttpHook {
             Url = "https://example.com/hook"
         };
 
@@ -120,11 +105,9 @@ public class HookCommandTests
     }
 
     [Fact]
-    public void FunctionHook_ShouldHaveCorrectType()
-    {
+    public void FunctionHook_ShouldHaveCorrectType() {
         // Arrange
-        var hook = new FunctionHook
-        {
+        var hook = new FunctionHook {
             Id = "test-hook",
             Callback = (input, ct) => Task.FromResult(HookResult.Success())
         };
@@ -134,11 +117,9 @@ public class HookCommandTests
     }
 
     [Fact]
-    public void HookCommand_Properties_ShouldBeSettable()
-    {
+    public void HookCommand_Properties_ShouldBeSettable() {
         // Arrange & Act
-        var hook = new BashCommandHook
-        {
+        var hook = new BashCommandHook {
             Command = "echo test",
             If = "Bash(git *)",
             Timeout = 10,

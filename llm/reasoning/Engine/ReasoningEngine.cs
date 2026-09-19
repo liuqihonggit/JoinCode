@@ -4,8 +4,7 @@ namespace JoinCode.Reasoning.Engine;
 /// 推理引擎 — 基于 DAG 的三权分立结构化推理核心
 /// 集成有限视锥、5维客观权重、链式传播、贝叶斯更新、证据URL验证
 /// </summary>
-public sealed class ReasoningEngine : IReasoningEngine
-{
+public sealed class ReasoningEngine : IReasoningEngine {
     private readonly Dag<ReasoningPayload> _dag = new();
     private readonly Dictionary<AgentRole, ReasoningAgent> _agents;
     private readonly ILogger<ReasoningEngine> _logger;
@@ -27,8 +26,7 @@ public sealed class ReasoningEngine : IReasoningEngine
     public ReasoningEngine(
         IEnumerable<ReasoningAgent> agents,
         ILogger<ReasoningEngine> logger,
-        ReasoningOptions? options = null)
-    {
+        ReasoningOptions? options = null) {
         _logger = logger;
         _options = options ?? ReasoningOptions.Panda;
         _agents = agents.ToDictionary(a => a.Role, a => a);
@@ -57,8 +55,7 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// <summary>
     /// 设置URL验证器（需要HttpClient，延迟注入）
     /// </summary>
-    public void SetUrlVerifier(EvidenceUrlVerifier verifier)
-    {
+    public void SetUrlVerifier(EvidenceUrlVerifier verifier) {
         _urlVerifier = verifier;
     }
 
@@ -68,10 +65,8 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// <param name="assumptions">待添加的假定数据项列表</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task AddAssumptionsAsync(IReadOnlyList<DataItem> assumptions, CancellationToken ct)
-    {
-        foreach (var item in assumptions)
-        {
+    public async Task AddAssumptionsAsync(IReadOnlyList<DataItem> assumptions, CancellationToken ct) {
+        foreach (var item in assumptions) {
             if (item.State != DataState.Assumption)
                 throw new InvalidOperationException($"[RSN001] 数据项必须以Assumption状态进入，当前: {item.State}");
 
@@ -81,8 +76,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             if (_dag.Nodes.Values.Any(n => n.Payload.Content == item.Content && n.Payload.State != DataState.Rejected))
                 throw new InvalidOperationException($"[RSN003] 内容已存在: {item.Content}");
 
-            var payload = new ReasoningPayload
-            {
+            var payload = new ReasoningPayload {
                 Id = item.Id,
                 Type = ReasoningNodeType.Assumption,
                 Content = item.Content,
@@ -98,11 +92,9 @@ public sealed class ReasoningEngine : IReasoningEngine
 
             _logger.LogInformation("[假定] {Content} (ID:{Id})", item.Content, item.Id);
 
-            foreach (AgentRole role in Enum.GetValues<AgentRole>())
-            {
+            foreach (AgentRole role in Enum.GetValues<AgentRole>()) {
                 var cone = _coneOrchestrator.GetRole(role);
-                if (cone is not null)
-                {
+                if (cone is not null) {
                     var fragment = _coneOrchestrator.CreateFragmentFromItem(role, item);
                     cone.AddFragment(fragment);
                 }
@@ -116,8 +108,7 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// 获取 DAG 中所有数据项
     /// </summary>
     /// <returns>所有数据项的可枚举集合</returns>
-    public IEnumerable<DataItem> GetAllItems()
-    {
+    public IEnumerable<DataItem> GetAllItems() {
         return _dag.Nodes.Values
             .Select(n => PayloadToDataItem(n.Payload));
     }
@@ -126,8 +117,7 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// 获取 DAG 中所有证据记录
     /// </summary>
     /// <returns>所有证据记录的可枚举集合</returns>
-    public IEnumerable<EvidenceRecord> GetAllEvidence()
-    {
+    public IEnumerable<EvidenceRecord> GetAllEvidence() {
         return _dag.Nodes.Values
             .Where(n => n.Payload.Type == ReasoningNodeType.Evidence)
             .Select(n => PayloadToEvidence(n.Payload));
@@ -137,8 +127,7 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// 获取已确认为事实状态的数据项
     /// </summary>
     /// <returns>事实状态数据项的可枚举集合</returns>
-    public IEnumerable<DataItem> GetFacts()
-    {
+    public IEnumerable<DataItem> GetFacts() {
         return _dag.Nodes.Values
             .Where(n => n.Payload.State == DataState.Fact)
             .Select(n => PayloadToDataItem(n.Payload));
@@ -149,31 +138,26 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// </summary>
     /// <param name="evidence">证据记录</param>
     /// <param name="claimId">目标假定节点标识</param>
-    public void AddEvidence(EvidenceRecord evidence, string claimId)
-    {
-        if (_options.IsNodeLimitReached(_dag.Nodes.Count))
-        {
+    public void AddEvidence(EvidenceRecord evidence, string claimId) {
+        if (_options.IsNodeLimitReached(_dag.Nodes.Count)) {
             _logger.LogWarning("已达到节点数上限 ({MaxNodes})，无法添加更多证据", _options.MaxNodes);
             return;
         }
 
-        if (!_dag.Nodes.ContainsKey(claimId))
-        {
+        if (!_dag.Nodes.ContainsKey(claimId)) {
             _logger.LogWarning("目标假定不存在: {ClaimId}", claimId);
             return;
         }
 
         var existingEvidenceCount = _dag.Edges.Values
             .Count(e => e.ToId == claimId && (e.Label == "SUPPORTS" || e.Label == "REFUTES"));
-        if (_options.IsEvidenceLimitReached(existingEvidenceCount))
-        {
+        if (_options.IsEvidenceLimitReached(existingEvidenceCount)) {
             _logger.LogWarning("假定 {ClaimId} 已达到证据数上限 ({MaxEvidence})，无法添加更多证据",
                 claimId, _options.MaxEvidencePerClaim);
             return;
         }
 
-        var payload = new ReasoningPayload
-        {
+        var payload = new ReasoningPayload {
             Id = evidence.Id,
             Type = ReasoningNodeType.Evidence,
             Content = evidence.Content,
@@ -188,15 +172,13 @@ public sealed class ReasoningEngine : IReasoningEngine
 
         var node = new DagNode<ReasoningPayload> { Id = evidence.Id, Payload = payload };
         var addResult = _dag.AddNode(node);
-        if (!addResult.Success)
-        {
+        if (!addResult.Success) {
             _logger.LogWarning("添加证据节点失败: {Error}", addResult.ErrorMessage);
             return;
         }
 
         var edgeLabel = evidence.SubmittedBy == AgentRole.Defender ? "REFUTES" : "SUPPORTS";
-        var edge = new DagEdge
-        {
+        var edge = new DagEdge {
             FromId = evidence.Id,
             ToId = claimId,
             Label = edgeLabel,
@@ -204,8 +186,7 @@ public sealed class ReasoningEngine : IReasoningEngine
         };
 
         var edgeResult = _dag.AddEdge(edge);
-        if (!edgeResult.Success)
-        {
+        if (!edgeResult.Success) {
             _logger.LogWarning("添加证据边失败: {Error} (可能产生环)", edgeResult.ErrorMessage);
             _dag.RemoveNode(evidence.Id);
             return;
@@ -214,8 +195,7 @@ public sealed class ReasoningEngine : IReasoningEngine
         _logger.LogInformation("[{Role}] 提交证据: {Content} (信任度:{Trust})", evidence.SubmittedBy, evidence.Content, evidence.TrustLevel);
 
         var cone = _coneOrchestrator.GetRole(evidence.SubmittedBy);
-        if (cone is not null)
-        {
+        if (cone is not null) {
             var fragment = _coneOrchestrator.CreateFragmentFromEvidence(evidence.SubmittedBy, evidence);
             cone.AddFragment(fragment);
         }
@@ -228,8 +208,7 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// </summary>
     /// <param name="evidence">反证证据记录</param>
     /// <param name="claimId">目标假定节点标识</param>
-    public void AddCounterEvidence(EvidenceRecord evidence, string claimId)
-    {
+    public void AddCounterEvidence(EvidenceRecord evidence, string claimId) {
         AddEvidence(evidence, claimId);
     }
 
@@ -238,10 +217,8 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task RunAdversarialProcessAsync(CancellationToken ct)
-    {
-        if (IsBudgetExhausted())
-        {
+    public async Task RunAdversarialProcessAsync(CancellationToken ct) {
+        if (IsBudgetExhausted()) {
             var budget = GetBudgetStatus();
             _logger.LogWarning("预算已耗尽 — 轮次:{RoundsUsed}/{RoundsBudget} token:{TokensUsed}/{TokensBudget}，请使用 ContinueAsync 续费",
                 budget.RoundsUsed, budget.RoundsBudget, budget.TokensUsed, budget.TokensBudget);
@@ -251,8 +228,7 @@ public sealed class ReasoningEngine : IReasoningEngine
         _budget.IncrementRound();
         RecordTokenUsage(_options.RoundOverheadTokens);
 
-        var context = new ReasoningContext
-        {
+        var context = new ReasoningContext {
             AllItems = GetAllItems(),
             AllEvidence = GetAllEvidence(),
             Dag = _dag,
@@ -261,24 +237,20 @@ public sealed class ReasoningEngine : IReasoningEngine
 
         };
 
-        if (_agents.TryGetValue(AgentRole.Prosecutor, out var prosecutor))
-        {
+        if (_agents.TryGetValue(AgentRole.Prosecutor, out var prosecutor)) {
             var prosAction = await prosecutor.ReasonAsync(context, ct).ConfigureAwait(false);
             ApplyAgentAction(prosAction);
         }
 
         if (_coneOrchestrator.GetRole(AgentRole.Defender) is { } defCone &&
-            _coneOrchestrator.GetRole(AgentRole.Prosecutor) is { } prosCone)
-        {
+            _coneOrchestrator.GetRole(AgentRole.Prosecutor) is { } prosCone) {
             var latestProsFragments = prosCone.ActiveFragmentIds.Take(3).ToList();
-            foreach (var fragId in latestProsFragments)
-            {
+            foreach (var fragId in latestProsFragments) {
                 _coneOrchestrator.TransferFragment(AgentRole.Prosecutor, AgentRole.Defender, fragId);
             }
         }
 
-        context = new ReasoningContext
-        {
+        context = new ReasoningContext {
             AllItems = GetAllItems(),
             AllEvidence = GetAllEvidence(),
             Dag = _dag,
@@ -287,24 +259,20 @@ public sealed class ReasoningEngine : IReasoningEngine
 
         };
 
-        if (_agents.TryGetValue(AgentRole.Defender, out var defender))
-        {
+        if (_agents.TryGetValue(AgentRole.Defender, out var defender)) {
             var defAction = await defender.ReasonAsync(context, ct).ConfigureAwait(false);
             ApplyAgentAction(defAction);
         }
 
         if (_coneOrchestrator.GetRole(AgentRole.Judge) is { } judgeCone &&
-            _coneOrchestrator.GetRole(AgentRole.Defender) is { } defCone2)
-        {
+            _coneOrchestrator.GetRole(AgentRole.Defender) is { } defCone2) {
             var latestDefFragments = defCone2.ActiveFragmentIds.Take(3).ToList();
-            foreach (var fragId in latestDefFragments)
-            {
+            foreach (var fragId in latestDefFragments) {
                 _coneOrchestrator.TransferFragment(AgentRole.Defender, AgentRole.Judge, fragId);
             }
         }
 
-        context = new ReasoningContext
-        {
+        context = new ReasoningContext {
             AllItems = GetAllItems(),
             AllEvidence = GetAllEvidence(),
             Dag = _dag,
@@ -313,14 +281,12 @@ public sealed class ReasoningEngine : IReasoningEngine
 
         };
 
-        if (_agents.TryGetValue(AgentRole.Judge, out var judge))
-        {
+        if (_agents.TryGetValue(AgentRole.Judge, out var judge)) {
             var judgeAction = await judge.ReasonAsync(context, ct).ConfigureAwait(false);
             ApplyVerdicts(judgeAction.Verdicts);
         }
 
-        if (_urlVerifier is not null)
-        {
+        if (_urlVerifier is not null) {
             await VerifyAllEvidenceLinksAsync().ConfigureAwait(false);
         }
 
@@ -335,41 +301,37 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// <param name="extraTokens">额外 Token 预算，默认使用配置中的 DefaultRefillTokens</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task ContinueAsync(BudgetRefillMode? refillMode = null, int? extraRounds = null, int? extraTokens = null, CancellationToken ct = default)
-    {
+    public async Task ContinueAsync(BudgetRefillMode? refillMode = null, int? extraRounds = null, int? extraTokens = null, CancellationToken ct = default) {
         var mode = refillMode ?? _options.DefaultRefillMode;
         var rounds = extraRounds ?? _options.DefaultRefillRounds;
         var tokens = extraTokens ?? _options.DefaultRefillTokens;
 
-        switch (mode)
-        {
+        switch (mode) {
             case BudgetRefillMode.RoundsOnly:
+            _budget.AddRounds(rounds);
+            _logger.LogInformation("[续费] 轮次预算 +{Rounds} → {Total}", rounds, _budget.RoundsBudget);
+            break;
+            case BudgetRefillMode.TokensOnly:
+            _budget.AddTokens(tokens);
+            _logger.LogInformation("[续费] Token预算 +{Tokens} → {Total}", tokens, _budget.TokensBudget);
+            break;
+            case BudgetRefillMode.Both:
+            _budget.AddRounds(rounds);
+            _budget.AddTokens(tokens);
+            _logger.LogInformation("[续费] 轮次 +{Rounds} → {TotalRounds}, Token +{Tokens} → {TotalTokens}",
+                rounds, _budget.RoundsBudget, tokens, _budget.TokensBudget);
+            break;
+            case BudgetRefillMode.Default:
+            var budget = GetBudgetStatus();
+            if (budget.IsRoundsExhausted) {
                 _budget.AddRounds(rounds);
                 _logger.LogInformation("[续费] 轮次预算 +{Rounds} → {Total}", rounds, _budget.RoundsBudget);
-                break;
-            case BudgetRefillMode.TokensOnly:
+            }
+            if (budget.IsTokensExhausted) {
                 _budget.AddTokens(tokens);
                 _logger.LogInformation("[续费] Token预算 +{Tokens} → {Total}", tokens, _budget.TokensBudget);
-                break;
-            case BudgetRefillMode.Both:
-                _budget.AddRounds(rounds);
-                _budget.AddTokens(tokens);
-                _logger.LogInformation("[续费] 轮次 +{Rounds} → {TotalRounds}, Token +{Tokens} → {TotalTokens}",
-                    rounds, _budget.RoundsBudget, tokens, _budget.TokensBudget);
-                break;
-            case BudgetRefillMode.Default:
-                var budget = GetBudgetStatus();
-                if (budget.IsRoundsExhausted)
-                {
-                    _budget.AddRounds(rounds);
-                    _logger.LogInformation("[续费] 轮次预算 +{Rounds} → {Total}", rounds, _budget.RoundsBudget);
-                }
-                if (budget.IsTokensExhausted)
-                {
-                    _budget.AddTokens(tokens);
-                    _logger.LogInformation("[续费] Token预算 +{Tokens} → {Total}", tokens, _budget.TokensBudget);
-                }
-                break;
+            }
+            break;
         }
 
         await RunAdversarialProcessAsync(ct).ConfigureAwait(false);
@@ -379,8 +341,7 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// 获取推理引擎当前状态的汇总信息
     /// </summary>
     /// <returns>包含各类节点计数、最后运行时间和预算状态的汇总对象</returns>
-    public ReasoningSummary GetSummary() => new()
-    {
+    public ReasoningSummary GetSummary() => new() {
         TotalAssumptions = _dag.Nodes.Values.Count(n => n.Payload.State == DataState.Assumption),
         TotalVerified = _dag.Nodes.Values.Count(n => n.Payload.State == DataState.Verified),
         TotalFacts = _dag.Nodes.Values.Count(n => n.Payload.State == DataState.Fact),
@@ -400,8 +361,7 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// <summary>
     /// 证据失效传播 — 降级指定节点，沿 DAG 反向传播到下游
     /// </summary>
-    public void PropagateEvidenceFailure(string evidenceId)
-    {
+    public void PropagateEvidenceFailure(string evidenceId) {
         if (!_dag.Nodes.TryGetValue(evidenceId, out var node)) return;
 
         node.Payload.TrustLevel = TrustLevel.Unreliable;
@@ -409,11 +369,9 @@ public sealed class ReasoningEngine : IReasoningEngine
         node.Version++;
 
         var affected = _dag.GetAffectedSubgraph(evidenceId);
-        foreach (var affectedNode in affected)
-        {
+        foreach (var affectedNode in affected) {
             if (affectedNode.Id == evidenceId) continue;
-            if (affectedNode.Payload.Type == ReasoningNodeType.Verdict)
-            {
+            if (affectedNode.Payload.Type == ReasoningNodeType.Verdict) {
                 affectedNode.Payload.State = DataState.PendingEvidence;
                 affectedNode.Payload.Confidence = _options.DowngradedConfidence;
                 affectedNode.Version++;
@@ -427,8 +385,7 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// <summary>
     /// 增量重算 — 只重算受影响的子图
     /// </summary>
-    public IReadOnlyList<ReasoningPayload> IncrementalRecompute(string changedNodeId)
-    {
+    public IReadOnlyList<ReasoningPayload> IncrementalRecompute(string changedNodeId) {
         var affected = _dag.GetAffectedSubgraph(changedNodeId);
         return affected.Select(n => n.Payload).ToList();
     }
@@ -436,67 +393,53 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// <summary>
     /// 获取视锥冲突检测结果
     /// </summary>
-    public ConeConflictResult DetectConeConflict(AgentRole roleA, AgentRole roleB)
-    {
+    public ConeConflictResult DetectConeConflict(AgentRole roleA, AgentRole roleB) {
         return _coneOrchestrator.DetectConeConflict(roleA, roleB);
     }
 
     /// <summary>
     /// 展开指定角色的指定片段
     /// </summary>
-    public ObservationFragment? ExpandFragment(AgentRole role, string fragmentId, string triggerCondition)
-    {
+    public ObservationFragment? ExpandFragment(AgentRole role, string fragmentId, string triggerCondition) {
         var cone = _coneOrchestrator.GetRole(role);
         return cone?.ExpandFragment(fragmentId, triggerCondition);
     }
 
-    private bool IsBudgetExhausted()
-    {
+    private bool IsBudgetExhausted() {
         return _budget.IsExhausted;
     }
 
-    private void RecordTokenUsage(int tokens)
-    {
+    private void RecordTokenUsage(int tokens) {
         _budget.RecordTokenUsage(tokens);
     }
 
-    private void ApplyAgentAction(AgentAction action)
-    {
-        if (action.TokensUsed > 0)
-        {
+    private void ApplyAgentAction(AgentAction action) {
+        if (action.TokensUsed > 0) {
             RecordTokenUsage(action.TokensUsed);
         }
 
-        foreach (var evidence in action.Evidence)
-        {
-            foreach (var claimId in action.AffectedClaimIds)
-            {
+        foreach (var evidence in action.Evidence) {
+            foreach (var claimId in action.AffectedClaimIds) {
                 AddEvidence(evidence, claimId);
             }
         }
 
-        foreach (var counter in action.CounterEvidence)
-        {
-            foreach (var claimId in action.AffectedClaimIds)
-            {
+        foreach (var counter in action.CounterEvidence) {
+            foreach (var claimId in action.AffectedClaimIds) {
                 AddCounterEvidence(counter, claimId);
             }
         }
 
-        foreach (var doubt in action.Doubts)
-        {
+        foreach (var doubt in action.Doubts) {
             _logger.LogInformation("[{Role}] 质疑: {Doubt}", action.AgentRole, doubt);
         }
     }
 
-    private void ApplyVerdicts(IReadOnlyList<Verdict> verdicts)
-    {
-        foreach (var verdict in verdicts)
-        {
+    private void ApplyVerdicts(IReadOnlyList<Verdict> verdicts) {
+        foreach (var verdict in verdicts) {
             if (!_dag.Nodes.TryGetValue(verdict.ClaimId, out var claimNode)) continue;
 
-            var verdictPayload = new ReasoningPayload
-            {
+            var verdictPayload = new ReasoningPayload {
                 Id = Guid.NewGuid().ToString("N"),
                 Type = ReasoningNodeType.Verdict,
                 Content = verdict.Reason ?? string.Empty,
@@ -508,8 +451,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             var verdictNode = new DagNode<ReasoningPayload> { Id = verdictPayload.Id, Payload = verdictPayload };
             _dag.AddNode(verdictNode);
 
-            var edge = new DagEdge
-            {
+            var edge = new DagEdge {
                 FromId = verdict.ClaimId,
                 ToId = verdictPayload.Id,
                 Label = "DECIDES",
@@ -517,41 +459,39 @@ public sealed class ReasoningEngine : IReasoningEngine
             };
             _dag.AddEdge(edge);
 
-            switch (verdict.Decision)
-            {
+            switch (verdict.Decision) {
                 case VerdictDecision.Accept:
-                    claimNode.Payload.State = DataState.Fact;
-                    claimNode.Payload.Confidence = verdict.Confidence;
-                    claimNode.Payload.VerifiedAt = DateTime.UtcNow;
-                    claimNode.Payload.VerifiedBy = "法官裁决";
-                    claimNode.Version++;
-                    _logger.LogInformation("[法官] 接受: {Content} (置信度:{Confidence}%)", claimNode.Payload.Content, claimNode.Payload.Confidence);
-                    break;
+                claimNode.Payload.State = DataState.Fact;
+                claimNode.Payload.Confidence = verdict.Confidence;
+                claimNode.Payload.VerifiedAt = DateTime.UtcNow;
+                claimNode.Payload.VerifiedBy = "法官裁决";
+                claimNode.Version++;
+                _logger.LogInformation("[法官] 接受: {Content} (置信度:{Confidence}%)", claimNode.Payload.Content, claimNode.Payload.Confidence);
+                break;
                 case VerdictDecision.Reject:
-                    claimNode.Payload.State = DataState.Rejected;
-                    claimNode.Payload.Confidence = _options.RejectedConfidence;
-                    claimNode.Version++;
-                    _logger.LogInformation("[法官] 驳回: {Content}", claimNode.Payload.Content);
-                    break;
+                claimNode.Payload.State = DataState.Rejected;
+                claimNode.Payload.Confidence = _options.RejectedConfidence;
+                claimNode.Version++;
+                _logger.LogInformation("[法官] 驳回: {Content}", claimNode.Payload.Content);
+                break;
                 case VerdictDecision.Pending:
-                    claimNode.Payload.State = DataState.PendingEvidence;
-                    claimNode.Version++;
-                    _logger.LogInformation("[法官] 等待更多证据: {Content}", claimNode.Payload.Content);
-                    break;
+                claimNode.Payload.State = DataState.PendingEvidence;
+                claimNode.Version++;
+                _logger.LogInformation("[法官] 等待更多证据: {Content}", claimNode.Payload.Content);
+                break;
                 case VerdictDecision.PartiallyAccept:
-                    claimNode.Payload.State = DataState.Verified;
-                    claimNode.Payload.Confidence = verdict.Confidence;
-                    claimNode.Payload.VerifiedAt = DateTime.UtcNow;
-                    claimNode.Payload.VerifiedBy = "法官部分接受";
-                    claimNode.Version++;
-                    _logger.LogInformation("[法官] 部分接受: {Content} (置信度:{Confidence}%)", claimNode.Payload.Content, claimNode.Payload.Confidence);
-                    break;
+                claimNode.Payload.State = DataState.Verified;
+                claimNode.Payload.Confidence = verdict.Confidence;
+                claimNode.Payload.VerifiedAt = DateTime.UtcNow;
+                claimNode.Payload.VerifiedBy = "法官部分接受";
+                claimNode.Version++;
+                _logger.LogInformation("[法官] 部分接受: {Content} (置信度:{Confidence}%)", claimNode.Payload.Content, claimNode.Payload.Confidence);
+                break;
             }
         }
     }
 
-    private async Task VerifyAllEvidenceLinksAsync()
-    {
+    private async Task VerifyAllEvidenceLinksAsync() {
         if (_urlVerifier is null) return;
 
         var evidences = GetAllEvidence()
@@ -566,13 +506,10 @@ public sealed class ReasoningEngine : IReasoningEngine
             .Where(n => !string.IsNullOrEmpty(n.Payload.SourceUrl))
             .ToLookup(n => n.Payload.SourceUrl!, StringComparer.Ordinal);
 
-        foreach (var result in results)
-        {
-            if (!result.IsValid)
-            {
+        foreach (var result in results) {
+            if (!result.IsValid) {
                 var evidenceNode = nodeByUrl[result.Url].FirstOrDefault();
-                if (evidenceNode is not null)
-                {
+                if (evidenceNode is not null) {
                     evidenceNode.Payload.TrustLevel = TrustLevel.Unreliable;
                     evidenceNode.Version++;
                     _logger.LogWarning("[验证] 证据降级: {Url} - {Error}", result.Url, result.Error);
@@ -581,8 +518,7 @@ public sealed class ReasoningEngine : IReasoningEngine
         }
     }
 
-    private static DataItem PayloadToDataItem(ReasoningPayload p) => new()
-    {
+    private static DataItem PayloadToDataItem(ReasoningPayload p) => new() {
         Id = p.Id,
         Content = p.Content,
         State = p.State,
@@ -594,8 +530,7 @@ public sealed class ReasoningEngine : IReasoningEngine
         SubmittedBy = p.SubmittedBy,
     };
 
-    private static EvidenceRecord PayloadToEvidence(ReasoningPayload p) => new()
-    {
+    private static EvidenceRecord PayloadToEvidence(ReasoningPayload p) => new() {
         Id = p.Id,
         Content = p.Content,
         Category = p.Category ?? EvidenceCategory.Documentary,
@@ -609,19 +544,16 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// <summary>
     /// 重置推理引擎 — 清空 DAG、恢复预算、重置视锥
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         var nodeIds = _dag.Nodes.Keys.ToList();
-        foreach (var id in nodeIds)
-        {
+        foreach (var id in nodeIds) {
             _dag.RemoveNode(id);
         }
 
         _budget.Reset(_options.MaxAdversarialRounds, _options.MaxTokens);
         _lastRunAt = null;
 
-        foreach (AgentRole role in Enum.GetValues<AgentRole>())
-        {
+        foreach (AgentRole role in Enum.GetValues<AgentRole>()) {
             _coneOrchestrator.RegisterRole(role, _options.ConeWindowSize);
         }
 

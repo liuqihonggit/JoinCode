@@ -6,21 +6,18 @@ namespace Core.Security.Services;
 /// 对齐 TS: teamMemSecretGuard.ts
 /// </summary>
 [Register(typeof(ITeamMemSecretGuard), ServiceLifetime.Singleton)]
-public sealed partial class TeamMemSecretGuard : ServiceEntity, ITeamMemSecretGuard
-{
+public sealed partial class TeamMemSecretGuard : ServiceEntity, ITeamMemSecretGuard {
     private readonly string? _teamMemDirectory;
 
     /// <summary>
     /// 构造函数 — 注入可选的团队记忆目录路径,未配置时跳过所有检查
     /// </summary>
-    public TeamMemSecretGuard(string? teamMemDirectory = null)
-    {
+    public TeamMemSecretGuard(string? teamMemDirectory = null) {
         _teamMemDirectory = teamMemDirectory;
     }
 
     /// <inheritdoc />
-    public bool IsTeamMemPath(string filePath)
-    {
+    public bool IsTeamMemPath(string filePath) {
         ArgumentNullException.ThrowIfNull(filePath);
         if (string.IsNullOrWhiteSpace(_teamMemDirectory))
             return false;
@@ -37,8 +34,7 @@ public sealed partial class TeamMemSecretGuard : ServiceEntity, ITeamMemSecretGu
     }
 
     /// <inheritdoc />
-    public string? CheckTeamMemSecrets(string filePath, string content)
-    {
+    public string? CheckTeamMemSecrets(string filePath, string content) {
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(content);
         // 对齐 TS: feature('TEAMMEM') 守卫 — 如果团队记忆目录未配置，跳过检查

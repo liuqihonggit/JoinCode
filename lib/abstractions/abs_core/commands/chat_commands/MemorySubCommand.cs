@@ -11,8 +11,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - FromValue("STATS") → MemorySubCommand.Stats (OrdinalIgnoreCase)
 /// - MemorySubCommand.Cleanup.ToValue() → "cleanup"
 /// </summary>
-public enum MemorySubCommand
-{
+public enum MemorySubCommand {
     /// <summary>编辑记忆文件(交互式选择或指定路径)</summary>
     [EnumValue("edit")] Edit,
 

@@ -3,8 +3,7 @@ namespace JoinCode.Transport;
 /// <summary>
 /// 传输回退指标 — 记录各传输的连接尝试、成功、失败次数及回退统计
 /// </summary>
-public sealed class TransportFallbackMetrics
-{
+public sealed class TransportFallbackMetrics {
     private readonly int _transportCount;
     private readonly int[] _connectionAttempts;
     private readonly int[] _connectionSuccesses;
@@ -16,8 +15,7 @@ public sealed class TransportFallbackMetrics
     /// 构造回退指标收集器
     /// </summary>
     /// <param name="transportCount">传输数量，需大于 0</param>
-    public TransportFallbackMetrics(int transportCount)
-    {
+    public TransportFallbackMetrics(int transportCount) {
         if (transportCount < 1) throw new ArgumentOutOfRangeException(nameof(transportCount));
         _transportCount = transportCount;
         _connectionAttempts = new int[transportCount];
@@ -29,8 +27,7 @@ public sealed class TransportFallbackMetrics
     /// 记录一次成功的连接尝试
     /// </summary>
     /// <param name="transportIndex">传输索引，范围 [0, transportCount)</param>
-    public void RecordConnection(int transportIndex)
-    {
+    public void RecordConnection(int transportIndex) {
         ValidateIndex(transportIndex);
         Interlocked.Increment(ref _connectionAttempts[transportIndex]);
         Interlocked.Increment(ref _connectionSuccesses[transportIndex]);
@@ -40,8 +37,7 @@ public sealed class TransportFallbackMetrics
     /// 记录一次失败的连接尝试
     /// </summary>
     /// <param name="transportIndex">传输索引，范围 [0, transportCount)</param>
-    public void RecordFailure(int transportIndex)
-    {
+    public void RecordFailure(int transportIndex) {
         ValidateIndex(transportIndex);
         Interlocked.Increment(ref _connectionAttempts[transportIndex]);
         Interlocked.Increment(ref _connectionFailures[transportIndex]);
@@ -53,8 +49,7 @@ public sealed class TransportFallbackMetrics
     /// <param name="fromIndex">回退前传输索引</param>
     /// <param name="toIndex">回退后传输索引</param>
     /// <param name="durationMs">回退耗时（毫秒）</param>
-    public void RecordFallback(int fromIndex, int toIndex, long durationMs)
-    {
+    public void RecordFallback(int fromIndex, int toIndex, long durationMs) {
         ValidateIndex(fromIndex);
         ValidateIndex(toIndex);
         Interlocked.Increment(ref _totalFallbacks);
@@ -65,8 +60,7 @@ public sealed class TransportFallbackMetrics
     /// 获取当前指标快照（线程安全拷贝）
     /// </summary>
     /// <returns>包含当前统计数据的快照</returns>
-    public TransportFallbackMetricsSnapshot GetSnapshot()
-    {
+    public TransportFallbackMetricsSnapshot GetSnapshot() {
         var attempts = new int[_transportCount];
         var successes = new int[_transportCount];
         var failures = new int[_transportCount];
@@ -77,8 +71,7 @@ public sealed class TransportFallbackMetrics
         var totalFallbacks = Volatile.Read(ref _totalFallbacks);
         var totalDuration = Volatile.Read(ref _totalFallbackDurationMs);
 
-        return new TransportFallbackMetricsSnapshot
-        {
+        return new TransportFallbackMetricsSnapshot {
             ConnectionAttempts = attempts,
             ConnectionSuccesses = successes,
             ConnectionFailures = failures,
@@ -88,8 +81,7 @@ public sealed class TransportFallbackMetrics
         };
     }
 
-    private void ValidateIndex(int index)
-    {
+    private void ValidateIndex(int index) {
         if (index < 0 || index >= _transportCount)
             throw new ArgumentOutOfRangeException(nameof(index), $"Index {index} out of range [0, {_transportCount})");
     }
@@ -98,8 +90,7 @@ public sealed class TransportFallbackMetrics
 /// <summary>
 /// 传输回退指标快照 — 不可变统计快照
 /// </summary>
-public sealed class TransportFallbackMetricsSnapshot
-{
+public sealed class TransportFallbackMetricsSnapshot {
     /// <summary>各传输的连接尝试次数</summary>
     public required int[] ConnectionAttempts { get; init; }
     /// <summary>各传输的连接成功次数</summary>

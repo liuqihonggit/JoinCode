@@ -3,8 +3,7 @@ namespace Infrastructure.Utils.Text;
 /// <summary>
 /// 通配符模式匹配器 - 支持 * 和 ? 通配符，内部缓存编译后的正则表达式
 /// </summary>
-public static class GlobMatcher
-{
+public static class GlobMatcher {
     private static readonly ConcurrentDictionary<string, Regex> Cache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -13,8 +12,7 @@ public static class GlobMatcher
     /// <param name="input">输入字符串</param>
     /// <param name="pattern">通配符模式（支持 * 和 ?）</param>
     /// <returns>是否匹配</returns>
-    public static bool IsMatch(string input, string pattern)
-    {
+    public static bool IsMatch(string input, string pattern) {
         if (string.IsNullOrEmpty(pattern) || string.IsNullOrEmpty(input))
             return false;
 
@@ -22,20 +20,16 @@ public static class GlobMatcher
         if (!pattern.Contains('*', StringComparison.Ordinal) && !pattern.Contains('?', StringComparison.Ordinal))
             return input.Equals(pattern, StringComparison.OrdinalIgnoreCase);
 
-        var regex = Cache.GetOrAdd(pattern, static p =>
-        {
+        var regex = Cache.GetOrAdd(pattern, static p => {
             var escaped = "^" + Regex.Escape(p)
                 .Replace("\\*", ".*", StringComparison.Ordinal)
                 .Replace("\\?", ".", StringComparison.Ordinal) + "$";
             return new Regex(escaped, RegexOptions.IgnoreCase);
         });
 
-        try
-        {
+        try {
             return regex.IsMatch(input);
-        }
-        catch (RegexMatchTimeoutException)
-        {
+        } catch (RegexMatchTimeoutException) {
             return false;
         }
     }

@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Agents;
 /// <summary>
 /// Agent执行动作
 /// </summary>
-public sealed class AgentAction
-{
+public sealed class AgentAction {
     /// <summary>
     /// 执行该动作的 Agent 角色
     /// </summary>

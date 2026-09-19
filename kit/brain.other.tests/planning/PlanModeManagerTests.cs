@@ -1,27 +1,23 @@
 
 namespace Core.Tests.Planning;
 
-public class PlanModeManagerTests
-{
+public class PlanModeManagerTests {
     private readonly IPlanModeManager _planModeManager;
 
-    public PlanModeManagerTests()
-    {
+    public PlanModeManagerTests() {
         // 清理跨进程持久化状态文件，避免测试间相互影响
         var fs = new IO.FileSystem.PhysicalFileSystem();
         var planStateFile = System.IO.Path.Combine(
             System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
             ".jcc", "plans", ".active_plan_state.json");
-        if (fs.FileExists(planStateFile))
-        {
+        if (fs.FileExists(planStateFile)) {
             fs.DeleteFile(planStateFile);
         }
         _planModeManager = new PlanModeManager(fs, JoinCode.Abstractions.Clock.SystemClockService.Instance);
     }
 
     [Fact]
-    public async Task EnterPlanModeAsync_ShouldCreateNewPlan()
-    {
+    public async Task EnterPlanModeAsync_ShouldCreateNewPlan() {
         // Arrange
         var description = "Test Plan";
 
@@ -38,8 +34,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task EnterPlanModeAsync_WithInitialSteps_ShouldCreatePlanWithSteps()
-    {
+    public async Task EnterPlanModeAsync_WithInitialSteps_ShouldCreatePlanWithSteps() {
         // Arrange
         var initialSteps = new List<PlanStepInput>
         {
@@ -58,8 +53,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ExitPlanModeAsync_ShouldExitPlanMode()
-    {
+    public async Task ExitPlanModeAsync_ShouldExitPlanMode() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         _planModeManager.IsInPlanMode.Should().BeTrue();
@@ -74,8 +68,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ExitPlanModeAsync_WhenNotInPlanMode_ShouldFail()
-    {
+    public async Task ExitPlanModeAsync_WhenNotInPlanMode_ShouldFail() {
         // Act
         var result = await _planModeManager.ExitPlanModeAsync().ConfigureAwait(true);
 
@@ -85,8 +78,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task GetPlanStatusAsync_WhenInPlanMode_ShouldReturnPlan()
-    {
+    public async Task GetPlanStatusAsync_WhenInPlanMode_ShouldReturnPlan() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
 
@@ -99,8 +91,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task GetPlanStatusAsync_WhenNotInPlanMode_ShouldReturnNull()
-    {
+    public async Task GetPlanStatusAsync_WhenNotInPlanMode_ShouldReturnNull() {
         // Act
         var plan = await _planModeManager.GetPlanStatusAsync().ConfigureAwait(true);
 
@@ -109,8 +100,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task AddStepAsync_ShouldAddStepToPlan()
-    {
+    public async Task AddStepAsync_ShouldAddStepToPlan() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
 
@@ -125,8 +115,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task AddStepAsync_WhenNotInPlanMode_ShouldFail()
-    {
+    public async Task AddStepAsync_WhenNotInPlanMode_ShouldFail() {
         // Act
         var result = await _planModeManager.AddStepAsync("New Step").ConfigureAwait(true);
 
@@ -136,8 +125,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ApproveStepAsync_ShouldApprovePendingStep()
-    {
+    public async Task ApproveStepAsync_ShouldApprovePendingStep() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -152,8 +140,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ApproveStepAsync_WithInvalidIndex_ShouldFail()
-    {
+    public async Task ApproveStepAsync_WithInvalidIndex_ShouldFail() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
 
@@ -166,8 +153,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task RejectStepAsync_ShouldRejectPendingStep()
-    {
+    public async Task RejectStepAsync_ShouldRejectPendingStep() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -182,8 +168,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task RejectStepAsync_CompletedStep_ShouldFail()
-    {
+    public async Task RejectStepAsync_CompletedStep_ShouldFail() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -199,8 +184,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ExecuteApprovedStepsAsync_ShouldExecuteApprovedSteps()
-    {
+    public async Task ExecuteApprovedStepsAsync_ShouldExecuteApprovedSteps() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -219,8 +203,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ExecuteApprovedStepsAsync_WithPendingSteps_ShouldStopAtPending()
-    {
+    public async Task ExecuteApprovedStepsAsync_WithPendingSteps_ShouldStopAtPending() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -238,8 +221,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ModifyStepAsync_ShouldModifyStepDescription()
-    {
+    public async Task ModifyStepAsync_ShouldModifyStepDescription() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Old Description").ConfigureAwait(true);
@@ -253,8 +235,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ModifyStepAsync_RejectedStep_ShouldResetToPending()
-    {
+    public async Task ModifyStepAsync_RejectedStep_ShouldResetToPending() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -270,8 +251,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task RemoveStepAsync_ShouldRemoveStep()
-    {
+    public async Task RemoveStepAsync_ShouldRemoveStep() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -288,8 +268,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task RemoveStepAsync_CompletedStep_ShouldFail()
-    {
+    public async Task RemoveStepAsync_CompletedStep_ShouldFail() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -305,8 +284,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ReorderStepsAsync_ShouldReorderSteps()
-    {
+    public async Task ReorderStepsAsync_ShouldReorderSteps() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -324,8 +302,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ReorderStepsAsync_WrongCount_ShouldFail()
-    {
+    public async Task ReorderStepsAsync_WrongCount_ShouldFail() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -340,8 +317,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task GetPlanHistoryAsync_ShouldReturnHistory()
-    {
+    public async Task GetPlanHistoryAsync_ShouldReturnHistory() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Plan 1").ConfigureAwait(true);
         await _planModeManager.ExitPlanModeAsync().ConfigureAwait(true);
@@ -358,8 +334,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task PlanState_GetProgressPercentage_ShouldCalculateCorrectly()
-    {
+    public async Task PlanState_GetProgressPercentage_ShouldCalculateCorrectly() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -381,8 +356,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task PlanState_GetCurrentStep_ShouldReturnCorrectStep()
-    {
+    public async Task PlanState_GetCurrentStep_ShouldReturnCorrectStep() {
         // Arrange
         await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         await _planModeManager.AddStepAsync("Step 1").ConfigureAwait(true);
@@ -395,8 +369,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ComplexScenario_CreatePlanApproveAndExecute()
-    {
+    public async Task ComplexScenario_CreatePlanApproveAndExecute() {
         // Arrange - 创建计划
         var result = await _planModeManager.EnterPlanModeAsync("Development Plan").ConfigureAwait(true);
         result.Success.Should().BeTrue();
@@ -427,8 +400,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ExitPlanModeAsync_ShouldSetHasExitedPlanMode()
-    {
+    public async Task ExitPlanModeAsync_ShouldSetHasExitedPlanMode() {
         // 对齐 TS: hasExitedPlanMode — 退出plan后设置为true
         _planModeManager.HasExitedPlanMode.Should().BeFalse();
 
@@ -439,8 +411,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task ExitPlanModeAsync_ShouldSetNeedsPlanModeExitAttachment()
-    {
+    public async Task ExitPlanModeAsync_ShouldSetNeedsPlanModeExitAttachment() {
         // 对齐 TS: needsPlanModeExitAttachment — 退出plan后设置为true
         _planModeManager.NeedsPlanModeExitAttachment.Should().BeFalse();
 
@@ -451,8 +422,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task EnterPlanModeAsync_ShouldClearNeedsPlanModeExitAttachment()
-    {
+    public async Task EnterPlanModeAsync_ShouldClearNeedsPlanModeExitAttachment() {
         // 对齐 TS: handlePlanModeTransition — 进入plan时清除退出通知标志
         await _planModeManager.EnterPlanModeAsync("Plan 1").ConfigureAwait(true);
         await _planModeManager.ExitPlanModeAsync().ConfigureAwait(true);
@@ -464,8 +434,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public void ClearPlanModeExitAttachment_ShouldClearFlag()
-    {
+    public void ClearPlanModeExitAttachment_ShouldClearFlag() {
         // 对齐 TS: setNeedsPlanModeExitAttachment(false)
         // 模拟退出plan后标志被设置
         _planModeManager.ClearPlanModeExitAttachment(); // 先清除确保初始状态
@@ -473,16 +442,14 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public void ClearHasExitedPlanMode_ShouldClearFlag()
-    {
+    public void ClearHasExitedPlanMode_ShouldClearFlag() {
         // 对齐 TS: setHasExitedPlanMode(false) — 发送完reentry引导后清除
         _planModeManager.ClearHasExitedPlanMode();
         _planModeManager.HasExitedPlanMode.Should().BeFalse();
     }
 
     [Fact]
-    public async Task HasExitedPlanMode_ReentryScenario()
-    {
+    public async Task HasExitedPlanMode_ReentryScenario() {
         // 对齐 TS: plan_mode_reentry attachment 场景
         // 1. 进入plan → 退出plan → hasExitedPlanMode=true
         await _planModeManager.EnterPlanModeAsync("Plan 1").ConfigureAwait(true);
@@ -495,8 +462,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task EnterPlanModeAsync_ShouldUseRandomWordSlug()
-    {
+    public async Task EnterPlanModeAsync_ShouldUseRandomWordSlug() {
         // 对齐 TS getPlanSlug(): slug 应为 {adjective}-{verb}-{noun} 格式，不含时间戳
         var result = await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         result.PlanState!.PlanFilePath.Should().NotBeNull();
@@ -511,8 +477,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public async Task EnterPlanModeAsync_ReentryShouldReuseSlug()
-    {
+    public async Task EnterPlanModeAsync_ReentryShouldReuseSlug() {
         // 对齐 TS planSlugCache: 同一 session 内进出 plan mode 应覆盖同一文件
         var result1 = await _planModeManager.EnterPlanModeAsync("Plan 1").ConfigureAwait(true);
         var filePath1 = result1.PlanState!.PlanFilePath;
@@ -526,8 +491,7 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public void ClearPlanSlug_ShouldResetSlugCache()
-    {
+    public void ClearPlanSlug_ShouldResetSlugCache() {
         // 对齐 TS clearPlanSlug(): 清除后下次进入 plan mode 应生成新 slug
         // PlanModeManager 迁移到 SessionScope.Cache 后，slug 存储在 SessionPlanState.CurrentSessionSlug
         var state1 = _planModeManager.GetType()
@@ -546,24 +510,21 @@ public class PlanModeManagerTests
     }
 
     [Fact]
-    public void CleanupOldPlanFiles_WithNoPlansDir_ShouldReturnZero()
-    {
+    public void CleanupOldPlanFiles_WithNoPlansDir_ShouldReturnZero() {
         // 对齐 TS cleanupOldPlanFiles(): 目录不存在时返回 0
         var result = _planModeManager.CleanupOldPlanFiles();
         result.Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Fact]
-    public async Task ExitPlanModeAsync_ShouldNotAutoWriteFile()
-    {
+    public async Task ExitPlanModeAsync_ShouldNotAutoWriteFile() {
         // 对齐 TS: 退出时不自动写文件 — plan 文件由模型通过 FileWriteTool 写入
         var result = await _planModeManager.EnterPlanModeAsync("Test Plan").ConfigureAwait(true);
         var planFilePath = result.PlanState!.PlanFilePath;
         await _planModeManager.ExitPlanModeAsync().ConfigureAwait(true);
 
         // 退出后 plan 文件不应被自动创建
-        if (planFilePath is not null)
-        {
+        if (planFilePath is not null) {
             _planModeManager.GetType()
                 .GetField("_fs", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
                 .GetValue(_planModeManager)!.Should().NotBeNull();

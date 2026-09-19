@@ -3,36 +3,29 @@ namespace Core.Tests.ChatCommands;
 /// <summary>
 /// /exit 命令单元测试 — 覆盖确认提示被重定向吞掉 + PTY 交互模式无阻塞
 /// </summary>
-public class ExitCommandTests
-{
+public class ExitCommandTests {
     [Fact]
-    public void Name_Should_Be_exit()
-    {
+    public void Name_Should_Be_exit() {
         var cmd = new ExitCommand();
         cmd.Name.Should().Be("exit");
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new ExitCommand();
         cmd.Usage.Should().StartWith("/exit");
     }
 
     [Fact]
-    public async Task ExecuteAsync_ForceNonInteractive_ShouldExitDirectly()
-    {
+    public async Task ExecuteAsync_ForceNonInteractive_ShouldExitDirectly() {
         var originalForce = Core.Utils.TestEnvironmentDetector.ForceNonInteractive;
-        try
-        {
+        try {
             Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
             var cmd = new ExitCommand();
-            var context = new ChatCommandContext
-            {
+            var context = new ChatCommandContext {
                 Arguments = "",
                 CancellationToken = CancellationToken.None,
-                Services = new CommandServiceProvider(new CommandServices
-                {
+                Services = new CommandServiceProvider(new CommandServices {
                     ChatService = Mock.Of<IChatService>(),
                     CodeService = Mock.Of<ICodeService>(),
                     PlanService = Mock.Of<IPlanService>(),
@@ -44,9 +37,7 @@ public class ExitCommandTests
 
             result.ShouldContinue.Should().BeFalse();
             result.IsHandled.Should().BeTrue();
-        }
-        finally
-        {
+        } finally {
             Core.Utils.TestEnvironmentDetector.ForceNonInteractive = originalForce;
         }
     }
@@ -54,17 +45,14 @@ public class ExitCommandTests
     // === T9：GUI 确认回调注入 — ExitCommand 优先读 context.Confirm（UI 差异注入机制） ===
 
     [Fact]
-    public async Task ExecuteAsync_ConfirmApproved_ReturnsExit()
-    {
+    public async Task ExecuteAsync_ConfirmApproved_ReturnsExit() {
         string? receivedMessage = null;
         var cmd = new ExitCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
             Confirm = message => { receivedMessage = message; return true; },
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
@@ -79,16 +67,13 @@ public class ExitCommandTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ConfirmDeclined_ReturnsContinue()
-    {
+    public async Task ExecuteAsync_ConfirmDeclined_ReturnsContinue() {
         var cmd = new ExitCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
             Confirm = _ => false,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
@@ -105,49 +90,39 @@ public class ExitCommandTests
 /// <summary>
 /// TerminalHelper RealOut 单元测试 — 验证交互式输出绕过 SetOut 重定向
 /// </summary>
-public class TerminalHelperRealOutTests
-{
+public class TerminalHelperRealOutTests {
     [Fact]
-    public void RealOut_AfterInit_ShouldNotBeNull()
-    {
+    public void RealOut_AfterInit_ShouldNotBeNull() {
         JoinCode.Cli.TerminalHelper.Init();
         JoinCode.Cli.TerminalHelper.RealOut.Should().NotBeNull();
     }
 
     [Fact]
-    public void WriteLineReal_AfterSetOut_ShouldNotGoToRedirectedWriter()
-    {
+    public void WriteLineReal_AfterSetOut_ShouldNotGoToRedirectedWriter() {
         JoinCode.Cli.TerminalHelper.Init();
         var originalOut = System.Console.Out;
         var sb = new StringBuilder();
         using var stringWriter = new StringWriter(sb);
-        try
-        {
+        try {
             JoinCode.Cli.TerminalHelper.SetOut(stringWriter);
             JoinCode.Cli.TerminalHelper.WriteLineReal("确认提示测试");
             sb.ToString().Should().NotContain("确认提示测试");
-        }
-        finally
-        {
+        } finally {
             JoinCode.Cli.TerminalHelper.SetOut(originalOut);
         }
     }
 
     [Fact]
-    public void WriteRawReal_AfterSetOut_ShouldNotGoToRedirectedWriter()
-    {
+    public void WriteRawReal_AfterSetOut_ShouldNotGoToRedirectedWriter() {
         JoinCode.Cli.TerminalHelper.Init();
         var originalOut = System.Console.Out;
         var sb = new StringBuilder();
         using var stringWriter = new StringWriter(sb);
-        try
-        {
+        try {
             JoinCode.Cli.TerminalHelper.SetOut(stringWriter);
             JoinCode.Cli.TerminalHelper.WriteRawReal("raw提示测试");
             sb.ToString().Should().NotContain("raw提示测试");
-        }
-        finally
-        {
+        } finally {
             JoinCode.Cli.TerminalHelper.SetOut(originalOut);
         }
     }
@@ -156,26 +131,20 @@ public class TerminalHelperRealOutTests
 /// <summary>
 /// TestEnvironmentDetector.ForceNonInteractive 单元测试
 /// </summary>
-public class TestEnvironmentDetectorForceNonInteractiveTests
-{
+public class TestEnvironmentDetectorForceNonInteractiveTests {
     [Fact]
-    public void ForceNonInteractive_SetTrue_ShouldMakeIsNonInteractiveTrue()
-    {
+    public void ForceNonInteractive_SetTrue_ShouldMakeIsNonInteractiveTrue() {
         var original = Core.Utils.TestEnvironmentDetector.ForceNonInteractive;
-        try
-        {
+        try {
             Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
             Core.Utils.TestEnvironmentDetector.IsNonInteractive.Should().BeTrue();
-        }
-        finally
-        {
+        } finally {
             Core.Utils.TestEnvironmentDetector.ForceNonInteractive = original;
         }
     }
 
     [Fact]
-    public void ForceNonInteractive_ResetFalse_ShouldRestoreOriginal()
-    {
+    public void ForceNonInteractive_ResetFalse_ShouldRestoreOriginal() {
         var original = Core.Utils.TestEnvironmentDetector.ForceNonInteractive;
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = original;

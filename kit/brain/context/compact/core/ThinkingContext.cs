@@ -3,8 +3,7 @@ namespace Core.Context.Compact;
 /// <summary>
 /// Thinking 模式上下文 — 封装 API 端上下文管理所需的 thinking 状态
 /// </summary>
-public sealed record ThinkingContext
-{
+public sealed record ThinkingContext {
     /// <summary>
     /// 是否启用 thinking 模式
     /// </summary>

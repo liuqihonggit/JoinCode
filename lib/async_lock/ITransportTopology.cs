@@ -3,8 +3,7 @@ namespace Core.Utils;
 /// <summary>
 /// 传输拓扑类型 — 邮箱跨进程通信的网络结构。
 /// </summary>
-public enum TransportTopology
-{
+public enum TransportTopology {
     /// <summary>星型拓扑 — 主机中心转发，从机连主机。先实现。</summary>
     [EnumValue("star")] Star,
 
@@ -18,8 +17,7 @@ public enum TransportTopology
 /// <summary>
 /// 进程角色 — 主机/从机。
 /// </summary>
-public enum ProcessRole
-{
+public enum ProcessRole {
     /// <summary>主机 — 传输层服务器，接收所有从机连接，转发消息。</summary>
     [EnumValue("host")] Host,
 
@@ -40,8 +38,7 @@ public sealed record TransportFrame(string SourceProcessId, ReadOnlyMemory<byte>
 /// <para>序列化由调用方（如 <c>NamedPipeMailbox</c>）负责，本接口只传输 <see cref="ReadOnlyMemory{T}"/> 字节。</para>
 /// <para>主机角色由 <see cref="HostElectionService"/> 选举决定，本接口只负责按角色建立传输管道。</para>
 /// </summary>
-public interface ITransportTopology : IAsyncDisposable
-{
+public interface ITransportTopology : IAsyncDisposable {
     /// <summary>拓扑类型。</summary>
     TransportTopology Kind { get; }
 
@@ -96,8 +93,7 @@ public interface ITransportTopology : IAsyncDisposable
 /// 主机上下文快照 — 主机定期同步给所有从机，用于故障转移。
 /// <para>完整上下文：路由表 + 未投递消息 + 编译队列状态。</para>
 /// </summary>
-public sealed record HostContextSnapshot
-{
+public sealed record HostContextSnapshot {
     /// <summary>快照时间戳。</summary>
     public required DateTimeOffset Timestamp { get; init; }
 
@@ -117,8 +113,7 @@ public sealed record HostContextSnapshot
 /// <summary>
 /// 编译队列状态 — 全局编译队列的快照。
 /// </summary>
-public sealed record BuildQueueState
-{
+public sealed record BuildQueueState {
     /// <summary>排队中的编译任务数。</summary>
     public int PendingCount { get; init; }
 
@@ -135,8 +130,7 @@ public sealed record BuildQueueState
 /// <para>无需再手写临时 <c>Console.Error.WriteLine</c> 诊断代码 — 所有关键路径已埋点,开关控制输出。</para>
 /// <para>生产环境默认 <c>false</c>,零开销(仅一个 bool 读 + lambda 不构造)。</para>
 /// </summary>
-public static class TransportDiagnostics
-{
+public static class TransportDiagnostics {
     /// <summary>诊断输出开关 — true 时所有 Transport 关键路径打印到 stderr, false 时静默。</summary>
     public static bool Enabled;
 
@@ -146,8 +140,7 @@ public static class TransportDiagnostics
     /// </summary>
     /// <param name="tag">日志标签(如 "MESH", "BUS", "PIPE-ACCEPT")</param>
     /// <param name="messageFactory">消息构造函数(仅开启时调用)</param>
-    public static void Log(string tag, Func<string> messageFactory)
-    {
+    public static void Log(string tag, Func<string> messageFactory) {
         if (Enabled) Console.Error.WriteLine($"[{tag}] {messageFactory()}");
     }
 
@@ -157,8 +150,7 @@ public static class TransportDiagnostics
     /// </summary>
     /// <param name="tag">日志标签</param>
     /// <param name="message">消息内容</param>
-    public static void Log(string tag, string message)
-    {
+    public static void Log(string tag, string message) {
         if (Enabled) Console.Error.WriteLine($"[{tag}] {message}");
     }
 }
@@ -167,43 +159,31 @@ public static class TransportDiagnostics
 /// 管道接受循环辅助 — 封装 NamedPipeServerStream 接受连接的循环+协商式取消,
 /// 消除三个 Transport 的重复代码。取消时通过 ct.Register Dispose server 强制中断 WaitForConnectionAsync。
 /// </summary>
-internal static class PipeAcceptLoop
-{
+internal static class PipeAcceptLoop {
     /// <summary>
     /// 循环接受管道连接,每接受一个连接调 handleConnection 处理。取消时优雅退出。
     /// </summary>
     public static async Task RunAsync(
         string pipeName,
         Func<NamedPipeServerStream, CancellationToken, Task> handleConnection,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         var connectionTasks = new List<Task>();
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
+        try {
+            while (!ct.IsCancellationRequested) {
                 var server = NamedPipeFactory.CreateServer(pipeName);
-                try
-                {
+                try {
                     using var reg = ct.Register(static s => ((NamedPipeServerStream)s!).Dispose(), server);
                     await server.WaitForConnectionAsync(ct).ConfigureAwait(false);
                     reg.Unregister();
                     TransportDiagnostics.Log("PIPE-ACCEPT", () => $"accepted connection on {pipeName}");
                     connectionTasks.RemoveAll(t => t.IsCompleted);
                     connectionTasks.Add(Task.Run(() => handleConnection(server, ct)));
-                }
-                catch (OperationCanceledException) { return; }
-                catch (ObjectDisposedException) { return; }
-                catch (Exception ex)
-                {
+                } catch (OperationCanceledException) { return; } catch (ObjectDisposedException) { return; } catch (Exception ex) {
                     TransportDiagnostics.Log("PIPE-ACCEPT", () => $"连接错误: {ex.Message}");
-                    try { server.Dispose(); }
-                    catch (Exception) { TransportDiagnostics.Log("PIPE-ACCEPT", "server Dispose 失败"); }
+                    try { server.Dispose(); } catch (Exception) { TransportDiagnostics.Log("PIPE-ACCEPT", "server Dispose 失败"); }
                 }
             }
-        }
-        finally
-        {
+        } finally {
             await Task.WhenAll(connectionTasks).ConfigureAwait(false);
         }
     }
@@ -212,16 +192,12 @@ internal static class PipeAcceptLoop
 /// <summary>
 /// 任务等待辅助 — 封装 DisposeAsync 中 await 后台任务带超时的模式,消除重复 try-catch。
 /// </summary>
-internal static class TaskAwaitHelper
-{
+internal static class TaskAwaitHelper {
     /// <summary>
     /// 等待任务完成,超时或取消时静默返回(不抛异常)。
     /// </summary>
-    public static async ValueTask AwaitWithTimeout(Task? task, TimeSpan timeout)
-    {
+    public static async ValueTask AwaitWithTimeout(Task? task, TimeSpan timeout) {
         if (task is null) return;
-        try { await task.WaitAsync(timeout).ConfigureAwait(false); }
-        catch (TimeoutException) { TransportDiagnostics.Log("TASK-AWAIT", () => $"等待任务超时 {timeout.TotalSeconds:F1}s,放弃等待"); }
-        catch (OperationCanceledException) { }
+        try { await task.WaitAsync(timeout).ConfigureAwait(false); } catch (TimeoutException) { TransportDiagnostics.Log("TASK-AWAIT", () => $"等待任务超时 {timeout.TotalSeconds:F1}s,放弃等待"); } catch (OperationCanceledException) { }
     }
 }

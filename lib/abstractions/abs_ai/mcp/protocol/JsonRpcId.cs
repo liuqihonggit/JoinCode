@@ -1,8 +1,7 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
 [JsonConverter(typeof(JsonRpcIdConverter))]
-public readonly struct JsonRpcId : IEquatable<JsonRpcId>
-{
+public readonly struct JsonRpcId : IEquatable<JsonRpcId> {
     private readonly object? _value;
 
     internal object? InternalValue => _value;
@@ -37,18 +36,15 @@ public readonly struct JsonRpcId : IEquatable<JsonRpcId>
     public static implicit operator JsonRpcId(long value) => FromNumber(value);
 }
 
-public sealed class JsonRpcIdConverter : JsonConverter<JsonRpcId>
-{
-    public override JsonRpcId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
+public sealed class JsonRpcIdConverter : JsonConverter<JsonRpcId> {
+    public override JsonRpcId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
         if (reader.TokenType == JsonTokenType.Null)
             return JsonRpcId.Null;
 
         if (reader.TokenType == JsonTokenType.String)
             return JsonRpcId.FromString(reader.GetString()!);
 
-        if (reader.TokenType == JsonTokenType.Number)
-        {
+        if (reader.TokenType == JsonTokenType.Number) {
             if (reader.TryGetInt64(out long longValue))
                 return JsonRpcId.FromNumber(longValue);
         }
@@ -56,22 +52,18 @@ public sealed class JsonRpcIdConverter : JsonConverter<JsonRpcId>
         throw new JsonException($"Invalid JSON-RPC id type: {reader.TokenType}");
     }
 
-    public override void Write(Utf8JsonWriter writer, JsonRpcId value, JsonSerializerOptions options)
-    {
-        if (value.IsNull)
-        {
+    public override void Write(Utf8JsonWriter writer, JsonRpcId value, JsonSerializerOptions options) {
+        if (value.IsNull) {
             writer.WriteNullValue();
             return;
         }
 
-        if (value.IsString)
-        {
+        if (value.IsString) {
             writer.WriteStringValue(value.AsString);
             return;
         }
 
-        if (value.IsNumber)
-        {
+        if (value.IsNumber) {
             writer.WriteNumberValue(value.AsNumber.GetValueOrDefault());
             return;
         }

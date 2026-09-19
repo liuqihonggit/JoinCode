@@ -1,10 +1,8 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class TreeSitterParserPoolTests
-{
+public sealed class TreeSitterParserPoolTests {
     [Fact]
-    public void Shared_ReturnsSameInstance()
-    {
+    public void Shared_ReturnsSameInstance() {
         var shared1 = TreeSitterParserPool.Shared;
         var shared2 = TreeSitterParserPool.Shared;
 
@@ -13,22 +11,19 @@ public sealed class TreeSitterParserPoolTests
     }
 
     [Fact]
-    public async Task AcquireSharedAsync_ReturnsReleaserThatCanBeDisposed()
-    {
+    public async Task AcquireSharedAsync_ReturnsReleaserThatCanBeDisposed() {
         using var releaser = await TreeSitterParserPool.AcquireSharedAsync(CancellationToken.None).ConfigureAwait(true);
         Assert.NotNull(releaser);
     }
 
     [Fact]
-    public void AcquireShared_ReturnsReleaserThatCanBeDisposed()
-    {
+    public void AcquireShared_ReturnsReleaserThatCanBeDisposed() {
         using var releaser = TreeSitterParserPool.AcquireShared();
         Assert.NotNull(releaser);
     }
 
     [Fact]
-    public void CreateDisposable_ParseSimpleSource_Succeeds()
-    {
+    public void CreateDisposable_ParseSimpleSource_Succeeds() {
         using var parser = TreeSitterParserPool.CreateDisposable();
         using var tree = parser.Parse("class A { }");
 

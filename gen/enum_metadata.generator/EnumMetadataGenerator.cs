@@ -5,34 +5,28 @@ namespace EnumMetadata.Generator;
 /// 枚举元数据源码生成器 — 扫描 [EnumValue] 特性，自动生成 ToValue/FromValue 映射代码
 /// </summary>
 [Generator]
-public sealed class EnumMetadataGenerator : IIncrementalGenerator
-{
+public sealed class EnumMetadataGenerator : IIncrementalGenerator {
     private const string EnumValueAttributeFullName = "JoinCode.Abstractions.Attributes.EnumValueAttribute";
     private const string AliasValueAttributeFullName = "JoinCode.Abstractions.Attributes.AliasValueAttribute";
     private const string SubCommandInfoAttributeFullName = "JoinCode.Abstractions.Attributes.SubCommandInfoAttribute";
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
+    public void Initialize(IncrementalGeneratorInitializationContext context) {
         var enumInfos = context.CompilationProvider
-            .SelectMany(static (compilation, _) =>
-            {
+            .SelectMany(static (compilation, _) => {
                 var enumValueAttr = compilation.GetTypeByMetadataName(EnumValueAttributeFullName);
                 var aliasValueAttr = compilation.GetTypeByMetadataName(AliasValueAttributeFullName);
                 var subCommandInfoAttr = compilation.GetTypeByMetadataName(SubCommandInfoAttributeFullName);
 
                 var results = new List<EnumInfo>();
-                if (enumValueAttr is not null)
-                {
+                if (enumValueAttr is not null) {
                     VisitNamespaces(compilation.GlobalNamespace, compilation.Assembly, enumValueAttr, aliasValueAttr, subCommandInfoAttr, results);
                 }
                 return results.ToImmutableArray();
             })
             .Collect();
 
-        context.RegisterSourceOutput(enumInfos, static (ctx, enums) =>
-        {
-            foreach (var enumInfo in enums)
-            {
+        context.RegisterSourceOutput(enumInfos, static (ctx, enums) => {
+            foreach (var enumInfo in enums) {
                 GenerateExtensionClass(ctx, enumInfo);
             }
         });
@@ -44,37 +38,29 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         INamedTypeSymbol enumValueAttr,
         INamedTypeSymbol? aliasValueAttr,
         INamedTypeSymbol? subCommandInfoAttr,
-        List<EnumInfo> results)
-    {
-        foreach (var member in namespaceSymbol.GetMembers())
-        {
+        List<EnumInfo> results) {
+        foreach (var member in namespaceSymbol.GetMembers()) {
             if (member is INamespaceSymbol childNamespace)
                 VisitNamespaces(childNamespace, currentAssembly, enumValueAttr, aliasValueAttr, subCommandInfoAttr, results);
             else if (member is INamedTypeSymbol { TypeKind: TypeKind.Enum } enumType
-                     && SymbolEqualityComparer.Default.Equals(enumType.ContainingAssembly, currentAssembly))
-            {
+                     && SymbolEqualityComparer.Default.Equals(enumType.ContainingAssembly, currentAssembly)) {
                 var members = new List<EnumMemberInfo>();
-                foreach (var field in enumType.GetMembers().OfType<IFieldSymbol>())
-                {
+                foreach (var field in enumType.GetMembers().OfType<IFieldSymbol>()) {
                     var allAttrs = field.GetAttributes()
                         .Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, enumValueAttr))
                         .ToList();
 
-                    if (allAttrs.Count > 0)
-                    {
+                    if (allAttrs.Count > 0) {
                         var value = allAttrs[0].ConstructorArguments.ElementAtOrDefault(0).Value as string ?? field.Name;
 
                         var aliases = ImmutableArray<string>.Empty;
-                        if (allAttrs.Count > 1)
-                        {
+                        if (allAttrs.Count > 1) {
                             aliases = allAttrs.Skip(1)
                                 .Select(a => a.ConstructorArguments.ElementAtOrDefault(0).Value as string)
                                 .Where(a => a is not null)
                                 .Cast<string>()
                                 .ToImmutableArray();
-                        }
-                        else if (aliasValueAttr is not null)
-                        {
+                        } else if (aliasValueAttr is not null) {
                             var aliasAttrs = field.GetAttributes()
                                 .Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, aliasValueAttr))
                                 .Select(a => a.ConstructorArguments.ElementAtOrDefault(0).Value as string)
@@ -85,12 +71,10 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
                         }
 
                         SubCommandInfo? subCmdInfo = null;
-                        if (subCommandInfoAttr is not null)
-                        {
+                        if (subCommandInfoAttr is not null) {
                             var subCmdAttr = field.GetAttributes()
                                 .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, subCommandInfoAttr));
-                            if (subCmdAttr is not null)
-                            {
+                            if (subCmdAttr is not null) {
                                 var desc = subCmdAttr.ConstructorArguments.ElementAtOrDefault(0).Value as string ?? "";
                                 var cat = subCmdAttr.ConstructorArguments.ElementAtOrDefault(1).Value as string ?? "";
                                 var namedArgs = subCmdAttr.NamedArguments.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
@@ -106,8 +90,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
                     }
                 }
 
-                if (members.Count > 0)
-                {
+                if (members.Count > 0) {
                     results.Add(new EnumInfo(
                         enumType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                         enumType.Name,
@@ -118,8 +101,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         }
     }
 
-    private static void GenerateExtensionClass(SourceProductionContext context, EnumInfo enumInfo)
-    {
+    private static void GenerateExtensionClass(SourceProductionContext context, EnumInfo enumInfo) {
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated/>");
         sb.AppendLine("#nullable enable");
@@ -136,12 +118,10 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         sb.AppendLine("    /// </summary>");
         sb.AppendLine($"public static class {enumInfo.Name}EnumConstants");
         sb.AppendLine("{");
-        foreach (var member in enumInfo.Members)
-        {
+        foreach (var member in enumInfo.Members) {
             sb.AppendLine("    /// <summary>枚举成员的字符串值</summary>");
             sb.AppendLine($"    public const string {member.Name} = \"{EscapeString(member.Value)}\";");
-            foreach (var alias in member.Aliases)
-            {
+            foreach (var alias in member.Aliases) {
                 sb.AppendLine("    /// <summary>枚举成员的别名常量</summary>");
                 sb.AppendLine($"    public const string {member.Name}Alias_{EscapeIdentifier(alias)} = \"{EscapeString(alias)}\";");
             }
@@ -159,8 +139,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         // 正向映射: Enum -> string
         sb.AppendLine($"    private static readonly FrozenDictionary<{enumInfo.FullyQualifiedName}, string> __valueMap = new Dictionary<{enumInfo.FullyQualifiedName}, string>");
         sb.AppendLine("    {");
-        foreach (var member in enumInfo.Members)
-        {
+        foreach (var member in enumInfo.Members) {
             sb.AppendLine($"        [{enumInfo.FullyQualifiedName}.{member.Name}] = \"{EscapeString(member.Value)}\",");
         }
         sb.AppendLine("    }.ToFrozenDictionary();");
@@ -169,11 +148,9 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         // 反向映射: string -> Enum（含别名）
         sb.AppendLine($"    private static readonly FrozenDictionary<string, {enumInfo.FullyQualifiedName}> __reverseMap = new Dictionary<string, {enumInfo.FullyQualifiedName}>");
         sb.AppendLine("    {");
-        foreach (var member in enumInfo.Members)
-        {
+        foreach (var member in enumInfo.Members) {
             sb.AppendLine($"        [\"{EscapeString(member.Value)}\"] = {enumInfo.FullyQualifiedName}.{member.Name},");
-            foreach (var alias in member.Aliases)
-            {
+            foreach (var alias in member.Aliases) {
                 sb.AppendLine($"        [\"{EscapeString(alias)}\"] = {enumInfo.FullyQualifiedName}.{member.Name},");
             }
         }
@@ -207,8 +184,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
 
         // 如果枚举有 [SubCommandInfo] 标注, 生成多级渐进式展开帮助文本类
         var subCmdMembers = enumInfo.Members.Where(m => m.SubCommandInfo is not null).ToList();
-        if (subCmdMembers.Count > 0)
-        {
+        if (subCmdMembers.Count > 0) {
             GenerateSubCommandHelpText(sb, enumInfo, subCmdMembers);
         }
 
@@ -218,8 +194,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
     /// <summary>
     /// 生成 SubCommandHelpText 类 — 多级渐进式展开帮助文本
     /// </summary>
-    private static void GenerateSubCommandHelpText(StringBuilder sb, EnumInfo enumInfo, List<EnumMemberInfo> subCmdMembers)
-    {
+    private static void GenerateSubCommandHelpText(StringBuilder sb, EnumInfo enumInfo, List<EnumMemberInfo> subCmdMembers) {
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");
         sb.AppendLine($"    /// {enumInfo.Name} 子命令的渐进式帮助文本（由源码生成器 EnumMetadataGenerator 生成）");
@@ -235,8 +210,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         // 生成 __allEntries 数组
         sb.AppendLine("    private static readonly SubCommandEntry[] __allEntries = new SubCommandEntry[]");
         sb.AppendLine("    {");
-        foreach (var m in subCmdMembers)
-        {
+        foreach (var m in subCmdMembers) {
             var info = m.SubCommandInfo!;
             sb.AppendLine($"        new(\"{EscapeString(m.Value)}\", \"{EscapeString(info.Description)}\", \"{EscapeString(info.Category)}\", {NullableString(info.Example)}, {(info.IsAlias ? "true" : "false")}, {NullableString(info.AliasOf)}, {(info.IsDeprecated ? "true" : "false")}),");
         }
@@ -327,11 +301,9 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
 
     private static string EscapeString(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
-    private static string EscapeIdentifier(string s)
-    {
+    private static string EscapeIdentifier(string s) {
         var sb = new StringBuilder(s.Length);
-        foreach (var c in s)
-        {
+        foreach (var c in s) {
             if (char.IsLetterOrDigit(c) || c == '_')
                 sb.Append(c);
             else
@@ -340,15 +312,13 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    private sealed class EnumInfo
-    {
+    private sealed class EnumInfo {
         public string FullyQualifiedName { get; }
         public string Name { get; }
         public string Namespace { get; }
         public ImmutableArray<EnumMemberInfo> Members { get; }
 
-        public EnumInfo(string fullyQualifiedName, string name, string ns, ImmutableArray<EnumMemberInfo> members)
-        {
+        public EnumInfo(string fullyQualifiedName, string name, string ns, ImmutableArray<EnumMemberInfo> members) {
             FullyQualifiedName = fullyQualifiedName;
             Name = name;
             Namespace = ns;
@@ -356,15 +326,13 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         }
     }
 
-    private sealed class EnumMemberInfo
-    {
+    private sealed class EnumMemberInfo {
         public string Name { get; }
         public string Value { get; }
         public ImmutableArray<string> Aliases { get; }
         public SubCommandInfo? SubCommandInfo { get; }
 
-        public EnumMemberInfo(string name, string value, ImmutableArray<string> aliases, SubCommandInfo? subCommandInfo = null)
-        {
+        public EnumMemberInfo(string name, string value, ImmutableArray<string> aliases, SubCommandInfo? subCommandInfo = null) {
             Name = name;
             Value = value;
             Aliases = aliases;
@@ -372,8 +340,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         }
     }
 
-    private sealed class SubCommandInfo
-    {
+    private sealed class SubCommandInfo {
         public string Description { get; }
         public string Category { get; }
         public string? Example { get; }
@@ -381,8 +348,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         public string? AliasOf { get; }
         public bool IsDeprecated { get; }
 
-        public SubCommandInfo(string description, string category, string? example, bool isAlias, string? aliasOf, bool isDeprecated)
-        {
+        public SubCommandInfo(string description, string category, string? example, bool isAlias, string? aliasOf, bool isDeprecated) {
             Description = description;
             Category = category;
             Example = example;

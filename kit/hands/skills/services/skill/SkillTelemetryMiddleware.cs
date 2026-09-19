@@ -4,15 +4,13 @@ namespace Core.Skills;
 /// 技能遥测中间件 — 启动 Span、记录开始/完成日志、处理异常
 /// </summary>
 [Register(typeof(ISkillMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class SkillTelemetryMiddleware : ServiceEntity, ISkillMiddleware
-{
+public sealed partial class SkillTelemetryMiddleware : ServiceEntity, ISkillMiddleware {
 
     /// <summary>
     /// 创建 SkillTelemetryMiddleware
     /// </summary>
     /// <param name="telemetryService">遥测服务</param>
-    public SkillTelemetryMiddleware(ITelemetryService? telemetryService = null)
-    {
+    public SkillTelemetryMiddleware(ITelemetryService? telemetryService = null) {
         _telemetryService = telemetryService;
     }
     private readonly ITelemetryService? _telemetryService;
@@ -22,8 +20,7 @@ public sealed partial class SkillTelemetryMiddleware : ServiceEntity, ISkillMidd
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public async Task InvokeAsync(SkillContext context, MiddlewareDelegate<SkillContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(SkillContext context, MiddlewareDelegate<SkillContext> next, CancellationToken ct) {
         var skillName = context.SkillName;
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         await using var span = _telemetryService?.StartSpan($"skill.{skillName}", TelemetrySpanKind.Server);
@@ -34,18 +31,13 @@ public sealed partial class SkillTelemetryMiddleware : ServiceEntity, ISkillMidd
 
         context.ExecutionContext.Logger?.LogInformation(L.T(StringKey.SkillServiceStartExecution), skillName);
 
-        try
-        {
+        try {
             await next(context, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             context.ExecutionContext.Logger?.LogWarning(L.T(StringKey.SkillServiceExecutionCancelled), skillName);
             span?.SetStatus(TelemetryStatusCode.Error, "Cancelled");
             context.Result = SkillResult.FailureResult(skillName, L.T(StringKey.SkillServiceExecutionCancelledResult));
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             context.ExecutionContext.Logger?.LogError(ex, L.T(StringKey.SkillServiceExecutionFailed), skillName);
             span?.SetStatus(TelemetryStatusCode.Error, ex.Message);
             span?.RecordException(ex);
@@ -62,8 +54,7 @@ public sealed partial class SkillTelemetryMiddleware : ServiceEntity, ISkillMidd
             L.T(StringKey.SkillServiceExecutionComplete),
             skillName, stopwatch.ElapsedMilliseconds);
 
-        if (result != null)
-        {
+        if (result != null) {
             context.Result = result with { DurationMs = stopwatch.ElapsedMilliseconds };
         }
     }

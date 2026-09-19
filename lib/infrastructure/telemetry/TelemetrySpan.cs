@@ -5,8 +5,7 @@ namespace Core.Telemetry;
 /// <summary>
 /// 遥测 Span 实现 — 封装 System.Diagnostics.Activity,提供链路追踪能力
 /// </summary>
-public sealed class TelemetrySpan : ITelemetrySpan
-{
+public sealed class TelemetrySpan : ITelemetrySpan {
     private readonly Activity _activity;
     private readonly TelemetrySpanKind _kind;
     private readonly TelemetryService _service;
@@ -39,16 +38,14 @@ public sealed class TelemetrySpan : ITelemetrySpan
     /// <param name="activity">底层 Activity 实例</param>
     /// <param name="kind">Span 类型</param>
     /// <param name="service">所属遥测服务,用于释放时从活动 Span 表中移除</param>
-    internal TelemetrySpan(Activity activity, TelemetrySpanKind kind, TelemetryService service)
-    {
+    internal TelemetrySpan(Activity activity, TelemetrySpanKind kind, TelemetryService service) {
         _activity = activity;
         _kind = kind;
         _service = service;
     }
 
     /// <inheritdoc/>
-    public ITelemetrySpan SetStatus(TelemetryStatusCode statusCode, string? description = null)
-    {
+    public ITelemetrySpan SetStatus(TelemetryStatusCode statusCode, string? description = null) {
         Status = statusCode;
         StatusDescription = description;
         _activity.SetStatus(MapActivityStatus(statusCode), description);
@@ -56,31 +53,26 @@ public sealed class TelemetrySpan : ITelemetrySpan
     }
 
     /// <inheritdoc/>
-    public ITelemetrySpan SetTag(string key, string value)
-    {
+    public ITelemetrySpan SetTag(string key, string value) {
         _activity.SetTag(key, value);
         return this;
     }
 
     /// <inheritdoc/>
-    public ITelemetrySpan SetTag(string key, double value)
-    {
+    public ITelemetrySpan SetTag(string key, double value) {
         _activity.SetTag(key, value);
         return this;
     }
 
     /// <inheritdoc/>
-    public ITelemetrySpan SetTag(string key, bool value)
-    {
+    public ITelemetrySpan SetTag(string key, bool value) {
         _activity.SetTag(key, value);
         return this;
     }
 
     /// <inheritdoc/>
-    public ITelemetrySpan AddEvent(string name, Dictionary<string, string>? tags = null)
-    {
-        var evt = new TelemetrySpanEvent
-        {
+    public ITelemetrySpan AddEvent(string name, Dictionary<string, string>? tags = null) {
+        var evt = new TelemetrySpanEvent {
             Name = name,
             Timestamp = DateTimeOffset.UtcNow,
             Tags = tags ?? []
@@ -93,12 +85,10 @@ public sealed class TelemetrySpan : ITelemetrySpan
     }
 
     /// <inheritdoc/>
-    public ITelemetrySpan RecordException(Exception exception)
-    {
+    public ITelemetrySpan RecordException(Exception exception) {
         _activity.SetStatus(ActivityStatusCode.Error, exception.Message);
         _activity.AddEvent(new ActivityEvent("exception",
-            tags: new ActivityTagsCollection
-            {
+            tags: new ActivityTagsCollection {
                 ["exception.type"] = exception.GetType().FullName,
                 ["exception.message"] = exception.Message,
                 ["exception.stacktrace"] = exception.StackTrace ?? string.Empty
@@ -108,8 +98,7 @@ public sealed class TelemetrySpan : ITelemetrySpan
     }
 
     /// <inheritdoc/>
-    public ITelemetrySpan StartChildSpan(string name, TelemetrySpanKind kind = TelemetrySpanKind.Internal)
-    {
+    public ITelemetrySpan StartChildSpan(string name, TelemetrySpanKind kind = TelemetrySpanKind.Internal) {
         return _service.StartSpan(name, kind, this);
     }
 
@@ -117,10 +106,8 @@ public sealed class TelemetrySpan : ITelemetrySpan
     /// 转换为 Span 快照数据
     /// </summary>
     /// <returns>包含 Span 元信息、时间戳、标签与事件的快照对象</returns>
-    public TelemetrySpanData ToSpanData()
-    {
-        return new TelemetrySpanData
-        {
+    public TelemetrySpanData ToSpanData() {
+        return new TelemetrySpanData {
             Name = _activity.DisplayName,
             SpanId = _activity.SpanId.ToString(),
             TraceId = _activity.TraceId.ToString(),
@@ -139,10 +126,8 @@ public sealed class TelemetrySpan : ITelemetrySpan
     /// <summary>
     /// 异步释放 Span — 关闭底层 Activity 并从活动 Span 表中移除
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
-        {
+    public ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
             return ValueTask.CompletedTask;
         }
 
@@ -151,8 +136,7 @@ public sealed class TelemetrySpan : ITelemetrySpan
         return ValueTask.CompletedTask;
     }
 
-    private static ActivityStatusCode MapActivityStatus(TelemetryStatusCode statusCode) => statusCode switch
-    {
+    private static ActivityStatusCode MapActivityStatus(TelemetryStatusCode statusCode) => statusCode switch {
         TelemetryStatusCode.Ok => ActivityStatusCode.Ok,
         TelemetryStatusCode.Error => ActivityStatusCode.Error,
         _ => ActivityStatusCode.Unset

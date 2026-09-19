@@ -4,21 +4,17 @@ namespace Core.Skills.BuiltIn;
 /// <summary>
 /// 调试技能 — 帮助调试代码问题，分析根本原因并建议修复方案
 /// </summary>
-public sealed class DebugSkill
-{
+public sealed class DebugSkill {
     /// <summary>
     /// 创建技能定义
     /// </summary>
     /// <returns>调试技能的技能定义</returns>
-    public static SkillDefinition CreateDefinition()
-    {
-        return new SkillDefinition
-        {
+    public static SkillDefinition CreateDefinition() {
+        return new SkillDefinition {
             Name = "debug",
             Description = "帮助调试代码问题",
             Version = "2.0",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["error"] = new() { Type = "string", Description = "错误信息或异常描述", Required = true },
                 ["file"] = new() { Type = "string", Description = "出问题的文件路径", Required = false },
                 ["context"] = new() { Type = "string", Description = "额外的上下文信息（如操作步骤、环境信息）", Required = false }

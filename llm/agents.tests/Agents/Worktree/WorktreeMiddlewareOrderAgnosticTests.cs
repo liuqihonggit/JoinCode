@@ -7,62 +7,53 @@ namespace JoinCode.Agents.Tests.Worktree;
 /// <para>根因:源码生成器按类名字母排序注册 DI,导致 ConfigMiddleware(字母 C)在 CreateMiddleware 之前执行,</para>
 /// <para>此时 context.GitRoot 和 context.WorktreePath 均为空,settings.local.json 复制因 sourcePath==destPath 跳过</para>
 /// </summary>
-public class WorktreeMiddlewareOrderAgnosticTests
-{
+public class WorktreeMiddlewareOrderAgnosticTests {
     // === 第一层防线:Order 属性值验证 ===
 
     [Fact]
-    public void Order_WorktreeValidationMiddleware_Is100()
-    {
+    public void Order_WorktreeValidationMiddleware_Is100() {
         var middleware = CreateValidationMiddleware();
         middleware.Order.Should().Be(100);
     }
 
     [Fact]
-    public void Order_WorktreeGitRootMiddleware_Is200()
-    {
+    public void Order_WorktreeGitRootMiddleware_Is200() {
         var middleware = CreateGitRootMiddleware();
         middleware.Order.Should().Be(200);
     }
 
     [Fact]
-    public void Order_WorktreeRecoveryMiddleware_Is300()
-    {
+    public void Order_WorktreeRecoveryMiddleware_Is300() {
         var middleware = CreateRecoveryMiddleware();
         middleware.Order.Should().Be(300);
     }
 
     [Fact]
-    public void Order_WorktreeGitInfoMiddleware_Is400()
-    {
+    public void Order_WorktreeGitInfoMiddleware_Is400() {
         var middleware = CreateGitInfoMiddleware();
         middleware.Order.Should().Be(400);
     }
 
     [Fact]
-    public void Order_WorktreeCreateMiddleware_Is500()
-    {
+    public void Order_WorktreeCreateMiddleware_Is500() {
         var (middleware, _, _) = CreateCreateMiddleware();
         middleware.Order.Should().Be(500);
     }
 
     [Fact]
-    public void Order_WorktreeConfigMiddleware_Is600()
-    {
+    public void Order_WorktreeConfigMiddleware_Is600() {
         var middleware = CreateConfigMiddleware();
         middleware.Order.Should().Be(600);
     }
 
     [Fact]
-    public void Order_WorktreeSessionSaveMiddleware_Is700()
-    {
+    public void Order_WorktreeSessionSaveMiddleware_Is700() {
         var middleware = CreateSessionSaveMiddleware();
         middleware.Order.Should().Be(700);
     }
 
     [Fact]
-    public void Order_AllMiddlewares_HaveDistinctAscendingOrder()
-    {
+    public void Order_AllMiddlewares_HaveDistinctAscendingOrder() {
         var middlewares = new IWorktreeCreateMiddleware[]
         {
             CreateValidationMiddleware(),
@@ -87,8 +78,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
     /// 通过 WorktreeContextEnricher 自给自足填充,sourcePath != destPath,不会错误跳过复制
     /// </summary>
     [Fact]
-    public async Task ConfigMiddleware_EmptyGitRootAndWorktreePath_AutoEnrichesAndDoesNotSkipCopy()
-    {
+    public async Task ConfigMiddleware_EmptyGitRootAndWorktreePath_AutoEnrichesAndDoesNotSkipCopy() {
         var fs = new InMemoryFileOperationService();
         var gitRoot = "/repo";
         fs.CreateDirectory(gitRoot);
@@ -102,8 +92,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
             fs,
             new Lazy<IWorktreePipelineOperations>(() => opsMock.Object));
 
-        var context = new WorktreeCreateContext
-        {
+        var context = new WorktreeCreateContext {
             AgentId = "test-agent",
             GitRoot = "",
             WorktreePath = "",
@@ -127,8 +116,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
     /// 通过 Enricher 自给自足填充 GitRoot,不会用空 GitRoot 生成无效路径
     /// </summary>
     [Fact]
-    public async Task RecoveryMiddleware_EmptyGitRoot_AutoEnrichesBeforeGeneratingPath()
-    {
+    public async Task RecoveryMiddleware_EmptyGitRoot_AutoEnrichesBeforeGeneratingPath() {
         var fs = new InMemoryFileOperationService();
         var gitRoot = "/repo";
         fs.CreateDirectory(gitRoot);
@@ -142,8 +130,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
             new Lazy<IWorktreePipelineOperations>(() => opsMock.Object),
             clockMock.Object);
 
-        var context = new WorktreeCreateContext
-        {
+        var context = new WorktreeCreateContext {
             AgentId = "test-agent",
             GitRoot = "",
             OriginalCwd = gitRoot,
@@ -161,8 +148,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
     /// 通过 Enricher 自给自足填充 GitRoot,不会用空 GitRoot 执行 git 命令
     /// </summary>
     [Fact]
-    public async Task GitInfoMiddleware_EmptyGitRoot_AutoEnrichesBeforeGitCommand()
-    {
+    public async Task GitInfoMiddleware_EmptyGitRoot_AutoEnrichesBeforeGitCommand() {
         var fs = new InMemoryFileOperationService();
         var gitRoot = "/repo";
         fs.CreateDirectory(gitRoot);
@@ -179,8 +165,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
             new Lazy<IWorktreePipelineOperations>(() => opsMock.Object),
             fs);
 
-        var context = new WorktreeCreateContext
-        {
+        var context = new WorktreeCreateContext {
             AgentId = "test-agent",
             GitRoot = "",
             OriginalCwd = gitRoot,
@@ -199,8 +184,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
     /// 通过 Enricher 自给自足填充 WorktreePath,不会保存空路径的会话
     /// </summary>
     [Fact]
-    public async Task SessionSaveMiddleware_EmptyWorktreePath_AutoEnrichesBeforeSaving()
-    {
+    public async Task SessionSaveMiddleware_EmptyWorktreePath_AutoEnrichesBeforeSaving() {
         var fs = new InMemoryFileOperationService();
         var gitRoot = "/repo";
         fs.CreateDirectory(gitRoot);
@@ -214,8 +198,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
             fs,
             clockMock.Object);
 
-        var context = new WorktreeCreateContext
-        {
+        var context = new WorktreeCreateContext {
             AgentId = "test-agent",
             GitRoot = gitRoot,
             WorktreePath = "",
@@ -235,11 +218,9 @@ public class WorktreeMiddlewareOrderAgnosticTests
     // === WorktreeContextEnricher 单元测试 ===
 
     [Fact]
-    public void Enricher_EnsureGitRoot_EmptyFillsFromOriginalCwd()
-    {
+    public void Enricher_EnsureGitRoot_EmptyFillsFromOriginalCwd() {
         var fs = new InMemoryFileOperationService();
-        var context = new WorktreeCreateContext
-        {
+        var context = new WorktreeCreateContext {
             AgentId = "test",
             GitRoot = "",
             OriginalCwd = "/custom/cwd",
@@ -252,11 +233,9 @@ public class WorktreeMiddlewareOrderAgnosticTests
     }
 
     [Fact]
-    public void Enricher_EnsureGitRoot_EmptyOriginalCwdFillsFromCurrentDirectory()
-    {
+    public void Enricher_EnsureGitRoot_EmptyOriginalCwdFillsFromCurrentDirectory() {
         var fs = new InMemoryFileOperationService();
-        var context = new WorktreeCreateContext
-        {
+        var context = new WorktreeCreateContext {
             AgentId = "test",
             GitRoot = "",
             OriginalCwd = "",
@@ -269,11 +248,9 @@ public class WorktreeMiddlewareOrderAgnosticTests
     }
 
     [Fact]
-    public void Enricher_EnsureGitRoot_NonEmptyDoesNotOverwrite()
-    {
+    public void Enricher_EnsureGitRoot_NonEmptyDoesNotOverwrite() {
         var fs = new InMemoryFileOperationService();
-        var context = new WorktreeCreateContext
-        {
+        var context = new WorktreeCreateContext {
             AgentId = "test",
             GitRoot = "/existing/root",
             OriginalCwd = "/custom/cwd",
@@ -285,10 +262,8 @@ public class WorktreeMiddlewareOrderAgnosticTests
     }
 
     [Fact]
-    public void Enricher_EnsureWorktreePath_EmptyGeneratesFromGitRoot()
-    {
-        var context = new WorktreeCreateContext
-        {
+    public void Enricher_EnsureWorktreePath_EmptyGeneratesFromGitRoot() {
+        var context = new WorktreeCreateContext {
             AgentId = "test-agent",
             GitRoot = "/repo",
             WorktreePath = "",
@@ -301,10 +276,8 @@ public class WorktreeMiddlewareOrderAgnosticTests
     }
 
     [Fact]
-    public void Enricher_EnsureWorktreePath_EmptyGitRootDoesNothing()
-    {
-        var context = new WorktreeCreateContext
-        {
+    public void Enricher_EnsureWorktreePath_EmptyGitRootDoesNothing() {
+        var context = new WorktreeCreateContext {
             AgentId = "test-agent",
             GitRoot = "",
             WorktreePath = "",
@@ -316,10 +289,8 @@ public class WorktreeMiddlewareOrderAgnosticTests
     }
 
     [Fact]
-    public void Enricher_EnsureWorktreePath_NonEmptyDoesNotOverwrite()
-    {
-        var context = new WorktreeCreateContext
-        {
+    public void Enricher_EnsureWorktreePath_NonEmptyDoesNotOverwrite() {
+        var context = new WorktreeCreateContext {
             AgentId = "test-agent",
             GitRoot = "/repo",
             WorktreePath = "/custom/path",
@@ -331,10 +302,8 @@ public class WorktreeMiddlewareOrderAgnosticTests
     }
 
     [Fact]
-    public void Enricher_EnsureBranchName_EmptyGeneratesFromAgentId()
-    {
-        var context = new WorktreeCreateContext
-        {
+    public void Enricher_EnsureBranchName_EmptyGeneratesFromAgentId() {
+        var context = new WorktreeCreateContext {
             AgentId = "test-agent",
             BranchName = "",
         };
@@ -345,11 +314,9 @@ public class WorktreeMiddlewareOrderAgnosticTests
     }
 
     [Fact]
-    public void Enricher_EnsureAllPaths_FillsAllThree()
-    {
+    public void Enricher_EnsureAllPaths_FillsAllThree() {
         var fs = new InMemoryFileOperationService();
-        var context = new WorktreeCreateContext
-        {
+        var context = new WorktreeCreateContext {
             AgentId = "test-agent",
             GitRoot = "",
             WorktreePath = "",
@@ -370,14 +337,12 @@ public class WorktreeMiddlewareOrderAgnosticTests
 
     private static WorktreeValidationMiddleware CreateValidationMiddleware() => new();
 
-    private static WorktreeGitRootMiddleware CreateGitRootMiddleware()
-    {
+    private static WorktreeGitRootMiddleware CreateGitRootMiddleware() {
         var fs = new InMemoryFileOperationService();
         return new WorktreeGitRootMiddleware(fs, fs.FileSystem);
     }
 
-    private static WorktreeRecoveryMiddleware CreateRecoveryMiddleware()
-    {
+    private static WorktreeRecoveryMiddleware CreateRecoveryMiddleware() {
         var fs = new InMemoryFileOperationService();
         var opsMock = new Mock<IWorktreePipelineOperations>();
         var clockMock = new Mock<IClockService>();
@@ -387,8 +352,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
             clockMock.Object);
     }
 
-    private static WorktreeGitInfoMiddleware CreateGitInfoMiddleware()
-    {
+    private static WorktreeGitInfoMiddleware CreateGitInfoMiddleware() {
         var fs = new InMemoryFileOperationService();
         var opsMock = new Mock<IWorktreePipelineOperations>();
         return new WorktreeGitInfoMiddleware(
@@ -396,8 +360,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
             fs);
     }
 
-    private static (WorktreeCreateMiddleware middleware, Mock<IWorktreePipelineOperations> opsMock, List<string> capturedArgs) CreateCreateMiddleware()
-    {
+    private static (WorktreeCreateMiddleware middleware, Mock<IWorktreePipelineOperations> opsMock, List<string> capturedArgs) CreateCreateMiddleware() {
         var capturedArgs = new List<string>();
         var opsMock = new Mock<IWorktreePipelineOperations>();
         opsMock.Setup(x => x.HasLocalBranchAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
@@ -415,8 +378,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
         return (middleware, opsMock, capturedArgs);
     }
 
-    private static WorktreeConfigMiddleware CreateConfigMiddleware()
-    {
+    private static WorktreeConfigMiddleware CreateConfigMiddleware() {
         var fs = new InMemoryFileOperationService();
         var opsMock = new Mock<IWorktreePipelineOperations>();
         return new WorktreeConfigMiddleware(
@@ -424,8 +386,7 @@ public class WorktreeMiddlewareOrderAgnosticTests
             new Lazy<IWorktreePipelineOperations>(() => opsMock.Object));
     }
 
-    private static WorktreeSessionSaveMiddleware CreateSessionSaveMiddleware()
-    {
+    private static WorktreeSessionSaveMiddleware CreateSessionSaveMiddleware() {
         var fs = new InMemoryFileOperationService();
         var opsMock = new Mock<IWorktreePipelineOperations>();
         var clockMock = new Mock<IClockService>();

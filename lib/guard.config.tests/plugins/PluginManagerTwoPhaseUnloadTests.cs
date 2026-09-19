@@ -1,9 +1,7 @@
 namespace Core.Tests.Plugins;
 
-public sealed class PluginManagerTwoPhaseUnloadTests
-{
-    private ServiceProvider CreateServiceProvider()
-    {
+public sealed class PluginManagerTwoPhaseUnloadTests {
+    private ServiceProvider CreateServiceProvider() {
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole());
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
@@ -13,8 +11,7 @@ public sealed class PluginManagerTwoPhaseUnloadTests
     }
 
     [Fact]
-    public async Task UnloadPluginAsync_WithReferenceGraph_PreparePhaseWorks()
-    {
+    public async Task UnloadPluginAsync_WithReferenceGraph_PreparePhaseWorks() {
         var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
@@ -24,8 +21,7 @@ public sealed class PluginManagerTwoPhaseUnloadTests
     }
 
     [Fact]
-    public async Task UnloadAllPluginsAsync_WithReferenceGraph_Works()
-    {
+    public async Task UnloadAllPluginsAsync_WithReferenceGraph_Works() {
         var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
@@ -35,8 +31,7 @@ public sealed class PluginManagerTwoPhaseUnloadTests
     }
 
     [Fact]
-    public void PluginManager_WithResourceScanner_ScanAfterUnloadNoLeak()
-    {
+    public void PluginManager_WithResourceScanner_ScanAfterUnloadNoLeak() {
         var scanner = new PluginResourceScanner();
         var report = scanner.ScanPluginResources("test-plugin", []);
 
@@ -44,8 +39,7 @@ public sealed class PluginManagerTwoPhaseUnloadTests
     }
 
     [Fact]
-    public async Task UnloadPluginAsync_ResourceGraphRegistered_PrepareRemovesReferences()
-    {
+    public async Task UnloadPluginAsync_ResourceGraphRegistered_PrepareRemovesReferences() {
         var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
         var graph = sp.GetRequiredService<IResourceReferenceGraph>();

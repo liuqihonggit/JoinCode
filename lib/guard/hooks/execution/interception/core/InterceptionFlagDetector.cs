@@ -7,16 +7,14 @@ namespace Core.Hooks.Execution.Interception;
 /// 对齐 ADR 0039: [Flags] 位标志优化属性检测。
 /// </para>
 /// </summary>
-public static class InterceptionFlagDetector
-{
+public static class InterceptionFlagDetector {
     /// <summary>
     /// 检测命令的拦截属性组合
     /// </summary>
     /// <param name="command">待检测的命令</param>
     /// <param name="context">执行上下文(强类型,含 ProxyUrl 等)</param>
     /// <returns>属性标志组合(位运算表达多个属性)</returns>
-    public static InterceptionFlags Detect(string command, GuardContext context)
-    {
+    public static InterceptionFlags Detect(string command, GuardContext context) {
         var flags = InterceptionFlags.None;
         if (string.IsNullOrWhiteSpace(command))
             return flags;

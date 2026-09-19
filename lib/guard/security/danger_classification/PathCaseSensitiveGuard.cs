@@ -3,8 +3,7 @@ namespace Core.Security.DangerClassification;
 /// <summary>
 /// 路径大小写守卫结果
 /// </summary>
-public sealed record PathCaseGuardResult(bool Blocked, string? SuggestedPath, string? Reason)
-{
+public sealed record PathCaseGuardResult(bool Blocked, string? SuggestedPath, string? Reason) {
     /// <summary>
     /// 放行结果
     /// </summary>
@@ -15,8 +14,7 @@ public sealed record PathCaseGuardResult(bool Blocked, string? SuggestedPath, st
 /// 路径大小写守卫 — 拦截删除命令中路径大小写与文件系统真实路径不一致的操作
 /// 防御 Windows 大小写不敏感文件系统导致的误删(如 rm src/ 误删 SRC/)
 /// </summary>
-public sealed class PathCaseSensitiveGuard
-{
+public sealed class PathCaseSensitiveGuard {
     private static readonly FrozenSet<string> DeleteCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "rm", "del", "erase", "Remove-Item", "rmdir", "rd"
@@ -28,8 +26,7 @@ public sealed class PathCaseSensitiveGuard
     /// <param name="command">已解析的 Shell 命令</param>
     /// <param name="resolver">真实路径解析器</param>
     /// <returns>大小写不匹配时返回拦截结果(含真实路径建议);否则放行</returns>
-    public PathCaseGuardResult Check(ShellCommand command, IRealPathResolver resolver)
-    {
+    public PathCaseGuardResult Check(ShellCommand command, IRealPathResolver resolver) {
         if (!DeleteCommands.Contains(command.CommandName))
             return PathCaseGuardResult.Pass;
 

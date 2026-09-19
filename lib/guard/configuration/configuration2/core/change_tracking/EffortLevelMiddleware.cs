@@ -4,15 +4,13 @@ namespace Core.Configuration;
 /// EffortLevel 更新中间件 — 对齐 TS 版 effortChanged 逻辑
 /// </summary>
 [Register(typeof(ISettingsMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class EffortLevelMiddleware : ServiceEntity, ISettingsMiddleware
-{
+public sealed partial class EffortLevelMiddleware : ServiceEntity, ISettingsMiddleware {
 
     /// <summary>
     /// 初始化 EffortLevel 更新中间件
     /// </summary>
     /// <param name="executionSettingsProvider">可选的执行设置提供者</param>
-    public EffortLevelMiddleware(IExecutionSettingsProvider? executionSettingsProvider = null)
-    {
+    public EffortLevelMiddleware(IExecutionSettingsProvider? executionSettingsProvider = null) {
         _executionSettingsProvider = executionSettingsProvider;
     }
     private readonly IExecutionSettingsProvider? _executionSettingsProvider;
@@ -23,13 +21,10 @@ public sealed partial class EffortLevelMiddleware : ServiceEntity, ISettingsMidd
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public Task InvokeAsync(SettingsContext context, MiddlewareDelegate<SettingsContext> next, CancellationToken ct)
-    {
-        if (_executionSettingsProvider is not null && context.NewSettings is not null)
-        {
+    public Task InvokeAsync(SettingsContext context, MiddlewareDelegate<SettingsContext> next, CancellationToken ct) {
+        if (_executionSettingsProvider is not null && context.NewSettings is not null) {
             var newEffort = EffortLevelHelper.ParseEffortLevel(context.NewSettings.Current?.EffortLevel);
-            if (newEffort is not null && _executionSettingsProvider.EffortLevel != newEffort)
-            {
+            if (newEffort is not null && _executionSettingsProvider.EffortLevel != newEffort) {
                 _executionSettingsProvider.EffortLevel = newEffort.Value;
                 context.Logger?.LogInformation("EffortLevel 已更新: {Level}", newEffort.Value.ToValue());
             }

@@ -5,15 +5,13 @@ namespace McpToolRegistry;
 /// 漂移检测中间件 — 仅 Tools 操作：检测工具漂移并决策重连策略
 /// </summary>
 [Register(typeof(IRemoteSyncMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRemoteSyncMiddleware
-{
+public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRemoteSyncMiddleware {
 
     /// <summary>
     /// 初始化 <see cref="RemoteDriftDetectionMiddleware"/> 实例
     /// </summary>
     /// <param name="logger">日志记录器</param>
-    public RemoteDriftDetectionMiddleware(ILogger<RemoteDriftDetectionMiddleware> logger)
-    {
+    public RemoteDriftDetectionMiddleware(ILogger<RemoteDriftDetectionMiddleware> logger) {
         _logger = logger;
     }
     private readonly ILogger<RemoteDriftDetectionMiddleware> _logger;
@@ -26,15 +24,12 @@ public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRem
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>异步任务</returns>
-    public Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct)
-    {
-        if (ctx.Operation != RemoteSyncOperation.Tools)
-        {
+    public Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct) {
+        if (ctx.Operation != RemoteSyncOperation.Tools) {
             return next(ctx, ct);
         }
 
-        if (ctx.PreviousToolSpecs.Count == 0 || ctx.ToolsResult is null)
-        {
+        if (ctx.PreviousToolSpecs.Count == 0 || ctx.ToolsResult is null) {
             return next(ctx, ct);
         }
 
@@ -52,8 +47,7 @@ public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRem
             "远程客户端 {ClientId} 工具漂移检测: {DriftKind} - {Summary}",
             ctx.ClientId, driftReport.Kind, driftReport.Summary);
 
-        if (!driftReport.IsCacheSafe)
-        {
+        if (!driftReport.IsCacheSafe) {
             _logger.LogWarning(
                 "远程客户端 {ClientId} 检测到缓存不安全漂移: {DriftKind}，前缀缓存可能失效",
                 ctx.ClientId, driftReport.Kind);
@@ -62,8 +56,7 @@ public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRem
         var reconnectResult = McpReconnectPolicy.Decide(driftReport, ctx.AcceptLevel);
         ctx.ReconnectResult = reconnectResult;
 
-        if (!reconnectResult.Accepted)
-        {
+        if (!reconnectResult.Accepted) {
             _logger.LogWarning(
                 "远程客户端 {ClientId} 重连策略拒绝同步: {Reason}",
                 ctx.ClientId, reconnectResult.Reason);

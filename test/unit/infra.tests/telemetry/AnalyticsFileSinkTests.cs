@@ -1,10 +1,8 @@
 namespace Core.Tests.Telemetry;
 
-public sealed class AnalyticsFileSinkTests
-{
+public sealed class AnalyticsFileSinkTests {
     [Fact]
-    public async Task LogEvent_WithNullFileSystem_DoesNothing()
-    {
+    public async Task LogEvent_WithNullFileSystem_DoesNothing() {
         await using var sink = new AnalyticsFileSink(fileSystem: null);
 
         sink.LogEvent("test.event");
@@ -13,8 +11,7 @@ public sealed class AnalyticsFileSinkTests
     }
 
     [Fact]
-    public async Task LogEvent_WithKillswitchDisabled_DropsEvent()
-    {
+    public async Task LogEvent_WithKillswitchDisabled_DropsEvent() {
         var fs = new TestInMemFs();
         var killswitch = new AnalyticsSinkKillswitch();
         killswitch.SetEnabled(false);
@@ -27,8 +24,7 @@ public sealed class AnalyticsFileSinkTests
     }
 
     [Fact]
-    public async Task LogEvent_WithEnabled_QueuesEvent()
-    {
+    public async Task LogEvent_WithEnabled_QueuesEvent() {
         var fs = new TestInMemFs();
         await using var sink = new AnalyticsFileSink(fs, flushInterval: TimeSpan.FromSeconds(60));
 
@@ -38,8 +34,7 @@ public sealed class AnalyticsFileSinkTests
     }
 
     [Fact]
-    public async Task FlushAsync_WritesEventsToJsonlFile()
-    {
+    public async Task FlushAsync_WritesEventsToJsonlFile() {
         var fs = new TestInMemFs();
         var outputDir = ".jcc/analytics-test";
         await using var sink = new AnalyticsFileSink(fs, outputDirectory: outputDir, flushInterval: TimeSpan.FromSeconds(60));
@@ -54,8 +49,7 @@ public sealed class AnalyticsFileSinkTests
     }
 
     [Fact]
-    public async Task FlushAsync_WithNoEvents_DoesNotCreateFile()
-    {
+    public async Task FlushAsync_WithNoEvents_DoesNotCreateFile() {
         var fs = new TestInMemFs();
         var outputDir = ".jcc/analytics-empty";
         await using var sink = new AnalyticsFileSink(fs, outputDirectory: outputDir, flushInterval: TimeSpan.FromSeconds(60));
@@ -66,15 +60,13 @@ public sealed class AnalyticsFileSinkTests
     }
 
     [Fact]
-    public async Task Killswitch_SetSampleRate_Zero_DropsAll()
-    {
+    public async Task Killswitch_SetSampleRate_Zero_DropsAll() {
         var fs = new TestInMemFs();
         var killswitch = new AnalyticsSinkKillswitch();
         killswitch.SetSampleRate(0.0);
         await using var sink = new AnalyticsFileSink(fs, killswitch);
 
-        for (var i = 0; i < 100; i++)
-        {
+        for (var i = 0; i < 100; i++) {
             sink.LogEvent("test.event");
         }
 
@@ -83,15 +75,13 @@ public sealed class AnalyticsFileSinkTests
     }
 
     [Fact]
-    public async Task Killswitch_SetSampleRate_One_WritesAll()
-    {
+    public async Task Killswitch_SetSampleRate_One_WritesAll() {
         var fs = new TestInMemFs();
         var killswitch = new AnalyticsSinkKillswitch();
         killswitch.SetSampleRate(1.0);
         await using var sink = new AnalyticsFileSink(fs, killswitch, flushInterval: TimeSpan.FromSeconds(60));
 
-        for (var i = 0; i < 50; i++)
-        {
+        for (var i = 0; i < 50; i++) {
             sink.LogEvent("test.event");
         }
 
@@ -100,8 +90,7 @@ public sealed class AnalyticsFileSinkTests
     }
 
     [Fact]
-    public async Task Killswitch_SetSampleRate_ClampsToValidRange()
-    {
+    public async Task Killswitch_SetSampleRate_ClampsToValidRange() {
         var killswitch = new AnalyticsSinkKillswitch();
 
         killswitch.SetSampleRate(-5.0);
@@ -112,8 +101,7 @@ public sealed class AnalyticsFileSinkTests
     }
 
     [Fact]
-    public async Task Killswitch_SetEnabled_False_Then_True_Resumes()
-    {
+    public async Task Killswitch_SetEnabled_False_Then_True_Resumes() {
         var fs = new TestInMemFs();
         var killswitch = new AnalyticsSinkKillswitch();
         await using var sink = new AnalyticsFileSink(fs, killswitch, flushInterval: TimeSpan.FromSeconds(60));
@@ -128,8 +116,7 @@ public sealed class AnalyticsFileSinkTests
     }
 
     [Fact]
-    public async Task DisposeAsync_StopsFlushLoopCleanly()
-    {
+    public async Task DisposeAsync_StopsFlushLoopCleanly() {
         var fs = new TestInMemFs();
         await using var sink = new AnalyticsFileSink(fs, flushInterval: TimeSpan.FromMilliseconds(100));
 
@@ -137,8 +124,7 @@ public sealed class AnalyticsFileSinkTests
     }
 
     [Fact]
-    public async Task LogEvent_ConvenienceOverload_CreatesEventWithTimestamp()
-    {
+    public async Task LogEvent_ConvenienceOverload_CreatesEventWithTimestamp() {
         var fs = new TestInMemFs();
         await using var sink = new AnalyticsFileSink(fs, flushInterval: TimeSpan.FromSeconds(60));
 
@@ -150,13 +136,11 @@ public sealed class AnalyticsFileSinkTests
     }
 
     [Fact]
-    public async Task LogEvent_ManyEvents_DoesNotCrashWhenChannelFull()
-    {
+    public async Task LogEvent_ManyEvents_DoesNotCrashWhenChannelFull() {
         var fs = new TestInMemFs();
         await using var sink = new AnalyticsFileSink(fs, flushInterval: TimeSpan.FromSeconds(60), batchSize: 10);
 
-        for (var i = 0; i < 2000; i++)
-        {
+        for (var i = 0; i < 2000; i++) {
             sink.LogEvent($"event.{i}");
         }
 

@@ -3,8 +3,7 @@ namespace JoinCode.Transport;
 /// <summary>
 /// SSE 传输配置
 /// </summary>
-public sealed partial class SseTransportConfig
-{
+public sealed partial class SseTransportConfig {
     /// <summary>SSE 事件流端点（GET 请求，接收服务端推送）</summary>
     public required string EventsEndpoint { get; init; }
 
@@ -30,8 +29,7 @@ public sealed partial class SseTransportConfig
 /// <remarks>
 /// 适用于远程操控场景：jcc.exe 暴露 SSE 端点后，外部客户端通过此传输连接
 /// </remarks>
-public sealed partial class SseAgentTransport : IAgentTransport
-{
+public sealed partial class SseAgentTransport : IAgentTransport {
     private readonly SseTransportConfig _config;
     private readonly HttpClient _httpClient;
     private readonly ILogger<SseAgentTransport>? _logger;
@@ -47,13 +45,10 @@ public sealed partial class SseAgentTransport : IAgentTransport
     public string TransportType => "sse";
 
     /// <inheritdoc/>
-    public TransportState State
-    {
+    public TransportState State {
         get => _state;
-        private set
-        {
-            if (_state != value)
-            {
+        private set {
+            if (_state != value) {
                 _state = value;
                 OnStateChanged?.Invoke(this, value);
             }
@@ -76,8 +71,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
     public SseAgentTransport(
         SseTransportConfig config,
         ILogger<SseAgentTransport>? logger = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -86,19 +80,15 @@ public sealed partial class SseAgentTransport : IAgentTransport
     }
 
     /// <inheritdoc/>
-    public async Task ConnectAsync(CancellationToken ct = default)
-    {
+    public async Task ConnectAsync(CancellationToken ct = default) {
         if (State == TransportState.Connected) return;
 
         State = TransportState.Connecting;
-        try
-        {
+        try {
             await StartSseListenerAsync(ct).ConfigureAwait(false);
             State = TransportState.Connected;
             _logger?.LogInformation("[SseTransport] 已连接到 {Endpoint}", _config.EventsEndpoint);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             State = TransportState.Failed;
             _logger?.LogError(ex, "[SseTransport] 连接失败");
             throw;
@@ -106,8 +96,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
     }
 
     /// <inheritdoc/>
-    public Task DisconnectAsync(CancellationToken ct = default)
-    {
+    public Task DisconnectAsync(CancellationToken ct = default) {
         _disposeCts.Cancel();
         _sseListenTask = null;
         State = TransportState.Disconnected;
@@ -116,40 +105,34 @@ public sealed partial class SseAgentTransport : IAgentTransport
     }
 
     /// <inheritdoc/>
-    public async Task SendMessageAsync(string message, CancellationToken ct = default)
-    {
+    public async Task SendMessageAsync(string message, CancellationToken ct = default) {
         if (State != TransportState.Connected)
             throw new InvalidOperationException($"[SSE004] 传输未连接，当前状态: {State}");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, _config.MessagesEndpoint);
         request.Content = new StringContent(message, Encoding.UTF8, "application/json");
-        if (_config.AuthToken is not null)
-        {
+        if (_config.AuthToken is not null) {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _config.AuthToken);
         }
 
         var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        OnMessage?.Invoke(this, new TransportMessageEventArgs
-        {
+        OnMessage?.Invoke(this, new TransportMessageEventArgs {
             Message = message,
             Channel = TransportChannel.Output
         });
     }
 
     /// <inheritdoc/>
-    public async Task<string> WaitForOutputAsync(Func<string, bool> predicate, TimeSpan? timeout = null, CancellationToken ct = default)
-    {
+    public async Task<string> WaitForOutputAsync(Func<string, bool> predicate, TimeSpan? timeout = null, CancellationToken ct = default) {
         timeout ??= TimeSpan.FromSeconds(30);
         var startTime = _clock.GetUtcNow();
 
-        while (_clock.GetUtcNow() - startTime < timeout)
-        {
+        while (_clock.GetUtcNow() - startTime < timeout) {
             ct.ThrowIfCancellationRequested();
 
-            if (await _outputChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(false))
-            {
+            if (await _outputChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(false)) {
                 return await _outputChannel.GetAllAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
             }
 
@@ -160,17 +143,14 @@ public sealed partial class SseAgentTransport : IAgentTransport
     }
 
     /// <inheritdoc/>
-    public async Task<string> WaitForErrorAsync(Func<string, bool> predicate, TimeSpan? timeout = null, CancellationToken ct = default)
-    {
+    public async Task<string> WaitForErrorAsync(Func<string, bool> predicate, TimeSpan? timeout = null, CancellationToken ct = default) {
         timeout ??= TimeSpan.FromSeconds(30);
         var startTime = _clock.GetUtcNow();
 
-        while (_clock.GetUtcNow() - startTime < timeout)
-        {
+        while (_clock.GetUtcNow() - startTime < timeout) {
             ct.ThrowIfCancellationRequested();
 
-            if (await _errorChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(false))
-            {
+            if (await _errorChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(false)) {
                 return await _errorChannel.GetAllAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
             }
 
@@ -201,8 +181,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
         _outputChannel.ClearAsync(TimeSpan.FromSeconds(5));
 
     /// <inheritdoc/>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         _disposeCts.Cancel();
         _httpClient.Dispose();
@@ -213,22 +192,17 @@ public sealed partial class SseAgentTransport : IAgentTransport
         return ValueTask.CompletedTask;
     }
 
-    private Task StartSseListenerAsync(CancellationToken ct)
-    {
+    private Task StartSseListenerAsync(CancellationToken ct) {
         _sseListenTask = Task.Run(() => SseListenLoopAsync(ct), ct);
         return Task.CompletedTask;
     }
 
-    private async Task SseListenLoopAsync(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested && _reconnectAttempts < _config.MaxReconnectAttempts)
-        {
-            try
-            {
+    private async Task SseListenLoopAsync(CancellationToken ct) {
+        while (!ct.IsCancellationRequested && _reconnectAttempts < _config.MaxReconnectAttempts) {
+            try {
                 using var request = new HttpRequestMessage(HttpMethod.Get, _config.EventsEndpoint);
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
-                if (_config.AuthToken is not null)
-                {
+                if (_config.AuthToken is not null) {
                     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _config.AuthToken);
                 }
 
@@ -241,19 +215,14 @@ public sealed partial class SseAgentTransport : IAgentTransport
                 using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
 
                 await ParseSseStreamAsync(stream, ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 break;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _reconnectAttempts++;
                 _logger?.LogWarning(ex, "[SseTransport] SSE 连接断开，重连 {Attempt}/{Max}",
                     _reconnectAttempts, _config.MaxReconnectAttempts);
 
-                if (_reconnectAttempts >= _config.MaxReconnectAttempts)
-                {
+                if (_reconnectAttempts >= _config.MaxReconnectAttempts) {
                     State = TransportState.Failed;
                     break;
                 }
@@ -266,18 +235,15 @@ public sealed partial class SseAgentTransport : IAgentTransport
         }
     }
 
-    private async Task ParseSseStreamAsync(Stream stream, CancellationToken ct)
-    {
-        await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, ct).ConfigureAwait(false))
-        {
+    private async Task ParseSseStreamAsync(Stream stream, CancellationToken ct) {
+        await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, ct).ConfigureAwait(false)) {
             var data = sseEvent.Data;
             var channel = sseEvent.EventType == "error" ? TransportChannel.Error : TransportChannel.Output;
             var buffered = channel == TransportChannel.Error ? _errorChannel : _outputChannel;
 
             await buffered.AddAsync(data, ct).ConfigureAwait(false);
 
-            OnMessage?.Invoke(this, new TransportMessageEventArgs
-            {
+            OnMessage?.Invoke(this, new TransportMessageEventArgs {
                 Message = data,
                 Channel = channel
             });

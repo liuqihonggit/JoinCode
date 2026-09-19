@@ -1,12 +1,9 @@
 namespace AotSafety.Tests;
 
-public class RangeQueryAnalyzerTests
-{
+public class RangeQueryAnalyzerTests {
     [Fact]
-    public async Task RangeCondition_InForEach_ReportsJCC6006()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task RangeCondition_InForEach_ReportsJCC6006() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -33,10 +30,8 @@ public class RangeQueryAnalyzerTests
     }
 
     [Fact]
-    public async Task RangeCondition_InFor_ReportsJCC6006()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task RangeCondition_InFor_ReportsJCC6006() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -62,10 +57,8 @@ public class RangeQueryAnalyzerTests
     }
 
     [Fact]
-    public async Task SingleComparison_NoWarning()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task SingleComparison_NoWarning() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -89,13 +82,10 @@ public class RangeQueryAnalyzerTests
     }
 }
 
-public class ForeachToLinqAnalyzerTests
-{
+public class ForeachToLinqAnalyzerTests {
     [Fact]
-    public async Task ForeachIfAdd_ReportsJCC6008()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task ForeachIfAdd_ReportsJCC6008() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -121,10 +111,8 @@ public class ForeachToLinqAnalyzerTests
     }
 
     [Fact]
-    public async Task ForeachIfReturnTrue_ReportsJCC6008()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task ForeachIfReturnTrue_ReportsJCC6008() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -149,10 +137,8 @@ public class ForeachToLinqAnalyzerTests
     }
 
     [Fact]
-    public async Task ForeachAddAssign_ReportsJCC6008()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task ForeachAddAssign_ReportsJCC6008() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -178,10 +164,8 @@ public class ForeachToLinqAnalyzerTests
     }
 
     [Fact]
-    public async Task ComplexLoopBody_NoWarning()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task ComplexLoopBody_NoWarning() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;

@@ -3,8 +3,7 @@ namespace Core.Prompts;
 /// <summary>
 /// 工具空闲提醒配置 — 描述单个工具的空闲检测阈值与提醒文案。
 /// </summary>
-public sealed partial class ToolIdleReminderConfig
-{
+public sealed partial class ToolIdleReminderConfig {
     /// <summary>
     /// 工具名称。
     /// </summary>
@@ -43,8 +42,7 @@ public sealed partial class ToolIdleReminderConfig
         int turnsSinceUse,
         int turnsBetweenReminders,
         string reminderMessage,
-        Func<CancellationToken, ValueTask<string>>? stateProvider = null)
-    {
+        Func<CancellationToken, ValueTask<string>>? stateProvider = null) {
         ToolName = toolName;
         TurnsSinceUse = turnsSinceUse;
         TurnsBetweenReminders = turnsBetweenReminders;
@@ -57,8 +55,7 @@ public sealed partial class ToolIdleReminderConfig
 /// 工具空闲提醒服务 — 监控工具调用间隔，超时触发提醒。
 /// </summary>
 [Register(typeof(IToolIdleReminderService), ServiceLifetime.Singleton)]
-public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleReminderService
-{
+public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleReminderService {
     private readonly Dictionary<string, int> _turnsSinceLastUse = [];
     private readonly Dictionary<string, int> _turnsSinceLastReminder = [];
     private readonly List<ToolIdleReminderConfig> _configs;
@@ -70,13 +67,11 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
     public ToolIdleReminderService(
         ILogger<ToolIdleReminderService>? logger = null,
         ITodoService? todoService = null,
-        ITaskService? taskService = null)
-    {
+        ITaskService? taskService = null) {
         _logger = logger;
         _configs = CreateDefaultReminderConfigs(todoService, taskService);
 
-        foreach (var config in _configs)
-        {
+        foreach (var config in _configs) {
             _turnsSinceLastUse[config.ToolName] = 0;
             _turnsSinceLastReminder[config.ToolName] = config.TurnsBetweenReminders;
         }
@@ -87,21 +82,18 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
     /// </summary>
     internal ToolIdleReminderService(
         IEnumerable<ToolIdleReminderConfig> configs,
-        ILogger<ToolIdleReminderService>? logger = null)
-    {
+        ILogger<ToolIdleReminderService>? logger = null) {
         _configs = [.. configs];
         _logger = logger;
 
-        foreach (var config in _configs)
-        {
+        foreach (var config in _configs) {
             _turnsSinceLastUse[config.ToolName] = 0;
             _turnsSinceLastReminder[config.ToolName] = config.TurnsBetweenReminders;
         }
     }
 
     private static List<ToolIdleReminderConfig> CreateDefaultReminderConfigs(
-        ITodoService? todoService, ITaskService? taskService)
-    {
+        ITodoService? todoService, ITaskService? taskService) {
         return
         [
             new ToolIdleReminderConfig(
@@ -137,16 +129,11 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
     /// 记录一回合助手交互，更新各工具的空闲计数。
     /// </summary>
     /// <param name="toolNameUsed">本回合使用的工具名称，未使用则为 null。</param>
-    public void RecordAssistantTurn(string? toolNameUsed = null)
-    {
-        foreach (var config in _configs)
-        {
-            if (string.Equals(toolNameUsed, config.ToolName, StringComparison.OrdinalIgnoreCase))
-            {
+    public void RecordAssistantTurn(string? toolNameUsed = null) {
+        foreach (var config in _configs) {
+            if (string.Equals(toolNameUsed, config.ToolName, StringComparison.OrdinalIgnoreCase)) {
                 _turnsSinceLastUse[config.ToolName] = 0;
-            }
-            else
-            {
+            } else {
                 _turnsSinceLastUse[config.ToolName]++;
             }
 
@@ -158,10 +145,8 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
     /// 记录已向用户发送指定工具的提醒，重置其提醒间隔计数。
     /// </summary>
     /// <param name="toolName">工具名称。</param>
-    public void RecordReminderSent(string toolName)
-    {
-        if (_turnsSinceLastReminder.ContainsKey(toolName))
-        {
+    public void RecordReminderSent(string toolName) {
+        if (_turnsSinceLastReminder.ContainsKey(toolName)) {
             _turnsSinceLastReminder[toolName] = 0;
         }
     }
@@ -172,29 +157,22 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
     /// <param name="ct">取消令牌。</param>
     /// <returns>本次生成的提醒结果列表。</returns>
     public async Task<IReadOnlyList<ToolIdleReminderResult>> CheckAndGenerateRemindersAsync(
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var results = new List<ToolIdleReminderResult>();
 
-        foreach (var config in _configs)
-        {
+        foreach (var config in _configs) {
             var turnsSinceUse = _turnsSinceLastUse.GetValueOrDefault(config.ToolName, 0);
             var turnsSinceReminder = _turnsSinceLastReminder.GetValueOrDefault(config.ToolName, 0);
 
-            if (turnsSinceUse < config.TurnsSinceUse || turnsSinceReminder < config.TurnsBetweenReminders)
-            {
+            if (turnsSinceUse < config.TurnsSinceUse || turnsSinceReminder < config.TurnsBetweenReminders) {
                 continue;
             }
 
             string? stateContent = null;
-            if (config.StateProvider is not null)
-            {
-                try
-                {
+            if (config.StateProvider is not null) {
+                try {
                     stateContent = await config.StateProvider(ct).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "获取工具 {ToolName} 状态时出错", config.ToolName);
                 }
             }
@@ -216,10 +194,8 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
     /// <summary>
     /// 重置所有工具的空闲计数与提醒间隔计数。
     /// </summary>
-    public void Reset()
-    {
-        foreach (var config in _configs)
-        {
+    public void Reset() {
+        foreach (var config in _configs) {
             _turnsSinceLastUse[config.ToolName] = 0;
             _turnsSinceLastReminder[config.ToolName] = config.TurnsBetweenReminders;
         }

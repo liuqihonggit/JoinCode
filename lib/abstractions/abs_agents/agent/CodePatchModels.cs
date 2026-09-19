@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 /// <summary>
 /// 源码上下文 — 供 LLM 生成 patch 时参考
 /// </summary>
-public sealed record SourceCodeContext
-{
+public sealed record SourceCodeContext {
     /// <summary>目标文件路径</summary>
     public required string FilePath { get; init; }
 
@@ -21,8 +20,7 @@ public sealed record SourceCodeContext
 /// <summary>
 /// 源码文件片段
 /// </summary>
-public sealed record SourceFileSnippet
-{
+public sealed record SourceFileSnippet {
     /// <summary>文件路径</summary>
     public required string FilePath { get; init; }
 
@@ -33,8 +31,7 @@ public sealed record SourceFileSnippet
 /// <summary>
 /// LLM 生成的源码 patch
 /// </summary>
-public sealed record CodePatch
-{
+public sealed record CodePatch {
     /// <summary>目标文件路径</summary>
     public required string TargetFilePath { get; init; }
 

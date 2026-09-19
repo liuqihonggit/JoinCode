@@ -1,10 +1,8 @@
 namespace Mcp.Tests;
 
-public sealed class TransportFallbackConfigTests
-{
+public sealed class TransportFallbackConfigTests {
     [Fact]
-    public void DefaultValues_AreCorrect()
-    {
+    public void DefaultValues_AreCorrect() {
         var config = new TransportFallbackConfig();
         config.Enabled.Should().BeTrue();
         config.HealthCheckEnabled.Should().BeTrue();
@@ -17,49 +15,37 @@ public sealed class TransportFallbackConfigTests
     }
 
     [Fact]
-    public void FromEnvironment_Disabled_SetsEnabledFalse()
-    {
+    public void FromEnvironment_Disabled_SetsEnabledFalse() {
         var prev = Environment.GetEnvironmentVariable("JCC_TRANSPORT_FALLBACK");
-        try
-        {
+        try {
             Environment.SetEnvironmentVariable("JCC_TRANSPORT_FALLBACK", "0");
             var config = TransportFallbackConfig.FromEnvironment();
             config.Enabled.Should().BeFalse();
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("JCC_TRANSPORT_FALLBACK", prev);
         }
     }
 
     [Fact]
-    public void FromEnvironment_CustomTimeout_ParsesCorrectly()
-    {
+    public void FromEnvironment_CustomTimeout_ParsesCorrectly() {
         var prev = Environment.GetEnvironmentVariable("JCC_TRANSPORT_CONNECT_TIMEOUT_MS");
-        try
-        {
+        try {
             Environment.SetEnvironmentVariable("JCC_TRANSPORT_CONNECT_TIMEOUT_MS", "10000");
             var config = TransportFallbackConfig.FromEnvironment();
             config.ConnectTimeoutMs.Should().Be(10000);
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("JCC_TRANSPORT_CONNECT_TIMEOUT_MS", prev);
         }
     }
 
     [Fact]
-    public void FromEnvironment_InvalidTimeout_UsesDefault()
-    {
+    public void FromEnvironment_InvalidTimeout_UsesDefault() {
         var prev = Environment.GetEnvironmentVariable("JCC_TRANSPORT_CONNECT_TIMEOUT_MS");
-        try
-        {
+        try {
             Environment.SetEnvironmentVariable("JCC_TRANSPORT_CONNECT_TIMEOUT_MS", "invalid");
             var config = TransportFallbackConfig.FromEnvironment();
             config.ConnectTimeoutMs.Should().Be(5000);
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("JCC_TRANSPORT_CONNECT_TIMEOUT_MS", prev);
         }
     }

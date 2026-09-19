@@ -1,21 +1,18 @@
 namespace Core.Tests.Services.E2E;
 
-public sealed class PluginLifecycleE2ETests : IAsyncDisposable
-{
+public sealed class PluginLifecycleE2ETests : IAsyncDisposable {
     private readonly PluginCommandRegistry _commandRegistry;
     private readonly PluginHookInjector _hookInjector;
     private readonly Mock<IPluginManager> _pluginManager;
     private bool _disposed;
 
-    public PluginLifecycleE2ETests()
-    {
+    public PluginLifecycleE2ETests() {
         _commandRegistry = new PluginCommandRegistry(NullLogger<PluginCommandRegistry>.Instance);
         _pluginManager = new Mock<IPluginManager>();
         _hookInjector = new PluginHookInjector(_pluginManager.Object, NullLogger<PluginHookInjector>.Instance);
     }
 
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
 
@@ -23,12 +20,10 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task PluginLifecycle_RegisterCommandsAndHooks_ShouldWorkTogether()
-    {
+    public async Task PluginLifecycle_RegisterCommandsAndHooks_ShouldWorkTogether() {
         _pluginManager.Setup(m => m.IsPluginLoaded("my-plugin")).Returns(true);
 
-        var cmd = new PluginCommandDefinition
-        {
+        var cmd = new PluginCommandDefinition {
             CommandName = "my-cmd",
             PluginName = "my-plugin",
             Description = "Test command",
@@ -52,12 +47,10 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task PluginLifecycle_UnregisterCommandsAndHooks_ShouldCleanup()
-    {
+    public async Task PluginLifecycle_UnregisterCommandsAndHooks_ShouldCleanup() {
         _pluginManager.Setup(m => m.IsPluginLoaded("cleanup-plugin")).Returns(true);
 
-        var cmd = new PluginCommandDefinition
-        {
+        var cmd = new PluginCommandDefinition {
             CommandName = "cleanup-cmd",
             PluginName = "cleanup-plugin",
             Description = "Cleanup test",
@@ -78,21 +71,18 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task PluginLifecycle_MultiplePlugins_ShouldIsolateCommands()
-    {
+    public async Task PluginLifecycle_MultiplePlugins_ShouldIsolateCommands() {
         _pluginManager.Setup(m => m.IsPluginLoaded("plugin-a")).Returns(true);
         _pluginManager.Setup(m => m.IsPluginLoaded("plugin-b")).Returns(true);
 
-        await _commandRegistry.RegisterCommandAsync(new PluginCommandDefinition
-        {
+        await _commandRegistry.RegisterCommandAsync(new PluginCommandDefinition {
             CommandName = "cmd-a",
             PluginName = "plugin-a",
             Description = "A command",
             HandlerType = "HandlerA"
         }).ConfigureAwait(true);
 
-        await _commandRegistry.RegisterCommandAsync(new PluginCommandDefinition
-        {
+        await _commandRegistry.RegisterCommandAsync(new PluginCommandDefinition {
             CommandName = "cmd-b",
             PluginName = "plugin-b",
             Description = "B command",
@@ -121,10 +111,8 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task PluginLifecycle_CommandAliases_ShouldRegisterAndUnregister()
-    {
-        var cmd = new PluginCommandDefinition
-        {
+    public async Task PluginLifecycle_CommandAliases_ShouldRegisterAndUnregister() {
+        var cmd = new PluginCommandDefinition {
             CommandName = "deploy",
             PluginName = "devops-plugin",
             Description = "Deploy application",

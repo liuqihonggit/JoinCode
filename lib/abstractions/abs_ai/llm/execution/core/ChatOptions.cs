@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM;
 
-public sealed class ChatOptions
-{
+public sealed class ChatOptions {
     public float? Temperature { get; init; }
     public int? MaxTokens { get; init; }
     public float? TopP { get; init; }
@@ -42,8 +41,7 @@ public sealed class ChatOptions
     /// </summary>
     public ContextManagementConfig? ContextManagement { get; init; }
 
-    public static ChatOptions Default => new()
-    {
+    public static ChatOptions Default => new() {
         Temperature = 0.7f,
         MaxTokens = 4000,
         TopP = 0.95f
@@ -52,8 +50,7 @@ public sealed class ChatOptions
     /// <summary>
     /// EffortLevel 到 Anthropic budget_tokens 的映射
     /// </summary>
-    public static int EffortToBudgetTokens(EffortLevel effortLevel) => effortLevel switch
-    {
+    public static int EffortToBudgetTokens(EffortLevel effortLevel) => effortLevel switch {
         JoinCode.Abstractions.LLM.EffortLevel.Low => 4000,
         JoinCode.Abstractions.LLM.EffortLevel.Medium => 10000,
         JoinCode.Abstractions.LLM.EffortLevel.High => 32000,
@@ -64,8 +61,7 @@ public sealed class ChatOptions
     /// <summary>
     /// EffortLevel 到 OpenAI reasoning_effort 的映射
     /// </summary>
-    public static string EffortToReasoningEffort(EffortLevel effortLevel) => effortLevel switch
-    {
+    public static string EffortToReasoningEffort(EffortLevel effortLevel) => effortLevel switch {
         JoinCode.Abstractions.LLM.EffortLevel.Low => "low",
         JoinCode.Abstractions.LLM.EffortLevel.Medium => "medium",
         JoinCode.Abstractions.LLM.EffortLevel.High => "high",

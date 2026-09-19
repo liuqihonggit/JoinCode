@@ -1,17 +1,14 @@
 namespace Core.Context;
 
-public sealed class CompactSummaryMarkerTests
-{
+public sealed class CompactSummaryMarkerTests {
     private readonly Mock<IStateService> _stateService = new();
 
-    private ChatContextManager CreateSut()
-    {
+    private ChatContextManager CreateSut() {
         return new ChatContextManager(_stateService.Object, NullLogger<ChatContextManager>.Instance);
     }
 
     [Fact]
-    public async Task AddCompactSummaryMessageAsync_CreatesMessageWithMarker()
-    {
+    public async Task AddCompactSummaryMessageAsync_CreatesMessageWithMarker() {
         var sut = CreateSut();
         await sut.AddCompactSummaryMessageAsync("summary content").ConfigureAwait(true);
 
@@ -26,8 +23,7 @@ public sealed class CompactSummaryMarkerTests
     }
 
     [Fact]
-    public async Task AddCompactSummaryMessageAsync_ContentPreserved()
-    {
+    public async Task AddCompactSummaryMessageAsync_ContentPreserved() {
         var sut = CreateSut();
         await sut.AddCompactSummaryMessageAsync("[上下文压缩摘要]\nUser asked about X").ConfigureAwait(true);
 
@@ -39,8 +35,7 @@ public sealed class CompactSummaryMarkerTests
     }
 
     [Fact]
-    public async Task AddUserMessageAsync_NoMarker()
-    {
+    public async Task AddUserMessageAsync_NoMarker() {
         var sut = CreateSut();
         await sut.AddUserMessageAsync("normal user message").ConfigureAwait(true);
 

@@ -1,12 +1,10 @@
 namespace Core.Tests.Plugins;
 
-public sealed class ResourceReferenceGraphTests
-{
+public sealed class ResourceReferenceGraphTests {
     private readonly ResourceReferenceGraph _graph = new();
 
     [Fact]
-    public void AddReference_GetConsumers_ReturnsConsumerPluginNames()
-    {
+    public void AddReference_GetConsumers_ReturnsConsumerPluginNames() {
         var cmdA1Id = new ObjectId(ObjectType.Resource, "cmdA1");
         var ref1 = new ResourceReference(new ObjectId(ObjectType.Resource, "cmdB1"), cmdA1Id, "pluginB", "pluginA");
         var ref2 = new ResourceReference(new ObjectId(ObjectType.Resource, "cmdC1"), cmdA1Id, "pluginC", "pluginA");
@@ -20,8 +18,7 @@ public sealed class ResourceReferenceGraphTests
     }
 
     [Fact]
-    public void AddReference_GetReferencesBy_ReturnsAllReferences()
-    {
+    public void AddReference_GetReferencesBy_ReturnsAllReferences() {
         var cmdA1Id = new ObjectId(ObjectType.Resource, "cmdA1");
         var cmdC1Id = new ObjectId(ObjectType.Resource, "cmdC1");
         var ref1 = new ResourceReference(new ObjectId(ObjectType.Resource, "cmdB1"), cmdA1Id, "pluginB", "pluginA");
@@ -37,8 +34,7 @@ public sealed class ResourceReferenceGraphTests
     }
 
     [Fact]
-    public void AddReference_GetReferenceCounts_ReturnsCorrectCounts()
-    {
+    public void AddReference_GetReferenceCounts_ReturnsCorrectCounts() {
         var cmdA1Id = new ObjectId(ObjectType.Resource, "cmdA1");
         var cmdA2Id = new ObjectId(ObjectType.Resource, "cmdA2");
         var ref1 = new ResourceReference(new ObjectId(ObjectType.Resource, "cmdB1"), cmdA1Id, "pluginB", "pluginA");
@@ -56,8 +52,7 @@ public sealed class ResourceReferenceGraphTests
     }
 
     [Fact]
-    public void RemoveReference_DecreasesCount()
-    {
+    public void RemoveReference_DecreasesCount() {
         var cmdA1Id = new ObjectId(ObjectType.Resource, "cmdA1");
         var cmdB1Id = new ObjectId(ObjectType.Resource, "cmdB1");
         var ref1 = new ResourceReference(cmdB1Id, cmdA1Id, "pluginB", "pluginA");
@@ -70,8 +65,7 @@ public sealed class ResourceReferenceGraphTests
     }
 
     [Fact]
-    public void RemoveAllForPlugin_RemovesAllReferences()
-    {
+    public void RemoveAllForPlugin_RemovesAllReferences() {
         var ref1 = new ResourceReference(new ObjectId(ObjectType.Resource, "cmdB1"), new ObjectId(ObjectType.Resource, "cmdA1"), "pluginB", "pluginA");
         var ref2 = new ResourceReference(new ObjectId(ObjectType.Resource, "cmdA1"), new ObjectId(ObjectType.Resource, "cmdC1"), "pluginA", "pluginC");
         _graph.AddReference(ref1);
@@ -84,15 +78,13 @@ public sealed class ResourceReferenceGraphTests
     }
 
     [Fact]
-    public void GetConsumers_NoReferences_ReturnsEmpty()
-    {
+    public void GetConsumers_NoReferences_ReturnsEmpty() {
         var consumers = _graph.GetConsumers("nonexistent");
         consumers.Should().BeEmpty();
     }
 
     [Fact]
-    public void GetConsumers_DistinctConsumerPlugins()
-    {
+    public void GetConsumers_DistinctConsumerPlugins() {
         var cmdA1Id = new ObjectId(ObjectType.Resource, "cmdA1");
         var cmdA2Id = new ObjectId(ObjectType.Resource, "cmdA2");
         var ref1 = new ResourceReference(new ObjectId(ObjectType.Resource, "cmdB1"), cmdA1Id, "pluginB", "pluginA");
@@ -107,8 +99,7 @@ public sealed class ResourceReferenceGraphTests
     }
 
     [Fact]
-    public void AddReference_DuplicateReference_NotAdded()
-    {
+    public void AddReference_DuplicateReference_NotAdded() {
         var cmdA1Id = new ObjectId(ObjectType.Resource, "cmdA1");
         var cmdB1Id = new ObjectId(ObjectType.Resource, "cmdB1");
         var ref1 = new ResourceReference(cmdB1Id, cmdA1Id, "pluginB", "pluginA");

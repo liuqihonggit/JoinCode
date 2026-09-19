@@ -3,13 +3,11 @@ namespace Anthropic.MockServer;
 /// <summary>
 /// Anthropic 脚本化响应策略 — 支持预设对话返回、工具调用和思考内容
 /// </summary>
-public sealed class AnthropicResponseStrategy : ScriptedResponseStrategyBase
-{
+public sealed class AnthropicResponseStrategy : ScriptedResponseStrategyBase {
     public AnthropicResponseStrategy(List<ScriptedTurn>? turns, string defaultResponse)
         : base(turns, defaultResponse) { }
 
-    public override string BuildResponse(JsonElement request, CacheStats cacheStats)
-    {
+    public override string BuildResponse(JsonElement request, CacheStats cacheStats) {
         var turn = CurrentTurn;
 
         return $$"""
@@ -30,12 +28,10 @@ public sealed class AnthropicResponseStrategy : ScriptedResponseStrategyBase
         """;
     }
 
-    public override string BuildStreamChunk(string id, string content, bool isLast)
-    {
+    public override string BuildStreamChunk(string id, string content, bool isLast) {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(content);
-        if (isLast)
-        {
+        if (isLast) {
             return
                 $"event: message_delta\ndata: {{\"type\":\"message_delta\",\"delta\":{{\"stop_reason\":\"end_turn\"}},\"usage\":{{\"output_tokens\":12}}}}\n\n" +
                 $"event: message_stop\ndata: {{\"type\":\"message_stop\"}}\n\n";
@@ -48,8 +44,7 @@ public sealed class AnthropicResponseStrategy : ScriptedResponseStrategyBase
     /// 流式最终 chunk — 真实 Anthropic API 在 message_delta 事件中包含
     /// cache_creation_input_tokens 和 cache_read_input_tokens 字段。
     /// </summary>
-    public override string BuildStreamFinalChunk(string id, CacheStats cacheStats)
-    {
+    public override string BuildStreamFinalChunk(string id, CacheStats cacheStats) {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(cacheStats);
 
@@ -58,21 +53,18 @@ public sealed class AnthropicResponseStrategy : ScriptedResponseStrategyBase
             $"event: message_stop\ndata: {{\"type\":\"message_stop\"}}\n\n";
     }
 
-    public override string? BuildStreamPreamble(string id)
-    {
+    public override string? BuildStreamPreamble(string id) {
         return
             $"event: message_start\ndata: {{\"type\":\"message_start\",\"message\":{{\"id\":\"{id}\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"claude-sonnet-4-20250514\",\"stop_reason\":null,\"usage\":{{\"input_tokens\":10,\"output_tokens\":0}}}}}}\n\n" +
             $"event: content_block_start\ndata: {{\"type\":\"content_block_start\",\"index\":0,\"content_block\":{{\"type\":\"text\",\"text\":\"\"}}}}\n\n";
     }
 
-    public override string BuildToolCallResponse(JsonElement request, CacheStats cacheStats)
-    {
+    public override string BuildToolCallResponse(JsonElement request, CacheStats cacheStats) {
         var turn = CurrentTurn;
         var toolCalls = turn.ToolCalls ?? [];
         var contentParts = new List<string>();
 
-        foreach (var tc in toolCalls)
-        {
+        foreach (var tc in toolCalls) {
             var tcId = GenerateToolCallId(tc);
             contentParts.Add($"{{\"type\":\"tool_use\",\"id\":\"{tcId}\",\"name\":\"{tc.ToolName}\",\"input\":{tc.Arguments}}}");
         }
@@ -95,14 +87,12 @@ public sealed class AnthropicResponseStrategy : ScriptedResponseStrategyBase
         """;
     }
 
-    public override string BuildStreamToolCallResponse(string id, CacheStats cacheStats)
-    {
+    public override string BuildStreamToolCallResponse(string id, CacheStats cacheStats) {
         var turn = CurrentTurn;
         var toolCalls = turn.ToolCalls ?? [];
         var sb = new StringBuilder();
 
-        for (var i = 0; i < toolCalls.Count; i++)
-        {
+        for (var i = 0; i < toolCalls.Count; i++) {
             var tc = toolCalls[i];
             var tcId = GenerateToolCallId(tc);
 
@@ -122,8 +112,7 @@ public sealed class AnthropicResponseStrategy : ScriptedResponseStrategyBase
         return sb.ToString();
     }
 
-    public override string BuildStreamThinkingResponse(string id)
-    {
+    public override string BuildStreamThinkingResponse(string id) {
         var thinking = CurrentTurn.ThinkingContent;
         if (string.IsNullOrEmpty(thinking)) return "";
 
@@ -135,14 +124,11 @@ public sealed class AnthropicResponseStrategy : ScriptedResponseStrategyBase
         return sb.ToString();
     }
 
-    private static string EscapeJsonString(string s)
-    {
+    private static string EscapeJsonString(string s) {
         if (string.IsNullOrEmpty(s)) return "";
         var sb = new StringBuilder(s.Length);
-        foreach (var c in s)
-        {
-            switch (c)
-            {
+        foreach (var c in s) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;

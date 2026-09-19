@@ -1,15 +1,12 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed partial class BridgeMainTests
-{
+public sealed partial class BridgeMainTests {
     #region BridgeMainDeps — 交互对话框回调
 
     [Fact]
-    public void BridgeMainDeps_RemoteControlDialog_CanBeSet()
-    {
-        var deps = new BridgeMainDeps
-        {
+    public void BridgeMainDeps_RemoteControlDialog_CanBeSet() {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -26,10 +23,8 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeMainDeps_SpawnModeDialog_CanBeSet()
-    {
-        var deps = new BridgeMainDeps
-        {
+    public void BridgeMainDeps_SpawnModeDialog_CanBeSet() {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -50,10 +45,8 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeMainDeps_DialogCallbacks_DefaultNull()
-    {
-        var deps = new BridgeMainDeps
-        {
+    public void BridgeMainDeps_DialogCallbacks_DefaultNull() {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -76,8 +69,7 @@ public sealed partial class BridgeMainTests
     #region RunAsync — 远程确认对话框
 
     [Fact]
-    public async Task RunAsync_RemoteDialogNotSeen_NoDialogCallback_ReturnsError()
-    {
+    public async Task RunAsync_RemoteDialogNotSeen_NoDialogCallback_ReturnsError() {
         var deps = BridgeTestHelperMethods.CreateDeps(checkRemoteDialog: false);
         await using var main = new BridgeMain(deps);
 
@@ -88,8 +80,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_RemoteDialogNotSeen_DialogDeclined_ReturnsError()
-    {
+    public async Task RunAsync_RemoteDialogNotSeen_DialogDeclined_ReturnsError() {
         var deps = BridgeTestHelperMethods.CreateDeps(checkRemoteDialog: false);
         deps.RemoteControlDialog = _ => Task.FromResult(false);
         deps.MarkRemoteDialogSeen = () => { };
@@ -102,8 +93,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_RemoteDialogNotSeen_DialogAccepted_MarkSeenCalled()
-    {
+    public async Task RunAsync_RemoteDialogNotSeen_DialogAccepted_MarkSeenCalled() {
         var markSeenCalled = false;
         var deps = BridgeTestHelperMethods.CreateDeps(checkRemoteDialog: false);
         deps.RemoteControlDialog = _ => Task.FromResult(true);
@@ -117,8 +107,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_RemoteDialogSeen_SkipsDialog()
-    {
+    public async Task RunAsync_RemoteDialogSeen_SkipsDialog() {
         var dialogCalled = false;
         var deps = BridgeTestHelperMethods.CreateDeps(checkRemoteDialog: true);
         deps.RemoteControlDialog = _ => { dialogCalled = true; return Task.FromResult(true); };
@@ -134,8 +123,7 @@ public sealed partial class BridgeMainTests
     #region RunAsync — Spawn 模式选择对话框
 
     [Fact]
-    public async Task RunAsync_SpawnModeDialog_SavedPreferenceUsed()
-    {
+    public async Task RunAsync_SpawnModeDialog_SavedPreferenceUsed() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         deps.GetSavedSpawnMode = () => BridgeSpawnMode.Worktree;
         await using var main = new BridgeMain(deps);
@@ -146,8 +134,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_SpawnModeDialog_ExplicitArgOverridesSaved()
-    {
+    public async Task RunAsync_SpawnModeDialog_ExplicitArgOverridesSaved() {
         var savedModeUsed = false;
         var deps = BridgeTestHelperMethods.CreateDeps();
         deps.GetSavedSpawnMode = () => { savedModeUsed = true; return BridgeSpawnMode.Worktree; };
@@ -159,8 +146,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_SpawnModeDialog_NotCalledWhenResuming()
-    {
+    public async Task RunAsync_SpawnModeDialog_NotCalledWhenResuming() {
         var dialogCalled = false;
         var deps = BridgeTestHelperMethods.CreateDeps();
         deps.SpawnModeDialog = _ => { dialogCalled = true; return Task.FromResult(BridgeSpawnMode.SameDir); };
@@ -173,8 +159,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_SpawnModeDialog_WorktreeNotAvailable_SkipsDialog()
-    {
+    public async Task RunAsync_SpawnModeDialog_WorktreeNotAvailable_SkipsDialog() {
         var dialogCalled = false;
         var deps = BridgeTestHelperMethods.CreateDeps();
         deps.SpawnModeDialog = _ => { dialogCalled = true; return Task.FromResult(BridgeSpawnMode.SameDir); };
@@ -187,8 +172,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_SpawnModeDialog_ChooseWorktree_SavesPreference()
-    {
+    public async Task RunAsync_SpawnModeDialog_ChooseWorktree_SavesPreference() {
         BridgeSpawnMode? savedMode = null;
         var deps = BridgeTestHelperMethods.CreateDeps();
         deps.SpawnModeDialog = _ => Task.FromResult(BridgeSpawnMode.Worktree);

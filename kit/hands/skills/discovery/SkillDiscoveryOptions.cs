@@ -4,8 +4,7 @@ namespace Core.Skills.Discovery;
 /// 技能发现服务配置选项
 /// </summary>
 [Register(typeof(SkillDiscoveryOptions), ServiceLifetime.Singleton)]
-public sealed partial class SkillDiscoveryOptions : ServiceEntity
-{
+public sealed partial class SkillDiscoveryOptions : ServiceEntity {
     /// <summary>
     /// 技能目录路径
     /// </summary>
@@ -43,10 +42,8 @@ public sealed partial class SkillDiscoveryOptions : ServiceEntity
     /// 从工作流配置创建技能发现选项
     /// </summary>
     /// <param name="config">工作流配置；为 null 则使用默认值</param>
-    public SkillDiscoveryOptions(WorkflowConfig? config)
-    {
-        if (config is not null && !string.IsNullOrEmpty(config.SkillsDirectory))
-        {
+    public SkillDiscoveryOptions(WorkflowConfig? config) {
+        if (config is not null && !string.IsNullOrEmpty(config.SkillsDirectory)) {
             SkillsDirectory = config.SkillsDirectory;
         }
     }

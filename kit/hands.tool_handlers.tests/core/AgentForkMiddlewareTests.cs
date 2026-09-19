@@ -6,11 +6,9 @@ namespace Hands.Tests.ToolHandlers;
 /// 现契约：启动时立即向 SubAgentEventChannel 发射 AgentStarted（携带 forkId/任务描述），
 /// 并把通道引用传入 ForkOptions 供后台完成时发射 AgentFinished。
 /// </summary>
-public class AgentForkMiddlewareTests
-{
+public class AgentForkMiddlewareTests {
     [Fact]
-    public async Task ForkPath_ShouldEmitAgentStarted_AndPassChannelToOptions()
-    {
+    public async Task ForkPath_ShouldEmitAgentStarted_AndPassChannelToOptions() {
         JoinCode.Abstractions.Interfaces.ForkOptions? capturedOptions = null;
         var forkManager = new Mock<IForkSubAgentManager>();
         forkManager.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
@@ -21,16 +19,14 @@ public class AgentForkMiddlewareTests
             new SubAgentContextAccessor(),
             forkManager.Object);
 
-        var context = new AgentToolContext
-        {
+        var context = new AgentToolContext {
             Description = "继承上下文",
             Prompt = "fork 任务提示词"
         };
         var channel = new JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel();
 
         IReadOnlyList<ChatStreamEvent> drained;
-        using (channel.EnterScope())
-        {
+        using (channel.EnterScope()) {
             await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
             drained = channel.TryDrain();
         }
@@ -51,15 +47,13 @@ public class AgentForkMiddlewareTests
     }
 
     [Fact]
-    public async Task NonForkPath_WhenSubagentTypeProvided_ShouldNotEmit()
-    {
+    public async Task NonForkPath_WhenSubagentTypeProvided_ShouldNotEmit() {
         var forkManager = new Mock<IForkSubAgentManager>();
         var sut = new AgentForkMiddleware(
             new SubAgentContextAccessor(),
             forkManager.Object);
 
-        var context = new AgentToolContext
-        {
+        var context = new AgentToolContext {
             Description = "d",
             Prompt = "p",
             SubagentType = "executor:search"
@@ -67,8 +61,7 @@ public class AgentForkMiddlewareTests
         var channel = new JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel();
         var nextCalled = false;
 
-        using (channel.EnterScope())
-        {
+        using (channel.EnterScope()) {
             await sut.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
         }
 

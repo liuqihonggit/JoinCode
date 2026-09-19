@@ -3,8 +3,7 @@ namespace Core.Utils;
 /// <summary>
 /// 指数退避策略 — 根据重试次数计算 BaseDelay * 2^shift 的退避时长，受 MaxDelay 上限约束
 /// </summary>
-public sealed class ExponentialBackoff
-{
+public sealed class ExponentialBackoff {
     /// <summary>
     /// 基础延迟
     /// </summary>
@@ -31,8 +30,7 @@ public sealed class ExponentialBackoff
     /// <param name="baseDelay">基础延迟</param>
     /// <param name="maxDelay">最大延迟上限</param>
     /// <param name="maxShiftBits">最大位移位数</param>
-    public ExponentialBackoff(TimeSpan baseDelay, TimeSpan maxDelay, int maxShiftBits = 5)
-    {
+    public ExponentialBackoff(TimeSpan baseDelay, TimeSpan maxDelay, int maxShiftBits = 5) {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(baseDelay, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maxDelay, baseDelay);
         ArgumentOutOfRangeException.ThrowIfLessThan(maxShiftBits, 1);
@@ -47,8 +45,7 @@ public sealed class ExponentialBackoff
     /// </summary>
     /// <param name="retryCount">重试次数（从 0 开始）</param>
     /// <returns>退避时长</returns>
-    public TimeSpan CalculateDelay(int retryCount)
-    {
+    public TimeSpan CalculateDelay(int retryCount) {
         var shift = Math.Min(retryCount, MaxShiftBits);
         var ms = Math.Min(BaseDelay.TotalMilliseconds * (1 << shift), MaxDelay.TotalMilliseconds);
         return TimeSpan.FromMilliseconds(ms);

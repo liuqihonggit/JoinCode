@@ -6,44 +6,36 @@ namespace Core.Utils;
 /// 对齐 TS 原版 的 filterToolsForAgent 3 层设计。
 /// </summary>
 [Register(typeof(IToolFilterPolicy), ServiceLifetime.Singleton)]
-public sealed partial class ToolFilterPolicy : IToolFilterPolicy
-{
+public sealed partial class ToolFilterPolicy : IToolFilterPolicy {
     /// <inheritdoc />
-    public ToolFilterResult Check(ToolFilterContext context)
-    {
+    public ToolFilterResult Check(ToolFilterContext context) {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (context.Mode == PermissionMode.Bypass)
-        {
+        if (context.Mode == PermissionMode.Bypass) {
             return ToolFilterResult.Allowed;
         }
 
         var toolName = context.ToolName;
         var disallowed = context.AllAgentDisallowedTools;
 
-        if (disallowed.Contains(toolName))
-        {
+        if (disallowed.Contains(toolName)) {
             return ToolFilterResult.Denied($"工具 '{toolName}' 被全局禁用（防递归）", 1);
         }
 
-        if (disallowed.Contains("*"))
-        {
+        if (disallowed.Contains("*")) {
             return ToolFilterResult.Denied($"工具 '{toolName}' 被通配符全局禁用", 1);
         }
 
         var allowed = context.AgentAllowedTools;
-        if (allowed is { Count: > 0 } && !allowed.Contains(toolName))
-        {
+        if (allowed is { Count: > 0 } && !allowed.Contains(toolName)) {
             return ToolFilterResult.Denied($"工具 '{toolName}' 不在代理工具白名单中", 2);
         }
 
         var agentDenied = context.AgentDisallowedTools;
-        if (agentDenied is not null && agentDenied.Contains(toolName))
-        {
+        if (agentDenied is not null && agentDenied.Contains(toolName)) {
             return ToolFilterResult.Denied($"工具 '{toolName}' 被代理定义禁用", 3);
         }
 
         return ToolFilterResult.Allowed;
     }
 }
-

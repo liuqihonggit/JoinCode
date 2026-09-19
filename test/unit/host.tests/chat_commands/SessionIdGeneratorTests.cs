@@ -6,11 +6,9 @@ namespace Host.Tests.ChatCommands;
 /// 回归背景：sessions 目录此前混杂 default/session-*/t6-e2e-*/GUID 等多种命名；
 /// 用户规范要求日期+项目+分支+父子标记+ObjectId 序号五段式。
 /// </summary>
-public sealed class SessionIdGeneratorTests
-{
+public sealed class SessionIdGeneratorTests {
     [Fact]
-    public void Generate_ParentRole_FollowsUserFormat()
-    {
+    public void Generate_ParentRole_FollowsUserFormat() {
         var dir = Path.Combine(Path.GetTempPath(), "sid-proj");
         var at = new DateTime(2026, 8, 22, 7, 12, 0, DateTimeKind.Utc);
 
@@ -21,8 +19,7 @@ public sealed class SessionIdGeneratorTests
     }
 
     [Fact]
-    public void Generate_SequenceIsGloballyIncrementing()
-    {
+    public void Generate_SequenceIsGloballyIncrementing() {
         var dir = Path.Combine(Path.GetTempPath(), "sid-seq");
         var at = new DateTime(2026, 8, 22, 7, 13, 0, DateTimeKind.Utc);
 
@@ -35,8 +32,7 @@ public sealed class SessionIdGeneratorTests
     }
 
     [Fact]
-    public void Generate_SameMinute_DistinctBySequence()
-    {
+    public void Generate_SameMinute_DistinctBySequence() {
         var dir = Path.Combine(Path.GetTempPath(), "sid-min");
         var at = new DateTime(2026, 8, 22, 7, 14, 0, DateTimeKind.Utc);
 

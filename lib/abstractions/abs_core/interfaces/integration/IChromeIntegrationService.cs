@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface IChromeIntegrationService
-{
+public interface IChromeIntegrationService {
     bool IsExtensionInstalled { get; }
     Task<bool> ConnectAsync(CancellationToken ct = default);
     Task DisconnectAsync(CancellationToken ct = default);

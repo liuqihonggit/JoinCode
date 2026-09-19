@@ -1,12 +1,9 @@
 namespace Infra.Tests.Utils.Resilience;
 
-public sealed class ResilientHttpExecutorTests
-{
+public sealed class ResilientHttpExecutorTests {
     [Fact]
-    public async Task ExecuteAsync_NoRetry_Succeeds()
-    {
-        var policy = new ResiliencePolicy
-        {
+    public async Task ExecuteAsync_NoRetry_Succeeds() {
+        var policy = new ResiliencePolicy {
             Name = "test",
             OperationTimeout = TimeSpan.FromSeconds(5),
         };
@@ -20,10 +17,8 @@ public sealed class ResilientHttpExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithRetry_RetriesOnFailure()
-    {
-        var policy = new ResiliencePolicy
-        {
+    public async Task ExecuteAsync_WithRetry_RetriesOnFailure() {
+        var policy = new ResiliencePolicy {
             Name = "test",
             OperationTimeout = TimeSpan.FromSeconds(5),
             Retry = new RetryConfig { MaxRetries = 2, BaseDelay = TimeSpan.FromMilliseconds(10), Strategy = BackoffStrategy.Fixed },
@@ -33,8 +28,7 @@ public sealed class ResilientHttpExecutorTests
         var attempt = 0;
 
         var result = await executor.ExecuteAsync(
-            _ =>
-            {
+            _ => {
                 attempt++;
                 if (attempt < 3) throw new HttpRequestException("fail");
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
@@ -46,10 +40,8 @@ public sealed class ResilientHttpExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithRetry_ExhaustsRetries_Throws()
-    {
-        var policy = new ResiliencePolicy
-        {
+    public async Task ExecuteAsync_WithRetry_ExhaustsRetries_Throws() {
+        var policy = new ResiliencePolicy {
             Name = "test",
             OperationTimeout = TimeSpan.FromSeconds(5),
             Retry = new RetryConfig { MaxRetries = 2, BaseDelay = TimeSpan.FromMilliseconds(10), Strategy = BackoffStrategy.Fixed },
@@ -64,10 +56,8 @@ public sealed class ResilientHttpExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_CircuitBreaker_OpensAfterThreshold()
-    {
-        var policy = new ResiliencePolicy
-        {
+    public async Task ExecuteAsync_CircuitBreaker_OpensAfterThreshold() {
+        var policy = new ResiliencePolicy {
             Name = "test",
             Retry = new RetryConfig { MaxRetries = 0 },
             CircuitBreaker = new CircuitBreakerConfig { FailureThreshold = 2, OpenDuration = TimeSpan.FromSeconds(60) },
@@ -88,10 +78,8 @@ public sealed class ResilientHttpExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_CircuitBreaker_SuccessResets()
-    {
-        var policy = new ResiliencePolicy
-        {
+    public async Task ExecuteAsync_CircuitBreaker_SuccessResets() {
+        var policy = new ResiliencePolicy {
             Name = "test",
             Retry = new RetryConfig { MaxRetries = 0 },
             CircuitBreaker = new CircuitBreakerConfig { FailureThreshold = 1, OpenDuration = TimeSpan.FromMilliseconds(50) },
@@ -112,10 +100,8 @@ public sealed class ResilientHttpExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_OperationTimeout_ThrowsTimeoutException()
-    {
-        var policy = new ResiliencePolicy
-        {
+    public async Task ExecuteAsync_OperationTimeout_ThrowsTimeoutException() {
+        var policy = new ResiliencePolicy {
             Name = "test",
             OperationTimeout = TimeSpan.FromMilliseconds(50),
             Retry = new RetryConfig { MaxRetries = 0 },
@@ -125,8 +111,7 @@ public sealed class ResilientHttpExecutorTests
 
         await Assert.ThrowsAsync<TimeoutException>(() =>
             executor.ExecuteAsync(
-                async ct =>
-                {
+                async ct => {
                     await Task.Delay(TimeSpan.FromSeconds(10), ct);
                     return new HttpResponseMessage(HttpStatusCode.OK);
                 },
@@ -134,10 +119,8 @@ public sealed class ResilientHttpExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_GenericOverload_Succeeds()
-    {
-        var policy = new ResiliencePolicy
-        {
+    public async Task ExecuteAsync_GenericOverload_Succeeds() {
+        var policy = new ResiliencePolicy {
             Name = "test",
             OperationTimeout = TimeSpan.FromSeconds(5),
         };
@@ -151,10 +134,8 @@ public sealed class ResilientHttpExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_UserCancellation_NotCountedAsFailure()
-    {
-        var policy = new ResiliencePolicy
-        {
+    public async Task ExecuteAsync_UserCancellation_NotCountedAsFailure() {
+        var policy = new ResiliencePolicy {
             Name = "test",
             CircuitBreaker = new CircuitBreakerConfig { FailureThreshold = 1 },
         };
@@ -166,8 +147,7 @@ public sealed class ResilientHttpExecutorTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             executor.ExecuteAsync(
-                async ct =>
-                {
+                async ct => {
                     await Task.Delay(1, ct);
                     return new HttpResponseMessage(HttpStatusCode.OK);
                 },
@@ -178,14 +158,11 @@ public sealed class ResilientHttpExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_TotalBudgetExhausted_ThrowsBudgetExhaustedException()
-    {
-        var policy = new ResiliencePolicy
-        {
+    public async Task ExecuteAsync_TotalBudgetExhausted_ThrowsBudgetExhaustedException() {
+        var policy = new ResiliencePolicy {
             Name = "test",
             OperationTimeout = TimeSpan.FromSeconds(5),
-            Retry = new RetryConfig
-            {
+            Retry = new RetryConfig {
                 TotalBudget = TimeSpan.FromMilliseconds(100),
                 BaseDelay = TimeSpan.FromMilliseconds(10),
                 MaxDelay = TimeSpan.FromMilliseconds(50),
@@ -202,14 +179,11 @@ public sealed class ResilientHttpExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_TotalBudget_ExceedsMaxRetries()
-    {
-        var policy = new ResiliencePolicy
-        {
+    public async Task ExecuteAsync_TotalBudget_ExceedsMaxRetries() {
+        var policy = new ResiliencePolicy {
             Name = "test",
             OperationTimeout = TimeSpan.FromSeconds(5),
-            Retry = new RetryConfig
-            {
+            Retry = new RetryConfig {
                 MaxRetries = 2,
                 TotalBudget = TimeSpan.FromSeconds(3),
                 BaseDelay = TimeSpan.FromMilliseconds(10),
@@ -223,8 +197,7 @@ public sealed class ResilientHttpExecutorTests
 
         await Assert.ThrowsAsync<NetworkRetryBudgetExhaustedException>(() =>
             executor.ExecuteAsync(
-                _ =>
-                {
+                _ => {
                     attempt++;
                     throw new HttpRequestException("always fail");
                 },
@@ -234,14 +207,11 @@ public sealed class ResilientHttpExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithinBudget_RetriesUntilSuccess()
-    {
-        var policy = new ResiliencePolicy
-        {
+    public async Task ExecuteAsync_WithinBudget_RetriesUntilSuccess() {
+        var policy = new ResiliencePolicy {
             Name = "test",
             OperationTimeout = TimeSpan.FromSeconds(5),
-            Retry = new RetryConfig
-            {
+            Retry = new RetryConfig {
                 TotalBudget = TimeSpan.FromSeconds(10),
                 BaseDelay = TimeSpan.FromMilliseconds(10),
                 MaxDelay = TimeSpan.FromMilliseconds(50),
@@ -253,8 +223,7 @@ public sealed class ResilientHttpExecutorTests
         var attempt = 0;
 
         var result = await executor.ExecuteAsync(
-            _ =>
-            {
+            _ => {
                 attempt++;
                 if (attempt < 5) throw new HttpRequestException("fail");
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
@@ -270,11 +239,9 @@ public sealed class ResilientHttpExecutorTests
     /// <para>重试配置从 NetworkRetryOptions.ToTestRetryConfig 派生，共用生产策略/开关，避免改了生产没改测试</para>
     /// </summary>
     [Fact]
-    public async Task ExecuteAsync_GatewayWithPassthrough_NoRetryAmplification()
-    {
+    public async Task ExecuteAsync_GatewayWithPassthrough_NoRetryAmplification() {
         var retryOptions = new NetworkRetryOptions();
-        var policy = new ResiliencePolicy
-        {
+        var policy = new ResiliencePolicy {
             Name = "integration",
             OperationTimeout = TimeSpan.FromSeconds(10),
             Retry = retryOptions.ToTestRetryConfig(TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(100)),
@@ -286,8 +253,7 @@ public sealed class ResilientHttpExecutorTests
 
         await Assert.ThrowsAsync<NetworkRetryBudgetExhaustedException>(() =>
             executor.ExecuteAsync(
-                _ =>
-                {
+                _ => {
                     gatewayAttempts++;
                     passthroughCalls++;
                     throw new HttpRequestException("fail");

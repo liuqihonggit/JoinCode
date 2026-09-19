@@ -5,8 +5,7 @@ namespace Bridge.Tests;
 /// TrustedDeviceStore 单元测试
 /// 测试受信任设备的添加、查询、撤销、移除和信任状态判断
 /// </summary>
-public sealed class TrustedDeviceStoreTests
-{
+public sealed class TrustedDeviceStoreTests {
     private static TrustedDeviceStore CreateSut() =>
         new(logger: null);
 
@@ -14,10 +13,8 @@ public sealed class TrustedDeviceStoreTests
         string deviceId = "device-001",
         string deviceName = "Test Device",
         string publicKeyFingerprint = "sha256:abcdef1234567890",
-        DeviceTrustLevel trustLevel = DeviceTrustLevel.Basic)
-    {
-        return new TrustedDeviceEntry
-        {
+        DeviceTrustLevel trustLevel = DeviceTrustLevel.Basic) {
+        return new TrustedDeviceEntry {
             DeviceId = deviceId,
             DeviceName = deviceName,
             PublicKeyFingerprint = publicKeyFingerprint,
@@ -26,8 +23,7 @@ public sealed class TrustedDeviceStoreTests
     }
 
     [Fact]
-    public async Task AddAsync_ShouldStoreDevice()
-    {
+    public async Task AddAsync_ShouldStoreDevice() {
         // Arrange
         var sut = CreateSut();
         var entry = CreateEntry();
@@ -42,8 +38,7 @@ public sealed class TrustedDeviceStoreTests
     }
 
     [Fact]
-    public async Task GetAsync_ShouldReturnDevice_WhenExists()
-    {
+    public async Task GetAsync_ShouldReturnDevice_WhenExists() {
         // Arrange
         var sut = CreateSut();
         var entry = CreateEntry();
@@ -59,8 +54,7 @@ public sealed class TrustedDeviceStoreTests
     }
 
     [Fact]
-    public async Task GetAsync_ShouldReturnNull_WhenNotExists()
-    {
+    public async Task GetAsync_ShouldReturnNull_WhenNotExists() {
         // Arrange
         var sut = CreateSut();
 
@@ -72,8 +66,7 @@ public sealed class TrustedDeviceStoreTests
     }
 
     [Fact]
-    public async Task IsTrustedAsync_ShouldReturnTrue_WhenDeviceIsTrusted()
-    {
+    public async Task IsTrustedAsync_ShouldReturnTrue_WhenDeviceIsTrusted() {
         // Arrange
         var sut = CreateSut();
         var entry = CreateEntry(trustLevel: DeviceTrustLevel.Full);
@@ -87,8 +80,7 @@ public sealed class TrustedDeviceStoreTests
     }
 
     [Fact]
-    public async Task IsTrustedAsync_ShouldReturnFalse_WhenDeviceIsRevoked()
-    {
+    public async Task IsTrustedAsync_ShouldReturnFalse_WhenDeviceIsRevoked() {
         // Arrange
         var sut = CreateSut();
         var entry = CreateEntry(trustLevel: DeviceTrustLevel.Full);
@@ -103,8 +95,7 @@ public sealed class TrustedDeviceStoreTests
     }
 
     [Fact]
-    public async Task IsTrustedAsync_ShouldReturnFalse_WhenDeviceNotExists()
-    {
+    public async Task IsTrustedAsync_ShouldReturnFalse_WhenDeviceNotExists() {
         // Arrange
         var sut = CreateSut();
 
@@ -116,8 +107,7 @@ public sealed class TrustedDeviceStoreTests
     }
 
     [Fact]
-    public async Task RevokeAsync_ShouldMarkDeviceAsRevoked()
-    {
+    public async Task RevokeAsync_ShouldMarkDeviceAsRevoked() {
         // Arrange
         var sut = CreateSut();
         var entry = CreateEntry();
@@ -133,8 +123,7 @@ public sealed class TrustedDeviceStoreTests
     }
 
     [Fact]
-    public async Task RemoveAsync_ShouldRemoveDevice()
-    {
+    public async Task RemoveAsync_ShouldRemoveDevice() {
         // Arrange
         var sut = CreateSut();
         var entry = CreateEntry();
@@ -150,8 +139,7 @@ public sealed class TrustedDeviceStoreTests
     }
 
     [Fact]
-    public async Task GetAllAsync_ShouldReturnAllDevices()
-    {
+    public async Task GetAllAsync_ShouldReturnAllDevices() {
         // Arrange
         var sut = CreateSut();
         await sut.AddAsync(CreateEntry(deviceId: "device-001")).ConfigureAwait(true);

@@ -3,15 +3,13 @@ namespace Guard.Tests.Hooks.Execution.Interception;
 /// <summary>
 /// CommandInterceptionDispatcher 单元测试 — 验证守卫链/拦截器链/链式改写/优先级/短路/异常跳过
 /// </summary>
-public sealed class CommandInterceptionDispatcherTests
-{
+public sealed class CommandInterceptionDispatcherTests {
     private static readonly GuardContext EmptyContext = new(SystemActuatorKind.Bash, "");
 
     // === 空集合 ===
 
     [Fact]
-    public async Task DispatchAsync_NoGuardsNoInterceptors_PassesThrough()
-    {
+    public async Task DispatchAsync_NoGuardsNoInterceptors_PassesThrough() {
         var dispatcher = new CommandInterceptionDispatcher([], []);
 
         var outcome = await dispatcher.DispatchAsync("git status", EmptyContext, default);
@@ -23,8 +21,7 @@ public sealed class CommandInterceptionDispatcherTests
     // === Allow ===
 
     [Fact]
-    public async Task DispatchAsync_GuardAllow_PassesThrough()
-    {
+    public async Task DispatchAsync_GuardAllow_PassesThrough() {
         var guard = new StubGuard("g1", priority: 100, new CommandDecision.Allow());
         var dispatcher = new CommandInterceptionDispatcher([guard], []);
 
@@ -37,8 +34,7 @@ public sealed class CommandInterceptionDispatcherTests
     // === Rewrite ===
 
     [Fact]
-    public async Task DispatchAsync_GuardRewrite_RewritesCommandAndPassesThrough()
-    {
+    public async Task DispatchAsync_GuardRewrite_RewritesCommandAndPassesThrough() {
         var guard = new StubGuard("rewrite1", priority: 100,
             new CommandDecision.Rewrite("git -c http.proxy=x fetch", "vpn"));
         var dispatcher = new CommandInterceptionDispatcher([guard], []);
@@ -50,8 +46,7 @@ public sealed class CommandInterceptionDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchAsync_ChainedRewrite_AppliesAllRewritesInPriorityOrder()
-    {
+    public async Task DispatchAsync_ChainedRewrite_AppliesAllRewritesInPriorityOrder() {
         // 高优先级先改写:git fetch → git -c proxy fetch
         var guardHigh = new StubGuard("vpn", priority: 200,
             new CommandDecision.Rewrite("git -c http.proxy=x fetch", "vpn"));
@@ -70,8 +65,7 @@ public sealed class CommandInterceptionDispatcherTests
     // === Deny ===
 
     [Fact]
-    public async Task DispatchAsync_GuardDeny_ShortCircuitsWithError()
-    {
+    public async Task DispatchAsync_GuardDeny_ShortCircuitsWithError() {
         var diag = ToolDiagnostic.Create("命令被拒绝", "禁止直接执行 git commit");
         var guard = new StubGuard("denyCommit", priority: 1000, new CommandDecision.Deny(diag));
         var dispatcher = new CommandInterceptionDispatcher([guard], []);
@@ -84,8 +78,7 @@ public sealed class CommandInterceptionDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchAsync_DenyStopsBeforeLowerPriorityGuard()
-    {
+    public async Task DispatchAsync_DenyStopsBeforeLowerPriorityGuard() {
         var diag = ToolDiagnostic.Create("拒绝", "denied");
         var denyGuard = new StubGuard("deny", priority: 200, new CommandDecision.Deny(diag));
         var allowGuard = new StubGuard("allow", priority: 100, new CommandDecision.Allow());
@@ -100,8 +93,7 @@ public sealed class CommandInterceptionDispatcherTests
     // === Redirect ===
 
     [Fact]
-    public async Task DispatchAsync_GuardRedirect_ShortCircuitsWithHint()
-    {
+    public async Task DispatchAsync_GuardRedirect_ShortCircuitsWithHint() {
         var guard = new StubGuard("redirectCommit", priority: 1000,
             new CommandDecision.Redirect("/commit", "请使用 /commit 斜杠命令创建提交"));
         var dispatcher = new CommandInterceptionDispatcher([guard], []);
@@ -116,8 +108,7 @@ public sealed class CommandInterceptionDispatcherTests
     // === Handoff ===
 
     [Fact]
-    public async Task DispatchAsync_Handoff_FallsThroughToInterceptors()
-    {
+    public async Task DispatchAsync_Handoff_FallsThroughToInterceptors() {
         var handoffGuard = new StubGuard("handoff", priority: 100, new CommandDecision.Handoff());
         var interceptor = new StubInterceptor("i1", priority: 100,
             new InterceptResult.Handled(ToolResultBuilder.Success().WithText("handled").Build()));
@@ -133,8 +124,7 @@ public sealed class CommandInterceptionDispatcherTests
     // === Interceptor 链 ===
 
     [Fact]
-    public async Task DispatchAsync_InterceptorHandled_ShortCircuits()
-    {
+    public async Task DispatchAsync_InterceptorHandled_ShortCircuits() {
         var interceptor = new StubInterceptor("build", priority: 100,
             new InterceptResult.Handled(ToolResultBuilder.Success().WithText("build queued").Build()));
         var dispatcher = new CommandInterceptionDispatcher([], [interceptor]);
@@ -146,8 +136,7 @@ public sealed class CommandInterceptionDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchAsync_InterceptorContinue_PassesThrough()
-    {
+    public async Task DispatchAsync_InterceptorContinue_PassesThrough() {
         var interceptor = new StubInterceptor("sed", priority: 100, new InterceptResult.Continue());
         var dispatcher = new CommandInterceptionDispatcher([], [interceptor]);
 
@@ -157,8 +146,7 @@ public sealed class CommandInterceptionDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchAsync_InterceptorException_SkipsAndContinues()
-    {
+    public async Task DispatchAsync_InterceptorException_SkipsAndContinues() {
         var throwingInterceptor = new StubInterceptor("thrower", priority: 100, throwOnHandle: true);
         var passInterceptor = new StubInterceptor("pass", priority: 50,
             new InterceptResult.Handled(ToolResultBuilder.Success().WithText("ok").Build()));
@@ -173,8 +161,7 @@ public sealed class CommandInterceptionDispatcherTests
     // === 优先级排序 ===
 
     [Fact]
-    public async Task DispatchAsync_GuardsEvaluatedByPriorityDescending()
-    {
+    public async Task DispatchAsync_GuardsEvaluatedByPriorityDescending() {
         var first = new StubGuard("first", priority: 50, new CommandDecision.Allow());
         var second = new StubGuard("second", priority: 100, new CommandDecision.Allow());
         var dispatcher = new CommandInterceptionDispatcher([first, second], []);
@@ -187,8 +174,7 @@ public sealed class CommandInterceptionDispatcherTests
     }
 
     [Fact]
-    public void Constructor_GuardsSortedByPriorityDescending()
-    {
+    public void Constructor_GuardsSortedByPriorityDescending() {
         var low = new StubGuard("low", priority: 10, new CommandDecision.Allow());
         var high = new StubGuard("high", priority: 100, new CommandDecision.Allow());
         var dispatcher = new CommandInterceptionDispatcher([low, high], []);
@@ -200,8 +186,7 @@ public sealed class CommandInterceptionDispatcherTests
     // === 参数校验 ===
 
     [Fact]
-    public async Task DispatchAsync_NullOrWhiteSpaceCommand_Throws()
-    {
+    public async Task DispatchAsync_NullOrWhiteSpaceCommand_Throws() {
         var dispatcher = new CommandInterceptionDispatcher([], []);
 
         var act = async () => await dispatcher.DispatchAsync("", EmptyContext, default);
@@ -210,13 +195,11 @@ public sealed class CommandInterceptionDispatcherTests
 
     // === Stub 实现 ===
 
-    private sealed class StubGuard : ICommandGuard
-    {
+    private sealed class StubGuard : ICommandGuard {
         private readonly CommandDecision _decision;
         public int EvaluateCallCount { get; private set; }
 
-        public StubGuard(string name, int priority, CommandDecision decision)
-        {
+        public StubGuard(string name, int priority, CommandDecision decision) {
             Name = name;
             Priority = priority;
             _decision = decision;
@@ -227,29 +210,25 @@ public sealed class CommandInterceptionDispatcherTests
 
         public bool CanHandle(string command, GuardContext context) => true;
 
-        public CommandDecision Evaluate(string command, GuardContext context)
-        {
+        public CommandDecision Evaluate(string command, GuardContext context) {
             EvaluateCallCount++;
             return _decision;
         }
     }
 
-    private sealed class StubInterceptor : ICommandInterceptor
-    {
+    private sealed class StubInterceptor : ICommandInterceptor {
         private readonly InterceptResult _result;
         private readonly bool _throwOnHandle;
         public int HandleCallCount { get; private set; }
 
-        public StubInterceptor(string name, int priority, InterceptResult result, bool throwOnHandle = false)
-        {
+        public StubInterceptor(string name, int priority, InterceptResult result, bool throwOnHandle = false) {
             Name = name;
             Priority = priority;
             _result = result;
             _throwOnHandle = throwOnHandle;
         }
 
-        public StubInterceptor(string name, int priority, bool throwOnHandle)
-        {
+        public StubInterceptor(string name, int priority, bool throwOnHandle) {
             Name = name;
             Priority = priority;
             _result = new InterceptResult.Continue();
@@ -261,8 +240,7 @@ public sealed class CommandInterceptionDispatcherTests
 
         public bool CanHandle(string command, GuardContext context) => true;
 
-        public Task<InterceptResult> HandleAsync(string command, GuardContext context, CancellationToken cancellationToken)
-        {
+        public Task<InterceptResult> HandleAsync(string command, GuardContext context, CancellationToken cancellationToken) {
             HandleCallCount++;
             if (_throwOnHandle) throw new InvalidOperationException("stub throw");
             return Task.FromResult(_result);

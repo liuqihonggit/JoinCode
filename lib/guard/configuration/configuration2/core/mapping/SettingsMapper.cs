@@ -6,8 +6,7 @@ namespace Core.Configuration;
 /// 优先级: 环境变量 > SettingsJson 字段 > Provider 定义默认值 > 内置默认值
 /// </summary>
 [Register(typeof(SettingsMapper), ServiceLifetime.Singleton)]
-public sealed partial class SettingsMapper : ServiceEntity
-{
+public sealed partial class SettingsMapper : ServiceEntity {
     private readonly IProviderDefinitionRegistry _registry;
 
     /// <summary>
@@ -16,16 +15,14 @@ public sealed partial class SettingsMapper : ServiceEntity
     public bool SkipProviderValidation { get; set; }
 
     /// <summary>构造函数 — 注入 Provider 定义注册表</summary>
-    public SettingsMapper(IProviderDefinitionRegistry registry)
-    {
+    public SettingsMapper(IProviderDefinitionRegistry registry) {
         _registry = registry;
     }
 
     /// <summary>
     /// 将 SettingsJson 映射到 WorkflowConfig，并应用环境变量覆盖
     /// </summary>
-    public WorkflowConfig ToWorkflowConfig(SettingsJson? settings)
-    {
+    public WorkflowConfig ToWorkflowConfig(SettingsJson? settings) {
         var config = new WorkflowConfig();
 
         // Provider 配置 — 从 vendor[current.profile] + current 偏好映射
@@ -63,12 +60,10 @@ public sealed partial class SettingsMapper : ServiceEntity
     /// 环境变量优先级最高，覆盖所有文件配置
     /// 注意: API Key 不在此处理，由 ConfigLoader.ResolveApiKeyAsync 统一解析
     /// </summary>
-    public void ApplyEnvOverrides(WorkflowConfig config, SettingsJson? settings = null)
-    {
+    public void ApplyEnvOverrides(WorkflowConfig config, SettingsJson? settings = null) {
         // Provider 环境变量覆盖
         var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue());
-        if (!string.IsNullOrEmpty(envProvider) && config.Provider.Vendor != envProvider)
-        {
+        if (!string.IsNullOrEmpty(envProvider) && config.Provider.Vendor != envProvider) {
             config.Provider.Vendor = envProvider;
 
             // --vendor 自动匹配 vendor 字典中的同名预设
@@ -76,14 +71,12 @@ public sealed partial class SettingsMapper : ServiceEntity
 
             // Provider 变更时，重新应用 Provider 定义的默认值
             var newDefinition = _registry.TryGet(envProvider);
-            if (newDefinition is null && !SkipProviderValidation)
-            {
+            if (newDefinition is null && !SkipProviderValidation) {
                 throw new ConfigurationException(
                     $"未知的 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。");
             }
 
-            if (newDefinition is not null)
-            {
+            if (newDefinition is not null) {
                 config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
                 config.Provider.Definition = newDefinition;
                 // Protocol — ApplyProfileFromVendor 已从 settings.json profile 设置(配置大于代码)
@@ -93,18 +86,14 @@ public sealed partial class SettingsMapper : ServiceEntity
                     config.Provider.Protocol = newDefinition.Protocol.ToValue();
 
                 // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
-                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
-                {
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue()))) {
                     config.Provider.ModelId ??= newDefinition.DefaultModelId;
-                    if (config.Provider.ModelId is null && !SkipProviderValidation)
-                    {
+                    if (config.Provider.ModelId is null && !SkipProviderValidation) {
                         throw new ConfigurationException(
                             $"Provider '{newDefinition.ProviderName}' 没有定义默认模型，请通过 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
                     }
                 }
-            }
-            else
-            {
+            } else {
                 Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。元命令模式降级运行。");
             }
         }
@@ -149,14 +138,11 @@ public sealed partial class SettingsMapper : ServiceEntity
     /// <summary>
     /// 从 SettingsJson 的 env 字段注入环境变量到当前进程
     /// </summary>
-    public static void InjectEnvFromSettings(SettingsJson? settings)
-    {
+    public static void InjectEnvFromSettings(SettingsJson? settings) {
         if (settings?.Current?.Env is null) return;
 
-        foreach (var (key, value) in settings.Current.Env)
-        {
-            if (Environment.GetEnvironmentVariable(key) is null)
-            {
+        foreach (var (key, value) in settings.Current.Env) {
+            if (Environment.GetEnvironmentVariable(key) is null) {
                 Environment.SetEnvironmentVariable(key, value);
             }
         }
@@ -170,34 +156,28 @@ public sealed partial class SettingsMapper : ServiceEntity
 
     #region 内部方法
 
-    private void ApplyProviderSettings(WorkflowConfig config, SettingsJson? settings)
-    {
+    private void ApplyProviderSettings(WorkflowConfig config, SettingsJson? settings) {
         var current = settings?.Current;
         var profile = settings?.GetActiveProfile();
 
         // Provider — 优先从 profile 读取，回退到 profile 名本身
-        if (profile is not null)
-        {
+        if (profile is not null) {
             if (!string.IsNullOrEmpty(profile.Provider))
                 config.Provider.Vendor = profile.Provider;
             else if (!string.IsNullOrEmpty(current?.Profile))
                 config.Provider.Vendor = current.Profile;
-        }
-        else if (!string.IsNullOrEmpty(current?.Profile))
-        {
+        } else if (!string.IsNullOrEmpty(current?.Profile)) {
             config.Provider.Vendor = current.Profile;
         }
 
         // Endpoint — 从 profile 读取
-        if (!string.IsNullOrEmpty(profile?.Endpoint))
-        {
+        if (!string.IsNullOrEmpty(profile?.Endpoint)) {
             config.Provider.Endpoint = profile.Endpoint;
         }
 
         // Provider 定义自动配置默认值
         var definition = _registry.TryGet(config.Provider.Vendor);
-        if (definition is not null)
-        {
+        if (definition is not null) {
             config.Provider.Endpoint ??= definition.DefaultEndpoint;
             config.Provider.Definition = definition;
             // Protocol — 优先从 profile 读取(配置大于代码),回退到 Provider 定义
@@ -208,25 +188,17 @@ public sealed partial class SettingsMapper : ServiceEntity
         }
 
         // Model ID — 优先从 profile 读取，回退到 Provider 定义默认模型
-        if (!string.IsNullOrEmpty(profile?.Model))
-        {
+        if (!string.IsNullOrEmpty(profile?.Model)) {
             config.Provider.ModelId = profile.Model;
-        }
-        else if (definition is not null)
-        {
+        } else if (definition is not null) {
             config.Provider.ModelId = definition.DefaultModelId;
-            if (config.Provider.ModelId is null && !SkipProviderValidation)
-            {
+            if (config.Provider.ModelId is null && !SkipProviderValidation) {
                 throw new ConfigurationException(
                     $"Provider '{definition.ProviderName}' 没有定义默认模型，请通过 vendor[current.profile].model 或 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
             }
-        }
-        else if (SkipProviderValidation)
-        {
+        } else if (SkipProviderValidation) {
             Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。元命令模式降级运行。");
-        }
-        else
-        {
+        } else {
             throw new ConfigurationException(
                 $"未知的 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。" +
                 $"请通过 {JccEnvVar.Vendor.ToValue()} 环境变量指定正确的 Provider。");
@@ -240,8 +212,7 @@ public sealed partial class SettingsMapper : ServiceEntity
         config.Provider.ApiVersion ??= definition?.DefaultApiVersion ?? "2024-02-01";
     }
 
-    private static void ApplyCodeExecutionSettings(WorkflowConfig config, SettingsJson? settings)
-    {
+    private static void ApplyCodeExecutionSettings(WorkflowConfig config, SettingsJson? settings) {
         var sandbox = settings?.Current?.Sandbox;
         if (sandbox is null) return;
 
@@ -258,8 +229,7 @@ public sealed partial class SettingsMapper : ServiceEntity
             config.CodeExecution.AllowedDirectories = string.Join(";", sandbox.AllowedPaths);
     }
 
-    private static void ApplyWorktreeSettings(WorkflowConfig config, SettingsJson? settings)
-    {
+    private static void ApplyWorktreeSettings(WorkflowConfig config, SettingsJson? settings) {
         var worktree = settings?.Current?.Worktree;
         if (worktree is null) return;
 
@@ -270,8 +240,7 @@ public sealed partial class SettingsMapper : ServiceEntity
             config.Worktree.SymlinkDirectories = worktree.SymlinkDirectories;
     }
 
-    private static void ApplyProviderDefinitionEndpointEnvOverrides(WorkflowConfig config)
-    {
+    private static void ApplyProviderDefinitionEndpointEnvOverrides(WorkflowConfig config) {
         if (config.Provider.Definition is not { } definition) return;
 
         var envEndpoint = definition.ResolveEndpointFromEnv();
@@ -282,10 +251,8 @@ public sealed partial class SettingsMapper : ServiceEntity
     /// <summary>
     /// --vendor 自动匹配 vendor 字典中的同名预设
     /// </summary>
-    private static void ApplyProfileFromVendor(string vendor, WorkflowConfig config, SettingsJson? settings)
-    {
-        if (settings is null)
-        {
+    private static void ApplyProfileFromVendor(string vendor, WorkflowConfig config, SettingsJson? settings) {
+        if (settings is null) {
             var fs = new IO.FileSystem.PhysicalFileSystem();
             settings = ConfigLoader.LoadSettingsJsonAsync(fs).GetAwaiter().GetResult();
         }
@@ -306,10 +273,8 @@ public sealed partial class SettingsMapper : ServiceEntity
     }
 
     /// <summary>从 settings.json 的 vendor 节点读取指定供应商的 protocol 配置</summary>
-    private static string? GetProfileProtocol(string vendor, SettingsJson? settings)
-    {
-        if (settings is null)
-        {
+    private static string? GetProfileProtocol(string vendor, SettingsJson? settings) {
+        if (settings is null) {
             var fs = new IO.FileSystem.PhysicalFileSystem();
             settings = ConfigLoader.LoadSettingsJsonAsync(fs).GetAwaiter().GetResult();
         }
@@ -319,13 +284,11 @@ public sealed partial class SettingsMapper : ServiceEntity
         return profile.Protocol;
     }
 
-    private static void ApplyToolScoreSettings(WorkflowConfig config, SettingsJson? settings)
-    {
+    private static void ApplyToolScoreSettings(WorkflowConfig config, SettingsJson? settings) {
         var current = settings?.Current;
         if (current is null) return;
 
-        if (current.ToolScore is not null)
-        {
+        if (current.ToolScore is not null) {
             var ts = current.ToolScore;
             var target = config.ToolExecution.ToolScore;
 
@@ -348,8 +311,7 @@ public sealed partial class SettingsMapper : ServiceEntity
     /// <summary>
     /// 映射子代理并发控制配置 — spawn/execute/fork 三阶段上限（ADR 0048）
     /// </summary>
-    private static void ApplySubAgentConcurrencySettings(WorkflowConfig config, SettingsJson? settings)
-    {
+    private static void ApplySubAgentConcurrencySettings(WorkflowConfig config, SettingsJson? settings) {
         var sub = settings?.Current?.SubAgentConcurrency;
         if (sub is null) return;
 
@@ -361,8 +323,7 @@ public sealed partial class SettingsMapper : ServiceEntity
     /// <summary>
     /// 映射子代理卡死防护配置 — 纵深防御四层参数（ADR 0106）
     /// </summary>
-    private static void ApplySubAgentLivenessSettings(WorkflowConfig config, SettingsJson? settings)
-    {
+    private static void ApplySubAgentLivenessSettings(WorkflowConfig config, SettingsJson? settings) {
         var sub = settings?.Current?.SubAgentLiveness;
         if (sub is null) return;
 
@@ -382,8 +343,7 @@ public sealed partial class SettingsMapper : ServiceEntity
     /// 映射 Actor 模型配置 — 编译队列模式 + 背压预设(ADR 0074)
     /// 缺失时用默认值(串行模式 + 四档预设),不抛异常。
     /// </summary>
-    private static void ApplyActorSettings(WorkflowConfig config, SettingsJson? settings)
-    {
+    private static void ApplyActorSettings(WorkflowConfig config, SettingsJson? settings) {
         var actor = settings?.Current?.Actor;
         if (actor is null) return;
 
@@ -399,8 +359,7 @@ public sealed partial class SettingsMapper : ServiceEntity
         config.Actor.Validate();
     }
 
-    private static void CopyPreset(BackpressurePreset target, BackpressurePreset source)
-    {
+    private static void CopyPreset(BackpressurePreset target, BackpressurePreset source) {
         target.Capacity = source.Capacity;
         target.HighWatermark = source.HighWatermark;
         target.CriticalWatermark = source.CriticalWatermark;

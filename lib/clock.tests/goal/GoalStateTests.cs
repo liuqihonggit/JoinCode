@@ -1,11 +1,9 @@
 
 namespace Core.Goal.Tests;
 
-public sealed class GoalStateTests
-{
+public sealed class GoalStateTests {
     [Fact]
-    public void Default_Values_Should_Be_Correct()
-    {
+    public void Default_Values_Should_Be_Correct() {
         var state = new GoalState();
 
         Assert.Equal(string.Empty, state.GoalId);
@@ -21,10 +19,8 @@ public sealed class GoalStateTests
     }
 
     [Fact]
-    public void Elapsed_Should_Calculate_For_Active_Goal()
-    {
-        var state = new GoalState
-        {
+    public void Elapsed_Should_Calculate_For_Active_Goal() {
+        var state = new GoalState {
             GoalId = "g1",
             Objective = "test",
             CreatedAt = DateTime.UtcNow.AddMinutes(-5)
@@ -36,12 +32,10 @@ public sealed class GoalStateTests
     }
 
     [Fact]
-    public void Elapsed_Should_Calculate_For_Achieved_Goal()
-    {
+    public void Elapsed_Should_Calculate_For_Achieved_Goal() {
         var created = DateTime.UtcNow.AddMinutes(-10);
         var achieved = DateTime.UtcNow.AddMinutes(-3);
-        var state = new GoalState
-        {
+        var state = new GoalState {
             GoalId = "g1",
             Objective = "test",
             CreatedAt = created,
@@ -52,8 +46,7 @@ public sealed class GoalStateTests
     }
 
     [Fact]
-    public void Status_Should_Be_Mutable()
-    {
+    public void Status_Should_Be_Mutable() {
         var state = new GoalState { GoalId = "g1", Objective = "test" };
 
         Assert.Equal(GoalStatus.Pursuing, state.Status);
@@ -72,8 +65,7 @@ public sealed class GoalStateTests
     }
 
     [Fact]
-    public void TokensUsed_Should_Be_Mutable()
-    {
+    public void TokensUsed_Should_Be_Mutable() {
         var state = new GoalState { GoalId = "g1", Objective = "test" };
 
         Assert.Equal(0, state.TokensUsed);
@@ -83,8 +75,7 @@ public sealed class GoalStateTests
     }
 
     [Fact]
-    public void TurnsCompleted_Should_Be_Mutable()
-    {
+    public void TurnsCompleted_Should_Be_Mutable() {
         var state = new GoalState { GoalId = "g1", Objective = "test" };
 
         Assert.Equal(0, state.TurnsCompleted);
@@ -94,8 +85,7 @@ public sealed class GoalStateTests
     }
 
     [Fact]
-    public void LastEvaluation_Should_Be_Settable()
-    {
+    public void LastEvaluation_Should_Be_Settable() {
         var state = new GoalState { GoalId = "g1", Objective = "test" };
 
         Assert.Null(state.LastEvaluation);
@@ -107,8 +97,7 @@ public sealed class GoalStateTests
     }
 
     [Fact]
-    public void PausedAt_Should_Be_Settable()
-    {
+    public void PausedAt_Should_Be_Settable() {
         var state = new GoalState { GoalId = "g1", Objective = "test" };
 
         Assert.Null(state.PausedAt);
@@ -119,10 +108,8 @@ public sealed class GoalStateTests
     }
 
     [Fact]
-    public void Constraints_Should_Be_Initialized()
-    {
-        var state = new GoalState
-        {
+    public void Constraints_Should_Be_Initialized() {
+        var state = new GoalState {
             GoalId = "g1",
             Objective = "test",
             Constraints = ["不修改公共API", "测试覆盖率达到80%"]
@@ -134,27 +121,23 @@ public sealed class GoalStateTests
     }
 
     [Fact]
-    public void TokenBudget_Should_Be_Null_By_Default()
-    {
+    public void TokenBudget_Should_Be_Null_By_Default() {
         var state = new GoalState { GoalId = "g1", Objective = "test" };
 
         Assert.Null(state.TokenBudget);
     }
 
     [Fact]
-    public void TokenBudget_Should_Be_Settable()
-    {
+    public void TokenBudget_Should_Be_Settable() {
         var state = new GoalState { GoalId = "g1", Objective = "test", TokenBudget = 50000 };
 
         Assert.Equal(50000, state.TokenBudget);
     }
 }
 
-public sealed class GoalEvaluationResultTests
-{
+public sealed class GoalEvaluationResultTests {
     [Fact]
-    public void Completed_Should_Return_IsCompleted_True()
-    {
+    public void Completed_Should_Return_IsCompleted_True() {
         var result = GoalEvaluationResult.Completed("所有测试通过");
 
         Assert.True(result.IsCompleted);
@@ -162,8 +145,7 @@ public sealed class GoalEvaluationResultTests
     }
 
     [Fact]
-    public void NotCompleted_Should_Return_IsCompleted_False()
-    {
+    public void NotCompleted_Should_Return_IsCompleted_False() {
         var result = GoalEvaluationResult.NotCompleted("仍有未完成的工作");
 
         Assert.False(result.IsCompleted);
@@ -171,8 +153,7 @@ public sealed class GoalEvaluationResultTests
     }
 
     [Fact]
-    public void Completed_And_NotCompleted_Should_Be_Different()
-    {
+    public void Completed_And_NotCompleted_Should_Be_Different() {
         var completed = GoalEvaluationResult.Completed("done");
         var notCompleted = GoalEvaluationResult.NotCompleted("not done");
 
@@ -180,8 +161,7 @@ public sealed class GoalEvaluationResultTests
     }
 
     [Fact]
-    public void Same_Values_Should_Be_Equal()
-    {
+    public void Same_Values_Should_Be_Equal() {
         var a = GoalEvaluationResult.Completed("reason");
         var b = GoalEvaluationResult.Completed("reason");
 
@@ -190,22 +170,19 @@ public sealed class GoalEvaluationResultTests
     }
 }
 
-public sealed class GoalStatusTests
-{
+public sealed class GoalStatusTests {
     [Theory]
     [InlineData(GoalStatus.Pursuing)]
     [InlineData(GoalStatus.Paused)]
     [InlineData(GoalStatus.Achieved)]
     [InlineData(GoalStatus.Unmet)]
     [InlineData(GoalStatus.BudgetLimited)]
-    public void All_Statuses_Should_Exist(GoalStatus status)
-    {
+    public void All_Statuses_Should_Exist(GoalStatus status) {
         Assert.True(Enum.IsDefined(status));
     }
 
     [Fact]
-    public void GoalStatus_Should_Have_5_Values()
-    {
+    public void GoalStatus_Should_Have_5_Values() {
         Assert.Equal(5, Enum.GetValues<GoalStatus>().Length);
     }
 }

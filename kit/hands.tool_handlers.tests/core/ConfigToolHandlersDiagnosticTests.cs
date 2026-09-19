@@ -3,11 +3,9 @@ namespace Hands.Tests.ToolHandlers;
 /// <summary>
 /// ConfigToolHandlers 诊断方法单元测试
 /// </summary>
-public class ConfigToolHandlersDiagnosticTests
-{
+public class ConfigToolHandlersDiagnosticTests {
     [Fact]
-    public void BuildInvalidBooleanValueDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildInvalidBooleanValueDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ConfigToolHandlers.BuildInvalidBooleanValueDiagnostic("theme", "maybe");
         diagnostic.Reason.Should().Be("InvalidBooleanValue");
         diagnostic.FormattedMessage.Should().Contain("theme requires true or false.");
@@ -19,8 +17,7 @@ public class ConfigToolHandlersDiagnosticTests
     }
 
     [Fact]
-    public void BuildInvalidOptionValueDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildInvalidOptionValueDiagnostic_ReturnsCorrectStructure() {
         var options = new[] { "dark", "light" };
         var diagnostic = ConfigToolHandlers.BuildInvalidOptionValueDiagnostic("theme", "purple", options);
         diagnostic.Reason.Should().Be("InvalidOptionValue");
@@ -33,8 +30,7 @@ public class ConfigToolHandlersDiagnosticTests
     }
 
     [Fact]
-    public void BuildValidateOnWriteFailedDiagnostic_WithError_ReturnsCorrectStructure()
-    {
+    public void BuildValidateOnWriteFailedDiagnostic_WithError_ReturnsCorrectStructure() {
         var diagnostic = ConfigToolHandlers.BuildValidateOnWriteFailedDiagnostic("model", "gpt-999", "Model not found");
         diagnostic.Reason.Should().Be("ValidateOnWriteFailed");
         diagnostic.FormattedMessage.Should().Contain("Model not found");
@@ -45,16 +41,14 @@ public class ConfigToolHandlersDiagnosticTests
     }
 
     [Fact]
-    public void BuildValidateOnWriteFailedDiagnostic_WithNullError_DefaultsToValidationFailed()
-    {
+    public void BuildValidateOnWriteFailedDiagnostic_WithNullError_DefaultsToValidationFailed() {
         var diagnostic = ConfigToolHandlers.BuildValidateOnWriteFailedDiagnostic("model", "gpt-999", null);
         diagnostic.FormattedMessage.Should().Contain("Validation failed");
         diagnostic.Details.Should().Contain(d => d.Key == "validationError" && d.Value == "Validation failed");
     }
 
     [Fact]
-    public void BuildSetFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildSetFailedDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ConfigToolHandlers.BuildSetFailedDiagnostic("theme", "dark");
         diagnostic.Reason.Should().Be("SetFailed");
         diagnostic.FormattedMessage.Should().Contain("Failed to set theme");

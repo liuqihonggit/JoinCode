@@ -1,19 +1,16 @@
 namespace Core.Tests;
 
-public sealed class ApplyPatchLogicTests
-{
+public sealed class ApplyPatchLogicTests {
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private readonly ApplyPatchLogic _logic;
     private const string WorkingDir = "/test";
 
-    public ApplyPatchLogicTests()
-    {
+    public ApplyPatchLogicTests() {
         _logic = new ApplyPatchLogic(_fs);
     }
 
     [Fact]
-    public async Task ApplyAsync_SingleHunk_AddsLine()
-    {
+    public async Task ApplyAsync_SingleHunk_AddsLine() {
         var filePath = CreateFile("line1\nline2\nline3");
         var fileName = Path.GetFileName(filePath);
 
@@ -36,8 +33,7 @@ public sealed class ApplyPatchLogicTests
     }
 
     [Fact]
-    public async Task ApplyAsync_SingleHunk_RemovesLine()
-    {
+    public async Task ApplyAsync_SingleHunk_RemovesLine() {
         var filePath = CreateFile("line1\nremove-me\nline3");
         var fileName = Path.GetFileName(filePath);
 
@@ -58,8 +54,7 @@ public sealed class ApplyPatchLogicTests
     }
 
     [Fact]
-    public async Task ApplyAsync_SingleHunk_ReplacesLine()
-    {
+    public async Task ApplyAsync_SingleHunk_ReplacesLine() {
         var filePath = CreateFile("old-content\nline2");
         var fileName = Path.GetFileName(filePath);
 
@@ -81,8 +76,7 @@ public sealed class ApplyPatchLogicTests
     }
 
     [Fact]
-    public async Task ApplyAsync_ContextMismatch_FailsPerFile()
-    {
+    public async Task ApplyAsync_ContextMismatch_FailsPerFile() {
         var filePath = CreateFile("different-content\nline2");
         var fileName = Path.GetFileName(filePath);
 
@@ -104,8 +98,7 @@ public sealed class ApplyPatchLogicTests
     }
 
     [Fact]
-    public async Task ApplyAsync_DryRun_DoesNotModifyFile()
-    {
+    public async Task ApplyAsync_DryRun_DoesNotModifyFile() {
         var filePath = CreateFile("line1\nline2");
         var fileName = Path.GetFileName(filePath);
 
@@ -128,8 +121,7 @@ public sealed class ApplyPatchLogicTests
     }
 
     [Fact]
-    public async Task ApplyAsync_MultipleHunksSameFile_AllApplied()
-    {
+    public async Task ApplyAsync_MultipleHunksSameFile_AllApplied() {
         var filePath = CreateFile("aaa\nbbb\nccc\nddd\neee");
         var fileName = Path.GetFileName(filePath);
 
@@ -156,8 +148,7 @@ public sealed class ApplyPatchLogicTests
     }
 
     [Fact]
-    public async Task ApplyAsync_SecondHunkFails_FileUnchanged()
-    {
+    public async Task ApplyAsync_SecondHunkFails_FileUnchanged() {
         var filePath = CreateFile("aaa\nbbb\nccc\nddd\neee");
         var fileName = Path.GetFileName(filePath);
 
@@ -184,8 +175,7 @@ public sealed class ApplyPatchLogicTests
     }
 
     [Fact]
-    public async Task ApplyAsync_MultipleFiles_AllApplied()
-    {
+    public async Task ApplyAsync_MultipleFiles_AllApplied() {
         var file1 = CreateFile("content1");
         var file2 = CreateFile("content2");
         var name1 = Path.GetFileName(file1);
@@ -211,8 +201,7 @@ public sealed class ApplyPatchLogicTests
     }
 
     [Fact]
-    public async Task ApplyAsync_FileNotFound_Fails()
-    {
+    public async Task ApplyAsync_FileNotFound_Fails() {
         var patch = """
             --- a/nonexistent.txt
             +++ b/nonexistent.txt
@@ -228,30 +217,26 @@ public sealed class ApplyPatchLogicTests
     }
 
     [Fact]
-    public async Task ApplyAsync_EmptyPatch_Fails()
-    {
+    public async Task ApplyAsync_EmptyPatch_Fails() {
         var result = await _logic.ApplyAsync("", dryRun: false, cancellationToken: CancellationToken.None);
 
         Assert.False(result.Success);
     }
 
     [Fact]
-    public async Task ApplyAsync_NoValidHunks_Fails()
-    {
+    public async Task ApplyAsync_NoValidHunks_Fails() {
         var result = await _logic.ApplyAsync("some random text\nno patch here", dryRun: false, cancellationToken: CancellationToken.None);
 
         Assert.False(result.Success);
     }
 
     [Fact]
-    public async Task ApplyAsync_NullPatch_Throws()
-    {
+    public async Task ApplyAsync_NullPatch_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => _logic.ApplyAsync(null!, dryRun: false, cancellationToken: CancellationToken.None));
     }
 
-    private string CreateFile(string content)
-    {
+    private string CreateFile(string content) {
         var filePath = $"/test/test_{Guid.NewGuid():N}.txt";
         _fs.WriteAllText(filePath, content);
         return filePath;

@@ -5,12 +5,10 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// 标记 Integration 类别，CI 跳过，本地真实桌面运行
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed class DesktopSceneE2ETests
-{
+public sealed class DesktopSceneE2ETests {
     /// <summary>AC-07: 真实调 desktop_look 截图建网格，验证截图非空 + 尺寸正确 + 状态文件生成</summary>
     [Fact]
-    public async Task Look_RealDesktop_ReturnsScreenshotAndPersistsState()
-    {
+    public async Task Look_RealDesktop_ReturnsScreenshotAndPersistsState() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 
@@ -44,8 +42,7 @@ public sealed class DesktopSceneE2ETests
 
     /// <summary>AC-07: 真实调 look → zoom 链路，验证缩放后子图非空 + 状态更新</summary>
     [Fact]
-    public async Task LookThenZoom_RealDesktop_ReturnsSubImageAndUpdatesState()
-    {
+    public async Task LookThenZoom_RealDesktop_ReturnsSubImageAndUpdatesState() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 
@@ -77,8 +74,7 @@ public sealed class DesktopSceneE2ETests
 
     /// <summary>AC-09: zoom 3 层后 back 1 层，断言 depth=2 + cellCode 回退 + history 删最后一条</summary>
     [Fact]
-    public async Task ZoomThreeLayersThenBack_DepthDecreasesAndHistoryShrinks()
-    {
+    public async Task ZoomThreeLayersThenBack_DepthDecreasesAndHistoryShrinks() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 

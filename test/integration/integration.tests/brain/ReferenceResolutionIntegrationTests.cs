@@ -6,22 +6,19 @@ namespace Core.Tests.Context;
 /// </summary>
 [CollectionDefinition(nameof(ReferenceResolutionCollection), DisableParallelization = true)]
 [Trait("Category", "Integration")]
-public sealed class ReferenceResolutionCollection : ICollectionFixture<ReferenceResolutionTestFixture>
-{
+public sealed class ReferenceResolutionCollection : ICollectionFixture<ReferenceResolutionTestFixture> {
 }
 
 /// <summary>
 /// 引用解析集成测试的共享上下文
 /// </summary>
-public sealed class ReferenceResolutionTestFixture : IAsyncLifetime
-{
+public sealed class ReferenceResolutionTestFixture : IAsyncLifetime {
     private bool _disposed;
     public string TestDir { get; private set; } = "C:\\testroot";
     public Testing.Common.Services.InMemoryFileSystem FileSystem { get; private set; } = null!;
     public IFileOperationService FileOperationService { get; private set; } = null!;
 
-    public async Task InitializeAsync()
-    {
+    public async Task InitializeAsync() {
         FileSystem = new Testing.Common.Services.InMemoryFileSystem();
         FileSystem.CreateDirectory(TestDir);
         FileOperationService = new InMemoryFileOperationService(FileSystem);
@@ -31,8 +28,7 @@ public sealed class ReferenceResolutionTestFixture : IAsyncLifetime
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
-    public Task DisposeAsync()
-    {
+    public Task DisposeAsync() {
         if (_disposed) return Task.CompletedTask;
         _disposed = true;
         (FileOperationService as IDisposable)?.Dispose();
@@ -40,8 +36,7 @@ public sealed class ReferenceResolutionTestFixture : IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    private void CreateTestDirectoryStructure()
-    {
+    private void CreateTestDirectoryStructure() {
         var toolsDir = Path.Combine(TestDir, "src", "tools");
         FileSystem.CreateDirectory(toolsDir);
         FileSystem.WriteAllText(Path.Combine(toolsDir, "tool1.ts"), "export class Tool1 {}");
@@ -72,22 +67,19 @@ public sealed class ReferenceResolutionTestFixture : IAsyncLifetime
 /// </summary>
 [Collection(nameof(ReferenceResolutionCollection))]
 [Trait("Category", "Integration")]
-public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestFixture fixture, ITestOutputHelper output) : IDisposable
-{
+public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestFixture fixture, ITestOutputHelper output) : IDisposable {
     private bool _disposed;
     private readonly ITestOutputHelper _output = output;
     private readonly ILogger<ReferenceResolver> _logger = new Testing.Common.Logging.TestOutputLogger<ReferenceResolver>(output);
     private readonly ReferenceResolutionTestFixture _fixture = fixture;
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         // 清理由 fixture 处理
     }
 
-    private ReferenceResolver CreateResolver()
-    {
+    private ReferenceResolver CreateResolver() {
         // 收集 fixture 中所有已知文件路径（统一使用 / 分隔符避免 Windows 路径比较问题）
         var allFiles = new List<string>
         {
@@ -103,22 +95,18 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
 
         var searchMock = new Mock<ISearchService>();
         searchMock.Setup(s => s.GlobSearchAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string?, CancellationToken>((pattern, path, ct) =>
-            {
+            .Callback<string, string?, CancellationToken>((pattern, path, ct) => {
                 // 调试输出
                 var searchRoot = (path ?? _fixture.TestDir).Replace('\\', '/').TrimEnd('/');
                 System.Diagnostics.Trace.WriteLine($"GlobSearch called: pattern={pattern}, path={path}, searchRoot={searchRoot}");
             })
-            .ReturnsAsync((string pattern, string? path, CancellationToken ct) =>
-            {
+            .ReturnsAsync((string pattern, string? path, CancellationToken ct) => {
                 // 规范化搜索根路径，统一使用 / 分隔符
                 var searchRoot = (path ?? _fixture.TestDir).Replace('\\', '/').TrimEnd('/');
                 // 简单 Glob 匹配
-                var matched = pattern switch
-                {
+                var matched = pattern switch {
                     "**/*" => allFiles.Where(f => f.StartsWith(searchRoot, StringComparison.OrdinalIgnoreCase)).ToList(),
-                    _ when pattern.Contains('*') => allFiles.Where(f =>
-                    {
+                    _ when pattern.Contains('*') => allFiles.Where(f => {
                         var relativePath = f.StartsWith(searchRoot, StringComparison.OrdinalIgnoreCase)
                             ? f[searchRoot.Length..].TrimStart('/')
                             : f;
@@ -135,21 +123,18 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     /// <summary>
     /// 简单 Glob 匹配（支持 * 和 ** 通配符）
     /// </summary>
-    private static bool MatchesGlob(string relativePath, string pattern)
-    {
+    private static bool MatchesGlob(string relativePath, string pattern) {
         var normalizedPath = relativePath.Replace('\\', '/');
         var normalizedPattern = pattern.Replace('\\', '/');
 
-        if (normalizedPattern.Contains("**"))
-        {
+        if (normalizedPattern.Contains("**")) {
             var suffix = normalizedPattern.Replace("**/", "").Replace("**", "");
             if (string.IsNullOrEmpty(suffix)) return true;
             return normalizedPath.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
                 || normalizedPath.Contains(suffix);
         }
 
-        if (normalizedPattern.Contains('*'))
-        {
+        if (normalizedPattern.Contains('*')) {
             var parts = normalizedPattern.Split('/');
             var pathParts = normalizedPath.Split('/');
             if (parts.Length > pathParts.Length) return false;
@@ -164,8 +149,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     /// <summary>
     /// 简单通配符匹配（支持 * 匹配任意字符）
     /// </summary>
-    private static bool MatchesWildcard(string input, string pattern)
-    {
+    private static bool MatchesWildcard(string input, string pattern) {
         // 将通配符模式转为正则：* -> .*
         var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern)
             .Replace("\\*", ".*") + "$";
@@ -173,8 +157,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_WithExactFilePath_ShouldReturnExactMatch()
-    {
+    public async Task ResolveCodeReferenceAsync_WithExactFilePath_ShouldReturnExactMatch() {
         // Arrange
         var resolver = CreateResolver();
         var filePath = Path.Combine("src", "tools", "tool1.ts").Replace('\\', '/');
@@ -197,8 +180,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_WithGlobPattern_ShouldReturnPatternMatch()
-    {
+    public async Task ResolveCodeReferenceAsync_WithGlobPattern_ShouldReturnPatternMatch() {
         // Arrange
         var resolver = CreateResolver();
         var pattern = Path.Combine("src", "tools", "*.ts").Replace('\\', '/');
@@ -213,16 +195,14 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
         result.MatchType.Should().Be(ReferenceMatchType.Pattern);
         result.FileMatches.Should().HaveCountGreaterThanOrEqualTo(2);
 
-        foreach (var match in result.FileMatches)
-        {
+        foreach (var match in result.FileMatches) {
             match.FilePath.Should().EndWith(".ts");
             _output.WriteLine($"匹配文件: {match.FilePath}");
         }
     }
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_WithDirectoryPath_ShouldReturnDirectoryContents()
-    {
+    public async Task ResolveCodeReferenceAsync_WithDirectoryPath_ShouldReturnDirectoryContents() {
         // Arrange
         var resolver = CreateResolver();
         var dirPath = "src/tools";
@@ -237,19 +217,16 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
         _output.WriteLine($"IsResolved: {result.IsResolved}, MatchType: {result.MatchType}");
         _output.WriteLine($"FileMatches count: {result.FileMatches.Count}");
 
-        if (result.IsResolved)
-        {
+        if (result.IsResolved) {
             result.FileMatches.Should().NotBeEmpty();
-            foreach (var match in result.FileMatches.Take(5))
-            {
+            foreach (var match in result.FileMatches.Take(5)) {
                 _output.WriteLine($"  - {match.FilePath}");
             }
         }
     }
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_WithFuzzyMatch_ShouldReturnFuzzyResults()
-    {
+    public async Task ResolveCodeReferenceAsync_WithFuzzyMatch_ShouldReturnFuzzyResults() {
         // Arrange
         var resolver = CreateResolver();
         var fuzzyPath = "src/tols"; // 故意拼写错误
@@ -257,28 +234,23 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
         // Act
         var result = await resolver.ResolveCodeReferenceAsync(
             fuzzyPath,
-            new ReferenceResolutionOptions
-            {
+            new ReferenceResolutionOptions {
                 ProjectRoot = _fixture.TestDir,
                 EnableFuzzyMatching = true,
                 FuzzyMatchThreshold = 0.5
             }).ConfigureAwait(true);
 
         // Assert
-        if (result.IsResolved)
-        {
+        if (result.IsResolved) {
             result.MatchType.Should().BeOneOf(ReferenceMatchType.Fuzzy, ReferenceMatchType.Partial, ReferenceMatchType.Exact);
             _output.WriteLine($"匹配成功，类型: {result.MatchType}, 相关度: {result.RelevanceScore}");
-        }
-        else
-        {
+        } else {
             _output.WriteLine("模糊匹配未能找到结果");
         }
     }
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_WithNonExistentPath_ShouldReturnUnresolved()
-    {
+    public async Task ResolveCodeReferenceAsync_WithNonExistentPath_ShouldReturnUnresolved() {
         // Arrange
         var resolver = CreateResolver();
         var nonExistentPath = "xyz123/nonexistent/file.cs";
@@ -290,16 +262,14 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
 
         // Assert
         _output.WriteLine($"解析结果: IsResolved={result.IsResolved}, MatchType={result.MatchType}");
-        if (!result.IsResolved)
-        {
+        if (!result.IsResolved) {
             result.FileMatches.Should().BeEmpty();
             result.RelevanceScore.Should().Be(0);
         }
     }
 
     [Fact]
-    public async Task FindMatchingFilesAsync_WithDescription_ShouldReturnMatches()
-    {
+    public async Task FindMatchingFilesAsync_WithDescription_ShouldReturnMatches() {
         // Arrange
         var resolver = CreateResolver();
         var description = "*.ts";
@@ -311,15 +281,13 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
 
         // Assert
         _output.WriteLine($"找到 {results.Count} 个匹配结果");
-        foreach (var result in results)
-        {
+        foreach (var result in results) {
             _output.WriteLine($"匹配: {result.ReferencePath} -> {result.FileMatches.Count} 文件");
         }
     }
 
     [Fact]
-    public async Task FindMatchingFilesAsync_WithChineseAlias_ShouldResolveAlias()
-    {
+    public async Task FindMatchingFilesAsync_WithChineseAlias_ShouldResolveAlias() {
         // Arrange
         var resolver = CreateResolver();
         var description = "工具"; // 中文别名
@@ -333,16 +301,14 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
         results.Should().NotBeEmpty();
 
         _output.WriteLine($"中文别名 '工具' 解析结果:");
-        foreach (var result in results)
-        {
+        foreach (var result in results) {
             _output.WriteLine($"  路径: {result.ReferencePath}");
             _output.WriteLine($"  匹配文件数: {result.FileMatches.Count}");
         }
     }
 
     [Fact]
-    public async Task BuildReferenceIndexAsync_ShouldCreateCompleteIndex()
-    {
+    public async Task BuildReferenceIndexAsync_ShouldCreateCompleteIndex() {
         // Arrange
         var resolver = CreateResolver();
 
@@ -360,15 +326,13 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
         var allRefs = index.GetAllReferences();
         allRefs.Should().NotBeEmpty();
 
-        foreach (var reference in allRefs.Take(5))
-        {
+        foreach (var reference in allRefs.Take(5)) {
             _output.WriteLine($"  - {reference.Path} ({reference.FileType})");
         }
     }
 
     [Fact]
-    public void ReferenceIndex_AddAndFind_ShouldWorkCorrectly()
-    {
+    public void ReferenceIndex_AddAndFind_ShouldWorkCorrectly() {
         // Arrange
         var index = new ReferenceIndex(_fixture.TestDir);
         var reference = IndexedReference.Create(
@@ -394,8 +358,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public void ReferenceIndex_FindByKeyword_WithPartialMatch_ShouldReturnResults()
-    {
+    public void ReferenceIndex_FindByKeyword_WithPartialMatch_ShouldReturnResults() {
         // Arrange
         var index = new ReferenceIndex(_fixture.TestDir);
         index.AddReference(IndexedReference.Create(
@@ -413,8 +376,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public void CodeReference_CreateUnresolved_ShouldReturnUnresolvedInstance()
-    {
+    public void CodeReference_CreateUnresolved_ShouldReturnUnresolvedInstance() {
         // Act
         var reference = CodeReference.Unresolved("unknown/path");
 
@@ -427,8 +389,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public void CodeReference_CreateExactMatch_ShouldReturnExactMatchInstance()
-    {
+    public void CodeReference_CreateExactMatch_ShouldReturnExactMatchInstance() {
         // Arrange
         var matches = new List<FileMatch>
         {
@@ -446,8 +407,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public void FileMatch_Create_ShouldSetAllProperties()
-    {
+    public void FileMatch_Create_ShouldSetAllProperties() {
         // Act
         var match = FileMatch.Create(
             "/path/to/file.cs",
@@ -463,8 +423,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public void ReferenceResolutionOptions_DefaultValues_ShouldBeCorrect()
-    {
+    public void ReferenceResolutionOptions_DefaultValues_ShouldBeCorrect() {
         // Act
         var options = ReferenceResolutionOptions.Default;
 
@@ -480,8 +439,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public void ReferenceResolutionOptions_ExactMatch_ShouldDisableFuzzyMatching()
-    {
+    public void ReferenceResolutionOptions_ExactMatch_ShouldDisableFuzzyMatching() {
         // Act
         var options = ReferenceResolutionOptions.ExactMatch;
 
@@ -491,8 +449,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public void ReferenceResolutionOptions_FuzzyMatch_ShouldEnableFuzzyMatching()
-    {
+    public void ReferenceResolutionOptions_FuzzyMatch_ShouldEnableFuzzyMatching() {
         // Act
         var options = ReferenceResolutionOptions.FuzzyMatch;
 
@@ -503,8 +460,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public async Task FullResolutionWorkflow_ResolveThenIndex_ShouldWorkTogether()
-    {
+    public async Task FullResolutionWorkflow_ResolveThenIndex_ShouldWorkTogether() {
         // Arrange
         var resolver = CreateResolver();
 
@@ -522,14 +478,11 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
         _output.WriteLine($"索引项数: {index.Count}");
 
         // 如果引用解析成功，验证索引中能找到匹配的文件
-        if (reference.IsResolved)
-        {
-            foreach (var match in reference.FileMatches.Take(3))
-            {
+        if (reference.IsResolved) {
+            foreach (var match in reference.FileMatches.Take(3)) {
                 var relativePath = Path.GetRelativePath(_fixture.TestDir, match.FilePath);
                 var found = index.FindByPath(relativePath);
-                if (found != null)
-                {
+                if (found != null) {
                     _output.WriteLine($"文件 {relativePath} 在索引中找到");
                 }
             }
@@ -537,8 +490,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_WithDeepNestedPath_ShouldResolveCorrectly()
-    {
+    public async Task ResolveCodeReferenceAsync_WithDeepNestedPath_ShouldResolveCorrectly() {
         // Arrange
         var resolver = CreateResolver();
         var deepPath = Path.Combine("src", "services", "deep", "nested", "file.cs")
@@ -557,8 +509,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     }
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_WithMultipleExtensions_ShouldMatchAll()
-    {
+    public async Task ResolveCodeReferenceAsync_WithMultipleExtensions_ShouldMatchAll() {
         // Arrange
         var resolver = CreateResolver();
         var pattern = Path.Combine("src", "tools", "*").Replace('\\', '/');
@@ -584,8 +535,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
     [InlineData("tools")]
     [InlineData("services")]
     [InlineData("commands")]
-    public async Task FindMatchingFilesAsync_WithDirectoryAliases_ShouldAttemptResolve(string alias)
-    {
+    public async Task FindMatchingFilesAsync_WithDirectoryAliases_ShouldAttemptResolve(string alias) {
         // Arrange
         var resolver = CreateResolver();
 
@@ -596,8 +546,7 @@ public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestF
 
         // Assert
         _output.WriteLine($"别名 '{alias}' 查找结果: {results.Count} 个");
-        foreach (var result in results)
-        {
+        foreach (var result in results) {
             _output.WriteLine($"  - {result.ReferencePath}: {result.FileMatches.Count} 文件");
         }
     }

@@ -2,8 +2,7 @@ namespace AsyncLockBenchmarks;
 
 [MemoryDiagnoser]
 [ShortRunJob]
-public class ContentionBench
-{
+public class ContentionBench {
     private AsyncLock _asyncLock = null!;
     private SemaphoreSlim _semaphore = null!;
 
@@ -11,15 +10,13 @@ public class ContentionBench
     public int Concurrency { get; set; }
 
     [GlobalSetup]
-    public void Setup()
-    {
+    public void Setup() {
         _asyncLock = new AsyncLock(nameof(ContentionBench));
         _semaphore = new SemaphoreSlim(1, 1);
     }
 
     [Benchmark(Description = "AsyncLock 竞争(async)")]
-    public async Task AsyncLock_Contention_Async()
-    {
+    public async Task AsyncLock_Contention_Async() {
         var tasks = new Task[Concurrency];
         for (var i = 0; i < Concurrency; i++)
             tasks[i] = Task.Run(async () => { using var g = await _asyncLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_asyncLock.Name}' 等待超时"); });
@@ -27,8 +24,7 @@ public class ContentionBench
     }
 
     [Benchmark(Description = "SemaphoreSlim 竞争(async)")]
-    public async Task SemaphoreSlim_Contention_Async()
-    {
+    public async Task SemaphoreSlim_Contention_Async() {
         var tasks = new Task[Concurrency];
         for (var i = 0; i < Concurrency; i++)
             tasks[i] = Task.Run(async () => { await _semaphore.WaitAsync(); _semaphore.Release(); });

@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Localization;
 
-public static partial class StringKey
-{
+public static partial class StringKey {
     // === PolicyToolHandlers ===
     public const string ActionCannotBeEmpty = "ActionCannotBeEmpty";
     public const string PolicyCheckResult = "PolicyCheckResult";

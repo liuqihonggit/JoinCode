@@ -6,8 +6,7 @@ namespace Core.Agents.Coordinator;
 /// <para>sessionId 与 teamName 索引字典提供 O(1) 查找,替代原 O(n) 线性扫描。</para>
 /// <para>TryRemoveRoom 内聚清理 agent 映射与索引,保证一致性,调用方无需手动清理。</para>
 /// </summary>
-internal sealed class TeamRegistry
-{
+internal sealed class TeamRegistry {
     private readonly ConcurrentDictionary<string, ChatRoomState> _rooms = new();
     private readonly ConcurrentDictionary<string, string> _agentToTeam = new();
     private readonly ConcurrentDictionary<string, string> _sessionIndex = new();
@@ -50,10 +49,8 @@ internal sealed class TeamRegistry
     /// <summary>
     /// 添加或覆盖团队房间,同时维护 sessionId/teamName 索引。
     /// </summary>
-    public void AddRoom(string teamId, ChatRoomState room)
-    {
-        if (_rooms.TryGetValue(teamId, out var oldRoom))
-        {
+    public void AddRoom(string teamId, ChatRoomState room) {
+        if (_rooms.TryGetValue(teamId, out var oldRoom)) {
             RemoveIndices(oldRoom);
         }
         _rooms[teamId] = room;
@@ -63,13 +60,11 @@ internal sealed class TeamRegistry
     /// <summary>
     /// 移除团队房间,同时清理 agent 映射与索引,保证无孤儿映射。
     /// </summary>
-    public bool TryRemoveRoom(string teamId, [MaybeNullWhen(false)] out ChatRoomState removedRoom)
-    {
+    public bool TryRemoveRoom(string teamId, [MaybeNullWhen(false)] out ChatRoomState removedRoom) {
         if (!_rooms.TryRemove(teamId, out removedRoom))
             return false;
 
-        foreach (var member in removedRoom.Members)
-        {
+        foreach (var member in removedRoom.Members) {
             _agentToTeam.TryRemove(member, out _);
         }
         RemoveIndices(removedRoom);
@@ -104,15 +99,13 @@ internal sealed class TeamRegistry
             ? room.Info
             : null;
 
-    private void AddIndices(string teamId, ChatRoomState room)
-    {
+    private void AddIndices(string teamId, ChatRoomState room) {
         if (room.SessionId is not null)
             _sessionIndex[room.SessionId] = teamId;
         _nameIndex[room.Info.TeamName] = teamId;
     }
 
-    private void RemoveIndices(ChatRoomState room)
-    {
+    private void RemoveIndices(ChatRoomState room) {
         if (room.SessionId is not null)
             _sessionIndex.TryRemove(room.SessionId, out _);
         _nameIndex.TryRemove(room.Info.TeamName, out _);

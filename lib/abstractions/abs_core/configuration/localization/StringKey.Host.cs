@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Localization;
 /// <summary>
 /// ChatCommands 子目录本地化字符串键 - Agent / Config 模块
 /// </summary>
-public static partial class StringKey
-{
+public static partial class StringKey {
     // === AdvisorCommand ===
     public const string HostAdvisorModelLabel = "HostAdvisorModelLabel";
     public const string HostAdvisorReviewMsg = "HostAdvisorReviewMsg";

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Plan;
 /// <summary>
 /// 计划状态
 /// </summary>
-public sealed record PlanState
-{
+public sealed record PlanState {
     /// <summary>
     /// 计划ID
     /// </summary>
@@ -79,10 +78,8 @@ public sealed record PlanState
     /// <summary>
     /// 获取当前步骤
     /// </summary>
-    public PlanStep? GetCurrentStep()
-    {
-        if (CurrentStepIndex >= 0 && CurrentStepIndex < Steps.Count)
-        {
+    public PlanStep? GetCurrentStep() {
+        if (CurrentStepIndex >= 0 && CurrentStepIndex < Steps.Count) {
             return Steps[CurrentStepIndex];
         }
         return null;
@@ -91,8 +88,7 @@ public sealed record PlanState
     /// <summary>
     /// 获取进度百分比
     /// </summary>
-    public double GetProgressPercentage()
-    {
+    public double GetProgressPercentage() {
         if (Steps.Count == 0) return 0;
         return (double)CompletedStepsCount / Steps.Count * 100;
     }
@@ -101,8 +97,7 @@ public sealed record PlanState
 /// <summary>
 /// 计划步骤
 /// </summary>
-public sealed record PlanStep
-{
+public sealed record PlanStep {
     /// <summary>
     /// 步骤索引
     /// </summary>

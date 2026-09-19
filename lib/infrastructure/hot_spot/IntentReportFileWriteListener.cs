@@ -5,8 +5,7 @@ namespace Infrastructure.HotSpot;
 /// 热文件（接口/枚举/公共签名）→ ContractChange；非热文件 → InternalChange
 /// 队长（mainAgent）的修改标记为 IsFromCaptain 不计入热点认领
 /// </summary>
-public sealed class IntentReportFileWriteListener : IFileWriteListener
-{
+public sealed class IntentReportFileWriteListener : IFileWriteListener {
     private readonly IIntentCollector _intentCollector;
     private readonly IHotFileDetector _hotFileDetector;
     private readonly string _captainId;
@@ -23,8 +22,7 @@ public sealed class IntentReportFileWriteListener : IFileWriteListener
         IIntentCollector intentCollector,
         IHotFileDetector hotFileDetector,
         string captainId,
-        ILogger<IntentReportFileWriteListener>? logger = null)
-    {
+        ILogger<IntentReportFileWriteListener>? logger = null) {
         _intentCollector = intentCollector ?? throw new ArgumentNullException(nameof(intentCollector));
         _hotFileDetector = hotFileDetector ?? throw new ArgumentNullException(nameof(hotFileDetector));
         _captainId = captainId ?? throw new ArgumentNullException(nameof(captainId));
@@ -35,8 +33,7 @@ public sealed class IntentReportFileWriteListener : IFileWriteListener
     /// 文件写入事件处理 — 根据热文件判定意图类型并上报到 IntentCollector
     /// </summary>
     /// <param name="e">文件写入事件参数</param>
-    public void OnFileWrite(FileWriteEventArgs e)
-    {
+    public void OnFileWrite(FileWriteEventArgs e) {
         ArgumentNullException.ThrowIfNull(e);
 
         var isHotFile = _hotFileDetector.IsHotFile(e.FilePath);
@@ -44,8 +41,7 @@ public sealed class IntentReportFileWriteListener : IFileWriteListener
         var intent = isHotFile ? ModifyIntent.ContractChange : ModifyIntent.InternalChange;
         var workerId = isFromCaptain ? "captain" : e.AgentId;
 
-        var fileIntent = new FileModifyIntent
-        {
+        var fileIntent = new FileModifyIntent {
             FilePath = e.FilePath,
             Intent = intent,
             WorkerId = workerId,
@@ -56,14 +52,10 @@ public sealed class IntentReportFileWriteListener : IFileWriteListener
         _logger?.LogDebug("[IntentReport] {AgentId} 改 {FilePath} → {Intent} (HotFile={IsHotFile})", e.AgentId, e.FilePath, intent, isHotFile);
     }
 
-    private async Task ReportAsync(string workerId, FileModifyIntent intent)
-    {
-        try
-        {
+    private async Task ReportAsync(string workerId, FileModifyIntent intent) {
+        try {
             await _intentCollector.ReportAsync(workerId, [intent]).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning("[IntentReport] 上报意图失败: {Message}", ex.Message);
         }
     }

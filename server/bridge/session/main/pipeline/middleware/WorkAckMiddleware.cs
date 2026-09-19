@@ -5,16 +5,14 @@ namespace Core.Bridge;
 /// 工作 ACK 中间件 — 向 API 客户端确认工作项已接收，支持 ingress token 与无 token 两种模式
 /// </summary>
 [Register(typeof(IHandleWorkMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WorkAckMiddleware : ServiceEntity, IHandleWorkMiddleware
-{
+public sealed partial class WorkAckMiddleware : ServiceEntity, IHandleWorkMiddleware {
 
     /// <summary>
     /// 构造 WorkAck 中间件
     /// </summary>
     /// <param name="apiClient">Bridge API 客户端</param>
     /// <param name="logger">可选日志记录器</param>
-    public WorkAckMiddleware(BridgeApiClient apiClient, ILogger<WorkAckMiddleware>? logger = null)
-    {
+    public WorkAckMiddleware(BridgeApiClient apiClient, ILogger<WorkAckMiddleware>? logger = null) {
         _apiClient = apiClient;
         _logger = logger;
     }
@@ -30,22 +28,15 @@ public sealed partial class WorkAckMiddleware : ServiceEntity, IHandleWorkMiddle
     /// <param name="ctx">工作处理上下文</param>
     /// <param name="next">管道下一个委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)
-    {
-        if (ctx.SessionIngressToken is not null)
-        {
+    public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct) {
+        if (ctx.SessionIngressToken is not null) {
             await _apiClient.AcknowledgeWorkAsync(
                 ctx.EnvironmentId ?? "", ctx.Work.WorkId, ctx.SessionIngressToken, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            try
-            {
+        } else {
+            try {
                 await _apiClient.AcknowledgeWorkAsync(
                     ctx.EnvironmentId ?? "", ctx.Work.WorkId, ct: ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "BridgeMain: ACK failed for work {WorkId}", ctx.Work.WorkId);
                 ctx.ShortCircuited = true;
                 return;

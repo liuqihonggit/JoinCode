@@ -39,8 +39,7 @@ public sealed record DecayTickCmd : IToolHealthCommand;
 /// 设计原则：永远不禁用工具，连续失败只注入提示词提醒LLM换策略
 /// </summary>
 [Register(typeof(IToolHealthMonitor), ServiceLifetime.Singleton)]
-public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, IToolHealthMonitor, IDisposable
-{
+public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, IToolHealthMonitor, IDisposable {
     private readonly ILogger<ToolHealthMonitor>? _logger;
     private readonly IFileSystem _fs;
     private readonly ToolScoreConfig _config;
@@ -52,8 +51,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     private volatile Dictionary<string, int> _penalties;
     private int _disposed;
 
-    private sealed record BlacklistSnapshot
-    {
+    private sealed record BlacklistSnapshot {
         public required FrozenSet<string> Exact { get; init; }
         public required FrozenSet<string> Patterns { get; init; }
     }
@@ -68,14 +66,12 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <param name="penalties">初始降权配置字典</param>
     public ToolHealthMonitor(IFileSystem fs, ILogger<ToolHealthMonitor>? logger = null, ToolScoreConfig? config = null,
         HashSet<string>? blacklist = null, Dictionary<string, int>? penalties = null)
-        : base()
-    {
+        : base() {
         _fs = fs;
         _logger = logger;
         _config = config ?? new ToolScoreConfig();
         var bl = blacklist ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        _blacklistSnapshot = new BlacklistSnapshot
-        {
+        _blacklistSnapshot = new BlacklistSnapshot {
             Exact = bl.Where(b => !b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase),
             Patterns = bl.Where(b => b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase)
         };
@@ -92,10 +88,8 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <summary>
     /// 热更新黑名单 — 双变量切换模式：构建新快照 → 原子替换引用
     /// </summary>
-    public void UpdateBlacklist(HashSet<string> newBlacklist)
-    {
-        var snapshot = new BlacklistSnapshot
-        {
+    public void UpdateBlacklist(HashSet<string> newBlacklist) {
+        var snapshot = new BlacklistSnapshot {
             Exact = newBlacklist.Where(b => !b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase),
             Patterns = newBlacklist.Where(b => b.Contains('*')).ToFrozenSet(StringComparer.OrdinalIgnoreCase)
         };
@@ -107,8 +101,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <summary>
     /// 热更新降权配置 — 双变量切换模式：构建新字典 → 原子替换引用
     /// </summary>
-    public void UpdatePenalties(Dictionary<string, int> newPenalties)
-    {
+    public void UpdatePenalties(Dictionary<string, int> newPenalties) {
         _penalties = new Dictionary<string, int>(newPenalties, StringComparer.OrdinalIgnoreCase);
         _logger?.LogInformation("降权配置已热更新: {Count} 条规则", newPenalties.Count);
     }
@@ -118,13 +111,11 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <returns>命中黑名单返回 true，否则返回 false</returns>
-    public bool IsBlacklisted(string toolName)
-    {
+    public bool IsBlacklisted(string toolName) {
         var snapshot = _blacklistSnapshot;
         if (snapshot.Exact.Contains(toolName)) return true;
 
-        foreach (var pattern in snapshot.Patterns)
-        {
+        foreach (var pattern in snapshot.Patterns) {
             if (MatchesPattern(pattern, toolName)) return true;
         }
 
@@ -134,8 +125,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <summary>
     /// 简单通配符匹配 — 支持 * 通配任意字符
     /// </summary>
-    private static bool MatchesPattern(string pattern, string toolName)
-    {
+    private static bool MatchesPattern(string pattern, string toolName) {
         var parts = pattern.Split('*');
         if (parts.Length == 1) return string.Equals(parts[0], toolName, StringComparison.OrdinalIgnoreCase);
 
@@ -143,8 +133,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         if (!toolName.EndsWith(parts[^1], StringComparison.OrdinalIgnoreCase)) return false;
 
         var idx = parts[0].Length;
-        for (var i = 1; i < parts.Length - 1; i++)
-        {
+        for (var i = 1; i < parts.Length - 1; i++) {
             var pos = toolName.IndexOf(parts[i], idx, StringComparison.OrdinalIgnoreCase);
             if (pos < 0) return false;
             idx = pos + parts[i].Length;
@@ -158,13 +147,11 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <returns>降权分值，未命中返回 0</returns>
-    public int GetPenalty(string toolName)
-    {
+    public int GetPenalty(string toolName) {
         var penalties = _penalties;
         if (penalties.TryGetValue(toolName, out var penalty)) return penalty;
 
-        foreach (var kvp in penalties)
-        {
+        foreach (var kvp in penalties) {
             if (kvp.Key.Contains('*') && MatchesPattern(kvp.Key, toolName))
                 return kvp.Value;
         }
@@ -177,8 +164,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <returns>有效评分值，范围 [<see cref="ToolScoreConfig.ScoreMin"/>, <see cref="ToolScoreConfig.ScoreMax"/>]</returns>
-    public int GetEffectiveScore(string toolName)
-    {
+    public int GetEffectiveScore(string toolName) {
         if (IsBlacklisted(toolName)) return _config.ScoreMin;
         _records.TryGetValue(toolName, out var record);
         var baseScore = record?.Score ?? 0;
@@ -191,8 +177,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <param name="toolName">工具名称</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>更新后的工具健康记录</returns>
-    public async Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default)
-    {
+    public async Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default) {
         var tcs = TcsFactory.Create<ToolHealthRecord>();
         await SendAsync(new RecordSuccessCmd(toolName, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
@@ -205,8 +190,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <param name="errorMessage">错误消息（可为空）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>更新后的工具健康记录</returns>
-    public async Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default)
-    {
+    public async Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default) {
         var tcs = TcsFactory.Create<ToolHealthRecord>();
         await SendAsync(new RecordFailureCmd(toolName, errorMessage, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
@@ -218,8 +202,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <param name="toolName">工具名称</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>工具健康记录，不存在则返回 null</returns>
-    public Task<ToolHealthRecord?> GetRecordAsync(string toolName, CancellationToken ct = default)
-    {
+    public Task<ToolHealthRecord?> GetRecordAsync(string toolName, CancellationToken ct = default) {
         _records.TryGetValue(toolName, out var record);
         return Task.FromResult(record);
     }
@@ -229,8 +212,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>工具名到健康记录的只读字典</returns>
-    public Task<IReadOnlyDictionary<string, ToolHealthRecord>> GetAllRecordsAsync(CancellationToken ct = default)
-    {
+    public Task<IReadOnlyDictionary<string, ToolHealthRecord>> GetAllRecordsAsync(CancellationToken ct = default) {
         return Task.FromResult<IReadOnlyDictionary<string, ToolHealthRecord>>(_records.ToFrozenDictionary());
     }
 
@@ -240,8 +222,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <param name="toolName">工具名称</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task ResetToolAsync(string toolName, CancellationToken ct = default)
-    {
+    public async Task ResetToolAsync(string toolName, CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new ResetToolCmd(toolName, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
@@ -252,60 +233,53 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// </summary>
     /// <param name="command">健康监控命令。</param>
     /// <param name="ct">取消令牌。</param>
-    protected override async ValueTask HandleAsync(IToolHealthCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
-            case RecordSuccessCmd success:
-                {
-                    var record = GetOrCreate(success.ToolName);
-                    record.Score = Math.Clamp(record.Score + _config.SuccessDelta, _config.ScoreMin, _config.ScoreMax);
-                    record.SuccessCount++;
+    protected override async ValueTask HandleAsync(IToolHealthCommand command, CancellationToken ct) {
+        switch (command) {
+            case RecordSuccessCmd success: {
+                var record = GetOrCreate(success.ToolName);
+                record.Score = Math.Clamp(record.Score + _config.SuccessDelta, _config.ScoreMin, _config.ScoreMax);
+                record.SuccessCount++;
+                record.ConsecutiveFailures = 0;
+                record.LastAdjusted = DateTime.UtcNow;
+                record.LastErrorMessage = null;
+                SaveToDisk();
+                success.Tcs.TrySetResult(record);
+            }
+            break;
+
+            case RecordFailureCmd failure: {
+                var record = GetOrCreate(failure.ToolName);
+                record.Score = Math.Clamp(record.Score + _config.FailDelta, _config.ScoreMin, _config.ScoreMax);
+                record.FailCount++;
+                record.ConsecutiveFailures++;
+                record.LastAdjusted = DateTime.UtcNow;
+                record.LastErrorMessage = failure.ErrorMessage;
+
+                if (record.ConsecutiveFailures >= _config.WarningThreshold) {
+                    _logger?.LogWarning("工具 {ToolName} 连续失败 {Count} 次，评分 {Score}，将在下次调用时注入提示词",
+                        failure.ToolName, record.ConsecutiveFailures, record.Score);
+                }
+
+                SaveToDisk();
+                failure.Tcs.TrySetResult(record);
+            }
+            break;
+
+            case ResetToolCmd reset: {
+                if (_records.TryGetValue(reset.ToolName, out var record)) {
+                    record.Score = 0;
                     record.ConsecutiveFailures = 0;
+                    record.IsEnabled = true;
                     record.LastAdjusted = DateTime.UtcNow;
-                    record.LastErrorMessage = null;
                     SaveToDisk();
-                    success.Tcs.TrySetResult(record);
                 }
-                break;
-
-            case RecordFailureCmd failure:
-                {
-                    var record = GetOrCreate(failure.ToolName);
-                    record.Score = Math.Clamp(record.Score + _config.FailDelta, _config.ScoreMin, _config.ScoreMax);
-                    record.FailCount++;
-                    record.ConsecutiveFailures++;
-                    record.LastAdjusted = DateTime.UtcNow;
-                    record.LastErrorMessage = failure.ErrorMessage;
-
-                    if (record.ConsecutiveFailures >= _config.WarningThreshold)
-                    {
-                        _logger?.LogWarning("工具 {ToolName} 连续失败 {Count} 次，评分 {Score}，将在下次调用时注入提示词",
-                            failure.ToolName, record.ConsecutiveFailures, record.Score);
-                    }
-
-                    SaveToDisk();
-                    failure.Tcs.TrySetResult(record);
-                }
-                break;
-
-            case ResetToolCmd reset:
-                {
-                    if (_records.TryGetValue(reset.ToolName, out var record))
-                    {
-                        record.Score = 0;
-                        record.ConsecutiveFailures = 0;
-                        record.IsEnabled = true;
-                        record.LastAdjusted = DateTime.UtcNow;
-                        SaveToDisk();
-                    }
-                    reset.Tcs.TrySetResult();
-                }
-                break;
+                reset.Tcs.TrySetResult();
+            }
+            break;
 
             case DecayTickCmd:
-                ApplyTimeDecay();
-                break;
+            ApplyTimeDecay();
+            break;
         }
     }
 
@@ -313,29 +287,24 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// 消费者异常回调，记录错误日志。
     /// </summary>
     /// <param name="ex">发生的异常。</param>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogError(ex, "[ToolHealthMonitor] 消费者异常");
     }
 
-    private ToolHealthRecord GetOrCreate(string toolName)
-    {
+    private ToolHealthRecord GetOrCreate(string toolName) {
         return _records.GetOrAdd(toolName, _ => new ToolHealthRecord { ToolName = toolName });
     }
 
-    private void ApplyTimeDecay()
-    {
+    private void ApplyTimeDecay() {
         var now = DateTime.UtcNow;
-        foreach (var record in _records.Values)
-        {
+        foreach (var record in _records.Values) {
             if (!record.IsEnabled) continue;
 
             var idleHours = (now - record.LastAdjusted).TotalHours;
             if (idleHours < 1) continue;
 
             var decay = (int)Math.Floor(idleHours * _config.DecayRatePerHour * _config.DecayRecoveryScore);
-            if (record.Score < 0 && decay > 0)
-            {
+            if (record.Score < 0 && decay > 0) {
                 record.Score = Math.Min(0, record.Score + decay);
             }
         }
@@ -343,10 +312,8 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         SaveToDisk();
     }
 
-    private void LoadFromDisk()
-    {
-        try
-        {
+    private void LoadFromDisk() {
+        try {
             if (!_fs.FileExists(_configPath)) return;
             var json = _fs.ReadAllText(_configPath);
             var data = RelaxedJsonSerializer.Deserialize(json, ToolHealthJsonContext.Default.DictionaryStringToolHealthRecord);
@@ -354,25 +321,19 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
 
             foreach (var kvp in data)
                 _records[kvp.Key] = kvp.Value;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "加载工具健康记录失败，使用空记录");
         }
     }
 
-    private void SaveToDisk()
-    {
-        try
-        {
+    private void SaveToDisk() {
+        try {
             var dir = Path.GetDirectoryName(_configPath)!;
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
             var dict = _records.ToDictionary();
             var json = JsonSerializer.Serialize(dict, ToolHealthJsonContext.Default.DictionaryStringToolHealthRecord);
             _fs.WriteAllText(_configPath, json);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "保存工具健康记录失败");
         }
     }
@@ -380,8 +341,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <summary>
     /// 同步释放 — 释放衰减定时器。Actor 的异步释放由 <see cref="DisposeAsync"/> 负责。
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _decayTimer?.Dispose();
     }
@@ -390,8 +350,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// 异步释放资源 — 释放衰减定时器并停止 Actor(基类)。幂等，多次调用安全。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _decayTimer?.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);

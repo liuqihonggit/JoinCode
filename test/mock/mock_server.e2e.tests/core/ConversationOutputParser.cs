@@ -1,15 +1,13 @@
 namespace MockServer.E2E.Tests.Core;
 
-public sealed record ToolCallRecord
-{
+public sealed record ToolCallRecord {
     public string ToolName { get; init; } = "";
     public string Arguments { get; init; } = "";
     public bool IsSuccess { get; init; }
     public string Result { get; init; } = "";
 }
 
-public sealed record ConversationTurnRecord
-{
+public sealed record ConversationTurnRecord {
     public string UserInput { get; init; } = "";
     public IReadOnlyList<ToolCallRecord> ToolCalls { get; init; } = [];
     public string AssistantResponse { get; init; } = "";
@@ -17,8 +15,7 @@ public sealed record ConversationTurnRecord
     public string RawOutput { get; init; } = "";
 }
 
-public sealed record AssertResult
-{
+public sealed record AssertResult {
     public AssertType Type { get; init; }
     public string Expected { get; init; } = "";
     public bool IsPassed { get; init; }
@@ -26,8 +23,7 @@ public sealed record AssertResult
     public string? ActualValue { get; init; }
 }
 
-public sealed record ConversationResult
-{
+public sealed record ConversationResult {
     public string ScriptName { get; init; } = "";
     public IReadOnlyList<ConversationTurnRecord> TurnRecords { get; init; } = [];
     public IReadOnlyList<AssertResult> AssertResults { get; init; } = [];
@@ -37,15 +33,13 @@ public sealed record ConversationResult
     public bool AllPassed => AssertResults.All(r => r.IsPassed);
 }
 
-public sealed record PrefixCacheAnalysis
-{
+public sealed record PrefixCacheAnalysis {
     public IReadOnlyList<DumpFilePair> AdjacentPairs { get; init; } = [];
     public bool AllPrefixesStable { get; init; }
     public IReadOnlyList<CacheBreakDetail> Breaks { get; init; } = [];
 }
 
-public sealed record DumpFilePair
-{
+public sealed record DumpFilePair {
     public required string EarlierFile { get; init; }
     public required string LaterFile { get; init; }
     public required int EarlierTurn { get; init; }
@@ -54,17 +48,14 @@ public sealed record DumpFilePair
     public string? BreakReason { get; init; }
 }
 
-public sealed record CacheBreakDetail
-{
+public sealed record CacheBreakDetail {
     public required int FromTurn { get; init; }
     public required int ToTurn { get; init; }
     public required string Reason { get; init; }
 }
 
-public static class ConversationOutputParser
-{
-    public static ConversationTurnRecord Parse(string stdoutOutput)
-    {
+public static class ConversationOutputParser {
+    public static ConversationTurnRecord Parse(string stdoutOutput) {
         ArgumentNullException.ThrowIfNull(stdoutOutput);
 
         var toolCalls = new List<ToolCallRecord>();
@@ -76,8 +67,7 @@ public static class ConversationOutputParser
         var toolResultBuffer = new StringBuilder();
         var capturingResult = false;
 
-        void FlushResultToLastTool()
-        {
+        void FlushResultToLastTool() {
             if (!capturingResult || toolCalls.Count == 0) return;
             var resultText = toolResultBuffer.ToString().Trim();
             if (string.IsNullOrEmpty(resultText)) return;
@@ -87,17 +77,14 @@ public static class ConversationOutputParser
             toolResultBuffer.Clear();
         }
 
-        foreach (var line in stdoutOutput.Split('\n'))
-        {
+        foreach (var line in stdoutOutput.Split('\n')) {
             var trimmed = line.TrimEnd('\r');
             if (string.IsNullOrEmpty(trimmed)) continue;
 
-            if (TryParseToolStart(trimmed, out var toolName, out var toolArgs))
-            {
+            if (TryParseToolStart(trimmed, out var toolName, out var toolArgs)) {
                 FlushResultToLastTool();
                 capturingResult = false;
-                if (currentTool is not null)
-                {
+                if (currentTool is not null) {
                     currentTool = currentTool with { Arguments = toolArgsBuffer.ToString(), Result = toolResultBuffer.ToString().Trim() };
                     toolCalls.Add(currentTool);
                     toolArgsBuffer.Clear();
@@ -108,12 +95,9 @@ public static class ConversationOutputParser
                 continue;
             }
 
-            if (TryParseToolEnd(trimmed, out var endToolName, out var isSuccess))
-            {
-                if (currentTool is not null)
-                {
-                    currentTool = currentTool with
-                    {
+            if (TryParseToolEnd(trimmed, out var endToolName, out var isSuccess)) {
+                if (currentTool is not null) {
+                    currentTool = currentTool with {
                         Arguments = toolArgsBuffer.ToString(),
                         IsSuccess = isSuccess,
                         Result = toolResultBuffer.ToString().Trim()
@@ -127,8 +111,7 @@ public static class ConversationOutputParser
                 continue;
             }
 
-            if (capturingResult && trimmed.StartsWith("  ", StringComparison.Ordinal))
-            {
+            if (capturingResult && trimmed.StartsWith("  ", StringComparison.Ordinal)) {
                 toolResultBuffer.AppendLine(trimmed.TrimStart());
                 continue;
             }
@@ -136,19 +119,16 @@ public static class ConversationOutputParser
             FlushResultToLastTool();
             capturingResult = false;
 
-            if (TryParseToolProgress(trimmed, out var progressToolName, out var progressMsg))
-            {
+            if (TryParseToolProgress(trimmed, out var progressToolName, out var progressMsg)) {
                 continue;
             }
 
-            if (TryParseError(trimmed, out var errorMsg))
-            {
+            if (TryParseError(trimmed, out var errorMsg)) {
                 errors.Add(errorMsg);
                 continue;
             }
 
-            if (currentTool is not null)
-            {
+            if (currentTool is not null) {
                 toolArgsBuffer.Append(trimmed);
                 continue;
             }
@@ -158,14 +138,12 @@ public static class ConversationOutputParser
 
         FlushResultToLastTool();
 
-        if (currentTool is not null)
-        {
+        if (currentTool is not null) {
             currentTool = currentTool with { Arguments = toolArgsBuffer.ToString(), Result = toolResultBuffer.ToString().Trim() };
             toolCalls.Add(currentTool);
         }
 
-        return new ConversationTurnRecord
-        {
+        return new ConversationTurnRecord {
             ToolCalls = toolCalls,
             AssistantResponse = string.Join("\n", responseLines).Trim(),
             Errors = errors,
@@ -175,12 +153,10 @@ public static class ConversationOutputParser
 
     public static IReadOnlyList<AssertResult> EvaluateAsserts(
         ConversationTurnRecord record,
-        IReadOnlyList<OutputAssert> asserts)
-    {
+        IReadOnlyList<OutputAssert> asserts) {
         var results = new List<AssertResult>();
 
-        foreach (var assert in asserts)
-        {
+        foreach (var assert in asserts) {
             var result = EvaluateSingleAssert(record, assert);
             results.Add(result);
         }
@@ -188,10 +164,8 @@ public static class ConversationOutputParser
         return results;
     }
 
-    private static AssertResult EvaluateSingleAssert(ConversationTurnRecord record, OutputAssert assert)
-    {
-        var (isPassed, actualValue) = assert.Type switch
-        {
+    private static AssertResult EvaluateSingleAssert(ConversationTurnRecord record, OutputAssert assert) {
+        var (isPassed, actualValue) = assert.Type switch {
             AssertType.ContainsText =>
                 (record.RawOutput.Contains(assert.Expected, StringComparison.OrdinalIgnoreCase),
                  record.RawOutput),
@@ -227,8 +201,7 @@ public static class ConversationOutputParser
             _ => (false, "未知断言类型")
         };
 
-        return new AssertResult
-        {
+        return new AssertResult {
             Type = assert.Type,
             Expected = assert.Expected,
             IsPassed = isPassed,
@@ -237,8 +210,7 @@ public static class ConversationOutputParser
         };
     }
 
-    private static bool TryParseToolStart(string line, out string toolName, out string toolArgs)
-    {
+    private static bool TryParseToolStart(string line, out string toolName, out string toolArgs) {
         toolName = "";
         toolArgs = "";
 
@@ -251,40 +223,34 @@ public static class ConversationOutputParser
         var rest = line[(idx + toolPrefix.Length)..];
 
         var parenIdx = rest.IndexOf('(');
-        if (parenIdx >= 0)
-        {
+        if (parenIdx >= 0) {
             toolName = rest[..parenIdx].Trim();
             var argsEnd = rest.LastIndexOf(')');
             toolArgs = argsEnd > parenIdx
                 ? rest[(parenIdx + 1)..argsEnd]
                 : rest[(parenIdx + 1)..];
-        }
-        else
-        {
+        } else {
             toolName = rest.Trim();
         }
 
         return !string.IsNullOrEmpty(toolName);
     }
 
-    private static bool TryParseToolEnd(string line, out string toolName, out bool isSuccess)
-    {
+    private static bool TryParseToolEnd(string line, out string toolName, out bool isSuccess) {
         toolName = "";
         isSuccess = false;
 
         var okPrefix = "[OK] ";
         var failPrefix = "[FAIL] ";
 
-        if (line.Contains(okPrefix))
-        {
+        if (line.Contains(okPrefix)) {
             var idx = line.IndexOf(okPrefix, StringComparison.Ordinal);
             toolName = line[(idx + okPrefix.Length)..].Trim();
             isSuccess = true;
             return !string.IsNullOrEmpty(toolName);
         }
 
-        if (line.Contains(failPrefix))
-        {
+        if (line.Contains(failPrefix)) {
             var idx = line.IndexOf(failPrefix, StringComparison.Ordinal);
             toolName = line[(idx + failPrefix.Length)..].Trim();
             isSuccess = false;
@@ -294,8 +260,7 @@ public static class ConversationOutputParser
         return false;
     }
 
-    private static bool TryParseToolProgress(string line, out string toolName, out string progressMsg)
-    {
+    private static bool TryParseToolProgress(string line, out string toolName, out string progressMsg) {
         toolName = "";
         progressMsg = "";
 
@@ -307,21 +272,17 @@ public static class ConversationOutputParser
 
         var rest = line[(idx + prefix.Length)..];
         var colonIdx = rest.IndexOf(':');
-        if (colonIdx >= 0)
-        {
+        if (colonIdx >= 0) {
             toolName = rest[..colonIdx].Trim();
             progressMsg = rest[(colonIdx + 1)..].Trim();
-        }
-        else
-        {
+        } else {
             progressMsg = rest.Trim();
         }
 
         return true;
     }
 
-    private static bool TryParseError(string line, out string errorMsg)
-    {
+    private static bool TryParseError(string line, out string errorMsg) {
         errorMsg = "";
 
         if (IsDotNetILoggerLine(line))
@@ -329,8 +290,7 @@ public static class ConversationOutputParser
 
         if (line.StartsWith("错误:", StringComparison.OrdinalIgnoreCase) ||
             line.StartsWith("Error:", StringComparison.OrdinalIgnoreCase) ||
-            line.Contains("Exception", StringComparison.OrdinalIgnoreCase))
-        {
+            line.Contains("Exception", StringComparison.OrdinalIgnoreCase)) {
             errorMsg = line.Trim();
             return true;
         }
@@ -345,18 +305,15 @@ public static class ConversationOutputParser
     /// 格式特征: "level: Namespace.Class[EventId]" — 冒号后紧跟带点号和方括号的类路径
     /// 真正的错误行: "Error: something went wrong" — 冒号后是自然语言，不含 [EventId] 模式
     /// </summary>
-    private static bool IsDotNetILoggerLine(string line)
-    {
+    private static bool IsDotNetILoggerLine(string line) {
         // 去掉 jcc AI 回复前缀 "> " 或 "> > " 后再检测
         var stripped = line.AsSpan().TrimStart();
         while (stripped.Length > 2 && stripped[0] == '>' && stripped[1] == ' ')
             stripped = stripped[2..].TrimStart();
         var normalized = stripped.ToString();
 
-        foreach (var prefix in ILoggerPrefixes)
-        {
-            if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            {
+        foreach (var prefix in ILoggerPrefixes) {
+            if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
                 var rest = normalized[prefix.Length..].TrimStart();
                 if (rest.Contains('[', StringComparison.Ordinal) &&
                     rest.Contains(']', StringComparison.Ordinal) &&

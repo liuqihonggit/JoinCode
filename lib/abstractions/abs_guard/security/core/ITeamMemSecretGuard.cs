@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Security;
 /// 对齐 TS: teamMemSecretGuard.ts checkTeamMemSecrets
 /// 检查写入团队记忆文件的内容是否包含敏感信息（API keys 等）
 /// </summary>
-public interface ITeamMemSecretGuard
-{
+public interface ITeamMemSecretGuard {
     /// <summary>
     /// 检查文件路径是否为团队记忆路径
     /// 对齐 TS: isTeamMemPath(filePath)

@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Models.Telemetry;
 
-public enum TelemetrySpanKind
-{
+public enum TelemetrySpanKind {
     [EnumValue("internal")] Internal,
     [EnumValue("server")] Server,
     [EnumValue("client")] Client,
@@ -10,15 +9,13 @@ public enum TelemetrySpanKind
     [EnumValue("consumer")] Consumer
 }
 
-public enum TelemetryStatusCode
-{
+public enum TelemetryStatusCode {
     [EnumValue("unset")] Unset,
     [EnumValue("ok")] Ok,
     [EnumValue("error")] Error
 }
 
-public enum TelemetryExportFormat
-{
+public enum TelemetryExportFormat {
     [EnumValue("none")] None,
     [EnumValue("otlp")] Otlp,
     [EnumValue("prometheus")] Prometheus,

@@ -1,20 +1,17 @@
 namespace Core.Tests.CostTracking;
 
-public class SessionCostPersistenceTests
-{
+public class SessionCostPersistenceTests {
     private readonly Mock<IFileOperationService> _fileOpMock = new();
     private readonly string _storagePath = Path.Combine(Path.GetTempPath(), "jcc-test-costs", Guid.NewGuid().ToString("N"));
 
-    private Core.CostTracking.CostTracker CreateCostTracker()
-    {
+    private Core.CostTracking.CostTracker CreateCostTracker() {
         return new Core.CostTracking.CostTracker(
             _fileOpMock.Object,
             storagePath: Path.Combine(_storagePath, "usage.json"),
             NullLogger<Core.CostTracking.CostTracker>.Instance);
     }
 
-    private SessionCostPersistence CreatePersistence(Core.CostTracking.CostTracker tracker)
-    {
+    private SessionCostPersistence CreatePersistence(Core.CostTracking.CostTracker tracker) {
         return new SessionCostPersistence(
             tracker,
             _fileOpMock.Object,
@@ -22,11 +19,9 @@ public class SessionCostPersistenceTests
     }
 
     [Fact]
-    public async Task RestoreCostStateForSessionAsync_NoFile_ShouldReturnNull()
-    {
+    public async Task RestoreCostStateForSessionAsync_NoFile_ShouldReturnNull() {
         var tracker = CreateCostTracker();
-        await using (tracker)
-        {
+        await using (tracker) {
             var persistence = CreatePersistence(tracker);
             _fileOpMock.Setup(f => f.FileExists(It.IsAny<string>())).Returns(false);
 
@@ -37,11 +32,9 @@ public class SessionCostPersistenceTests
     }
 
     [Fact]
-    public async Task SaveCurrentSessionCostsAsync_ValidSession_ShouldWriteFile()
-    {
+    public async Task SaveCurrentSessionCostsAsync_ValidSession_ShouldWriteFile() {
         var tracker = CreateCostTracker();
-        await using (tracker)
-        {
+        await using (tracker) {
             tracker.RecordUsage("gpt-4o", 100, 50, "test-session");
 
             var persistence = CreatePersistence(tracker);
@@ -58,11 +51,9 @@ public class SessionCostPersistenceTests
     }
 
     [Fact]
-    public async Task SaveAndRestore_RoundTrip_ShouldPreserveData()
-    {
+    public async Task SaveAndRestore_RoundTrip_ShouldPreserveData() {
         var tracker = CreateCostTracker();
-        await using (tracker)
-        {
+        await using (tracker) {
             tracker.RecordUsage("gpt-4o", 100, 50, "session-rt");
 
             var persistence = CreatePersistence(tracker);
@@ -91,11 +82,9 @@ public class SessionCostPersistenceTests
     }
 
     [Fact]
-    public async Task SaveCurrentSessionCostsAsync_EmptySessionId_ShouldThrowArgumentException()
-    {
+    public async Task SaveCurrentSessionCostsAsync_EmptySessionId_ShouldThrowArgumentException() {
         var tracker = CreateCostTracker();
-        await using (tracker)
-        {
+        await using (tracker) {
             var persistence = CreatePersistence(tracker);
             var act = async () => await persistence.SaveCurrentSessionCostsAsync("").ConfigureAwait(true);
 
@@ -104,11 +93,9 @@ public class SessionCostPersistenceTests
     }
 
     [Fact]
-    public async Task RestoreCostStateForSessionAsync_EmptySessionId_ShouldThrowArgumentException()
-    {
+    public async Task RestoreCostStateForSessionAsync_EmptySessionId_ShouldThrowArgumentException() {
         var tracker = CreateCostTracker();
-        await using (tracker)
-        {
+        await using (tracker) {
             var persistence = CreatePersistence(tracker);
             var act = async () => await persistence.RestoreCostStateForSessionAsync("  ").ConfigureAwait(true);
 
@@ -117,11 +104,9 @@ public class SessionCostPersistenceTests
     }
 
     [Fact]
-    public async Task RestoreCostStateForSessionAsync_ReadFailure_ShouldReturnNull()
-    {
+    public async Task RestoreCostStateForSessionAsync_ReadFailure_ShouldReturnNull() {
         var tracker = CreateCostTracker();
-        await using (tracker)
-        {
+        await using (tracker) {
             var persistence = CreatePersistence(tracker);
             _fileOpMock.Setup(f => f.FileExists(It.IsAny<string>())).Returns(true);
             _fileOpMock.Setup(f => f.ReadFileAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
@@ -134,11 +119,9 @@ public class SessionCostPersistenceTests
     }
 
     [Fact]
-    public async Task SaveCurrentSessionCostsAsync_WriteFailure_ShouldNotThrow()
-    {
+    public async Task SaveCurrentSessionCostsAsync_WriteFailure_ShouldNotThrow() {
         var tracker = CreateCostTracker();
-        await using (tracker)
-        {
+        await using (tracker) {
             tracker.RecordUsage("gpt-4o", 100, 50, "session-wf");
 
             var persistence = CreatePersistence(tracker);

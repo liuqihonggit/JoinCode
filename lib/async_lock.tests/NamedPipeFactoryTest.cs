@@ -4,24 +4,20 @@ namespace Core.Utils;
 /// NamedPipeFactory 单元测试 — 验证工厂创建的管道属性正确,防止缓冲区大小回归为0。
 /// <para>回归场景: 曾因默认缓冲区为0导致写操作永久阻塞(见 docs/task/管道缓冲区零导致写阻塞-bug修复记录.md)。</para>
 /// </summary>
-public class NamedPipeFactoryTest
-{
-    private static void ConnectPair(NamedPipeServerStream server, NamedPipeClientStream client)
-    {
+public class NamedPipeFactoryTest {
+    private static void ConnectPair(NamedPipeServerStream server, NamedPipeClientStream client) {
         var acceptTask = Task.Run(() => server.WaitForConnection());
         client.Connect(5000);
         acceptTask.Wait(5000);
     }
 
     [Fact]
-    public void PipeBufferSize_应为65536()
-    {
+    public void PipeBufferSize_应为65536() {
         NamedPipeFactory.PipeBufferSize.Should().Be(65536, "65536字节缓冲区足够容纳多条消息,避免写阻塞");
     }
 
     [Fact]
-    public void CreateServer_应返回未连接的管道()
-    {
+    public void CreateServer_应返回未连接的管道() {
         var pipeName = $"test-factory-{Guid.NewGuid():N}";
         using var server = NamedPipeFactory.CreateServer(pipeName);
         server.Should().NotBeNull();
@@ -29,8 +25,7 @@ public class NamedPipeFactoryTest
     }
 
     [Fact]
-    public async Task CreateServer_客户端写入服务端应立即收到_不阻塞()
-    {
+    public async Task CreateServer_客户端写入服务端应立即收到_不阻塞() {
         var pipeName = $"test-factory-recv-{Guid.NewGuid():N}";
         using var server = NamedPipeFactory.CreateServer(pipeName);
         using var client = NamedPipeFactory.CreateClient(pipeName);
@@ -42,8 +37,7 @@ public class NamedPipeFactoryTest
 
         var buf = new byte[data.Length];
         var read = 0;
-        while (read < buf.Length)
-        {
+        while (read < buf.Length) {
             var n = await server.ReadAsync(buf.AsMemory(read));
             if (n == 0) break;
             read += n;
@@ -53,8 +47,7 @@ public class NamedPipeFactoryTest
     }
 
     [Fact]
-    public async Task CreateServer_服务端写入客户端应立即收到_不阻塞()
-    {
+    public async Task CreateServer_服务端写入客户端应立即收到_不阻塞() {
         var pipeName = $"test-factory-write-{Guid.NewGuid():N}";
         using var server = NamedPipeFactory.CreateServer(pipeName);
         using var client = NamedPipeFactory.CreateClient(pipeName);
@@ -66,8 +59,7 @@ public class NamedPipeFactoryTest
 
         var buf = new byte[data.Length];
         var read = 0;
-        while (read < buf.Length)
-        {
+        while (read < buf.Length) {
             var n = await client.ReadAsync(buf.AsMemory(read));
             if (n == 0) break;
             read += n;
@@ -81,8 +73,7 @@ public class NamedPipeFactoryTest
     /// 此测试验证工厂创建的管道缓冲区足够大,写入不阻塞即使对端不读。
     /// </summary>
     [Fact]
-    public async Task 回归_服务端写入客户端不读_不阻塞_缓冲区足够()
-    {
+    public async Task 回归_服务端写入客户端不读_不阻塞_缓冲区足够() {
         var pipeName = $"test-factory-noread-{Guid.NewGuid():N}";
         using var server = NamedPipeFactory.CreateServer(pipeName);
         using var client = NamedPipeFactory.CreateClient(pipeName);
@@ -97,8 +88,7 @@ public class NamedPipeFactoryTest
     }
 
     [Fact]
-    public void CreateClient_应能连接到CreateServer创建的管道()
-    {
+    public void CreateClient_应能连接到CreateServer创建的管道() {
         var pipeName = $"test-factory-connect-{Guid.NewGuid():N}";
         using var server = NamedPipeFactory.CreateServer(pipeName);
         using var client = NamedPipeFactory.CreateClient(pipeName);
@@ -109,16 +99,14 @@ public class NamedPipeFactoryTest
     }
 
     [Fact]
-    public async Task CreateServer_多消息连续写入不阻塞()
-    {
+    public async Task CreateServer_多消息连续写入不阻塞() {
         var pipeName = $"test-factory-multi-{Guid.NewGuid():N}";
         using var server = NamedPipeFactory.CreateServer(pipeName);
         using var client = NamedPipeFactory.CreateClient(pipeName);
         ConnectPair(server, client);
 
         var messages = new List<byte[]>();
-        for (var i = 0; i < 100; i++)
-        {
+        for (var i = 0; i < 100; i++) {
             var data = Encoding.UTF8.GetBytes($"msg-{i}");
             messages.Add(data);
             await server.WriteAsync(data);
@@ -128,8 +116,7 @@ public class NamedPipeFactoryTest
         var totalLen = messages.Sum(m => m.Length);
         var allData = new byte[totalLen];
         var read = 0;
-        while (read < totalLen)
-        {
+        while (read < totalLen) {
             var n = await client.ReadAsync(allData.AsMemory(read));
             if (n == 0) break;
             read += n;

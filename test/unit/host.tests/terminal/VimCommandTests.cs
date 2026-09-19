@@ -1,11 +1,9 @@
 
 namespace JoinCode.ChatCommands.Tests;
 
-public class VimCommandTests
-{
+public class VimCommandTests {
     [Fact]
-    public async Task VimOn_CallsVimEngineEnable()
-    {
+    public async Task VimOn_CallsVimEngineEnable() {
         var vimEngineMock = new Mock<IVimEngine>();
         vimEngineMock.SetupGet(v => v.IsEnabled).Returns(false);
 
@@ -18,8 +16,7 @@ public class VimCommandTests
     }
 
     [Fact]
-    public async Task VimOff_CallsVimEngineDisable()
-    {
+    public async Task VimOff_CallsVimEngineDisable() {
         var vimEngineMock = new Mock<IVimEngine>();
         var command = new VimCommand();
         var context = BuildContext("off", vimEngineMock.Object);
@@ -30,8 +27,7 @@ public class VimCommandTests
     }
 
     [Fact]
-    public async Task VimEmpty_ShowsCurrentStatus()
-    {
+    public async Task VimEmpty_ShowsCurrentStatus() {
         var vimEngineMock = new Mock<IVimEngine>();
         vimEngineMock.SetupGet(v => v.IsEnabled).Returns(true);
         vimEngineMock.SetupGet(v => v.CurrentMode).Returns(VimMode.Normal);
@@ -44,22 +40,20 @@ public class VimCommandTests
         result.IsHandled.Should().BeTrue();
     }
 
-    private static ChatCommandContext BuildContext(string arguments, IVimEngine vimEngine)
-    {
+    private static ChatCommandContext BuildContext(string arguments, IVimEngine vimEngine) {
         var serviceProviderMock = new Mock<IServiceProvider>();
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IVimEngine))).Returns(vimEngine);
 
         return new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = serviceProviderMock.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
     }
 }

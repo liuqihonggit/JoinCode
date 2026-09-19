@@ -7,8 +7,7 @@ namespace Core.Agents.Coordinator;
 /// <para>公共职责：Token 获取与缓存、HTTP 发送骨架、接收通道、生命周期与释放。</para>
 /// </summary>
 /// <typeparam name="TConfig">平台配置类型（AppId/AppSecret/ApiBaseUrl 等）</typeparam>
-public abstract class PlatformBotAdapterBase<TConfig> : IPlatformBotAdapter
-{
+public abstract class PlatformBotAdapterBase<TConfig> : IPlatformBotAdapter {
     private readonly HttpClient _httpClient;
     private readonly TConfig _config;
     private readonly ILogger? _logger;
@@ -23,13 +22,11 @@ public abstract class PlatformBotAdapterBase<TConfig> : IPlatformBotAdapter
     /// <param name="config">平台配置</param>
     /// <param name="httpClient">HTTP 客户端（调用方管理生命周期）</param>
     /// <param name="logger">日志记录器</param>
-    protected PlatformBotAdapterBase(TConfig config, HttpClient httpClient, ILogger? logger = null)
-    {
+    protected PlatformBotAdapterBase(TConfig config, HttpClient httpClient, ILogger? logger = null) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger;
-        _receiveChannel = Channel.CreateUnbounded<PlatformMessage>(new UnboundedChannelOptions
-        {
+        _receiveChannel = Channel.CreateUnbounded<PlatformMessage>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false
         });
@@ -51,16 +48,14 @@ public abstract class PlatformBotAdapterBase<TConfig> : IPlatformBotAdapter
     public bool IsConnected => Volatile.Read(ref _started) != 0 && Volatile.Read(ref _disposed) == 0;
 
     /// <inheritdoc/>
-    public async ValueTask StartAsync(CancellationToken ct = default)
-    {
+    public async ValueTask StartAsync(CancellationToken ct = default) {
         if (Interlocked.Exchange(ref _started, 1) != 0) return;
         _token = await AcquireTokenAsync(ct).ConfigureAwait(false);
         _logger?.LogInformation("{Adapter}: started, token acquired (len={Len})", GetType().Name, _token?.Length ?? 0);
     }
 
     /// <inheritdoc/>
-    public async ValueTask<string?> SendAsync(string targetId, string text, CancellationToken ct = default)
-    {
+    public async ValueTask<string?> SendAsync(string targetId, string text, CancellationToken ct = default) {
         if (_token is null) throw new InvalidOperationException("Adapter not started");
         if (Volatile.Read(ref _disposed) != 0) return null;
 
@@ -68,19 +63,15 @@ public abstract class PlatformBotAdapterBase<TConfig> : IPlatformBotAdapter
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
         request.Content = new StringContent(BuildSendContent(targetId, text), Encoding.UTF8, "application/json");
 
-        try
-        {
+        try {
             using var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
+            if (!response.IsSuccessStatusCode) {
                 _logger?.LogWarning("{Adapter}: send failed {Status} to {Target}", GetType().Name, response.StatusCode, targetId);
                 return null;
             }
             var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             return ExtractMessageId(json);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, "{Adapter}: send error to {Target}", GetType().Name, targetId);
             return null;
         }
@@ -125,8 +116,7 @@ public abstract class PlatformBotAdapterBase<TConfig> : IPlatformBotAdapter
     protected abstract string? ExtractMessageId(string json);
 
     /// <inheritdoc/>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         _receiveChannel.Writer.TryComplete();
         return ValueTask.CompletedTask;

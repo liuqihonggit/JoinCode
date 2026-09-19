@@ -1,11 +1,9 @@
 namespace Infra.Tests.Housekeeping;
 
 
-public sealed class BackgroundHousekeepingServiceTests
-{
+public sealed class BackgroundHousekeepingServiceTests {
     [Fact]
-    public async Task StartAsync_ShouldNotThrow()
-    {
+    public async Task StartAsync_ShouldNotThrow() {
         var housekeeping = new Mock<IHousekeepingService>();
         housekeeping.Setup(h => h.RunAllCleanupAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
@@ -22,8 +20,7 @@ public sealed class BackgroundHousekeepingServiceTests
     }
 
     [Fact]
-    public async Task StopAsync_ShouldCompleteWithoutHanging()
-    {
+    public async Task StopAsync_ShouldCompleteWithoutHanging() {
         var housekeeping = new Mock<IHousekeepingService>();
         housekeeping.Setup(h => h.RunAllCleanupAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
@@ -40,8 +37,7 @@ public sealed class BackgroundHousekeepingServiceTests
     }
 
     [Fact]
-    public async Task DisposeAsync_ShouldNotThrow()
-    {
+    public async Task DisposeAsync_ShouldNotThrow() {
         var housekeeping = new Mock<IHousekeepingService>();
         var fs = new TestInMemFs();
         var clock = new FakeClockService();
@@ -49,8 +45,7 @@ public sealed class BackgroundHousekeepingServiceTests
     }
 
     [Fact]
-    public async Task RunAllCleanupAsync_ShouldBeCalledDirectly()
-    {
+    public async Task RunAllCleanupAsync_ShouldBeCalledDirectly() {
         var housekeeping = new Mock<IHousekeepingService>();
         housekeeping.Setup(h => h.RunAllCleanupAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(5);

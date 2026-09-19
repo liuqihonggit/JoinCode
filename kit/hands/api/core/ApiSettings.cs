@@ -3,8 +3,7 @@ namespace Services.Api;
 /// <summary>
 /// API 客户端配置设置
 /// </summary>
-public sealed class ApiSettings
-{
+public sealed class ApiSettings {
     /// <summary>
     /// 基础 URL
     /// </summary>
@@ -79,8 +78,7 @@ public sealed class ApiSettings
     /// 转换为重试策略选项
     /// </summary>
     /// <returns>重试策略选项</returns>
-    public RetryPolicyOptions ToRetryPolicyOptions() => new()
-    {
+    public RetryPolicyOptions ToRetryPolicyOptions() => new() {
         MaxRetryCount = MaxRetryCount,
         InitialDelay = TimeSpan.FromMilliseconds(InitialDelayMs),
         MaxDelay = TimeSpan.FromMilliseconds(MaxDelayMs),
@@ -93,8 +91,7 @@ public sealed class ApiSettings
     /// 转换为 API 客户端选项
     /// </summary>
     /// <returns>API 客户端选项</returns>
-    public ApiClientOptions ToApiClientOptions() => new()
-    {
+    public ApiClientOptions ToApiClientOptions() => new() {
         BaseUrl = BaseUrl,
         Timeout = TimeSpan.FromSeconds(TimeoutSeconds),
         RetryOptions = ToRetryPolicyOptions(),
@@ -106,8 +103,7 @@ public sealed class ApiSettings
     /// 转换为日志选项
     /// </summary>
     /// <returns>日志选项</returns>
-    public ApiLoggingOptions ToLoggingOptions() => LoggingLevel switch
-    {
+    public ApiLoggingOptions ToLoggingOptions() => LoggingLevel switch {
         ApiLoggingLevel.None => ApiLoggingOptions.ErrorsOnly,
         ApiLoggingLevel.Basic => ApiLoggingOptions.Default,
         ApiLoggingLevel.Verbose => ApiLoggingOptions.Verbose,
@@ -118,8 +114,7 @@ public sealed class ApiSettings
 /// <summary>
 /// API 日志详细程度级别
 /// </summary>
-public enum ApiLoggingLevel
-{
+public enum ApiLoggingLevel {
     /// <summary>
     /// 不记录
     /// </summary>

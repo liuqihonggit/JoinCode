@@ -1,13 +1,11 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed partial class BridgeMainTests
-{
+public sealed partial class BridgeMainTests {
     #region P2-5: NDJSON 结构化解析 — ExtractActivities
 
     [Fact]
-    public void ExtractActivities_AssistantToolUse_ReturnsToolStart()
-    {
+    public void ExtractActivities_AssistantToolUse_ReturnsToolStart() {
         var ndjson = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"read","input":{"file_path":"/src/foo.cs"}}]}}""";
         var activities = BridgeNdjsonParser.ExtractActivities(ndjson);
         Assert.Single(activities);
@@ -16,8 +14,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void ExtractActivities_AssistantText_ReturnsTextActivity()
-    {
+    public void ExtractActivities_AssistantText_ReturnsTextActivity() {
         var ndjson = """{"type":"assistant","message":{"content":[{"type":"text","text":"Hello world"}]}}""";
         var activities = BridgeNdjsonParser.ExtractActivities(ndjson);
         Assert.Single(activities);
@@ -26,8 +23,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void ExtractActivities_ResultSuccess_ReturnsResultActivity()
-    {
+    public void ExtractActivities_ResultSuccess_ReturnsResultActivity() {
         var ndjson = """{"type":"result","subtype":"success"}""";
         var activities = BridgeNdjsonParser.ExtractActivities(ndjson);
         Assert.Single(activities);
@@ -36,8 +32,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void ExtractActivities_ResultError_ReturnsErrorActivity()
-    {
+    public void ExtractActivities_ResultError_ReturnsErrorActivity() {
         var ndjson = """{"type":"result","subtype":"error","errors":["Permission denied"]}""";
         var activities = BridgeNdjsonParser.ExtractActivities(ndjson);
         Assert.Single(activities);
@@ -46,8 +41,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void ExtractActivities_ResultErrorNoErrors_UsesSubtype()
-    {
+    public void ExtractActivities_ResultErrorNoErrors_UsesSubtype() {
         var ndjson = """{"type":"result","subtype":"timeout"}""";
         var activities = BridgeNdjsonParser.ExtractActivities(ndjson);
         Assert.Single(activities);
@@ -56,30 +50,26 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void ExtractActivities_InvalidJson_ReturnsEmpty()
-    {
+    public void ExtractActivities_InvalidJson_ReturnsEmpty() {
         var activities = BridgeNdjsonParser.ExtractActivities("not json");
         Assert.Empty(activities);
     }
 
     [Fact]
-    public void ExtractActivities_EmptyString_ReturnsEmpty()
-    {
+    public void ExtractActivities_EmptyString_ReturnsEmpty() {
         var activities = BridgeNdjsonParser.ExtractActivities("");
         Assert.Empty(activities);
     }
 
     [Fact]
-    public void ExtractActivities_UserType_ReturnsEmpty()
-    {
+    public void ExtractActivities_UserType_ReturnsEmpty() {
         var ndjson = """{"type":"user","content":"Hello"}""";
         var activities = BridgeNdjsonParser.ExtractActivities(ndjson);
         Assert.Empty(activities);
     }
 
     [Fact]
-    public void ExtractActivities_MultipleToolUse_ReturnsMultipleActivities()
-    {
+    public void ExtractActivities_MultipleToolUse_ReturnsMultipleActivities() {
         var ndjson = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"read","input":{"file_path":"/a.cs"}},{"type":"tool_use","name":"bash","input":{"command":"ls"}}]}}""";
         var activities = BridgeNdjsonParser.ExtractActivities(ndjson);
         Assert.Equal(2, activities.Count);
@@ -92,8 +82,7 @@ public sealed partial class BridgeMainTests
     #region P2-5: NDJSON 结构化解析 — ExtractPermissionRequest
 
     [Fact]
-    public void ExtractPermissionRequest_ControlRequest_ReturnsRequest()
-    {
+    public void ExtractPermissionRequest_ControlRequest_ReturnsRequest() {
         var ndjson = """{"type":"control_request","request_id":"req-123","request":{"subtype":"can_use_tool","tool_name":"Bash","input":{"command":"rm -rf /"},"tool_use_id":"tu-456"}}""";
         var permReq = BridgeNdjsonParser.ExtractPermissionRequest(ndjson);
         Assert.NotNull(permReq);
@@ -105,31 +94,27 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void ExtractPermissionRequest_NonControlRequest_ReturnsNull()
-    {
+    public void ExtractPermissionRequest_NonControlRequest_ReturnsNull() {
         var ndjson = """{"type":"assistant","content":"hello"}""";
         var permReq = BridgeNdjsonParser.ExtractPermissionRequest(ndjson);
         Assert.Null(permReq);
     }
 
     [Fact]
-    public void ExtractPermissionRequest_NonCanUseTool_ReturnsNull()
-    {
+    public void ExtractPermissionRequest_NonCanUseTool_ReturnsNull() {
         var ndjson = """{"type":"control_request","request_id":"req-123","request":{"subtype":"initialize"}}""";
         var permReq = BridgeNdjsonParser.ExtractPermissionRequest(ndjson);
         Assert.Null(permReq);
     }
 
     [Fact]
-    public void ExtractPermissionRequest_InvalidJson_ReturnsNull()
-    {
+    public void ExtractPermissionRequest_InvalidJson_ReturnsNull() {
         var permReq = BridgeNdjsonParser.ExtractPermissionRequest("not json");
         Assert.Null(permReq);
     }
 
     [Fact]
-    public void ExtractPermissionRequest_EmptyString_ReturnsNull()
-    {
+    public void ExtractPermissionRequest_EmptyString_ReturnsNull() {
         var permReq = BridgeNdjsonParser.ExtractPermissionRequest("");
         Assert.Null(permReq);
     }
@@ -139,10 +124,8 @@ public sealed partial class BridgeMainTests
     #region P2-5: NDJSON 结构化解析 — ToolSummary
 
     [Fact]
-    public void ToolSummary_ReadWithFilePath_ReturnsReadingPath()
-    {
-        var input = new Dictionary<string, JsonElement>
-        {
+    public void ToolSummary_ReadWithFilePath_ReturnsReadingPath() {
+        var input = new Dictionary<string, JsonElement> {
             ["file_path"] = JsonDocument.Parse("\"/src/foo.cs\"").RootElement,
         };
         var summary = BridgeNdjsonParser.ToolSummary("read", input);
@@ -150,10 +133,8 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void ToolSummary_BashWithCommand_ReturnsRunningCommand()
-    {
-        var input = new Dictionary<string, JsonElement>
-        {
+    public void ToolSummary_BashWithCommand_ReturnsRunningCommand() {
+        var input = new Dictionary<string, JsonElement> {
             ["command"] = JsonDocument.Parse("\"ls -la\"").RootElement,
         };
         var summary = BridgeNdjsonParser.ToolSummary("bash", input);
@@ -161,19 +142,16 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void ToolSummary_UnknownTool_ReturnsUsingToolName()
-    {
+    public void ToolSummary_UnknownTool_ReturnsUsingToolName() {
         var input = new Dictionary<string, JsonElement>();
         var summary = BridgeNdjsonParser.ToolSummary("CustomTool", input);
         Assert.Equal("CustomTool", summary);
     }
 
     [Fact]
-    public void ToolSummary_LongPath_TruncatesTo80Chars()
-    {
+    public void ToolSummary_LongPath_TruncatesTo80Chars() {
         var longPath = new string('a', 100);
-        var input = new Dictionary<string, JsonElement>
-        {
+        var input = new Dictionary<string, JsonElement> {
             ["file_path"] = JsonDocument.Parse($"\"{longPath}\"").RootElement,
         };
         var summary = BridgeNdjsonParser.ToolSummary("read", input);
@@ -185,35 +163,30 @@ public sealed partial class BridgeMainTests
     #region P2-5: NDJSON 结构化解析 — BridgeMainDeps callbacks
 
     [Fact]
-    public void BridgeMainDeps_OnPermissionRequest_CanBeSet()
-    {
+    public void BridgeMainDeps_OnPermissionRequest_CanBeSet() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         deps.OnPermissionRequest = (_, _, _) => { };
         Assert.NotNull(deps.OnPermissionRequest);
     }
 
     [Fact]
-    public void BridgeMainDeps_OnActivity_CanBeSet()
-    {
+    public void BridgeMainDeps_OnActivity_CanBeSet() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         deps.OnActivity = (_, _) => { };
         Assert.NotNull(deps.OnActivity);
     }
 
     [Fact]
-    public void BridgeMainDeps_NdjsonCallbacks_DefaultNull()
-    {
+    public void BridgeMainDeps_NdjsonCallbacks_DefaultNull() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         Assert.Null(deps.OnPermissionRequest);
         Assert.Null(deps.OnActivity);
     }
 
     [Fact]
-    public void BridgeSubprocessOptions_OnPermissionRequest_CanBeSet()
-    {
+    public void BridgeSubprocessOptions_OnPermissionRequest_CanBeSet() {
         Action<BridgePermissionRequest, string?>? callback = (_, _) => { };
-        var opts = new BridgeSubprocessOptions
-        {
+        var opts = new BridgeSubprocessOptions {
             SessionId = "test",
             OnPermissionRequest = callback,
         };
@@ -221,11 +194,9 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeSubprocessOptions_OnActivity_CanBeSet()
-    {
+    public void BridgeSubprocessOptions_OnActivity_CanBeSet() {
         Action<BridgeNdjsonActivity>? callback = _ => { };
-        var opts = new BridgeSubprocessOptions
-        {
+        var opts = new BridgeSubprocessOptions {
             SessionId = "test",
             OnActivity = callback,
         };

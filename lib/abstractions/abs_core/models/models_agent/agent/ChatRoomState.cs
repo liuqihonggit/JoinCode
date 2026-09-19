@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// <para>内存控制：MaxMessageCount 限制消息数，超过时标记 NeedsCleanup 提示用户清理，不强制删除。</para>
 /// <para>按需加载：配合 IChatRoomStore 实现懒加载，默认不载入全部房间。</para>
 /// </summary>
-public sealed class ChatRoomState
-{
+public sealed class ChatRoomState {
     /// <summary>团队/聊天室信息</summary>
     public TeamInfo Info { get; set; } = null!;
 
@@ -54,8 +53,7 @@ public sealed class ChatRoomState
     /// <para>用户主动调用，或系统提示后用户确认清理。</para>
     /// </summary>
     /// <returns>清理的消息数</returns>
-    public int CleanupOldMessages()
-    {
+    public int CleanupOldMessages() {
         if (Messages.Count <= MaxMessageCount) return 0;
 
         var toRemove = Messages.Count - MaxMessageCount;
@@ -66,8 +64,7 @@ public sealed class ChatRoomState
             .ToList();
 
         var removed = 0;
-        foreach (var msgId in oldest)
-        {
+        foreach (var msgId in oldest) {
             if (Messages.TryRemove(msgId, out _)) removed++;
         }
         return removed;
@@ -78,8 +75,7 @@ public sealed class ChatRoomState
     /// </summary>
     /// <param name="limit">返回上限（0=全部）</param>
     /// <returns>消息只读列表</returns>
-    public IReadOnlyList<TeamMessage> GetMessages(int limit = 0)
-    {
+    public IReadOnlyList<TeamMessage> GetMessages(int limit = 0) {
         var query = Messages.Values.OrderByDescending(m => m.Timestamp);
         return limit > 0 ? query.Take(limit).ToList() : query.ToList();
     }
@@ -90,8 +86,7 @@ public sealed class ChatRoomState
     /// <param name="visibility">消息可见性</param>
     /// <param name="limit">返回上限（0=全部）</param>
     /// <returns>消息只读列表</returns>
-    public IReadOnlyList<TeamMessage> GetMessages(MessageVisibility visibility, int limit = 0)
-    {
+    public IReadOnlyList<TeamMessage> GetMessages(MessageVisibility visibility, int limit = 0) {
         var query = Messages.Values
             .Where(m => m.Visibility == visibility)
             .OrderByDescending(m => m.Timestamp);
@@ -103,8 +98,7 @@ public sealed class ChatRoomState
 /// 聊天室存储接口 — 按需加载/保存聊天室状态，避免一次性载入全部房间 — ADR 0109 决策13。
 /// <para>对标 QQ 云端存档：本地只缓存活跃房间，历史房间按需从存储加载。</para>
 /// </summary>
-public interface IChatRoomStore
-{
+public interface IChatRoomStore {
     /// <summary>按需加载聊天室状态（未加载时返回 null）</summary>
     System.Threading.Tasks.Task<ChatRoomState?> LoadAsync(string teamId, CancellationToken ct = default);
 

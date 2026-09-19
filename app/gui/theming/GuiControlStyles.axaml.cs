@@ -4,8 +4,7 @@ namespace JoinCode.Gui.Theming;
 /// 共享控件样式（设计语言单一数据源）— 真实 App 与 headless 测试经 <see cref="GuiAppResources.Register"/> 共用。
 /// 编译型 Styles 类（x:Class + XamlIl），避免动态 XAML 加载破坏 NativeAOT 裁剪。
 /// </summary>
-public partial class GuiControlStyles : Styles
-{
+public partial class GuiControlStyles : Styles {
     /// <summary>初始化 GuiControlStyles 实例并加载 XAML</summary>
     public GuiControlStyles()
         => AvaloniaXamlLoader.Load(this);

@@ -6,16 +6,14 @@ namespace Core.Context;
 /// 零侵入：所有经过 Chat 管道的异常自动被记录，无需修改任何组件
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class StreamCrashSnapshotMiddleware : ServiceEntity, IChatMiddleware
-{
+public sealed partial class StreamCrashSnapshotMiddleware : ServiceEntity, IChatMiddleware {
     private readonly ICrashSnapshotStore _store;
 
     /// <summary>
     /// 初始化聊天流崩溃快照中间件
     /// </summary>
     /// <param name="store">崩溃快照存储</param>
-    public StreamCrashSnapshotMiddleware(ICrashSnapshotStore store)
-    {
+    public StreamCrashSnapshotMiddleware(ICrashSnapshotStore store) {
         _store = store;
     }
 
@@ -32,27 +30,20 @@ public sealed partial class StreamCrashSnapshotMiddleware : ServiceEntity, IChat
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
+        [EnumeratorCancellation] CancellationToken ct) {
         await using var enumerator = next(context, ct).GetAsyncEnumerator(ct);
-        while (true)
-        {
+        while (true) {
             ChatStreamEvent current;
-            try
-            {
+            try {
                 if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
                     yield break;
                 current = enumerator.Current;
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex)
-            {
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) {
                 _store.Add(new CrashSnapshot(
                     "ChatStream",
                     CrashSeverity.Error,
                     ex,
-                    new CrashExecutionContext
-                    {
+                    new CrashExecutionContext {
                         OperationName = "ChatStreamPipeline",
                         TurnIndex = context.ConversationTurn,
                     }));

@@ -1,12 +1,10 @@
 namespace Llm.Tests.Adapters.LLM.QueryServices.Anthropic;
 
-public sealed class AnthropicQueryServiceTests
-{
+public sealed class AnthropicQueryServiceTests {
     #region ConvertToAnthropicMessages
 
     [Fact]
-    public void ConvertToAnthropicMessages_SystemMessage_AddsSystemBlock()
-    {
+    public void ConvertToAnthropicMessages_SystemMessage_AddsSystemBlock() {
         var history = new MessageList { new(MessageRole.System, "sys") };
 
         var (system, messages) = AnthropicQueryService.ConvertToAnthropicMessagesPublic(history);
@@ -17,8 +15,7 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToAnthropicMessages_UserMessage_AddsUserMessage()
-    {
+    public void ConvertToAnthropicMessages_UserMessage_AddsUserMessage() {
         var history = new MessageList { new(MessageRole.User, "hi") };
 
         var (system, messages) = AnthropicQueryService.ConvertToAnthropicMessagesPublic(history);
@@ -29,8 +26,7 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToAnthropicMessages_AssistantMessage_AddsAssistantMessage()
-    {
+    public void ConvertToAnthropicMessages_AssistantMessage_AddsAssistantMessage() {
         var history = new MessageList { new(MessageRole.Assistant, "hello") };
 
         var (_, messages) = AnthropicQueryService.ConvertToAnthropicMessagesPublic(history);
@@ -41,8 +37,7 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToAnthropicMessages_AssistantWithToolCalls_AddsContentBlocks()
-    {
+    public void ConvertToAnthropicMessages_AssistantWithToolCalls_AddsContentBlocks() {
         var entries = new[]
         {
             new ToolCallEntry { Id = "call-1", Name = "ToolA", Arguments = "{}" }
@@ -62,8 +57,7 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToAnthropicMessages_ToolResult_FlushesAsUserMessage()
-    {
+    public void ConvertToAnthropicMessages_ToolResult_FlushesAsUserMessage() {
         var metadata = ToolCallEntry.BuildToolResultMetadata("call-1", "ToolA");
         var history = new MessageList
         {
@@ -80,8 +74,7 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToAnthropicMessages_UserAfterToolResult_CombinesIntoSingleUserMessage()
-    {
+    public void ConvertToAnthropicMessages_UserAfterToolResult_CombinesIntoSingleUserMessage() {
         var toolMetadata = ToolCallEntry.BuildToolResultMetadata("call-1", "ToolA");
         var history = new MessageList
         {
@@ -104,10 +97,8 @@ public sealed class AnthropicQueryServiceTests
     #region ConvertAnthropicResponseToApiMessages
 
     [Fact]
-    public void ConvertAnthropicResponseToApiMessages_TextBlock_ReturnsContent()
-    {
-        var response = new AnthropicMessagesResponse
-        {
+    public void ConvertAnthropicResponseToApiMessages_TextBlock_ReturnsContent() {
+        var response = new AnthropicMessagesResponse {
             Id = "msg-1",
             Model = "claude",
             Content =
@@ -124,10 +115,8 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void ConvertAnthropicResponseToApiMessages_ThinkingBlock_AddsThinkingMetadata()
-    {
-        var response = new AnthropicMessagesResponse
-        {
+    public void ConvertAnthropicResponseToApiMessages_ThinkingBlock_AddsThinkingMetadata() {
+        var response = new AnthropicMessagesResponse {
             Id = "msg-1",
             Model = "claude",
             Content =
@@ -143,10 +132,8 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void ConvertAnthropicResponseToApiMessages_ToolUseBlock_AddsToolCallMetadata()
-    {
-        var response = new AnthropicMessagesResponse
-        {
+    public void ConvertAnthropicResponseToApiMessages_ToolUseBlock_AddsToolCallMetadata() {
+        var response = new AnthropicMessagesResponse {
             Id = "msg-1",
             Model = "claude",
             Content =
@@ -170,11 +157,9 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void ConvertAnthropicResponseToApiMessages_WebSearchResultArray_AppendsLinks()
-    {
+    public void ConvertAnthropicResponseToApiMessages_WebSearchResultArray_AppendsLinks() {
         var json = "[{\"title\":\"T\",\"url\":\"https://example.com\"}]";
-        var response = new AnthropicMessagesResponse
-        {
+        var response = new AnthropicMessagesResponse {
             Id = "msg-1",
             Model = "claude",
             Content =
@@ -194,11 +179,9 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void ConvertAnthropicResponseToApiMessages_WebSearchError_AddsErrorText()
-    {
+    public void ConvertAnthropicResponseToApiMessages_WebSearchError_AddsErrorText() {
         var element = JsonSerializer.SerializeToElement(new { error_code = "rate_limited" });
-        var response = new AnthropicMessagesResponse
-        {
+        var response = new AnthropicMessagesResponse {
             Id = "msg-1",
             Model = "claude",
             Content =
@@ -217,15 +200,12 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void ConvertAnthropicResponseToApiMessages_WithUsage_AddsUsageMetadata()
-    {
-        var response = new AnthropicMessagesResponse
-        {
+    public void ConvertAnthropicResponseToApiMessages_WithUsage_AddsUsageMetadata() {
+        var response = new AnthropicMessagesResponse {
             Id = "msg-1",
             Model = "claude",
             Content = [],
-            Usage = new AnthropicUsage
-            {
+            Usage = new AnthropicUsage {
                 InputTokens = 10,
                 OutputTokens = 5
             }
@@ -238,8 +218,7 @@ public sealed class AnthropicQueryServiceTests
 
     #endregion
 
-    private sealed class FakeHttpMessageHandler : HttpMessageHandler
-    {
+    private sealed class FakeHttpMessageHandler : HttpMessageHandler {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => Task.FromResult(new HttpResponseMessage());
     }
@@ -247,8 +226,7 @@ public sealed class AnthropicQueryServiceTests
     #region Two-Phase Tool Loading — BuildAnthropicToolsFromKernel
 
     [Fact]
-    public void BuildAnthropicToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty()
-    {
+    public void BuildAnthropicToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file"),
@@ -263,8 +241,7 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void BuildAnthropicToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated()
-    {
+    public void BuildAnthropicToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.server1.tool1", "MCP tool 1"),
@@ -280,8 +257,7 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void BuildAnthropicToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups()
-    {
+    public void BuildAnthropicToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file")
@@ -304,16 +280,14 @@ public sealed class AnthropicQueryServiceTests
     #region Two-Phase Tool Loading — CreateSecondAnthropicRequestWithDescriptions
 
     [Fact]
-    public void CreateSecondAnthropicRequestWithDescriptions_ValidToolNames_BuildsDescriptions()
-    {
+    public void CreateSecondAnthropicRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1"),
             new ToolDef("mcp.tool2", "MCP tool 2")
         ]));
 
-        var originalRequest = new AnthropicMessagesRequest
-        {
+        var originalRequest = new AnthropicMessagesRequest {
             Model = "claude-3",
             Messages = [new AnthropicMessage { Role = "user", Content = "hi" }],
             Stream = true
@@ -329,8 +303,7 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void CreateSecondAnthropicRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty()
-    {
+    public void CreateSecondAnthropicRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
@@ -345,15 +318,13 @@ public sealed class AnthropicQueryServiceTests
     }
 
     [Fact]
-    public void CreateSecondAnthropicRequestWithDescriptions_PreservesOriginalFields()
-    {
+    public void CreateSecondAnthropicRequestWithDescriptions_PreservesOriginalFields() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));
 
-        var originalRequest = new AnthropicMessagesRequest
-        {
+        var originalRequest = new AnthropicMessagesRequest {
             Model = "claude-3",
             Messages = [new AnthropicMessage { Role = "user", Content = "test" }],
             Stream = true,

@@ -3,10 +3,8 @@ namespace Core.Tests.Plugins;
 /// <summary>
 /// 断裂点2 测试: LoadExternalPluginAsync 加黑名单保护 + 外部插件卸载泄漏加黑名单
 /// </summary>
-public sealed class PluginExternalBlacklistTests
-{
-    private ServiceProvider CreateServiceProvider()
-    {
+public sealed class PluginExternalBlacklistTests {
+    private ServiceProvider CreateServiceProvider() {
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole());
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
@@ -15,8 +13,7 @@ public sealed class PluginExternalBlacklistTests
     }
 
     [Fact]
-    public async Task LoadExternalPluginAsync_BlacklistedPlugin_ThrowsInfPluginBl()
-    {
+    public async Task LoadExternalPluginAsync_BlacklistedPlugin_ThrowsInfPluginBl() {
         await using var sp = CreateServiceProvider();
         var pm = (PluginManager)sp.GetRequiredService<IPluginManager>();
 
@@ -29,8 +26,7 @@ public sealed class PluginExternalBlacklistTests
     }
 
     [Fact]
-    public async Task LoadExternalPluginAsync_NonExistentFile_ThrowsInf036()
-    {
+    public async Task LoadExternalPluginAsync_NonExistentFile_ThrowsInf036() {
         await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 

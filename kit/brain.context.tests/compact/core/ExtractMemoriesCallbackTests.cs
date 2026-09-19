@@ -1,9 +1,7 @@
 namespace Brain.Tests.Context.Compact;
 
-public sealed class ExtractMemoriesCallbackTests
-{
-    private static Testing.Common.Services.InMemoryFileSystem CreateFileSystem()
-    {
+public sealed class ExtractMemoriesCallbackTests {
+    private static Testing.Common.Services.InMemoryFileSystem CreateFileSystem() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         fs.SetCurrentDirectory("/test/project");
         fs.CreateDirectory("/test/project/.jcc/memory");
@@ -12,15 +10,12 @@ public sealed class ExtractMemoriesCallbackTests
 
     private static ExtractMemoriesCallback CreateCallback(
         Testing.Common.Services.InMemoryFileSystem fs,
-        IForkSubAgentManager? forkManager = null)
-    {
+        IForkSubAgentManager? forkManager = null) {
         return new ExtractMemoriesCallback(fs, forkManager);
     }
 
-    private static PostSamplingContext CreateContext(string? querySource = "repl_main_thread", string? sessionId = "test-session")
-    {
-        return new PostSamplingContext
-        {
+    private static PostSamplingContext CreateContext(string? querySource = "repl_main_thread", string? sessionId = "test-session") {
+        return new PostSamplingContext {
             EstimatedTokenCount = 5000,
             ToolCallsSinceLastExtraction = 0,
             QuerySource = querySource,
@@ -30,8 +25,7 @@ public sealed class ExtractMemoriesCallbackTests
     }
 
     [Fact]
-    public async Task OnPostSamplingAsync_NonReplSource_DoesNothing()
-    {
+    public async Task OnPostSamplingAsync_NonReplSource_DoesNothing() {
         var fs = CreateFileSystem();
         var forkMock = new Mock<IForkSubAgentManager>();
         var callback = CreateCallback(fs, forkMock.Object);
@@ -43,8 +37,7 @@ public sealed class ExtractMemoriesCallbackTests
     }
 
     [Fact]
-    public async Task OnPostSamplingAsync_WithoutForkManager_DoesNotThrow()
-    {
+    public async Task OnPostSamplingAsync_WithoutForkManager_DoesNotThrow() {
         var fs = CreateFileSystem();
         var callback = CreateCallback(fs, forkManager: null);
 
@@ -54,22 +47,17 @@ public sealed class ExtractMemoriesCallbackTests
     }
 
     [Fact]
-    public void BuildExtractAutoOnlyPrompt_DoesNotThrow()
-    {
-        try
-        {
+    public void BuildExtractAutoOnlyPrompt_DoesNotThrow() {
+        try {
             var result = ExtractMemoriesSection.BuildExtractAutoOnlyPrompt(5, "");
             result.Should().NotBeNullOrEmpty();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             throw new InvalidOperationException($"BuildExtractAutoOnlyPrompt failed: {ex.GetType().Name}: {ex.Message}", ex);
         }
     }
 
     [Fact]
-    public async Task OnPostSamplingAsync_WithForkManager_CallsForkAsync()
-    {
+    public async Task OnPostSamplingAsync_WithForkManager_CallsForkAsync() {
         var fs = CreateFileSystem();
         var forkMock = new Mock<IForkSubAgentManager>();
         forkMock.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
@@ -78,12 +66,9 @@ public sealed class ExtractMemoriesCallbackTests
         var callback = CreateCallback(fs, forkMock.Object);
         var context = CreateContext();
 
-        try
-        {
+        try {
             await callback.OnPostSamplingAsync(context).ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             throw new InvalidOperationException($"ExtractMemoriesCallback threw: {ex.Message}", ex);
         }
 
@@ -93,8 +78,7 @@ public sealed class ExtractMemoriesCallbackTests
     }
 
     [Fact]
-    public async Task OnPostSamplingAsync_ForkFailure_DoesNotThrow()
-    {
+    public async Task OnPostSamplingAsync_ForkFailure_DoesNotThrow() {
         var fs = CreateFileSystem();
         var forkMock = new Mock<IForkSubAgentManager>();
         forkMock.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
@@ -107,8 +91,7 @@ public sealed class ExtractMemoriesCallbackTests
     }
 
     [Fact]
-    public async Task OnPostSamplingAsync_WithExistingMemoryFiles_ScansDirectory()
-    {
+    public async Task OnPostSamplingAsync_WithExistingMemoryFiles_ScansDirectory() {
         var fs = CreateFileSystem();
         fs.WriteAllText("/test/project/.jcc/memory/user_role.md", "# User Role\nDeveloper");
 

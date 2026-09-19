@@ -6,8 +6,7 @@ namespace Core.Context;
 /// 严格层: 工具名+参数指纹都重复(如 Read(file.py)→Grep(pat)→Read(file.py)→Grep(pat))
 /// 参数不匹配时需要更多重复才触发,参数匹配时正常触发
 /// </summary>
-public sealed class ToolCallSequenceDetector
-{
+public sealed class ToolCallSequenceDetector {
     private readonly int _windowSize;
     private readonly int _minPatternLength;
     private readonly int _requiredRepeats;
@@ -23,8 +22,7 @@ public sealed class ToolCallSequenceDetector
     public ToolCallSequenceDetector(
         int windowSize = 6,
         int minPatternLength = 3,
-        int requiredRepeats = 4)
-    {
+        int requiredRepeats = 4) {
         ArgumentOutOfRangeException.ThrowIfLessThan(windowSize, 2);
         ArgumentOutOfRangeException.ThrowIfLessThan(minPatternLength, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(requiredRepeats, 2);
@@ -40,8 +38,7 @@ public sealed class ToolCallSequenceDetector
     /// <summary>
     /// 记录一次工具调用（仅工具名，不含参数指纹）
     /// </summary>
-    public ToolCallSequenceResult Record(string toolName)
-    {
+    public ToolCallSequenceResult Record(string toolName) {
         return Record(toolName, null);
     }
 
@@ -49,8 +46,7 @@ public sealed class ToolCallSequenceDetector
     /// 记录一次工具调用（含参数指纹），返回检测结果
     /// 参数指纹格式: "toolName(arg1=val1,arg2=val2)" 或 "toolName(hash)"
     /// </summary>
-    public ToolCallSequenceResult Record(string toolName, string? argsFingerprint)
-    {
+    public ToolCallSequenceResult Record(string toolName, string? argsFingerprint) {
         ArgumentNullException.ThrowIfNull(toolName);
 
         _nameSequence.Add(toolName);
@@ -61,8 +57,7 @@ public sealed class ToolCallSequenceDetector
 
         for (var patternLen = Math.Min(_nameSequence.Count / _requiredRepeats, _windowSize / 2);
              patternLen >= _minPatternLength;
-             patternLen--)
-        {
+             patternLen--) {
             var result = AnalyzePattern(patternLen);
             if (result.IsLoopDetected)
                 return result;
@@ -72,30 +67,25 @@ public sealed class ToolCallSequenceDetector
     }
 
     /// <summary>重置检测器状态，清空所有序列</summary>
-    public void Reset()
-    {
+    public void Reset() {
         _nameSequence.Clear();
         _fingerprintSequence.Clear();
     }
 
-    private ToolCallSequenceResult AnalyzePattern(int patternLen)
-    {
+    private ToolCallSequenceResult AnalyzePattern(int patternLen) {
         var repeatCount = 1;
         var argsMatchCount = 0;
         var pos = _nameSequence.Count;
 
-        while (pos >= patternLen * 2)
-        {
+        while (pos >= patternLen * 2) {
             var currentStart = pos - patternLen;
             var prevStart = currentStart - patternLen;
 
             var nameMatch = true;
             var thisArgsMatch = true;
 
-            for (var i = 0; i < patternLen; i++)
-            {
-                if (_nameSequence[prevStart + i] != _nameSequence[currentStart + i])
-                {
+            for (var i = 0; i < patternLen; i++) {
+                if (_nameSequence[prevStart + i] != _nameSequence[currentStart + i]) {
                     nameMatch = false;
                     break;
                 }
@@ -138,8 +128,7 @@ public sealed record ToolCallSequenceResult(
     bool IsLoopDetected,
     string? RepeatedPattern,
     int RepeatCount,
-    bool ArgsMatched = false)
-{
+    bool ArgsMatched = false) {
     /// <summary>未检测到循环的空结果</summary>
     public static readonly ToolCallSequenceResult NoLoop = new(false, null, 0);
 

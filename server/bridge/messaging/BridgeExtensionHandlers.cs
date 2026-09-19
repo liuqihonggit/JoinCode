@@ -4,8 +4,7 @@ namespace Core.Bridge.Handlers;
 /// <summary>
 /// 认证处理器 — 处理 auth/verify 控制请求,校验 JWT 令牌有效性
 /// </summary>
-public sealed class AuthHandler : ControlRequestHandlerBase
-{
+public sealed class AuthHandler : ControlRequestHandlerBase {
     private readonly BridgeJwtService _jwtService;
 
     /// <summary>当前处理器负责的消息类型标识</summary>
@@ -15,8 +14,7 @@ public sealed class AuthHandler : ControlRequestHandlerBase
     /// 构造认证处理器
     /// </summary>
     /// <param name="jwtService">JWT 令牌校验服务</param>
-    public AuthHandler(BridgeJwtService jwtService)
-    {
+    public AuthHandler(BridgeJwtService jwtService) {
         _jwtService = jwtService ?? throw new ArgumentNullException(nameof(jwtService));
     }
 
@@ -28,23 +26,19 @@ public sealed class AuthHandler : ControlRequestHandlerBase
     /// <param name="context">消息处理上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>认证校验响应</returns>
-    protected override Task<ControlResponse> HandleActionAsync(ControlRequest request, Dictionary<string, JsonElement> parameters, MessageHandlerContext context, CancellationToken cancellationToken)
-    {
-        if (!parameters.TryGetValue("token", out var tokenElement))
-        {
+    protected override Task<ControlResponse> HandleActionAsync(ControlRequest request, Dictionary<string, JsonElement> parameters, MessageHandlerContext context, CancellationToken cancellationToken) {
+        if (!parameters.TryGetValue("token", out var tokenElement)) {
             return Task.FromResult(CreateErrorResponse(request, "Missing 'token' parameter"));
         }
 
         var token = tokenElement.GetString();
-        if (string.IsNullOrWhiteSpace(token))
-        {
+        if (string.IsNullOrWhiteSpace(token)) {
             return Task.FromResult(CreateErrorResponse(request, "Token is empty"));
         }
 
         var validationResult = _jwtService.ValidateToken(token);
 
-        return Task.FromResult(new ControlResponse
-        {
+        return Task.FromResult(new ControlResponse {
             Id = Guid.NewGuid().ToString("N"),
             RequestId = request.Id,
             Success = validationResult.IsValid,
@@ -61,8 +55,7 @@ public sealed class AuthHandler : ControlRequestHandlerBase
 /// <summary>
 /// 会话处理器 — 处理 session/manage 控制请求,支持 create/close/keepAlive 三种动作
 /// </summary>
-public sealed class SessionHandler : ControlRequestHandlerBase
-{
+public sealed class SessionHandler : ControlRequestHandlerBase {
     private readonly BridgeSessionRunner _sessionRunner;
 
     /// <summary>当前处理器负责的消息类型标识</summary>
@@ -72,8 +65,7 @@ public sealed class SessionHandler : ControlRequestHandlerBase
     /// 构造会话处理器
     /// </summary>
     /// <param name="sessionRunner">会话运行器,负责会话生命周期管理</param>
-    public SessionHandler(BridgeSessionRunner sessionRunner)
-    {
+    public SessionHandler(BridgeSessionRunner sessionRunner) {
         _sessionRunner = sessionRunner ?? throw new ArgumentNullException(nameof(sessionRunner));
     }
 
@@ -85,14 +77,11 @@ public sealed class SessionHandler : ControlRequestHandlerBase
     /// <param name="context">消息处理上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>会话管理响应</returns>
-    protected override async Task<ControlResponse> HandleActionAsync(ControlRequest request, Dictionary<string, JsonElement> parameters, MessageHandlerContext context, CancellationToken cancellationToken)
-    {
+    protected override async Task<ControlResponse> HandleActionAsync(ControlRequest request, Dictionary<string, JsonElement> parameters, MessageHandlerContext context, CancellationToken cancellationToken) {
         var action = GetOptionalString(parameters, "action");
 
-        switch (action)
-        {
-            case "create":
-            {
+        switch (action) {
+            case "create": {
                 var clientId = GetRequiredString(parameters, "clientId");
                 if (string.IsNullOrWhiteSpace(clientId))
                     return CreateErrorResponse(request, "Missing 'clientId' parameter");
@@ -103,8 +92,7 @@ public sealed class SessionHandler : ControlRequestHandlerBase
                     BridgeJsonContext.Default.SessionManageResultData));
             }
 
-            case "close":
-            {
+            case "close": {
                 var sessionId = GetRequiredString(parameters, "sessionId");
                 if (string.IsNullOrWhiteSpace(sessionId))
                     return CreateErrorResponse(request, "Missing 'sessionId' parameter");
@@ -113,8 +101,7 @@ public sealed class SessionHandler : ControlRequestHandlerBase
                 return CreateSuccessResponse(request);
             }
 
-            case "keepAlive":
-            {
+            case "keepAlive": {
                 var sessionId = GetRequiredString(parameters, "sessionId");
                 if (string.IsNullOrWhiteSpace(sessionId))
                     return CreateErrorResponse(request, "Missing 'sessionId' parameter");
@@ -126,7 +113,7 @@ public sealed class SessionHandler : ControlRequestHandlerBase
             }
 
             default:
-                return CreateErrorResponse(request, $"Unknown session action: {action}");
+            return CreateErrorResponse(request, $"Unknown session action: {action}");
         }
     }
 }
@@ -134,8 +121,7 @@ public sealed class SessionHandler : ControlRequestHandlerBase
 /// <summary>
 /// 设备信任处理器 — 处理 device/trust 控制请求,支持 verify/trust/revoke 三种动作
 /// </summary>
-public sealed class DeviceTrustHandler : ControlRequestHandlerBase
-{
+public sealed class DeviceTrustHandler : ControlRequestHandlerBase {
     private readonly ITrustedDeviceStore _trustedDeviceStore;
 
     /// <summary>当前处理器负责的消息类型标识</summary>
@@ -145,8 +131,7 @@ public sealed class DeviceTrustHandler : ControlRequestHandlerBase
     /// 构造设备信任处理器
     /// </summary>
     /// <param name="trustedDeviceStore">可信设备存储</param>
-    public DeviceTrustHandler(ITrustedDeviceStore trustedDeviceStore)
-    {
+    public DeviceTrustHandler(ITrustedDeviceStore trustedDeviceStore) {
         _trustedDeviceStore = trustedDeviceStore ?? throw new ArgumentNullException(nameof(trustedDeviceStore));
     }
 
@@ -158,15 +143,12 @@ public sealed class DeviceTrustHandler : ControlRequestHandlerBase
     /// <param name="context">消息处理上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>设备信任响应</returns>
-    protected override async Task<ControlResponse> HandleActionAsync(ControlRequest request, Dictionary<string, JsonElement> parameters, MessageHandlerContext context, CancellationToken cancellationToken)
-    {
+    protected override async Task<ControlResponse> HandleActionAsync(ControlRequest request, Dictionary<string, JsonElement> parameters, MessageHandlerContext context, CancellationToken cancellationToken) {
         var action = GetOptionalString(parameters, "action");
         var deviceId = GetOptionalString(parameters, "deviceId");
 
-        switch (action)
-        {
-            case "verify":
-            {
+        switch (action) {
+            case "verify": {
                 if (string.IsNullOrWhiteSpace(deviceId))
                     return CreateErrorResponse(request, "Missing 'deviceId' parameter");
 
@@ -176,16 +158,14 @@ public sealed class DeviceTrustHandler : ControlRequestHandlerBase
                     BridgeJsonContext.Default.DeviceTrustResultData));
             }
 
-            case "trust":
-            {
+            case "trust": {
                 if (string.IsNullOrWhiteSpace(deviceId))
                     return CreateErrorResponse(request, "Missing 'deviceId' parameter");
 
                 var deviceName = GetOptionalString(parameters, "deviceName") ?? deviceId;
                 var fingerprint = GetOptionalString(parameters, "publicKeyFingerprint") ?? string.Empty;
 
-                var entry = new TrustedDeviceEntry
-                {
+                var entry = new TrustedDeviceEntry {
                     DeviceId = deviceId,
                     DeviceName = deviceName,
                     PublicKeyFingerprint = fingerprint,
@@ -196,8 +176,7 @@ public sealed class DeviceTrustHandler : ControlRequestHandlerBase
                 return CreateSuccessResponse(request);
             }
 
-            case "revoke":
-            {
+            case "revoke": {
                 if (string.IsNullOrWhiteSpace(deviceId))
                     return CreateErrorResponse(request, "Missing 'deviceId' parameter");
 
@@ -208,7 +187,7 @@ public sealed class DeviceTrustHandler : ControlRequestHandlerBase
             }
 
             default:
-                return CreateErrorResponse(request, $"Unknown device action: {action}");
+            return CreateErrorResponse(request, $"Unknown device action: {action}");
         }
     }
 }
@@ -216,8 +195,7 @@ public sealed class DeviceTrustHandler : ControlRequestHandlerBase
 /// <summary>
 /// 密钥处理器 — 处理 secret/manage 控制请求,支持 validate/rotate 两种动作
 /// </summary>
-public sealed class SecretHandler : ControlRequestHandlerBase
-{
+public sealed class SecretHandler : ControlRequestHandlerBase {
     private readonly IWorkSecretStore _workSecretStore;
 
     /// <summary>当前处理器负责的消息类型标识</summary>
@@ -227,8 +205,7 @@ public sealed class SecretHandler : ControlRequestHandlerBase
     /// 构造密钥处理器
     /// </summary>
     /// <param name="workSecretStore">工作密钥存储</param>
-    public SecretHandler(IWorkSecretStore workSecretStore)
-    {
+    public SecretHandler(IWorkSecretStore workSecretStore) {
         _workSecretStore = workSecretStore ?? throw new ArgumentNullException(nameof(workSecretStore));
     }
 
@@ -240,14 +217,11 @@ public sealed class SecretHandler : ControlRequestHandlerBase
     /// <param name="context">消息处理上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>密钥管理响应</returns>
-    protected override async Task<ControlResponse> HandleActionAsync(ControlRequest request, Dictionary<string, JsonElement> parameters, MessageHandlerContext context, CancellationToken cancellationToken)
-    {
+    protected override async Task<ControlResponse> HandleActionAsync(ControlRequest request, Dictionary<string, JsonElement> parameters, MessageHandlerContext context, CancellationToken cancellationToken) {
         var action = GetOptionalString(parameters, "action");
 
-        switch (action)
-        {
-            case "validate":
-            {
+        switch (action) {
+            case "validate": {
                 var secretId = GetRequiredString(parameters, "secretId");
                 var plainValue = GetRequiredString(parameters, "plainValue");
 
@@ -260,8 +234,7 @@ public sealed class SecretHandler : ControlRequestHandlerBase
                     BridgeJsonContext.Default.SecretValidateResultData));
             }
 
-            case "rotate":
-            {
+            case "rotate": {
                 var secretId = GetRequiredString(parameters, "secretId");
                 var newPlainValue = GetRequiredString(parameters, "newPlainValue");
 
@@ -275,7 +248,7 @@ public sealed class SecretHandler : ControlRequestHandlerBase
             }
 
             default:
-                return CreateErrorResponse(request, $"Unknown secret action: {action}");
+            return CreateErrorResponse(request, $"Unknown secret action: {action}");
         }
     }
 }
@@ -283,8 +256,7 @@ public sealed class SecretHandler : ControlRequestHandlerBase
 /// <summary>
 /// 对端处理器 — 处理 peer/manage 控制请求,支持 connect/disconnect 两种动作
 /// </summary>
-public sealed class PeerHandler : ControlRequestHandlerBase
-{
+public sealed class PeerHandler : ControlRequestHandlerBase {
     private readonly PeerSessionManager _peerSessionManager;
 
     /// <summary>当前处理器负责的消息类型标识</summary>
@@ -294,8 +266,7 @@ public sealed class PeerHandler : ControlRequestHandlerBase
     /// 构造对端处理器
     /// </summary>
     /// <param name="peerSessionManager">对端会话管理器</param>
-    public PeerHandler(PeerSessionManager peerSessionManager)
-    {
+    public PeerHandler(PeerSessionManager peerSessionManager) {
         _peerSessionManager = peerSessionManager ?? throw new ArgumentNullException(nameof(peerSessionManager));
     }
 
@@ -307,14 +278,11 @@ public sealed class PeerHandler : ControlRequestHandlerBase
     /// <param name="context">消息处理上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>对端管理响应</returns>
-    protected override async Task<ControlResponse> HandleActionAsync(ControlRequest request, Dictionary<string, JsonElement> parameters, MessageHandlerContext context, CancellationToken cancellationToken)
-    {
+    protected override async Task<ControlResponse> HandleActionAsync(ControlRequest request, Dictionary<string, JsonElement> parameters, MessageHandlerContext context, CancellationToken cancellationToken) {
         var action = GetOptionalString(parameters, "action");
 
-        switch (action)
-        {
-            case "connect":
-            {
+        switch (action) {
+            case "connect": {
                 var localPeerId = GetOptionalString(parameters, "localPeerId");
                 var remotePeerId = GetOptionalString(parameters, "remotePeerId");
 
@@ -327,8 +295,7 @@ public sealed class PeerHandler : ControlRequestHandlerBase
                     BridgeJsonContext.Default.PeerManageResultData));
             }
 
-            case "disconnect":
-            {
+            case "disconnect": {
                 var sessionId = GetRequiredString(parameters, "sessionId");
                 if (string.IsNullOrWhiteSpace(sessionId))
                     return CreateErrorResponse(request, "Missing 'sessionId' parameter");
@@ -338,7 +305,7 @@ public sealed class PeerHandler : ControlRequestHandlerBase
             }
 
             default:
-                return CreateErrorResponse(request, $"Unknown peer action: {action}");
+            return CreateErrorResponse(request, $"Unknown peer action: {action}");
         }
     }
 }

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Security;
 /// <summary>
 /// 权限请求类，包含工具执行所需的权限信息
 /// </summary>
-public sealed class PermissionRequest
-{
+public sealed class PermissionRequest {
     /// <summary>
     /// 工具名称
     /// </summary>
@@ -30,8 +29,7 @@ public sealed class PermissionRequest
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <param name="arguments">工具参数</param>
-    public PermissionRequest(string toolName, Dictionary<string, JsonElement>? arguments = null)
-    {
+    public PermissionRequest(string toolName, Dictionary<string, JsonElement>? arguments = null) {
         ToolName = toolName ?? throw new ArgumentNullException(nameof(toolName));
         Arguments = arguments ?? [];
         RequestTime = DateTimeOffset.UtcNow;
@@ -45,8 +43,7 @@ public sealed class PermissionRequest
     /// <param name="arguments">工具参数</param>
     /// <param name="requestId">请求ID</param>
     /// <param name="requestTime">请求时间</param>
-    public PermissionRequest(string toolName, Dictionary<string, JsonElement>? arguments, string requestId, DateTimeOffset requestTime)
-    {
+    public PermissionRequest(string toolName, Dictionary<string, JsonElement>? arguments, string requestId, DateTimeOffset requestTime) {
         ToolName = toolName ?? throw new ArgumentNullException(nameof(toolName));
         Arguments = arguments ?? [];
         RequestId = requestId ?? throw new ArgumentNullException(nameof(requestId));

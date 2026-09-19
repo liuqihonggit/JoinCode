@@ -5,8 +5,7 @@ namespace JoinCode.Dream;
 /// 做梦功能实现 - 记忆整合功能
 /// </summary>
 [Register(typeof(IDreamFeature), ServiceLifetime.Singleton)]
-public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
-{
+public sealed partial class DreamFeature : ServiceEntity, IDreamFeature {
     private readonly IChatCompletionClient _chatCompletionClient;
     private readonly ISessionScanner _sessionScanner;
     private readonly IDreamTaskRegistry _taskRegistry;
@@ -29,8 +28,7 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
         IDreamTaskRegistry taskRegistry,
         AutoDreamConfig? config = null,
         MiddlewarePipeline<DreamContext>? pipeline = null,
-        ILogger<DreamFeature>? logger = null)
-    {
+        ILogger<DreamFeature>? logger = null) {
         _chatCompletionClient = chatCompletionClient ?? throw new ArgumentNullException(nameof(chatCompletionClient));
         _sessionScanner = sessionScanner ?? throw new ArgumentNullException(nameof(sessionScanner));
         _taskRegistry = taskRegistry ?? throw new ArgumentNullException(nameof(taskRegistry));
@@ -40,66 +38,51 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
     }
 
     /// <inheritdoc />
-    public async Task<DreamResult> ExecuteAsync(DreamRequest request, CancellationToken cancellationToken = default)
-    {
-        if (_pipeline is not null)
-        {
+    public async Task<DreamResult> ExecuteAsync(DreamRequest request, CancellationToken cancellationToken = default) {
+        if (_pipeline is not null) {
             return await ExecuteViaPipelineAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
         return await ExecuteDirectAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<DreamResult> ExecuteViaPipelineAsync(DreamRequest request, CancellationToken cancellationToken)
-    {
+    private async Task<DreamResult> ExecuteViaPipelineAsync(DreamRequest request, CancellationToken cancellationToken) {
         var stopwatch = Stopwatch.StartNew();
         var pipeline = _pipeline ?? throw new InvalidOperationException("Pipeline not available.");
         _logger?.LogInformation("[DreamFeature] 开始梦境整合(管道)");
 
-        try
-        {
+        try {
             var ctx = new DreamContext { Request = request, CancellationToken = cancellationToken };
             await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
 
             stopwatch.Stop();
-            if (ctx.Result is not null)
-            {
+            if (ctx.Result is not null) {
                 return ctx.Result;
             }
 
             return DreamResult.Failure("管道执行完成但未产生结果");
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             stopwatch.Stop();
             _logger?.LogError(ex, "[DreamFeature] 梦境整合失败(管道)");
             return DreamResult.Failure($"梦境整合失败: {ex.Message}");
         }
     }
 
-    private async Task<DreamResult> ExecuteDirectAsync(DreamRequest request, CancellationToken cancellationToken)
-    {
+    private async Task<DreamResult> ExecuteDirectAsync(DreamRequest request, CancellationToken cancellationToken) {
         var stopwatch = Stopwatch.StartNew();
         _logger?.LogInformation("[DreamFeature] 开始梦境整合");
 
-        try
-        {
+        try {
             // 1. 获取会话列表
             IReadOnlyList<string> sessionIds;
-            if (request.SessionIds?.Count > 0)
-            {
+            if (request.SessionIds?.Count > 0) {
                 // 用户指定了会话，直接使用
                 sessionIds = request.SessionIds;
-            }
-            else
-            {
+            } else {
                 // 2. 检查门控条件（除非强制触发）
-                if (!request.Force)
-                {
+                if (!request.Force) {
                     var gateResult = await CheckGatesAsync(cancellationToken).ConfigureAwait(false);
-                    if (!gateResult.IsPassed)
-                    {
+                    if (!gateResult.IsPassed) {
                         _logger?.LogDebug("[DreamFeature] 门控检查未通过: {Reason}", gateResult.Reason);
                         return DreamResult.Skipped($"门控未通过: {gateResult.Reason}");
                     }
@@ -112,14 +95,12 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
                     cancellationToken).ConfigureAwait(false);
             }
 
-            if (sessionIds.Count == 0)
-            {
+            if (sessionIds.Count == 0) {
                 _logger?.LogDebug("[DreamFeature] 没有找到需要处理的会话");
                 return DreamResult.Skipped("没有需要处理的会话");
             }
 
-            if (!request.Force && sessionIds.Count < _config.MinSessions)
-            {
+            if (!request.Force && sessionIds.Count < _config.MinSessions) {
                 _logger?.LogDebug("[DreamFeature] 会话数量不足: {Count} < {Min}", sessionIds.Count, _config.MinSessions);
                 return DreamResult.Skipped($"会话数量不足: {sessionIds.Count} < {_config.MinSessions}");
             }
@@ -167,14 +148,10 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
                 taskId,
                 sessionIds.Count,
                 stopwatch.ElapsedMilliseconds);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             _logger?.LogWarning("[DreamFeature] 梦境整合已取消");
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             stopwatch.Stop();
             _logger?.LogError(ex, "[DreamFeature] 梦境整合失败");
             return DreamResult.Failure($"梦境整合失败: {ex.Message}");
@@ -182,31 +159,26 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
     }
 
     /// <inheritdoc />
-    public Task<DreamTaskState?> GetTaskStatusAsync(string taskId, CancellationToken cancellationToken = default)
-    {
+    public Task<DreamTaskState?> GetTaskStatusAsync(string taskId, CancellationToken cancellationToken = default) {
         return _taskRegistry.GetTaskStateAsync(taskId, cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyDictionary<string, DreamTaskState>> ListTasksAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<IReadOnlyDictionary<string, DreamTaskState>> ListTasksAsync(CancellationToken cancellationToken = default) {
         return _taskRegistry.GetAllTasksAsync(cancellationToken);
     }
 
     /// <inheritdoc />
-    public Task KillTaskAsync(string taskId, CancellationToken cancellationToken = default)
-    {
+    public Task KillTaskAsync(string taskId, CancellationToken cancellationToken = default) {
         return _taskRegistry.KillDreamTaskAsync(taskId, cancellationToken);
     }
 
     /// <summary>
     /// 检查门控条件
     /// </summary>
-    private async Task<GateResult> CheckGatesAsync(CancellationToken cancellationToken)
-    {
+    private async Task<GateResult> CheckGatesAsync(CancellationToken cancellationToken) {
         // 检查是否启用
-        if (!_config.Enabled)
-        {
+        if (!_config.Enabled) {
             return GateResult.Failure("自动做梦已禁用");
         }
 
@@ -214,8 +186,7 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
         var lastConsolidationTime = DateTime.UtcNow.AddHours(-_config.MinHours).Ticks / TimeSpan.TicksPerMillisecond;
         var sessions = await _sessionScanner.ListSessionsTouchedSinceAsync(lastConsolidationTime, cancellationToken).ConfigureAwait(false);
 
-        if (sessions.Count < _config.MinSessions)
-        {
+        if (sessions.Count < _config.MinSessions) {
             return GateResult.Failure($"会话数不足: {sessions.Count} < {_config.MinSessions}");
         }
 
@@ -225,8 +196,7 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
     /// <summary>
     /// 构建系统提示词
     /// </summary>
-    private static string BuildSystemPrompt()
-    {
+    private static string BuildSystemPrompt() {
         return ConsolidationPrompt.BuildPrompt(
             "memory/",
             "sessions/",
@@ -236,8 +206,7 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
     /// <summary>
     /// 构建整合提示词
     /// </summary>
-    private static string BuildConsolidationPrompt(IReadOnlyList<string> sessionIds)
-    {
+    private static string BuildConsolidationPrompt(IReadOnlyList<string> sessionIds) {
         return ConsolidationPrompt.BuildExtraContext(
             sessionIds,
             ConsolidationPrompt.ToolConstraints);
@@ -246,8 +215,7 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
     /// <summary>
     /// 门控结果
     /// </summary>
-    private readonly record struct GateResult(bool IsPassed, string Reason)
-    {
+    private readonly record struct GateResult(bool IsPassed, string Reason) {
         public static GateResult Success() => new(true, string.Empty);
         public static GateResult Failure(string reason) => new(false, reason);
     }

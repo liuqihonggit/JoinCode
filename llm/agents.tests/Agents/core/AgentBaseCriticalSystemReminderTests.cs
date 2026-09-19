@@ -5,11 +5,9 @@ namespace Core.Agents.Tests.Unit.Agents;
 /// AgentBase CriticalSystemReminder 每轮注入测试
 /// 验证 criticalSystemReminder 作为 user message 注入到消息流(对齐 TS 原版 re-injected at every user turn)
 /// </summary>
-public sealed class AgentBaseCriticalSystemReminderTests
-{
+public sealed class AgentBaseCriticalSystemReminderTests {
     [Fact]
-    public async Task ExecuteAsync_CriticalSystemReminder_InjectsAsUserMessage()
-    {
+    public async Task ExecuteAsync_CriticalSystemReminder_InjectsAsUserMessage() {
         MessageList? capturedHistory = null;
         var queryEngineMock = new Mock<IQueryEngine>();
         queryEngineMock
@@ -30,8 +28,7 @@ public sealed class AgentBaseCriticalSystemReminderTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_NoCriticalSystemReminder_DoesNotInjectExtraUserMessage()
-    {
+    public async Task ExecuteAsync_NoCriticalSystemReminder_DoesNotInjectExtraUserMessage() {
         MessageList? capturedHistory = null;
         var queryEngineMock = new Mock<IQueryEngine>();
         queryEngineMock
@@ -52,8 +49,7 @@ public sealed class AgentBaseCriticalSystemReminderTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_CriticalSystemReminder_ReInjectedOnSecondExecution()
-    {
+    public async Task ExecuteAsync_CriticalSystemReminder_ReInjectedOnSecondExecution() {
         var capturedHistories = new List<MessageList>();
         var queryEngineMock = new Mock<IQueryEngine>();
         queryEngineMock

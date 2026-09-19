@@ -5,13 +5,11 @@ namespace JoinCode.Plugins.Tests.E2E;
 /// <para>前置条件: 需先执行 dotnet publish tools/SampleNativePlugin -c Release -o tools/SampleNativePlugin/publish</para>
 /// </summary>
 [Trait("Category", "Integration")]
-public class NativePluginHostE2ETests
-{
+public class NativePluginHostE2ETests {
     private static readonly IFileSystem Fs = new PhysicalFileSystem();
     private static string? s_nativeDllPath;
 
-    private static string? FindNativeDll()
-    {
+    private static string? FindNativeDll() {
         if (s_nativeDllPath is not null) return s_nativeDllPath;
 
         var dir = AppContext.BaseDirectory;
@@ -25,8 +23,7 @@ public class NativePluginHostE2ETests
     }
 
     [Fact]
-    public void Load_Echo_Unload_FullLifecycle()
-    {
+    public void Load_Echo_Unload_FullLifecycle() {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布,请先执行: dotnet publish tools/SampleNativePlugin -c Release -o tools/SampleNativePlugin/publish");
 
@@ -45,8 +42,7 @@ public class NativePluginHostE2ETests
     }
 
     [Fact]
-    public void Ping_ReturnsPong()
-    {
+    public void Ping_ReturnsPong() {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布");
 
@@ -62,8 +58,7 @@ public class NativePluginHostE2ETests
     }
 
     [Fact]
-    public void UnknownMethod_ReturnsMethodNotFound()
-    {
+    public void UnknownMethod_ReturnsMethodNotFound() {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布");
 
@@ -79,8 +74,7 @@ public class NativePluginHostE2ETests
     }
 
     [Fact]
-    public void Load_Idempotent_ReturnsSuccessOnSecondLoad()
-    {
+    public void Load_Idempotent_ReturnsSuccessOnSecondLoad() {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布");
 
@@ -96,8 +90,7 @@ public class NativePluginHostE2ETests
     }
 
     [Fact]
-    public void Invoke_BeforeLoad_ReturnsNotLoaded()
-    {
+    public void Invoke_BeforeLoad_ReturnsNotLoaded() {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布");
 
@@ -109,8 +102,7 @@ public class NativePluginHostE2ETests
     }
 
     [Fact]
-    public void NonExistentDll_ReturnsFail()
-    {
+    public void NonExistentDll_ReturnsFail() {
         using var host = new NativePluginHost("C:/nonexistent/plugin.dll", "nonexistent", Fs);
 
         var result = host.Load();

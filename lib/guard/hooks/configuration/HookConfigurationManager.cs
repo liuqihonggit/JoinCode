@@ -4,8 +4,7 @@ namespace Core.Hooks.Configuration;
 /// <summary>
 /// 钩子配置管理器接口
 /// </summary>
-public interface IHookConfigurationManager
-{
+public interface IHookConfigurationManager {
     /// <summary>
     /// 加载所有钩子配置
     /// </summary>
@@ -55,8 +54,7 @@ public interface IHookConfigurationManager
 /// <summary>
 /// 钩子配置管理器实现
 /// </summary>
-public sealed partial class HookConfigurationManager : IHookConfigurationManager, IAsyncDisposable
-{
+public sealed partial class HookConfigurationManager : IHookConfigurationManager, IAsyncDisposable {
     private readonly AsyncLock _lock = new();
     private readonly IFileSystem _fs;
     private readonly ILogger<HookConfigurationManager>? _logger;
@@ -73,8 +71,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
     /// <param name="logger">可选的日志记录器</param>
     public HookConfigurationManager(
         IFileSystem fs,
-        ILogger<HookConfigurationManager>? logger = null)
-    {
+        ILogger<HookConfigurationManager>? logger = null) {
 
         _fs = fs;
         _logger = logger;
@@ -85,26 +82,22 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
     /// <summary>
     /// 注册配置提供者
     /// </summary>
-    public void RegisterProvider(HookSource source, IHookConfigurationProvider provider)
-    {
+    public void RegisterProvider(HookSource source, IHookConfigurationProvider provider) {
         _providers[source] = provider;
         _logger?.LogDebug("Registered hook configuration provider for source: {Source}", source);
     }
 
     /// <inheritdoc />
-    public async Task<HookConfigurationGroup> LoadAllHooksAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<HookConfigurationGroup> LoadAllHooksAsync(CancellationToken cancellationToken = default) {
         // 检查缓存
-        if (_cache.TryGetValue(CacheKey, out var cached))
-        {
+        if (_cache.TryGetValue(CacheKey, out var cached)) {
             return cached;
         }
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         // 双重检查
-        if (_cache.TryGetValue(CacheKey, out cached))
-        {
+        if (_cache.TryGetValue(CacheKey, out cached)) {
             return cached;
         }
 
@@ -114,15 +107,11 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
         var sources = Enum.GetValues<HookSource>()
             .OrderBy(s => s.GetPriority());
 
-        foreach (var source in sources)
-        {
-            if (_providers.TryGetValue(source, out var provider))
-            {
-                try
-                {
+        foreach (var source in sources) {
+            if (_providers.TryGetValue(source, out var provider)) {
+                try {
                     var hooks = await provider.LoadHooksAsync(cancellationToken).ConfigureAwait(false);
-                    foreach (var hook in hooks)
-                    {
+                    foreach (var hook in hooks) {
                         group.Add(hook);
                     }
 
@@ -130,9 +119,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
                         "Loaded {Count} hooks from {Source}",
                         hooks.Count,
                         source);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogError(
                         ex,
                         "Failed to load hooks from {Source}",
@@ -143,15 +130,14 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
 
         _cache[CacheKey] = group;
         return group;
-    
+
     }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<SourcedHookConfig>> GetHooksForEventAsync(
         HookEvent hookEvent,
         string? matcher = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var group = await LoadAllHooksAsync(cancellationToken).ConfigureAwait(false);
         return group.GetHooks(hookEvent, matcher);
     }
@@ -159,8 +145,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
     /// <inheritdoc />
     public async Task<IReadOnlyList<string>> GetSortedMatchersAsync(
         HookEvent hookEvent,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var group = await LoadAllHooksAsync(cancellationToken).ConfigureAwait(false);
         return group.GetSortedMatchers(hookEvent);
     }
@@ -171,15 +156,12 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
         HookEvent hookEvent,
         string? matcher,
         HookCommand hook,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_providers.TryGetValue(source, out var provider))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_providers.TryGetValue(source, out var provider)) {
             throw new InvalidOperationException($"No provider registered for source: {source}");
         }
 
-        if (!source.IsEditable())
-        {
+        if (!source.IsEditable()) {
             throw new InvalidOperationException($"Source {source} is not editable");
         }
 
@@ -193,7 +175,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
             source,
             hookEvent,
             hook.GetDisplayText());
-    
+
     }
 
     /// <inheritdoc />
@@ -202,15 +184,12 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
         HookEvent hookEvent,
         string? matcher,
         HookCommand hook,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_providers.TryGetValue(source, out var provider))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_providers.TryGetValue(source, out var provider)) {
             throw new InvalidOperationException($"No provider registered for source: {source}");
         }
 
-        if (!source.IsEditable())
-        {
+        if (!source.IsEditable()) {
             throw new InvalidOperationException($"Source {source} is not editable");
         }
 
@@ -224,20 +203,18 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
             source,
             hookEvent,
             hook.GetDisplayText());
-    
+
     }
 
     /// <inheritdoc />
-    public Task InvalidateCacheAsync(CancellationToken cancellationToken = default)
-    {
+    public Task InvalidateCacheAsync(CancellationToken cancellationToken = default) {
         _cache.Clear();
         _logger?.LogDebug("Hook configuration cache invalidated");
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
     }
@@ -246,8 +223,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
 /// <summary>
 /// 钩子配置提供者接口
 /// </summary>
-public interface IHookConfigurationProvider
-{
+public interface IHookConfigurationProvider {
     /// <summary>
     /// 加载钩子配置
     /// </summary>
@@ -275,8 +251,7 @@ public interface IHookConfigurationProvider
 /// <summary>
 /// JSON 文件配置提供者
 /// </summary>
-public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvider
-{
+public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvider {
     private readonly string _filePath;
     private readonly HookSource _source;
     private readonly IFileSystem _fs;
@@ -293,8 +268,7 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
         string filePath,
         HookSource source,
         IFileSystem fs,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         _filePath = filePath;
         _source = source;
         _fs = fs;
@@ -302,40 +276,31 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
     }
 
     /// <inheritdoc />
-    public Task<List<SourcedHookConfig>> LoadHooksAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<List<SourcedHookConfig>> LoadHooksAsync(CancellationToken cancellationToken = default) {
         var hooks = new List<SourcedHookConfig>();
 
-        if (!_fs.FileExists(_filePath))
-        {
+        if (!_fs.FileExists(_filePath)) {
             return Task.FromResult(hooks);
         }
 
-        try
-        {
+        try {
             var json = _fs.ReadAllText(_filePath);
             var settings = RelaxedJsonSerializer.Deserialize(json, HooksJsonContext.Default.HookSettingsFile);
 
-            if (settings?.Hooks == null)
-            {
+            if (settings?.Hooks == null) {
                 return Task.FromResult(hooks);
             }
 
-            foreach (var eventEntry in settings.Hooks)
-            {
+            foreach (var eventEntry in settings.Hooks) {
                 var hookEvent = HookEventExtensions.FromValue(eventEntry.Key);
-                if (hookEvent is null)
-                {
+                if (hookEvent is null) {
                     _logger?.LogWarning("Unknown hook event: {Event}", eventEntry.Key);
                     continue;
                 }
 
-                foreach (var matcher in eventEntry.Value)
-                {
-                    foreach (var command in matcher.Hooks)
-                    {
-                        hooks.Add(new SourcedHookConfig
-                        {
+                foreach (var matcher in eventEntry.Value) {
+                    foreach (var command in matcher.Hooks) {
+                        hooks.Add(new SourcedHookConfig {
                             Event = hookEvent.Value,
                             Matcher = matcher.Matcher,
                             Command = command,
@@ -344,9 +309,7 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
                     }
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to load hooks from {FilePath}", _filePath);
         }
 
@@ -358,25 +321,20 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
         HookEvent hookEvent,
         string? matcher,
         HookCommand hook,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var directory = Path.GetDirectoryName(_filePath);
         DirectoryHelper.EnsureDirectoryExists(_fs, directory);
 
-        await EditHooksFileAsync(settings =>
-        {
+        await EditHooksFileAsync(settings => {
             var eventKey = hookEvent.ToEventName();
-            if (!settings.Hooks.TryGetValue(eventKey, out var matchers))
-            {
+            if (!settings.Hooks.TryGetValue(eventKey, out var matchers)) {
                 matchers = new List<HookMatcher>();
                 settings.Hooks[eventKey] = matchers;
             }
 
             var existingMatcher = matchers.FirstOrDefault(m => m.Matcher == matcher);
-            if (existingMatcher == null)
-            {
-                existingMatcher = new HookMatcher
-                {
+            if (existingMatcher == null) {
+                existingMatcher = new HookMatcher {
                     Matcher = matcher,
                     Hooks = new List<HookCommand>()
                 };
@@ -392,34 +350,28 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
         HookEvent hookEvent,
         string? matcher,
         HookCommand hook,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var directory = Path.GetDirectoryName(_filePath);
         DirectoryHelper.EnsureDirectoryExists(_fs, directory);
 
-        await EditHooksFileAsync(settings =>
-        {
+        await EditHooksFileAsync(settings => {
             var eventKey = hookEvent.ToEventName();
-            if (!settings.Hooks.TryGetValue(eventKey, out var matchers))
-            {
+            if (!settings.Hooks.TryGetValue(eventKey, out var matchers)) {
                 return;
             }
 
             var existingMatcher = matchers.FirstOrDefault(m => m.Matcher == matcher);
-            if (existingMatcher == null)
-            {
+            if (existingMatcher == null) {
                 return;
             }
 
             existingMatcher.Hooks.RemoveAll(h => h.IsEqualTo(hook));
 
-            if (existingMatcher.Hooks.Count == 0)
-            {
+            if (existingMatcher.Hooks.Count == 0) {
                 matchers.Remove(existingMatcher);
             }
 
-            if (matchers.Count == 0)
-            {
+            if (matchers.Count == 0) {
                 settings.Hooks.Remove(eventKey);
             }
         }, cancellationToken).ConfigureAwait(false);
@@ -428,12 +380,9 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
     /// <summary>
     /// 原子编辑钩子配置文件 — per-file AsyncLock 串行执行 read→transform→write，消除并发竞态
     /// </summary>
-    private async Task EditHooksFileAsync(Action<HookSettingsFile> transform, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await _fs.EditFileAsync<bool>(_filePath, async (bytes, ct) =>
-            {
+    private async Task EditHooksFileAsync(Action<HookSettingsFile> transform, CancellationToken cancellationToken) {
+        try {
+            await _fs.EditFileAsync<bool>(_filePath, async (bytes, ct) => {
                 var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                 var settings = RelaxedJsonSerializer.Deserialize(content, HooksJsonContext.Default.HookSettingsFile)
                     ?? new HookSettingsFile { Hooks = new Dictionary<string, List<HookMatcher>>() };
@@ -442,9 +391,7 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
                 var newBytes = FileEncodingDetector.EncodeString(json, encoding);
                 return (newBytes, true);
             }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (FileNotFoundException)
-        {
+        } catch (FileNotFoundException) {
             var settings = new HookSettingsFile { Hooks = new Dictionary<string, List<HookMatcher>>() };
             transform(settings);
             var json = RelaxedJsonSerializer.Serialize(settings, HooksJsonContext.Default);
@@ -456,8 +403,7 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
 /// <summary>
 /// 钩子设置文件结构
 /// </summary>
-public partial class HookSettingsFile
-{
+public partial class HookSettingsFile {
     /// <summary>
     /// 钩子配置表 — 键为事件名称,值为该事件下的匹配器列表
     /// </summary>

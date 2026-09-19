@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Task;
 /// <summary>
 /// 任务项
 /// </summary>
-public sealed record TaskItem
-{
+public sealed record TaskItem {
     public required string Id { get; init; }
     public required string Title { get; init; }
     public string? Description { get; init; }
@@ -19,8 +18,7 @@ public sealed record TaskItem
 /// <summary>
 /// 任务依赖类型
 /// </summary>
-public enum TaskDependencyType
-{
+public enum TaskDependencyType {
     /// <summary>
     /// 阻塞关系 - 依赖任务完成后才能执行当前任务
     /// </summary>
@@ -40,8 +38,7 @@ public enum TaskDependencyType
 /// <summary>
 /// 任务依赖关系
 /// </summary>
-public sealed record TaskDependency
-{
+public sealed record TaskDependency {
     /// <summary>
     /// 任务ID
     /// </summary>
@@ -66,8 +63,7 @@ public sealed record TaskDependency
 /// <summary>
 /// 正在运行的任务信息
 /// </summary>
-public sealed record RunningTaskInfo
-{
+public sealed record RunningTaskInfo {
     public required string Id { get; init; }
     public required string Description { get; init; }
     public string Status { get; init; } = TaskExecutionStatusEnumConstants.Running;

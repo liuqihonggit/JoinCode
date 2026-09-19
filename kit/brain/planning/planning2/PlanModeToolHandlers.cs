@@ -5,8 +5,7 @@ namespace Core.Planning.ToolHandlers;
 /// 计划模式工具处理器 - 提供计划模式管理功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Plan)]
-public class PlanModeToolHandlers
-{
+public class PlanModeToolHandlers {
     private readonly IPlanModeManager _planModeManager;
     private readonly IChannelStateService? _channelStateService;
 
@@ -15,8 +14,7 @@ public class PlanModeToolHandlers
     /// </summary>
     /// <param name="planModeManager">计划模式管理器</param>
     /// <param name="channelStateService">频道状态服务（可选，激活时禁用 PlanMode）</param>
-    public PlanModeToolHandlers(IPlanModeManager planModeManager, IChannelStateService? channelStateService = null)
-    {
+    public PlanModeToolHandlers(IPlanModeManager planModeManager, IChannelStateService? channelStateService = null) {
         _planModeManager = planModeManager ?? throw new ArgumentNullException(nameof(planModeManager));
         _channelStateService = channelStateService;
     }
@@ -30,12 +28,10 @@ public class PlanModeToolHandlers
     [McpTool(PlanToolNameEnumConstants.EnterPlanMode, "Enter plan mode for complex tasks requiring exploration and design", "plan")]
     public async Task<ToolResult> EnterPlanModeAsync(
         [McpToolParameter("Plan description (optional)", Required = false)] string? description = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 对齐 TS EnterPlanModeTool.isEnabled: channels 激活时禁用 PlanMode
         // 原因: 退出审批对话框需要终端交互，channels 用户不在终端前会导致对话框挂起
-        if (_channelStateService?.IsChannelsEnabled == true)
-        {
+        if (_channelStateService?.IsChannelsEnabled == true) {
             var diag = BuildChannelsDisabledDiagnostic("enter");
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -44,8 +40,7 @@ public class PlanModeToolHandlers
             description,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var failDiag = BuildEnterPlanModeFailedDiagnostic(result.ErrorMessage);
             return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
@@ -55,8 +50,7 @@ public class PlanModeToolHandlers
         sb.AppendLine();
 
         // 对齐 TS plan_mode attachment: 注入 plan 文件路径，让 LLM 知道应该用 FileWriteTool 写 plan
-        if (result.PlanState?.PlanFilePath is not null)
-        {
+        if (result.PlanState?.PlanFilePath is not null) {
             sb.AppendLine($"## Plan File");
             sb.AppendLine($"You should write your plan to: {result.PlanState.PlanFilePath}");
             sb.AppendLine($"Use the {FileToolNameEnumConstants.FileWrite} to create and update this plan file as you explore.");
@@ -87,19 +81,16 @@ public class PlanModeToolHandlers
     public async Task<ToolResult> ExitPlanModeAsync(
         [McpToolParameter("Whether to execute remaining approved steps", Required = false)] bool? execute_remaining_steps = false,
         [McpToolParameter("Prompt-based permissions needed to implement the plan. Each entry specifies a tool and a semantic description of the action, e.g. {\"tool\":\"Bash\",\"prompt\":\"run tests\"}", Required = false)] Dictionary<string, JsonElement>[]? allowed_prompts = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 对齐 TS ExitPlanModeV2Tool.isEnabled: channels 激活时禁用 PlanMode 退出
         // 原因: 与 EnterPlanMode 配对，防止模型进入 PlanMode 后无法退出
-        if (_channelStateService?.IsChannelsEnabled == true)
-        {
+        if (_channelStateService?.IsChannelsEnabled == true) {
             var diag = BuildChannelsDisabledDiagnostic("exit");
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         // 对齐 TS AllowedPrompt: 将 Dictionary[] 转换为结构化 AllowedPrompt[]
-        AllowedPrompt[]? typedPrompts = allowed_prompts?.Select(d => new AllowedPrompt
-        {
+        AllowedPrompt[]? typedPrompts = allowed_prompts?.Select(d => new AllowedPrompt {
             Tool = d.TryGetValue("tool", out var toolEl) ? toolEl.GetString() ?? AllowedPromptToolEnumConstants.Bash : AllowedPromptToolEnumConstants.Bash,
             Prompt = d.TryGetValue("prompt", out var promptEl) ? promptEl.GetString() ?? "" : ""
         }).ToArray();
@@ -109,8 +100,7 @@ public class PlanModeToolHandlers
             allowedPrompts: typedPrompts,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             if (result.ErrorMessage?.Contains("Not currently in plan mode") == true)
                 return ToolResultBuilder.Success().WithText(result.ErrorMessage).Build();
             var failDiag = BuildExitPlanModeFailedDiagnostic(result.ErrorMessage);
@@ -119,14 +109,12 @@ public class PlanModeToolHandlers
 
         // 对齐 TS: teammate 退出 PlanMode 时等待 leader 审批
         // TS 返回 { awaitingLeaderApproval: true, requestId, plan, filePath }
-        if (result.AwaitingLeaderApproval)
-        {
+        if (result.AwaitingLeaderApproval) {
             var approvalSb = new System.Text.StringBuilder();
             approvalSb.AppendLine("Plan approval request sent to team lead. Waiting for approval...");
             if (!string.IsNullOrEmpty(result.ApprovalRequestId))
                 approvalSb.AppendLine($"Approval Request ID: {result.ApprovalRequestId}");
-            if (!string.IsNullOrEmpty(result.PlanFileContent))
-            {
+            if (!string.IsNullOrEmpty(result.PlanFileContent)) {
                 approvalSb.AppendLine();
                 approvalSb.AppendLine("Plan content:");
                 approvalSb.AppendLine(result.PlanFileContent);
@@ -139,23 +127,20 @@ public class PlanModeToolHandlers
         var editedTag = result.PlanState?.WasEditedByUser == true ? " (edited by user)" : "";
         sb.AppendLine($"User has approved your plan{editedTag}. You can now start coding. Start with updating your todo list if applicable");
 
-        if (result.PlanState != null)
-        {
+        if (result.PlanState != null) {
             sb.AppendLine();
             sb.AppendLine($"Plan ID: {result.PlanState.PlanId}");
             sb.AppendLine($"Completed steps: {result.PlanState.CompletedStepsCount}/{result.PlanState.TotalSteps}");
         }
 
-        if (!string.IsNullOrEmpty(result.ExecutionResult))
-        {
+        if (!string.IsNullOrEmpty(result.ExecutionResult)) {
             sb.AppendLine();
             sb.AppendLine("Execution result:");
             sb.AppendLine(result.ExecutionResult);
         }
 
         // 对齐 TS getPlan(): 输出从磁盘读取的 plan 文件内容（LLM 可能通过 FileWriteTool 修改了 plan）
-        if (!string.IsNullOrEmpty(result.PlanFileContent))
-        {
+        if (!string.IsNullOrEmpty(result.PlanFileContent)) {
             sb.AppendLine();
             sb.AppendLine("Plan file content:");
             sb.AppendLine(result.PlanFileContent);
@@ -169,12 +154,10 @@ public class PlanModeToolHandlers
     /// </summary>
     [McpTool(PlanToolNameEnumConstants.GetPlanStatus, "Get current plan status", "plan")]
     public async Task<ToolResult> GetPlanStatusAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var plan = await _planModeManager.GetPlanStatusAsync(cancellationToken).ConfigureAwait(false);
 
-        if (plan == null)
-        {
+        if (plan == null) {
             return ToolResultBuilder.Success().WithText("当前不在计划模式中").Build();
         }
 
@@ -190,12 +173,10 @@ public class PlanModeToolHandlers
         [McpToolParameter("Step description")] string description,
         [McpToolParameter("Tool name (optional)", Required = false)] string? tool_name = null,
         [McpToolParameter("Tool parameters (optional)", Required = false)] Dictionary<string, JsonElement>? parameters = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new AddPlanStepCommand(description, tool_name, parameters);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationErrorDiagnostic("add_step", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -206,8 +187,7 @@ public class PlanModeToolHandlers
             command.Parameters,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var failDiag = BuildOperationFailedDiagnostic("add_step", "添加步骤失败", result.ErrorMessage);
             return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
@@ -227,20 +207,17 @@ public class PlanModeToolHandlers
     [McpTool(PlanToolNameEnumConstants.ApprovePlanStep, "Approve a plan step", "plan")]
     public async Task<ToolResult> ApprovePlanStepAsync(
         [McpToolParameter("Step index (0-based)")] int step_index,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new ApprovePlanStepCommand(step_index);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationErrorDiagnostic("approve_step", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _planModeManager.ApproveStepAsync(command.StepIndex, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var failDiag = BuildOperationFailedDiagnostic("approve_step", "批准步骤失败", result.ErrorMessage);
             return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
@@ -256,28 +233,24 @@ public class PlanModeToolHandlers
     public async Task<ToolResult> RejectPlanStepAsync(
         [McpToolParameter("Step index (0-based)")] int step_index,
         [McpToolParameter("Rejection reason (optional)", Required = false)] string? reason = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new RejectPlanStepCommand(step_index, reason);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationErrorDiagnostic("reject_step", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _planModeManager.RejectStepAsync(command.StepIndex, command.Reason, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var failDiag = BuildOperationFailedDiagnostic("reject_step", "拒绝步骤失败", result.ErrorMessage);
             return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
 
         var response = new System.Text.StringBuilder();
         response.AppendLine($"步骤 {command.StepIndex} 已拒绝");
-        if (!string.IsNullOrEmpty(command.Reason))
-        {
+        if (!string.IsNullOrEmpty(command.Reason)) {
             response.AppendLine($"原因: {command.Reason}");
         }
 
@@ -289,12 +262,10 @@ public class PlanModeToolHandlers
     /// </summary>
     [McpTool(PlanToolNameEnumConstants.ExecutePlanSteps, "Execute approved plan steps", "plan")]
     public async Task<ToolResult> ExecutePlanStepsAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var result = await _planModeManager.ExecuteApprovedStepsAsync(cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             if (result.ErrorMessage?.Contains("不在计划模式") == true)
                 return ToolResultBuilder.Success().WithText(result.ErrorMessage).Build();
             var failDiag = BuildOperationFailedDiagnostic("execute_steps", "执行步骤失败", result.ErrorMessage);
@@ -304,13 +275,11 @@ public class PlanModeToolHandlers
         var response = new System.Text.StringBuilder();
         response.AppendLine("步骤执行完成");
 
-        if (result.PlanState != null)
-        {
+        if (result.PlanState != null) {
             response.AppendLine($"完成进度: {result.PlanState.CompletedStepsCount}/{result.PlanState.TotalSteps}");
         }
 
-        if (!string.IsNullOrEmpty(result.ExecutionResult))
-        {
+        if (!string.IsNullOrEmpty(result.ExecutionResult)) {
             response.AppendLine();
             response.AppendLine("执行详情:");
             response.AppendLine(result.ExecutionResult);
@@ -328,12 +297,10 @@ public class PlanModeToolHandlers
         [McpToolParameter("New description (optional)", Required = false)] string? new_description = null,
         [McpToolParameter("New tool name (optional)", Required = false)] string? new_tool_name = null,
         [McpToolParameter("New parameters (optional)", Required = false)] Dictionary<string, JsonElement>? new_parameters = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new ModifyPlanStepCommand(step_index, new_description, new_tool_name, new_parameters);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationErrorDiagnostic("modify_step", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -345,8 +312,7 @@ public class PlanModeToolHandlers
             command.NewParameters,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var failDiag = BuildOperationFailedDiagnostic("modify_step", "修改步骤失败", result.ErrorMessage);
             return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
@@ -361,20 +327,17 @@ public class PlanModeToolHandlers
     [McpTool(PlanToolNameEnumConstants.RemovePlanStep, "Remove a plan step", "plan")]
     public async Task<ToolResult> RemovePlanStepAsync(
         [McpToolParameter("Step index (0-based)")] int step_index,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new RemovePlanStepCommand(step_index);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationErrorDiagnostic("remove_step", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _planModeManager.RemoveStepAsync(command.StepIndex, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var failDiag = BuildOperationFailedDiagnostic("remove_step", "删除步骤失败", result.ErrorMessage);
             return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
@@ -389,8 +352,7 @@ public class PlanModeToolHandlers
     [McpTool(PlanToolNameEnumConstants.GetPlanHistory, "Get plan history", "plan")]
     public async Task<ToolResult> GetPlanHistoryAsync(
         [McpToolParameter("Result count limit (optional, default 10)", Required = false)] int? limit = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new GetPlanHistoryCommand(limit);
 
         var history = await _planModeManager.GetPlanHistoryAsync(
@@ -401,14 +363,10 @@ public class PlanModeToolHandlers
         response.AppendLine($"计划历史 (共 {history.Count} 个)");
         response.AppendLine();
 
-        if (history.Count == 0)
-        {
+        if (history.Count == 0) {
             response.AppendLine("暂无计划历史");
-        }
-        else
-        {
-            foreach (var plan in history)
-            {
+        } else {
+            foreach (var plan in history) {
                 response.AppendLine($"[{plan.PlanId}] {plan.Description ?? "无描述"}");
                 response.AppendLine($"  状态: {plan.Status} | 步骤: {plan.CompletedStepsCount}/{plan.TotalSteps} | 时间: {plan.CreatedAt:yyyy-MM-dd HH:mm}");
                 response.AppendLine();
@@ -420,8 +378,7 @@ public class PlanModeToolHandlers
 
     #region Diagnostic Builders
 
-    internal static ToolDiagnostic BuildChannelsDisabledDiagnostic(string operation)
-    {
+    internal static ToolDiagnostic BuildChannelsDisabledDiagnostic(string operation) {
         var msg = operation == "enter"
             ? "Plan mode is disabled when channels are active. The plan-approval dialog requires terminal interaction, which is not available when the user is on an external channel (Telegram/Discord/etc.)."
             : "Plan mode exit is disabled when channels are active. The plan-approval dialog requires terminal interaction.";
@@ -439,8 +396,7 @@ public class PlanModeToolHandlers
             ]);
     }
 
-    internal static ToolDiagnostic BuildEnterPlanModeFailedDiagnostic(string? errorMessage)
-    {
+    internal static ToolDiagnostic BuildEnterPlanModeFailedDiagnostic(string? errorMessage) {
         var msg = errorMessage ?? "Failed to enter plan mode";
         return ToolDiagnostic.Create(
             reason: "EnterPlanModeFailed",
@@ -455,8 +411,7 @@ public class PlanModeToolHandlers
             ]);
     }
 
-    internal static ToolDiagnostic BuildExitPlanModeFailedDiagnostic(string? errorMessage)
-    {
+    internal static ToolDiagnostic BuildExitPlanModeFailedDiagnostic(string? errorMessage) {
         var msg = errorMessage ?? "Failed to exit plan mode";
         return ToolDiagnostic.Create(
             reason: "ExitPlanModeFailed",
@@ -471,8 +426,7 @@ public class PlanModeToolHandlers
             ]);
     }
 
-    internal static ToolDiagnostic BuildValidationErrorDiagnostic(string operation, string validationError)
-    {
+    internal static ToolDiagnostic BuildValidationErrorDiagnostic(string operation, string validationError) {
         return ToolDiagnostic.Create(
             reason: $"PlanValidation_{operation}",
             formattedMessage: validationError,
@@ -488,8 +442,7 @@ public class PlanModeToolHandlers
     }
 
     internal static ToolDiagnostic BuildOperationFailedDiagnostic(
-        string operation, string defaultMessage, string? errorMessage)
-    {
+        string operation, string defaultMessage, string? errorMessage) {
         var msg = errorMessage ?? defaultMessage;
         return ToolDiagnostic.Create(
             reason: $"PlanOperationFailed_{operation}",
@@ -509,10 +462,8 @@ public class PlanModeToolHandlers
 
     #region Private Methods
 
-    private static string? ValidateCommand<TCommand>(TCommand command)
-    {
-        return command switch
-        {
+    private static string? ValidateCommand<TCommand>(TCommand command) {
+        return command switch {
             AddPlanStepCommand cmd => string.IsNullOrWhiteSpace(cmd.Description) ? "description 不能为空" : null,
             ApprovePlanStepCommand cmd => cmd.StepIndex < 0 ? "step_index 必须是非负数" : null,
             RejectPlanStepCommand cmd => cmd.StepIndex < 0 ? "step_index 必须是非负数" : null,
@@ -523,14 +474,12 @@ public class PlanModeToolHandlers
         };
     }
 
-    private static string FormatPlanStateResponse(PlanState plan, string header)
-    {
+    private static string FormatPlanStateResponse(PlanState plan, string header) {
         var response = new System.Text.StringBuilder();
         response.AppendLine($"{header}");
         response.AppendLine($"计划ID: {plan.PlanId}");
 
-        if (!string.IsNullOrEmpty(plan.Description))
-        {
+        if (!string.IsNullOrEmpty(plan.Description)) {
             response.AppendLine($"描述: {plan.Description}");
         }
 
@@ -539,12 +488,10 @@ public class PlanModeToolHandlers
         response.AppendLine($"当前步骤: {plan.CurrentStepIndex}");
         response.AppendLine($"创建时间: {plan.CreatedAt:yyyy-MM-dd HH:mm:ss}");
 
-        if (plan.Steps.Count > 0)
-        {
+        if (plan.Steps.Count > 0) {
             response.AppendLine();
             response.AppendLine("步骤列表:");
-            foreach (var step in plan.Steps)
-            {
+            foreach (var step in plan.Steps) {
                 response.AppendLine(FormatStepSummary(step));
             }
         }
@@ -552,10 +499,8 @@ public class PlanModeToolHandlers
         return response.ToString();
     }
 
-    private static string FormatStepSummary(PlanStep step)
-    {
-        var statusIcon = step.Status switch
-        {
+    private static string FormatStepSummary(PlanStep step) {
+        var statusIcon = step.Status switch {
             PlanStepStatus.Pending => StatusSymbol.Circle.ToValue(),
             PlanStepStatus.Approved => StatusSymbol.Tick.ToValue(),
             PlanStepStatus.Rejected => StatusSymbol.Cross.ToValue(),

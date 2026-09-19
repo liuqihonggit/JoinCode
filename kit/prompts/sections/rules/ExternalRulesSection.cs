@@ -5,19 +5,16 @@ namespace Core.Prompts.Sections;
 /// 始终应用的外部规则的提示词部分。
 /// </summary>
 [PromptSection(Name = "external_rules", Order = 8)]
-public static class ExternalRulesSection
-{
+public static class ExternalRulesSection {
     /// <summary>
     /// 获取 external_rules 部分内容；始终应用的外部规则，无规则时返回 null。
     /// </summary>
-    public static string? GetContent()
-    {
+    public static string? GetContent() {
         var externalRules = PromptConfigSnapshot.Current.ExternalRules;
         if (externalRules is null || externalRules.Count == 0) return null;
 
         var alwaysApplyRules = new List<ExternalRuleEntry>();
-        foreach (var rule in externalRules)
-        {
+        foreach (var rule in externalRules) {
             if (rule.AlwaysApply) alwaysApplyRules.Add(rule);
         }
 
@@ -29,8 +26,7 @@ public static class ExternalRulesSection
         sb.AppendLine("以下规则来自外部规则目录（.trae/rules/、.claude/rules/、.codex/rules/ 等），标记为始终应用：");
         sb.AppendLine();
 
-        foreach (var rule in alwaysApplyRules)
-        {
+        foreach (var rule in alwaysApplyRules) {
             sb.AppendLine($"## {rule.Name}");
             sb.AppendLine();
             sb.AppendLine(rule.Content);

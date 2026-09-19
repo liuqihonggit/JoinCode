@@ -1,10 +1,8 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class SourceDiffTests
-{
+public sealed class SourceDiffTests {
     [Fact]
-    public void ComputeEdit_SingleLineInsert_ReturnsCorrectEdit()
-    {
+    public void ComputeEdit_SingleLineInsert_ReturnsCorrectEdit() {
         var oldSource = "class A { }\nclass B { }";
         var newSource = "class A { }\nclass C { }\nclass B { }";
 
@@ -16,8 +14,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_SingleCharacterChange_ReturnsMinimalEdit()
-    {
+    public void ComputeEdit_SingleCharacterChange_ReturnsMinimalEdit() {
         var oldSource = "class A { }";
         var newSource = "class B { }";
 
@@ -35,8 +32,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_AppendAtEnd_ReturnsCorrectEdit()
-    {
+    public void ComputeEdit_AppendAtEnd_ReturnsCorrectEdit() {
         var oldSource = "class A { }";
         var newSource = "class A { }\nclass B { }";
 
@@ -48,8 +44,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_DeleteFromMiddle_ReturnsCorrectEdit()
-    {
+    public void ComputeEdit_DeleteFromMiddle_ReturnsCorrectEdit() {
         var oldSource = "class A { }\nclass B { }\nclass C { }";
         var newSource = "class A { }\nclass C { }";
 
@@ -61,8 +56,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_IdenticalSources_ReturnsZeroEdit()
-    {
+    public void ComputeEdit_IdenticalSources_ReturnsZeroEdit() {
         var source = "class A { }";
 
         var edit = SourceDiff.ComputeEdit(source, source);
@@ -73,8 +67,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_EmptyOldSource_ReturnsInsertAtStart()
-    {
+    public void ComputeEdit_EmptyOldSource_ReturnsInsertAtStart() {
         var newSource = "class A { }";
 
         var edit = SourceDiff.ComputeEdit(string.Empty, newSource);
@@ -87,8 +80,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_MultiLineInsert_PreservesLineNumbers()
-    {
+    public void ComputeEdit_MultiLineInsert_PreservesLineNumbers() {
         var oldSource = "line1\nline2\nline5";
         var newSource = "line1\nline2\nline3\nline4\nline5";
 
@@ -98,8 +90,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_MultiLineDelete_PreservesLineNumbers()
-    {
+    public void ComputeEdit_MultiLineDelete_PreservesLineNumbers() {
         var oldSource = "line1\nline2\nline3\nline4\nline5";
         var newSource = "line1\nline5";
 
@@ -109,8 +100,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_UnicodeContent_StartIndexIsByteOffset()
-    {
+    public void ComputeEdit_UnicodeContent_StartIndexIsByteOffset() {
         var oldSource = "class 你好 { }";
         var newSource = "class 世界 { }";
 
@@ -121,8 +111,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_UnicodeContent_OldEndIndexIsByteOffset()
-    {
+    public void ComputeEdit_UnicodeContent_OldEndIndexIsByteOffset() {
         var oldSource = "class 你好 { }";
         var newSource = "class 世界 { }";
 
@@ -133,8 +122,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_UnicodeContent_NewEndIndexIsByteOffset()
-    {
+    public void ComputeEdit_UnicodeContent_NewEndIndexIsByteOffset() {
         var oldSource = "class 你好 { }";
         var newSource = "class 世界 { }";
 
@@ -145,8 +133,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_UnicodeContent_ColumnIsByteOffsetWithinLine()
-    {
+    public void ComputeEdit_UnicodeContent_ColumnIsByteOffsetWithinLine() {
         var oldSource = "class 你好 { }";
         var newSource = "class 世界 { }";
 
@@ -158,8 +145,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_UnicodeMultiLine_ByteOffsetsCorrect()
-    {
+    public void ComputeEdit_UnicodeMultiLine_ByteOffsetsCorrect() {
         var oldSource = "// 注释\nclass A { }";
         var newSource = "// 备注\nclass A { }";
 
@@ -170,8 +156,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ByteOffset_SimpleAscii_ReturnsSameAsCharOffset()
-    {
+    public void ByteOffset_SimpleAscii_ReturnsSameAsCharOffset() {
         var text = "hello world";
 
         var byteOffset = SourceDiff.CharToByteOffset(text, 6);
@@ -180,8 +165,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ByteOffset_Unicode_ReturnsLargerThanCharOffset()
-    {
+    public void ByteOffset_Unicode_ReturnsLargerThanCharOffset() {
         var text = "你好世界";
 
         var byteOffset = SourceDiff.CharToByteOffset(text, 2);
@@ -190,8 +174,7 @@ public sealed class SourceDiffTests
     }
 
     [Fact]
-    public void ComputeEdit_RealWorldCSharpEdit_ReturnsCorrectPositions()
-    {
+    public void ComputeEdit_RealWorldCSharpEdit_ReturnsCorrectPositions() {
         var oldSource = """
             namespace MyApp;
 

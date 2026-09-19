@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Security;
 /// <summary>
 /// 子智能体交接安全审查 — 对齐 TS classifyHandoffIfNeeded
 /// </summary>
-public interface IHandoffClassifier
-{
+public interface IHandoffClassifier {
     /// <summary>
     /// 分类子智能体交接是否安全
     /// </summary>
@@ -14,8 +13,7 @@ public interface IHandoffClassifier
 /// <summary>
 /// 交接分类请求 — 对齐 TS classifyHandoffIfNeeded 参数
 /// </summary>
-public sealed partial class HandoffClassificationRequest
-{
+public sealed partial class HandoffClassificationRequest {
     /// <summary>
     /// 子智能体 ID
     /// </summary>
@@ -45,8 +43,7 @@ public sealed partial class HandoffClassificationRequest
 /// <summary>
 /// 子智能体工具调用记录
 /// </summary>
-public sealed partial class AgentToolInvocation
-{
+public sealed partial class AgentToolInvocation {
     public required string ToolName { get; init; }
     public required OperationType OperationType { get; init; }
     public Dictionary<string, JsonElement> Parameters { get; init; } = [];
@@ -56,8 +53,7 @@ public sealed partial class AgentToolInvocation
 /// <summary>
 /// 交接分类结果 — 对齐 TS classifyHandoffIfNeeded 返回值
 /// </summary>
-public sealed partial class HandoffClassificationResult
-{
+public sealed partial class HandoffClassificationResult {
     /// <summary>
     /// 分类级别
     /// </summary>
@@ -77,8 +73,7 @@ public sealed partial class HandoffClassificationResult
 /// <summary>
 /// 交接分类级别 — 对齐 TS classifyHandoffIfNeeded 的三种结果
 /// </summary>
-public enum HandoffClassification
-{
+public enum HandoffClassification {
     /// <summary>
     /// 安全 — 无需警告（对应 TS 返回 null）
     /// </summary>

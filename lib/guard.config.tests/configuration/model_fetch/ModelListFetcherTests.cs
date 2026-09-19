@@ -3,16 +3,13 @@ namespace Core.Configuration.ModelFetch.Tests;
 /// <summary>
 /// ModelListFetcher 单元测试 — 验证并行拉取、跳过逻辑、认证分派、失败容错、auth.json 读取
 /// </summary>
-public class ModelListFetcherTests
-{
+public class ModelListFetcherTests {
     private const string TestApiKeyEnv = "TEST_MODEL_FETCH_KEY";
 
     [Fact]
-    public async Task FetchAllAsync_ValidVendor_ReturnsModelIds()
-    {
+    public async Task FetchAllAsync_ValidVendor_ReturnsModelIds() {
         using var env = new EnvScope(TestApiKeyEnv, "sk-test");
-        var vendor = new Dictionary<string, ProfileSettings>
-        {
+        var vendor = new Dictionary<string, ProfileSettings> {
             ["openai"] = new() { Provider = "openai", Protocol = "openai-compatible", Endpoint = "https://api.openai.com/v1", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
@@ -26,11 +23,9 @@ public class ModelListFetcherTests
     }
 
     [Fact]
-    public async Task FetchAllAsync_EmptyEndpoint_SkipsProvider()
-    {
+    public async Task FetchAllAsync_EmptyEndpoint_SkipsProvider() {
         using var env = new EnvScope(TestApiKeyEnv, "sk-test");
-        var vendor = new Dictionary<string, ProfileSettings>
-        {
+        var vendor = new Dictionary<string, ProfileSettings> {
             ["no-endpoint"] = new() { Provider = "test", Protocol = "openai-compatible", Endpoint = null, ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
@@ -42,11 +37,9 @@ public class ModelListFetcherTests
     }
 
     [Fact]
-    public async Task FetchAllAsync_EmptyModelsEndpoint_SkipsProvider()
-    {
+    public async Task FetchAllAsync_EmptyModelsEndpoint_SkipsProvider() {
         using var env = new EnvScope(TestApiKeyEnv, "sk-test");
-        var vendor = new Dictionary<string, ProfileSettings>
-        {
+        var vendor = new Dictionary<string, ProfileSettings> {
             ["no-models-endpoint"] = new() { Provider = "test", Protocol = "openai-compatible", Endpoint = "https://example.com", ModelsEndpoint = null, ApiKeyEnvVar = TestApiKeyEnv }
         };
 
@@ -58,11 +51,9 @@ public class ModelListFetcherTests
     }
 
     [Fact]
-    public async Task FetchAllAsync_NoApiKey_SkipsProvider()
-    {
+    public async Task FetchAllAsync_NoApiKey_SkipsProvider() {
         using var env = new EnvScope(TestApiKeyEnv, null);
-        var vendor = new Dictionary<string, ProfileSettings>
-        {
+        var vendor = new Dictionary<string, ProfileSettings> {
             ["no-key"] = new() { Provider = "test", Protocol = "openai-compatible", Endpoint = "https://example.com", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
@@ -74,11 +65,9 @@ public class ModelListFetcherTests
     }
 
     [Fact]
-    public async Task FetchAllAsync_HttpError_SkipsProvider()
-    {
+    public async Task FetchAllAsync_HttpError_SkipsProvider() {
         using var env = new EnvScope(TestApiKeyEnv, "sk-test");
-        var vendor = new Dictionary<string, ProfileSettings>
-        {
+        var vendor = new Dictionary<string, ProfileSettings> {
             ["error"] = new() { Provider = "test", Protocol = "openai-compatible", Endpoint = "https://example.com", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
@@ -91,11 +80,9 @@ public class ModelListFetcherTests
     }
 
     [Fact]
-    public async Task FetchAllAsync_AnthropicProtocol_UsesXApiKeyHeader()
-    {
+    public async Task FetchAllAsync_AnthropicProtocol_UsesXApiKeyHeader() {
         using var env = new EnvScope(TestApiKeyEnv, "sk-anthropic");
-        var vendor = new Dictionary<string, ProfileSettings>
-        {
+        var vendor = new Dictionary<string, ProfileSettings> {
             ["anthropic"] = new() { Provider = "anthropic", Protocol = "anthropic", Endpoint = "https://api.anthropic.com", ModelsEndpoint = "v1/models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
@@ -112,11 +99,9 @@ public class ModelListFetcherTests
     }
 
     [Fact]
-    public async Task FetchAllAsync_OpenAiProtocol_UsesBearerAuth()
-    {
+    public async Task FetchAllAsync_OpenAiProtocol_UsesBearerAuth() {
         using var env = new EnvScope(TestApiKeyEnv, "sk-openai");
-        var vendor = new Dictionary<string, ProfileSettings>
-        {
+        var vendor = new Dictionary<string, ProfileSettings> {
             ["openai"] = new() { Provider = "openai", Protocol = "openai-compatible", Endpoint = "https://api.openai.com/v1", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
@@ -133,11 +118,9 @@ public class ModelListFetcherTests
     }
 
     [Fact]
-    public async Task FetchAllAsync_MultipleProviders_ParallelFetch()
-    {
+    public async Task FetchAllAsync_MultipleProviders_ParallelFetch() {
         using var env = new EnvScope(TestApiKeyEnv, "sk-test");
-        var vendor = new Dictionary<string, ProfileSettings>
-        {
+        var vendor = new Dictionary<string, ProfileSettings> {
             ["openai"] = new() { Provider = "openai", Protocol = "openai-compatible", Endpoint = "https://api.openai.com/v1", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv },
             ["agnes"] = new() { Provider = "agnes", Protocol = "openai-compatible", Endpoint = "https://apihub.agnes-ai.com/v1", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
@@ -155,11 +138,9 @@ public class ModelListFetcherTests
     }
 
     [Fact]
-    public async Task FetchAllAsync_AuthJsonApiKey_UsedWhenEnvVarMissing()
-    {
+    public async Task FetchAllAsync_AuthJsonApiKey_UsedWhenEnvVarMissing() {
         using var env = new EnvScope(TestApiKeyEnv, null);
-        var vendor = new Dictionary<string, ProfileSettings>
-        {
+        var vendor = new Dictionary<string, ProfileSettings> {
             ["sensenova"] = new() { Provider = "sensenova", Protocol = "openai-compatible", Endpoint = "https://token.sensenova.cn/v1", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
@@ -174,11 +155,9 @@ public class ModelListFetcherTests
     }
 
     [Fact]
-    public async Task FetchAllAsync_ResponseWithFullMetadata_ParsesAllFields()
-    {
+    public async Task FetchAllAsync_ResponseWithFullMetadata_ParsesAllFields() {
         using var env = new EnvScope(TestApiKeyEnv, "sk-test");
-        var vendor = new Dictionary<string, ProfileSettings>
-        {
+        var vendor = new Dictionary<string, ProfileSettings> {
             ["sensenova"] = new() { Provider = "sensenova", Protocol = "openai-compatible", Endpoint = "https://token.sensenova.cn/v1", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
@@ -199,16 +178,14 @@ public class ModelListFetcherTests
         model.SupportedFeatures.Should().Equal(["tools", "json_mode", "reasoning"]);
     }
 
-    private static IHttpClientProvider CreateProvider(HttpMessageHandler handler)
-    {
+    private static IHttpClientProvider CreateProvider(HttpMessageHandler handler) {
         var client = new HttpClient(handler);
         var mock = new Mock<IHttpClientProvider>();
         mock.Setup(x => x.GetClient()).Returns(client);
         return mock.Object;
     }
 
-    private static IFileSystem CreateFileSystem(bool authExists = false, string? authContent = null)
-    {
+    private static IFileSystem CreateFileSystem(bool authExists = false, string? authContent = null) {
         var mock = new Mock<IFileSystem>();
         mock.Setup(x => x.FileExists(It.IsAny<string>())).Returns(authExists);
         if (authExists && authContent is not null)
@@ -219,19 +196,16 @@ public class ModelListFetcherTests
     private static HttpResponseMessage Ok(string json)
         => new(HttpStatusCode.OK) { Content = new StringContent(json) };
 
-    private sealed class LambdaHandler : HttpMessageHandler
-    {
+    private sealed class LambdaHandler : HttpMessageHandler {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> _handler;
         public LambdaHandler(Func<HttpRequestMessage, HttpResponseMessage> handler) => _handler = handler;
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => Task.FromResult(_handler(request));
     }
 
-    private sealed class EnvScope : IDisposable
-    {
+    private sealed class EnvScope : IDisposable {
         private readonly string _var;
-        public EnvScope(string var, string? value)
-        {
+        public EnvScope(string var, string? value) {
             _var = var;
             Environment.SetEnvironmentVariable(var, value);
         }

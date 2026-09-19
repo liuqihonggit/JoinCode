@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Evidence;
 /// <summary>
 /// 证据链接验证结果
 /// </summary>
-public sealed class UrlVerificationResult
-{
+public sealed class UrlVerificationResult {
     /// <summary>
     /// 待验证的 URL
     /// </summary>

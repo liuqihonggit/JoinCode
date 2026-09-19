@@ -3,21 +3,17 @@ namespace Core.Skills.BuiltIn;
 /// <summary>
 /// 更新配置技能 — 修改 jcc 配置文件（settings.json）的权限、环境变量、钩子、模型设置等
 /// </summary>
-public sealed class UpdateConfigSkill
-{
+public sealed class UpdateConfigSkill {
     /// <summary>
     /// 创建技能定义
     /// </summary>
     /// <returns>更新配置技能的技能定义</returns>
-    public static SkillDefinition CreateDefinition()
-    {
-        return new SkillDefinition
-        {
+    public static SkillDefinition CreateDefinition() {
+        return new SkillDefinition {
             Name = "update-config",
             Description = "更新 jcc 配置（settings.json）— 权限、环境变量、钩子、模型设置等",
             Version = "1.0",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["target_file"] = new() { Type = "string", Description = "目标配置文件路径（如 settings.json、settings.local.json）", Required = true },
                 ["setting_path"] = new() { Type = "string", Description = "配置项路径（如 permissions.allow、env.DEBUG）", Required = true },
                 ["value"] = new() { Type = "string", Description = "新值（JSON 格式）", Required = true },

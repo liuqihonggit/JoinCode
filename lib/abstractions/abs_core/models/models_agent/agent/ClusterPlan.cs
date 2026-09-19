@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// <summary>
 /// 集群执行计划 — 由 DecomposabilityAnalyzer 输出构建
 /// </summary>
-public sealed class ClusterPlan
-{
+public sealed class ClusterPlan {
     public required string Objective { get; init; }
     public required DecompositionResult Decomposition { get; init; }
     public required ClusterExecutionOptions ExecutionOptions { get; init; }
@@ -16,8 +15,7 @@ public sealed class ClusterPlan
 /// <summary>
 /// 集群计划验证结果
 /// </summary>
-public sealed class ClusterPlanValidationResult
-{
+public sealed class ClusterPlanValidationResult {
     public bool IsValid { get; init; }
     public IReadOnlyList<string> Errors { get; init; } = [];
     public IReadOnlyList<string> Warnings { get; init; } = [];
@@ -33,8 +31,7 @@ public sealed class ClusterPlanValidationResult
 /// <summary>
 /// 文件冲突信息
 /// </summary>
-public sealed class FileConflictInfo
-{
+public sealed class FileConflictInfo {
     public required string FilePath { get; init; }
     public required IReadOnlyList<string> SubTaskIds { get; init; }
 }

@@ -6,15 +6,12 @@ namespace Hands.Tests.ToolHandlers;
 /// AgentStarted（首个 chunk 时，携带身份）→ 活动事件（AgentId 标记）→ AgentFinished（统计收尾）。
 /// 这是 GUI 多 subAgent 运行期显示的引擎侧数据源契约。
 /// </summary>
-public class AgentStreamExecutionMiddlewareTests
-{
-    private static AgentToolContext CreateContext() => new()
-    {
+public class AgentStreamExecutionMiddlewareTests {
+    private static AgentToolContext CreateContext() => new() {
         Description = "调研 GUI 方案",
         Prompt = "调研任务提示词",
         SubagentRole = AgentRole.Executor,
-        SpawnOptions = new AgentSpawnOptions
-        {
+        SpawnOptions = new AgentSpawnOptions {
             Description = "调研 GUI 方案",
             Prompt = "调研任务提示词",
             Role = AgentRole.Executor,
@@ -22,22 +19,19 @@ public class AgentStreamExecutionMiddlewareTests
         }
     };
 
-    private static Mock<IAgentService> CreateAgentService(params AgentStreamChunk[] chunks)
-    {
+    private static Mock<IAgentService> CreateAgentService(params AgentStreamChunk[] chunks) {
         var mock = new Mock<IAgentService>();
         mock.Setup(s => s.RunAgentStreamAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
             .Returns(chunks.ToAsyncEnumerable());
         return mock;
     }
 
-    private static async Task<IReadOnlyList<ChatStreamEvent>> InvokeAsync(AgentStreamChunk[] chunks)
-    {
+    private static async Task<IReadOnlyList<ChatStreamEvent>> InvokeAsync(AgentStreamChunk[] chunks) {
         var sut = new AgentStreamExecutionMiddleware(CreateAgentService(chunks).Object);
         var context = CreateContext();
         var channel = new SubAgentEventChannel();
 
-        using (channel.EnterScope())
-        {
+        using (channel.EnterScope()) {
             await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
         }
 
@@ -45,8 +39,7 @@ public class AgentStreamExecutionMiddlewareTests
     }
 
     [Fact]
-    public async Task Should_EmitStartedFirst_WithIdentityFromSpawnOptions()
-    {
+    public async Task Should_EmitStartedFirst_WithIdentityFromSpawnOptions() {
         var events = await InvokeAsync(
         [
             new AgentStreamChunk { Type = AgentStreamChunkType.Content, Content = "开始", AgentId = "ag-1" }
@@ -60,8 +53,7 @@ public class AgentStreamExecutionMiddlewareTests
     }
 
     [Fact]
-    public async Task Should_StampAgentId_OnActivityEvents()
-    {
+    public async Task Should_StampAgentId_OnActivityEvents() {
         var events = await InvokeAsync(
         [
             new AgentStreamChunk { Type = AgentStreamChunkType.ToolCallStart, ToolName = "FileRead", ToolCallId = "c1", AgentId = "ag-2" },
@@ -77,8 +69,7 @@ public class AgentStreamExecutionMiddlewareTests
     }
 
     [Fact]
-    public async Task Should_EmitFinishedLast_WithStatistics()
-    {
+    public async Task Should_EmitFinishedLast_WithStatistics() {
         var events = await InvokeAsync(
         [
             new AgentStreamChunk { Type = AgentStreamChunkType.Content, Content = "工作", AgentId = "ag-3" },
@@ -94,8 +85,7 @@ public class AgentStreamExecutionMiddlewareTests
     }
 
     [Fact]
-    public async Task OnError_Should_FinishWithFailure()
-    {
+    public async Task OnError_Should_FinishWithFailure() {
         var events = await InvokeAsync(
         [
             new AgentStreamChunk { Type = AgentStreamChunkType.Error, Content = "boom", AgentId = "ag-4" }
@@ -108,8 +98,7 @@ public class AgentStreamExecutionMiddlewareTests
     }
 
     [Fact]
-    public async Task WithoutChannel_Should_NotThrow()
-    {
+    public async Task WithoutChannel_Should_NotThrow() {
         // 无 GUI 通道时（CLI 纯文本模式等）静默跳过发射，执行不受影响
         var sut = new AgentStreamExecutionMiddleware(CreateAgentService(
             new AgentStreamChunk { Type = AgentStreamChunkType.Complete, Content = "done", ExecutionTimeMs = 1, AgentId = "ag-5" }).Object);

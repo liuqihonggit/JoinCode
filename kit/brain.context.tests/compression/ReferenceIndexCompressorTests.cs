@@ -1,25 +1,21 @@
 
 namespace Core.Tests.Context.Compression;
 
-public class ReferenceIndexCompressorTests
-{
+public class ReferenceIndexCompressorTests {
     private readonly ReferenceIndexCompressor _compressor = new();
 
     [Fact]
-    public void Name_ShouldReturnCorrectValue()
-    {
+    public void Name_ShouldReturnCorrectValue() {
         _compressor.Name.Should().Be("ReferenceIndexCompressor");
     }
 
     [Fact]
-    public void SupportedContentTypes_ShouldContainReferenceIndex()
-    {
+    public void SupportedContentTypes_ShouldContainReferenceIndex() {
         _compressor.SupportedContentTypes.Should().Contain(ContentType.ReferenceIndex);
     }
 
     [Fact]
-    public void CanHandle_ReferenceIndexContent_ShouldReturnTrue()
-    {
+    public void CanHandle_ReferenceIndexContent_ShouldReturnTrue() {
         var content = @"文件: Test.cs
 class Test
 method Method1
@@ -34,22 +30,19 @@ class Third";
     }
 
     [Fact]
-    public void CanHandle_NonReferenceIndexContent_ShouldReturnFalse()
-    {
+    public void CanHandle_NonReferenceIndexContent_ShouldReturnFalse() {
         var content = "public class Test { }";
         _compressor.CanHandle(content, ContentType.Code).Should().BeFalse();
     }
 
     [Fact]
-    public async Task CompressAsync_EmptyContent_ShouldReturnEmpty()
-    {
+    public async Task CompressAsync_EmptyContent_ShouldReturnEmpty() {
         var result = await _compressor.CompressAsync("", CompressionOptions.Default).ConfigureAwait(true);
         result.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldPreserveFilePaths()
-    {
+    public async Task CompressAsync_ShouldPreserveFilePaths() {
         var content = @"文件: Test.cs
 class Test
 
@@ -63,8 +56,7 @@ class Another";
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldGroupByFile()
-    {
+    public async Task CompressAsync_ShouldGroupByFile() {
         var content = @"文件: Test.cs
 class Test
 method Method1
@@ -76,8 +68,7 @@ method Method2";
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldRespectMaxEntries()
-    {
+    public async Task CompressAsync_ShouldRespectMaxEntries() {
         var content = string.Join("\n", Enumerable.Range(0, 10).Select(i =>
             $"文件: Test{i}.cs\nclass Test{i}"));
 
@@ -89,8 +80,7 @@ method Method2";
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldShowRemainingCount()
-    {
+    public async Task CompressAsync_ShouldShowRemainingCount() {
         var content = string.Join("\n", Enumerable.Range(0, 10).Select(i =>
             $"文件: Test{i}.cs\nclass Test{i}"));
 
@@ -101,8 +91,7 @@ method Method2";
     }
 
     [Fact]
-    public async Task CompressAsync_WithEnglishFormat_ShouldHandleCorrectly()
-    {
+    public async Task CompressAsync_WithEnglishFormat_ShouldHandleCorrectly() {
         var content = @"File: Test.cs
 class Test
 
@@ -116,8 +105,7 @@ class Another";
     }
 
     [Fact]
-    public async Task CompressAsync_WithRawFilePaths_ShouldHandleCorrectly()
-    {
+    public async Task CompressAsync_WithRawFilePaths_ShouldHandleCorrectly() {
         // 使用标准引用索引格式，包含文件路径前缀
         var content = @"文件: C:\Project\Test.cs
 class Test
@@ -133,8 +121,7 @@ class Another";
     }
 
     [Fact]
-    public void EstimateCompressionRatio_ManyEntries_ShouldReturnLowerRatio()
-    {
+    public void EstimateCompressionRatio_ManyEntries_ShouldReturnLowerRatio() {
         var content = string.Join("\n", Enumerable.Range(0, 100).Select(i =>
             $"文件: Test{i}.cs\nclass Test{i}"));
 
@@ -146,8 +133,7 @@ class Another";
     }
 
     [Fact]
-    public void EstimateCompressionRatio_FewEntries_ShouldReturnOne()
-    {
+    public void EstimateCompressionRatio_FewEntries_ShouldReturnOne() {
         var content = @"文件: Test.cs
 class Test";
 
@@ -158,15 +144,13 @@ class Test";
     }
 
     [Fact]
-    public void EstimateCompressionRatio_EmptyContent_ShouldReturnOne()
-    {
+    public void EstimateCompressionRatio_EmptyContent_ShouldReturnOne() {
         var ratio = _compressor.EstimateCompressionRatio("", CompressionOptions.Default);
         ratio.Should().Be(1.0);
     }
 
     [Fact]
-    public async Task CompressAsync_WithIdentifiers_ShouldIncludeInOutput()
-    {
+    public async Task CompressAsync_WithIdentifiers_ShouldIncludeInOutput() {
         var content = @"文件: Test.cs
 class TestClass
 method TestMethod";
@@ -177,8 +161,7 @@ method TestMethod";
     }
 
     [Fact]
-    public async Task CompressAsync_CancellationRequested_ShouldThrowOperationCanceledException()
-    {
+    public async Task CompressAsync_CancellationRequested_ShouldThrowOperationCanceledException() {
         var content = "文件: Test.cs\nclass Test";
         var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -188,8 +171,7 @@ method TestMethod";
     }
 
     [Fact]
-    public async Task CompressAsync_WithReferences_ShouldCountReferences()
-    {
+    public async Task CompressAsync_WithReferences_ShouldCountReferences() {
         var content = @"文件: Test.cs
 class Test
 引用: Other1

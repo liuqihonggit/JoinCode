@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Evidence;
 /// <summary>
 /// 数据项 — 推理链中的基本单元
 /// </summary>
-public sealed class DataItem
-{
+public sealed class DataItem {
     /// <summary>
     /// 唯一标识符，默认生成新的 GUID（N 格式无连字符）
     /// </summary>

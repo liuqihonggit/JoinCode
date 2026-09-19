@@ -3,13 +3,10 @@ namespace Dream.Tests.Models;
 /// <summary>
 /// 做梦任务 DTO 映射单元测试
 /// </summary>
-public sealed class DreamTaskDtoTests
-{
+public sealed class DreamTaskDtoTests {
     [Fact]
-    public void FromState_MapsAllProperties()
-    {
-        var state = new DreamTaskState
-        {
+    public void FromState_MapsAllProperties() {
+        var state = new DreamTaskState {
             Id = "d12345678",
             Description = "dreaming",
             StartTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -39,10 +36,8 @@ public sealed class DreamTaskDtoTests
     }
 
     [Fact]
-    public void ToState_MapsAllProperties()
-    {
-        var dto = new DreamTaskDto
-        {
+    public void ToState_MapsAllProperties() {
+        var dto = new DreamTaskDto {
             Id = "d12345678",
             Description = "dreaming",
             StartTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -72,10 +67,8 @@ public sealed class DreamTaskDtoTests
     }
 
     [Fact]
-    public void ToState_WithInvalidStatus_ParsesDefault()
-    {
-        var dto = new DreamTaskDto
-        {
+    public void ToState_WithInvalidStatus_ParsesDefault() {
+        var dto = new DreamTaskDto {
             Id = "d12345678",
             Description = "dreaming",
             StartTime = DateTime.UtcNow,
@@ -91,10 +84,8 @@ public sealed class DreamTaskDtoTests
     }
 
     [Fact]
-    public void ToState_WithInvalidPhase_ParsesDefault()
-    {
-        var dto = new DreamTaskDto
-        {
+    public void ToState_WithInvalidPhase_ParsesDefault() {
+        var dto = new DreamTaskDto {
             Id = "d12345678",
             Description = "dreaming",
             StartTime = DateTime.UtcNow,
@@ -110,10 +101,8 @@ public sealed class DreamTaskDtoTests
     }
 
     [Fact]
-    public void Roundtrip_PreservesValues()
-    {
-        var original = new DreamTaskState
-        {
+    public void Roundtrip_PreservesValues() {
+        var original = new DreamTaskState {
             Id = "d12345678",
             Description = "dreaming",
             StartTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),

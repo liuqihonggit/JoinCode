@@ -1,11 +1,9 @@
 
 namespace Core.Tests.Query;
 
-public class QueryEngineEnhancedTests
-{
+public class QueryEngineEnhancedTests {
     [Fact]
-    public void QueryEngine_Create_WithTokenBudgetManager_ShouldNotThrow()
-    {
+    public void QueryEngine_Create_WithTokenBudgetManager_ShouldNotThrow() {
         // Arrange
         var tokenBudgetManager = new TokenBudgetManager();
 
@@ -14,8 +12,7 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void QueryEngineConfig_CostTrackingSettings_ShouldHaveDefaults()
-    {
+    public void QueryEngineConfig_CostTrackingSettings_ShouldHaveDefaults() {
         var config = new QueryEngineConfig();
 
         config.CostTracking.Should().NotBeNull();
@@ -25,8 +22,7 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void CostTracker_TrackUsage_ShouldAccumulateTokens()
-    {
+    public void CostTracker_TrackUsage_ShouldAccumulateTokens() {
         // Arrange
         var config = new CostTrackingConfig { Enabled = true };
         var tracker = new Core.Query.TokenCostTracker(config);
@@ -42,11 +38,9 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void CostTracker_GetTotalCost_ShouldCalculateCorrectly()
-    {
+    public void CostTracker_GetTotalCost_ShouldCalculateCorrectly() {
         // Arrange
-        var config = new CostTrackingConfig
-        {
+        var config = new CostTrackingConfig {
             Enabled = true,
             InputTokenCostPer1K = 0.001m,
             OutputTokenCostPer1K = 0.002m
@@ -62,8 +56,7 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void CostTracker_WhenDisabled_ShouldReturnZeroCost()
-    {
+    public void CostTracker_WhenDisabled_ShouldReturnZeroCost() {
         // Arrange
         var config = new CostTrackingConfig { Enabled = false };
         var tracker = new Core.Query.TokenCostTracker(config);
@@ -76,8 +69,7 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void NullCostTracker_ShouldReturnZeroValues()
-    {
+    public void NullCostTracker_ShouldReturnZeroValues() {
         // Arrange
         var tracker = new NullTokenCostTracker();
 
@@ -96,11 +88,9 @@ public class QueryEngineEnhancedTests
     [InlineData(1, 1000)]
     [InlineData(2, 2000)]
     [InlineData(3, 4000)]
-    public void RetryConfig_CalculateDelay_WithExponentialBackoff_ShouldReturnExpectedValue(int retryCount, int expectedDelay)
-    {
+    public void RetryConfig_CalculateDelay_WithExponentialBackoff_ShouldReturnExpectedValue(int retryCount, int expectedDelay) {
         // Arrange
-        var config = new RetryConfig
-        {
+        var config = new RetryConfig {
             RetryDelayMs = 1000,
             EnableExponentialBackoff = true
         };
@@ -113,11 +103,9 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void RetryConfig_CalculateDelay_WithoutExponentialBackoff_ShouldReturnFixedDelay()
-    {
+    public void RetryConfig_CalculateDelay_WithoutExponentialBackoff_ShouldReturnFixedDelay() {
         // Arrange
-        var config = new RetryConfig
-        {
+        var config = new RetryConfig {
             RetryDelayMs = 1500,
             EnableExponentialBackoff = false
         };
@@ -130,11 +118,9 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void RetryConfig_CalculateDelay_ShouldNotExceedMaxDelay()
-    {
+    public void RetryConfig_CalculateDelay_ShouldNotExceedMaxDelay() {
         // Arrange
-        var config = new RetryConfig
-        {
+        var config = new RetryConfig {
             RetryDelayMs = 1000,
             EnableExponentialBackoff = true
         };
@@ -147,11 +133,9 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void QueryEngineConfig_MaxTokens_Validation_ShouldAcceptValidValues()
-    {
+    public void QueryEngineConfig_MaxTokens_Validation_ShouldAcceptValidValues() {
         // Arrange & Act
-        var config = new QueryEngineConfig
-        {
+        var config = new QueryEngineConfig {
             MaxTokens = 8000
         };
 
@@ -160,11 +144,9 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void QueryEngineConfig_Temperature_Validation_ShouldAcceptValidValues()
-    {
+    public void QueryEngineConfig_Temperature_Validation_ShouldAcceptValidValues() {
         // Arrange & Act
-        var config = new QueryEngineConfig
-        {
+        var config = new QueryEngineConfig {
             Temperature = 1.5f
         };
 
@@ -173,11 +155,9 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void QueryEngineConfig_TopP_Validation_ShouldAcceptValidValues()
-    {
+    public void QueryEngineConfig_TopP_Validation_ShouldAcceptValidValues() {
         // Arrange & Act
-        var config = new QueryEngineConfig
-        {
+        var config = new QueryEngineConfig {
             TopP = 0.8f
         };
 
@@ -186,11 +166,9 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void QueryStreamChunk_AllProperties_ShouldBeSettable()
-    {
+    public void QueryStreamChunk_AllProperties_ShouldBeSettable() {
         // Arrange & Act
-        var chunk = new QueryStreamChunk
-        {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = "Test content",
             ToolName = "TestTool",
@@ -211,11 +189,9 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void QueryStreamChunk_WithNullToolResult_ShouldNotThrow()
-    {
+    public void QueryStreamChunk_WithNullToolResult_ShouldNotThrow() {
         // Arrange & Act
-        var chunk = new QueryStreamChunk
-        {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.ToolCallEnd,
             ToolName = "TestTool",
             ToolResult = null
@@ -226,16 +202,14 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public async Task CostTracker_ConcurrentAccess_ShouldBeThreadSafe()
-    {
+    public async Task CostTracker_ConcurrentAccess_ShouldBeThreadSafe() {
         // Arrange
         var config = new CostTrackingConfig { Enabled = true };
         var tracker = new Core.Query.TokenCostTracker(config);
         var tasks = new List<Task>();
 
         // Act
-        for (int i = 0; i < 100; i++)
-        {
+        for (int i = 0; i < 100; i++) {
             tasks.Add(Task.Run(() => tracker.TrackUsage(10, 5)));
         }
         await Task.WhenAll(tasks).ConfigureAwait(true);
@@ -247,8 +221,7 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void QueryEngineConfig_ThinkingModeTags_ShouldHaveDefaults()
-    {
+    public void QueryEngineConfig_ThinkingModeTags_ShouldHaveDefaults() {
         // Arrange
         var config = new QueryEngineConfig();
 
@@ -258,8 +231,7 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void QueryEngineConfig_EnableThinkingMode_ShouldBeDisabledByDefault()
-    {
+    public void QueryEngineConfig_EnableThinkingMode_ShouldBeDisabledByDefault() {
         // Arrange
         var config = new QueryEngineConfig();
 
@@ -268,11 +240,9 @@ public class QueryEngineEnhancedTests
     }
 
     [Fact]
-    public void QueryEngineConfig_WhenThinkingModeEnabled_ShouldUseCustomTags()
-    {
+    public void QueryEngineConfig_WhenThinkingModeEnabled_ShouldUseCustomTags() {
         // Arrange & Act
-        var config = new QueryEngineConfig
-        {
+        var config = new QueryEngineConfig {
             EnableThinkingMode = true,
             ThinkingStartTag = "[[THINK]]",
             ThinkingEndTag = "[[/THINK]]"

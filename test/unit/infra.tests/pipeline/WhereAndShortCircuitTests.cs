@@ -3,13 +3,11 @@ namespace Infrastructure.Pipeline.Tests;
 /// <summary>
 /// Where 条件修饰 + ShortCircuit 短路标记 单元测试
 /// </summary>
-public sealed class WhereAndShortCircuitTests
-{
+public sealed class WhereAndShortCircuitTests {
     // === Where — 同步条件 ===
 
     [Fact]
-    public async Task Where_PredicateTrue_ExecutesMiddleware()
-    {
+    public async Task Where_PredicateTrue_ExecutesMiddleware() {
         var pipeline = new PipelineBuilder<TestContext>()
             .Use(new TrackingMiddleware("conditional")).Where(ctx => ctx.Enabled)
             .Build();
@@ -21,8 +19,7 @@ public sealed class WhereAndShortCircuitTests
     }
 
     [Fact]
-    public async Task Where_PredicateFalse_SkipsMiddleware()
-    {
+    public async Task Where_PredicateFalse_SkipsMiddleware() {
         var pipeline = new PipelineBuilder<TestContext>()
             .Use(new TrackingMiddleware("A"))
             .Use(new TrackingMiddleware("conditional")).Where(ctx => ctx.Enabled)
@@ -36,8 +33,7 @@ public sealed class WhereAndShortCircuitTests
     }
 
     [Fact]
-    public async Task Where_PredicateTrue_ExecutesAndContinuesPipeline()
-    {
+    public async Task Where_PredicateTrue_ExecutesAndContinuesPipeline() {
         var pipeline = new PipelineBuilder<TestContext>()
             .Use(new TrackingMiddleware("conditional")).Where(ctx => ctx.Enabled)
             .Use(new TrackingMiddleware("after"))
@@ -50,8 +46,7 @@ public sealed class WhereAndShortCircuitTests
     }
 
     [Fact]
-    public async Task Where_MultipleConditions_IndependentEvaluation()
-    {
+    public async Task Where_MultipleConditions_IndependentEvaluation() {
         var pipeline = new PipelineBuilder<TestContext>()
             .Use(new TrackingMiddleware("cond1")).Where(ctx => ctx.Enabled)
             .Use(new TrackingMiddleware("cond2")).Where(ctx => ctx.Flag)
@@ -65,8 +60,7 @@ public sealed class WhereAndShortCircuitTests
     }
 
     [Fact]
-    public async Task Where_WithoutUse_ThrowsInvalidOperationException()
-    {
+    public async Task Where_WithoutUse_ThrowsInvalidOperationException() {
         var builder = new PipelineBuilder<TestContext>();
         var act = () => builder.Where(ctx => ctx.Enabled);
         act.Should().Throw<InvalidOperationException>();
@@ -75,8 +69,7 @@ public sealed class WhereAndShortCircuitTests
     // === Where — 异步条件 ===
 
     [Fact]
-    public async Task Where_AsyncPredicateTrue_ExecutesMiddleware()
-    {
+    public async Task Where_AsyncPredicateTrue_ExecutesMiddleware() {
         var pipeline = new PipelineBuilder<TestContext>()
             .Use(new TrackingMiddleware("async-cond")).Where((ctx, ct) => new ValueTask<bool>(ctx.Enabled))
             .Build();
@@ -88,8 +81,7 @@ public sealed class WhereAndShortCircuitTests
     }
 
     [Fact]
-    public async Task Where_AsyncPredicateFalse_SkipsMiddleware()
-    {
+    public async Task Where_AsyncPredicateFalse_SkipsMiddleware() {
         var pipeline = new PipelineBuilder<TestContext>()
             .Use(new TrackingMiddleware("async-cond")).Where((ctx, ct) => new ValueTask<bool>(ctx.Enabled))
             .Use(new TrackingMiddleware("after"))
@@ -104,8 +96,7 @@ public sealed class WhereAndShortCircuitTests
     // === Where — 短路行为 ===
 
     [Fact]
-    public async Task Where_ConditionalMiddlewareShortCircuits_SkipsRemaining()
-    {
+    public async Task Where_ConditionalMiddlewareShortCircuits_SkipsRemaining() {
         var pipeline = new PipelineBuilder<TestContext>()
             .Use(new ShortCircuitWithLogMiddleware("cond-short")).Where(ctx => ctx.Enabled)
             .Use(new TrackingMiddleware("should-not-run"))
@@ -121,8 +112,7 @@ public sealed class WhereAndShortCircuitTests
     // === ShortCircuit — 管道级短路 ===
 
     [Fact]
-    public async Task WithShortCircuit_ContextShortCircuited_SkipsAllRemaining()
-    {
+    public async Task WithShortCircuit_ContextShortCircuited_SkipsAllRemaining() {
         var pipeline = new PipelineBuilder<ShortCircuitTestContext>()
             .WithShortCircuit(ctx => ctx.IsShortCircuited)
             .Use(new ShortCircuitTriggerMiddleware())
@@ -138,8 +128,7 @@ public sealed class WhereAndShortCircuitTests
     }
 
     [Fact]
-    public async Task WithShortCircuit_MultipleMiddlewares_StopsAtFirstShortCircuit()
-    {
+    public async Task WithShortCircuit_MultipleMiddlewares_StopsAtFirstShortCircuit() {
         var pipeline = new PipelineBuilder<ShortCircuitTestContext>()
             .WithShortCircuit(ctx => ctx.IsShortCircuited)
             .Use(new TrackingMiddleware("A"))
@@ -155,8 +144,7 @@ public sealed class WhereAndShortCircuitTests
     }
 
     [Fact]
-    public async Task WithShortCircuit_NoShortCircuit_ExecutesAll()
-    {
+    public async Task WithShortCircuit_NoShortCircuit_ExecutesAll() {
         var pipeline = new PipelineBuilder<ShortCircuitTestContext>()
             .WithShortCircuit(ctx => ctx.IsShortCircuited)
             .Use(new TrackingMiddleware("A"))
@@ -172,8 +160,7 @@ public sealed class WhereAndShortCircuitTests
     }
 
     [Fact]
-    public async Task WithShortCircuit_PostHookStillExecutes()
-    {
+    public async Task WithShortCircuit_PostHookStillExecutes() {
         var postHookInvoked = false;
         var pipeline = new PipelineBuilder<ShortCircuitTestContext>()
             .WithShortCircuit(ctx => ctx.IsShortCircuited)
@@ -189,8 +176,7 @@ public sealed class WhereAndShortCircuitTests
     }
 
     [Fact]
-    public async Task WithShortCircuit_NullPredicate_MiddlewareNotCallingNext_SkipsRemaining()
-    {
+    public async Task WithShortCircuit_NullPredicate_MiddlewareNotCallingNext_SkipsRemaining() {
         var pipeline = new PipelineBuilder<ShortCircuitTestContext>()
             .Use(new ShortCircuitTriggerMiddleware())
             .Use(new TrackingMiddleware("after"))
@@ -206,8 +192,7 @@ public sealed class WhereAndShortCircuitTests
     // === Where + ShortCircuit 组合 ===
 
     [Fact]
-    public async Task Where_WithShortCircuit_ConditionalMiddlewareTriggersShortCircuit()
-    {
+    public async Task Where_WithShortCircuit_ConditionalMiddlewareTriggersShortCircuit() {
         var pipeline = new PipelineBuilder<ShortCircuitTestContext>()
             .WithShortCircuit(ctx => ctx.IsShortCircuited)
             .Use(new ShortCircuitTriggerMiddleware()).Where(ctx => ctx.Enabled)
@@ -222,8 +207,7 @@ public sealed class WhereAndShortCircuitTests
     }
 
     [Fact]
-    public async Task Where_ConditionFalse_WithShortCircuit_DoesNotAffectPipeline()
-    {
+    public async Task Where_ConditionFalse_WithShortCircuit_DoesNotAffectPipeline() {
         var pipeline = new PipelineBuilder<ShortCircuitTestContext>()
             .WithShortCircuit(ctx => ctx.IsShortCircuited)
             .Use(new ShortCircuitTriggerMiddleware()).Where(ctx => ctx.Enabled)
@@ -240,15 +224,13 @@ public sealed class WhereAndShortCircuitTests
     // === ShortCircuitableContext 基类 ===
 
     [Fact]
-    public void ShortCircuitableContext_DefaultNotShortCircuited()
-    {
+    public void ShortCircuitableContext_DefaultNotShortCircuited() {
         var ctx = new TestShortCircuitableContext();
         ctx.IsShortCircuited.Should().BeFalse();
     }
 
     [Fact]
-    public void ShortCircuitableContext_ShortCircuit_SetsFlag()
-    {
+    public void ShortCircuitableContext_ShortCircuit_SetsFlag() {
         var ctx = new TestShortCircuitableContext();
         ctx.ShortCircuit();
         ctx.IsShortCircuited.Should().BeTrue();
@@ -256,15 +238,13 @@ public sealed class WhereAndShortCircuitTests
 
     // === 测试辅助类 ===
 
-    private sealed class TestContext
-    {
+    private sealed class TestContext {
         public List<string> ExecutionLog { get; } = [];
         public bool Enabled { get; set; }
         public bool Flag { get; set; }
     }
 
-    private sealed class ShortCircuitTestContext : IShortCircuitableContext
-    {
+    private sealed class ShortCircuitTestContext : IShortCircuitableContext {
         public List<string> ExecutionLog { get; } = [];
         public bool Enabled { get; set; }
         public bool IsShortCircuited { get; private set; }
@@ -273,38 +253,31 @@ public sealed class WhereAndShortCircuitTests
 
     private sealed class TestShortCircuitableContext : ShortCircuitableContext;
 
-    private sealed class TrackingMiddleware(string label) : IMiddleware<TestContext>, IMiddleware<ShortCircuitTestContext>
-    {
+    private sealed class TrackingMiddleware(string label) : IMiddleware<TestContext>, IMiddleware<ShortCircuitTestContext> {
         public ErrorBehavior OnError => ErrorBehavior.Continue;
 
-        public async Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct) {
             context.ExecutionLog.Add(label);
             await next(context, ct).ConfigureAwait(true);
         }
 
-        public async Task InvokeAsync(ShortCircuitTestContext context, MiddlewareDelegate<ShortCircuitTestContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(ShortCircuitTestContext context, MiddlewareDelegate<ShortCircuitTestContext> next, CancellationToken ct) {
             context.ExecutionLog.Add(label);
             await next(context, ct).ConfigureAwait(true);
         }
     }
 
-    private sealed class ShortCircuitWithLogMiddleware(string label) : IMiddleware<TestContext>
-    {
+    private sealed class ShortCircuitWithLogMiddleware(string label) : IMiddleware<TestContext> {
 
-        public Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct)
-        {
+        public Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct) {
             context.ExecutionLog.Add(label);
             return Task.CompletedTask;
         }
     }
 
-    private sealed class ShortCircuitTriggerMiddleware : IMiddleware<ShortCircuitTestContext>
-    {
+    private sealed class ShortCircuitTriggerMiddleware : IMiddleware<ShortCircuitTestContext> {
 
-        public Task InvokeAsync(ShortCircuitTestContext context, MiddlewareDelegate<ShortCircuitTestContext> next, CancellationToken ct)
-        {
+        public Task InvokeAsync(ShortCircuitTestContext context, MiddlewareDelegate<ShortCircuitTestContext> next, CancellationToken ct) {
             context.ExecutionLog.Add("trigger");
             context.ShortCircuit();
             return Task.CompletedTask;

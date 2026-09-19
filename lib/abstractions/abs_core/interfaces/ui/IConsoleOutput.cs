@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 控制台输出接口
 /// </summary>
-public interface IConsoleOutput
-{
+public interface IConsoleOutput {
     /// <summary>
     /// 输出文本
     /// </summary>

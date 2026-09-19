@@ -8,16 +8,13 @@ namespace EnumMetadata.Generator;
 /// 以及 AutoAllowedTools / PlanAllowedTools / AskAllowedTools / AutoDeniedTools / PlanDeniedTools / AskDeniedTools
 /// </summary>
 [Generator]
-public sealed class SecurityClassGenerator : IIncrementalGenerator
-{
+public sealed class SecurityClassGenerator : IIncrementalGenerator {
     private const string SecurityClassAttributeFullName = "JoinCode.Abstractions.Attributes.SecurityClassAttribute";
     private const string EnumValueAttributeFullName = "JoinCode.Abstractions.Attributes.EnumValueAttribute";
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
+    public void Initialize(IncrementalGeneratorInitializationContext context) {
         var toolInfos = context.CompilationProvider
-            .SelectMany(static (compilation, _) =>
-            {
+            .SelectMany(static (compilation, _) => {
                 var securityAttr = compilation.GetTypeByMetadataName(SecurityClassAttributeFullName);
                 var enumValueAttr = compilation.GetTypeByMetadataName(EnumValueAttributeFullName);
                 if (securityAttr is null || enumValueAttr is null)
@@ -29,8 +26,7 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
             })
             .Collect();
 
-        context.RegisterSourceOutput(toolInfos, static (ctx, tools) =>
-        {
+        context.RegisterSourceOutput(toolInfos, static (ctx, tools) => {
             GenerateToolSecuritySets(ctx, tools);
         });
     }
@@ -40,17 +36,13 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
         IAssemblySymbol currentAssembly,
         INamedTypeSymbol securityAttr,
         INamedTypeSymbol enumValueAttr,
-        List<ToolSecurityInfo> results)
-    {
-        foreach (var member in namespaceSymbol.GetMembers())
-        {
+        List<ToolSecurityInfo> results) {
+        foreach (var member in namespaceSymbol.GetMembers()) {
             if (member is INamespaceSymbol childNamespace)
                 VisitNamespaces(childNamespace, currentAssembly, securityAttr, enumValueAttr, results);
             else if (member is INamedTypeSymbol { TypeKind: TypeKind.Enum } enumType
-                     && SymbolEqualityComparer.Default.Equals(enumType.ContainingAssembly, currentAssembly))
-            {
-                foreach (var field in enumType.GetMembers().OfType<IFieldSymbol>())
-                {
+                     && SymbolEqualityComparer.Default.Equals(enumType.ContainingAssembly, currentAssembly)) {
+                foreach (var field in enumType.GetMembers().OfType<IFieldSymbol>()) {
                     var secAttr = field.GetAttributes()
                         .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, securityAttr));
 
@@ -65,10 +57,8 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
 
                     var namedArgs = secAttr.NamedArguments;
 
-                    bool GetNamedArg(string name, bool defaultVal = false)
-                    {
-                        foreach (var kvp in namedArgs)
-                        {
+                    bool GetNamedArg(string name, bool defaultVal = false) {
+                        foreach (var kvp in namedArgs) {
                             if (kvp.Key == name && kvp.Value.Value is bool v)
                                 return v;
                         }
@@ -90,8 +80,7 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
         }
     }
 
-    private static void GenerateToolSecuritySets(SourceProductionContext context, ImmutableArray<ToolSecurityInfo> tools)
-    {
+    private static void GenerateToolSecuritySets(SourceProductionContext context, ImmutableArray<ToolSecurityInfo> tools) {
         if (tools.IsEmpty) return;
 
         var sb = new StringBuilder();
@@ -128,11 +117,9 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
         context.AddSource("ToolSecuritySets.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private static void GenerateClassificationSet(StringBuilder sb, string setName, string description, ImmutableArray<ToolSecurityInfo> tools, string classification)
-    {
+    private static void GenerateClassificationSet(StringBuilder sb, string setName, string description, ImmutableArray<ToolSecurityInfo> tools, string classification) {
         var matching = tools.Where(t => t.Classification == classification).ToList();
-        if (matching.Count == 0)
-        {
+        if (matching.Count == 0) {
             sb.AppendLine($"    /// <summary>{description}</summary>");
             sb.AppendLine($"    public static readonly FrozenSet<string> {setName} = FrozenSet<string>.Empty;");
             sb.AppendLine();
@@ -142,8 +129,7 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
         sb.AppendLine($"    /// <summary>{description}</summary>");
         sb.AppendLine($"    public static readonly FrozenSet<string> {setName} = new HashSet<string>(StringComparer.OrdinalIgnoreCase)");
         sb.AppendLine("    {");
-        for (int i = 0; i < matching.Count; i++)
-        {
+        for (int i = 0; i < matching.Count; i++) {
             var comma = i < matching.Count - 1 ? "," : ",";
             sb.AppendLine($"        \"{EscapeString(matching[i].ToolName)}\"{comma}");
         }
@@ -151,11 +137,9 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
         sb.AppendLine();
     }
 
-    private static void GeneratePermissionSet(StringBuilder sb, string setName, string description, ImmutableArray<ToolSecurityInfo> tools, Func<ToolSecurityInfo, bool> predicate)
-    {
+    private static void GeneratePermissionSet(StringBuilder sb, string setName, string description, ImmutableArray<ToolSecurityInfo> tools, Func<ToolSecurityInfo, bool> predicate) {
         var matching = tools.Where(predicate).ToList();
-        if (matching.Count == 0)
-        {
+        if (matching.Count == 0) {
             sb.AppendLine($"    /// <summary>{description}</summary>");
             sb.AppendLine($"    public static readonly FrozenSet<string> {setName} = FrozenSet<string>.Empty;");
             sb.AppendLine();
@@ -165,8 +149,7 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
         sb.AppendLine($"    /// <summary>{description}</summary>");
         sb.AppendLine($"    public static readonly FrozenSet<string> {setName} = new HashSet<string>(StringComparer.OrdinalIgnoreCase)");
         sb.AppendLine("    {");
-        for (int i = 0; i < matching.Count; i++)
-        {
+        for (int i = 0; i < matching.Count; i++) {
             sb.AppendLine($"        \"{EscapeString(matching[i].ToolName)}\",");
         }
         sb.AppendLine("    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);");
@@ -175,8 +158,7 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
 
     private static string EscapeString(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
-    private sealed class ToolSecurityInfo
-    {
+    private sealed class ToolSecurityInfo {
         public string ToolName { get; }
         public string Classification { get; }
         public bool AutoAllowed { get; }
@@ -187,8 +169,7 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
         public bool AskDenied { get; }
         public bool AgentDestructive { get; }
 
-        public ToolSecurityInfo(string ToolName, string Classification, bool AutoAllowed, bool PlanAllowed, bool AskAllowed, bool AutoDenied, bool PlanDenied, bool AskDenied, bool AgentDestructive)
-        {
+        public ToolSecurityInfo(string ToolName, string Classification, bool AutoAllowed, bool PlanAllowed, bool AskAllowed, bool AutoDenied, bool PlanDenied, bool AskDenied, bool AgentDestructive) {
             this.ToolName = ToolName;
             this.Classification = Classification;
             this.AutoAllowed = AutoAllowed;

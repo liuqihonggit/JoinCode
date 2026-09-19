@@ -4,21 +4,17 @@ namespace Core.Skills.BuiltIn;
 /// <summary>
 /// 循环技能 — 循环调度执行任务，支持终止条件和最大迭代次数
 /// </summary>
-public sealed class LoopSkill
-{
+public sealed class LoopSkill {
     /// <summary>
     /// 创建技能定义
     /// </summary>
     /// <returns>循环技能的技能定义</returns>
-    public static SkillDefinition CreateDefinition()
-    {
-        return new SkillDefinition
-        {
+    public static SkillDefinition CreateDefinition() {
+        return new SkillDefinition {
             Name = "loop",
             Description = "循环调度执行任务",
             Version = "1.0",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["task"] = new() { Type = "string", Description = "要循环执行的任务描述", Required = true },
                 ["condition"] = new() { Type = "string", Description = "终止条件（如：测试通过、错误数为0）", Required = false },
                 ["maxIterations"] = new() { Type = "integer", Description = "最大迭代次数", Required = false, DefaultValue = 10, Validation = new ParameterValidation { Min = 1, Max = 100 } }

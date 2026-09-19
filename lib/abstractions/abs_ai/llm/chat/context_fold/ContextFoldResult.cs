@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class ContextFoldResult
-{
+public sealed class ContextFoldResult {
     public bool Folded { get; init; }
     public int HeadMessageCount { get; init; }
     public int TailMessageCount { get; init; }

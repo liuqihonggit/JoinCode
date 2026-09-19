@@ -7,8 +7,7 @@ namespace Infrastructure.Network.Downloader.Coordinator;
 /// <para>代理支持:DownloadOptions.ProxyUrl > HTTPS_PROXY/HTTP_PROXY 环境变量 > VPN/代理路由识别</para>
 /// </summary>
 [Register(typeof(IDownloader), ServiceLifetime.Singleton)]
-public sealed partial class RangeDownloader : ServiceEntity, IDownloader
-{
+public sealed partial class RangeDownloader : ServiceEntity, IDownloader {
     private readonly IHttpClientProvider _httpClientProvider;
     private readonly IFileSystem _fs;
     private readonly TimeProvider? _clock;
@@ -29,8 +28,7 @@ public sealed partial class RangeDownloader : ServiceEntity, IDownloader
         IFileSystem fs,
         TimeProvider? clock = null,
         ILogger<RangeDownloader>? logger = null,
-        INetworkConnectivityService? networkService = null)
-    {
+        INetworkConnectivityService? networkService = null) {
         _httpClientProvider = httpClientProvider;
         _fs = fs;
         _clock = clock;
@@ -44,8 +42,7 @@ public sealed partial class RangeDownloader : ServiceEntity, IDownloader
         string filePath,
         DownloadOptions? options = null,
         IProgress<DownloadProgress>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var proxyUrl = ResolveProxyUrl(options?.ProxyUrl, _networkService);
         var httpClient = GetHttpClient(proxyUrl);
         var session = new DownloadSession(httpClient, _fs, url, filePath, options, progress, _clock);
@@ -59,8 +56,7 @@ public sealed partial class RangeDownloader : ServiceEntity, IDownloader
     /// <param name="optionsProxy">DownloadOptions.ProxyUrl(显式指定,最高优先级)</param>
     /// <param name="networkService">网络连接性服务(可选,用于 VPN/代理路由识别)</param>
     /// <returns>代理 URL(无代理时返回 null)</returns>
-    internal static string? ResolveProxyUrl(string? optionsProxy, INetworkConnectivityService? networkService)
-    {
+    internal static string? ResolveProxyUrl(string? optionsProxy, INetworkConnectivityService? networkService) {
         if (!string.IsNullOrWhiteSpace(optionsProxy))
             return optionsProxy;
 
@@ -71,8 +67,7 @@ public sealed partial class RangeDownloader : ServiceEntity, IDownloader
         if (!string.IsNullOrWhiteSpace(envProxy))
             return envProxy;
 
-        if (networkService is not null)
-        {
+        if (networkService is not null) {
             var route = networkService.GetCurrentRoute();
             if (!string.IsNullOrWhiteSpace(route.ProxyUrl))
                 return route.ProxyUrl;
@@ -84,13 +79,11 @@ public sealed partial class RangeDownloader : ServiceEntity, IDownloader
     /// <summary>
     /// 获取 HttpClient — 有代理时创建带代理的 HttpClient(按 proxyUrl 缓存),无代理时用 IHttpClientProvider
     /// </summary>
-    internal HttpClient GetHttpClient(string? proxyUrl)
-    {
+    internal HttpClient GetHttpClient(string? proxyUrl) {
         if (string.IsNullOrWhiteSpace(proxyUrl))
             return _httpClientProvider.GetClient();
 
-        return _proxiedClients.GetOrAdd(proxyUrl!, url =>
-        {
+        return _proxiedClients.GetOrAdd(proxyUrl!, url => {
             var handler = new HttpClientHandler { Proxy = new WebProxy(url) };
             return new HttpClient(handler);
         });

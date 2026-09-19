@@ -1,11 +1,9 @@
 namespace Abs.Tests.LLM.Chat;
 
 
-public class MessageListFromListTests
-{
+public class MessageListFromListTests {
     [Fact]
-    public void FromList_Preserves_Element_Count_And_References()
-    {
+    public void FromList_Preserves_Element_Count_And_References() {
         var msg1 = new ApiMessage(MessageRole.System, "system");
         var msg2 = new ApiMessage(MessageRole.User, "hello");
         var source = new List<ApiMessage> { msg1, msg2 };
@@ -18,8 +16,7 @@ public class MessageListFromListTests
     }
 
     [Fact]
-    public void FromList_Empty_List_Produces_Empty_MessageList()
-    {
+    public void FromList_Empty_List_Produces_Empty_MessageList() {
         var source = new List<ApiMessage>();
 
         var ml = MessageList.FromList(source);
@@ -28,8 +25,7 @@ public class MessageListFromListTests
     }
 
     [Fact]
-    public void FromList_Single_Element_Roundtrips()
-    {
+    public void FromList_Single_Element_Roundtrips() {
         var msg = new ApiMessage(MessageRole.Assistant, "response");
         var source = new List<ApiMessage> { msg };
 
@@ -41,8 +37,7 @@ public class MessageListFromListTests
     }
 
     [Fact]
-    public void FromList_Supports_Enumeration()
-    {
+    public void FromList_Supports_Enumeration() {
         var msgs = new List<ApiMessage>
         {
             new(MessageRole.System, "s"),
@@ -57,8 +52,7 @@ public class MessageListFromListTests
     }
 
     [Fact]
-    public void FromList_Add_After_Creation_Works()
-    {
+    public void FromList_Add_After_Creation_Works() {
         var source = new List<ApiMessage>
         {
             new(MessageRole.User, "first"),

@@ -4,14 +4,12 @@ namespace Core.Prompts.Sections;
 /// 输出样式：学习模式
 /// </summary>
 [PromptSection(Name = "output_style_learning", Keywords = new[] { "学习", "learning", "边做边学", "教程", "tutorial", "guide" }, InjectOn = PromptSectionInject.Keyword, Order = 81)]
-public static class LearningStyleSection
-{
+public static class LearningStyleSection {
     /// <summary>
     /// 获取学习模式输出样式部分的内容。
     /// </summary>
     /// <returns>学习模式样式提示词文本。</returns>
-    public static string GetContent()
-    {
+    public static string GetContent() {
         return $"""
 # 输出样式：学习
 

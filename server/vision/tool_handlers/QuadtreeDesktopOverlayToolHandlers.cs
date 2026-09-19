@@ -4,8 +4,7 @@ namespace JoinCode.Vision.ToolHandlers;
 /// 四叉树桌面叠加工具处理器(ADR 0032 延伸应用)— 把四叉树格子转换为屏幕坐标供 LLM 调 show_desktop_overlay 画框
 /// </summary>
 [McpToolDispatch(ToolCategory.Vision)]
-public class QuadtreeDesktopOverlayToolHandlers
-{
+public class QuadtreeDesktopOverlayToolHandlers {
     private readonly IQuadtreeAnnotator _annotator;
     private readonly IQuadtreeDesktopOverlayMapper _mapper;
     private readonly ILogger<QuadtreeDesktopOverlayToolHandlers>? _logger;
@@ -19,8 +18,7 @@ public class QuadtreeDesktopOverlayToolHandlers
     public QuadtreeDesktopOverlayToolHandlers(
         IQuadtreeAnnotator annotator,
         IQuadtreeDesktopOverlayMapper mapper,
-        ILogger<QuadtreeDesktopOverlayToolHandlers>? logger = null)
-    {
+        ILogger<QuadtreeDesktopOverlayToolHandlers>? logger = null) {
         _annotator = annotator ?? throw new ArgumentNullException(nameof(annotator));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         _logger = logger;
@@ -35,8 +33,7 @@ public class QuadtreeDesktopOverlayToolHandlers
         [McpToolParameter("原图左上角在屏幕的X坐标", Required = true)] int originScreenX,
         [McpToolParameter("原图左上角在屏幕的Y坐标", Required = true)] int originScreenY,
         [McpToolParameter("染色映射JSON(可选),不传则全部格子可见。格式: {\"L0.0\":0.5}", Required = false)] string? paintsJson = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (imageWidth <= 0 || imageHeight <= 0)
             return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS160] 图片尺寸必须为正").Build());
         if (depth < 0)
@@ -44,23 +41,17 @@ public class QuadtreeDesktopOverlayToolHandlers
 
         var grid = _annotator.BuildGrid(imageWidth, imageHeight, depth);
 
-        if (!string.IsNullOrWhiteSpace(paintsJson))
-        {
+        if (!string.IsNullOrWhiteSpace(paintsJson)) {
             Dictionary<string, double>? paints;
-            try
-            {
+            try {
                 paints = RelaxedJsonSerializer.Deserialize(paintsJson, VisionJsonContext.Default.DictionaryStringDouble);
-            }
-            catch (JsonException)
-            {
+            } catch (JsonException) {
                 return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS161] paintsJson 解析失败").Build());
             }
             if (paints is null || paints.Count == 0)
                 return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS161] paintsJson 解析失败或为空").Build());
             grid = _annotator.PaintCells(grid, paints);
-        }
-        else
-        {
+        } else {
             var defaultPaints = new Dictionary<string, double>(grid.Cells.Count);
             foreach (var cell in grid.Cells)
                 defaultPaints[cell.Code] = 0.3;

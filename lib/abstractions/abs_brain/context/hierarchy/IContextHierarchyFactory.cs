@@ -1,6 +1,5 @@
 namespace JoinCode.Abstractions.Brain.Context.Hierarchy;
 
-public interface IContextHierarchyFactory
-{
+public interface IContextHierarchyFactory {
     IContextHierarchy Create(ContextHierarchyOptions options);
 }

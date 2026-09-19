@@ -8,19 +8,16 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Install, Description = "让 AI 执行安装任务", Usage = "/install <package-or-command>", Category = ChatCommandCategory.Tools, ArgumentHint = "<package-or-command>")]
 [ChatCommandArg("package", Type = "string", Description = "要安装的包名或命令", Required = true)]
-public sealed class InstallCommand : ChatCommandBase
-{
+public sealed class InstallCommand : ChatCommandBase {
     /// <summary>
     /// 异步执行 /install 命令，将安装任务发送给 AI 执行
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var target = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(target))
-        {
+        if (string.IsNullOrEmpty(target)) {
             // 无参数时：StepFlow 引导选择安装目标
             var flow = new StepFlow(
             [
@@ -41,25 +38,19 @@ public sealed class InstallCommand : ChatCommandBase
 
         var stepResult = await installFlow.ShowAsync(context.CancellationToken).ConfigureAwait(false);
 
-        if (stepResult < 0)
-        {
+        if (stepResult < 0) {
             TerminalHelper.WriteLine("安装已取消");
             return ChatCommandResult.Continue();
         }
 
         var prompt = $"Please install {target} on this system. Detect the operating system and use the appropriate package manager. Verify the installation was successful after completing it.";
 
-        try
-        {
+        try {
             var result = await context.GetCommandServices().ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine(result);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             TerminalHelper.WriteLine("安装任务已取消");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("安装任务", ex);
         }
 

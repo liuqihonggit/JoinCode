@@ -4,22 +4,18 @@ namespace Guard.Security.Tests;
 /// DangerousCommandProtectionMiddleware 单元测试 — 验证 Bypass 模式下黑灯(Dangerous)穿透漏洞已修复
 /// 安全红线: Dangerous 级在所有模式(含 Bypass)下都必须拒绝
 /// </summary>
-public class DangerousCommandProtectionMiddlewareTests
-{
+public class DangerousCommandProtectionMiddlewareTests {
     private readonly CommandDangerClassifier _classifier = new();
 
     /// <summary>
     /// 构造 Shell 工具权限检查上下文
     /// </summary>
-    private static PermissionCheckContext CreateContext(PermissionMode mode, string command, HashSet<CommandDangerLevel>? approvedLevels = null)
-    {
+    private static PermissionCheckContext CreateContext(PermissionMode mode, string command, HashSet<CommandDangerLevel>? approvedLevels = null) {
         var config = PermissionConfig.CreateDefault();
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["command"] = JsonSerializer.SerializeToElement(command, HooksJsonContext.Default.String)
         };
-        return new PermissionCheckContext
-        {
+        return new PermissionCheckContext {
             ToolName = "bash",
             Arguments = args,
             CurrentMode = mode,
@@ -39,8 +35,7 @@ public class DangerousCommandProtectionMiddlewareTests
     [InlineData("fdisk /dev/sda")]
     [InlineData("shred /etc/passwd")]
     [InlineData("dd if=/dev/zero of=/dev/sda")]
-    public async Task Bypass_Mode_Should_Reject_Dangerous_Command(string command)
-    {
+    public async Task Bypass_Mode_Should_Reject_Dangerous_Command(string command) {
         var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var context = CreateContext(PermissionMode.Bypass, command);
         var nextCalled = false;
@@ -56,8 +51,7 @@ public class DangerousCommandProtectionMiddlewareTests
     [InlineData("rm file.txt")]
     [InlineData("git commit -m \"msg\"")]
     [InlineData("ls")]
-    public async Task Bypass_Mode_Should_Allow_NonDangerous_Command(string command)
-    {
+    public async Task Bypass_Mode_Should_Allow_NonDangerous_Command(string command) {
         var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var context = CreateContext(PermissionMode.Bypass, command);
         var nextCalled = false;
@@ -76,8 +70,7 @@ public class DangerousCommandProtectionMiddlewareTests
     [InlineData(PermissionMode.Plan)]
     [InlineData(PermissionMode.Auto)]
     [InlineData(PermissionMode.Ask)]
-    public async Task All_NonBypass_Modes_Should_Reject_Dangerous(PermissionMode mode)
-    {
+    public async Task All_NonBypass_Modes_Should_Reject_Dangerous(PermissionMode mode) {
         var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var context = CreateContext(mode, "rm -rf /");
 
@@ -92,8 +85,7 @@ public class DangerousCommandProtectionMiddlewareTests
     #region 同级别自动通过验证
 
     [Fact]
-    public async Task SameLevelApproval_LightValidation_Should_AutoApprove()
-    {
+    public async Task SameLevelApproval_LightValidation_Should_AutoApprove() {
         var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.LightValidation };
         var context = CreateContext(PermissionMode.Ask, "git commit -m \"msg\"", approved);
@@ -106,8 +98,7 @@ public class DangerousCommandProtectionMiddlewareTests
     }
 
     [Fact]
-    public async Task SameLevelApproval_Execution_Should_AutoApprove()
-    {
+    public async Task SameLevelApproval_Execution_Should_AutoApprove() {
         var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.Execution };
         var context = CreateContext(PermissionMode.Ask, "rm file.txt", approved);
@@ -120,8 +111,7 @@ public class DangerousCommandProtectionMiddlewareTests
     }
 
     [Fact]
-    public async Task DifferentLevelApproval_Should_Still_Confirm()
-    {
+    public async Task DifferentLevelApproval_Should_Still_Confirm() {
         var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.LightValidation };
         var context = CreateContext(PermissionMode.Ask, "rm file.txt", approved);
@@ -133,8 +123,7 @@ public class DangerousCommandProtectionMiddlewareTests
     }
 
     [Fact]
-    public async Task DangerousLevel_Should_Never_AutoApprove_Even_If_In_ApprovedLevels()
-    {
+    public async Task DangerousLevel_Should_Never_AutoApprove_Even_If_In_ApprovedLevels() {
         var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.Dangerous };
         var context = CreateContext(PermissionMode.Ask, "rm -rf /", approved);

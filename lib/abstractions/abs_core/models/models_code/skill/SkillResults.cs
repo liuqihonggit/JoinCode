@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Skill;
 /// <summary>
 /// 技能执行结果
 /// </summary>
-public sealed record SkillResult
-{
+public sealed record SkillResult {
     public required string SkillName { get; init; }
     public string Output { get; init; } = string.Empty;
     public Dictionary<string, JsonElement>? Data { get; init; }
@@ -13,8 +12,7 @@ public sealed record SkillResult
     public long? DurationMs { get; init; }
 
     public static SkillResult SuccessResult(string skillName, string output, Dictionary<string, JsonElement>? data = null, long? durationMs = null)
-        => new()
-        {
+        => new() {
             SkillName = skillName,
             Output = output,
             Data = data,
@@ -23,8 +21,7 @@ public sealed record SkillResult
         };
 
     public static SkillResult FailureResult(string skillName, string errorMessage)
-        => new()
-        {
+        => new() {
             SkillName = skillName,
             Output = string.Empty,
             Success = false,
@@ -32,8 +29,7 @@ public sealed record SkillResult
         };
 }
 
-public sealed class SkillExecutionResult
-{
+public sealed class SkillExecutionResult {
     public required string SkillName { get; init; }
     public bool IsSuccess { get; init; }
     public required string Output { get; init; }
@@ -42,8 +38,7 @@ public sealed class SkillExecutionResult
     public TimeSpan ExecutionTime { get; init; }
 }
 
-public sealed class StepResult
-{
+public sealed class StepResult {
     public required string StepId { get; init; }
     public bool IsSuccess { get; init; }
     public string? Output { get; init; }

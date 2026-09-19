@@ -1,8 +1,6 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class AsyncSafetyRules : DiagnosticAnalyzer
-    {
+    public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         private static readonly DiagnosticDescriptor RuleConsoleReadLine = new(
             "JCC2001",
             "交互输入: Console.ReadLine() 必须包裹 IsInputRedirected 检查",
@@ -148,8 +146,7 @@ namespace AotSafety.Generator
                 RuleTaskDelayIntInTests, RuleTaskDelayTimeSpanInTests, RuleTaskDelayUnknownInTests,
                 RuleEmptyCatchBlock);
 
-        public override void Initialize(AnalysisContext context)
-        {
+        public override void Initialize(AnalysisContext context) {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterSyntaxNodeAction(AnalyzeInteractiveInput, SyntaxKind.InvocationExpression);
@@ -162,8 +159,7 @@ namespace AotSafety.Generator
             context.RegisterSyntaxNodeAction(AnalyzeUnreadStderr, SyntaxKind.ObjectCreationExpression);
         }
 
-        private static void AnalyzeInteractiveInput(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeInteractiveInput(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var invocation = (InvocationExpressionSyntax)ctx.Node;
@@ -181,8 +177,7 @@ namespace AotSafety.Generator
 
             if (IsInsideIfDebugDirective(invocation)) return;
 
-            var rule = symbol.Name switch
-            {
+            var rule = symbol.Name switch {
                 "ReadLine" => RuleConsoleReadLine,
                 "ReadKey" => RuleConsoleReadKey,
                 "Read" => RuleConsoleRead,
@@ -192,27 +187,20 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(rule, invocation.GetLocation()));
         }
 
-        private static bool IsInsideIsInputRedirectedCheck(SyntaxNode node)
-        {
+        private static bool IsInsideIsInputRedirectedCheck(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
-                if (current is IfStatementSyntax ifStatement)
-                {
-                    if (ContainsIsInputRedirectedCheck(ifStatement.Condition))
-                    {
+            while (current is not null) {
+                if (current is IfStatementSyntax ifStatement) {
+                    if (ContainsIsInputRedirectedCheck(ifStatement.Condition)) {
                         if (IsInProtectedBranch(node, ifStatement))
                             return true;
                     }
-                }
-                else if (current is ConditionalExpressionSyntax conditional)
-                {
+                } else if (current is ConditionalExpressionSyntax conditional) {
                     if (ContainsIsInputRedirectedCheck(conditional.Condition))
                         return true;
                 }
 
-                if (current is BlockSyntax block)
-                {
+                if (current is BlockSyntax block) {
                     if (IsProtectedByEarlyReturnInBlock(node, block))
                         return true;
                 }
@@ -222,24 +210,18 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsInProtectedBranch(SyntaxNode node, IfStatementSyntax ifStatement)
-        {
+        private static bool IsInProtectedBranch(SyntaxNode node, IfStatementSyntax ifStatement) {
             var condition = ifStatement.Condition;
             var isTopLevelNegated = IsNegatedCondition(condition);
             var containsInnerNegation = ContainsNegatedIsInputRedirected(condition);
 
-            if (isTopLevelNegated)
-            {
+            if (isTopLevelNegated) {
                 if (ifStatement.Statement is not null && IsDescendantOf(node, ifStatement.Statement))
                     return true;
-            }
-            else if (containsInnerNegation)
-            {
+            } else if (containsInnerNegation) {
                 if (ifStatement.Statement is not null && IsDescendantOf(node, ifStatement.Statement))
                     return true;
-            }
-            else
-            {
+            } else {
                 if (ifStatement.Else is not null && IsDescendantOf(node, ifStatement.Else))
                     return true;
             }
@@ -247,13 +229,10 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool ContainsNegatedIsInputRedirected(ExpressionSyntax condition)
-        {
-            foreach (var descendant in condition.DescendantNodesAndSelf())
-            {
+        private static bool ContainsNegatedIsInputRedirected(ExpressionSyntax condition) {
+            foreach (var descendant in condition.DescendantNodesAndSelf()) {
                 if (descendant is PrefixUnaryExpressionSyntax prefix
-                    && prefix.OperatorToken.IsKind(SyntaxKind.ExclamationToken))
-                {
+                    && prefix.OperatorToken.IsKind(SyntaxKind.ExclamationToken)) {
                     var innerText = prefix.Operand.ToString().Replace(" ", "");
                     if (innerText.Contains("Console.IsInputRedirected") || innerText.Contains("System.Console.IsInputRedirected"))
                         return true;
@@ -266,26 +245,22 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsNegatedCondition(ExpressionSyntax condition)
-        {
+        private static bool IsNegatedCondition(ExpressionSyntax condition) {
             if (condition is PrefixUnaryExpressionSyntax prefix && prefix.OperatorToken.IsKind(SyntaxKind.ExclamationToken))
                 return true;
             return false;
         }
 
-        private static bool IsProtectedByEarlyReturnInBlock(SyntaxNode node, BlockSyntax block)
-        {
+        private static bool IsProtectedByEarlyReturnInBlock(SyntaxNode node, BlockSyntax block) {
             var statement = FindAncestorStatement(node);
             if (statement is null) return false;
 
             var nodeIndex = block.Statements.IndexOf(statement);
             if (nodeIndex < 0) return false;
 
-            for (var i = 0; i < nodeIndex; i++)
-            {
+            for (var i = 0; i < nodeIndex; i++) {
                 var stmt = block.Statements[i];
-                if (stmt is IfStatementSyntax ifStmt && ContainsIsInputRedirectedCheck(ifStmt.Condition))
-                {
+                if (stmt is IfStatementSyntax ifStmt && ContainsIsInputRedirectedCheck(ifStmt.Condition)) {
                     if (IfStatementExitsEarly(ifStmt))
                         return true;
                 }
@@ -294,11 +269,9 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static StatementSyntax? FindAncestorStatement(SyntaxNode node)
-        {
+        private static StatementSyntax? FindAncestorStatement(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
+            while (current is not null) {
                 if (current is StatementSyntax statement)
                     return statement;
                 current = current.Parent;
@@ -306,49 +279,40 @@ namespace AotSafety.Generator
             return null;
         }
 
-        private static bool IfStatementExitsEarly(IfStatementSyntax ifStmt)
-        {
+        private static bool IfStatementExitsEarly(IfStatementSyntax ifStmt) {
             return BlockContainsExit(ifStmt.Statement);
         }
 
-        private static bool BlockContainsExit(StatementSyntax statement)
-        {
-            switch (statement)
-            {
+        private static bool BlockContainsExit(StatementSyntax statement) {
+            switch (statement) {
                 case ReturnStatementSyntax:
                 case ThrowStatementSyntax:
                 case BreakStatementSyntax:
                 case ContinueStatementSyntax:
-                    return true;
+                return true;
                 case BlockSyntax block:
-                    foreach (var stmt in block.Statements)
-                    {
-                        if (BlockContainsExit(stmt))
-                            return true;
-                    }
-                    return false;
+                foreach (var stmt in block.Statements) {
+                    if (BlockContainsExit(stmt))
+                        return true;
+                }
+                return false;
                 default:
-                    return false;
+                return false;
             }
         }
 
-        private static bool IsDescendantOf(SyntaxNode node, SyntaxNode ancestor)
-        {
+        private static bool IsDescendantOf(SyntaxNode node, SyntaxNode ancestor) {
             var current = node;
-            while (current is not null)
-            {
+            while (current is not null) {
                 if (current == ancestor) return true;
                 current = current.Parent;
             }
             return false;
         }
 
-        private static bool ContainsIsInputRedirectedCheck(ExpressionSyntax condition)
-        {
-            foreach (var descendant in condition.DescendantNodesAndSelf())
-            {
-                if (descendant is MemberAccessExpressionSyntax memberAccess)
-                {
+        private static bool ContainsIsInputRedirectedCheck(ExpressionSyntax condition) {
+            foreach (var descendant in condition.DescendantNodesAndSelf()) {
+                if (descendant is MemberAccessExpressionSyntax memberAccess) {
                     var text = memberAccess.ToString().Replace(" ", "");
                     if (text.Contains("Console.IsInputRedirected") || text.Contains("System.Console.IsInputRedirected"))
                         return true;
@@ -361,15 +325,11 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsInsideIfDebugDirective(SyntaxNode node)
-        {
+        private static bool IsInsideIfDebugDirective(SyntaxNode node) {
             var current = node;
-            while (current is not null)
-            {
-                foreach (var trivia in current.GetLeadingTrivia())
-                {
-                    if (trivia.IsKind(SyntaxKind.IfDirectiveTrivia))
-                    {
+            while (current is not null) {
+                foreach (var trivia in current.GetLeadingTrivia()) {
+                    if (trivia.IsKind(SyntaxKind.IfDirectiveTrivia)) {
                         var text = trivia.ToString();
                         if (text.Contains("DEBUG"))
                             return true;
@@ -378,12 +338,9 @@ namespace AotSafety.Generator
                 current = current.Parent;
             }
 
-            if (node.Parent is not null)
-            {
-                foreach (var trivia in node.Parent.GetLeadingTrivia())
-                {
-                    if (trivia.IsKind(SyntaxKind.IfDirectiveTrivia))
-                    {
+            if (node.Parent is not null) {
+                foreach (var trivia in node.Parent.GetLeadingTrivia()) {
+                    if (trivia.IsKind(SyntaxKind.IfDirectiveTrivia)) {
                         var text = trivia.ToString();
                         if (text.Contains("DEBUG"))
                             return true;
@@ -394,8 +351,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeProcessDeadlock(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeProcessDeadlock(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var awaitExpr = (AwaitExpressionSyntax)ctx.Node;
@@ -424,20 +380,16 @@ namespace AotSafety.Generator
 
             var awaitSpan = awaitStatement.Span;
             var foundAwaitStatement = false;
-            foreach (var child in parentBlock.ChildNodes())
-            {
-                if (!foundAwaitStatement)
-                {
-                    if (child.Span == awaitSpan)
-                    {
+            foreach (var child in parentBlock.ChildNodes()) {
+                if (!foundAwaitStatement) {
+                    if (child.Span == awaitSpan) {
                         foundAwaitStatement = true;
                     }
                     continue;
                 }
 
                 var readToEndCall = FindReadToEndAsyncCall(child, processVariableName);
-                if (readToEndCall is not null)
-                {
+                if (readToEndCall is not null) {
                     var memberAccess = readToEndCall.Expression as MemberAccessExpressionSyntax;
                     var readTarget = memberAccess?.Expression?.ToString() ?? "stream";
                     var desc = $"{readTarget}.ReadToEndAsync()";
@@ -446,28 +398,22 @@ namespace AotSafety.Generator
             }
         }
 
-        private static string? GetProcessVariableName(InvocationExpressionSyntax invocation)
-        {
-            if (invocation.Expression is MemberAccessExpressionSyntax memberAccess)
-            {
+        private static string? GetProcessVariableName(InvocationExpressionSyntax invocation) {
+            if (invocation.Expression is MemberAccessExpressionSyntax memberAccess) {
                 return memberAccess.Expression?.ToString();
             }
             return null;
         }
 
-        private static InvocationExpressionSyntax? FindMethodInvocation(ExpressionSyntax expr, string methodName)
-        {
-            if (expr is InvocationExpressionSyntax inv)
-            {
+        private static InvocationExpressionSyntax? FindMethodInvocation(ExpressionSyntax expr, string methodName) {
+            if (expr is InvocationExpressionSyntax inv) {
                 if (inv.Expression is MemberAccessExpressionSyntax directAccess &&
-                    directAccess.Name.Identifier.ValueText == methodName)
-                {
+                    directAccess.Name.Identifier.ValueText == methodName) {
                     return inv;
                 }
 
                 if (inv.Expression is MemberAccessExpressionSyntax chainAccess &&
-                    chainAccess.Expression is InvocationExpressionSyntax innerInv)
-                {
+                    chainAccess.Expression is InvocationExpressionSyntax innerInv) {
                     var result = FindMethodInvocation(innerInv, methodName);
                     if (result is not null) return result;
                 }
@@ -476,21 +422,15 @@ namespace AotSafety.Generator
             return null;
         }
 
-        private static InvocationExpressionSyntax? FindReadToEndAsyncCall(SyntaxNode node, string processVariableName)
-        {
-            foreach (var descendant in node.DescendantNodesAndSelf())
-            {
-                if (descendant is InvocationExpressionSyntax invocation)
-                {
+        private static InvocationExpressionSyntax? FindReadToEndAsyncCall(SyntaxNode node, string processVariableName) {
+            foreach (var descendant in node.DescendantNodesAndSelf()) {
+                if (descendant is InvocationExpressionSyntax invocation) {
                     var symbolInfo = invocation.Expression;
-                    if (symbolInfo is MemberAccessExpressionSyntax memberAccess)
-                    {
-                        if (memberAccess.Name.Identifier.ValueText == "ReadToEndAsync")
-                        {
+                    if (symbolInfo is MemberAccessExpressionSyntax memberAccess) {
+                        if (memberAccess.Name.Identifier.ValueText == "ReadToEndAsync") {
                             var leftStr = memberAccess.Expression?.ToString() ?? "";
                             if ((leftStr.Contains("StandardOutput") || leftStr.Contains("StandardError")) &&
-                                leftStr.StartsWith(processVariableName, StringComparison.Ordinal))
-                            {
+                                leftStr.StartsWith(processVariableName, StringComparison.Ordinal)) {
                                 return invocation;
                             }
                         }
@@ -500,8 +440,7 @@ namespace AotSafety.Generator
             return null;
         }
 
-        private static void AnalyzeAsyncVoid(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeAsyncVoid(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not MethodDeclarationSyntax methodDecl) return;
@@ -524,11 +463,9 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleAsyncVoid, methodDecl.ReturnType.GetLocation()));
         }
 
-        private static bool IsTimerCallbackPattern(string methodName)
-        {
+        private static bool IsTimerCallbackPattern(string methodName) {
             var callbackPrefixes = new[] { "Process", "Handle", "OnTimer", "TimerCallback" };
-            foreach (var prefix in callbackPrefixes)
-            {
+            foreach (var prefix in callbackPrefixes) {
                 if (methodName.StartsWith(prefix, StringComparison.Ordinal))
                     return true;
             }
@@ -536,8 +473,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsUiEventHandler(string methodName)
-        {
+        private static bool IsUiEventHandler(string methodName) {
             var eventSuffixes = new[]
             {
                 "_Click", "_Changed", "_Loaded", "_Closing", "_Closed",
@@ -547,8 +483,7 @@ namespace AotSafety.Generator
                 "OnClick", "OnChanged", "OnLoaded", "OnClosing", "OnClosed",
             };
 
-            foreach (var suffix in eventSuffixes)
-            {
+            foreach (var suffix in eventSuffixes) {
                 if (methodName.EndsWith(suffix, StringComparison.Ordinal))
                     return true;
             }
@@ -556,8 +491,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeBlockingAsyncCall(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeBlockingAsyncCall(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not MemberAccessExpressionSyntax memberAccess) return;
@@ -570,8 +504,7 @@ namespace AotSafety.Generator
             var symbol = symbolInfo.Symbol;
             if (symbol is null) return;
 
-            var type = symbol switch
-            {
+            var type = symbol switch {
                 ILocalSymbol local => local.Type,
                 IFieldSymbol field => field.Type,
                 IPropertySymbol prop => prop.Type,
@@ -601,11 +534,9 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleBlockingAsyncCall, memberAccess.Name.GetLocation(), callText));
         }
 
-        private static bool IsInsideMainMethod(SyntaxNode node)
-        {
+        private static bool IsInsideMainMethod(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
+            while (current is not null) {
                 if (current is MethodDeclarationSyntax methodDecl &&
                     methodDecl.Identifier.ValueText == "Main")
                     return true;
@@ -614,11 +545,9 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsInsideConstructor(SyntaxNode node)
-        {
+        private static bool IsInsideConstructor(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
+            while (current is not null) {
                 if (current is ConstructorDeclarationSyntax)
                     return true;
                 current = current.Parent;
@@ -626,19 +555,15 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsInsideSyncMethod(SyntaxNode node)
-        {
+        private static bool IsInsideSyncMethod(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
-                if (current is MethodDeclarationSyntax methodDecl)
-                {
+            while (current is not null) {
+                if (current is MethodDeclarationSyntax methodDecl) {
                     if (!methodDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.AsyncKeyword)))
                         return true;
                     return false;
                 }
-                if (current is LambdaExpressionSyntax lambda)
-                {
+                if (current is LambdaExpressionSyntax lambda) {
                     if (!lambda.AsyncKeyword.IsKind(SyntaxKind.AsyncKeyword))
                         return true;
                     return false;
@@ -652,13 +577,10 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsInsideDisposeMethod(SyntaxNode node)
-        {
+        private static bool IsInsideDisposeMethod(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
-                if (current is MethodDeclarationSyntax methodDecl)
-                {
+            while (current is not null) {
+                if (current is MethodDeclarationSyntax methodDecl) {
                     var name = methodDecl.Identifier.ValueText;
                     if (name is "Dispose" or "DisposeAsync")
                         return true;
@@ -669,8 +591,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeSequentialAwaitInLoop(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeSequentialAwaitInLoop(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not AwaitExpressionSyntax awaitExpr) return;
@@ -684,8 +605,7 @@ namespace AotSafety.Generator
 
             if (loop is WhileStatementSyntax or DoStatementSyntax) return;
 
-            if (loop is ForStatementSyntax forStmt)
-            {
+            if (loop is ForStatementSyntax forStmt) {
                 if (ContainsCancellationTokenCondition(forStmt.Condition)) return;
             }
 
@@ -694,11 +614,9 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleSequentialAwaitInLoop, awaitExpr.GetLocation()));
         }
 
-        private static SyntaxNode? FindInnermostLoop(SyntaxNode node)
-        {
+        private static SyntaxNode? FindInnermostLoop(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
+            while (current is not null) {
                 if (current is ForEachStatementSyntax or ForEachVariableStatementSyntax or
                     ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax)
                     return current;
@@ -707,13 +625,10 @@ namespace AotSafety.Generator
             return null;
         }
 
-        private static bool ContainsCancellationTokenCondition(SyntaxNode? condition)
-        {
+        private static bool ContainsCancellationTokenCondition(SyntaxNode? condition) {
             if (condition is null) return false;
-            foreach (var desc in condition.DescendantNodesAndSelf())
-            {
-                if (desc is IdentifierNameSyntax identifier)
-                {
+            foreach (var desc in condition.DescendantNodesAndSelf()) {
+                if (desc is IdentifierNameSyntax identifier) {
                     var name = identifier.Identifier.ValueText;
                     if (name.Contains("Cancellation", StringComparison.Ordinal) ||
                         name.Contains("cancellationToken", StringComparison.Ordinal) ||
@@ -721,8 +636,7 @@ namespace AotSafety.Generator
                         return true;
                 }
 
-                if (desc is MemberAccessExpressionSyntax memberAccess)
-                {
+                if (desc is MemberAccessExpressionSyntax memberAccess) {
                     var name = memberAccess.Name.Identifier.ValueText;
                     if (name.Contains("Cancellation", StringComparison.Ordinal) ||
                         name == "IsRunning" || name == "IsConnected")
@@ -732,10 +646,8 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool LoopHasEarlyExit(SyntaxNode loop)
-        {
-            SyntaxNode body = loop switch
-            {
+        private static bool LoopHasEarlyExit(SyntaxNode loop) {
+            SyntaxNode body = loop switch {
                 ForEachStatementSyntax f => f.Statement,
                 ForEachVariableStatementSyntax f => f.Statement,
                 ForStatementSyntax f => f.Statement,
@@ -744,8 +656,7 @@ namespace AotSafety.Generator
                 _ => throw new InvalidOperationException(),
             };
 
-            foreach (var desc in body.DescendantNodes())
-            {
+            foreach (var desc in body.DescendantNodes()) {
                 if (desc is BreakStatementSyntax or ReturnStatementSyntax or ThrowStatementSyntax)
                     return true;
             }
@@ -755,8 +666,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// 注册 JCC3008/JCC3009/JCC3010-JCC3012 分析，缓存项目类型检测结果（解决方案无关）
         /// </summary>
-        private static void RegisterAsyncCodePathAnalysis(CompilationStartAnalysisContext context)
-        {
+        private static void RegisterAsyncCodePathAnalysis(CompilationStartAnalysisContext context) {
             var isTestProject = IsTestProject(context.Compilation);
             var isRoslynProject = IsRoslynProject(context.Compilation);
             var isLibraryProject = !isTestProject && !isRoslynProject;
@@ -775,10 +685,8 @@ namespace AotSafety.Generator
         /// <summary>
         /// 检测项目是否引用了测试框架（xUnit/NUnit/MSTest）。解决方案无关。
         /// </summary>
-        private static bool IsTestProject(Compilation compilation)
-        {
-            foreach (var reference in compilation.References)
-            {
+        private static bool IsTestProject(Compilation compilation) {
+            foreach (var reference in compilation.References) {
                 if (reference is not PortableExecutableReference peRef) continue;
                 var display = peRef.Display;
                 if (display is null) continue;
@@ -794,11 +702,9 @@ namespace AotSafety.Generator
         /// <summary>
         /// 检测项目是否引用了 Microsoft.CodeAnalysis.CSharp（Roslyn 项目）。解决方案无关。
         /// </summary>
-        private static bool IsRoslynProject(Compilation compilation)
-        {
+        private static bool IsRoslynProject(Compilation compilation) {
             var targetSpan = "Microsoft.CodeAnalysis.CSharp".AsSpan();
-            foreach (var reference in compilation.References)
-            {
+            foreach (var reference in compilation.References) {
                 if (reference is not PortableExecutableReference peRef) continue;
                 var display = peRef.Display;
                 if (display is null) continue;
@@ -808,8 +714,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeConfigureAwaitFalse(SyntaxNodeAnalysisContext ctx, bool isLibraryProject)
-        {
+        private static void AnalyzeConfigureAwaitFalse(SyntaxNodeAnalysisContext ctx, bool isLibraryProject) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not AwaitExpressionSyntax awaitExpr) return;
@@ -821,20 +726,15 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitFalse, awaitExpr.GetLocation()));
         }
 
-        private static bool HasConfigureAwaitFalse(AwaitExpressionSyntax awaitExpr)
-        {
-            if (awaitExpr.Expression is InvocationExpressionSyntax configureAwaitInvocation)
-            {
+        private static bool HasConfigureAwaitFalse(AwaitExpressionSyntax awaitExpr) {
+            if (awaitExpr.Expression is InvocationExpressionSyntax configureAwaitInvocation) {
                 if (configureAwaitInvocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-                    memberAccess.Name.Identifier.ValueText == "ConfigureAwait")
-                {
+                    memberAccess.Name.Identifier.ValueText == "ConfigureAwait") {
                     var args = configureAwaitInvocation.ArgumentList.Arguments;
-                    if (args.Count == 1)
-                    {
+                    if (args.Count == 1) {
                         var arg = args[0].Expression;
                         if (arg is LiteralExpressionSyntax literal &&
-                            literal.Token.IsKind(SyntaxKind.FalseKeyword))
-                        {
+                            literal.Token.IsKind(SyntaxKind.FalseKeyword)) {
                             return true;
                         }
                     }
@@ -844,8 +744,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeConfigureAwaitTrueForTests(SyntaxNodeAnalysisContext ctx, bool isTestProject)
-        {
+        private static void AnalyzeConfigureAwaitTrueForTests(SyntaxNodeAnalysisContext ctx, bool isTestProject) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not AwaitExpressionSyntax awaitExpr) return;
@@ -856,19 +755,15 @@ namespace AotSafety.Generator
 
             if (IsTaskYield(awaitExpr)) return;
 
-            if (HasConfigureAwaitFalse(awaitExpr))
-            {
+            if (HasConfigureAwaitFalse(awaitExpr)) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitTrueForTests, awaitExpr.GetLocation()));
             }
         }
 
-        private static bool IsTaskYield(AwaitExpressionSyntax awaitExpr)
-        {
-            if (awaitExpr.Expression is InvocationExpressionSyntax invocation)
-            {
+        private static bool IsTaskYield(AwaitExpressionSyntax awaitExpr) {
+            if (awaitExpr.Expression is InvocationExpressionSyntax invocation) {
                 if (invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-                    memberAccess.Name.Identifier.ValueText == "Yield")
-                {
+                    memberAccess.Name.Identifier.ValueText == "Yield") {
                     return true;
                 }
             }
@@ -876,8 +771,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeTaskDelayInTests(SyntaxNodeAnalysisContext ctx, bool isTestProject)
-        {
+        private static void AnalyzeTaskDelayInTests(SyntaxNodeAnalysisContext ctx, bool isTestProject) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var invocation = (InvocationExpressionSyntax)ctx.Node;
@@ -895,24 +789,19 @@ namespace AotSafety.Generator
             if (!AotSafetyHelpers.IsInsideTestMethod(invocation)) return;
 
             var args = invocation.ArgumentList.Arguments;
-            if (args.Count > 0)
-            {
+            if (args.Count > 0) {
                 var firstArg = args[0].Expression;
                 if (firstArg is LiteralExpressionSyntax literal &&
                     literal.Token.Value is int delayMs &&
-                    delayMs <= 1)
-                {
+                    delayMs <= 1) {
                     return;
                 }
 
-                if (symbol.Parameters.Length > 0)
-                {
+                if (symbol.Parameters.Length > 0) {
                     var firstParamType = symbol.Parameters[0].Type;
-                    if (firstParamType.SpecialType == SpecialType.System_Int32)
-                    {
+                    if (firstParamType.SpecialType == SpecialType.System_Int32) {
                         if (firstArg is LiteralExpressionSyntax intLiteral &&
-                            intLiteral.Token.Value is int ms)
-                        {
+                            intLiteral.Token.Value is int ms) {
                             ctx.ReportDiagnostic(Diagnostic.Create(
                                 RuleTaskDelayIntInTests,
                                 invocation.GetLocation(),
@@ -924,17 +813,13 @@ namespace AotSafety.Generator
                             RuleTaskDelayUnknownInTests,
                             invocation.GetLocation()));
                         return;
-                    }
-                    else if (firstParamType.Name == "TimeSpan")
-                    {
-                        if (firstArg is InvocationExpressionSyntax tsInvocation)
-                        {
+                    } else if (firstParamType.Name == "TimeSpan") {
+                        if (firstArg is InvocationExpressionSyntax tsInvocation) {
                             var tsSymbol = ctx.SemanticModel.GetSymbolInfo(tsInvocation).Symbol as IMethodSymbol;
                             if (tsSymbol?.Name == "FromMilliseconds" &&
                                 tsInvocation.ArgumentList.Arguments.Count > 0 &&
                                 tsInvocation.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax msLiteral &&
-                                msLiteral.Token.Value is int tsMs)
-                            {
+                                msLiteral.Token.Value is int tsMs) {
                                 ctx.ReportDiagnostic(Diagnostic.Create(
                                     RuleTaskDelayTimeSpanInTests,
                                     invocation.GetLocation(),
@@ -945,18 +830,15 @@ namespace AotSafety.Generator
 
                             if (tsSymbol?.Name == "FromSeconds" &&
                                 tsInvocation.ArgumentList.Arguments.Count > 0 &&
-                                tsInvocation.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax secLiteral)
-                            {
+                                tsInvocation.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax secLiteral) {
                                 var secValue = secLiteral.Token.Value;
-                                var secMs = secValue switch
-                                {
+                                var secMs = secValue switch {
                                     int s => s * 1000,
                                     double d => (int)(d * 1000),
                                     float f => (int)(f * 1000),
                                     _ => -1
                                 };
-                                if (secMs > 0)
-                                {
+                                if (secMs > 0) {
                                     ctx.ReportDiagnostic(Diagnostic.Create(
                                         RuleTaskDelayTimeSpanInTests,
                                         invocation.GetLocation(),
@@ -977,17 +859,14 @@ namespace AotSafety.Generator
                 ctx.ReportDiagnostic(Diagnostic.Create(
                     RuleTaskDelayUnknownInTests,
                     invocation.GetLocation()));
-            }
-            else
-            {
+            } else {
                 ctx.ReportDiagnostic(Diagnostic.Create(
                     RuleTaskDelayUnknownInTests,
                     invocation.GetLocation()));
             }
         }
 
-        private static void AnalyzeEmptyCatchBlock(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeEmptyCatchBlock(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var catchClause = (CatchClauseSyntax)ctx.Node;
@@ -996,11 +875,9 @@ namespace AotSafety.Generator
 
             if (block.Statements.Count > 0) return;
 
-            if (catchClause.Declaration is not null)
-            {
+            if (catchClause.Declaration is not null) {
                 var exceptionType = ctx.SemanticModel.GetTypeInfo(catchClause.Declaration.Type, ctx.CancellationToken).Type;
-                if (exceptionType is not null)
-                {
+                if (exceptionType is not null) {
                     var name = exceptionType.Name;
                     if (name is "OperationCanceledException" or "TaskCanceledException")
                         return;
@@ -1010,20 +887,16 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleEmptyCatchBlock, catchClause.CatchKeyword.GetLocation()));
         }
 
-        private static void AnalyzeUnreadStderr(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeUnreadStderr(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var objectCreation = (ObjectCreationExpressionSyntax)ctx.Node;
 
             var typeSymbol = ctx.SemanticModel.GetTypeInfo(objectCreation.Type).Type;
-            if (typeSymbol is not null)
-            {
+            if (typeSymbol is not null) {
                 var typeName = typeSymbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                 if (typeName != "ProcessStartInfo") return;
-            }
-            else
-            {
+            } else {
                 var typeNameSyntax = objectCreation.Type.ToString();
                 if (typeNameSyntax != "ProcessStartInfo") return;
             }
@@ -1038,17 +911,12 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleUnreadStderr, objectCreation.GetLocation()));
         }
 
-        private static bool HasRedirectStandardErrorTrue(ObjectCreationExpressionSyntax objectCreation, SyntaxNodeAnalysisContext ctx)
-        {
-            if (objectCreation.Initializer is not null)
-            {
-                foreach (var initializer in objectCreation.Initializer.Expressions)
-                {
-                    if (initializer is AssignmentExpressionSyntax assignment)
-                    {
+        private static bool HasRedirectStandardErrorTrue(ObjectCreationExpressionSyntax objectCreation, SyntaxNodeAnalysisContext ctx) {
+            if (objectCreation.Initializer is not null) {
+                foreach (var initializer in objectCreation.Initializer.Expressions) {
+                    if (initializer is AssignmentExpressionSyntax assignment) {
                         var left = assignment.Left.ToString().Replace(" ", "");
-                        if (left == "RedirectStandardError")
-                        {
+                        if (left == "RedirectStandardError") {
                             var right = assignment.Right.ToString().Trim();
                             if (right == "true") return true;
                         }
@@ -1057,18 +925,13 @@ namespace AotSafety.Generator
             }
 
             var variableName = GetProcessStartInfoVariableName(objectCreation);
-            if (variableName is not null)
-            {
+            if (variableName is not null) {
                 var enclosingBlock = FindEnclosingClassBlock(objectCreation);
-                if (enclosingBlock is not null)
-                {
-                    foreach (var descendant in enclosingBlock.DescendantNodes())
-                    {
-                        if (descendant is AssignmentExpressionSyntax assignment)
-                        {
+                if (enclosingBlock is not null) {
+                    foreach (var descendant in enclosingBlock.DescendantNodes()) {
+                        if (descendant is AssignmentExpressionSyntax assignment) {
                             var left = assignment.Left.ToString().Replace(" ", "");
-                            if (left == $"{variableName}.RedirectStandardError")
-                            {
+                            if (left == $"{variableName}.RedirectStandardError") {
                                 var right = assignment.Right.ToString().Trim();
                                 if (right == "true") return true;
                             }
@@ -1080,24 +943,19 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static string? GetProcessStartInfoVariableName(ObjectCreationExpressionSyntax objectCreation)
-        {
+        private static string? GetProcessStartInfoVariableName(ObjectCreationExpressionSyntax objectCreation) {
             if (objectCreation.Parent is EqualsValueClauseSyntax equalsValue &&
-                equalsValue.Parent is VariableDeclaratorSyntax variableDeclarator)
-            {
+                equalsValue.Parent is VariableDeclaratorSyntax variableDeclarator) {
                 return variableDeclarator.Identifier.ValueText;
             }
 
             return null;
         }
 
-        private static SyntaxNode? FindEnclosingClassBlock(SyntaxNode node)
-        {
+        private static SyntaxNode? FindEnclosingClassBlock(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
-                if (current is ClassDeclarationSyntax or StructDeclarationSyntax or RecordDeclarationSyntax)
-                {
+            while (current is not null) {
+                if (current is ClassDeclarationSyntax or StructDeclarationSyntax or RecordDeclarationSyntax) {
                     return current;
                 }
                 current = current.Parent;
@@ -1105,26 +963,20 @@ namespace AotSafety.Generator
             return null;
         }
 
-        private static bool HasStandardErrorConsumption(SyntaxNode block)
-        {
-            foreach (var descendant in block.DescendantNodes())
-            {
-                if (descendant is MemberAccessExpressionSyntax memberAccess)
-                {
+        private static bool HasStandardErrorConsumption(SyntaxNode block) {
+            foreach (var descendant in block.DescendantNodes()) {
+                if (descendant is MemberAccessExpressionSyntax memberAccess) {
                     var name = memberAccess.Name.Identifier.ValueText;
                     if (name == "StandardError") return true;
                 }
 
-                if (descendant is InvocationExpressionSyntax invocation)
-                {
-                    if (invocation.Expression is MemberAccessExpressionSyntax invMemberAccess)
-                    {
+                if (descendant is InvocationExpressionSyntax invocation) {
+                    if (invocation.Expression is MemberAccessExpressionSyntax invMemberAccess) {
                         if (invMemberAccess.Name.Identifier.ValueText == "BeginErrorReadLine") return true;
                     }
                 }
 
-                if (descendant is AssignmentExpressionSyntax eventAssignment)
-                {
+                if (descendant is AssignmentExpressionSyntax eventAssignment) {
                     var left = eventAssignment.Left.ToString().Replace(" ", "");
                     if (left.Contains("ErrorDataReceived")) return true;
                 }

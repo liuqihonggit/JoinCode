@@ -4,16 +4,12 @@ namespace JoinCode.Entry.Tests;
 /// <summary>
 /// SessionResumeStep 单元测试 — 验证视角1 #1 的 --continue/--resume 行为
 /// </summary>
-public class SessionResumeStepTests
-{
+public class SessionResumeStepTests {
     private static readonly string SessionsDir = AppDataConstants.Paths.SessionsDirectory;
 
-    private static StartupContext CreateContext(CommandLineOptions options, IFileSystem fs)
-    {
-        var config = new WorkflowConfig
-        {
-            Provider = new ProviderConfig
-            {
+    private static StartupContext CreateContext(CommandLineOptions options, IFileSystem fs) {
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig {
                 ApiKey = "sk-test",
                 Vendor = "openai",
                 ModelId = "gpt-4o"
@@ -21,8 +17,7 @@ public class SessionResumeStepTests
         };
 
         var host = new Mock<IHost>().Object;
-        return new StartupContext
-        {
+        return new StartupContext {
             Config = config,
             Options = options,
             Host = host,
@@ -30,10 +25,8 @@ public class SessionResumeStepTests
         };
     }
 
-    private static string WriteSessionFile(IFileSystem fs, string sessionId, string customTitle, DateTime lastModified, List<SessionMessage> messages)
-    {
-        var data = new SessionData
-        {
+    private static string WriteSessionFile(IFileSystem fs, string sessionId, string customTitle, DateTime lastModified, List<SessionMessage> messages) {
+        var data = new SessionData {
             Id = sessionId,
             ProjectPath = "/test",
             CustomTitle = customTitle,
@@ -48,8 +41,7 @@ public class SessionResumeStepTests
     }
 
     [Fact]
-    public async Task NoContinueAndNoResume_ShouldCallNextWithoutResume()
-    {
+    public async Task NoContinueAndNoResume_ShouldCallNextWithoutResume() {
         // Arrange — 默认 CommandLineOptions 无 --continue 也无 --resume
         var step = new SessionResumeStep();
         var fs = new InMemoryFileSystem();
@@ -57,8 +49,7 @@ public class SessionResumeStepTests
         var nextCalled = false;
 
         // Act
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -68,8 +59,7 @@ public class SessionResumeStepTests
     }
 
     [Fact]
-    public async Task Continue_WithNoSessionsDirectory_ShouldCallNextWithoutError()
-    {
+    public async Task Continue_WithNoSessionsDirectory_ShouldCallNextWithoutError() {
         // Arrange — sessions 目录不存在
         var step = new SessionResumeStep();
         var fs = new InMemoryFileSystem();
@@ -78,8 +68,7 @@ public class SessionResumeStepTests
         var nextCalled = false;
 
         // Act
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -90,8 +79,7 @@ public class SessionResumeStepTests
     }
 
     [Fact]
-    public async Task Continue_WithSessions_ShouldLoadMostRecent()
-    {
+    public async Task Continue_WithSessions_ShouldLoadMostRecent() {
         // Arrange — 写入两个会话，一个旧一个新
         var step = new SessionResumeStep();
         var fs = new InMemoryFileSystem();
@@ -113,8 +101,7 @@ public class SessionResumeStepTests
         var context = CreateContext(options, fs);
 
         var nextCalled = false;
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -124,8 +111,7 @@ public class SessionResumeStepTests
     }
 
     [Fact]
-    public async Task Resume_WithExactSessionId_ShouldLoadSession()
-    {
+    public async Task Resume_WithExactSessionId_ShouldLoadSession() {
         // Arrange
         var step = new SessionResumeStep();
         var fs = new InMemoryFileSystem();
@@ -139,8 +125,7 @@ public class SessionResumeStepTests
         var context = CreateContext(options, fs);
 
         var nextCalled = false;
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -150,8 +135,7 @@ public class SessionResumeStepTests
     }
 
     [Fact]
-    public async Task Resume_WithNonExistentId_ShouldStillCallNextWithoutError()
-    {
+    public async Task Resume_WithNonExistentId_ShouldStillCallNextWithoutError() {
         // Arrange
         var step = new SessionResumeStep();
         var fs = new InMemoryFileSystem();
@@ -161,8 +145,7 @@ public class SessionResumeStepTests
         var context = CreateContext(options, fs);
 
         var nextCalled = false;
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -172,8 +155,7 @@ public class SessionResumeStepTests
     }
 
     [Fact]
-    public async Task Resume_WithTitleMatch_ShouldLoadSession()
-    {
+    public async Task Resume_WithTitleMatch_ShouldLoadSession() {
         // Arrange — 通过标题模糊匹配
         var step = new SessionResumeStep();
         var fs = new InMemoryFileSystem();
@@ -186,8 +168,7 @@ public class SessionResumeStepTests
         var context = CreateContext(options, fs);
 
         var nextCalled = false;
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -197,8 +178,7 @@ public class SessionResumeStepTests
     }
 
     [Fact]
-    public async Task Continue_WithoutSession_ShouldSkipResumeAndContinue()
-    {
+    public async Task Continue_WithoutSession_ShouldSkipResumeAndContinue() {
         // Arrange — Session 属性为 null（模拟 SessionInitStep 未初始化）
         var step = new SessionResumeStep();
         var fs = new InMemoryFileSystem();
@@ -210,8 +190,7 @@ public class SessionResumeStepTests
         // 不设置 context.Session，保持为 null
 
         var nextCalled = false;
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);

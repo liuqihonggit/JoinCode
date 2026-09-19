@@ -7,8 +7,7 @@ namespace Core.Agents.Coordinator;
 /// Teammate 侧: 检测 plan_approval_response → 调用 IPlanModeManager.HandlePlanApprovalResponseAsync
 /// </summary>
 [Register(typeof(PlanApprovalMessageRouter), ServiceLifetime.Singleton)]
-public sealed partial class PlanApprovalMessageRouter : ServiceEntity
-{
+public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
     private readonly IMailbox _messageBroker;
     private readonly IPlanModeManager _planModeManager;
     private readonly IToolPermissionManager? _permissionManager;
@@ -28,8 +27,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
         IPlanModeManager planModeManager,
         IToolPermissionManager? permissionManager = null,
         ILogger<PlanApprovalMessageRouter>? logger = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));
         _planModeManager = planModeManager ?? throw new ArgumentNullException(nameof(planModeManager));
         _permissionManager = permissionManager;
@@ -40,8 +38,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     /// <summary>
     /// 启动 Leader 侧路由：监听 plan_approval_request 并自动批准
     /// </summary>
-    public void StartLeaderRouting(string coordinatorAgentId)
-    {
+    public void StartLeaderRouting(string coordinatorAgentId) {
         if (_leaderCts != null) return;
 
         _leaderCts = new CancellationTokenSource();
@@ -53,27 +50,21 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     /// <summary>
     /// 启动 Teammate 侧路由：监听 plan_approval_response 并调用 HandlePlanApprovalResponseAsync
     /// </summary>
-    public void StartTeammateRouting(string teammateAgentId)
-    {
+    public void StartTeammateRouting(string teammateAgentId) {
         _ = RouteTeammateResponsesAsync(teammateAgentId);
     }
 
     /// <summary>
     /// 停止 Leader 侧路由
     /// </summary>
-    public async Task StopRoutingAsync()
-    {
+    public async Task StopRoutingAsync() {
         if (_leaderCts == null) return;
 
         _leaderCts.Cancel();
-        if (_leaderRoutingTask != null)
-        {
-            try
-            {
+        if (_leaderRoutingTask != null) {
+            try {
                 await _leaderRoutingTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
             }
         }
 
@@ -88,25 +79,17 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     /// Leader 侧消息路由：监听 plan_approval_request 并自动批准
     /// 对齐 TS: Leader 收到 teammate 的 plan_approval_request 后自动批准
     /// </summary>
-    private async Task RouteLeaderMessagesAsync(string coordinatorAgentId, CancellationToken ct)
-    {
-        try
-        {
-            await foreach (var message in _messageBroker.ReceiveAsync(coordinatorAgentId, ct).ConfigureAwait(false))
-            {
+    private async Task RouteLeaderMessagesAsync(string coordinatorAgentId, CancellationToken ct) {
+        try {
+            await foreach (var message in _messageBroker.ReceiveAsync(coordinatorAgentId, ct).ConfigureAwait(false)) {
                 if (ct.IsCancellationRequested) break;
 
-                if (message.MessageType == TeammateMessageType.PlanApprovalRequest.ToValue())
-                {
+                if (message.MessageType == TeammateMessageType.PlanApprovalRequest.ToValue()) {
                     _ = ProcessPlanApprovalRequestAsync(message, ct).WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
                 }
             }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Plan 审批消息路由异常退出: CoordinatorId={CoordinatorId}", coordinatorAgentId);
         }
     }
@@ -114,23 +97,15 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     /// <summary>
     /// Teammate 侧响应路由：监听 plan_approval_response 并调用 HandlePlanApprovalResponseAsync
     /// </summary>
-    private async Task RouteTeammateResponsesAsync(string teammateAgentId)
-    {
-        try
-        {
-            await foreach (var message in _messageBroker.ReceiveAsync(teammateAgentId).ConfigureAwait(false))
-            {
-                if (message.MessageType == TeammateMessageType.PlanApprovalResponse.ToValue())
-                {
+    private async Task RouteTeammateResponsesAsync(string teammateAgentId) {
+        try {
+            await foreach (var message in _messageBroker.ReceiveAsync(teammateAgentId).ConfigureAwait(false)) {
+                if (message.MessageType == TeammateMessageType.PlanApprovalResponse.ToValue()) {
                     await ProcessPlanApprovalResponseAsync(message).ConfigureAwait(false);
                 }
             }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Teammate Plan 审批响应路由异常退出: TeammateId={TeammateId}", teammateAgentId);
         }
     }
@@ -139,16 +114,13 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     /// 处理 plan_approval_request — Leader 侧自动批准
     /// 对齐 TS: Leader 自动批准 teammate 的 plan 退出请求
     /// </summary>
-    private async Task ProcessPlanApprovalRequestAsync(CoordinatorAgentMessage message, CancellationToken ct)
-    {
-        try
-        {
+    private async Task ProcessPlanApprovalRequestAsync(CoordinatorAgentMessage message, CancellationToken ct) {
+        try {
             var request = RelaxedJsonSerializer.Deserialize(
                 message.Content,
                 AgentsJsonContext.Default.PlanApprovalRequestMessage);
 
-            if (request == null)
-            {
+            if (request == null) {
                 _logger?.LogWarning("无法反序列化 Plan 审批请求: From={FromId}", message.FromAgentId);
                 return;
             }
@@ -162,8 +134,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
                 ? await _permissionManager.GetCurrentModeAsync(ct).ConfigureAwait(false)
                 : PermissionMode.Auto;
 
-            var response = new PlanApprovalResponseMessage
-            {
+            var response = new PlanApprovalResponseMessage {
                 From = "team-lead",
                 Timestamp = _clock.GetUtcNow().ToString("o"),
                 RequestId = request.RequestId,
@@ -174,8 +145,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
             var responseContent = JsonSerializer.Serialize(response, AgentsJsonContext.Default.PlanApprovalResponseMessage);
 
             // 通过 broker 发送审批响应给 teammate
-            var responseMessage = new CoordinatorAgentMessage
-            {
+            var responseMessage = new CoordinatorAgentMessage {
                 FromAgentId = "team-lead",
                 ToAgentId = message.FromAgentId,
                 MessageType = TeammateMessageType.PlanApprovalResponse.ToValue(),
@@ -187,9 +157,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
             _logger?.LogInformation(
                 "Plan 审批已自动批准: RequestId={RequestId}, To={ToId}, PermissionMode={Mode}",
                 request.RequestId, message.FromAgentId, currentMode.ToValue());
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "处理 Plan 审批请求失败: From={FromId}", message.FromAgentId);
         }
     }
@@ -198,16 +166,13 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     /// 处理 plan_approval_response — Teammate 侧接收审批结果
     /// 对齐 TS: Teammate 收到 Leader 的审批响应后恢复权限模式
     /// </summary>
-    private async Task ProcessPlanApprovalResponseAsync(CoordinatorAgentMessage message)
-    {
-        try
-        {
+    private async Task ProcessPlanApprovalResponseAsync(CoordinatorAgentMessage message) {
+        try {
             var response = RelaxedJsonSerializer.Deserialize(
                 message.Content,
                 AgentsJsonContext.Default.PlanApprovalResponseMessage);
 
-            if (response == null)
-            {
+            if (response == null) {
                 _logger?.LogWarning("无法反序列化 Plan 审批响应: From={FromId}", message.FromAgentId);
                 return;
             }
@@ -217,9 +182,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
                 response.RequestId, response.Approved, response.From);
 
             await _planModeManager.HandlePlanApprovalResponseAsync(response).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "处理 Plan 审批响应失败: From={FromId}", message.FromAgentId);
         }
     }

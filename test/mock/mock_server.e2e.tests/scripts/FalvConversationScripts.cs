@@ -3,13 +3,11 @@ namespace MockServer.E2E.Tests.Scripts;
 /// <summary>
 /// /falv 结构化推理 E2E 测试脚本
 /// </summary>
-public static class FalvConversationScripts
-{
+public static class FalvConversationScripts {
     /// <summary>
     /// /falv --status 查看空引擎状态
     /// </summary>
-    public static ConversationScript FalvStatusEmpty => new()
-    {
+    public static ConversationScript FalvStatusEmpty => new() {
         Name = "/falv --status 空引擎",
         Turns =
         [
@@ -35,8 +33,7 @@ public static class FalvConversationScripts
     /// <summary>
     /// /falv 添加假定 + 查看状态
     /// </summary>
-    public static ConversationScript FalvAddAssumption => new()
-    {
+    public static ConversationScript FalvAddAssumption => new() {
         Name = "/falv 添加假定",
         Turns =
         [
@@ -76,8 +73,7 @@ public static class FalvConversationScripts
     /// <summary>
     /// /falv --judge 裁决 + 预算消耗
     /// </summary>
-    public static ConversationScript FalvJudgeWithBudget => new()
-    {
+    public static ConversationScript FalvJudgeWithBudget => new() {
         Name = "/falv --judge 裁决+预算",
         Turns =
         [
@@ -115,8 +111,7 @@ public static class FalvConversationScripts
     /// <summary>
     /// /falv 轮次耗尽 + 续费继续
     /// </summary>
-    public static ConversationScript FalvBudgetExhaustAndRefill => new()
-    {
+    public static ConversationScript FalvBudgetExhaustAndRefill => new() {
         Name = "/falv 轮次耗尽+续费",
         Turns =
         [
@@ -187,8 +182,7 @@ public static class FalvConversationScripts
     /// <summary>
     /// /falv --evidence 查看证据链
     /// </summary>
-    public static ConversationScript FalvEvidenceEmpty => new()
-    {
+    public static ConversationScript FalvEvidenceEmpty => new() {
         Name = "/falv --evidence 空证据链",
         Turns =
         [
@@ -209,8 +203,7 @@ public static class FalvConversationScripts
     /// <summary>
     /// /falv --help 帮助信息
     /// </summary>
-    public static ConversationScript FalvHelp => new()
-    {
+    public static ConversationScript FalvHelp => new() {
         Name = "/falv --help 帮助",
         Turns =
         [
@@ -237,8 +230,7 @@ public static class FalvConversationScripts
     /// <summary>
     /// /falv --cone 查看有限视锥
     /// </summary>
-    public static ConversationScript FalvCone => new()
-    {
+    public static ConversationScript FalvCone => new() {
         Name = "/falv --cone 有限视锥",
         Turns =
         [
@@ -264,8 +256,7 @@ public static class FalvConversationScripts
     /// <summary>
     /// /falv --conflict 检测视锥冲突
     /// </summary>
-    public static ConversationScript FalvConflict => new()
-    {
+    public static ConversationScript FalvConflict => new() {
         Name = "/falv --conflict 视锥冲突",
         Turns =
         [

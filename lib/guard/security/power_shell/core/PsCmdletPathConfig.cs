@@ -4,8 +4,7 @@ namespace JoinCode.Guard.Security.PowerShell;
 /// PS cmdlet 路径参数配置 — 与 TS CMDLET_PATH_CONFIG 1:1 对齐
 /// 定义每个 cmdlet 的路径参数、开关参数、值参数等
 /// </summary>
-public sealed class PsCmdletPathConfig
-{
+public sealed class PsCmdletPathConfig {
     /// <summary>操作类型</summary>
     public required FileOperationType OperationType { get; init; }
 
@@ -31,22 +30,18 @@ public sealed class PsCmdletPathConfig
 /// <summary>
 /// PS cmdlet 路径配置注册表 — 与 TS CMDLET_PATH_CONFIG 1:1 对齐
 /// </summary>
-public static partial class PsCmdletPathRegistry
-{
+public static partial class PsCmdletPathRegistry {
     /// <summary>
     /// 查找 cmdlet 路径配置
     /// </summary>
-    public static bool TryGetConfig(string cmdletName, [NotNullWhen(true)] out PsCmdletPathConfig? config)
-    {
+    public static bool TryGetConfig(string cmdletName, [NotNullWhen(true)] out PsCmdletPathConfig? config) {
         return Registry.TryGetValue(PsAliases.ResolveToCanonical(cmdletName), out config);
     }
 
     private static readonly FrozenDictionary<string, PsCmdletPathConfig> Registry = BuildRegistry();
 
-    private static FrozenDictionary<string, PsCmdletPathConfig> BuildRegistry()
-    {
-        var dict = new Dictionary<string, PsCmdletPathConfig>(StringComparer.OrdinalIgnoreCase)
-        {
+    private static FrozenDictionary<string, PsCmdletPathConfig> BuildRegistry() {
+        var dict = new Dictionary<string, PsCmdletPathConfig>(StringComparer.OrdinalIgnoreCase) {
             // ─── 写操作 ──────────────────────────────────────────────────
             ["set-content"] = WriteConfig(
                 ["-path", "-literalpath", "-pspath", "-lp"],
@@ -114,8 +109,7 @@ public static partial class PsCmdletPathRegistry
                 ["-force", "-passthru", "-whatif", "-confirm", "-usetransaction"],
                 ["-value", "-filter", "-include", "-exclude", "-credential", "-encoding"]),
 
-            ["invoke-webrequest"] = new PsCmdletPathConfig
-            {
+            ["invoke-webrequest"] = new PsCmdletPathConfig {
                 OperationType = FileOperationType.Write,
                 PathParams = ToFrozenSet(["-outfile", "-infile"]),
                 KnownSwitches = ToFrozenSet(["-usebasicparsing", "-preserveduthorizationonredirect"]),
@@ -124,8 +118,7 @@ public static partial class PsCmdletPathRegistry
                 OptionalWrite = true,
             },
 
-            ["invoke-restmethod"] = new PsCmdletPathConfig
-            {
+            ["invoke-restmethod"] = new PsCmdletPathConfig {
                 OperationType = FileOperationType.Write,
                 PathParams = ToFrozenSet(["-outfile", "-infile"]),
                 KnownSwitches = ToFrozenSet(["-usebasicparsing", "-preserveduthorizationonredirect"]),
@@ -250,8 +243,7 @@ public static partial class PsCmdletPathRegistry
                 [],
                 ["-xpath", "-xml", "-namespace"]),
 
-            ["get-winevent"] = new PsCmdletPathConfig
-            {
+            ["get-winevent"] = new PsCmdletPathConfig {
                 OperationType = FileOperationType.Read,
                 PathParams = ToFrozenSet(["-path"]),
                 KnownSwitches = ToFrozenSet([]),
@@ -264,10 +256,8 @@ public static partial class PsCmdletPathRegistry
 
     private static PsCmdletPathConfig WriteConfig(
         string[] pathParams, string[] knownSwitches, string[] knownValueParams,
-        string[]? leafOnlyPathParams = null)
-    {
-        return new PsCmdletPathConfig
-        {
+        string[]? leafOnlyPathParams = null) {
+        return new PsCmdletPathConfig {
             OperationType = FileOperationType.Write,
             PathParams = ToFrozenSet(pathParams),
             KnownSwitches = ToFrozenSet(knownSwitches),
@@ -277,10 +267,8 @@ public static partial class PsCmdletPathRegistry
     }
 
     private static PsCmdletPathConfig ReadConfig(
-        string[] pathParams, string[] knownSwitches, string[] knownValueParams)
-    {
-        return new PsCmdletPathConfig
-        {
+        string[] pathParams, string[] knownSwitches, string[] knownValueParams) {
+        return new PsCmdletPathConfig {
             OperationType = FileOperationType.Read,
             PathParams = ToFrozenSet(pathParams),
             KnownSwitches = ToFrozenSet(knownSwitches),
@@ -288,8 +276,7 @@ public static partial class PsCmdletPathRegistry
         };
     }
 
-    private static FrozenSet<string> ToFrozenSet(string[] items)
-    {
+    private static FrozenSet<string> ToFrozenSet(string[] items) {
         return FrozenSet.ToFrozenSet(items, StringComparer.OrdinalIgnoreCase);
     }
 }

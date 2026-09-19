@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// REPL语言类型枚举
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 ReplLanguageEnumConstants + ReplLanguageExtensions
 /// </summary>
-public enum ReplLanguage
-{
+public enum ReplLanguage {
     /// <summary>C#语言</summary>
     [EnumValue("csharp")] CSharp = 0,
 

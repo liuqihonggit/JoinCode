@@ -5,26 +5,22 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Review, Description = "审查 Pull Request 或代码变更", Usage = "/review [pr-number]", Category = ChatCommandCategory.Code, ArgumentHint = "[pr-number]", ExposeToMcp = true)]
 [ChatCommandArg("pr_number", Type = "string", Description = "Pull Request 编号（可选，默认当前分支）")]
-public sealed class ReviewCommand : ChatCommandBase
-{
+public sealed class ReviewCommand : ChatCommandBase {
     /// <summary>
     /// 异步执行 /review 命令
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         // 无参数时：交互式选择审查方式
         // 对齐 TS: UltrareviewOverageDialog — 审查选项选择
-        if (string.IsNullOrEmpty(args) && !Core.Utils.TestEnvironmentDetector.IsNonInteractive && context.TryGetCommandServices()?.ChatService is not null)
-        {
+        if (string.IsNullOrEmpty(args) && !Core.Utils.TestEnvironmentDetector.IsNonInteractive && context.TryGetCommandServices()?.ChatService is not null) {
             var dialog = new Dialog("代码审查", "选择审查方式:", ["审查本地变更", "审查 Pull Request", "取消"]);
             var result = await dialog.ShowAsync(context.CancellationToken).ConfigureAwait(false);
 
-            if (result.Cancelled || result.SelectedIndex == 2)
-            {
+            if (result.Cancelled || result.SelectedIndex == 2) {
                 TerminalHelper.WriteLine("已取消");
                 return ChatCommandResult.Continue();
             }
@@ -39,12 +35,9 @@ public sealed class ReviewCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static async Task RunReviewAsync(ChatCommandContext context, string prompt)
-    {
-        try
-        {
-            if (context.TryGetCommandServices()?.ChatService is null)
-            {
+    private static async Task RunReviewAsync(ChatCommandContext context, string prompt) {
+        try {
+            if (context.TryGetCommandServices()?.ChatService is null) {
                 TerminalHelper.WriteLine("ChatService 不可用，无法执行审查。");
                 return;
             }
@@ -54,17 +47,12 @@ public sealed class ReviewCommand : ChatCommandBase
 
             // 对齐 TS: type='prompt'，结果直接进入对话上下文
             // 使用 SendMessageStreamAsync 让 LLM 回复流式输出到终端
-            await foreach (var _ in context.GetCommandServices().ChatService.SendMessageStreamAsync(prompt, context.CancellationToken).ConfigureAwait(false))
-            {
+            await foreach (var _ in context.GetCommandServices().ChatService.SendMessageStreamAsync(prompt, context.CancellationToken).ConfigureAwait(false)) {
                 // 流式输出由 ChatService 内部处理
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             TerminalHelper.WriteLine("审查已取消。");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("审查", ex);
         }
     }
@@ -73,10 +61,8 @@ public sealed class ReviewCommand : ChatCommandBase
     /// 构建 prompt — 对齐 TS review.ts getPromptForCommand
     /// TS 端是纯 prompt 类型，统一模板通过 args 动态插入 PR 号
     /// </summary>
-    private static string BuildPrompt(string args)
-    {
-        if (!string.IsNullOrEmpty(args) && int.TryParse(args, out _))
-        {
+    private static string BuildPrompt(string args) {
+        if (!string.IsNullOrEmpty(args) && int.TryParse(args, out _)) {
             // 有 PR 号 — 对齐 TS: 指示 LLM 运行 gh pr view/diff
             return $"""
                 You are an expert code reviewer. Follow these steps:

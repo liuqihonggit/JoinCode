@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface ITelemetryService : IAsyncDisposable
-{
+public interface ITelemetryService : IAsyncDisposable {
     TelemetryConfig Config { get; }
 
     bool IsTracingEnabled { get; }
@@ -25,8 +24,7 @@ public interface ITelemetryService : IAsyncDisposable
     IEnumerable<string> GetRegisteredMetrics();
 }
 
-public interface ITelemetrySpan : IAsyncDisposable
-{
+public interface ITelemetrySpan : IAsyncDisposable {
     string SpanId { get; }
 
     string TraceId { get; }
@@ -62,23 +60,19 @@ public interface ITelemetrySpan : IAsyncDisposable
 /// 遥测指标公共契约 — 所有指标类型(Counter/Histogram/Gauge)的公共基接口
 /// <para>用于统一存储与遍历已注册指标,避免维护多个并行字典</para>
 /// </summary>
-public interface ITelemetryMetric
-{
+public interface ITelemetryMetric {
     /// <summary>获取指标名称</summary>
     string Name { get; }
 }
 
-public interface ITelemetryCounter : ITelemetryMetric
-{
+public interface ITelemetryCounter : ITelemetryMetric {
     void Add(double value, Dictionary<string, string>? tags = null);
 }
 
-public interface ITelemetryHistogram : ITelemetryMetric
-{
+public interface ITelemetryHistogram : ITelemetryMetric {
     void Record(double value, Dictionary<string, string>? tags = null);
 }
 
-public interface ITelemetryGauge : ITelemetryMetric
-{
+public interface ITelemetryGauge : ITelemetryMetric {
     void Record(double value, Dictionary<string, string>? tags = null);
 }

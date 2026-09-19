@@ -35,8 +35,7 @@ public sealed record FileChangeRecord(
 /// <summary>
 /// 文件变更类型
 /// </summary>
-public enum FileChangeType
-{
+public enum FileChangeType {
     /// <summary>新建文件</summary>
     [EnumValue("created")]
     Created,

@@ -4,8 +4,7 @@ namespace Core.Hooks.Configuration;
 /// <summary>
 /// 钩子配置来源
 /// </summary>
-public enum HookSource
-{
+public enum HookSource {
     /// <summary>用户设置 (~/.jcc/settings.json)</summary>
     [EnumValue("userSettings")] UserSettings,
 
@@ -31,16 +30,13 @@ public enum HookSource
 /// <summary>
 /// HookSource 扩展方法
 /// </summary>
-public static class HookSourceDisplayExtensions
-{
+public static class HookSourceDisplayExtensions {
     /// <summary>
     /// 获取来源的显示描述
     /// </summary>
-    public static string GetDescription(this HookSource source)
-    {
+    public static string GetDescription(this HookSource source) {
         var folder = AppDataConstants.AppDataFolder;
-        return source switch
-        {
+        return source switch {
             HookSource.UserSettings => $"User settings (~/{folder}/settings.json)",
             HookSource.ProjectSettings => $"Project settings ({folder}/settings.json)",
             HookSource.LocalSettings => $"Local settings ({folder}/settings.local.json)",
@@ -55,10 +51,8 @@ public static class HookSourceDisplayExtensions
     /// <summary>
     /// 获取来源的标题显示
     /// </summary>
-    public static string GetHeader(this HookSource source)
-    {
-        return source switch
-        {
+    public static string GetHeader(this HookSource source) {
+        return source switch {
             HookSource.UserSettings => "User Settings",
             HookSource.ProjectSettings => "Project Settings",
             HookSource.LocalSettings => "Local Settings",
@@ -73,10 +67,8 @@ public static class HookSourceDisplayExtensions
     /// <summary>
     /// 获取来源的内联显示（简短）
     /// </summary>
-    public static string GetInlineDisplay(this HookSource source)
-    {
-        return source switch
-        {
+    public static string GetInlineDisplay(this HookSource source) {
+        return source switch {
             HookSource.UserSettings => "User",
             HookSource.ProjectSettings => "Project",
             HookSource.LocalSettings => "Local",
@@ -91,10 +83,8 @@ public static class HookSourceDisplayExtensions
     /// <summary>
     /// 获取来源的优先级（数值越小优先级越高）
     /// </summary>
-    public static int GetPriority(this HookSource source)
-    {
-        return source switch
-        {
+    public static int GetPriority(this HookSource source) {
+        return source switch {
             HookSource.UserSettings => 0,
             HookSource.ProjectSettings => 1,
             HookSource.LocalSettings => 2,
@@ -109,8 +99,7 @@ public static class HookSourceDisplayExtensions
     /// <summary>
     /// 检查来源是否可编辑
     /// </summary>
-    public static bool IsEditable(this HookSource source)
-    {
+    public static bool IsEditable(this HookSource source) {
         return source is HookSource.UserSettings
             or HookSource.ProjectSettings
             or HookSource.LocalSettings;
@@ -119,8 +108,7 @@ public static class HookSourceDisplayExtensions
     /// <summary>
     /// 检查来源是否为持久化存储
     /// </summary>
-    public static bool IsPersistent(this HookSource source)
-    {
+    public static bool IsPersistent(this HookSource source) {
         return source is HookSource.UserSettings
             or HookSource.ProjectSettings
             or HookSource.LocalSettings

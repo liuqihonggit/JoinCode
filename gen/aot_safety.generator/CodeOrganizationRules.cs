@@ -1,8 +1,6 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class CodeOrganizationRules : DiagnosticAnalyzer
-    {
+    public sealed class CodeOrganizationRules : DiagnosticAnalyzer {
         private static readonly DiagnosticDescriptor RuleFileTooLong = new(
             "JCC8001",
             "代码组织: 文件行数超过2000行，建议拆分",
@@ -183,8 +181,7 @@ namespace AotSafety.Generator
                 RuleStringConstantMustBeEnum, RuleRedundantKeyValueDictionary,
                 RuleHardcodedEnumValueString, RulePropertyReturnsNew);
 
-        public override void Initialize(AnalysisContext context)
-        {
+        public override void Initialize(AnalysisContext context) {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterSyntaxNodeAction(AnalyzeDirectFileIO, SyntaxKind.InvocationExpression, SyntaxKind.ObjectCreationExpression);
@@ -199,8 +196,7 @@ namespace AotSafety.Generator
             context.RegisterSyntaxNodeAction(AnalyzePublicMemberXmlDoc, SyntaxKind.MethodDeclaration, SyntaxKind.PropertyDeclaration, SyntaxKind.ConstructorDeclaration);
         }
 
-        private static void AnalyzeFileTooLong(SyntaxTreeAnalysisContext ctx)
-        {
+        private static void AnalyzeFileTooLong(SyntaxTreeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var tree = ctx.Tree;
@@ -216,27 +212,24 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleFileTooLong, location, fileName, lineCount));
         }
 
-        private static void AnalyzeDirectFileIO(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeDirectFileIO(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (IsInFileSystemImplementation(ctx)) return;
 
             if (IsInDeprecatedOrGeneratedCode(ctx)) return;
 
-            switch (ctx.Node)
-            {
+            switch (ctx.Node) {
                 case InvocationExpressionSyntax invocation:
-                    AnalyzeFileDirectoryInvocation(ctx, invocation);
-                    break;
+                AnalyzeFileDirectoryInvocation(ctx, invocation);
+                break;
                 case ObjectCreationExpressionSyntax objectCreation:
-                    AnalyzeFileStreamCreation(ctx, objectCreation);
-                    break;
+                AnalyzeFileStreamCreation(ctx, objectCreation);
+                break;
             }
         }
 
-        private static void AnalyzeDirectDirectoryProperty(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeDirectDirectoryProperty(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
             if (IsInFileSystemImplementation(ctx)) return;
             if (IsInDeprecatedOrGeneratedCode(ctx)) return;
@@ -251,18 +244,14 @@ namespace AotSafety.Generator
 
             var typeName = containingType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
 
-            if ((typeName is "File" or "System.IO.File") && FileMethods.Contains(method.Name))
-            {
+            if ((typeName is "File" or "System.IO.File") && FileMethods.Contains(method.Name)) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleDirectFileIO, memberAccess.GetLocation(), $"File.{method.Name}"));
-            }
-            else if ((typeName is "Directory" or "System.IO.Directory") && DirectoryMethods.Contains(method.Name))
-            {
+            } else if ((typeName is "Directory" or "System.IO.Directory") && DirectoryMethods.Contains(method.Name)) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleDirectFileIO, memberAccess.GetLocation(), $"Directory.{method.Name}"));
             }
         }
 
-        private static void AnalyzeFileDirectoryInvocation(SyntaxNodeAnalysisContext ctx, InvocationExpressionSyntax invocation)
-        {
+        private static void AnalyzeFileDirectoryInvocation(SyntaxNodeAnalysisContext ctx, InvocationExpressionSyntax invocation) {
             var symbolInfo = ctx.SemanticModel.GetSymbolInfo(invocation);
             if (symbolInfo.Symbol is not IMethodSymbol method) return;
 
@@ -271,18 +260,14 @@ namespace AotSafety.Generator
 
             var typeName = containingType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
 
-            if ((typeName is "File" or "System.IO.File") && FileMethods.Contains(method.Name))
-            {
+            if ((typeName is "File" or "System.IO.File") && FileMethods.Contains(method.Name)) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleDirectFileIO, invocation.GetLocation(), $"File.{method.Name}"));
-            }
-            else if ((typeName is "Directory" or "System.IO.Directory") && DirectoryMethods.Contains(method.Name))
-            {
+            } else if ((typeName is "Directory" or "System.IO.Directory") && DirectoryMethods.Contains(method.Name)) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleDirectFileIO, invocation.GetLocation(), $"Directory.{method.Name}"));
             }
         }
 
-        private static void AnalyzeFileStreamCreation(SyntaxNodeAnalysisContext ctx, ObjectCreationExpressionSyntax objectCreation)
-        {
+        private static void AnalyzeFileStreamCreation(SyntaxNodeAnalysisContext ctx, ObjectCreationExpressionSyntax objectCreation) {
             var symbolInfo = ctx.SemanticModel.GetSymbolInfo(objectCreation);
             if (symbolInfo.Symbol is not IMethodSymbol ctor) return;
 
@@ -290,8 +275,7 @@ namespace AotSafety.Generator
             if (containingType is null) return;
 
             var typeName = containingType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
-            if (typeName is "FileStream" or "System.IO.FileStream")
-            {
+            if (typeName is "FileStream" or "System.IO.FileStream") {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleDirectFileStream, objectCreation.GetLocation()));
                 AnalyzeFileShareParameter(ctx, objectCreation);
             }
@@ -300,8 +284,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// JCC9006: 检测 FileStream 构造的 FileShare 参数是否为 ReadWrite
         /// </summary>
-        private static void AnalyzeFileShareParameter(SyntaxNodeAnalysisContext ctx, ObjectCreationExpressionSyntax objectCreation)
-        {
+        private static void AnalyzeFileShareParameter(SyntaxNodeAnalysisContext ctx, ObjectCreationExpressionSyntax objectCreation) {
             var argumentList = objectCreation.ArgumentList;
             if (argumentList is null) return;
 
@@ -309,33 +292,27 @@ namespace AotSafety.Generator
             if (arguments.Count == 0) return;
 
             ArgumentSyntax? shareArg = null;
-            foreach (var arg in arguments)
-            {
-                if (arg.NameColon is { } nameColon && nameColon.Name.Identifier.ValueText == "share")
-                {
+            foreach (var arg in arguments) {
+                if (arg.NameColon is { } nameColon && nameColon.Name.Identifier.ValueText == "share") {
                     shareArg = arg;
                     break;
                 }
             }
 
-            if (shareArg is null)
-            {
+            if (shareArg is null) {
                 var positionalArgs = arguments.Where(a => a.NameColon is null).ToList();
-                if (positionalArgs.Count >= 4)
-                {
+                if (positionalArgs.Count >= 4) {
                     shareArg = positionalArgs[3];
                 }
             }
 
-            if (shareArg is null)
-            {
+            if (shareArg is null) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleFileShareNotReadWrite, objectCreation.GetLocation(), "未指定(默认None)"));
                 return;
             }
 
             var constantValue = ctx.SemanticModel.GetConstantValue(shareArg.Expression);
-            if (constantValue.HasValue && constantValue.Value is int shareValue)
-            {
+            if (constantValue.HasValue && constantValue.Value is int shareValue) {
                 if ((shareValue & 3) == 3) return;
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleFileShareNotReadWrite, shareArg.GetLocation(), shareValue.ToString()));
                 return;
@@ -346,8 +323,7 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleFileShareNotReadWrite, shareArg.GetLocation(), exprText));
         }
 
-        private static void AnalyzeAbstractionBypass(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeAbstractionBypass(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not ObjectCreationExpressionSyntax objectCreation) return;
@@ -361,8 +337,7 @@ namespace AotSafety.Generator
             var typeName = containingType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
 
             // JCC9003: new HttpClient() 绕过 IHttpClientProvider
-            if (typeName is "HttpClient" or "System.Net.Http.HttpClient")
-            {
+            if (typeName is "HttpClient" or "System.Net.Http.HttpClient") {
                 if (IsInHttpClientImplementation(ctx)) return;
                 if (IsInDeprecatedOrGeneratedCode(ctx)) return;
 
@@ -371,8 +346,7 @@ namespace AotSafety.Generator
             }
 
             // JCC9004: new PhysicalFileSystem() 绕过 IFileSystem 注入
-            if (typeName is "PhysicalFileSystem")
-            {
+            if (typeName is "PhysicalFileSystem") {
                 if (IsInFileSystemImplementation(ctx)) return;
                 if (IsInDeprecatedOrGeneratedCode(ctx)) return;
 
@@ -381,8 +355,7 @@ namespace AotSafety.Generator
             }
 
             // JCC9005: new FileSystemWatcher() 绕过 IFileSystem 抽象
-            if (typeName is "FileSystemWatcher" or "System.IO.FileSystemWatcher")
-            {
+            if (typeName is "FileSystemWatcher" or "System.IO.FileSystemWatcher") {
                 if (IsInFileSystemImplementation(ctx)) return;
                 if (IsInDeprecatedOrGeneratedCode(ctx)) return;
 
@@ -391,8 +364,7 @@ namespace AotSafety.Generator
             }
         }
 
-        private static bool IsInHttpClientImplementation(SyntaxNodeAnalysisContext ctx)
-        {
+        private static bool IsInHttpClientImplementation(SyntaxNodeAnalysisContext ctx) {
             var containingType = ctx.SemanticModel.GetEnclosingSymbol(ctx.Node.SpanStart)?.ContainingType;
             if (containingType is null) return false;
 
@@ -404,8 +376,7 @@ namespace AotSafety.Generator
                    typeName.Contains("BridgeApiClient", StringComparison.Ordinal);
         }
 
-        private static bool IsInFileSystemImplementation(SyntaxNodeAnalysisContext ctx)
-        {
+        private static bool IsInFileSystemImplementation(SyntaxNodeAnalysisContext ctx) {
             var containingType = ctx.SemanticModel.GetEnclosingSymbol(ctx.Node.SpanStart)?.ContainingType;
             if (containingType is null) return false;
 
@@ -417,23 +388,18 @@ namespace AotSafety.Generator
                    typeName.Contains("FileOperationService", StringComparison.Ordinal);
         }
 
-        private static bool IsInDeprecatedOrGeneratedCode(SyntaxNodeAnalysisContext ctx)
-        {
+        private static bool IsInDeprecatedOrGeneratedCode(SyntaxNodeAnalysisContext ctx) {
             var containingType = ctx.SemanticModel.GetEnclosingSymbol(ctx.Node.SpanStart)?.ContainingType;
-            if (containingType is not null)
-            {
-                foreach (var attr in containingType.GetAttributes())
-                {
+            if (containingType is not null) {
+                foreach (var attr in containingType.GetAttributes()) {
                     if (attr.AttributeClass?.Name == "ObsoleteAttribute")
                         return true;
                 }
             }
 
             var containingMethod = ctx.SemanticModel.GetEnclosingSymbol(ctx.Node.SpanStart) as IMethodSymbol;
-            if (containingMethod is not null)
-            {
-                foreach (var attr in containingMethod.GetAttributes())
-                {
+            if (containingMethod is not null) {
+                foreach (var attr in containingMethod.GetAttributes()) {
                     if (attr.AttributeClass?.Name == "ObsoleteAttribute")
                         return true;
                 }
@@ -442,8 +408,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeProjectStructure(CompilationAnalysisContext ctx)
-        {
+        private static void AnalyzeProjectStructure(CompilationAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var compilation = ctx.Compilation;
@@ -452,8 +417,7 @@ namespace AotSafety.Generator
             var directoryFiles = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             var directorySubdirs = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var tree in syntaxTrees)
-            {
+            foreach (var tree in syntaxTrees) {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var filePath = tree.FilePath;
@@ -472,8 +436,7 @@ namespace AotSafety.Generator
                 directoryFiles[dir].Add(fileName);
 
                 var parentSlash = dir.LastIndexOfAny(new[] { '\\', '/' });
-                if (parentSlash >= 0)
-                {
+                if (parentSlash >= 0) {
                     var parentDir = dir.Substring(0, parentSlash);
                     var subdirName = dir.Substring(parentSlash + 1);
                     if (!directorySubdirs.ContainsKey(parentDir))
@@ -486,13 +449,11 @@ namespace AotSafety.Generator
             foreach (var d in directoryFiles.Keys) allDirs.Add(d);
             foreach (var d in directorySubdirs.Keys) allDirs.Add(d);
 
-            foreach (var dir in allDirs)
-            {
+            foreach (var dir in allDirs) {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var fileCount = directoryFiles.TryGetValue(dir, out var files) ? files.Count : 0;
-                if (fileCount > 20)
-                {
+                if (fileCount > 20) {
                     var lastSlash = dir.LastIndexOfAny(new[] { '\\', '/' });
                     var dirName = lastSlash >= 0 ? dir.Substring(lastSlash + 1) : dir;
                     var location = compilation.SyntaxTrees
@@ -503,15 +464,13 @@ namespace AotSafety.Generator
                 }
             }
 
-            foreach (var dir in allDirs)
-            {
+            foreach (var dir in allDirs) {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var fileCount = directoryFiles.TryGetValue(dir, out var files) ? files.Count : 0;
                 var subdirCount = directorySubdirs.TryGetValue(dir, out var subdirs) ? subdirs.Count : 0;
 
-                if (fileCount > 0 && subdirCount > 0)
-                {
+                if (fileCount > 0 && subdirCount > 0) {
                     var lastSlash = dir.LastIndexOfAny(new[] { '\\', '/' });
                     var dirName = lastSlash >= 0 ? dir.Substring(lastSlash + 1) : dir;
                     var location = compilation.SyntaxTrees
@@ -523,19 +482,16 @@ namespace AotSafety.Generator
             }
         }
 
-        private static bool IsInExcludedPath(string filePath)
-        {
+        private static bool IsInExcludedPath(string filePath) {
             var parts = filePath.Split(new[] { '\\', '/' });
-            foreach (var part in parts)
-            {
+            foreach (var part in parts) {
                 if (ExcludedDirectories.Contains(part))
                     return true;
             }
             return false;
         }
 
-        private static void AnalyzeStringMatchExpression(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeStringMatchExpression(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var switchExpr = (SwitchExpressionSyntax)ctx.Node;
@@ -552,24 +508,22 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleStringConstantMustBeEnum, location, exprText));
         }
 
-        private static void AnalyzeRedundantKeyValueDictionary(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeRedundantKeyValueDictionary(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             TypeSyntax? typeSyntax = null;
             VariableDeclaratorSyntax? variableDeclarator = null;
             string? variableName = null;
 
-            switch (ctx.Node)
-            {
+            switch (ctx.Node) {
                 case FieldDeclarationSyntax field:
-                    typeSyntax = field.Declaration.Type;
-                    variableDeclarator = field.Declaration.Variables.FirstOrDefault();
-                    break;
+                typeSyntax = field.Declaration.Type;
+                variableDeclarator = field.Declaration.Variables.FirstOrDefault();
+                break;
                 case PropertyDeclarationSyntax property:
-                    typeSyntax = property.Type;
-                    variableName = property.Identifier.ValueText;
-                    break;
+                typeSyntax = property.Type;
+                variableName = property.Identifier.ValueText;
+                break;
             }
 
             if (typeSyntax is null) return;
@@ -588,18 +542,12 @@ namespace AotSafety.Generator
             var initializer = variableDeclarator?.Initializer?.Value;
 
             if (initializer is ObjectCreationExpressionSyntax objCreation &&
-                objCreation.ArgumentList?.Arguments.Count == 0)
-            {
-                if (objCreation.Initializer is not null)
-                {
-                    foreach (var init in objCreation.Initializer.Expressions)
-                    {
-                        if (init is InitializerExpressionSyntax collectionInit)
-                        {
-                            foreach (var item in collectionInit.Expressions)
-                            {
-                                if (IsKeyValueSame(item))
-                                {
+                objCreation.ArgumentList?.Arguments.Count == 0) {
+                if (objCreation.Initializer is not null) {
+                    foreach (var init in objCreation.Initializer.Expressions) {
+                        if (init is InitializerExpressionSyntax collectionInit) {
+                            foreach (var item in collectionInit.Expressions) {
+                                if (IsKeyValueSame(item)) {
                                     hasRedundantKV = true;
                                     break;
                                 }
@@ -615,8 +563,7 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleRedundantKeyValueDictionary, location, variableName));
         }
 
-        private static bool IsDictionaryStringString(INamedTypeSymbol type)
-        {
+        private static bool IsDictionaryStringString(INamedTypeSymbol type) {
             if (!type.IsGenericType) return false;
             var def = type.ConstructedFrom;
             if (def is null) return false;
@@ -627,8 +574,7 @@ namespace AotSafety.Generator
                    type.TypeArguments[1].SpecialType == SpecialType.System_String;
         }
 
-        private static bool IsKeyValueSame(ExpressionSyntax expression)
-        {
+        private static bool IsKeyValueSame(ExpressionSyntax expression) {
             if (expression is not ParenthesizedLambdaExpressionSyntax lambda) return false;
 
             if (lambda.ParameterList.Parameters.Count != 2) return false;
@@ -644,20 +590,17 @@ namespace AotSafety.Generator
             return keyExpr == valueExpr;
         }
 
-        private static void AnalyzeHardcodedEnumValueStrings(CompilationStartAnalysisContext ctx)
-        {
+        private static void AnalyzeHardcodedEnumValueStrings(CompilationStartAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var enumValueStrings = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
 
-            foreach (var tree in ctx.Compilation.SyntaxTrees)
-            {
+            foreach (var tree in ctx.Compilation.SyntaxTrees) {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var root = tree.GetRoot();
 
-                foreach (var attr in root.DescendantNodes().OfType<AttributeSyntax>())
-                {
+                foreach (var attr in root.DescendantNodes().OfType<AttributeSyntax>()) {
                     var attrName = attr.Name.ToString().Replace(" ", "");
                     if (attrName != "EnumValue" && attrName != "EnumValueAttribute") continue;
 
@@ -671,8 +614,7 @@ namespace AotSafety.Generator
                     var stringValue = literal.Token.ValueText;
 
                     var parentEnum = attr.Parent?.Parent;
-                    if (parentEnum is EnumMemberDeclarationSyntax enumMember)
-                    {
+                    if (parentEnum is EnumMemberDeclarationSyntax enumMember) {
                         var enumType = enumMember.Parent as EnumDeclarationSyntax;
                         var enumName = enumType?.Identifier.ValueText ?? "Unknown";
                         enumValueStrings.TryAdd(stringValue, enumName);
@@ -682,8 +624,7 @@ namespace AotSafety.Generator
 
             if (enumValueStrings.IsEmpty) return;
 
-            ctx.RegisterSyntaxNodeAction(nodeCtx =>
-            {
+            ctx.RegisterSyntaxNodeAction(nodeCtx => {
                 if (nodeCtx.CancellationToken.IsCancellationRequested) return;
 
                 if (nodeCtx.Node is not LiteralExpressionSyntax literal ||
@@ -701,11 +642,9 @@ namespace AotSafety.Generator
             }, SyntaxKind.StringLiteralExpression);
         }
 
-        private static bool IsInEnumDefinition(SyntaxNode node)
-        {
+        private static bool IsInEnumDefinition(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
+            while (current is not null) {
                 if (current is EnumDeclarationSyntax or EnumMemberDeclarationSyntax)
                     return true;
                 if (current is AttributeArgumentSyntax)
@@ -717,8 +656,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzePropertyReturnsNew(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzePropertyReturnsNew(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var prop = (PropertyDeclarationSyntax)ctx.Node;
@@ -733,8 +671,7 @@ namespace AotSafety.Generator
                 return;
 
             var symbol = ctx.SemanticModel.GetDeclaredSymbol(prop, ctx.CancellationToken);
-            if (symbol is not null)
-            {
+            if (symbol is not null) {
                 if (symbol.ExplicitInterfaceImplementations.Length > 0)
                     return;
 
@@ -742,10 +679,8 @@ namespace AotSafety.Generator
                     return;
             }
 
-            if (prop.ExpressionBody is not null)
-            {
-                if (ContainsNewExpression(prop.ExpressionBody.Expression))
-                {
+            if (prop.ExpressionBody is not null) {
+                if (ContainsNewExpression(prop.ExpressionBody.Expression)) {
                     var propName = prop.Identifier.ValueText;
                     ctx.ReportDiagnostic(Diagnostic.Create(RulePropertyReturnsNew, prop.Identifier.GetLocation(), propName));
                 }
@@ -754,27 +689,19 @@ namespace AotSafety.Generator
 
             if (prop.AccessorList is null) return;
 
-            foreach (var accessor in prop.AccessorList.Accessors)
-            {
+            foreach (var accessor in prop.AccessorList.Accessors) {
                 if (!accessor.Keyword.IsKind(SyntaxKind.GetKeyword)) continue;
 
-                if (accessor.ExpressionBody is not null)
-                {
-                    if (ContainsNewExpression(accessor.ExpressionBody.Expression))
-                    {
+                if (accessor.ExpressionBody is not null) {
+                    if (ContainsNewExpression(accessor.ExpressionBody.Expression)) {
                         var propName = prop.Identifier.ValueText;
                         ctx.ReportDiagnostic(Diagnostic.Create(RulePropertyReturnsNew, prop.Identifier.GetLocation(), propName));
                         return;
                     }
-                }
-                else if (accessor.Body is not null)
-                {
-                    foreach (var stmt in accessor.Body.Statements)
-                    {
-                        if (stmt is ReturnStatementSyntax returnStmt && returnStmt.Expression is not null)
-                        {
-                            if (ContainsNewExpression(returnStmt.Expression))
-                            {
+                } else if (accessor.Body is not null) {
+                    foreach (var stmt in accessor.Body.Statements) {
+                        if (stmt is ReturnStatementSyntax returnStmt && returnStmt.Expression is not null) {
+                            if (ContainsNewExpression(returnStmt.Expression)) {
                                 var propName = prop.Identifier.ValueText;
                                 ctx.ReportDiagnostic(Diagnostic.Create(RulePropertyReturnsNew, prop.Identifier.GetLocation(), propName));
                                 return;
@@ -785,66 +712,57 @@ namespace AotSafety.Generator
             }
         }
 
-        private static bool ContainsNewExpression(ExpressionSyntax expression)
-        {
+        private static bool ContainsNewExpression(ExpressionSyntax expression) {
             if (expression is ObjectCreationExpressionSyntax)
                 return true;
 
             if (expression is ImplicitObjectCreationExpressionSyntax)
                 return true;
 
-            if (expression is InvocationExpressionSyntax invocation)
-            {
+            if (expression is InvocationExpressionSyntax invocation) {
                 var name = invocation.Expression.ToString();
                 if (name.StartsWith("Array.Empty") || name.StartsWith("Array.Empty<"))
                     return false;
 
-                foreach (var arg in invocation.ArgumentList.Arguments)
-                {
+                foreach (var arg in invocation.ArgumentList.Arguments) {
                     if (ContainsNewExpression(arg.Expression))
                         return true;
                 }
                 return false;
             }
 
-            switch (expression)
-            {
+            switch (expression) {
                 case BinaryExpressionSyntax binary:
-                    return ContainsNewExpression(binary.Left) || ContainsNewExpression(binary.Right);
+                return ContainsNewExpression(binary.Left) || ContainsNewExpression(binary.Right);
                 case ConditionalExpressionSyntax conditional:
-                    return ContainsNewExpression(conditional.WhenTrue) || ContainsNewExpression(conditional.WhenFalse);
+                return ContainsNewExpression(conditional.WhenTrue) || ContainsNewExpression(conditional.WhenFalse);
                 case SwitchExpressionSyntax switchExpr:
-                    foreach (var arm in switchExpr.Arms)
-                    {
-                        if (ContainsNewExpression(arm.Expression))
-                            return true;
-                    }
-                    return false;
+                foreach (var arm in switchExpr.Arms) {
+                    if (ContainsNewExpression(arm.Expression))
+                        return true;
+                }
+                return false;
                 case ParenthesizedExpressionSyntax parenthesized:
-                    return ContainsNewExpression(parenthesized.Expression);
+                return ContainsNewExpression(parenthesized.Expression);
                 case CastExpressionSyntax cast:
-                    return ContainsNewExpression(cast.Expression);
+                return ContainsNewExpression(cast.Expression);
                 case InitializerExpressionSyntax initializer:
-                    foreach (var expr in initializer.Expressions)
-                    {
-                        if (ContainsNewExpression(expr))
-                            return true;
-                    }
-                    return false;
+                foreach (var expr in initializer.Expressions) {
+                    if (ContainsNewExpression(expr))
+                        return true;
+                }
+                return false;
                 default:
-                    return false;
+                return false;
             }
         }
 
-        private static bool ImplementsInterfaceProperty(IPropertySymbol property)
-        {
+        private static bool ImplementsInterfaceProperty(IPropertySymbol property) {
             var containingType = property.ContainingType;
             if (containingType is null) return false;
 
-            foreach (var iface in containingType.AllInterfaces)
-            {
-                foreach (var member in iface.GetMembers(property.Name))
-                {
+            foreach (var iface in containingType.AllInterfaces) {
+                foreach (var member in iface.GetMembers(property.Name)) {
                     if (member is IPropertySymbol)
                         return true;
                 }
@@ -853,58 +771,54 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzePublicMemberXmlDoc(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzePublicMemberXmlDoc(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             ISymbol? symbol = null;
             Location? location = null;
             string? memberName = null;
 
-            switch (ctx.Node)
-            {
+            switch (ctx.Node) {
                 case MethodDeclarationSyntax method:
-                    symbol = ctx.SemanticModel.GetDeclaredSymbol(method, ctx.CancellationToken);
-                    if (symbol is null) return;
-                    if (symbol.DeclaredAccessibility != Accessibility.Public) return;
-                    if (method.Modifiers.Any(m => m.IsKind(SyntaxKind.OverrideKeyword))) return;
-                    if (HasXmlDoc(method)) return;
-                    location = method.Identifier.GetLocation();
-                    memberName = symbol.ToDisplayString(SymbolDisplayFormat.CSharpShortErrorMessageFormat);
-                    break;
+                symbol = ctx.SemanticModel.GetDeclaredSymbol(method, ctx.CancellationToken);
+                if (symbol is null) return;
+                if (symbol.DeclaredAccessibility != Accessibility.Public) return;
+                if (method.Modifiers.Any(m => m.IsKind(SyntaxKind.OverrideKeyword))) return;
+                if (HasXmlDoc(method)) return;
+                location = method.Identifier.GetLocation();
+                memberName = symbol.ToDisplayString(SymbolDisplayFormat.CSharpShortErrorMessageFormat);
+                break;
 
                 case PropertyDeclarationSyntax property:
-                    symbol = ctx.SemanticModel.GetDeclaredSymbol(property, ctx.CancellationToken);
-                    if (symbol is null) return;
-                    if (symbol.DeclaredAccessibility != Accessibility.Public) return;
-                    if (property.Modifiers.Any(m => m.IsKind(SyntaxKind.OverrideKeyword))) return;
-                    if (HasXmlDoc(property)) return;
-                    location = property.Identifier.GetLocation();
-                    memberName = symbol.ToDisplayString(SymbolDisplayFormat.CSharpShortErrorMessageFormat);
-                    break;
+                symbol = ctx.SemanticModel.GetDeclaredSymbol(property, ctx.CancellationToken);
+                if (symbol is null) return;
+                if (symbol.DeclaredAccessibility != Accessibility.Public) return;
+                if (property.Modifiers.Any(m => m.IsKind(SyntaxKind.OverrideKeyword))) return;
+                if (HasXmlDoc(property)) return;
+                location = property.Identifier.GetLocation();
+                memberName = symbol.ToDisplayString(SymbolDisplayFormat.CSharpShortErrorMessageFormat);
+                break;
 
                 case ConstructorDeclarationSyntax ctor:
-                    symbol = ctx.SemanticModel.GetDeclaredSymbol(ctor, ctx.CancellationToken);
-                    if (symbol is null) return;
-                    if (symbol.DeclaredAccessibility != Accessibility.Public) return;
-                    if (ctor.ParameterList.Parameters.Count == 0) return;
-                    if (HasXmlDoc(ctor)) return;
-                    location = ctor.Identifier.GetLocation();
-                    memberName = symbol.ToDisplayString(SymbolDisplayFormat.CSharpShortErrorMessageFormat);
-                    break;
+                symbol = ctx.SemanticModel.GetDeclaredSymbol(ctor, ctx.CancellationToken);
+                if (symbol is null) return;
+                if (symbol.DeclaredAccessibility != Accessibility.Public) return;
+                if (ctor.ParameterList.Parameters.Count == 0) return;
+                if (HasXmlDoc(ctor)) return;
+                location = ctor.Identifier.GetLocation();
+                memberName = symbol.ToDisplayString(SymbolDisplayFormat.CSharpShortErrorMessageFormat);
+                break;
 
                 default:
-                    return;
+                return;
             }
 
             if (memberName is not null && location is not null)
                 ctx.ReportDiagnostic(Diagnostic.Create(RulePublicMemberMissingXmlDoc, location, memberName));
         }
 
-        private static bool HasXmlDoc(MemberDeclarationSyntax member)
-        {
-            foreach (var trivia in member.GetLeadingTrivia())
-            {
+        private static bool HasXmlDoc(MemberDeclarationSyntax member) {
+            foreach (var trivia in member.GetLeadingTrivia()) {
                 if (trivia.IsKind(SyntaxKind.SingleLineDocumentationCommentTrivia) ||
                     trivia.IsKind(SyntaxKind.MultiLineDocumentationCommentTrivia))
                     return true;

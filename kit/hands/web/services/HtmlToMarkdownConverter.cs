@@ -5,17 +5,14 @@ namespace Services.Web;
 /// 对齐 TS 版 turndown 库的 DOM 遍历转换方式
 /// </summary>
 [Register(typeof(IHtmlToMarkdownConverter), ServiceLifetime.Singleton)]
-public sealed partial class HtmlToMarkdownConverter : ServiceEntity, IHtmlToMarkdownConverter
-{
+public sealed partial class HtmlToMarkdownConverter : ServiceEntity, IHtmlToMarkdownConverter {
     private readonly Converter _converter;
 
     /// <summary>
     /// 初始化 <see cref="HtmlToMarkdownConverter"/> 实例，配置对齐 TS 版 turndown 默认行为。
     /// </summary>
-    public HtmlToMarkdownConverter()
-    {
-        var config = new ReverseMarkdown.Config
-        {
+    public HtmlToMarkdownConverter() {
+        var config = new ReverseMarkdown.Config {
             // 对齐 TS 版 turndown 默认配置
             UnknownTags = Config.UnknownTagsOption.Bypass,  // 保留未知标签内容
             GithubFlavored = true,  // 启用 GFM（表格、任务列表等）
@@ -31,8 +28,7 @@ public sealed partial class HtmlToMarkdownConverter : ServiceEntity, IHtmlToMark
     /// <param name="html">待转换的 HTML 字符串。</param>
     /// <param name="maxLength">可选的最大长度，超出时截断。</param>
     /// <returns>转换后的 Markdown 文本。</returns>
-    public string Convert(string html, int? maxLength = null)
-    {
+    public string Convert(string html, int? maxLength = null) {
         if (string.IsNullOrEmpty(html))
             return string.Empty;
 

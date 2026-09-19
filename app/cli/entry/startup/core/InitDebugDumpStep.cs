@@ -8,15 +8,12 @@ namespace JoinCode.Entry;
 /// 复用 DebugLogRenderer，按 DebugDumpChoice 位标志组合渲染对应部分
 /// </summary>
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
-internal sealed partial class InitDebugDumpStep : ServiceEntity, IMiddleware<StartupContext>
-{
-    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
-    {
+internal sealed partial class InitDebugDumpStep : ServiceEntity, IMiddleware<StartupContext> {
+    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var choice = context.DebugDumpChoice;
 
         // 未选择任何调试信息 → 跳过
-        if (choice == DebugDumpSection.None || context.Options.IsJsonMode)
-        {
+        if (choice == DebugDumpSection.None || context.Options.IsJsonMode) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -35,32 +32,25 @@ internal sealed partial class InitDebugDumpStep : ServiceEntity, IMiddleware<Sta
     /// 决策: All 时直接调用 RenderAllAsync（一次调用，避免多次 StringBuilder 分配）
     /// 决策: 非 All 时按位标志逐个渲染，用 StringBuilder 拼接
     /// </summary>
-    private static async Task<string> RenderChoiceAsync(DebugDumpSection choice, IServiceProvider services, CancellationToken ct)
-    {
-        if (choice == DebugDumpSection.All)
-        {
+    private static async Task<string> RenderChoiceAsync(DebugDumpSection choice, IServiceProvider services, CancellationToken ct) {
+        if (choice == DebugDumpSection.All) {
             return await DebugLogRenderer.RenderAllAsync(services, ct).ConfigureAwait(false);
         }
 
         var sb = new StringBuilder();
-        if (choice.HasFlag(DebugDumpSection.Init))
-        {
+        if (choice.HasFlag(DebugDumpSection.Init)) {
             sb.Append(await DebugLogRenderer.RenderInitAsync(services, ct).ConfigureAwait(false));
         }
-        if (choice.HasFlag(DebugDumpSection.Error))
-        {
+        if (choice.HasFlag(DebugDumpSection.Error)) {
             sb.Append(DebugLogRenderer.RenderErrors(services));
         }
-        if (choice.HasFlag(DebugDumpSection.Warn))
-        {
+        if (choice.HasFlag(DebugDumpSection.Warn)) {
             sb.Append(DebugLogRenderer.RenderWarningsAndErrors(services));
         }
-        if (choice.HasFlag(DebugDumpSection.Log))
-        {
+        if (choice.HasFlag(DebugDumpSection.Log)) {
             sb.Append(DebugLogRenderer.RenderLogs(services));
         }
-        if (choice.HasFlag(DebugDumpSection.Prompt))
-        {
+        if (choice.HasFlag(DebugDumpSection.Prompt)) {
             sb.Append(await DebugLogRenderer.RenderSystemPromptAsync(services).ConfigureAwait(false));
         }
         return sb.ToString();

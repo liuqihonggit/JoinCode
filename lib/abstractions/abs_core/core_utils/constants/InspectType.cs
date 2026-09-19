@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 上下文检查类型枚举
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 InspectTypeEnumConstants + InspectTypeExtensions
 /// </summary>
-public enum InspectType
-{
+public enum InspectType {
     /// <summary>摘要</summary>
     [EnumValue("summary")] Summary = 0,
 

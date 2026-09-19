@@ -4,13 +4,11 @@ namespace Core.Context.Modality;
 /// 模态不匹配标准报错文本构建器 — 统一 ModalityValidationMiddleware 和 SessionController 的报错格式。
 /// <para>标准报错：当前模型不支持 XX → ModelSearch 查模型 → Agent 子代理执行 → 降级策略</para>
 /// </summary>
-public static class ModalityMismatchMessageBuilder
-{
+public static class ModalityMismatchMessageBuilder {
     /// <summary>
     /// 格式化缺失功能的中文描述
     /// </summary>
-    public static string FormatMissingModalities(ModelModalityKind missing)
-    {
+    public static string FormatMissingModalities(ModelModalityKind missing) {
         var parts = new List<string>();
         if (missing.HasFlag(ModelModalityKind.ReadImage)) parts.Add("图片识别");
         if (missing.HasFlag(ModelModalityKind.ReadGif)) parts.Add("动图识别");
@@ -26,8 +24,7 @@ public static class ModalityMismatchMessageBuilder
     /// <summary>
     /// 获取 missing 中每个功能位对应的 ModelSearch 功能Key（[EnumValue] 字符串，如 generateImage/readImage）
     /// </summary>
-    public static List<string> GetMissingModalityKeys(ModelModalityKind missing)
-    {
+    public static List<string> GetMissingModalityKeys(ModelModalityKind missing) {
         var keys = new List<string>();
         if (missing.HasFlag(ModelModalityKind.ReadImage)) keys.Add(ModelModalityKind.ReadImage.ToValue());
         if (missing.HasFlag(ModelModalityKind.ReadGif)) keys.Add(ModelModalityKind.ReadGif.ToValue());
@@ -47,8 +44,7 @@ public static class ModalityMismatchMessageBuilder
         string currentModelId,
         ModelModalityKind missing,
         string missingDesc,
-        string keywordsDesc)
-    {
+        string keywordsDesc) {
         var keys = GetMissingModalityKeys(missing);
         var sb = new StringBuilder();
         sb.AppendLine($"[模态不匹配] 当前模型 {currentModelId} 不支持 {missingDesc}（检测到用户意图: {keywordsDesc}）。");
@@ -57,8 +53,7 @@ public static class ModalityMismatchMessageBuilder
         sb.AppendLine();
         sb.AppendLine("步骤1 — 查找支持该功能的模型：");
         sb.AppendLine("  调用 ModelSearch 工具，先用 query=\"list_groups\" 查看所有功能分组；");
-        foreach (var key in keys)
-        {
+        foreach (var key in keys) {
             sb.AppendLine($"  再用 query=\"map[{key}]\" 下钻查看支持该功能的模型列表（格式: vendor/modelId (DisplayName)）。");
         }
         sb.AppendLine();

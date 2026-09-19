@@ -3,8 +3,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 设备信任等级
 /// </summary>
-public enum DeviceTrustLevel
-{
+public enum DeviceTrustLevel {
     /// <summary>不受信任</summary>
     [EnumValue("none")]
     None = 0,
@@ -21,8 +20,7 @@ public enum DeviceTrustLevel
 /// <summary>
 /// 受信任设备条目 - 记录已授权设备信息
 /// </summary>
-public sealed partial class TrustedDeviceEntry
-{
+public sealed partial class TrustedDeviceEntry {
     /// <summary>设备唯一标识</summary>
     [JsonPropertyName("deviceId")]
     public required string DeviceId { get; init; }
@@ -55,8 +53,7 @@ public sealed partial class TrustedDeviceEntry
 /// <summary>
 /// 受信任设备存储接口 - 设备信任管理抽象
 /// </summary>
-public interface ITrustedDeviceStore : JoinCode.Abstractions.State.IStore
-{
+public interface ITrustedDeviceStore : JoinCode.Abstractions.State.IStore {
     /// <summary>添加受信任设备</summary>
     ValueTask<TrustedDeviceEntry> AddAsync(TrustedDeviceEntry entry, CancellationToken ct = default);
 
@@ -80,8 +77,7 @@ public interface ITrustedDeviceStore : JoinCode.Abstractions.State.IStore
 /// 受信任设备存储 - 基于 ConcurrentDictionary 的线程安全内存实现
 /// </summary>
 [Register(typeof(ITrustedDeviceStore), ServiceLifetime.Singleton)]
-public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceStore
-{
+public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceStore {
     private readonly ConcurrentDictionary<string, TrustedDeviceEntry> _devices;
     private readonly ILogger<TrustedDeviceStore>? _logger;
 
@@ -89,22 +85,19 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
     /// 构造受信任设备存储
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
-    public TrustedDeviceStore(ILogger<TrustedDeviceStore>? logger = null)
-    {
+    public TrustedDeviceStore(ILogger<TrustedDeviceStore>? logger = null) {
         _devices = new ConcurrentDictionary<string, TrustedDeviceEntry>(StringComparer.Ordinal);
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public ValueTask<TrustedDeviceEntry> AddAsync(TrustedDeviceEntry entry, CancellationToken ct = default)
-    {
+    public ValueTask<TrustedDeviceEntry> AddAsync(TrustedDeviceEntry entry, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(entry);
 
         if (string.IsNullOrEmpty(entry.DeviceId))
             throw new ArgumentException("[BRG002] DeviceId 不能为空", nameof(entry));
 
-        if (_devices.TryAdd(entry.DeviceId, entry))
-        {
+        if (_devices.TryAdd(entry.DeviceId, entry)) {
             _logger?.LogInformation("[TrustedDevice] 添加设备: {DeviceId} ({DeviceName}), 信任等级: {TrustLevel}",
                 entry.DeviceId, entry.DeviceName, entry.TrustLevel);
             return new ValueTask<TrustedDeviceEntry>(entry);
@@ -114,17 +107,13 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
     }
 
     /// <inheritdoc />
-    public ValueTask<bool> RemoveAsync(string deviceId, CancellationToken ct = default)
-    {
+    public ValueTask<bool> RemoveAsync(string deviceId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
 
         var removed = _devices.TryRemove(deviceId, out var entry);
-        if (removed)
-        {
+        if (removed) {
             _logger?.LogInformation("[TrustedDevice] 移除设备: {DeviceId}", deviceId);
-        }
-        else
-        {
+        } else {
             _logger?.LogWarning("[TrustedDevice] 设备不存在，无法移除: {DeviceId}", deviceId);
         }
 
@@ -132,8 +121,7 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
     }
 
     /// <inheritdoc />
-    public ValueTask<TrustedDeviceEntry?> GetAsync(string deviceId, CancellationToken ct = default)
-    {
+    public ValueTask<TrustedDeviceEntry?> GetAsync(string deviceId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
 
         _devices.TryGetValue(deviceId, out var entry);
@@ -141,14 +129,12 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
     }
 
     /// <inheritdoc />
-    public ValueTask<IEnumerable<TrustedDeviceEntry>> GetAllAsync(CancellationToken ct = default)
-    {
+    public ValueTask<IEnumerable<TrustedDeviceEntry>> GetAllAsync(CancellationToken ct = default) {
         return new ValueTask<IEnumerable<TrustedDeviceEntry>>(_devices.Values);
     }
 
     /// <inheritdoc />
-    public ValueTask<bool> IsTrustedAsync(string deviceId, CancellationToken ct = default)
-    {
+    public ValueTask<bool> IsTrustedAsync(string deviceId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
 
         var isTrusted = _devices.TryGetValue(deviceId, out var entry) &&
@@ -159,18 +145,15 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
     }
 
     /// <inheritdoc />
-    public ValueTask<bool> RevokeAsync(string deviceId, CancellationToken ct = default)
-    {
+    public ValueTask<bool> RevokeAsync(string deviceId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
 
-        if (!_devices.TryGetValue(deviceId, out var entry))
-        {
+        if (!_devices.TryGetValue(deviceId, out var entry)) {
             _logger?.LogWarning("[TrustedDevice] 设备不存在，无法撤销: {DeviceId}", deviceId);
             return new ValueTask<bool>(false);
         }
 
-        if (entry.IsRevoked)
-        {
+        if (entry.IsRevoked) {
             _logger?.LogWarning("[TrustedDevice] 设备已被撤销: {DeviceId}", deviceId);
             return new ValueTask<bool>(false);
         }

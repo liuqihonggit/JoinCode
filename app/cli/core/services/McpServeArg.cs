@@ -3,8 +3,7 @@ namespace JoinCode;
 /// <summary>
 /// mcp_serve 子命令参数 — [CliOption] 由 CliOptionGenerator 自动生成 McpServeArgParser + McpServeArgCliOptionConstants
 /// </summary>
-public enum McpServeArg
-{
+public enum McpServeArg {
     /// <summary>MCP 服务端传输协议 (stdio/http)</summary>
     [CliOption(JccCliArgEnumConstants.Transport, "", "MCP 服务端传输协议 (stdio/http)", AcceptsValue = true, Category = "服务端", Example = "jcc mcp_serve --transport http")]
     Transport,

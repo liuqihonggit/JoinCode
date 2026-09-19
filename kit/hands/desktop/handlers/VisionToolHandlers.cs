@@ -4,8 +4,7 @@ namespace Tools.Handlers;
 /// 视觉理解工具处理器 — UI 元素检测与查找，暴露为 MCP 工具（PRD V-02/V-03/V-04）
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
-public class VisionToolHandlers
-{
+public class VisionToolHandlers {
     private readonly IUiElementDetector _detector;
     private readonly IScreenCaptureService _capture;
     private readonly ILogger<VisionToolHandlers>? _logger;
@@ -17,8 +16,7 @@ public class VisionToolHandlers
     public VisionToolHandlers(
         IUiElementDetector detector,
         IScreenCaptureService capture,
-        ILogger<VisionToolHandlers>? logger = null)
-    {
+        ILogger<VisionToolHandlers>? logger = null) {
         _detector = detector;
         _capture = capture;
         _logger = logger;
@@ -28,11 +26,9 @@ public class VisionToolHandlers
     [McpTool("detect_ui_elements", "截取屏幕并识别所有UI元素（按钮/输入框/菜单等），返回类型/坐标/状态/语义描述", "desktop")]
     public async Task<ToolResult> DetectUiElementsAsync(
         [McpToolParameter("已有截图的 base64 PNG（不传则自动截全屏）", Required = false)] string? base64Screenshot = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var base64 = base64Screenshot;
-        if (string.IsNullOrWhiteSpace(base64))
-        {
+        if (string.IsNullOrWhiteSpace(base64)) {
             base64 = await _capture.CaptureFullScreenAsync(ct).ConfigureAwait(false);
             if (string.IsNullOrEmpty(base64))
                 return ToolResultBuilder.Error().WithText("截图失败").Build();
@@ -42,12 +38,9 @@ public class VisionToolHandlers
         cts.CancelAfter(TimeSpan.FromSeconds(30));
 
         UiElementDetectionResult result;
-        try
-        {
+        try {
             result = await _detector.DetectAsync(base64, cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             return ToolResultBuilder.Error().WithText("LLM 调用超时（30s），请检查 API Key 配置和网络连接").Build();
         }
 
@@ -62,8 +55,7 @@ public class VisionToolHandlers
         var sb = new StringBuilder(512);
         sb.AppendLine($"截图尺寸: {result.ImageWidth}x{result.ImageHeight}");
         sb.AppendLine($"检测到 {result.Elements.Count} 个 UI 元素:");
-        for (var i = 0; i < result.Elements.Count; i++)
-        {
+        for (var i = 0; i < result.Elements.Count; i++) {
             var el = result.Elements[i];
             sb.AppendLine($"  [{i + 1}] {el.Type}" +
                 (el.Text is not null ? $" \"{el.Text}\"" : string.Empty) +
@@ -81,11 +73,9 @@ public class VisionToolHandlers
     public async Task<ToolResult> FindElementAsync(
         [McpToolParameter("元素的语义描述（自然语言）", Required = true)] string description,
         [McpToolParameter("已有截图的 base64 PNG（不传则自动截全屏）", Required = false)] string? base64Screenshot = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var base64 = base64Screenshot;
-        if (string.IsNullOrWhiteSpace(base64))
-        {
+        if (string.IsNullOrWhiteSpace(base64)) {
             base64 = await _capture.CaptureFullScreenAsync(ct).ConfigureAwait(false);
             if (string.IsNullOrEmpty(base64))
                 return ToolResultBuilder.Error().WithText("截图失败").Build();
@@ -95,12 +85,9 @@ public class VisionToolHandlers
         cts.CancelAfter(TimeSpan.FromSeconds(30));
 
         UiElement? element;
-        try
-        {
+        try {
             element = await _detector.FindByDescriptionAsync(base64, description, cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             return ToolResultBuilder.Error().WithText(
                 "LLM 调用超时（30s）。可能原因:\n" +
                 "  1) 当前模型不支持图片理解(vision)，请切换到支持多模态的模型\n" +

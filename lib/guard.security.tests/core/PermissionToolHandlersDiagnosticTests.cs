@@ -3,11 +3,9 @@ namespace Guard.Security.Tests;
 /// <summary>
 /// PermissionToolHandlers 诊断方法单元测试
 /// </summary>
-public class PermissionToolHandlersDiagnosticTests
-{
+public class PermissionToolHandlersDiagnosticTests {
     [Fact]
-    public void BuildAgentPatternEmptyDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildAgentPatternEmptyDiagnostic_ReturnsCorrectStructure() {
         var diag = PermissionToolHandlers.BuildAgentPatternEmptyDiagnostic();
         diag.Reason.Should().Be("PermissionAgentPatternEmpty");
         diag.FormattedMessage.Should().Be("agent_pattern 不能为空");
@@ -15,8 +13,7 @@ public class PermissionToolHandlersDiagnosticTests
     }
 
     [Fact]
-    public void BuildInvalidPermissionModeDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildInvalidPermissionModeDiagnostic_ReturnsCorrectStructure() {
         var diag = PermissionToolHandlers.BuildInvalidPermissionModeDiagnostic("invalid");
         diag.Reason.Should().Be("PermissionInvalidMode");
         diag.FormattedMessage.Should().Contain("invalid");
@@ -25,8 +22,7 @@ public class PermissionToolHandlersDiagnosticTests
     }
 
     [Fact]
-    public void BuildInvalidPermissionLevelDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildInvalidPermissionLevelDiagnostic_ReturnsCorrectStructure() {
         var diag = PermissionToolHandlers.BuildInvalidPermissionLevelDiagnostic("super");
         diag.Reason.Should().Be("PermissionInvalidLevel");
         diag.FormattedMessage.Should().Contain("super");
@@ -34,8 +30,7 @@ public class PermissionToolHandlersDiagnosticTests
     }
 
     [Fact]
-    public void BuildRuleNotFoundDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildRuleNotFoundDiagnostic_ReturnsCorrectStructure() {
         var diag = PermissionToolHandlers.BuildRuleNotFoundDiagnostic("agent-*");
         diag.Reason.Should().Be("PermissionRuleNotFound");
         diag.FormattedMessage.Should().Contain("agent-*");
@@ -43,32 +38,28 @@ public class PermissionToolHandlersDiagnosticTests
     }
 
     [Fact]
-    public void BuildAgentNameEmptyDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildAgentNameEmptyDiagnostic_ReturnsCorrectStructure() {
         var diag = PermissionToolHandlers.BuildAgentNameEmptyDiagnostic();
         diag.Reason.Should().Be("PermissionAgentNameEmpty");
         diag.FormattedMessage.Should().Be("agent_name 不能为空");
     }
 
     [Fact]
-    public void BuildToolNameEmptyDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildToolNameEmptyDiagnostic_ReturnsCorrectStructure() {
         var diag = PermissionToolHandlers.BuildToolNameEmptyDiagnostic();
         diag.Reason.Should().Be("PermissionToolNameEmpty");
         diag.FormattedMessage.Should().Be("tool_name 不能为空");
     }
 
     [Fact]
-    public void BuildPathEmptyDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildPathEmptyDiagnostic_ReturnsCorrectStructure() {
         var diag = PermissionToolHandlers.BuildPathEmptyDiagnostic();
         diag.Reason.Should().Be("PermissionPathEmpty");
         diag.FormattedMessage.Should().Be("path 不能为空");
     }
 
     [Fact]
-    public void BuildClearConfirmInvalidDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildClearConfirmInvalidDiagnostic_ReturnsCorrectStructure() {
         var diag = PermissionToolHandlers.BuildClearConfirmInvalidDiagnostic();
         diag.Reason.Should().Be("PermissionClearConfirmInvalid");
         diag.FormattedMessage.Should().Contain("yes");

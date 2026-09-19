@@ -4,8 +4,7 @@ namespace Services.Lsp.Internal;
 /// LSP 服务器注册表 — 成对管理服务器实例表与扩展名→服务器名映射，
 /// 提供按服务器名 / 文件扩展名的查找入口。
 /// </summary>
-internal sealed class LspServerRegistry
-{
+internal sealed class LspServerRegistry {
     private readonly ConcurrentDictionary<string, LspServerInstance> _servers = new();
     private readonly ConcurrentDictionary<string, List<string>> _extensionMap = new(StringComparer.OrdinalIgnoreCase);
 
@@ -22,11 +21,9 @@ internal sealed class LspServerRegistry
     /// <summary>
     /// 注册服务器实例并建立扩展名映射。
     /// </summary>
-    public void Register(string name, LspServerInstance instance, Dictionary<string, string> extensionToLanguage)
-    {
+    public void Register(string name, LspServerInstance instance, Dictionary<string, string> extensionToLanguage) {
         _servers[name] = instance;
-        foreach (var kvp in extensionToLanguage)
-        {
+        foreach (var kvp in extensionToLanguage) {
             var serverNames = _extensionMap.GetOrAdd(kvp.Key, _ => []);
             serverNames.Add(name);
         }
@@ -41,8 +38,7 @@ internal sealed class LspServerRegistry
     /// <summary>
     /// 按文件扩展名查找对应的服务器实例（取扩展名映射中的第一个服务器）。
     /// </summary>
-    public bool TryGetByExtension(string ext, [MaybeNullWhen(false)] out LspServerInstance instance)
-    {
+    public bool TryGetByExtension(string ext, [MaybeNullWhen(false)] out LspServerInstance instance) {
         instance = null!;
         if (!_extensionMap.TryGetValue(ext, out var serverNames) || serverNames.Count == 0)
             return false;
@@ -58,8 +54,7 @@ internal sealed class LspServerRegistry
     /// <summary>
     /// 清空所有服务器和扩展名映射 — 用于 Shutdown/Dispose。
     /// </summary>
-    public void Clear()
-    {
+    public void Clear() {
         _servers.Clear();
         _extensionMap.Clear();
     }

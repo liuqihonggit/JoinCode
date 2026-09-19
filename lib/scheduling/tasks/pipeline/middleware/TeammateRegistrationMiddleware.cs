@@ -5,8 +5,7 @@ namespace Core.Scheduling.Tasks;
 /// Teammate 注册中间件 — 向消息邮箱注册 Teammate、启动邮箱轮询并建立 Teammate 运行时状态
 /// </summary>
 [Register(typeof(ITeammateExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITeammateExecutionMiddleware
-{
+public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITeammateExecutionMiddleware {
 
     /// <summary>
     /// 初始化 Teammate 注册中间件
@@ -15,8 +14,7 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
     /// <param name="subAgentContextAccessor">子智能体上下文访问器</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="mailboxPoller">邮箱轮询器，为 null 时不启动轮询</param>
-    public TeammateRegistrationMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<TeammateRegistrationMiddleware>? logger = null, IMailboxPoller? mailboxPoller = null)
-    {
+    public TeammateRegistrationMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<TeammateRegistrationMiddleware>? logger = null, IMailboxPoller? mailboxPoller = null) {
         _messageBroker = messageBroker;
         _subAgentContextAccessor = subAgentContextAccessor;
         _logger = logger;
@@ -29,8 +27,7 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
 
 
     /// <inheritdoc/>
-    public async Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct) {
         var definition = ctx.Definition;
 
         var sessionId = definition.ParentSessionId ?? _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
@@ -40,8 +37,7 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
 
         var lifecycleCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-        var teammateMeta = new TeammateMeta
-        {
+        var teammateMeta = new TeammateMeta {
             AgentName = definition.TeammateId,
             TeamName = definition.TeamName ?? "default",
             Color = definition.Color,
@@ -50,8 +46,7 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
             IsInProcess = true
         };
 
-        var state = new TeammateState
-        {
+        var state = new TeammateState {
             Agent = ctx.Agent ?? throw new InvalidOperationException("Agent is not set."),
             LifecycleCts = lifecycleCts,
             TeammateMeta = teammateMeta,
@@ -68,19 +63,15 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
         await next(ctx, ct).ConfigureAwait(false);
     }
 
-    private void StartMailboxPollingIfNeeded(string teammateId)
-    {
+    private void StartMailboxPollingIfNeeded(string teammateId) {
         if (_mailboxPoller == null) return;
 
         var sessionId = _messageBroker.GetSessionId(teammateId);
         if (sessionId is null) return;
 
-        try
-        {
+        try {
             _mailboxPoller.StartPolling(teammateId, sessionId);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to start mailbox polling for teammate {TeammateId}", teammateId);
         }
     }

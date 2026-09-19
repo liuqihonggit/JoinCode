@@ -1,10 +1,8 @@
 namespace Structura.Tests;
 
-public class RingBufferTests
-{
+public class RingBufferTests {
     [Fact]
-    public void Constructor_CapacityNotPowerOfTwo_Throws()
-    {
+    public void Constructor_CapacityNotPowerOfTwo_Throws() {
         var act0 = () => new RingBuffer<int>(0);
         act0.Should().Throw<ArgumentException>();
         var act3 = () => new RingBuffer<int>(3);
@@ -14,8 +12,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void NewBuffer_CountIsZero_IsFullFalse()
-    {
+    public void NewBuffer_CountIsZero_IsFullFalse() {
         var buf = new RingBuffer<int>(8);
         buf.Count.Should().Be(0);
         buf.Capacity.Should().BeGreaterThanOrEqualTo(8);
@@ -24,8 +21,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Add_NotFull_CountIncrements()
-    {
+    public void Add_NotFull_CountIncrements() {
         var buf = new RingBuffer<int>(8);
         buf.Add(10);
         buf.Add(20);
@@ -36,8 +32,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Add_Full_OverwritesOldest()
-    {
+    public void Add_Full_OverwritesOldest() {
         var buf = new RingBuffer<int>(4);
         var cap = buf.Capacity;
         for (var i = 1; i <= cap; i++)
@@ -54,8 +49,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Add_MultipleOverwrites_MaintainsOrder()
-    {
+    public void Add_MultipleOverwrites_MaintainsOrder() {
         var buf = new RingBuffer<int>(4);
         var cap = buf.Capacity;
         for (var v = 1; v <= cap + 3; v++)
@@ -66,8 +60,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Indexer_OutOfRange_Throws()
-    {
+    public void Indexer_OutOfRange_Throws() {
         var buf = new RingBuffer<int>(4);
         buf.Add(10);
         var actNeg = () => buf[-1];
@@ -77,8 +70,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Latest_Oldest_ReturnsCorrectElements()
-    {
+    public void Latest_Oldest_ReturnsCorrectElements() {
         var buf = new RingBuffer<int>(4);
         var cap = buf.Capacity;
         for (var i = 0; i < cap; i++)
@@ -91,8 +83,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Clear_ResetsBuffer()
-    {
+    public void Clear_ResetsBuffer() {
         var buf = new RingBuffer<int>(4);
         buf.Add(10);
         buf.Add(20);
@@ -103,8 +94,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Enumeration_YieldsOldestToLatest()
-    {
+    public void Enumeration_YieldsOldestToLatest() {
         var buf = new RingBuffer<int>(4);
         var cap = buf.Capacity;
         for (var v = 1; v <= cap + 2; v++)
@@ -118,8 +108,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Slice_ReturnsCorrectRange()
-    {
+    public void Slice_ReturnsCorrectRange() {
         var buf = new RingBuffer<int>(4);
         var cap = buf.Capacity;
         for (var v = 1; v <= cap + 2; v++)
@@ -131,8 +120,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Slice_FromStart()
-    {
+    public void Slice_FromStart() {
         var buf = new RingBuffer<string>(8);
         buf.Add("a");
         buf.Add("b");
@@ -141,8 +129,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Slice_InvalidRange_Throws()
-    {
+    public void Slice_InvalidRange_Throws() {
         var buf = new RingBuffer<int>(4);
         buf.Add(10);
         buf.Add(20);
@@ -155,8 +142,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Add_WithReferenceType_WorksCorrectly()
-    {
+    public void Add_WithReferenceType_WorksCorrectly() {
         var buf = new RingBuffer<string>(4);
         var cap = buf.Capacity;
         for (var i = 0; i < cap; i++)
@@ -168,8 +154,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void Indexer_AfterWraparound_AccessCorrectElement()
-    {
+    public void Indexer_AfterWraparound_AccessCorrectElement() {
         var buf = new RingBuffer<double>(4);
         var cap = buf.Capacity;
         for (var i = 1; i <= cap + 1; i++)
@@ -180,8 +165,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void ToArray_ReturnsConsistentSnapshot()
-    {
+    public void ToArray_ReturnsConsistentSnapshot() {
         var buf = new RingBuffer<int>(4);
         var cap = buf.Capacity;
         for (var v = 1; v <= cap; v++)
@@ -195,8 +179,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void TryEnqueue_TryDequeue_FifoOrder()
-    {
+    public void TryEnqueue_TryDequeue_FifoOrder() {
         var buf = new RingBuffer<int>(8);
         buf.TryEnqueue(10).Should().BeTrue();
         buf.TryEnqueue(20).Should().BeTrue();
@@ -214,8 +197,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void TryEnqueue_Full_ReturnsFalse()
-    {
+    public void TryEnqueue_Full_ReturnsFalse() {
         var buf = new RingBuffer<int>(4);
         var cap = buf.Capacity;
         for (var i = 0; i < cap; i++)
@@ -225,8 +207,7 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void EnqueueBatch_DequeueBatch_WorkCorrectly()
-    {
+    public void EnqueueBatch_DequeueBatch_WorkCorrectly() {
         var buf = new RingBuffer<int>(8);
         var input = new[] { 1, 2, 3, 4, 5 };
         var enqueued = buf.EnqueueBatch(input, 0, 5);
@@ -240,23 +221,18 @@ public class RingBufferTests
     }
 
     [Fact]
-    public void MultiThread_ConcurrentAdd_NoException()
-    {
+    public void MultiThread_ConcurrentAdd_NoException() {
         var buf = new RingBuffer<int>(512);
         var cap = buf.Capacity;
         var threads = new Thread[4];
         var errors = new List<Exception>();
-        for (var t = 0; t < 4; t++)
-        {
+        for (var t = 0; t < 4; t++) {
             var threadId = t;
-            threads[t] = new Thread(() =>
-            {
-                try
-                {
+            threads[t] = new Thread(() => {
+                try {
                     for (var i = 0; i < 10_000; i++)
                         buf.Add(threadId * 10_000 + i);
-                }
-                catch (Exception ex) { lock (errors) errors.Add(ex); }
+                } catch (Exception ex) { lock (errors) errors.Add(ex); }
             }) { IsBackground = true };
         }
         foreach (var th in threads) th.Start();

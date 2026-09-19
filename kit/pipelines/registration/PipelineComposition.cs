@@ -6,13 +6,11 @@ namespace JoinCode.Pipelines;
 /// 对齐洋葱例子：注册即顺序，无需 Order 魔数
 /// 供 CLI 与 GUI 宿主统一调用 AddAllPipelines，消除两套管道注册漂移
 /// </summary>
-public static class PipelineComposition
-{
+public static class PipelineComposition {
     /// <summary>
     /// 注册所有管道到 DI — 替代源码生成器的 AddAutoRegisteredPipelines
     /// </summary>
-    public static IServiceCollection AddAllPipelines(this IServiceCollection services)
-    {
+    public static IServiceCollection AddAllPipelines(this IServiceCollection services) {
         // 4 个原是 CLI 独有的聊天中间件（纯引擎中间件，零 CLI 依赖），在此显式注册
         // 注意：共享工程是 library，不能依赖 [Register] 生成器（会过度注册所有引用程序集类型）
         services.AddSingleton<ChatTimingMiddleware>();

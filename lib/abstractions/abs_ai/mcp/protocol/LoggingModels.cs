@@ -1,11 +1,9 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
-public class PingResult
-{
+public class PingResult {
 }
 
-public class LoggingSetLevelRequestParams
-{
+public class LoggingSetLevelRequestParams {
     [JsonPropertyName("level")]
     public string Level { get; set; } = "info";
 }

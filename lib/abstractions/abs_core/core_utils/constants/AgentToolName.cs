@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// Agent 相关工具名称枚举
 /// </summary>
-public enum AgentToolName
-{
+public enum AgentToolName {
     [EnumValue("agent_spawn")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     AgentSpawn,

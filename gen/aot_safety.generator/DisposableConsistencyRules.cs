@@ -1,8 +1,6 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class DisposableConsistencyRules : DiagnosticAnalyzer
-    {
+    public sealed class DisposableConsistencyRules : DiagnosticAnalyzer {
         private static readonly DiagnosticDescriptor RuleDualDisposable = new(
             "JCC9102",
             "Disposable 一致性: 类型同时实现 IDisposable 和 IAsyncDisposable — 应二选一",
@@ -106,8 +104,7 @@ namespace AotSafety.Generator
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
             ImmutableArray.Create(RuleDualDisposable, RuleTrivialAsyncDispose, RuleSyncUsingOnAsyncDisposable, RuleTryFinallyDispose, RuleDisposeTryCatch, RuleSyncDisposeOnAsyncDisposable, RuleAwaitInDispose, RuleDisposeGuard, RuleDisposeAsyncGuard);
 
-        public override void Initialize(AnalysisContext context)
-        {
+        public override void Initialize(AnalysisContext context) {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterSyntaxNodeAction(AnalyzeTypeDeclaration, SyntaxKind.ClassDeclaration, SyntaxKind.StructDeclaration, SyntaxKind.RecordDeclaration, SyntaxKind.RecordStructDeclaration);
@@ -119,8 +116,7 @@ namespace AotSafety.Generator
             context.RegisterSyntaxNodeAction(AnalyzeDisposeGuard, SyntaxKind.MethodDeclaration);
         }
 
-        private static void AnalyzeTypeDeclaration(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeTypeDeclaration(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var typeDecl = (TypeDeclarationSyntax)ctx.Node;
@@ -136,8 +132,7 @@ namespace AotSafety.Generator
             var implementsIDisposable = symbol.Interfaces.Contains(idisposableType, SymbolEqualityComparer.Default);
             var implementsIAsyncDisposable = symbol.Interfaces.Contains(iasyncDisposableType, SymbolEqualityComparer.Default);
 
-            if (implementsIDisposable && implementsIAsyncDisposable)
-            {
+            if (implementsIDisposable && implementsIAsyncDisposable) {
                 var hasRealAsyncDispose = HasRealAsyncDispose(symbol);
                 var typeName = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
 
@@ -148,8 +143,7 @@ namespace AotSafety.Generator
             }
         }
 
-        private static void AnalyzeLocalDeclaration(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeLocalDeclaration(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var localDecl = (LocalDeclarationStatementSyntax)ctx.Node;
@@ -157,8 +151,7 @@ namespace AotSafety.Generator
             if (!localDecl.UsingKeyword.IsKind(SyntaxKind.UsingKeyword)) return;
             if (localDecl.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword)) return;
 
-            foreach (var variable in localDecl.Declaration.Variables)
-            {
+            foreach (var variable in localDecl.Declaration.Variables) {
                 if (variable.Initializer is null) continue;
 
                 var typeInfo = ctx.SemanticModel.GetTypeInfo(variable.Initializer.Value, ctx.CancellationToken);
@@ -174,8 +167,7 @@ namespace AotSafety.Generator
                 var implementsIAsyncDisposable = type.AllInterfaces.Contains(iasyncDisposableType, SymbolEqualityComparer.Default);
                 var implementsIDisposable = type.AllInterfaces.Contains(idisposableType, SymbolEqualityComparer.Default);
 
-                if (implementsIAsyncDisposable && !implementsIDisposable)
-                {
+                if (implementsIAsyncDisposable && !implementsIDisposable) {
                     var typeName = type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                     ctx.ReportDiagnostic(Diagnostic.Create(
                         RuleSyncUsingOnAsyncDisposable,
@@ -185,10 +177,8 @@ namespace AotSafety.Generator
             }
         }
 
-        private static bool HasRealAsyncDispose(INamedTypeSymbol type)
-        {
-            foreach (var member in type.GetMembers("DisposeAsync"))
-            {
+        private static bool HasRealAsyncDispose(INamedTypeSymbol type) {
+            foreach (var member in type.GetMembers("DisposeAsync")) {
                 if (member is not IMethodSymbol method) continue;
 
                 var syntaxRef = method.DeclaringSyntaxReferences.FirstOrDefault();
@@ -212,8 +202,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeTryFinallyDispose(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeTryFinallyDispose(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var tryStmt = (TryStatementSyntax)ctx.Node;
@@ -235,8 +224,7 @@ namespace AotSafety.Generator
 
             if (ContainsReturnStatement(tryStmt.Block)) return;
 
-            foreach (var call in disposeCalls)
-            {
+            foreach (var call in disposeCalls) {
                 if (!CanConvertToUsingVar(call, tryStmt, ctx.SemanticModel)) return;
             }
 
@@ -248,8 +236,7 @@ namespace AotSafety.Generator
                 callName));
         }
 
-        private static void AnalyzeDisposeMethodTryCatch(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeDisposeMethodTryCatch(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var methodDecl = (MethodDeclarationSyntax)ctx.Node;
@@ -265,8 +252,7 @@ namespace AotSafety.Generator
                 .ToList();
             if (tryStatements.Count == 0) return;
 
-            foreach (var tryStmt in tryStatements)
-            {
+            foreach (var tryStmt in tryStatements) {
                 var catchInfo = AnalyzeCatchClauses(tryStmt.Catches);
                 if (catchInfo is null) continue;
 
@@ -282,8 +268,7 @@ namespace AotSafety.Generator
             }
         }
 
-        private static void AnalyzeSyncDisposeOnAsyncDisposable(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeSyncDisposeOnAsyncDisposable(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var invocation = (InvocationExpressionSyntax)ctx.Node;
@@ -317,13 +302,10 @@ namespace AotSafety.Generator
                 typeName));
         }
 
-        private static bool IsInsideDisposeMethod(SyntaxNode node)
-        {
+        private static bool IsInsideDisposeMethod(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
-                if (current is MethodDeclarationSyntax method)
-                {
+            while (current is not null) {
+                if (current is MethodDeclarationSyntax method) {
                     var name = method.Identifier.ValueText;
                     if (name is "Dispose" or "DisposeAsync")
                         return true;
@@ -333,15 +315,12 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsSimpleCatchBlock(SyntaxList<CatchClauseSyntax> catches)
-        {
-            foreach (var catchClause in catches)
-            {
+        private static bool IsSimpleCatchBlock(SyntaxList<CatchClauseSyntax> catches) {
+            foreach (var catchClause in catches) {
                 if (catchClause.Block is null) continue;
                 var statements = catchClause.Block.Statements;
                 if (statements.Count == 0) continue;
-                foreach (var stmt in statements)
-                {
+                foreach (var stmt in statements) {
                     if (stmt is not ExpressionStatementSyntax exprStmt) return false;
                     if (exprStmt.Expression is not InvocationExpressionSyntax inv) return false;
                     var name = GetMemberName(inv);
@@ -353,13 +332,11 @@ namespace AotSafety.Generator
             return true;
         }
 
-        private static bool IsDisposeCall(InvocationExpressionSyntax invocation)
-        {
+        private static bool IsDisposeCall(InvocationExpressionSyntax invocation) {
             return GetMemberName(invocation) is "Dispose" or "DisposeAsync";
         }
 
-        private static string GetMemberName(InvocationExpressionSyntax invocation)
-        {
+        private static string GetMemberName(InvocationExpressionSyntax invocation) {
             if (invocation.Expression is MemberAccessExpressionSyntax memberAccess)
                 return memberAccess.Name.Identifier.ValueText;
             if (invocation.Expression is IdentifierNameSyntax identifier)
@@ -367,8 +344,7 @@ namespace AotSafety.Generator
             return string.Empty;
         }
 
-        private static bool ContainsReturnStatement(BlockSyntax? block)
-        {
+        private static bool ContainsReturnStatement(BlockSyntax? block) {
             if (block is null) return false;
             return block.DescendantNodes().Any(n => n.IsKind(SyntaxKind.ReturnStatement) || n.IsKind(SyntaxKind.YieldReturnStatement));
         }
@@ -376,8 +352,7 @@ namespace AotSafety.Generator
         private static bool CanConvertToUsingVar(
             InvocationExpressionSyntax disposeCall,
             TryStatementSyntax tryStmt,
-            SemanticModel semanticModel)
-        {
+            SemanticModel semanticModel) {
             if (disposeCall.Expression is not MemberAccessExpressionSyntax memberAccess) return false;
             var receiver = memberAccess.Expression;
 
@@ -390,8 +365,7 @@ namespace AotSafety.Generator
             if (symbol is IParameterSymbol) return false;
             if (symbol is IPropertySymbol) return false;
 
-            if (symbol is ILocalSymbol localSymbol)
-            {
+            if (symbol is ILocalSymbol localSymbol) {
                 var declRef = localSymbol.DeclaringSyntaxReferences.FirstOrDefault();
                 if (declRef is null) return false;
                 var declNode = declRef.GetSyntax();
@@ -414,10 +388,8 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static (int index, string exceptionName)? AnalyzeCatchClauses(SyntaxList<CatchClauseSyntax> catches)
-        {
-            for (var i = 0; i < catches.Count; i++)
-            {
+        private static (int index, string exceptionName)? AnalyzeCatchClauses(SyntaxList<CatchClauseSyntax> catches) {
+            for (var i = 0; i < catches.Count; i++) {
                 var catchClause = catches[i];
                 if (catchClause.Declaration is null) continue;
                 var typeName = catchClause.Declaration.Type.ToString();
@@ -429,12 +401,10 @@ namespace AotSafety.Generator
             return null;
         }
 
-        private static bool TryBlockIsSimpleDisposeOrCancel(BlockSyntax? block)
-        {
+        private static bool TryBlockIsSimpleDisposeOrCancel(BlockSyntax? block) {
             if (block is null) return false;
             if (block.Statements.Count == 0) return false;
-            foreach (var stmt in block.Statements)
-            {
+            foreach (var stmt in block.Statements) {
                 if (stmt is not ExpressionStatementSyntax exprStmt) return false;
                 var expr = exprStmt.Expression;
                 if (expr is AwaitExpressionSyntax awaitExpr)
@@ -447,8 +417,7 @@ namespace AotSafety.Generator
             return true;
         }
 
-        private static void AnalyzeDisposeMethod(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeDisposeMethod(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var methodDecl = (MethodDeclarationSyntax)ctx.Node;
@@ -458,29 +427,24 @@ namespace AotSafety.Generator
             var body = methodDecl.Body;
             if (body is null) return;
 
-            foreach (var stmt in body.DescendantNodes().OfType<ExpressionStatementSyntax>())
-            {
+            foreach (var stmt in body.DescendantNodes().OfType<ExpressionStatementSyntax>()) {
                 if (IsInsideLambdaOrLocalFunction(stmt, body)) continue;
 
                 var expr = stmt.Expression;
                 string? fireAndForgetMethodName = null;
 
-                if (expr is AssignmentExpressionSyntax assign && assign.Left is IdentifierNameSyntax { Identifier.ValueText: "_" })
-                {
+                if (expr is AssignmentExpressionSyntax assign && assign.Left is IdentifierNameSyntax { Identifier.ValueText: "_" }) {
                     var invoked = assign.Right;
                     if (invoked is InvocationExpressionSyntax inv)
                         fireAndForgetMethodName = GetInvocationName(inv);
-                }
-                else if (expr is InvocationExpressionSyntax inv)
-                {
+                } else if (expr is InvocationExpressionSyntax inv) {
                     fireAndForgetMethodName = GetInvocationName(inv);
                 }
 
                 if (fireAndForgetMethodName is null) continue;
 
                 var typeInfo = ctx.SemanticModel.GetTypeInfo(expr);
-                if (IsTaskType(typeInfo.Type))
-                {
+                if (IsTaskType(typeInfo.Type)) {
                     var line = stmt.SyntaxTree.GetLineSpan(stmt.Span).StartLinePosition.Line + 1;
                     ctx.ReportDiagnostic(Diagnostic.Create(
                         RuleAwaitInDispose,
@@ -491,26 +455,22 @@ namespace AotSafety.Generator
             }
         }
 
-        private static string? GetInvocationName(InvocationExpressionSyntax inv)
-        {
-            return inv.Expression switch
-            {
+        private static string? GetInvocationName(InvocationExpressionSyntax inv) {
+            return inv.Expression switch {
                 MemberAccessExpressionSyntax ma => ma.Name.Identifier.ValueText,
                 IdentifierNameSyntax id => id.Identifier.ValueText,
                 _ => null
             };
         }
 
-        private static bool IsTaskType(ITypeSymbol? type)
-        {
+        private static bool IsTaskType(ITypeSymbol? type) {
             if (type is null) return false;
             var name = type.OriginalDefinition.ToDisplayString();
             return name is "System.Threading.Tasks.Task" or "System.Threading.Tasks.ValueTask"
                 or "System.Threading.Tasks.Task<T>" or "System.Threading.Tasks.ValueTask<T>";
         }
 
-        private static void AnalyzeDisposeGuard(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeDisposeGuard(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var methodDecl = (MethodDeclarationSyntax)ctx.Node;
@@ -532,15 +492,12 @@ namespace AotSafety.Generator
 
             if (!HasInstanceFields(symbol)) return;
 
-            if (isSyncDispose)
-            {
+            if (isSyncDispose) {
                 var idisposableType = ctx.Compilation.GetTypeByMetadataName("System.IDisposable");
                 if (idisposableType is null) return;
                 var implementsIDisposable = symbol.Interfaces.Contains(idisposableType, SymbolEqualityComparer.Default);
                 if (!implementsIDisposable) return;
-            }
-            else
-            {
+            } else {
                 var iasyncDisposableType = ctx.Compilation.GetTypeByMetadataName("System.IAsyncDisposable");
                 if (iasyncDisposableType is null) return;
                 var implementsIAsyncDisposable = symbol.Interfaces.Contains(iasyncDisposableType, SymbolEqualityComparer.Default);
@@ -557,12 +514,9 @@ namespace AotSafety.Generator
                 typeName));
         }
 
-        private static bool HasInstanceFields(INamedTypeSymbol type)
-        {
-            foreach (var member in type.GetMembers())
-            {
-                if (member is IFieldSymbol { IsStatic: false } field)
-                {
+        private static bool HasInstanceFields(INamedTypeSymbol type) {
+            foreach (var member in type.GetMembers()) {
+                if (member is IFieldSymbol { IsStatic: false } field) {
                     if (field.IsConst) continue;
                     if (field.IsImplicitlyDeclared) continue;
                     return true;
@@ -571,17 +525,12 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool HasDisposeGuard(BlockSyntax body)
-        {
-            foreach (var invocation in body.DescendantNodes().OfType<InvocationExpressionSyntax>())
-            {
-                if (invocation.Expression is MemberAccessExpressionSyntax ma)
-                {
+        private static bool HasDisposeGuard(BlockSyntax body) {
+            foreach (var invocation in body.DescendantNodes().OfType<InvocationExpressionSyntax>()) {
+                if (invocation.Expression is MemberAccessExpressionSyntax ma) {
                     var methodName = ma.Name.Identifier.ValueText;
-                    if (methodName is "Exchange" or "CompareExchange")
-                    {
-                        var receiverName = ma.Expression switch
-                        {
+                    if (methodName is "Exchange" or "CompareExchange") {
+                        var receiverName = ma.Expression switch {
                             IdentifierNameSyntax id => id.Identifier.ValueText,
                             MemberAccessExpressionSyntax inner => inner.Name.Identifier.ValueText,
                             _ => null
@@ -591,8 +540,7 @@ namespace AotSafety.Generator
                 }
             }
 
-            foreach (var ifStmt in body.DescendantNodes().OfType<IfStatementSyntax>())
-            {
+            foreach (var ifStmt in body.DescendantNodes().OfType<IfStatementSyntax>()) {
                 var hasReturn = ifStmt.Statement is ReturnStatementSyntax ||
                     (ifStmt.Statement is BlockSyntax b && b.Statements.Count == 1 && b.Statements[0] is ReturnStatementSyntax);
                 if (hasReturn) return true;
@@ -601,10 +549,8 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool HasDelegateGuard(BlockSyntax body, SemanticModel semanticModel, INamedTypeSymbol currentType)
-        {
-            foreach (var invocation in body.DescendantNodes().OfType<InvocationExpressionSyntax>())
-            {
+        private static bool HasDelegateGuard(BlockSyntax body, SemanticModel semanticModel, INamedTypeSymbol currentType) {
+            foreach (var invocation in body.DescendantNodes().OfType<InvocationExpressionSyntax>()) {
                 if (IsInsideLambdaOrLocalFunction(invocation, body)) continue;
 
                 var symbolInfo = semanticModel.GetSymbolInfo(invocation);
@@ -612,10 +558,8 @@ namespace AotSafety.Generator
 
                 if (!SymbolEqualityComparer.Default.Equals(calledMethod.ContainingType, currentType)) continue;
 
-                foreach (var decl in calledMethod.DeclaringSyntaxReferences)
-                {
-                    if (decl.GetSyntax() is MethodDeclarationSyntax { Body: { } calleeBody })
-                    {
+                foreach (var decl in calledMethod.DeclaringSyntaxReferences) {
+                    if (decl.GetSyntax() is MethodDeclarationSyntax { Body: { } calleeBody }) {
                         if (HasDisposeGuard(calleeBody)) return true;
                     }
                 }
@@ -623,11 +567,9 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsInsideLambdaOrLocalFunction(SyntaxNode node, BlockSyntax methodBody)
-        {
+        private static bool IsInsideLambdaOrLocalFunction(SyntaxNode node, BlockSyntax methodBody) {
             var current = node.Parent;
-            while (current is not null && current != methodBody)
-            {
+            while (current is not null && current != methodBody) {
                 if (current is SimpleLambdaExpressionSyntax or
                     ParenthesizedLambdaExpressionSyntax or
                     LocalFunctionStatementSyntax)

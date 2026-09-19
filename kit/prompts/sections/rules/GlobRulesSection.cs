@@ -4,13 +4,11 @@ namespace Core.Prompts.Sections;
 /// 基于 glob 模式匹配的文件相关规则的提示词部分。
 /// </summary>
 [PromptSection(Name = "glob_rules", Order = 78, IsDynamic = true)]
-public static class GlobRulesSection
-{
+public static class GlobRulesSection {
     /// <summary>
     /// 获取 glob_rules 部分内容；基于 glob 模式匹配的文件相关规则，无匹配时返回 null。
     /// </summary>
-    public static string? GetContent()
-    {
+    public static string? GetContent() {
         var externalRules = PromptConfigSnapshot.Current.ExternalRules;
         var fileContext = PromptConfigSnapshot.Current.FileContext ?? new FileContextTracker();
 
@@ -21,20 +19,16 @@ public static class GlobRulesSection
 
         var matchingRules = new List<ExternalRuleEntry>();
 
-        foreach (var rule in externalRules)
-        {
+        foreach (var rule in externalRules) {
             if (string.IsNullOrEmpty(rule.Globs)) continue;
 
             var patterns = rule.Globs.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-            foreach (var pattern in patterns)
-            {
+            foreach (var pattern in patterns) {
                 var matched = false;
-                foreach (var filePath in filePaths)
-                {
+                foreach (var filePath in filePaths) {
                     var fileName = Path.GetFileName(filePath);
-                    if (MatchesGlobPattern(fileName, pattern) || MatchesGlobPattern(filePath, pattern))
-                    {
+                    if (MatchesGlobPattern(fileName, pattern) || MatchesGlobPattern(filePath, pattern)) {
                         matchingRules.Add(rule);
                         matched = true;
                         break;
@@ -53,11 +47,9 @@ public static class GlobRulesSection
         sb.AppendLine("以下规则与当前操作的文件相关（基于 glob 模式匹配）：");
         sb.AppendLine();
 
-        foreach (var rule in matchingRules)
-        {
+        foreach (var rule in matchingRules) {
             sb.AppendLine($"## {rule.Name}");
-            if (!string.IsNullOrEmpty(rule.Description))
-            {
+            if (!string.IsNullOrEmpty(rule.Description)) {
                 sb.AppendLine($"（适用场景: {rule.Description}）");
             }
             sb.AppendLine();
@@ -76,12 +68,10 @@ public static class GlobRulesSection
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("glob_rules", GetContent);
 
-    private static bool MatchesGlobPattern(string input, string pattern)
-    {
+    private static bool MatchesGlobPattern(string input, string pattern) {
         if (string.IsNullOrEmpty(pattern) || string.IsNullOrEmpty(input)) return false;
 
-        if (!pattern.Contains('*', StringComparison.Ordinal) && !pattern.Contains('?', StringComparison.Ordinal))
-        {
+        if (!pattern.Contains('*', StringComparison.Ordinal) && !pattern.Contains('?', StringComparison.Ordinal)) {
             return input.Equals(pattern, StringComparison.OrdinalIgnoreCase);
         }
 
@@ -89,12 +79,9 @@ public static class GlobRulesSection
             .Replace("\\*", ".*", StringComparison.Ordinal)
             .Replace("\\?", ".", StringComparison.Ordinal);
 
-        try
-        {
+        try {
             return Regex.IsMatch(input, $"^{regexPattern}$", RegexOptions.IgnoreCase);
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }

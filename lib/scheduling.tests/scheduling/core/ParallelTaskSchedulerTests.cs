@@ -1,18 +1,15 @@
 
 namespace Core.Tests.Scheduling;
 
-public class ParallelTaskSchedulerTests
-{
+public class ParallelTaskSchedulerTests {
     private readonly ParallelTaskScheduler _scheduler;
 
-    public ParallelTaskSchedulerTests()
-    {
+    public ParallelTaskSchedulerTests() {
         _scheduler = new ParallelTaskScheduler();
     }
 
     [Fact]
-    public void RegisterTask_ShouldAssignIdAndRaiseEvent()
-    {
+    public void RegisterTask_ShouldAssignIdAndRaiseEvent() {
         TaskStatusChangedEventArgs? captured = null;
         _scheduler.TaskStatusChanged += (_, e) => captured = e;
 
@@ -30,8 +27,7 @@ public class ParallelTaskSchedulerTests
     }
 
     [Fact]
-    public void GetAllTasks_ShouldReturnRegisteredTasks()
-    {
+    public void GetAllTasks_ShouldReturnRegisteredTasks() {
         _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
         _scheduler.RegisterTask("b", "desc", 1, TodoPriority.Low);
 
@@ -39,8 +35,7 @@ public class ParallelTaskSchedulerTests
     }
 
     [Fact]
-    public void GetTasksByStatus_ShouldFilterByStatus()
-    {
+    public void GetTasksByStatus_ShouldFilterByStatus() {
         var t1 = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
         _scheduler.RegisterTask("b", "desc", 1, TodoPriority.Low);
 
@@ -51,8 +46,7 @@ public class ParallelTaskSchedulerTests
     }
 
     [Fact]
-    public void GetExecutableTasks_ShouldRespectDependencies()
-    {
+    public void GetExecutableTasks_ShouldRespectDependencies() {
         var t1 = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
         var t2 = _scheduler.RegisterTask("b", "desc", 1, TodoPriority.High, new List<string> { t1.Id });
 
@@ -68,8 +62,7 @@ public class ParallelTaskSchedulerTests
     }
 
     [Fact]
-    public void GetExecutableTasks_ShouldOrderByPriorityDescending()
-    {
+    public void GetExecutableTasks_ShouldOrderByPriorityDescending() {
         var low = _scheduler.RegisterTask("low", "desc", 1, TodoPriority.Low);
         var high = _scheduler.RegisterTask("high", "desc", 1, TodoPriority.High);
         var critical = _scheduler.RegisterTask("critical", "desc", 1, TodoPriority.Critical);
@@ -81,8 +74,7 @@ public class ParallelTaskSchedulerTests
     }
 
     [Fact]
-    public void GetFirstWaveTasks_ShouldReturnTasksWithoutDependencies()
-    {
+    public void GetFirstWaveTasks_ShouldReturnTasksWithoutDependencies() {
         var t1 = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
         _scheduler.RegisterTask("b", "desc", 1, TodoPriority.Low, new List<string> { t1.Id });
 
@@ -92,8 +84,7 @@ public class ParallelTaskSchedulerTests
     }
 
     [Fact]
-    public void UpdateTaskStatus_WithMessage_ShouldUpdateAndRaiseEvent()
-    {
+    public void UpdateTaskStatus_WithMessage_ShouldUpdateAndRaiseEvent() {
         var task = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
 
         TaskStatusChangedEventArgs? captured = null;
@@ -109,8 +100,7 @@ public class ParallelTaskSchedulerTests
     }
 
     [Fact]
-    public void UpdateTaskStatus_ToCompleted_ShouldSetCompletedAt()
-    {
+    public void UpdateTaskStatus_ToCompleted_ShouldSetCompletedAt() {
         var before = DateTime.UtcNow.AddSeconds(-1);
         var task = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
 
@@ -121,22 +111,19 @@ public class ParallelTaskSchedulerTests
     }
 
     [Fact]
-    public void UpdateTaskStatus_NonExistent_ShouldReturnFalse()
-    {
+    public void UpdateTaskStatus_NonExistent_ShouldReturnFalse() {
         _scheduler.UpdateTaskStatus("missing", ScheduledTaskStatus.Completed).Should().BeFalse();
     }
 
     [Fact]
-    public void AreDependenciesMet_MissingDependencyTask_ShouldReturnFalse()
-    {
+    public void AreDependenciesMet_MissingDependencyTask_ShouldReturnFalse() {
         var task = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low, new List<string> { "missing" });
 
         _scheduler.AreDependenciesMet(task.Id).Should().BeFalse();
     }
 
     [Fact]
-    public void GetDependentTasks_ShouldReturnReverseDependencies()
-    {
+    public void GetDependentTasks_ShouldReturnReverseDependencies() {
         var t1 = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
         var t2 = _scheduler.RegisterTask("b", "desc", 1, TodoPriority.Low, new List<string> { t1.Id });
         var t3 = _scheduler.RegisterTask("c", "desc", 1, TodoPriority.Low, new List<string> { t1.Id });
@@ -147,8 +134,7 @@ public class ParallelTaskSchedulerTests
     }
 
     [Fact]
-    public void GetReport_ShouldCalculateCounts()
-    {
+    public void GetReport_ShouldCalculateCounts() {
         var t1 = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
         var t2 = _scheduler.RegisterTask("b", "desc", 1, TodoPriority.Low);
         _scheduler.UpdateTaskStatus(t1.Id, ScheduledTaskStatus.Completed);
@@ -163,16 +149,14 @@ public class ParallelTaskSchedulerTests
     }
 
     [Fact]
-    public void GetReport_WhenEmpty_ShouldReturnZeroPercentage()
-    {
+    public void GetReport_WhenEmpty_ShouldReturnZeroPercentage() {
         var report = _scheduler.GetReport();
         report.TotalTasks.Should().Be(0);
         report.CompletionPercentage.Should().Be(0);
     }
 
     [Fact]
-    public async Task WaitForTaskAsync_ShouldCompleteWhenTaskFinished()
-    {
+    public async Task WaitForTaskAsync_ShouldCompleteWhenTaskFinished() {
         var task = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
 
         var waitTask = _scheduler.WaitForTaskAsync(task.Id, CancellationToken.None);
@@ -183,8 +167,7 @@ public class ParallelTaskSchedulerTests
     }
 
     [Fact]
-    public async Task WaitForAllAsync_ShouldCompleteWhenAllFinished()
-    {
+    public async Task WaitForAllAsync_ShouldCompleteWhenAllFinished() {
         var t1 = _scheduler.RegisterTask("a", "desc", 1, TodoPriority.Low);
         var t2 = _scheduler.RegisterTask("b", "desc", 1, TodoPriority.Low);
 

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 消息状态枚举
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 MessageStatusEnumConstants + MessageStatusExtensions
 /// </summary>
-public enum MessageStatus
-{
+public enum MessageStatus {
     /// <summary>主动推送</summary>
     [EnumValue("proactive")] Proactive = 0,
 

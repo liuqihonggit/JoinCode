@@ -4,8 +4,7 @@ namespace Core.Memdir;
 /// 记忆老化计算器
 /// 根据 TTL 计算权重衰减
 /// </summary>
-public interface IMemoryAgeCalculator
-{
+public interface IMemoryAgeCalculator {
     /// <summary>
     /// 计算老化后的相关性分数
     /// </summary>
@@ -28,28 +27,24 @@ public interface IMemoryAgeCalculator
 /// 使用指数衰减模型
 /// </summary>
 [Register(typeof(IMemoryAgeCalculator), ServiceLifetime.Singleton)]
-public sealed partial class MemoryAgeCalculator : ServiceEntity, IMemoryAgeCalculator
-{
+public sealed partial class MemoryAgeCalculator : ServiceEntity, IMemoryAgeCalculator {
     private readonly MemoryAgeOptions _options;
 
     /// <summary>
     /// 构造记忆老化计算器
     /// </summary>
     /// <param name="options">老化计算选项,为 null 则使用默认选项</param>
-    public MemoryAgeCalculator(MemoryAgeOptions? options = null)
-    {
+    public MemoryAgeCalculator(MemoryAgeOptions? options = null) {
         _options = options ?? MemoryAgeOptions.Default;
     }
 
     /// <inheritdoc />
-    public double CalculateAgedRelevance(MemoryEntry entry, DateTime? now = null)
-    {
+    public double CalculateAgedRelevance(MemoryEntry entry, DateTime? now = null) {
         var currentTime = now ?? DateTime.UtcNow;
         var age = currentTime - entry.CreatedAt;
 
         // 如果已过期，返回最低分数
-        if (entry.IsExpired(currentTime))
-        {
+        if (entry.IsExpired(currentTime)) {
             return _options.MinRelevanceScore;
         }
 
@@ -67,33 +62,28 @@ public sealed partial class MemoryAgeCalculator : ServiceEntity, IMemoryAgeCalcu
     }
 
     /// <inheritdoc />
-    public bool ShouldArchive(MemoryEntry entry, DateTime? now = null)
-    {
+    public bool ShouldArchive(MemoryEntry entry, DateTime? now = null) {
         var currentTime = now ?? DateTime.UtcNow;
 
         // 已归档的不需要再次归档
-        if (entry.IsArchived)
-        {
+        if (entry.IsArchived) {
             return false;
         }
 
         // 检查是否已过期
-        if (entry.IsExpired(currentTime))
-        {
+        if (entry.IsExpired(currentTime)) {
             return true;
         }
 
         // 检查相关性分数是否低于归档阈值
         var agedScore = CalculateAgedRelevance(entry, currentTime);
-        if (agedScore < _options.ArchiveThreshold)
-        {
+        if (agedScore < _options.ArchiveThreshold) {
             return true;
         }
 
         // 检查是否超过最大年龄
         var age = currentTime - entry.CreatedAt;
-        if (age > _options.MaxAge)
-        {
+        if (age > _options.MaxAge) {
             return true;
         }
 
@@ -104,8 +94,7 @@ public sealed partial class MemoryAgeCalculator : ServiceEntity, IMemoryAgeCalcu
 /// <summary>
 /// 记忆老化选项
 /// </summary>
-public sealed record MemoryAgeOptions
-{
+public sealed record MemoryAgeOptions {
     /// <summary>
     /// 衰减率 (每天)
     /// </summary>

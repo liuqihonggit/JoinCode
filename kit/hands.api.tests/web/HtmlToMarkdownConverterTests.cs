@@ -1,36 +1,31 @@
 namespace Core.Tests.Web;
 
-public class HtmlToMarkdownConverterTests
-{
+public class HtmlToMarkdownConverterTests {
     private readonly HtmlToMarkdownConverter _converter = new();
 
     [Fact]
-    public void Convert_EmptyHtml_ReturnsEmptyString()
-    {
+    public void Convert_EmptyHtml_ReturnsEmptyString() {
         var result = _converter.Convert(string.Empty);
 
         Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void Convert_NullHtml_ReturnsEmptyString()
-    {
+    public void Convert_NullHtml_ReturnsEmptyString() {
         var result = _converter.Convert(null!);
 
         Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void Convert_PlainText_ReturnsSameText()
-    {
+    public void Convert_PlainText_ReturnsSameText() {
         var result = _converter.Convert("Hello World");
 
         Assert.Equal("Hello World", result);
     }
 
     [Fact]
-    public void Convert_HeadingTags_ConvertsToMarkdownHeadings()
-    {
+    public void Convert_HeadingTags_ConvertsToMarkdownHeadings() {
         var html = "<h1>Title</h1><h2>Subtitle</h2><h3>Section</h3>";
 
         var result = _converter.Convert(html);
@@ -41,8 +36,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_ParagraphTags_WrapsInNewlines()
-    {
+    public void Convert_ParagraphTags_WrapsInNewlines() {
         var html = "<p>First paragraph</p><p>Second paragraph</p>";
 
         var result = _converter.Convert(html);
@@ -52,8 +46,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_BoldAndItalic_ConvertsCorrectly()
-    {
+    public void Convert_BoldAndItalic_ConvertsCorrectly() {
         var html = "<strong>Bold</strong> and <em>Italic</em> and <b>Also Bold</b> and <i>Also Italic</i>";
 
         var result = _converter.Convert(html);
@@ -65,8 +58,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_AnchorTags_PreservesLinksWithText()
-    {
+    public void Convert_AnchorTags_PreservesLinksWithText() {
         var html = "<a href=\"https://example.com\">Example Link</a>";
 
         var result = _converter.Convert(html);
@@ -75,8 +67,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_AnchorTagWithoutHref_KeepsTextOnly()
-    {
+    public void Convert_AnchorTagWithoutHref_KeepsTextOnly() {
         var html = "<a>Just Text</a>";
 
         var result = _converter.Convert(html);
@@ -86,8 +77,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_UnorderedList_ConvertsCorrectly()
-    {
+    public void Convert_UnorderedList_ConvertsCorrectly() {
         var html = "<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>";
 
         var result = _converter.Convert(html);
@@ -98,8 +88,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_OrderedList_ConvertsCorrectly()
-    {
+    public void Convert_OrderedList_ConvertsCorrectly() {
         var html = "<ol><li>First</li><li>Second</li><li>Third</li></ol>";
 
         var result = _converter.Convert(html);
@@ -110,8 +99,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_CodeBlock_PreservesCodeInFencedBlock()
-    {
+    public void Convert_CodeBlock_PreservesCodeInFencedBlock() {
         var html = "<pre><code>var x = 1;\nvar y = 2;</code></pre>";
 
         var result = _converter.Convert(html);
@@ -122,8 +110,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_InlineCode_PreservesBacktickWrapped()
-    {
+    public void Convert_InlineCode_PreservesBacktickWrapped() {
         var html = "Use the <code>Foo()</code> method";
 
         var result = _converter.Convert(html);
@@ -132,8 +119,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_Blockquote_ConvertsCorrectly()
-    {
+    public void Convert_Blockquote_ConvertsCorrectly() {
         var html = "<blockquote>This is a quote</blockquote>";
 
         var result = _converter.Convert(html);
@@ -142,8 +128,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_Image_ConvertsToMarkdownImage()
-    {
+    public void Convert_Image_ConvertsToMarkdownImage() {
         var html = "<img src=\"image.png\" alt=\"Alt Text\" />";
 
         var result = _converter.Convert(html);
@@ -152,8 +137,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_ImageWithoutAlt_UsesEmptyAlt()
-    {
+    public void Convert_ImageWithoutAlt_UsesEmptyAlt() {
         var html = "<img src=\"image.png\" />";
 
         var result = _converter.Convert(html);
@@ -162,8 +146,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_HorizontalRule_ConvertsCorrectly()
-    {
+    public void Convert_HorizontalRule_ConvertsCorrectly() {
         var html = "<hr>";
 
         var result = _converter.Convert(html);
@@ -173,8 +156,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_HtmlEntities_DecodedCorrectly()
-    {
+    public void Convert_HtmlEntities_DecodedCorrectly() {
         var html = "&amp; &lt; &gt; &quot; &apos;";
 
         var result = _converter.Convert(html);
@@ -187,8 +169,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_LineBreak_ConvertsToNewline()
-    {
+    public void Convert_LineBreak_ConvertsToNewline() {
         var html = "Line 1<br>Line 2<br/>Line 3";
 
         var result = _converter.Convert(html);
@@ -199,8 +180,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_Table_ConvertsToMarkdownTable()
-    {
+    public void Convert_Table_ConvertsToMarkdownTable() {
         var html = "<table><thead><tr><th>Name</th><th>Age</th></tr></thead><tbody><tr><td>Alice</td><td>30</td></tr><tr><td>Bob</td><td>25</td></tr></tbody></table>";
 
         var result = _converter.Convert(html);
@@ -212,8 +192,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_NestedBoldInsideParagraph_PreservesStructure()
-    {
+    public void Convert_NestedBoldInsideParagraph_PreservesStructure() {
         var html = "<p>This is <strong>very</strong> important</p>";
 
         var result = _converter.Convert(html);
@@ -222,8 +201,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_ScriptTags_Removed()
-    {
+    public void Convert_ScriptTags_Removed() {
         var html = "<p>Hello</p><script>alert('xss');</script><p>World</p>";
 
         var result = _converter.Convert(html);
@@ -235,8 +213,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_StyleTags_Removed()
-    {
+    public void Convert_StyleTags_Removed() {
         var html = "<p>Hello</p><style>.red{color:red;}</style><p>World</p>";
 
         var result = _converter.Convert(html);
@@ -248,8 +225,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_NestedLists_ConvertsCorrectly()
-    {
+    public void Convert_NestedLists_ConvertsCorrectly() {
         var html = "<ul><li>Parent<ul><li>Child 1</li><li>Child 2</li></ul></li></ul>";
 
         var result = _converter.Convert(html);
@@ -261,8 +237,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_Truncate_TruncatesContent()
-    {
+    public void Convert_Truncate_TruncatesContent() {
         var html = "<p>" + new string('a', 200) + "</p>";
 
         var result = _converter.Convert(html, maxLength: 100);
@@ -271,8 +246,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_Truncate_UnderMaxKeepsAll()
-    {
+    public void Convert_Truncate_UnderMaxKeepsAll() {
         var html = "<p>Short text</p>";
 
         var result = _converter.Convert(html, maxLength: 1000);
@@ -281,8 +255,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_Strikethrough_ConvertsCorrectly()
-    {
+    public void Convert_Strikethrough_ConvertsCorrectly() {
         var html = "<s>old text</s> and <del>deleted</del>";
 
         var result = _converter.Convert(html);
@@ -292,8 +265,7 @@ public class HtmlToMarkdownConverterTests
     }
 
     [Fact]
-    public void Convert_ComplexHtml_ProducesCoherentMarkdown()
-    {
+    public void Convert_ComplexHtml_ProducesCoherentMarkdown() {
         var html = @"
 <html>
 <head><title>Test Page</title></head>

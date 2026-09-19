@@ -3,8 +3,7 @@ namespace Core.Bridge;
 /// <summary>
 /// Bridge 运行上下文 — 承载 BridgeMain 命令的参数、可变运行状态与中间件产出
 /// </summary>
-public sealed class BridgeRunContext : PipelineContextBase
-{
+public sealed class BridgeRunContext : PipelineContextBase {
     /// <summary>Bridge 主命令参数</summary>
     public required BridgeMainArgs Args { get; init; }
     /// <summary>取消令牌</summary>

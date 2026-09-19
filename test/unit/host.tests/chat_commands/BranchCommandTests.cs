@@ -5,39 +5,33 @@ namespace Host.Tests.ChatCommands;
 /// 覆盖:list/ls/create/new/switch/go/delete/rm/未知子命令
 /// 验证目标:Step 3.4 重构后,所有 case 标签能被正确识别
 /// </summary>
-public sealed class BranchCommandTests
-{
+public sealed class BranchCommandTests {
     [Fact]
-    public void Name_Should_Be_branch()
-    {
+    public void Name_Should_Be_branch() {
         var cmd = new BranchCommand();
         cmd.Name.Should().Be("branch");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new BranchCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new BranchCommand();
         cmd.Usage.Should().StartWith("/branch");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new BranchCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public void Aliases_Should_Contain_branches()
-    {
+    public void Aliases_Should_Contain_branches() {
         var cmd = new BranchCommand();
         cmd.Aliases.Should().Contain("branches");
     }
@@ -45,8 +39,7 @@ public sealed class BranchCommandTests
     [Theory]
     [InlineData("list")]
     [InlineData("ls")]
-    public async Task Execute_WithListVariants_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithListVariants_Should_Return_Continue(string subCommand) {
         var cmd = new BranchCommand();
         var context = CreateContext(subCommand);
 
@@ -59,8 +52,7 @@ public sealed class BranchCommandTests
     [Theory]
     [InlineData("create")]
     [InlineData("new")]
-    public async Task Execute_WithCreateVariants_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithCreateVariants_Should_Return_Continue(string subCommand) {
         var cmd = new BranchCommand();
         var context = CreateContext(subCommand);
 
@@ -73,8 +65,7 @@ public sealed class BranchCommandTests
     [Theory]
     [InlineData("delete")]
     [InlineData("rm")]
-    public async Task Execute_WithDeleteVariants_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithDeleteVariants_Should_Return_Continue(string subCommand) {
         var cmd = new BranchCommand();
         var context = CreateContext(subCommand);
 
@@ -87,8 +78,7 @@ public sealed class BranchCommandTests
     [Theory]
     [InlineData("switch")]
     [InlineData("go")]
-    public async Task Execute_WithReservedSwitchVariants_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithReservedSwitchVariants_Should_Return_Continue(string subCommand) {
         // switch/go 保留字符串(不属于 CrudAction 范围,Step 3.4 决策)
         var cmd = new BranchCommand();
         var context = CreateContext(subCommand);
@@ -99,8 +89,7 @@ public sealed class BranchCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithUnknownSubcommand_Should_NotThrow()
-    {
+    public async Task Execute_WithUnknownSubcommand_Should_NotThrow() {
         var cmd = new BranchCommand();
         var context = CreateContext("unknown-action");
 
@@ -110,8 +99,7 @@ public sealed class BranchCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithEmptyArgs_Should_Return_Continue()
-    {
+    public async Task Execute_WithEmptyArgs_Should_Return_Continue() {
         var cmd = new BranchCommand();
         var context = CreateContext("");
 
@@ -127,8 +115,7 @@ public sealed class BranchCommandTests
     [InlineData("NEW")]
     [InlineData("DELETE")]
     [InlineData("RM")]
-    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand)
-    {
+    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand) {
         var cmd = new BranchCommand();
         var context = CreateContext(subCommand);
 
@@ -137,18 +124,15 @@ public sealed class BranchCommandTests
         result.ShouldContinue.Should().BeTrue();
     }
 
-    private static ChatCommandContext CreateContext(string arguments)
-    {
-        return new ChatCommandContext
-        {
+    private static ChatCommandContext CreateContext(string arguments) {
+        return new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-            FileSystem = TestFileSystem.Current,
+                FileSystem = TestFileSystem.Current,
             }),
         };
     }

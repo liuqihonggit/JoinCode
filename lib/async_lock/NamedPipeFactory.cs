@@ -6,8 +6,7 @@ namespace Core.Utils;
 /// <para><b>历史教训</b>: 曾因各处直接 new NamedPipeServerStream 使用5参数构造函数,默认缓冲区大小为0导致写操作永久阻塞(见 docs/task/管道缓冲区零导致写阻塞-bug修复记录.md)。</para>
 /// <para>本工厂强制指定 <see cref="PipeBufferSize"/>(65536)字节缓冲区,从源头消除该类问题。</para>
 /// </summary>
-public static class NamedPipeFactory
-{
+public static class NamedPipeFactory {
     /// <summary>
     /// 管道缓冲区大小 — 65536 字节(64KB)。
     /// <para>足够容纳多条消息,避免写操作因缓冲区满而阻塞。</para>
@@ -26,8 +25,7 @@ public static class NamedPipeFactory
     /// </summary>
     /// <param name="pipeName">管道名称</param>
     /// <returns>配置好的 <see cref="NamedPipeServerStream"/>,调用方负责 Dispose</returns>
-    public static NamedPipeServerStream CreateServer(string pipeName)
-    {
+    public static NamedPipeServerStream CreateServer(string pipeName) {
         TransportDiagnostics.Log("PIPE-FACTORY", () => $"CreateServer: {pipeName}, buf={PipeBufferSize}");
         return new NamedPipeServerStream(
             pipeName,
@@ -46,8 +44,7 @@ public static class NamedPipeFactory
     /// </summary>
     /// <param name="pipeName">管道名称</param>
     /// <returns>配置好的 <see cref="NamedPipeClientStream"/>,调用方负责 Dispose</returns>
-    public static NamedPipeClientStream CreateClient(string pipeName)
-    {
+    public static NamedPipeClientStream CreateClient(string pipeName) {
         TransportDiagnostics.Log("PIPE-FACTORY", () => $"CreateClient: {pipeName}");
         return new NamedPipeClientStream(
             ".",

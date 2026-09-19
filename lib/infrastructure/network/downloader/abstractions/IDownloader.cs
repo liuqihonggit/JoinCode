@@ -5,8 +5,7 @@ namespace Infrastructure.Network.Downloader;
 /// <para>非阻塞:StartDownload 立即返回 IDownloadSession,下载在后台进行</para>
 /// <para>控制:通过 IDownloadSession.PauseAsync/ResumeAsync/CancelAsync 控制状态流转</para>
 /// </summary>
-public interface IDownloader
-{
+public interface IDownloader {
     /// <summary>
     /// 启动下载,返回可控制的会话(非阻塞,立即返回)
     /// </summary>

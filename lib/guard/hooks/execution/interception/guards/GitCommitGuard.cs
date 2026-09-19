@@ -12,8 +12,7 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// </para>
 /// </summary>
 [Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
-public sealed partial class GitCommitGuard : ICommandGuard
-{
+public sealed partial class GitCommitGuard : ICommandGuard {
     /// <summary>
     /// 引导提示文本 — 说明禁止原因和正确做法
     /// </summary>
@@ -29,14 +28,12 @@ public sealed partial class GitCommitGuard : ICommandGuard
     public int Priority => 1000;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, GuardContext context)
-    {
+    public bool CanHandle(string command, GuardContext context) {
         return IsGitCommitCommand(command);
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, GuardContext context)
-    {
+    public CommandDecision Evaluate(string command, GuardContext context) {
         return new CommandDecision.Redirect("/commit", RedirectHint);
     }
 
@@ -46,8 +43,7 @@ public sealed partial class GitCommitGuard : ICommandGuard
     /// </summary>
     /// <param name="command">待检测的命令</param>
     /// <returns>是 git commit 返回 true,否则 false</returns>
-    internal static bool IsGitCommitCommand(string command)
-    {
+    internal static bool IsGitCommitCommand(string command) {
         if (string.IsNullOrWhiteSpace(command)) return false;
 
         var trimmed = command.TrimStart();
@@ -68,13 +64,11 @@ public sealed partial class GitCommitGuard : ICommandGuard
     /// </summary>
     /// <param name="text">命令文本(已 TrimStart)</param>
     /// <returns>(token, 剩余文本);token 为 null 表示解析失败</returns>
-    private static (string? Token, string Remaining) ExtractFirstToken(string text)
-    {
+    private static (string? Token, string Remaining) ExtractFirstToken(string text) {
         text = text.TrimStart();
         if (text.Length == 0) return (null, text);
 
-        if (text.StartsWith('"'))
-        {
+        if (text.StartsWith('"')) {
             var closingQuote = text.IndexOf('"', 1);
             if (closingQuote < 0) return (null, text);
             return (text[1..closingQuote], text[(closingQuote + 1)..]);
@@ -91,8 +85,7 @@ public sealed partial class GitCommitGuard : ICommandGuard
     /// <param name="executablePath">可执行文件路径或名称</param>
     /// <param name="subCommand">子命令(如 commit)</param>
     /// <returns>是 git commit 返回 true</returns>
-    private static bool IsGitCommitSubCommand(string executablePath, string subCommand)
-    {
+    private static bool IsGitCommitSubCommand(string executablePath, string subCommand) {
         var executableName = Path.GetFileNameWithoutExtension(executablePath);
         if (!executableName.Equals("git", StringComparison.OrdinalIgnoreCase))
             return false;

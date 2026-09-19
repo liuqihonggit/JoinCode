@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 契约变更广播器 — 队长 push 热文件后，给依赖 Worker 发 ContractChanged 消息
 /// 热文件变就广播，非热文件不广播；定向投递不全局广播
 /// </summary>
-public interface IContractChangeBroadcaster
-{
+public interface IContractChangeBroadcaster {
     /// <summary>
     /// 队长 push 热文件后广播契约变更通知
     /// </summary>

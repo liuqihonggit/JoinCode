@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Models.SkillSearch;
 
-public sealed class SkillSearchQuery
-{
+public sealed class SkillSearchQuery {
     public string? Keyword { get; init; }
     public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
     public string? Category { get; init; }
@@ -12,8 +11,7 @@ public sealed class SkillSearchQuery
     public string? ContextHint { get; init; }
 }
 
-public sealed class SkillSearchResult
-{
+public sealed class SkillSearchResult {
     public required string SkillName { get; init; }
     public required string Description { get; init; }
     public required double RelevanceScore { get; init; }
@@ -24,8 +22,7 @@ public sealed class SkillSearchResult
     public string? Highlight { get; init; }
 }
 
-public enum SkillMatchType
-{
+public enum SkillMatchType {
     [EnumValue("exact_name")] ExactName = 0,
     [EnumValue("partial_name")] PartialName = 1,
     [EnumValue("tag_match")] TagMatch = 2,

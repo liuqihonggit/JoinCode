@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Shell;
 /// <summary>
 /// RGB 颜色值 — 简化版，用于 CLI 模式下的 ANSI 24位颜色输出
 /// </summary>
-public readonly record struct RgbColor(byte R, byte G, byte B)
-{
+public readonly record struct RgbColor(byte R, byte G, byte B) {
     /// <summary>
     /// 转换为 ANSI 前景色转义序列
     /// </summary>

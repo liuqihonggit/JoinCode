@@ -5,15 +5,13 @@ namespace Core.Hooks.Execution;
 /// 函数回调钩子执行器
 /// </summary>
 [Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
-public sealed partial class FunctionHookExecutor : HookExecutorBase<FunctionHook>
-{
+public sealed partial class FunctionHookExecutor : HookExecutorBase<FunctionHook> {
     /// <summary>
     /// 初始化函数回调钩子执行器
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
     public FunctionHookExecutor(ILogger<FunctionHookExecutor>? logger = null)
-        : base(logger)
-    {
+        : base(logger) {
     }
 
     /// <inheritdoc />
@@ -23,13 +21,11 @@ public sealed partial class FunctionHookExecutor : HookExecutorBase<FunctionHook
     public override async Task<HookResult> ExecuteTypedAsync(
         FunctionHook hook,
         HookInput input,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         LogExecutionStart(hook, input);
         var stopwatch = Stopwatch.StartNew();
 
-        try
-        {
+        try {
             var context = CreateContext(hook, input);
 
             var result = await ExecuteWithTimeoutAsync(
@@ -39,24 +35,17 @@ public sealed partial class FunctionHookExecutor : HookExecutorBase<FunctionHook
                 cancellationToken).ConfigureAwait(false);
 
             // 如果执行成功但结果为 null，返回空成功
-            if (result == null)
-            {
+            if (result == null) {
                 result = HookResult.Success();
             }
 
             LogExecutionComplete(hook, result, stopwatch.Elapsed);
             return result;
-        }
-        catch (HookTimeoutException)
-        {
+        } catch (HookTimeoutException) {
             throw;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Logger?.LogError(ex, "Function hook '{HookId}' failed", hook.Id);
 
             // 函数钩子错误是非阻塞的
@@ -71,15 +60,13 @@ public sealed partial class FunctionHookExecutor : HookExecutorBase<FunctionHook
 /// 回调钩子执行器（内部使用）
 /// </summary>
 [Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
-public sealed partial class CallbackHookExecutor : HookExecutorBase<CallbackHook>
-{
+public sealed partial class CallbackHookExecutor : HookExecutorBase<CallbackHook> {
     /// <summary>
     /// 初始化回调钩子执行器
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
     public CallbackHookExecutor(ILogger<CallbackHookExecutor>? logger = null)
-        : base(logger)
-    {
+        : base(logger) {
     }
 
     /// <inheritdoc />
@@ -89,13 +76,11 @@ public sealed partial class CallbackHookExecutor : HookExecutorBase<CallbackHook
     public override async Task<HookResult> ExecuteTypedAsync(
         CallbackHook hook,
         HookInput input,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         LogExecutionStart(hook, input);
         var stopwatch = Stopwatch.StartNew();
 
-        try
-        {
+        try {
             var context = CreateContext(hook, input);
 
             var result = await ExecuteWithTimeoutAsync(
@@ -104,24 +89,17 @@ public sealed partial class CallbackHookExecutor : HookExecutorBase<CallbackHook
                 HookTypeEnumConstants.Callback,
                 cancellationToken).ConfigureAwait(false);
 
-            if (result == null)
-            {
+            if (result == null) {
                 result = HookResult.Success();
             }
 
             LogExecutionComplete(hook, result, stopwatch.Elapsed);
             return result;
-        }
-        catch (HookTimeoutException)
-        {
+        } catch (HookTimeoutException) {
             throw;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Logger?.LogError(ex, "Callback hook failed");
 
             return HookResult.NonBlockingError(

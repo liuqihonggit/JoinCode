@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public sealed class SubAgentContext
-{
+public sealed class SubAgentContext {
     private static readonly AsyncLocal<SubAgentContext?> _current = new();
 
     public static SubAgentContext? Current => _current.Value;
@@ -44,8 +43,7 @@ public sealed class SubAgentContext
     /// <summary>Teammate 元信息 — 非 null 表示当前上下文为 teammate 执行</summary>
     public TeammateMeta? TeammateMeta { get; set; }
 
-    public string? ConsumeInvokingRequestId()
-    {
+    public string? ConsumeInvokingRequestId() {
         var id = InvokingRequestId;
         InvokingRequestId = null;
         return id;
@@ -53,14 +51,12 @@ public sealed class SubAgentContext
 
     public IDisposable EnterScope() => AsyncLocalScope<SubAgentContext?>.Enter(_current, this);
 
-    public IDisposable EnterScopeWithCwd(string? cwd)
-    {
+    public IDisposable EnterScopeWithCwd(string? cwd) {
         CwdOverride = cwd;
         return AsyncLocalScope<SubAgentContext?>.Enter(_current, this);
     }
 
-    public static string GetEffectiveCwd(string? fallbackCwd = null)
-    {
+    public static string GetEffectiveCwd(string? fallbackCwd = null) {
         return _current.Value?.CwdOverride ?? fallbackCwd ?? Environment.CurrentDirectory;
     }
 

@@ -6,8 +6,7 @@ namespace MockServer.E2E.Tests.Scripts;
 /// analytics/browser/policy/mcp_resource/code_execution/lsp/code_generation/
 /// code_analysis/permission/voice/remote_trigger/notification
 /// </summary>
-public static class ToolCoverageScripts
-{
+public static class ToolCoverageScripts {
     // ============================================================
     // 4a 必选工具
     // ============================================================
@@ -16,8 +15,7 @@ public static class ToolCoverageScripts
     /// mcp_resource 类别 — mcp_list_clients 工具
     /// 列出已连接的 MCP 客户端
     /// </summary>
-    public static ConversationScript McpListClientsTest => new()
-    {
+    public static ConversationScript McpListClientsTest => new() {
         Name = "mcp_list_clients 工具调用",
         Turns =
         [
@@ -51,8 +49,7 @@ public static class ToolCoverageScripts
     /// code_execution 类别 — execute_csharp_code 工具
     /// 执行 C# 代码片段
     /// </summary>
-    public static ConversationScript ExecuteCsharpCodeTest => new()
-    {
+    public static ConversationScript ExecuteCsharpCodeTest => new() {
         Name = "execute_csharp_code 工具调用",
         Turns =
         [
@@ -90,8 +87,7 @@ public static class ToolCoverageScripts
     /// snip 类别 — snip 工具
     /// 历史快照回退
     /// </summary>
-    public static ConversationScript SnipTest => new()
-    {
+    public static ConversationScript SnipTest => new() {
         Name = "snip 工具调用",
         Turns =
         [
@@ -125,8 +121,7 @@ public static class ToolCoverageScripts
     /// monitor 类别 — monitor 工具
     /// MCP 监控状态
     /// </summary>
-    public static ConversationScript MonitorTest => new()
-    {
+    public static ConversationScript MonitorTest => new() {
         Name = "monitor 工具调用",
         Turns =
         [
@@ -160,8 +155,7 @@ public static class ToolCoverageScripts
     /// context 类别 — ctx_inspect 工具
     /// 上下文检查
     /// </summary>
-    public static ConversationScript CtxInspectTest => new()
-    {
+    public static ConversationScript CtxInspectTest => new() {
         Name = "ctx_inspect 工具调用",
         Turns =
         [
@@ -195,8 +189,7 @@ public static class ToolCoverageScripts
     /// analytics 类别 — analytics_report 工具
     /// 分析报告
     /// </summary>
-    public static ConversationScript AnalyticsReportTest => new()
-    {
+    public static ConversationScript AnalyticsReportTest => new() {
         Name = "analytics_report 工具调用",
         Turns =
         [
@@ -230,8 +223,7 @@ public static class ToolCoverageScripts
     /// policy 类别 — policy_list 工具
     /// 策略列表
     /// </summary>
-    public static ConversationScript PolicyListTest => new()
-    {
+    public static ConversationScript PolicyListTest => new() {
         Name = "policy_list 工具调用",
         Turns =
         [
@@ -269,8 +261,7 @@ public static class ToolCoverageScripts
     /// lsp 类别 — lsp_document_symbols 工具
     /// LSP 文档符号
     /// </summary>
-    public static ConversationScript LspDocumentSymbolsTest => new()
-    {
+    public static ConversationScript LspDocumentSymbolsTest => new() {
         Name = "lsp_document_symbols 工具调用",
         Turns =
         [
@@ -304,8 +295,7 @@ public static class ToolCoverageScripts
     /// code_generation 类别 — generate_csharp_code 工具
     /// 生成 C# 代码
     /// </summary>
-    public static ConversationScript GenerateCsharpCodeTest => new()
-    {
+    public static ConversationScript GenerateCsharpCodeTest => new() {
         Name = "generate_csharp_code 工具调用",
         Turns =
         [
@@ -339,8 +329,7 @@ public static class ToolCoverageScripts
     /// code_analysis 类别 — analyze_csharp_code 工具
     /// 分析 C# 代码
     /// </summary>
-    public static ConversationScript AnalyzeCsharpCodeTest => new()
-    {
+    public static ConversationScript AnalyzeCsharpCodeTest => new() {
         Name = "analyze_csharp_code 工具调用",
         Turns =
         [
@@ -378,8 +367,7 @@ public static class ToolCoverageScripts
     /// vcr 类别 — vcr_status 工具
     /// VCR 状态查询
     /// </summary>
-    public static ConversationScript VcrStatusTest => new()
-    {
+    public static ConversationScript VcrStatusTest => new() {
         Name = "vcr_status 工具调用",
         Turns =
         [
@@ -413,8 +401,7 @@ public static class ToolCoverageScripts
     /// terminal 类别 — terminal_capture 工具
     /// 终端截图
     /// </summary>
-    public static ConversationScript TerminalCaptureTest => new()
-    {
+    public static ConversationScript TerminalCaptureTest => new() {
         Name = "terminal_capture 工具调用",
         Turns =
         [
@@ -448,8 +435,7 @@ public static class ToolCoverageScripts
     /// REPL 类别 — REPL 工具
     /// REPL 状态查询
     /// </summary>
-    public static ConversationScript ReplTest => new()
-    {
+    public static ConversationScript ReplTest => new() {
         Name = "REPL 工具调用",
         Turns =
         [
@@ -487,8 +473,7 @@ public static class ToolCoverageScripts
     /// pr_subscription 类别 — subscribe_pr 工具
     /// PR 订阅列表
     /// </summary>
-    public static ConversationScript SubscribePrTest => new()
-    {
+    public static ConversationScript SubscribePrTest => new() {
         Name = "subscribe_pr 工具调用",
         Turns =
         [
@@ -522,8 +507,7 @@ public static class ToolCoverageScripts
     /// peers 类别 — list_peers 工具
     /// 列出对等节点
     /// </summary>
-    public static ConversationScript ListPeersTest => new()
-    {
+    public static ConversationScript ListPeersTest => new() {
         Name = "list_peers 工具调用",
         Turns =
         [
@@ -557,8 +541,7 @@ public static class ToolCoverageScripts
     /// browser 类别 — web_browser 工具
     /// 浏览器打开页面
     /// </summary>
-    public static ConversationScript WebBrowserTest => new()
-    {
+    public static ConversationScript WebBrowserTest => new() {
         Name = "web_browser 工具调用",
         Turns =
         [
@@ -592,8 +575,7 @@ public static class ToolCoverageScripts
     /// voice 类别 — voice_status 工具
     /// 语音服务状态
     /// </summary>
-    public static ConversationScript VoiceStatusTest => new()
-    {
+    public static ConversationScript VoiceStatusTest => new() {
         Name = "voice_status 工具调用",
         Turns =
         [
@@ -627,8 +609,7 @@ public static class ToolCoverageScripts
     /// remote_trigger 类别 — RemoteTrigger 工具
     /// 远程触发器列表
     /// </summary>
-    public static ConversationScript RemoteTriggerTest => new()
-    {
+    public static ConversationScript RemoteTriggerTest => new() {
         Name = "RemoteTrigger 工具调用",
         Turns =
         [
@@ -666,8 +647,7 @@ public static class ToolCoverageScripts
     /// permission 类别 — permission_list_rules 工具
     /// 权限规则列表
     /// </summary>
-    public static ConversationScript PermissionListRulesTest => new()
-    {
+    public static ConversationScript PermissionListRulesTest => new() {
         Name = "permission_list_rules 工具调用",
         Turns =
         [

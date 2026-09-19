@@ -1,10 +1,8 @@
 namespace Core.Context;
 
-public sealed class EmptyResponseTrackerTests
-{
+public sealed class EmptyResponseTrackerTests {
     [Fact]
-    public void RecordEmptyResponse_IncrementsCount()
-    {
+    public void RecordEmptyResponse_IncrementsCount() {
         var tracker = new EmptyResponseTracker();
         tracker.ConsecutiveEmptyCount.Should().Be(0);
 
@@ -16,19 +14,16 @@ public sealed class EmptyResponseTrackerTests
     }
 
     [Fact]
-    public void RecordEmptyResponse_ReturnsFalseBelowThreshold()
-    {
+    public void RecordEmptyResponse_ReturnsFalseBelowThreshold() {
         var tracker = new EmptyResponseTracker();
-        for (var i = 0; i < tracker.MaxConsecutiveEmpty; i++)
-        {
+        for (var i = 0; i < tracker.MaxConsecutiveEmpty; i++) {
             tracker.RecordEmptyResponse().Should().BeFalse();
         }
         tracker.ConsecutiveEmptyCount.Should().Be(tracker.MaxConsecutiveEmpty);
     }
 
     [Fact]
-    public void RecordEmptyResponse_ReturnsTrueAboveThreshold()
-    {
+    public void RecordEmptyResponse_ReturnsTrueAboveThreshold() {
         var tracker = new EmptyResponseTracker();
         for (var i = 0; i < tracker.MaxConsecutiveEmpty; i++)
             tracker.RecordEmptyResponse();
@@ -39,8 +34,7 @@ public sealed class EmptyResponseTrackerTests
     }
 
     [Fact]
-    public void Reset_SetsCountToZero()
-    {
+    public void Reset_SetsCountToZero() {
         var tracker = new EmptyResponseTracker();
         tracker.RecordEmptyResponse();
         tracker.RecordEmptyResponse();
@@ -51,16 +45,14 @@ public sealed class EmptyResponseTrackerTests
     }
 
     [Fact]
-    public void Reset_WhenZero_IsNoOp()
-    {
+    public void Reset_WhenZero_IsNoOp() {
         var tracker = new EmptyResponseTracker();
         tracker.Reset();
         tracker.ConsecutiveEmptyCount.Should().Be(0);
     }
 
     [Fact]
-    public void BuildInterventionPrompt_ContainsCurrentCount()
-    {
+    public void BuildInterventionPrompt_ContainsCurrentCount() {
         var tracker = new EmptyResponseTracker();
         tracker.RecordEmptyResponse();
         tracker.RecordEmptyResponse();
@@ -73,15 +65,13 @@ public sealed class EmptyResponseTrackerTests
     }
 
     [Fact]
-    public void MaxConsecutiveEmpty_DefaultIs5()
-    {
+    public void MaxConsecutiveEmpty_DefaultIs5() {
         var tracker = new EmptyResponseTracker();
         tracker.MaxConsecutiveEmpty.Should().Be(5);
     }
 
     [Fact]
-    public void Reset_AfterExceeded_AllowsFreshStart()
-    {
+    public void Reset_AfterExceeded_AllowsFreshStart() {
         var tracker = new EmptyResponseTracker();
         for (var i = 0; i <= tracker.MaxConsecutiveEmpty; i++)
             tracker.RecordEmptyResponse();
@@ -92,8 +82,7 @@ public sealed class EmptyResponseTrackerTests
     }
 
     [Fact]
-    public void CustomMaxConsecutiveEmpty_FromOptions()
-    {
+    public void CustomMaxConsecutiveEmpty_FromOptions() {
         var opts = CreateOptions(new LoopInterventionOptions { MaxConsecutiveEmptyResponse = 3 });
         var tracker = new EmptyResponseTracker(opts);
 
@@ -106,8 +95,7 @@ public sealed class EmptyResponseTrackerTests
     }
 
     [Fact]
-    public void BuildInterventionPrompt_UsesCustomMax()
-    {
+    public void BuildInterventionPrompt_UsesCustomMax() {
         var opts = CreateOptions(new LoopInterventionOptions { MaxConsecutiveEmptyResponse = 3 });
         var tracker = new EmptyResponseTracker(opts);
         tracker.RecordEmptyResponse();

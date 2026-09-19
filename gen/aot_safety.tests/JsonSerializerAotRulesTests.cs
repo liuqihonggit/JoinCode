@@ -1,17 +1,13 @@
 namespace AotSafety.Tests;
 
-public class JsonSerializerAotRulesTests
-{
-    private static ReferenceAssemblies GetReferences()
-    {
+public class JsonSerializerAotRulesTests {
+    private static ReferenceAssemblies GetReferences() {
         return ReferenceAssemblies.Net.Net90;
     }
 
     [Fact]
-    public async Task SerializeToElement_WithoutTypeInfo_ReportsJCC1011()
-    {
-        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier>
-        {
+    public async Task SerializeToElement_WithoutTypeInfo_ReportsJCC1011() {
+        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier> {
             ReferenceAssemblies = GetReferences(),
             TestCode = """
                 using System.Text.Json;
@@ -36,10 +32,8 @@ public class JsonSerializerAotRulesTests
     }
 
     [Fact]
-    public async Task Deserialize_WithoutTypeInfo_ReportsJCC1011()
-    {
-        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier>
-        {
+    public async Task Deserialize_WithoutTypeInfo_ReportsJCC1011() {
+        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier> {
             ReferenceAssemblies = GetReferences(),
             TestCode = """
                 using System.Text.Json;
@@ -62,10 +56,8 @@ public class JsonSerializerAotRulesTests
     }
 
     [Fact]
-    public async Task NewJsonSerializerOptions_WithoutResolver_ReportsJCC1012()
-    {
-        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier>
-        {
+    public async Task NewJsonSerializerOptions_WithoutResolver_ReportsJCC1012() {
+        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier> {
             ReferenceAssemblies = GetReferences(),
             TestCode = """
                 using System.Text.Json;
@@ -85,10 +77,8 @@ public class JsonSerializerAotRulesTests
     }
 
     [Fact]
-    public async Task NewJsonSerializerOptions_Empty_ReportsJCC1012()
-    {
-        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier>
-        {
+    public async Task NewJsonSerializerOptions_Empty_ReportsJCC1012() {
+        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier> {
             ReferenceAssemblies = GetReferences(),
             TestCode = """
                 using System.Text.Json;
@@ -111,10 +101,8 @@ public class JsonSerializerAotRulesTests
     }
 
     [Fact]
-    public async Task SerializeToElement_JsonElementArg_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier>
-        {
+    public async Task SerializeToElement_JsonElementArg_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier> {
             ReferenceAssemblies = GetReferences(),
             TestCode = """
                 using System.Text.Json;
@@ -133,10 +121,8 @@ public class JsonSerializerAotRulesTests
     }
 
     [Fact]
-    public async Task SerializeToElement_JsonNodeArg_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier>
-        {
+    public async Task SerializeToElement_JsonNodeArg_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<JsonSerializerAotRules, DefaultVerifier> {
             ReferenceAssemblies = GetReferences(),
             TestCode = """
                 using System.Text.Json;

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Security.Permission;
 /// <summary>
 /// 工具权限管理器接口，负责管理工具执行权限的检查和控制
 /// </summary>
-public interface IToolPermissionManager
-{
+public interface IToolPermissionManager {
     /// <summary>
     /// 检查权限请求
     /// </summary>

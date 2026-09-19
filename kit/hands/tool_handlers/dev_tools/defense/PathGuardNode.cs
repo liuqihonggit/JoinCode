@@ -5,8 +5,7 @@ namespace Tools.Handlers;
 /// 任意工具可注入此 node 检查 UNC 路径、Notebook 路径、keyword-sections 路径、doctor 允许路径等。
 /// </summary>
 [Register(typeof(PathGuardNode), ServiceLifetime.Singleton)]
-public sealed class PathGuardNode
-{
+public sealed class PathGuardNode {
     /// <summary>是否为 UNC 路径（以 \\ 或 // 开头）— 可能导致 NTLM 凭据泄露。</summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>UNC 路径返回 true，否则返回 false</returns>
@@ -29,8 +28,7 @@ public sealed class PathGuardNode
     /// <summary>doctor Agent 允许编辑的路径 — .jcc/diag/、.jcc/reflexion/、worktree 内文件。</summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>允许编辑的路径返回 true，否则返回 false</returns>
-    public static bool IsDoctorAllowedEditPath(string filePath)
-    {
+    public static bool IsDoctorAllowedEditPath(string filePath) {
         if (string.IsNullOrEmpty(filePath)) return false;
         var normalized = filePath.Replace('\\', '/');
         return normalized.Contains("/.jcc/diag/", StringComparison.OrdinalIgnoreCase)

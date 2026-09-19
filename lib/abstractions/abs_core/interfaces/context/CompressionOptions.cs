@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces.Context;
 /// 压缩选项
 /// </summary>
 [RegisterOptions]
-public class CompressionOptions
-{
+public class CompressionOptions {
     /// <summary>
     /// 目标压缩比率 (0-1)，例如 0.5 表示压缩到原大小的50%
     /// </summary>
@@ -104,8 +103,7 @@ public class CompressionOptions
     /// <summary>
     /// 创建轻量级压缩选项
     /// </summary>
-    public static CompressionOptions Light => new()
-    {
+    public static CompressionOptions Light => new() {
         TargetCompressionRatio = 0.8,
         PreserveSignatures = true,
         PreserveComments = true,
@@ -116,8 +114,7 @@ public class CompressionOptions
     /// <summary>
     /// 创建激进压缩选项
     /// </summary>
-    public static CompressionOptions Aggressive => new()
-    {
+    public static CompressionOptions Aggressive => new() {
         TargetCompressionRatio = 0.3,
         PreserveSignatures = true,
         PreserveComments = false,
@@ -131,8 +128,7 @@ public class CompressionOptions
     /// <summary>
     /// 创建代码专用压缩选项
     /// </summary>
-    public static CompressionOptions ForCode => new()
-    {
+    public static CompressionOptions ForCode => new() {
         TargetCompressionRatio = 0.4,
         PreserveSignatures = true,
         PreserveComments = true,
@@ -148,8 +144,7 @@ public class CompressionOptions
     /// <summary>
     /// 创建对话专用压缩选项
     /// </summary>
-    public static CompressionOptions ForDialogue => new()
-    {
+    public static CompressionOptions ForDialogue => new() {
         TargetCompressionRatio = 0.5,
         DialogueRoundsToPreserve = 2,
         UseSummarization = true,
@@ -160,8 +155,7 @@ public class CompressionOptions
     /// <summary>
     /// 创建引用索引专用压缩选项
     /// </summary>
-    public static CompressionOptions ForReferenceIndex => new()
-    {
+    public static CompressionOptions ForReferenceIndex => new() {
         TargetCompressionRatio = 0.6,
         MaxReferenceEntries = 50,
         PreserveSignatures = true,
@@ -172,14 +166,11 @@ public class CompressionOptions
 /// <summary>
 /// 压缩选项构建器 - 支持链式配置
 /// </summary>
-public sealed class CompressionOptionsBuilder
-{
+public sealed class CompressionOptionsBuilder {
     private readonly CompressionOptions _options;
 
-    private CompressionOptionsBuilder(CompressionOptions initialOptions)
-    {
-        _options = new CompressionOptions
-        {
+    private CompressionOptionsBuilder(CompressionOptions initialOptions) {
+        _options = new CompressionOptions {
             TargetCompressionRatio = initialOptions.TargetCompressionRatio,
             PreserveSignatures = initialOptions.PreserveSignatures,
             PreserveComments = initialOptions.PreserveComments,
@@ -234,8 +225,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置目标压缩比率
     /// </summary>
-    public CompressionOptionsBuilder WithCompressionRatio(double ratio)
-    {
+    public CompressionOptionsBuilder WithCompressionRatio(double ratio) {
         _options.TargetCompressionRatio = ratio;
         return this;
     }
@@ -243,8 +233,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置是否保留函数/方法签名
     /// </summary>
-    public CompressionOptionsBuilder WithPreserveSignatures(bool preserve)
-    {
+    public CompressionOptionsBuilder WithPreserveSignatures(bool preserve) {
         _options.PreserveSignatures = preserve;
         return this;
     }
@@ -252,8 +241,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置是否保留关键注释
     /// </summary>
-    public CompressionOptionsBuilder WithPreserveComments(bool preserve)
-    {
+    public CompressionOptionsBuilder WithPreserveComments(bool preserve) {
         _options.PreserveComments = preserve;
         return this;
     }
@@ -261,8 +249,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置最大输出token数
     /// </summary>
-    public CompressionOptionsBuilder WithMaxOutputTokens(int tokens)
-    {
+    public CompressionOptionsBuilder WithMaxOutputTokens(int tokens) {
         _options.MaxOutputTokens = tokens;
         return this;
     }
@@ -270,8 +257,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置是否保留导入/引用语句
     /// </summary>
-    public CompressionOptionsBuilder WithPreserveImports(bool preserve)
-    {
+    public CompressionOptionsBuilder WithPreserveImports(bool preserve) {
         _options.PreserveImports = preserve;
         return this;
     }
@@ -279,8 +265,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置是否保留类型定义
     /// </summary>
-    public CompressionOptionsBuilder WithPreserveTypeDefinitions(bool preserve)
-    {
+    public CompressionOptionsBuilder WithPreserveTypeDefinitions(bool preserve) {
         _options.PreserveTypeDefinitions = preserve;
         return this;
     }
@@ -288,8 +273,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置对话历史保留的轮数
     /// </summary>
-    public CompressionOptionsBuilder WithDialogueRoundsToPreserve(int rounds)
-    {
+    public CompressionOptionsBuilder WithDialogueRoundsToPreserve(int rounds) {
         _options.DialogueRoundsToPreserve = rounds;
         return this;
     }
@@ -297,8 +281,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置是否生成摘要替代完整内容
     /// </summary>
-    public CompressionOptionsBuilder WithUseSummarization(bool use)
-    {
+    public CompressionOptionsBuilder WithUseSummarization(bool use) {
         _options.UseSummarization = use;
         return this;
     }
@@ -306,8 +289,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置摘要的最大长度
     /// </summary>
-    public CompressionOptionsBuilder WithMaxSummaryLength(int length)
-    {
+    public CompressionOptionsBuilder WithMaxSummaryLength(int length) {
         _options.MaxSummaryLength = length;
         return this;
     }
@@ -315,8 +297,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置是否保留关键决策点
     /// </summary>
-    public CompressionOptionsBuilder WithPreserveKeyDecisions(bool preserve)
-    {
+    public CompressionOptionsBuilder WithPreserveKeyDecisions(bool preserve) {
         _options.PreserveKeyDecisions = preserve;
         return this;
     }
@@ -324,8 +305,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置引用索引保留的最大条目数
     /// </summary>
-    public CompressionOptionsBuilder WithMaxReferenceEntries(int entries)
-    {
+    public CompressionOptionsBuilder WithMaxReferenceEntries(int entries) {
         _options.MaxReferenceEntries = entries;
         return this;
     }
@@ -333,8 +313,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置是否启用智能压缩
     /// </summary>
-    public CompressionOptionsBuilder WithEnableSmartCompression(bool enable)
-    {
+    public CompressionOptionsBuilder WithEnableSmartCompression(bool enable) {
         _options.EnableSmartCompression = enable;
         return this;
     }
@@ -342,8 +321,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置最小压缩长度阈值
     /// </summary>
-    public CompressionOptionsBuilder WithMinCompressionThreshold(int threshold)
-    {
+    public CompressionOptionsBuilder WithMinCompressionThreshold(int threshold) {
         _options.MinCompressionThreshold = threshold;
         return this;
     }
@@ -351,8 +329,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置压缩超时时间（毫秒）
     /// </summary>
-    public CompressionOptionsBuilder WithCompressionTimeoutMs(int timeoutMs)
-    {
+    public CompressionOptionsBuilder WithCompressionTimeoutMs(int timeoutMs) {
         _options.CompressionTimeoutMs = timeoutMs;
         return this;
     }
@@ -360,8 +337,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置是否保留文档字符串/XML注释
     /// </summary>
-    public CompressionOptionsBuilder WithPreserveDocumentation(bool preserve)
-    {
+    public CompressionOptionsBuilder WithPreserveDocumentation(bool preserve) {
         _options.PreserveDocumentation = preserve;
         return this;
     }
@@ -369,8 +345,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置代码压缩时保留的方法体最大行数
     /// </summary>
-    public CompressionOptionsBuilder WithMaxMethodBodyLines(int lines)
-    {
+    public CompressionOptionsBuilder WithMaxMethodBodyLines(int lines) {
         _options.MaxMethodBodyLines = lines;
         return this;
     }
@@ -378,8 +353,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置是否保留常量定义
     /// </summary>
-    public CompressionOptionsBuilder WithPreserveConstants(bool preserve)
-    {
+    public CompressionOptionsBuilder WithPreserveConstants(bool preserve) {
         _options.PreserveConstants = preserve;
         return this;
     }
@@ -387,8 +361,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 设置是否保留枚举定义
     /// </summary>
-    public CompressionOptionsBuilder WithPreserveEnums(bool preserve)
-    {
+    public CompressionOptionsBuilder WithPreserveEnums(bool preserve) {
         _options.PreserveEnums = preserve;
         return this;
     }
@@ -396,8 +369,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 启用所有保留选项（最大保留）
     /// </summary>
-    public CompressionOptionsBuilder WithMaximumPreservation()
-    {
+    public CompressionOptionsBuilder WithMaximumPreservation() {
         _options.PreserveSignatures = true;
         _options.PreserveComments = true;
         _options.PreserveImports = true;
@@ -412,8 +384,7 @@ public sealed class CompressionOptionsBuilder
     /// <summary>
     /// 禁用所有保留选项（最小保留，最大压缩）
     /// </summary>
-    public CompressionOptionsBuilder WithMinimumPreservation()
-    {
+    public CompressionOptionsBuilder WithMinimumPreservation() {
         _options.PreserveSignatures = true; // 始终保留签名以保证代码可用
         _options.PreserveComments = false;
         _options.PreserveImports = false;

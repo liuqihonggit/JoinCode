@@ -11,8 +11,7 @@ namespace JoinCode.Abstractions.Security.Auditing;
 /// </list>
 /// </para>
 /// </summary>
-public interface ICommandExecutionAuditor
-{
+public interface ICommandExecutionAuditor {
     /// <summary>
     /// 记录命令执行审计日志
     /// </summary>

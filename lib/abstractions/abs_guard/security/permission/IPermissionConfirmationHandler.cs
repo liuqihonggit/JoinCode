@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security.Permission;
 /// 权限确认处理器 — 工具执行需要用户确认时的交互入口
 /// CLI 层实现 ^ 提示符交互，非交互环境返回 Deny
 /// </summary>
-public interface IPermissionConfirmationHandler
-{
+public interface IPermissionConfirmationHandler {
     /// <summary>
     /// 请求用户确认工具执行权限
     /// </summary>
@@ -18,8 +17,7 @@ public interface IPermissionConfirmationHandler
 /// <summary>
 /// 权限确认动作
 /// </summary>
-public enum PermissionConfirmAction
-{
+public enum PermissionConfirmAction {
     /// <summary>拒绝执行</summary>
     [EnumValue("deny")]
     Deny,

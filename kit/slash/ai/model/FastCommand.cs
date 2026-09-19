@@ -6,8 +6,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Fast, Description = "切换快速模式（使用更小/更快的模型）", Usage = "/fast [on|off]", Category = ChatCommandCategory.Model)]
 [ChatCommandArg("state", Type = "string", Description = "开关状态", Enum = new[] { "on", "off" })]
-public sealed class FastCommand : ToggleCommandBase
-{
+public sealed class FastCommand : ToggleCommandBase {
     /// <summary>命令名称</summary>
     public override string Name => ChatCommandNameEnumConstants.Fast;
     /// <summary>命令描述</summary>
@@ -20,11 +19,9 @@ public sealed class FastCommand : ToggleCommandBase
     /// </summary>
     /// <param name="args">用户输入的参数</param>
     /// <returns>解析得到的开关动作,无法识别时返回 null</returns>
-    protected override ToggleAction? ResolveToggleAction(string args)
-    {
+    protected override ToggleAction? ResolveToggleAction(string args) {
         var lower = args.ToLowerInvariant();
-        return lower switch
-        {
+        return lower switch {
             "enable" or "1" => ToggleAction.On,
             "disable" or "0" => ToggleAction.Off,
             _ => ToggleActionExtensions.FromValue(args),
@@ -39,17 +36,13 @@ public sealed class FastCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>表示启用操作的任务</returns>
-    protected override Task OnEnabledAsync(ChatCommandContext context)
-    {
+    protected override Task OnEnabledAsync(ChatCommandContext context) {
         var fastModeService = GetService<IFastModeService>(context, typeof(IFastModeService));
         var config = context.GetCommandServices().WorkflowConfig;
 
-        if (fastModeService is not null)
-        {
+        if (fastModeService is not null) {
             fastModeService.Activate();
-        }
-        else if (config is not null)
-        {
+        } else if (config is not null) {
             config.FastMode = true;
         }
 
@@ -64,17 +57,13 @@ public sealed class FastCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>表示禁用操作的任务</returns>
-    protected override Task OnDisabledAsync(ChatCommandContext context)
-    {
+    protected override Task OnDisabledAsync(ChatCommandContext context) {
         var fastModeService = GetService<IFastModeService>(context, typeof(IFastModeService));
         var config = context.GetCommandServices().WorkflowConfig;
 
-        if (fastModeService is not null)
-        {
+        if (fastModeService is not null) {
             fastModeService.Deactivate();
-        }
-        else if (config is not null)
-        {
+        } else if (config is not null) {
             config.FastMode = false;
         }
 
@@ -89,8 +78,7 @@ public sealed class FastCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>表示状态输出操作的任务</returns>
-    protected override Task PrintStatusAsync(ChatCommandContext context)
-    {
+    protected override Task PrintStatusAsync(ChatCommandContext context) {
         var fastModeService = GetService<IFastModeService>(context, typeof(IFastModeService));
         var config = context.GetCommandServices().WorkflowConfig;
         var isFast = fastModeService?.IsFastModeActive ?? config?.FastMode ?? false;

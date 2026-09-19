@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Onboarding 流程服务接口 - 管理首次启动引导流程的状态和导航
 /// </summary>
-public interface IOnboardingService
-{
+public interface IOnboardingService {
     /// <summary>
     /// 是否已完成 Onboarding 流程
     /// </summary>

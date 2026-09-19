@@ -3,11 +3,9 @@ namespace JoinCode.Hands.Desktop.Native;
 /// <summary>
 /// 光标相关 Win32 P/Invoke — GetCursorInfo + LoadCursor（PRD E-03 异步等待感知）
 /// </summary>
-internal static class CursorNativeMethods
-{
+internal static class CursorNativeMethods {
     [StructLayout(LayoutKind.Sequential)]
-    internal struct CursorInfo
-    {
+    internal struct CursorInfo {
         public int cbSize;
         public int flags;
         public IntPtr hCursor;

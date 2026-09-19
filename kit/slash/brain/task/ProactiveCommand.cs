@@ -5,8 +5,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Proactive, Description = "主动执行模式", Usage = "/proactive [on|off|pause|resume|status]", Category = ChatCommandCategory.Task)]
 [ChatCommandArg("action", Type = "string", Description = "主动模式动作(别名: on=activate/1, off=deactivate/0, status=s, pause=p, resume=r),省略时等同 status", Default = "status", Enum = new[] { "on", "off", "pause", "resume", "status" })]
-public sealed class ProactiveCommand : ToggleCommandBase
-{
+public sealed class ProactiveCommand : ToggleCommandBase {
     /// <summary>命令名称。</summary>
     public override string Name => ChatCommandNameEnumConstants.Proactive;
     /// <summary>命令描述。</summary>
@@ -23,11 +22,9 @@ public sealed class ProactiveCommand : ToggleCommandBase
     /// </summary>
     /// <param name="args">用户输入的参数字符串。</param>
     /// <returns>匹配到的切换动作，无法识别时返回 null。</returns>
-    protected override ToggleAction? ResolveToggleAction(string args)
-    {
+    protected override ToggleAction? ResolveToggleAction(string args) {
         var lower = args.ToLowerInvariant();
-        return lower switch
-        {
+        return lower switch {
             "on" or "activate" or "1" => ToggleAction.On,
             "off" or "deactivate" or "0" => ToggleAction.Off,
             "status" or "s" or "" => ToggleAction.Status,
@@ -44,8 +41,7 @@ public sealed class ProactiveCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务。</returns>
-    protected override Task OnEnabledAsync(ChatCommandContext context)
-    {
+    protected override Task OnEnabledAsync(ChatCommandContext context) {
         var proactiveService = GetService<IProactiveStateService>(context);
         proactiveService?.Activate("user-command");
         TerminalHelper.WriteLine("主动模式已激活");
@@ -57,8 +53,7 @@ public sealed class ProactiveCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务。</returns>
-    protected override Task OnDisabledAsync(ChatCommandContext context)
-    {
+    protected override Task OnDisabledAsync(ChatCommandContext context) {
         var proactiveService = GetService<IProactiveStateService>(context);
         proactiveService?.Deactivate();
         TerminalHelper.WriteLine("主动模式已停用");
@@ -71,28 +66,26 @@ public sealed class ProactiveCommand : ToggleCommandBase
     /// <param name="context">命令执行上下文。</param>
     /// <param name="args">用户输入的参数字符串。</param>
     /// <returns>表示异步操作的任务。</returns>
-    protected override async Task OnDefaultAsync(ChatCommandContext context, string args)
-    {
+    protected override async Task OnDefaultAsync(ChatCommandContext context, string args) {
         var proactiveService = GetService<IProactiveStateService>(context);
         if (proactiveService is null) return;
 
         var lower = args.ToLowerInvariant();
-        switch (lower)
-        {
+        switch (lower) {
             case ResumeLifecycleEnumConstants.Pause:
             case "p":
-                proactiveService.Pause();
-                TerminalHelper.WriteLine("主动模式已暂停");
-                break;
+            proactiveService.Pause();
+            TerminalHelper.WriteLine("主动模式已暂停");
+            break;
             case ResumeLifecycleEnumConstants.Resume:
             case "r":
-                proactiveService.Resume();
-                TerminalHelper.WriteLine("主动模式已恢复");
-                break;
+            proactiveService.Resume();
+            TerminalHelper.WriteLine("主动模式已恢复");
+            break;
             default:
-                TerminalHelper.WriteLine($"未知参数: {context.Arguments}");
-                TerminalHelper.WriteLine("用法: /proactive [on|off|pause|resume|status]");
-                break;
+            TerminalHelper.WriteLine($"未知参数: {context.Arguments}");
+            TerminalHelper.WriteLine("用法: /proactive [on|off|pause|resume|status]");
+            break;
         }
 
         await Task.CompletedTask.ConfigureAwait(false);
@@ -103,8 +96,7 @@ public sealed class ProactiveCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务。</returns>
-    protected override Task PrintStatusAsync(ChatCommandContext context)
-    {
+    protected override Task PrintStatusAsync(ChatCommandContext context) {
         var proactiveService = GetService<IProactiveStateService>(context);
         if (proactiveService is null) return Task.CompletedTask;
 

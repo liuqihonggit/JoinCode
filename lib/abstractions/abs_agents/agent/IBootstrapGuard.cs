@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 /// <summary>
 /// 自举修改请求 — 提交给 Guard 审核的修改内容
 /// </summary>
-public sealed record BootstrapModificationRequest
-{
+public sealed record BootstrapModificationRequest {
     /// <summary>修改类型</summary>
     public required BootstrapFixType ModificationType { get; init; }
 
@@ -24,8 +23,7 @@ public sealed record BootstrapModificationRequest
 /// <summary>
 /// 自举修复类型
 /// </summary>
-public enum BootstrapFixType
-{
+public enum BootstrapFixType {
     /// <summary>源码修改</summary>
     [EnumValue("source_code_patch")]
     SourceCodePatch,
@@ -50,8 +48,7 @@ public enum BootstrapFixType
 /// <summary>
 /// Guard 审核决策
 /// </summary>
-public sealed record GuardDecision
-{
+public sealed record GuardDecision {
     /// <summary>是否批准</summary>
     public required bool Approved { get; init; }
 
@@ -65,8 +62,7 @@ public sealed record GuardDecision
 /// <summary>
 /// 自举安全守卫 — 审核自修改内容，防止 Agent 破坏自身
 /// </summary>
-public interface IBootstrapGuard
-{
+public interface IBootstrapGuard {
     /// <summary>
     /// 审核修改请求
     /// </summary>

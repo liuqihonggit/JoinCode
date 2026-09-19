@@ -4,8 +4,7 @@ namespace Core.Context.Compact;
 /// <summary>
 /// 响应式压缩服务接口 — 处理 prompt-too-long 等错误触发的压缩
 /// </summary>
-public interface IReactiveCompactService
-{
+public interface IReactiveCompactService {
     /// <summary>
     /// 执行响应式压缩
     /// </summary>
@@ -36,8 +35,7 @@ public interface IReactiveCompactService
 /// <summary>
 /// 消息分组服务接口 — 按 API 轮次将消息分组
 /// </summary>
-public interface IMessageGroupingService
-{
+public interface IMessageGroupingService {
     /// <summary>
     /// 按 API 轮次分组消息
     /// </summary>

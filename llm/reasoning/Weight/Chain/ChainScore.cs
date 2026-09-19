@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Weight.Chain;
 /// <summary>
 /// 证据链评分结果
 /// </summary>
-public sealed class ChainScore
-{
+public sealed class ChainScore {
     /// <summary>
     /// 链的整体评分（含一致性惩罚）
     /// </summary>

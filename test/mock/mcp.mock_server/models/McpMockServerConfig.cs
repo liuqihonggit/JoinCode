@@ -3,8 +3,7 @@ namespace Mcp.MockServer.Models;
 /// <summary>
 /// MCP MockServer 配置模型 — 定义监听端口、服务器元数据和工具列表
 /// </summary>
-public sealed class McpMockServerConfig : MockServerConfigBase<McpMockServerConfig>
-{
+public sealed class McpMockServerConfig : MockServerConfigBase<McpMockServerConfig> {
     /// <summary>服务器名称（返回给客户端的 serverInfo.name）</summary>
     public string ServerName { get; set; } = "JoinCode.Mcp.MockServer";
 
@@ -33,8 +32,7 @@ public sealed class McpMockServerConfig : MockServerConfigBase<McpMockServerConf
 /// <summary>
 /// Mock 工具定义 — 描述工具的元数据和响应行为
 /// </summary>
-public sealed class McpToolDefinition : NamedItem
-{
+public sealed class McpToolDefinition : NamedItem {
     /// <summary>工具的输入参数 schema（JSON 字符串，作为 JsonElement 返回给客户端）</summary>
     public JsonElement InputSchema { get; set; }
 

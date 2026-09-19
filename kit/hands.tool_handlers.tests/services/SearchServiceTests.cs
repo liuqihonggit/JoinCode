@@ -4,15 +4,13 @@ namespace Core.Tests.Services;
 /// <summary>
 /// SearchService 单元测试 - 使用内存文件系统实现高速测试
 /// </summary>
-public sealed class SearchServiceTests : IDisposable
-{
+public sealed class SearchServiceTests : IDisposable {
     private readonly InMemoryFileOperationService _fileOperationService;
     private readonly SearchService _service;
     private readonly string _testDir;
     private bool _disposed;
 
-    public SearchServiceTests()
-    {
+    public SearchServiceTests() {
         _fileOperationService = new InMemoryFileOperationService();
         _service = new SearchService(_fileOperationService, _fileOperationService.FileSystem);
         // 使用绝对路径
@@ -20,16 +18,14 @@ public sealed class SearchServiceTests : IDisposable
         _fileOperationService.CreateDirectory(_testDir);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fileOperationService.DisposeSafe();
     }
 
     [Fact]
-    public async Task GlobSearchAsync_ExistingFiles_ReturnsMatches()
-    {
+    public async Task GlobSearchAsync_ExistingFiles_ReturnsMatches() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file1.cs", "content");
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file2.cs", "content");
@@ -45,8 +41,7 @@ public sealed class SearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GlobSearchAsync_RecursivePattern_ReturnsNestedFiles()
-    {
+    public async Task GlobSearchAsync_RecursivePattern_ReturnsNestedFiles() {
         // Arrange
         _fileOperationService.CreateDirectory($"{_testDir}/subdir");
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/subdir/nested.cs", "content");
@@ -61,8 +56,7 @@ public sealed class SearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GlobSearchAsync_NoMatches_ReturnsEmpty()
-    {
+    public async Task GlobSearchAsync_NoMatches_ReturnsEmpty() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file.txt", "content");
 
@@ -76,16 +70,14 @@ public sealed class SearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GrepSearchAsync_FilesWithMatches_ReturnsMatchingFiles()
-    {
+    public async Task GrepSearchAsync_FilesWithMatches_ReturnsMatchingFiles() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file1.cs", "class TestClass {}");
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file2.cs", "class AnotherClass {}");
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file.txt", "not a class");
 
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "class.*Class",
             Path = _testDir,
             OutputMode = SearchOutputMode.Files
@@ -97,14 +89,12 @@ public sealed class SearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GrepSearchAsync_ContentMode_ReturnsMatchingLines()
-    {
+    public async Task GrepSearchAsync_ContentMode_ReturnsMatchingLines() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/test.cs", "line 1\nclass Test {}\nline 3");
 
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "class",
             Path = _testDir,
             OutputMode = SearchOutputMode.Content,
@@ -118,14 +108,12 @@ public sealed class SearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GrepSearchAsync_CountMode_ReturnsMatchCount()
-    {
+    public async Task GrepSearchAsync_CountMode_ReturnsMatchCount() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/test.cs", "class A {}\nclass B {}");
 
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "class",
             Path = _testDir,
             OutputMode = SearchOutputMode.Count
@@ -137,15 +125,13 @@ public sealed class SearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GrepSearchAsync_WithGlobFilter_FiltersByPattern()
-    {
+    public async Task GrepSearchAsync_WithGlobFilter_FiltersByPattern() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file.cs", "class Test {}");
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file.txt", "class Another {}");
 
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "class",
             Path = _testDir,
             Glob = "*.cs",
@@ -159,14 +145,12 @@ public sealed class SearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GrepSearchAsync_CaseInsensitive_ReturnsMatches()
-    {
+    public async Task GrepSearchAsync_CaseInsensitive_ReturnsMatches() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/test.cs", "CLASS Test {}");
 
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "class",
             Path = _testDir,
             CaseInsensitive = true,
@@ -179,15 +163,13 @@ public sealed class SearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GrepSearchAsync_WithContext_ReturnsSurroundingLines()
-    {
+    public async Task GrepSearchAsync_WithContext_ReturnsSurroundingLines() {
         // Arrange
         var content = "line 1\nline 2\ntarget line\nline 4\nline 5";
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/test.cs", content);
 
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "target",
             Path = _testDir,
             OutputMode = SearchOutputMode.Content,
@@ -203,11 +185,9 @@ public sealed class SearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GrepSearchAsync_InvalidRegex_ReturnsFailure()
-    {
+    public async Task GrepSearchAsync_InvalidRegex_ReturnsFailure() {
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "[invalid",
             Path = _testDir,
             OutputMode = SearchOutputMode.Files
@@ -219,17 +199,14 @@ public sealed class SearchServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GrepSearchAsync_WithHeadLimit_LimitsResults()
-    {
+    public async Task GrepSearchAsync_WithHeadLimit_LimitsResults() {
         // Arrange
-        for (int i = 0; i < 10; i++)
-        {
+        for (int i = 0; i < 10; i++) {
             _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file{i}.cs", "class Test {}");
         }
 
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "class",
             Path = _testDir,
             OutputMode = SearchOutputMode.Files,
@@ -251,8 +228,7 @@ public sealed class SearchServiceTests : IDisposable
     /// 历史bug：Matcher.Execute(new DirectoryInfoWrapper(...)) 在内存文件系统下返回空结果。
     /// </summary>
     [Fact]
-    public async Task GlobSearchAsync_InMemoryFileSystem_ReturnsMatches()
-    {
+    public async Task GlobSearchAsync_InMemoryFileSystem_ReturnsMatches() {
         // Arrange — 使用 InMemoryFileOperationService（非真实文件系统）
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/mem1.cs", "content");
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/mem2.cs", "content");
@@ -272,8 +248,7 @@ public sealed class SearchServiceTests : IDisposable
     /// 历史bug：Path.GetFullPath 把内存路径转为 Windows 绝对路径，GetFileLastWriteTime 找不到文件。
     /// </summary>
     [Fact]
-    public async Task GlobSearchAsync_InMemoryFileSystem_PathsNotConvertedToAbsolute()
-    {
+    public async Task GlobSearchAsync_InMemoryFileSystem_PathsNotConvertedToAbsolute() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/path_test.cs", "content");
 
@@ -293,14 +268,12 @@ public sealed class SearchServiceTests : IDisposable
     /// 而非 Matcher.Execute(DirectoryInfoWrapper)。
     /// </summary>
     [Fact]
-    public async Task GrepSearchAsync_InMemoryFileSystem_FindsMatches()
-    {
+    public async Task GrepSearchAsync_InMemoryFileSystem_FindsMatches() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/grep_test.cs", "class GrepTestClass {}");
 
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "GrepTestClass",
             Path = _testDir,
             OutputMode = SearchOutputMode.Files
@@ -317,15 +290,13 @@ public sealed class SearchServiceTests : IDisposable
     /// 必须通过后过滤实现 AND 语义。
     /// </summary>
     [Fact]
-    public async Task GrepSearchAsync_InMemoryFileSystem_GlobAndFileTypeAndLogic()
-    {
+    public async Task GrepSearchAsync_InMemoryFileSystem_GlobAndFileTypeAndLogic() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/and_test.cs", "class AndTestClass {}");
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/and_test.txt", "class AndTestText {}");
 
         // Act — glob 过滤只匹配 .cs 文件
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "AndTest",
             Path = _testDir,
             Glob = "*.cs",
@@ -347,16 +318,14 @@ public sealed class SearchServiceTests : IDisposable
     /// 对齐 TS RipgrepTimeoutError：搜索超时后应取消而非挂死
     /// </summary>
     [Fact]
-    public async Task GrepSearchAsync_CancellationTokenAlreadyCancelled_ThrowsOperationCanceledException()
-    {
+    public async Task GrepSearchAsync_CancellationTokenAlreadyCancelled_ThrowsOperationCanceledException() {
         // Arrange — 使用已取消的 token 模拟超时
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync().ConfigureAwait(true);
 
         // Act & Assert — 已取消的 token 应立即抛出 OperationCanceledException
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            _service.GrepSearchAsync(new()
-            {
+            _service.GrepSearchAsync(new() {
                 Pattern = "test",
                 Path = _testDir,
                 OutputMode = SearchOutputMode.Files
@@ -367,8 +336,7 @@ public sealed class SearchServiceTests : IDisposable
     /// 验证 GlobSearch 在 CancellationToken 已取消时正确抛出 OperationCanceledException
     /// </summary>
     [Fact]
-    public async Task GlobSearchAsync_CancellationTokenAlreadyCancelled_ThrowsOperationCanceledException()
-    {
+    public async Task GlobSearchAsync_CancellationTokenAlreadyCancelled_ThrowsOperationCanceledException() {
         // Arrange — 使用已取消的 token 模拟超时
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync().ConfigureAwait(true);
@@ -382,16 +350,14 @@ public sealed class SearchServiceTests : IDisposable
     /// 验证正常搜索在合理时间内完成，CancellationToken 不影响结果
     /// </summary>
     [Fact]
-    public async Task GrepSearchAsync_WithValidCancellationToken_ReturnsResults()
-    {
+    public async Task GrepSearchAsync_WithValidCancellationToken_ReturnsResults() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/cancel_test.cs", "class CancelTestClass {}");
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "CancelTestClass",
             Path = _testDir,
             OutputMode = SearchOutputMode.Files
@@ -407,8 +373,7 @@ public sealed class SearchServiceTests : IDisposable
     /// deny 模式匹配的文件不应出现在搜索结果中
     /// </summary>
     [Fact]
-    public async Task GrepSearchAsync_WithDenyPatterns_ExcludesDeniedFiles()
-    {
+    public async Task GrepSearchAsync_WithDenyPatterns_ExcludesDeniedFiles() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/secret.env", "API_KEY=xxx");
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/normal.cs", "class NormalClass {}");
@@ -416,8 +381,7 @@ public sealed class SearchServiceTests : IDisposable
         var denyPatterns = new List<string> { "secret.env" };
 
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "API_KEY|NormalClass",
             Path = _testDir,
             OutputMode = SearchOutputMode.Files,
@@ -434,15 +398,13 @@ public sealed class SearchServiceTests : IDisposable
     /// 验证 GrepSearch 的 deny 模式为空时不影响搜索结果
     /// </summary>
     [Fact]
-    public async Task GrepSearchAsync_WithEmptyDenyPatterns_ReturnsAllMatches()
-    {
+    public async Task GrepSearchAsync_WithEmptyDenyPatterns_ReturnsAllMatches() {
         // Arrange
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file1.cs", "class Test1 {}");
         _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file2.cs", "class Test2 {}");
 
         // Act
-        var result = await _service.GrepSearchAsync(new()
-        {
+        var result = await _service.GrepSearchAsync(new() {
             Pattern = "class Test",
             Path = _testDir,
             OutputMode = SearchOutputMode.Files,

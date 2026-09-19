@@ -4,14 +4,12 @@ namespace Core.Hooks.ToolPermission;
 /// 权限 Hook 执行器 — 编排权限请求 Hook 的执行，转换 Hook 结果为权限决策
 /// </summary>
 [Register(typeof(IPermissionHookExecutor), ServiceLifetime.Singleton)]
-public sealed partial class PermissionHookExecutor : ServiceEntity, IPermissionHookExecutor
-{
+public sealed partial class PermissionHookExecutor : ServiceEntity, IPermissionHookExecutor {
 
     /// <summary>
     /// 构造权限 Hook 执行器
     /// </summary>
-    public PermissionHookExecutor(IHookOrchestrator hookOrchestrator, ILogger<PermissionHookExecutor>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public PermissionHookExecutor(IHookOrchestrator hookOrchestrator, ILogger<PermissionHookExecutor>? logger = null, ITelemetryService? telemetryService = null) {
         _hookOrchestrator = hookOrchestrator;
         _logger = logger;
         _telemetryService = telemetryService;
@@ -21,15 +19,13 @@ public sealed partial class PermissionHookExecutor : ServiceEntity, IPermissionH
     private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
-    public Task RegisterHookAsync(IPermissionHook hook, CancellationToken cancellationToken = default)
-    {
+    public Task RegisterHookAsync(IPermissionHook hook, CancellationToken cancellationToken = default) {
         _logger?.LogDebug("权限钩子注册: {HookName}", hook.Name);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public Task UnregisterHookAsync(string hookName, CancellationToken cancellationToken = default)
-    {
+    public Task UnregisterHookAsync(string hookName, CancellationToken cancellationToken = default) {
         _logger?.LogDebug("权限钩子注销: {HookName}", hookName);
         return Task.CompletedTask;
     }
@@ -41,10 +37,8 @@ public sealed partial class PermissionHookExecutor : ServiceEntity, IPermissionH
         Dictionary<string, JsonElement> input,
         string? permissionMode,
         List<PermissionUpdate>? suggestions,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        var eventSuggestions = suggestions?.Select(s => new JoinCode.Abstractions.Hooks.PermissionUpdate
-        {
+        [EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        var eventSuggestions = suggestions?.Select(s => new JoinCode.Abstractions.Hooks.PermissionUpdate {
             ToolName = s.ToolName,
             Action = s.Action,
             Destination = s.Destination,
@@ -58,36 +52,29 @@ public sealed partial class PermissionHookExecutor : ServiceEntity, IPermissionH
             permissionMode,
             eventSuggestions);
 
-        await foreach (var result in _hookOrchestrator.ExecuteHooksAsync(hookInput, cancellationToken))
-        {
-            if (result.PermissionRequestResult != null)
-            {
+        await foreach (var result in _hookOrchestrator.ExecuteHooksAsync(hookInput, cancellationToken)) {
+            if (result.PermissionRequestResult != null) {
                 var convertedResult = ConvertToToolPermissionResult(result.PermissionRequestResult);
                 _telemetryService?.RecordCount("permission.hook.count", new() { ["tool"] = toolName, ["behavior"] = convertedResult.Behavior.ToValue() }, description: "Permission hook count");
 
-                yield return new PermissionHookResult
-                {
+                yield return new PermissionHookResult {
                     HookName = "PermissionRequest",
                     PermissionRequestResult = convertedResult
                 };
 
-                if (result.PreventContinuation || result.Outcome == HookOutcome.Blocking)
-                {
+                if (result.PreventContinuation || result.Outcome == HookOutcome.Blocking) {
                     yield break;
                 }
             }
         }
     }
 
-    private static PermissionRequestResult ConvertToToolPermissionResult(JoinCode.Abstractions.Hooks.PermissionRequestResult result)
-    {
-        return result.Behavior switch
-        {
+    private static PermissionRequestResult ConvertToToolPermissionResult(JoinCode.Abstractions.Hooks.PermissionRequestResult result) {
+        return result.Behavior switch {
             PermissionBehavior.Allow => PermissionRequestResult.Allow(
                 result is JoinCode.Abstractions.Hooks.PermissionAllowResult allow ? allow.UpdatedInput : null,
                 result is JoinCode.Abstractions.Hooks.PermissionAllowResult allow2
-                    ? allow2.UpdatedPermissions?.Select(u => new PermissionUpdate
-                    {
+                    ? allow2.UpdatedPermissions?.Select(u => new PermissionUpdate {
                         ToolName = u.ToolName,
                         Action = u.Action,
                         Destination = u.Destination,
@@ -101,8 +88,7 @@ public sealed partial class PermissionHookExecutor : ServiceEntity, IPermissionH
     }
 
     /// <inheritdoc />
-    public Task<int> GetRegisteredHookCountAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<int> GetRegisteredHookCountAsync(CancellationToken cancellationToken = default) {
         return Task.FromResult(0);
     }
 }
@@ -110,8 +96,7 @@ public sealed partial class PermissionHookExecutor : ServiceEntity, IPermissionH
 /// <summary>
 /// 权限请求结果 — 表示 Hook 处理后的权限决策（允许/拒绝）及附带信息
 /// </summary>
-public sealed record PermissionRequestResult
-{
+public sealed record PermissionRequestResult {
     /// <summary>
     /// 决策行为类型
     /// </summary>
@@ -142,10 +127,8 @@ public sealed record PermissionRequestResult
     /// </summary>
     public static PermissionRequestResult Allow(
         Dictionary<string, JsonElement>? updatedInput = null,
-        List<PermissionUpdate>? updatedPermissions = null)
-    {
-        return new PermissionRequestResult
-        {
+        List<PermissionUpdate>? updatedPermissions = null) {
+        return new PermissionRequestResult {
             Behavior = PermissionBehavior.Allow,
             UpdatedInput = updatedInput,
             UpdatedPermissions = updatedPermissions
@@ -155,10 +138,8 @@ public sealed record PermissionRequestResult
     /// <summary>
     /// 创建拒绝结果
     /// </summary>
-    public static PermissionRequestResult Deny(string message, bool interrupt = false)
-    {
-        return new PermissionRequestResult
-        {
+    public static PermissionRequestResult Deny(string message, bool interrupt = false) {
+        return new PermissionRequestResult {
             Behavior = PermissionBehavior.Deny,
             Message = message,
             Interrupt = interrupt
@@ -169,8 +150,7 @@ public sealed record PermissionRequestResult
 /// <summary>
 /// 权限 Hook 执行结果 — 包含 Hook 名称和权限请求结果
 /// </summary>
-public sealed record PermissionHookResult
-{
+public sealed record PermissionHookResult {
     /// <summary>
     /// Hook 名称
     /// </summary>
@@ -185,8 +165,7 @@ public sealed record PermissionHookResult
 /// <summary>
 /// 权限 Hook 接口 — 自定义权限检查逻辑的扩展点
 /// </summary>
-public interface IPermissionHook
-{
+public interface IPermissionHook {
     /// <summary>
     /// Hook 名称
     /// </summary>
@@ -201,8 +180,7 @@ public interface IPermissionHook
 /// <summary>
 /// 权限 Hook 上下文 — 封装 Hook 执行所需的工具调用信息
 /// </summary>
-public sealed record PermissionHookContext
-{
+public sealed record PermissionHookContext {
     /// <summary>
     /// 工具名称
     /// </summary>

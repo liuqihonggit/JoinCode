@@ -5,8 +5,7 @@ namespace Tools.Handlers;
 /// 任意解析路径的工具可注入此 node 确保路径在沙箱范围内。
 /// </summary>
 [Register(typeof(SandboxGuardNode), ServiceLifetime.Singleton)]
-public sealed class SandboxGuardNode
-{
+public sealed class SandboxGuardNode {
     private readonly ISandboxManager? _sandboxManager;
     private readonly ILogger<SandboxGuardNode>? _logger;
 
@@ -17,8 +16,7 @@ public sealed class SandboxGuardNode
     /// <param name="logger">可选日志记录器</param>
     public SandboxGuardNode(
         ISandboxManager? sandboxManager = null,
-        ILogger<SandboxGuardNode>? logger = null)
-    {
+        ILogger<SandboxGuardNode>? logger = null) {
         _sandboxManager = sandboxManager;
         _logger = logger;
     }
@@ -31,8 +29,7 @@ public sealed class SandboxGuardNode
     /// <param name="ct">取消令牌</param>
     /// <returns>沙箱内绝对路径</returns>
     /// <exception cref="UnauthorizedAccessException">路径越出沙箱范围</exception>
-    public async ValueTask<string> ResolvePathAsync(string path, CancellationToken ct)
-    {
+    public async ValueTask<string> ResolvePathAsync(string path, CancellationToken ct) {
         if (_sandboxManager is null || !_sandboxManager.IsInSandbox) return path;
         var sandboxId = _sandboxManager.CurrentSandboxId;
         if (sandboxId is null) return path;

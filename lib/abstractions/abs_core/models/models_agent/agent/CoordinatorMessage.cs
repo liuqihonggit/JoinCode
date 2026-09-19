@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// <para>进程内邮箱层用 StructuredType/RequestId/Payload 表达结构化语义。</para>
 /// <para>差异字段按需使用，LINQ 投影提取所需子集。</para>
 /// </summary>
-public sealed class CoordinatorMessage
-{
+public sealed class CoordinatorMessage {
     /// <summary>消息唯一标识 — 自动生成 GUID，跨进程去重的唯一依据</summary>
     public string MessageId { get; init; } = Guid.NewGuid().ToString("N");
     public required string FromAgentId { get; init; }

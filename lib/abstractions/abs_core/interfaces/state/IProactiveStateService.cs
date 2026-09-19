@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface IProactiveStateService
-{
+public interface IProactiveStateService {
     bool IsActive { get; }
     bool IsPaused { get; }
     bool IsContextBlocked { get; }

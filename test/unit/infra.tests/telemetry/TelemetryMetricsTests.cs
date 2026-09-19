@@ -1,13 +1,11 @@
 
 namespace Core.Tests.Telemetry;
 
-public sealed class TelemetryMetricsTests
-{
+public sealed class TelemetryMetricsTests {
     private readonly TelemetryConfig _config = new();
 
     [Fact]
-    public async Task Counter_Add_DoesNotThrow()
-    {
+    public async Task Counter_Add_DoesNotThrow() {
         await using var service = new TelemetryService(_config);
         var counter = service.GetCounter("test-counter");
 
@@ -16,8 +14,7 @@ public sealed class TelemetryMetricsTests
     }
 
     [Fact]
-    public async Task Counter_AddNegativeValue_DoesNotThrow()
-    {
+    public async Task Counter_AddNegativeValue_DoesNotThrow() {
         await using var service = new TelemetryService(_config);
         var counter = service.GetCounter("test-counter");
 
@@ -25,8 +22,7 @@ public sealed class TelemetryMetricsTests
     }
 
     [Fact]
-    public async Task Histogram_Record_DoesNotThrow()
-    {
+    public async Task Histogram_Record_DoesNotThrow() {
         await using var service = new TelemetryService(_config);
         var histogram = service.GetHistogram("test-duration");
 
@@ -35,8 +31,7 @@ public sealed class TelemetryMetricsTests
     }
 
     [Fact]
-    public async Task Histogram_RecordZero_DoesNotThrow()
-    {
+    public async Task Histogram_RecordZero_DoesNotThrow() {
         await using var service = new TelemetryService(_config);
         var histogram = service.GetHistogram("test-duration");
 
@@ -44,8 +39,7 @@ public sealed class TelemetryMetricsTests
     }
 
     [Fact]
-    public async Task Gauge_Record_DoesNotThrow()
-    {
+    public async Task Gauge_Record_DoesNotThrow() {
         await using var service = new TelemetryService(_config);
         var gauge = service.GetGauge("test-gauge");
 
@@ -54,8 +48,7 @@ public sealed class TelemetryMetricsTests
     }
 
     [Fact]
-    public async Task MetricsDisabled_GetCounter_StillReturnsInstance()
-    {
+    public async Task MetricsDisabled_GetCounter_StillReturnsInstance() {
         var noMetrics = new TelemetryConfig { MetricsEnabled = false };
         await using var service = new TelemetryService(noMetrics);
         var counter = service.GetCounter("test");
@@ -65,8 +58,7 @@ public sealed class TelemetryMetricsTests
     }
 
     [Fact]
-    public async Task MetricsDisabled_GetHistogram_StillReturnsInstance()
-    {
+    public async Task MetricsDisabled_GetHistogram_StillReturnsInstance() {
         var noMetrics = new TelemetryConfig { MetricsEnabled = false };
         await using var service = new TelemetryService(noMetrics);
         var histogram = service.GetHistogram("test");

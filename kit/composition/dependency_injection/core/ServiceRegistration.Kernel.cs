@@ -1,8 +1,7 @@
 
 namespace Core.DependencyInjection;
 
-public static partial class ServiceRegistration
-{
+public static partial class ServiceRegistration {
     /// <summary>
     /// 注册 Kernel 及其插件（静态插件模式）。
     /// <para>委托给 <c>JoinCode.Llm.DependencyInjection.ServiceRegistration.AddKernelWithPlugins</c>。</para>
@@ -12,8 +11,7 @@ public static partial class ServiceRegistration
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
     public static IServiceCollection AddKernelWithPlugins(
         this IServiceCollection services,
-        WorkflowConfig config)
-    {
+        WorkflowConfig config) {
         JoinCode.Llm.DependencyInjection.ServiceRegistration.AddKernelWithPlugins(services, config.Provider, config.PipeEndpoint);
 
         // PluginManager — auto-registered via [Register] (both IPluginManager and self-type)
@@ -30,8 +28,7 @@ public static partial class ServiceRegistration
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
     public static IServiceCollection AddKernelWithDynamicPlugins(
         this IServiceCollection services,
-        WorkflowConfig config)
-    {
+        WorkflowConfig config) {
         JoinCode.Llm.DependencyInjection.ServiceRegistration.AddKernelWithDynamicPlugins(services, config.Provider);
 
         // PluginManager — auto-registered via [Register] (both IPluginManager and self-type)

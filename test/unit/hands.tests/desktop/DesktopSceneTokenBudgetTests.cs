@@ -3,14 +3,12 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// AC-10 渐进式披露 Token 效率验证 — menu JSON ≤ 500 token, suggested_next ≤ 100 token
 /// </summary>
-public sealed class DesktopSceneTokenBudgetTests
-{
+public sealed class DesktopSceneTokenBudgetTests {
     private static int EstimateTokens(string text) => text.Length / 4;
 
     /// <summary>AC-10: menu 返回的 JSON ≤ 500 token</summary>
     [Fact]
-    public async Task SceneMenu_ReturnsJsonUnder500Tokens()
-    {
+    public async Task SceneMenu_ReturnsJsonUnder500Tokens() {
         var handler = new DesktopSceneMenuToolHandlers();
         var result = await handler.SceneMenuAsync();
         var text = result.GetFirstText()!;
@@ -21,8 +19,7 @@ public sealed class DesktopSceneTokenBudgetTests
 
     /// <summary>AC-10: look 返回的 suggested_next ≤ 100 token</summary>
     [Fact]
-    public async Task Look_SuggestedNextUnder100Tokens()
-    {
+    public async Task Look_SuggestedNextUnder100Tokens() {
         var captureMock = new Mock<IDesktopSceneCaptureService>();
         captureMock.Setup(c => c.CaptureWithGridAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopSceneCapture("fake", "fake", 100, 100, 2));
@@ -40,8 +37,7 @@ public sealed class DesktopSceneTokenBudgetTests
 
     /// <summary>AC-10: zoom 返回的 suggested_next ≤ 100 token</summary>
     [Fact]
-    public async Task Zoom_SuggestedNextUnder100Tokens()
-    {
+    public async Task Zoom_SuggestedNextUnder100Tokens() {
         var zoomMock = new Mock<IDesktopSceneZoomService>();
         zoomMock.Setup(z => z.ZoomAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopSceneZoom("fake", "L0.2", 1, 960, 540, false));

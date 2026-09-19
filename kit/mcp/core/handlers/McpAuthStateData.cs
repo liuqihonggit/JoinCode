@@ -5,8 +5,7 @@ namespace McpToolDispatch;
 /// 包含敏感信息（API Key/Token/Password），因为 ~/.jcc/ 是用户私有目录。
 /// 支持 CLI 无状态模式跨进程共享认证配置。
 /// </summary>
-public sealed class McpAuthStateData
-{
+public sealed class McpAuthStateData {
     /// <summary>认证配置列表</summary>
     public List<McpAuthEntry> AuthConfigs { get; set; } = new();
 }
@@ -14,8 +13,7 @@ public sealed class McpAuthStateData
 /// <summary>
 /// 单条认证配置持久化记录。
 /// </summary>
-public sealed class McpAuthEntry
-{
+public sealed class McpAuthEntry {
     /// <summary>认证配置名称（用于后续引用）</summary>
     public string AuthName { get; set; } = string.Empty;
     /// <summary>认证类型（ApiKey/Bearer/Basic/OAuth2）</summary>

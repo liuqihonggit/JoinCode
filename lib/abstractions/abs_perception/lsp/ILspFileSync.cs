@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces.Lsp;
 /// LSP 文件同步接口
 /// 处理文件打开/关闭/变更通知，对齐 TS LSPServerManager 的 changeFile/saveFile/openFile/closeFile
 /// </summary>
-public interface ILspFileSync
-{
+public interface ILspFileSync {
     /// <summary>
     /// 打开文档（发送 textDocument/didOpen）
     /// </summary>
@@ -46,8 +45,7 @@ public interface ILspFileSync
 /// <summary>
 /// 文档变更事件参数
 /// </summary>
-public sealed class DocumentChangedEventArgs : EventArgs
-{
+public sealed class DocumentChangedEventArgs : EventArgs {
     /// <summary>
     /// 变更的文件路径
     /// </summary>
@@ -62,8 +60,7 @@ public sealed class DocumentChangedEventArgs : EventArgs
 /// <summary>
 /// 文档变更类型
 /// </summary>
-public enum DocumentChangeKind
-{
+public enum DocumentChangeKind {
     /// <summary>
     /// 文档已打开
     /// </summary>
@@ -92,8 +89,7 @@ public enum DocumentChangeKind
 /// <summary>
 /// 打开的文档信息
 /// </summary>
-public sealed record OpenDocumentInfo
-{
+public sealed record OpenDocumentInfo {
     /// <summary>
     /// 文件路径
     /// </summary>
@@ -128,8 +124,7 @@ public sealed record OpenDocumentInfo
 /// <summary>
 /// 文档内容变更事件
 /// </summary>
-public sealed record TextDocumentContentChangeEvent
-{
+public sealed record TextDocumentContentChangeEvent {
     /// <summary>
     /// 变更范围（null 表示全文替换）
     /// </summary>
@@ -144,8 +139,7 @@ public sealed record TextDocumentContentChangeEvent
 /// <summary>
 /// 范围 — LSP JSON-RPC 与领域模型共用规范类型
 /// </summary>
-public sealed record LspRange
-{
+public sealed record LspRange {
     /// <summary>
     /// 起始位置
     /// </summary>
@@ -162,8 +156,7 @@ public sealed record LspRange
 /// <summary>
 /// 位置 — LSP JSON-RPC 与领域模型共用规范类型
 /// </summary>
-public sealed record LspPosition
-{
+public sealed record LspPosition {
     /// <summary>
     /// 行号（从 0 开始）
     /// </summary>

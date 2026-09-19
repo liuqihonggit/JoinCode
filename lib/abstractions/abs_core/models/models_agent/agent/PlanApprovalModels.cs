@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// 计划审批请求消息 — 对齐 TS PlanApprovalRequestMessageSchema
 /// Teammate 退出 PlanMode 时发送给 team-lead 的审批请求
 /// </summary>
-public sealed class PlanApprovalRequestMessage
-{
+public sealed class PlanApprovalRequestMessage {
     /// <summary>
     /// 消息类型标识
     /// </summary>
@@ -41,8 +40,7 @@ public sealed class PlanApprovalRequestMessage
 /// 计划审批响应消息 — 对齐 TS PlanApprovalResponseMessageSchema
 /// Team-lead 审批后发送给 teammate 的响应
 /// </summary>
-public sealed class PlanApprovalResponseMessage
-{
+public sealed class PlanApprovalResponseMessage {
     /// <summary>
     /// 消息类型标识
     /// </summary>

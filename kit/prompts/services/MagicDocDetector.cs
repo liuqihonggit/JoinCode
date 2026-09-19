@@ -4,8 +4,7 @@ namespace Core.Prompts.Services;
 /// <summary>
 /// Magic Doc 检测结果
 /// </summary>
-public sealed class MagicDocDetection
-{
+public sealed class MagicDocDetection {
     /// <summary>
     /// 文档标题（# MAGIC DOC: 后面的内容）
     /// </summary>
@@ -20,8 +19,7 @@ public sealed class MagicDocDetection
 /// <summary>
 /// Magic Doc 追踪条目
 /// </summary>
-public sealed class MagicDocEntry
-{
+public sealed class MagicDocEntry {
     /// <summary>
     /// 文件路径
     /// </summary>
@@ -42,16 +40,14 @@ public sealed class MagicDocEntry
 /// Magic Doc 检测器 — 检测文件内容中的 # MAGIC DOC: 头部
 /// 对齐 TS magicDocs.ts::detectMagicDocHeader
 /// </summary>
-public static class MagicDocDetector
-{
+public static class MagicDocDetector {
     private static readonly Regex HeaderPattern = new(@"^#\s*MAGIC\s+DOC:\s*(.+)$", RegexOptions.Multiline | RegexOptions.IgnoreCase);
     private static readonly Regex ItalicInstructionPattern = new(@"^_(.+)_$", RegexOptions.Multiline);
 
     /// <summary>
     /// 检测文件内容是否包含 Magic Doc 头部
     /// </summary>
-    public static MagicDocDetection? Detect(string content)
-    {
+    public static MagicDocDetection? Detect(string content) {
         if (string.IsNullOrWhiteSpace(content)) return null;
 
         var match = HeaderPattern.Match(content);
@@ -63,8 +59,7 @@ public static class MagicDocDetector
         string? customInstructions = null;
         var afterHeader = content.Substring(match.Index + match.Length);
         var italicMatch = ItalicInstructionPattern.Match(afterHeader.TrimStart());
-        if (italicMatch.Success && italicMatch.Index < 5)
-        {
+        if (italicMatch.Success && italicMatch.Index < 5) {
             customInstructions = italicMatch.Groups[1].Value.Trim();
         }
 

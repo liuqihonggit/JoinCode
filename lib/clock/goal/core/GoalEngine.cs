@@ -8,8 +8,7 @@ namespace Core.Goal;
 /// </summary>
 [Register(typeof(IGoalEngine), ServiceLifetime.Singleton)]
 [Register(typeof(IAgentRunner), ServiceLifetime.Singleton)]
-public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDisposable
-{
+public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDisposable {
     private readonly IChatClient _kernel;
     private readonly IGoalEvaluator _evaluator;
     private readonly IGoalHeartbeat _heartbeat;
@@ -43,8 +42,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// <summary>
     /// 设置会话隔离标识 — 由 CliSession 启动时调用，持久化按 {baseDir}/{sessionId}/{goalId}.json 隔离。
     /// </summary>
-    public void SetSessionId(string sessionId)
-    {
+    public void SetSessionId(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         _sessionId = sessionId;
     }
@@ -52,8 +50,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// <summary>
     /// 等待目标引擎循环退出（完成、预算耗尽、暂停、清除等）。
     /// </summary>
-    public Task WaitForCompletionAsync(CancellationToken ct = default)
-    {
+    public Task WaitForCompletionAsync(CancellationToken ct = default) {
         return _completionTcs?.Task ?? Task.CompletedTask;
     }
 
@@ -67,15 +64,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// <summary>
     /// 设置 Graph 定义 — 由协调者 Agent 通过 goal_graph_define MCP 工具调用
     /// </summary>
-    public void SetGraphDefinition(string nodesJson, string edgesJson, string startNodeId, string endNodeIds)
-    {
+    public void SetGraphDefinition(string nodesJson, string edgesJson, string startNodeId, string endNodeIds) {
         ArgumentNullException.ThrowIfNull(nodesJson);
         ArgumentNullException.ThrowIfNull(edgesJson);
         ArgumentException.ThrowIfNullOrWhiteSpace(startNodeId);
         ArgumentException.ThrowIfNullOrWhiteSpace(endNodeIds);
 
-        if (_goalGraph is not null)
-        {
+        if (_goalGraph is not null) {
             _logger?.LogWarning("[GoalEngine] Graph 已存在，忽略重复定义");
             return;
         }
@@ -93,16 +88,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         var nodes = LlmJsonHelper.DeserializeValue(nodesJson, GraphDefineJsonContext.Default.GraphDefineNodeArray, out var nodesRepair, _logger)
             ?? throw new ArgumentException(FormatInvalidGraphError("nodes", nodesRepair));
 
-        foreach (var node in nodes)
-        {
+        foreach (var node in nodes) {
             var nodeId = node.Id ?? throw new ArgumentException("Node id is required");
-            dag.AddNode(new DagNode<GoalNodePayload>
-            {
+            dag.AddNode(new DagNode<GoalNodePayload> {
                 Id = nodeId,
-                Payload = new GoalNodePayload
-                {
-                    Kind = node.Kind?.ToLowerInvariant() switch
-                    {
+                Payload = new GoalNodePayload {
+                    Kind = node.Kind?.ToLowerInvariant() switch {
                         "function" => GoalNodeKind.Function,
                         "join" => GoalNodeKind.Join,
                         _ => GoalNodeKind.Agent,
@@ -119,32 +110,27 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         var edges = LlmJsonHelper.DeserializeValue(edgesJson, GraphDefineJsonContext.Default.GraphDefineEdgeArray, out var edgesRepair, _logger)
             ?? throw new ArgumentException(FormatInvalidGraphError("edges", edgesRepair));
 
-        foreach (var edge in edges)
-        {
+        foreach (var edge in edges) {
             var fromId = edge.FromId ?? throw new ArgumentException("Edge fromId is required");
             var toId = edge.ToId ?? throw new ArgumentException("Edge toId is required");
             var edgeId = edge.Id ?? $"e-{fromId}-{toId}";
 
-            var result = dag.TryAddEdge(new DagEdge
-            {
+            var result = dag.TryAddEdge(new DagEdge {
                 Id = edgeId,
                 FromId = fromId,
                 ToId = toId,
                 Label = edge.Label ?? string.Empty,
             });
 
-            if (!result.Success && edge.Label?.Length > 0)
-            {
-                if (dag.Nodes.TryGetValue(toId, out var targetNode))
-                {
+            if (!result.Success && edge.Label?.Length > 0) {
+                if (dag.Nodes.TryGetValue(toId, out var targetNode)) {
                     targetNode.InEdgeIds.Remove(edgeId);
                 }
             }
         }
 
         var endSet = endNodeIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        _goalGraph = new GoalGraph
-        {
+        _goalGraph = new GoalGraph {
             Name = _state?.Objective ?? "dynamic-graph",
             Dag = dag,
             StartNodeId = startNodeId,
@@ -158,8 +144,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// <summary>
     /// 将 Graph JSON 解析失败信息连同修复/宽容明细组装为精确错误消息，供 MCP 工具结果回喂 LLM。
     /// </summary>
-    private static string FormatInvalidGraphError(string kind, string? repairHint)
-    {
+    private static string FormatInvalidGraphError(string kind, string? repairHint) {
         var message = $"Invalid {kind} JSON";
         if (!string.IsNullOrEmpty(repairHint))
             message = $"{message}: {repairHint}";
@@ -189,8 +174,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         IGoalHeartbeat? heartbeat = null,
         IClockService? clock = null,
         IServiceProvider? serviceProvider = null,
-        IGoalStateStore? stateStore = null)
-    {
+        IGoalStateStore? stateStore = null) {
         _kernel = kernel;
         _evaluator = evaluator;
         _logger = logger;
@@ -203,15 +187,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _stateStore = stateStore;
         _heartbeat.RegisterCallback(OnHeartbeatAsync);
 
-        if (lifecycleMiddlewares is not null && loggerFactory is not null)
-        {
+        if (lifecycleMiddlewares is not null && loggerFactory is not null) {
             _lifecyclePipeline = new PipelineBuilder<GoalLifecycleContext>()
                 .WithLoggingScope(loggerFactory)
                 .UseRange(lifecycleMiddlewares)
                 .Build();
-        }
-        else if (lifecycleMiddlewares is not null)
-        {
+        } else if (lifecycleMiddlewares is not null) {
             _lifecyclePipeline = new MiddlewarePipeline<GoalLifecycleContext>(lifecycleMiddlewares);
         }
     }
@@ -230,22 +211,19 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         List<string>? constraints = null,
         int? tokenBudget = null,
         string? systemPrompt = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
         BuildDefaultGraphIfAbsent(objective, tokenBudget);
 
-        if (_lifecyclePipeline is not null)
-        {
+        if (_lifecyclePipeline is not null) {
             return await StartViaPipelineAsync(objective, constraints, tokenBudget, systemPrompt, cancellationToken).ConfigureAwait(false);
         }
 
         return await StartDirectAsync(objective, constraints, tokenBudget, systemPrompt, cancellationToken).ConfigureAwait(false);
     }
 
-    private void BuildDefaultGraphIfAbsent(string objective, int? tokenBudget)
-    {
+    private void BuildDefaultGraphIfAbsent(string objective, int? tokenBudget) {
         if (_goalGraph is not null && _graphEngine is not null)
             return;
 
@@ -260,8 +238,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             clock: _clock);
 
         var template = _templateRegistry?.FindMatch(objective);
-        if (template is not null)
-        {
+        if (template is not null) {
             _goalGraph = template.BuildGraph(_graphEngine, objective);
             _logger?.LogInformation("[GoalEngine] 匹配到 Graph 模板: {TemplateName} → {GraphName}", template.Name, _goalGraph.Name);
             return;
@@ -269,11 +246,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
         var dag = new Dag<GoalNodePayload>();
 
-        dag.AddNode(new DagNode<GoalNodePayload>
-        {
+        dag.AddNode(new DagNode<GoalNodePayload> {
             Id = "agent",
-            Payload = new GoalNodePayload
-            {
+            Payload = new GoalNodePayload {
                 Kind = GoalNodeKind.Agent,
                 Name = "executor",
                 Role = AgentRole.Executor,
@@ -282,11 +257,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             },
         });
 
-        dag.AddNode(new DagNode<GoalNodePayload>
-        {
+        dag.AddNode(new DagNode<GoalNodePayload> {
             Id = "reviewer",
-            Payload = new GoalNodePayload
-            {
+            Payload = new GoalNodePayload {
                 Kind = GoalNodeKind.Agent,
                 Name = "reviewer",
                 Role = AgentRole.Coordinator,
@@ -303,8 +276,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         dag.TryAddEdge(new DagEdge { Id = backEdgeId, FromId = "reviewer", ToId = "agent", Label = "FAIL" });
         dag.Nodes["agent"].InEdgeIds.Remove(backEdgeId);
 
-        _goalGraph = new GoalGraph
-        {
+        _goalGraph = new GoalGraph {
             Name = objective,
             Dag = dag,
             StartNodeId = "agent",
@@ -319,18 +291,15 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         List<string>? constraints,
         int? tokenBudget,
         string? systemPrompt,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
-        if (_state != null && _state.Status == GoalStatus.Pursuing)
-        {
+        if (_state != null && _state.Status == GoalStatus.Pursuing) {
             throw new InvalidOperationException(L.T(StringKey.GoalEngineAlreadyRunning));
         }
 
         var goalId = GenerateGoalId();
-        _state = new GoalState
-        {
+        _state = new GoalState {
             GoalId = goalId,
             Objective = objective,
             Status = GoalStatus.Pursuing,
@@ -342,10 +311,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         if (!string.IsNullOrWhiteSpace(systemPrompt))
             _chatHistory.AddSystemMessage(systemPrompt);
         _chatHistory.AddUserMessage(objective);
-    
 
-        var ctx = new GoalLifecycleContext
-        {
+
+        var ctx = new GoalLifecycleContext {
             Operation = GoalOperation.Start,
             Objective = objective,
             Constraints = constraints ?? [],
@@ -359,8 +327,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         };
 
         var pipeline = _lifecyclePipeline;
-        if (pipeline is null)
-        {
+        if (pipeline is null) {
             return _state;
         }
 
@@ -370,8 +337,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
         RegisterMainAgent(_state.GoalId, objective, tokenBudget);
 
-        if (ctx.ShouldStartEngineLoop)
-        {
+        if (ctx.ShouldStartEngineLoop) {
             _logger?.LogInformation(L.T(StringKey.GoalEngineStarting),
                 _state.GoalId, objective, tokenBudget?.ToString() ?? L.T(StringKey.GoalEngineBudgetUnlimited));
 
@@ -388,18 +354,15 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         List<string>? constraints,
         int? tokenBudget,
         string? systemPrompt,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
-        if (_state != null && _state.Status == GoalStatus.Pursuing)
-        {
+        if (_state != null && _state.Status == GoalStatus.Pursuing) {
             throw new InvalidOperationException(L.T(StringKey.GoalEngineAlreadyRunning));
         }
 
         var goalId = GenerateGoalId();
-        _state = new GoalState
-        {
+        _state = new GoalState {
             GoalId = goalId,
             Objective = objective,
             Status = GoalStatus.Pursuing,
@@ -411,7 +374,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         if (!string.IsNullOrWhiteSpace(systemPrompt))
             _chatHistory.AddSystemMessage(systemPrompt);
         _chatHistory.AddUserMessage(objective);
-    
+
 
         await SwitchToGoalPermissionModeAsync(cancellationToken).ConfigureAwait(false);
 
@@ -433,32 +396,26 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// 异步暂停目标 — 状态转为 Paused 并停止引擎循环
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task PauseAsync(CancellationToken cancellationToken = default)
-    {
-        if (_lifecyclePipeline is not null)
-        {
+    public async Task PauseAsync(CancellationToken cancellationToken = default) {
+        if (_lifecyclePipeline is not null) {
             await PauseViaPipelineAsync(cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await PauseDirectAsync(cancellationToken).ConfigureAwait(false);
         }
 
         await PersistStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task PauseViaPipelineAsync(CancellationToken cancellationToken)
-    {
+    private async Task PauseViaPipelineAsync(CancellationToken cancellationToken) {
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
         _state.Status = GoalStatus.Paused;
         _state.PausedAt = _clock.GetUtcNow();
-    
 
-        var ctx = new GoalLifecycleContext
-        {
+
+        var ctx = new GoalLifecycleContext {
             Operation = GoalOperation.Pause,
             CancellationToken = cancellationToken,
             State = _state ?? new GoalState { GoalId = string.Empty, Objective = string.Empty, Status = GoalStatus.Paused },
@@ -468,28 +425,25 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         };
 
         var pipeline = _lifecyclePipeline;
-        if (pipeline is not null)
-        {
+        if (pipeline is not null) {
             await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
         }
 
-        if (ctx.ShouldResetHeartbeat)
-        {
+        if (ctx.ShouldResetHeartbeat) {
             await _heartbeat.ResetAsync().ConfigureAwait(false);
         }
 
         _logger?.LogInformation(L.T(StringKey.GoalEnginePaused), _state?.GoalId);
     }
 
-    private async Task PauseDirectAsync(CancellationToken cancellationToken)
-    {
+    private async Task PauseDirectAsync(CancellationToken cancellationToken) {
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
         _state.Status = GoalStatus.Paused;
         _state.PausedAt = _clock.GetUtcNow();
-    
+
 
         await _heartbeat.ResetAsync().ConfigureAwait(false);
         _logger?.LogInformation(L.T(StringKey.GoalEnginePaused), _state?.GoalId);
@@ -499,32 +453,26 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// 异步恢复目标 — 状态转为 Pursuing 并重启引擎循环
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task ResumeAsync(CancellationToken cancellationToken = default)
-    {
-        if (_lifecyclePipeline is not null)
-        {
+    public async Task ResumeAsync(CancellationToken cancellationToken = default) {
+        if (_lifecyclePipeline is not null) {
             await ResumeViaPipelineAsync(cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await ResumeDirectAsync(cancellationToken).ConfigureAwait(false);
         }
 
         await PersistStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task ResumeViaPipelineAsync(CancellationToken cancellationToken)
-    {
+    private async Task ResumeViaPipelineAsync(CancellationToken cancellationToken) {
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Paused) return;
 
         _state.Status = GoalStatus.Pursuing;
         _state.PausedAt = null;
-    
 
-        var ctx = new GoalLifecycleContext
-        {
+
+        var ctx = new GoalLifecycleContext {
             Operation = GoalOperation.Resume,
             CancellationToken = cancellationToken,
             State = _state ?? new GoalState { GoalId = string.Empty, Objective = string.Empty, Status = GoalStatus.Pursuing },
@@ -534,13 +482,11 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         };
 
         var pipeline = _lifecyclePipeline;
-        if (pipeline is not null)
-        {
+        if (pipeline is not null) {
             await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
         }
 
-        if (ctx.ShouldStartEngineLoop)
-        {
+        if (ctx.ShouldStartEngineLoop) {
             var continuationPrompt = ContinuationPromptBuilder.BuildContinuationPrompt(
                 _state?.Objective ?? throw new InvalidOperationException("GoalState is not initialized."),
                 _state.Constraints,
@@ -560,15 +506,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _logger?.LogInformation(L.T(StringKey.GoalEngineResumed), _state?.GoalId);
     }
 
-    private async Task ResumeDirectAsync(CancellationToken cancellationToken)
-    {
+    private async Task ResumeDirectAsync(CancellationToken cancellationToken) {
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Paused) return;
 
         _state.Status = GoalStatus.Pursuing;
         _state.PausedAt = null;
-    
+
 
         var continuationPrompt = ContinuationPromptBuilder.BuildContinuationPrompt(
             _state?.Objective ?? throw new InvalidOperationException("GoalState is not initialized."),
@@ -591,32 +536,26 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// 异步清除目标 — 状态转为 Unmet 并停止引擎循环
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task ClearAsync(CancellationToken cancellationToken = default)
-    {
-        if (_lifecyclePipeline is not null)
-        {
+    public async Task ClearAsync(CancellationToken cancellationToken = default) {
+        if (_lifecyclePipeline is not null) {
             await ClearViaPipelineAsync(cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await ClearDirectAsync(cancellationToken).ConfigureAwait(false);
         }
 
         await PersistStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task ClearViaPipelineAsync(CancellationToken cancellationToken)
-    {
+    private async Task ClearViaPipelineAsync(CancellationToken cancellationToken) {
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null) return;
 
         _state.Status = GoalStatus.Unmet;
         _state.AchievedAt = _clock.GetUtcNow();
-    
 
-        var ctx = new GoalLifecycleContext
-        {
+
+        var ctx = new GoalLifecycleContext {
             Operation = GoalOperation.Clear,
             CancellationToken = cancellationToken,
             State = _state ?? new GoalState { GoalId = string.Empty, Objective = string.Empty, Status = GoalStatus.Unmet },
@@ -627,35 +566,31 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         };
 
         var pipeline = _lifecyclePipeline;
-        if (pipeline is not null)
-        {
+        if (pipeline is not null) {
             await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
         }
 
         _savedPermissionMode = ctx.SavedPermissionMode;
 
-        if (ctx.ShouldCancelEngineLoop)
-        {
+        if (ctx.ShouldCancelEngineLoop) {
             _engineCts?.Cancel();
         }
 
-        if (ctx.ShouldResetHeartbeat)
-        {
+        if (ctx.ShouldResetHeartbeat) {
             await _heartbeat.ResetAsync().ConfigureAwait(false);
         }
 
         _logger?.LogInformation(L.T(StringKey.GoalEngineCleared), _state?.GoalId);
     }
 
-    private async Task ClearDirectAsync(CancellationToken cancellationToken)
-    {
+    private async Task ClearDirectAsync(CancellationToken cancellationToken) {
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null) return;
 
         _state.Status = GoalStatus.Unmet;
         _state.AchievedAt = _clock.GetUtcNow();
-    
+
 
         _engineCts?.Cancel();
         await _heartbeat.ResetAsync().ConfigureAwait(false);
@@ -666,12 +601,10 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// <summary>
     /// 持久化当前目标状态到 IGoalStateStore（异常不抛出，仅记录日志）。
     /// </summary>
-    private async Task PersistStateAsync(CancellationToken ct)
-    {
+    private async Task PersistStateAsync(CancellationToken ct) {
         if (_stateStore is null || _state is null)
             return;
-        try
-        {
+        try {
             if (_sessionId is not null)
                 _state.SessionId = _sessionId;
             _state.PersistedHistory = [.. _chatHistory.Select(m => new ApiMessageDocument
@@ -680,9 +613,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
                 Content = m.Content ?? string.Empty
             })];
             await _stateStore.SaveAsync(_state, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[GoalEngine] 状态持久化失败: {GoalId}", _state.GoalId);
         }
     }
@@ -691,18 +622,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// 从持久化存储恢复活跃目标状态 — 进程重启后调用以恢复未完成的目标。
     /// 指定 goalId 时恢复该特定目标；未指定时恢复第一个活跃目标（单 goal 场景）。
     /// </summary>
-    public async Task RehydrateAsync(CancellationToken cancellationToken = default, string? goalId = null)
-    {
+    public async Task RehydrateAsync(CancellationToken cancellationToken = default, string? goalId = null) {
         if (_stateStore is null || _sessionId is null) return;
-        try
-        {
+        try {
             GoalState? target;
-            if (goalId is not null)
-            {
+            if (goalId is not null) {
                 target = await _stateStore.LoadAsync(_sessionId, goalId, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
+            } else {
                 var activeGoals = await _stateStore.GetActiveGoalsAsync(_sessionId, cancellationToken).ConfigureAwait(false);
                 target = activeGoals.Count > 0 ? activeGoals[0] : null;
             }
@@ -714,19 +640,15 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
             _state = first;
             _chatHistory.Clear();
-            if (first.PersistedHistory is not null)
-            {
-                foreach (var doc in first.PersistedHistory)
-                {
+            if (first.PersistedHistory is not null) {
+                foreach (var doc in first.PersistedHistory) {
                     var role = Enum.TryParse<MessageRole>(doc.Role, ignoreCase: true, out var r) ? r : MessageRole.User;
                     _chatHistory.Add(new ApiMessage(role, doc.Content));
                 }
             }
-        
+
             _logger?.LogInformation("[GoalEngine] 从持久化恢复目标: {GoalId} (状态: {Status})", first.GoalId, first.Status);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[GoalEngine] 恢复目标状态失败");
         }
     }
@@ -736,24 +658,19 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// </summary>
     /// <param name="reason">完成原因</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task MarkCompletedAsync(string reason, CancellationToken cancellationToken = default)
-    {
+    public async Task MarkCompletedAsync(string reason, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 
-        if (_lifecyclePipeline is not null)
-        {
+        if (_lifecyclePipeline is not null) {
             await MarkCompletedViaPipelineAsync(reason, cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await MarkCompletedDirectAsync(reason, cancellationToken).ConfigureAwait(false);
         }
 
         await PersistStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task MarkCompletedViaPipelineAsync(string reason, CancellationToken cancellationToken)
-    {
+    private async Task MarkCompletedViaPipelineAsync(string reason, CancellationToken cancellationToken) {
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
@@ -761,10 +678,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _state.Status = GoalStatus.Achieved;
         _state.AchievedAt = _clock.GetUtcNow();
         _state.LastEvaluation = GoalEvaluationResult.Completed(reason);
-    
 
-        var ctx = new GoalLifecycleContext
-        {
+
+        var ctx = new GoalLifecycleContext {
             Operation = GoalOperation.MarkCompleted,
             Reason = reason,
             CancellationToken = cancellationToken,
@@ -776,33 +692,28 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         };
 
         var pipeline = _lifecyclePipeline;
-        if (pipeline is not null)
-        {
+        if (pipeline is not null) {
             await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
         }
 
         _savedPermissionMode = ctx.SavedPermissionMode;
 
-        if (ctx.ShouldCancelEngineLoop)
-        {
+        if (ctx.ShouldCancelEngineLoop) {
             _engineCts?.Cancel();
         }
 
-        if (ctx.ShouldResetHeartbeat)
-        {
+        if (ctx.ShouldResetHeartbeat) {
             await _heartbeat.ResetAsync().ConfigureAwait(false);
         }
 
-        if (ctx.ShouldSignalCompletion)
-        {
+        if (ctx.ShouldSignalCompletion) {
             _completionTcs?.TrySetResult();
         }
 
         _logger?.LogInformation(L.T(StringKey.GoalEngineCompletedByModel), _state?.GoalId, reason);
     }
 
-    private async Task MarkCompletedDirectAsync(string reason, CancellationToken cancellationToken)
-    {
+    private async Task MarkCompletedDirectAsync(string reason, CancellationToken cancellationToken) {
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
@@ -810,7 +721,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _state.Status = GoalStatus.Achieved;
         _state.AchievedAt = _clock.GetUtcNow();
         _state.LastEvaluation = GoalEvaluationResult.Completed(reason);
-    
+
 
         _engineCts?.Cancel();
         await _heartbeat.ResetAsync().ConfigureAwait(false);
@@ -824,24 +735,19 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// </summary>
     /// <param name="reason">未完成原因</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task MarkUnmetAsync(string reason, CancellationToken cancellationToken = default)
-    {
+    public async Task MarkUnmetAsync(string reason, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 
-        if (_lifecyclePipeline is not null)
-        {
+        if (_lifecyclePipeline is not null) {
             await MarkUnmetViaPipelineAsync(reason, cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await MarkUnmetDirectAsync(reason, cancellationToken).ConfigureAwait(false);
         }
 
         await PersistStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task MarkUnmetViaPipelineAsync(string reason, CancellationToken cancellationToken)
-    {
+    private async Task MarkUnmetViaPipelineAsync(string reason, CancellationToken cancellationToken) {
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
@@ -849,10 +755,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _state.Status = GoalStatus.Unmet;
         _state.AchievedAt = _clock.GetUtcNow();
         _state.LastEvaluation = GoalEvaluationResult.NotCompleted(reason);
-    
 
-        var ctx = new GoalLifecycleContext
-        {
+
+        var ctx = new GoalLifecycleContext {
             Operation = GoalOperation.MarkUnmet,
             Reason = reason,
             CancellationToken = cancellationToken,
@@ -864,33 +769,28 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         };
 
         var pipeline = _lifecyclePipeline;
-        if (pipeline is not null)
-        {
+        if (pipeline is not null) {
             await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
         }
 
         _savedPermissionMode = ctx.SavedPermissionMode;
 
-        if (ctx.ShouldCancelEngineLoop)
-        {
+        if (ctx.ShouldCancelEngineLoop) {
             _engineCts?.Cancel();
         }
 
-        if (ctx.ShouldResetHeartbeat)
-        {
+        if (ctx.ShouldResetHeartbeat) {
             await _heartbeat.ResetAsync().ConfigureAwait(false);
         }
 
-        if (ctx.ShouldSignalCompletion)
-        {
+        if (ctx.ShouldSignalCompletion) {
             _completionTcs?.TrySetResult();
         }
 
         _logger?.LogInformation(L.T(StringKey.GoalEngineUnmetByModel), _state?.GoalId, reason);
     }
 
-    private async Task MarkUnmetDirectAsync(string reason, CancellationToken cancellationToken)
-    {
+    private async Task MarkUnmetDirectAsync(string reason, CancellationToken cancellationToken) {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 
         using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
@@ -900,7 +800,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _state.Status = GoalStatus.Unmet;
         _state.AchievedAt = _clock.GetUtcNow();
         _state.LastEvaluation = GoalEvaluationResult.NotCompleted(reason);
-    
+
 
         _engineCts?.Cancel();
         await _heartbeat.ResetAsync().ConfigureAwait(false);
@@ -909,32 +809,25 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _logger?.LogInformation(L.T(StringKey.GoalEngineUnmetByModel), _state?.GoalId, reason);
     }
 
-    private async Task RunGoalLoopAsync(CancellationToken ct)
-    {
-        try
-        {
-            if (_goalGraph is null || _graphEngine is null || _state is null)
-            {
+    private async Task RunGoalLoopAsync(CancellationToken ct) {
+        try {
+            if (_goalGraph is null || _graphEngine is null || _state is null) {
                 throw new InvalidOperationException("GoalGraph 未构建 — BuildDefaultGraphIfAbsent 应确保 Graph 总是可用");
             }
 
             _logger?.LogInformation("[GoalEngine] 使用 Graph 引擎执行: {GraphName}", _goalGraph.Name);
             _state = await _graphEngine.ExecuteAsync(_goalGraph, _state, _chatHistory, ct).ConfigureAwait(false);
-        }
-        finally
-        {
+        } finally {
             _completionTcs?.TrySetResult();
         }
     }
 
-    private string GenerateGoalId()
-    {
+    private string GenerateGoalId() {
         var counter = Interlocked.Increment(ref _goalCounter);
         return $"goal_{counter:D4}_{_clock.GetUtcNow():yyyyMMddHHmmss}";
     }
 
-    private ValueTask OnHeartbeatAsync(CancellationToken cancellationToken)
-    {
+    private ValueTask OnHeartbeatAsync(CancellationToken cancellationToken) {
         _logger?.LogDebug(L.T(StringKey.GoalEngineHeartbeatTriggered),
             _state?.GoalId, _state?.TurnsCompleted);
 
@@ -947,8 +840,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private const int StagnationMaxTurnsThreshold = 10;
     private const int StagnationCooldownSeconds = 1800;
 
-    private void CheckStagnationAndAlert()
-    {
+    private void CheckStagnationAndAlert() {
         if (_state is null || _state.Status != GoalStatus.Pursuing)
             return;
 
@@ -962,8 +854,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         if (_state.LastEvaluation is { IsCompleted: true })
             return;
 
-        if (_state.StagnationAlertedAt.HasValue)
-        {
+        if (_state.StagnationAlertedAt.HasValue) {
             var sinceLastAlert = (_clock.GetUtcNow() - _state.StagnationAlertedAt.Value).TotalSeconds;
             if (sinceLastAlert < StagnationCooldownSeconds)
                 return;
@@ -985,25 +876,19 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// <summary>
     /// 异步释放 — 取消引擎循环、重置心跳并释放资源
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _engineCts?.Cancel();
         await _heartbeat.ResetAsync().ConfigureAwait(false);
 
-        if (_engineLoop != null)
-        {
-            try
-            {
+        if (_engineLoop != null) {
+            try {
                 _ = _engineLoop;
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
             }
         }
 
-        if (_savedPermissionMode.HasValue)
-        {
+        if (_savedPermissionMode.HasValue) {
             await RestorePermissionModeAsync(CancellationToken.None).ConfigureAwait(false);
         }
 
@@ -1013,15 +898,12 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _completionTcs?.TrySetCanceled();
     }
 
-    private async Task SwitchToGoalPermissionModeAsync(CancellationToken cancellationToken)
-    {
+    private async Task SwitchToGoalPermissionModeAsync(CancellationToken cancellationToken) {
         if (_permissionManager == null) return;
 
-        try
-        {
+        try {
             var currentMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
-            if (currentMode == PermissionMode.Bypass)
-            {
+            if (currentMode == PermissionMode.Bypass) {
                 _logger?.LogInformation("[GoalEngine] 当前权限模式为 {Mode}，跳过切换到 Auto", currentMode);
                 return;
             }
@@ -1029,51 +911,39 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             _savedPermissionMode = currentMode;
             await _permissionManager.SetPermissionModeAsync(PermissionMode.Auto, cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation(L.T(StringKey.PermissionModeSwitched), _savedPermissionMode);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.PermissionModeSwitchFailed));
             _savedPermissionMode = null;
         }
     }
 
-    private async Task RestorePermissionModeAsync(CancellationToken cancellationToken)
-    {
+    private async Task RestorePermissionModeAsync(CancellationToken cancellationToken) {
         if (_permissionManager == null || !_savedPermissionMode.HasValue) return;
 
-        try
-        {
+        try {
             await _permissionManager.SetPermissionModeAsync(_savedPermissionMode.Value, cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation(L.T(StringKey.PermissionModeRestored), _savedPermissionMode.Value);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.PermissionModeRestoreFailed));
-        }
-        finally
-        {
+        } finally {
             _savedPermissionMode = null;
         }
     }
 
-    private void RegisterMainAgent(string goalId, string objective, int? tokenBudget)
-    {
+    private void RegisterMainAgent(string goalId, string objective, int? tokenBudget) {
         var mainAgents = Core.Agents.Coordinator.AgentBase.GetMainAgents();
-        if (mainAgents.Count > 0)
-        {
+        if (mainAgents.Count > 0) {
             _logger?.LogInformation("[GoalEngine] mainAgent 已存在: {AgentId}, 跳过注册", mainAgents[0].Id);
             return;
         }
 
-        if (_serviceProvider is null)
-        {
+        if (_serviceProvider is null) {
             _logger?.LogWarning("[GoalEngine] IServiceProvider 未注入，无法创建 mainAgent，Goal={GoalId}", goalId);
             return;
         }
 
         var queryEngine = _serviceProvider.GetService<IQueryEngine>();
-        if (queryEngine is null)
-        {
+        if (queryEngine is null) {
             _logger?.LogWarning("[GoalEngine] IQueryEngine 未注入，无法创建 mainAgent，Goal={GoalId}", goalId);
             return;
         }
@@ -1092,26 +962,20 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         // 队长(main agent)侧延迟邮件注入 — 与 ForkSpawnMiddleware 给 fork 注入对齐
         // main agent 不走 ForkSpawnMiddleware, 需在此显式注入; Agent 空闲时立即读取邮件
         var deferredMailService = _serviceProvider.GetService<JoinCode.Abstractions.Interfaces.IDeferredMailService>();
-        if (deferredMailService is not null)
-        {
+        if (deferredMailService is not null) {
             mainAgent.DeferredMailService = deferredMailService;
         }
 
         var spawnPipeline = _serviceProvider.GetService<Infrastructure.Pipeline.MiddlewarePipeline<Core.Agents.UnifiedSpawnContext>>();
-        if (spawnPipeline is not null)
-        {
-            try
-            {
-                var context = new Core.Agents.UnifiedSpawnContext
-                {
+        if (spawnPipeline is not null) {
+            try {
+                var context = new Core.Agents.UnifiedSpawnContext {
                     Task = objective,
                     IsMainAgent = true,
                     Agent = mainAgent,
                 };
                 spawnPipeline.ExecuteAsync(context, default).GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[GoalEngine] 主代理走统一管道失败，回退到直接创建");
             }
         }
@@ -1119,4 +983,3 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _logger?.LogInformation("[GoalEngine] mainAgent 创建并注册到 SessionScope: {AgentId}, Goal={GoalId}", mainAgent.Id, goalId);
     }
 }
-

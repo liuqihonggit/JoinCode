@@ -5,16 +5,14 @@ namespace Core.Permission.ToolHandlers;
 /// 权限管理工具处理器
 /// </summary>
 [McpToolDispatch(ToolCategory.Permission, Optional = true)]
-public class PermissionToolHandlers
-{
+public class PermissionToolHandlers {
     private readonly IAgentPermissionManager _permissionManager;
     private static readonly char[] CommaSeparator = [','];
 
     /// <summary>
     /// 构造权限管理工具处理器
     /// </summary>
-    public PermissionToolHandlers(IAgentPermissionManager permissionManager)
-    {
+    public PermissionToolHandlers(IAgentPermissionManager permissionManager) {
         _permissionManager = permissionManager ?? throw new ArgumentNullException(nameof(permissionManager));
     }
 
@@ -30,28 +28,23 @@ public class PermissionToolHandlers
         [McpToolParameter("拒绝的工具列表（逗号分隔）", Required = false)] string? denied_tools = null,
         [McpToolParameter("规则描述", Required = false)] string? description = null,
         [McpToolParameter("优先级（数字越大优先级越高）", Required = false)] int? priority = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agent_pattern))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agent_pattern)) {
             var diag = BuildAgentPatternEmptyDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var permissionMode = PermissionModeExtensions.FromValue(mode);
-        if (permissionMode is null)
-        {
+        if (permissionMode is null) {
             var modeDiag = BuildInvalidPermissionModeDiagnostic(mode);
             return ToolResultBuilder.Error()
                 .WithText(modeDiag.FormattedMessage).WithDiagnostic(modeDiag).Build();
         }
 
         var permissionLevel = PermissionLevel.Read;
-        if (!string.IsNullOrEmpty(level))
-        {
+        if (!string.IsNullOrEmpty(level)) {
             var parsedLevel = PermissionLevelExtensions.FromValue(level);
-            if (parsedLevel is null)
-            {
+            if (parsedLevel is null) {
                 var levelDiag = BuildInvalidPermissionLevelDiagnostic(level);
                 return ToolResultBuilder.Error()
                     .WithText(levelDiag.FormattedMessage).WithDiagnostic(levelDiag).Build();
@@ -59,8 +52,7 @@ public class PermissionToolHandlers
             permissionLevel = parsedLevel.Value;
         }
 
-        var rule = new AgentPermissionRule
-        {
+        var rule = new AgentPermissionRule {
             AgentPattern = agent_pattern,
             Mode = permissionMode.Value,
             Level = permissionLevel,
@@ -96,18 +88,15 @@ public class PermissionToolHandlers
     [McpTool(InteractionToolNameEnumConstants.PermissionRemoveRule, "Remove a permission rule for an agent", "permission")]
     public async Task<ToolResult> PermissionRemoveRuleAsync(
         [McpToolParameter("代理名称或模式")] string agent_pattern,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agent_pattern))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agent_pattern)) {
             var diag = BuildAgentPatternEmptyDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var removed = await _permissionManager.RemoveRuleAsync(agent_pattern, cancellationToken).ConfigureAwait(false);
 
-        if (!removed)
-        {
+        if (!removed) {
             var nfDiag = BuildRuleNotFoundDiagnostic(agent_pattern);
             return ToolResultBuilder.Error().WithText(nfDiag.FormattedMessage).WithDiagnostic(nfDiag).Build();
         }
@@ -122,8 +111,7 @@ public class PermissionToolHandlers
     /// </summary>
     [McpTool(InteractionToolNameEnumConstants.PermissionListRules, "列出所有权限规则", "permission")]
     public async Task<ToolResult> PermissionListRulesAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var rules = await _permissionManager.ListRulesAsync(cancellationToken).ConfigureAwait(false);
 
         var response = new System.Text.StringBuilder();
@@ -131,14 +119,10 @@ public class PermissionToolHandlers
         response.AppendLine($"共 {rules.Count} 条规则");
         response.AppendLine();
 
-        if (rules.Count == 0)
-        {
+        if (rules.Count == 0) {
             response.AppendLine("暂无权限规则");
-        }
-        else
-        {
-            foreach (var rule in rules.OrderByDescending(r => r.Priority))
-            {
+        } else {
+            foreach (var rule in rules.OrderByDescending(r => r.Priority)) {
                 response.AppendLine(FormatRule(rule));
                 response.AppendLine();
             }
@@ -154,16 +138,13 @@ public class PermissionToolHandlers
     public async Task<ToolResult> PermissionCheckToolAsync(
         [McpToolParameter("代理名称")] string agent_name,
         [McpToolParameter("工具名称")] string tool_name,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agent_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agent_name)) {
             var diag = BuildAgentNameEmptyDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(tool_name))
-        {
+        if (string.IsNullOrWhiteSpace(tool_name)) {
             var diag = BuildToolNameEmptyDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -178,23 +159,19 @@ public class PermissionToolHandlers
         response.AppendLine($"是否允许: {(result.IsAllowed ? $"{StatusSymbol.Tick.ToValue()} 是" : $"{StatusSymbol.Cross.ToValue()} 否")}");
         response.AppendLine($"权限模式: {result.Mode}");
 
-        if (result.MatchedRule != null)
-        {
+        if (result.MatchedRule != null) {
             response.AppendLine($"匹配规则: {result.MatchedRule.AgentPattern}");
         }
 
-        if (!string.IsNullOrEmpty(result.Reason))
-        {
+        if (!string.IsNullOrEmpty(result.Reason)) {
             response.AppendLine($"原因: {result.Reason}");
         }
 
-        if (result.RequiresConfirmation)
-        {
+        if (result.RequiresConfirmation) {
             response.AppendLine($"{StatusSymbol.Warning.ToValue()} 需要用户确认");
         }
 
-        if (result.RequiresPlan)
-        {
+        if (result.RequiresPlan) {
             response.AppendLine($"{ObjectSymbol.Pencil.ToValue()} 需要详细计划");
         }
 
@@ -208,16 +185,13 @@ public class PermissionToolHandlers
     public async Task<ToolResult> PermissionCheckPathAsync(
         [McpToolParameter("代理名称")] string agent_name,
         [McpToolParameter("路径")] string path,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agent_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agent_name)) {
             var diag = BuildAgentNameEmptyDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(path))
-        {
+        if (string.IsNullOrWhiteSpace(path)) {
             var diag = BuildPathEmptyDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -232,13 +206,11 @@ public class PermissionToolHandlers
         response.AppendLine($"是否允许: {(result.IsAllowed ? $"{StatusSymbol.Tick.ToValue()} 是" : $"{StatusSymbol.Cross.ToValue()} 否")}");
         response.AppendLine($"权限模式: {result.Mode}");
 
-        if (result.MatchedRule != null)
-        {
+        if (result.MatchedRule != null) {
             response.AppendLine($"匹配规则: {result.MatchedRule.AgentPattern}");
         }
 
-        if (!string.IsNullOrEmpty(result.Reason))
-        {
+        if (!string.IsNullOrEmpty(result.Reason)) {
             response.AppendLine($"原因: {result.Reason}");
         }
 
@@ -251,18 +223,15 @@ public class PermissionToolHandlers
     [McpTool(InteractionToolNameEnumConstants.PermissionGetAgentRule, "获取指定代理的权限规则", "permission")]
     public async Task<ToolResult> PermissionGetAgentRuleAsync(
         [McpToolParameter("代理名称")] string agent_name,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agent_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agent_name)) {
             var diag = BuildAgentNameEmptyDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var rule = await _permissionManager.GetRuleForAgentAsync(agent_name, cancellationToken).ConfigureAwait(false);
 
-        if (rule == null)
-        {
+        if (rule == null) {
             return ToolResultBuilder.Success()
                 .WithText($"代理 '{agent_name}' 没有特定的权限规则，将使用默认设置")
                 .Build();
@@ -282,10 +251,8 @@ public class PermissionToolHandlers
     [McpTool(InteractionToolNameEnumConstants.PermissionClearRules, "Clear all permission rules", "permission")]
     public async Task<ToolResult> PermissionClearRulesAsync(
         [McpToolParameter("确认清除（输入 'yes' 确认）")] string confirm,
-        CancellationToken cancellationToken = default)
-    {
-        if (confirm != "yes")
-        {
+        CancellationToken cancellationToken = default) {
+        if (confirm != "yes") {
             var diag = BuildClearConfirmInvalidDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
@@ -300,8 +267,7 @@ public class PermissionToolHandlers
 
     #region Diagnostic Builders
 
-    internal static ToolDiagnostic BuildAgentPatternEmptyDiagnostic()
-    {
+    internal static ToolDiagnostic BuildAgentPatternEmptyDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "PermissionAgentPatternEmpty",
             formattedMessage: "agent_pattern 不能为空",
@@ -316,8 +282,7 @@ public class PermissionToolHandlers
             ]);
     }
 
-    internal static ToolDiagnostic BuildInvalidPermissionModeDiagnostic(string mode)
-    {
+    internal static ToolDiagnostic BuildInvalidPermissionModeDiagnostic(string mode) {
         return ToolDiagnostic.Create(
             reason: "PermissionInvalidMode",
             formattedMessage: $"无效的权限模式: {mode}。有效值: auto, plan, ask, deny",
@@ -332,8 +297,7 @@ public class PermissionToolHandlers
             ]);
     }
 
-    internal static ToolDiagnostic BuildInvalidPermissionLevelDiagnostic(string level)
-    {
+    internal static ToolDiagnostic BuildInvalidPermissionLevelDiagnostic(string level) {
         return ToolDiagnostic.Create(
             reason: "PermissionInvalidLevel",
             formattedMessage: $"无效的权限级别: {level}。有效值: none, read, write, execute, admin",
@@ -348,8 +312,7 @@ public class PermissionToolHandlers
             ]);
     }
 
-    internal static ToolDiagnostic BuildRuleNotFoundDiagnostic(string agentPattern)
-    {
+    internal static ToolDiagnostic BuildRuleNotFoundDiagnostic(string agentPattern) {
         return ToolDiagnostic.Create(
             reason: "PermissionRuleNotFound",
             formattedMessage: $"未找到规则: {agentPattern}",
@@ -364,8 +327,7 @@ public class PermissionToolHandlers
             ]);
     }
 
-    internal static ToolDiagnostic BuildAgentNameEmptyDiagnostic()
-    {
+    internal static ToolDiagnostic BuildAgentNameEmptyDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "PermissionAgentNameEmpty",
             formattedMessage: "agent_name 不能为空",
@@ -379,8 +341,7 @@ public class PermissionToolHandlers
             ]);
     }
 
-    internal static ToolDiagnostic BuildToolNameEmptyDiagnostic()
-    {
+    internal static ToolDiagnostic BuildToolNameEmptyDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "PermissionToolNameEmpty",
             formattedMessage: "tool_name 不能为空",
@@ -394,8 +355,7 @@ public class PermissionToolHandlers
             ]);
     }
 
-    internal static ToolDiagnostic BuildPathEmptyDiagnostic()
-    {
+    internal static ToolDiagnostic BuildPathEmptyDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "PermissionPathEmpty",
             formattedMessage: "path 不能为空",
@@ -409,8 +369,7 @@ public class PermissionToolHandlers
             ]);
     }
 
-    internal static ToolDiagnostic BuildClearConfirmInvalidDiagnostic()
-    {
+    internal static ToolDiagnostic BuildClearConfirmInvalidDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "PermissionClearConfirmInvalid",
             formattedMessage: "请输入 'yes' 确认清除所有规则",
@@ -428,12 +387,10 @@ public class PermissionToolHandlers
 
     #region Private Methods
 
-    private static string FormatRule(AgentPermissionRule rule)
-    {
+    private static string FormatRule(AgentPermissionRule rule) {
         var sb = new System.Text.StringBuilder();
 
-        var modeIcon = rule.Mode switch
-        {
+        var modeIcon = rule.Mode switch {
             PermissionMode.Auto => ObjectSymbol.Lightning.ToValue(),
             PermissionMode.Plan => ObjectSymbol.Pencil.ToValue(),
             PermissionMode.Ask => StatusSymbol.Circle.ToValue(),
@@ -444,28 +401,23 @@ public class PermissionToolHandlers
         sb.AppendLine($"{modeIcon} [{rule.Priority}] {rule.AgentPattern}");
         sb.AppendLine($"   模式: {rule.Mode} | 级别: {rule.Level}");
 
-        if (!string.IsNullOrEmpty(rule.Description))
-        {
+        if (!string.IsNullOrEmpty(rule.Description)) {
             sb.AppendLine($"   描述: {rule.Description}");
         }
 
-        if (rule.AllowedTools?.Count > 0)
-        {
+        if (rule.AllowedTools?.Count > 0) {
             sb.AppendLine($"   允许工具: {string.Join(", ", rule.AllowedTools)}");
         }
 
-        if (rule.DeniedTools?.Count > 0)
-        {
+        if (rule.DeniedTools?.Count > 0) {
             sb.AppendLine($"   拒绝工具: {string.Join(", ", rule.DeniedTools)}");
         }
 
-        if (rule.AllowedPaths?.Count > 0)
-        {
+        if (rule.AllowedPaths?.Count > 0) {
             sb.AppendLine($"   允许路径: {string.Join(", ", rule.AllowedPaths)}");
         }
 
-        if (rule.DeniedPaths?.Count > 0)
-        {
+        if (rule.DeniedPaths?.Count > 0) {
             sb.AppendLine($"   拒绝路径: {string.Join(", ", rule.DeniedPaths)}");
         }
 

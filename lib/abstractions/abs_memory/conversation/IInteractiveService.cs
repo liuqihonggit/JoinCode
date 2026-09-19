@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 消费方: UserInteractionToolHandlers (MCP ask_user_question 工具)
 /// 关系: IUserInteractionService 提供简单交互（Ask/Send/Confirm），本接口提供结构化多选提问
 /// </summary>
-public interface IInteractiveService
-{
+public interface IInteractiveService {
     /// <summary>
     /// 向用户提问（单选）
     /// </summary>

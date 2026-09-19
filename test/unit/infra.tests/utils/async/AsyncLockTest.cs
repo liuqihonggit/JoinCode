@@ -7,13 +7,11 @@ namespace Infra.Tests.Utils.Async;
 /// 每个测试限时 10s (xUnit Timeout)，关键 await 另加 WaitAsync 兜底防止死锁。
 /// 注: SemaphoreSlim 包装不保证无竞争时 LockAsync 同步完成, 故不再断言 IsCompletedSuccessfully.BeTrue。
 /// </summary>
-public class AsyncLockTest
-{
+public class AsyncLockTest {
     // ===== 1. 互斥性 (Mutual Exclusion) =====
 
     [Fact(Timeout = 10000)]
-    public async Task LockAsync_SecondCallWaitsUntilFirstReleases()
-    {
+    public async Task LockAsync_SecondCallWaitsUntilFirstReleases() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
 
@@ -39,8 +37,7 @@ public class AsyncLockTest
     // ===== 2. 无竞争快速路径 (Fast Path) =====
 
     [Fact(Timeout = 10000)]
-    public async Task LockAsync_NoContention_CompletesSynchronously()
-    {
+    public async Task LockAsync_NoContention_CompletesSynchronously() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
 
         // SemaphoreSlim 包装不保证无竞争时同步完成, 仅验证锁可获取
@@ -48,8 +45,7 @@ public class AsyncLockTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task LockAsync_AfterRelease_CompletesSynchronously()
-    {
+    public async Task LockAsync_AfterRelease_CompletesSynchronously() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var g1 = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
         g1.Dispose();
@@ -61,8 +57,7 @@ public class AsyncLockTest
     // ===== 3. 竞争排队与唤醒 (Queueing & Wakeup) =====
 
     [Fact(Timeout = 10000)]
-    public async Task LockAsync_MultipleConcurrentLockers_SerializedAndMutuallyExclusive()
-    {
+    public async Task LockAsync_MultipleConcurrentLockers_SerializedAndMutuallyExclusive() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         const int N = 10;
         var acquireOrder = new ConcurrentQueue<int>();
@@ -71,8 +66,7 @@ public class AsyncLockTest
         int completedCount = 0;
 
         var startGate = new TaskCompletionSource<bool>();
-        var tasks = Enumerable.Range(0, N).Select(async i =>
-        {
+        var tasks = Enumerable.Range(0, N).Select(async i => {
             await startGate.Task.ConfigureAwait(true);
             using var guard = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
             acquireOrder.Enqueue(i);
@@ -95,8 +89,7 @@ public class AsyncLockTest
     // ===== 4. 取消支持 (Cancellation) =====
 
     [Fact(Timeout = 10000)]
-    public async Task LockAsync_PreCanceledToken_ThrowsOperationCanceledException()
-    {
+    public async Task LockAsync_PreCanceledToken_ThrowsOperationCanceledException() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -108,8 +101,7 @@ public class AsyncLockTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task LockAsync_WaitingLockerCanceled_ThrowsAndNextWaiterProceeds()
-    {
+    public async Task LockAsync_WaitingLockerCanceled_ThrowsAndNextWaiterProceeds() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
 
@@ -134,8 +126,7 @@ public class AsyncLockTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task LockAsync_CanceledTokenWhenLockAvailable_ThrowsImmediately()
-    {
+    public async Task LockAsync_CanceledTokenWhenLockAvailable_ThrowsImmediately() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -149,8 +140,7 @@ public class AsyncLockTest
     // ===== 5. Dispose 异常 (Disposed Exception) =====
 
     [Fact(Timeout = 10000)]
-    public async Task LockAsync_AfterDispose_ThrowsObjectDisposedException()
-    {
+    public async Task LockAsync_AfterDispose_ThrowsObjectDisposedException() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         asyncLock.Dispose();
 
@@ -161,8 +151,7 @@ public class AsyncLockTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task Lock_AfterDispose_ThrowsObjectDisposedException()
-    {
+    public async Task Lock_AfterDispose_ThrowsObjectDisposedException() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         asyncLock.Dispose();
 
@@ -172,8 +161,7 @@ public class AsyncLockTest
     }
 
     [Fact(Timeout = 10000, Skip = "SemaphoreSlim.Dispose 不通知等待者,使用 AsyncLock 时确保 Dispose 前无等待者")]
-    public async Task LockAsync_WaitingLockerGetsObjectDisposedExceptionOnDispose()
-    {
+    public async Task LockAsync_WaitingLockerGetsObjectDisposedExceptionOnDispose() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
 
@@ -188,8 +176,7 @@ public class AsyncLockTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task Dispose_CalledTwice_DoesNotThrow()
-    {
+    public async Task Dispose_CalledTwice_DoesNotThrow() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         asyncLock.Dispose();
         Action act = asyncLock.Dispose;
@@ -200,8 +187,7 @@ public class AsyncLockTest
     // ===== 6. 参数兼容构造 (Parameter Compatibility) =====
 
     [Fact(Timeout = 10000)]
-    public async Task Constructor_ValidArgs_Succeeds()
-    {
+    public async Task Constructor_ValidArgs_Succeeds() {
         Action act = () => new AsyncLock(1, 1);
         act.Should().NotThrow("仅 (1,1) 互斥语义合法");
         await Task.CompletedTask;
@@ -213,8 +199,7 @@ public class AsyncLockTest
     [InlineData(-1, 1)]
     [InlineData(1, 0)]
     [InlineData(1, -1)]
-    public async Task Constructor_InvalidArgs_ThrowsArgumentOutOfRangeException(int initial, int max)
-    {
+    public async Task Constructor_InvalidArgs_ThrowsArgumentOutOfRangeException(int initial, int max) {
         Action act = () => new AsyncLock(initial, max);
         act.Should().Throw<ArgumentOutOfRangeException>(
             "initialCount > maxCount 或 maxCount < 1 或 initialCount < 0 应抛异常");
@@ -227,8 +212,7 @@ public class AsyncLockTest
     [InlineData(2, 2)]
     [InlineData(1, 2)]
     [InlineData(4, 8)]
-    public async Task Constructor_ValidConcurrencyArgs_CreatesSuccessfully(int initial, int max)
-    {
+    public async Task Constructor_ValidConcurrencyArgs_CreatesSuccessfully(int initial, int max) {
         using var asyncLock = new AsyncLock("test-concurrency", initial, max);
         await Task.CompletedTask;
     }
@@ -236,16 +220,13 @@ public class AsyncLockTest
     // ===== 7. Lock() 同步互斥 (Sync Lock) =====
 
     [Fact(Timeout = 10000)]
-    public async Task Lock_TwoThreads_Serialized()
-    {
+    public async Task Lock_TwoThreads_Serialized() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
         var secondAcquired = new ManualResetEventSlim(false);
 
-        var t = Task.Run(() =>
-        {
-            using (asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时"))
-            {
+        var t = Task.Run(() => {
+            using (asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时")) {
                 secondAcquired.Set();
             }
         });
@@ -259,8 +240,7 @@ public class AsyncLockTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task Lock_ThenLockAsync_BlocksUntilRelease()
-    {
+    public async Task Lock_ThenLockAsync_BlocksUntilRelease() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
 
@@ -277,8 +257,7 @@ public class AsyncLockTest
     // ===== 8. Guard.Dispose 释放锁 (Guard Release) =====
 
     [Fact(Timeout = 10000)]
-    public async Task GuardDispose_AllowsNextLockAsyncToProceedImmediately()
-    {
+    public async Task GuardDispose_AllowsNextLockAsyncToProceedImmediately() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
 
@@ -289,8 +268,7 @@ public class AsyncLockTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task GuardDispose_MultipleTimes_DoesNotBreakLock()
-    {
+    public async Task GuardDispose_MultipleTimes_DoesNotBreakLock() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
 
@@ -305,8 +283,7 @@ public class AsyncLockTest
     // ===== 9. 可重入安全 (Reentrancy Safety - 非重入, 第二次等待) =====
 
     [Fact(Timeout = 10000)]
-    public async Task LockAsync_TwiceWithoutRelease_SecondWaits()
-    {
+    public async Task LockAsync_TwiceWithoutRelease_SecondWaits() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
 
@@ -323,8 +300,7 @@ public class AsyncLockTest
     // ===== 10. 大量并发 (High Concurrency) =====
 
     [Fact(Timeout = 10000)]
-    public async Task LockAsync_HighConcurrency_AllAcquiredExactlyOnce()
-    {
+    public async Task LockAsync_HighConcurrency_AllAcquiredExactlyOnce() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         const int N = 100;
         int currentHolders = 0;
@@ -333,8 +309,7 @@ public class AsyncLockTest
         int acquireCount = 0;
 
         var startGate = new TaskCompletionSource<bool>();
-        var tasks = Enumerable.Range(0, N).Select(async _ =>
-        {
+        var tasks = Enumerable.Range(0, N).Select(async _ => {
             await startGate.Task.ConfigureAwait(true);
             using var guard = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
             Interlocked.Increment(ref acquireCount);
@@ -356,18 +331,14 @@ public class AsyncLockTest
     /// <summary>
     /// 无锁更新最大值 (CAS 循环)。
     /// </summary>
-    private static void UpdateMax(ref int location, int value)
-    {
+    private static void UpdateMax(ref int location, int value) {
         int observed;
-        do
-        {
+        do {
             observed = location;
-            if (value <= observed)
-            {
+            if (value <= observed) {
                 return;
             }
         }
         while (Interlocked.CompareExchange(ref location, value, observed) != observed);
     }
 }
-

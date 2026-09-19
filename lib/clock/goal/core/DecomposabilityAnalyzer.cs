@@ -5,8 +5,7 @@ namespace Core.Goal;
 /// 可分解性分析器默认实现 — 调用 LLM 判断目标是否可分解为并行子任务
 /// </summary>
 [Register(typeof(IDecomposabilityAnalyzer), ServiceLifetime.Singleton)]
-public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposabilityAnalyzer
-{
+public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposabilityAnalyzer {
     private readonly IChatClient _kernel;
     private readonly ILogger<DecomposabilityAnalyzer>? _logger;
 
@@ -15,8 +14,7 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
     /// </summary>
     /// <param name="kernel">聊天客户端</param>
     /// <param name="logger">可选日志记录器</param>
-    public DecomposabilityAnalyzer(IChatClient kernel, ILogger<DecomposabilityAnalyzer>? logger = null)
-    {
+    public DecomposabilityAnalyzer(IChatClient kernel, ILogger<DecomposabilityAnalyzer>? logger = null) {
         _kernel = kernel;
         _logger = logger;
     }
@@ -25,13 +23,11 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
     public async Task<DecompositionResult> AnalyzeAsync(
         string objective,
         IReadOnlyList<string> constraints,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
         var envOverride = Environment.GetEnvironmentVariable("JCC_CLUSTER_DECOMPOSITION_OVERRIDE");
-        if (!string.IsNullOrWhiteSpace(envOverride))
-        {
+        if (!string.IsNullOrWhiteSpace(envOverride)) {
             _logger?.LogInformation("Decomposability analyzer using environment override");
             return ParseAnalysisResult(envOverride, _logger);
         }
@@ -42,14 +38,12 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
         chatHistory.AddSystemMessage(prompt);
         chatHistory.AddUserMessage("Analyze whether this objective can be decomposed into parallel subtasks.");
 
-        var executionSettings = new ChatOptions
-        {
+        var executionSettings = new ChatOptions {
             Temperature = 0.0f,
             MaxTokens = 1000
         };
 
-        try
-        {
+        try {
             var chatService = _kernel.GetChatCompletionService();
             var results = await chatService.GetApiMessageContentsAsync(
                 chatHistory,
@@ -59,29 +53,23 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
 
             var content = results.Count > 0 ? results[0].Content : null;
             return ParseAnalysisResult(content, _logger);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Decomposability analyzer LLM call failed");
             return DecompositionResult.NotDecomposable("分解分析器不可用");
         }
     }
 
-    internal static DecompositionResult ParseAnalysisResult(string? content, ILogger? logger = null)
-    {
-        if (string.IsNullOrWhiteSpace(content))
-        {
+    internal static DecompositionResult ParseAnalysisResult(string? content, ILogger? logger = null) {
+        if (string.IsNullOrWhiteSpace(content)) {
             return DecompositionResult.NotDecomposable("分解分析器返回空结果");
         }
 
         var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.DecompositionAnalysisJson, out var report, logger);
-        if (result is not null)
-        {
+        if (result is not null) {
             if (report.RepairHint is not null)
                 _ = report.RepairHint;
 
-            var subTasks = result.SubTasks.Select((s, i) => new SubTaskDefinition
-            {
+            var subTasks = result.SubTasks.Select((s, i) => new SubTaskDefinition {
                 Id = string.IsNullOrWhiteSpace(s.Id) ? $"sub_{i + 1}" : s.Id,
                 Title = s.Title,
                 Description = s.Description,
@@ -110,8 +98,7 @@ public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposab
         return DecompositionResult.NotDecomposable(formatError);
     }
 
-    private static string BuildAnalyzerPrompt(string objective, IReadOnlyList<string> constraints)
-    {
+    private static string BuildAnalyzerPrompt(string objective, IReadOnlyList<string> constraints) {
         var constraintsText = constraints.Count > 0
             ? string.Join("\n", constraints.Select(c => $"- {c}"))
             : "无特殊约束";

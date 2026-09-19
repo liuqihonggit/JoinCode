@@ -6,19 +6,16 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Cost, Description = "显示使用成本统计", Usage = "/cost [today|session|total]", Category = ChatCommandCategory.Model, ArgumentHint = "[today|session|total]", ExposeToMcp = true)]
 [ChatCommandArg("scope", Type = "string", Description = "成本统计范围", Enum = new[] { "today", "session", "total" })]
-public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
-{
+public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase {
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
     /// <summary>
     /// 执行成本统计命令,根据 scope 参数选择今日/会话/累计范围并输出格式化成本报告
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数与成本追踪器</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
-        if (services.CostTracker is null)
-        {
+        if (services.CostTracker is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}成本追踪器不可用。{AnsiStyleEnumConstants.Reset}");
             return Task.FromResult(ChatCommandResult.Continue());
         }
@@ -28,18 +25,17 @@ public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : 
 
         CostStatistics stats;
 
-        switch (scope)
-        {
+        switch (scope) {
             case CostScopeEnumConstants.Today:
-                stats = services.CostTracker.GetTodayStatistics();
-                break;
+            stats = services.CostTracker.GetTodayStatistics();
+            break;
             case CostScopeEnumConstants.Total:
-                stats = services.CostTracker.GetTotalStatistics();
-                break;
+            stats = services.CostTracker.GetTotalStatistics();
+            break;
             case CostScopeEnumConstants.Session:
             default:
-                stats = services.CostTracker.GetSessionStatistics(context.SessionId);
-                break;
+            stats = services.CostTracker.GetSessionStatistics(context.SessionId);
+            break;
         }
 
         var output = FormatTotalCost(stats);
@@ -48,11 +44,9 @@ public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : 
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    internal string FormatTotalCost(CostStatistics stats)
-    {
+    internal string FormatTotalCost(CostStatistics stats) {
         var costDisplay = FormatCost(stats.TotalCostUsd);
-        if (stats.HasUnknownModelCost)
-        {
+        if (stats.HasUnknownModelCost) {
             costDisplay += " (costs may be inaccurate due to usage of unknown models)";
         }
 
@@ -63,12 +57,9 @@ public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : 
         sb.AppendLine($"Total duration (wall): {DurationFormatter.Format(stats.WallDuration)}");
         sb.AppendLine($"Total code changes:    {stats.LinesAdded} {(stats.LinesAdded == 1 ? "line" : "lines")} added, {stats.LinesRemoved} {(stats.LinesRemoved == 1 ? "line" : "lines")} removed");
 
-        if (stats.ModelBreakdown.Count > 0)
-        {
+        if (stats.ModelBreakdown.Count > 0) {
             sb.AppendLine(FormatModelUsage(stats.ModelBreakdown));
-        }
-        else
-        {
+        } else {
             sb.AppendLine("Usage:                 0 input, 0 output, 0 cache read, 0 cache write");
         }
 
@@ -76,21 +67,16 @@ public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : 
         return sb.ToString();
     }
 
-    internal static string FormatCost(decimal cost)
-    {
+    internal static string FormatCost(decimal cost) {
         return cost >= 0.5m ? $"${Math.Round((double)cost, 2):F2}" : $"${cost:F4}";
     }
 
-    internal string FormatModelUsage(List<ModelCostStatistics> modelBreakdown)
-    {
+    internal string FormatModelUsage(List<ModelCostStatistics> modelBreakdown) {
         var usageByShortName = new Dictionary<string, ModelCostStatistics>(StringComparer.OrdinalIgnoreCase);
-        foreach (var model in modelBreakdown)
-        {
+        foreach (var model in modelBreakdown) {
             var shortName = new ModelNameHelper(_modelConfigLoader).GetCanonicalName(model.Model);
-            if (!usageByShortName.TryGetValue(shortName, out var existing))
-            {
-                usageByShortName[shortName] = new ModelCostStatistics
-                {
+            if (!usageByShortName.TryGetValue(shortName, out var existing)) {
+                usageByShortName[shortName] = new ModelCostStatistics {
                     Model = shortName,
                     RequestCount = model.RequestCount,
                     PromptTokens = model.PromptTokens,
@@ -99,11 +85,8 @@ public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : 
                     CacheReadTokens = model.CacheReadTokens,
                     TotalCost = model.TotalCost
                 };
-            }
-            else
-            {
-                usageByShortName[shortName] = new ModelCostStatistics
-                {
+            } else {
+                usageByShortName[shortName] = new ModelCostStatistics {
                     Model = shortName,
                     RequestCount = existing.RequestCount + model.RequestCount,
                     PromptTokens = existing.PromptTokens + model.PromptTokens,
@@ -117,8 +100,7 @@ public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : 
 
         var sb = new StringBuilder();
         sb.AppendLine("Usage by model:");
-        foreach (var kvp in usageByShortName)
-        {
+        foreach (var kvp in usageByShortName) {
             var usage = kvp.Value;
             var usageString =
                 $"{usage.PromptTokens:N0} input, " +

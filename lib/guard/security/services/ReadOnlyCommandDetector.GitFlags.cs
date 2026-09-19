@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 只读命令检测器 — Git 子命令安全标志构建器
 /// 包含所有 Git 相关的 BuildGitXxxSafeFlags、CheckGitXxxDangerous 方法
 /// </summary>
-public sealed partial class ReadOnlyCommandDetector
-{
+public sealed partial class ReadOnlyCommandDetector {
     #region Git 子命令安全标志构建器
 
     /// <summary>
@@ -15,8 +14,7 @@ public sealed partial class ReadOnlyCommandDetector
         MergeGitFlags(
             GitStatFlags(),
             GitColorFlags(),
-            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-            {
+            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
                 ["--dirstat"] = FlagArgType.None,
                 ["--summary"] = FlagArgType.None,
                 ["--patch-with-stat"] = FlagArgType.None,
@@ -82,8 +80,7 @@ public sealed partial class ReadOnlyCommandDetector
             GitColorFlags(),
             GitPatchFlags(),
             GitAuthorFilterFlags(),
-            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-            {
+            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
                 ["--abbrev-commit"] = FlagArgType.None,
                 ["--full-history"] = FlagArgType.None,
                 ["--dense"] = FlagArgType.None,
@@ -129,8 +126,7 @@ public sealed partial class ReadOnlyCommandDetector
             GitStatFlags(),
             GitColorFlags(),
             GitPatchFlags(),
-            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-            {
+            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
                 ["--abbrev-commit"] = FlagArgType.None,
                 ["--word-diff"] = FlagArgType.None,
                 ["--word-diff-regex"] = FlagArgType.Required,
@@ -152,8 +148,7 @@ public sealed partial class ReadOnlyCommandDetector
         MergeGitFlags(
             GitRefSelectionFlags(),
             GitDateFilterFlags(),
-            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-            {
+            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
                 ["-s"] = FlagArgType.None,
                 ["--summary"] = FlagArgType.None,
                 ["-n"] = FlagArgType.None,
@@ -197,8 +192,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// 故意排除 --server-option/-o
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitLsRemoteSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--branches"] = FlagArgType.None,
             ["-b"] = FlagArgType.None,
             ["--tags"] = FlagArgType.None,
@@ -218,8 +212,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// git status 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git status"]
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitStatusSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--short"] = FlagArgType.None,
             ["-s"] = FlagArgType.None,
             ["--branch"] = FlagArgType.None,
@@ -248,8 +241,7 @@ public sealed partial class ReadOnlyCommandDetector
     private static FrozenDictionary<string, FlagArgType> BuildGitBlameSafeFlags() =>
         MergeGitFlags(
             GitColorFlags(),
-            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-            {
+            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
                 ["-L"] = FlagArgType.Required,
                 ["--porcelain"] = FlagArgType.None,
                 ["-p"] = FlagArgType.None,
@@ -281,8 +273,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// git ls-files 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git ls-files"]
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitLsFilesSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--cached"] = FlagArgType.None,
             ["-c"] = FlagArgType.None,
             ["--deleted"] = FlagArgType.None,
@@ -324,8 +315,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// 三词键注册，仅允许读取模式
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitConfigGetSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--local"] = FlagArgType.None,
             ["--global"] = FlagArgType.None,
             ["--system"] = FlagArgType.None,
@@ -349,8 +339,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// AdditionalDangerousCallback: 位置参数必须是字母数字远程名
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitRemoteShowSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-n"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
@@ -359,8 +348,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// AdditionalDangerousCallback: 仅允许裸命令或 -v/--verbose
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitRemoteSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-v"] = FlagArgType.None,
             ["--verbose"] = FlagArgType.None,
         }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
@@ -369,8 +357,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// git merge-base 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git merge-base"]
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitMergeBaseSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--is-ancestor"] = FlagArgType.None,
             ["--fork-point"] = FlagArgType.None,
             ["--octopus"] = FlagArgType.None,
@@ -382,8 +369,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// git rev-parse 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git rev-parse"]
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitRevParseSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--verify"] = FlagArgType.None,
             ["--short"] = FlagArgType.Required,
             ["--abbrev-ref"] = FlagArgType.None,
@@ -413,8 +399,7 @@ public sealed partial class ReadOnlyCommandDetector
             GitDateFilterFlags(),
             GitCountFlags(),
             GitAuthorFilterFlags(),
-            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-            {
+            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
                 ["--count"] = FlagArgType.None,
                 ["--reverse"] = FlagArgType.None,
                 ["--first-parent"] = FlagArgType.None,
@@ -446,8 +431,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// git describe 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git describe"]
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitDescribeSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--tags"] = FlagArgType.None,
             ["--match"] = FlagArgType.Required,
             ["--exclude"] = FlagArgType.Required,
@@ -467,8 +451,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// 故意排除 --batch（从 stdin 读取，可管道转储敏感对象）
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitCatFileSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-t"] = FlagArgType.None,
             ["-s"] = FlagArgType.None,
             ["-p"] = FlagArgType.None,
@@ -481,8 +464,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// git for-each-ref 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git for-each-ref"]
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitForEachRefSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--format"] = FlagArgType.Required,
             ["--sort"] = FlagArgType.Required,
             ["--count"] = FlagArgType.Required,
@@ -497,8 +479,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// git grep 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git grep"]
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitGrepSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-e"] = FlagArgType.Required,
             ["-E"] = FlagArgType.None,
             ["--extended-regexp"] = FlagArgType.None,
@@ -558,8 +539,7 @@ public sealed partial class ReadOnlyCommandDetector
             GitStatFlags(),
             GitColorFlags(),
             GitPatchFlags(),
-            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-            {
+            new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
                 ["--word-diff"] = FlagArgType.None,
                 ["--word-diff-regex"] = FlagArgType.Required,
                 ["--diff-filter"] = FlagArgType.Required,
@@ -571,8 +551,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// git worktree list 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git worktree list"]
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitWorktreeListSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--porcelain"] = FlagArgType.None,
             ["-v"] = FlagArgType.None,
             ["--verbose"] = FlagArgType.None,
@@ -584,8 +563,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// AdditionalDangerousCallback: 阻止位置参数创建标签（仅允许 -l/--list 后的位置参数）
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitTagSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-l"] = FlagArgType.None,
             ["--list"] = FlagArgType.None,
             ["-n"] = FlagArgType.Required,
@@ -607,8 +585,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// AdditionalDangerousCallback: 阻止位置参数创建分支（仅允许列表模式）
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitBranchSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-l"] = FlagArgType.None,
             ["--list"] = FlagArgType.None,
             ["-a"] = FlagArgType.None,
@@ -640,8 +617,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// 仅允许 --no-commit 预览模式和安全操作标志
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitCherryPickSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--no-commit"] = FlagArgType.None,
             ["-n"] = FlagArgType.None,
             ["--continue"] = FlagArgType.None,
@@ -666,8 +642,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// git show-branch 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git show-branch"]
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitShowBranchSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--all"] = FlagArgType.None,
             ["--remotes"] = FlagArgType.None,
             ["--more"] = FlagArgType.Required,
@@ -684,8 +659,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// git verify-pack 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git verify-pack"]
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitVerifyPackSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["-v"] = FlagArgType.None,
             ["--verbose"] = FlagArgType.None,
             ["-s"] = FlagArgType.None,
@@ -704,8 +678,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// git name-rev 安全标志 — 对齐 TS GIT_READ_ONLY_COMMANDS["git name-rev"]
     /// </summary>
     private static FrozenDictionary<string, FlagArgType> BuildGitNameRevSafeFlags() =>
-        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FlagArgType>(StringComparer.OrdinalIgnoreCase) {
             ["--name-only"] = FlagArgType.None,
             ["--tags"] = FlagArgType.None,
             ["--refs"] = FlagArgType.Required,
@@ -722,8 +695,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// <summary>
     /// git reflog 危险回调 — 阻止 expire/delete/exists 子命令（写入 .git/logs/**）
     /// </summary>
-    private static bool CheckGitReflogDangerous(string command, IReadOnlyList<string> args)
-    {
+    private static bool CheckGitReflogDangerous(string command, IReadOnlyList<string> args) {
         return args.Count > 0 &&
             (args[0].Equals("expire", StringComparison.OrdinalIgnoreCase) ||
              args[0].Equals("delete", StringComparison.OrdinalIgnoreCase) ||
@@ -733,8 +705,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// <summary>
     /// git remote show 危险回调 — 位置参数必须是字母数字远程名
     /// </summary>
-    private static bool CheckGitRemoteShowDangerous(string command, IReadOnlyList<string> args)
-    {
+    private static bool CheckGitRemoteShowDangerous(string command, IReadOnlyList<string> args) {
         var positionArgs = args.Where(a => !a.StartsWith('-')).ToList();
         if (positionArgs.Count != 1) return true;
         return !Regex.IsMatch(positionArgs[0], @"^[a-zA-Z0-9_-]+$");
@@ -743,8 +714,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// <summary>
     /// git remote 危险回调 — 仅允许裸命令或 -v/--verbose，阻止任何位置参数
     /// </summary>
-    private static bool CheckGitRemoteDangerous(string command, IReadOnlyList<string> args)
-    {
+    private static bool CheckGitRemoteDangerous(string command, IReadOnlyList<string> args) {
         var nonFlagArgs = args.Where(a => !a.StartsWith('-')).ToList();
         if (nonFlagArgs.Count > 0) return true;
         return false;
@@ -753,12 +723,10 @@ public sealed partial class ReadOnlyCommandDetector
     /// <summary>
     /// git tag 危险回调 — 阻止位置参数创建标签（仅允许 -l/--list 后的位置参数）
     /// </summary>
-    private static bool CheckGitTagDangerous(string command, IReadOnlyList<string> args)
-    {
+    private static bool CheckGitTagDangerous(string command, IReadOnlyList<string> args) {
         var hasList = args.Any(a => a.Equals("-l", StringComparison.OrdinalIgnoreCase) ||
                                      a.Equals("--list", StringComparison.OrdinalIgnoreCase));
-        if (!hasList)
-        {
+        if (!hasList) {
             var positionArgs = args.Where(a => !a.StartsWith('-')).ToList();
             if (positionArgs.Count > 0) return true;
         }
@@ -768,8 +736,7 @@ public sealed partial class ReadOnlyCommandDetector
     /// <summary>
     /// git branch 危险回调 — 阻止位置参数创建分支（仅允许列表模式）
     /// </summary>
-    private static bool CheckGitBranchDangerous(string command, IReadOnlyList<string> args)
-    {
+    private static bool CheckGitBranchDangerous(string command, IReadOnlyList<string> args) {
         var hasList = args.Any(a => a.Equals("-l", StringComparison.OrdinalIgnoreCase) ||
                                      a.Equals("--list", StringComparison.OrdinalIgnoreCase) ||
                                      a.Equals("-a", StringComparison.OrdinalIgnoreCase) ||
@@ -781,8 +748,7 @@ public sealed partial class ReadOnlyCommandDetector
                                      a.Equals("--no-contains", StringComparison.OrdinalIgnoreCase) ||
                                      a.Equals("--merged", StringComparison.OrdinalIgnoreCase) ||
                                      a.Equals("--no-merged", StringComparison.OrdinalIgnoreCase));
-        if (!hasList)
-        {
+        if (!hasList) {
             var positionArgs = args.Where(a => !a.StartsWith('-')).ToList();
             if (positionArgs.Count > 0) return true;
         }

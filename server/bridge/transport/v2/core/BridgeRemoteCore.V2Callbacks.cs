@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// Bridge 远程核心（v2 回调分部类） — 注册 v2 传输回调、URL 转换、环境重连策略
 /// </summary>
-public static partial class BridgeRemoteCore
-{
+public static partial class BridgeRemoteCore {
     /// <summary>
     /// 注册 v2 传输回调 — 对齐 TS 端 wireTransport (v2 路径)
     /// 与 v1 的区别: 跳过 OAuth token 更新（v2 使用 JWT，覆盖会破坏 /worker/* 请求的 session_id 校验）
@@ -17,10 +16,8 @@ public static partial class BridgeRemoteCore
         BridgeInitState state,
         BridgeWorkPollLoop pollLoop,
         ILogger? logger,
-        CancellationToken ct)
-    {
-        transport.SetOnConnect(() =>
-        {
+        CancellationToken ct) {
+        transport.SetOnConnect(() => {
             if (state.TornDown) return;
 
             // 陈旧传输守卫
@@ -35,8 +32,7 @@ public static partial class BridgeRemoteCore
             state.TeardownStarted = false;
 
             // 初始消息刷新
-            if (!state.InitialFlushDone && parameters.InitialMessages is { Length: > 0 })
-            {
+            if (!state.InitialFlushDone && parameters.InitialMessages is { Length: > 0 }) {
                 state.InitialFlushDone = true;
                 _ = FlushHistoryAsync(
                     parameters.InitialMessages,
@@ -46,10 +42,8 @@ public static partial class BridgeRemoteCore
                     sessionId,
                     state.InitCts.Token,
                     parameters.PreviouslyFlushedUUIDs)
-                .ContinueWith(task =>
-                {
-                    if (task.IsFaulted)
-                    {
+                .ContinueWith(task => {
+                    if (task.IsFaulted) {
                         logger?.LogError("Bridge v2: flushHistory 失败: {Message}",
                             task.Exception?.InnerException?.Message);
                     }
@@ -59,25 +53,20 @@ public static partial class BridgeRemoteCore
                         parameters.ToSDKMessages, transport, sessionId, state.InitCts.Token);
                     parameters.OnStateChange?.Invoke(BridgeState.Connected, null);
                 }, state.InitCts.Token);
-            }
-            else if (!state.FlushGate.Active)
-            {
+            } else if (!state.FlushGate.Active) {
                 parameters.OnStateChange?.Invoke(BridgeState.Connected, null);
             }
         });
 
-        transport.SetOnData(data =>
-        {
+        transport.SetOnData(data => {
             BridgeMessaging.HandleIngressMessage(
                 data,
                 state.RecentPostedUUIDs,
                 state.RecentInboundUUIDs,
                 onInboundMessage: parameters.OnInboundMessage,
                 onPermissionResponse: parameters.OnPermissionResponse,
-                onControlRequest: async request =>
-                {
-                    var handlers = new ServerControlRequestHandlers
-                    {
+                onControlRequest: async request => {
+                    var handlers = new ServerControlRequestHandlers {
                         Transport = transport,
                         SessionId = sessionId,
                         OutboundOnly = parameters.OutboundOnly,
@@ -90,16 +79,14 @@ public static partial class BridgeRemoteCore
                 });
         });
 
-        transport.SetOnClose(code =>
-        {
+        transport.SetOnClose(code => {
             // 陈旧传输守卫
             if (pollLoop.CurrentTransport != transport) return;
 
             logger?.LogWarning("Bridge v2: 传输永久关闭 (code={Code})", code);
 
             var closedSeq = transport.GetLastSequenceNum();
-            if (closedSeq > state.LastTransportSequenceNum)
-            {
+            if (closedSeq > state.LastTransportSequenceNum) {
                 state.LastTransportSequenceNum = closedSeq;
             }
 
@@ -107,14 +94,12 @@ public static partial class BridgeRemoteCore
             pollLoop.Wake();
 
             var dropped = state.FlushGate.Drop();
-            if (dropped > 0)
-            {
+            if (dropped > 0) {
                 logger?.LogDebug("Bridge v2: 传输关闭时丢弃 {Count} 条排队消息 (code={Code})",
                     dropped, code);
             }
 
-            if (code == 1000)
-            {
+            if (code == 1000) {
                 parameters.OnStateChange?.Invoke(BridgeState.Failed, "session ended");
                 return;
             }
@@ -122,26 +107,19 @@ public static partial class BridgeRemoteCore
             parameters.OnStateChange?.Invoke(BridgeState.Reconnecting,
                 $"Transport closed (code {code}), reconnecting...");
 
-            _ = Task.Run(async () =>
-            {
-                try
-                {
+            _ = Task.Run(async () => {
+                try {
                     var handle = BridgeHandle.GetHandle() as V1BridgeHandle;
-                    if (handle is not null)
-                    {
+                    if (handle is not null) {
                         var reconnected = await handle.ReconnectAsync(state.InitCts.Token).ConfigureAwait(false);
-                        if (!reconnected && !state.TornDown)
-                        {
+                        if (!reconnected && !state.TornDown) {
                             logger?.LogError("Bridge v2: 环境重连失败");
                             parameters.OnStateChange?.Invoke(BridgeState.Failed, "Reconnect failed");
                         }
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     logger?.LogError(ex, "Bridge v2: 重连异常");
-                    if (!state.TornDown)
-                    {
+                    if (!state.TornDown) {
                         parameters.OnStateChange?.Invoke(BridgeState.Failed, $"Reconnect error: {ex.Message}");
                     }
                 }
@@ -154,21 +132,18 @@ public static partial class BridgeRemoteCore
     /// wss://api.example.com/v2/session_ingress/ws/{session_id}
     /// → https://api.example.com/v2/session_ingress/session/{session_id}/events
     /// </summary>
-    internal static string ConvertWsUrlToPostUrl(string wsUrl)
-    {
+    internal static string ConvertWsUrlToPostUrl(string wsUrl) {
         var uri = new Uri(wsUrl);
         var protocol = uri.Scheme == "wss" ? "https" : "http";
 
         // 替换 /ws/ 为 /session/ 并追加 /events
         var path = uri.AbsolutePath;
         var wsIndex = path.IndexOf("/ws/", StringComparison.Ordinal);
-        if (wsIndex >= 0)
-        {
+        if (wsIndex >= 0) {
             path = string.Concat(path.AsSpan(0, wsIndex), "/session/", path.AsSpan(wsIndex + 4));
         }
 
-        if (!path.EndsWith("/events", StringComparison.Ordinal))
-        {
+        if (!path.EndsWith("/events", StringComparison.Ordinal)) {
             path = path.EndsWith('/') ? path + "events" : path + "/events";
         }
 
@@ -191,12 +166,10 @@ public static partial class BridgeRemoteCore
         V1ReconnectState reconnectState,
         IFileSystem fs,
         ILogger? logger = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         reconnectState.EnvironmentRecreations++;
 
-        if (reconnectState.EnvironmentRecreations > state.MaxEnvironmentRecreations)
-        {
+        if (reconnectState.EnvironmentRecreations > state.MaxEnvironmentRecreations) {
             logger?.LogError("Bridge v1: 环境重连次数耗尽 ({Max})", state.MaxEnvironmentRecreations);
             return false;
         }
@@ -206,11 +179,9 @@ public static partial class BridgeRemoteCore
 
         // 对齐 TS 端 doReconnect:
         // 1. 释放当前工作项 (force=false → 服务器重新入队)
-        if (pollLoop.CurrentTransport is not null)
-        {
+        if (pollLoop.CurrentTransport is not null) {
             var seq = pollLoop.CurrentTransport.GetLastSequenceNum();
-            if (seq > state.LastTransportSequenceNum)
-            {
+            if (seq > state.LastTransportSequenceNum) {
                 state.LastTransportSequenceNum = seq;
             }
             try { await pollLoop.CurrentTransport.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { logger?.LogWarning(ex, "[BridgeRemoteCore] 重连期间关闭传输失败"); }
@@ -219,12 +190,9 @@ public static partial class BridgeRemoteCore
 
         // 对齐 TS 端: stopWork(force=false) — 让服务器将工作项重新入队
         var workIdBeforeStop = pollLoop.CurrentWorkId;
-        try
-        {
+        try {
             await pollLoop.StopAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogWarning(ex, "Bridge v1: 重连前 stopWork 失败（非致命）");
         }
 
@@ -234,24 +202,21 @@ public static partial class BridgeRemoteCore
         // 对齐 TS 端: 检查点 0 — stopWork 后检查 currentWorkId 是否变化
         // 如果轮询循环在 stopWork await 期间自行恢复了（onWorkReceived 触发），
         // 说明已有新工作项，不需要继续归档会话
-        if (pollLoop.CurrentWorkId is not null && pollLoop.CurrentWorkId != workIdBeforeStop)
-        {
+        if (pollLoop.CurrentWorkId is not null && pollLoop.CurrentWorkId != workIdBeforeStop) {
             logger?.LogInformation("Bridge v1: stopWork 期间轮询循环自行恢复 (workId: {Old} → {New})，跳过重连",
                 workIdBeforeStop, pollLoop.CurrentWorkId);
             return true;
         }
 
         // 对齐 TS 端: 检查点 1 — stopWork 后检查是否已被 teardown 中止
-        if (state.TornDown || ct.IsCancellationRequested)
-        {
+        if (state.TornDown || ct.IsCancellationRequested) {
             logger?.LogDebug("Bridge v1: Reconnect aborted by teardown after stopWork");
             return false;
         }
 
         // 2. 重新注册环境 — 对齐 TS 端: api.registerBridgeEnvironment(bridgeConfig)
         // 传递 reuseEnvironmentId 让服务器尝试复活同一环境
-        var bridgeConfig = new BridgeEnvironmentRegistration
-        {
+        var bridgeConfig = new BridgeEnvironmentRegistration {
             BridgeId = Guid.NewGuid().ToString("N"),
             MachineName = parameters.MachineName,
             Dir = parameters.Dir,
@@ -263,18 +228,14 @@ public static partial class BridgeRemoteCore
         };
 
         BridgeEnvironmentRegistrationResponse? regResponse;
-        try
-        {
+        try {
             regResponse = await apiClient.RegisterBridgeEnvironmentAsync(bridgeConfig, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogError(ex, "Bridge v1: 环境重注册失败");
             return false;
         }
 
-        if (regResponse is null)
-        {
+        if (regResponse is null) {
             logger?.LogError("Bridge v1: 环境重注册返回 null");
             return false;
         }
@@ -283,8 +244,7 @@ public static partial class BridgeRemoteCore
         reconnectState.EnvironmentSecret = regResponse.BridgeId;
 
         // 对齐 TS 端: 检查点 2 — 环境注册后检查中止
-        if (state.TornDown || ct.IsCancellationRequested)
-        {
+        if (state.TornDown || ct.IsCancellationRequested) {
             logger?.LogDebug("Bridge v1: Reconnect aborted after env registration, cleaning up");
             try { await apiClient.DeregisterEnvironmentAsync(reconnectState.EnvironmentId, ct).ConfigureAwait(false); } catch (Exception ex2) { logger?.LogWarning(ex2, "[BridgeRemoteCore] 中止期间注销环境失败"); }
             return false;
@@ -295,67 +255,53 @@ public static partial class BridgeRemoteCore
 
         // 3. Strategy 1: reconnect-in-place — 对齐 TS 端 tryReconnectInPlace
         // 仅当环境 ID 不变时尝试（同一环境可复活）
-        if (reconnectState.EnvironmentId == environmentId)
-        {
-            try
-            {
+        if (reconnectState.EnvironmentId == environmentId) {
+            try {
                 var result = await BridgeSessionApi.ReconnectSessionAsync(
                     reconnectState.EnvironmentId, sessionId, httpClient, ct).ConfigureAwait(false);
-                if (result is not null)
-                {
+                if (result is not null) {
                     logger?.LogInformation("Bridge v1: 会话原地重连成功: {SessionId}", sessionId);
                     reconnectState.EnvironmentRecreations = 0;
                     return true;
                 }
                 logger?.LogWarning("Bridge v1: 会话原地重连返回 null");
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 logger?.LogWarning(ex, "Bridge v1: 原地重连失败，尝试创建新会话");
             }
         }
 
         // 4. Strategy 2: fresh session — 对齐 TS 端 archiveSession + createSession
         // 归档旧会话
-        try
-        {
+        try {
             await parameters.ArchiveSession(sessionId, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogWarning(ex, "Bridge v1: 归档旧会话失败（非致命）");
         }
 
         // 对齐 TS 端: 检查点 3 — 归档后检查中止
-        if (state.TornDown || ct.IsCancellationRequested)
-        {
+        if (state.TornDown || ct.IsCancellationRequested) {
             logger?.LogDebug("Bridge v1: Reconnect aborted after archive");
             return false;
         }
 
         // 创建新会话
         var accessToken = parameters.GetAccessToken();
-        if (string.IsNullOrEmpty(accessToken))
-        {
+        if (string.IsNullOrEmpty(accessToken)) {
             logger?.LogError("Bridge v1: 重连时无 OAuth token");
             return false;
         }
 
         string? newSessionId;
-        try
-        {
+        try {
             var currentTitle = parameters.GetCurrentTitle?.Invoke() ?? parameters.Title;
             newSessionId = await parameters.CreateSession(
                 reconnectState.EnvironmentId, currentTitle, parameters.GitRepoUrl, accessToken, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogError(ex, "Bridge v1: 重连时创建新会话失败");
             return false;
         }
 
-        if (string.IsNullOrEmpty(newSessionId))
-        {
+        if (string.IsNullOrEmpty(newSessionId)) {
             logger?.LogError("Bridge v1: 重连时创建新会话返回空");
             return false;
         }
@@ -364,8 +310,7 @@ public static partial class BridgeRemoteCore
         reconnectState.SessionId = newSessionId;
 
         // 对齐 TS 端: 检查点 4 — 新会话创建后检查中止
-        if (state.TornDown || ct.IsCancellationRequested)
-        {
+        if (state.TornDown || ct.IsCancellationRequested) {
             logger?.LogDebug("Bridge v1: Reconnect aborted after session creation, archiving new session");
             try { await parameters.ArchiveSession(newSessionId, ct).ConfigureAwait(false); } catch (Exception ex) { logger?.LogWarning(ex, "[BridgeRemoteCore] 中止期间归档会话失败"); }
             return false;
@@ -375,18 +320,14 @@ public static partial class BridgeRemoteCore
         state.LastTransportSequenceNum = 0;
 
         // 写入崩溃恢复指针
-        try
-        {
+        try {
             var pointerService = new BridgePointerService(fs, logger);
-            await pointerService.WriteAsync(parameters.Dir, new BridgePointer
-            {
+            await pointerService.WriteAsync(parameters.Dir, new BridgePointer {
                 SessionId = newSessionId,
                 EnvironmentId = reconnectState.EnvironmentId,
                 Source = BridgePointerSource.Repl.ToValue(),
             }, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogWarning(ex, "Bridge v1: 重连时写入崩溃恢复指针失败");
         }
 

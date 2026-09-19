@@ -6,8 +6,7 @@ namespace Tools.Handlers;
 /// 对齐 TS: FileWriteTool.ts L198/L212 / FileEditTool.ts L275/L290。
 /// </summary>
 [Register(typeof(FileStateGuardNode), ServiceLifetime.Singleton)]
-public sealed class FileStateGuardNode
-{
+public sealed class FileStateGuardNode {
     private readonly IFileStateCache? _fileStateCache;
     private readonly IFileSystem _fs;
     private readonly ILogger<FileStateGuardNode>? _logger;
@@ -21,8 +20,7 @@ public sealed class FileStateGuardNode
     public FileStateGuardNode(
         IFileSystem fs,
         IFileStateCache? fileStateCache = null,
-        ILogger<FileStateGuardNode>? logger = null)
-    {
+        ILogger<FileStateGuardNode>? logger = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _fileStateCache = fileStateCache;
         _logger = logger;
@@ -34,8 +32,7 @@ public sealed class FileStateGuardNode
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>true 表示已读或不需要校验，false 表示未读</returns>
-    public bool HasBeenRead(string filePath)
-    {
+    public bool HasBeenRead(string filePath) {
         if (_fileStateCache is null || !_fs.FileExists(filePath) || TestEnvironmentDetector.ForceNonInteractive)
             return true;
 
@@ -49,8 +46,7 @@ public sealed class FileStateGuardNode
     /// <param name="filePath">文件路径</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>null 表示安全，(lastWriteMs, readTimestampMs) 表示检测到外部修改</returns>
-    public async ValueTask<(long LastWriteMs, long ReadTimestampMs)?> CheckStaleWriteAsync(string filePath, CancellationToken ct)
-    {
+    public async ValueTask<(long LastWriteMs, long ReadTimestampMs)?> CheckStaleWriteAsync(string filePath, CancellationToken ct) {
         if (_fileStateCache is null || !_fs.FileExists(filePath) || TestEnvironmentDetector.ForceNonInteractive)
             return null;
 
@@ -64,8 +60,7 @@ public sealed class FileStateGuardNode
 
         // 时间戳显示已修改，但 Windows 上云同步/杀毒等会改时间戳而不改内容，比对内容兜底
         var readContent = _fileStateCache.GetReadContent(filePath);
-        if (readContent is not null)
-        {
+        if (readContent is not null) {
             // 对齐 TS: 用检测到的编码读取文件，避免 UTF-16LE 内容比对错误
             var detectedEncoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, ct).ConfigureAwait(false);
             var currentContent = await _fs.ReadAllTextAsync(filePath, detectedEncoding, ct).ConfigureAwait(false);

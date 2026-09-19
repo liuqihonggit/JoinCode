@@ -4,20 +4,17 @@ namespace Dream.Tests;
 /// <summary>
 /// 梦境整合锁测试 - 测试使用 RobustFileLockService 的锁机制
 /// </summary>
-public sealed class ConsolidationLockTests : IDisposable
-{
+public sealed class ConsolidationLockTests : IDisposable {
     private readonly string _testDir;
     private readonly InMemoryDreamTaskRegistry _taskRegistry;
     private readonly DefaultSessionScanner _sessionScanner;
     private readonly AutoDreamConfig _config;
     private bool _disposed;
 
-    public ConsolidationLockTests()
-    {
+    public ConsolidationLockTests() {
         _testDir = "/test/dream";
 
-        _config = new AutoDreamConfig
-        {
+        _config = new AutoDreamConfig {
             Enabled = true,
             MinHours = 0,
             MinSessions = 1,
@@ -28,15 +25,13 @@ public sealed class ConsolidationLockTests : IDisposable
         _sessionScanner = new DefaultSessionScanner(_config, TestFileSystem.Current);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
     }
 
     [Fact]
-    public async Task TaskRegistry_RegisterDreamTask_ShouldReturnTaskId()
-    {
+    public async Task TaskRegistry_RegisterDreamTask_ShouldReturnTaskId() {
         // Act
         var taskId = await _taskRegistry.RegisterDreamTaskAsync(new DreamTaskRegistrationRequest(
             SessionsReviewing: 5,
@@ -54,8 +49,7 @@ public sealed class ConsolidationLockTests : IDisposable
     }
 
     [Fact]
-    public async Task TaskRegistry_CompleteDreamTask_ShouldMarkAsCompleted()
-    {
+    public async Task TaskRegistry_CompleteDreamTask_ShouldMarkAsCompleted() {
         // Arrange
         var taskId = await _taskRegistry.RegisterDreamTaskAsync(new DreamTaskRegistrationRequest(
             SessionsReviewing: 3,
@@ -73,8 +67,7 @@ public sealed class ConsolidationLockTests : IDisposable
     }
 
     [Fact]
-    public async Task TaskRegistry_AddDreamTurn_ShouldAddTurnAndFiles()
-    {
+    public async Task TaskRegistry_AddDreamTurn_ShouldAddTurnAndFiles() {
         // Arrange
         var taskId = await _taskRegistry.RegisterDreamTaskAsync(new DreamTaskRegistrationRequest(
             SessionsReviewing: 2,
@@ -96,8 +89,7 @@ public sealed class ConsolidationLockTests : IDisposable
     }
 
     [Fact]
-    public async Task TaskRegistry_GetAllTasks_ShouldReturnAllTasks()
-    {
+    public async Task TaskRegistry_GetAllTasks_ShouldReturnAllTasks() {
         // Arrange
         await _taskRegistry.RegisterDreamTaskAsync(new DreamTaskRegistrationRequest(
             SessionsReviewing: 1,
@@ -116,8 +108,7 @@ public sealed class ConsolidationLockTests : IDisposable
     }
 
     [Fact]
-    public async Task SessionScanner_ListSessionsTouchedSinceAsync_ShouldReturnEmptyForNewDirectory()
-    {
+    public async Task SessionScanner_ListSessionsTouchedSinceAsync_ShouldReturnEmptyForNewDirectory() {
         // Act
         var sessions = await _sessionScanner.ListSessionsTouchedSinceAsync(0).ConfigureAwait(true);
 
@@ -126,8 +117,7 @@ public sealed class ConsolidationLockTests : IDisposable
     }
 
     [Fact]
-    public void AutoDreamConfig_DefaultValues_ShouldBeCorrect()
-    {
+    public void AutoDreamConfig_DefaultValues_ShouldBeCorrect() {
         // Arrange & Act
         var config = new AutoDreamConfig();
 
@@ -139,11 +129,9 @@ public sealed class ConsolidationLockTests : IDisposable
     }
 
     [Fact]
-    public void DreamTurn_Creation_ShouldSetProperties()
-    {
+    public void DreamTurn_Creation_ShouldSetProperties() {
         // Act
-        var turn = new DreamTurn
-        {
+        var turn = new DreamTurn {
             Text = "Test content",
             ToolUseCount = 5
         };
@@ -154,11 +142,9 @@ public sealed class ConsolidationLockTests : IDisposable
     }
 
     [Fact]
-    public void DreamTaskState_AddTurn_ShouldLimitMaxTurns()
-    {
+    public void DreamTaskState_AddTurn_ShouldLimitMaxTurns() {
         // Arrange
-        var task = new DreamTaskState
-        {
+        var task = new DreamTaskState {
             Id = "test-task",
             Description = "Test",
             StartTime = DateTime.UtcNow,
@@ -167,8 +153,7 @@ public sealed class ConsolidationLockTests : IDisposable
         };
 
         // Act - 添加超过30个回合
-        for (int i = 0; i < 35; i++)
-        {
+        for (int i = 0; i < 35; i++) {
             task.AddTurn(new DreamTurn { Text = $"Turn {i}", ToolUseCount = 0 }, Array.Empty<string>());
         }
 
@@ -177,11 +162,9 @@ public sealed class ConsolidationLockTests : IDisposable
     }
 
     [Fact]
-    public void DreamTaskState_Complete_ShouldSetStatusAndEndTime()
-    {
+    public void DreamTaskState_Complete_ShouldSetStatusAndEndTime() {
         // Arrange
-        var task = new DreamTaskState
-        {
+        var task = new DreamTaskState {
             Id = "test-task",
             Description = "Test",
             StartTime = DateTime.UtcNow,
@@ -199,12 +182,10 @@ public sealed class ConsolidationLockTests : IDisposable
     }
 
     [Fact]
-    public void DreamTaskState_Kill_ShouldCancelToken()
-    {
+    public void DreamTaskState_Kill_ShouldCancelToken() {
         // Arrange
         var cts = new CancellationTokenSource();
-        var task = new DreamTaskState
-        {
+        var task = new DreamTaskState {
             Id = "test-task",
             Description = "Test",
             StartTime = DateTime.UtcNow,

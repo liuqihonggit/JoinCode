@@ -5,15 +5,13 @@ namespace Tools.Shell;
 /// 优先使用 Guard 的 ICommandClassifier（AST 解析），回退到 DestructiveCommandAnalyzer（正则）
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShellMiddleware {
 
     /// <summary>
     /// 构造命令分类中间件
     /// </summary>
     /// <param name="commandClassifier">命令分类器（可选，为 null 时回退到正则分析）</param>
-    public ShellClassificationMiddleware(ICommandClassifier? commandClassifier = null)
-    {
+    public ShellClassificationMiddleware(ICommandClassifier? commandClassifier = null) {
         _commandClassifier = commandClassifier;
     }
     private readonly ICommandClassifier? _commandClassifier;
@@ -23,11 +21,9 @@ public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShel
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
         var dangerError = ClassifyCommand(context.Command, context.WorkingDirectory);
-        if (dangerError != null)
-        {
+        if (dangerError != null) {
             context.ClassificationError = dangerError;
             context.Result = dangerError;
             return Task.CompletedTask; // 短路
@@ -40,24 +36,19 @@ public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShel
     /// 使用 ICommandClassifier 对命令进行分类，返回危险命令的错误结果（或 null 表示安全）
     /// 优先使用 Guard 的 ICommandClassifier（AST 解析），回退到 DestructiveCommandAnalyzer（正则）
     /// </summary>
-    private ToolResult? ClassifyCommand(string command, string? workingDirectory)
-    {
-        if (_commandClassifier is not null)
-        {
+    private ToolResult? ClassifyCommand(string command, string? workingDirectory) {
+        if (_commandClassifier is not null) {
             var shellCommand = ShellCommand.Parse(command);
             var classification = _commandClassifier.Classify(shellCommand, workingDirectory ?? string.Empty);
 
-            if (classification.Category == CommandCategory.Destructive)
-            {
+            if (classification.Category == CommandCategory.Destructive) {
                 var warning = new StringBuilder();
                 warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Potentially dangerous command detected");
                 warning.AppendLine();
-                if (!string.IsNullOrEmpty(classification.Details))
-                {
+                if (!string.IsNullOrEmpty(classification.Details)) {
                     warning.AppendLine(classification.Details);
                 }
-                if (classification.Risks.Count > 0)
-                {
+                if (classification.Risks.Count > 0) {
                     warning.AppendLine($"Risks: {string.Join(", ", classification.Risks)}");
                 }
                 warning.AppendLine();
@@ -67,25 +58,21 @@ public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShel
                 return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
-            if (classification.Category == CommandCategory.PathViolation)
-            {
+            if (classification.Category == CommandCategory.PathViolation) {
                 var warning = new StringBuilder();
                 warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Path violation detected");
-                if (!string.IsNullOrEmpty(classification.Details))
-                {
+                if (!string.IsNullOrEmpty(classification.Details)) {
                     warning.AppendLine(classification.Details);
                 }
                 var diag = BuildPathViolationDiagnostic(command, classification.Details);
                 return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
-            if (classification.Category == CommandCategory.ExcessiveSearchScope)
-            {
+            if (classification.Category == CommandCategory.ExcessiveSearchScope) {
                 var warning = new StringBuilder();
                 warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Search scope too large — command may hang or take very long");
                 warning.AppendLine();
-                if (!string.IsNullOrEmpty(classification.Details))
-                {
+                if (!string.IsNullOrEmpty(classification.Details)) {
                     warning.AppendLine(classification.Details);
                 }
                 warning.AppendLine();
@@ -102,15 +89,13 @@ public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShel
 
         // 回退：使用 DestructiveCommandAnalyzer（正则匹配，无 AST 解析）
         var dangerAnalysis = DestructiveCommandAnalyzer.Analyze(command);
-        if (dangerAnalysis.IsDangerous)
-        {
+        if (dangerAnalysis.IsDangerous) {
             var warning = new StringBuilder();
             warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Potentially dangerous command detected");
             warning.AppendLine();
             warning.AppendLine(dangerAnalysis.WarningMessage);
 
-            if (!string.IsNullOrEmpty(dangerAnalysis.Suggestion))
-            {
+            if (!string.IsNullOrEmpty(dangerAnalysis.Suggestion)) {
                 warning.AppendLine();
                 warning.AppendLine($"{ObjectSymbol.DiamondFilled.ToValue()} Suggestion:");
                 warning.AppendLine(dangerAnalysis.Suggestion);
@@ -165,8 +150,7 @@ public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShel
             ],
             suggestions: ["确认命令安全性后重新执行"]);
 
-    private static IReadOnlyList<DiagnosticDetail> BuildClassificationDetails(string command, string? details, IReadOnlyList<string> risks)
-    {
+    private static IReadOnlyList<DiagnosticDetail> BuildClassificationDetails(string command, string? details, IReadOnlyList<string> risks) {
         var list = new List<DiagnosticDetail> { new("command", command) };
         if (!string.IsNullOrEmpty(details)) list.Add(new DiagnosticDetail("details", details));
         if (risks.Count > 0) list.Add(new DiagnosticDetail("risks", string.Join(", ", risks)));

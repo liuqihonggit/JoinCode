@@ -4,8 +4,7 @@ namespace Infrastructure.Network.Downloader;
 /// 断点续传元数据 — 持久化到 {目标文件路径}.meta.json,记录每个分片下载进度
 /// <para>Resume 时读取此文件,校验 Url/ETag/LastModified 未变更后跳过已完成分片</para>
 /// </summary>
-public sealed class DownloadMetadata
-{
+public sealed class DownloadMetadata {
     /// <summary>下载 URL(用于 Resume 时校验资源未变更)</summary>
     public string Url { get; set; } = string.Empty;
 

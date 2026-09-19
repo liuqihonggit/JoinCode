@@ -10,24 +10,19 @@ namespace JoinCode.Entry;
 ///   [EXIT]  — 进程即将退出
 /// </summary>
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
-internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupContext>
-{
+internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupContext> {
     private static readonly TimeSpan AliveInterval = TimeSpan.FromSeconds(2);
 
-    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var p = context.Config.Provider;
-        using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
-        {
+        using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray)) {
             Cli.TerminalHelper.WriteLine($"供应商: {p.Vendor} | 模型: {p.ModelId} | 流式: {(context.Config.ToolExecution.UseStreamingToolExecution ? "是" : "否")}" +
                 (context.Config.CurrentProfile is not null ? $" | 预设: {context.Config.CurrentProfile}" : ""));
             Cli.TerminalHelper.WriteLine($"  端点: {p.Endpoint ?? "(默认)"} | API Key: {(string.IsNullOrEmpty(p.ApiKey) ? "未配置" : "已配置")}");
         }
         Cli.TerminalHelper.WriteLine("JoinCode CLI - 输入消息或 /help 查看命令");
-        if (!Cli.TerminalHelper.IsHeadless)
-        {
-            using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
-            {
+        if (!Cli.TerminalHelper.IsHeadless) {
+            using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray)) {
                 var hints = string.Join(" | ",
                     L.T(StringKey.FooterBashModeHint),
                     L.T(StringKey.FooterSilentBashModeHint),
@@ -46,8 +41,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         var proactiveLogger = context.Host.Services.GetService<ILogger<ProactiveTickScheduler>>();
         TerminalFocusDetector? focusDetector = null;
         ProactiveTickScheduler? tickScheduler = null;
-        if (proactiveState is not null)
-        {
+        if (proactiveState is not null) {
             focusDetector = new TerminalFocusDetector();
             tickScheduler = new ProactiveTickScheduler(proactiveState, focusDetector, proactiveLogger);
         }
@@ -57,14 +51,10 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         var commandQueue = new CommandQueue();
         var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-        var readTask = Task.Run(async () =>
-        {
-            try
-            {
-                while (!ct.IsCancellationRequested)
-                {
-                    if (System.Console.IsInputRedirected && !Cli.TerminalHelper.ForceInteractive)
-                    {
+        var readTask = Task.Run(async () => {
+            try {
+                while (!ct.IsCancellationRequested) {
+                    if (System.Console.IsInputRedirected && !Cli.TerminalHelper.ForceInteractive) {
                         Diag.WriteLine("[DIAG-REPL] stdin redirected, ForceInteractive=false, signaling loop exit");
                         loopCts.Cancel();
                         return;
@@ -72,36 +62,29 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
                     Diag.WriteLine("[DIAG-REPL] ReadLineAsync calling...");
                     string? input;
-                    try
-                    {
+                    try {
                         input = await Task.Run(() => Cli.TerminalHelper.ReadLineOrNull(), ct).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
+                    } catch (OperationCanceledException) {
                         Diag.WriteLine("[DIAG-REPL] ReadLineAsync canceled");
                         break;
                     }
 
                     Diag.WriteLine($"[DIAG-REPL] ReadLineAsync returned: '{(input is not null && input.Length > 60 ? input[..60] + "..." : input)}', IsNull={input is null}");
 
-                    if (input is null)
-                    {
+                    if (input is null) {
                         Diag.WriteLine("[DIAG-REPL] ReadLineAsync returned null (EOF), exiting read loop");
                         break;
                     }
 
-                    if (confirmationGate is not null && confirmationGate.Pending && confirmationGate.Source is not null)
-                    {
+                    if (confirmationGate is not null && confirmationGate.Pending && confirmationGate.Source is not null) {
                         Diag.WriteLine($"[DIAG-REPL] routing input to confirmation: '{input}'");
                         confirmationGate.Source.TrySetResult(input);
                         continue;
                     }
 
-                    if (input.Length > 0 && input[0] == '@' && agentService is not null)
-                    {
+                    if (input.Length > 0 && input[0] == '@' && agentService is not null) {
                         var parsed = SubAgentMentionParser.Parse(input);
-                        if (parsed is not null)
-                        {
+                        if (parsed is not null) {
                             var (agentName, message) = parsed.Value;
                             await TryForwardToMentionedAgentAsync(agentName, message).ConfigureAwait(false);
                             continue;
@@ -112,14 +95,12 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                         continue;
                     }
 
-                    if (Interlocked.CompareExchange(ref isProcessing, 0, 0) == 1 && agentService is not null)
-                    {
+                    if (Interlocked.CompareExchange(ref isProcessing, 0, 0) == 1 && agentService is not null) {
                         if (await TryAutoForwardToRunningAgentAsync(input).ConfigureAwait(false))
                             continue;
                     }
 
-                    if (string.IsNullOrWhiteSpace(input))
-                    {
+                    if (string.IsNullOrWhiteSpace(input)) {
                         commandQueue.Enqueue(new QueuedCommand(input, CommandOrigin.User, QueuePriority.Next));
                         continue;
                     }
@@ -128,62 +109,46 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                     commandQueue.Enqueue(new QueuedCommand(input, CommandOrigin.User, QueuePriority.Next));
                     Diag.WriteLine("[DIAG-REPL] Enqueue succeeded");
                 }
-            }
-            catch (OperationCanceledException) { }
-            finally { loopCts.Cancel(); }
+            } catch (OperationCanceledException) { } finally { loopCts.Cancel(); }
 
-            async Task TryForwardToMentionedAgentAsync(string agentName, string message)
-            {
-                try
-                {
+            async Task TryForwardToMentionedAgentAsync(string agentName, string message) {
+                try {
                     var agentId = await agentService!.FindAgentIdByNameAsync(agentName, ct).ConfigureAwait(false);
-                    if (agentId is not null)
-                    {
+                    if (agentId is not null) {
                         await agentService.ForwardUserInputToAgentAsync(agentId, message, ct).ConfigureAwait(false);
                         Diag.WriteLine($"[DIAG-REPL] forwarded @{agentName} -> agent {agentId}");
                         using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
                             Cli.TerminalHelper.WriteLine($"[已转发给 @{agentName}]");
-                    }
-                    else
-                    {
+                    } else {
                         var runningAgents = await agentService.GetRunningAgentsAsync(ct).ConfigureAwait(false);
                         var list = string.Join(", ", runningAgents.Select(a => a.DisplayName ?? a.Id));
                         using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow))
                             Cli.TerminalHelper.WriteLine($"未找到子代理 @{agentName}，当前运行中: [{list}]");
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     Diag.WriteLine($"[DIAG-REPL] @mention forward failed: {ex.Message}");
                 }
             }
 
-            async Task<bool> TryAutoForwardToRunningAgentAsync(string input)
-            {
-                try
-                {
+            async Task<bool> TryAutoForwardToRunningAgentAsync(string input) {
+                try {
                     var runningAgents = await agentService!.GetRunningAgentsAsync(ct).ConfigureAwait(false);
                     var runningList = runningAgents.ToList();
-                    if (runningList.Count == 1)
-                    {
+                    if (runningList.Count == 1) {
                         var agent = runningList[0];
                         await agentService.ForwardUserInputToAgentAsync(agent.Id, input, ct).ConfigureAwait(false);
                         Diag.WriteLine($"[DIAG-REPL] auto-forwarded to single running agent {agent.Id}");
                         using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
                             Cli.TerminalHelper.WriteLine($"[已转发给 @{agent.DisplayName ?? agent.Description ?? agent.Id}]");
                         return true;
-                    }
-                    else if (runningList.Count > 1)
-                    {
+                    } else if (runningList.Count > 1) {
                         var list = string.Join(", ", runningAgents.Select(a => a.DisplayName ?? a.Id));
                         using (Cli.TerminalHelper.SetColor(ConsoleColor.Yellow))
                             Cli.TerminalHelper.WriteLine($"多个子代理运行中，输入已缓存，请用 @agentName 指定目标。运行中: [{list}]");
                         commandQueue.Enqueue(new QueuedCommand(input, CommandOrigin.User, QueuePriority.Next));
                         return true;
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     Diag.WriteLine($"[DIAG-REPL] auto-forward check failed: {ex.Message}");
                 }
                 return false;
@@ -192,13 +157,10 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
         var outputChannelManager = context.Host.Services.GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>();
         outputChannelManager?.Register("main", "AI助手");
-        var outputDisplayTask = Task.Run(async () =>
-        {
+        var outputDisplayTask = Task.Run(async () => {
             if (outputChannelManager is null) return;
-            try
-            {
-                await foreach (var chunk in outputChannelManager.ReadAllAsync(ct).ConfigureAwait(false))
-                {
+            try {
+                await foreach (var chunk in outputChannelManager.ReadAllAsync(ct).ConfigureAwait(false)) {
                     if (!outputChannelManager.ShouldDisplay(chunk.AgentId)) continue;
                     var prefix = chunk.AgentName is not null ? $"[{chunk.AgentName}] " : $"[{chunk.AgentId}] ";
                     using (Cli.TerminalHelper.SetColor(ConsoleColor.Magenta))
@@ -206,25 +168,20 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                     using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
                         Cli.TerminalHelper.WriteRaw(chunk.Content);
                 }
-            }
-            catch (OperationCanceledException) { }
+            } catch (OperationCanceledException) { }
         }, ct);
 
-        try
-        {
-            while (session.IsRunning && !loopCts.Token.IsCancellationRequested)
-            {
+        try {
+            while (session.IsRunning && !loopCts.Token.IsCancellationRequested) {
                 using (Cli.TerminalHelper.SetColor(ConsoleColor.Green))
                     Cli.TerminalHelper.WriteRaw("[用户] ");
 
                 QueuedCommand queued;
-                try
-                {
+                try {
                     Diag.WriteLine("[DIAG-REPL] waiting for input...");
                     queued = await commandQueue.DequeueAsync(loopCts.Token).ConfigureAwait(false);
                     Diag.WriteLine($"[DIAG-REPL] received input: '{(queued.Content.Length > 80 ? queued.Content[..80] + "..." : queued.Content)}'");
-                }
-                catch (OperationCanceledException) { break; }
+                } catch (OperationCanceledException) { break; }
 
                 var combined = queued.Content;
                 if (string.IsNullOrWhiteSpace(combined))
@@ -235,23 +192,19 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
                 Diag.WriteLine("[DIAG-REPL] dispatching to ProcessUserInputAsync");
 
-                await using (var scope = new ReplStepScope(loopCts.Token, x => Interlocked.Exchange(ref isProcessing, x)))
-                {
+                await using (var scope = new ReplStepScope(loopCts.Token, x => Interlocked.Exchange(ref isProcessing, x))) {
                     await ProcessSingleInputAsync(combined, scope).ConfigureAwait(false);
                 }
 
-                if (tickScheduler is not null && commandQueue.Count == 0)
-                {
+                if (tickScheduler is not null && commandQueue.Count == 0) {
                     var tick = tickScheduler;
                     var tickContent = tick.GenerateTick();
-                    if (tickContent is not null)
-                    {
+                    if (tickContent is not null) {
                         commandQueue.Enqueue(new QueuedCommand(tickContent, CommandOrigin.ProactiveTick, QueuePriority.Later));
                     }
                 }
             }
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
 
         loopCts.Cancel();
         await Task.WhenAll(
@@ -263,22 +216,16 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         Diag.WriteLifecycle("[EXIT]");
         await next(context, ct);
 
-        async Task ProcessSingleInputAsync(string combined, ReplStepScope scope)
-        {
-            try
-            {
+        async Task ProcessSingleInputAsync(string combined, ReplStepScope scope) {
+            try {
                 Diag.WriteLine("[DIAG-REPL] calling ProcessUserInputAsync");
                 await session.ProcessUserInputAsync(combined, scope.CancellationToken).ConfigureAwait(false);
                 Diag.WriteLine("[DIAG-REPL] ProcessUserInputAsync returned");
-            }
-            catch (OperationCanceledException) when (scope.IsStepCancellation && !loopCts.Token.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (scope.IsStepCancellation && !loopCts.Token.IsCancellationRequested) {
                 Cli.TerminalHelper.WriteLine();
                 Cli.TerminalHelper.WriteLine("(已中断)");
                 Diag.WriteLine("[DIAG-REPL] OperationCanceledException (Ctrl+C)");
-            }
-            catch (TimeoutException ex)
-            {
+            } catch (TimeoutException ex) {
                 Diag.WriteLine($"[DIAG-REPL] TimeoutException: {ex.Message}");
                 using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Yellow);
                 Cli.TerminalHelper.WriteLine();
@@ -286,9 +233,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                 Cli.TerminalHelper.WriteLine("  1. 是否已配置 API Key");
                 Cli.TerminalHelper.WriteLine("  2. 网络连接是否正常");
                 Cli.TerminalHelper.WriteLine("  3. API 服务是否可用");
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 WriteErrorLog(ex);
                 Diag.WriteLine($"[DIAG-REPL] Exception: {ex.GetType().Name}: {ex.Message}");
                 using var _ = Cli.TerminalHelper.SetColor(ConsoleColor.Red);
@@ -302,32 +247,24 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
     /// <summary>
     /// 心跳循环 — 每 2s 输出 [ALIVE] 到 stderr，供 E2E 测试检测进程存活
     /// </summary>
-    private static async Task RunAliveLoopAsync(CancellationToken ct)
-    {
+    private static async Task RunAliveLoopAsync(CancellationToken ct) {
         using var timer = new PeriodicTimer(AliveInterval);
-        try
-        {
-            while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
-            {
+        try {
+            while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false)) {
                 if (Diag.IsDebugLog) Diag.WriteLifecycle("[ALIVE]");
             }
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
     }
 
     /// <summary>
     /// 写入错误日志到 ~/.jcc/runtime/jcc_error.log — 与 Program.WriteErrorLog 一致（ADR 0055）
     /// </summary>
-    private static void WriteErrorLog(Exception ex, ILogger? logger = null)
-    {
+    private static void WriteErrorLog(Exception ex, ILogger? logger = null) {
         var errorLog = Cli.Output.XdgPathResolver.GetErrorLogPath();
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
-        try
-        {
+        try {
             SafeFileIO.WriteAllText(errorLog, errorContent);
-        }
-        catch (Exception logEx)
-        {
+        } catch (Exception logEx) {
             logger?.LogWarning(logEx, "写入错误日志失败");
         }
     }
@@ -337,8 +274,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
     /// 构造时进入(创建CTS+注册Ctrl+C+启动心跳+标记处理中),DisposeAsync 时退出(还原状态+注销事件+取消心跳+等待+UI收尾+释放CTS)
     /// 用 await using var scope = new ReplStepScope(...) 管理生命周期,消除散落的 try-finally 配对
     /// </summary>
-    private sealed class ReplStepScope : IAsyncDisposable
-    {
+    private sealed class ReplStepScope : IAsyncDisposable {
         private readonly CancellationTokenSource _stepCts;
         private readonly CancellationTokenSource _aliveCts;
         private readonly Task _aliveTask;
@@ -352,8 +288,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         /// <summary>是否因单步(Ctrl+C)取消而非外层取消 — 用于 catch when 区分中断来源</summary>
         public bool IsStepCancellation => _stepCts.IsCancellationRequested;
 
-        public ReplStepScope(CancellationToken loopCt, Action<int> setProcessing)
-        {
+        public ReplStepScope(CancellationToken loopCt, Action<int> setProcessing) {
             _setProcessing = setProcessing;
             _stepCts = CancellationTokenSource.CreateLinkedTokenSource(loopCt);
             _aliveCts = CancellationTokenSource.CreateLinkedTokenSource(loopCt);
@@ -363,8 +298,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             _setProcessing(1);
         }
 
-        public async ValueTask DisposeAsync()
-        {
+        public async ValueTask DisposeAsync() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _setProcessing(0);
             Console.CancelKeyPress -= _onCancelKeyPress;

@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// AI 相关性选择器接口
 /// 基于查询语义选择最相关的记忆
 /// </summary>
-public interface IMemoryRelevanceSelector
-{
+public interface IMemoryRelevanceSelector {
     /// <summary>
     /// 选择最相关的记忆
     /// </summary>
@@ -32,8 +31,7 @@ public sealed record ScoredMemory(MemoryEntry Memory, double RelevanceScore);
 /// 使用关键词匹配和语义相似度计算
 /// </summary>
 [Register(typeof(IMemoryRelevanceSelector), ServiceLifetime.Singleton)]
-public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRelevanceSelector
-{
+public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRelevanceSelector {
 
     private readonly IMemoryAgeCalculator _ageCalculator;
     private readonly ILogger<MemoryRelevanceSelector>? _logger;
@@ -48,8 +46,7 @@ public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRele
     public MemoryRelevanceSelector(
         IMemoryAgeCalculator ageCalculator,
         ILogger<MemoryRelevanceSelector>? logger = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _ageCalculator = ageCalculator ?? throw new ArgumentNullException(nameof(ageCalculator));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -60,8 +57,7 @@ public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRele
         IEnumerable<MemoryEntry> memories,
         string query,
         int maxResults = 10,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var now = _clock.GetUtcNow();
         var queryWords = QueryWordHelper.ExtractWords(query, minLength: 2);
         var queryWordAc = AhoCorasick.CreateBool(queryWords, ignoreCase: true);
@@ -86,8 +82,7 @@ public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRele
     /// <summary>
     /// 为单个记忆打分
     /// </summary>
-    private ScoredMemory ScoreMemory(MemoryEntry memory, HashSet<string> queryWords, AhoCorasick<bool> queryWordAc, DateTime now)
-    {
+    private ScoredMemory ScoreMemory(MemoryEntry memory, HashSet<string> queryWords, AhoCorasick<bool> queryWordAc, DateTime now) {
         var score = 0.0;
 
         // 1. 关键词匹配分数
@@ -104,8 +99,7 @@ public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRele
         score += tagMatches * 0.15;
 
         // 3. 标题匹配分数
-        if (!string.IsNullOrEmpty(memory.Title))
-        {
+        if (!string.IsNullOrEmpty(memory.Title)) {
             var titleWords = QueryWordHelper.ExtractWords(memory.Title);
             var titleMatches = queryWords.Intersect(titleWords, StringComparer.OrdinalIgnoreCase).Count();
             score += (double)titleMatches / queryWords.Count * 0.2;

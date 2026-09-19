@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Insights;
 /// 会话洞察元数据 — 对齐 TS insights.ts SessionMeta
 /// 注意: 与 LLM/Chat/Session/SessionMeta 不同，后者用于上下文压缩缓存
 /// </summary>
-public sealed class InsightSessionMeta
-{
+public sealed class InsightSessionMeta {
     public string SessionId { get; init; } = string.Empty;
     public string ProjectPath { get; init; } = string.Empty;
     public DateTime StartTime { get; init; }

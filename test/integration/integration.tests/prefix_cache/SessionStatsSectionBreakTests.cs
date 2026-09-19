@@ -1,10 +1,8 @@
 namespace Integration.Tests.PrefixCache.Unit;
 
-public sealed class SessionStatsSectionBreakTests
-{
+public sealed class SessionStatsSectionBreakTests {
     [Fact]
-    public void RecordTurn_WithCacheBreak_IncrementsSectionBreakCount()
-    {
+    public void RecordTurn_WithCacheBreak_IncrementsSectionBreakCount() {
         var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var breakResult = CacheBreakResult.Break(CacheBreakKind.SystemPromptChanged, "system changed");
@@ -17,8 +15,7 @@ public sealed class SessionStatsSectionBreakTests
     }
 
     [Fact]
-    public void RecordTurn_WithToolSpecsBreak_IncrementsToolSpecsBreakCount()
-    {
+    public void RecordTurn_WithToolSpecsBreak_IncrementsToolSpecsBreakCount() {
         var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var breakResult = CacheBreakResult.Break(CacheBreakKind.ToolSpecsChanged, "tools changed");
@@ -30,8 +27,7 @@ public sealed class SessionStatsSectionBreakTests
     }
 
     [Fact]
-    public void RecordTurn_WithDynamicBreak_IncrementsDynamicBreakCount()
-    {
+    public void RecordTurn_WithDynamicBreak_IncrementsDynamicBreakCount() {
         var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var breakResult = CacheBreakResult.Break(CacheBreakKind.DynamicContentChanged, "dynamic changed");
@@ -42,8 +38,7 @@ public sealed class SessionStatsSectionBreakTests
     }
 
     [Fact]
-    public void RecordTurn_WithoutCacheBreak_NoIncrement()
-    {
+    public void RecordTurn_WithoutCacheBreak_NoIncrement() {
         var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 80, CacheCreationInputTokens = 20 };
 
@@ -55,8 +50,7 @@ public sealed class SessionStatsSectionBreakTests
     }
 
     [Fact]
-    public void RecordTurn_MultipleBreaks_Accumulate()
-    {
+    public void RecordTurn_MultipleBreaks_Accumulate() {
         var stats = new SessionStats();
         var usage1 = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var usage2 = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
@@ -70,8 +64,7 @@ public sealed class SessionStatsSectionBreakTests
     }
 
     [Fact]
-    public void RecordTurn_CacheEviction_CountsAsBreak()
-    {
+    public void RecordTurn_CacheEviction_CountsAsBreak() {
         var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var breakResult = CacheBreakResult.Break(CacheBreakKind.CacheEviction, "eviction");
@@ -82,8 +75,7 @@ public sealed class SessionStatsSectionBreakTests
     }
 
     [Fact]
-    public void Reset_ClearsAllSectionBreaks()
-    {
+    public void Reset_ClearsAllSectionBreaks() {
         var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
 
@@ -98,8 +90,7 @@ public sealed class SessionStatsSectionBreakTests
     }
 
     [Fact]
-    public void RecordTurn_ExistingOverload_StillWorks()
-    {
+    public void RecordTurn_ExistingOverload_StillWorks() {
         var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 80, CacheCreationInputTokens = 20 };
 

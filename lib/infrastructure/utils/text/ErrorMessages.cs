@@ -5,8 +5,7 @@ namespace Core.Utils;
 /// 域: TRN=Transport通用, SSE=SSE传输, WSK=WebSocket, SSH=SSH会话, MCP=MCP协议, MPB=MCPB bundle,
 ///     AGT=Agent, CMP=编译, AUT=认证, PPL=管道, CDI=代码索引, GIT=Git, INF=基础设施, GEN=通用
 /// </summary>
-public static class ErrorMessages
-{
+public static class ErrorMessages {
     /// <summary>
     /// 传输未连接
     /// </summary>

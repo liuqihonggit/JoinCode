@@ -3,11 +3,9 @@ namespace Tui.Tests.Rendering;
 /// <summary>
 /// TerminalResizeMonitor 单元测试 — 验证尺寸钳制、防抖、事件触发。
 /// </summary>
-public class TerminalResizeMonitorTests
-{
+public class TerminalResizeMonitorTests {
     [Fact]
-    public void Clamp_BelowMin_ClampedToMin()
-    {
+    public void Clamp_BelowMin_ClampedToMin() {
         var monitor = new TerminalResizeMonitor();
         var (w, h) = monitor.Clamp(10, 5);
         Assert.Equal(80, w);
@@ -15,8 +13,7 @@ public class TerminalResizeMonitorTests
     }
 
     [Fact]
-    public void Clamp_AboveMax_ClampedToMax()
-    {
+    public void Clamp_AboveMax_ClampedToMax() {
         var monitor = new TerminalResizeMonitor();
         var (w, h) = monitor.Clamp(1000, 500);
         Assert.Equal(500, w);
@@ -24,8 +21,7 @@ public class TerminalResizeMonitorTests
     }
 
     [Fact]
-    public void Clamp_NormalRange_Unchanged()
-    {
+    public void Clamp_NormalRange_Unchanged() {
         var monitor = new TerminalResizeMonitor();
         var (w, h) = monitor.Clamp(120, 40);
         Assert.Equal(120, w);
@@ -33,8 +29,7 @@ public class TerminalResizeMonitorTests
     }
 
     [Fact]
-    public void IsTooSmall_BelowMin_ReturnsTrue()
-    {
+    public void IsTooSmall_BelowMin_ReturnsTrue() {
         var monitor = new TerminalResizeMonitor();
         Assert.True(monitor.IsTooSmall(70, 20));
         Assert.True(monitor.IsTooSmall(70, 40));
@@ -42,23 +37,20 @@ public class TerminalResizeMonitorTests
     }
 
     [Fact]
-    public void IsTooSmall_AtMin_ReturnsFalse()
-    {
+    public void IsTooSmall_AtMin_ReturnsFalse() {
         var monitor = new TerminalResizeMonitor();
         Assert.False(monitor.IsTooSmall(80, 24));
     }
 
     [Fact]
-    public void GetSafeDefault_Returns120x40()
-    {
+    public void GetSafeDefault_Returns120x40() {
         var (w, h) = TerminalResizeMonitor.GetSafeDefault();
         Assert.Equal(120, w);
         Assert.Equal(40, h);
     }
 
     [Fact]
-    public async Task CheckAndNotify_SizeChange_TriggersEvent()
-    {
+    public async Task CheckAndNotify_SizeChange_TriggersEvent() {
         var monitor = new TerminalResizeMonitor(120, 40);
         var changes = new List<(int w, int h)>();
         monitor.SizeChanged += (w, h) => changes.Add((w, h));
@@ -71,8 +63,7 @@ public class TerminalResizeMonitorTests
     }
 
     [Fact]
-    public async Task CheckAndNotify_NoChange_DoesNotTrigger()
-    {
+    public async Task CheckAndNotify_NoChange_DoesNotTrigger() {
         var monitor = new TerminalResizeMonitor(120, 40);
         var changes = new List<(int w, int h)>();
         monitor.SizeChanged += (w, h) => changes.Add((w, h));
@@ -83,8 +74,7 @@ public class TerminalResizeMonitorTests
     }
 
     [Fact]
-    public async Task CheckAndNotify_TooSmall_TriggersTooSmallEvent()
-    {
+    public async Task CheckAndNotify_TooSmall_TriggersTooSmallEvent() {
         var monitor = new TerminalResizeMonitor(120, 40);
         var tooSmall = new List<(int w, int h, int minW, int minH)>();
         monitor.SizeTooSmall += (w, h, minW, minH) => tooSmall.Add((w, h, minW, minH));
@@ -97,8 +87,7 @@ public class TerminalResizeMonitorTests
     }
 
     [Fact]
-    public async Task CheckAndNotify_Debounce_SkipsRapidChanges()
-    {
+    public async Task CheckAndNotify_Debounce_SkipsRapidChanges() {
         var monitor = new TerminalResizeMonitor(120, 40);
         var changes = new List<(int w, int h)>();
         monitor.SizeChanged += (w, h) => changes.Add((w, h));

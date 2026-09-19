@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface ITeammateReconnectService
-{
+public interface ITeammateReconnectService {
     Task<TeamContext?> RestoreTeamContextAsync(string teamName, string? agentName = null, CancellationToken cancellationToken = default);
 
     Task<TeamContext?> RestoreFromTranscriptAsync(string sessionId, CancellationToken cancellationToken = default);
@@ -11,8 +10,7 @@ public interface ITeammateReconnectService
     Task<ReconnectResult> ReconnectAllDisconnectedAsync(string teamId, CancellationToken cancellationToken = default);
 }
 
-public sealed class TeamContext
-{
+public sealed class TeamContext {
     public required string TeamName { get; init; }
     public required string TeamId { get; init; }
     public string? LeadAgentId { get; init; }
@@ -22,8 +20,7 @@ public sealed class TeamContext
     public Dictionary<string, ReconnectTeammateEntry> Teammates { get; init; } = new(StringComparer.Ordinal);
 }
 
-public sealed class ReconnectTeammateEntry
-{
+public sealed class ReconnectTeammateEntry {
     public required string AgentId { get; init; }
     public required string Name { get; init; }
     public string? Color { get; init; }
@@ -33,16 +30,14 @@ public sealed class ReconnectTeammateEntry
     public string? WorktreePath { get; init; }
 }
 
-public sealed class ReconnectResult
-{
+public sealed class ReconnectResult {
     public required string AgentId { get; init; }
     public required ReconnectStatus Status { get; init; }
     public int AttemptCount { get; init; }
     public string? ErrorMessage { get; init; }
 }
 
-public enum ReconnectStatus
-{
+public enum ReconnectStatus {
     [EnumValue("success")] Success,
     [EnumValue("failed")] Failed,
     [EnumValue("max_retries_exceeded")] MaxRetriesExceeded,

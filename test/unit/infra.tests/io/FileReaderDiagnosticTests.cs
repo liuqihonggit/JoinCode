@@ -3,15 +3,13 @@ namespace Infra.Tests.IO;
 /// <summary>
 /// FileReader 结构化诊断单元测试 — 验证各错误路径返回 ToolDiagnostic。
 /// </summary>
-public class FileReaderDiagnosticTests
-{
+public class FileReaderDiagnosticTests {
     private static readonly IFileSystem Fs = TestFileSystem.Current;
 
     #region 文件不存在 → FileNotFound 诊断
 
     [Fact]
-    public async Task ReadFileAsync_FileNotFound_ReturnsFileNotFoundDiagnostic()
-    {
+    public async Task ReadFileAsync_FileNotFound_ReturnsFileNotFoundDiagnostic() {
         var reader = new FileReader(Fs, new FileOperationConfig());
         var filePath = "/test/nonexistent_file_for_diagnostic_test.txt";
 
@@ -30,8 +28,7 @@ public class FileReaderDiagnosticTests
     #region 目录而非文件 → IsDirectoryNotFile 诊断
 
     [Fact]
-    public async Task ReadFileAsync_DirectoryNotFile_ReturnsIsDirectoryDiagnostic()
-    {
+    public async Task ReadFileAsync_DirectoryNotFile_ReturnsIsDirectoryDiagnostic() {
         var reader = new FileReader(Fs, new FileOperationConfig());
         var dirPath = "/test/some_directory_for_diagnostic_test";
         Fs.CreateDirectory(dirPath);
@@ -50,8 +47,7 @@ public class FileReaderDiagnosticTests
     #region 文件过大 → FileTooLarge 诊断
 
     [Fact]
-    public async Task ReadFileAsync_FileTooLarge_ReturnsFileTooLargeDiagnostic()
-    {
+    public async Task ReadFileAsync_FileTooLarge_ReturnsFileTooLargeDiagnostic() {
         // 使用极小的 MaxReadSize 触发过大检测
         var config = new FileOperationConfig { MaxReadSize = 10 };
         var reader = new FileReader(Fs, config);
@@ -77,8 +73,7 @@ public class FileReaderDiagnosticTests
     #region 二进制文件 → BinaryFileDetected 诊断
 
     [Fact]
-    public async Task ReadFileAsync_BinaryFileWithNullByte_ReturnsBinaryFileDiagnostic()
-    {
+    public async Task ReadFileAsync_BinaryFileWithNullByte_ReturnsBinaryFileDiagnostic() {
         var reader = new FileReader(Fs, new FileOperationConfig());
         var filePath = "/test/binary_null_byte_file_for_diagnostic_test.bin";
 
@@ -95,8 +90,7 @@ public class FileReaderDiagnosticTests
     }
 
     [Fact]
-    public async Task ReadFileAsync_BinaryFileWithHighNonPrintableRatio_ReturnsBinaryFileDiagnostic()
-    {
+    public async Task ReadFileAsync_BinaryFileWithHighNonPrintableRatio_ReturnsBinaryFileDiagnostic() {
         var reader = new FileReader(Fs, new FileOperationConfig());
         var filePath = "/test/binary_nonprintable_file_for_diagnostic_test.bin";
 
@@ -118,8 +112,7 @@ public class FileReaderDiagnosticTests
     #region 正常文本文件 → 无诊断
 
     [Fact]
-    public async Task ReadFileAsync_TextFile_SuccessNoDiagnostic()
-    {
+    public async Task ReadFileAsync_TextFile_SuccessNoDiagnostic() {
         var reader = new FileReader(Fs, new FileOperationConfig());
         var filePath = "/test/text_file_for_diagnostic_test.txt";
 
@@ -137,8 +130,7 @@ public class FileReaderDiagnosticTests
     #region FileReadResult.FailureResult(diagnostic) 工厂方法
 
     [Fact]
-    public void FileReadResult_FailureResult_WithDiagnostic_SetsDiagnosticAndMessage()
-    {
+    public void FileReadResult_FailureResult_WithDiagnostic_SetsDiagnosticAndMessage() {
         var diagnostic = ToolDiagnostic.Create(
             "TestReason",
             "Test formatted message",

@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 聊天预处理结果 — 关键词/同义词注入后的上下文信息
 /// </summary>
-public sealed record PreprocessResult
-{
+public sealed record PreprocessResult {
     /// <summary>关键词分析结果</summary>
     public required UserPromptKeywordResult KeywordResult { get; init; }
 
@@ -18,8 +17,7 @@ public sealed record PreprocessResult
 /// <summary>
 /// ChatPreprocessor 可选依赖聚合
 /// </summary>
-public sealed record ChatPreprocessorDependencies
-{
+public sealed record ChatPreprocessorDependencies {
     /// <summary>工具列表服务（可选）</summary>
     public Prompts.Services.ToolListingService? ToolListingService { get; init; }
     /// <summary>LSP 诊断提供者（可选）</summary>
@@ -29,8 +27,7 @@ public sealed record ChatPreprocessorDependencies
 /// <summary>
 /// 聊天预处理器 — 薄协调层，通过中间件管道执行预处理步骤
 /// </summary>
-public sealed partial class ChatPreprocessor : IChatPreprocessor
-{
+public sealed partial class ChatPreprocessor : IChatPreprocessor {
     private readonly MiddlewarePipeline<PreprocessContext> _analyzePipeline;
     private readonly MiddlewarePipeline<PreprocessContext> _preparePipeline;
     private readonly ISystemReminderManager _reminderManager;
@@ -50,8 +47,7 @@ public sealed partial class ChatPreprocessor : IChatPreprocessor
         MiddlewarePipeline<PreprocessContext> preparePipeline,
         ISystemReminderManager reminderManager,
         IChatContextManager contextManager,
-        ILogger<ChatPreprocessor>? logger = null)
-    {
+        ILogger<ChatPreprocessor>? logger = null) {
         _analyzePipeline = analyzePipeline ?? throw new ArgumentNullException(nameof(analyzePipeline));
         _preparePipeline = preparePipeline ?? throw new ArgumentNullException(nameof(preparePipeline));
         _reminderManager = reminderManager;
@@ -62,13 +58,11 @@ public sealed partial class ChatPreprocessor : IChatPreprocessor
     /// <summary>
     /// 分析并注入关键词和同义词，返回预处理结果
     /// </summary>
-    public async Task<PreprocessResult> AnalyzeAndInjectAsync(string message, CancellationToken ct)
-    {
+    public async Task<PreprocessResult> AnalyzeAndInjectAsync(string message, CancellationToken ct) {
         var context = new PreprocessContext { Message = message };
         await _analyzePipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
 
-        return new PreprocessResult
-        {
+        return new PreprocessResult {
             KeywordResult = context.KeywordResult,
             SynonymInjectionIds = context.SynonymInjectionIds,
             PromptInjectionInfo = context.PromptInjectionInfo
@@ -78,8 +72,7 @@ public sealed partial class ChatPreprocessor : IChatPreprocessor
     /// <summary>
     /// 准备上下文：构建系统提示、注入提醒、添加用户消息
     /// </summary>
-    public async Task PrepareContextAsync(string message, bool isDryRun = false, CancellationToken ct = default)
-    {
+    public async Task PrepareContextAsync(string message, bool isDryRun = false, CancellationToken ct = default) {
         var context = new PreprocessContext { Message = message };
         await _preparePipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
 
@@ -90,12 +83,9 @@ public sealed partial class ChatPreprocessor : IChatPreprocessor
     /// <summary>
     /// 清理注入的关键词和同义词提醒
     /// </summary>
-    public async Task CleanupInjectionsAsync(UserPromptKeywordResult keywordResult, List<string> synonymInjectionIds, CancellationToken ct)
-    {
-        if (keywordResult.HasPromptInjection)
-        {
-            try
-            {
+    public async Task CleanupInjectionsAsync(UserPromptKeywordResult keywordResult, List<string> synonymInjectionIds, CancellationToken ct) {
+        if (keywordResult.HasPromptInjection) {
+            try {
                 var injectionIds = (await _reminderManager.GetRemindersAsync(ct)
                     .ConfigureAwait(false))
                     .Where(r => r.Id.StartsWith("user-prompt-injection-", StringComparison.Ordinal)
@@ -103,35 +93,26 @@ public sealed partial class ChatPreprocessor : IChatPreprocessor
                     .Select(r => r.Id)
                     .ToList();
 
-                if (injectionIds.Count > 0)
-                {
+                if (injectionIds.Count > 0) {
                     await Task.WhenAll(injectionIds.Select(id =>
                         _reminderManager.RemoveReminderAsync(id, ct))).ConfigureAwait(false);
-                    foreach (var id in injectionIds)
-                    {
+                    foreach (var id in injectionIds) {
                         _logger?.LogDebug("[UserPromptInjection] 已清理临时提示词: {Id}", id);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "[ChatPreprocessor] 清理注入提醒失败");
             }
         }
 
-        if (synonymInjectionIds.Count > 0)
-        {
-            try
-            {
+        if (synonymInjectionIds.Count > 0) {
+            try {
                 await Task.WhenAll(synonymInjectionIds.Select(id =>
                     _reminderManager.RemoveReminderAsync(id, ct))).ConfigureAwait(false);
-                foreach (var id in synonymInjectionIds)
-                {
+                foreach (var id in synonymInjectionIds) {
                     _logger?.LogDebug("[SynonymInjection] 已清理同义词补充: {Id}", id);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "[ChatPreprocessor] 清理同义词补充失败");
             }
         }

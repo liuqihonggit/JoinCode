@@ -5,8 +5,7 @@ namespace Core.Permission;
 /// 递归操作风险处理器 — CommandRisk.RecursiveOperation 的拦截策略
 /// </summary>
 [Register(typeof(ICommandRiskHandler), ServiceLifetime.Singleton)]
-public sealed partial class RecursiveOperationRiskHandler : SimpleCommandRiskHandler
-{
+public sealed partial class RecursiveOperationRiskHandler : SimpleCommandRiskHandler {
     /// <inheritdoc />
     public override CommandRisk RiskType => CommandRisk.RecursiveOperation;
 

@@ -2,13 +2,11 @@
 #pragma warning disable JCC3010, JCC3011, JCC3012
 namespace Core.Goal.Tests;
 
-public sealed class GoalEngineTests
-{
+public sealed class GoalEngineTests {
     private static readonly TimeSpan DisposeTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan GateTimeout = TimeSpan.FromSeconds(5);
 
-    private static (Mock<IChatClient> kernel, Mock<IGoalEvaluator> evaluator, Mock<IServiceProvider> serviceProvider) CreateMocks()
-    {
+    private static (Mock<IChatClient> kernel, Mock<IGoalEvaluator> evaluator, Mock<IServiceProvider> serviceProvider) CreateMocks() {
         var kernel = new Mock<IChatClient>();
         var evaluator = new Mock<IGoalEvaluator>();
         var serviceProvider = new Mock<IServiceProvider>();
@@ -25,16 +23,13 @@ public sealed class GoalEngineTests
     }
 
     private static async IAsyncEnumerable<AgentStreamChunk> StreamAgentCompletion(
-        AgentSpawnOptions opts, [EnumeratorCancellation] CancellationToken ct)
-    {
-        yield return new AgentStreamChunk
-        {
+        AgentSpawnOptions opts, [EnumeratorCancellation] CancellationToken ct) {
+        yield return new AgentStreamChunk {
             Type = AgentStreamChunkType.Content,
             Content = "工作完成",
             AgentId = "test-agent",
         };
-        yield return new AgentStreamChunk
-        {
+        yield return new AgentStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = "工作完成",
             AgentId = "test-agent",
@@ -43,8 +38,7 @@ public sealed class GoalEngineTests
         await Task.CompletedTask;
     }
 
-    private static (Mock<IChatClient> kernel, Mock<IGoalEvaluator> evaluator, Mock<IServiceProvider> serviceProvider) CreateBlockingMocks(SemaphoreSlim gate)
-    {
+    private static (Mock<IChatClient> kernel, Mock<IGoalEvaluator> evaluator, Mock<IServiceProvider> serviceProvider) CreateBlockingMocks(SemaphoreSlim gate) {
         var kernel = new Mock<IChatClient>();
         var evaluator = new Mock<IGoalEvaluator>();
         var serviceProvider = new Mock<IServiceProvider>();
@@ -61,20 +55,17 @@ public sealed class GoalEngineTests
     }
 
     private static async IAsyncEnumerable<AgentStreamChunk> StreamAgentBlocking(
-        AgentSpawnOptions opts, [EnumeratorCancellation] CancellationToken ct, SemaphoreSlim gate)
-    {
+        AgentSpawnOptions opts, [EnumeratorCancellation] CancellationToken ct, SemaphoreSlim gate) {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(GateTimeout);
         await gate.WaitAsync(linkedCts.Token);
 
-        yield return new AgentStreamChunk
-        {
+        yield return new AgentStreamChunk {
             Type = AgentStreamChunkType.Content,
             Content = "工作中",
             AgentId = "test-agent",
         };
-        yield return new AgentStreamChunk
-        {
+        yield return new AgentStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = "工作中",
             AgentId = "test-agent",
@@ -82,8 +73,7 @@ public sealed class GoalEngineTests
         };
     }
 
-    private static Mock<IGoalHeartbeat> CreateHeartbeatMock()
-    {
+    private static Mock<IGoalHeartbeat> CreateHeartbeatMock() {
         var heartbeat = new Mock<IGoalHeartbeat>();
         heartbeat.SetupGet(h => h.RefCount).Returns(0);
         heartbeat.SetupGet(h => h.IsActive).Returns(false);
@@ -92,25 +82,18 @@ public sealed class GoalEngineTests
         return heartbeat;
     }
 
-    private static async ValueTask SafeDisposeAsync(GoalEngine engine)
-    {
-        try
-        {
+    private static async ValueTask SafeDisposeAsync(GoalEngine engine) {
+        try {
             await engine.DisposeAsync().AsTask().WaitAsync(DisposeTimeout).ConfigureAwait(true);
-        }
-        catch (TimeoutException)
-        {
+        } catch (TimeoutException) {
             System.Diagnostics.Trace.WriteLine("[GoalEngineTests] GoalEngine 后台循环未在超时内退出，强制忽略");
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             System.Diagnostics.Trace.WriteLine("[GoalEngineTests] GoalEngine 已取消，忽略");
         }
     }
 
     [Fact]
-    public void Constructor_WithoutPermissionManager_Should_Create_Successfully()
-    {
+    public void Constructor_WithoutPermissionManager_Should_Create_Successfully() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
 
@@ -120,8 +103,7 @@ public sealed class GoalEngineTests
     }
 
     [Fact]
-    public void Constructor_WithPermissionManager_Should_Create_Successfully()
-    {
+    public void Constructor_WithPermissionManager_Should_Create_Successfully() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var permissionManager = new Mock<IToolPermissionManager>();
 
@@ -132,13 +114,11 @@ public sealed class GoalEngineTests
     }
 
     [Fact]
-    public async Task StartAsync_Should_Set_State_To_Pursuing()
-    {
+    public async Task StartAsync_Should_Set_State_To_Pursuing() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
 
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             var state = await engine.StartAsync("实现用户注册功能").ConfigureAwait(true);
 
             Assert.NotNull(state);
@@ -146,117 +126,93 @@ public sealed class GoalEngineTests
             Assert.NotEmpty(state.GoalId);
             Assert.Empty(state.Constraints);
             Assert.Null(state.TokenBudget);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task StartAsync_WithConstraints_Should_Set_Constraints()
-    {
+    public async Task StartAsync_WithConstraints_Should_Set_Constraints() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
 
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             var constraints = new List<string> { "不修改公共API", "测试覆盖率>80%" };
             var state = await engine.StartAsync("实现功能", constraints, 50000).ConfigureAwait(true);
 
             Assert.Equal(2, state.Constraints.Count);
             Assert.Equal(50000, state.TokenBudget);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task StartAsync_WhenAlreadyRunning_Should_Throw()
-    {
+    public async Task StartAsync_WhenAlreadyRunning_Should_Throw() {
         using var gate = new SemaphoreSlim(0, 1);
         var (kernel, evaluator, serviceProvider) = CreateBlockingMocks(gate);
 
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             await engine.StartAsync("目标1").ConfigureAwait(true);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => engine.StartAsync("目标2")).ConfigureAwait(true);
 
             await engine.ClearAsync().ConfigureAwait(true);
-        }
-        finally
-        {
+        } finally {
             try { gate.Release(); } catch (SemaphoreFullException ex) { _ = ex; }
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task StartAsync_NullObjective_Should_Throw()
-    {
+    public async Task StartAsync_NullObjective_Should_Throw() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             await Assert.ThrowsAsync<ArgumentNullException>(() => engine.StartAsync(null!)).ConfigureAwait(true);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task StartAsync_EmptyObjective_Should_Throw()
-    {
+    public async Task StartAsync_EmptyObjective_Should_Throw() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             await Assert.ThrowsAsync<ArgumentException>(() => engine.StartAsync("")).ConfigureAwait(true);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task PauseAsync_Should_Set_Status_To_Paused()
-    {
+    public async Task PauseAsync_Should_Set_Status_To_Paused() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         using var gate = new SemaphoreSlim(0, 1);
         var (bKernel, bEvaluator, bServiceProvider) = CreateBlockingMocks(gate);
 
         var engine = new GoalEngine(bKernel.Object, bEvaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: bServiceProvider.Object);
-        try
-        {
+        try {
             await engine.StartAsync("测试目标").ConfigureAwait(true);
 
             await engine.PauseAsync().ConfigureAwait(true);
 
             Assert.Equal(GoalStatus.Paused, engine.CurrentState?.Status);
             Assert.NotNull(engine.CurrentState?.PausedAt);
-        }
-        finally
-        {
+        } finally {
             try { gate.Release(); } catch (SemaphoreFullException ex) { _ = ex; }
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task ClearAsync_Should_Set_Status_To_Unmet()
-    {
+    public async Task ClearAsync_Should_Set_Status_To_Unmet() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
 
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             await engine.StartAsync("测试目标").ConfigureAwait(true);
 
             await engine.ClearAsync().ConfigureAwait(true);
@@ -264,21 +220,17 @@ public sealed class GoalEngineTests
             Assert.Equal(GoalStatus.Unmet, engine.CurrentState?.Status);
             Assert.NotNull(engine.CurrentState?.AchievedAt);
             Assert.False(engine.IsRunning);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task GoalLoop_WhenEvaluatorReturnsCompleted_Should_Set_Achieved()
-    {
+    public async Task GoalLoop_WhenEvaluatorReturnsCompleted_Should_Set_Achieved() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
 
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             var state = await engine.StartAsync("实现功能").ConfigureAwait(true);
 
             await engine.WaitForCompletionAsync().WaitAsync(DisposeTimeout).ConfigureAwait(true);
@@ -286,16 +238,13 @@ public sealed class GoalEngineTests
             Assert.Equal(GoalStatus.Achieved, engine.CurrentState?.Status);
             Assert.NotNull(engine.CurrentState?.AchievedAt);
             Assert.True(engine.CurrentState?.TurnsCompleted >= 1);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task DisposeAsync_Should_Not_Throw()
-    {
+    public async Task DisposeAsync_Should_Not_Throw() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
 
@@ -303,57 +252,47 @@ public sealed class GoalEngineTests
     }
 
     [Fact]
-    public async Task GoalLoop_MultiTurn_Should_Loop_Until_Completed()
-    {
+    public async Task GoalLoop_MultiTurn_Should_Loop_Until_Completed() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
 
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             await engine.StartAsync("多轮目标").ConfigureAwait(true);
 
             await engine.WaitForCompletionAsync().WaitAsync(DisposeTimeout).ConfigureAwait(true);
 
             Assert.Equal(GoalStatus.Achieved, engine.CurrentState?.Status);
             Assert.True(engine.CurrentState?.TurnsCompleted >= 1);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task GoalLoop_BudgetLimited_Should_Stop_When_Budget_Exceeded()
-    {
+    public async Task GoalLoop_BudgetLimited_Should_Stop_When_Budget_Exceeded() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
 
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             await engine.StartAsync("预算测试", tokenBudget: 100).ConfigureAwait(true);
 
             await engine.WaitForCompletionAsync().WaitAsync(DisposeTimeout).ConfigureAwait(true);
 
             Assert.NotNull(engine.CurrentState);
             Assert.True(engine.CurrentState?.TokensUsed >= 0);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task PauseAndResume_Should_Work()
-    {
+    public async Task PauseAndResume_Should_Work() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         using var gate = new SemaphoreSlim(0, 1);
         var (bKernel, bEvaluator, bServiceProvider) = CreateBlockingMocks(gate);
 
         var engine = new GoalEngine(bKernel.Object, bEvaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: bServiceProvider.Object);
-        try
-        {
+        try {
             await engine.StartAsync("暂停恢复测试").ConfigureAwait(true);
 
             await engine.PauseAsync().ConfigureAwait(true);
@@ -364,64 +303,49 @@ public sealed class GoalEngineTests
             Assert.Equal(GoalStatus.Pursuing, engine.CurrentState?.Status);
 
             await engine.ClearAsync().ConfigureAwait(true);
-        }
-        finally
-        {
+        } finally {
             try { gate.Release(); } catch (SemaphoreFullException ex) { _ = ex; }
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task ClearAsync_When_No_Active_Goal_Should_Not_Throw()
-    {
+    public async Task ClearAsync_When_No_Active_Goal_Should_Not_Throw() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             await engine.ClearAsync().ConfigureAwait(true);
 
             Assert.Null(engine.CurrentState);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task PauseAsync_When_No_Active_Goal_Should_Not_Throw()
-    {
+    public async Task PauseAsync_When_No_Active_Goal_Should_Not_Throw() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             await engine.PauseAsync().ConfigureAwait(true);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task ResumeAsync_When_Not_Paused_Should_Not_Throw()
-    {
+    public async Task ResumeAsync_When_Not_Paused_Should_Not_Throw() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             await engine.ResumeAsync().ConfigureAwait(true);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
 
     [Fact]
-    public async Task StartAsync_Should_Switch_Permission_Mode_To_Auto()
-    {
+    public async Task StartAsync_Should_Switch_Permission_Mode_To_Auto() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var permissionManager = new Mock<IToolPermissionManager>();
 
@@ -431,16 +355,13 @@ public sealed class GoalEngineTests
             .Returns(Task.CompletedTask);
 
         var engine = new GoalEngine(kernel.Object, evaluator.Object, permissionManager: permissionManager.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             await engine.StartAsync("权限测试").ConfigureAwait(true);
 
             await engine.WaitForCompletionAsync().WaitAsync(DisposeTimeout).ConfigureAwait(true);
 
             permissionManager.Verify(x => x.SetPermissionModeAsync(PermissionMode.Auto, It.IsAny<CancellationToken>()), Times.AtLeastOnce);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
@@ -450,8 +371,7 @@ public sealed class GoalEngineTests
     /// 队长(main agent)不走 ForkSpawnMiddleware, 需在 RegisterMainAgent 中显式注入
     /// </summary>
     [Fact]
-    public async Task StartAsync_WithDeferredMailService_Should_Inject_To_MainAgent()
-    {
+    public async Task StartAsync_WithDeferredMailService_Should_Inject_To_MainAgent() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
 
         var queryEngine = new Mock<IQueryEngine>();
@@ -465,8 +385,7 @@ public sealed class GoalEngineTests
             .Returns(deferredMailService.Object);
 
         var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
-        try
-        {
+        try {
             await engine.StartAsync("延迟邮件注入测试").ConfigureAwait(true);
 
             var allMainAgents = JoinCode.Abstractions.Entity.SessionRouter.GetAllScopes()
@@ -476,9 +395,7 @@ public sealed class GoalEngineTests
             Assert.NotEmpty(allMainAgents);
             Assert.NotNull(allMainAgents[0].DeferredMailService);
             Assert.Same(deferredMailService.Object, allMainAgents[0].DeferredMailService);
-        }
-        finally
-        {
+        } finally {
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }

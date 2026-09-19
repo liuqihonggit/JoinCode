@@ -10,8 +10,7 @@ namespace Core.Agents.Coordinator.Liveness;
 /// 4. 暴露 TryPreemptAsync 供上层抢塞新任务
 /// </para>
 /// </summary>
-public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
-{
+public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
     private readonly SubAgentLivenessScanner _scanner;
     private readonly SubAgentActivator _activator;
     private readonly ProgressiveCompactor _compactor;
@@ -32,8 +31,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
         PreemptiveScheduler preemptiveScheduler,
         SubAgentLivenessOptions options,
         ILogger? logger = null,
-        Func<DateTimeOffset>? clock = null)
-    {
+        Func<DateTimeOffset>? clock = null) {
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
         _activator = activator ?? throw new ArgumentNullException(nameof(activator));
         _compactor = compactor ?? throw new ArgumentNullException(nameof(compactor));
@@ -46,8 +44,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
     /// <summary>
     /// 启动卡死防护 — 订阅事件 + 启动扫描器
     /// </summary>
-    public void Start()
-    {
+    public void Start() {
         _scanner.AgentStalled += OnAgentStalled;
         _scanner.ChainStalled += OnChainStalled;
         _scanner.Start();
@@ -57,16 +54,14 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
     /// <summary>
     /// 尝试抢塞新任务到已完成的子代理
     /// </summary>
-    public Task<PreemptResult> TryPreemptAsync(string taskDescription, CancellationToken ct = default)
-    {
+    public Task<PreemptResult> TryPreemptAsync(string taskDescription, CancellationToken ct = default) {
         return _preemptiveScheduler.TryPreemptAsync(taskDescription, ct);
     }
 
     /// <summary>
     /// 标记子代理已恢复 — 干预后调用
     /// </summary>
-    public void MarkRecovered(string agentId)
-    {
+    public void MarkRecovered(string agentId) {
         _logger?.LogInformation("[SubAgentStallDefense] Agent {AgentId} 已恢复，清除激活记录", agentId);
         _scanner.MarkRecovered(agentId);
         _activationTimes.TryRemove(agentId, out _);
@@ -75,8 +70,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
     /// <summary>
     /// 单点卡死事件处理 — 激活 → 等待恢复 → 仍卡死则压缩
     /// </summary>
-    private void OnAgentStalled(object? sender, SubAgentStalledEventArgs e)
-    {
+    private void OnAgentStalled(object? sender, SubAgentStalledEventArgs e) {
         _logger?.LogDebug("[SubAgentStallDefense] 收到单点卡死事件: Agent {AgentId}，最后活动: {LastActivity}",
             e.AgentId, e.LastActivityAt);
         _ = Task.Run(() => HandleAgentStalledAsync(e));
@@ -85,15 +79,12 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
     /// <summary>
     /// 单点卡死处理逻辑
     /// </summary>
-    private async Task HandleAgentStalledAsync(SubAgentStalledEventArgs e)
-    {
-        try
-        {
+    private async Task HandleAgentStalledAsync(SubAgentStalledEventArgs e) {
+        try {
             var agentId = e.AgentId;
 
             // 检查是否已在激活等待中（避免重复激活）
-            if (_activationTimes.ContainsKey(agentId))
-            {
+            if (_activationTimes.ContainsKey(agentId)) {
                 _logger?.LogDebug("[SubAgentStallDefense] Agent {AgentId} 已在激活等待中，跳过", agentId);
                 return;
             }
@@ -103,8 +94,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
             _logger?.LogInformation("[SubAgentStallDefense] Agent {AgentId} 触发 L3 激活", agentId);
             var activationResult = await _activator.ActivateAsync(agentId, _options.IdleThresholdSeconds).ConfigureAwait(false);
 
-            if (!activationResult.Success)
-            {
+            if (!activationResult.Success) {
                 _logger?.LogWarning("[SubAgentStallDefense] Agent {AgentId} 激活失败: {Reason}",
                     agentId, activationResult.Reason);
                 // 激活失败，直接走 L4 压缩
@@ -114,9 +104,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
 
             // 等待恢复（由 Scanner 在下次扫描时检测到活动后调用 MarkRecovered）
             _ = Task.Run(() => WaitForRecoveryAsync(agentId));
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, "[SubAgentStallDefense] HandleAgentStalledAsync 异常: {AgentId}", e.AgentId);
         }
     }
@@ -124,15 +112,12 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
     /// <summary>
     /// 等待子代理恢复 — 超时后触发 L4 压缩
     /// </summary>
-    private async Task WaitForRecoveryAsync(string agentId)
-    {
-        try
-        {
+    private async Task WaitForRecoveryAsync(string agentId) {
+        try {
             await Task.Delay(TimeSpan.FromSeconds(_options.ActivationRecoverySeconds)).ConfigureAwait(false);
 
             // 检查是否已恢复
-            if (!_activationTimes.ContainsKey(agentId))
-            {
+            if (!_activationTimes.ContainsKey(agentId)) {
                 _logger?.LogDebug("[SubAgentStallDefense] Agent {AgentId} 已恢复，跳过 L4 压缩", agentId);
                 return;
             }
@@ -143,10 +128,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
 
             var result = await _compactor.CompactProgressiveAsync(agentId).ConfigureAwait(false);
             _activationTimes.TryRemove(agentId, out _);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogError(ex, "[SubAgentStallDefense] WaitForRecoveryAsync 异常: {AgentId}", agentId);
         }
     }
@@ -154,8 +136,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
     /// <summary>
     /// 链路卡死事件处理 — 压缩链上所有 Confirmed 节点
     /// </summary>
-    private void OnChainStalled(object? sender, ChainStallResult e)
-    {
+    private void OnChainStalled(object? sender, ChainStallResult e) {
         _logger?.LogDebug("[SubAgentStallDefense] 收到链路卡死事件: {Chain}（{Confirmed}/{Total} 节点确认）",
             string.Join("→", e.Chain), e.ConfirmedNodes, e.TotalNodes);
         _ = Task.Run(() => HandleChainStalledAsync(e));
@@ -164,21 +145,16 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
     /// <summary>
     /// 链路卡死处理逻辑
     /// </summary>
-    private async Task HandleChainStalledAsync(ChainStallResult e)
-    {
-        try
-        {
+    private async Task HandleChainStalledAsync(ChainStallResult e) {
+        try {
             _logger?.LogWarning("[SubAgentStallDefense] 链路卡死: {Chain}，开始压缩所有节点",
                 string.Join("→", e.Chain));
 
             // 从叶子到根依次压缩
-            foreach (var agentId in e.Chain)
-            {
+            foreach (var agentId in e.Chain) {
                 await _compactor.CompactProgressiveAsync(agentId).ConfigureAwait(false);
             }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, "[SubAgentStallDefense] HandleChainStalledAsync 异常");
         }
     }
@@ -186,8 +162,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
     /// <summary>
     /// 释放协调器资源
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
         _logger?.LogInformation("[SubAgentStallDefense] 纵深防御体系停止，清理 {Count} 个激活记录", _activationTimes.Count);

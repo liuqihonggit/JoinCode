@@ -1,18 +1,15 @@
 namespace Sync.Tests.ToolHandlers;
 
-public class ToolSearchToolHandlersTests
-{
+public class ToolSearchToolHandlersTests {
     private readonly Mock<IMcpToolRegistry> _toolRegistry = new();
     private readonly ToolSearchToolHandlers _handler;
 
-    public ToolSearchToolHandlersTests()
-    {
+    public ToolSearchToolHandlersTests() {
         _handler = new ToolSearchToolHandlers(_toolRegistry.Object, NullLogger<ToolSearchToolHandlers>.Instance);
     }
 
     [Fact]
-    public async Task SearchToolsAsync_EmptyQuery_ReturnsError()
-    {
+    public async Task SearchToolsAsync_EmptyQuery_ReturnsError() {
         var result = await _handler.SearchToolsAsync("", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
@@ -20,8 +17,7 @@ public class ToolSearchToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchToolsAsync_NoTools_ReturnsSuccess()
-    {
+    public async Task SearchToolsAsync_NoTools_ReturnsSuccess() {
         _toolRegistry.Setup(x => x.GetAllToolsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<string, IToolHandler>());
 
@@ -32,8 +28,7 @@ public class ToolSearchToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchToolsAsync_WithTools_ReturnsSuccess()
-    {
+    public async Task SearchToolsAsync_WithTools_ReturnsSuccess() {
         var mockHandler = new Mock<IToolHandler>();
         mockHandler.SetupGet(x => x.Description).Returns("A test tool");
         var dict = new Dictionary<string, IToolHandler> { { "test_tool", mockHandler.Object } };
@@ -47,8 +42,7 @@ public class ToolSearchToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchToolsAsync_McpTool_IsDiscoverable()
-    {
+    public async Task SearchToolsAsync_McpTool_IsDiscoverable() {
         var mcpHandler = new Mock<IToolHandler>();
         mcpHandler.SetupGet(x => x.Description).Returns("Remote MCP echo tool");
         mcpHandler.SetupGet(x => x.Kind).Returns(ToolKind.Mcp);
@@ -64,8 +58,7 @@ public class ToolSearchToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchToolsAsync_McpToolExactMatch_RanksFirst()
-    {
+    public async Task SearchToolsAsync_McpToolExactMatch_RanksFirst() {
         var mcpHandler = new Mock<IToolHandler>();
         mcpHandler.SetupGet(x => x.Description).Returns("Remote MCP read tool");
         mcpHandler.SetupGet(x => x.Kind).Returns(ToolKind.Mcp);
@@ -92,8 +85,7 @@ public class ToolSearchToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchToolsAsync_RegistryThrows_ReturnsError()
-    {
+    public async Task SearchToolsAsync_RegistryThrows_ReturnsError() {
         _toolRegistry.Setup(x => x.GetAllToolsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 

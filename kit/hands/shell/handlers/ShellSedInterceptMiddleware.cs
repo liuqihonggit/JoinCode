@@ -5,15 +5,13 @@ namespace Tools.Shell;
 /// 首次 sed -i 返回预览，存储预计算结果；二次调用确认后写入
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellMiddleware {
 
     /// <summary>
     /// 构造 sed 拦截中间件
     /// </summary>
     /// <param name="fs">文件系统（可选，为 null 时返回不可用诊断）</param>
-    public ShellSedInterceptMiddleware(IFileSystem? fs = null)
-    {
+    public ShellSedInterceptMiddleware(IFileSystem? fs = null) {
         _fs = fs;
     }
     private readonly IFileSystem? _fs;
@@ -25,8 +23,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
     /// </summary>
     private readonly ConcurrentDictionary<string, PendingSedConfirmation> _fallbackEdits = new(StringComparer.OrdinalIgnoreCase);
 
-    private static ISessionCache? GetCurrentCache()
-    {
+    private static ISessionCache? GetCurrentCache() {
         var sessionId = SessionContext.Current;
         if (sessionId is null) return null;
         return SessionRouter.GetScope(sessionId.Value)?.Cache;
@@ -42,11 +39,9 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
         var sedEditInfo = SedEditParser.ParseSedEditCommand(context.Command);
-        if (sedEditInfo is not null)
-        {
+        if (sedEditInfo is not null) {
             var result = await HandleSedEditAsync(sedEditInfo, context.WorkingDirectory, ct).ConfigureAwait(false);
             context.SedResult = result;
             context.Result = result;
@@ -61,10 +56,8 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
     /// 首次调用：解析→读取→模拟替换→返回diff预览→存储待确认编辑
     /// 二次调用（确认）：从待确认中取出→直接写入预计算内容
     /// </summary>
-    private async Task<ToolResult> HandleSedEditAsync(SedEditInfo sedInfo, string? workingDirectory, CancellationToken cancellationToken)
-    {
-        if (_fs is null)
-        {
+    private async Task<ToolResult> HandleSedEditAsync(SedEditInfo sedInfo, string? workingDirectory, CancellationToken cancellationToken) {
+        if (_fs is null) {
             var diag = BuildFileSystemUnavailableDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -72,8 +65,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         var filePath = sedInfo.FilePath;
 
         // 解析相对路径
-        if (!Path.IsPathRooted(filePath))
-        {
+        if (!Path.IsPathRooted(filePath)) {
             var cwd = workingDirectory ?? _fs.GetCurrentDirectory();
             filePath = Path.Combine(cwd, filePath);
         }
@@ -84,19 +76,15 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         if (pending is null && _fallbackEdits.TryGetValue(filePath, out var fallbackPending))
             pending = fallbackPending;
 
-        if (pending is not null && !pending.IsExpired)
-        {
+        if (pending is not null && !pending.IsExpired) {
             // 验证 sed 信息匹配（防止模型伪造不同编辑）
-            if (pending.SedPattern == sedInfo.Pattern && pending.SedReplacement == sedInfo.Replacement)
-            {
+            if (pending.SedPattern == sedInfo.Pattern && pending.SedReplacement == sedInfo.Replacement) {
                 cache?.Remove(filePath);
                 _fallbackEdits.TryRemove(filePath, out _);
 
                 // 用 EditFileAsync 原子编辑：重新读→替换→写，基于最新内容应用 sed
-                try
-                {
-                    await _fs.EditFileAsync<bool>(filePath, async (bytes, ct) =>
-                    {
+                try {
+                    await _fs.EditFileAsync<bool>(filePath, async (bytes, ct) => {
                         var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                         var lineEnding = content.Contains("\r\n") ? "\r\n" : "\n";
                         var normalizedContent = content.Replace("\r\n", "\n");
@@ -105,9 +93,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
                         var newBytes = FileEncodingDetector.EncodeString(finalContent, encoding);
                         return (newBytes, true);
                     }, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     var diag = BuildWriteFailedDiagnostic(filePath, ex.Message);
                     return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
                 }
@@ -121,22 +107,18 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         }
 
         // 首次调用：读取文件→模拟替换→返回预览
-        if (!_fs.FileExists(filePath))
-        {
+        if (!_fs.FileExists(filePath)) {
             var diag = BuildFileNotFoundDiagnostic(sedInfo.FilePath);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         string oldContent;
         string originalLineEnding;
-        try
-        {
+        try {
             var rawContent = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
             originalLineEnding = rawContent.Contains("\r\n") ? "\r\n" : "\n";
             oldContent = rawContent.Replace("\r\n", "\n");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             var diag = BuildReadFailedDiagnostic(filePath, ex.Message);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -145,8 +127,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         var newContent = SedEditParser.ApplySedSubstitution(oldContent, sedInfo);
 
         // 检查是否有变更
-        if (oldContent == newContent)
-        {
+        if (oldContent == newContent) {
             var noChangeMsg = string.IsNullOrEmpty(oldContent)
                 ? "File is empty, pattern did not match"
                 : "Pattern did not match any content";
@@ -178,13 +159,11 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         var maxLines = Math.Max(oldLines.Length, newLines.Length);
         var changeCount = 0;
 
-        for (var i = 0; i < maxLines && changeCount < 20; i++)
-        {
+        for (var i = 0; i < maxLines && changeCount < 20; i++) {
             var oldLine = i < oldLines.Length ? oldLines[i] : null;
             var newLine = i < newLines.Length ? newLines[i] : null;
 
-            if (oldLine != newLine)
-            {
+            if (oldLine != newLine) {
                 changeCount++;
                 if (oldLine is not null)
                     preview.AppendLine($"- {oldLine.TrimEnd('\r')}");
@@ -241,8 +220,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         string NewContent,
         string OriginalLineEnding,
         string SedPattern,
-        string SedReplacement)
-    {
+        string SedReplacement) {
         /// <summary>
         /// 创建时间
         /// </summary>

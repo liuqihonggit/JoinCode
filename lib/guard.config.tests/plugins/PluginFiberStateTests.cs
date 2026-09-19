@@ -1,17 +1,14 @@
 namespace Core.Tests.Plugins;
 
-public sealed class PluginFiberStateTests
-{
+public sealed class PluginFiberStateTests {
     [Fact]
-    public void Fiber_InitialState_IsPending()
-    {
+    public void Fiber_InitialState_IsPending() {
         var fiber = new PluginFiber();
         Assert.Equal(PluginFiberState.Pending, fiber.State);
     }
 
     [Fact]
-    public void TransitionTo_LegalChain_Succeeds()
-    {
+    public void TransitionTo_LegalChain_Succeeds() {
         var fiber = new PluginFiber();
         fiber.TransitionTo(PluginFiberState.Activating);
         fiber.TransitionTo(PluginFiberState.Active);
@@ -21,8 +18,7 @@ public sealed class PluginFiberStateTests
     }
 
     [Fact]
-    public void TransitionTo_IllegalTransition_Throws()
-    {
+    public void TransitionTo_IllegalTransition_Throws() {
         var fiber = new PluginFiber();
         fiber.TransitionTo(PluginFiberState.Activating);
         fiber.TransitionTo(PluginFiberState.Active);
@@ -31,8 +27,7 @@ public sealed class PluginFiberStateTests
     }
 
     [Fact]
-    public void TryTransitionTo_IllegalTransition_ReturnsFalse()
-    {
+    public void TryTransitionTo_IllegalTransition_ReturnsFalse() {
         var fiber = new PluginFiber();
         fiber.TransitionTo(PluginFiberState.Activating);
         Assert.False(fiber.TryTransitionTo(PluginFiberState.Unloaded));
@@ -40,8 +35,7 @@ public sealed class PluginFiberStateTests
     }
 
     [Fact]
-    public void TransitionTo_ActivatingToFailedToUnloadingToUnloaded_Succeeds()
-    {
+    public void TransitionTo_ActivatingToFailedToUnloadingToUnloaded_Succeeds() {
         var fiber = new PluginFiber();
         fiber.TransitionTo(PluginFiberState.Activating);
         fiber.TransitionTo(PluginFiberState.Failed);
@@ -51,15 +45,13 @@ public sealed class PluginFiberStateTests
     }
 
     [Fact]
-    public void WorkflowPluginBase_Fiber_InitialStatePending()
-    {
+    public void WorkflowPluginBase_Fiber_InitialStatePending() {
         using var plugin = new FiberTestPlugin();
         Assert.Equal(PluginFiberState.Pending, plugin.Fiber.State);
     }
 
     [Fact]
-    public void WorkflowPluginBase_UnloadTwice_SecondReturnsAlreadyUnloaded()
-    {
+    public void WorkflowPluginBase_UnloadTwice_SecondReturnsAlreadyUnloaded() {
         var plugin = new FiberTestPlugin();
         var r1 = plugin.Unload();
         Assert.True(r1.IsSuccess);
@@ -69,8 +61,7 @@ public sealed class PluginFiberStateTests
     }
 
     [Fact]
-    public void TransitionTo_FailedToActivating_RetrySucceeds()
-    {
+    public void TransitionTo_FailedToActivating_RetrySucceeds() {
         var fiber = new PluginFiber();
         fiber.TransitionTo(PluginFiberState.Activating);
         fiber.TransitionTo(PluginFiberState.Failed);
@@ -80,8 +71,7 @@ public sealed class PluginFiberStateTests
     }
 
     [Fact]
-    public void TransitionTo_ActiveToFailed_Succeeds()
-    {
+    public void TransitionTo_ActiveToFailed_Succeeds() {
         var fiber = new PluginFiber();
         fiber.TransitionTo(PluginFiberState.Activating);
         fiber.TransitionTo(PluginFiberState.Active);
@@ -90,8 +80,7 @@ public sealed class PluginFiberStateTests
     }
 
     [Fact]
-    public void TransitionTo_UnloadingToFailed_Succeeds()
-    {
+    public void TransitionTo_UnloadingToFailed_Succeeds() {
         var fiber = new PluginFiber();
         fiber.TransitionTo(PluginFiberState.Activating);
         fiber.TransitionTo(PluginFiberState.Active);
@@ -101,8 +90,7 @@ public sealed class PluginFiberStateTests
     }
 
     [Fact]
-    public void TransitionTo_FailedToUnloadingToUnloaded_Succeeds()
-    {
+    public void TransitionTo_FailedToUnloadingToUnloaded_Succeeds() {
         var fiber = new PluginFiber();
         fiber.TransitionTo(PluginFiberState.Activating);
         fiber.TransitionTo(PluginFiberState.Failed);
@@ -111,8 +99,7 @@ public sealed class PluginFiberStateTests
         Assert.Equal(PluginFiberState.Unloaded, fiber.State);
     }
 
-    private sealed class FiberTestPlugin : WorkflowPluginBase
-    {
+    private sealed class FiberTestPlugin : WorkflowPluginBase {
         public FiberTestPlugin() : base("fiber-test") { }
         public override string Name => "fiber-test";
         public override string Version => "1.0.0";

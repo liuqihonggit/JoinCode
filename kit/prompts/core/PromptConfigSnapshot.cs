@@ -4,8 +4,7 @@ namespace Core.Prompts;
 /// 提示词配置快照 — 在会话初始化时设置，供各 Section 的 Create() 方法读取
 /// 避免 Section 需要构造函数参数，保持 static class 模式
 /// </summary>
-public sealed class PromptConfigSnapshot
-{
+public sealed class PromptConfigSnapshot {
     private static readonly AsyncLocal<SystemPromptProviderOptions?> _current = new();
 
     /// <summary>

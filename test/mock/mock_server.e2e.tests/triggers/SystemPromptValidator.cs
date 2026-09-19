@@ -4,8 +4,7 @@ namespace MockServer.E2E.Tests.Triggers;
 /// <summary>
 /// 系统提示词验证结果
 /// </summary>
-public sealed class SystemPromptValidationResult
-{
+public sealed class SystemPromptValidationResult {
     /// <summary>
     /// 验证是否通过
     /// </summary>
@@ -30,8 +29,7 @@ public sealed class SystemPromptValidationResult
         bool isValid,
         string message,
         IReadOnlyList<string>? foundPrompts = null,
-        IReadOnlyList<string>? missingContents = null)
-    {
+        IReadOnlyList<string>? missingContents = null) {
         IsValid = isValid;
         Message = message;
         FoundPrompts = foundPrompts ?? Array.Empty<string>();
@@ -41,16 +39,14 @@ public sealed class SystemPromptValidationResult
     /// <summary>
     /// 成功的验证结果
     /// </summary>
-    public static SystemPromptValidationResult Success(IReadOnlyList<string> foundPrompts)
-    {
+    public static SystemPromptValidationResult Success(IReadOnlyList<string> foundPrompts) {
         return new SystemPromptValidationResult(true, "系统提示词验证通过", foundPrompts);
     }
 
     /// <summary>
     /// 失败的验证结果
     /// </summary>
-    public static SystemPromptValidationResult Failure(string message, IReadOnlyList<string>? missingContents = null)
-    {
+    public static SystemPromptValidationResult Failure(string message, IReadOnlyList<string>? missingContents = null) {
         return new SystemPromptValidationResult(false, message, Array.Empty<string>(), missingContents);
     }
 }
@@ -59,8 +55,7 @@ public sealed class SystemPromptValidationResult
 /// 系统提示词验证器
 /// 验证 ChatCompletionRequest 中的系统提示词内容
 /// </summary>
-public sealed class SystemPromptValidator
-{
+public sealed class SystemPromptValidator {
     /// <summary>
     /// 验证系统提示词是否包含预期内容
     /// </summary>
@@ -71,19 +66,16 @@ public sealed class SystemPromptValidator
     public SystemPromptValidationResult Validate(
         ChatCompletionRequest? request,
         IEnumerable<string>? expectedContents = null,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         var systemPrompts = ExtractSystemPrompts(request);
 
-        if (systemPrompts.Count == 0)
-        {
+        if (systemPrompts.Count == 0) {
             return SystemPromptValidationResult.Failure("未找到系统提示词");
         }
 
         var fullSystemPrompt = string.Join("\n", systemPrompts);
 
-        if (expectedContents is null)
-        {
+        if (expectedContents is null) {
             return SystemPromptValidationResult.Success(systemPrompts);
         }
 
@@ -91,8 +83,7 @@ public sealed class SystemPromptValidator
             .Where(expected => !fullSystemPrompt.Contains(expected, comparison))
             .ToList();
 
-        if (missingContents.Count > 0)
-        {
+        if (missingContents.Count > 0) {
             return SystemPromptValidationResult.Failure(
                 $"系统提示词缺少 {missingContents.Count} 项预期内容",
                 missingContents);
@@ -107,8 +98,7 @@ public sealed class SystemPromptValidator
     public bool ContainsContent(
         ChatCompletionRequest? request,
         string expectedContent,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         if (string.IsNullOrWhiteSpace(expectedContent))
             return false;
 
@@ -124,8 +114,7 @@ public sealed class SystemPromptValidator
     public bool ContainsAllContents(
         ChatCompletionRequest? request,
         IEnumerable<string> expectedContents,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         var systemPrompts = ExtractSystemPrompts(request);
         var fullSystemPrompt = string.Join("\n", systemPrompts);
 
@@ -140,8 +129,7 @@ public sealed class SystemPromptValidator
     public bool ContainsAnyContent(
         ChatCompletionRequest? request,
         IEnumerable<string> expectedContents,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         var systemPrompts = ExtractSystemPrompts(request);
         var fullSystemPrompt = string.Join("\n", systemPrompts);
 
@@ -156,8 +144,7 @@ public sealed class SystemPromptValidator
     public bool StartsWith(
         ChatCompletionRequest? request,
         string prefix,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         if (string.IsNullOrWhiteSpace(prefix))
             return false;
 
@@ -174,8 +161,7 @@ public sealed class SystemPromptValidator
     public bool EndsWith(
         ChatCompletionRequest? request,
         string suffix,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         if (string.IsNullOrWhiteSpace(suffix))
             return false;
 
@@ -192,24 +178,21 @@ public sealed class SystemPromptValidator
     /// </summary>
     public bool MatchesPattern(
         ChatCompletionRequest? request,
-        SystemPromptPattern pattern)
-    {
+        SystemPromptPattern pattern) {
         return pattern.Matches(request);
     }
 
     /// <summary>
     /// 获取系统提示词数量
     /// </summary>
-    public int GetSystemPromptCount(ChatCompletionRequest? request)
-    {
+    public int GetSystemPromptCount(ChatCompletionRequest? request) {
         return ExtractSystemPrompts(request).Count;
     }
 
     /// <summary>
     /// 获取完整的系统提示词文本
     /// </summary>
-    public string GetFullSystemPrompt(ChatCompletionRequest? request, string separator = "\n\n")
-    {
+    public string GetFullSystemPrompt(ChatCompletionRequest? request, string separator = "\n\n") {
         var prompts = ExtractSystemPrompts(request);
         return string.Join(separator, prompts);
     }
@@ -222,10 +205,8 @@ public sealed class SystemPromptValidator
         ChatCompletionRequest? request,
         string expectedContent,
         string? message = null,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
-        if (!ContainsContent(request, expectedContent, comparison))
-        {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
+        if (!ContainsContent(request, expectedContent, comparison)) {
             var actualContent = GetFullSystemPrompt(request);
             var errorMessage = message ??
                 $"系统提示词应包含 '{expectedContent}'，但实际内容:\n{actualContent}";
@@ -241,10 +222,8 @@ public sealed class SystemPromptValidator
         ChatCompletionRequest? request,
         string unexpectedContent,
         string? message = null,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
-        if (ContainsContent(request, unexpectedContent, comparison))
-        {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
+        if (ContainsContent(request, unexpectedContent, comparison)) {
             var errorMessage = message ??
                 $"系统提示词不应包含 '{unexpectedContent}'";
             throw new AssertException(errorMessage);
@@ -258,11 +237,9 @@ public sealed class SystemPromptValidator
     public void AssertCount(
         ChatCompletionRequest? request,
         int expectedCount,
-        string? message = null)
-    {
+        string? message = null) {
         var actualCount = GetSystemPromptCount(request);
-        if (actualCount != expectedCount)
-        {
+        if (actualCount != expectedCount) {
             var errorMessage = message ??
                 $"期望系统提示词数量为 {expectedCount}，实际为 {actualCount}";
             throw new AssertException(errorMessage);
@@ -272,8 +249,7 @@ public sealed class SystemPromptValidator
     /// <summary>
     /// 提取系统提示词列表
     /// </summary>
-    private static IReadOnlyList<string> ExtractSystemPrompts(ChatCompletionRequest? request)
-    {
+    private static IReadOnlyList<string> ExtractSystemPrompts(ChatCompletionRequest? request) {
         if (request?.Messages is null)
             return Array.Empty<string>();
 
@@ -287,8 +263,7 @@ public sealed class SystemPromptValidator
 /// <summary>
 /// 系统提示词验证模式
 /// </summary>
-public abstract class SystemPromptPattern
-{
+public abstract class SystemPromptPattern {
     /// <summary>
     /// 检查请求是否匹配此模式
     /// </summary>
@@ -297,38 +272,32 @@ public abstract class SystemPromptPattern
     /// <summary>
     /// 创建包含所有指定内容的模式
     /// </summary>
-    public static SystemPromptPattern ContainsAll(params string[] contents)
-    {
+    public static SystemPromptPattern ContainsAll(params string[] contents) {
         return new ContainsAllPattern(contents);
     }
 
     /// <summary>
     /// 创建包含任意指定内容的模式
     /// </summary>
-    public static SystemPromptPattern ContainsAny(params string[] contents)
-    {
+    public static SystemPromptPattern ContainsAny(params string[] contents) {
         return new ContainsAnyPattern(contents);
     }
 
     /// <summary>
     /// 创建以指定前缀开头的模式
     /// </summary>
-    public static SystemPromptPattern StartsWith(string prefix)
-    {
+    public static SystemPromptPattern StartsWith(string prefix) {
         return new StartsWithPattern(prefix);
     }
 
-    private sealed class ContainsAllPattern : SystemPromptPattern
-    {
+    private sealed class ContainsAllPattern : SystemPromptPattern {
         private readonly string[] _contents;
 
-        public ContainsAllPattern(string[] contents)
-        {
+        public ContainsAllPattern(string[] contents) {
             _contents = contents;
         }
 
-        public override bool Matches(ChatCompletionRequest? request)
-        {
+        public override bool Matches(ChatCompletionRequest? request) {
             var systemPrompts = request?.Messages
                 ?.Where(m => m.Role == MessageRoles.System)
                 .Select(m => m.Content)
@@ -339,17 +308,14 @@ public abstract class SystemPromptPattern
         }
     }
 
-    private sealed class ContainsAnyPattern : SystemPromptPattern
-    {
+    private sealed class ContainsAnyPattern : SystemPromptPattern {
         private readonly string[] _contents;
 
-        public ContainsAnyPattern(string[] contents)
-        {
+        public ContainsAnyPattern(string[] contents) {
             _contents = contents;
         }
 
-        public override bool Matches(ChatCompletionRequest? request)
-        {
+        public override bool Matches(ChatCompletionRequest? request) {
             var systemPrompts = request?.Messages
                 ?.Where(m => m.Role == MessageRoles.System)
                 .Select(m => m.Content)
@@ -360,17 +326,14 @@ public abstract class SystemPromptPattern
         }
     }
 
-    private sealed class StartsWithPattern : SystemPromptPattern
-    {
+    private sealed class StartsWithPattern : SystemPromptPattern {
         private readonly string _prefix;
 
-        public StartsWithPattern(string prefix)
-        {
+        public StartsWithPattern(string prefix) {
             _prefix = prefix;
         }
 
-        public override bool Matches(ChatCompletionRequest? request)
-        {
+        public override bool Matches(ChatCompletionRequest? request) {
             var firstSystem = request?.Messages
                 ?.FirstOrDefault(m => m.Role == MessageRoles.System)
                 ?.Content;
@@ -383,8 +346,7 @@ public abstract class SystemPromptPattern
 /// <summary>
 /// 断言异常
 /// </summary>
-public class AssertException : Exception
-{
+public class AssertException : Exception {
     public AssertException(string message) : base(message) { }
     public AssertException(string message, Exception innerException) : base(message, innerException) { }
 }

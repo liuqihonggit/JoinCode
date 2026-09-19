@@ -4,8 +4,7 @@ namespace Core.Skills;
 /// 技能服务配置选项
 /// </summary>
 [Register(typeof(SkillOptions), ServiceLifetime.Singleton)]
-public sealed record SkillOptions
-{
+public sealed record SkillOptions {
     /// <summary>
     /// 技能目录路径
     /// </summary>
@@ -24,8 +23,7 @@ public sealed record SkillOptions
     /// 从工作流配置创建技能选项
     /// </summary>
     /// <param name="config">工作流配置；为 null 则使用默认值</param>
-    public SkillOptions(WorkflowConfig? config)
-    {
+    public SkillOptions(WorkflowConfig? config) {
         SkillsDirectory = config is not null && !string.IsNullOrEmpty(config.SkillsDirectory)
             ? config.SkillsDirectory
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, "skills");
@@ -43,8 +41,7 @@ public sealed record SkillOptions
 /// 技能服务 — 管理技能注册、查找、执行和重载，集成 MCP 远程技能
 /// </summary>
 [Register(typeof(ISkillService), ServiceLifetime.Singleton)]
-public sealed partial class SkillService : ServiceEntity, ISkillService, IDisposable
-{
+public sealed partial class SkillService : ServiceEntity, ISkillService, IDisposable {
     private readonly SkillOptions _options;
     private readonly IFileOperationService _files;
     private readonly Core.Skills.Mcp.IMcpSkillProvider? _mcpSkillProvider;
@@ -71,8 +68,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         Core.Skills.Discovery.ISkillDiscoveryService? discoveryService = null,
         Core.Skills.Mcp.IMcpSkillProvider? mcpSkillProvider = null,
         ILogger<SkillService>? logger = null
-        )
-    {
+        ) {
         Diag.WriteLine("[SKILL-CTOR] 1 assign fields");
         _options = options;
         _files = files;
@@ -101,27 +97,23 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         string skillName,
         Dictionary<string, JsonElement>? parameters,
         ExecutionContext ctx,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
 
         // 优先查找本地技能
         var skill = await GetSkillAsync(skillName, cancellationToken).ConfigureAwait(false);
 
         // 本地技能不存在时，尝试 MCP 远程技能 — 对齐 TS executeRemoteSkill
-        if (skill == null && _mcpSkillProvider is not null && _mcpSkillProvider.IsSkillAvailable(skillName))
-        {
+        if (skill == null && _mcpSkillProvider is not null && _mcpSkillProvider.IsSkillAvailable(skillName)) {
             return await ExecuteMcpSkillAsync(skillName, parameters, ctx, cancellationToken).ConfigureAwait(false);
         }
 
-        if (skill == null)
-        {
+        if (skill == null) {
             return SkillResult.FailureResult(skillName, string.Format(ContractsErrorMessages.SkillNotFound, skillName));
         }
 
         // 本地技能通过中间件管道执行
-        var context = new SkillContext
-        {
+        var context = new SkillContext {
             SkillName = skillName,
             Parameters = parameters ?? [],
             Skill = skill,
@@ -138,16 +130,13 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>所有可用技能定义列表</returns>
-    public async Task<IReadOnlyList<SkillDefinition>> GetAvailableSkillsAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<SkillDefinition>> GetAvailableSkillsAsync(CancellationToken cancellationToken = default) {
         var localSkills = _skills.Values;
 
         // 合并 MCP 远程技能 — 对齐 TS getAllCommands 合并本地+MCP技能
-        if (_mcpSkillProvider is not null)
-        {
+        if (_mcpSkillProvider is not null) {
             var mcpSkills = await _mcpSkillProvider.GetMcpSkillsAsync(cancellationToken).ConfigureAwait(false);
-            if (mcpSkills.Count > 0)
-            {
+            if (mcpSkills.Count > 0) {
                 var combined = new List<SkillDefinition>(_skills.Count + mcpSkills.Count);
                 combined.AddRange(localSkills);
                 combined.AddRange(mcpSkills);
@@ -164,15 +153,13 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// <param name="skillName">技能名称</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>技能定义；不存在则返回 null</returns>
-    public async Task<SkillDefinition?> GetSkillAsync(string skillName, CancellationToken cancellationToken = default)
-    {
+    public async Task<SkillDefinition?> GetSkillAsync(string skillName, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
         var local = _skills.GetValueOrDefault(skillName);
         if (local is not null) return local;
 
         // 查找 MCP 远程技能
-        if (_mcpSkillProvider is not null && _mcpSkillProvider.IsSkillAvailable(skillName))
-        {
+        if (_mcpSkillProvider is not null && _mcpSkillProvider.IsSkillAvailable(skillName)) {
             var mcpSkills = await _mcpSkillProvider.GetMcpSkillsAsync(cancellationToken).ConfigureAwait(false);
             return mcpSkills.FirstOrDefault(s => string.Equals(s.Name, skillName, StringComparison.OrdinalIgnoreCase));
         }
@@ -185,8 +172,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// </summary>
     /// <param name="skillName">技能名称</param>
     /// <returns>存在返回 true，否则返回 false</returns>
-    public bool SkillExists(string skillName)
-    {
+    public bool SkillExists(string skillName) {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
         if (_skills.ContainsKey(skillName)) return true;
 
@@ -201,8 +187,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// <param name="ctx">执行上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>重载成功返回 true，否则返回 false</returns>
-    public async Task<bool> ReloadAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> ReloadAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<bool>();
         await _actor.SendAsync(new ReloadCmd(skillName, ctx, reply), cancellationToken).ConfigureAwait(false);
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
@@ -215,15 +200,11 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// <param name="ctx">执行上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>重载成功返回 true，否则返回 false</returns>
-    private async Task<bool> ReloadInternalAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (skillName != null)
-            {
+    private async Task<bool> ReloadInternalAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken) {
+        try {
+            if (skillName != null) {
                 var skill = await LoadSkillFromFileAsync(skillName, ctx).ConfigureAwait(false);
-                if (skill != null)
-                {
+                if (skill != null) {
                     _skills[skillName] = skill;
                     ctx.Logger?.LogInformation(L.T(StringKey.SkillServiceReloaded), skillName);
                     return true;
@@ -237,9 +218,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
             _lastReloadTime = DateTime.UtcNow;
             ctx.Logger?.LogInformation(L.T(StringKey.SkillServiceReloadAll));
             return true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ctx.Logger?.LogError(ex, L.T(StringKey.SkillServiceReloadFailed));
             return false;
         }
@@ -249,8 +228,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// 注册技能定义
     /// </summary>
     /// <param name="skill">技能定义</param>
-    public void RegisterSkill(SkillDefinition skill)
-    {
+    public void RegisterSkill(SkillDefinition skill) {
         ArgumentNullException.ThrowIfNull(skill);
         _skills[skill.Name] = skill;
     }
@@ -260,8 +238,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// </summary>
     /// <param name="skillName">技能名称</param>
     /// <returns>注销成功返回 true，否则返回 false</returns>
-    public bool UnregisterSkill(string skillName)
-    {
+    public bool UnregisterSkill(string skillName) {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
         return _skills.TryRemove(skillName, out _);
     }
@@ -275,32 +252,25 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         string skillName,
         Dictionary<string, JsonElement>? parameters,
         ExecutionContext ctx,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var mcpSkillProvider = _mcpSkillProvider ?? throw new InvalidOperationException("McpSkillProvider not available.");
         ctx.Logger?.LogInformation("执行 MCP 远程技能: {SkillName}", skillName);
 
-        try
-        {
+        try {
             var result = await mcpSkillProvider.ExecuteMcpSkillAsync(skillName, parameters, ctx, cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
             ctx.Logger?.LogInformation("MCP 远程技能 {SkillName} 执行完成，耗时 {Ms}ms", skillName, stopwatch.ElapsedMilliseconds);
             return result with { DurationMs = stopwatch.ElapsedMilliseconds };
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             return SkillResult.FailureResult(skillName, "MCP 远程技能执行被取消");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ctx.Logger?.LogError(ex, "MCP 远程技能 {SkillName} 执行失败", skillName);
             return SkillResult.FailureResult(skillName, $"MCP 远程技能执行失败: {ex.Message}");
         }
     }
 
-    private void LoadBuiltInSkills()
-    {
+    private void LoadBuiltInSkills() {
         RegisterSkill(BuiltIn.VerifySkill.CreateDefinition());
         RegisterSkill(BuiltIn.DebugSkill.CreateDefinition());
         RegisterSkill(BuiltIn.BatchSkill.CreateDefinition());
@@ -314,12 +284,9 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         RegisterSkill(BuiltIn.KeybindingsSkill.CreateDefinition());
     }
 
-    private async Task LoadExternalSkillsAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (!_files.DirectoryExists(_options.SkillsDirectory))
-            {
+    private async Task LoadExternalSkillsAsync(CancellationToken cancellationToken) {
+        try {
+            if (!_files.DirectoryExists(_options.SkillsDirectory)) {
                 _files.CreateDirectory(_options.SkillsDirectory);
                 return;
             }
@@ -331,88 +298,67 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
             var mdFiles = _files.GetFiles(_options.SkillsDirectory, "SKILL.md", System.IO.SearchOption.AllDirectories);
             var mdTasks = mdFiles.Select(filePath => LoadSkillFromMarkdownFileAsync(filePath, cancellationToken));
             await Task.WhenAll(mdTasks).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 技能加载失败不应阻止应用启动，但需记录日志
             _logger?.LogWarning(ex, "SkillService.LoadExternalSkillsAsync 失败");
         }
     }
 
-    private async Task InitializeAsync(CancellationToken cancellationToken)
-    {
+    private async Task InitializeAsync(CancellationToken cancellationToken) {
         await LoadExternalSkillsAsync(cancellationToken).ConfigureAwait(false);
 
-        if (_discoveryService != null)
-        {
-            try
-            {
+        if (_discoveryService != null) {
+            try {
                 var discovered = await _discoveryService.DiscoverAsync(cancellationToken).ConfigureAwait(false);
-                foreach (var skill in discovered)
-                {
-                    if (skill.Definition != null)
-                    {
+                foreach (var skill in discovered) {
+                    if (skill.Definition != null) {
                         _skills.TryAdd(skill.Definition.Name, skill.Definition);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 // 技能发现失败不应阻止应用启动，但需记录日志
                 _logger?.LogWarning(ex, "SkillService.DiscoverAsync 失败");
             }
         }
     }
 
-    private async Task<SkillDefinition?> LoadSkillFromFileAsync(string skillName, ExecutionContext ctx)
-    {
+    private async Task<SkillDefinition?> LoadSkillFromFileAsync(string skillName, ExecutionContext ctx) {
         var jsonPath = System.IO.Path.Combine(_options.SkillsDirectory, $"{skillName}.json");
-        if (_files.FileExists(jsonPath))
-        {
+        if (_files.FileExists(jsonPath)) {
             return await LoadSkillFromJsonFileAsync(jsonPath, ctx.CancellationToken).ConfigureAwait(false);
         }
 
         var mdPath = System.IO.Path.Combine(_options.SkillsDirectory, skillName, "SKILL.md");
-        if (_files.FileExists(mdPath))
-        {
+        if (_files.FileExists(mdPath)) {
             return await LoadSkillFromMarkdownFileAsync(mdPath, ctx.CancellationToken).ConfigureAwait(false);
         }
 
         return null;
     }
 
-    private async Task<SkillDefinition?> LoadSkillFromJsonFileAsync(string filePath, CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task<SkillDefinition?> LoadSkillFromJsonFileAsync(string filePath, CancellationToken cancellationToken) {
+        try {
             var result = await _files.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 return null;
             }
 
             var skill = RelaxedJsonSerializer.Deserialize(result.Content, SkillsJsonContext.Default.SkillDefinition);
-            if (skill != null)
-            {
+            if (skill != null) {
                 var lastModified = await _files.GetLastWriteTimeUtcAsync(filePath, cancellationToken).ConfigureAwait(false);
                 skill = skill with { SourcePath = filePath, SourceFormat = SkillSourceFormat.Json, LastModified = lastModified };
                 _skills[skill.Name] = skill;
             }
             return skill;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
 
-    private async Task<SkillDefinition?> LoadSkillFromMarkdownFileAsync(string filePath, CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task<SkillDefinition?> LoadSkillFromMarkdownFileAsync(string filePath, CancellationToken cancellationToken) {
+        try {
             var result = await _files.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 return null;
             }
 
@@ -422,8 +368,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
             var skillName = frontmatter.TryGetValue("name", out var name) ? name : System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(filePath)) ?? "unknown";
             var description = frontmatter.TryGetValue("description", out var desc) ? desc : string.Empty;
 
-            var skill = new SkillDefinition
-            {
+            var skill = new SkillDefinition {
                 Name = skillName,
                 Description = description,
                 Parameters = new Dictionary<string, SkillParameter>(),
@@ -447,15 +392,12 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
 
             _skills[skill.Name] = skill;
             return skill;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
 
-    private static Dictionary<string, string> ParseFrontmatter(string content)
-    {
+    private static Dictionary<string, string> ParseFrontmatter(string content) {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         if (!content.StartsWith("---")) return result;
@@ -464,8 +406,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         if (endIndex < 0) return result;
 
         var frontmatterBlock = content[3..endIndex].Trim();
-        foreach (var line in frontmatterBlock.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-        {
+        foreach (var line in frontmatterBlock.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
             var colonIndex = line.IndexOf(':');
             if (colonIndex < 0) continue;
 
@@ -477,8 +418,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         return result;
     }
 
-    private static IReadOnlyList<string> ParseListField(string value)
-    {
+    private static IReadOnlyList<string> ParseListField(string value) {
         if (string.IsNullOrWhiteSpace(value)) return Array.Empty<string>();
         return value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
@@ -488,8 +428,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// <summary>
     /// 异步释放资源 — await Actor 完全退出，消除显式锁 — TASK001
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
@@ -498,13 +437,11 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// 技能服务 Actor — 串行化 ReloadAsync 操作，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
-    private sealed class SkillServiceActor : ActorBase<ReloadCmd, Unit>
-    {
+    private sealed class SkillServiceActor : ActorBase<ReloadCmd, Unit> {
         private readonly SkillService _owner;
         private readonly ILogger<SkillService>? _logger;
 
-        public SkillServiceActor(SkillService owner, ILogger<SkillService>? logger) : base()
-        {
+        public SkillServiceActor(SkillService owner, ILogger<SkillService>? logger) : base() {
             _owner = owner;
             _logger = logger;
         }
@@ -513,14 +450,10 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(ReloadCmd cmd, CancellationToken ct)
-        {
-            try
-            {
+        protected override async ValueTask HandleAsync(ReloadCmd cmd, CancellationToken ct) {
+            try {
                 cmd.Reply.SetResult(await _owner.ReloadInternalAsync(cmd.SkillName, cmd.Ctx, ct).ConfigureAwait(false));
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex) { cmd.Reply.SetException(ex); }
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.Reply.SetException(ex); }
         }
 
         protected override void OnConsumerError(Exception ex)

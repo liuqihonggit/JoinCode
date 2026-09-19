@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Attributes;
 /// <summary>
 /// 提示词模板分类
 /// </summary>
-public enum PromptTemplateCategory
-{
+public enum PromptTemplateCategory {
     [EnumValue("memory")]
     Memory,
     [EnumValue("agent")]
@@ -29,8 +28,7 @@ public enum PromptTemplateCategory
 /// 与 [PromptSection] 的区别：PromptSection 是系统提示词的分区组件，PromptTemplate 是独立 LLM 调用的完整提示词
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public sealed class PromptTemplateAttribute : Attribute
-{
+public sealed class PromptTemplateAttribute : Attribute {
     /// <summary>
     /// 模板名称（唯一标识）
     /// </summary>

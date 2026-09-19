@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Git 命令执行结果
 /// </summary>
-public sealed class GitCommandResult : ICommandExecutionResult
-{
+public sealed class GitCommandResult : ICommandExecutionResult {
     public required bool Success { get; init; }
     public string Output { get; init; } = string.Empty;
     public string Error { get; init; } = string.Empty;
@@ -20,8 +19,7 @@ public sealed class GitCommandResult : ICommandExecutionResult
 /// <summary>
 /// 合并冲突检测结果 — 基于 git merge-tree --write-tree（只读，不污染工作区）
 /// </summary>
-public sealed class MergeConflictResult
-{
+public sealed class MergeConflictResult {
     public required bool HasConflict { get; init; }
     public IReadOnlyList<string> ConflictFiles { get; init; } = [];
     public string MergedTreeOid { get; init; } = string.Empty;
@@ -31,8 +29,7 @@ public sealed class MergeConflictResult
 /// <summary>
 /// 遗留冲突标记检测结果 — 扫描工作区中是否存在未被清理的 git 冲突标记
 /// </summary>
-public sealed class StaleConflictMarkerResult
-{
+public sealed class StaleConflictMarkerResult {
     public required bool HasStaleMarkers { get; init; }
     public IReadOnlyList<string> Files { get; init; } = [];
     public string Error { get; init; } = string.Empty;
@@ -47,8 +44,7 @@ public sealed class StaleConflictMarkerResult
 /// 3. 统一 GIT_TERMINAL_PROMPT=0 环境变量（避免交互式提示卡死）
 /// </para>
 /// </summary>
-public interface IGitCommandRunner
-{
+public interface IGitCommandRunner {
     /// <summary>
     /// 执行 git 命令并返回结果
     /// </summary>

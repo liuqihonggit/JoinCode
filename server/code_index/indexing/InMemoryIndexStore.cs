@@ -7,8 +7,7 @@ namespace JoinCode.CodeIndex.Persistence;
 /// 数据结构: 符号索引(按 fqn/name/file/kind 多维检索) + 调用图 + 依赖图 + 项目依赖 + 文件追踪
 /// </summary>
 [Register(typeof(InMemoryIndexStore), ServiceLifetime.Singleton)]
-public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
-{
+public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable {
     private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.SupportsRecursion);
     private int _disposed;
 
@@ -71,8 +70,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     /// <summary>
     /// 进入写锁 — 所有写操作必须在此 scope 内执行
     /// </summary>
-    public IDisposable EnterWriteLock()
-    {
+    public IDisposable EnterWriteLock() {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         return _lock.EnterWriteScope();
     }
@@ -80,8 +78,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     /// <summary>
     /// 进入读锁 — 所有读操作必须在此 scope 内执行
     /// </summary>
-    public IDisposable EnterReadLock()
-    {
+    public IDisposable EnterReadLock() {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         return _lock.EnterReadScope();
     }
@@ -89,8 +86,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     /// <summary>
     /// 进入可升级读锁 — 用于先读后写的场景
     /// </summary>
-    public IDisposable EnterUpgradeableReadLock()
-    {
+    public IDisposable EnterUpgradeableReadLock() {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         return _lock.EnterUpgradeableReadScope();
     }
@@ -98,8 +94,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     /// <summary>
     /// 清空所有索引数据 — 替代 DELETE FROM 各表
     /// </summary>
-    public void Clear()
-    {
+    public void Clear() {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         using var scope = EnterWriteLock();
         SymbolsByFqn.Clear();
@@ -124,11 +119,10 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     /// <summary>
     /// 释放内部读写锁资源 — 派生类可重写以追加自定义释放逻辑
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 
 }
@@ -136,8 +130,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
 /// <summary>
 /// 文件追踪条目 — 替代 file_tracking 表的行
 /// </summary>
-internal sealed class FileTrackingEntry
-{
+internal sealed class FileTrackingEntry {
     /// <summary>文件路径 — 规范化后的唯一键</summary>
     public required string FilePath { get; init; }
     /// <summary>文件内容哈希 — 用于判断文件是否变更</summary>

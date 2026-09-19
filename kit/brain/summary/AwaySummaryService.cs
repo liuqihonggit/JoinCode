@@ -47,8 +47,7 @@ public sealed record AutoSaveTickCmd : IAwaySummaryCommand;
 /// 离开摘要服务 — 基于 Actor 模型管理用户离开期间的摘要生成与事件跟踪
 /// </summary>
 [Register(typeof(IAwaySummaryService), ServiceLifetime.Singleton)]
-public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, Unit>, IAwaySummaryService
-{
+public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, Unit>, IAwaySummaryService {
     private readonly AwaySummaryOptions _options;
     private readonly ILogger<AwaySummaryService>? _logger;
     private readonly IClockService _clock;
@@ -78,8 +77,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
         AwaySummaryOptions? options = null,
         ILogger<AwaySummaryService>? logger = null,
         IClockService? clock = null)
-        : base()
-    {
+        : base() {
         _options = options ?? new AwaySummaryOptions();
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -91,8 +89,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// </summary>
     /// <param name="ct">取消令牌。</param>
     /// <returns>表示异步操作的任务。</returns>
-    public async Task MarkAwayAsync(CancellationToken ct = default)
-    {
+    public async Task MarkAwayAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new MarkAwayCmd(tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
@@ -103,8 +100,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// </summary>
     /// <param name="ct">取消令牌。</param>
     /// <returns>包含汇总结果的 <see cref="AwaySummaryResult"/> 任务。</returns>
-    public async Task<AwaySummaryResult> GenerateSummaryAsync(CancellationToken ct = default)
-    {
+    public async Task<AwaySummaryResult> GenerateSummaryAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<AwaySummaryResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         await SendAsync(new GenerateSummaryCmd(tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
@@ -116,8 +112,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// <param name="awayEvent">要跟踪的离开事件。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>表示异步操作的任务。</returns>
-    public async Task TrackEventAsync(AwayEvent awayEvent, CancellationToken ct = default)
-    {
+    public async Task TrackEventAsync(AwayEvent awayEvent, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(awayEvent);
         if (Volatile.Read(ref _awaySinceTicks) == 0) return;
         await SendAsync(new TrackEventCmd(awayEvent), ct).ConfigureAwait(false);
@@ -129,45 +124,39 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// <param name="command">要处理的命令。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>表示异步操作的值任务。</returns>
-    protected override async ValueTask HandleAsync(IAwaySummaryCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
-            case MarkAwayCmd mark:
-                {
-                    var now = _clock.GetUtcNow();
-                    Volatile.Write(ref _awaySinceTicks, now.Ticks);
-                    _events.Clear();
+    protected override async ValueTask HandleAsync(IAwaySummaryCommand command, CancellationToken ct) {
+        switch (command) {
+            case MarkAwayCmd mark: {
+                var now = _clock.GetUtcNow();
+                Volatile.Write(ref _awaySinceTicks, now.Ticks);
+                _events.Clear();
 
-                    _autoSaveTimer?.Dispose();
-                    _autoSaveTimer = new Timer(_ => TrySend(new AutoSaveTickCmd()), null, _options.AutoSaveInterval, _options.AutoSaveInterval);
+                _autoSaveTimer?.Dispose();
+                _autoSaveTimer = new Timer(_ => TrySend(new AutoSaveTickCmd()), null, _options.AutoSaveInterval, _options.AutoSaveInterval);
 
-                    _logger?.LogInformation("用户离开标记: {Time}", now);
-                    mark.Tcs.TrySetResult();
+                _logger?.LogInformation("用户离开标记: {Time}", now);
+                mark.Tcs.TrySetResult();
+            }
+            break;
+
+            case GenerateSummaryCmd gen: {
+                var result = GenerateSummaryCore();
+                gen.Tcs.TrySetResult(result);
+            }
+            break;
+
+            case TrackEventCmd track: {
+                if (Volatile.Read(ref _awaySinceTicks) == 0) return;
+                while (_events.Count >= _options.MaxEventsToTrack) {
+                    _events.Dequeue();
                 }
-                break;
-
-            case GenerateSummaryCmd gen:
-                {
-                    var result = GenerateSummaryCore();
-                    gen.Tcs.TrySetResult(result);
-                }
-                break;
-
-            case TrackEventCmd track:
-                {
-                    if (Volatile.Read(ref _awaySinceTicks) == 0) return;
-                    while (_events.Count >= _options.MaxEventsToTrack)
-                    {
-                        _events.Dequeue();
-                    }
-                    _events.Enqueue(track.Event);
-                }
-                break;
+                _events.Enqueue(track.Event);
+            }
+            break;
 
             case AutoSaveTickCmd:
-                await AutoSaveEventsAsync(ct).ConfigureAwait(false);
-                break;
+            await AutoSaveEventsAsync(ct).ConfigureAwait(false);
+            break;
         }
     }
 
@@ -175,20 +164,15 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// 消费者发生异常时的回调处理，记录错误日志。
     /// </summary>
     /// <param name="ex">消费者抛出的异常。</param>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogError(ex, "[AwaySummary] 消费者异常");
     }
 
-    private AwaySummaryResult GenerateSummaryCore()
-    {
-        try
-        {
+    private AwaySummaryResult GenerateSummaryCore() {
+        try {
             var awayTicks = Volatile.Read(ref _awaySinceTicks);
-            if (awayTicks == 0)
-            {
-                return new AwaySummaryResult
-                {
+            if (awayTicks == 0) {
+                return new AwaySummaryResult {
                     Success = false,
                     Summary = "用户未标记为离开状态",
                     AwayTime = _clock.GetUtcNow(),
@@ -240,8 +224,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
                 "离开摘要已生成: 时长={Duration}, 事件数={Total}, 工具调用={Tools}, 消息={Msgs}, 错误={Errors}",
                 duration, events.Length, toolCallCount, messageCount, errorCount);
 
-            return new AwaySummaryResult
-            {
+            return new AwaySummaryResult {
                 Success = true,
                 Summary = summary,
                 AwayTime = awayTime,
@@ -254,12 +237,9 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
                 KeyEvents = keyEvents,
                 Errors = errors
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "生成离开摘要失败");
-            return new AwaySummaryResult
-            {
+            return new AwaySummaryResult {
                 Success = false,
                 Summary = string.Empty,
                 AwayTime = AwaySince ?? _clock.GetUtcNow(),
@@ -282,8 +262,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
         int messageCount,
         int errorCount,
         IReadOnlyList<AwayEvent> keyEvents,
-        IReadOnlyList<AwayEvent> errors)
-    {
+        IReadOnlyList<AwayEvent> errors) {
         var keyEventsText = keyEvents.Count > 0
             ? string.Join("\n", keyEvents.Select(e => $"- [{e.Timestamp:HH:mm:ss}] {e.Description}"))
             : "无关键事件";
@@ -306,8 +285,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
 
         var summary = ReplaceTemplatePlaceholders(_options.SummaryTemplate, templateData);
 
-        if (summary.Length > _options.MaxSummaryLength)
-        {
+        if (summary.Length > _options.MaxSummaryLength) {
             summary = summary[.._options.MaxSummaryLength] + "\n... (摘要已截断)";
         }
 
@@ -317,8 +295,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// <summary>
     /// 将模板占位符替换为实际值（拆分链式调用以满足 JCC6010）
     /// </summary>
-    private static string ReplaceTemplatePlaceholders(string template, SummaryTemplateData data)
-    {
+    private static string ReplaceTemplatePlaceholders(string template, SummaryTemplateData data) {
         return template
             .Replace("{AwayTime}", data.AwayTime.ToString("yyyy-MM-dd HH:mm:ss"))
             .Replace("{ReturnTime}", data.ReturnTime.ToString("yyyy-MM-dd HH:mm:ss"))
@@ -331,16 +308,11 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
             .Replace("{PendingItems}", data.PendingText);
     }
 
-    private async Task AutoSaveEventsAsync(CancellationToken ct)
-    {
-        try
-        {
+    private async Task AutoSaveEventsAsync(CancellationToken ct) {
+        try {
             _logger?.LogDebug("自动保存离开事件: {Count} 个", _events.Count);
             await Task.CompletedTask.ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogWarning(ex, "自动保存离开事件失败");
         }
     }
@@ -348,8 +320,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// <summary>
     /// 异步释放本服务持有的资源，包括自动保存定时器与 Actor 异步释放。
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _autoSaveTimer?.Dispose();
         _autoSaveTimer = null;

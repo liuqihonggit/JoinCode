@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
-public sealed record InitializeRequestParams
-{
+public sealed record InitializeRequestParams {
     [JsonPropertyName("protocolVersion")]
     public string ProtocolVersion { get; set; } = "2024-11-05";
 
@@ -12,8 +11,7 @@ public sealed record InitializeRequestParams
     public Implementation ClientInfo { get; set; } = new();
 }
 
-public sealed record InitializeResult
-{
+public sealed record InitializeResult {
     [JsonPropertyName("protocolVersion")]
     public string ProtocolVersion { get; set; } = "2024-11-05";
 
@@ -27,8 +25,7 @@ public sealed record InitializeResult
     public string? Instructions { get; set; }
 }
 
-public sealed record ClientCapabilities
-{
+public sealed record ClientCapabilities {
     [JsonPropertyName("sampling")]
     public JsonElement? Sampling { get; set; }
 
@@ -40,8 +37,7 @@ public sealed record ClientCapabilities
     public JsonElement? Elicitation { get; set; }
 }
 
-public sealed record ServerCapabilities
-{
+public sealed record ServerCapabilities {
     [JsonPropertyName("tools")]
     public ToolsCapability? Tools { get; set; }
 
@@ -55,14 +51,12 @@ public sealed record ServerCapabilities
     public LoggingCapability? Logging { get; set; }
 }
 
-public sealed record ToolsCapability
-{
+public sealed record ToolsCapability {
     [JsonPropertyName("listChanged")]
     public bool ListChanged { get; set; }
 }
 
-public sealed record ResourcesCapability
-{
+public sealed record ResourcesCapability {
     [JsonPropertyName("subscribe")]
     public bool Subscribe { get; set; }
 
@@ -70,20 +64,17 @@ public sealed record ResourcesCapability
     public bool ListChanged { get; set; }
 }
 
-public sealed record PromptsCapability
-{
+public sealed record PromptsCapability {
     [JsonPropertyName("listChanged")]
     public bool ListChanged { get; set; }
 }
 
-public sealed record LoggingCapability
-{
+public sealed record LoggingCapability {
     [JsonPropertyName("level")]
     public string? Level { get; set; }
 }
 
-public sealed record Implementation
-{
+public sealed record Implementation {
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 

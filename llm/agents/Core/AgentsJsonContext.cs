@@ -24,8 +24,7 @@ public partial class AgentsJsonContext : JsonSerializerContext;
 /// <summary>
 /// Bootstrap LLM 判断结果 JSON 格式
 /// </summary>
-public sealed class BootstrapJudgmentJson
-{
+public sealed class BootstrapJudgmentJson {
     /// <summary>是否需要修复</summary>
     [System.Text.Json.Serialization.JsonPropertyName("needsFix")]
     public bool NeedsFix { get; set; }
@@ -46,8 +45,7 @@ public sealed class BootstrapJudgmentJson
 /// <summary>
 /// 快照元数据 JSON 格式
 /// </summary>
-public sealed class AgentMemorySnapshotMetaJson
-{
+public sealed class AgentMemorySnapshotMetaJson {
     /// <summary>快照更新时间</summary>
     [System.Text.Json.Serialization.JsonPropertyName("updatedAt")]
     public string UpdatedAt { get; set; } = string.Empty;
@@ -56,8 +54,7 @@ public sealed class AgentMemorySnapshotMetaJson
 /// <summary>
 /// 同步标记元数据 JSON 格式
 /// </summary>
-public sealed class AgentMemorySyncedMetaJson
-{
+public sealed class AgentMemorySyncedMetaJson {
     /// <summary>同步来源标识</summary>
     [System.Text.Json.Serialization.JsonPropertyName("syncedFrom")]
     public string SyncedFrom { get; set; } = string.Empty;

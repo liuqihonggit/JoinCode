@@ -1,11 +1,9 @@
 
 namespace Core.Tests.Context.Compression;
 
-public class CompressionOptionsTests
-{
+public class CompressionOptionsTests {
     [Fact]
-    public void DefaultOptions_ShouldHaveCorrectValues()
-    {
+    public void DefaultOptions_ShouldHaveCorrectValues() {
         var options = CompressionOptions.Default;
 
         options.TargetCompressionRatio.Should().Be(0.5);
@@ -29,8 +27,7 @@ public class CompressionOptionsTests
     }
 
     [Fact]
-    public void LightOptions_ShouldHaveCorrectValues()
-    {
+    public void LightOptions_ShouldHaveCorrectValues() {
         var options = CompressionOptions.Light;
 
         options.TargetCompressionRatio.Should().Be(0.8);
@@ -41,8 +38,7 @@ public class CompressionOptionsTests
     }
 
     [Fact]
-    public void AggressiveOptions_ShouldHaveCorrectValues()
-    {
+    public void AggressiveOptions_ShouldHaveCorrectValues() {
         var options = CompressionOptions.Aggressive;
 
         options.TargetCompressionRatio.Should().Be(0.3);
@@ -56,8 +52,7 @@ public class CompressionOptionsTests
     }
 
     [Fact]
-    public void ForCodeOptions_ShouldHaveCorrectValues()
-    {
+    public void ForCodeOptions_ShouldHaveCorrectValues() {
         var options = CompressionOptions.ForCode;
 
         options.TargetCompressionRatio.Should().Be(0.4);
@@ -73,8 +68,7 @@ public class CompressionOptionsTests
     }
 
     [Fact]
-    public void ForDialogueOptions_ShouldHaveCorrectValues()
-    {
+    public void ForDialogueOptions_ShouldHaveCorrectValues() {
         var options = CompressionOptions.ForDialogue;
 
         options.TargetCompressionRatio.Should().Be(0.5);
@@ -85,8 +79,7 @@ public class CompressionOptionsTests
     }
 
     [Fact]
-    public void ForReferenceIndexOptions_ShouldHaveCorrectValues()
-    {
+    public void ForReferenceIndexOptions_ShouldHaveCorrectValues() {
         var options = CompressionOptions.ForReferenceIndex;
 
         options.TargetCompressionRatio.Should().Be(0.6);
@@ -99,8 +92,7 @@ public class CompressionOptionsTests
     [InlineData(0.0)]
     [InlineData(0.5)]
     [InlineData(1.0)]
-    public void TargetCompressionRatio_ShouldAcceptValidValues(double ratio)
-    {
+    public void TargetCompressionRatio_ShouldAcceptValidValues(double ratio) {
         var options = new CompressionOptions { TargetCompressionRatio = ratio };
         options.TargetCompressionRatio.Should().Be(ratio);
     }
@@ -108,18 +100,15 @@ public class CompressionOptionsTests
     [Theory]
     [InlineData(-0.1)]
     [InlineData(1.1)]
-    public void TargetCompressionRatio_InvalidValues_ShouldStillBeSettable(double ratio)
-    {
+    public void TargetCompressionRatio_InvalidValues_ShouldStillBeSettable(double ratio) {
         var options = new CompressionOptions { TargetCompressionRatio = ratio };
         options.TargetCompressionRatio.Should().Be(ratio);
     }
 
     [Fact]
-    public void Options_ShouldBeIndependentlyModifiable()
-    {
+    public void Options_ShouldBeIndependentlyModifiable() {
         var options1 = CompressionOptions.Default;
-        var options2 = new CompressionOptions
-        {
+        var options2 = new CompressionOptions {
             TargetCompressionRatio = 0.3,
             PreserveComments = false
         };

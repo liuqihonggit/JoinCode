@@ -4,16 +4,14 @@ namespace Infra.Services.Tests.Network.Downloader;
 /// ChunkDownloader 单元测试 — 验证单分片下载:Range头/续传偏移/写入.part/更新Downloaded/HTTP错误/完成标记
 /// <para>用 StubHandler mock HTTP + InMemoryFileSystem 零磁盘 IO</para>
 /// </summary>
-public sealed class ChunkDownloaderTests
-{
+public sealed class ChunkDownloaderTests {
     private const string Url = "https://example.com/file.bin";
     private const string PartPath = "/tmp/file.part0";
 
     // === Range 请求头正确 ===
 
     [Fact]
-    public async Task Download_SendsCorrectRangeHeader()
-    {
+    public async Task Download_SendsCorrectRangeHeader() {
         var handler = new StubHandler(_ => OkPartial(new byte[1024]));
         var downloader = CreateDownloader(handler);
 
@@ -28,8 +26,7 @@ public sealed class ChunkDownloaderTests
     // === 续传偏移:Downloaded=500 时 Range 从 500 开始 ===
 
     [Fact]
-    public async Task Download_WithExistingDownloaded_RangeStartsFromOffset()
-    {
+    public async Task Download_WithExistingDownloaded_RangeStartsFromOffset() {
         var handler = new StubHandler(_ => OkPartial(new byte[524]));
         var downloader = CreateDownloader(handler);
 
@@ -44,8 +41,7 @@ public sealed class ChunkDownloaderTests
     // === 写入 .part 文件 ===
 
     [Fact]
-    public async Task Download_WritesContentToPartFile()
-    {
+    public async Task Download_WritesContentToPartFile() {
         var data = Enumerable.Range(0, 1024).Select(i => (byte)i).ToArray();
         var handler = new StubHandler(_ => OkPartial(data));
         var fs = new InMemoryFileSystem();
@@ -62,8 +58,7 @@ public sealed class ChunkDownloaderTests
     // === 更新 chunk.Downloaded ===
 
     [Fact]
-    public async Task Download_UpdatesChunkDownloaded()
-    {
+    public async Task Download_UpdatesChunkDownloaded() {
         var handler = new StubHandler(_ => OkPartial(new byte[1024]));
         var downloader = CreateDownloader(handler);
 
@@ -79,8 +74,7 @@ public sealed class ChunkDownloaderTests
     // === 续传:Downloaded 累加 ===
 
     [Fact]
-    public async Task Download_Resume_AccumulatesDownloaded()
-    {
+    public async Task Download_Resume_AccumulatesDownloaded() {
         var handler = new StubHandler(_ => OkPartial(new byte[524]));
         var downloader = CreateDownloader(handler);
 
@@ -95,8 +89,7 @@ public sealed class ChunkDownloaderTests
     // === HTTP 错误 ===
 
     [Fact]
-    public async Task Download_HttpError_ReturnsFailure()
-    {
+    public async Task Download_HttpError_ReturnsFailure() {
         var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
         var downloader = CreateDownloader(handler);
 
@@ -111,8 +104,7 @@ public sealed class ChunkDownloaderTests
     // === 取消令牌 ===
 
     [Fact]
-    public async Task Download_Cancelled_ThrowsOperationCancelled()
-    {
+    public async Task Download_Cancelled_ThrowsOperationCancelled() {
         var handler = new StubHandler(_ => OkPartial(new byte[1024]));
         var downloader = CreateDownloader(handler);
 
@@ -133,15 +125,13 @@ public sealed class ChunkDownloaderTests
     private static HttpResponseMessage OkPartial(byte[] data) =>
         new(HttpStatusCode.PartialContent) { Content = new ByteArrayContent(data) };
 
-    private sealed class StubHandler : HttpMessageHandler
-    {
+    private sealed class StubHandler : HttpMessageHandler {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> _handler;
         internal HttpRequestMessage? LastRequest { get; private set; }
 
         internal StubHandler(Func<HttpRequestMessage, HttpResponseMessage> handler) => _handler = handler;
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
             LastRequest = request;
             return Task.FromResult(_handler(request));
         }

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// Tracks file edit history for backup/restore. Mirrors TS fileHistory.
 /// Before each file write/edit, a backup of the original content is saved.
 /// </summary>
-public interface IFileHistoryService
-{
+public interface IFileHistoryService {
     /// <summary>
     /// Create a backup of the file before it gets overwritten.
     /// If the file doesn't exist, no backup is created (returns null).

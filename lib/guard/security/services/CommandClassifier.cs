@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 命令分类器实现 — 综合只读检测、破坏性检测、路径校验与搜索范围校验对 Shell 命令进行分类
 /// </summary>
 [Register(typeof(ICommandClassifier), ServiceLifetime.Singleton)]
-public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifier
-{
+public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifier {
     private readonly IPathValidator _pathValidator;
     private readonly IDestructiveCommandDetector _destructiveDetector;
     private readonly IReadOnlyCommandDetector _readOnlyDetector;
@@ -22,8 +21,7 @@ public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifie
         IPathValidator pathValidator,
         IDestructiveCommandDetector destructiveDetector,
         IReadOnlyCommandDetector readOnlyDetector,
-        ISearchScopeValidator? searchScopeValidator = null)
-    {
+        ISearchScopeValidator? searchScopeValidator = null) {
         _pathValidator = pathValidator;
         _destructiveDetector = destructiveDetector;
         _readOnlyDetector = readOnlyDetector;
@@ -31,23 +29,19 @@ public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifie
     }
 
     /// <inheritdoc/>
-    public CommandClassification Classify(ShellCommand command, string workingDirectory)
-    {
+    public CommandClassification Classify(ShellCommand command, string workingDirectory) {
         var risks = new List<CommandRisk>();
 
-        if (_readOnlyDetector.IsReadOnly(command))
-        {
+        if (_readOnlyDetector.IsReadOnly(command)) {
             return new CommandClassification(CommandCategory.ReadOnly, risks);
         }
 
         var destructiveCheck = _destructiveDetector.Detect(command);
-        if (destructiveCheck.IsDestructive)
-        {
+        if (destructiveCheck.IsDestructive) {
             risks.AddRange(destructiveCheck.Risks);
 
             var pathValidation = _pathValidator.ValidatePaths(command, workingDirectory);
-            if (!pathValidation.IsValid)
-            {
+            if (!pathValidation.IsValid) {
                 risks.Add(CommandRisk.PathEscape);
                 return new CommandClassification(
                     CommandCategory.PathViolation,
@@ -55,8 +49,7 @@ public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifie
                     $"{destructiveCheck.Details}\nPath violation: {pathValidation.Message}");
             }
 
-            if (destructiveCheck.Risks.All(IsWorkspaceSafeRisk))
-            {
+            if (destructiveCheck.Risks.All(IsWorkspaceSafeRisk)) {
                 return new CommandClassification(CommandCategory.ReadOnly, risks);
             }
 
@@ -67,8 +60,7 @@ public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifie
         }
 
         var pathValidationOnly = _pathValidator.ValidatePaths(command, workingDirectory);
-        if (!pathValidationOnly.IsValid)
-        {
+        if (!pathValidationOnly.IsValid) {
             risks.Add(CommandRisk.PathEscape);
             return new CommandClassification(
                 CommandCategory.PathViolation,
@@ -76,11 +68,9 @@ public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifie
                 pathValidationOnly.Message);
         }
 
-        if (_searchScopeValidator is not null)
-        {
+        if (_searchScopeValidator is not null) {
             var scopeResult = _searchScopeValidator.Validate(command, workingDirectory);
-            if (scopeResult is not null)
-            {
+            if (scopeResult is not null) {
                 risks.Add(scopeResult.Risk);
                 return new CommandClassification(
                     CommandCategory.ExcessiveSearchScope,
@@ -98,8 +88,7 @@ public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifie
     /// 判断风险类型是否在工作目录内可安全放行
     /// DataModification（mv/cp/move/copy 等）在工作目录内是安全的日常操作
     /// </summary>
-    private static bool IsWorkspaceSafeRisk(CommandRisk risk)
-    {
+    private static bool IsWorkspaceSafeRisk(CommandRisk risk) {
         return risk is CommandRisk.DataModification;
     }
 }

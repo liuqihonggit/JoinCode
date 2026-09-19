@@ -4,10 +4,8 @@ namespace Core.Goal.Tests;
 /// <summary>
 /// T8.3: /goal 接入 team 组件 — 图执行时建团队，节点派发的 sub-agent 加入团队
 /// </summary>
-public sealed partial class GoalGraphEngineTests
-{
-    private static async IAsyncEnumerable<AgentStreamChunk> CreateFakeAgentStreamWithId(string agentId, [EnumeratorCancellation] CancellationToken ct)
-    {
+public sealed partial class GoalGraphEngineTests {
+    private static async IAsyncEnumerable<AgentStreamChunk> CreateFakeAgentStreamWithId(string agentId, [EnumeratorCancellation] CancellationToken ct) {
         await Task.CompletedTask;
         ct.ThrowIfCancellationRequested();
         yield return new AgentStreamChunk { Type = AgentStreamChunkType.Content, Content = "output", AgentId = agentId };
@@ -15,8 +13,7 @@ public sealed partial class GoalGraphEngineTests
     }
 
     [Fact]
-    public async Task TeamIntegration_WhenTeamManagerInjected_ShouldCreateTeamAndAddMember()
-    {
+    public async Task TeamIntegration_WhenTeamManagerInjected_ShouldCreateTeamAndAddMember() {
         var agentServiceMock = new Mock<IAgentService>();
         agentServiceMock.Setup(a => a.RunAgentStreamAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
             .Returns((AgentSpawnOptions _, CancellationToken ct) => CreateFakeAgentStreamWithId("worker-1", ct));
@@ -44,8 +41,7 @@ public sealed partial class GoalGraphEngineTests
     }
 
     [Fact]
-    public async Task TeamIntegration_WhenNoTeamManager_ShouldSkipTeamCreation()
-    {
+    public async Task TeamIntegration_WhenNoTeamManager_ShouldSkipTeamCreation() {
         var agentServiceMock = new Mock<IAgentService>();
         agentServiceMock.Setup(a => a.RunAgentStreamAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
             .Returns((AgentSpawnOptions _, CancellationToken ct) => CreateFakeAgentStreamWithId("solo-1", ct));
@@ -64,8 +60,7 @@ public sealed partial class GoalGraphEngineTests
     }
 
     [Fact]
-    public async Task TeamIntegration_WhenCreateTeamFails_ShouldDegradeToSoloMode()
-    {
+    public async Task TeamIntegration_WhenCreateTeamFails_ShouldDegradeToSoloMode() {
         var agentServiceMock = new Mock<IAgentService>();
         agentServiceMock.Setup(a => a.RunAgentStreamAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
             .Returns((AgentSpawnOptions _, CancellationToken ct) => CreateFakeAgentStreamWithId("degraded-1", ct));

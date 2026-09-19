@@ -15,8 +15,7 @@ namespace Tools.Shell;
 /// </para>
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, IShellMiddleware {
     private readonly CommandInterceptionDispatcher _dispatcher;
     private readonly BashDefenseService _bashDefenseService;
     private readonly MtpPerturbationNode _perturbationNode;
@@ -36,8 +35,7 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
         BashDefenseService bashDefenseService,
         MtpPerturbationNode perturbationNode,
         IOptions<WorkflowConfig> configOptions,
-        ILogger<ShellCommandInterceptionMiddleware>? logger = null)
-    {
+        ILogger<ShellCommandInterceptionMiddleware>? logger = null) {
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _bashDefenseService = bashDefenseService ?? throw new ArgumentNullException(nameof(bashDefenseService));
         _perturbationNode = perturbationNode ?? throw new ArgumentNullException(nameof(perturbationNode));
@@ -49,10 +47,8 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
     public async Task InvokeAsync(
         ShellPipelineContext context,
         MiddlewareDelegate<ShellPipelineContext> next,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrEmpty(context.Command))
-        {
+        CancellationToken ct) {
+        if (string.IsNullOrEmpty(context.Command)) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -68,8 +64,7 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
 
         var outcome = await _dispatcher.DispatchAsync(context.Command, dispatchContext, ct).ConfigureAwait(false);
 
-        if (outcome.ShortCircuitResult is not null)
-        {
+        if (outcome.ShortCircuitResult is not null) {
             _logger?.LogInformation(
                 "命令被拦截短路: {Command}(原) → 短路结果",
                 context.Command);
@@ -77,8 +72,7 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
             return;
         }
 
-        if (outcome.FinalCommand != context.Command)
-        {
+        if (outcome.FinalCommand != context.Command) {
             _logger?.LogInformation(
                 "命令已改写: {Original} → {Rewritten}",
                 context.Command, outcome.FinalCommand);
@@ -86,8 +80,7 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
         }
 
         var defenseRejection = await EvaluateBashDefenseAsync(context, ct).ConfigureAwait(false);
-        if (defenseRejection is not null)
-        {
+        if (defenseRejection is not null) {
             _logger?.LogInformation("命令被 BashDefense 链拒绝: {Command}", context.Command);
             context.Result = defenseRejection;
             return;
@@ -105,8 +98,7 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
     /// RequireArgvHash 仅在 ConfirmMode == AntiCharLossConfirm 时生效（从配置读取）。
     /// </para>
     /// </summary>
-    private async ValueTask<ToolResult?> EvaluateBashDefenseAsync(ShellPipelineContext context, CancellationToken ct)
-    {
+    private async ValueTask<ToolResult?> EvaluateBashDefenseAsync(ShellPipelineContext context, CancellationToken ct) {
         var workDir = context.WorkingDirectory ?? string.Empty;
         var confirmMode = (_config.ShellExecution.IsAntiCharLossConfirm || _perturbationNode.IsAdaptiveTriggered)
             ? GuardConfirmMode.AntiCharLossConfirm

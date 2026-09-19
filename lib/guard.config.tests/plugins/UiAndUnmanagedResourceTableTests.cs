@@ -1,10 +1,8 @@
 namespace Core.Tests.Plugins;
 
-public sealed class UiResourceTableTests
-{
+public sealed class UiResourceTableTests {
     [Fact]
-    public void Register_AddsResource()
-    {
+    public void Register_AddsResource() {
         var table = new UiResourceTable();
         var entry = new UiResourceEntry("toolbar.dream", UiResourceKind.ToolbarButton, "Dream", null);
 
@@ -14,8 +12,7 @@ public sealed class UiResourceTableTests
     }
 
     [Fact]
-    public void Unregister_RemovesResource()
-    {
+    public void Unregister_RemovesResource() {
         var table = new UiResourceTable();
         var entry = new UiResourceEntry("menu.dream", UiResourceKind.MenuItem, "Dream", null);
         table.Register("menu.dream", entry);
@@ -26,8 +23,7 @@ public sealed class UiResourceTableTests
     }
 
     [Fact]
-    public void TryGet_ReturnsEntry()
-    {
+    public void TryGet_ReturnsEntry() {
         var table = new UiResourceTable();
         var entry = new UiResourceEntry("icon.dream", UiResourceKind.Icon, "Dream", "path");
         table.Register("icon.dream", entry);
@@ -37,8 +33,7 @@ public sealed class UiResourceTableTests
     }
 
     [Fact]
-    public void ClearAndEmitEvent_ReturnsAllResourcesAndClears()
-    {
+    public void ClearAndEmitEvent_ReturnsAllResourcesAndClears() {
         var table = new UiResourceTable();
         table.Register("a", new UiResourceEntry("a", UiResourceKind.Icon, "A", null));
         table.Register("b", new UiResourceEntry("b", UiResourceKind.MenuItem, "B", null));
@@ -50,17 +45,14 @@ public sealed class UiResourceTableTests
     }
 }
 
-public sealed class UnmanagedResourceTableTests
-{
-    private sealed class TestSafeHandle : SafeHandleZeroOrMinusOneIsInvalid
-    {
+public sealed class UnmanagedResourceTableTests {
+    private sealed class TestSafeHandle : SafeHandleZeroOrMinusOneIsInvalid {
         public TestSafeHandle() : base(true) { }
         protected override bool ReleaseHandle() => true;
     }
 
     [Fact]
-    public void Register_AddsResource()
-    {
+    public void Register_AddsResource() {
         var table = new UnmanagedResourceTable();
         var handle = new TestSafeHandle();
 
@@ -73,8 +65,7 @@ public sealed class UnmanagedResourceTableTests
     }
 
     [Fact]
-    public void GetAll_ReturnsAllEntries()
-    {
+    public void GetAll_ReturnsAllEntries() {
         var table = new UnmanagedResourceTable();
         table.Register("buf1", new TestSafeHandle(), 100);
         table.Register("buf2", new TestSafeHandle(), 200);
@@ -85,8 +76,7 @@ public sealed class UnmanagedResourceTableTests
     }
 
     [Fact]
-    public void ReleaseAll_ReleasesAllHandles()
-    {
+    public void ReleaseAll_ReleasesAllHandles() {
         var table = new UnmanagedResourceTable();
         var h1 = new TestSafeHandle();
         var h2 = new TestSafeHandle();
@@ -100,8 +90,7 @@ public sealed class UnmanagedResourceTableTests
     }
 
     [Fact]
-    public void UnmanagedResourceHandle_DisposeIsIdempotent()
-    {
+    public void UnmanagedResourceHandle_DisposeIsIdempotent() {
         var table = new UnmanagedResourceTable();
         var handle = new TestSafeHandle();
         var registration = table.Register("buf1", handle, 100);
@@ -112,8 +101,7 @@ public sealed class UnmanagedResourceTableTests
     }
 
     [Fact]
-    public void TryGet_ReturnsEntry()
-    {
+    public void TryGet_ReturnsEntry() {
         var table = new UnmanagedResourceTable();
         var handle = new TestSafeHandle();
         table.Register("buf1", handle, 512);

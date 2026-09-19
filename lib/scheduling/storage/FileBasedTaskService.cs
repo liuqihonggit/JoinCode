@@ -6,8 +6,7 @@ namespace Core.Scheduling;
 /// 参考 TS 原版 的任务管理设计，支持跨进程/多智能体协作
 /// </summary>
 [Register(typeof(ITaskService), ServiceLifetime.Singleton)]
-public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, IDisposable
-{
+public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, IDisposable {
     private readonly TaskDirectoryOptions _options;
     private readonly HighWaterMarkManager _highWaterMarkManager;
     private readonly ITaskFileWriter _taskFileWriter;
@@ -27,8 +26,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     public FileBasedTaskService(
         TaskFileOperations fileOps,
         TaskDirectoryOptions? options = null,
-        ILogger<FileBasedTaskService>? logger = null)
-    {
+        ILogger<FileBasedTaskService>? logger = null) {
         _options = options ?? new TaskDirectoryOptions();
         _fileOperationService = fileOps.FileOperationService ?? throw new ArgumentNullException(nameof(fileOps), "FileOperationService cannot be null");
         _taskFileWriter = fileOps.TaskFileWriter ?? throw new ArgumentNullException(nameof(fileOps), "TaskFileWriter cannot be null");
@@ -38,22 +36,20 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
 
     }
 
-    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
-    {
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default) {
         if (_initialized) return;
 
         using var guard = await _initLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_initLock.Name}' 等待超时");
 
         if (_initialized) return;
 
-        if (!_fileOperationService.DirectoryExists(_options.TaskDirectoryPath))
-        {
+        if (!_fileOperationService.DirectoryExists(_options.TaskDirectoryPath)) {
             _fileOperationService.CreateDirectory(_options.TaskDirectoryPath);
             _logger?.LogInformation(L.T(StringKey.CreateTaskDirLog), _options.TaskDirectoryPath);
         }
 
         _initialized = true;
-    
+
     }
 
     /// <inheritdoc />
@@ -64,18 +60,15 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
         DateTime? dueDate,
         string priority,
         List<string>? tags,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
-        try
-        {
+        try {
             // 生成新任务ID - HighWaterMarkManager 内部已处理锁
             var newId = await _highWaterMarkManager.IncrementAndGetAsync(cancellationToken).ConfigureAwait(false);
             var taskId = $"task-{newId:D4}";
 
-            var task = new TaskItem
-            {
+            var task = new TaskItem {
                 Id = taskId,
                 Title = title,
                 Description = description,
@@ -94,9 +87,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
             _logger?.LogInformation(L.T(StringKey.CreateTaskLog), taskId, title);
 
             return OperationResult<TaskItem?>.Ok(task);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.CreateTaskFailedLog));
             return OperationResult<TaskItem?>.Fail(ex.Message);
         }
@@ -109,33 +100,27 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
         string? priority,
         int limit,
         int offset,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
-        try
-        {
+        try {
             var allTasks = await _taskFileReader.ReadAllAsync(_options.TaskDirectoryPath, cancellationToken).ConfigureAwait(false);
 
             var filtered = allTasks
                 .Select(t => t.ToTaskItem())
                 .AsEnumerable();
 
-            if (!string.IsNullOrEmpty(status))
-            {
+            if (!string.IsNullOrEmpty(status)) {
                 filtered = filtered.Where(t => t.Status.Equals(status, StringComparison.OrdinalIgnoreCase));
             }
 
-            if (!string.IsNullOrEmpty(assignee))
-            {
+            if (!string.IsNullOrEmpty(assignee)) {
                 filtered = filtered.Where(t => t.Assignee?.Equals(assignee, StringComparison.OrdinalIgnoreCase) == true);
             }
 
-            if (!string.IsNullOrEmpty(priority))
-            {
+            if (!string.IsNullOrEmpty(priority)) {
                 var priorityEnum = TodoPriorityExtensions.FromValue(priority);
-                if (priorityEnum.HasValue)
-                {
+                if (priorityEnum.HasValue) {
                     filtered = filtered.Where(t => t.Priority == priorityEnum.Value);
                 }
             }
@@ -148,17 +133,14 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
                 .ToList();
 
             return new TaskListResult(true, tasks, totalCount);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.ListTaskFailedLog));
             return new TaskListResult(false, new List<TaskItem>(), 0, ex.Message);
         }
     }
 
     /// <inheritdoc />
-    public async Task<TaskItem?> GetTaskAsync(string taskId, CancellationToken cancellationToken = default)
-    {
+    public async Task<TaskItem?> GetTaskAsync(string taskId, CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         var filePath = _options.GetTaskFilePath(taskId);
@@ -170,36 +152,30 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     /// <inheritdoc />
     public async Task<OperationResult<TaskItem?>> UpdateTaskAsync(
         UpdateTaskRequest request,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         var filePath = _options.GetTaskFilePath(request.TaskId);
 
         // 先检查任务是否存在
         var existing = await _taskFileReader.ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
-        if (existing == null)
-        {
+        if (existing == null) {
             return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, request.TaskId));
         }
 
-        try
-        {
+        try {
             // 读取最新内容
             var readResult = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!readResult.Success)
-            {
+            if (!readResult.Success) {
                 return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, request.TaskId));
             }
 
             var latest = FileTaskMetadata.FromJson(readResult.Content);
-            if (latest == null)
-            {
+            if (latest == null) {
                 return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, request.TaskId));
             }
 
-            var updated = latest with
-            {
+            var updated = latest with {
                 Title = request.Title ?? latest.Title,
                 Description = request.Description ?? latest.Description,
                 Status = request.Status ?? latest.Status,
@@ -214,9 +190,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
             _logger?.LogInformation(L.T(StringKey.UpdateTaskLog), request.TaskId);
 
             return OperationResult<TaskItem?>.Ok(updated.ToTaskItem());
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.UpdateTaskFailedLog), request.TaskId);
             return OperationResult<TaskItem?>.Fail(ex.Message);
         }
@@ -226,29 +200,25 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     public async Task<OperationResult<TaskItem?>> StopTaskAsync(
         string taskId,
         string? reason,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         return await UpdateTaskAsync(new UpdateTaskRequest { TaskId = taskId, Status = TaskState.Stopped.ToStateString() }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<TaskDependency>> GetTaskDependenciesAsync(
         string taskId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         var filePath = _options.GetTaskFilePath(taskId);
         var metadata = await _taskFileReader.ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        if (metadata == null)
-        {
+        if (metadata == null) {
             return new List<TaskDependency>();
         }
 
         var dependencies = metadata.Dependencies
-            .Select(depId => new TaskDependency
-            {
+            .Select(depId => new TaskDependency {
                 TaskId = taskId,
                 DependsOnTaskId = depId,
                 DependencyType = TaskDependencyType.Blocks
@@ -263,34 +233,28 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
         string taskId,
         string dependsOnTaskId,
         TaskDependencyType dependencyType = TaskDependencyType.Blocks,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         var filePath = _options.GetTaskFilePath(taskId);
 
         var existing = await _taskFileReader.ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
-        if (existing == null)
-        {
+        if (existing == null) {
             return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
         }
 
-        try
-        {
+        try {
             var readResult = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!readResult.Success)
-            {
+            if (!readResult.Success) {
                 return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
             }
 
             var latest = FileTaskMetadata.FromJson(readResult.Content);
-            if (latest == null)
-            {
+            if (latest == null) {
                 return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
             }
 
-            var updated = latest with
-            {
+            var updated = latest with {
                 Dependencies = dependencyType == TaskDependencyType.Blocks
                     ? latest.Dependencies.Concat(new[] { dependsOnTaskId }).ToList()
                     : latest.Dependencies,
@@ -302,9 +266,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
             await _fileOperationService.WriteFileAsync(filePath, updated.ToJson(), cancellationToken).ConfigureAwait(false);
 
             return OperationResult<TaskItem?>.Ok(updated.ToTaskItem());
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.SetTaskDepFailedLog), taskId);
             return OperationResult<TaskItem?>.Fail(ex.Message);
         }
@@ -314,34 +276,28 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     public async Task<OperationResult<TaskItem?>> RemoveTaskDependencyAsync(
         string taskId,
         string dependsOnTaskId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         var filePath = _options.GetTaskFilePath(taskId);
 
         var existing = await _taskFileReader.ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
-        if (existing == null)
-        {
+        if (existing == null) {
             return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
         }
 
-        try
-        {
+        try {
             var readResult = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!readResult.Success)
-            {
+            if (!readResult.Success) {
                 return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
             }
 
             var latest = FileTaskMetadata.FromJson(readResult.Content);
-            if (latest == null)
-            {
+            if (latest == null) {
                 return OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotExist, taskId));
             }
 
-            var updated = latest with
-            {
+            var updated = latest with {
                 Dependencies = latest.Dependencies.Where(d => d != dependsOnTaskId).ToList(),
                 BlockedBy = latest.BlockedBy.Where(d => d != dependsOnTaskId).ToList()
             };
@@ -349,30 +305,24 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
             await _fileOperationService.WriteFileAsync(filePath, updated.ToJson(), cancellationToken).ConfigureAwait(false);
 
             return OperationResult<TaskItem?>.Ok(updated.ToTaskItem());
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.RemoveTaskDepFailedLog), taskId);
             return OperationResult<TaskItem?>.Fail(ex.Message);
         }
     }
 
     /// <inheritdoc />
-    public async Task<bool> CanExecuteTaskAsync(string taskId, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> CanExecuteTaskAsync(string taskId, CancellationToken cancellationToken = default) {
         var task = await GetTaskAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (task == null)
-        {
+        if (task == null) {
             return false;
         }
 
         var dependencies = await GetTaskDependenciesAsync(taskId, cancellationToken).ConfigureAwait(false);
 
-        foreach (var dep in dependencies.Where(d => d.DependencyType == TaskDependencyType.Blocks))
-        {
+        foreach (var dep in dependencies.Where(d => d.DependencyType == TaskDependencyType.Blocks)) {
             var depTask = await GetTaskAsync(dep.DependsOnTaskId, cancellationToken).ConfigureAwait(false);
-            if (depTask == null || depTask.Status != TaskState.Completed.ToStateString())
-            {
+            if (depTask == null || depTask.Status != TaskState.Completed.ToStateString()) {
                 return false;
             }
         }
@@ -384,19 +334,16 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     public async Task<bool> StopTaskAsync(
         string taskId,
         bool force,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var result = await UpdateTaskAsync(new UpdateTaskRequest { TaskId = taskId, Status = TaskState.Stopped.ToStateString() }, cancellationToken).ConfigureAwait(false);
         return result.Success;
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<RunningTaskInfo>> GetRunningTasksAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<RunningTaskInfo>> GetRunningTasksAsync(CancellationToken cancellationToken = default) {
         var result = await ListTasksAsync(TaskState.Running.ToStateString(), null, null, 100, 0, cancellationToken).ConfigureAwait(false);
 
-        return result.Tasks.Select(t => new RunningTaskInfo
-        {
+        return result.Tasks.Select(t => new RunningTaskInfo {
             Id = t.Id,
             Description = t.Title,
             Status = t.Status,
@@ -407,8 +354,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     /// <summary>
     /// 重置任务列表（保留高水位标记）
     /// </summary>
-    public async Task ResetTaskListAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task ResetTaskListAsync(CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         // 找到最高ID
@@ -428,14 +374,10 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
             $"{TaskDirectoryOptions.TaskFilePrefix}*{TaskDirectoryOptions.TaskFileExtension}",
             SearchOption.TopDirectoryOnly);
 
-        var deleteTasks = taskFiles.Select(async file =>
-        {
-            try
-            {
+        var deleteTasks = taskFiles.Select(async file => {
+            try {
                 await _fileOperationService.DeleteFileAsync(file, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, L.T(StringKey.DeleteTaskFileFailedLog), file);
             }
         });
@@ -447,24 +389,19 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     /// <summary>
     /// 删除任务
     /// </summary>
-    public async Task<bool> DeleteTaskAsync(string taskId, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> DeleteTaskAsync(string taskId, CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         var filePath = _options.GetTaskFilePath(taskId);
 
-        if (!_fileOperationService.FileExists(filePath))
-        {
+        if (!_fileOperationService.FileExists(filePath)) {
             return false;
         }
 
-        try
-        {
+        try {
             await _fileOperationService.DeleteFileAsync(filePath, cancellationToken).ConfigureAwait(false);
             return true;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
@@ -472,24 +409,20 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     /// <summary>
     /// 从任务ID解析整数值
     /// </summary>
-    private static int ParseTaskId(string taskId)
-    {
+    private static int ParseTaskId(string taskId) {
         // 移除 "task-" 前缀 - 使用 Span 避免 Substring 分配
-        if (taskId.StartsWith("task-", StringComparison.OrdinalIgnoreCase))
-        {
+        if (taskId.StartsWith("task-", StringComparison.OrdinalIgnoreCase)) {
             return int.TryParse(taskId.AsSpan(5), out var parsedValue) ? parsedValue : 0;
         }
 
-        if (int.TryParse(taskId, out var value))
-        {
+        if (int.TryParse(taskId, out var value)) {
             return value;
         }
         return 0;
     }
 
     /// <summary>释放资源时回调，释放初始化锁。</summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _initLock.Dispose();

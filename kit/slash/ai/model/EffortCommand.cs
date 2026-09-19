@@ -6,8 +6,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Effort, Description = "调整推理力度", Usage = "/effort [low|medium|high|max|auto|unset]", Category = ChatCommandCategory.Model, ArgumentHint = "[low|medium|high|max|auto|unset]")]
 [ChatCommandArg("level", Type = "string", Description = "推理力度级别", Enum = new[] { "low", "medium", "high", "max", "auto", "unset" })]
-public sealed class EffortCommand : ChatCommandBase
-{
+public sealed class EffortCommand : ChatCommandBase {
     // 对齐 TS: COMMON_HELP_ARGS
     // 对齐 TS: current/status 关键字
 
@@ -16,30 +15,26 @@ public sealed class EffortCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数与状态栏数据</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var statusBar = context.GetCommandServices().StatusBarData;
         var settingsProvider = context.GetCommandServices().ExecutionSettingsProvider;
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
 
         // 对齐 TS: help/-h/--help 显示详细帮助
-        if (args is "help" or JccCliArgEnumConstants.HelpAlias__h or JccCliArgEnumConstants.Help)
-        {
+        if (args is "help" or JccCliArgEnumConstants.HelpAlias__h or JccCliArgEnumConstants.Help) {
             ShowHelp();
             return ChatCommandResult.Continue();
         }
 
         // 对齐 TS: current/status 显示当前effort
-        if (string.IsNullOrEmpty(args) || args is "current" or "status")
-        {
+        if (string.IsNullOrEmpty(args) || args is "current" or "status") {
             ShowCurrentEffort(statusBar, settingsProvider);
             return ChatCommandResult.Continue();
         }
 
         // 对齐 TS: auto 和 unset 都清除设置
-        if (args is "auto" or "unset")
-        {
+        if (args is "auto" or "unset") {
             UpdateEffort(statusBar, settingsProvider, null);
             var envWarning = GetEnvOverrideWarning();
             TerminalHelper.WriteLine(string.IsNullOrEmpty(envWarning)
@@ -52,15 +47,13 @@ public sealed class EffortCommand : ChatCommandBase
 
         var effort = EffortLevelHelper.ParseEffortLevel(args) ?? EffortLevelHelper.ParseNumericAlias(args);
 
-        if (effort is null)
-        {
+        if (effort is null) {
             // 对齐 TS: 无效参数提示
             TerminalHelper.WriteLine($"{TerminalColors.Error}无效参数: {args}。有效选项: low, medium, high, max, auto{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
-        if (effort == EffortLevel.Max)
-        {
+        if (effort == EffortLevel.Max) {
             // max effort 仅限 Opus 级别模型 — 对齐 TS modelSupportsMaxEffort
             var currentModel = fastModeService?.PrimaryModelId
                 ?? Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())
@@ -69,8 +62,7 @@ public sealed class EffortCommand : ChatCommandBase
                 ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
                 ?? VendorKind.OpenAi.ToValue();
 
-            if (!ResolveModelCatalog(context).SupportsMaxEffort(currentModel, provider))
-            {
+            if (!ResolveModelCatalog(context).SupportsMaxEffort(currentModel, provider)) {
                 // 自动降级为 high — 对齐 TS effortAutoDowngrade
                 UpdateEffort(statusBar, settingsProvider, EffortLevel.High);
                 TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {currentModel} 不支持 max effort，已降级为 high{AnsiStyleEnumConstants.Reset}");
@@ -96,8 +88,7 @@ public sealed class EffortCommand : ChatCommandBase
     /// <summary>
     /// 对齐 TS: 显示详细帮助文本
     /// </summary>
-    private static void ShowHelp()
-    {
+    private static void ShowHelp() {
         TerminalHelper.WriteLine("用法: /effort [low|medium|high|max|auto|unset]");
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine("推理力度级别:");
@@ -112,18 +103,14 @@ public sealed class EffortCommand : ChatCommandBase
     /// <summary>
     /// 对齐 TS: showCurrentEffort — 显示当前effort级别
     /// </summary>
-    private static void ShowCurrentEffort(StatusBarData? statusBar, IExecutionSettingsProvider? settingsProvider)
-    {
+    private static void ShowCurrentEffort(StatusBarData? statusBar, IExecutionSettingsProvider? settingsProvider) {
         var current = settingsProvider?.EffortLevel ?? statusBar?.EffortLevel ?? EffortLevel.Auto;
         var description = GetEffortDescription(current);
         var envWarning = GetEnvOverrideWarning();
 
-        if (current == EffortLevel.Auto)
-        {
+        if (current == EffortLevel.Auto) {
             TerminalHelper.WriteLine($"当前推理力度: auto ({description})");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"当前推理力度: {current.ToValue()} ({description})");
         }
 
@@ -136,8 +123,7 @@ public sealed class EffortCommand : ChatCommandBase
     /// <summary>
     /// 对齐 TS: getEffortEnvOverride — 检查 JCC_EFFORT_LEVEL 环境变量覆盖
     /// </summary>
-    private static string GetEnvOverrideWarning()
-    {
+    private static string GetEnvOverrideWarning() {
         var envValue = Environment.GetEnvironmentVariable("JCC_EFFORT_LEVEL");
         if (string.IsNullOrEmpty(envValue)) return "";
 
@@ -147,48 +133,38 @@ public sealed class EffortCommand : ChatCommandBase
     /// <summary>
     /// 对齐 TS: toPersistableEffort — 判断是否为 session-only
     /// </summary>
-    private static async Task<bool> IsSessionOnlyAsync(ChatCommandContext context)
-    {
+    private static async Task<bool> IsSessionOnlyAsync(ChatCommandContext context) {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
         return configService is null;
     }
 
-    private static async Task PersistEffortAsync(ChatCommandContext context, EffortLevel? effort)
-    {
+    private static async Task PersistEffortAsync(ChatCommandContext context, EffortLevel? effort) {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
         if (configService is null) return;
 
-        if (effort is null or EffortLevel.Auto)
-        {
+        if (effort is null or EffortLevel.Auto) {
             await configService.RemoveAsync(ConfigKeyEnumConstants.EffortLevel, context.CancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await configService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effort.Value.ToValue(), context.CancellationToken).ConfigureAwait(false);
         }
     }
 
-    private static void UpdateEffort(StatusBarData? statusBar, IExecutionSettingsProvider? settingsProvider, EffortLevel? level)
-    {
+    private static void UpdateEffort(StatusBarData? statusBar, IExecutionSettingsProvider? settingsProvider, EffortLevel? level) {
         var effectiveLevel = level ?? EffortLevel.Auto;
-        if (statusBar is not null)
-        {
+        if (statusBar is not null) {
             statusBar.EffortLevel = effectiveLevel;
         }
-        if (settingsProvider is not null)
-        {
+        if (settingsProvider is not null) {
             settingsProvider.EffortLevel = effectiveLevel;
         }
     }
 
-    private static IModelCatalog ResolveModelCatalog(ChatCommandContext context)
-    {
+    private static IModelCatalog ResolveModelCatalog(ChatCommandContext context) {
         return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog))
             ?? throw new InvalidOperationException("[APP002] 模型目录服务未初始化");
     }
 
-    private static string GetEffortDescription(EffortLevel level) => level switch
-    {
+    private static string GetEffortDescription(EffortLevel level) => level switch {
         EffortLevel.Low => "快速，简洁实现",
         EffortLevel.Medium => "平衡，标准测试",
         EffortLevel.High => "全面，广泛测试",

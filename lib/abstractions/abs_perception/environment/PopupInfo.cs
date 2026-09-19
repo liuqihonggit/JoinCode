@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 弹窗分类 — 对应 PRD E-01 的弹窗分类策略
 /// </summary>
-public enum PopupCategory
-{
+public enum PopupCategory {
     /// <summary>非弹窗</summary>
     [EnumValue("none")]
     None,

@@ -19,8 +19,7 @@ namespace Core.Hooks.Execution.Interception.Defense;
 /// </para>
 /// </summary>
 [Register(typeof(BashDefenseService), ServiceLifetime.Singleton)]
-public sealed class BashDefenseService
-{
+public sealed class BashDefenseService {
     private readonly DangerousCommandNode _dangerousCommandNode;
     private readonly RetainedDeviceNode _retainedDeviceNode;
     private readonly ArgvHashNode _argvHashNode;
@@ -40,8 +39,7 @@ public sealed class BashDefenseService
         RetainedDeviceNode retainedDeviceNode,
         ArgvHashNode argvHashNode,
         RedirectWhitelistNode redirectWhitelistNode,
-        StrictParseNode strictParseNode)
-    {
+        StrictParseNode strictParseNode) {
         _dangerousCommandNode = dangerousCommandNode ?? throw new ArgumentNullException(nameof(dangerousCommandNode));
         _retainedDeviceNode = retainedDeviceNode ?? throw new ArgumentNullException(nameof(retainedDeviceNode));
         _argvHashNode = argvHashNode ?? throw new ArgumentNullException(nameof(argvHashNode));
@@ -82,8 +80,7 @@ public sealed class BashDefenseService
     /// <param name="ctx">Bash 防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> CheckDangerousCommand(BashDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> CheckDangerousCommand(BashDefenseContext ctx, CancellationToken ct) {
         var classification = _dangerousCommandNode.ClassifyDangerous(ctx.CurrentCommand);
         if (classification is null)
             return ValueTask.FromResult<ToolResult?>(null);
@@ -102,8 +99,7 @@ public sealed class BashDefenseService
     /// <param name="ctx">Bash 防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> StrictParse(BashDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> StrictParse(BashDefenseContext ctx, CancellationToken ct) {
         var unmatchedQuote = _strictParseNode.FindUnmatchedQuote(ctx.CurrentCommand.AsSpan());
         if (unmatchedQuote is null)
             return ValueTask.FromResult<ToolResult?>(null);
@@ -127,8 +123,7 @@ public sealed class BashDefenseService
     /// <param name="ctx">Bash 防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> CheckRetainedDevice(BashDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> CheckRetainedDevice(BashDefenseContext ctx, CancellationToken ct) {
         var deviceName = _retainedDeviceNode.FindRetainedDevice(ctx.CurrentCommand);
         if (deviceName is null)
             return ValueTask.FromResult<ToolResult?>(null);
@@ -152,8 +147,7 @@ public sealed class BashDefenseService
     /// <param name="ctx">Bash 防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> RequireArgvHash(BashDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> RequireArgvHash(BashDefenseContext ctx, CancellationToken ct) {
         if (ctx.ConfirmMode != GuardConfirmMode.AntiCharLossConfirm)
             return ValueTask.FromResult<ToolResult?>(null);
 
@@ -179,8 +173,7 @@ public sealed class BashDefenseService
     /// <param name="ctx">Bash 防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> CheckRedirectWhitelist(BashDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> CheckRedirectWhitelist(BashDefenseContext ctx, CancellationToken ct) {
         var result = _redirectWhitelistNode.CheckWhitelist(ctx.CurrentCommand, ctx.WorkingDirectory);
         if (result.IsWhitelisted)
             return ValueTask.FromResult<ToolResult?>(null);
@@ -233,8 +226,7 @@ public sealed class BashDefenseService
     /// <summary>
     /// 构建第一轮拒绝诊断 — 要求再次输入并回显 argv hash。
     /// </summary>
-    private ToolResult BuildFirstRoundRejection(string command)
-    {
+    private ToolResult BuildFirstRoundRejection(string command) {
         var expectedHash = _argvHashNode.ComputeArgvHash(command);
         var diag = ToolDiagnostic.Create(
             "JCC9006",
@@ -251,8 +243,7 @@ public sealed class BashDefenseService
     /// <summary>
     /// 构建命令不匹配拒绝诊断 — 第二轮命令与第一轮不一致。
     /// </summary>
-    private static ToolResult BuildCommandMismatchRejection(string confirmedCommand, string currentCommand)
-    {
+    private static ToolResult BuildCommandMismatchRejection(string confirmedCommand, string currentCommand) {
         var diag = ToolDiagnostic.Create(
             "JCC9007",
             $"二次确认命令不匹配 — 疑似 MTP 扰动导致命令变形。" +
@@ -267,8 +258,7 @@ public sealed class BashDefenseService
     /// <summary>
     /// 构建 hash 不匹配拒绝诊断 — 防意图反推（约束第9条）。
     /// </summary>
-    private static ToolResult BuildHashMismatchRejection(string? providedHash, string expectedHash)
-    {
+    private static ToolResult BuildHashMismatchRejection(string? providedHash, string expectedHash) {
         var diag = ToolDiagnostic.Create(
             "JCC9008",
             $"确认码不匹配 — 防意图反推校验失败。" +

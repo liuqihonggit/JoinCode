@@ -10,8 +10,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 与 LoggingScopeMiddleware (w3) 配合: ToolExecutionContext 实现 IHasObjectId 返回 ExecutionEntity?.ObjectId
 /// 子类（BashProcessEntity 等）仅为需要额外字段的工具服务，非必需
 /// </summary>
-public class ToolExecutionEntity : Entity
-{
+public class ToolExecutionEntity : Entity {
     /// <summary>工具名称（如 "bash", "web_fetch", "read_file"）</summary>
     public string ToolName { get; }
 
@@ -42,8 +41,7 @@ public class ToolExecutionEntity : Entity
         string? spanId = null,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base(ObjectType.Tool, sessionId, displayName ?? toolName)
-    {
+        : base(ObjectType.Tool, sessionId, displayName ?? toolName) {
         ToolName = toolName;
         ToolUseId = toolUseId;
         SpanId = spanId;
@@ -60,16 +58,14 @@ public class ToolExecutionEntity : Entity
         string? spanId = null,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base(objectType, sessionId, displayName ?? toolName)
-    {
+        : base(objectType, sessionId, displayName ?? toolName) {
         ToolName = toolName;
         ToolUseId = toolUseId;
         SpanId = spanId;
         Registry.Add(ObjectId, this);
     }
 
-    public override void Dispose()
-    {
+    public override void Dispose() {
         Registry.Remove(ObjectId);
         base.Dispose();
     }
@@ -79,8 +75,7 @@ public class ToolExecutionEntity : Entity
     /// SessionObjectId 通过 RemapNullableOrThrow 重映射，未映射则抛异常暴露引用断裂
     /// 克隆后 Touch() 刷新活跃时间，避免 EntityReaper 立即回收
     /// </summary>
-    protected void ApplyCloneState(ToolExecutionEntity cloned, CloneContext context)
-    {
+    protected void ApplyCloneState(ToolExecutionEntity cloned, CloneContext context) {
         cloned.ArgumentsSummary = ArgumentsSummary;
         cloned.ResultSummary = ResultSummary;
         cloned.IsError = IsError;
@@ -96,8 +91,7 @@ public class ToolExecutionEntity : Entity
     /// <summary>
     /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝所有字段
     /// </summary>
-    public override Entity Clone(CloneContext context)
-    {
+    public override Entity Clone(CloneContext context) {
         var cloned = new ToolExecutionEntity(
             toolName: ToolName,
             toolUseId: ToolUseId,
@@ -112,8 +106,7 @@ public class ToolExecutionEntity : Entity
 /// <summary>
 /// 工具执行实体全局注册器 — 基于 MapRegistry，统一查询所有工具执行的生命周期
 /// </summary>
-public sealed class ToolExecutionEntityRegistry : MapRegistry<ObjectId, ToolExecutionEntity>
-{
+public sealed class ToolExecutionEntityRegistry : MapRegistry<ObjectId, ToolExecutionEntity> {
     internal void Add(ObjectId id, ToolExecutionEntity entity) => AddCore(id, entity);
     internal bool Remove(ObjectId id) => RemoveCore(id);
     public IEnumerable<ToolExecutionEntity> GetActive() => Where(e => e.LifecycleState == EntityLifecycle.Active);

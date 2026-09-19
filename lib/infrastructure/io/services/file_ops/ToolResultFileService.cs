@@ -6,8 +6,7 @@ namespace Infrastructure.IO;
 /// <para>预览在换行符处截断,保留可读结构</para>
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.LLM.Chat.IToolResultFileService), ServiceLifetime.Singleton)]
-public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IToolResultFileService
-{
+public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IToolResultFileService {
     private readonly ILogger<ToolResultFileService>? _logger;
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
@@ -17,8 +16,7 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public ToolResultFileService(IFileSystem fs, ILogger<ToolResultFileService>? logger = null)
-    {
+    public ToolResultFileService(IFileSystem fs, ILogger<ToolResultFileService>? logger = null) {
         _fs = fs;
         _logger = logger;
         _baseDir = Path.Combine(
@@ -33,8 +31,7 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
     /// <param name="toolUseId">工具调用标识,作为文件名</param>
     /// <param name="content">工具结果内容</param>
     /// <returns>持久化结果,包含文件路径、原始大小、预览与是否截断标志</returns>
-    public JoinCode.Abstractions.LLM.Chat.PersistedToolResult PersistToolResult(string sessionId, string toolUseId, string content)
-    {
+    public JoinCode.Abstractions.LLM.Chat.PersistedToolResult PersistToolResult(string sessionId, string toolUseId, string content) {
         var dir = Path.Combine(_baseDir, sessionId);
         _fs.CreateDirectory(dir);
 
@@ -44,14 +41,11 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
         // 对齐 TS: 使用 'wx' 标志（排他创建），已存在则跳过
         // TS: writeFile(filepath, contentStr, { flag: 'wx' }) — 原子性排他创建
         // C#: 使用 FileMode.CreateNew 替代 File.Exists + File.WriteAllText（消除 TOCTOU 竞态）
-        try
-        {
+        try {
             using var stream = _fs.CreateStream(filepath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
             using var writer = new StreamWriter(stream);
             writer.Write(content);
-        }
-        catch (IOException ex) when (_fs.FileExists(filepath))
-        {
+        } catch (IOException ex) when (_fs.FileExists(filepath)) {
             // 已存在 — 对齐 TS EEXIST 处理：跳过写入
             _logger?.LogDebug(ex, "Tool result file already exists (created by another process), skipping: {Filepath}", filepath);
         }
@@ -61,8 +55,7 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
 
         _logger?.LogDebug("Persisted tool result to {Filepath}, size={Size}", filepath, content.Length);
 
-        return new JoinCode.Abstractions.LLM.Chat.PersistedToolResult
-        {
+        return new JoinCode.Abstractions.LLM.Chat.PersistedToolResult {
             Filepath = filepath,
             OriginalSize = content.Length,
             IsJson = content.TrimStart().StartsWith('{') || content.TrimStart().StartsWith('['),
@@ -80,22 +73,18 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>持久化结果,包含文件路径、原始大小、预览与是否截断标志</returns>
     public async Task<JoinCode.Abstractions.LLM.Chat.PersistedToolResult> PersistToolResultAsync(
-        string sessionId, string toolUseId, string content, CancellationToken cancellationToken = default)
-    {
+        string sessionId, string toolUseId, string content, CancellationToken cancellationToken = default) {
         var dir = Path.Combine(_baseDir, sessionId);
         _fs.CreateDirectory(dir);
 
         var filename = SanitizeFilename(toolUseId) + ".txt";
         var filepath = Path.Combine(dir, filename);
 
-        try
-        {
+        try {
             using var stream = _fs.CreateStream(filepath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
             using var writer = new StreamWriter(stream);
             await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
-        }
-        catch (IOException ex) when (_fs.FileExists(filepath))
-        {
+        } catch (IOException ex) when (_fs.FileExists(filepath)) {
             // 已存在 — 对齐 TS EEXIST 处理：跳过写入
             _logger?.LogDebug(ex, "ToolResultFileService: file already exists (async), skipping: {Filepath}", filepath);
         }
@@ -104,8 +93,7 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
 
         _logger?.LogDebug("Persisted tool result to {Filepath}, size={Size}", filepath, content.Length);
 
-        return new JoinCode.Abstractions.LLM.Chat.PersistedToolResult
-        {
+        return new JoinCode.Abstractions.LLM.Chat.PersistedToolResult {
             Filepath = filepath,
             OriginalSize = content.Length,
             IsJson = content.TrimStart().StartsWith('{') || content.TrimStart().StartsWith('['),
@@ -120,8 +108,7 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
     /// <param name="sessionId">会话标识</param>
     /// <param name="toolUseId">工具调用标识</param>
     /// <returns>工具结果内容;文件不存在或读取失败返回 null</returns>
-    public string? ReadToolResult(string sessionId, string toolUseId)
-    {
+    public string? ReadToolResult(string sessionId, string toolUseId) {
         var dir = Path.Combine(_baseDir, sessionId);
         var filename = SanitizeFilename(toolUseId) + ".txt";
         var filepath = Path.Combine(dir, filename);
@@ -129,22 +116,17 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
         if (!_fs.FileExists(filepath))
             return null;
 
-        try
-        {
+        try {
             return _fs.ReadAllText(filepath);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to read persisted tool result from {Filepath}", filepath);
             return null;
         }
     }
 
-    private static string SanitizeFilename(string id)
-    {
+    private static string SanitizeFilename(string id) {
         var chars = id.ToCharArray();
-        for (var i = 0; i < chars.Length; i++)
-        {
+        for (var i = 0; i < chars.Length; i++) {
             var c = chars[i];
             if (char.IsLetterOrDigit(c) || c == '-' || c == '_')
                 continue;
@@ -156,8 +138,7 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
     /// <summary>
     /// 对齐 TS generatePreview: 在换行符处截断预览
     /// </summary>
-    private static (string Preview, bool HasMore) GeneratePreview(string content, int maxChars)
-    {
+    private static (string Preview, bool HasMore) GeneratePreview(string content, int maxChars) {
         if (content.Length <= maxChars)
             return (content, false);
 

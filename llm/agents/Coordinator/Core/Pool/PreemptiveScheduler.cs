@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator.Pool;
 /// <summary>
 /// 抢塞结果
 /// </summary>
-public sealed record PreemptResult
-{
+public sealed record PreemptResult {
     /// <summary>是否成功抢塞</summary>
     public required bool Success { get; init; }
     /// <summary>被抢塞的子代理</summary>
@@ -15,23 +14,20 @@ public sealed record PreemptResult
     public bool ContextCompressed { get; init; }
 
     /// <summary>抢塞成功</summary>
-    public static PreemptResult Succeeded(AgentBase agent, bool compressed = false) => new()
-    {
+    public static PreemptResult Succeeded(AgentBase agent, bool compressed = false) => new() {
         Success = true,
         Agent = agent,
         ContextCompressed = compressed,
     };
 
     /// <summary>无可用子代理</summary>
-    public static PreemptResult NoAvailableAgent() => new()
-    {
+    public static PreemptResult NoAvailableAgent() => new() {
         Success = false,
         Reason = "代理池无可用子代理",
     };
 
     /// <summary>窗口不足且压缩失败</summary>
-    public static PreemptResult WindowInsufficient() => new()
-    {
+    public static PreemptResult WindowInsufficient() => new() {
         Success = false,
         Reason = "上下文窗口不足且压缩失败",
     };
@@ -47,8 +43,7 @@ public sealed record PreemptResult
 /// 4. 窗口不足 → 先压缩再注入
 /// </para>
 /// </summary>
-public sealed class PreemptiveScheduler
-{
+public sealed class PreemptiveScheduler {
     private readonly SubAgentPool _pool;
     private readonly IChatContextManager _contextManager;
     private readonly SubAgentLivenessOptions _options;
@@ -61,8 +56,7 @@ public sealed class PreemptiveScheduler
         SubAgentPool pool,
         IChatContextManager contextManager,
         SubAgentLivenessOptions options,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         _pool = pool ?? throw new ArgumentNullException(nameof(pool));
         _contextManager = contextManager ?? throw new ArgumentNullException(nameof(contextManager));
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -74,13 +68,11 @@ public sealed class PreemptiveScheduler
     /// </summary>
     /// <param name="taskDescription">新任务描述</param>
     /// <param name="ct">取消令牌</param>
-    public async Task<PreemptResult> TryPreemptAsync(string taskDescription, CancellationToken ct = default)
-    {
+    public async Task<PreemptResult> TryPreemptAsync(string taskDescription, CancellationToken ct = default) {
         _logger?.LogDebug("[PreemptiveScheduler] 尝试抢塞任务: {Task}", taskDescription);
 
         var agent = _pool.TryAcquire(taskDescription);
-        if (agent is null)
-        {
+        if (agent is null) {
             _logger?.LogDebug("[PreemptiveScheduler] 无可用子代理抢塞任务: {Task}", taskDescription);
             return PreemptResult.NoAvailableAgent();
         }
@@ -95,8 +87,7 @@ public sealed class PreemptiveScheduler
             agentId, usedTokens, maxTokens, remainingRatio);
 
         var compressed = false;
-        if (remainingRatio < _options.PreemptMinWindowRatio)
-        {
+        if (remainingRatio < _options.PreemptMinWindowRatio) {
             _logger?.LogInformation("[PreemptiveScheduler] Agent {AgentId} 窗口剩余 {Ratio:P0} < {Threshold:P0}，先压缩",
                 agentId, remainingRatio, _options.PreemptMinWindowRatio);
 
@@ -104,8 +95,7 @@ public sealed class PreemptiveScheduler
                 ContextFoldDecision.FoldNormal, agentId, ct).ConfigureAwait(false);
 
             compressed = foldResult.Folded;
-            if (!compressed)
-            {
+            if (!compressed) {
                 _logger?.LogWarning("[PreemptiveScheduler] Agent {AgentId} 压缩未执行（可能无需折叠），继续抢塞", agentId);
             }
         }
@@ -127,8 +117,7 @@ public sealed class PreemptiveScheduler
     /// <summary>
     /// 估算子代理的 token 用量 — 基于 AgentBase.Output.TokensUsed 和 Budget.TokenBudget
     /// </summary>
-    private static (int used, int max) EstimateTokenUsage(AgentBase agent)
-    {
+    private static (int used, int max) EstimateTokenUsage(AgentBase agent) {
         var used = agent.Output.TokensUsed;
         var max = agent.Budget.TokenBudget ?? 128000;
         return (used, max);

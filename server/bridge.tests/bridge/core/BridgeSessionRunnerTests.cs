@@ -5,14 +5,12 @@ namespace Bridge.Tests;
 /// BridgeSessionRunner 单元测试
 /// 测试会话创建、停止、查询、Keep-Alive 和过期清理
 /// </summary>
-public sealed class BridgeSessionRunnerTests : IAsyncDisposable
-{
+public sealed class BridgeSessionRunnerTests : IAsyncDisposable {
     private readonly FakeTimeProvider _fakeTime;
     private readonly BridgeSessionFactory _sessionFactory;
     private BridgeSessionRunner _sut;
 
-    public BridgeSessionRunnerTests()
-    {
+    public BridgeSessionRunnerTests() {
         _fakeTime = new FakeTimeProvider();
         _sessionFactory = new BridgeSessionFactory(_fakeTime);
         _sut = CreateSut();
@@ -24,8 +22,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     public ValueTask DisposeAsync() => _sut.DisposeAsync();
 
     [Fact]
-    public async Task StartSessionAsync_ShouldCreateActiveSession()
-    {
+    public async Task StartSessionAsync_ShouldCreateActiveSession() {
         // Arrange
         var metadata = new Dictionary<string, string> { ["env"] = "test" };
 
@@ -44,8 +41,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task StartSessionAsync_ShouldThrow_WhenMaxSessionsReached()
-    {
+    public async Task StartSessionAsync_ShouldThrow_WhenMaxSessionsReached() {
         // Arrange
         var config = new BridgeSessionConfiguration { MaxActiveSessions = 1 };
         await _sut.DisposeAsync().ConfigureAwait(true);
@@ -62,8 +58,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task StopSessionAsync_ShouldCloseSession()
-    {
+    public async Task StopSessionAsync_ShouldCloseSession() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-003").ConfigureAwait(true);
 
@@ -77,8 +72,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetSession_ShouldReturnSession_WhenExists()
-    {
+    public async Task GetSession_ShouldReturnSession_WhenExists() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-004").ConfigureAwait(true);
 
@@ -92,8 +86,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetSession_ShouldReturnNull_WhenNotExists()
-    {
+    public async Task GetSession_ShouldReturnNull_WhenNotExists() {
         // Arrange
         var fakeId = Guid.NewGuid().ToString("N");
 
@@ -105,8 +98,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetActiveSessions_ShouldReturnOnlyActiveSessions()
-    {
+    public async Task GetActiveSessions_ShouldReturnOnlyActiveSessions() {
         // Arrange
         var session1 = await _sut.StartSessionAsync("client-005").ConfigureAwait(true);
         var session2 = await _sut.StartSessionAsync("client-006").ConfigureAwait(true);
@@ -122,8 +114,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task KeepAliveAsync_ShouldUpdateLastActiveAt()
-    {
+    public async Task KeepAliveAsync_ShouldUpdateLastActiveAt() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-007").ConfigureAwait(true);
         var originalLastActiveAt = session.LastActiveAt;
@@ -140,11 +131,9 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task CleanupExpiredSessionsAsync_ShouldRemoveExpiredSessions()
-    {
+    public async Task CleanupExpiredSessionsAsync_ShouldRemoveExpiredSessions() {
         // Arrange - 使用极短超时以便快速过期
-        var config = new BridgeSessionConfiguration
-        {
+        var config = new BridgeSessionConfiguration {
             SessionTimeout = TimeSpan.FromMilliseconds(100),
             CleanupInterval = TimeSpan.FromMinutes(5), // 后台循环不影响手动清理
             MaxActiveSessions = 100
@@ -166,8 +155,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task SuspendSessionAsync_ShouldSetStatusToSuspended()
-    {
+    public async Task SuspendSessionAsync_ShouldSetStatusToSuspended() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-suspend-001").ConfigureAwait(true);
 
@@ -181,8 +169,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task SuspendSessionAsync_ShouldNotSuspend_ClosedSession()
-    {
+    public async Task SuspendSessionAsync_ShouldNotSuspend_ClosedSession() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-suspend-002").ConfigureAwait(true);
         await _sut.StopSessionAsync(session.SessionId).ConfigureAwait(true);
@@ -197,8 +184,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ResumeSessionAsync_ShouldSetStatusToActive()
-    {
+    public async Task ResumeSessionAsync_ShouldSetStatusToActive() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-resume-001").ConfigureAwait(true);
         await _sut.SuspendSessionAsync(session.SessionId).ConfigureAwait(true);
@@ -213,8 +199,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ResumeSessionAsync_ShouldNotResume_NonSuspendedSession()
-    {
+    public async Task ResumeSessionAsync_ShouldNotResume_NonSuspendedSession() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-resume-002").ConfigureAwait(true);
 
@@ -228,8 +213,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task CreateSnapshot_ShouldCaptureSessionState()
-    {
+    public async Task CreateSnapshot_ShouldCaptureSessionState() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-snapshot-001").ConfigureAwait(true);
 
@@ -245,8 +229,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public void CreateSnapshot_ShouldReturnNull_WhenSessionNotFound()
-    {
+    public void CreateSnapshot_ShouldReturnNull_WhenSessionNotFound() {
         // Act
         var snapshot = _sut.CreateSnapshot("non-existent-session");
 
@@ -255,8 +238,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RestoreFromSnapshotAsync_ShouldResumeSuspendedSession()
-    {
+    public async Task RestoreFromSnapshotAsync_ShouldResumeSuspendedSession() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-restore-001").ConfigureAwait(true);
         var snapshot = _sut.CreateSnapshot(session.SessionId);
@@ -271,8 +253,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RestoreFromSnapshotAsync_ShouldReturnNull_WhenSessionClosed()
-    {
+    public async Task RestoreFromSnapshotAsync_ShouldReturnNull_WhenSessionClosed() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-restore-002").ConfigureAwait(true);
         var snapshot = _sut.CreateSnapshot(session.SessionId);
@@ -286,8 +267,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task SessionStateChanged_ShouldFire_OnSuspendAndResume()
-    {
+    public async Task SessionStateChanged_ShouldFire_OnSuspendAndResume() {
         // Arrange
         var session = await _sut.StartSessionAsync("client-events-001").ConfigureAwait(true);
         var stateChanges = new List<BridgeSessionStateChangedEventArgs>();

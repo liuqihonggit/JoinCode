@@ -5,8 +5,7 @@ namespace McpToolRegistry;
 /// 参数修复中间件 — Order=100 — 修复工具调用参数中的常见问题
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ArgumentRepairMiddleware : ServiceEntity, IToolExecutionMiddleware
-{
+public sealed partial class ArgumentRepairMiddleware : ServiceEntity, IToolExecutionMiddleware {
 
     private readonly ILogger<ArgumentRepairMiddleware> _logger;
 
@@ -14,8 +13,7 @@ public sealed partial class ArgumentRepairMiddleware : ServiceEntity, IToolExecu
     /// 构造函数 — 注入日志记录器
     /// </summary>
     /// <param name="logger">日志记录器实例</param>
-    public ArgumentRepairMiddleware(ILogger<ArgumentRepairMiddleware> logger)
-    {
+    public ArgumentRepairMiddleware(ILogger<ArgumentRepairMiddleware> logger) {
         _logger = logger;
     }
 
@@ -29,14 +27,11 @@ public sealed partial class ArgumentRepairMiddleware : ServiceEntity, IToolExecu
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,
-        CancellationToken ct)
-    {
-        if (context.Handler is not null)
-        {
+        CancellationToken ct) {
+        if (context.Handler is not null) {
             var argRepair = LlmJsonHelper.RepairArguments(
                 context.ToolName, context.Arguments, context.Handler.InputSchema, _logger);
-            if (argRepair.RepairHint is not null)
-            {
+            if (argRepair.RepairHint is not null) {
                 context.Arguments = argRepair.RepairedArguments;
                 _logger.LogDebug("Tool {ToolName} arguments repaired: {Hint}",
                     context.ToolName, argRepair.RepairHint);

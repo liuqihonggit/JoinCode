@@ -8,15 +8,13 @@ namespace Tests;
 /// </summary>
 [Collection("ChatServiceTests")]
 [Trait("Category", "Integration")]
-public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime
-{
+public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime {
     private static IFileSystem RealFs => new PhysicalFileSystem();
     private PipeOpenAIMockServer? _mockServer;
     private string _pipeName = string.Empty;
     private ServiceProvider? _serviceProvider;
 
-    public async Task InitializeAsync()
-    {
+    public async Task InitializeAsync() {
         _pipeName = $"JoinCode_Test_{Guid.NewGuid():N}";
 
         var options = new MockServerOptions(_pipeName);
@@ -25,33 +23,26 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime
         await _mockServer.StartAsync().ConfigureAwait(true);
     }
 
-    public async Task DisposeAsync()
-    {
-        if (_serviceProvider != null)
-        {
+    public async Task DisposeAsync() {
+        if (_serviceProvider != null) {
             await _serviceProvider.DisposeAsync();
             _serviceProvider = null;
         }
 
-        if (_mockServer != null)
-        {
+        if (_mockServer != null) {
             await _mockServer.StopAsync(CancellationToken.None);
             await _mockServer.DisposeAsync();
         }
     }
 
-    private ServiceProvider CreateServiceProvider()
-    {
-        if (_serviceProvider != null)
-        {
+    private ServiceProvider CreateServiceProvider() {
+        if (_serviceProvider != null) {
             _serviceProvider.Dispose();
             _serviceProvider = null;
         }
 
-        var config = new WorkflowConfig
-        {
-            Provider = new ProviderConfig
-            {
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig {
                 Vendor = "openai",
                 ApiKey = MockServerOptions.DefaultApiKey,
                 ModelId = MockServerOptions.DefaultModel
@@ -72,11 +63,9 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SendMessageAsync_PersistsTranscriptDelta()
-    {
+    public async Task SendMessageAsync_PersistsTranscriptDelta() {
         var sp = CreateServiceProvider();
-        await using (sp.ConfigureAwait(true))
-        {
+        await using (sp.ConfigureAwait(true)) {
             var chatService = sp.GetRequiredService<IChatService>();
             var ctxMgr = sp.GetRequiredService<IChatContextManager>();
             var transcriptService = sp.GetRequiredService<ITranscriptService>();
@@ -97,11 +86,9 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SecondTurn_AppendsWithoutDuplication()
-    {
+    public async Task SecondTurn_AppendsWithoutDuplication() {
         var sp = CreateServiceProvider();
-        await using (sp.ConfigureAwait(true))
-        {
+        await using (sp.ConfigureAwait(true)) {
             var chatService = sp.GetRequiredService<IChatService>();
 
             await chatService.SendMessageAsync("第一轮").ConfigureAwait(true);

@@ -1,26 +1,22 @@
 namespace Hands.Tests.Network;
 
-public sealed class FileTransferServiceTests
-{
+public sealed class FileTransferServiceTests {
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private readonly FileTransferService _service;
 
-    public FileTransferServiceTests()
-    {
+    public FileTransferServiceTests() {
         _service = new FileTransferService(_fs);
     }
 
     [Fact]
-    public async Task SendFileAsync_FileDoesNotExist_ThrowsFileNotFoundException()
-    {
+    public async Task SendFileAsync_FileDoesNotExist_ThrowsFileNotFoundException() {
         var act = async () => await _service.SendFileAsync("/missing/file.txt").ConfigureAwait(true);
 
         await act.Should().ThrowAsync<FileNotFoundException>().Where(ex => ex.Message.Contains("[HND005]")).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task SendFileAsync_WithDescription_IncludesDescription()
-    {
+    public async Task SendFileAsync_WithDescription_IncludesDescription() {
         var path = "/test/file.txt";
         _fs.WriteAllText(path, "hello");
 
@@ -32,8 +28,7 @@ public sealed class FileTransferServiceTests
     }
 
     [Fact]
-    public async Task SendFileAsync_WithoutDescription_OmitsDescription()
-    {
+    public async Task SendFileAsync_WithoutDescription_OmitsDescription() {
         var path = "/test/file.txt";
         _fs.WriteAllText(path, "hello");
 
@@ -44,16 +39,14 @@ public sealed class FileTransferServiceTests
     }
 
     [Fact]
-    public async Task GenerateDownloadLinkAsync_FileDoesNotExist_ThrowsFileNotFoundException()
-    {
+    public async Task GenerateDownloadLinkAsync_FileDoesNotExist_ThrowsFileNotFoundException() {
         var act = async () => await _service.GenerateDownloadLinkAsync("/missing/file.txt").ConfigureAwait(true);
 
         await act.Should().ThrowAsync<FileNotFoundException>().Where(ex => ex.Message.Contains("[HND006]")).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task GenerateDownloadLinkAsync_FileExists_GeneratesLocalLink()
-    {
+    public async Task GenerateDownloadLinkAsync_FileExists_GeneratesLocalLink() {
         var path = "/test/file.txt";
         _fs.WriteAllText(path, "hello");
 

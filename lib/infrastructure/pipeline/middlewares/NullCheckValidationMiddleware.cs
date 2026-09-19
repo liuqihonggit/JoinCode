@@ -6,16 +6,12 @@ namespace Infrastructure.Pipeline.Middlewares;
 /// 适用于所有需要参数验证的管道
 /// </summary>
 public sealed class NullCheckValidationMiddleware<TContext> : IMiddleware<TContext>
-    where TContext : INullCheckContext
-{
+    where TContext : INullCheckContext {
 
     /// <inheritdoc/>
-    public Task InvokeAsync(TContext ctx, MiddlewareDelegate<TContext> next, CancellationToken ct)
-    {
-        foreach (var (name, value) in ctx.RequiredParameters)
-        {
-            if (value is null)
-            {
+    public Task InvokeAsync(TContext ctx, MiddlewareDelegate<TContext> next, CancellationToken ct) {
+        foreach (var (name, value) in ctx.RequiredParameters) {
+            if (value is null) {
                 ctx.Fail($"Required parameter '{name}' is null");
                 return Task.CompletedTask;
             }

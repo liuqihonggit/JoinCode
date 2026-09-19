@@ -4,8 +4,7 @@ namespace Services.Lsp;
 /// LSP 服务 — 封装语言服务器协议操作，提供定义跳转、引用查找、悬停、补全等能力
 /// </summary>
 [Register(typeof(ILspService), ServiceLifetime.Singleton)]
-public sealed partial class LspService : ServiceEntity, ILspService
-{
+public sealed partial class LspService : ServiceEntity, ILspService {
     private const int MaxLspFileSizeBytes = 10_000_000;
 
     private readonly ILspManager _lspManager;
@@ -28,8 +27,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
         LspEngineContext engineContext,
         LspServiceDeps? deps = null,
         ILogger<LspService>? logger = null)
-        : base(nameof(LspService))
-    {
+        : base(nameof(LspService)) {
         ArgumentNullException.ThrowIfNull(engineContext);
         ArgumentNullException.ThrowIfNull(engineContext.LspManager);
         ArgumentNullException.ThrowIfNull(engineContext.ConfigLoader);
@@ -42,8 +40,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
         _telemetryService = deps?.TelemetryService;
     }
 
-    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
-    {
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default) {
         if (Volatile.Read(ref _isInitialized) == 1 && _lspManager.IsInitialized) return;
 
         using var guard = await _initLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_initLock.Name}' 等待超时");
@@ -57,35 +54,29 @@ public sealed partial class LspService : ServiceEntity, ILspService
         Volatile.Write(ref _isInitialized, 1);
 
         _logger?.LogInformation("LSP Service initialized with {Count} server config(s)", instanceConfigs.Count);
-    
+
     }
 
-    private async Task EnsureFileOpenAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    private async Task EnsureFileOpenAsync(string filePath, CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         if (_lspManager.IsFileOpen(filePath)) return;
 
         if (!_fileOperationService.FileExists(filePath)) return;
 
-        try
-        {
+        try {
             var fileSize = _fs.GetFileLength(filePath);
-            if (fileSize > MaxLspFileSizeBytes)
-            {
+            if (fileSize > MaxLspFileSizeBytes) {
                 _logger?.LogWarning("File too large for LSP analysis: {FilePath} ({Size}MB)", filePath, Math.Ceiling(fileSize / 1_000_000.0));
                 RecordLspMetrics("file_too_large");
                 return;
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "LSP 文件大小检查失败: {FilePath}", filePath);
         }
 
         var readResult = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (readResult.Success)
-        {
+        if (readResult.Success) {
             await _lspManager.OpenFileAsync(filePath, readResult.Content, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -96,8 +87,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="filePath">文件路径</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>服务器可用返回 true，否则 false</returns>
-    public async Task<bool> IsServerAvailableAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> IsServerAvailableAsync(string filePath, CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var server = await _lspManager.EnsureServerStartedAsync(filePath, cancellationToken).ConfigureAwait(false);
         return server is not null;
@@ -111,12 +101,10 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="character">列号（0-based）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>定义位置列表</returns>
-    public async Task<List<LspLocation>> GotoDefinitionAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
-    {
+    public async Task<List<LspLocation>> GotoDefinitionAsync(string filePath, int line, int character, CancellationToken cancellationToken = default) {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        var positionParams = new LspTextDocumentPositionParams
-        {
+        var positionParams = new LspTextDocumentPositionParams {
             TextDocument = new LspTextDocumentIdentifier { Uri = LspUriHelper.PathToFileUrl(filePath) },
             Position = new LspPosition { Line = line, Character = character }
         };
@@ -135,12 +123,10 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="character">列号（0-based）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>引用位置列表</returns>
-    public async Task<List<LspLocation>> FindReferencesAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
-    {
+    public async Task<List<LspLocation>> FindReferencesAsync(string filePath, int line, int character, CancellationToken cancellationToken = default) {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        var referenceParams = new LspReferenceParams
-        {
+        var referenceParams = new LspReferenceParams {
             TextDocument = new LspTextDocumentIdentifier { Uri = LspUriHelper.PathToFileUrl(filePath) },
             Position = new LspPosition { Line = line, Character = character },
             Context = new LspReferenceContext { IncludeDeclaration = true }
@@ -160,12 +146,10 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="character">列号（0-based）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>悬停结果；无信息返回 null</returns>
-    public async Task<LspHoverResult?> HoverAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
-    {
+    public async Task<LspHoverResult?> HoverAsync(string filePath, int line, int character, CancellationToken cancellationToken = default) {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        var positionParams = new LspTextDocumentPositionParams
-        {
+        var positionParams = new LspTextDocumentPositionParams {
             TextDocument = new LspTextDocumentIdentifier { Uri = LspUriHelper.PathToFileUrl(filePath) },
             Position = new LspPosition { Line = line, Character = character }
         };
@@ -184,12 +168,10 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="character">列号（0-based）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>补全项列表</returns>
-    public async Task<List<LspCompletionItem>> GetCompletionsAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
-    {
+    public async Task<List<LspCompletionItem>> GetCompletionsAsync(string filePath, int line, int character, CancellationToken cancellationToken = default) {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        var positionParams = new LspTextDocumentPositionParams
-        {
+        var positionParams = new LspTextDocumentPositionParams {
             TextDocument = new LspTextDocumentIdentifier { Uri = LspUriHelper.PathToFileUrl(filePath) },
             Position = new LspPosition { Line = line, Character = character }
         };
@@ -206,20 +188,17 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="filePath">文件路径</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>文档符号列表</returns>
-    public async Task<List<LspDocumentSymbol>> GetDocumentSymbolsAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public async Task<List<LspDocumentSymbol>> GetDocumentSymbolsAsync(string filePath, CancellationToken cancellationToken = default) {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        var docParams = new LspTextDocumentPositionParams
-        {
+        var docParams = new LspTextDocumentPositionParams {
             TextDocument = new LspTextDocumentIdentifier { Uri = LspUriHelper.PathToFileUrl(filePath) },
             Position = new LspPosition()
         };
 
         var result = await _lspManager.SendRequestAsync(filePath, LspMethod.TextDocumentDocumentSymbol.ToValue(), docParams, cancellationToken).ConfigureAwait(false);
 
-        if (result is JsonArray)
-        {
+        if (result is JsonArray) {
             return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspDocumentSymbol) ?? [];
         }
 
@@ -234,53 +213,42 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="serverName">指定服务器名称（可选，跳过自动检测）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>匹配的符号信息列表</returns>
-    public async Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, string? workspacePath = null, string? serverName = null, CancellationToken cancellationToken = default)
-    {
+    public async Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, string? workspacePath = null, string? serverName = null, CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         var allServers = _lspManager.GetAllServers();
-        if (allServers.Count == 0)
-        {
+        if (allServers.Count == 0) {
             return [];
         }
 
         ILspServerInstance? server;
         string? workspaceRoot = null;
 
-        if (!string.IsNullOrEmpty(serverName))
-        {
-            if (!allServers.TryGetValue(serverName, out var namedServer))
-            {
+        if (!string.IsNullOrEmpty(serverName)) {
+            if (!allServers.TryGetValue(serverName, out var namedServer)) {
                 var available = string.Join(", ", allServers.Keys);
                 throw new InvalidOperationException($"LSP server '{serverName}' not found. Available servers: {available}");
             }
             server = namedServer;
             workspaceRoot = await GitWorkspaceResolver.FindWorkspaceRootAsync(workspacePath, _fs, cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation("Workspace symbol search: server='{Name}' (explicit), workspace='{Root}'", server.Name, workspaceRoot ?? "(null)");
-        }
-        else if (!string.IsNullOrEmpty(workspacePath) && _fileOperationService.FileExists(workspacePath))
-        {
+        } else if (!string.IsNullOrEmpty(workspacePath) && _fileOperationService.FileExists(workspacePath)) {
             server = await _lspManager.EnsureServerStartedAsync(workspacePath, cancellationToken).ConfigureAwait(false);
-            if (server == null)
-            {
+            if (server == null) {
                 throw new InvalidOperationException($"No LSP server matches file extension: {Path.GetExtension(workspacePath)}. Available servers: {string.Join(", ", allServers.Keys)}");
             }
             _logger?.LogInformation("Workspace symbol search: server='{Name}' (auto-detected from file), workspace='{Root}'", server.Name, workspacePath);
-        }
-        else
-        {
+        } else {
             server = allServers.Values.FirstOrDefault(s => s.State == LspServerState.Running)
                   ?? allServers.Values.FirstOrDefault();
-            if (server == null)
-            {
+            if (server == null) {
                 return [];
             }
             workspaceRoot = await GitWorkspaceResolver.FindWorkspaceRootAsync(workspacePath, _fs, cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation("Workspace symbol search: server='{Name}' (fallback), workspace='{Root}'", server.Name, workspaceRoot ?? "(null)");
         }
 
-        if (server.State != LspServerState.Running)
-        {
+        if (server.State != LspServerState.Running) {
             return [];
         }
 
@@ -288,8 +256,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
         var result = await server.SendRequestAsync(LspMethod.WorkspaceSymbol.ToValue(), symbolParams, cancellationToken).ConfigureAwait(false);
 
         RecordLspMetrics("workspace_symbol");
-        if (result is JsonArray)
-        {
+        if (result is JsonArray) {
             return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspSymbolInformation) ?? [];
         }
 
@@ -304,12 +271,10 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="character">列号（0-based）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>实现位置列表</returns>
-    public async Task<List<LspLocation>> GotoImplementationAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
-    {
+    public async Task<List<LspLocation>> GotoImplementationAsync(string filePath, int line, int character, CancellationToken cancellationToken = default) {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        var positionParams = new LspTextDocumentPositionParams
-        {
+        var positionParams = new LspTextDocumentPositionParams {
             TextDocument = new LspTextDocumentIdentifier { Uri = LspUriHelper.PathToFileUrl(filePath) },
             Position = new LspPosition { Line = line, Character = character }
         };
@@ -328,12 +293,10 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="character">列号（0-based）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>调用层次项列表</returns>
-    public async Task<List<LspCallHierarchyItem>> PrepareCallHierarchyAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
-    {
+    public async Task<List<LspCallHierarchyItem>> PrepareCallHierarchyAsync(string filePath, int line, int character, CancellationToken cancellationToken = default) {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        var positionParams = new LspTextDocumentPositionParams
-        {
+        var positionParams = new LspTextDocumentPositionParams {
             TextDocument = new LspTextDocumentIdentifier { Uri = LspUriHelper.PathToFileUrl(filePath) },
             Position = new LspPosition { Line = line, Character = character }
         };
@@ -341,8 +304,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
         var result = await _lspManager.SendRequestAsync(filePath, LspMethod.TextDocumentPrepareCallHierarchy.ToValue(), positionParams, cancellationToken).ConfigureAwait(false);
 
         RecordLspMetrics("prepare_call_hierarchy");
-        if (result is JsonArray)
-        {
+        if (result is JsonArray) {
             return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyItem) ?? [];
         }
 
@@ -355,8 +317,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="item">调用层次项</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>incoming call 列表</returns>
-    public async Task<List<LspCallHierarchyIncomingCall>> CallHierarchyIncomingCallsAsync(LspCallHierarchyItem item, CancellationToken cancellationToken = default)
-    {
+    public async Task<List<LspCallHierarchyIncomingCall>> CallHierarchyIncomingCallsAsync(LspCallHierarchyItem item, CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         var paramObj = new LspCallHierarchyItemParam { Item = item };
@@ -367,8 +328,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
         var result = await server.SendRequestAsync(LspMethod.CallHierarchyIncomingCalls.ToValue(), paramObj, cancellationToken).ConfigureAwait(false);
 
         RecordLspMetrics("incoming_calls");
-        if (result is JsonArray)
-        {
+        if (result is JsonArray) {
             return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyIncomingCall) ?? [];
         }
 
@@ -381,8 +341,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="item">调用层次项</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>outgoing call 列表</returns>
-    public async Task<List<LspCallHierarchyOutgoingCall>> CallHierarchyOutgoingCallsAsync(LspCallHierarchyItem item, CancellationToken cancellationToken = default)
-    {
+    public async Task<List<LspCallHierarchyOutgoingCall>> CallHierarchyOutgoingCallsAsync(LspCallHierarchyItem item, CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         var paramObj = new LspCallHierarchyItemParam { Item = item };
@@ -393,8 +352,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
         var result = await server.SendRequestAsync(LspMethod.CallHierarchyOutgoingCalls.ToValue(), paramObj, cancellationToken).ConfigureAwait(false);
 
         RecordLspMetrics("outgoing_calls");
-        if (result is JsonArray)
-        {
+        if (result is JsonArray) {
             return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyOutgoingCall) ?? [];
         }
 
@@ -407,8 +365,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <param name="filePath">文件路径</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task CloseClientAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public async Task CloseClientAsync(string filePath, CancellationToken cancellationToken = default) {
         await _lspManager.CloseFileAsync(filePath, cancellationToken).ConfigureAwait(false);
     }
 
@@ -416,8 +373,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// 异步释放 LspService 资源
     /// </summary>
     /// <returns>表示异步释放操作的 ValueTask</returns>
-    public override ValueTask DisposeAsync()
-    {
+    public override ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0) return ValueTask.CompletedTask;
 
         var task = _lspManager.DisposeAsync();
@@ -428,11 +384,10 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <summary>
     /// 同步释放资源 — 释放初始化锁
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_asyncDisposed == 1) return;
         _initLock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 
     #region Private Methods
@@ -442,15 +397,12 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// 处理格式：null、Location、Location[]、LocationLink、LocationLink[]。
     /// csharp-ls 返回 LocationLink 格式（含 targetUri/targetRange），需转换为 LspLocation。
     /// </summary>
-    private static List<LspLocation> DeserializeLocations(JsonNode? result)
-    {
+    private static List<LspLocation> DeserializeLocations(JsonNode? result) {
         if (result is null) return [];
 
-        if (result is JsonArray arr)
-        {
+        if (result is JsonArray arr) {
             var locations = new List<LspLocation>();
-            foreach (var item in arr)
-            {
+            foreach (var item in arr) {
                 var loc = DeserializeSingleLocation(item);
                 if (loc != null) locations.Add(loc);
             }
@@ -466,21 +418,17 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// Location: { uri, range }
     /// LocationLink: { targetUri, targetRange, targetSelectionRange, originSelectionRange }
     /// </summary>
-    private static LspLocation? DeserializeSingleLocation(JsonNode? node)
-    {
+    private static LspLocation? DeserializeSingleLocation(JsonNode? node) {
         if (node is not JsonObject obj) return null;
 
-        if (obj.TryGetPropertyValue("uri", out var uriNode) && uriNode != null)
-        {
+        if (obj.TryGetPropertyValue("uri", out var uriNode) && uriNode != null) {
             return RelaxedJsonSerializer.Deserialize(node!.ToJsonString(), LspJsonContext.Default.LspLocation);
         }
 
-        if (obj.TryGetPropertyValue("targetUri", out var targetUriNode) && targetUriNode != null)
-        {
+        if (obj.TryGetPropertyValue("targetUri", out var targetUriNode) && targetUriNode != null) {
             var targetUri = targetUriNode.GetValue<string>();
             var rangeNode = obj.TryGetPropertyValue("targetRange", out var tr) ? tr : null;
-            if (rangeNode != null)
-            {
+            if (rangeNode != null) {
                 var range = RelaxedJsonSerializer.Deserialize(rangeNode.ToJsonString(), LspJsonContext.Default.LspRange);
                 return new LspLocation { Uri = targetUri, Range = range ?? new LspRange { Start = new LspPosition(), End = new LspPosition() } };
             }
@@ -490,17 +438,14 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return null;
     }
 
-    private static List<LspCompletionItem> DeserializeCompletions(JsonNode? result)
-    {
+    private static List<LspCompletionItem> DeserializeCompletions(JsonNode? result) {
         if (result is null) return [];
 
-        if (result is JsonArray)
-        {
+        if (result is JsonArray) {
             return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCompletionItem) ?? [];
         }
 
-        if (result is JsonObject resultObj && resultObj.TryGetPropertyValue("items", out var itemsNode))
-        {
+        if (result is JsonObject resultObj && resultObj.TryGetPropertyValue("items", out var itemsNode)) {
             return RelaxedJsonSerializer.Deserialize(itemsNode?.ToJsonString() ?? "[]", LspJsonContext.Default.ListLspCompletionItem) ?? [];
         }
 

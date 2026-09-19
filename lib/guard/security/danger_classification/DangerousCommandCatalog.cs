@@ -4,8 +4,7 @@ namespace Core.Security.DangerClassification;
 /// 统一危险命令目录 — 集中所有危险命令、参数、组合的定义，每条记录同时标注 CommandRisk（风险类型）和 CommandDangerLevel（危险等级）
 /// 这是权限系统危险指令分级的唯一数据源，替代原 DestructiveCommandDetector 中分散的静态映射表
 /// </summary>
-public static partial class DangerousCommandCatalog
-{
+public static partial class DangerousCommandCatalog {
     /// <summary>
     /// 解释器命令集合 — 管道传入这些命令可执行任意代码
     /// <para>唯一数据源,供 CommandDangerClassifier.IsInterpreter 和 BuildCombinations 管道组合共用</para>

@@ -20,8 +20,7 @@ public partial class PolicyJsonContext : JsonSerializerContext;
 /// <summary>
 /// 策略拉取响应 — 包含从远端获取的策略规则列表及拉取时间戳
 /// </summary>
-public sealed class PolicyFetchResponse
-{
+public sealed class PolicyFetchResponse {
     /// <summary>
     /// 策略规则列表
     /// </summary>

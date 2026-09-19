@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 配置变更事件参数
 /// </summary>
-public sealed class SettingChangeEventArgs : EventArgs
-{
+public sealed class SettingChangeEventArgs : EventArgs {
     public required string Key { get; init; }
     public string? OldValue { get; init; }
     public string? NewValue { get; init; }
@@ -22,8 +21,7 @@ public sealed class SettingChangeEventArgs : EventArgs
 /// 配置服务接口 - 提供配置项的读取和设置功能
 /// 对齐 TS 版 ConfigTool: 支持双存储源(global/settings) + 变更通知
 /// </summary>
-public interface IConfigurationService
-{
+public interface IConfigurationService {
     /// <summary>
     /// 设置变更事件（对齐 TS 版 appStateKey 热更新同步）
     /// </summary>

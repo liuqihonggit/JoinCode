@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// MCP 客户端/认证工具名称枚举
 /// </summary>
-public enum McpToolName
-{
+public enum McpToolName {
     [EnumValue("mcp_list_servers")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     McpListServers,

@@ -1,17 +1,14 @@
 namespace Abs.Tests.Utils;
 
-public class MarkdownTableBuilderTests
-{
+public class MarkdownTableBuilderTests {
     [Fact]
-    public void Empty_WithoutHeader_ReturnsEmpty()
-    {
+    public void Empty_WithoutHeader_ReturnsEmpty() {
         var result = new MarkdownTableBuilder().Build();
         Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void WithTitle_RendersTitleHeading()
-    {
+    public void WithTitle_RendersTitleHeading() {
         var result = new MarkdownTableBuilder()
             .WithTitle("测试标题")
             .AddHeader("A", "B")
@@ -22,8 +19,7 @@ public class MarkdownTableBuilderTests
     }
 
     [Fact]
-    public void AddHeader_AddRow_RendersValidMarkdownTable()
-    {
+    public void AddHeader_AddRow_RendersValidMarkdownTable() {
         var result = new MarkdownTableBuilder()
             .AddHeader("列A", "列B", "列C")
             .AddRow("1", "2", "3")
@@ -38,8 +34,7 @@ public class MarkdownTableBuilderTests
     }
 
     [Fact]
-    public void RowWithFewerValues_PadsWithEmpty()
-    {
+    public void RowWithFewerValues_PadsWithEmpty() {
         var result = new MarkdownTableBuilder()
             .AddHeader("A", "B", "C")
             .AddRow("1")
@@ -50,8 +45,7 @@ public class MarkdownTableBuilderTests
     }
 
     [Fact]
-    public void PipeInValue_IsEscaped()
-    {
+    public void PipeInValue_IsEscaped() {
         var result = new MarkdownTableBuilder()
             .AddHeader("A")
             .AddRow("a|b")
@@ -61,8 +55,7 @@ public class MarkdownTableBuilderTests
     }
 
     [Fact]
-    public void NewlineInValue_IsReplacedWithSpace()
-    {
+    public void NewlineInValue_IsReplacedWithSpace() {
         var result = new MarkdownTableBuilder()
             .AddHeader("A")
             .AddRow("a\nb")
@@ -73,13 +66,10 @@ public class MarkdownTableBuilderTests
     }
 }
 
-public class CommandExecutionResultExtensionsTests
-{
+public class CommandExecutionResultExtensionsTests {
     [Fact]
-    public void ToMarkdownTable_IncludesAllFields()
-    {
-        var result = new ProcessResult
-        {
+    public void ToMarkdownTable_IncludesAllFields() {
+        var result = new ProcessResult {
             ExitCode = 0,
             StandardOutput = "hello",
             StandardError = "",
@@ -97,10 +87,8 @@ public class CommandExecutionResultExtensionsTests
     }
 
     [Fact]
-    public void ToMarkdownSummary_CompactThreeColumns()
-    {
-        var result = new ProcessResult
-        {
+    public void ToMarkdownSummary_CompactThreeColumns() {
+        var result = new ProcessResult {
             ExitCode = 1,
             StandardOutput = "out",
             StandardError = "err",
@@ -116,10 +104,8 @@ public class CommandExecutionResultExtensionsTests
     }
 
     [Fact]
-    public void ToMarkdownTable_FailedResult_ShowsNo()
-    {
-        var result = new ProcessResult
-        {
+    public void ToMarkdownTable_FailedResult_ShowsNo() {
+        var result = new ProcessResult {
             ExitCode = 127,
             StandardOutput = "",
             StandardError = "command not found",
@@ -133,11 +119,9 @@ public class CommandExecutionResultExtensionsTests
     }
 
     [Fact]
-    public void ToMarkdownTable_LongOutput_IsTruncated()
-    {
+    public void ToMarkdownTable_LongOutput_IsTruncated() {
         var longText = new string('x', 200);
-        var result = new ProcessResult
-        {
+        var result = new ProcessResult {
             ExitCode = 0,
             StandardOutput = longText,
             StandardError = "",
@@ -150,10 +134,8 @@ public class CommandExecutionResultExtensionsTests
     }
 
     [Fact]
-    public void ToJsonBlock_ProducesValidJsonBlock()
-    {
-        var result = new ProcessResult
-        {
+    public void ToJsonBlock_ProducesValidJsonBlock() {
+        var result = new ProcessResult {
             ExitCode = 0,
             StandardOutput = "hello",
             StandardError = "",
@@ -171,10 +153,8 @@ public class CommandExecutionResultExtensionsTests
     }
 
     [Fact]
-    public void ToJsonBlock_FailedResult_HasFalseSuccess()
-    {
-        var result = new ProcessResult
-        {
+    public void ToJsonBlock_FailedResult_HasFalseSuccess() {
+        var result = new ProcessResult {
             ExitCode = 1,
             StandardOutput = "",
             StandardError = "error",

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// Git 工具名称枚举
 /// </summary>
-public enum GitToolName
-{
+public enum GitToolName {
     [EnumValue("git_status")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GitStatus,

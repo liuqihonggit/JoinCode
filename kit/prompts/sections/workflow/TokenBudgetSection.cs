@@ -5,14 +5,12 @@ namespace Core.Prompts.Sections;
 /// Token预算部分 - 当用户指定token目标时的指导
 /// </summary>
 [PromptSection(Name = "token_budget", Order = 50)]
-public static class TokenBudgetSection
-{
+public static class TokenBudgetSection {
     /// <summary>
     /// 获取 Token 预算部分的提示词内容。
     /// </summary>
     /// <returns>Token 预算指导文本；始终非空。</returns>
-    public static string? GetContent()
-    {
+    public static string? GetContent() {
         // 即使没有活跃的预算，也保留这个section，因为"当用户指定..."的措辞使其在没有预算时成为无操作
         return """
 # Token预算

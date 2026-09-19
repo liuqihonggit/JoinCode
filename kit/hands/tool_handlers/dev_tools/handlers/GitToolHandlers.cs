@@ -7,8 +7,7 @@ namespace Tools.Handlers;
 /// Git 工具处理器 — 提供 git status/add/commit/push/pull/log/diff/branch 等子命令
 /// </summary>
 [McpToolDispatch(ToolCategory.Git)]
-public partial class GitToolHandlers
-{
+public partial class GitToolHandlers {
     private readonly ILogger<GitToolHandlers>? _logger;
     private readonly IGitCommandRunner _gitRunner;
     private readonly IGitSecurityInterceptor? _securityInterceptor;
@@ -23,8 +22,7 @@ public partial class GitToolHandlers
     /// <param name="gitRunner">Git 命令执行器</param>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="telemetryService">可选遥测服务</param>
-    public GitToolHandlers(IFileSystem fs, IGitCommandRunner gitRunner, ILogger<GitToolHandlers>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public GitToolHandlers(IFileSystem fs, IGitCommandRunner gitRunner, ILogger<GitToolHandlers>? logger = null, ITelemetryService? telemetryService = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
         _logger = logger;
@@ -39,8 +37,7 @@ public partial class GitToolHandlers
     /// <param name="securityInterceptor">Git 安全拦截器，提交前扫描密钥</param>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="telemetryService">可选遥测服务</param>
-    public GitToolHandlers(IFileSystem fs, IGitCommandRunner gitRunner, IGitSecurityInterceptor securityInterceptor, ILogger<GitToolHandlers>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public GitToolHandlers(IFileSystem fs, IGitCommandRunner gitRunner, IGitSecurityInterceptor securityInterceptor, ILogger<GitToolHandlers>? logger = null, ITelemetryService? telemetryService = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
         _securityInterceptor = securityInterceptor;
@@ -52,8 +49,7 @@ public partial class GitToolHandlers
     /// 设置当前工作目录 — 后续 Git 命令在此目录下执行
     /// </summary>
     /// <param name="directory">工作目录路径</param>
-    public void SetWorkingDirectory(string directory)
-    {
+    public void SetWorkingDirectory(string directory) {
         _currentWorkingDirectory = directory;
     }
 
@@ -61,15 +57,12 @@ public partial class GitToolHandlers
     [McpTool(GitToolNameEnumConstants.GitStatus, "Check Git repository status", "git", ConcurrencySafe = true)]
     public async Task<ToolResult> GitStatusAsync(
         [McpToolParameter("Working directory path (optional, defaults to current directory)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var parts = new List<string> { GitSubCommand.Status.ToValue(), "--porcelain", "-b" };
             var result = await ExecuteGitCommandAsync(GitSubCommand.Status, string.Join(' ', parts), working_dir, cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 var diag = BuildGitStatusFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage)
@@ -81,21 +74,16 @@ public partial class GitToolHandlers
             response.AppendLine("Git status:");
             response.AppendLine();
 
-            if (string.IsNullOrWhiteSpace(result.Output))
-            {
+            if (string.IsNullOrWhiteSpace(result.Output)) {
                 response.AppendLine("Working tree clean, no changes");
-            }
-            else
-            {
+            } else {
                 response.AppendLine(result.Output);
             }
 
             return ToolResultBuilder.Success()
                 .WithText(response.ToString())
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("git_status", ex, _logger, "working_dir", working_dir ?? "(default)");
         }
     }
@@ -105,12 +93,9 @@ public partial class GitToolHandlers
     public async Task<ToolResult> GitAddAsync(
         [McpToolParameter("File path (supports wildcards *, use . for all files)")] string path,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(path))
-            {
+        CancellationToken cancellationToken = default) {
+        try {
+            if (string.IsNullOrWhiteSpace(path)) {
                 var pathDiag = BuildPathEmptyDiagnostic();
                 return ToolResultBuilder.Error()
                     .WithText(pathDiag.FormattedMessage)
@@ -121,8 +106,7 @@ public partial class GitToolHandlers
             var parts = new List<string> { GitSubCommand.Add.ToValue(), $"\"{path}\"" };
             var result = await ExecuteGitCommandAsync(GitSubCommand.Add, string.Join(' ', parts), working_dir, cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 var diag = BuildGitAddFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage)
@@ -137,9 +121,7 @@ public partial class GitToolHandlers
             return ToolResultBuilder.Success()
                 .WithText($"Added: {path}")
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("git_add", ex, _logger, "path", path ?? "(null)");
         }
     }
@@ -150,12 +132,9 @@ public partial class GitToolHandlers
         [McpToolParameter("Commit message")] string message,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
         [McpToolParameter("Allow empty commit", Required = false)] bool? allow_empty = false,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(message))
-            {
+        CancellationToken cancellationToken = default) {
+        try {
+            if (string.IsNullOrWhiteSpace(message)) {
                 var msgDiag = BuildMessageEmptyDiagnostic();
                 return ToolResultBuilder.Error()
                     .WithText(msgDiag.FormattedMessage)
@@ -169,15 +148,13 @@ public partial class GitToolHandlers
 
             var escapedMessage = message.Replace("\"", "\\\"");
             var parts = new List<string> { GitSubCommand.Commit.ToValue(), "-m", $"\"{escapedMessage}\"" };
-            if (allow_empty == true)
-            {
+            if (allow_empty == true) {
                 parts.Add("--allow-empty");
             }
 
             var result = await ExecuteGitCommandAsync(GitSubCommand.Commit, string.Join(' ', parts), working_dir, cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 var diag = BuildGitCommitFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage)
@@ -188,9 +165,7 @@ public partial class GitToolHandlers
             return ToolResultBuilder.Success()
                 .WithText($"Commit successful:\n{result.Output}")
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("git_commit", ex, _logger, "working_dir", working_dir ?? "(default)");
         }
     }
@@ -202,24 +177,19 @@ public partial class GitToolHandlers
         [McpToolParameter("Branch name (optional, defaults to current branch)", Required = false)] string? branch = null,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
         [McpToolParameter("Force push", Required = false)] bool? force = false,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var parts = new List<string> { GitSubCommand.Push.ToValue(), remote ?? "origin" };
-            if (!string.IsNullOrEmpty(branch))
-            {
+            if (!string.IsNullOrEmpty(branch)) {
                 parts.Add(branch);
             }
-            if (force == true)
-            {
+            if (force == true) {
                 parts.Add("--force");
             }
 
             var result = await ExecuteGitCommandAsync(GitSubCommand.Push, string.Join(' ', parts), working_dir, cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 var diag = BuildGitPushFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage)
@@ -230,9 +200,7 @@ public partial class GitToolHandlers
             return ToolResultBuilder.Success()
                 .WithText($"Push successful:\n{result.Output}")
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("git_push", ex, _logger, "remote", remote ?? "origin");
         }
     }
@@ -243,21 +211,17 @@ public partial class GitToolHandlers
         [McpToolParameter("Remote name (optional, defaults to origin)", Required = false)] string? remote = "origin",
         [McpToolParameter("Branch name (optional, defaults to current branch)", Required = false)] string? branch = null,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var parts = new List<string> { GitSubCommand.Pull.ToValue(), remote ?? "origin" };
-            if (!string.IsNullOrEmpty(branch))
-            {
+            if (!string.IsNullOrEmpty(branch)) {
                 parts.Add(branch);
             }
             var args = string.Join(' ', parts);
 
             var result = await ExecuteGitCommandAsync(GitSubCommand.Pull, args, working_dir, cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 var diag = BuildGitPullFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage)
@@ -268,9 +232,7 @@ public partial class GitToolHandlers
             return ToolResultBuilder.Success()
                 .WithText($"Pull successful:\n{result.Output}")
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("git_pull", ex, _logger, "remote", remote ?? "origin");
         }
     }
@@ -281,13 +243,10 @@ public partial class GitToolHandlers
         [McpToolParameter("Number of entries (optional, defaults to 10)", Required = false)] int? count = 10,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
         [McpToolParameter("Format: oneline/short/full (optional)", Required = false)] string? format = "oneline",
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var validationError = ValidationHelper.ValidateRange(count, 1, 1000, "count");
-            if (validationError != null)
-            {
+            if (validationError != null) {
                 var validationDiag = BuildGitLogValidationDiagnostic(validationError);
                 return ToolResultBuilder.Error()
                     .WithText(validationDiag.FormattedMessage)
@@ -295,8 +254,7 @@ public partial class GitToolHandlers
                     .Build();
             }
 
-            var formatArg = format?.ToLowerInvariant() switch
-            {
+            var formatArg = format?.ToLowerInvariant() switch {
                 "oneline" => "--oneline",
                 "short" => "--pretty=format:%h - %s (%ar) <%an>",
                 "full" => "--pretty=format:%H%nAuthor: %an <%ae>%nDate: %ad%n%n%s%n%b",
@@ -306,8 +264,7 @@ public partial class GitToolHandlers
             var parts = new List<string> { GitSubCommand.Log.ToValue(), formatArg, "-n", $"{count ?? 10}" };
             var result = await ExecuteGitCommandAsync(GitSubCommand.Log, string.Join(' ', parts), working_dir, cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 var diag = BuildGitLogFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage)
@@ -323,9 +280,7 @@ public partial class GitToolHandlers
             return ToolResultBuilder.Success()
                 .WithText(response.ToString())
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("git_log", ex, _logger, "working_dir", working_dir ?? "(default)");
         }
     }
@@ -336,24 +291,19 @@ public partial class GitToolHandlers
         [McpToolParameter("File path (optional, defaults to all files)", Required = false)] string? path = null,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
         [McpToolParameter("Compare mode: staged/cached/worktree (optional)", Required = false)] string? mode = "worktree",
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var parts = new List<string> { GitSubCommand.Diff.ToValue() };
-            if (mode?.ToLowerInvariant() is "staged" or "cached")
-            {
+            if (mode?.ToLowerInvariant() is "staged" or "cached") {
                 parts.Add("--cached");
             }
-            if (!string.IsNullOrEmpty(path))
-            {
+            if (!string.IsNullOrEmpty(path)) {
                 parts.Add($"\"{path}\"");
             }
 
             var result = await ExecuteGitCommandAsync(GitSubCommand.Diff, string.Join(' ', parts), working_dir, cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 var diag = BuildGitDiffFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage)
@@ -361,8 +311,7 @@ public partial class GitToolHandlers
                     .Build();
             }
 
-            if (string.IsNullOrWhiteSpace(result.Output))
-            {
+            if (string.IsNullOrWhiteSpace(result.Output)) {
                 var diffMsg = $"No differences\n[诊断] mode: {mode}, path: {path ?? "(all files)"}";
                 return ToolResultBuilder.Success()
                     .WithText(diffMsg)
@@ -375,9 +324,7 @@ public partial class GitToolHandlers
             return ToolResultBuilder.Success()
                 .WithText(result.Output)
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("git_diff", ex, _logger, "working_dir", working_dir ?? "(default)");
         }
     }
@@ -389,12 +336,9 @@ public partial class GitToolHandlers
         [McpToolParameter("Operation: create/switch/delete (optional, defaults to switch)", Required = false)] string? operation = "switch",
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
         [McpToolParameter("Base branch (optional, for create)", Required = false)] string? base_branch = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(branch_name))
-            {
+        CancellationToken cancellationToken = default) {
+        try {
+            if (string.IsNullOrWhiteSpace(branch_name)) {
                 var nameDiag = BuildBranchNameEmptyDiagnostic();
                 return ToolResultBuilder.Error()
                     .WithText(nameDiag.FormattedMessage)
@@ -406,26 +350,22 @@ public partial class GitToolHandlers
             var op = GitBranchOperationExtensions.FromValue(opStr) ?? GitBranchOperation.Switch;
 
             string args;
-            switch (op)
-            {
-                case GitBranchOperation.Create:
-                {
+            switch (op) {
+                case GitBranchOperation.Create: {
                     var parts = new List<string> { GitSubCommand.Branch.ToValue(), $"\"{branch_name}\"" };
-                    if (!string.IsNullOrEmpty(base_branch))
-                    {
+                    if (!string.IsNullOrEmpty(base_branch)) {
                         parts.Add($"\"{base_branch}\"");
                     }
                     args = string.Join(' ', parts);
                     break;
                 }
                 case GitBranchOperation.Switch:
-                    args = $"{GitSubCommand.Switch.ToValue()} \"{branch_name}\"";
-                    break;
+                args = $"{GitSubCommand.Switch.ToValue()} \"{branch_name}\"";
+                break;
                 case GitBranchOperation.Delete:
-                    args = $"{GitSubCommand.Branch.ToValue()} -d \"{branch_name}\"";
-                    break;
-                default:
-                {
+                args = $"{GitSubCommand.Branch.ToValue()} -d \"{branch_name}\"";
+                break;
+                default: {
                     var opDiag = BuildUnsupportedBranchOperationDiagnostic(operation);
                     return ToolResultBuilder.Error()
                         .WithText(opDiag.FormattedMessage)
@@ -436,8 +376,7 @@ public partial class GitToolHandlers
 
             var result = await ExecuteGitCommandAsync(op == GitBranchOperation.Switch ? GitSubCommand.Switch : GitSubCommand.Branch, args, working_dir, cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 var diag = BuildGitBranchFailedDiagnostic(op.ToValue(), result.Error);
                 return ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage)
@@ -448,9 +387,7 @@ public partial class GitToolHandlers
             return ToolResultBuilder.Success()
                 .WithText($"Branch '{op.ToValue()}' successful: {branch_name}")
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("git_branch", ex, _logger, "branch_name", branch_name ?? "(null)");
         }
     }
@@ -462,12 +399,9 @@ public partial class GitToolHandlers
         [McpToolParameter("Local directory name (optional)", Required = false)] string? directory = null,
         [McpToolParameter("Parent directory path (optional, defaults to current directory)", Required = false)] string? parent_dir = null,
         [McpToolParameter("Branch (optional)", Required = false)] string? branch = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(url))
-            {
+        CancellationToken cancellationToken = default) {
+        try {
+            if (string.IsNullOrWhiteSpace(url)) {
                 var urlDiag = BuildUrlEmptyDiagnostic();
                 return ToolResultBuilder.Error()
                     .WithText(urlDiag.FormattedMessage)
@@ -476,20 +410,17 @@ public partial class GitToolHandlers
             }
 
             var parts = new List<string> { GitSubCommand.Clone.ToValue(), $"\"{url}\"" };
-            if (!string.IsNullOrEmpty(directory))
-            {
+            if (!string.IsNullOrEmpty(directory)) {
                 parts.Add($"\"{directory}\"");
             }
-            if (!string.IsNullOrEmpty(branch))
-            {
+            if (!string.IsNullOrEmpty(branch)) {
                 parts.Add($"-b \"{branch}\"");
             }
             var args = string.Join(' ', parts);
 
             var result = await ExecuteGitCommandAsync(GitSubCommand.Clone, args, parent_dir, cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 var diag = BuildGitCloneFailedDiagnostic(result.Error);
                 return ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage)
@@ -500,9 +431,7 @@ public partial class GitToolHandlers
             return ToolResultBuilder.Success()
                 .WithText($"Clone successful:\n{result.Output}")
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("git_clone", ex, _logger, "url", url ?? "(null)");
         }
     }
@@ -510,8 +439,7 @@ public partial class GitToolHandlers
     private void RecordGitMetrics(string command, bool isSuccess)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "git.operation.count", command, isSuccess);
 
-    private async Task<ToolResult?> ScanBeforeCommitAsync(string? workingDir, CancellationToken ct)
-    {
+    private async Task<ToolResult?> ScanBeforeCommitAsync(string? workingDir, CancellationToken ct) {
         if (_securityInterceptor == null)
             return null;
 
@@ -528,20 +456,17 @@ public partial class GitToolHandlers
             .Build();
     }
 
-    private async Task<GitCommandResult> ExecuteGitCommandAsync(GitSubCommand subCommand, string arguments, string? workingDirectory, CancellationToken cancellationToken)
-    {
+    private async Task<GitCommandResult> ExecuteGitCommandAsync(GitSubCommand subCommand, string arguments, string? workingDirectory, CancellationToken cancellationToken) {
         var cwd = !string.IsNullOrWhiteSpace(workingDirectory) ? workingDirectory : (_currentWorkingDirectory ?? _fs.GetCurrentDirectory());
 
         var result = await _gitRunner.ExecuteAsync(arguments, cwd, cancellationToken).ConfigureAwait(false);
         RecordGitMetrics(subCommand.ToValue(), result.Success);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             _logger?.LogError("执行 Git 命令失败: git {Arguments}, Error: {Error}", arguments, result.Error);
         }
 
-        return new GitCommandResult
-        {
+        return new GitCommandResult {
             Success = result.Success,
             Output = result.Output.Trim(),
             Error = result.Error.Trim(),
@@ -554,8 +479,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git status 命令失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildGitStatusFailedDiagnostic(string error)
-    {
+    internal static ToolDiagnostic BuildGitStatusFailedDiagnostic(string error) {
         return ToolDiagnostic.Create(
             reason: "GitStatusFailed",
             formattedMessage: $"Git status failed:\n{error}",
@@ -573,8 +497,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git add 路径为空的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildPathEmptyDiagnostic()
-    {
+    internal static ToolDiagnostic BuildPathEmptyDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "GitPathEmpty",
             formattedMessage: "path cannot be empty",
@@ -591,8 +514,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git add 命令失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildGitAddFailedDiagnostic(string error)
-    {
+    internal static ToolDiagnostic BuildGitAddFailedDiagnostic(string error) {
         return ToolDiagnostic.Create(
             reason: "GitAddFailed",
             formattedMessage: $"Git add failed:\n{error}",
@@ -610,8 +532,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git commit 消息为空的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildMessageEmptyDiagnostic()
-    {
+    internal static ToolDiagnostic BuildMessageEmptyDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "GitMessageEmpty",
             formattedMessage: "message cannot be empty",
@@ -628,8 +549,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git commit 命令失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildGitCommitFailedDiagnostic(string error)
-    {
+    internal static ToolDiagnostic BuildGitCommitFailedDiagnostic(string error) {
         return ToolDiagnostic.Create(
             reason: "GitCommitFailed",
             formattedMessage: $"Git commit failed:\n{error}",
@@ -647,8 +567,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git push 命令失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildGitPushFailedDiagnostic(string error)
-    {
+    internal static ToolDiagnostic BuildGitPushFailedDiagnostic(string error) {
         return ToolDiagnostic.Create(
             reason: "GitPushFailed",
             formattedMessage: $"Git push failed:\n{error}",
@@ -666,8 +585,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git pull 命令失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildGitPullFailedDiagnostic(string error)
-    {
+    internal static ToolDiagnostic BuildGitPullFailedDiagnostic(string error) {
         return ToolDiagnostic.Create(
             reason: "GitPullFailed",
             formattedMessage: $"Git pull failed:\n{error}",
@@ -685,8 +603,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git log 参数校验失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildGitLogValidationDiagnostic(string validationError)
-    {
+    internal static ToolDiagnostic BuildGitLogValidationDiagnostic(string validationError) {
         return ToolDiagnostic.Create(
             reason: "GitLogValidationError",
             formattedMessage: validationError,
@@ -703,8 +620,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git log 命令失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildGitLogFailedDiagnostic(string error)
-    {
+    internal static ToolDiagnostic BuildGitLogFailedDiagnostic(string error) {
         return ToolDiagnostic.Create(
             reason: "GitLogFailed",
             formattedMessage: $"Git log failed:\n{error}",
@@ -721,8 +637,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git diff 命令失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildGitDiffFailedDiagnostic(string error)
-    {
+    internal static ToolDiagnostic BuildGitDiffFailedDiagnostic(string error) {
         return ToolDiagnostic.Create(
             reason: "GitDiffFailed",
             formattedMessage: $"Git diff failed:\n{error}",
@@ -740,8 +655,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git branch 分支名为空的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildBranchNameEmptyDiagnostic()
-    {
+    internal static ToolDiagnostic BuildBranchNameEmptyDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "GitBranchNameEmpty",
             formattedMessage: "branch_name cannot be empty",
@@ -758,8 +672,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git branch 不支持操作的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildUnsupportedBranchOperationDiagnostic(string? operation)
-    {
+    internal static ToolDiagnostic BuildUnsupportedBranchOperationDiagnostic(string? operation) {
         return ToolDiagnostic.Create(
             reason: "GitUnsupportedOperation",
             formattedMessage: $"Unsupported operation: {operation}",
@@ -776,8 +689,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git branch 命令失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildGitBranchFailedDiagnostic(string operation, string error)
-    {
+    internal static ToolDiagnostic BuildGitBranchFailedDiagnostic(string operation, string error) {
         return ToolDiagnostic.Create(
             reason: "GitBranchFailed",
             formattedMessage: $"Git branch {operation} failed:\n{error}",
@@ -796,8 +708,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git clone URL 为空的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildUrlEmptyDiagnostic()
-    {
+    internal static ToolDiagnostic BuildUrlEmptyDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "GitUrlEmpty",
             formattedMessage: "url cannot be empty",
@@ -814,8 +725,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建 git clone 命令失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildGitCloneFailedDiagnostic(string error)
-    {
+    internal static ToolDiagnostic BuildGitCloneFailedDiagnostic(string error) {
         return ToolDiagnostic.Create(
             reason: "GitCloneFailed",
             formattedMessage: $"Git clone failed:\n{error}",
@@ -833,8 +743,7 @@ public partial class GitToolHandlers
     /// <summary>
     /// 构建提交前安全扫描被阻止的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildSecurityScanBlockedDiagnostic(string report)
-    {
+    internal static ToolDiagnostic BuildSecurityScanBlockedDiagnostic(string report) {
         return ToolDiagnostic.Create(
             reason: "GitSecurityScanBlocked",
             formattedMessage: report,

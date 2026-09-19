@@ -6,8 +6,7 @@ namespace Core.Agents.Coordinator;
 /// <para>内部复用 StateMachine&lt;TState&gt; 基础设施,消除手写 switch 转换表/锁/事件重复逻辑</para>
 /// </summary>
 [Register(typeof(AgentStateMachine), ServiceLifetime.Singleton)]
-public sealed partial class AgentStateMachine 
-{
+public sealed partial class AgentStateMachine {
     private static readonly FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> Transitions = CreateTransitionTable();
 
     private readonly ILogger? _logger;
@@ -22,8 +21,7 @@ public sealed partial class AgentStateMachine
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="clock">可选时钟服务，缺省时使用系统时钟</param>
-    public AgentStateMachine(ILogger? logger = null, IClockService? clock = null)
-    {
+    public AgentStateMachine(ILogger? logger = null, IClockService? clock = null) {
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _states = new ConcurrentDictionary<string, AgentStateContext>();
@@ -32,8 +30,7 @@ public sealed partial class AgentStateMachine
     /// <summary>
     /// 注册Agent状态
     /// </summary>
-    public void RegisterAgent(string agentId, string task, SubAgentOptions? options = null)
-    {
+    public void RegisterAgent(string agentId, string task, SubAgentOptions? options = null) {
         var now = _clock.GetUtcNow();
         var context = new AgentStateContext(agentId, task, options, now, _clock);
         _states[agentId] = context;
@@ -43,18 +40,15 @@ public sealed partial class AgentStateMachine
     /// <summary>
     /// 尝试转换状态
     /// </summary>
-    public async ValueTask<bool> TryTransitionAsync(string agentId, TaskExecutionStatus newState, string? reason = null, CancellationToken ct = default)
-    {
-        if (!_states.TryGetValue(agentId, out var context))
-        {
+    public async ValueTask<bool> TryTransitionAsync(string agentId, TaskExecutionStatus newState, string? reason = null, CancellationToken ct = default) {
+        if (!_states.TryGetValue(agentId, out var context)) {
             _logger?.LogWarning("[AgentStateMachine] Agent {AgentId} 未找到", agentId);
             return false;
         }
 
         var lk = context.Lock;
         using var guard = await lk.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
-        if (!context.StateMachine.TryTransitionTo(newState))
-        {
+        if (!context.StateMachine.TryTransitionTo(newState)) {
             _logger?.LogWarning("[AgentStateMachine] Agent {AgentId} 无法从 {CurrentState} 转换到 {NewState}",
                 agentId, context.CurrentState, newState);
             return false;
@@ -66,16 +60,15 @@ public sealed partial class AgentStateMachine
         context.TransitionHistory.Add(new StateTransition(oldState, newState, now, reason));
 
         // 更新特定状态的时间戳
-        switch (newState)
-        {
+        switch (newState) {
             case TaskExecutionStatus.Running:
-                context.StartedAt = now;
-                break;
+            context.StartedAt = now;
+            break;
             case TaskExecutionStatus.Completed:
             case TaskExecutionStatus.Failed:
             case TaskExecutionStatus.Cancelled:
-                context.CompletedAt = now;
-                break;
+            context.CompletedAt = now;
+            break;
         }
 
         _logger?.LogInformation("[AgentStateMachine] Agent {AgentId} 状态转换: {OldState} -> {NewState}",
@@ -89,24 +82,21 @@ public sealed partial class AgentStateMachine
     /// <summary>
     /// 获取Agent当前状态
     /// </summary>
-    public TaskExecutionStatus? GetState(string agentId)
-    {
+    public TaskExecutionStatus? GetState(string agentId) {
         return _states.TryGetValue(agentId, out var context) ? context.CurrentState : null;
     }
 
     /// <summary>
     /// 获取Agent状态上下文
     /// </summary>
-    public AgentStateContext? GetContext(string agentId)
-    {
+    public AgentStateContext? GetContext(string agentId) {
         return _states.TryGetValue(agentId, out var context) ? context : null;
     }
 
     /// <summary>
     /// 获取所有Agent状态
     /// </summary>
-    public IReadOnlyDictionary<string, TaskExecutionStatus> GetAllStates()
-    {
+    public IReadOnlyDictionary<string, TaskExecutionStatus> GetAllStates() {
         return _states.ToDictionary(
             kvp => kvp.Key,
             kvp => kvp.Value.CurrentState);
@@ -115,8 +105,7 @@ public sealed partial class AgentStateMachine
     /// <summary>
     /// 检查Agent是否处于最终状态
     /// </summary>
-    public bool IsInFinalState(string agentId)
-    {
+    public bool IsInFinalState(string agentId) {
         var state = GetState(agentId);
         return state.HasValue && state.Value.IsTerminal();
     }
@@ -124,8 +113,7 @@ public sealed partial class AgentStateMachine
     /// <summary>
     /// 获取处于特定状态的Agent列表
     /// </summary>
-    public IEnumerable<string> GetAgentsInState(TaskExecutionStatus state)
-    {
+    public IEnumerable<string> GetAgentsInState(TaskExecutionStatus state) {
         return _states
             .Where(kvp => kvp.Value.CurrentState == state)
             .Select(kvp => kvp.Key);
@@ -134,10 +122,8 @@ public sealed partial class AgentStateMachine
     /// <summary>
     /// 等待所有Agent进入最终状态
     /// </summary>
-    public async Task WaitAllFinalAsync(CancellationToken cancellationToken = default)
-    {
-        while (_states.Values.Any(c => !IsFinalState(c.CurrentState)))
-        {
+    public async Task WaitAllFinalAsync(CancellationToken cancellationToken = default) {
+        while (_states.Values.Any(c => !IsFinalState(c.CurrentState))) {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Delay(100, cancellationToken).ConfigureAwait(false);
         }
@@ -146,11 +132,9 @@ public sealed partial class AgentStateMachine
     /// <summary>
     /// 获取状态报告
     /// </summary>
-    public AgentStateReport GetReport()
-    {
+    public AgentStateReport GetReport() {
         var states = _states.Values;
-        return new AgentStateReport
-        {
+        return new AgentStateReport {
             TotalAgents = _states.Count,
             PendingCount = states.Count(c => c.CurrentState == TaskExecutionStatus.Pending),
             RunningCount = states.Count(c => c.CurrentState == TaskExecutionStatus.Running),
@@ -158,8 +142,7 @@ public sealed partial class AgentStateMachine
             CompletedCount = states.Count(c => c.CurrentState == TaskExecutionStatus.Completed),
             FailedCount = states.Count(c => c.CurrentState == TaskExecutionStatus.Failed),
             CancelledCount = states.Count(c => c.CurrentState == TaskExecutionStatus.Cancelled),
-            Agents = states.Select(c => new AgentStateInfo
-            {
+            Agents = states.Select(c => new AgentStateInfo {
                 AgentId = c.AgentId,
                 Task = c.Task,
                 CurrentState = c.CurrentState,
@@ -179,13 +162,11 @@ public sealed partial class AgentStateMachine
     /// <summary>
     /// 移除Agent状态
     /// </summary>
-    public bool RemoveAgent(string agentId)
-    {
+    public bool RemoveAgent(string agentId) {
         return _states.TryRemove(agentId, out _);
     }
 
-    private static bool IsFinalState(TaskExecutionStatus state)
-    {
+    private static bool IsFinalState(TaskExecutionStatus state) {
         return state.IsTerminal();
     }
 
@@ -193,10 +174,8 @@ public sealed partial class AgentStateMachine
     /// <returns>状态转换表的冻结字典快照</returns>
     internal static FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> GetTransitions() => Transitions;
 
-    private static FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> CreateTransitionTable()
-    {
-        return new Dictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>>
-        {
+    private static FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> CreateTransitionTable() {
+        return new Dictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> {
             [TaskExecutionStatus.Pending] = FrozenSet.Create(
                 TaskExecutionStatus.Running, TaskExecutionStatus.Cancelled),
             [TaskExecutionStatus.Running] = FrozenSet.Create(
@@ -218,8 +197,7 @@ public sealed partial class AgentStateMachine
 /// <summary>
 /// Agent状态上下文
 /// </summary>
-public sealed class AgentStateContext : IAsyncDisposable
-{
+public sealed class AgentStateContext : IAsyncDisposable {
     private readonly StateMachine<TaskExecutionStatus> _stateMachine;
     private int _disposed;
 
@@ -257,8 +235,7 @@ public sealed class AgentStateContext : IAsyncDisposable
     /// <param name="options">子 Agent 选项，缺省时使用默认选项</param>
     /// <param name="createdAt">上下文创建时间</param>
     /// <param name="clock">可选时钟服务</param>
-    public AgentStateContext(string agentId, string task, SubAgentOptions? options, DateTime createdAt, IClockService? clock = null)
-    {
+    public AgentStateContext(string agentId, string task, SubAgentOptions? options, DateTime createdAt, IClockService? clock = null) {
         AgentId = agentId;
         Task = task;
         Options = options ?? new SubAgentOptions();
@@ -272,16 +249,14 @@ public sealed class AgentStateContext : IAsyncDisposable
         _stateMachine.StateChanged += OnStateChanged;
     }
 
-    private void OnStateChanged(object? sender, StateChangedEventArgs<TaskExecutionStatus> e)
-    {
+    private void OnStateChanged(object? sender, StateChangedEventArgs<TaskExecutionStatus> e) {
         LastTransitionFrom = e.OldState;
     }
 
     /// <summary>
     /// 异步释放上下文，释放内部锁资源
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         Lock.Dispose();
     }
@@ -299,8 +274,7 @@ public sealed record StateTransition(
 /// <summary>
 /// Agent 状态变更事件参数
 /// </summary>
-public sealed class AgentStateChangedEventArgs(string agentId, TaskExecutionStatus oldState, TaskExecutionStatus newState) : EventArgs
-{
+public sealed class AgentStateChangedEventArgs(string agentId, TaskExecutionStatus oldState, TaskExecutionStatus newState) : EventArgs {
     /// <summary>Agent 标识</summary>
     public string AgentId { get; } = agentId;
     /// <summary>变更前的状态</summary>
@@ -308,4 +282,3 @@ public sealed class AgentStateChangedEventArgs(string agentId, TaskExecutionStat
     /// <summary>变更后的状态</summary>
     public TaskExecutionStatus NewState { get; } = newState;
 }
-

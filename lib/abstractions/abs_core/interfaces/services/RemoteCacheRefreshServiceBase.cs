@@ -5,8 +5,7 @@ public interface IRemoteCacheRefreshCommand;
 
 public sealed record RefreshCacheCmd(TaskCompletionSource? Tcs) : IRemoteCacheRefreshCommand;
 
-public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCacheRefreshCommand, Unit>
-{
+public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCacheRefreshCommand, Unit> {
     private readonly HttpClient _httpClient;
     private readonly ITelemetryService? _telemetryService;
     private readonly Timer _refreshTimer;
@@ -32,32 +31,26 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         ILogger? logger,
         ITelemetryService? telemetryService,
         IClockService? clock)
-        : base()
-    {
+        : base() {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         RefreshOptions = options;
         Logger = logger;
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
 
-        if (!string.IsNullOrEmpty(options.ApiEndpoint))
-        {
+        if (!string.IsNullOrEmpty(options.ApiEndpoint)) {
             _refreshTimer = new Timer(
                 _ => { if (Volatile.Read(ref _disposed) == 0) TrySend(new RefreshCacheCmd(null)); },
                 null,
                 options.RefreshInterval,
                 options.RefreshInterval);
-        }
-        else
-        {
+        } else {
             _refreshTimer = new Timer(_ => { }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         }
     }
 
-    public virtual async Task RefreshAsync(CancellationToken ct = default)
-    {
-        if (string.IsNullOrEmpty(RefreshOptions.ApiEndpoint))
-        {
+    public virtual async Task RefreshAsync(CancellationToken ct = default) {
+        if (string.IsNullOrEmpty(RefreshOptions.ApiEndpoint)) {
             Logger?.LogDebug("未配置{Label} API 端点，跳过刷新", RefreshLogLabel);
             return;
         }
@@ -67,12 +60,10 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         await AskAwait(tcs, ct);
     }
 
-    protected async Task EnsureCacheAsync(CancellationToken cancellationToken)
-    {
+    protected async Task EnsureCacheAsync(CancellationToken cancellationToken) {
         var lastTicks = Volatile.Read(ref _lastFetchTicks);
         var lastFetch = lastTicks == 0 ? DateTime.MinValue : new DateTime(lastTicks, DateTimeKind.Utc);
-        if (_cache.IsEmpty || (RefreshOptions.EnableCache && _clock.GetUtcNow() - lastFetch > RefreshOptions.CacheExpiration))
-        {
+        if (_cache.IsEmpty || (RefreshOptions.EnableCache && _clock.GetUtcNow() - lastFetch > RefreshOptions.CacheExpiration)) {
             await RefreshAsync(cancellationToken).ConfigureAwait(false);
         }
     }
@@ -80,32 +71,26 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
     protected void RecordMetrics(string operation, bool isSuccess)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, $"{MetricsPrefix}.count", operation, isSuccess);
 
-    private async Task DoRefreshAsync(CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(RefreshOptions.ApiEndpoint))
-        {
+    private async Task DoRefreshAsync(CancellationToken cancellationToken) {
+        if (string.IsNullOrEmpty(RefreshOptions.ApiEndpoint)) {
             Logger?.LogDebug("未配置{Label} API 端点，跳过刷新", RefreshLogLabel);
             return;
         }
 
-        try
-        {
+        try {
             Logger?.LogDebug("正在刷新{Label}配置", RefreshLogLabel);
 
             var requestUrl = RefreshOptions.ApiEndpoint!;
-            if (!string.IsNullOrEmpty(RefreshOptions.ClientKey))
-            {
+            if (!string.IsNullOrEmpty(RefreshOptions.ClientKey)) {
                 var separator = requestUrl.Contains('?') ? "&" : "?";
                 requestUrl = $"{requestUrl}{separator}clientKey={Uri.EscapeDataString(RefreshOptions.ClientKey)}";
             }
 
             var result = await FetchAndDeserializeAsync(requestUrl, cancellationToken).ConfigureAwait(false);
 
-            if (result.Items != null)
-            {
+            if (result.Items != null) {
                 _cache.Clear();
-                foreach (var kvp in result.Items)
-                {
+                foreach (var kvp in result.Items) {
                     _cache[kvp.Key] = kvp.Value;
                 }
 
@@ -113,31 +98,25 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
                 Logger?.LogInformation("已刷新 {Count} 条{Label}", result.Items.Count, RefreshLogLabel);
                 RecordMetrics("refresh", true);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Logger?.LogError(ex, "刷新{Label}失败", RefreshLogLabel);
             RecordMetrics("refresh", false);
         }
     }
 
-    protected override async ValueTask HandleAsync(IRemoteCacheRefreshCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
+    protected override async ValueTask HandleAsync(IRemoteCacheRefreshCommand command, CancellationToken ct) {
+        switch (command) {
             case RefreshCacheCmd refresh:
-                await DoRefreshAsync(ct).ConfigureAwait(false);
-                refresh.Tcs?.TrySetResult();
-                break;
+            await DoRefreshAsync(ct).ConfigureAwait(false);
+            refresh.Tcs?.TrySetResult();
+            break;
         }
     }
 
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
     }
 
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _disposeCts.Cancel();
         _refreshTimer.Dispose();
@@ -146,7 +125,6 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
     }
 }
 
-public sealed class RemoteRefreshResult<TItem>
-{
+public sealed class RemoteRefreshResult<TItem> {
     public Dictionary<string, TItem> Items { get; init; } = [];
 }

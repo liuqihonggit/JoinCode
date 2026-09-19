@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 精简模式配置
 /// </summary>
-public sealed class SimpleModeConfig
-{
+public sealed class SimpleModeConfig {
     /// <summary>
     /// 使用简化提示词
     /// </summary>
@@ -45,8 +44,7 @@ public sealed class SimpleModeConfig
 /// <summary>
 /// 精简模式变更事件参数
 /// </summary>
-public sealed class SimpleModeChangedEventArgs : EventArgs
-{
+public sealed class SimpleModeChangedEventArgs : EventArgs {
     /// <summary>
     /// 是否处于精简模式
     /// </summary>
@@ -61,8 +59,7 @@ public sealed class SimpleModeChangedEventArgs : EventArgs
 /// <summary>
 /// 精简模式服务接口 - 管理精简模式的启用/禁用状态和配置
 /// </summary>
-public interface ISimpleModeService
-{
+public interface ISimpleModeService {
     /// <summary>
     /// 是否处于精简模式
     /// </summary>

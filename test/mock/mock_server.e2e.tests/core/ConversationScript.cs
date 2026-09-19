@@ -1,20 +1,17 @@
 namespace MockServer.E2E.Tests.Core;
 
-public enum ConversationMode
-{
+public enum ConversationMode {
     Interactive,
     NonInteractive
 }
 
-public enum MockResponseType
-{
+public enum MockResponseType {
     TextOnly,
     WithToolCalls,
     ToolCallOnly
 }
 
-public enum AssertType
-{
+public enum AssertType {
     ContainsText,
     NotContainsText,
     ContainsToolCall,
@@ -25,8 +22,7 @@ public enum AssertType
     Custom
 }
 
-public sealed class ConversationScript
-{
+public sealed class ConversationScript {
     public required string Name { get; init; }
     public required IReadOnlyList<ConversationTurn> Turns { get; init; }
 
@@ -74,16 +70,14 @@ public sealed class ConversationScript
     public string? WorkingDirectory { get; init; }
 }
 
-public sealed class ConversationTurn
-{
+public sealed class ConversationTurn {
     public required string UserInput { get; init; }
     public required MockResponseScript AiResponse { get; init; }
     public IReadOnlyList<OutputAssert> Asserts { get; init; } = [];
     public TimeSpan ResponseTimeout { get; init; } = TimeSpan.FromSeconds(60);
 }
 
-public sealed class MockResponseScript
-{
+public sealed class MockResponseScript {
     public MockResponseType Type { get; init; } = MockResponseType.TextOnly;
     public required string TextResponse { get; init; }
     public IReadOnlyList<MockToolCallScript> ToolCalls { get; init; } = [];
@@ -97,15 +91,13 @@ public sealed class MockResponseScript
     public int? HttpStatusCode { get; init; }
 }
 
-public sealed class MockToolCallScript
-{
+public sealed class MockToolCallScript {
     public required string ToolName { get; init; }
     public required string Arguments { get; init; }
     public string? ToolResult { get; init; }
 }
 
-public sealed class OutputAssert
-{
+public sealed class OutputAssert {
     public required AssertType Type { get; init; }
     public required string Expected { get; init; }
     public string? Description { get; init; }

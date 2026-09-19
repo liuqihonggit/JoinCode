@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// 入站消息处理结果
 /// </summary>
-public enum IngressMessageAction
-{
+public enum IngressMessageAction {
     /// <summary>权限响应（远端客户端回答了权限提示）</summary>
     [EnumValue("permissionResponse")] PermissionResponse,
     /// <summary>服务器控制请求（initialize/set_model/interrupt 等）</summary>
@@ -24,8 +23,7 @@ public enum IngressMessageAction
 /// <summary>
 /// 入站消息字段 — 对齐 TS 端 extractInboundMessageFields 返回值
 /// </summary>
-public sealed class InboundMessageFields
-{
+public sealed class InboundMessageFields {
     /// <summary>文本内容（当 content 是字符串时）</summary>
     public string? Content { get; init; }
 

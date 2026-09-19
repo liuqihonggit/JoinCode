@@ -3,13 +3,11 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// P2 环境感知 + 撤销元意识单元测试
 /// </summary>
-public sealed class P2EnvironmentTests
-{
+public sealed class P2EnvironmentTests {
     #region UndoStack
 
     [Fact]
-    public void UndoStack_PushPop_LifoOrder()
-    {
+    public void UndoStack_PushPop_LifoOrder() {
         var stack = new UndoStack();
         var op1 = new DesktopOperation(DesktopOperationKind.Click, 100, 200, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null);
         var op2 = new DesktopOperation(DesktopOperationKind.KeyPress, 0, 0, "Enter", null, KeyModifier.None, DateTimeOffset.UtcNow, true, null);
@@ -26,16 +24,14 @@ public sealed class P2EnvironmentTests
     }
 
     [Fact]
-    public void UndoStack_PopEmpty_ReturnsNull()
-    {
+    public void UndoStack_PopEmpty_ReturnsNull() {
         var stack = new UndoStack();
         stack.Pop().Should().BeNull();
         stack.Count.Should().Be(0);
     }
 
     [Fact]
-    public void UndoStack_Peek_DoesNotRemove()
-    {
+    public void UndoStack_Peek_DoesNotRemove() {
         var stack = new UndoStack();
         var op = new DesktopOperation(DesktopOperationKind.Click, 10, 20, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null);
 
@@ -46,18 +42,15 @@ public sealed class P2EnvironmentTests
     }
 
     [Fact]
-    public void UndoStack_PeekEmpty_ReturnsNull()
-    {
+    public void UndoStack_PeekEmpty_ReturnsNull() {
         var stack = new UndoStack();
         stack.Peek().Should().BeNull();
     }
 
     [Fact]
-    public void UndoStack_GetRecent_ReturnsLatestN()
-    {
+    public void UndoStack_GetRecent_ReturnsLatestN() {
         var stack = new UndoStack();
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             stack.Push(new DesktopOperation(DesktopOperationKind.Click, i, 0, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null));
         }
 
@@ -69,8 +62,7 @@ public sealed class P2EnvironmentTests
     }
 
     [Fact]
-    public void UndoStack_GetRecent_ZeroOrNegative_ReturnsEmpty()
-    {
+    public void UndoStack_GetRecent_ZeroOrNegative_ReturnsEmpty() {
         var stack = new UndoStack();
         stack.Push(new DesktopOperation(DesktopOperationKind.Click, 0, 0, null, null, null, DateTimeOffset.UtcNow, true, null));
 
@@ -79,8 +71,7 @@ public sealed class P2EnvironmentTests
     }
 
     [Fact]
-    public void UndoStack_Clear_EmptiesStack()
-    {
+    public void UndoStack_Clear_EmptiesStack() {
         var stack = new UndoStack();
         stack.Push(new DesktopOperation(DesktopOperationKind.Click, 0, 0, null, null, null, DateTimeOffset.UtcNow, true, null));
         stack.Push(new DesktopOperation(DesktopOperationKind.Click, 1, 0, null, null, null, DateTimeOffset.UtcNow, true, null));
@@ -95,16 +86,14 @@ public sealed class P2EnvironmentTests
     #region DesktopSafetyChecker
 
     [Fact]
-    public async Task SafetyChecker_NoZones_CheckClickReturnsNone()
-    {
+    public async Task SafetyChecker_NoZones_CheckClickReturnsNone() {
         var checker = new DesktopSafetyChecker();
         var result = await checker.CheckClickAsync(100, 200);
         result.Should().Be(UnsafeOperationKind.None);
     }
 
     [Fact]
-    public async Task SafetyChecker_RegisteredZone_CheckClickHitsReturnsDangerous()
-    {
+    public async Task SafetyChecker_RegisteredZone_CheckClickHitsReturnsDangerous() {
         var checker = new DesktopSafetyChecker();
         checker.RegisterDangerousZone(100, 200, 80, 30);
 
@@ -113,8 +102,7 @@ public sealed class P2EnvironmentTests
     }
 
     [Fact]
-    public async Task SafetyChecker_RegisteredZone_CheckClickMissesReturnsNone()
-    {
+    public async Task SafetyChecker_RegisteredZone_CheckClickMissesReturnsNone() {
         var checker = new DesktopSafetyChecker();
         checker.RegisterDangerousZone(100, 200, 80, 30);
 
@@ -123,8 +111,7 @@ public sealed class P2EnvironmentTests
     }
 
     [Fact]
-    public async Task SafetyChecker_ClearZones_CheckClickReturnsNone()
-    {
+    public async Task SafetyChecker_ClearZones_CheckClickReturnsNone() {
         var checker = new DesktopSafetyChecker();
         checker.RegisterDangerousZone(100, 200, 80, 30);
         checker.ClearDangerousZones();
@@ -135,8 +122,7 @@ public sealed class P2EnvironmentTests
     }
 
     [Fact]
-    public async Task SafetyChecker_MultipleZones_CheckAnyHit()
-    {
+    public async Task SafetyChecker_MultipleZones_CheckAnyHit() {
         var checker = new DesktopSafetyChecker();
         checker.RegisterDangerousZone(100, 200, 80, 30);
         checker.RegisterDangerousZone(500, 600, 100, 50);
@@ -148,8 +134,7 @@ public sealed class P2EnvironmentTests
     }
 
     [Fact]
-    public async Task SafetyChecker_ZeroHandle_CheckWindowCloseReturnsNone()
-    {
+    public async Task SafetyChecker_ZeroHandle_CheckWindowCloseReturnsNone() {
         var checker = new DesktopSafetyChecker();
         var result = await checker.CheckWindowCloseAsync(IntPtr.Zero);
         result.Should().Be(UnsafeOperationKind.None);
@@ -168,8 +153,7 @@ public sealed class P2EnvironmentTests
     [InlineData("无法连接服务器", PopupCategory.Retryable)]
     [InlineData("系统通知", PopupCategory.Closeable)]
     [InlineData("提示信息", PopupCategory.Closeable)]
-    public void ClassifyPopup_VariousTitles_ReturnsCorrectCategory(string title, PopupCategory expected)
-    {
+    public void ClassifyPopup_VariousTitles_ReturnsCorrectCategory(string title, PopupCategory expected) {
         Win32EnvironmentAwarenessService.ClassifyPopup(title).Should().Be(expected);
     }
 
@@ -179,8 +163,7 @@ public sealed class P2EnvironmentTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task GetCursorState_RealDesktop_ReturnsValidState()
-    {
+    public async Task GetCursorState_RealDesktop_ReturnsValidState() {
         var service = new Win32EnvironmentAwarenessService();
         var state = await service.GetCursorStateAsync();
 
@@ -189,13 +172,11 @@ public sealed class P2EnvironmentTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task DetectPopup_RealDesktop_ReturnsNullOrPopupInfo()
-    {
+    public async Task DetectPopup_RealDesktop_ReturnsNullOrPopupInfo() {
         var service = new Win32EnvironmentAwarenessService();
         var popup = await service.DetectPopupAsync();
 
-        if (popup is not null)
-        {
+        if (popup is not null) {
             popup.Category.Should().BeOneOf(PopupCategory.Closeable, PopupCategory.NeedsDecision, PopupCategory.Retryable);
             popup.Title.Should().NotBeEmpty();
         }

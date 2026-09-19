@@ -5,8 +5,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// Diff 视图模式
 /// </summary>
-public enum DiffViewMode
-{
+public enum DiffViewMode {
     /// <summary>
     /// 列表视图
     /// </summary>
@@ -41,8 +40,7 @@ public enum DiffViewMode
 /// <summary>
 /// Diff 来源基类 — CLI 简化版
 /// </summary>
-public abstract class DiffSource
-{
+public abstract class DiffSource {
     /// <summary>
     /// 当前工作区 Diff 来源
     /// </summary>
@@ -51,8 +49,7 @@ public abstract class DiffSource
     /// <summary>
     /// 指定历史轮次的 Diff 来源
     /// </summary>
-    public sealed class Turn : DiffSource
-    {
+    public sealed class Turn : DiffSource {
         /// <summary>
         /// 轮次索引
         /// </summary>
@@ -68,8 +65,7 @@ public abstract class DiffSource
         /// </summary>
         /// <param name="turnIndex">轮次索引</param>
         /// <param name="promptPreview">提示词预览，可选</param>
-        public Turn(int turnIndex, string? promptPreview)
-        {
+        public Turn(int turnIndex, string? promptPreview) {
             TurnIndex = turnIndex;
             PromptPreview = promptPreview;
         }
@@ -79,8 +75,7 @@ public abstract class DiffSource
 /// <summary>
 /// Diff 对话框状态 — record 支持 with 表达式
 /// </summary>
-public sealed record DiffDialogState
-{
+public sealed record DiffDialogState {
     /// <summary>
     /// Diff 数据
     /// </summary>
@@ -115,8 +110,7 @@ public sealed record DiffDialogState
 /// <summary>
 /// Git Diff 服务 — CLI 简化版
 /// </summary>
-public sealed class GitDiffService
-{
+public sealed class GitDiffService {
     private readonly IFileSystem _fs;
     private readonly IGitCommandRunner? _gitRunner;
 
@@ -125,8 +119,7 @@ public sealed class GitDiffService
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="gitRunner">Git 命令执行器，可选，为 null 时返回空 Diff</param>
-    public GitDiffService(IFileSystem fs, IGitCommandRunner? gitRunner = null)
-    {
+    public GitDiffService(IFileSystem fs, IGitCommandRunner? gitRunner = null) {
         _fs = fs;
         _gitRunner = gitRunner;
     }
@@ -136,37 +129,29 @@ public sealed class GitDiffService
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>解析后的 Diff 数据，失败时返回空 Diff</returns>
-    public async Task<DiffData> FetchDiffDataAsync(CancellationToken ct = default)
-    {
-        try
-        {
+    public async Task<DiffData> FetchDiffDataAsync(CancellationToken ct = default) {
+        try {
             if (_gitRunner is null)
                 return new DiffData(null, [], [], false);
 
             var result = await _gitRunner.ExecuteAsync("diff --stat", _fs.GetCurrentDirectory(), ct).ConfigureAwait(false);
             return ParseDiffStatOutput(result.Output);
-        }
-        catch
-        {
+        } catch {
             return new DiffData(null, [], [], false);
         }
     }
 
-    private static DiffData ParseDiffStatOutput(string output)
-    {
+    private static DiffData ParseDiffStatOutput(string output) {
         var files = new List<DiffFileStats>();
         var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
-        {
+        foreach (var line in lines) {
             var parts = line.Split('|', 2);
-            if (parts.Length == 2)
-            {
+            if (parts.Length == 2) {
                 var path = parts[0].Trim();
                 var stats = parts[1].Trim();
                 var added = 0;
                 var removed = 0;
-                foreach (var c in stats)
-                {
+                foreach (var c in stats) {
                     if (c == '+') added++;
                     else if (c == '-') removed++;
                 }
@@ -185,28 +170,23 @@ public sealed class GitDiffService
 /// <summary>
 /// Diff 对话框渲染器 — CLI 简化版
 /// </summary>
-public sealed class DiffDialogRenderer
-{
+public sealed class DiffDialogRenderer {
     /// <summary>
     /// 渲染 Diff 对话框状态为文本，包含统计信息和文件列表
     /// </summary>
     /// <param name="state">Diff 对话框状态</param>
     /// <returns>渲染后的文本</returns>
-    public string Render(DiffDialogState state)
-    {
+    public string Render(DiffDialogState state) {
         var sb = new StringBuilder();
         sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Diff{AnsiStyleEnumConstants.Reset} ({state.ViewMode})");
 
-        if (state.DiffData.Stats is not null)
-        {
+        if (state.DiffData.Stats is not null) {
             sb.AppendLine($"  Files: {state.DiffData.Stats.FilesCount}, +{state.DiffData.Stats.LinesAdded}/-{state.DiffData.Stats.LinesRemoved}");
         }
 
-        if (state.ViewMode == DiffViewMode.List && state.DiffData.Files.Count > 0)
-        {
+        if (state.ViewMode == DiffViewMode.List && state.DiffData.Files.Count > 0) {
             sb.AppendLine();
-            for (var i = 0; i < state.DiffData.Files.Count; i++)
-            {
+            for (var i = 0; i < state.DiffData.Files.Count; i++) {
                 var file = state.DiffData.Files[i];
                 var marker = i == state.SelectedIndex ? ">" : " ";
                 sb.AppendLine($"  {marker} {TerminalColors.Success}+{file.LinesAdded}{AnsiStyleEnumConstants.Reset} {TerminalColors.Error}-{file.LinesRemoved}{AnsiStyleEnumConstants.Reset} {file.Path}");
@@ -220,19 +200,16 @@ public sealed class DiffDialogRenderer
 /// <summary>
 /// Diff 文件列表渲染器 — CLI 简化版
 /// </summary>
-public sealed class DiffFileListRenderer
-{
+public sealed class DiffFileListRenderer {
     /// <summary>
     /// 渲染变更文件列表为带增删行数标记的文本
     /// </summary>
     /// <param name="data">Diff 数据</param>
     /// <returns>渲染后的文本</returns>
-    public string Render(DiffData data)
-    {
+    public string Render(DiffData data) {
         var sb = new StringBuilder();
         sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Changed Files{AnsiStyleEnumConstants.Reset}");
-        foreach (var file in data.Files)
-        {
+        foreach (var file in data.Files) {
             sb.AppendLine($"  {TerminalColors.Success}+{file.LinesAdded}{AnsiStyleEnumConstants.Reset} {TerminalColors.Error}-{file.LinesRemoved}{AnsiStyleEnumConstants.Reset} {file.Path}");
         }
         return sb.ToString();
@@ -245,8 +222,7 @@ public sealed class DiffFileListRenderer
     /// <param name="totalItems">总项数</param>
     /// <param name="currentOffset">当前滚动偏移</param>
     /// <returns>新的滚动偏移量</returns>
-    public int ComputeScrollOffset(int selectedIndex, int totalItems, int currentOffset)
-    {
+    public int ComputeScrollOffset(int selectedIndex, int totalItems, int currentOffset) {
         return currentOffset;
     }
 }
@@ -254,14 +230,12 @@ public sealed class DiffFileListRenderer
 /// <summary>
 /// Diff 视图渲染器 — CLI 简化版
 /// </summary>
-public sealed class DiffViewRenderer
-{
+public sealed class DiffViewRenderer {
     /// <summary>
     /// 将 Diff 行文本直接输出到终端
     /// </summary>
     /// <param name="diffLines">Diff 行文本</param>
-    public void Render(string diffLines)
-    {
+    public void Render(string diffLines) {
         TerminalHelper.WriteLine(diffLines);
     }
 
@@ -271,10 +245,8 @@ public sealed class DiffViewRenderer
     /// <param name="data">Diff 数据</param>
     /// <param name="mode">Diff 视图模式</param>
     /// <returns>渲染后的文本</returns>
-    public static string Render(DiffData data, DiffViewMode mode)
-    {
+    public static string Render(DiffData data, DiffViewMode mode) {
         var renderer = new DiffFileListRenderer();
         return renderer.Render(data);
     }
 }
-

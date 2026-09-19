@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Hooks;
 /// <summary>
 /// 钩子执行事件类型
 /// </summary>
-public enum HookExecutionEventType
-{
+public enum HookExecutionEventType {
     /// <summary>钩子开始执行</summary>
     [EnumValue("started")] Started,
 
@@ -18,8 +17,7 @@ public enum HookExecutionEventType
 /// <summary>
 /// 钩子执行事件基类
 /// </summary>
-public abstract record HookExecutionEvent
-{
+public abstract record HookExecutionEvent {
     /// <summary>
     /// 事件类型
     /// </summary>
@@ -44,8 +42,7 @@ public abstract record HookExecutionEvent
 /// <summary>
 /// 钩子开始执行事件
 /// </summary>
-public sealed record HookStartedEvent : HookExecutionEvent
-{
+public sealed record HookStartedEvent : HookExecutionEvent {
     public override HookExecutionEventType EventType => HookExecutionEventType.Started;
     public DateTimeOffset StartTime { get; init; } = DateTimeOffset.UtcNow;
 }
@@ -53,8 +50,7 @@ public sealed record HookStartedEvent : HookExecutionEvent
 /// <summary>
 /// 钩子进度事件
 /// </summary>
-public sealed record HookProgressEvent : HookExecutionEvent
-{
+public sealed record HookProgressEvent : HookExecutionEvent {
     public override HookExecutionEventType EventType => HookExecutionEventType.Progress;
     public string? Stdout { get; init; }
     public string? Stderr { get; init; }
@@ -65,8 +61,7 @@ public sealed record HookProgressEvent : HookExecutionEvent
 /// <summary>
 /// 钩子响应事件
 /// </summary>
-public sealed record HookResponseEvent : HookExecutionEvent
-{
+public sealed record HookResponseEvent : HookExecutionEvent {
     public override HookExecutionEventType EventType => HookExecutionEventType.Response;
     public string? Output { get; init; }
     public string? Stdout { get; init; }
@@ -80,8 +75,7 @@ public sealed record HookResponseEvent : HookExecutionEvent
 /// <summary>
 /// 钩子执行结果（用于事件）
 /// </summary>
-public enum HookExecutionOutcome
-{
+public enum HookExecutionOutcome {
     /// <summary>成功</summary>
     [EnumValue("success")]
     Success,

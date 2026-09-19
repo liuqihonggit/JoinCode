@@ -11,8 +11,7 @@ namespace Core.Context;
 /// </summary>
 [Register(typeof(IOutputLoopDetector), ServiceLifetime.Singleton)]
 [Register(typeof(ILoopDetectionStrategy), ServiceLifetime.Singleton)]
-public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetector, ILoopDetectionStrategy
-{
+public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetector, ILoopDetectionStrategy {
     private readonly OutputLoopDetector _outputLoopDetector;
     private readonly LogicFingerprintDetector _logicFingerprintDetector;
     private readonly ToolCallSequenceDetector _toolCallSequenceDetector;
@@ -42,8 +41,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
         ToolCallSequenceDetector? toolCallSequenceDetector = null,
         ShannonEntropyDetector? shannonEntropyDetector = null,
         LoopDiagnosticJournal? journal = null,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         var opts = options ?? new LoopInterventionOptions();
 
         var ol = opts.OutputLoop;
@@ -70,8 +68,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     /// <summary>
     /// 设置当前会话上下文 — 供 QueryLoopMiddleware 在每轮开始时调用
     /// </summary>
-    public void SetContext(string sessionId, int conversationTurn, int toolCallCount)
-    {
+    public void SetContext(string sessionId, int conversationTurn, int toolCallCount) {
         _sessionId = sessionId;
         _conversationTurn = conversationTurn;
         _toolCallCount = toolCallCount;
@@ -81,8 +78,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     /// IOutputLoopDetector.Detect — 串行漏斗: OutputLoop(廉价)→LogicFingerprint(中等),任一触发即返回
     /// 注意：ShannonEntropy 不参与 Detect，因为 Detect 传入的是累积文本（不断增长），熵趋势无意义
     /// </summary>
-    public LoopDetectionResult Detect(string accumulatedText)
-    {
+    public LoopDetectionResult Detect(string accumulatedText) {
         if (string.IsNullOrEmpty(accumulatedText))
             return LoopDetectionResult.NoLoop;
 
@@ -90,8 +86,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
             new Dictionary<string, string> { ["text_len"] = accumulatedText.Length.ToString() });
 
         var outputResult = _outputLoopDetector.Detect(accumulatedText);
-        if (outputResult.IsLoopDetected)
-        {
+        if (outputResult.IsLoopDetected) {
             _logger?.LogWarning("[InformationEntropyGuardian] OutputLoop 检测触发: 重复{Count}次, 模式长度={Len}",
                 outputResult.RepeatCount, outputResult.RepeatedPattern?.Length ?? 0);
             _journal.OnLoopDetected(
@@ -103,8 +98,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
         }
 
         var fpResult = _logicFingerprintDetector.Record(accumulatedText);
-        if (fpResult.IsLoopDetected)
-        {
+        if (fpResult.IsLoopDetected) {
             _logger?.LogWarning("[InformationEntropyGuardian] LogicFingerprint 检测触发: 指纹={FP}, 命中{Count}次",
                 fpResult.Fingerprint, fpResult.HitCount);
             _journal.OnLoopDetected(
@@ -126,8 +120,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     /// StringBuilder 重载 — 延迟 ToString() 直到通过最小长度和检查间隔门控。
     /// 避免每 token 对累积文本执行 O(n) 的 StringBuilder.ToString()。
     /// </summary>
-    public LoopDetectionResult Detect(StringBuilder accumulatedText)
-    {
+    public LoopDetectionResult Detect(StringBuilder accumulatedText) {
         var len = accumulatedText.Length;
         if (len < MinDetectionLength)
             return LoopDetectionResult.NoLoop;
@@ -146,8 +139,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     /// ILoopDetectionStrategy.CheckTextLoop — 串行漏斗: OutputLoop(廉价)→LogicFingerprint(中等)→ShannonEntropy(昂贵)
     /// 前面触发就不跑后续更昂贵的检测器,降低平均检测成本
     /// </summary>
-    public LoopInterventionResult? CheckTextLoop(string text)
-    {
+    public LoopInterventionResult? CheckTextLoop(string text) {
         if (string.IsNullOrEmpty(text))
             return null;
 
@@ -155,8 +147,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
             new Dictionary<string, string> { ["text_len"] = text.Length.ToString() });
 
         var outputResult = _outputLoopDetector.Detect(text);
-        if (outputResult.IsLoopDetected)
-        {
+        if (outputResult.IsLoopDetected) {
             _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: OutputLoop 触发: 重复{Count}次",
                 outputResult.RepeatCount);
             _journal.OnLoopDetected(
@@ -171,8 +162,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
         }
 
         var fpResult = _logicFingerprintDetector.Record(text);
-        if (fpResult.IsLoopDetected)
-        {
+        if (fpResult.IsLoopDetected) {
             _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: LogicFingerprint 触发: 指纹={FP}, 命中{Count}次",
                 fpResult.Fingerprint, fpResult.HitCount);
             _journal.OnLoopDetected(
@@ -187,8 +177,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
         }
 
         var entropyResult = _shannonEntropyDetector.Record(text);
-        if (entropyResult.IsLoopDetected)
-        {
+        if (entropyResult.IsLoopDetected) {
             _logger?.LogWarning("[InformationEntropyGuardian] CheckTextLoop: ShannonEntropy 触发: 熵={Entropy:F3}, 连续下降{Streak}轮",
                 entropyResult.CurrentEntropy, entropyResult.DeclineStreak);
             _journal.OnLoopDetected(
@@ -209,16 +198,14 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     /// <summary>
     /// ILoopDetectionStrategy.CheckToolCallLoop — 运行 ToolCallSequence 检测
     /// </summary>
-    public LoopInterventionResult? CheckToolCallLoop(string toolName, Dictionary<string, JsonElement>? arguments)
-    {
+    public LoopInterventionResult? CheckToolCallLoop(string toolName, Dictionary<string, JsonElement>? arguments) {
         _journal.Record("guardian_check_tool", _sessionId, _conversationTurn, _toolCallCount,
             new Dictionary<string, string> { ["tool_name"] = toolName });
 
         var argsFingerprint = BuildArgsFingerprint(toolName, arguments);
         var seqResult = _toolCallSequenceDetector.Record(toolName, argsFingerprint);
 
-        if (seqResult.IsLoopDetected)
-        {
+        if (seqResult.IsLoopDetected) {
             _logger?.LogWarning("[InformationEntropyGuardian] CheckToolCallLoop: ToolCallSequence 触发: {Pattern}, 重复{Count}次, 参数匹配={ArgsMatch}",
                 seqResult.RepeatedPattern, seqResult.RepeatCount, seqResult.ArgsMatched);
             _journal.OnLoopDetected(
@@ -237,8 +224,7 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     /// <summary>
     /// 重置所有检测器内部状态
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         _outputLoopDetector.Reset();
         _logicFingerprintDetector.Reset();
         _toolCallSequenceDetector.Reset();
@@ -261,18 +247,15 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     /// 从工具调用参数中提取指纹 — 取关键参数值拼接
     /// 格式: "toolName(key1=val1,key2=val2)"
     /// </summary>
-    private static string? BuildArgsFingerprint(string toolName, Dictionary<string, JsonElement>? arguments)
-    {
+    private static string? BuildArgsFingerprint(string toolName, Dictionary<string, JsonElement>? arguments) {
         if (arguments is null || arguments.Count == 0)
             return null;
 
         var keys = new[] { "file_path", "path", "pattern", "query", "command", "directory", "url", "name", "id" };
 
         var parts = new List<string>();
-        foreach (var key in keys)
-        {
-            if (arguments.TryGetValue(key, out var value))
-            {
+        foreach (var key in keys) {
+            if (arguments.TryGetValue(key, out var value)) {
                 var str = value.ValueKind == JsonValueKind.String
                     ? value.GetString() ?? ""
                     : value.GetRawText();
@@ -282,10 +265,8 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
             }
         }
 
-        if (parts.Count == 0)
-        {
-            foreach (var kvp in arguments.Take(2))
-            {
+        if (parts.Count == 0) {
+            foreach (var kvp in arguments.Take(2)) {
                 var str = kvp.Value.ValueKind == JsonValueKind.String
                     ? kvp.Value.GetString() ?? ""
                     : kvp.Value.GetRawText();

@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Localization;
 
-public static partial class StringKey
-{
+public static partial class StringKey {
     // === ListPeersToolHandlers ===
     public const string ListPeersDesc = "ListPeersDesc";
     public const string ListPeersFilterDesc = "ListPeersFilterDesc";

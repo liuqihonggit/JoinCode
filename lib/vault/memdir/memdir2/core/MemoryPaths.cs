@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// 记忆路径管理
 /// 管理用户/项目/团队记忆路径
 /// </summary>
-public interface IMemoryPaths
-{
+public interface IMemoryPaths {
     /// <summary>
     /// 获取基础记忆目录
     /// </summary>
@@ -37,8 +36,7 @@ public interface IMemoryPaths
 /// 记忆路径管理实现
 /// </summary>
 [Register(typeof(IMemoryPaths), ServiceLifetime.Singleton)]
-public sealed partial class MemoryPaths : ServiceEntity, IMemoryPaths
-{
+public sealed partial class MemoryPaths : ServiceEntity, IMemoryPaths {
     private static readonly FrozenDictionary<MemoryType, string> TypeDirectoryNames =
         Enum.GetValues<MemoryType>().ToFrozenDictionary(t => t, t => t.ToString().ToLowerInvariant());
 
@@ -50,40 +48,34 @@ public sealed partial class MemoryPaths : ServiceEntity, IMemoryPaths
     /// 构造记忆路径管理器
     /// </summary>
     /// <param name="options">Memdir 配置选项,为 null 则使用默认基础目录</param>
-    public MemoryPaths(IOptions<MemdirOptions> options)
-    {
+    public MemoryPaths(IOptions<MemdirOptions> options) {
         _baseDirectory = options?.Value?.StoragePath ?? GetDefaultBaseDirectory();
         _currentUserId = null;
         _currentProjectId = null;
     }
 
     /// <inheritdoc />
-    public string GetBaseMemoryDirectory()
-    {
+    public string GetBaseMemoryDirectory() {
         return _baseDirectory;
     }
 
     /// <inheritdoc />
-    public string GetUserMemoryDirectory(string? userId = null)
-    {
+    public string GetUserMemoryDirectory(string? userId = null) {
         var id = userId ?? _currentUserId ?? "default";
         return Path.Combine(_baseDirectory, "users", id);
     }
 
     /// <inheritdoc />
-    public string GetProjectMemoryDirectory(string? projectId = null)
-    {
+    public string GetProjectMemoryDirectory(string? projectId = null) {
         var id = projectId ?? _currentProjectId ?? "default";
         return Path.Combine(_baseDirectory, "projects", id);
     }
 
     /// <inheritdoc />
-    public string GetMemoryDirectoryByType(MemoryType type, string? contextId = null)
-    {
+    public string GetMemoryDirectoryByType(MemoryType type, string? contextId = null) {
         var typeName = TypeDirectoryNames.GetValueOrDefault(type, type.GetName().ToLowerInvariant());
 
-        return type switch
-        {
+        return type switch {
             MemoryType.User => GetUserMemoryDirectory(contextId),
             MemoryType.Feedback => Path.Combine(GetUserMemoryDirectory(contextId), "feedback"),
             MemoryType.Project => GetProjectMemoryDirectory(contextId),
@@ -93,8 +85,7 @@ public sealed partial class MemoryPaths : ServiceEntity, IMemoryPaths
     }
 
     /// <inheritdoc />
-    public string GetMemoryFilePath(string memoryId, MemoryType type, string? contextId = null)
-    {
+    public string GetMemoryFilePath(string memoryId, MemoryType type, string? contextId = null) {
         var directory = GetMemoryDirectoryByType(type, contextId);
         return Path.Combine(directory, $"{memoryId}.json");
     }
@@ -102,8 +93,7 @@ public sealed partial class MemoryPaths : ServiceEntity, IMemoryPaths
     /// <summary>
     /// 获取默认基础目录
     /// </summary>
-    private static string GetDefaultBaseDirectory()
-    {
+    private static string GetDefaultBaseDirectory() {
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
@@ -114,8 +104,7 @@ public sealed partial class MemoryPaths : ServiceEntity, IMemoryPaths
 /// <summary>
 /// 团队记忆路径管理
 /// </summary>
-public interface ITeamMemoryPaths
-{
+public interface ITeamMemoryPaths {
     /// <summary>
     /// 获取团队记忆基础目录
     /// </summary>
@@ -136,16 +125,14 @@ public interface ITeamMemoryPaths
 /// 团队记忆路径管理实现
 /// </summary>
 [Register(typeof(ITeamMemoryPaths), ServiceLifetime.Singleton)]
-public sealed partial class TeamMemoryPaths : ServiceEntity, ITeamMemoryPaths
-{
+public sealed partial class TeamMemoryPaths : ServiceEntity, ITeamMemoryPaths {
     private readonly string _baseDirectory;
 
     /// <summary>
     /// 构造团队记忆路径管理器
     /// </summary>
     /// <param name="options">Memdir 配置选项,为 null 则使用默认团队基础目录</param>
-    public TeamMemoryPaths(IOptions<MemdirOptions> options)
-    {
+    public TeamMemoryPaths(IOptions<MemdirOptions> options) {
         var storagePath = options?.Value?.StoragePath;
         _baseDirectory = storagePath is not null
             ? Path.Combine(storagePath, "team-memories")
@@ -153,25 +140,21 @@ public sealed partial class TeamMemoryPaths : ServiceEntity, ITeamMemoryPaths
     }
 
     /// <inheritdoc />
-    public string GetTeamMemoryDirectory(string teamId)
-    {
+    public string GetTeamMemoryDirectory(string teamId) {
         return Path.Combine(_baseDirectory, "teams", teamId);
     }
 
     /// <inheritdoc />
-    public string GetTeamSharedDirectory(string teamId)
-    {
+    public string GetTeamSharedDirectory(string teamId) {
         return Path.Combine(GetTeamMemoryDirectory(teamId), "shared");
     }
 
     /// <inheritdoc />
-    public string GetTeamMemberDirectory(string teamId, string userId)
-    {
+    public string GetTeamMemberDirectory(string teamId, string userId) {
         return Path.Combine(GetTeamMemoryDirectory(teamId), "members", userId);
     }
 
-    private static string GetDefaultTeamBaseDirectory()
-    {
+    private static string GetDefaultTeamBaseDirectory() {
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,

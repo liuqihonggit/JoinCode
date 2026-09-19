@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// 推送通知工具处理器 — 向用户发送推送通知（支持 info/warning/error 级别）
 /// </summary>
 [McpToolDispatch(ToolCategory.Notification, Optional = true)]
-public partial class PushNotificationToolHandlers
-{
+public partial class PushNotificationToolHandlers {
     private readonly INotificationService? _notificationService;
     private readonly ILogger<PushNotificationToolHandlers>? _logger;
 
@@ -18,8 +17,7 @@ public partial class PushNotificationToolHandlers
     /// <param name="logger">日志记录器（可选）</param>
     public PushNotificationToolHandlers(
         INotificationService? notificationService = null,
-        ILogger<PushNotificationToolHandlers>? logger = null)
-    {
+        ILogger<PushNotificationToolHandlers>? logger = null) {
         _notificationService = notificationService;
         _logger = logger;
     }
@@ -39,8 +37,7 @@ public partial class PushNotificationToolHandlers
         [McpToolParameter("Notification message")] string message,
         [McpToolParameter("Notification level: info/warning/error (default info)", Required = false)] string level = "info",
         [McpToolParameter("Persistent display (optional, default false)", Required = false)] bool? persistent = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(title))
             return ToolResultBuilder.Error().WithText(L.T(StringKey.PushNotificationTitleCannotBeEmpty)).Build();
         if (string.IsNullOrWhiteSpace(message))
@@ -48,10 +45,8 @@ public partial class PushNotificationToolHandlers
 
         var notificationLevel = NotificationTypeExtensions.FromValue(level) ?? NotificationType.Info;
 
-        try
-        {
-            if (_notificationService != null && _notificationService.IsAvailable)
-            {
+        try {
+            if (_notificationService != null && _notificationService.IsAvailable) {
                 await _notificationService.NotifyAsync(title, message, cancellationToken).ConfigureAwait(false);
                 _logger?.LogDebug("{Message}", L.T(StringKey.PushNotificationSentViaServiceLog, title));
             }
@@ -63,10 +58,7 @@ public partial class PushNotificationToolHandlers
             response.AppendLine(L.T(StringKey.PushNotificationLabelLevel, notificationLevel.ToValue()));
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.PushNotificationFailedLog));
             return ToolResultBuilder.Error().WithText(L.T(StringKey.PushNotificationFailed, ex.Message)).Build();
         }

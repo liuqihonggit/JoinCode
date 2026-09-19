@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 聊天命令分组分类枚举 — 源码生成器自动生成 ChatCommandCategoryEnumConstants + ChatCommandCategoryExtensions
 /// </summary>
-public enum ChatCommandCategory
-{
+public enum ChatCommandCategory {
     [EnumValue("会话")] Session,
     [EnumValue("模型")] Model,
     [EnumValue("代码")] Code,

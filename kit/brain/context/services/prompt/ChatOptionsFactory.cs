@@ -5,8 +5,7 @@ namespace Core.Context;
 /// 提取自 ChatService.CreateExecutionSettings
 /// </summary>
 [Register(typeof(IChatOptionsFactory), ServiceLifetime.Singleton)]
-public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFactory
-{
+public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFactory {
 
     /// <summary>
     /// 初始化聊天选项工厂
@@ -14,8 +13,7 @@ public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFact
     /// <param name="contextManager">聊天上下文管理器</param>
     /// <param name="executionSettingsProvider">执行设置提供者（可选）</param>
     /// <param name="apiContextManagementService">API 上下文管理服务（可选）</param>
-    public ChatOptionsFactory(IChatContextManager contextManager, IExecutionSettingsProvider? executionSettingsProvider = null, IApiContextManagementService? apiContextManagementService = null)
-    {
+    public ChatOptionsFactory(IChatContextManager contextManager, IExecutionSettingsProvider? executionSettingsProvider = null, IApiContextManagementService? apiContextManagementService = null) {
         _contextManager = contextManager;
         _executionSettingsProvider = executionSettingsProvider;
         _apiContextManagementService = apiContextManagementService;
@@ -27,8 +25,7 @@ public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFact
     /// <summary>
     /// 创建当前会话的 ChatOptions
     /// </summary>
-    public ChatOptions Create()
-    {
+    public ChatOptions Create() {
         var chatParams = LlmParameters.Chat;
         var discoveredTools = _contextManager.GetDiscoveredTools();
         var deferredTools = _contextManager.GetDeferredTools();
@@ -38,13 +35,11 @@ public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFact
         var fastModelId = _executionSettingsProvider?.FastModelId;
 
         Dictionary<string, JsonElement>? extensionData = null;
-        if (fastMode && !string.IsNullOrEmpty(fastModelId))
-        {
+        if (fastMode && !string.IsNullOrEmpty(fastModelId)) {
             extensionData = new Dictionary<string, JsonElement> { ["model"] = JsonElementHelper.FromString(fastModelId) };
         }
 
-        return new ChatOptions
-        {
+        return new ChatOptions {
             Temperature = _executionSettingsProvider?.Temperature ?? chatParams.Temperature,
             MaxTokens = _executionSettingsProvider?.MaxTokens ?? chatParams.MaxTokens,
             TopP = chatParams.TopP,

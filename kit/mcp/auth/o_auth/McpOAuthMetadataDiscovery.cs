@@ -5,8 +5,7 @@ namespace McpClient;
 /// RFC 9728: OAuth 2.0 Protected Resource Metadata
 /// RFC 8414: OAuth 2.0 Authorization Server Metadata
 /// </summary>
-public sealed partial class McpOAuthMetadataDiscovery
-{
+public sealed partial class McpOAuthMetadataDiscovery {
     private readonly HttpClient _httpClient;
     private readonly ILogger<McpOAuthMetadataDiscovery>? _logger;
 
@@ -21,8 +20,7 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// </summary>
     /// <param name="httpClient">HTTP 客户端（为 null 时走 HttpClientProviderFactory fallback）</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public McpOAuthMetadataDiscovery(HttpClient? httpClient = null, ILogger<McpOAuthMetadataDiscovery>? logger = null)
-    {
+    public McpOAuthMetadataDiscovery(HttpClient? httpClient = null, ILogger<McpOAuthMetadataDiscovery>? logger = null) {
         // P1-6: fallback 走 HttpClientProviderFactory（支持 JCC_HTTP_MODE=Mock 切换，对齐主程序 IHttpClientProvider 抽象）
         _httpClient = httpClient ?? HttpClientProviderFactory.Create().GetClient();
         _logger = logger;
@@ -39,25 +37,20 @@ public sealed partial class McpOAuthMetadataDiscovery
     public async Task<OAuthAuthorizationServerMetadata?> DiscoverAsync(
         string serverUrl,
         string? configuredMetadataUrl = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(serverUrl);
 
         // 优先级1: 用户配置的元数据 URL
-        if (!string.IsNullOrEmpty(configuredMetadataUrl))
-        {
+        if (!string.IsNullOrEmpty(configuredMetadataUrl)) {
             _logger?.LogInformation("使用用户配置的元数据 URL: {Url}", configuredMetadataUrl);
             return await FetchMetadataFromUrlAsync(configuredMetadataUrl, cancellationToken).ConfigureAwait(false);
         }
 
         // 优先级2: RFC 9728 → RFC 8414 链式发现
-        try
-        {
+        try {
             var result = await DiscoverViaRfc9728Async(serverUrl, cancellationToken).ConfigureAwait(false);
             if (result is not null) return result;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "RFC 9728 发现失败，尝试回退路径");
         }
 
@@ -74,8 +67,7 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// <returns>PRM 元数据；发现失败或 resource 不匹配返回 null</returns>
     public async Task<OAuthProtectedResourceMetadata?> DiscoverProtectedResourceAsync(
         string serverUrl,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(serverUrl);
 
         var prmUrl = BuildWellKnownUrl(serverUrl, PrmWellKnownPath);
@@ -85,8 +77,7 @@ public sealed partial class McpOAuthMetadataDiscovery
         if (prm is null) return null;
 
         // RFC 9728 §3.3: resource-mismatch 验证（mix-up 保护）
-        if (!IsUrlMatching(prm.Resource, serverUrl))
-        {
+        if (!IsUrlMatching(prm.Resource, serverUrl)) {
             _logger?.LogWarning("PRM resource 不匹配: expected={Expected}, got={Got}", serverUrl, prm.Resource);
             return null;
         }
@@ -101,11 +92,9 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// </summary>
     private async Task<OAuthAuthorizationServerMetadata?> DiscoverViaRfc9728Async(
         string serverUrl,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var prm = await DiscoverProtectedResourceAsync(serverUrl, cancellationToken).ConfigureAwait(false);
-        if (prm is null || prm.AuthorizationServers.Count == 0)
-        {
+        if (prm is null || prm.AuthorizationServers.Count == 0) {
             _logger?.LogInformation("PRM 未找到或无 authorization_servers");
             return null;
         }
@@ -125,8 +114,7 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// <returns>AS 元数据；发现失败、issuer 不匹配或 token_endpoint 非 HTTPS 返回 null</returns>
     public async Task<OAuthAuthorizationServerMetadata?> DiscoverAuthorizationServerAsync(
         string asUrl,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(asUrl);
 
         var metadataUrl = BuildWellKnownUrl(asUrl, AsWellKnownPath);
@@ -136,16 +124,14 @@ public sealed partial class McpOAuthMetadataDiscovery
         if (metadata is null) return null;
 
         // RFC 8414 §3.3: issuer-mismatch 验证
-        if (!IsUrlMatching(metadata.Issuer, asUrl))
-        {
+        if (!IsUrlMatching(metadata.Issuer, asUrl)) {
             _logger?.LogWarning("AS issuer 不匹配: expected={Expected}, got={Got}", asUrl, metadata.Issuer);
             return null;
         }
 
         // 拒绝非 HTTPS token endpoint
         if (!string.IsNullOrEmpty(metadata.TokenEndpoint) &&
-            !metadata.TokenEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
+            !metadata.TokenEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
             _logger?.LogWarning("AS token_endpoint 非 HTTPS: {Url}", metadata.TokenEndpoint);
             return null;
         }
@@ -158,8 +144,7 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// </summary>
     private async Task<OAuthAuthorizationServerMetadata?> DiscoverViaRfc8414Async(
         string serverUrl,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         // 仅当 URL 有路径组件时才尝试（对齐 TS 的路径感知探测）
         var uri = new Uri(serverUrl);
         if (uri.AbsolutePath == "/") return null;
@@ -172,22 +157,17 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// </summary>
     private async Task<OAuthAuthorizationServerMetadata?> FetchMetadataFromUrlAsync(
         string url,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
+        CancellationToken cancellationToken) {
+        try {
             var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
+            if (!response.IsSuccessStatusCode) {
                 _logger?.LogWarning("获取元数据失败: {Url} -> {Status}", url, response.StatusCode);
                 return null;
             }
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, McpOAuthJsonContext.Default.OAuthAuthorizationServerMetadata);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "获取元数据异常: {Url}", url);
             return null;
         }
@@ -198,22 +178,17 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// </summary>
     private async Task<OAuthProtectedResourceMetadata?> FetchProtectedResourceMetadataAsync(
         string url,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
+        CancellationToken cancellationToken) {
+        try {
             var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
+            if (!response.IsSuccessStatusCode) {
                 _logger?.LogWarning("获取 PRM 失败: {Url} -> {Status}", url, response.StatusCode);
                 return null;
             }
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, McpOAuthJsonContext.Default.OAuthProtectedResourceMetadata);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "获取 PRM 异常: {Url}", url);
             return null;
         }
@@ -222,8 +197,7 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// <summary>
     /// 构建 well-known URL — 对齐 TS 的 URL 拼接逻辑
     /// </summary>
-    private static string BuildWellKnownUrl(string baseUrl, string wellKnownPath)
-    {
+    private static string BuildWellKnownUrl(string baseUrl, string wellKnownPath) {
         var uri = new Uri(baseUrl);
         // 对齐 TS: well-known 路径拼接在 origin 上
         return $"{uri.Scheme}://{uri.Authority}{wellKnownPath}";
@@ -233,14 +207,12 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// URL 匹配检查 — 对齐 TS normalizeUrl 比较
     /// 忽略尾部斜杠和默认端口
     /// </summary>
-    private static bool IsUrlMatching(string? url1, string url2)
-    {
+    private static bool IsUrlMatching(string? url1, string url2) {
         if (string.IsNullOrEmpty(url1)) return false;
         return string.Equals(NormalizeUrl(url1), NormalizeUrl(url2), StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string NormalizeUrl(string url)
-    {
+    private static string NormalizeUrl(string url) {
         var uri = new Uri(url);
         var port = uri.IsDefaultPort ? "" : $":{uri.Port}";
         var path = uri.AbsolutePath.TrimEnd('/');
@@ -251,8 +223,7 @@ public sealed partial class McpOAuthMetadataDiscovery
 /// <summary>
 /// OAuth 2.0 Protected Resource Metadata — RFC 9728
 /// </summary>
-public sealed partial class OAuthProtectedResourceMetadata
-{
+public sealed partial class OAuthProtectedResourceMetadata {
     /// <summary>
     /// 资源标识符 — RFC 9728 §2.1 resource
     /// </summary>
@@ -287,8 +258,7 @@ public sealed partial class OAuthProtectedResourceMetadata
 /// <summary>
 /// OAuth 2.0 Authorization Server Metadata — RFC 8414
 /// </summary>
-public sealed partial class OAuthAuthorizationServerMetadata
-{
+public sealed partial class OAuthAuthorizationServerMetadata {
     /// <summary>
     /// 发行者标识 — RFC 8414 §2 issuer
     /// </summary>

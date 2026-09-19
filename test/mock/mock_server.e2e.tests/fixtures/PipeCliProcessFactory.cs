@@ -6,8 +6,7 @@ namespace MockServer.E2E.Tests.Fixtures;
 /// <summary>
 /// JoinCode 进程启动选项封装类
 /// </summary>
-public sealed record CliProcessOptions
-{
+public sealed record CliProcessOptions {
     public required string ExecutablePath { get; init; }
     public string Arguments { get; init; } = "";
     public Dictionary<string, string> EnvironmentVariables { get; init; } = new();
@@ -22,12 +21,10 @@ public sealed record CliProcessOptions
 /// 管道 JoinCode 进程工厂
 /// 用于创建带管道参数的 JoinCode 进程
 /// </summary>
-public sealed class PipeJoinCodeProcessFactory
-{
+public sealed class PipeJoinCodeProcessFactory {
     private readonly ILogger<PipeJoinCodeProcessFactory> _logger;
 
-    public PipeJoinCodeProcessFactory(ILogger<PipeJoinCodeProcessFactory> logger)
-    {
+    public PipeJoinCodeProcessFactory(ILogger<PipeJoinCodeProcessFactory> logger) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -44,8 +41,7 @@ public sealed class PipeJoinCodeProcessFactory
         string apiKey,
         string executablePath,
         string? additionalArgs = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrEmpty(pipeName);
         ArgumentException.ThrowIfNullOrEmpty(apiKey);
         ArgumentException.ThrowIfNullOrEmpty(executablePath);
@@ -53,8 +49,7 @@ public sealed class PipeJoinCodeProcessFactory
         // 确保管道名称使用标准格式
         var normalizedPipeName = NormalizePipeName(pipeName);
 
-        var options = new CliProcessOptions
-        {
+        var options = new CliProcessOptions {
             ExecutablePath = executablePath,
             Arguments = BuildArguments(normalizedPipeName, additionalArgs),
             EnvironmentVariables = BuildEnvironmentVariables(normalizedPipeName, apiKey),
@@ -67,11 +62,9 @@ public sealed class PipeJoinCodeProcessFactory
     /// <summary>
     /// 规范化管道名称，确保使用标准格式
     /// </summary>
-    private static string NormalizePipeName(string pipeName)
-    {
+    private static string NormalizePipeName(string pipeName) {
         // 如果已经是标准格式，直接返回
-        if (pipeName.StartsWith("JoinCode_MockServer_", StringComparison.OrdinalIgnoreCase))
-        {
+        if (pipeName.StartsWith("JoinCode_MockServer_", StringComparison.OrdinalIgnoreCase)) {
             return pipeName;
         }
 
@@ -82,8 +75,7 @@ public sealed class PipeJoinCodeProcessFactory
     /// <summary>
     /// 根据选项创建 JoinCode 进程
     /// </summary>
-    public Task<Process> CreateAsync(CliProcessOptions options, CancellationToken ct = default)
-    {
+    public Task<Process> CreateAsync(CliProcessOptions options, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrEmpty(options.ExecutablePath);
 
@@ -93,8 +85,7 @@ public sealed class PipeJoinCodeProcessFactory
             options.ExecutablePath,
             options.Arguments);
 
-        var startInfo = new ProcessStartInfo
-        {
+        var startInfo = new ProcessStartInfo {
             FileName = options.ExecutablePath,
             Arguments = options.Arguments,
             RedirectStandardInput = options.RedirectStandardInput,
@@ -108,8 +99,7 @@ public sealed class PipeJoinCodeProcessFactory
             WorkingDirectory = options.WorkingDirectory ?? Directory.GetCurrentDirectory()
         };
 
-        foreach (var (key, value) in options.EnvironmentVariables)
-        {
+        foreach (var (key, value) in options.EnvironmentVariables) {
             startInfo.EnvironmentVariables[key] = value;
             _logger.LogDebug("[{Factory}] 环境变量: {Key}={Value}", nameof(PipeJoinCodeProcessFactory), key, value);
         }
@@ -124,12 +114,10 @@ public sealed class PipeJoinCodeProcessFactory
     /// <summary>
     /// 构建进程启动参数
     /// </summary>
-    private static string BuildArguments(string pipeName, string? additionalArgs)
-    {
+    private static string BuildArguments(string pipeName, string? additionalArgs) {
         var args = $"--pipe \"{pipeName}\"";
 
-        if (!string.IsNullOrWhiteSpace(additionalArgs))
-        {
+        if (!string.IsNullOrWhiteSpace(additionalArgs)) {
             args += $" {additionalArgs}";
         }
 
@@ -140,14 +128,12 @@ public sealed class PipeJoinCodeProcessFactory
     /// 构建环境变量字典
     /// 优先从 .env 文件加载，如果未设置则使用传入的 apiKey
     /// </summary>
-    private static Dictionary<string, string> BuildEnvironmentVariables(string pipeName, string apiKey)
-    {
+    private static Dictionary<string, string> BuildEnvironmentVariables(string pipeName, string apiKey) {
         // 尝试从 .env 文件或环境变量获取 API Key
         var effectiveApiKey = EnvFileLoader.Get("OPENAI_API_KEY") ?? apiKey;
         var baseUrl = EnvFileLoader.Get("OPENAI_BASE_URL") ?? "http://localhost:8080/v1";
 
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
             [nameof(pipeName).ToUpperInvariant()] = pipeName,
             [ProviderEnvVarEnumConstants.OpenAiApiKey] = effectiveApiKey,
             ["OPENAI_BASE_URL"] = baseUrl,

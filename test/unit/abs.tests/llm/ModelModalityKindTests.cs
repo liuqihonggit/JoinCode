@@ -3,13 +3,11 @@ namespace Abs.Tests.LLM;
 /// <summary>
 /// ModelModalityKind [Flags] 枚举 + JsonConverter 单元测试
 /// </summary>
-public class ModelModalityKindTests
-{
+public class ModelModalityKindTests {
     #region [Flags] 位运算
 
     [Fact]
-    public void HasFlag_SingleFlag_ShouldReturnTrue()
-    {
+    public void HasFlag_SingleFlag_ShouldReturnTrue() {
         var modalities = ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ToolUse;
 
         modalities.HasFlag(ModelModalityKind.Text).Should().BeTrue();
@@ -18,8 +16,7 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void HasFlag_MissingFlag_ShouldReturnFalse()
-    {
+    public void HasFlag_MissingFlag_ShouldReturnFalse() {
         var modalities = ModelModalityKind.Text | ModelModalityKind.ReadImage;
 
         modalities.HasFlag(ModelModalityKind.Thinking).Should().BeFalse();
@@ -28,15 +25,13 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void None_HasNoFlags()
-    {
+    public void None_HasNoFlags() {
         ModelModalityKind.None.HasFlag(ModelModalityKind.Text).Should().BeFalse();
         ModelModalityKind.None.HasFlag(ModelModalityKind.ReadImage).Should().BeFalse();
     }
 
     [Fact]
-    public void AllInput_CombinesReadModalities()
-    {
+    public void AllInput_CombinesReadModalities() {
         var allInput = ModelModalityKind.AllInput;
 
         allInput.HasFlag(ModelModalityKind.ReadImage).Should().BeTrue();
@@ -48,8 +43,7 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void AllOutput_CombinesGenerateModalities()
-    {
+    public void AllOutput_CombinesGenerateModalities() {
         var allOutput = ModelModalityKind.AllOutput;
 
         allOutput.HasFlag(ModelModalityKind.GenerateImage).Should().BeTrue();
@@ -59,8 +53,7 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void All_ContainsEverything()
-    {
+    public void All_ContainsEverything() {
         var all = ModelModalityKind.All;
 
         all.HasFlag(ModelModalityKind.Text).Should().BeTrue();
@@ -71,8 +64,7 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void BitValues_ArePowersOfTwo()
-    {
+    public void BitValues_ArePowersOfTwo() {
         var singleFlags = new[] {
             ModelModalityKind.Text, ModelModalityKind.ReadImage, ModelModalityKind.ReadGif,
             ModelModalityKind.ReadVideo, ModelModalityKind.ReadAudio, ModelModalityKind.ReadPdf,
@@ -81,8 +73,7 @@ public class ModelModalityKindTests
             ModelModalityKind.ToolUse
         };
 
-        foreach (var flag in singleFlags)
-        {
+        foreach (var flag in singleFlags) {
             var value = (int)flag;
             (value & (value - 1)).Should().Be(0, $"{flag} 应该是 2 的幂次方");
         }
@@ -93,8 +84,7 @@ public class ModelModalityKindTests
     #region [EnumValue] 字符串映射
 
     [Fact]
-    public void ToValue_ReturnsCorrectStrings()
-    {
+    public void ToValue_ReturnsCorrectStrings() {
         ModelModalityKind.Text.ToValue().Should().Be("text");
         ModelModalityKind.ReadImage.ToValue().Should().Be("readImage");
         ModelModalityKind.ReadGif.ToValue().Should().Be("readGif");
@@ -111,8 +101,7 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void FromValue_ReturnsCorrectEnum()
-    {
+    public void FromValue_ReturnsCorrectEnum() {
         ModelModalityKindExtensions.FromValue("text").Should().Be(ModelModalityKind.Text);
         ModelModalityKindExtensions.FromValue("readImage").Should().Be(ModelModalityKind.ReadImage);
         ModelModalityKindExtensions.FromValue("thinking").Should().Be(ModelModalityKind.Thinking);
@@ -125,10 +114,8 @@ public class ModelModalityKindTests
     #region JsonConverter 序列化/反序列化
 
     [Fact]
-    public void JsonConverter_Serialize_WritesStringArray()
-    {
-        var config = new ModelCapabilitiesConfig
-        {
+    public void JsonConverter_Serialize_WritesStringArray() {
+        var config = new ModelCapabilitiesConfig {
             FastMode = true,
             Modalities = ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ToolUse
         };
@@ -142,8 +129,7 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void JsonConverter_Deserialize_ReadsStringArray()
-    {
+    public void JsonConverter_Deserialize_ReadsStringArray() {
         var json = """{"FastMode":true,"Modalities":["text","readImage","toolUse"]}""";
 
         var config = JsonSerializer.Deserialize<ModelCapabilitiesConfig>(json)!;
@@ -155,8 +141,7 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void JsonConverter_Deserialize_ReadsIntegerBackwardCompat()
-    {
+    public void JsonConverter_Deserialize_ReadsIntegerBackwardCompat() {
         var json = """{"FastMode":true,"Modalities":4103}""";
 
         var config = JsonSerializer.Deserialize<ModelCapabilitiesConfig>(json)!;
@@ -167,10 +152,8 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void JsonConverter_RoundTrip_PreservesFlags()
-    {
-        var original = new ModelCapabilitiesConfig
-        {
+    public void JsonConverter_RoundTrip_PreservesFlags() {
+        var original = new ModelCapabilitiesConfig {
             FastMode = false,
             ThinkingMode = true,
             Modalities = ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ReadGif | ModelModalityKind.ReadPdf | ModelModalityKind.Thinking | ModelModalityKind.ToolUse
@@ -185,10 +168,8 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void JsonConverter_NoneSerializesAsEmptyArray()
-    {
-        var config = new ModelCapabilitiesConfig
-        {
+    public void JsonConverter_NoneSerializesAsEmptyArray() {
+        var config = new ModelCapabilitiesConfig {
             Modalities = ModelModalityKind.None
         };
 
@@ -201,13 +182,10 @@ public class ModelModalityKindTests
     #region ModelConfigLoader.SupportsModality
 
     [Fact]
-    public void ModelConfigLoader_SupportsModality_ReturnsTrueForConfiguredFlag()
-    {
+    public void ModelConfigLoader_SupportsModality_ReturnsTrueForConfiguredFlag() {
         var loader = new ModelConfigLoader();
-        loader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["test"] = new ModelProviderConfig
-            {
+        loader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase) {
+            ["test"] = new ModelProviderConfig {
                 DefaultModelId = "test-model",
                 Models =
                 [
@@ -233,14 +211,11 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void ModelConfigLoader_GetModalities_ReturnsConfiguredFlags()
-    {
+    public void ModelConfigLoader_GetModalities_ReturnsConfiguredFlags() {
         var loader = new ModelConfigLoader();
         var expected = ModelModalityKind.Text | ModelModalityKind.Thinking | ModelModalityKind.ToolUse;
-        loader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["test"] = new ModelProviderConfig
-            {
+        loader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase) {
+            ["test"] = new ModelProviderConfig {
                 DefaultModelId = "reasoner",
                 Models =
                 [
@@ -259,8 +234,7 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void ModelConfigLoader_SupportsModality_UnknownModel_DefaultIsText()
-    {
+    public void ModelConfigLoader_SupportsModality_UnknownModel_DefaultIsText() {
         var loader = new ModelConfigLoader();
         loader.SupportsModality("test", "unknown", ModelModalityKind.Text).Should().BeTrue();
         loader.SupportsModality("test", "unknown", ModelModalityKind.ReadImage).Should().BeFalse();
@@ -268,8 +242,7 @@ public class ModelModalityKindTests
     }
 
     [Fact]
-    public void ModelConfigLoader_GetModalities_UnknownModel_ReturnsText()
-    {
+    public void ModelConfigLoader_GetModalities_UnknownModel_ReturnsText() {
         var loader = new ModelConfigLoader();
         loader.GetModalities("test", "unknown").Should().Be(ModelModalityKind.Text);
     }

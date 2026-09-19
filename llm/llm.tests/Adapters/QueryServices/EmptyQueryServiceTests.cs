@@ -1,10 +1,8 @@
 namespace Llm.Tests.Adapters.QueryServices;
 
-public sealed class EmptyQueryServiceTests
-{
+public sealed class EmptyQueryServiceTests {
     [Fact]
-    public async Task GetApiMessageContentsAsync_ThrowsNotSupportedException()
-    {
+    public async Task GetApiMessageContentsAsync_ThrowsNotSupportedException() {
         var service = new EmptyQueryService();
 
         var act = () => service.GetApiMessageContentsAsync(new MessageList());
@@ -13,14 +11,11 @@ public sealed class EmptyQueryServiceTests
     }
 
     [Fact]
-    public async Task GetStreamEventContentsAsync_ThrowsNotSupportedException()
-    {
+    public async Task GetStreamEventContentsAsync_ThrowsNotSupportedException() {
         var service = new EmptyQueryService();
 
-        var act = async () =>
-        {
-            await foreach (var _ in service.GetStreamEventContentsAsync(new MessageList()))
-            {
+        var act = async () => {
+            await foreach (var _ in service.GetStreamEventContentsAsync(new MessageList())) {
             }
         };
 

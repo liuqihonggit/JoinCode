@@ -1,41 +1,34 @@
 namespace Core.Tests.Services.Configuration;
 
-public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable
-{
+public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable {
     private readonly RemoteManagedSettingsService _service;
     private readonly HttpClient _httpClient;
     private bool _disposed;
 
-    public RemoteManagedSettingsServiceTests()
-    {
+    public RemoteManagedSettingsServiceTests() {
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-        var options = Options.Create(new RemoteSettingsOptions
-        {
+        var options = Options.Create(new RemoteSettingsOptions {
             EnableCache = false
         });
         _service = new RemoteManagedSettingsService(_httpClient, options);
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
         await _service.DisposeSafeAsync();
         _httpClient.DisposeSafe();
     }
 
-    private static global::System.Collections.Concurrent.ConcurrentDictionary<string, ManagedSetting> GetSettings(RemoteManagedSettingsService service)
-    {
+    private static global::System.Collections.Concurrent.ConcurrentDictionary<string, ManagedSetting> GetSettings(RemoteManagedSettingsService service) {
         var settingsField = typeof(RemoteManagedSettingsService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
         return (global::System.Collections.Concurrent.ConcurrentDictionary<string, ManagedSetting>)settingsField!.GetValue(service)!;
     }
 
     [Fact]
-    public async Task GetSettingAsync_FromLocal_ReturnsValue()
-    {
+    public async Task GetSettingAsync_FromLocal_ReturnsValue() {
         var settings = GetSettings(_service);
-        settings["test-key"] = new ManagedSetting
-        {
+        settings["test-key"] = new ManagedSetting {
             Key = "test-key",
             Value = "test-value",
             Scope = SettingScope.User,
@@ -48,19 +41,16 @@ public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetSettingAsync_LocalMiss_ReturnsNull()
-    {
+    public async Task GetSettingAsync_LocalMiss_ReturnsNull() {
         var result = await _service.GetSettingAsync("nonexistent-key").ConfigureAwait(true);
 
         result.Should().BeNull();
     }
 
     [Fact]
-    public async Task GetSettingAsync_Typed_ReturnsTypedValue()
-    {
+    public async Task GetSettingAsync_Typed_ReturnsTypedValue() {
         var settings = GetSettings(_service);
-        settings["bool-key"] = new ManagedSetting
-        {
+        settings["bool-key"] = new ManagedSetting {
             Key = "bool-key",
             Value = "true",
             Scope = SettingScope.User,
@@ -73,19 +63,16 @@ public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetMergedSettingsAsync_CombinesLocalAndRemote()
-    {
+    public async Task GetMergedSettingsAsync_CombinesLocalAndRemote() {
         var settings = GetSettings(_service);
-        settings["remote-key"] = new ManagedSetting
-        {
+        settings["remote-key"] = new ManagedSetting {
             Key = "remote-key",
             Value = "remote-value",
             Scope = SettingScope.User,
             IsReadOnly = false
         };
 
-        var localSettings = new Dictionary<string, string>
-        {
+        var localSettings = new Dictionary<string, string> {
             ["local-key"] = "local-value"
         };
 
@@ -96,19 +83,16 @@ public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetMergedSettingsAsync_SystemLevelSetting_OverridesLocal()
-    {
+    public async Task GetMergedSettingsAsync_SystemLevelSetting_OverridesLocal() {
         var settings = GetSettings(_service);
-        settings["override-key"] = new ManagedSetting
-        {
+        settings["override-key"] = new ManagedSetting {
             Key = "override-key",
             Value = "system-value",
             Scope = SettingScope.System,
             IsReadOnly = true
         };
 
-        var localSettings = new Dictionary<string, string>
-        {
+        var localSettings = new Dictionary<string, string> {
             ["override-key"] = "local-value"
         };
 
@@ -118,19 +102,16 @@ public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetMergedSettingsAsync_ReadOnlySetting_OverridesLocal()
-    {
+    public async Task GetMergedSettingsAsync_ReadOnlySetting_OverridesLocal() {
         var settings = GetSettings(_service);
-        settings["readonly-key"] = new ManagedSetting
-        {
+        settings["readonly-key"] = new ManagedSetting {
             Key = "readonly-key",
             Value = "readonly-value",
             Scope = SettingScope.User,
             IsReadOnly = true
         };
 
-        var localSettings = new Dictionary<string, string>
-        {
+        var localSettings = new Dictionary<string, string> {
             ["readonly-key"] = "local-value"
         };
 
@@ -140,16 +121,14 @@ public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RefreshAsync_WithNoEndpoint_DoesNotThrow()
-    {
+    public async Task RefreshAsync_WithNoEndpoint_DoesNotThrow() {
         var act = () => _service.RefreshAsync();
 
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
     [Fact]
-    public void Constructor_WithNullHttpClient_ThrowsArgumentNullException()
-    {
+    public void Constructor_WithNullHttpClient_ThrowsArgumentNullException() {
         var act = () => new RemoteManagedSettingsService(null!);
 
         act.Should().Throw<ArgumentNullException>();

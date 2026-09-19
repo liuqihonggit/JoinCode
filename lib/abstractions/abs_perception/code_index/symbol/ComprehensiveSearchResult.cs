@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.CodeIndex;
 /// <summary>
 /// 综合检索结果 — 模糊匹配符号 + 全部引用 + 调用方/被调用方,受 token 预算限制
 /// </summary>
-public sealed record ComprehensiveSearchResult
-{
+public sealed record ComprehensiveSearchResult {
     /// <summary>模糊匹配到的符号列表(最多 100 个,超过时仅返回前 100 个)</summary>
     public required IReadOnlyList<SymbolInfo> MatchedSymbols { get; init; }
 

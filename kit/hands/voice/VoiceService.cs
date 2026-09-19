@@ -18,8 +18,7 @@ internal sealed record WriteAudioCmd(byte[] Buffer, TaskCompletionSource Tcs) : 
 /// </summary>
 [Register(typeof(IVoiceService), ServiceLifetime.Singleton)]
 [Register(typeof(JoinCode.Abstractions.Interfaces.IVoiceService), ServiceLifetime.Singleton)]
-public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoiceService, JoinCode.Abstractions.Interfaces.IVoiceService, IDisposable
-{
+public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoiceService, JoinCode.Abstractions.Interfaces.IVoiceService, IDisposable {
     private readonly VoiceOptions _options;
     private readonly IResilientHttpClientProvider _resilientProvider;
     private readonly ILogger<VoiceService>? _logger;
@@ -61,8 +60,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
         IResilientHttpClientProvider resilientProvider,
         ILogger<VoiceService>? logger = null,
         IClockService? clock = null)
-        : base()
-    {
+        : base() {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(fs);
         ArgumentNullException.ThrowIfNull(resilientProvider);
@@ -75,40 +73,34 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
 
 
     /// <inheritdoc/>
-    public async Task StartRecordingAsync(CancellationToken ct = default)
-    {
+    public async Task StartRecordingAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new StartRecordingCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>
-    public async Task<VoiceRecordingResult> StopRecordingAsync(CancellationToken ct = default)
-    {
+    public async Task<VoiceRecordingResult> StopRecordingAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<VoiceRecordingResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         await SendAsync(new StopRecordingCmd(ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>
-    public async Task<string> TranscribeAsync(byte[] audioData, string? language = null, CancellationToken ct = default)
-    {
+    public async Task<string> TranscribeAsync(byte[] audioData, string? language = null, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(audioData);
 
-        return _options.Backend switch
-        {
+        return _options.Backend switch {
             SttBackend.WhisperApi => await TranscribeWithWhisperApiAsync(audioData, language, ct).ConfigureAwait(false),
             _ => throw new NotSupportedException(L.T(StringKey.VoiceUnsupportedSttBackend, _options.Backend))
         };
     }
 
     /// <inheritdoc/>
-    public async Task<string> TranscribeFileAsync(string filePath, string? language = null, CancellationToken ct = default)
-    {
+    public async Task<string> TranscribeFileAsync(string filePath, string? language = null, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrEmpty(filePath);
 
-        if (!_fs.FileExists(filePath))
-        {
+        if (!_fs.FileExists(filePath)) {
             throw new FileNotFoundException(L.T(StringKey.VoiceAudioFileNotFound), filePath);
         }
 
@@ -119,108 +111,92 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     /// <summary>
     /// Actor Consumer — 线程独占 _recordingStream/_recordingCts，串行处理命令，无需锁。
     /// </summary>
-    protected override async ValueTask HandleAsync(IVoiceCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
+    protected override async ValueTask HandleAsync(IVoiceCommand command, CancellationToken ct) {
+        switch (command) {
             case StartRecordingCmd cmd:
-                if ((VoiceRecordingState)_stateInt == VoiceRecordingState.Recording)
-                {
-                    _logger?.LogWarning(L.T(StringKey.VoiceAlreadyRecording));
-                    cmd.Tcs.TrySetResult();
-                    break;
-                }
-
-                _recordingStream = new MemoryStream();
-                _recordingCts = CancellationTokenSource.CreateLinkedTokenSource(cmd.Ct);
-                _recordingStartTime = _clock.GetUtcNow();
-
-                SetState(VoiceRecordingState.Recording);
-                _logger?.LogInformation(L.T(StringKey.VoiceStartRecording));
-
-                _ = Task.Run(() => RecordLoopAsync(_recordingCts.Token));
+            if ((VoiceRecordingState)_stateInt == VoiceRecordingState.Recording) {
+                _logger?.LogWarning(L.T(StringKey.VoiceAlreadyRecording));
                 cmd.Tcs.TrySetResult();
                 break;
+            }
+
+            _recordingStream = new MemoryStream();
+            _recordingCts = CancellationTokenSource.CreateLinkedTokenSource(cmd.Ct);
+            _recordingStartTime = _clock.GetUtcNow();
+
+            SetState(VoiceRecordingState.Recording);
+            _logger?.LogInformation(L.T(StringKey.VoiceStartRecording));
+
+            _ = Task.Run(() => RecordLoopAsync(_recordingCts.Token));
+            cmd.Tcs.TrySetResult();
+            break;
 
             case StopRecordingCmd cmd:
-                try
-                {
-                    if ((VoiceRecordingState)_stateInt != VoiceRecordingState.Recording)
-                    {
-                        cmd.Tcs.TrySetResult(new VoiceRecordingResult
-                        {
-                            Success = false,
-                            AudioData = Array.Empty<byte>(),
-                            Duration = TimeSpan.Zero,
-                            ErrorMessage = L.T(StringKey.VoiceNotRecording)
-                        });
-                        break;
-                    }
-
-                    _recordingCts?.Cancel();
-                    SetState(VoiceRecordingState.Processing);
-
-                    var duration = _clock.GetUtcNow() - _recordingStartTime;
-                    var audioData = _recordingStream?.ToArray() ?? Array.Empty<byte>();
-
-                    _recordingStream?.Dispose();
-                    _recordingStream = null;
-
-                    if (audioData.Length == 0)
-                    {
-                        SetState(VoiceRecordingState.Idle);
-                        cmd.Tcs.TrySetResult(new VoiceRecordingResult
-                        {
-                            Success = false,
-                            AudioData = audioData,
-                            Duration = duration,
-                            ErrorMessage = L.T(StringKey.VoiceRecordingDataEmpty)
-                        });
-                        break;
-                    }
-
-                    string? transcription = null;
-                    try
-                    {
-                        transcription = await TranscribeAsync(audioData, _options.WhisperLanguage, cmd.Ct).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogError(ex, L.T(StringKey.VoiceTranscriptionFailed));
-                    }
-
-                    SetState(VoiceRecordingState.Idle);
-                    _logger?.LogInformation(L.T(StringKey.VoiceRecordingComplete, duration.TotalMilliseconds, transcription?.Length ?? 0));
-
-                    cmd.Tcs.TrySetResult(new VoiceRecordingResult
-                    {
-                        Success = true,
-                        AudioData = audioData,
-                        Duration = duration,
-                        Transcription = transcription
-                    });
-                }
-                catch (Exception ex)
-                {
-                    SetState(VoiceRecordingState.Error);
-                    cmd.Tcs.TrySetResult(new VoiceRecordingResult
-                    {
+            try {
+                if ((VoiceRecordingState)_stateInt != VoiceRecordingState.Recording) {
+                    cmd.Tcs.TrySetResult(new VoiceRecordingResult {
                         Success = false,
                         AudioData = Array.Empty<byte>(),
                         Duration = TimeSpan.Zero,
-                        ErrorMessage = ex.Message
+                        ErrorMessage = L.T(StringKey.VoiceNotRecording)
                     });
+                    break;
                 }
-                break;
+
+                _recordingCts?.Cancel();
+                SetState(VoiceRecordingState.Processing);
+
+                var duration = _clock.GetUtcNow() - _recordingStartTime;
+                var audioData = _recordingStream?.ToArray() ?? Array.Empty<byte>();
+
+                _recordingStream?.Dispose();
+                _recordingStream = null;
+
+                if (audioData.Length == 0) {
+                    SetState(VoiceRecordingState.Idle);
+                    cmd.Tcs.TrySetResult(new VoiceRecordingResult {
+                        Success = false,
+                        AudioData = audioData,
+                        Duration = duration,
+                        ErrorMessage = L.T(StringKey.VoiceRecordingDataEmpty)
+                    });
+                    break;
+                }
+
+                string? transcription = null;
+                try {
+                    transcription = await TranscribeAsync(audioData, _options.WhisperLanguage, cmd.Ct).ConfigureAwait(false);
+                } catch (Exception ex) {
+                    _logger?.LogError(ex, L.T(StringKey.VoiceTranscriptionFailed));
+                }
+
+                SetState(VoiceRecordingState.Idle);
+                _logger?.LogInformation(L.T(StringKey.VoiceRecordingComplete, duration.TotalMilliseconds, transcription?.Length ?? 0));
+
+                cmd.Tcs.TrySetResult(new VoiceRecordingResult {
+                    Success = true,
+                    AudioData = audioData,
+                    Duration = duration,
+                    Transcription = transcription
+                });
+            } catch (Exception ex) {
+                SetState(VoiceRecordingState.Error);
+                cmd.Tcs.TrySetResult(new VoiceRecordingResult {
+                    Success = false,
+                    AudioData = Array.Empty<byte>(),
+                    Duration = TimeSpan.Zero,
+                    ErrorMessage = ex.Message
+                });
+            }
+            break;
 
             case WriteAudioCmd cmd:
-                if (_recordingStream != null)
-                {
-                    GenerateSilenceBuffer(cmd.Buffer, _options.SampleRate);
-                    await _recordingStream.WriteAsync(cmd.Buffer, cmd.Buffer.Length == 0 ? default : CancellationToken.None).ConfigureAwait(false);
-                }
-                cmd.Tcs.TrySetResult();
-                break;
+            if (_recordingStream != null) {
+                GenerateSilenceBuffer(cmd.Buffer, _options.SampleRate);
+                await _recordingStream.WriteAsync(cmd.Buffer, cmd.Buffer.Length == 0 ? default : CancellationToken.None).ConfigureAwait(false);
+            }
+            cmd.Tcs.TrySetResult();
+            break;
         }
     }
 
@@ -228,15 +204,12 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     /// Actor Consumer 错误回调 — 记录消费者线程未捕获异常。
     /// </summary>
     /// <param name="ex">消费者线程抛出的异常。</param>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogWarning(ex, "Voice Actor Consumer 命令处理异常");
     }
 
-    private async Task<string> TranscribeWithWhisperApiAsync(byte[] audioData, string? language, CancellationToken ct)
-    {
-        if (string.IsNullOrEmpty(_options.WhisperApiKey))
-        {
+    private async Task<string> TranscribeWithWhisperApiAsync(byte[] audioData, string? language, CancellationToken ct) {
+        if (string.IsNullOrEmpty(_options.WhisperApiKey)) {
             throw new InvalidOperationException("未配置 Whisper API Key，请在配置文件中设置 voice.whisperApiKey");
         }
 
@@ -248,23 +221,20 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
         content.Add(new StringContent(_options.WhisperModel), "model");
 
         var lang = language ?? _options.WhisperLanguage;
-        if (!string.IsNullOrEmpty(lang))
-        {
+        if (!string.IsNullOrEmpty(lang)) {
             content.Add(new StringContent(lang), "language");
         }
 
         var request = new HttpRequestMessage(HttpMethod.Post, _options.WhisperApiEndpoint) { Content = content };
 
-        if (!string.IsNullOrEmpty(_options.WhisperApiKey))
-        {
+        if (!string.IsNullOrEmpty(_options.WhisperApiKey)) {
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.WhisperApiKey);
         }
 
         var response = await _resilientProvider.SendResilientAsync(request, "Voice.WhisperApi", ct).ConfigureAwait(false);
         var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
-        {
+        if (!response.IsSuccessStatusCode) {
             _logger?.LogError(L.T(StringKey.VoiceWhisperApiFailed, response.StatusCode), responseBody);
             throw new InvalidOperationException(L.T(StringKey.VoiceWhisperApiCallFailed, response.StatusCode));
         }
@@ -273,44 +243,34 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
         return result?.Text ?? string.Empty;
     }
 
-    private async Task RecordLoopAsync(CancellationToken ct)
-    {
-        try
-        {
+    private async Task RecordLoopAsync(CancellationToken ct) {
+        try {
             var buffer = new byte[4096];
-            while (!ct.IsCancellationRequested)
-            {
+            while (!ct.IsCancellationRequested) {
                 var tcs = TcsFactory.Create();
                 await SendAsync(new WriteAudioCmd(buffer, tcs), ct).ConfigureAwait(false);
                 await AskAwait(tcs, ct);
 
                 await Task.Delay(100, ct).ConfigureAwait(false);
             }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VoiceRecordLoopError));
             SetState(VoiceRecordingState.Error);
         }
     }
 
-    private static void GenerateSilenceBuffer(byte[] buffer, int sampleRate)
-    {
+    private static void GenerateSilenceBuffer(byte[] buffer, int sampleRate) {
         var bytesPerSample = 2;
         var samplesPerMs = sampleRate / 1000;
         var bytesToFill = Math.Min(buffer.Length, samplesPerMs * 100 * bytesPerSample);
 
-        for (var i = 0; i < bytesToFill; i++)
-        {
+        for (var i = 0; i < bytesToFill; i++) {
             buffer[i] = 0;
         }
     }
 
-    private void SetState(VoiceRecordingState newState)
-    {
+    private void SetState(VoiceRecordingState newState) {
         _stateInt = (int)newState;
         StateChanged?.Invoke(this, newState);
     }
@@ -318,8 +278,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     /// <summary>
     /// 同步释放录制流和取消令牌等资源。Actor 的异步释放由 <see cref="DisposeAsync"/> 负责。
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _recordingCts?.Cancel();
@@ -331,8 +290,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     /// 异步释放资源 — 先停 Actor(基类),再释放录制流和取消令牌。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
         _recordingCts?.Cancel();
@@ -346,8 +304,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
 /// <summary>
 /// Whisper API 转录响应 — 反序列化 Whisper 接口返回的 JSON。
 /// </summary>
-public sealed partial class WhisperTranscriptionResponse
-{
+public sealed partial class WhisperTranscriptionResponse {
     /// <summary>
     /// 转录得到的文本内容。
     /// </summary>
@@ -358,8 +315,7 @@ public sealed partial class WhisperTranscriptionResponse
 /// <summary>
 /// Whisper API 转录请求 — 序列化发送至 Whisper 接口的 JSON。
 /// </summary>
-public sealed partial class WhisperTranscriptionRequest
-{
+public sealed partial class WhisperTranscriptionRequest {
     /// <summary>
     /// 使用的 Whisper 模型名称，默认 "whisper-1"。
     /// </summary>

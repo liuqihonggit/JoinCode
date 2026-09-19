@@ -4,8 +4,7 @@ namespace JoinCode.Dream.Services;
 /// <summary>
 /// 聊天完成客户端接口 - 封装 IQueryService 以便测试
 /// </summary>
-public interface IChatCompletionClient
-{
+public interface IChatCompletionClient {
     /// <summary>
     /// 获取聊天完成结果
     /// </summary>

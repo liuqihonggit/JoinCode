@@ -4,16 +4,14 @@ namespace McpClient.Mcpb;
 /// MCPB 参数验证中间件 — 检查源路径有效性，URL 源时下载到临时文件
 /// </summary>
 [Register(typeof(IMcpbMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddleware
-{
+public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddleware {
 
     /// <summary>
     /// 初始化 MCPB 参数验证中间件
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public McpbValidationMiddleware(IFileSystem fs, ILogger<McpbValidationMiddleware>? logger = null)
-    {
+    public McpbValidationMiddleware(IFileSystem fs, ILogger<McpbValidationMiddleware>? logger = null) {
         _fs = fs;
         _logger = logger;
     }
@@ -28,24 +26,19 @@ public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddl
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(context.Source))
-        {
+    public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct) {
+        if (string.IsNullOrWhiteSpace(context.Source)) {
             context.Fail("MCPB 源路径不能为空");
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(context.ExtractBasePath))
-        {
+        if (string.IsNullOrWhiteSpace(context.ExtractBasePath)) {
             context.Fail("解压目标路径不能为空");
             return;
         }
 
-        if (context.IsUrlSource)
-        {
-            if (context.HttpClient == null)
-            {
+        if (context.IsUrlSource) {
+            if (context.HttpClient == null) {
                 context.Fail("URL 源需要 HttpClient");
                 return;
             }
@@ -55,8 +48,7 @@ public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddl
             var tempPath = Path.Combine(Path.GetTempPath(), $"mcpb-{Guid.NewGuid():N}.mcpb");
             context.TempFilePath = tempPath;
 
-            try
-            {
+            try {
                 using var response = await context.HttpClient.GetAsync(context.Source, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
 
@@ -65,17 +57,12 @@ public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddl
                 await stream.CopyToAsync(fileStream, ct).ConfigureAwait(false);
 
                 context.LocalFilePath = tempPath;
-            }
-            catch
-            {
+            } catch {
                 CleanupTempFile(context);
                 throw;
             }
-        }
-        else
-        {
-            if (!_fs.FileExists(context.Source))
-            {
+        } else {
+            if (!_fs.FileExists(context.Source)) {
                 context.Fail($"MCPB 文件不存在: {context.Source}");
                 return;
             }
@@ -83,20 +70,15 @@ public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddl
             context.LocalFilePath = context.Source;
         }
 
-        try
-        {
+        try {
             await next(context, ct).ConfigureAwait(false);
-        }
-        finally
-        {
+        } finally {
             CleanupTempFile(context);
         }
     }
 
-    private void CleanupTempFile(McpbLoadContext context)
-    {
-        if (context.TempFilePath != null && _fs.FileExists(context.TempFilePath))
-        {
+    private void CleanupTempFile(McpbLoadContext context) {
+        if (context.TempFilePath != null && _fs.FileExists(context.TempFilePath)) {
             try { _fs.DeleteFile(context.TempFilePath); } catch (Exception ex) { _logger?.LogDebug(ex, "MCPB 下载后清理临时文件失败: {Path}", context.TempFilePath); }
         }
     }

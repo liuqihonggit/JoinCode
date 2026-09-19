@@ -5,22 +5,19 @@ namespace JoinCode.Dream.Services;
 /// 聊天完成客户端实现 - 包装 IQueryService
 /// </summary>
 [Register(typeof(IChatCompletionClient), ServiceLifetime.Singleton)]
-public sealed partial class ChatCompletionClient : ServiceEntity, IChatCompletionClient
-{
+public sealed partial class ChatCompletionClient : ServiceEntity, IChatCompletionClient {
     private readonly IChatClient _kernel;
 
     /// <summary>
     /// 构造聊天完成客户端
     /// </summary>
     /// <param name="kernel">聊天客户端内核</param>
-    public ChatCompletionClient(IChatClient kernel)
-    {
+    public ChatCompletionClient(IChatClient kernel) {
         _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
     }
 
     /// <inheritdoc />
-    public async Task<string> GetCompletionAsync(MessageList chatHistory, CancellationToken cancellationToken = default)
-    {
+    public async Task<string> GetCompletionAsync(MessageList chatHistory, CancellationToken cancellationToken = default) {
         var chatCompletion = _kernel.GetChatCompletionService();
         var results = await chatCompletion.GetApiMessageContentsAsync(
             chatHistory,

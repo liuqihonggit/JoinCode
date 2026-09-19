@@ -10,8 +10,7 @@ namespace JoinCode.Transport.Bridge;
 ///   Drop()  → 丢弃排队消息（永久传输关闭）
 ///   Deactivate() → 清除活跃标志但不丢弃消息（传输替换）
 /// </summary>
-public sealed class BridgeFlushGate<T>
-{
+public sealed class BridgeFlushGate<T> {
     private bool _active;
     private readonly List<T> _pending = [];
 
@@ -25,8 +24,7 @@ public sealed class BridgeFlushGate<T>
     /// 标记刷新进行中 — 对齐 TS 端 start()
     /// 调用后 enqueue() 将开始排队消息
     /// </summary>
-    public void Start()
-    {
+    public void Start() {
         _active = true;
     }
 
@@ -34,8 +32,7 @@ public sealed class BridgeFlushGate<T>
     /// 结束刷新并返回排队的消息 — 对齐 TS 端 end()
     /// 调用方负责发送返回的消息
     /// </summary>
-    public T[] End()
-    {
+    public T[] End() {
         _active = false;
         var items = _pending.ToArray();
         _pending.Clear();
@@ -46,11 +43,9 @@ public sealed class BridgeFlushGate<T>
     /// 如果刷新活跃，排队消息并返回 true — 对齐 TS 端 enqueue()
     /// 如果刷新不活跃，返回 false（调用方应直接发送）
     /// </summary>
-    public bool Enqueue(params ReadOnlySpan<T> items)
-    {
+    public bool Enqueue(params ReadOnlySpan<T> items) {
         if (!_active) return false;
-        foreach (var item in items)
-        {
+        foreach (var item in items) {
             _pending.Add(item);
         }
         return true;
@@ -61,8 +56,7 @@ public sealed class BridgeFlushGate<T>
     /// 用于永久传输关闭场景
     /// </summary>
     /// <returns>丢弃的消息数量</returns>
-    public int Drop()
-    {
+    public int Drop() {
         _active = false;
         var count = _pending.Count;
         _pending.Clear();
@@ -73,8 +67,7 @@ public sealed class BridgeFlushGate<T>
     /// 清除活跃标志但不丢弃排队消息 — 对齐 TS 端 deactivate()
     /// 用于传输替换场景（新传输的 flush 将排空待处理消息）
     /// </summary>
-    public void Deactivate()
-    {
+    public void Deactivate() {
         _active = false;
     }
 }

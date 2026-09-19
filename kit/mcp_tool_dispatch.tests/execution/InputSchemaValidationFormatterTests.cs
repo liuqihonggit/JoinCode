@@ -1,17 +1,14 @@
 namespace McpToolRegistry.Tests;
 
-public class InputSchemaValidationFormatterTests
-{
+public class InputSchemaValidationFormatterTests {
     [Fact]
-    public void FormatErrors_EmptyErrors_ReturnsEmpty()
-    {
+    public void FormatErrors_EmptyErrors_ReturnsEmpty() {
         var result = InputSchemaValidationFormatter.FormatErrors("Tool", []);
         result.Should().BeEmpty();
     }
 
     [Fact]
-    public void FormatErrors_SingleError_UsesSingularIssue()
-    {
+    public void FormatErrors_SingleError_UsesSingularIssue() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$.param", Message = "some error" }
@@ -24,8 +21,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_MultipleErrors_UsesPluralIssues()
-    {
+    public void FormatErrors_MultipleErrors_UsesPluralIssues() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$.a", Message = "error1" },
@@ -38,8 +34,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_MissingRequired_FormatsAsMissingParam()
-    {
+    public void FormatErrors_MissingRequired_FormatsAsMissingParam() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$.command", Message = "Required property 'command' is missing" }
@@ -51,8 +46,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_MissingRequired_ExtractsParamFromPath()
-    {
+    public void FormatErrors_MissingRequired_ExtractsParamFromPath() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$.filePath", Message = "is missing and required" }
@@ -63,8 +57,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_UnexpectedKey_FormatsAsUnexpectedParam()
-    {
+    public void FormatErrors_UnexpectedKey_FormatsAsUnexpectedParam() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$", Message = "Unexpected property 'foo' found" }
@@ -76,8 +69,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_UnrecognizedKey_FormatsAsUnexpectedParam()
-    {
+    public void FormatErrors_UnrecognizedKey_FormatsAsUnexpectedParam() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$", Message = "Unrecognized property 'bar'" }
@@ -89,8 +81,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_AdditionalProperty_FormatsAsUnexpectedParam()
-    {
+    public void FormatErrors_AdditionalProperty_FormatsAsUnexpectedParam() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$", Message = "Additional property 'extra' not allowed" }
@@ -102,8 +93,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_TypeMismatch_FormatsAsTypeMismatch()
-    {
+    public void FormatErrors_TypeMismatch_FormatsAsTypeMismatch() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$.count", Message = "Expected type integer but got string" }
@@ -116,8 +106,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_PathWithDollarPrefix_CleansPath()
-    {
+    public void FormatErrors_PathWithDollarPrefix_CleansPath() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$.nested.field", Message = "some generic error" }
@@ -128,8 +117,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_PathIsDollarOnly_UsesMessageDirectly()
-    {
+    public void FormatErrors_PathIsDollarOnly_UsesMessageDirectly() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$", Message = "generic root error" }
@@ -140,8 +128,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_EmptyPath_UsesMessageDirectly()
-    {
+    public void FormatErrors_EmptyPath_UsesMessageDirectly() {
         var errors = new List<ValidationError>
         {
             new() { Path = "", Message = "plain error message" }
@@ -152,8 +139,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_MissingWithNoPath_ExtractsFromMessage()
-    {
+    public void FormatErrors_MissingWithNoPath_ExtractsFromMessage() {
         var errors = new List<ValidationError>
         {
             new() { Path = "", Message = "Required property 'timeout' is missing" }
@@ -164,8 +150,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_MissingWithNestedPath_ExtractsTopLevelParam()
-    {
+    public void FormatErrors_MissingWithNestedPath_ExtractsTopLevelParam() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$.config.depth", Message = "required property missing" }
@@ -176,8 +161,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_TypeMismatchWithExpectedButGot_ExtractsTypes()
-    {
+    public void FormatErrors_TypeMismatchWithExpectedButGot_ExtractsTypes() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$.size", Message = "type mismatch - expected number but got string" }
@@ -190,8 +174,7 @@ public class InputSchemaValidationFormatterTests
     }
 
     [Fact]
-    public void FormatErrors_UnexpectedKeyNoQuotes_FallsBackToGenericFormat()
-    {
+    public void FormatErrors_UnexpectedKeyNoQuotes_FallsBackToGenericFormat() {
         var errors = new List<ValidationError>
         {
             new() { Path = "$", Message = "Unexpected property found without quotes" }

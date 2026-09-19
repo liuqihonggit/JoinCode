@@ -15,17 +15,14 @@ namespace MockServer.Core.Tests;
 /// - Turn 2: 部分命中 (Turn 1 部分已缓存)
 /// - Turn 3: 部分命中 (Turn 1+2 部分已缓存, 命中比例更大)
 /// </summary>
-public sealed class MultiTurnCacheHitTests
-{
+public sealed class MultiTurnCacheHitTests {
     /// <summary>
     /// 构造真实多轮对话请求 (system 不变, messages 增长)
     /// </summary>
-    private static JsonElement MakeMultiTurnRequest(int turn)
-    {
+    private static JsonElement MakeMultiTurnRequest(int turn) {
         var messages = new StringBuilder();
         messages.Append("""{"system":"You are a helpful assistant.","messages":[""");
-        for (var i = 1; i <= turn; i++)
-        {
+        for (var i = 1; i <= turn; i++) {
             if (i > 1) messages.Append(',');
             messages.Append($$"""{"role":"user","content":"question{{i}} with enough content to make it meaningful"}""");
             messages.Append(',');
@@ -37,8 +34,7 @@ public sealed class MultiTurnCacheHitTests
     }
 
     [Fact]
-    public void MultiTurn_FirstTurn_AlwaysCacheMiss()
-    {
+    public void MultiTurn_FirstTurn_AlwaysCacheMiss() {
         var sim = new PrefixCacheSimulator(
             TokenEstimator.ExtractConversationPrefix,
             TokenEstimator.EstimateFromMessages);
@@ -51,8 +47,7 @@ public sealed class MultiTurnCacheHitTests
     }
 
     [Fact]
-    public void MultiTurn_SecondTurn_PartialCacheHit()
-    {
+    public void MultiTurn_SecondTurn_PartialCacheHit() {
         var sim = new PrefixCacheSimulator(
             TokenEstimator.ExtractConversationPrefix,
             TokenEstimator.EstimateFromMessages);
@@ -70,8 +65,7 @@ public sealed class MultiTurnCacheHitTests
     }
 
     [Fact]
-    public void MultiTurn_ThirdTurn_HitMoreThanSecondTurn()
-    {
+    public void MultiTurn_ThirdTurn_HitMoreThanSecondTurn() {
         var sim = new PrefixCacheSimulator(
             TokenEstimator.ExtractConversationPrefix,
             TokenEstimator.EstimateFromMessages);
@@ -91,8 +85,7 @@ public sealed class MultiTurnCacheHitTests
     }
 
     [Fact]
-    public void MultiTurn_SameTurnRepeated_FullCacheHit()
-    {
+    public void MultiTurn_SameTurnRepeated_FullCacheHit() {
         var sim = new PrefixCacheSimulator(
             TokenEstimator.ExtractConversationPrefix,
             TokenEstimator.EstimateFromMessages);
@@ -108,8 +101,7 @@ public sealed class MultiTurnCacheHitTests
     }
 
     [Fact]
-    public void MultiTurn_DifferentSystemPrompt_AlwaysCacheMiss()
-    {
+    public void MultiTurn_DifferentSystemPrompt_AlwaysCacheMiss() {
         var sim = new PrefixCacheSimulator(
             TokenEstimator.ExtractConversationPrefix,
             TokenEstimator.EstimateFromMessages);

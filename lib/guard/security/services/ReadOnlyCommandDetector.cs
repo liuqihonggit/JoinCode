@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 核心功能: 白名单标志验证 + 正则验证 + 变量扩展检测 + git 沙箱逃逸防护
 /// </summary>
 [Register(typeof(IReadOnlyCommandDetector), ServiceLifetime.Singleton)]
-public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCommandDetector
-{
+public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCommandDetector {
     /// <summary>
     /// 简单只读命令列表 — 对齐 TS READONLY_COMMANDS
     /// </summary>
@@ -112,8 +111,7 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     /// 判断字符是否为 Shell 元字符 — 位掩码 O(1) 查找，替代 FrozenSet&lt;char&gt;.Contains
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsShellMetacharacter(char c)
-    {
+    private static bool IsShellMetacharacter(char c) {
         if (c < 64) return BitMask.Contains64(ShellMetaLowMask, c);
         if (c < 128) return BitMask.Contains64(ShellMetaHighMask, c - 64);
         return false;
@@ -122,8 +120,7 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     /// <summary>
     /// 检查命令是否为只读命令 — 委托给 <see cref="CheckReadOnlyConstraints"/> 并判断结果是否为 Allow
     /// </summary>
-    public bool IsReadOnly(ShellCommand command)
-    {
+    public bool IsReadOnly(ShellCommand command) {
         var result = CheckReadOnlyConstraints(command.RawCommand);
         return result.Behavior == PermissionBehavior.Allow;
     }
@@ -131,45 +128,37 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     /// <summary>
     /// 检查原始命令字符串是否只读 — 对齐 TS checkReadOnlyConstraints
     /// </summary>
-    public ShellPermissionCheckResult CheckReadOnlyConstraints(string command, bool compoundCommandHasCd = false)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-        {
+    public ShellPermissionCheckResult CheckReadOnlyConstraints(string command, bool compoundCommandHasCd = false) {
+        if (string.IsNullOrWhiteSpace(command)) {
             return new ShellPermissionCheckResult(PermissionBehavior.Passthrough);
         }
 
         var trimmed = command.Trim();
 
         // 1. 去除尾部 2>&1 重定向
-        if (trimmed.EndsWith("2>&1", StringComparison.Ordinal))
-        {
+        if (trimmed.EndsWith("2>&1", StringComparison.Ordinal)) {
             trimmed = trimmed[..^4].TrimEnd();
         }
 
         // 2. 检查 Windows UNC 路径
-        if (trimmed.StartsWith(@"\\", StringComparison.Ordinal))
-        {
+        if (trimmed.StartsWith(@"\\", StringComparison.Ordinal)) {
             return new ShellPermissionCheckResult(PermissionBehavior.Ask, "UNC path detected");
         }
 
         // 3. 检查未引用的变量扩展
-        if (ContainsUnquotedExpansion(trimmed))
-        {
+        if (ContainsUnquotedExpansion(trimmed)) {
             return new ShellPermissionCheckResult(PermissionBehavior.Passthrough);
         }
 
         // 4. 白名单标志验证
-        if (IsCommandSafeViaFlagParsing(trimmed))
-        {
+        if (IsCommandSafeViaFlagParsing(trimmed)) {
             return new ShellPermissionCheckResult(PermissionBehavior.Allow);
         }
 
         // 5. 正则验证
-        if (MatchesReadOnlyRegex(trimmed))
-        {
+        if (MatchesReadOnlyRegex(trimmed)) {
             // 额外检查 git 命令的危险标志
-            if (ContainsGitDangerousFlags(trimmed))
-            {
+            if (ContainsGitDangerousFlags(trimmed)) {
                 return new ShellPermissionCheckResult(PermissionBehavior.Passthrough);
             }
 
@@ -182,17 +171,14 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     /// <summary>
     /// 白名单标志验证 — 对齐 TS isCommandSafeViaFlagParsing
     /// </summary>
-    private static bool IsCommandSafeViaFlagParsing(string command)
-    {
+    private static bool IsCommandSafeViaFlagParsing(string command) {
         var tokens = SplitCommandTokens(command);
-        if (tokens.Count == 0)
-        {
+        if (tokens.Count == 0) {
             return false;
         }
 
         // 存在操作符（管道/重定向等）→ 不安全
-        if (ContainsShellOperators(command))
-        {
+        if (ContainsShellOperators(command)) {
             return false;
         }
 
@@ -202,40 +188,34 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
         // 优化: 用 string.Concat 直拼替代 Take().ToArray() + Join, 避免数组分配(热路径每命令检测)
         if (!CommandAllowlist.TryGetValue(baseCommand, out var config)
             && !CommandAllowlist.TryGetValue(TwoTokenKey(tokens), out config)
-            && !CommandAllowlist.TryGetValue(ThreeTokenKey(tokens), out config))
-        {
+            && !CommandAllowlist.TryGetValue(ThreeTokenKey(tokens), out config)) {
             return false;
         }
 
         var args = tokens.Skip(1).ToList();
 
         // $ 变量扩展检测
-        if (args.Any(arg => arg.Contains('$')))
-        {
+        if (args.Any(arg => arg.Contains('$'))) {
             return false;
         }
 
         // 花括号扩展检测
-        if (args.Any(arg => arg.Contains('{') && (arg.Contains(',') || arg.Contains(".."))))
-        {
+        if (args.Any(arg => arg.Contains('{') && (arg.Contains(',') || arg.Contains("..")))) {
             return false;
         }
 
         // 验证标志合法性
-        if (!ValidateFlags(args, config.SafeFlags, config.RespectsDoubleDash))
-        {
+        if (!ValidateFlags(args, config.SafeFlags, config.RespectsDoubleDash)) {
             return false;
         }
 
         // 检查正则
-        if (config.Regex is not null && !config.Regex.IsMatch(command))
-        {
+        if (config.Regex is not null && !config.Regex.IsMatch(command)) {
             return false;
         }
 
         // 无正则时阻止反引号
-        if (config.Regex is null && command.Contains('`'))
-        {
+        if (config.Regex is null && command.Contains('`')) {
             return false;
         }
 
@@ -243,15 +223,13 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
         if (config.Regex is null
             && (baseCommand.Equals("grep", StringComparison.OrdinalIgnoreCase)
                 || baseCommand.Equals("rg", StringComparison.OrdinalIgnoreCase))
-            && command.Contains('\n'))
-        {
+            && command.Contains('\n')) {
             return false;
         }
 
         // 额外危险回调
         if (config.AdditionalDangerousCallback is not null
-            && config.AdditionalDangerousCallback(command, args))
-        {
+            && config.AdditionalDangerousCallback(command, args)) {
             return false;
         }
 
@@ -264,26 +242,21 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     private static bool ValidateFlags(
         IReadOnlyList<string> args,
         FrozenDictionary<string, FlagArgType> safeFlags,
-        bool respectsDoubleDash)
-    {
+        bool respectsDoubleDash) {
         var i = 0;
         var pastDelimiter = false;
 
-        while (i < args.Count)
-        {
+        while (i < args.Count) {
             var arg = args[i];
 
-            if (pastDelimiter)
-            {
+            if (pastDelimiter) {
                 // -- 之后全是位置参数，安全
                 i++;
                 continue;
             }
 
-            if (arg == "--")
-            {
-                if (!respectsDoubleDash)
-                {
+            if (arg == "--") {
+                if (!respectsDoubleDash) {
                     return false;
                 }
 
@@ -293,30 +266,24 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
             }
 
             // 非标志参数（位置参数），安全
-            if (!arg.StartsWith('-') || arg.Length == 1)
-            {
+            if (!arg.StartsWith('-') || arg.Length == 1) {
                 i++;
                 continue;
             }
 
             // 长选项 --flag
-            if (arg.StartsWith("--"))
-            {
+            if (arg.StartsWith("--")) {
                 // --flag=value 形式
                 var eqIdx = arg.IndexOf('=');
                 var flagName = eqIdx >= 0 ? arg[..eqIdx] : arg;
 
-                if (!safeFlags.TryGetValue(flagName, out var flagType))
-                {
+                if (!safeFlags.TryGetValue(flagName, out var flagType)) {
                     return false; // 未知标志
                 }
 
-                if (flagType == FlagArgType.Required && eqIdx < 0)
-                {
+                if (flagType == FlagArgType.Required && eqIdx < 0) {
                     i += 2; // 跳过标志和值
-                }
-                else
-                {
+                } else {
                     i++;
                 }
 
@@ -324,19 +291,15 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
             }
 
             // 短选项 -abc (融合选项)
-            for (var j = 1; j < arg.Length; j++)
-            {
+            for (var j = 1; j < arg.Length; j++) {
                 var shortFlag = $"-{arg[j]}";
-                if (!safeFlags.TryGetValue(shortFlag, out var flagType))
-                {
+                if (!safeFlags.TryGetValue(shortFlag, out var flagType)) {
                     return false; // 未知短选项
                 }
 
-                if (flagType == FlagArgType.Required)
-                {
+                if (flagType == FlagArgType.Required) {
                     // 参数可能是融合的（如 -n5）或下一个 token
-                    if (j + 1 < arg.Length)
-                    {
+                    if (j + 1 < arg.Length) {
                         break; // 融合参数，跳过剩余
                     }
 
@@ -354,17 +317,14 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     /// <summary>
     /// 正则验证 — 对齐 TS READONLY_COMMAND_REGEXES
     /// </summary>
-    private static bool MatchesReadOnlyRegex(string command)
-    {
+    private static bool MatchesReadOnlyRegex(string command) {
         // 简单命令: 命令名后无 shell 元字符
         var spaceIdx = command.IndexOf(' ');
         var cmdName = spaceIdx >= 0 ? command[..spaceIdx] : command;
 
-        if (SimpleReadOnlyCommands.Contains(cmdName))
-        {
+        if (SimpleReadOnlyCommands.Contains(cmdName)) {
             // 检查无 shell 元字符
-            if (!ContainsShellMetacharacters(command))
-            {
+            if (!ContainsShellMetacharacters(command)) {
                 return true;
             }
         }
@@ -387,43 +347,36 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     /// <summary>
     /// 检查未引用的变量扩展 — 对齐 TS containsUnquotedExpansion
     /// </summary>
-    private static bool ContainsUnquotedExpansion(string command)
-    {
+    private static bool ContainsUnquotedExpansion(string command) {
         var inSingleQuote = false;
         var inDoubleQuote = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
 
-            if (c == '\'' && !inDoubleQuote)
-            {
+            if (c == '\'' && !inDoubleQuote) {
                 inSingleQuote = !inSingleQuote;
                 continue;
             }
 
-            if (c == '"' && !inSingleQuote)
-            {
+            if (c == '"' && !inSingleQuote) {
                 inDoubleQuote = !inDoubleQuote;
                 continue;
             }
 
             // 单引号内一切为字面量
-            if (inSingleQuote)
-            {
+            if (inSingleQuote) {
                 continue;
             }
 
             // $ 变量扩展（双引号内也会扩展）
             if (c == '$' && i + 1 < command.Length
-                && (char.IsLetterOrDigit(command[i + 1]) || command[i + 1] == '_' || command[i + 1] == '{'))
-            {
+                && (char.IsLetterOrDigit(command[i + 1]) || command[i + 1] == '_' || command[i + 1] == '{')) {
                 return true;
             }
 
             // 双引号外检查 glob
-            if (!inDoubleQuote && (c is '?' or '*' || c == '['))
-            {
+            if (!inDoubleQuote && (c is '?' or '*' || c == '[')) {
                 return true;
             }
         }
@@ -434,18 +387,15 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     /// <summary>
     /// 检查 git 命令的危险标志 — 对齐 TS 中的额外检查
     /// </summary>
-    private static bool ContainsGitDangerousFlags(string command)
-    {
-        if (!command.StartsWith("git", StringComparison.OrdinalIgnoreCase))
-        {
+    private static bool ContainsGitDangerousFlags(string command) {
+        if (!command.StartsWith("git", StringComparison.OrdinalIgnoreCase)) {
             return false;
         }
 
         // -c 可执行 git 命令
         if (command.Contains(" -c ", StringComparison.Ordinal)
             || command.Contains(" --exec-path", StringComparison.Ordinal)
-            || command.Contains(" --config-env", StringComparison.Ordinal))
-        {
+            || command.Contains(" --config-env", StringComparison.Ordinal)) {
             return true;
         }
 
@@ -455,13 +405,11 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     /// <summary>
     /// 检查是否包含 shell 操作符
     /// </summary>
-    private static bool ContainsShellOperators(string command)
-    {
+    private static bool ContainsShellOperators(string command) {
         var inSingleQuote = false;
         var inDoubleQuote = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
 
             if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
@@ -478,13 +426,11 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     /// <summary>
     /// 检查是否包含 shell 元字符
     /// </summary>
-    private static bool ContainsShellMetacharacters(string command)
-    {
+    private static bool ContainsShellMetacharacters(string command) {
         var inSingleQuote = false;
         var inDoubleQuote = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
 
             if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
@@ -515,35 +461,29 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     /// <summary>
     /// 分割命令为 token
     /// </summary>
-    private static List<string> SplitCommandTokens(string command)
-    {
+    private static List<string> SplitCommandTokens(string command) {
         var parts = new List<string>();
         var current = new StringBuilder();
         var inQuotes = false;
         var quoteChar = '\0';
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
 
-            if ((c == '"' || c == '\'') && !inQuotes)
-            {
+            if ((c == '"' || c == '\'') && !inQuotes) {
                 inQuotes = true;
                 quoteChar = c;
                 continue;
             }
 
-            if (c == quoteChar && inQuotes)
-            {
+            if (c == quoteChar && inQuotes) {
                 inQuotes = false;
                 quoteChar = '\0';
                 continue;
             }
 
-            if (char.IsWhiteSpace(c) && !inQuotes)
-            {
-                if (current.Length > 0)
-                {
+            if (char.IsWhiteSpace(c) && !inQuotes) {
+                if (current.Length > 0) {
                     parts.Add(current.ToString());
                     current.Clear();
                 }
@@ -554,8 +494,7 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
             current.Append(c);
         }
 
-        if (current.Length > 0)
-        {
+        if (current.Length > 0) {
             parts.Add(current.ToString());
         }
 

@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 禁止在代码中硬编码基础设施 URL 字符串，统一引用此常量或 <see cref="JccEndpointsResolver"/>
 /// > ADR: 0063
 /// </summary>
-public static class JccEndpoints
-{
+public static class JccEndpoints {
     // ── GitHub API（更新/Release Notes）──
 
     /// <summary>

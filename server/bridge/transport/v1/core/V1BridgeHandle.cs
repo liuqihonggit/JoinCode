@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// v1 env-based 桥句柄实现 — 对齐 TS 端 BridgeCoreHandle
 /// </summary>
-internal sealed class V1BridgeHandle : IReplBridgeHandle
-{
+internal sealed class V1BridgeHandle : IReplBridgeHandle {
     private readonly BridgeCoreContext _coreContext;
     private readonly BridgeTransportContext _transportContext;
     private readonly BridgeInitState _state;
@@ -51,8 +50,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         BridgeTransportContext transportContext,
         BridgeInitState state,
         IFileSystem fs,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         SessionId = session.SessionId;
         EnvironmentId = session.EnvironmentId;
         SessionIngressUrl = session.SessionIngressUrl;
@@ -64,60 +62,47 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         _reconnectState = new V1ReconnectState(session.EnvironmentId, string.Empty, session.SessionId);
 
         // 对齐 TS 端: keepAliveTimer — 每 120s 发送 keep_alive 帧防止代理 GC
-        _keepAliveTimer = new Timer(_ =>
-        {
-            try
-            {
+        _keepAliveTimer = new Timer(_ => {
+            try {
                 var transport = _coreContext.PollLoop.CurrentTransport;
-                if (transport is not null && !_state.TornDown)
-                {
+                if (transport is not null && !_state.TornDown) {
                     var keepAliveJson = $"{{\"type\":\"keep_alive\",\"session_id\":\"{SessionId}\"}}";
                     _ = transport.WriteAsync(keepAliveJson, _disposeCts.Token);
                 }
-            }
-            catch (Exception ex) { _logger?.LogWarning(ex, "[V1BridgeHandle] Keep-alive 失败"); }
+            } catch (Exception ex) { _logger?.LogWarning(ex, "[V1BridgeHandle] Keep-alive 失败"); }
         }, null, TimeSpan.FromSeconds(120), TimeSpan.FromSeconds(120));
 
         // 对齐 TS 端: pointerRefreshTimer — perpetual 模式下每小时刷新指针 mtime
-        if (_coreContext.Parameters.Perpetual)
-        {
-            _pointerRefreshTimer = new Timer(async _ =>
-            {
-                try
-                {
+        if (_coreContext.Parameters.Perpetual) {
+            _pointerRefreshTimer = new Timer(async _ => {
+                try {
                     // 对齐 TS 端: if (reconnectPromise) return
                     // doReconnect 非原子重赋值 sessionId/environmentId，定时器在此窗口写入会覆盖
                     // doReconnect 自身会写指针，跳过是安全的
                     if (_reconnectTask is not null) return;
 
                     var pointerService = new BridgePointerService(_fs, _logger);
-                    await pointerService.WriteAsync(_coreContext.Parameters.Dir, new BridgePointer
-                    {
+                    await pointerService.WriteAsync(_coreContext.Parameters.Dir, new BridgePointer {
                         SessionId = SessionId,
                         EnvironmentId = EnvironmentId,
                         Source = BridgePointerSource.Repl.ToValue(),
                     }, _disposeCts.Token).ConfigureAwait(false);
-                }
-                catch (Exception ex) { _logger?.LogWarning(ex, "[V1BridgeHandle] 指针刷新失败"); }
+                } catch (Exception ex) { _logger?.LogWarning(ex, "[V1BridgeHandle] 指针刷新失败"); }
             }, null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
         }
     }
 
     /// <summary>写入消息 — 对齐 TS 端 writeMessages: FlushGate + dedup + titleDerivation + toSDKMessages</summary>
-    public void WriteMessages(string[] messages)
-    {
+    public void WriteMessages(string[] messages) {
         if (_state.TornDown || messages.Length == 0) return;
 
         // 对齐 TS 端: 标题派生闩锁检查 — 在 flushGate 之前扫描
         // prompts 即使排队等待初始刷新也是标题候选
-        if (!_state.UserMessageCallbackDone && _coreContext.Parameters.OnUserMessage is not null)
-        {
+        if (!_state.UserMessageCallbackDone && _coreContext.Parameters.OnUserMessage is not null) {
             var onUserMessage = _coreContext.Parameters.OnUserMessage;
-            foreach (var msg in messages)
-            {
+            foreach (var msg in messages) {
                 var text = BridgeMessaging.ExtractTitleText(msg);
-                if (text is not null && onUserMessage(text, SessionId))
-                {
+                if (text is not null && onUserMessage(text, SessionId)) {
                     _state.UserMessageCallbackDone = true;
                     break;
                 }
@@ -125,8 +110,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         }
 
         // 对齐 TS 端: flushGate.enqueue() — 刷新期间排队消息
-        if (_state.FlushGate.Enqueue(messages))
-        {
+        if (_state.FlushGate.Enqueue(messages)) {
             return;
         }
 
@@ -139,28 +123,21 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         if (filtered.Count == 0) return;
 
         // 对齐 TS 端: toSDKMessages + writeBatch + session_id 注入
-        if (_coreContext.Parameters.ToSDKMessages is not null)
-        {
+        if (_coreContext.Parameters.ToSDKMessages is not null) {
             var events = new List<string>(filtered.Count * 2);
-            foreach (var msg in filtered)
-            {
+            foreach (var msg in filtered) {
                 var sdkMsgs = _coreContext.Parameters.ToSDKMessages(msg);
-                foreach (var sdkMsg in sdkMsgs)
-                {
+                foreach (var sdkMsg in sdkMsgs) {
                     events.Add(BridgeMessaging.InjectSessionId(sdkMsg, SessionId));
                 }
             }
 
-            if (events.Count > 0)
-            {
+            if (events.Count > 0) {
                 _ = transport.WriteBatchAsync(events, _disposeCts.Token);
             }
-        }
-        else
-        {
+        } else {
             var events = new string[filtered.Count];
-            for (var i = 0; i < filtered.Count; i++)
-            {
+            for (var i = 0; i < filtered.Count; i++) {
                 events[i] = BridgeMessaging.InjectSessionId(filtered[i], SessionId);
             }
             _ = transport.WriteBatchAsync(events, _disposeCts.Token);
@@ -172,18 +149,14 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
     /// 过滤掉已在 initialMessageUUIDs 或 recentPostedUUIDs 中的消息
     /// 发送后将新 UUID 添加到 recentPostedUUIDs
     /// </summary>
-    private List<string> FilterMessagesByUUID(string[] messages)
-    {
+    private List<string> FilterMessagesByUUID(string[] messages) {
         var result = new List<string>(messages.Length);
-        foreach (var msg in messages)
-        {
+        foreach (var msg in messages) {
             var uuid = BridgeMessaging.ExtractUuid(msg);
-            if (uuid is not null)
-            {
+            if (uuid is not null) {
                 // 对齐 TS 端: !initialMessageUUIDs.has(m.uuid) && !recentPostedUUIDs.has(m.uuid)
                 if (_state.InitialMessageUUIDs?.Contains(uuid) == true ||
-                    _state.RecentPostedUUIDs.Contains(uuid))
-                {
+                    _state.RecentPostedUUIDs.Contains(uuid)) {
                     continue;
                 }
             }
@@ -191,8 +164,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
             result.Add(msg);
 
             // 发送后添加到 recentPostedUUIDs — 对齐 TS 端: recentPostedUUIDs.add(m.uuid)
-            if (uuid is not null)
-            {
+            if (uuid is not null) {
                 _state.RecentPostedUUIDs.Add(uuid);
             }
         }
@@ -201,8 +173,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>写入 SDK 消息 — 对齐 TS 端 writeSdkMessages</summary>
-    public void WriteSdkMessages(string[] messages)
-    {
+    public void WriteSdkMessages(string[] messages) {
         if (_state.TornDown || messages.Length == 0) return;
 
         var transport = _coreContext.PollLoop.CurrentTransport;
@@ -213,8 +184,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
 
     /// <summary>发送控制请求 — 对齐 TS 端 sendControlRequest，鉴权恢复期间跳过</summary>
     /// <param name="requestJson">请求 JSON 字符串</param>
-    public void SendControlRequest(string requestJson)
-    {
+    public void SendControlRequest(string requestJson) {
         var transport = _coreContext.PollLoop.CurrentTransport;
         if (transport is null || _state.TornDown) return;
         if (_state.AuthRecoveryInFlight) return;
@@ -224,8 +194,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
 
     /// <summary>发送控制响应 — 对齐 TS 端 sendControlResponse，鉴权恢复期间跳过</summary>
     /// <param name="responseJson">响应 JSON 字符串</param>
-    public void SendControlResponse(string responseJson)
-    {
+    public void SendControlResponse(string responseJson) {
         var transport = _coreContext.PollLoop.CurrentTransport;
         if (transport is null || _state.TornDown) return;
         if (_state.AuthRecoveryInFlight) return;
@@ -235,8 +204,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
 
     /// <summary>发送取消控制请求 — 对齐 TS 端 sendControlCancelRequest，鉴权恢复期间跳过</summary>
     /// <param name="requestId">待取消的请求标识</param>
-    public void SendControlCancelRequest(string requestId)
-    {
+    public void SendControlCancelRequest(string requestId) {
         var transport = _coreContext.PollLoop.CurrentTransport;
         if (transport is null || _state.TornDown) return;
         if (_state.AuthRecoveryInFlight) return;
@@ -246,8 +214,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>发送结果消息 — 对齐 TS 端 sendResult，通知服务器工作已完成</summary>
-    public void SendResult()
-    {
+    public void SendResult() {
         var transport = _coreContext.PollLoop.CurrentTransport;
         if (transport is null || _state.TornDown) return;
 
@@ -256,28 +223,22 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>环境重连 — 对齐 TS 端 reconnectEnvironmentWithSession</summary>
-    public async Task<bool> ReconnectAsync(CancellationToken ct = default)
-    {
+    public async Task<bool> ReconnectAsync(CancellationToken ct = default) {
         // 对齐 TS 端: if (reconnectPromise) return reconnectPromise
-        if (_reconnectTask is not null)
-        {
+        if (_reconnectTask is not null) {
             return await _reconnectTask.ConfigureAwait(false);
         }
 
         _reconnectTask = DoReconnectAsync(ct);
-        try
-        {
+        try {
             return await _reconnectTask.ConfigureAwait(false);
-        }
-        finally
-        {
+        } finally {
             _reconnectTask = null;
         }
     }
 
     /// <summary>执行重连 — 对齐 TS 端 doReconnect</summary>
-    private async Task<bool> DoReconnectAsync(CancellationToken ct)
-    {
+    private async Task<bool> DoReconnectAsync(CancellationToken ct) {
         var result = await BridgeRemoteCore.ReconnectEnvironmentWithSessionAsync(
             _reconnectState.SessionId,
             _reconnectState.EnvironmentId,
@@ -291,8 +252,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
             _logger,
             ct).ConfigureAwait(false);
 
-        if (result)
-        {
+        if (result) {
             _state.EnvironmentRecreations = 0;
         }
 
@@ -304,11 +264,9 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
     /// Perpetual 模式仅本地清理保留服务器状态；非 Perpetual 模式执行完整拆卸
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    public async Task TeardownAsync(CancellationToken ct = default)
-    {
+    public async Task TeardownAsync(CancellationToken ct = default) {
         // 对齐 TS 端: teardownStarted 防重入
-        if (_state.TeardownStarted)
-        {
+        if (_state.TeardownStarted) {
             _logger?.LogDebug("Bridge v1: Teardown already in progress, skipping duplicate call");
             return;
         }
@@ -329,23 +287,18 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         // 不发送 result、不调用 stopWork、不归档会话、不关闭传输
         // 后端会自动将工作项租约超时回退为 pending（TTL 300s）
         // 下次 daemon 启动读取指针并 reconnectSession 重新排队工作
-        if (_coreContext.Parameters.Perpetual)
-        {
+        if (_coreContext.Parameters.Perpetual) {
             _state.FlushGate.Drop();
 
             // 刷新指针 mtime — 对齐 TS 端: 防止超过 BRIDGE_POINTER_TTL_MS (4h) 后变陈旧
-            try
-            {
+            try {
                 var pointerService = new BridgePointerService(_fs, _logger);
-                await pointerService.WriteAsync(_coreContext.Parameters.Dir, new BridgePointer
-                {
+                await pointerService.WriteAsync(_coreContext.Parameters.Dir, new BridgePointer {
                     SessionId = SessionId,
                     EnvironmentId = EnvironmentId,
                     Source = BridgePointerSource.Repl.ToValue(),
                 }, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "Bridge v1: Perpetual 模式刷新指针失败");
             }
 
@@ -363,46 +316,34 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         _coreContext.Parameters.OnStateChange?.Invoke(BridgeState.Closing, null);
 
         // 对齐 TS 端: 先发 result 消息再 archive+close
-        try
-        {
+        try {
             var transport = _coreContext.PollLoop.CurrentTransport;
-            if (transport is not null)
-            {
+            if (transport is not null) {
                 _ = transport.WriteAsync(BridgeMessaging.MakeResultMessage(SessionId), _disposeCts.Token);
             }
-        }
-        catch (Exception ex) { /* best-effort */ _logger?.LogWarning(ex, "[V1BridgeHandle] 发送结果消息失败"); }
+        } catch (Exception ex) { /* best-effort */ _logger?.LogWarning(ex, "[V1BridgeHandle] 发送结果消息失败"); }
 
         // 对齐 TS 端: stopWork + archiveSession 并行执行
         var stopWorkTask = _coreContext.PollLoop.StopAsync(ct);
         var archiveTask = _coreContext.Parameters.ArchiveSession(SessionId, ct);
-        try
-        {
+        try {
             await Task.WhenAll(stopWorkTask, archiveTask).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Bridge v1: stopWork/archiveSession 失败（非致命）");
         }
 
         // 对齐 TS 端: deregisterEnvironment
-        try
-        {
+        try {
             await _transportContext.ApiClient.DeregisterEnvironmentAsync(EnvironmentId, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Bridge v1: 注销环境失败（非致命）");
         }
 
         // 清除崩溃恢复指针 — 对齐 TS 端: clearBridgePointer(dir)
-        try
-        {
+        try {
             var pointerService = new BridgePointerService(_fs, _logger);
             await pointerService.ClearAsync(_coreContext.Parameters.Dir, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Bridge v1: 清除崩溃恢复指针失败");
         }
 
@@ -415,11 +356,9 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
     /// 刷新传输缓冲区 — 对齐 TS 端 flush
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    public async Task FlushAsync(CancellationToken ct = default)
-    {
+    public async Task FlushAsync(CancellationToken ct = default) {
         var transport = _coreContext.PollLoop.CurrentTransport;
-        if (transport is not null)
-        {
+        if (transport is not null) {
             await transport.FlushAsync(ct).ConfigureAwait(false);
         }
     }
@@ -428,8 +367,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
     /// 获取当前 SSE 序列号高水位 — 对齐 TS 端 BridgeCoreHandle.getSSESequenceNum()
     /// 合并已关闭传输的检查点和当前活跃传输的实时值
     /// </summary>
-    public int GetSSESequenceNum()
-    {
+    public int GetSSESequenceNum() {
         var live = _coreContext.PollLoop.CurrentTransport?.GetLastSequenceNum() ?? 0;
         return Math.Max(_state.LastTransportSequenceNum, live);
     }

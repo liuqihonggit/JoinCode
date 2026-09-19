@@ -4,16 +4,14 @@ namespace Tools.Handlers;
 /// 桌面情景模式 zoom 工具处理器 — 选象限缩小，看不清继续 zoom，看清推荐 detect
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
-public sealed class DesktopSceneZoomToolHandlers
-{
+public sealed class DesktopSceneZoomToolHandlers {
     private readonly IDesktopSceneZoomService _zoomService;
 
     /// <summary>
     /// 初始化 zoom 工具处理器
     /// </summary>
     /// <param name="zoomService">桌面场景缩放服务</param>
-    public DesktopSceneZoomToolHandlers(IDesktopSceneZoomService zoomService)
-    {
+    public DesktopSceneZoomToolHandlers(IDesktopSceneZoomService zoomService) {
         _zoomService = zoomService ?? throw new ArgumentNullException(nameof(zoomService));
     }
 
@@ -30,8 +28,7 @@ public sealed class DesktopSceneZoomToolHandlers
         [McpToolParameter("场景 ID", Required = true)] string sceneId,
         [McpToolParameter("象限编号: 1=左上 2=右上 3=左下 4=右下", Required = true)] int quadrant,
         [McpToolParameter("是否退回上一层（纠偏用），默认 false", Required = false)] bool back = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var zoom = await _zoomService.ZoomAsync(sceneId, quadrant, back, cancellationToken).ConfigureAwait(false);
 
         var nextTool = zoom.IsClearEnough ? "desktop_detect" : "desktop_zoom";

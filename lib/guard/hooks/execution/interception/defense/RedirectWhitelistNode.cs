@@ -27,8 +27,7 @@ public sealed record RedirectWhitelistResult(
 /// </para>
 /// </summary>
 [Register(typeof(RedirectWhitelistNode), ServiceLifetime.Singleton)]
-public sealed partial class RedirectWhitelistNode
-{
+public sealed partial class RedirectWhitelistNode {
     private static readonly FrozenSet<string> SafeDeviceTargets = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
         "/dev/null", "/dev/stderr", "/dev/stdout");
@@ -50,8 +49,7 @@ public sealed partial class RedirectWhitelistNode
     /// <param name="command">待检测命令</param>
     /// <param name="workingDirectory">工作目录路径</param>
     /// <returns>白名单检测结果</returns>
-    public RedirectWhitelistResult CheckWhitelist(string command, string workingDirectory)
-    {
+    public RedirectWhitelistResult CheckWhitelist(string command, string workingDirectory) {
         var targets = ExtractRedirectTargets(command);
         return targets
             .Select(t => EvaluateTarget(t, workingDirectory))
@@ -71,8 +69,7 @@ public sealed partial class RedirectWhitelistNode
     /// <summary>
     /// 评估单个重定向目标是否在白名单内。
     /// </summary>
-    private static RedirectWhitelistResult EvaluateTarget(string target, string workingDirectory)
-    {
+    private static RedirectWhitelistResult EvaluateTarget(string target, string workingDirectory) {
         if (IsSafeDeviceTarget(target))
             return new RedirectWhitelistResult(true, null, null);
 
@@ -91,15 +88,11 @@ public sealed partial class RedirectWhitelistNode
     /// <summary>
     /// 规范化重定向目标 — 波浪号展开 + Path.GetFullPath（约束第8条）。
     /// </summary>
-    private static string NormalizeRedirectTarget(string target, string workingDirectory)
-    {
+    private static string NormalizeRedirectTarget(string target, string workingDirectory) {
         var expanded = ExpandTilde(target);
-        try
-        {
+        try {
             return Path.GetFullPath(expanded, workingDirectory);
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return expanded;
         }
     }
@@ -107,8 +100,7 @@ public sealed partial class RedirectWhitelistNode
     /// <summary>
     /// 波浪号展开 — ~ 替换为用户主目录。
     /// </summary>
-    private static string ExpandTilde(string path)
-    {
+    private static string ExpandTilde(string path) {
         if (!path.StartsWith('~'))
             return path;
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -120,15 +112,11 @@ public sealed partial class RedirectWhitelistNode
     /// <summary>
     /// 判断规范化路径是否在工作区内。
     /// </summary>
-    private static bool IsWithinWorkspace(string normalizedPath, string workingDirectory)
-    {
-        try
-        {
+    private static bool IsWithinWorkspace(string normalizedPath, string workingDirectory) {
+        try {
             var normalizedWorkDir = Path.GetFullPath(workingDirectory);
             return normalizedPath.StartsWith(normalizedWorkDir, StringComparison.OrdinalIgnoreCase);
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return false;
         }
     }

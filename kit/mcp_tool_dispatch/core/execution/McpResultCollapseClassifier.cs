@@ -5,8 +5,7 @@ namespace McpToolDispatch;
 /// <summary>
 /// 折叠分类类型
 /// </summary>
-public enum CollapseCategory
-{
+public enum CollapseCategory {
     /// <summary>
     /// 不折叠
     /// </summary>
@@ -71,8 +70,7 @@ public sealed record CollapseClassification(
 /// <summary>
 /// MCP 结果折叠分类器 - 根据内容类型和长度决定是否需要折叠显示
 /// </summary>
-public static class McpResultCollapseClassifier
-{
+public static class McpResultCollapseClassifier {
     private const int ShortTextThreshold = WorkflowConstants.Collapse.ShortTextThreshold;
     private const int LongTextThreshold = WorkflowConstants.Collapse.LongTextThreshold;
     private const int ListItemThreshold = WorkflowConstants.Collapse.ListItemThreshold;
@@ -93,15 +91,12 @@ public static class McpResultCollapseClassifier
     /// <summary>
     /// 对 MCP 工具调用结果进行分类
     /// </summary>
-    public static CollapseClassification Classify(ToolResult result)
-    {
-        if (result == null)
-        {
+    public static CollapseClassification Classify(ToolResult result) {
+        if (result == null) {
             return new CollapseClassification(CollapseCategory.None, false, 0);
         }
 
-        if (result.IsError)
-        {
+        if (result.IsError) {
             return ClassifyError(result);
         }
 
@@ -115,16 +110,13 @@ public static class McpResultCollapseClassifier
     /// <summary>
     /// 对文本内容进行分类
     /// </summary>
-    public static CollapseClassification ClassifyText(string? text)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
+    public static CollapseClassification ClassifyText(string? text) {
+        if (string.IsNullOrEmpty(text)) {
             return new CollapseClassification(CollapseCategory.None, false, 0);
         }
 
         var trimmedText = text.Trim();
-        if (string.IsNullOrEmpty(trimmedText))
-        {
+        if (string.IsNullOrEmpty(trimmedText)) {
             return new CollapseClassification(CollapseCategory.None, false, 0);
         }
 
@@ -132,8 +124,7 @@ public static class McpResultCollapseClassifier
         var lineCount = StringTruncator.CountLines(trimmedText.AsSpan());
 
         // 检查是否为 JSON 数据
-        if (IsJsonData(trimmedText))
-        {
+        if (IsJsonData(trimmedText)) {
             return new CollapseClassification(
                 CollapseCategory.JsonData,
                 length > ShortTextThreshold || lineCount > WorkflowConstants.Collapse.ListItemThreshold,
@@ -144,8 +135,7 @@ public static class McpResultCollapseClassifier
 
         // 检查是否为代码块
         var codeBlockMatch = CodeBlockPattern.Match(trimmedText);
-        if (codeBlockMatch.Success && codeBlockMatch.Length > length * 0.3)
-        {
+        if (codeBlockMatch.Success && codeBlockMatch.Length > length * 0.3) {
             var codeLines = StringTruncator.CountLines(codeBlockMatch.Value.AsSpan());
             return new CollapseClassification(
                 CollapseCategory.CodeBlock,
@@ -156,8 +146,7 @@ public static class McpResultCollapseClassifier
         }
 
         // 检查是否为表格数据
-        if (TablePattern.IsMatch(trimmedText))
-        {
+        if (TablePattern.IsMatch(trimmedText)) {
             var tableMatches = TablePattern.Matches(trimmedText);
             var tableRows = tableMatches.Count > 0
                 ? StringTruncator.CountLines(tableMatches[0].Value.AsSpan())
@@ -173,8 +162,7 @@ public static class McpResultCollapseClassifier
 
         // 检查是否为列表数据
         var listMatches = ListPattern.Matches(trimmedText);
-        if (listMatches.Count >= ListItemThreshold)
-        {
+        if (listMatches.Count >= ListItemThreshold) {
             return new CollapseClassification(
                 CollapseCategory.ListData,
                 listMatches.Count > ListItemThreshold || lineCount > LineCountThreshold,
@@ -184,16 +172,14 @@ public static class McpResultCollapseClassifier
         }
 
         // 根据长度分类文本
-        if (length <= ShortTextThreshold && lineCount <= 5)
-        {
+        if (length <= ShortTextThreshold && lineCount <= 5) {
             return new CollapseClassification(
                 CollapseCategory.ShortText,
                 false,
                 10);
         }
 
-        if (length > LongTextThreshold || lineCount > LineCountThreshold)
-        {
+        if (length > LongTextThreshold || lineCount > LineCountThreshold) {
             return new CollapseClassification(
                 CollapseCategory.LongText,
                 true,
@@ -211,13 +197,11 @@ public static class McpResultCollapseClassifier
     /// <summary>
     /// 对二进制数据进行分类
     /// </summary>
-    public static CollapseClassification ClassifyBinary(byte[] data, string? mimeType = null)
-    {
+    public static CollapseClassification ClassifyBinary(byte[] data, string? mimeType = null) {
         var size = data?.Length ?? 0;
         var sizeText = FormatBytes(size);
 
-        if (IsImageMimeType(mimeType))
-        {
+        if (IsImageMimeType(mimeType)) {
             return new CollapseClassification(
                 CollapseCategory.ImageData,
                 size > 1024 * 1024, // 大于 1MB 的图像折叠
@@ -238,15 +222,13 @@ public static class McpResultCollapseClassifier
     /// 批量分类多个结果
     /// </summary>
     public static Dictionary<string, CollapseClassification> ClassifyBatch(
-        Dictionary<string, ToolResult> results)
-    {
+        Dictionary<string, ToolResult> results) {
         return results.ToDictionary(
             kvp => kvp.Key,
             kvp => Classify(kvp.Value));
     }
 
-    private static CollapseClassification ClassifyError(ToolResult result)
-    {
+    private static CollapseClassification ClassifyError(ToolResult result) {
         var errorText = string.Join("", result.Content
             .Where(c => c.Type == ToolContentType.Text)
             .Select(c => c.Text ?? ""));
@@ -261,21 +243,16 @@ public static class McpResultCollapseClassifier
             GetPreviewText(errorText ?? "", WorkflowConstants.Limits.PreviewTextShortLength));
     }
 
-    private static bool IsJsonData(string text)
-    {
+    private static bool IsJsonData(string text) {
         text = text.Trim();
 
         if ((text.StartsWith('{') && text.EndsWith('}')) ||
-            (text.StartsWith('[') && text.EndsWith(']')))
-        {
-            try
-            {
+            (text.StartsWith('[') && text.EndsWith(']'))) {
+            try {
                 var bytes = System.Text.Encoding.UTF8.GetBytes(text);
                 var reader = new Utf8JsonReader(bytes);
                 return reader.Read();
-            }
-            catch
-            {
+            } catch {
                 return false;
             }
         }
@@ -283,16 +260,14 @@ public static class McpResultCollapseClassifier
         return false;
     }
 
-    private static bool IsImageMimeType(string? mimeType)
-    {
+    private static bool IsImageMimeType(string? mimeType) {
         if (string.IsNullOrEmpty(mimeType))
             return false;
 
         return mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string GetPreviewText(string text, int maxLength)
-    {
+    private static string GetPreviewText(string text, int maxLength) {
         if (string.IsNullOrEmpty(text))
             return "";
 
@@ -305,16 +280,12 @@ public static class McpResultCollapseClassifier
         var start = 0;
 
         // 手动遍历行，避免 Split 分配
-        for (var i = 0; i <= textSpan.Length && lineCount < 3; i++)
-        {
-            if (i == textSpan.Length || textSpan[i] == '\n')
-            {
+        for (var i = 0; i <= textSpan.Length && lineCount < 3; i++) {
+            if (i == textSpan.Length || textSpan[i] == '\n') {
                 var lineSpan = textSpan.Slice(start, i - start).Trim();
 
-                if (!lineSpan.IsEmpty)
-                {
-                    if (builder.Length > 0)
-                    {
+                if (!lineSpan.IsEmpty) {
+                    if (builder.Length > 0) {
                         builder.Append(' ');
                     }
                     builder.Append(lineSpan);
@@ -325,8 +296,7 @@ public static class McpResultCollapseClassifier
             }
         }
 
-        if (builder.Length > maxLength)
-        {
+        if (builder.Length > maxLength) {
             builder.Length = maxLength - 3;
             builder.Append("...");
         }
@@ -334,14 +304,12 @@ public static class McpResultCollapseClassifier
         return builder.ToString();
     }
 
-    private static string FormatBytes(long bytes)
-    {
+    private static string FormatBytes(long bytes) {
         const long KB = 1024;
         const long MB = KB * 1024;
         const long GB = MB * 1024;
 
-        return bytes switch
-        {
+        return bytes switch {
             >= GB => $"{bytes / (double)GB:F2} GB",
             >= MB => $"{bytes / (double)MB:F2} MB",
             >= KB => $"{bytes / (double)KB:F2} KB",
@@ -354,20 +322,16 @@ public static class McpResultCollapseClassifier
 /// <summary>
 /// 折叠分类器扩展方法
 /// </summary>
-public static class CollapseClassifierExtensions
-{
+public static class CollapseClassifierExtensions {
     /// <summary>
     /// 获取折叠建议
     /// </summary>
-    public static string GetCollapseRecommendation(this CollapseClassification classification)
-    {
-        if (!classification.ShouldCollapse)
-        {
+    public static string GetCollapseRecommendation(this CollapseClassification classification) {
+        if (!classification.ShouldCollapse) {
             return "无需折叠";
         }
 
-        return classification.Category switch
-        {
+        return classification.Category switch {
             CollapseCategory.LongText => "建议折叠长文本内容",
             CollapseCategory.CodeBlock => "建议折叠代码块",
             CollapseCategory.JsonData => "建议折叠 JSON 数据",
@@ -383,10 +347,8 @@ public static class CollapseClassifierExtensions
     /// <summary>
     /// 获取优先级描述
     /// </summary>
-    public static string GetPriorityDescription(this CollapseClassification classification)
-    {
-        return classification.Priority switch
-        {
+    public static string GetPriorityDescription(this CollapseClassification classification) {
+        return classification.Priority switch {
             >= 90 => "极高",
             >= 70 => "高",
             >= 50 => "中",

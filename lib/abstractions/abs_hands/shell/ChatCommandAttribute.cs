@@ -6,8 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 源码生成器扫描此特性标记的类，自动生成命令注册代码与命令元数据目录。
 /// </summary>
 [AttributeUsage(AttributeTargets.Class)]
-public sealed class ChatCommandAttribute : Attribute
-{
+public sealed class ChatCommandAttribute : Attribute {
     public required string Name { get; init; }
 
     public string Description { get; init; } = string.Empty;

@@ -5,8 +5,7 @@ using Core.Security.DangerClassification;
 /// <summary>
 /// BashDefense 链手动验证 — 实际执行 bash 命令验证防御链行为（非 mock）
 /// </summary>
-public class BashDefenseManualVerificationTests
-{
+public class BashDefenseManualVerificationTests {
     private readonly BashDefenseService _service;
     private readonly DangerousCommandNode _dangerousNode;
     private readonly RedirectWhitelistNode _redirectNode = new();
@@ -14,8 +13,7 @@ public class BashDefenseManualVerificationTests
     private readonly ArgvHashNode _argvHashNode = new();
     private readonly StrictParseNode _strictParseNode = new();
 
-    public BashDefenseManualVerificationTests()
-    {
+    public BashDefenseManualVerificationTests() {
         _dangerousNode = new DangerousCommandNode(new CommandDangerClassifier());
         _service = new BashDefenseService(_dangerousNode, _retainedNode, _argvHashNode, _redirectNode, _strictParseNode);
     }
@@ -23,8 +21,7 @@ public class BashDefenseManualVerificationTests
     private static string WorkDir => AppContext.BaseDirectory;
 
     [Fact]
-    public async Task Verify_NormalEcho_PassesDefense()
-    {
+    public async Task Verify_NormalEcho_PassesDefense() {
         var (_, rejection) = await _service
             .Begin("echo hello", WorkDir, SystemActuatorKind.Bash)
             .Then(_service.StrictParse)
@@ -36,8 +33,7 @@ public class BashDefenseManualVerificationTests
     }
 
     [Fact]
-    public async Task Verify_RetainedDeviceNul_Rejected()
-    {
+    public async Task Verify_RetainedDeviceNul_Rejected() {
         var (_, rejection) = await _service
             .Begin("echo test >nul", WorkDir, SystemActuatorKind.Bash)
             .Then(_service.StrictParse)
@@ -52,8 +48,7 @@ public class BashDefenseManualVerificationTests
     }
 
     [Fact]
-    public async Task Verify_UnclosedQuote_Rejected()
-    {
+    public async Task Verify_UnclosedQuote_Rejected() {
         var (_, rejection) = await _service
             .Begin("echo \"hello >nul", WorkDir, SystemActuatorKind.Bash)
             .Then(_service.StrictParse)
@@ -66,8 +61,7 @@ public class BashDefenseManualVerificationTests
     }
 
     [Fact]
-    public async Task Verify_RedirectOutsideWorkspace_Rejected()
-    {
+    public async Task Verify_RedirectOutsideWorkspace_Rejected() {
         var (_, rejection) = await _service
             .Begin("echo test > ../../etc/passwd", WorkDir, SystemActuatorKind.Bash)
             .Then(_service.StrictParse)
@@ -80,8 +74,7 @@ public class BashDefenseManualVerificationTests
     }
 
     [Fact]
-    public async Task Verify_RedirectToDevNull_Passes()
-    {
+    public async Task Verify_RedirectToDevNull_Passes() {
         var (_, rejection) = await _service
             .Begin("echo test >/dev/null", WorkDir, SystemActuatorKind.Bash)
             .Then(_service.StrictParse)
@@ -93,8 +86,7 @@ public class BashDefenseManualVerificationTests
     }
 
     [Fact]
-    public async Task Verify_RedirectWithinWorkspace_Passes()
-    {
+    public async Task Verify_RedirectWithinWorkspace_Passes() {
         var (_, rejection) = await _service
             .Begin("echo test > ./output.txt", WorkDir, SystemActuatorKind.Bash)
             .Then(_service.StrictParse)
@@ -106,8 +98,7 @@ public class BashDefenseManualVerificationTests
     }
 
     [Fact]
-    public async Task Verify_QuotedDangerousString_PassesDefense()
-    {
+    public async Task Verify_QuotedDangerousString_PassesDefense() {
         var (_, rejection) = await _service
             .Begin("echo \"rm -rf /\"", WorkDir, SystemActuatorKind.Bash)
             .Then(_service.StrictParse)
@@ -119,8 +110,7 @@ public class BashDefenseManualVerificationTests
     }
 
     [Fact]
-    public async Task Verify_ArgvHash_FirstRound_RejectsAndReturnsHash()
-    {
+    public async Task Verify_ArgvHash_FirstRound_RejectsAndReturnsHash() {
         var (_, rejection) = await _service
             .Begin("rm -rf /tmp/test", WorkDir, SystemActuatorKind.Bash, GuardConfirmMode.AntiCharLossConfirm)
             .Then(_service.RequireArgvHash)

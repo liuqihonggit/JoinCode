@@ -1,19 +1,16 @@
 namespace Core.Tests.Hooks.Lifecycle;
 
-public class SubagentStopHookManagerTests
-{
+public class SubagentStopHookManagerTests {
     private readonly Mock<IHookOrchestrator> _orchestratorMock;
     private readonly SubagentStopHookManager _sut;
 
-    public SubagentStopHookManagerTests()
-    {
+    public SubagentStopHookManagerTests() {
         _orchestratorMock = new Mock<IHookOrchestrator>();
         _sut = new SubagentStopHookManager(_orchestratorMock.Object);
     }
 
     [Fact]
-    public async Task OnSubagentStopAsync_NoHooksRegistered_ShouldProceed()
-    {
+    public async Task OnSubagentStopAsync_NoHooksRegistered_ShouldProceed() {
         var context = CreateContext();
         SetupOrchestrator([]);
 
@@ -23,8 +20,7 @@ public class SubagentStopHookManagerTests
     }
 
     [Fact]
-    public async Task OnSubagentStopAsync_BlockingHook_ShouldReturnBlock()
-    {
+    public async Task OnSubagentStopAsync_BlockingHook_ShouldReturnBlock() {
         var context = CreateContext();
         SetupOrchestrator([new HookResult { Outcome = HookOutcome.Blocking, Message = "blocked" }]);
 
@@ -35,8 +31,7 @@ public class SubagentStopHookManagerTests
     }
 
     [Fact]
-    public async Task OnSubagentStopAsync_PreventContinuation_ShouldReturnBlock()
-    {
+    public async Task OnSubagentStopAsync_PreventContinuation_ShouldReturnBlock() {
         var context = CreateContext();
         SetupOrchestrator([new HookResult { PreventContinuation = true, Outcome = HookOutcome.Blocking, Message = "prevented" }]);
 
@@ -47,8 +42,7 @@ public class SubagentStopHookManagerTests
     }
 
     [Fact]
-    public async Task OnSubagentStopAsync_NonBlockingHook_ShouldProceed()
-    {
+    public async Task OnSubagentStopAsync_NonBlockingHook_ShouldProceed() {
         var context = CreateContext();
         SetupOrchestrator([new HookResult { Outcome = HookOutcome.Success, Message = "ok" }]);
 
@@ -58,8 +52,7 @@ public class SubagentStopHookManagerTests
     }
 
     [Fact]
-    public async Task OnSubagentStopAsync_ShouldPassAgentIdInPayload()
-    {
+    public async Task OnSubagentStopAsync_ShouldPassAgentIdInPayload() {
         var context = CreateContext(agentId: "agent-123");
         Dictionary<string, JsonElement>? capturedPayload = null;
 
@@ -69,8 +62,7 @@ public class SubagentStopHookManagerTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns((HookEvent _, Dictionary<string, JsonElement> payload, string? _, string? _, CancellationToken _) =>
-            {
+            .Returns((HookEvent _, Dictionary<string, JsonElement> payload, string? _, string? _, CancellationToken _) => {
                 capturedPayload = payload;
                 return AsyncEnumerable.Empty<HookResult>();
             });
@@ -84,8 +76,7 @@ public class SubagentStopHookManagerTests
     }
 
     [Fact]
-    public async Task OnSubagentStopAsync_WithWorktreePath_ShouldIncludeInPayload()
-    {
+    public async Task OnSubagentStopAsync_WithWorktreePath_ShouldIncludeInPayload() {
         var context = CreateContext(worktreePath: "/tmp/worktree-1");
         Dictionary<string, JsonElement>? capturedPayload = null;
 
@@ -95,8 +86,7 @@ public class SubagentStopHookManagerTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns((HookEvent _, Dictionary<string, JsonElement> payload, string? _, string? _, CancellationToken _) =>
-            {
+            .Returns((HookEvent _, Dictionary<string, JsonElement> payload, string? _, string? _, CancellationToken _) => {
                 capturedPayload = payload;
                 return AsyncEnumerable.Empty<HookResult>();
             });
@@ -112,10 +102,8 @@ public class SubagentStopHookManagerTests
         string agentId = "agent-001",
         string agentType = "executor",
         string? worktreePath = null,
-        bool isSuccess = true)
-    {
-        return new SubagentStopHookContext
-        {
+        bool isSuccess = true) {
+        return new SubagentStopHookContext {
             SessionId = "session-001",
             AgentId = agentId,
             AgentType = agentType,
@@ -124,8 +112,7 @@ public class SubagentStopHookManagerTests
         };
     }
 
-    private void SetupOrchestrator(IReadOnlyList<HookResult> results)
-    {
+    private void SetupOrchestrator(IReadOnlyList<HookResult> results) {
         _orchestratorMock.Setup(o => o.ExecuteHooksAsync(
                 HookEvent.SubagentStop,
                 It.IsAny<Dictionary<string, JsonElement>>(),
@@ -135,10 +122,8 @@ public class SubagentStopHookManagerTests
             .Returns(ToAsyncEnumerable(results));
     }
 
-    private static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(IReadOnlyList<T> list)
-    {
-        foreach (var item in list)
-        {
+    private static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(IReadOnlyList<T> list) {
+        foreach (var item in list) {
             await Task.Yield();
             yield return item;
         }

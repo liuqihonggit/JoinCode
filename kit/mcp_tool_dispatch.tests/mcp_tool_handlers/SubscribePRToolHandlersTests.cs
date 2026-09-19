@@ -1,12 +1,10 @@
 namespace Sync.Tests.ToolHandlers;
 
-public class SubscribePRToolHandlersTests
-{
+public class SubscribePRToolHandlersTests {
     private readonly SubscribePRToolHandlers _handler = new(NullLogger<SubscribePRToolHandlers>.Instance);
 
     [Fact]
-    public async Task SubscribePRAsync_ListWithoutService_ReturnsError()
-    {
+    public async Task SubscribePRAsync_ListWithoutService_ReturnsError() {
         var result = await _handler.SubscribePRAsync("list", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
@@ -14,8 +12,7 @@ public class SubscribePRToolHandlersTests
     }
 
     [Fact]
-    public async Task SubscribePRAsync_SubscribeWithoutRef_ReturnsError()
-    {
+    public async Task SubscribePRAsync_SubscribeWithoutRef_ReturnsError() {
         var result = await _handler.SubscribePRAsync("subscribe", pr_ref: null, cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
@@ -23,8 +20,7 @@ public class SubscribePRToolHandlersTests
     }
 
     [Fact]
-    public async Task SubscribePRAsync_InvalidAction_ReturnsError()
-    {
+    public async Task SubscribePRAsync_InvalidAction_ReturnsError() {
         var result = await _handler.SubscribePRAsync("invalid", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);

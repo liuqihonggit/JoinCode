@@ -7,8 +7,7 @@ namespace Core.DependencyInjection;
 /// 此托管服务在应用启动时解析协调器，触发 DI 工厂执行 coordinator.Start()。
 /// </para>
 /// </summary>
-public sealed partial class SubAgentStallDefenseHostedService : ServiceEntity, IHostedService
-{
+public sealed partial class SubAgentStallDefenseHostedService : ServiceEntity, IHostedService {
     private readonly SubAgentStallDefenseCoordinator _coordinator;
     private readonly ILogger<SubAgentStallDefenseHostedService>? _logger;
 
@@ -17,8 +16,7 @@ public sealed partial class SubAgentStallDefenseHostedService : ServiceEntity, I
     /// </summary>
     public SubAgentStallDefenseHostedService(
         SubAgentStallDefenseCoordinator coordinator,
-        ILogger<SubAgentStallDefenseHostedService>? logger = null)
-    {
+        ILogger<SubAgentStallDefenseHostedService>? logger = null) {
         _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
         _logger = logger;
     }
@@ -26,8 +24,7 @@ public sealed partial class SubAgentStallDefenseHostedService : ServiceEntity, I
     /// <summary>
     /// 应用启动时触发 — 协调器已在 DI 工厂中 Start()，此处仅记录日志确认激活。
     /// </summary>
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
+    public Task StartAsync(CancellationToken cancellationToken) {
         _logger?.LogInformation("[SubAgentStallDefense] 托管服务已激活，纵深防御体系运行中");
         return Task.CompletedTask;
     }
@@ -35,8 +32,7 @@ public sealed partial class SubAgentStallDefenseHostedService : ServiceEntity, I
     /// <summary>
     /// 应用停止时触发 — 释放协调器资源。
     /// </summary>
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
+    public async Task StopAsync(CancellationToken cancellationToken) {
         _logger?.LogInformation("[SubAgentStallDefense] 托管服务停止，释放协调器资源");
         await _coordinator.DisposeAsync().ConfigureAwait(false);
     }

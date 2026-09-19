@@ -1,18 +1,15 @@
 namespace Core.Tests.LLM;
 
 
-public sealed class ThinkingResponseParsingTests
-{
+public sealed class ThinkingResponseParsingTests {
     [Fact]
-    public void ChatStreamEventType_ShouldHaveThinking()
-    {
+    public void ChatStreamEventType_ShouldHaveThinking() {
         var thinkingType = (ChatStreamEventType)Enum.Parse(typeof(ChatStreamEventType), "Thinking");
         thinkingType.Should().BeDefined();
     }
 
     [Fact]
-    public void ChatStreamEvent_Thinking_ShouldCarryThinkingContent()
-    {
+    public void ChatStreamEvent_Thinking_ShouldCarryThinkingContent() {
         var evt = ChatStreamEvent.Thinking("Let me analyze this step by step...");
 
         evt.Type.Should().Be(ChatStreamEventType.Thinking);
@@ -20,8 +17,7 @@ public sealed class ThinkingResponseParsingTests
     }
 
     [Fact]
-    public void ChatStreamEvent_Match_ShouldHandleThinkingType()
-    {
+    public void ChatStreamEvent_Match_ShouldHandleThinkingType() {
         var evt = ChatStreamEvent.Thinking("reasoning text");
 
         var result = evt.Match(
@@ -38,8 +34,7 @@ public sealed class ThinkingResponseParsingTests
     }
 
     [Fact]
-    public void ChatStreamEvent_Switch_ShouldHandleThinkingType()
-    {
+    public void ChatStreamEvent_Switch_ShouldHandleThinkingType() {
         var evt = ChatStreamEvent.Thinking("reasoning text");
         string? captured = null;
 
@@ -57,8 +52,7 @@ public sealed class ThinkingResponseParsingTests
     }
 
     [Fact]
-    public void AnthropicResponseContentBlock_ThinkingType_ShouldDeserialize()
-    {
+    public void AnthropicResponseContentBlock_ThinkingType_ShouldDeserialize() {
         var json = """{"type":"thinking","thinking":"I need to think about this carefully"}""";
         var block = JsonSerializer.Deserialize(json, AnthropicJsonContext.Default.AnthropicResponseContentBlock);
 
@@ -68,8 +62,7 @@ public sealed class ThinkingResponseParsingTests
     }
 
     [Fact]
-    public void AnthropicStreamingDelta_ThinkingDelta_ShouldDeserialize()
-    {
+    public void AnthropicStreamingDelta_ThinkingDelta_ShouldDeserialize() {
         var json = """{"type":"thinking_delta","thinking":" step by step"}""";
         var delta = JsonSerializer.Deserialize(json, AnthropicJsonContext.Default.AnthropicStreamingDelta);
 
@@ -79,10 +72,8 @@ public sealed class ThinkingResponseParsingTests
     }
 
     [Fact]
-    public void ConvertAnthropicResponseToApiMessages_WithThinkingBlock_ShouldIncludeThinkingInMetadata()
-    {
-        var response = new AnthropicMessagesResponse
-        {
+    public void ConvertAnthropicResponseToApiMessages_WithThinkingBlock_ShouldIncludeThinkingInMetadata() {
+        var response = new AnthropicMessagesResponse {
             Id = "msg_test",
             Type = "message",
             Role = "assistant",
@@ -104,8 +95,7 @@ public sealed class ThinkingResponseParsingTests
     }
 
     [Fact]
-    public void OpenAIApiMessage_ReasoningContent_ShouldDeserialize()
-    {
+    public void OpenAIApiMessage_ReasoningContent_ShouldDeserialize() {
         var json = """{"role":"assistant","content":"The answer is 42","reasoning_content":"I calculated this by..."}""";
         var msg = JsonSerializer.Deserialize(json, NativeJsonContext.Default.OpenAIApiMessage);
 
@@ -115,13 +105,10 @@ public sealed class ThinkingResponseParsingTests
     }
 
     [Fact]
-    public void ConvertToApiMessage_WithReasoningContent_ShouldIncludeInMetadata()
-    {
-        var choice = new OpenAIChoice
-        {
+    public void ConvertToApiMessage_WithReasoningContent_ShouldIncludeInMetadata() {
+        var choice = new OpenAIChoice {
             Index = 0,
-            Message = new OpenAIApiMessage
-            {
+            Message = new OpenAIApiMessage {
                 Role = "assistant",
                 Content = "Final answer",
                 ReasoningContent = "My reasoning process..."

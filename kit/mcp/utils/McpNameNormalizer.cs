@@ -3,8 +3,7 @@ namespace McpClient;
 /// <summary>
 /// MCP 名称规范化器 — 提供 MCP 工具名称的构建、解析、显示名获取功能
 /// </summary>
-public static partial class McpNameNormalizer
-{
+public static partial class McpNameNormalizer {
     private const string ClaudeAiServerPrefix = "claude.ai ";
 
     /// <summary>
@@ -12,8 +11,7 @@ public static partial class McpNameNormalizer
     /// </summary>
     /// <param name="name">待规范化的服务器名称</param>
     /// <returns>规范化后的名称</returns>
-    public static string NormalizeNameForMCP(string name)
-    {
+    public static string NormalizeNameForMCP(string name) {
         return NameNormalizer.NormalizeForMcp(name);
     }
 
@@ -22,8 +20,7 @@ public static partial class McpNameNormalizer
     /// </summary>
     /// <param name="serverName">服务器名称</param>
     /// <returns>MCP 工具名称前缀</returns>
-    public static string GetMcpPrefix(string serverName)
-    {
+    public static string GetMcpPrefix(string serverName) {
         return $"mcp__{NormalizeNameForMCP(serverName)}__";
     }
 
@@ -33,8 +30,7 @@ public static partial class McpNameNormalizer
     /// <param name="serverName">服务器名称</param>
     /// <param name="toolName">工具名称</param>
     /// <returns>MCP 工具全名</returns>
-    public static string BuildMcpToolName(string serverName, string toolName)
-    {
+    public static string BuildMcpToolName(string serverName, string toolName) {
         return $"{GetMcpPrefix(serverName)}{NormalizeNameForMCP(toolName)}";
     }
 
@@ -43,13 +39,11 @@ public static partial class McpNameNormalizer
     /// </summary>
     /// <param name="toolString">MCP 工具字符串（格式 mcp__{server}__{tool}）</param>
     /// <returns>服务器名称和工具名称元组；格式不匹配时为 null</returns>
-    public static (string ServerName, string? ToolName)? McpInfoFromString(string toolString)
-    {
+    public static (string ServerName, string? ToolName)? McpInfoFromString(string toolString) {
         ArgumentException.ThrowIfNullOrWhiteSpace(toolString);
 
         var parts = toolString.Split("__");
-        if (parts.Length < 2 || parts[0] != "mcp" || string.IsNullOrEmpty(parts[1]))
-        {
+        if (parts.Length < 2 || parts[0] != "mcp" || string.IsNullOrEmpty(parts[1])) {
             return null;
         }
 
@@ -65,8 +59,7 @@ public static partial class McpNameNormalizer
     /// <param name="fullName">工具全名</param>
     /// <param name="serverName">服务器名称</param>
     /// <returns>去除前缀后的显示名称；若无前缀则返回原名称</returns>
-    public static string GetMcpDisplayName(string fullName, string serverName)
-    {
+    public static string GetMcpDisplayName(string fullName, string serverName) {
         var prefix = $"mcp__{NormalizeNameForMCP(serverName)}__";
         return fullName.StartsWith(prefix, StringComparison.Ordinal)
             ? fullName[prefix.Length..]

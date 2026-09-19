@@ -3,8 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// /debuglog 子选项标志枚举 — [EnumValue] 由 EnumMetadataGenerator 自动生成 DebugLogFlagEnumConstants + DebugLogFlagExtensions
 /// </summary>
-public enum DebugLogFlag
-{
+public enum DebugLogFlag {
     /// <summary>
     /// 仅显示错误
     /// </summary>
@@ -64,23 +63,19 @@ public enum DebugLogFlag
     Usage = "/debuglog [-a|-e|-w|-i|-p|-l|-c]",
     Category = ChatCommandCategory.System, ArgumentHint = "[-a|--all|-e|--error|-w|--warn|-i|--init|-p|--prompt|-l|--log|-c|--clear]")]
 [ChatCommandArg("flags", Type = "string", Description = "显示标志（可组合）", Enum = new[] { "-a", "--all", "-e", "--error", "-w", "--warn", "-i", "--init", "-p", "--prompt", "-l", "--log", "-c", "--clear" })]
-public sealed class DebugLogCommand : ChatCommandBase
-{
+public sealed class DebugLogCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /debuglog 命令 — 根据标志位渲染对应的诊断信息或清空日志缓冲区
     /// </summary>
     /// <param name="context">命令执行上下文，包含参数与服务容器</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = GetSplitArgs(context);
         var (sectionFlags, clear) = ParseFlags(args);
 
-        if (clear)
-        {
+        if (clear) {
             var buffer = GetService<IDebugLogBuffer>(context);
-            if (buffer is not null)
-            {
+            if (buffer is not null) {
                 buffer.Clear();
                 TerminalHelper.WriteLine($"{TerminalColors.Success}日志缓冲区已清空{AnsiStyleEnumConstants.Reset}");
             }
@@ -98,49 +93,40 @@ public sealed class DebugLogCommand : ChatCommandBase
     /// 优先级保持与原实现一致: Error > Warn > Log > Prompt > Init > All
     /// 原逻辑中 Init/Prompt/Log 检查顺序执行且都会 sb.Clear() 覆盖，最终优先级为 Log > Prompt > Init
     /// </summary>
-    private static async Task<string> RenderSectionsAsync(DebugSection sectionFlags, ChatCommandContext context)
-    {
+    private static async Task<string> RenderSectionsAsync(DebugSection sectionFlags, ChatCommandContext context) {
         var services = context.Services;
         var ct = context.CancellationToken;
 
-        if (sectionFlags.HasFlag(DebugSection.Error))
-        {
+        if (sectionFlags.HasFlag(DebugSection.Error)) {
             return DebugLogRenderer.RenderErrors(services);
         }
 
-        if (sectionFlags.HasFlag(DebugSection.Warn))
-        {
+        if (sectionFlags.HasFlag(DebugSection.Warn)) {
             return DebugLogRenderer.RenderWarningsAndErrors(services);
         }
 
-        if (sectionFlags.HasFlag(DebugSection.Log))
-        {
+        if (sectionFlags.HasFlag(DebugSection.Log)) {
             return DebugLogRenderer.RenderLogs(services);
         }
 
-        if (sectionFlags.HasFlag(DebugSection.Prompt))
-        {
+        if (sectionFlags.HasFlag(DebugSection.Prompt)) {
             return await DebugLogRenderer.RenderSystemPromptAsync(services).ConfigureAwait(false);
         }
 
-        if (sectionFlags.HasFlag(DebugSection.Init))
-        {
+        if (sectionFlags.HasFlag(DebugSection.Init)) {
             return await DebugLogRenderer.RenderInitAsync(services, ct).ConfigureAwait(false);
         }
 
         return await DebugLogRenderer.RenderAllAsync(services, ct).ConfigureAwait(false);
     }
 
-    private static (DebugSection Flags, bool Clear) ParseFlags(string[] args)
-    {
+    private static (DebugSection Flags, bool Clear) ParseFlags(string[] args) {
         var flags = DebugSection.None;
         var clear = false;
 
-        foreach (var arg in args)
-        {
+        foreach (var arg in args) {
             var flag = DebugLogFlagExtensions.FromValue(arg);
-            switch (flag)
-            {
+            switch (flag) {
                 case DebugLogFlag.Error: flags |= DebugSection.Error; break;
                 case DebugLogFlag.Warn: flags |= DebugSection.Warn; break;
                 case DebugLogFlag.Init: flags |= DebugSection.Init; break;
@@ -158,8 +144,7 @@ public sealed class DebugLogCommand : ChatCommandBase
     }
 
     [Flags]
-    private enum DebugSection
-    {
+    private enum DebugSection {
         None = 0,
         Init = 1,
         Error = 2,

@@ -9,8 +9,7 @@ internal sealed partial class HookMiddlewareJsonContext : JsonSerializerContext;
 /// 对齐 ChatToolOrchestrator.ExecutePreHooksAsync
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecutionMiddleware
-{
+public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecutionMiddleware {
 
     private readonly IHookOrchestrator? _hookOrchestrator;
     private readonly ILogger<PreToolUseHookMiddleware>? _logger;
@@ -22,8 +21,7 @@ public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecu
     /// <param name="logger">日志记录器实例，为 null 则不记录日志</param>
     public PreToolUseHookMiddleware(
         IHookOrchestrator? hookOrchestrator = null,
-        ILogger<PreToolUseHookMiddleware>? logger = null)
-    {
+        ILogger<PreToolUseHookMiddleware>? logger = null) {
         _hookOrchestrator = hookOrchestrator;
         _logger = logger;
     }
@@ -38,21 +36,16 @@ public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecu
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,
-        CancellationToken ct)
-    {
-        if (_hookOrchestrator is not null)
-        {
-            var prePayload = new Dictionary<string, JsonElement>
-            {
+        CancellationToken ct) {
+        if (_hookOrchestrator is not null) {
+            var prePayload = new Dictionary<string, JsonElement> {
                 ["tool_name"] = JsonSerializer.SerializeToElement(context.ToolName, HookMiddlewareJsonContext.Default.String),
                 ["tool_input"] = JsonSerializer.SerializeToElement(context.Arguments, HookMiddlewareJsonContext.Default.DictionaryStringJsonElement),
             };
 
             await foreach (var hookResult in _hookOrchestrator.ExecuteHooksAsync(
-                HookEvent.PreToolUse, prePayload, matcher: context.ToolName, cancellationToken: ct).ConfigureAwait(false))
-            {
-                if (hookResult.Outcome == HookOutcome.Blocking)
-                {
+                HookEvent.PreToolUse, prePayload, matcher: context.ToolName, cancellationToken: ct).ConfigureAwait(false)) {
+                if (hookResult.Outcome == HookOutcome.Blocking) {
                     _logger?.LogInformation("[PreToolUseHook] Hook 阻止工具执行: {ToolName}, Message={Message}", context.ToolName, hookResult.Message);
                     context.Deny(hookResult.Message ?? "Hook 阻止了工具执行");
                     return;
@@ -70,8 +63,7 @@ public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecu
 /// 放在 ToolExecutionMiddleware 之前，用 await next 后置模式读取 context.Result
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class PostToolUseHookMiddleware : ServiceEntity, IToolExecutionMiddleware
-{
+public sealed partial class PostToolUseHookMiddleware : ServiceEntity, IToolExecutionMiddleware {
     private readonly IHookOrchestrator? _hookOrchestrator;
     private readonly ILogger<PostToolUseHookMiddleware>? _logger;
 
@@ -82,8 +74,7 @@ public sealed partial class PostToolUseHookMiddleware : ServiceEntity, IToolExec
     /// <param name="logger">日志记录器实例，为 null 则不记录日志</param>
     public PostToolUseHookMiddleware(
         IHookOrchestrator? hookOrchestrator = null,
-        ILogger<PostToolUseHookMiddleware>? logger = null)
-    {
+        ILogger<PostToolUseHookMiddleware>? logger = null) {
         _hookOrchestrator = hookOrchestrator;
         _logger = logger;
     }
@@ -98,22 +89,18 @@ public sealed partial class PostToolUseHookMiddleware : ServiceEntity, IToolExec
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         await next(context, ct).ConfigureAwait(false);
 
-        if (_hookOrchestrator is not null && context.Result is not null)
-        {
+        if (_hookOrchestrator is not null && context.Result is not null) {
             var resultText = string.Join("\n", context.Result.Content.Select(c => c.Text ?? string.Empty));
-            var postPayload = new Dictionary<string, JsonElement>
-            {
+            var postPayload = new Dictionary<string, JsonElement> {
                 ["tool_name"] = JsonSerializer.SerializeToElement(context.ToolName, HookMiddlewareJsonContext.Default.String),
                 ["tool_result"] = JsonSerializer.SerializeToElement(resultText, HookMiddlewareJsonContext.Default.String),
             };
 
             await foreach (var _ in _hookOrchestrator.ExecuteHooksAsync(
-                HookEvent.PostToolUse, postPayload, matcher: context.ToolName, cancellationToken: ct).ConfigureAwait(false))
-            {
+                HookEvent.PostToolUse, postPayload, matcher: context.ToolName, cancellationToken: ct).ConfigureAwait(false)) {
             }
         }
     }

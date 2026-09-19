@@ -8,8 +8,7 @@ namespace Core.Agents.Coordinator;
 /// <para>水位线：Agent Channel 达到高水位线时触发 <see cref="WatermarkReachedEvt{TMessage}"/>，生产方应限速。</para>
 /// </summary>
 [Register(typeof(IMailbox), ServiceLifetime.Singleton)]
-public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, IMailbox
-{
+public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, IMailbox {
     private readonly ILogger? _logger;
     private readonly ITeammateMailboxService? _mailboxService;
     private readonly MessageDedupTracker _dedup = new();
@@ -29,8 +28,7 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
         : base(
             commandBackpressure ?? ActorBackpressure.CodingAgentTask,
             agentBackpressure ?? DefaultAgentBackpressure,
-            outputCapacity: 128)
-    {
+            outputCapacity: 128) {
         _logger = logger;
         _mailboxService = mailboxService;
     }
@@ -47,8 +45,7 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     /// 注销 Agent 邮箱 — 清理去重记录 + fire-and-forget 异步注销。
     /// </summary>
     /// <param name="agentId">Agent 标识</param>
-    public void UnregisterAgent(string agentId)
-    {
+    public void UnregisterAgent(string agentId) {
         _dedup.Clear(agentId);
         _ = UnregisterAgentAsync(agentId, CancellationToken.None);
     }
@@ -62,10 +59,8 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     /// <param name="message">消息</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>是否成功投递（重复消息返回 false）</returns>
-    public async Task<bool> SendAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default)
-    {
-        if (IsDuplicate(agentId, message.MessageId))
-        {
+    public async Task<bool> SendAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default) {
+        if (IsDuplicate(agentId, message.MessageId)) {
             _logger?.LogDebug("Duplicate message {MessageId} skipped for {AgentId}", message.MessageId, agentId);
             return false;
         }
@@ -86,10 +81,8 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     /// <para>由 MailboxMessageSink 调用，断开 Broker→Poller→Broker 循环。</para>
     /// <para>用 MessageId 去重：重复消息只投递一次。</para>
     /// </summary>
-    public async Task DeliverInboundAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default)
-    {
-        if (IsDuplicate(agentId, message.MessageId))
-        {
+    public async Task DeliverInboundAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default) {
+        if (IsDuplicate(agentId, message.MessageId)) {
             _logger?.LogDebug("Duplicate inbound message {MessageId} skipped for {AgentId}", message.MessageId, agentId);
             return;
         }
@@ -101,8 +94,7 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     /// <summary>
     /// 发送命令处理 — 加去重后投递到本地 Agent Channel。
     /// </summary>
-    protected override ValueTask HandleSendAsync(string agentId, CoordinatorMessage message, CancellationToken ct)
-    {
+    protected override ValueTask HandleSendAsync(string agentId, CoordinatorMessage message, CancellationToken ct) {
         if (IsDuplicate(agentId, message.MessageId)) return ValueTask.CompletedTask;
         DeliverToAgent(agentId, message);
         return ValueTask.CompletedTask;
@@ -117,17 +109,14 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     /// <summary>
     /// 持久化消息到文件邮箱 — 可选，配置了 mailboxService 时生效。
     /// </summary>
-    private async Task PersistToMailboxAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken)
-    {
+    private async Task PersistToMailboxAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken) {
         if (_mailboxService is null) return;
 
         var sessionId = GetSessionId(agentId);
         if (string.IsNullOrEmpty(sessionId)) return;
 
-        try
-        {
-            var request = new MailboxSendRequest
-            {
+        try {
+            var request = new MailboxSendRequest {
                 FromAgentId = message.FromAgentId,
                 ToAgentId = agentId,
                 MessageType = message.MessageType,
@@ -136,9 +125,7 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
             };
 
             await _mailboxService.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "Failed to persist message to mailbox for {AgentId}", agentId);
         }
     }

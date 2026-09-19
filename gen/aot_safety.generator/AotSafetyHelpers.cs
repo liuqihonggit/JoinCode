@@ -1,18 +1,14 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     /// <summary>
     /// AOT 安全分析器共享辅助方法
     /// </summary>
-    public static class AotSafetyHelpers
-    {
+    public static class AotSafetyHelpers {
         /// <summary>
         /// 检查节点是否在循环内（for/while/do/foreach）
         /// </summary>
-        public static bool IsInsideLoop(SyntaxNode node)
-        {
+        public static bool IsInsideLoop(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
+            while (current is not null) {
                 if (current is ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax or ForEachStatementSyntax or ForEachVariableStatementSyntax)
                     return true;
                 current = current.Parent;
@@ -23,17 +19,13 @@ namespace AotSafety.Generator
         /// <summary>
         /// 判断是否在测试方法内
         /// </summary>
-        public static bool IsInsideTestMethod(SyntaxNode node)
-        {
+        public static bool IsInsideTestMethod(SyntaxNode node) {
             var current = node.Parent;
             var foundTestClass = false;
-            while (current is not null)
-            {
-                if (current is MethodDeclarationSyntax methodDecl)
-                {
+            while (current is not null) {
+                if (current is MethodDeclarationSyntax methodDecl) {
                     if (methodDecl.AttributeLists.Any(al =>
-                        al.Attributes.Any(a =>
-                        {
+                        al.Attributes.Any(a => {
                             var name = a.Name.ToString();
                             return name == "Fact" || name == "Theory" || name == "TestMethod" ||
                                    name == "Test" || name == "InlineData" ||
@@ -43,16 +35,14 @@ namespace AotSafety.Generator
                         return true;
                 }
 
-                if (current is ClassDeclarationSyntax classDecl)
-                {
+                if (current is ClassDeclarationSyntax classDecl) {
                     var className = classDecl.Identifier.ValueText;
                     if (className.EndsWith("Tests", StringComparison.Ordinal) ||
                         className.EndsWith("Test", StringComparison.Ordinal))
                         foundTestClass = true;
                 }
 
-                if (current is BaseNamespaceDeclarationSyntax nsDecl)
-                {
+                if (current is BaseNamespaceDeclarationSyntax nsDecl) {
                     var nsName = nsDecl.Name.ToString();
                     if (nsName.EndsWith(".Tests", StringComparison.Ordinal) ||
                         nsName.EndsWith(".Test", StringComparison.Ordinal))
@@ -67,11 +57,9 @@ namespace AotSafety.Generator
         /// <summary>
         /// 查找包含指定节点的类型声明
         /// </summary>
-        public static TypeDeclarationSyntax? FindEnclosingTypeDeclaration(SyntaxNode node)
-        {
+        public static TypeDeclarationSyntax? FindEnclosingTypeDeclaration(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
+            while (current is not null) {
                 if (current is TypeDeclarationSyntax typeDecl)
                     return typeDecl;
                 current = current.Parent;
@@ -82,11 +70,9 @@ namespace AotSafety.Generator
         /// <summary>
         /// 找到包含指定节点的最近方法声明
         /// </summary>
-        public static MethodDeclarationSyntax? FindEnclosingMethodDeclaration(SyntaxNode node)
-        {
+        public static MethodDeclarationSyntax? FindEnclosingMethodDeclaration(SyntaxNode node) {
             var current = node.Parent;
-            while (current is not null)
-            {
+            while (current is not null) {
                 if (current is MethodDeclarationSyntax method)
                     return method;
                 current = current.Parent;
@@ -97,8 +83,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// 判断方法名是否是释放方法（Dispose/DisposeAsync/DisposeCore/Release/Close/Shutdown/ShutdownAsync/StopAsync）
         /// </summary>
-        public static bool IsDisposeMethodName(string methodName)
-        {
+        public static bool IsDisposeMethodName(string methodName) {
             var nameSpan = methodName.AsSpan();
             if (nameSpan.StartsWith("Dispose".AsSpan(), StringComparison.Ordinal)) return true;
             if (nameSpan.SequenceEqual("Release".AsSpan())) return true;
@@ -118,11 +103,9 @@ namespace AotSafety.Generator
         /// <returns>如果调用链中任意方法满足条件，返回 true</returns>
         public static bool CheckInDisposeCallChain(
             INamedTypeSymbol type,
-            Func<MethodDeclarationSyntax, bool> check)
-        {
+            Func<MethodDeclarationSyntax, bool> check) {
             var allMethods = new List<MethodDeclarationSyntax>();
-            foreach (var refDecl in type.DeclaringSyntaxReferences)
-            {
+            foreach (var refDecl in type.DeclaringSyntaxReferences) {
                 if (refDecl.GetSyntax() is TypeDeclarationSyntax typeDecl)
                     allMethods.AddRange(typeDecl.Members.OfType<MethodDeclarationSyntax>());
             }
@@ -135,8 +118,7 @@ namespace AotSafety.Generator
         /// </summary>
         private static bool CheckInDisposeCallChainCore(
             List<MethodDeclarationSyntax> allMethods,
-            Func<MethodDeclarationSyntax, bool> check)
-        {
+            Func<MethodDeclarationSyntax, bool> check) {
             var methodsByName = allMethods
                 .GroupBy(m => m.Identifier.ValueText, StringComparer.Ordinal)
                 .ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.Ordinal);
@@ -150,15 +132,13 @@ namespace AotSafety.Generator
             foreach (var m in disposeMethods)
                 queue.Enqueue(m);
 
-            while (queue.Count > 0)
-            {
+            while (queue.Count > 0) {
                 var method = queue.Dequeue();
                 if (!visited.Add(method)) continue;
 
                 if (check(method)) return true;
 
-                foreach (var calledName in GetCalledMethodNamesInSameType(method))
-                {
+                foreach (var calledName in GetCalledMethodNamesInSameType(method)) {
                     if (methodsByName.TryGetValue(calledName, out var calledMethods))
                         foreach (var cm in calledMethods)
                             queue.Enqueue(cm);
@@ -171,24 +151,21 @@ namespace AotSafety.Generator
         /// <summary>
         /// 获取方法体中调用的同类型方法名（支持直接调用 Method() 和 this.Method()）
         /// </summary>
-        private static IEnumerable<string> GetCalledMethodNamesInSameType(MethodDeclarationSyntax method)
-        {
+        private static IEnumerable<string> GetCalledMethodNamesInSameType(MethodDeclarationSyntax method) {
             SyntaxNode? body = method.Body;
             if (body is null && method.ExpressionBody is not null)
                 body = method.ExpressionBody.Expression;
             if (body is null) yield break;
 
-            foreach (var inv in body.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>())
-            {
-                switch (inv.Expression)
-                {
+            foreach (var inv in body.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>()) {
+                switch (inv.Expression) {
                     case IdentifierNameSyntax id:
-                        yield return id.Identifier.ValueText;
-                        break;
+                    yield return id.Identifier.ValueText;
+                    break;
                     case MemberAccessExpressionSyntax ma when ma.Expression is ThisExpressionSyntax:
-                        if (ma.Name is IdentifierNameSyntax nameId)
-                            yield return nameId.Identifier.ValueText;
-                        break;
+                    if (ma.Name is IdentifierNameSyntax nameId)
+                        yield return nameId.Identifier.ValueText;
+                    break;
                 }
             }
         }
@@ -196,8 +173,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// 获取方法体 SyntaxNode（支持普通 body 和 expression body）
         /// </summary>
-        public static SyntaxNode? GetMethodBody(MethodDeclarationSyntax method)
-        {
+        public static SyntaxNode? GetMethodBody(MethodDeclarationSyntax method) {
             if (method.Body is not null) return method.Body;
             if (method.ExpressionBody is not null) return method.ExpressionBody.Expression;
             return null;
@@ -206,8 +182,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// 检查方法体是否引用了指定字段名（AST 语义分析）
         /// </summary>
-        public static bool MethodBodyReferencesField(MethodDeclarationSyntax method, string fieldName)
-        {
+        public static bool MethodBodyReferencesField(MethodDeclarationSyntax method, string fieldName) {
             var body = GetMethodBody(method);
             if (body is null) return false;
 
@@ -220,8 +195,7 @@ namespace AotSafety.Generator
         /// 检查方法体是否将指定字段置 null（AST 语义分析）
         /// 检测模式: field = null, field = null!, Interlocked.Exchange(ref field, null), Volatile.Write(ref field, null)
         /// </summary>
-        public static bool MethodBodyNullsField(MethodDeclarationSyntax method, string fieldName)
-        {
+        public static bool MethodBodyNullsField(MethodDeclarationSyntax method, string fieldName) {
             if (method.Body is null) return false;
 
             if (method.Body.DescendantNodes()
@@ -241,8 +215,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// 判断调用是否是 Interlocked.Exchange(ref field, null) 或 Volatile.Write(ref field, null)
         /// </summary>
-        private static bool IsAtomicNullWriteToField(InvocationExpressionSyntax invocation, string fieldName)
-        {
+        private static bool IsAtomicNullWriteToField(InvocationExpressionSyntax invocation, string fieldName) {
             if (invocation.Expression is not MemberAccessExpressionSyntax ma) return false;
             if (ma.Expression is not IdentifierNameSyntax typeId) return false;
 
@@ -269,8 +242,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// 判断表达式是否是 null 字面量（含 null! 抑制警告形式）
         /// </summary>
-        public static bool IsNullLiteral(ExpressionSyntax expr)
-        {
+        public static bool IsNullLiteral(ExpressionSyntax expr) {
             if (expr is LiteralExpressionSyntax literal && literal.IsKind(SyntaxKind.NullLiteralExpression))
                 return true;
 

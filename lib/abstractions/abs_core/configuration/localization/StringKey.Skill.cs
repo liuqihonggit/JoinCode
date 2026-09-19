@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Localization;
 
-public static partial class StringKey
-{
+public static partial class StringKey {
     // === SkillSearchToolHandlers ===
     public const string SkillSearchResult = "SkillSearchResult";
     public const string NoMatchingSkillFound = "NoMatchingSkillFound";

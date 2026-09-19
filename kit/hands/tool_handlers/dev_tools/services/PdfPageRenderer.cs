@@ -3,8 +3,7 @@ namespace Infrastructure.IO.Services.FileOps;
 /// <summary>
 /// PDF 页面渲染结果
 /// </summary>
-public sealed class PdfPageImage
-{
+public sealed class PdfPageImage {
     /// <summary>页码（1-indexed）</summary>
     public required int PageNumber { get; init; }
 
@@ -22,8 +21,7 @@ public sealed class PdfPageImage
 /// PDF 页面提取结果
 /// 对齐 TS: pdf.ts ExtractPDFResult
 /// </summary>
-public sealed class PdfExtractResult
-{
+public sealed class PdfExtractResult {
     /// <summary>是否成功</summary>
     public required bool Success { get; init; }
 
@@ -68,8 +66,7 @@ public sealed class PdfExtractResult
 /// 使用 Docnet.Core（PDFium P/Invoke）将 PDF 页面渲染为 JPEG 图像。
 /// 对齐 TS: pdf.ts extractPDFPages — TS 使用 pdftoppm，C# 使用 PDFium
 /// </summary>
-public static class PdfPageRenderer
-{
+public static class PdfPageRenderer {
     /// <summary>
     /// 渲染目标宽度，对齐 TS: pdftoppm -r 100
     /// US Letter (8.5") 在 100 DPI 下约 850 像素宽
@@ -98,8 +95,7 @@ public static class PdfPageRenderer
     /// <param name="cancellationToken">取消令牌</param>
     public static Task<PdfExtractResult> ExtractPagesAsync(
         string filePath, IFileSystem fs, int? firstPage = null, int? lastPage = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         return Task.Run(() => ExtractPagesCore(filePath, fs, firstPage, lastPage), cancellationToken);
     }
 
@@ -107,42 +103,32 @@ public static class PdfPageRenderer
     /// 检查 PDF 渲染功能是否可用（PDFium 原生库是否加载成功）
     /// </summary>
     /// <returns>PDFium 原生库加载成功返回 true，否则返回 false</returns>
-    public static bool IsAvailable()
-    {
-        try
-        {
+    public static bool IsAvailable() {
+        try {
             _ = DocLib.Instance;
             return true;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
 
-    private static PdfExtractResult ExtractPagesCore(string filePath, IFileSystem fs, int? firstPage, int? lastPage)
-    {
-        try
-        {
-            if (!fs.FileExists(filePath))
-            {
+    private static PdfExtractResult ExtractPagesCore(string filePath, IFileSystem fs, int? firstPage, int? lastPage) {
+        try {
+            if (!fs.FileExists(filePath)) {
                 return PdfExtractResult.Fail("not_found", $"PDF file not found: {filePath}");
             }
 
             long originalSize;
-            using (var sizeStream = fs.OpenRead(filePath))
-            {
+            using (var sizeStream = fs.OpenRead(filePath)) {
                 originalSize = sizeStream.Length;
             }
 
-            if (originalSize == 0)
-            {
+            if (originalSize == 0) {
                 return PdfExtractResult.Fail("empty", $"PDF file is empty: {filePath}");
             }
 
             // 对齐 TS: PDF_MAX_EXTRACT_SIZE = 100MB
-            if (originalSize > 100 * 1024 * 1024)
-            {
+            if (originalSize > 100 * 1024 * 1024) {
                 return PdfExtractResult.Fail("too_large",
                     $"PDF file exceeds maximum extract size of 100MB.");
             }
@@ -159,16 +145,14 @@ public static class PdfPageRenderer
             var startPage = Math.Max((firstPage ?? 1) - 1, 0);
             var endPage = Math.Min((lastPage ?? totalPages) - 1, totalPages - 1);
 
-            if (startPage >= totalPages)
-            {
+            if (startPage >= totalPages) {
                 return PdfExtractResult.Fail("out_of_range",
                     $"Requested page {firstPage} exceeds total pages ({totalPages}).");
             }
 
             var pages = new List<PdfPageImage>();
 
-            for (var i = startPage; i <= endPage; i++)
-            {
+            for (var i = startPage; i <= endPage; i++) {
                 using var pageReader = docReader.GetPageReader(i);
 
                 var width = pageReader.GetPageWidth();
@@ -178,8 +162,7 @@ public static class PdfPageRenderer
                 // 将 BGRA 原始像素转换为 JPEG
                 var jpegBytes = BgraToJpeg(rawBytes, width, height);
 
-                pages.Add(new PdfPageImage
-                {
+                pages.Add(new PdfPageImage {
                     PageNumber = i + 1, // 1-indexed
                     JpegBytes = jpegBytes,
                     Width = width,
@@ -188,21 +171,15 @@ public static class PdfPageRenderer
             }
 
             return PdfExtractResult.Ok(pages, totalPages, originalSize);
-        }
-        catch (Exception ex) when (ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase))
-        {
+        } catch (Exception ex) when (ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase)) {
             return PdfExtractResult.Fail("password_protected",
                 "This PDF is password protected and cannot be read.");
-        }
-        catch (Exception ex) when (ex.Message.Contains("corrupt", StringComparison.OrdinalIgnoreCase)
-            || ex.Message.Contains("damaged", StringComparison.OrdinalIgnoreCase)
-            || ex.Message.Contains("invalid", StringComparison.OrdinalIgnoreCase))
-        {
+        } catch (Exception ex) when (ex.Message.Contains("corrupt", StringComparison.OrdinalIgnoreCase)
+              || ex.Message.Contains("damaged", StringComparison.OrdinalIgnoreCase)
+              || ex.Message.Contains("invalid", StringComparison.OrdinalIgnoreCase)) {
             return PdfExtractResult.Fail("corrupted",
                 $"PDF file appears to be corrupted: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return PdfExtractResult.Fail("unknown", ex.Message);
         }
     }
@@ -212,8 +189,7 @@ public static class PdfPageRenderer
     /// Docnet.Core 返回 BGRA 格式（4字节/像素：Blue, Green, Red, Alpha）
     /// ImageSharp 的 Bgra32 格式正好匹配
     /// </summary>
-    private static byte[] BgraToJpeg(byte[] bgraData, int width, int height)
-    {
+    private static byte[] BgraToJpeg(byte[] bgraData, int width, int height) {
         using var image = Image.LoadPixelData<Bgra32>(bgraData, width, height);
 
         using var ms = new MemoryStream();

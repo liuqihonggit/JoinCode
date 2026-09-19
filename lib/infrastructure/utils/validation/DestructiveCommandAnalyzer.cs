@@ -4,8 +4,7 @@ namespace Core.Utils;
 /// <summary>
 /// 危险级别
 /// </summary>
-public enum DangerLevel
-{
+public enum DangerLevel {
     /// <summary>
     /// 低风险 - 一般性警告
     /// </summary>
@@ -34,8 +33,7 @@ public enum DangerLevel
 /// <summary>
 /// 危险命令分析结果
 /// </summary>
-public sealed record DangerousCommandAnalysis
-{
+public sealed record DangerousCommandAnalysis {
     /// <summary>
     /// 是否包含危险命令
     /// </summary>
@@ -65,8 +63,7 @@ public sealed record DangerousCommandAnalysis
 /// <summary>
 /// 危险命令定义
 /// </summary>
-public sealed record DangerousCommandDefinition
-{
+public sealed record DangerousCommandDefinition {
     /// <summary>
     /// 命令匹配模式（正则表达式或字面量）
     /// </summary>
@@ -101,13 +98,11 @@ public sealed record DangerousCommandDefinition
 /// <summary>
 /// 破坏性命令分析器
 /// </summary>
-public static class DestructiveCommandAnalyzer
-{
+public static class DestructiveCommandAnalyzer {
     /// <summary>
     /// 内部使用的命令定义，包含预编译的正则表达式
     /// </summary>
-    private sealed record CompiledCommandDefinition
-    {
+    private sealed record CompiledCommandDefinition {
         public required string Pattern { get; init; }
         public required DangerLevel Level { get; init; }
         public required string Description { get; init; }
@@ -118,8 +113,7 @@ public static class DestructiveCommandAnalyzer
 
     private static readonly List<CompiledCommandDefinition> DangerousCommands;
 
-    static DestructiveCommandAnalyzer()
-    {
+    static DestructiveCommandAnalyzer() {
         // 定义原始命令模式
         var definitions = new[]
         {
@@ -204,8 +198,7 @@ public static class DestructiveCommandAnalyzer
         };
 
         // 预编译所有正则表达式
-        DangerousCommands = definitions.Select(d => new CompiledCommandDefinition
-        {
+        DangerousCommands = definitions.Select(d => new CompiledCommandDefinition {
             Pattern = d.Pattern,
             Level = d.Level,
             Description = d.Description,
@@ -218,10 +211,8 @@ public static class DestructiveCommandAnalyzer
     /// <summary>
     /// 分析命令是否包含破坏性操作
     /// </summary>
-    public static DangerousCommandAnalysis Analyze(string command)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-        {
+    public static DangerousCommandAnalysis Analyze(string command) {
+        if (string.IsNullOrWhiteSpace(command)) {
             return new DangerousCommandAnalysis { IsDangerous = false };
         }
 
@@ -230,31 +221,26 @@ public static class DestructiveCommandAnalyzer
         var descriptions = new List<string>();
         var suggestions = new List<string>();
 
-        foreach (var definition in DangerousCommands)
-        {
+        foreach (var definition in DangerousCommands) {
             // 使用预编译的正则表达式，避免每次重新编译
             bool isMatch = definition.CompiledRegex?.IsMatch(command) ?? false;
 
-            if (isMatch)
-            {
+            if (isMatch) {
                 detectedCommands.Add(definition.Pattern);
 
-                if (definition.Level > maxLevel)
-                {
+                if (definition.Level > maxLevel) {
                     maxLevel = definition.Level;
                 }
 
                 descriptions.Add(definition.WarningMessage);
 
-                if (!string.IsNullOrEmpty(definition.Suggestion))
-                {
+                if (!string.IsNullOrEmpty(definition.Suggestion)) {
                     suggestions.Add(definition.Suggestion);
                 }
             }
         }
 
-        if (detectedCommands.Count == 0)
-        {
+        if (detectedCommands.Count == 0) {
             return new DangerousCommandAnalysis { IsDangerous = false };
         }
 
@@ -263,8 +249,7 @@ public static class DestructiveCommandAnalyzer
             ? string.Join("\n", suggestions.Distinct())
             : null;
 
-        return new DangerousCommandAnalysis
-        {
+        return new DangerousCommandAnalysis {
             IsDangerous = true,
             Level = maxLevel,
             DetectedCommands = detectedCommands,
@@ -276,16 +261,14 @@ public static class DestructiveCommandAnalyzer
     /// <summary>
     /// 快速检查命令是否危险
     /// </summary>
-    public static bool IsDangerous(string command)
-    {
+    public static bool IsDangerous(string command) {
         return Analyze(command).IsDangerous;
     }
 
     /// <summary>
     /// 获取命令的安全建议
     /// </summary>
-    public static string? GetSafetySuggestion(string command)
-    {
+    public static string? GetSafetySuggestion(string command) {
         var analysis = Analyze(command);
         return analysis.IsDangerous ? analysis.Suggestion : null;
     }

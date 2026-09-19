@@ -8,20 +8,17 @@ namespace Core.Hooks.Execution.Interception.Defense;
 /// </para>
 /// </summary>
 [Register(typeof(StrictParseNode), ServiceLifetime.Singleton)]
-public sealed class StrictParseNode
-{
+public sealed class StrictParseNode {
     /// <summary>
     /// 检测命令中是否有未闭合的引号。
     /// </summary>
     /// <param name="command">命令字符串</param>
     /// <returns>未闭合的引号字符（' 或 "）；null 表示引号配对正常</returns>
-    public char? FindUnmatchedQuote(ReadOnlySpan<char> command)
-    {
+    public char? FindUnmatchedQuote(ReadOnlySpan<char> command) {
         var inSingleQuote = false;
         var inDoubleQuote = false;
 
-        foreach (var c in command)
-        {
+        foreach (var c in command) {
             if (c == '\'' && !inDoubleQuote)
                 inSingleQuote = !inSingleQuote;
             else if (c == '"' && !inSingleQuote)

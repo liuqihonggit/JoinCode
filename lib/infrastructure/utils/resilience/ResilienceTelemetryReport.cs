@@ -3,16 +3,14 @@ namespace Infrastructure.Utils.Resilience;
 /// <summary>
 /// 韧性遥测报告 — 覆盖所有通讯点的韧性状态
 /// </summary>
-public sealed class ResilienceTelemetryReport
-{
+public sealed class ResilienceTelemetryReport {
     /// <summary>HTTP 端点韧性状态字典（按端点名称索引）</summary>
     public required IReadOnlyDictionary<string, HttpResilienceStatus> HttpEndpoints { get; init; }
     /// <summary>子进程韧性状态字典（按进程名称索引）</summary>
     public required IReadOnlyDictionary<string, SubprocessResilienceStatus> Subprocesses { get; init; }
 
     /// <summary>空报告 — 无任何韧性端点</summary>
-    public static ResilienceTelemetryReport Empty => new()
-    {
+    public static ResilienceTelemetryReport Empty => new() {
         HttpEndpoints = FrozenDictionary<string, HttpResilienceStatus>.Empty,
         Subprocesses = FrozenDictionary<string, SubprocessResilienceStatus>.Empty,
     };
@@ -21,8 +19,7 @@ public sealed class ResilienceTelemetryReport
 /// <summary>
 /// HTTP 通讯点韧性状态
 /// </summary>
-public sealed class HttpResilienceStatus
-{
+public sealed class HttpResilienceStatus {
     /// <summary>端点名称</summary>
     public required string Name { get; init; }
     /// <summary>熔断器状态</summary>
@@ -42,8 +39,7 @@ public sealed class HttpResilienceStatus
 /// <summary>
 /// 子进程韧性状态
 /// </summary>
-public sealed class SubprocessResilienceStatus
-{
+public sealed class SubprocessResilienceStatus {
     /// <summary>进程名称</summary>
     public required string Name { get; init; }
     /// <summary>是否健康</summary>

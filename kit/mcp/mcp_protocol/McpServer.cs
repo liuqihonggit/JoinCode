@@ -4,8 +4,7 @@ namespace McpProtocol;
 /// MCP 协议服务端核心 — 处理 JSON-RPC 请求分发,管理资源/提示处理器,
 /// 支持 stdio 行协议与 LSP 风格 Content-Length 框架协议两种传输形态。
 /// </summary>
-public class McpServer
-{
+public class McpServer {
     private readonly ConcurrentDictionary<string, IResourceHandler> _resources = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IPromptHandler> _prompts = new(StringComparer.Ordinal);
     private readonly string _serverName;
@@ -24,16 +23,14 @@ public class McpServer
     /// <param name="serverName">服务端名称,默认 "McpServer"</param>
     /// <param name="serverVersion">服务端版本,默认 "1.0.0"</param>
     /// <param name="instructions">服务端说明,作为 initialize 响应返回给客户端</param>
-    public McpServer(string serverName = "McpServer", string? serverVersion = null, string? instructions = null)
-    {
+    public McpServer(string serverName = "McpServer", string? serverVersion = null, string? instructions = null) {
         _serverName = serverName;
         _serverVersion = serverVersion ?? "1.0.0";
         _instructions = instructions;
     }
 
     internal McpServer(string serverName, string? serverVersion, string? instructions, TextReader inputReader, TextWriter outputWriter)
-        : this(serverName, serverVersion, instructions)
-    {
+        : this(serverName, serverVersion, instructions) {
         _inputReader = inputReader;
         _outputWriter = outputWriter;
     }
@@ -42,8 +39,7 @@ public class McpServer
     /// 注册资源处理器 — 以资源 Uri 为键登记,后续 resources/read 请求按 Uri 派发
     /// </summary>
     /// <param name="handler">资源处理器实例</param>
-    public void RegisterResourceHandler(IResourceHandler handler)
-    {
+    public void RegisterResourceHandler(IResourceHandler handler) {
         ArgumentNullException.ThrowIfNull(handler);
         _resources[handler.Uri] = handler;
     }
@@ -52,8 +48,7 @@ public class McpServer
     /// 注册提示处理器 — 以提示 Name 为键登记,后续 prompts/get 请求按 Name 派发
     /// </summary>
     /// <param name="handler">提示处理器实例</param>
-    public void RegisterPromptHandler(IPromptHandler handler)
-    {
+    public void RegisterPromptHandler(IPromptHandler handler) {
         ArgumentNullException.ThrowIfNull(handler);
         _prompts[handler.Name] = handler;
     }
@@ -64,33 +59,27 @@ public class McpServer
     /// </summary>
     /// <param name="cancellationToken">取消令牌,触发后退出主循环</param>
     /// <returns>表示异步运行操作的任务</returns>
-    public async Task RunAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task RunAsync(CancellationToken cancellationToken = default) {
         // Console 标准流生命周期 = 进程，不应释放（Dispose 会连带关闭底层 Console 流）。
         // reader/writer 仅作包装，故不用 using var。详见 ADR-0093 规则1例外。
         var reader = _inputReader ?? new StreamReader(Console.OpenStandardInput());
         var writer = _outputWriter ?? new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
 
-        while (!cancellationToken.IsCancellationRequested)
-        {
+        while (!cancellationToken.IsCancellationRequested) {
             var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-            if (line == null)
-            {
+            if (line == null) {
                 break;
             }
-            if (string.IsNullOrEmpty(line))
-            {
+            if (string.IsNullOrEmpty(line)) {
                 await Task.Delay(100, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
             var trimmedLine = line.TrimStart();
 
-            if (trimmedLine.StartsWith("{"))
-            {
+            if (trimmedLine.StartsWith("{")) {
                 var response = await ProcessMessageAsync(trimmedLine, cancellationToken).ConfigureAwait(false);
-                if (response != null)
-                {
+                if (response != null) {
                     var responseJson = McpJsonSerializer.Serialize(response);
                     await writer.WriteLineAsync(responseJson).ConfigureAwait(false);
                     await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -104,39 +93,32 @@ public class McpServer
             await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
 
             var buffer = System.Buffers.ArrayPool<char>.Shared.Rent(contentLength);
-            try
-            {
+            try {
                 var read = await reader.ReadAsync(buffer, 0, contentLength).ConfigureAwait(false);
                 var json = new string(buffer, 0, read);
 
                 var responseLsp = await ProcessMessageAsync(json, cancellationToken).ConfigureAwait(false);
-                if (responseLsp != null)
-                {
+                if (responseLsp != null) {
                     var responseJson = McpJsonSerializer.Serialize(responseLsp);
                     var responseBytes = System.Text.Encoding.UTF8.GetBytes(responseJson);
                     await writer.WriteLineAsync($"Content-Length: {responseBytes.Length}").ConfigureAwait(false);
-                await writer.WriteLineAsync().ConfigureAwait(false);
-                await writer.WriteAsync(responseJson).ConfigureAwait(false);
-                await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    await writer.WriteLineAsync().ConfigureAwait(false);
+                    await writer.WriteAsync(responseJson).ConfigureAwait(false);
+                    await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
-            }
-            finally
-            {
+            } finally {
                 System.Buffers.ArrayPool<char>.Shared.Return(buffer);
             }
         }
     }
 
-    internal async Task<JsonRpcResponse?> ProcessMessageAsync(string json, CancellationToken cancellationToken)
-    {
+    internal async Task<JsonRpcResponse?> ProcessMessageAsync(string json, CancellationToken cancellationToken) {
         JsonRpcRequest? request = null;
-        try
-        {
+        try {
             request = McpJsonSerializer.DeserializeJsonRpcRequest(json);
             if (request == null) return null;
 
-            if (request.Id.IsNull)
-            {
+            if (request.Id.IsNull) {
                 HandleNotification(request.Method, request.Params, cancellationToken);
                 return null;
             }
@@ -144,71 +126,62 @@ public class McpServer
             var response = new JsonRpcResponse { Id = request.Id };
 
             var method = McpMethodExtensions.FromValue(request.Method);
-            switch (method)
-            {
+            switch (method) {
                 case McpMethod.Initialize:
-                    response.Result = JsonSerializer.SerializeToElement(HandleInitialize(), McpJsonContext.Default.InitializeResult);
-                    break;
+                response.Result = JsonSerializer.SerializeToElement(HandleInitialize(), McpJsonContext.Default.InitializeResult);
+                break;
 
                 case McpMethod.Ping:
-                    response.Result = JsonSerializer.SerializeToElement(HandlePing(), McpJsonContext.Default.PingResult);
-                    break;
+                response.Result = JsonSerializer.SerializeToElement(HandlePing(), McpJsonContext.Default.PingResult);
+                break;
 
                 case McpMethod.ToolsList:
-                    response.Result = JsonSerializer.SerializeToElement(HandleListTools(), McpJsonContext.Default.ListToolsResult);
-                    break;
+                response.Result = JsonSerializer.SerializeToElement(HandleListTools(), McpJsonContext.Default.ListToolsResult);
+                break;
 
-                case McpMethod.ToolsCall:
-                    {
-                        var result = await HandleCallToolAsync(request.Params, cancellationToken).ConfigureAwait(false);
-                        response.Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.CallToolResult);
-                    }
-                    break;
+                case McpMethod.ToolsCall: {
+                    var result = await HandleCallToolAsync(request.Params, cancellationToken).ConfigureAwait(false);
+                    response.Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.CallToolResult);
+                }
+                break;
 
                 case McpMethod.ResourcesList:
-                    response.Result = JsonSerializer.SerializeToElement(HandleListResources(), McpJsonContext.Default.McpResourcesListResponse);
-                    break;
+                response.Result = JsonSerializer.SerializeToElement(HandleListResources(), McpJsonContext.Default.McpResourcesListResponse);
+                break;
 
-                case McpMethod.ResourcesRead:
-                    {
-                        var result = await HandleReadResourceAsync(request.Params, cancellationToken).ConfigureAwait(false);
-                        response.Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.McpResourceReadResponse);
-                    }
-                    break;
+                case McpMethod.ResourcesRead: {
+                    var result = await HandleReadResourceAsync(request.Params, cancellationToken).ConfigureAwait(false);
+                    response.Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.McpResourceReadResponse);
+                }
+                break;
 
                 case McpMethod.PromptsList:
-                    response.Result = JsonSerializer.SerializeToElement(HandleListPrompts(), McpJsonContext.Default.McpPromptsListResponse);
-                    break;
+                response.Result = JsonSerializer.SerializeToElement(HandleListPrompts(), McpJsonContext.Default.McpPromptsListResponse);
+                break;
 
-                case McpMethod.PromptsGet:
-                    {
-                        var result = await HandleGetPromptAsync(request.Params, cancellationToken).ConfigureAwait(false);
-                        response.Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.McpPromptGetResponse);
-                    }
-                    break;
+                case McpMethod.PromptsGet: {
+                    var result = await HandleGetPromptAsync(request.Params, cancellationToken).ConfigureAwait(false);
+                    response.Result = JsonSerializer.SerializeToElement(result, McpJsonContext.Default.McpPromptGetResponse);
+                }
+                break;
 
                 case McpMethod.LoggingSetLevel:
-                    response.Result = JsonSerializer.SerializeToElement(HandleSetLogLevel(request.Params), McpJsonContext.Default.PingResult);
-                    break;
+                response.Result = JsonSerializer.SerializeToElement(HandleSetLogLevel(request.Params), McpJsonContext.Default.PingResult);
+                break;
 
                 default:
-                    response.Error = new JsonRpcError
-                    {
-                        Code = McpProtocol.Contracts.ErrorCodes.MethodNotFound,
-                        Message = $"Method not found: {request.Method}"
-                    };
-                    break;
+                response.Error = new JsonRpcError {
+                    Code = McpProtocol.Contracts.ErrorCodes.MethodNotFound,
+                    Message = $"Method not found: {request.Method}"
+                };
+                break;
             }
 
             return response;
-        }
-        catch (Exception ex)
-        {
-            return new JsonRpcResponse
-            {
+        } catch (Exception ex) {
+            return new JsonRpcResponse {
                 Id = request?.Id ?? JsonRpcId.Null,
-                Error = new JsonRpcError
-                {
+                Error = new JsonRpcError {
                     Code = McpProtocol.Contracts.ErrorCodes.InternalError,
                     Message = $"Internal error: {ex.Message}"
                 }
@@ -216,50 +189,44 @@ public class McpServer
         }
     }
 
-    private void HandleNotification(string method, JsonElement? Params, CancellationToken cancellationToken)
-    {
-        NotificationReceived?.Invoke(this, new McpServerNotificationEventArgs
-        {
+    private void HandleNotification(string method, JsonElement? Params, CancellationToken cancellationToken) {
+        NotificationReceived?.Invoke(this, new McpServerNotificationEventArgs {
             Method = method,
             Params = Params
         });
 
         var notificationMethod = McpMethodExtensions.FromValue(method);
-        switch (notificationMethod)
-        {
+        switch (notificationMethod) {
             case McpMethod.Initialized:
-                break;
+            break;
 
             case McpMethod.NotificationCancelled:
-                break;
+            break;
 
             case McpMethod.NotificationResourcesUpdated:
-                break;
+            break;
 
             case McpMethod.NotificationResourcesListChanged:
-                break;
+            break;
 
             case McpMethod.NotificationToolsListChanged:
-                break;
+            break;
 
             case McpMethod.NotificationPromptsListChanged:
-                break;
+            break;
 
             case McpMethod.NotificationMessage:
-                break;
+            break;
 
             default:
-                break;
+            break;
         }
     }
 
-    private InitializeResult HandleInitialize()
-    {
-        return new InitializeResult
-        {
+    private InitializeResult HandleInitialize() {
+        return new InitializeResult {
             ProtocolVersion = McpProtocolVersion.Current,
-            Capabilities = new ServerCapabilities
-            {
+            Capabilities = new ServerCapabilities {
                 Tools = new ToolsCapability { ListChanged = false },
                 Resources = _resources.Count > 0
                     ? new ResourcesCapability { Subscribe = false, ListChanged = false }
@@ -269,8 +236,7 @@ public class McpServer
                     : null,
                 Logging = new LoggingCapability { Level = _logLevel }
             },
-            ServerInfo = new Implementation
-            {
+            ServerInfo = new Implementation {
                 Name = _serverName,
                 Version = _serverVersion
             },
@@ -278,38 +244,32 @@ public class McpServer
         };
     }
 
-    private static PingResult HandlePing()
-    {
+    private static PingResult HandlePing() {
         return new PingResult();
     }
 
     /// <summary>
     /// 处理 tools/list 请求 — 子类可 override 接入 IMcpToolRegistry 暴露真实工具
     /// </summary>
-    protected virtual ListToolsResult HandleListTools()
-    {
+    protected virtual ListToolsResult HandleListTools() {
         return new ListToolsResult { Tools = [] };
     }
 
     /// <summary>
     /// 处理 tools/call 请求 — 子类可 override 接入 IMcpToolRegistry 执行真实工具
     /// </summary>
-    protected virtual Task<CallToolResult> HandleCallToolAsync(JsonElement? paramsObj, CancellationToken cancellationToken)
-    {
+    protected virtual Task<CallToolResult> HandleCallToolAsync(JsonElement? paramsObj, CancellationToken cancellationToken) {
         var name = paramsObj != null
             ? McpJsonSerializer.DeserializeCallToolRequestParams(paramsObj.Value.GetRawText())?.Name ?? "<unknown>"
             : "<unknown>";
-        return Task.FromResult(new CallToolResult
-        {
+        return Task.FromResult(new CallToolResult {
             Content = [new McpToolContent { Text = $"Tool not found: {name}" }],
             IsError = true
         });
     }
 
-    private McpResourcesListResponse HandleListResources()
-    {
-        var resources = _resources.Values.Select(h => new McpResource
-        {
+    private McpResourcesListResponse HandleListResources() {
+        var resources = _resources.Values.Select(h => new McpResource {
             Uri = h.Uri,
             Name = h.Name,
             Description = h.Description,
@@ -319,8 +279,7 @@ public class McpServer
         return new McpResourcesListResponse { Resources = resources };
     }
 
-    private async Task<McpResourceReadResponse> HandleReadResourceAsync(JsonElement? paramsObj, CancellationToken cancellationToken)
-    {
+    private async Task<McpResourceReadResponse> HandleReadResourceAsync(JsonElement? paramsObj, CancellationToken cancellationToken) {
         if (paramsObj == null)
             return new McpResourceReadResponse();
 
@@ -332,21 +291,16 @@ public class McpServer
         if (!_resources.TryGetValue(readParams.Uri, out var handler))
             return new McpResourceReadResponse();
 
-        try
-        {
+        try {
             var content = await handler.ReadAsync(cancellationToken).ConfigureAwait(false);
             return new McpResourceReadResponse { Contents = [content] };
-        }
-        catch
-        {
+        } catch {
             return new McpResourceReadResponse();
         }
     }
 
-    private McpPromptsListResponse HandleListPrompts()
-    {
-        var prompts = _prompts.Values.Select(h => new McpPrompt
-        {
+    private McpPromptsListResponse HandleListPrompts() {
+        var prompts = _prompts.Values.Select(h => new McpPrompt {
             Name = h.Name,
             Description = h.Description,
             Arguments = h.Arguments ?? []
@@ -355,8 +309,7 @@ public class McpServer
         return new McpPromptsListResponse { Prompts = prompts };
     }
 
-    private async Task<McpPromptGetResponse> HandleGetPromptAsync(JsonElement? paramsObj, CancellationToken cancellationToken)
-    {
+    private async Task<McpPromptGetResponse> HandleGetPromptAsync(JsonElement? paramsObj, CancellationToken cancellationToken) {
         if (paramsObj == null)
             return new McpPromptGetResponse();
 
@@ -368,28 +321,21 @@ public class McpServer
         if (!_prompts.TryGetValue(getParams.Name, out var handler))
             return new McpPromptGetResponse();
 
-        try
-        {
+        try {
             var message = await handler.GetAsync(getParams.Arguments, cancellationToken).ConfigureAwait(false);
-            return new McpPromptGetResponse
-            {
+            return new McpPromptGetResponse {
                 Description = message.Description,
                 Messages = message.Messages
             };
-        }
-        catch
-        {
+        } catch {
             return new McpPromptGetResponse();
         }
     }
 
-    private PingResult HandleSetLogLevel(JsonElement? paramsObj)
-    {
-        if (paramsObj is JsonElement element)
-        {
+    private PingResult HandleSetLogLevel(JsonElement? paramsObj) {
+        if (paramsObj is JsonElement element) {
             var setLevelParams = McpJsonSerializer.DeserializeLoggingSetLevelRequestParams(element.GetRawText());
-            if (setLevelParams != null)
-            {
+            if (setLevelParams != null) {
                 _logLevel = setLevelParams.Level;
             }
         }
@@ -401,8 +347,7 @@ public class McpServer
 /// <summary>
 /// 服务端通知事件参数 — 携带通知方法名与参数
 /// </summary>
-public sealed class McpServerNotificationEventArgs : EventArgs
-{
+public sealed class McpServerNotificationEventArgs : EventArgs {
     /// <summary>通知方法名(如 "notifications/cancelled")</summary>
     public required string Method { get; init; }
     /// <summary>通知参数的 JSON 元素,可为 null</summary>

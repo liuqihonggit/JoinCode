@@ -6,8 +6,7 @@ namespace JoinCode.CodeIndex;
 /// 不再使用 SQLite 事务,所有写操作在写锁内原子完成
 /// FTS5 全文检索替代为字符串包含匹配(后续可集成 SearchService 做 rg 模糊检索)
 /// </summary>
-public sealed class SymbolIndex : ISymbolIndex, IDisposable
-{
+public sealed class SymbolIndex : ISymbolIndex, IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly IFileSystem _fs;
     private readonly ILanguagePlugin _plugin;
@@ -21,8 +20,7 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// <param name="fs">文件系统抽象</param>
     /// <param name="plugin">语言插件,用于源码解析</param>
     /// <param name="clock">时钟服务(可选),默认使用系统时钟</param>
-    public SymbolIndex(InMemoryIndexStore store, IFileSystem fs, ILanguagePlugin plugin, IClockService? clock = null)
-    {
+    public SymbolIndex(InMemoryIndexStore store, IFileSystem fs, ILanguagePlugin plugin, IClockService? clock = null) {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(fs);
         ArgumentNullException.ThrowIfNull(plugin);
@@ -39,12 +37,10 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// <param name="filePath">文件路径</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>异步任务</returns>
-    public async Task IndexFileAsync(string filePath, CancellationToken ct)
-    {
+    public async Task IndexFileAsync(string filePath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePath);
 
-        if (!_fs.FileExists(filePath))
-        {
+        if (!_fs.FileExists(filePath)) {
             return;
         }
 
@@ -60,8 +56,7 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// <param name="contentHash">内容哈希,用于变更检测</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>异步任务</returns>
-    public async Task IndexFileWithContentAsync(string filePath, string sourceCode, string contentHash, CancellationToken ct)
-    {
+    public async Task IndexFileWithContentAsync(string filePath, string sourceCode, string contentHash, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(sourceCode);
         ArgumentNullException.ThrowIfNull(contentHash);
@@ -79,8 +74,7 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// <param name="extraction">已提取的符号/调用/依赖结果</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>已完成的任务</returns>
-    public Task IndexFileWithContentAsync(string filePath, string sourceCode, string contentHash, ExtractionResult extraction, CancellationToken ct)
-    {
+    public Task IndexFileWithContentAsync(string filePath, string sourceCode, string contentHash, ExtractionResult extraction, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(sourceCode);
         ArgumentNullException.ThrowIfNull(contentHash);
@@ -105,19 +99,16 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// </summary>
     public Task IndexFilesBatchAsync(
         IReadOnlyList<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)> files,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(files);
 
-        if (files.Count == 0)
-        {
+        if (files.Count == 0) {
             return Task.CompletedTask;
         }
 
         // 单写锁批量处理: 消除每文件锁开销 + 每文件 CorrectInheritsToImplements 全量扫描
         using var scope = _store.EnterWriteLock();
-        for (var i = 0; i < files.Count; i++)
-        {
+        for (var i = 0; i < files.Count; i++) {
             ct.ThrowIfCancellationRequested();
             var (filePath, _, hash, extraction) = files[i];
             RemoveFileInternal(filePath);
@@ -139,12 +130,10 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// <param name="filePaths">文件路径列表</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>异步任务</returns>
-    public async Task IndexFilesAsync(IReadOnlyList<string> filePaths, CancellationToken ct)
-    {
+    public async Task IndexFilesAsync(IReadOnlyList<string> filePaths, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePaths);
 
-        foreach (var fp in filePaths)
-        {
+        foreach (var fp in filePaths) {
             ct.ThrowIfCancellationRequested();
             await IndexFileAsync(fp, ct).ConfigureAwait(false);
         }
@@ -156,8 +145,7 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// <param name="filePath">文件路径</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>已完成的任务</returns>
-    public Task RemoveFileAsync(string filePath, CancellationToken ct)
-    {
+    public Task RemoveFileAsync(string filePath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePath);
         using var scope = _store.EnterWriteLock();
         RemoveFileInternal(filePath);
@@ -170,8 +158,7 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>已完成的任务</returns>
-    public Task ClearAsync(CancellationToken ct)
-    {
+    public Task ClearAsync(CancellationToken ct) {
         _store.Clear();
         return Task.CompletedTask;
     }
@@ -181,11 +168,9 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>索引统计快照</returns>
-    public Task<IndexStats> GetStatsAsync(CancellationToken ct)
-    {
+    public Task<IndexStats> GetStatsAsync(CancellationToken ct) {
         using var scope = _store.EnterReadLock();
-        var stats = new IndexStats
-        {
+        var stats = new IndexStats {
             FileCount = _store.FileTracking.Count,
             SymbolCount = _store.SymbolsByFqn.Count,
             CallEdgeCount = _store.CallEdges.Count,
@@ -199,23 +184,18 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// <summary>
     /// 移除文件相关所有数据(必须在写锁内调用)— 替代 DELETE FROM 语句
     /// </summary>
-    private void RemoveFileInternal(string filePath)
-    {
+    private void RemoveFileInternal(string filePath) {
         // 移除该文件的所有符号
-        if (_store.SymbolsByFile.TryGetValue(filePath, out var symbolsInFile))
-        {
-            foreach (var sym in symbolsInFile)
-            {
+        if (_store.SymbolsByFile.TryGetValue(filePath, out var symbolsInFile)) {
+            foreach (var sym in symbolsInFile) {
                 _store.SymbolsByFqn.Remove(sym.FullyQualifiedName);
 
-                if (_store.SymbolsByName.TryGetValue(sym.Name, out var nameList))
-                {
+                if (_store.SymbolsByName.TryGetValue(sym.Name, out var nameList)) {
                     nameList.Remove(sym);
                     if (nameList.Count == 0) _store.SymbolsByName.Remove(sym.Name);
                 }
 
-                if (_store.SymbolsByKind.TryGetValue(sym.Kind, out var kindList))
-                {
+                if (_store.SymbolsByKind.TryGetValue(sym.Kind, out var kindList)) {
                     kindList.Remove(sym);
                     if (kindList.Count == 0) _store.SymbolsByKind.Remove(sym.Kind);
                 }
@@ -224,18 +204,14 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         }
 
         // 移除该文件的所有调用边
-        if (_store.CallsByFile.TryGetValue(filePath, out var callsInFile))
-        {
-            foreach (var edge in callsInFile)
-            {
+        if (_store.CallsByFile.TryGetValue(filePath, out var callsInFile)) {
+            foreach (var edge in callsInFile) {
                 _store.CallEdges.Remove(edge);
-                if (_store.CallsByCaller.TryGetValue(edge.CallerSymbol, out var callerList))
-                {
+                if (_store.CallsByCaller.TryGetValue(edge.CallerSymbol, out var callerList)) {
                     callerList.Remove(edge);
                     if (callerList.Count == 0) _store.CallsByCaller.Remove(edge.CallerSymbol);
                 }
-                if (_store.CallsByCallee.TryGetValue(edge.CalleeSymbol, out var calleeList))
-                {
+                if (_store.CallsByCallee.TryGetValue(edge.CalleeSymbol, out var calleeList)) {
                     calleeList.Remove(edge);
                     if (calleeList.Count == 0) _store.CallsByCallee.Remove(edge.CalleeSymbol);
                 }
@@ -244,18 +220,14 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         }
 
         // 移除该文件的所有依赖边
-        if (_store.DepsByFile.TryGetValue(filePath, out var depsInFile))
-        {
-            foreach (var edge in depsInFile)
-            {
+        if (_store.DepsByFile.TryGetValue(filePath, out var depsInFile)) {
+            foreach (var edge in depsInFile) {
                 _store.DepEdges.Remove(edge);
-                if (_store.DepsBySource.TryGetValue(edge.SourceSymbol, out var srcList))
-                {
+                if (_store.DepsBySource.TryGetValue(edge.SourceSymbol, out var srcList)) {
                     srcList.Remove(edge);
                     if (srcList.Count == 0) _store.DepsBySource.Remove(edge.SourceSymbol);
                 }
-                if (_store.DepsByTarget.TryGetValue(edge.TargetSymbol, out var tgtList))
-                {
+                if (_store.DepsByTarget.TryGetValue(edge.TargetSymbol, out var tgtList)) {
                     tgtList.Remove(edge);
                     if (tgtList.Count == 0) _store.DepsByTarget.Remove(edge.TargetSymbol);
                 }
@@ -264,26 +236,20 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         }
     }
 
-    private void InsertSymbolsInternal(IReadOnlyList<SymbolInfo> symbols)
-    {
-        foreach (var symbol in symbols)
-        {
+    private void InsertSymbolsInternal(IReadOnlyList<SymbolInfo> symbols) {
+        foreach (var symbol in symbols) {
             // FQN 相同则覆盖(等价 ON CONFLICT)
-            if (_store.SymbolsByFqn.TryGetValue(symbol.FullyQualifiedName, out var existing))
-            {
+            if (_store.SymbolsByFqn.TryGetValue(symbol.FullyQualifiedName, out var existing)) {
                 // 从所有索引中移除旧符号
-                if (_store.SymbolsByName.TryGetValue(existing.Name, out var nameList))
-                {
+                if (_store.SymbolsByName.TryGetValue(existing.Name, out var nameList)) {
                     nameList.Remove(existing);
                     if (nameList.Count == 0) _store.SymbolsByName.Remove(existing.Name);
                 }
-                if (_store.SymbolsByFile.TryGetValue(existing.FilePath, out var fileList))
-                {
+                if (_store.SymbolsByFile.TryGetValue(existing.FilePath, out var fileList)) {
                     fileList.Remove(existing);
                     if (fileList.Count == 0) _store.SymbolsByFile.Remove(existing.FilePath);
                 }
-                if (_store.SymbolsByKind.TryGetValue(existing.Kind, out var kindList))
-                {
+                if (_store.SymbolsByKind.TryGetValue(existing.Kind, out var kindList)) {
                     kindList.Remove(existing);
                     if (kindList.Count == 0) _store.SymbolsByKind.Remove(existing.Kind);
                 }
@@ -291,22 +257,19 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
 
             _store.SymbolsByFqn[symbol.FullyQualifiedName] = symbol;
 
-            if (!_store.SymbolsByName.TryGetValue(symbol.Name, out var byName))
-            {
+            if (!_store.SymbolsByName.TryGetValue(symbol.Name, out var byName)) {
                 byName = new List<SymbolInfo>();
                 _store.SymbolsByName[symbol.Name] = byName;
             }
             byName.Add(symbol);
 
-            if (!_store.SymbolsByFile.TryGetValue(symbol.FilePath, out var byFile))
-            {
+            if (!_store.SymbolsByFile.TryGetValue(symbol.FilePath, out var byFile)) {
                 byFile = new List<SymbolInfo>();
                 _store.SymbolsByFile[symbol.FilePath] = byFile;
             }
             byFile.Add(symbol);
 
-            if (!_store.SymbolsByKind.TryGetValue(symbol.Kind, out var byKind))
-            {
+            if (!_store.SymbolsByKind.TryGetValue(symbol.Kind, out var byKind)) {
                 byKind = new List<SymbolInfo>();
                 _store.SymbolsByKind[symbol.Kind] = byKind;
             }
@@ -314,28 +277,23 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         }
     }
 
-    private void InsertCallEdgesInternal(IReadOnlyList<CallEdge> calls)
-    {
-        foreach (var call in calls)
-        {
+    private void InsertCallEdgesInternal(IReadOnlyList<CallEdge> calls) {
+        foreach (var call in calls) {
             _store.CallEdges.Add(call);
 
-            if (!_store.CallsByCaller.TryGetValue(call.CallerSymbol, out var callerList))
-            {
+            if (!_store.CallsByCaller.TryGetValue(call.CallerSymbol, out var callerList)) {
                 callerList = new List<CallEdge>();
                 _store.CallsByCaller[call.CallerSymbol] = callerList;
             }
             callerList.Add(call);
 
-            if (!_store.CallsByCallee.TryGetValue(call.CalleeSymbol, out var calleeList))
-            {
+            if (!_store.CallsByCallee.TryGetValue(call.CalleeSymbol, out var calleeList)) {
                 calleeList = new List<CallEdge>();
                 _store.CallsByCallee[call.CalleeSymbol] = calleeList;
             }
             calleeList.Add(call);
 
-            if (!_store.CallsByFile.TryGetValue(call.CallSiteFilePath, out var fileList))
-            {
+            if (!_store.CallsByFile.TryGetValue(call.CallSiteFilePath, out var fileList)) {
                 fileList = new List<CallEdge>();
                 _store.CallsByFile[call.CallSiteFilePath] = fileList;
             }
@@ -343,31 +301,25 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         }
     }
 
-    private void InsertDependencyEdgesInternal(IReadOnlyList<DependencyEdge> deps)
-    {
-        foreach (var dep in deps)
-        {
+    private void InsertDependencyEdgesInternal(IReadOnlyList<DependencyEdge> deps) {
+        foreach (var dep in deps) {
             _store.DepEdges.Add(dep);
 
-            if (!_store.DepsBySource.TryGetValue(dep.SourceSymbol, out var srcList))
-            {
+            if (!_store.DepsBySource.TryGetValue(dep.SourceSymbol, out var srcList)) {
                 srcList = new List<DependencyEdge>();
                 _store.DepsBySource[dep.SourceSymbol] = srcList;
             }
             srcList.Add(dep);
 
-            if (!_store.DepsByTarget.TryGetValue(dep.TargetSymbol, out var tgtList))
-            {
+            if (!_store.DepsByTarget.TryGetValue(dep.TargetSymbol, out var tgtList)) {
                 tgtList = new List<DependencyEdge>();
                 _store.DepsByTarget[dep.TargetSymbol] = tgtList;
             }
             tgtList.Add(dep);
 
-            if (dep.SourceFilePath is not null and not "")
-            {
+            if (dep.SourceFilePath is not null and not "") {
                 var sourceFile = dep.SourceFilePath;
-                if (!_store.DepsByFile.TryGetValue(sourceFile, out var fileList))
-                {
+                if (!_store.DepsByFile.TryGetValue(sourceFile, out var fileList)) {
                     fileList = new List<DependencyEdge>();
                     _store.DepsByFile[sourceFile] = fileList;
                 }
@@ -380,18 +332,15 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// 修正 Inherits→Implements: 当 target 是接口时,Inherits 边替换为 Implements
     /// record DTO 不可变,需创建新边替换旧边(在所有索引中替换)
     /// </summary>
-    private void CorrectInheritsToImplementsInternal()
-    {
+    private void CorrectInheritsToImplementsInternal() {
         // 先收集需要修正的边: old -> new 映射,避免循环内 IndexOf 导致 O(n²)
         var replacements = new Dictionary<DependencyEdge, DependencyEdge>();
-        for (var i = 0; i < _store.DepEdges.Count; i++)
-        {
+        for (var i = 0; i < _store.DepEdges.Count; i++) {
             var dep = _store.DepEdges[i];
             if (dep.DependencyKind != DependencyKind.Inherits) continue;
             if (!_store.SymbolsByFqn.TryGetValue(dep.TargetSymbol, out var target) || target.Kind != SymbolKind.Interface) continue;
 
-            var newDep = new DependencyEdge
-            {
+            var newDep = new DependencyEdge {
                 SourceSymbol = dep.SourceSymbol,
                 TargetSymbol = dep.TargetSymbol,
                 DependencyKind = DependencyKind.Implements,
@@ -409,34 +358,25 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         ReplaceEdgesInLists(_store.DepsByFile, replacements);
     }
 
-    private static void ReplaceEdgesInLists<TKey>(Dictionary<TKey, List<DependencyEdge>> dict, Dictionary<DependencyEdge, DependencyEdge> replacements) where TKey : notnull
-    {
-        foreach (var kv in dict)
-        {
+    private static void ReplaceEdgesInLists<TKey>(Dictionary<TKey, List<DependencyEdge>> dict, Dictionary<DependencyEdge, DependencyEdge> replacements) where TKey : notnull {
+        foreach (var kv in dict) {
             var list = kv.Value;
-            for (var i = 0; i < list.Count; i++)
-            {
-                if (replacements.TryGetValue(list[i], out var newDep))
-                {
+            for (var i = 0; i < list.Count; i++) {
+                if (replacements.TryGetValue(list[i], out var newDep)) {
                     list[i] = newDep;
                 }
             }
         }
     }
 
-    private void UpsertFileTrackingInternal(string filePath, string hash, int symbolCount)
-    {
+    private void UpsertFileTrackingInternal(string filePath, string hash, int symbolCount) {
         var now = _clock.GetUtcNowOffset();
-        if (_store.FileTracking.TryGetValue(filePath, out var entry))
-        {
+        if (_store.FileTracking.TryGetValue(filePath, out var entry)) {
             entry.Hash = hash;
             entry.SymbolCount = symbolCount;
             entry.LastModified = now;
-        }
-        else
-        {
-            _store.FileTracking[filePath] = new FileTrackingEntry
-            {
+        } else {
+            _store.FileTracking[filePath] = new FileTrackingEntry {
                 FilePath = filePath,
                 Hash = hash,
                 SymbolCount = symbolCount,
@@ -448,10 +388,8 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// <summary>
     /// 释放索引器资源 — 标记已释放状态
     /// </summary>
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-        {
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) {
             return;
         }
     }

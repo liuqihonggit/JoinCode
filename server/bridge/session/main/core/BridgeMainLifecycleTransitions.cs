@@ -6,8 +6,7 @@ namespace Core.Bridge;
 /// <para>• _isResuming: 启动时设置(resumeSessionId!=null)，关闭时读取(跳过 archive+deregister)</para>
 /// <para>• _fatalExit: 错误时设置(BridgeFatalError/退避放弃)，关闭时读取(跳过 resume 提示)</para>
 /// </summary>
-public enum BridgeMainLifecycleState
-{
+public enum BridgeMainLifecycleState {
     /// <summary>初始状态 — RunAsync 调用前，_isDisposed=0 _isShuttingDown=0 _loopTask=null</summary>
     [EnumValue("created")] Created,
 
@@ -27,11 +26,9 @@ public enum BridgeMainLifecycleState
 /// <para>ShuttingDown→Disposed, Disposed 为终态</para>
 /// <para>DisposeAsync 内部调用 ShutdownAsync，因此 Created/Running→Disposed 为合法快捷路径</para>
 /// </summary>
-public static class BridgeMainLifecycleTransitions
-{
+public static class BridgeMainLifecycleTransitions {
     private static readonly FrozenDictionary<BridgeMainLifecycleState, FrozenSet<BridgeMainLifecycleState>> Transitions =
-        new Dictionary<BridgeMainLifecycleState, FrozenSet<BridgeMainLifecycleState>>
-        {
+        new Dictionary<BridgeMainLifecycleState, FrozenSet<BridgeMainLifecycleState>> {
             [BridgeMainLifecycleState.Created] = new HashSet<BridgeMainLifecycleState>
             {
                 BridgeMainLifecycleState.Running,
@@ -56,10 +53,8 @@ public static class BridgeMainLifecycleTransitions
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法（Interlocked.Exchange 幂等守卫）
     /// </summary>
-    public static bool CanTransitionTo(BridgeMainLifecycleState current, BridgeMainLifecycleState target)
-    {
-        if (current == target)
-        {
+    public static bool CanTransitionTo(BridgeMainLifecycleState current, BridgeMainLifecycleState target) {
+        if (current == target) {
             return true;
         }
 

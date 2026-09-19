@@ -7,21 +7,17 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Feedback, Description = "提交反馈", Usage = "/feedback [反馈内容]", Category = ChatCommandCategory.Social, Aliases = ["bug"], ArgumentHint = "[反馈内容]", IsHidden = true)]
 [ChatCommandArg("feedback", Type = "string", Description = "反馈内容文本")]
-public sealed class FeedbackCommand : ChatCommandBase
-{
+public sealed class FeedbackCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /feedback 命令 — 无参数时显示输入引导，有参数时脱敏并保存反馈
     /// </summary>
     /// <param name="context">命令执行上下文，包含反馈文本与取消令牌</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var feedbackText = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrWhiteSpace(feedbackText))
-        {
-            var userInputState = new FeedbackState
-            {
+        if (string.IsNullOrWhiteSpace(feedbackText)) {
+            var userInputState = new FeedbackState {
                 Step = FeedbackStep.UserInput,
                 Description = "",
             };
@@ -43,8 +39,7 @@ public sealed class FeedbackCommand : ChatCommandBase
         var content = $"# 反馈\n\n**时间**: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n\n{redactedText}\n";
         await fs.WriteAllTextAsync(filePath, content, context.CancellationToken).ConfigureAwait(false);
 
-        var state = new FeedbackState
-        {
+        var state = new FeedbackState {
             Step = FeedbackStep.Done,
             Description = feedbackText,
             IsSuccess = true,

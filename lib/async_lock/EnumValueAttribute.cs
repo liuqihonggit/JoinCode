@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Attributes;
 /// 支持多个标注：第一个为主值（ToValue 返回），后续为别名（FromValue 也可匹配）
 /// </summary>
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
-public sealed class EnumValueAttribute : Attribute
-{
+public sealed class EnumValueAttribute : Attribute {
     /// <summary>
     /// 枚举成员对应的字符串值
     /// </summary>

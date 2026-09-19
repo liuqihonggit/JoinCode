@@ -1,11 +1,9 @@
 
 namespace Integration.Tests.Clock;
 
-public sealed class GoalSpecPromptBuilderTests
-{
+public sealed class GoalSpecPromptBuilderTests {
     [Fact]
-    public void Build_NoHint_NoConstraints_Should_Contain_All_Six_Fields()
-    {
+    public void Build_NoHint_NoConstraints_Should_Contain_All_Six_Fields() {
         var prompt = GoalSpecPromptBuilder.Build();
 
         Assert.Contains("目标 (Outcome)", prompt);
@@ -17,8 +15,7 @@ public sealed class GoalSpecPromptBuilderTests
     }
 
     [Fact]
-    public void Build_Should_Contain_Json_Schema_With_All_Keys()
-    {
+    public void Build_Should_Contain_Json_Schema_With_All_Keys() {
         var prompt = GoalSpecPromptBuilder.Build();
 
         Assert.Contains("\"outcome\"", prompt);
@@ -30,8 +27,7 @@ public sealed class GoalSpecPromptBuilderTests
     }
 
     [Fact]
-    public void Build_WithHint_Should_Contain_Hint_Section()
-    {
+    public void Build_WithHint_Should_Contain_Hint_Section() {
         var prompt = GoalSpecPromptBuilder.Build("降低 p95 延迟");
 
         Assert.Contains("降低 p95 延迟", prompt);
@@ -39,8 +35,7 @@ public sealed class GoalSpecPromptBuilderTests
     }
 
     [Fact]
-    public void Build_WithConstraints_Should_Contain_Preset_Constraints()
-    {
+    public void Build_WithConstraints_Should_Contain_Preset_Constraints() {
         var prompt = GoalSpecPromptBuilder.Build(null, ["不修改公共API", "覆盖率>80%"]);
 
         Assert.Contains("不修改公共API", prompt);
@@ -49,8 +44,7 @@ public sealed class GoalSpecPromptBuilderTests
     }
 
     [Fact]
-    public void Build_EmptyHint_And_EmptyConstraints_Should_Not_Contain_Optional_Sections()
-    {
+    public void Build_EmptyHint_And_EmptyConstraints_Should_Not_Contain_Optional_Sections() {
         var prompt = GoalSpecPromptBuilder.Build("", []);
 
         Assert.DoesNotContain("用户初始目标提示", prompt);
@@ -58,8 +52,7 @@ public sealed class GoalSpecPromptBuilderTests
     }
 
     [Fact]
-    public void Build_Should_Contain_Execution_Flow_Instructions()
-    {
+    public void Build_Should_Contain_Execution_Flow_Instructions() {
         var prompt = GoalSpecPromptBuilder.Build();
 
         Assert.Contains("逐个向用户询问", prompt);
@@ -68,8 +61,7 @@ public sealed class GoalSpecPromptBuilderTests
     }
 
     [Fact]
-    public void Build_Should_Contain_GoalSpec_Keyword()
-    {
+    public void Build_Should_Contain_GoalSpec_Keyword() {
         var prompt = GoalSpecPromptBuilder.Build();
 
         Assert.Contains("GoalSpec", prompt);

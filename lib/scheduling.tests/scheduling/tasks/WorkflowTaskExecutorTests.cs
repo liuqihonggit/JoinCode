@@ -1,14 +1,12 @@
 
 namespace Sync.Tests.Scheduling.Tasks;
 
-public class WorkflowTaskExecutorTests
-{
+public class WorkflowTaskExecutorTests {
     private readonly Mock<JoinCode.Abstractions.Tools.IToolExecutionGateway> _toolGatewayMock;
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
     private readonly WorkflowTaskExecutor _executor;
 
-    public WorkflowTaskExecutorTests()
-    {
+    public WorkflowTaskExecutorTests() {
         _toolGatewayMock = new Mock<JoinCode.Abstractions.Tools.IToolExecutionGateway>();
         _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();
         _executor = new WorkflowTaskExecutor(
@@ -18,10 +16,8 @@ public class WorkflowTaskExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteWorkflowAsync_SequentialMode_ShouldReturnCompletedResult()
-    {
-        var toolResult = new ToolResult
-        {
+    public async Task ExecuteWorkflowAsync_SequentialMode_ShouldReturnCompletedResult() {
+        var toolResult = new ToolResult {
             Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "ok" } }
         };
 
@@ -29,8 +25,7 @@ public class WorkflowTaskExecutorTests
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
             .ReturnsAsync(toolResult);
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-001",
             Steps = new List<WorkflowStep>
             {
@@ -52,18 +47,15 @@ public class WorkflowTaskExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteWorkflowAsync_NullDefinition_ShouldThrowArgumentNullException()
-    {
+    public async Task ExecuteWorkflowAsync_NullDefinition_ShouldThrowArgumentNullException() {
         var act = () => _executor.ExecuteWorkflowAsync(null!);
 
         await act.Should().ThrowAsync<ArgumentNullException>().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ExecuteWorkflowAsync_ToolCallStepWithoutToolName_ShouldReturnFailedResult()
-    {
-        var definition = new WorkflowDefinition
-        {
+    public async Task ExecuteWorkflowAsync_ToolCallStepWithoutToolName_ShouldReturnFailedResult() {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-002",
             Steps = new List<WorkflowStep>
             {
@@ -85,10 +77,8 @@ public class WorkflowTaskExecutorTests
     }
 
     [Fact]
-    public async Task CancelWorkflowAsync_ActiveWorkflow_ShouldChangeStateToCancelled()
-    {
-        var toolResult = new ToolResult
-        {
+    public async Task CancelWorkflowAsync_ActiveWorkflow_ShouldChangeStateToCancelled() {
+        var toolResult = new ToolResult {
             Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "ok" } }
         };
 
@@ -96,8 +86,7 @@ public class WorkflowTaskExecutorTests
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
             .ReturnsAsync(toolResult);
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-cancel",
             Steps = new List<WorkflowStep>
             {
@@ -121,8 +110,7 @@ public class WorkflowTaskExecutorTests
     }
 
     [Fact]
-    public async Task GetWorkflowStatusAsync_NonExistentWorkflow_ShouldReturnFailedStatus()
-    {
+    public async Task GetWorkflowStatusAsync_NonExistentWorkflow_ShouldReturnFailedStatus() {
         var status = await _executor.GetWorkflowStatusAsync("nonexistent").ConfigureAwait(true);
 
         status.WorkflowId.Should().Be("nonexistent");
@@ -132,13 +120,11 @@ public class WorkflowTaskExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteWorkflowAsync_AgentTaskStep_ShouldExecuteAgent()
-    {
+    public async Task ExecuteWorkflowAsync_AgentTaskStep_ShouldExecuteAgent() {
         var agent = new AgentBase("Test task", null,
             new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>().Object, null);
 
-        var agentResult = new SubAgentResult
-        {
+        var agentResult = new SubAgentResult {
             AgentId = "agent-1",
             IsSuccess = true,
             Output = "Agent completed"
@@ -154,8 +140,7 @@ public class WorkflowTaskExecutorTests
             .Setup(x => x.DisposeAgentAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-agent",
             Steps = new List<WorkflowStep>
             {
@@ -182,10 +167,8 @@ public class WorkflowTaskExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteWorkflowAsync_ConditionalStep_ShouldEvaluateCondition()
-    {
-        var definition = new WorkflowDefinition
-        {
+    public async Task ExecuteWorkflowAsync_ConditionalStep_ShouldEvaluateCondition() {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-cond",
             Steps = new List<WorkflowStep>
             {
@@ -211,8 +194,7 @@ public class WorkflowTaskExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteWorkflowAsync_ToolCallStep_ShouldInvokeGatewayExecute()
-    {
+    public async Task ExecuteWorkflowAsync_ToolCallStep_ShouldInvokeGatewayExecute() {
         // 权限拦截回归守卫：ToolCall 步骤必须经由 IToolExecutionGateway.ExecuteAsync 入口，
         // 而非绕过权限管道直接调用 IToolRegistry.ExecuteToolAsync。
         var gatewayMock = new Mock<IToolExecutionGateway>();
@@ -223,8 +205,7 @@ public class WorkflowTaskExecutorTests
             NullLogger<WorkflowTaskExecutor>.Instance);
 
         var expectedToolName = "permission_guarded_tool";
-        var toolResult = new ToolResult
-        {
+        var toolResult = new ToolResult {
             Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "executed via gateway" } }
         };
 
@@ -232,8 +213,7 @@ public class WorkflowTaskExecutorTests
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
             .ReturnsAsync(toolResult);
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-gateway-guard",
             Steps = new List<WorkflowStep>
             {
@@ -257,8 +237,7 @@ public class WorkflowTaskExecutorTests
     }
 
     [Fact]
-    public void Constructor_ShouldNotAcceptIToolRegistry()
-    {
+    public void Constructor_ShouldNotAcceptIToolRegistry() {
         // 接口不可绕过守卫：WorkflowTaskExecutor 构造函数不得再接受 IToolRegistry 参数，
         // 确保工具调用只能经由 IToolExecutionGateway 收敛到权限管道。
         var ctorParameterTypes = typeof(WorkflowTaskExecutor)
@@ -272,8 +251,7 @@ public class WorkflowTaskExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteWorkflowAsync_WorkflowExceptionFailure_ShouldCaptureErrorCode()
-    {
+    public async Task ExecuteWorkflowAsync_WorkflowExceptionFailure_ShouldCaptureErrorCode() {
         var inner = new InvalidOperationException("inner failure detail");
         var apiEx = new JoinCode.Abstractions.Exceptions.ApiException(
             "API failed", inner, statusCode: 500, errorCode: "API008");
@@ -282,8 +260,7 @@ public class WorkflowTaskExecutorTests
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
             .ThrowsAsync(apiEx);
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-errorcode",
             Steps = new List<WorkflowStep>
             {
@@ -304,8 +281,7 @@ public class WorkflowTaskExecutorTests
         result.Status.Should().Be(TaskExecutionStatus.Failed);
         result.ErrorMessage.Should().Be("API failed");
         var serialized = System.Text.Json.JsonSerializer.Serialize(
-            new StepStatus
-            {
+            new StepStatus {
                 StepId = "step-1",
                 State = StepState.Failed,
                 Result = JsonElementHelper.FromString(string.Empty),
@@ -319,14 +295,12 @@ public class WorkflowTaskExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteWorkflowAsync_PlainExceptionFailure_ShouldCaptureFullDetail()
-    {
+    public async Task ExecuteWorkflowAsync_PlainExceptionFailure_ShouldCaptureFullDetail() {
         _toolGatewayMock
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-plain",
             Steps = new List<WorkflowStep>
             {
@@ -347,8 +321,7 @@ public class WorkflowTaskExecutorTests
         result.Status.Should().Be(TaskExecutionStatus.Failed);
         result.ErrorMessage.Should().Be("boom");
         var serialized = System.Text.Json.JsonSerializer.Serialize(
-            new StepStatus
-            {
+            new StepStatus {
                 StepId = "step-1",
                 State = StepState.Failed,
                 Result = JsonElementHelper.FromString(string.Empty),
@@ -361,19 +334,16 @@ public class WorkflowTaskExecutorTests
     }
 
     [Fact]
-    public async Task ExecuteWorkflowAsync_RetryWithMaxRetries_ShouldUseConfiguredCount()
-    {
+    public async Task ExecuteWorkflowAsync_RetryWithMaxRetries_ShouldUseConfiguredCount() {
         var callCount = 0;
         _toolGatewayMock
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
-            .ReturnsAsync(() =>
-            {
+            .ReturnsAsync(() => {
                 callCount++;
                 throw new InvalidOperationException("transient");
             });
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-retry",
             Steps = new List<WorkflowStep>
             {

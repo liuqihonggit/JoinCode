@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Shell;
 /// <summary>
 /// Shell 执行结果
 /// </summary>
-public sealed record ShellExecutionResult
-{
+public sealed record ShellExecutionResult {
     /// <summary>
     /// Bash 工具内联输出上限 — 对齐 TS maxResultSizeChars (30K)
     /// </summary>
@@ -64,8 +63,7 @@ public sealed record ShellExecutionResult
     /// 生成大输出持久化消息 — 对齐 TS buildLargeToolResultMessage
     /// 使用统一的 ContentReplacementConstants.BuildPersistedOutputMessage
     /// </summary>
-    public string BuildPersistedOutputMessage()
-    {
+    public string BuildPersistedOutputMessage() {
         if (PersistedOutputPath is null) return Stdout;
 
         var preview = Stdout.Length > PreviewSizeBytes
@@ -73,8 +71,7 @@ public sealed record ShellExecutionResult
             : Stdout;
 
         var hasMore = Stdout.Length > PreviewSizeBytes;
-        var result = new PersistedToolResult
-        {
+        var result = new PersistedToolResult {
             Filepath = PersistedOutputPath,
             OriginalSize = (int)(PersistedOutputSize ?? Stdout.Length),
             IsJson = false,
@@ -86,8 +83,7 @@ public sealed record ShellExecutionResult
     }
 
     public static ShellExecutionResult SuccessResult(string stdout, string stderr, int? exitCode = 0)
-        => new()
-        {
+        => new() {
             Stdout = stdout,
             Stderr = stderr,
             ExitCode = exitCode,
@@ -95,8 +91,7 @@ public sealed record ShellExecutionResult
         };
 
     public static ShellExecutionResult FailureResult(string errorMessage, string stdout = "", string stderr = "")
-        => new()
-        {
+        => new() {
             Stdout = stdout,
             Stderr = stderr,
             ExitCode = -1,
@@ -105,8 +100,7 @@ public sealed record ShellExecutionResult
         };
 
     public static ShellExecutionResult TimeoutResult(int timeoutMs)
-        => new()
-    {
+        => new() {
             Stdout = string.Empty,
             Stderr = $"Command timed out ({timeoutMs}ms)",
             ExitCode = -1,

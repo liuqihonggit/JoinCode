@@ -1,13 +1,10 @@
 
 namespace Core.Tests.Prompts;
 
-public class SynonymAnalyzerTests
-{
+public class SynonymAnalyzerTests {
     [Fact]
-    public void Analyze_EmptyInput_ReturnsEmptyList()
-    {
-        var map = new SynonymMap(new Dictionary<string, string>
-        {
+    public void Analyze_EmptyInput_ReturnsEmptyList() {
+        var map = new SynonymMap(new Dictionary<string, string> {
             ["test"] = "supplementary"
         });
 
@@ -17,10 +14,8 @@ public class SynonymAnalyzerTests
     }
 
     [Fact]
-    public void Analyze_NullInput_ReturnsEmptyList()
-    {
-        var map = new SynonymMap(new Dictionary<string, string>
-        {
+    public void Analyze_NullInput_ReturnsEmptyList() {
+        var map = new SynonymMap(new Dictionary<string, string> {
             ["test"] = "supplementary"
         });
 
@@ -30,8 +25,7 @@ public class SynonymAnalyzerTests
     }
 
     [Fact]
-    public void Analyze_EmptyMap_ReturnsEmptyList()
-    {
+    public void Analyze_EmptyMap_ReturnsEmptyList() {
         var map = new SynonymMap();
 
         var result = SynonymAnalyzer.Analyze("hello world", map);
@@ -40,10 +34,8 @@ public class SynonymAnalyzerTests
     }
 
     [Fact]
-    public void Analyze_MatchingKey_ReturnsMatch()
-    {
-        var map = new SynonymMap(new Dictionary<string, string>
-        {
+    public void Analyze_MatchingKey_ReturnsMatch() {
+        var map = new SynonymMap(new Dictionary<string, string> {
             ["deploy"] = "When the user says deploy, they mean deploying the application to the target environment. Please ask for the target environment (staging/production) before proceeding."
         });
 
@@ -55,10 +47,8 @@ public class SynonymAnalyzerTests
     }
 
     [Fact]
-    public void Analyze_CaseInsensitiveMatch_ReturnsMatch()
-    {
-        var map = new SynonymMap(new Dictionary<string, string>
-        {
+    public void Analyze_CaseInsensitiveMatch_ReturnsMatch() {
+        var map = new SynonymMap(new Dictionary<string, string> {
             ["Deploy"] = "supplementary content"
         });
 
@@ -69,10 +59,8 @@ public class SynonymAnalyzerTests
     }
 
     [Fact]
-    public void Analyze_NoMatch_ReturnsEmptyList()
-    {
-        var map = new SynonymMap(new Dictionary<string, string>
-        {
+    public void Analyze_NoMatch_ReturnsEmptyList() {
+        var map = new SynonymMap(new Dictionary<string, string> {
             ["deploy"] = "supplementary content"
         });
 
@@ -82,10 +70,8 @@ public class SynonymAnalyzerTests
     }
 
     [Fact]
-    public void Analyze_MultipleMatches_ReturnsAllMatches()
-    {
-        var map = new SynonymMap(new Dictionary<string, string>
-        {
+    public void Analyze_MultipleMatches_ReturnsAllMatches() {
+        var map = new SynonymMap(new Dictionary<string, string> {
             ["deploy"] = "deployment supplementary",
             ["build"] = "build supplementary"
         });
@@ -96,10 +82,8 @@ public class SynonymAnalyzerTests
     }
 
     [Fact]
-    public void Analyze_PartialMatch_ReturnsMatch()
-    {
-        var map = new SynonymMap(new Dictionary<string, string>
-        {
+    public void Analyze_PartialMatch_ReturnsMatch() {
+        var map = new SynonymMap(new Dictionary<string, string> {
             ["git"] = "git operations supplementary"
         });
 
@@ -110,11 +94,9 @@ public class SynonymAnalyzerTests
     }
 
     [Fact]
-    public void Analyze_SupplementaryContent_PreservedCorrectly()
-    {
+    public void Analyze_SupplementaryContent_PreservedCorrectly() {
         var expectedContent = "When the user mentions k8s, they mean Kubernetes. Please use Kubernetes terminology and provide Kubernetes-specific guidance.";
-        var map = new SynonymMap(new Dictionary<string, string>
-        {
+        var map = new SynonymMap(new Dictionary<string, string> {
             ["k8s"] = expectedContent
         });
 
@@ -125,11 +107,9 @@ public class SynonymAnalyzerTests
     }
 }
 
-public class SynonymMapTests
-{
+public class SynonymMapTests {
     [Fact]
-    public void DefaultConstructor_CreatesEmptyMap()
-    {
+    public void DefaultConstructor_CreatesEmptyMap() {
         var map = new SynonymMap();
 
         map.Entries.Should().BeEmpty();
@@ -137,10 +117,8 @@ public class SynonymMapTests
     }
 
     [Fact]
-    public void CustomMap_CreatesFromDictionary()
-    {
-        var dict = new Dictionary<string, string>
-        {
+    public void CustomMap_CreatesFromDictionary() {
+        var dict = new Dictionary<string, string> {
             ["key1"] = "value1",
             ["key2"] = "value2"
         };
@@ -153,10 +131,8 @@ public class SynonymMapTests
     }
 
     [Fact]
-    public void TryGetValue_CaseInsensitive()
-    {
-        var map = new SynonymMap(new Dictionary<string, string>
-        {
+    public void TryGetValue_CaseInsensitive() {
+        var map = new SynonymMap(new Dictionary<string, string> {
             ["Deploy"] = "deployment content"
         });
 
@@ -168,10 +144,8 @@ public class SynonymMapTests
     }
 
     [Fact]
-    public void TryGetValue_KeyNotFound_ReturnsFalse()
-    {
-        var map = new SynonymMap(new Dictionary<string, string>
-        {
+    public void TryGetValue_KeyNotFound_ReturnsFalse() {
+        var map = new SynonymMap(new Dictionary<string, string> {
             ["deploy"] = "content"
         });
 

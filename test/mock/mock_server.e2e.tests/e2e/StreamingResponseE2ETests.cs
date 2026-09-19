@@ -8,8 +8,7 @@ namespace MockServer.E2E.Tests.E2E;
 /// TDD: 先写失败测试（jcc --await 20 超时返回 1234），修复后应返回 0
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
-{
+public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
     private readonly ITestOutputHelper _output;
     private Process? _mockServerProcess;
     private int _mockServerPort;
@@ -19,8 +18,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public async Task DisposeAsync()
-    {
+    public async Task DisposeAsync() {
         await KillProcessAsync(_jccProcess);
         await KillProcessAsync(_mockServerProcess);
     }
@@ -29,8 +27,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
     /// jcc -p "echo hello" 连接 MockServer 应在 20s 内正常退出（退出码 0），不应超时（退出码 1234）
     /// </summary>
     [Fact]
-    public async Task NonInteractiveMode_ShouldCompleteWithoutTimeout()
-    {
+    public async Task NonInteractiveMode_ShouldCompleteWithoutTimeout() {
         var configPath = WriteSimpleMockServerConfig();
         await StartMockServerAsync(configPath).ConfigureAwait(true);
 
@@ -50,8 +47,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
     /// jcc -p 发送请求后 MockServer 应收到至少 1 个请求
     /// </summary>
     [Fact]
-    public async Task NonInteractiveMode_MockServerShouldReceiveRequest()
-    {
+    public async Task NonInteractiveMode_MockServerShouldReceiveRequest() {
         var configPath = WriteSimpleMockServerConfig();
         await StartMockServerAsync(configPath).ConfigureAwait(true);
 
@@ -62,8 +58,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
         _output.WriteLine($"[StreamE2E] jcc.exe 退出码: {exitCode}");
 
         var dumpDir = Path.Combine(Path.GetDirectoryName(ResolveMockServerPath())!, "tests", "MockServers", "MockServer.Core", "dumps", "OpenAI");
-        if (Directory.Exists(dumpDir))
-        {
+        if (Directory.Exists(dumpDir)) {
             var recentDumps = Directory.GetFiles(dumpDir, "req_*.txt")
                 .Where(f => File.GetLastWriteTime(f) > DateTime.Now.AddMinutes(-2))
                 .ToList();
@@ -77,16 +72,14 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
         int mockServerPort,
         string prompt,
         int awaitSeconds = 20,
-        int timeoutSeconds = 60)
-    {
+        int timeoutSeconds = 60) {
         var stateDir = Path.Combine(Path.GetTempPath(), $"jcc_stream_e2e_{Guid.NewGuid():N}");
         Directory.CreateDirectory(stateDir);
         E2eSettingsJsonHelper.WriteSettingsJsonToStateDir(stateDir);
 
         var args = $"--trust --await {awaitSeconds} -p \"{prompt}\"";
 
-        var psi = new ProcessStartInfo
-        {
+        var psi = new ProcessStartInfo {
             FileName = exePath,
             Arguments = args,
             RedirectStandardOutput = true,
@@ -111,14 +104,12 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
 
         var exitTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        _jccProcess.OutputDataReceived += (_, e) =>
-        {
+        _jccProcess.OutputDataReceived += (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
             _output.WriteLine($"[jcc:out] {e.Data}");
         };
 
-        _jccProcess.ErrorDataReceived += (_, e) =>
-        {
+        _jccProcess.ErrorDataReceived += (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
             _output.WriteLine($"[jcc:err] {e.Data}");
         };
@@ -134,27 +125,22 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
 
         var sw = Stopwatch.StartNew();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
-        try
-        {
+        try {
             var code = await exitTcs.Task.WaitAsync(cts.Token).ConfigureAwait(true);
             sw.Stop();
             return (code, sw.Elapsed);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             sw.Stop();
             _output.WriteLine("[StreamE2E] jcc.exe 超时，强制终止");
             return (-1, sw.Elapsed);
         }
     }
 
-    private async Task StartMockServerAsync(string configPath)
-    {
+    private async Task StartMockServerAsync(string configPath) {
         var mockServerExe = ResolveMockServerPath();
         _output.WriteLine($"[StreamE2E] MockServer.exe: {mockServerExe}");
 
-        var psi = new ProcessStartInfo
-        {
+        var psi = new ProcessStartInfo {
             FileName = mockServerExe,
             Arguments = $"--config \"{configPath}\" --port 0",
             RedirectStandardOutput = true,
@@ -171,13 +157,11 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
         var readyTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         var readyMarker = "[OpenAI]   URL:";
 
-        _mockServerProcess.OutputDataReceived += (_, e) =>
-        {
+        _mockServerProcess.OutputDataReceived += (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
             _output.WriteLine($"[MockServer:out] {e.Data}");
             var idx = e.Data.IndexOf(readyMarker, StringComparison.OrdinalIgnoreCase);
-            if (idx >= 0)
-            {
+            if (idx >= 0) {
                 var urlPart = e.Data[(idx + readyMarker.Length)..].Trim();
                 var match = PortRegex().Match(urlPart);
                 if (match.Success && int.TryParse(match.Groups[1].Value, out var port))
@@ -185,8 +169,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
             }
         };
 
-        _mockServerProcess.ErrorDataReceived += (_, e) =>
-        {
+        _mockServerProcess.ErrorDataReceived += (_, e) => {
             if (!string.IsNullOrEmpty(e.Data))
                 _output.WriteLine($"[MockServer:ERR] {e.Data}");
         };
@@ -198,19 +181,15 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
         _mockServerProcess.BeginErrorReadLine();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
-        try
-        {
+        try {
             _mockServerPort = await readyTcs.Task.WaitAsync(cts.Token).ConfigureAwait(true);
             _output.WriteLine($"[StreamE2E] MockServer 就绪, 端口: {_mockServerPort}");
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw new InvalidOperationException("等待 MockServer 就绪超时");
         }
     }
 
-    private static string WriteSimpleMockServerConfig()
-    {
+    private static string WriteSimpleMockServerConfig() {
         var configDir = Path.Combine(Path.GetTempPath(), $"jcc_stream_mock_{Guid.NewGuid():N}");
         Directory.CreateDirectory(configDir);
 
@@ -231,35 +210,29 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
         return configPath;
     }
 
-    private static string ResolveJccExePath()
-    {
+    private static string ResolveJccExePath() {
         var baseDir = AppContext.BaseDirectory;
         var artifactsBin = FindArtifactsBinRoot(baseDir);
-        if (artifactsBin is not null)
-        {
+        if (artifactsBin is not null) {
             var found = SearchExe(artifactsBin, "jcc.exe");
             if (found is not null) return found;
         }
         throw new InvalidOperationException($"jcc.exe 未找到 (baseDir={baseDir})");
     }
 
-    private static string ResolveMockServerPath()
-    {
+    private static string ResolveMockServerPath() {
         var baseDir = AppContext.BaseDirectory;
         var artifactsBin = FindArtifactsBinRoot(baseDir);
-        if (artifactsBin is not null)
-        {
+        if (artifactsBin is not null) {
             var found = SearchExe(artifactsBin, "JoinCode.OpenAI.MockServer.exe");
             if (found is not null) return found;
         }
         throw new InvalidOperationException($"MockServer.exe 未找到 (baseDir={baseDir})");
     }
 
-    private static string? FindArtifactsBinRoot(string baseDir)
-    {
+    private static string? FindArtifactsBinRoot(string baseDir) {
         var dir = baseDir;
-        for (var i = 0; i < 10; i++)
-        {
+        for (var i = 0; i < 10; i++) {
             var candidate = Path.Combine(dir, "artifacts", "bin");
             if (Directory.Exists(candidate)) return candidate;
             var parent = Path.GetDirectoryName(dir);
@@ -269,12 +242,9 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
         return null;
     }
 
-    private static string? SearchExe(string root, string exeName)
-    {
-        foreach (var dir in Directory.GetDirectories(root, "*", SearchOption.TopDirectoryOnly))
-        {
-            foreach (var subDir in Directory.GetDirectories(dir, "*", SearchOption.AllDirectories))
-            {
+    private static string? SearchExe(string root, string exeName) {
+        foreach (var dir in Directory.GetDirectories(root, "*", SearchOption.TopDirectoryOnly)) {
+            foreach (var subDir in Directory.GetDirectories(dir, "*", SearchOption.AllDirectories)) {
                 var path = Path.Combine(subDir, exeName);
                 if (File.Exists(path)) return path;
             }
@@ -282,16 +252,12 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
         return null;
     }
 
-    private static async Task KillProcessAsync(Process? process)
-    {
+    private static async Task KillProcessAsync(Process? process) {
         if (process is null || process.HasExited) return;
-        try
-        {
+        try {
             process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync().ConfigureAwait(true);
-        }
-        catch (InvalidOperationException ex) { Debug.WriteLine($"[KillProcess] InvalidOperationException: {ex.Message}"); }
-        catch (System.ComponentModel.Win32Exception ex) { Debug.WriteLine($"[KillProcess] Win32Exception: {ex.Message}"); }
+        } catch (InvalidOperationException ex) { Debug.WriteLine($"[KillProcess] InvalidOperationException: {ex.Message}"); } catch (System.ComponentModel.Win32Exception ex) { Debug.WriteLine($"[KillProcess] Win32Exception: {ex.Message}"); }
     }
 
     [GeneratedRegex(@"localhost:(\d+)")]

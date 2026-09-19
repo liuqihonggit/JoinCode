@@ -1,18 +1,15 @@
 
 namespace Guard.Tests.Permission.Utils;
 
-public sealed class AgentToolRestrictionsTests
-{
+public sealed class AgentToolRestrictionsTests {
     private readonly AgentToolRestrictions _sut;
 
-    public AgentToolRestrictionsTests()
-    {
+    public AgentToolRestrictionsTests() {
         _sut = new AgentToolRestrictions();
     }
 
     [Fact]
-    public void GetAllowedTools_AutoMode_ShouldContainReadWriteTools()
-    {
+    public void GetAllowedTools_AutoMode_ShouldContainReadWriteTools() {
         var allowed = _sut.GetAllowedTools(PermissionMode.Auto);
 
         allowed.Should().Contain(FileToolNameEnumConstants.FileRead);
@@ -28,8 +25,7 @@ public sealed class AgentToolRestrictionsTests
     /// 验证 TodoWrite 在 Auto 模式下被允许 — 用户省钱刚需: E2E 测试中发现 TodoWrite 被误拒
     /// </summary>
     [Fact]
-    public void GetAllowedTools_AutoMode_ShouldContainTodoWrite()
-    {
+    public void GetAllowedTools_AutoMode_ShouldContainTodoWrite() {
         var allowed = _sut.GetAllowedTools(PermissionMode.Auto);
 
         allowed.Should().Contain(TodoToolNameEnumConstants.TodoWrite);
@@ -40,8 +36,7 @@ public sealed class AgentToolRestrictionsTests
     /// 验证 TodoWrite 在 Plan 模式下也被允许 — Plan 模式需要记录计划任务
     /// </summary>
     [Fact]
-    public void GetAllowedTools_PlanMode_ShouldContainTodoWrite()
-    {
+    public void GetAllowedTools_PlanMode_ShouldContainTodoWrite() {
         var allowed = _sut.GetAllowedTools(PermissionMode.Plan);
 
         allowed.Should().Contain(TodoToolNameEnumConstants.TodoWrite);
@@ -49,8 +44,7 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void GetAllowedTools_AutoMode_ShouldNotContainShellTools()
-    {
+    public void GetAllowedTools_AutoMode_ShouldNotContainShellTools() {
         var allowed = _sut.GetAllowedTools(PermissionMode.Auto);
 
         allowed.Should().NotContain(ShellToolNameEnumConstants.Bash);
@@ -58,8 +52,7 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void GetAllowedTools_PlanMode_ShouldContainReadOnlyTools()
-    {
+    public void GetAllowedTools_PlanMode_ShouldContainReadOnlyTools() {
         var allowed = _sut.GetAllowedTools(PermissionMode.Plan);
 
         allowed.Should().Contain(FileToolNameEnumConstants.FileRead);
@@ -69,8 +62,7 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void GetAllowedTools_PlanMode_ShouldNotContainWriteTools()
-    {
+    public void GetAllowedTools_PlanMode_ShouldNotContainWriteTools() {
         var allowed = _sut.GetAllowedTools(PermissionMode.Plan);
 
         allowed.Should().NotContain(FileToolNameEnumConstants.FileWrite);
@@ -79,8 +71,7 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void GetAllowedTools_AskMode_ShouldContainAllTools()
-    {
+    public void GetAllowedTools_AskMode_ShouldContainAllTools() {
         var allowed = _sut.GetAllowedTools(PermissionMode.Ask);
 
         allowed.Should().Contain(FileToolNameEnumConstants.FileRead);
@@ -91,24 +82,21 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void GetAllowedTools_BypassMode_ShouldReturnAutoAllowedTools()
-    {
+    public void GetAllowedTools_BypassMode_ShouldReturnAutoAllowedTools() {
         var allowed = _sut.GetAllowedTools(PermissionMode.Bypass);
 
         allowed.Should().NotBeEmpty();
     }
 
     [Fact]
-    public void GetDeniedTools_BypassMode_ShouldBeEmpty()
-    {
+    public void GetDeniedTools_BypassMode_ShouldBeEmpty() {
         var denied = _sut.GetDeniedTools(PermissionMode.Bypass);
 
         denied.Should().BeEmpty();
     }
 
     [Fact]
-    public void GetDeniedTools_PlanMode_ShouldContainWriteAndDangerousTools()
-    {
+    public void GetDeniedTools_PlanMode_ShouldContainWriteAndDangerousTools() {
         var denied = _sut.GetDeniedTools(PermissionMode.Plan);
 
         denied.Should().Contain(FileToolNameEnumConstants.FileWrite);
@@ -119,8 +107,7 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void GetDeniedTools_AskMode_ShouldBeEmpty()
-    {
+    public void GetDeniedTools_AskMode_ShouldBeEmpty() {
         var denied = _sut.GetDeniedTools(PermissionMode.Ask);
 
         denied.Should().BeEmpty();
@@ -141,16 +128,14 @@ public sealed class AgentToolRestrictionsTests
     [InlineData(ShellToolNameEnumConstants.Bash, PermissionMode.Ask, true)]
     [InlineData(FileToolNameEnumConstants.FileWrite, PermissionMode.Ask, true)]
     public void IsToolAllowedForMode_ShouldReturnExpectedResult(
-        string toolName, PermissionMode mode, bool expected)
-    {
+        string toolName, PermissionMode mode, bool expected) {
         var result = _sut.IsToolAllowedForMode(toolName, mode);
 
         result.Should().Be(expected);
     }
 
     [Fact]
-    public void IsToolAllowedForMode_BypassMode_AnyToolShouldBeTrue()
-    {
+    public void IsToolAllowedForMode_BypassMode_AnyToolShouldBeTrue() {
         _sut.IsToolAllowedForMode("any_tool", PermissionMode.Bypass).Should().BeTrue();
     }
 
@@ -162,37 +147,32 @@ public sealed class AgentToolRestrictionsTests
     [InlineData(PermissionMode.Auto)]
     [InlineData(PermissionMode.Plan)]
     [InlineData(PermissionMode.Ask)]
-    public void IsToolAllowedForMode_CodeIndexSearchComprehensive_ShouldBeAllowedInReadWriteModes(PermissionMode mode)
-    {
+    public void IsToolAllowedForMode_CodeIndexSearchComprehensive_ShouldBeAllowedInReadWriteModes(PermissionMode mode) {
         _sut.IsToolAllowedForMode(CodeToolNameEnumConstants.CodeIndexSearchComprehensive, mode).Should().BeTrue();
     }
 
     [Fact]
-    public void IsToolAllowedForMode_AutoMode_SensitiveToolsAllowedButNeedConfirmation()
-    {
+    public void IsToolAllowedForMode_AutoMode_SensitiveToolsAllowedButNeedConfirmation() {
         _sut.IsToolAllowedForMode(GitToolNameEnumConstants.GitCommit, PermissionMode.Auto).Should().BeTrue();
         _sut.IsToolAllowedForMode(GitToolNameEnumConstants.GitPush, PermissionMode.Auto).Should().BeTrue();
         _sut.IsToolAllowedForMode(ShellToolNameEnumConstants.Bash, PermissionMode.Auto).Should().BeTrue();
     }
 
     [Fact]
-    public void IsToolAllowedForMode_PlanMode_ReadOnlyToolShouldBeTrue()
-    {
+    public void IsToolAllowedForMode_PlanMode_ReadOnlyToolShouldBeTrue() {
         _sut.IsToolAllowedForMode(SearchToolNameEnumConstants.Glob, PermissionMode.Plan).Should().BeTrue();
         _sut.IsToolAllowedForMode(SearchToolNameEnumConstants.SearchCode, PermissionMode.Plan).Should().BeTrue();
         _sut.IsToolAllowedForMode(WebToolNameEnumConstants.WebSearch, PermissionMode.Plan).Should().BeTrue();
     }
 
     [Fact]
-    public void IsToolAllowedForMode_BypassMode_AlwaysTrue()
-    {
+    public void IsToolAllowedForMode_BypassMode_AlwaysTrue() {
         _sut.IsToolAllowedForMode(FileToolNameEnumConstants.FileRead, PermissionMode.Bypass).Should().BeTrue();
         _sut.IsToolAllowedForMode("safe_tool", PermissionMode.Bypass).Should().BeTrue();
     }
 
     [Fact]
-    public void IsToolAllowedForMode_ExactCaseMatch_ShouldWork()
-    {
+    public void IsToolAllowedForMode_ExactCaseMatch_ShouldWork() {
         _sut.IsToolAllowedForMode(FileToolNameEnumConstants.FileRead, PermissionMode.Auto).Should().BeTrue();
         _sut.IsToolAllowedForMode(ShellToolNameEnumConstants.Bash, PermissionMode.Auto).Should().BeTrue();
     }
@@ -207,8 +187,7 @@ public sealed class AgentToolRestrictionsTests
     [InlineData("grep", PermissionMode.Auto, true)]
     [InlineData("shell_execute", PermissionMode.Auto, true)]
     [InlineData("file_delete", PermissionMode.Auto, true)]
-    public void IsToolAllowedForMode_CaseInsensitive_ShouldMatch(string toolName, PermissionMode mode, bool expected)
-    {
+    public void IsToolAllowedForMode_CaseInsensitive_ShouldMatch(string toolName, PermissionMode mode, bool expected) {
         // LLM 返回的工具名可能是任意大小写（如 read/Read/READ）
         // 权限检查应大小写不敏感匹配，避免误拒
         var result = _sut.IsToolAllowedForMode(toolName, mode);
@@ -217,8 +196,7 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void GetAllowedTools_AutoMode_ShouldContainExpectedCount()
-    {
+    public void GetAllowedTools_AutoMode_ShouldContainExpectedCount() {
         var allowed = _sut.GetAllowedTools(PermissionMode.Auto);
 
         allowed.Count.Should().BeGreaterThan(5);

@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Utils;
 
-public enum ApiErrorType
-{
+public enum ApiErrorType {
     [EnumValue("none")] None,
     [EnumValue("invalid_api_key")] InvalidApiKey,
     [EnumValue("invalid_api_key_external")] InvalidApiKeyExternal,

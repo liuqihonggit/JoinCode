@@ -4,14 +4,12 @@ namespace Dream.Tests;
 /// <summary>
 /// 任务持久化测试 - 使用内存文件系统实现高速测试
 /// </summary>
-public sealed class DreamTaskPersistenceTests : IDisposable
-{
+public sealed class DreamTaskPersistenceTests : IDisposable {
     private readonly InMemoryFileOperationService _fileOperationService;
     private readonly JsonFileDreamTaskPersistence _persistence;
     private bool _disposed;
 
-    public DreamTaskPersistenceTests()
-    {
+    public DreamTaskPersistenceTests() {
         _fileOperationService = new InMemoryFileOperationService();
 
         _persistence = new JsonFileDreamTaskPersistence(
@@ -19,16 +17,14 @@ public sealed class DreamTaskPersistenceTests : IDisposable
             _fileOperationService);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fileOperationService.DisposeSafe();
     }
 
     [Fact]
-    public async Task SaveAsync_ShouldCreateFile()
-    {
+    public async Task SaveAsync_ShouldCreateFile() {
         // Arrange
         var task = CreateTestTask();
 
@@ -41,8 +37,7 @@ public sealed class DreamTaskPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadAsync_ExistingTask_ShouldReturnTask()
-    {
+    public async Task LoadAsync_ExistingTask_ShouldReturnTask() {
         // Arrange
         var task = CreateTestTask();
         await _persistence.SaveAsync(task).ConfigureAwait(true);
@@ -60,8 +55,7 @@ public sealed class DreamTaskPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadAsync_NonExistentTask_ShouldReturnNull()
-    {
+    public async Task LoadAsync_NonExistentTask_ShouldReturnNull() {
         // Act
         var loaded = await _persistence.LoadAsync("nonexistent").ConfigureAwait(true);
 
@@ -70,8 +64,7 @@ public sealed class DreamTaskPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadAllAsync_ShouldReturnAllTasks()
-    {
+    public async Task LoadAllAsync_ShouldReturnAllTasks() {
         // Arrange
         var task1 = CreateTestTask("task1");
         var task2 = CreateTestTask("task2");
@@ -88,8 +81,7 @@ public sealed class DreamTaskPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadAllAsync_ShouldSortByStartTimeDescending()
-    {
+    public async Task LoadAllAsync_ShouldSortByStartTimeDescending() {
         // Arrange
         var task1 = CreateTestTask("task1", DateTime.UtcNow.AddMilliseconds(-10));
         var task2 = CreateTestTask("task2");
@@ -105,8 +97,7 @@ public sealed class DreamTaskPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteAsync_ShouldRemoveFile()
-    {
+    public async Task DeleteAsync_ShouldRemoveFile() {
         // Arrange
         var task = CreateTestTask();
         await _persistence.SaveAsync(task).ConfigureAwait(true);
@@ -121,11 +112,9 @@ public sealed class DreamTaskPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task CleanupCompletedAsync_ShouldRemoveOldCompletedTasks()
-    {
+    public async Task CleanupCompletedAsync_ShouldRemoveOldCompletedTasks() {
         // Arrange
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             var task = CreateTestTask($"completed{i}", DateTime.UtcNow.AddMilliseconds(-10 * (5 - i)));
             task.Complete();
             await _persistence.SaveAsync(task).ConfigureAwait(true);
@@ -143,8 +132,7 @@ public sealed class DreamTaskPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task CleanupCompletedAsync_ShouldNotRemoveRunningTasks()
-    {
+    public async Task CleanupCompletedAsync_ShouldNotRemoveRunningTasks() {
         // Arrange
         var runningTask = CreateTestTask("running");
         await _persistence.SaveAsync(runningTask).ConfigureAwait(true);
@@ -163,11 +151,9 @@ public sealed class DreamTaskPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveAsync_ShouldPersistAllFields()
-    {
+    public async Task SaveAsync_ShouldPersistAllFields() {
         // Arrange
-        var task = new DreamTaskState
-        {
+        var task = new DreamTaskState {
             Id = "test123",
             Description = "test description",
             StartTime = new DateTime(2024, 1, 15, 10, 30, 0, DateTimeKind.Utc),
@@ -200,8 +186,7 @@ public sealed class DreamTaskPersistenceTests : IDisposable
         Assert.Equal(2, loaded.FilesTouched.Count);
     }
 
-    private static DreamTaskState CreateTestTask(string? id = null, DateTime? startTime = null) => new()
-    {
+    private static DreamTaskState CreateTestTask(string? id = null, DateTime? startTime = null) => new() {
         Id = id ?? TaskIdGenerator.GenerateTaskId(TaskType.Dream),
         Description = "test",
         StartTime = startTime ?? DateTime.UtcNow,

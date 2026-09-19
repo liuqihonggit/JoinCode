@@ -3,8 +3,7 @@ namespace JoinCode.Dream;
 /// <summary>
 /// 做梦功能接口 - 提供记忆整合功能
 /// </summary>
-public interface IDreamFeature
-{
+public interface IDreamFeature {
     /// <summary>
     /// 执行梦境整合
     /// </summary>

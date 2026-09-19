@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// 内存存储 - 持久化记忆管理
 /// </summary>
 [Register(typeof(MemoryStore), ServiceLifetime.Singleton)]
-public sealed partial class MemoryStore : ServiceEntity, IDisposable
-{
+public sealed partial class MemoryStore : ServiceEntity, IDisposable {
     private readonly ConcurrentDictionary<string, MemoryEntry> _memories;
     private readonly string _storagePath;
     private readonly ILogger<MemoryStore>? _logger;
@@ -22,8 +21,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <param name="fileOperationService">文件操作服务,用于持久化记忆</param>
     /// <param name="logger">可选的日志记录器</param>
     /// <param name="clock">可选的时钟服务,默认使用系统时钟</param>
-    public MemoryStore(IOptions<MemdirOptions> options, IFileOperationService fileOperationService, ILogger<MemoryStore>? logger = null, IClockService? clock = null)
-    {
+    public MemoryStore(IOptions<MemdirOptions> options, IFileOperationService fileOperationService, ILogger<MemoryStore>? logger = null, IClockService? clock = null) {
         _storagePath = options?.Value?.StoragePath ?? throw new ArgumentNullException(nameof(options));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _logger = logger;
@@ -34,16 +32,14 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 异步初始化 - 必须在构造函数后调用
     /// </summary>
-    public async Task InitializeAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task InitializeAsync(CancellationToken cancellationToken = default) {
         await LoadMemoriesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 添加记忆
     /// </summary>
-    public void AddMemory(string content, MemoryType type = MemoryType.User, string? title = null, List<string>? tags = null, string? source = null)
-    {
+    public void AddMemory(string content, MemoryType type = MemoryType.User, string? title = null, List<string>? tags = null, string? source = null) {
         var entry = MemoryEntry.Create(
             type: type,
             content: content,
@@ -61,19 +57,16 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 搜索记忆
     /// </summary>
-    public IEnumerable<MemoryEntry> Search(string query, MemoryType? type = null, int limit = 10)
-    {
+    public IEnumerable<MemoryEntry> Search(string query, MemoryType? type = null, int limit = 10) {
         IEnumerable<MemoryEntry> results = _memories.Values;
 
         // 按类型过滤
-        if (type.HasValue)
-        {
+        if (type.HasValue) {
             results = results.Where(m => m.Type == type.Value);
         }
 
         // 计算相关性分数
-        var scoredResults = results.Select(m => new
-        {
+        var scoredResults = results.Select(m => new {
             Memory = m,
             Score = CalculateRelevanceScore(m, query)
         })
@@ -83,8 +76,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
         .ToList();
 
         // 更新访问统计
-        foreach (var result in scoredResults)
-        {
+        foreach (var result in scoredResults) {
             var updated = result.Memory.WithAccessed(_clock.GetUtcNow());
             _memories[updated.Id] = updated;
         }
@@ -95,8 +87,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 按标签搜索 - 使用 HashSet 优化 O(n²) 查找
     /// </summary>
-    public IEnumerable<MemoryEntry> SearchByTags(List<string> tags, int limit = 10)
-    {
+    public IEnumerable<MemoryEntry> SearchByTags(List<string> tags, int limit = 10) {
         // 使用 HashSet 缓存标签，实现 O(1) 查找
         var tagSet = new HashSet<string>(tags, StringComparer.OrdinalIgnoreCase);
 
@@ -110,8 +101,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 按类型搜索
     /// </summary>
-    public IEnumerable<MemoryEntry> SearchByType(MemoryType type, int limit = 10)
-    {
+    public IEnumerable<MemoryEntry> SearchByType(MemoryType type, int limit = 10) {
         return _memories.Values
             .Where(m => m.Type == type)
             .OrderByDescending(m => m.AccessCount)
@@ -122,10 +112,8 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 获取记忆
     /// </summary>
-    public MemoryEntry? GetMemory(string id)
-    {
-        if (_memories.TryGetValue(id, out var memory))
-        {
+    public MemoryEntry? GetMemory(string id) {
+        if (_memories.TryGetValue(id, out var memory)) {
             var updated = memory.WithAccessed(_clock.GetUtcNow());
             _memories[updated.Id] = updated;
             return updated;
@@ -137,10 +125,8 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 删除记忆
     /// </summary>
-    public bool DeleteMemory(string id)
-    {
-        if (!_memories.TryRemove(id, out _))
-        {
+    public bool DeleteMemory(string id) {
+        if (!_memories.TryRemove(id, out _)) {
             return false;
         }
 
@@ -153,10 +139,8 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 归档记忆
     /// </summary>
-    public bool ArchiveMemory(string id)
-    {
-        if (!_memories.TryGetValue(id, out var memory))
-        {
+    public bool ArchiveMemory(string id) {
+        if (!_memories.TryGetValue(id, out var memory)) {
             return false;
         }
 
@@ -172,10 +156,8 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 恢复记忆
     /// </summary>
-    public bool RestoreMemory(string id)
-    {
-        if (!_memories.TryGetValue(id, out var memory))
-        {
+    public bool RestoreMemory(string id) {
+        if (!_memories.TryGetValue(id, out var memory)) {
             return false;
         }
 
@@ -191,28 +173,24 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 获取所有记忆类型
     /// </summary>
-    public IEnumerable<MemoryType> GetTypes()
-    {
+    public IEnumerable<MemoryType> GetTypes() {
         return _memories.Values.Select(m => m.Type).Distinct().OrderBy(t => t);
     }
 
     /// <summary>
     /// 获取所有标签
     /// </summary>
-    public IEnumerable<string> GetAllTags()
-    {
+    public IEnumerable<string> GetAllTags() {
         return _memories.Values.SelectMany(m => m.Tags).Distinct().OrderBy(t => t);
     }
 
     /// <summary>
     /// 获取统计信息
     /// </summary>
-    public MemoryStatistics GetStatistics()
-    {
+    public MemoryStatistics GetStatistics() {
         var memories = _memories.Values;
 
-        return new MemoryStatistics
-        {
+        return new MemoryStatistics {
             TotalCount = _memories.Count,
             TypeCounts = memories.GroupBy(m => m.Type)
                 .ToDictionary(g => g.Key, g => g.Count()),
@@ -229,20 +207,17 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 清理过期记忆
     /// </summary>
-    public int CleanupExpired()
-    {
+    public int CleanupExpired() {
         var expiredIds = _memories.Values
             .Where(m => m.IsExpired() && !m.IsArchived)
             .Select(m => m.Id)
             .ToArray();
 
-        foreach (var id in expiredIds)
-        {
+        foreach (var id in expiredIds) {
             _memories.TryRemove(id, out _);
         }
 
-        if (expiredIds.Length > 0)
-        {
+        if (expiredIds.Length > 0) {
             _logger?.LogInformation(L.T(StringKey.VaultLogStoreCleanedExpired), expiredIds.Length);
             _ = SaveMemoriesAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
         }
@@ -253,11 +228,9 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 自动提取记忆（简化实现）
     /// </summary>
-    public void AutoExtractMemory(string content, string source)
-    {
+    public void AutoExtractMemory(string content, string source) {
         // 提取关键信息（简化实现）
-        var patterns = new Dictionary<string, MemoryType>
-        {
+        var patterns = new Dictionary<string, MemoryType> {
             [@"重要[:：]\s*(.+?)(?=\n|$)"] = MemoryType.User,
             [@"记住[:：]\s*(.+?)(?=\n|$)"] = MemoryType.User,
             [@"TODO[:：]\s*(.+?)(?=\n|$)"] = MemoryType.Project,
@@ -265,16 +238,12 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
             [@"决策[:：]\s*(.+?)(?=\n|$)"] = MemoryType.Feedback
         };
 
-        foreach (var pattern in patterns)
-        {
+        foreach (var pattern in patterns) {
             var matches = Regex.Matches(content, pattern.Key, RegexOptions.IgnoreCase);
-            foreach (Match match in matches)
-            {
-                if (match.Groups.Count > 1)
-                {
+            foreach (Match match in matches) {
+                if (match.Groups.Count > 1) {
                     var memoryContent = match.Groups[1].Value.Trim();
-                    if (!string.IsNullOrEmpty(memoryContent) && memoryContent.Length > 10)
-                    {
+                    if (!string.IsNullOrEmpty(memoryContent) && memoryContent.Length > 10) {
                         AddMemory(memoryContent, pattern.Value, null, new List<string> { "auto" }, source);
                     }
                 }
@@ -285,37 +254,29 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 计算相关性分数
     /// </summary>
-    private double CalculateRelevanceScore(MemoryEntry memory, string query)
-    {
+    private double CalculateRelevanceScore(MemoryEntry memory, string query) {
         var score = 0.0;
         var queryWords = QueryWordHelper.ExtractQueryWords(query);
 
         var contentSpan = memory.Content.AsSpan();
-        for (var i = 0; i < queryWords.Length; i++)
-        {
-            if (QueryWordHelper.ContainsOrdinalIgnoreCase(contentSpan, queryWords[i].AsSpan()))
-            {
+        for (var i = 0; i < queryWords.Length; i++) {
+            if (QueryWordHelper.ContainsOrdinalIgnoreCase(contentSpan, queryWords[i].AsSpan())) {
                 score += 1.0;
             }
         }
 
-        if (!string.IsNullOrEmpty(memory.Title))
-        {
+        if (!string.IsNullOrEmpty(memory.Title)) {
             var titleSpan = memory.Title.AsSpan();
-            for (var i = 0; i < queryWords.Length; i++)
-            {
-                if (QueryWordHelper.ContainsOrdinalIgnoreCase(titleSpan, queryWords[i].AsSpan()))
-                {
+            for (var i = 0; i < queryWords.Length; i++) {
+                if (QueryWordHelper.ContainsOrdinalIgnoreCase(titleSpan, queryWords[i].AsSpan())) {
                     score += 2.0;
                 }
             }
         }
 
         // 标签匹配
-        foreach (var tag in memory.Tags)
-        {
-            if (queryWords.Any(w => tag.Contains(w, StringComparison.OrdinalIgnoreCase)))
-            {
+        foreach (var tag in memory.Tags) {
+            if (queryWords.Any(w => tag.Contains(w, StringComparison.OrdinalIgnoreCase))) {
                 score += 2.0;
             }
         }
@@ -336,30 +297,23 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 加载记忆
     /// </summary>
-    private async Task LoadMemoriesAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
+    private async Task LoadMemoriesAsync(CancellationToken cancellationToken = default) {
+        try {
             var result = await _fileOperationService.ReadFileAsync(_storagePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 return;
             }
 
             var memories = RelaxedJsonSerializer.Deserialize(result.Content, MemdirJsonContext.Default.ListMemoryEntry);
 
-            if (memories != null)
-            {
-                foreach (var memory in memories)
-                {
+            if (memories != null) {
+                foreach (var memory in memories) {
                     _memories[memory.Id] = memory;
                 }
 
                 _logger?.LogInformation(L.T(StringKey.VaultLogStoreLoadedMemories), memories.Count);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VaultLogStoreLoadFailed));
         }
     }
@@ -367,26 +321,18 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 保存记忆
     /// </summary>
-    private async Task SaveMemoriesAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task SaveMemoriesAsync(CancellationToken cancellationToken) {
+        try {
             var memories = _memories.Values.ToList();
             var json = RelaxedJsonSerializer.Serialize(memories, MemdirIndentedJsonContext.Default);
 
             var result = await _fileOperationService.WriteFileAsync(_storagePath, json, cancellationToken).ConfigureAwait(false);
-            if (result.Success)
-            {
+            if (result.Success) {
                 _logger?.LogDebug(L.T(StringKey.VaultLogStoreSavedMemories), memories.Count);
-            }
-            else
-            {
+            } else {
                 _logger?.LogError(L.T(StringKey.VaultLogStoreSaveFailedError), result.ErrorMessage);
             }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VaultLogStoreSaveFailed));
         }
     }
@@ -394,8 +340,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 取消并释放取消令牌源。
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
 
@@ -407,8 +352,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
 /// <summary>
 /// 内存统计
 /// </summary>
-public sealed partial class MemoryStatistics
-{
+public sealed partial class MemoryStatistics {
     /// <summary>记忆总数</summary>
     public int TotalCount { get; init; }
     /// <summary>按记忆类型分组的计数</summary>

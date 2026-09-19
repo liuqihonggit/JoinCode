@@ -1,7 +1,6 @@
 namespace JoinCode.Reasoning.Tests.Weight;
 
-public sealed class EvidenceWeightCalculatorEdgeCaseTests
-{
+public sealed class EvidenceWeightCalculatorEdgeCaseTests {
     [Theory]
     [InlineData("政府机构", 0.95)]
     [InlineData("法院判决", 0.90)]
@@ -13,8 +12,7 @@ public sealed class EvidenceWeightCalculatorEdgeCaseTests
     [InlineData("未知来源", 0.30)]
     [InlineData(null, 0.30)]
     [InlineData("", 0.30)]
-    public void CalculateWeight_SourceCredibility_ShouldMatchExpected(string? source, double expected)
-    {
+    public void CalculateWeight_SourceCredibility_ShouldMatchExpected(string? source, double expected) {
         var calculator = new EvidenceWeightCalculator();
         var evidence = CreateEvidence(source: source);
 
@@ -33,8 +31,7 @@ public sealed class EvidenceWeightCalculatorEdgeCaseTests
     [InlineData(EvidenceCategory.Digital, 0.70)]
     [InlineData(EvidenceCategory.Testimonial, 0.55)]
     [InlineData(EvidenceCategory.Circumstantial, 0.40)]
-    public void CalculateWeight_EvidenceTypeWeight_ShouldMatchExpected(EvidenceCategory category, double expected)
-    {
+    public void CalculateWeight_EvidenceTypeWeight_ShouldMatchExpected(EvidenceCategory category, double expected) {
         var calculator = new EvidenceWeightCalculator();
         var evidence = CreateEvidence(category: category);
 
@@ -49,8 +46,7 @@ public sealed class EvidenceWeightCalculatorEdgeCaseTests
     [InlineData(2, 0.8)]
     [InlineData(3, 1.0)]
     [InlineData(10, 1.0)]
-    public void CalculateWeight_CorroborationScore_ShouldMatchExpected(int corroborationCount, double expected)
-    {
+    public void CalculateWeight_CorroborationScore_ShouldMatchExpected(int corroborationCount, double expected) {
         var calculator = new EvidenceWeightCalculator();
         var evidence = CreateEvidence();
 
@@ -67,8 +63,7 @@ public sealed class EvidenceWeightCalculatorEdgeCaseTests
     [InlineData(45, 0.7)]
     [InlineData(120, 0.5)]
     [InlineData(500, 0.3)]
-    public void CalculateWeight_Timeliness_ShouldMatchExpected(int daysAgo, double expected)
-    {
+    public void CalculateWeight_Timeliness_ShouldMatchExpected(int daysAgo, double expected) {
         var calculator = new EvidenceWeightCalculator();
         var evidence = CreateEvidence(createdAt: DateTime.UtcNow.AddDays(-daysAgo));
 
@@ -78,8 +73,7 @@ public sealed class EvidenceWeightCalculatorEdgeCaseTests
     }
 
     [Fact]
-    public void CalculateWeight_VerificationStatus_UrlVerified_ReturnsOne()
-    {
+    public void CalculateWeight_VerificationStatus_UrlVerified_ReturnsOne() {
         var calculator = new EvidenceWeightCalculator();
         var evidence = CreateEvidence(sourceUrl: "https://example.com", isUrlVerified: true);
 
@@ -89,8 +83,7 @@ public sealed class EvidenceWeightCalculatorEdgeCaseTests
     }
 
     [Fact]
-    public void CalculateWeight_VerificationStatus_UnverifiedUrl_ReturnsHalf()
-    {
+    public void CalculateWeight_VerificationStatus_UnverifiedUrl_ReturnsHalf() {
         var calculator = new EvidenceWeightCalculator();
         var evidence = CreateEvidence(sourceUrl: "https://example.com", isUrlVerified: false);
 
@@ -100,8 +93,7 @@ public sealed class EvidenceWeightCalculatorEdgeCaseTests
     }
 
     [Fact]
-    public void CalculateWeight_VerificationStatus_NoUrl_ReturnsDefault()
-    {
+    public void CalculateWeight_VerificationStatus_NoUrl_ReturnsDefault() {
         var calculator = new EvidenceWeightCalculator();
         var evidence = CreateEvidence();
 
@@ -111,8 +103,7 @@ public sealed class EvidenceWeightCalculatorEdgeCaseTests
     }
 
     [Fact]
-    public void CalculateTotalWeight_WithWeights_AppliesMultiplication()
-    {
+    public void CalculateTotalWeight_WithWeights_AppliesMultiplication() {
         var calculator = new EvidenceWeightCalculator();
         var evidences = new[]
         {
@@ -128,8 +119,7 @@ public sealed class EvidenceWeightCalculatorEdgeCaseTests
     }
 
     [Fact]
-    public void CalculateWeight_Total_IsWeightedSum()
-    {
+    public void CalculateWeight_Total_IsWeightedSum() {
         var calculator = new EvidenceWeightCalculator();
         var evidence = CreateEvidence(
             source: "政府机构",
@@ -145,8 +135,7 @@ public sealed class EvidenceWeightCalculatorEdgeCaseTests
     }
 
     [Fact]
-    public void CalculateWeight_RawScore_MapsTrustLevel()
-    {
+    public void CalculateWeight_RawScore_MapsTrustLevel() {
         var calculator = new EvidenceWeightCalculator();
         var evidence = CreateEvidence(trustLevel: TrustLevel.Moderate);
 
@@ -162,10 +151,8 @@ public sealed class EvidenceWeightCalculatorEdgeCaseTests
         string? sourceUrl = null,
         bool isUrlVerified = false,
         double weight = 1.0,
-        DateTime? createdAt = null)
-    {
-        return new EvidenceRecord
-        {
+        DateTime? createdAt = null) {
+        return new EvidenceRecord {
             Content = "测试证据",
             Category = category,
             TrustLevel = trustLevel,

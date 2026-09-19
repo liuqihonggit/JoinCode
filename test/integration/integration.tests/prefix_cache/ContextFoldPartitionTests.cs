@@ -1,10 +1,8 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class ContextFoldPartitionTests
-{
+public sealed class ContextFoldPartitionTests {
     [Fact]
-    public void PartitionFold_UserMessageUnder500_Pinned()
-    {
+    public void PartitionFold_UserMessageUnder500_Pinned() {
         var head = new List<ApiMessage>
         {
             new(MessageRole.User, "short user message"),
@@ -18,8 +16,7 @@ public sealed class ContextFoldPartitionTests
     }
 
     [Fact]
-    public void PartitionFold_UserMessageOver500_Foldable()
-    {
+    public void PartitionFold_UserMessageOver500_Foldable() {
         var longContent = new string('x', 501);
         var head = new List<ApiMessage>
         {
@@ -34,8 +31,7 @@ public sealed class ContextFoldPartitionTests
     }
 
     [Fact]
-    public void PartitionFold_CompactSummary_Pinned()
-    {
+    public void PartitionFold_CompactSummary_Pinned() {
         var head = new List<ApiMessage>
         {
             new(MessageRole.User, "summary content", new Dictionary<string, JsonElement>
@@ -52,8 +48,7 @@ public sealed class ContextFoldPartitionTests
     }
 
     [Fact]
-    public void PartitionFold_ToolResult_Foldable()
-    {
+    public void PartitionFold_ToolResult_Foldable() {
         var head = new List<ApiMessage>
         {
             new(MessageRole.User, "do something"),
@@ -71,8 +66,7 @@ public sealed class ContextFoldPartitionTests
     }
 
     [Fact]
-    public void PartitionFold_MultipleUserMessages_OnlyShortOnesPinned()
-    {
+    public void PartitionFold_MultipleUserMessages_OnlyShortOnesPinned() {
         var longContent = new string('y', 600);
         var head = new List<ApiMessage>
         {
@@ -89,8 +83,7 @@ public sealed class ContextFoldPartitionTests
     }
 
     [Fact]
-    public void PartitionFold_CompactSummaryNeverReSummarized()
-    {
+    public void PartitionFold_CompactSummaryNeverReSummarized() {
         var head = new List<ApiMessage>
         {
             new(MessageRole.User, "prev summary", new Dictionary<string, JsonElement>
@@ -107,8 +100,7 @@ public sealed class ContextFoldPartitionTests
         foldable.Should().ContainSingle(m => m.Content == "after summary");
     }
 
-    private static (List<ApiMessage> Kept, List<ApiMessage> Foldable) InvokePartitionFold(IReadOnlyList<ApiMessage> head)
-    {
+    private static (List<ApiMessage> Kept, List<ApiMessage> Foldable) InvokePartitionFold(IReadOnlyList<ApiMessage> head) {
         var executor = new ContextFoldExecutor(new StubFoldSummarizer());
         var method = typeof(ContextFoldExecutor).GetMethod("PartitionFold",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
@@ -116,8 +108,7 @@ public sealed class ContextFoldPartitionTests
         return result;
     }
 
-    private sealed class StubFoldSummarizer : IFoldSummarizer
-    {
+    private sealed class StubFoldSummarizer : IFoldSummarizer {
         public Task<string> SummarizeForFoldAsync(IReadOnlyList<ApiMessage> messages, CancellationToken ct = default)
             => Task.FromResult("stub summary");
     }

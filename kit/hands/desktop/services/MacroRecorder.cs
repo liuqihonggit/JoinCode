@@ -13,8 +13,7 @@ internal sealed partial class MacroJsonContext : JsonSerializerContext;
 /// API 级录制：在 IDesktopInputService 执行操作时自动记录，无需全局钩子
 /// </summary>
 [Register(typeof(IMacroRecorder), ServiceLifetime.Singleton)]
-public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
-{
+public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder {
     private readonly IDesktopInputService _input;
     private readonly IFileSystem _fileSystem;
     private readonly ILogger<MacroRecorder>? _logger;
@@ -28,31 +27,25 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     /// <param name="input">桌面输入服务，回放时用于执行实际鼠标键盘操作。</param>
     /// <param name="fileSystem">文件系统抽象，用于保存与加载宏文件。</param>
     /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
-    public MacroRecorder(IDesktopInputService input, IFileSystem fileSystem, ILogger<MacroRecorder>? logger = null)
-    {
+    public MacroRecorder(IDesktopInputService input, IFileSystem fileSystem, ILogger<MacroRecorder>? logger = null) {
         _input = input;
         _fileSystem = fileSystem;
         _logger = logger;
     }
 
     /// <summary>是否正在录制</summary>
-    public bool IsRecording
-    {
-        get
-        {
-            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-            {
+    public bool IsRecording {
+        get {
+            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
                 return _isRecording;
             }
         }
     }
 
     /// <summary>开始录制（清空之前的录制内容）</summary>
-    public void StartRecording(string macroName)
-    {
+    public void StartRecording(string macroName) {
         ArgumentException.ThrowIfNullOrWhiteSpace(macroName);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _isRecording = true;
             _macroName = macroName;
             _recordedOperations.Clear();
@@ -61,10 +54,8 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     }
 
     /// <summary>停止录制并返回宏</summary>
-    public Macro StopRecording()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public Macro StopRecording() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _isRecording = false;
             var macro = new Macro(_macroName, _recordedOperations.ToArray(), DateTimeOffset.UtcNow);
             _logger?.LogInformation("停止录制宏: {Name}, 共 {Count} 步", macro.Name, macro.Operations.Count);
@@ -73,19 +64,16 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     }
 
     /// <summary>记录一个操作（仅在录制状态下有效）</summary>
-    public void RecordOperation(DesktopOperation operation)
-    {
+    public void RecordOperation(DesktopOperation operation) {
         ArgumentNullException.ThrowIfNull(operation);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             if (_isRecording)
                 _recordedOperations.Add(operation);
         }
     }
 
     /// <summary>回放宏 — 按顺序执行操作序列</summary>
-    public async Task<MacroPlaybackResult> PlayAsync(Macro macro, int speedMultiplier = 1, CancellationToken cancellationToken = default)
-    {
+    public async Task<MacroPlaybackResult> PlayAsync(Macro macro, int speedMultiplier = 1, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(macro);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -96,8 +84,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
 
         _logger?.LogInformation("开始回放宏: {Name}, 共 {Count} 步, 加速 {Speed}x", macro.Name, macro.Operations.Count, speedMultiplier);
 
-        foreach (var op in macro.Operations)
-        {
+        foreach (var op in macro.Operations) {
             cancellationToken.ThrowIfCancellationRequested();
 
             var result = await ExecuteOperationAsync(op, cancellationToken).ConfigureAwait(false);
@@ -114,8 +101,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     }
 
     /// <summary>保存宏到文件（JSON）</summary>
-    public void SaveMacro(Macro macro, string filePath)
-    {
+    public void SaveMacro(Macro macro, string filePath) {
         ArgumentNullException.ThrowIfNull(macro);
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
@@ -125,8 +111,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     }
 
     /// <summary>从文件加载宏</summary>
-    public Macro LoadMacro(string filePath)
-    {
+    public Macro LoadMacro(string filePath) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         var json = _fileSystem.ReadAllText(filePath);
         var macro = RelaxedJsonSerializer.Deserialize(json, MacroJsonContext.Default.Macro)
@@ -135,44 +120,38 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
         return macro;
     }
 
-    internal async Task<bool> ExecuteOperationAsync(DesktopOperation op, CancellationToken ct)
-    {
-        try
-        {
+    internal async Task<bool> ExecuteOperationAsync(DesktopOperation op, CancellationToken ct) {
+        try {
             DesktopOperation result;
-            switch (op.Kind)
-            {
+            switch (op.Kind) {
                 case DesktopOperationKind.Click:
-                    result = await _input.ClickAsync(op.X, op.Y, op.MouseAction ?? MouseAction.Click, ct).ConfigureAwait(false);
-                    return result.Succeeded;
+                result = await _input.ClickAsync(op.X, op.Y, op.MouseAction ?? MouseAction.Click, ct).ConfigureAwait(false);
+                return result.Succeeded;
 
                 case DesktopOperationKind.KeyPress:
-                    result = await _input.KeyPressAsync(op.X, op.Modifiers ?? KeyModifier.None, ct).ConfigureAwait(false);
-                    return result.Succeeded;
+                result = await _input.KeyPressAsync(op.X, op.Modifiers ?? KeyModifier.None, ct).ConfigureAwait(false);
+                return result.Succeeded;
 
                 case DesktopOperationKind.TypeText:
-                    result = await _input.TypeTextAsync(op.Text ?? string.Empty, ct).ConfigureAwait(false);
-                    return result.Succeeded;
+                result = await _input.TypeTextAsync(op.Text ?? string.Empty, ct).ConfigureAwait(false);
+                return result.Succeeded;
 
                 case DesktopOperationKind.Move:
-                    result = await _input.MoveToAsync(op.X, op.Y, ct).ConfigureAwait(false);
-                    return result.Succeeded;
+                result = await _input.MoveToAsync(op.X, op.Y, ct).ConfigureAwait(false);
+                return result.Succeeded;
 
                 default:
-                    _logger?.LogDebug("跳过不支持回放的操作类型: {Kind}", op.Kind);
-                    return true;
+                _logger?.LogDebug("跳过不支持回放的操作类型: {Kind}", op.Kind);
+                return true;
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "回放操作失败: {Kind}", op.Kind);
             return false;
         }
     }
 
     /// <inheritdoc />
-    public override void Dispose()
-    {
+    public override void Dispose() {
         _lock.Dispose();
         base.Dispose();
     }

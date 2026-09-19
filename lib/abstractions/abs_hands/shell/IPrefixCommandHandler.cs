@@ -3,8 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 前缀命令执行上下文
 /// </summary>
-public sealed class PrefixCommandContext
-{
+public sealed class PrefixCommandContext {
     /// <summary>DI 服务容器（可选，当前 ! / !! 处理器直接用 Process.Start 不依赖 DI）</summary>
     public IServiceProvider? Services { get; init; }
 
@@ -21,8 +20,7 @@ public sealed class PrefixCommandContext
 /// <param name="Handled">是否已处理</param>
 /// <param name="Output">输出文本（回显或注入 AI）</param>
 /// <param name="ShouldInjectToAi">是否将输出注入 AI 上下文（! = true, !! = false）</param>
-public sealed record PrefixCommandResult(bool Handled, string Output, bool ShouldInjectToAi)
-{
+public sealed record PrefixCommandResult(bool Handled, string Output, bool ShouldInjectToAi) {
     /// <summary>未处理的空结果</summary>
     public static PrefixCommandResult NotHandled => new(false, string.Empty, false);
 }
@@ -31,8 +29,7 @@ public sealed record PrefixCommandResult(bool Handled, string Output, bool Shoul
 /// 前缀命令处理器接口 — 处理 ! / !! 前缀命令。
 /// 对齐 IChatCommand 模式，但前缀命令后面跟任意 shell 命令而非固定命令名。
 /// </summary>
-public interface IPrefixCommandHandler
-{
+public interface IPrefixCommandHandler {
     /// <summary>前缀符号（"!" 或 "!!"）</summary>
     string Prefix { get; }
 

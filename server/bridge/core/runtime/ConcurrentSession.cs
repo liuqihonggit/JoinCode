@@ -6,8 +6,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 会话类型 — 对齐 TS 端 SessionKind
 /// </summary>
-public enum SessionKind
-{
+public enum SessionKind {
     /// <summary>交互式会话</summary>
     [EnumValue("interactive")] Interactive,
     /// <summary>后台会话</summary>
@@ -25,8 +24,7 @@ public enum SessionKind
 /// <summary>
 /// 会话活动状态 — 对齐 TS 端 SessionStatus
 /// </summary>
-public enum SessionStatus
-{
+public enum SessionStatus {
     /// <summary>忙碌</summary>
     [EnumValue("busy")] Busy,
     /// <summary>空闲</summary>
@@ -43,8 +41,7 @@ public enum SessionStatus
 /// 并发会话记录 — 对齐 TS 端 PID 文件格式
 /// 写入 {sessionsDir}/{pid}.json
 /// </summary>
-public sealed class ConcurrentSessionRecord
-{
+public sealed class ConcurrentSessionRecord {
     /// <summary>进程 ID</summary>
     [JsonPropertyName("pid")]
     public int Pid { get; init; }
@@ -96,8 +93,7 @@ public sealed class ConcurrentSessionRecord
 /// 并发会话服务 — 对齐 TS 端 concurrentSessions.ts
 /// 管理 PID 文件注册系统，记录活跃会话信息
 /// </summary>
-public sealed class ConcurrentSessionService
-{
+public sealed class ConcurrentSessionService {
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
     private readonly string _sessionsDir;
@@ -109,8 +105,7 @@ public sealed class ConcurrentSessionService
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="clock">时钟服务（可选，默认使用系统时钟）</param>
-    public ConcurrentSessionService(IFileSystem fs, ILogger? logger = null, IClockService? clock = null)
-    {
+    public ConcurrentSessionService(IFileSystem fs, ILogger? logger = null, IClockService? clock = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -121,8 +116,7 @@ public sealed class ConcurrentSessionService
     /// 获取会话目录路径 — 对齐 TS 端 getSessionsDir()
     /// ~/.jcc/sessions/
     /// </summary>
-    public static string GetSessionsDir()
-    {
+    public static string GetSessionsDir() {
         var appData = Environment.GetEnvironmentVariable("JCC_APP_DATA_FOLDER")
                    ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder);
         return Path.Combine(appData, "sessions");
@@ -136,18 +130,15 @@ public sealed class ConcurrentSessionService
     /// <summary>
     /// 注册当前会话 — 对齐 TS 端 registerSession()
     /// </summary>
-    public async Task<bool> RegisterAsync(string? sessionId = null, CancellationToken ct = default)
-    {
-        var kind = Environment.GetEnvironmentVariable("JCC_SESSION_KIND") switch
-        {
+    public async Task<bool> RegisterAsync(string? sessionId = null, CancellationToken ct = default) {
+        var kind = Environment.GetEnvironmentVariable("JCC_SESSION_KIND") switch {
             "bg" => SessionKind.Background.ToValue(),
             "daemon" => SessionKind.Daemon.ToValue(),
             "daemon-worker" => SessionKind.DaemonWorker.ToValue(),
             _ => SessionKind.Interactive.ToValue(),
         };
 
-        var record = new ConcurrentSessionRecord
-        {
+        var record = new ConcurrentSessionRecord {
             Pid = Environment.ProcessId,
             SessionId = sessionId,
             Cwd = _fs.GetCurrentDirectory(),
@@ -156,10 +147,8 @@ public sealed class ConcurrentSessionService
             Entrypoint = Environment.GetEnvironmentVariable("JCC_ENTRYPOINT"),
         };
 
-        try
-        {
-            if (!_fs.DirectoryExists(_sessionsDir))
-            {
+        try {
+            if (!_fs.DirectoryExists(_sessionsDir)) {
                 _fs.CreateDirectory(_sessionsDir);
             }
 
@@ -167,9 +156,7 @@ public sealed class ConcurrentSessionService
             await _fs.WriteAllTextAsync(GetPidFilePath(), json, ct).ConfigureAwait(false);
             _logger?.LogDebug("[ConcurrentSession] 注册会话: PID={Pid}, SessionId={SessionId}", record.Pid, record.SessionId);
             return true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ConcurrentSession] 注册会话失败");
             return false;
         }
@@ -178,18 +165,13 @@ public sealed class ConcurrentSessionService
     /// <summary>
     /// 注销当前会话 — 对齐 TS 端 cleanupRegistry 中的 unlink
     /// </summary>
-    public Task UnregisterAsync(CancellationToken ct = default)
-    {
+    public Task UnregisterAsync(CancellationToken ct = default) {
         var path = GetPidFilePath();
-        if (_fs.FileExists(path))
-        {
-            try
-            {
+        if (_fs.FileExists(path)) {
+            try {
                 _fs.DeleteFile(path);
                 _logger?.LogDebug("[ConcurrentSession] 注销会话: PID={Pid}", Environment.ProcessId);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[ConcurrentSession] 注销会话失败");
             }
         }
@@ -200,19 +182,15 @@ public sealed class ConcurrentSessionService
     /// 更新 PID 文件 — 对齐 TS 端 updatePidFile(patch)
     /// 读取现有文件，应用更新，重写
     /// </summary>
-    public async Task UpdateAsync(Action<ConcurrentSessionRecord> applyPatch, CancellationToken ct = default)
-    {
+    public async Task UpdateAsync(Action<ConcurrentSessionRecord> applyPatch, CancellationToken ct = default) {
         var path = GetPidFilePath();
-        try
-        {
-            if (!_fs.FileExists(path))
-            {
+        try {
+            if (!_fs.FileExists(path)) {
                 _logger?.LogDebug("[ConcurrentSession] PID 文件不存在，跳过更新");
                 return;
             }
 
-            await _fs.EditFileAsync<bool>(path, async (bytes, cancellationToken) =>
-            {
+            await _fs.EditFileAsync<bool>(path, async (bytes, cancellationToken) => {
                 var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                 var existing = RelaxedJsonSerializer.Deserialize(content, BridgeJsonContext.Default.ConcurrentSessionRecord);
                 if (existing is null) return (null, false);
@@ -222,9 +200,7 @@ public sealed class ConcurrentSessionService
                 var newBytes = FileEncodingDetector.EncodeString(updatedJson, encoding);
                 return (newBytes, true);
             }, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ConcurrentSession] 更新 PID 文件失败");
         }
     }
@@ -233,26 +209,22 @@ public sealed class ConcurrentSessionService
     /// 更新桥会话 ID — 对齐 TS 端 updateSessionBridgeId
     /// 记录 bridge session ID 以便 peer 去重
     /// </summary>
-    public Task UpdateBridgeSessionIdAsync(string? bridgeSessionId, CancellationToken ct = default)
-    {
+    public Task UpdateBridgeSessionIdAsync(string? bridgeSessionId, CancellationToken ct = default) {
         return UpdateAsync(r => r.BridgeSessionId = bridgeSessionId, ct);
     }
 
     /// <summary>
     /// 更新会话名称 — 对齐 TS 端 updateSessionName
     /// </summary>
-    public Task UpdateSessionNameAsync(string name, CancellationToken ct = default)
-    {
+    public Task UpdateSessionNameAsync(string name, CancellationToken ct = default) {
         return UpdateAsync(r => r.Name = name, ct);
     }
 
     /// <summary>
     /// 更新会话活动状态 — 对齐 TS 端 updateSessionActivity
     /// </summary>
-    public Task UpdateSessionActivityAsync(string status, string? waitingFor = null, CancellationToken ct = default)
-    {
-        return UpdateAsync(r =>
-        {
+    public Task UpdateSessionActivityAsync(string status, string? waitingFor = null, CancellationToken ct = default) {
+        return UpdateAsync(r => {
             r.Status = status;
             if (waitingFor is not null) r.WaitingFor = waitingFor;
         }, ct);
@@ -262,67 +234,50 @@ public sealed class ConcurrentSessionService
     /// 统计并发会话数 — 对齐 TS 端 countConcurrentSessions
     /// 扫描 PID 文件，清理过期文件
     /// </summary>
-    public int CountConcurrentSessions()
-    {
-        try
-        {
+    public int CountConcurrentSessions() {
+        try {
             if (!_fs.DirectoryExists(_sessionsDir)) return 0;
 
             var count = 0;
-            foreach (var file in _fs.EnumerateFiles(_sessionsDir, "*.json", SearchOption.TopDirectoryOnly))
-            {
+            foreach (var file in _fs.EnumerateFiles(_sessionsDir, "*.json", SearchOption.TopDirectoryOnly)) {
                 var fileName = Path.GetFileNameWithoutExtension(file);
                 if (!int.TryParse(fileName, out var pid)) continue;
 
                 // 当前进程总是计数
-                if (pid == Environment.ProcessId)
-                {
+                if (pid == Environment.ProcessId) {
                     count++;
                     continue;
                 }
 
                 // 检查进程是否仍在运行
-                try
-                {
+                try {
                     var proc = System.Diagnostics.Process.GetProcessById(pid);
-                    if (!proc.HasExited)
-                    {
+                    if (!proc.HasExited) {
                         count++;
-                    }
-                    else
-                    {
+                    } else {
                         // 过期文件，清理
                         TryDeleteFile(file);
                     }
-                }
-                catch (ArgumentException)
-                {
+                } catch (ArgumentException) {
                     // 进程不存在，清理过期文件
                     TryDeleteFile(file);
-                }
-                catch (Exception)
-                {
+                } catch (Exception) {
                     // 无法检测（如 WSL），保守计数
                     count++;
                 }
             }
 
             return count;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ConcurrentSession] 统计并发会话失败");
             return 0;
         }
     }
 
-    private void TryDeleteFile(string path)
-    {
-        try
-        {
+    private void TryDeleteFile(string path) {
+        try {
             _fs.DeleteFile(path);
             _logger?.LogDebug("[ConcurrentSession] 清理过期 PID 文件: {Path}", path);
-        }
-        catch (Exception ex) { _logger?.LogWarning(ex, "[ConcurrentSession] 删除 PID 文件 {Path} 失败", path); }
+        } catch (Exception ex) { _logger?.LogWarning(ex, "[ConcurrentSession] 删除 PID 文件 {Path} 失败", path); }
     }
 }

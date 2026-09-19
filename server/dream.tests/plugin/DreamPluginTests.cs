@@ -3,11 +3,9 @@ namespace Dream.Tests.Plugin;
 /// <summary>
 /// Dream 插件入口单元测试
 /// </summary>
-public sealed class DreamPluginTests
-{
+public sealed class DreamPluginTests {
     [Fact]
-    public void Name_Version_Description_AreCorrect()
-    {
+    public void Name_Version_Description_AreCorrect() {
         var plugin = new DreamPlugin();
 
         Assert.Equal("Dream", plugin.Name);
@@ -16,8 +14,7 @@ public sealed class DreamPluginTests
     }
 
     [Fact]
-    public async Task LoadAsync_RegistersServices()
-    {
+    public async Task LoadAsync_RegistersServices() {
         var plugin = new DreamPlugin();
         var services = new ServiceCollection();
         var ctx = new PluginContext("Dream", services);
@@ -30,8 +27,7 @@ public sealed class DreamPluginTests
     }
 
     [Fact]
-    public async Task InitializeAsync_WithPersistentRegistry_LoadsActiveTasks()
-    {
+    public async Task InitializeAsync_WithPersistentRegistry_LoadsActiveTasks() {
         var plugin = new DreamPlugin();
         var persistence = new Mock<IDreamTaskPersistence>();
         persistence.Setup(p => p.LoadAllAsync(It.IsAny<CancellationToken>()))
@@ -48,8 +44,7 @@ public sealed class DreamPluginTests
     }
 
     [Fact]
-    public async Task InitializeAsync_WithNonPersistentRegistry_DoesNotThrow()
-    {
+    public async Task InitializeAsync_WithNonPersistentRegistry_DoesNotThrow() {
         var plugin = new DreamPlugin();
         var services = new ServiceCollection();
         services.AddSingleton<IDreamTaskRegistry, InMemoryDreamTaskRegistry>();
@@ -61,8 +56,7 @@ public sealed class DreamPluginTests
     }
 
     [Fact]
-    public void RegisterCommands_RegistersDreamCommands()
-    {
+    public void RegisterCommands_RegistersDreamCommands() {
         var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
         var services = new ServiceCollection();
@@ -76,8 +70,7 @@ public sealed class DreamPluginTests
     }
 
     [Fact]
-    public void UnregisterCommands_AfterRegister_UnregistersAll()
-    {
+    public void UnregisterCommands_AfterRegister_UnregistersAll() {
         var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
         var services = new ServiceCollection();
@@ -92,8 +85,7 @@ public sealed class DreamPluginTests
     }
 
     [Fact]
-    public void UnregisterCommands_WithoutRegister_DoesNotThrow()
-    {
+    public void UnregisterCommands_WithoutRegister_DoesNotThrow() {
         var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
 
@@ -103,8 +95,7 @@ public sealed class DreamPluginTests
     }
 
     [Fact]
-    public void Unload_ReturnsSuccess()
-    {
+    public void Unload_ReturnsSuccess() {
         var plugin = new DreamPlugin();
 
         var result = plugin.Unload();
@@ -114,8 +105,7 @@ public sealed class DreamPluginTests
     }
 
     [Fact]
-    public void Dispose_DoesNotThrow()
-    {
+    public void Dispose_DoesNotThrow() {
         var plugin = new DreamPlugin();
 
         var exception = Record.Exception(() => plugin.Dispose());

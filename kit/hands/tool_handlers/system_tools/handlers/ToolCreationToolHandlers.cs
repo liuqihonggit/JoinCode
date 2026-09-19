@@ -6,8 +6,7 @@ namespace Tools.Handlers;
 /// 模板保存到 ~/.jcc/tool-templates/ 目录
 /// </summary>
 [McpToolDispatch(ToolCategory.Skill)]
-public class ToolCreationToolHandlers
-{
+public class ToolCreationToolHandlers {
     private readonly IToolTemplateService _templateService;
     private readonly IToolRegistry _registry;
     private readonly ILogger<ToolCreationToolHandlers>? _logger;
@@ -21,8 +20,7 @@ public class ToolCreationToolHandlers
     public ToolCreationToolHandlers(
         IToolTemplateService templateService,
         IToolRegistry registry,
-        ILogger<ToolCreationToolHandlers>? logger = null)
-    {
+        ILogger<ToolCreationToolHandlers>? logger = null) {
         _templateService = templateService;
         _registry = registry;
         _logger = logger;
@@ -42,16 +40,13 @@ public class ToolCreationToolHandlers
         [McpToolParameter("参数定义JSON数组，格式: [{\"name\":\"param1\",\"description\":\"参数1\",\"type\":\"string\",\"required\":true}]", Required = false)] string? parametersJson = null,
         [McpToolParameter("命令参数模板（shell类型），支持{{param}}占位符", Required = false)] string? argsTemplate = null,
         [McpToolParameter("二级分组名", Required = false)] string? groupName = null,
-        CancellationToken ct = default)
-    {
-        if (string.IsNullOrWhiteSpace(toolName) || string.IsNullOrWhiteSpace(description))
-        {
+        CancellationToken ct = default) {
+        if (string.IsNullOrWhiteSpace(toolName) || string.IsNullOrWhiteSpace(description)) {
             var diag = BuildEmptyNameOrDescriptionDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
-        if (toolName.Any(c => !char.IsLetterOrDigit(c) && c != '_' && c != '-'))
-        {
+        if (toolName.Any(c => !char.IsLetterOrDigit(c) && c != '_' && c != '-')) {
             var diag = BuildInvalidToolNameDiagnostic(toolName);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -59,16 +54,14 @@ public class ToolCreationToolHandlers
         var parameters = ParseParameters(parametersJson);
         var templateId = toolName.Replace("-", "_");
 
-        var template = new ToolTemplate
-        {
+        var template = new ToolTemplate {
             Id = templateId,
             ToolName = toolName,
             Description = description,
             Kind = ToolKind.Mcp,
             GroupName = groupName,
             Parameters = parameters,
-            Execution = new ToolTemplateExecution
-            {
+            Execution = new ToolTemplateExecution {
                 Type = executionType,
                 Command = executionType == "shell" ? command : null,
                 McpTarget = executionType == "mcp_call" ? command : null,
@@ -79,12 +72,9 @@ public class ToolCreationToolHandlers
 
         await _templateService.SaveTemplateAsync(template, ct).ConfigureAwait(false);
 
-        try
-        {
+        try {
             await _templateService.CreateAndRegisterAsync(template, _registry, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "动态注册工具 {ToolName} 失败，但模板已保存", toolName);
             return ToolResultBuilder.Success().WithText(
                 $"工具模板 '{toolName}' 已保存到 ~/.jcc/tool-templates/{templateId}.json，" +
@@ -110,8 +100,7 @@ public class ToolCreationToolHandlers
     /// </summary>
     [McpTool("tool_list_templates", "列出所有已创建的工具模板", "tool_creation",
         ConcurrencySafe = true)]
-    public async Task<ToolResult> ListTemplatesAsync(CancellationToken ct = default)
-    {
+    public async Task<ToolResult> ListTemplatesAsync(CancellationToken ct = default) {
         var templates = await _templateService.ListTemplatesAsync(ct).ConfigureAwait(false);
 
         if (templates.Count == 0)
@@ -119,8 +108,7 @@ public class ToolCreationToolHandlers
 
         var sb = new StringBuilder(512);
         sb.AppendLine($"共 {templates.Count} 个工具模板：");
-        foreach (var t in templates)
-        {
+        foreach (var t in templates) {
             sb.AppendLine($"- {t.ToolName}: {t.Description} ({t.Execution.Type})");
         }
 
@@ -134,15 +122,13 @@ public class ToolCreationToolHandlers
         ConcurrencySafe = true)]
     public async Task<ToolResult> ShowTemplateAsync(
         [McpToolParameter("模板ID或工具名称", Required = true)] string templateId,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var templates = await _templateService.ListTemplatesAsync(ct).ConfigureAwait(false);
         var template = templates.FirstOrDefault(t =>
             string.Equals(t.Id, templateId, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(t.ToolName, templateId, StringComparison.OrdinalIgnoreCase));
 
-        if (template is null)
-        {
+        if (template is null) {
             var diag = BuildTemplateNotFoundDiagnostic(templateId);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -157,14 +143,10 @@ public class ToolCreationToolHandlers
         sb.AppendLine($"- 命令: {template.Execution.Command ?? template.Execution.McpTarget ?? "(无)"}");
         sb.AppendLine($"- 超时: {template.Execution.TimeoutSeconds}s");
         sb.AppendLine("### 参数:");
-        if (template.Parameters.Length == 0)
-        {
+        if (template.Parameters.Length == 0) {
             sb.AppendLine("(无参数)");
-        }
-        else
-        {
-            foreach (var p in template.Parameters)
-            {
+        } else {
+            foreach (var p in template.Parameters) {
                 var required = p.Required ? "必填" : "可选";
                 sb.AppendLine($"- {p.Name} ({p.Type}, {required}): {p.Description}");
             }
@@ -173,24 +155,20 @@ public class ToolCreationToolHandlers
         return ToolResultBuilder.Success().WithText(sb.ToString().TrimEnd()).Build();
     }
 
-    private static ToolTemplateParameter[] ParseParameters(string? json)
-    {
+    private static ToolTemplateParameter[] ParseParameters(string? json) {
         if (string.IsNullOrWhiteSpace(json)) return [];
 
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Array) return [];
 
             var result = new List<ToolTemplateParameter>();
-            foreach (var e in root.EnumerateArray())
-            {
+            foreach (var e in root.EnumerateArray()) {
                 var name = e.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
                 if (string.IsNullOrEmpty(name)) continue;
 
-                result.Add(new ToolTemplateParameter
-                {
+                result.Add(new ToolTemplateParameter {
                     Name = name,
                     Description = e.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "",
                     Type = e.TryGetProperty("type", out var t) ? t.GetString() ?? "string" : "string",
@@ -203,15 +181,12 @@ public class ToolCreationToolHandlers
             }
 
             return result.ToArray();
-        }
-        catch
-        {
+        } catch {
             return [];
         }
     }
 
-    private static string[]? ParseArgsTemplate(string? argsTemplate)
-    {
+    private static string[]? ParseArgsTemplate(string? argsTemplate) {
         if (string.IsNullOrWhiteSpace(argsTemplate)) return null;
         return argsTemplate.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }

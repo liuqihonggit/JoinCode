@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Brain.Context.Resolution;
 /// <summary>
 /// 基于引用探索代码的请求参数
 /// </summary>
-public sealed record ExploreReferenceRequest
-{
+public sealed record ExploreReferenceRequest {
     /// <summary>
     /// 引用路径，如 "src/tools" 或 "工具实现"
     /// </summary>
@@ -44,8 +43,7 @@ public sealed record ExploreReferenceRequest
     /// 创建默认请求
     /// </summary>
     public static ExploreReferenceRequest Create(string referencePath)
-        => new()
-        {
+        => new() {
             ReferencePath = referencePath
         };
 
@@ -53,8 +51,7 @@ public sealed record ExploreReferenceRequest
     /// 创建带关注领域的请求
     /// </summary>
     public static ExploreReferenceRequest CreateWithFocus(string referencePath, string focusArea)
-        => new()
-        {
+        => new() {
             ReferencePath = referencePath,
             FocusArea = focusArea
         };

@@ -1,20 +1,17 @@
 namespace Core.Tests.Prompts;
 
-public sealed class ToolIdleReminderServiceTests
-{
+public sealed class ToolIdleReminderServiceTests {
     private static ToolIdleReminderConfig CreateConfig(
         string toolName = "test_tool",
         int turnsSinceUse = 3,
         int turnsBetweenReminders = 3,
         string reminderMessage = "Test reminder",
-        Func<CancellationToken, ValueTask<string>>? stateProvider = null)
-    {
+        Func<CancellationToken, ValueTask<string>>? stateProvider = null) {
         return new ToolIdleReminderConfig(toolName, turnsSinceUse, turnsBetweenReminders, reminderMessage, stateProvider);
     }
 
     [Fact]
-    public async Task CheckAndGenerateRemindersAsync_NoTurns_ReturnsEmpty()
-    {
+    public async Task CheckAndGenerateRemindersAsync_NoTurns_ReturnsEmpty() {
         var service = new ToolIdleReminderService([CreateConfig()]);
 
         var results = await service.CheckAndGenerateRemindersAsync().ConfigureAwait(true);
@@ -23,8 +20,7 @@ public sealed class ToolIdleReminderServiceTests
     }
 
     [Fact]
-    public async Task CheckAndGenerateRemindersAsync_BelowThreshold_ReturnsEmpty()
-    {
+    public async Task CheckAndGenerateRemindersAsync_BelowThreshold_ReturnsEmpty() {
         var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 3)]);
 
         service.RecordAssistantTurn(null);
@@ -36,8 +32,7 @@ public sealed class ToolIdleReminderServiceTests
     }
 
     [Fact]
-    public async Task CheckAndGenerateRemindersAsync_ReachesThreshold_ReturnsReminder()
-    {
+    public async Task CheckAndGenerateRemindersAsync_ReachesThreshold_ReturnsReminder() {
         var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 3, turnsBetweenReminders: 1)]);
 
         service.RecordAssistantTurn(null);
@@ -52,8 +47,7 @@ public sealed class ToolIdleReminderServiceTests
     }
 
     [Fact]
-    public async Task CheckAndGenerateRemindersAsync_ToolUsed_ResetsCounter()
-    {
+    public async Task CheckAndGenerateRemindersAsync_ToolUsed_ResetsCounter() {
         var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 3, turnsBetweenReminders: 1)]);
 
         service.RecordAssistantTurn(null);
@@ -66,8 +60,7 @@ public sealed class ToolIdleReminderServiceTests
     }
 
     [Fact]
-    public async Task CheckAndGenerateRemindersAsync_ReminderThrottle_PreventsFrequentReminders()
-    {
+    public async Task CheckAndGenerateRemindersAsync_ReminderThrottle_PreventsFrequentReminders() {
         var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 2, turnsBetweenReminders: 5)]);
 
         for (int i = 0; i < 3; i++) service.RecordAssistantTurn(null);
@@ -82,8 +75,7 @@ public sealed class ToolIdleReminderServiceTests
     }
 
     [Fact]
-    public async Task CheckAndGenerateRemindersAsync_AfterThrottlePeriod_GeneratesAgain()
-    {
+    public async Task CheckAndGenerateRemindersAsync_AfterThrottlePeriod_GeneratesAgain() {
         var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 2, turnsBetweenReminders: 3)]);
 
         for (int i = 0; i < 3; i++) service.RecordAssistantTurn(null);
@@ -98,8 +90,7 @@ public sealed class ToolIdleReminderServiceTests
     }
 
     [Fact]
-    public async Task CheckAndGenerateRemindersAsync_MultipleTools_IndependentTracking()
-    {
+    public async Task CheckAndGenerateRemindersAsync_MultipleTools_IndependentTracking() {
         var configs = new[]
         {
             CreateConfig(toolName: "tool_a", turnsSinceUse: 2, turnsBetweenReminders: 1),
@@ -117,8 +108,7 @@ public sealed class ToolIdleReminderServiceTests
     }
 
     [Fact]
-    public async Task CheckAndGenerateRemindersAsync_WithStateProvider_AppendsState()
-    {
+    public async Task CheckAndGenerateRemindersAsync_WithStateProvider_AppendsState() {
         var config = CreateConfig(
             turnsSinceUse: 2,
             turnsBetweenReminders: 1,
@@ -137,8 +127,7 @@ public sealed class ToolIdleReminderServiceTests
     }
 
     [Fact]
-    public async Task CheckAndGenerateRemindersAsync_StateProviderThrows_SkipsState()
-    {
+    public async Task CheckAndGenerateRemindersAsync_StateProviderThrows_SkipsState() {
         var config = CreateConfig(
             turnsSinceUse: 2,
             turnsBetweenReminders: 1,
@@ -156,8 +145,7 @@ public sealed class ToolIdleReminderServiceTests
     }
 
     [Fact]
-    public async Task Reset_ClearsAllCounters()
-    {
+    public async Task Reset_ClearsAllCounters() {
         var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 2, turnsBetweenReminders: 1)]);
 
         service.RecordAssistantTurn(null);
@@ -169,8 +157,7 @@ public sealed class ToolIdleReminderServiceTests
     }
 
     [Fact]
-    public async Task CheckAndGenerateRemindersAsync_ToolUsedInDifferentCase_ResetsCounter()
-    {
+    public async Task CheckAndGenerateRemindersAsync_ToolUsedInDifferentCase_ResetsCounter() {
         var service = new ToolIdleReminderService([CreateConfig(toolName: TodoToolName.TodoWrite.ToValue(), turnsSinceUse: 3, turnsBetweenReminders: 1)]);
 
         service.RecordAssistantTurn(null);

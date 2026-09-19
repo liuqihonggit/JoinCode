@@ -1,15 +1,12 @@
 namespace MockServer.E2E.Tests;
 
 [Trait("Category", "Integration")]
-public sealed class StreamingConcurrentToolE2ETests : CoverageTestBase
-{
+public sealed class StreamingConcurrentToolE2ETests : CoverageTestBase {
     public StreamingConcurrentToolE2ETests(ITestOutputHelper output) : base(output) { }
 
     [Fact]
-    public async Task ConcurrentSafeTools_ReadAndGrep_ShouldExecuteInParallel()
-    {
-        var script = new ConversationScript
-        {
+    public async Task ConcurrentSafeTools_ReadAndGrep_ShouldExecuteInParallel() {
+        var script = new ConversationScript {
             Name = "流式并发: Read + Grep 并行执行",
             Turns =
             [
@@ -50,10 +47,8 @@ public sealed class StreamingConcurrentToolE2ETests : CoverageTestBase
     }
 
     [Fact]
-    public async Task NonSafeTools_TwoWrites_ShouldExecuteSequentially()
-    {
-        var script = new ConversationScript
-        {
+    public async Task NonSafeTools_TwoWrites_ShouldExecuteSequentially() {
+        var script = new ConversationScript {
             Name = "流式并发: 两个 Write 应顺序执行",
             Turns =
             [

@@ -5,8 +5,7 @@ namespace Infrastructure.IO.Services.FileOps;
 /// TS 逻辑：检查 BOM（0xFF 0xFE → UTF-16LE），否则默认 UTF-8
 /// 空文件默认 UTF-8（不是 ASCII），修复写入 emoji/CJK 时损坏的 bug
 /// </summary>
-public static class FileEncodingDetector
-{
+public static class FileEncodingDetector {
     // 无 BOM 的 UTF-8 — 用于无 BOM 的文件和默认编码。
     // Encoding.UTF8 带 BOM（preamble=EF BB BF），作为默认编码会导致无 BOM 文件更新时被写入 BOM。
     private static readonly Encoding s_utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
@@ -16,8 +15,7 @@ public static class FileEncodingDetector
     /// 对齐 TS: fileRead.ts L33-44
     /// 支持 UTF-16LE / UTF-16BE / UTF-8 / UTF-32LE / UTF-32BE BOM 检测
     /// </summary>
-    public static Encoding DetectFromBOM(ReadOnlySpan<byte> buffer)
-    {
+    public static Encoding DetectFromBOM(ReadOnlySpan<byte> buffer) {
         // TS: bytesRead === 0 → 'utf8'
         if (buffer.Length == 0)
             return s_utf8NoBom;
@@ -57,13 +55,11 @@ public static class FileEncodingDetector
         string filePath,
         IFileSystem fs,
         CancellationToken cancellationToken = default,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         if (!fs.FileExists(filePath))
             return s_utf8NoBom;
 
-        try
-        {
+        try {
             // 读取前 4 字节足够检测所有 BOM
             var buffer = new byte[4];
             await using var stream = fs.CreateStream(
@@ -71,13 +67,9 @@ public static class FileEncodingDetector
             var bytesRead = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
 
             return DetectFromBOM(buffer.AsSpan(0, bytesRead));
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 检测失败时记录警告，而非静默吞异常
             // 下游用 UTF-8 解码可能产生乱码，用户需知晓检测失败
             logger?.LogWarning(ex, "文件编码检测失败，降级为 UTF-8: {FilePath}", filePath);
@@ -88,8 +80,7 @@ public static class FileEncodingDetector
     /// <summary>
     /// 从字节数组解码为字符串 — 自动检测 BOM 编码，StreamReader 自动跳过 BOM。
     /// </summary>
-    public static (string Content, Encoding Encoding) DecodeBytes(byte[] bytes)
-    {
+    public static (string Content, Encoding Encoding) DecodeBytes(byte[] bytes) {
         var encoding = DetectFromBOM(bytes);
         using var ms = new MemoryStream(bytes, writable: false);
         using var reader = new StreamReader(ms, encoding);
@@ -99,8 +90,7 @@ public static class FileEncodingDetector
     /// <summary>
     /// 将字符串编码为字节数组 — 保留原始编码的 BOM（如有）。
     /// </summary>
-    public static byte[] EncodeString(string content, Encoding encoding)
-    {
+    public static byte[] EncodeString(string content, Encoding encoding) {
         var preamble = encoding.GetPreamble();
         var contentBytes = encoding.GetBytes(content);
         if (preamble.Length == 0)

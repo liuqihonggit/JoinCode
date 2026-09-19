@@ -3,8 +3,7 @@ namespace Hands.Tests.Shell;
 /// <summary>
 /// PathConverter 单元测试 — 验证路径转换核心逻辑
 /// </summary>
-public class EnvironmentProbeServicePathGateTests
-{
+public class EnvironmentProbeServicePathGateTests {
     #region PathConverter.WindowsPathToPosixPath — 纯静态逻辑，不依赖平台
 
     [Theory]
@@ -14,8 +13,7 @@ public class EnvironmentProbeServicePathGateTests
     [InlineData("Z:\\foo\\bar", "/z/foo/bar")]
     [InlineData("C:/Users/test", "/c/Users/test")]
     [InlineData("D:/project/w3", "/d/project/w3")]
-    public void WindowsPathToPosixPath_DriveLetter_ConvertsCorrectly(string input, string expected)
-    {
+    public void WindowsPathToPosixPath_DriveLetter_ConvertsCorrectly(string input, string expected) {
         var result = PathConverter.WindowsPathToPosixPath(input);
         result.Should().Be(expected);
     }
@@ -23,8 +21,7 @@ public class EnvironmentProbeServicePathGateTests
     [Theory]
     [InlineData("\\\\server\\share\\path", "//server/share/path")]
     [InlineData("\\\\192.168.1.1\\c$\\Windows", "//192.168.1.1/c$/Windows")]
-    public void WindowsPathToPosixPath_UncPath_ConvertsCorrectly(string input, string expected)
-    {
+    public void WindowsPathToPosixPath_UncPath_ConvertsCorrectly(string input, string expected) {
         var result = PathConverter.WindowsPathToPosixPath(input);
         result.Should().Be(expected);
     }
@@ -33,15 +30,13 @@ public class EnvironmentProbeServicePathGateTests
     [InlineData("relative\\path", "relative/path")]
     [InlineData("path", "path")]
     [InlineData("", "")]
-    public void WindowsPathToPosixPath_RelativeOrEmpty_ReturnsAsIs(string input, string expected)
-    {
+    public void WindowsPathToPosixPath_RelativeOrEmpty_ReturnsAsIs(string input, string expected) {
         var result = PathConverter.WindowsPathToPosixPath(input);
         result.Should().Be(expected);
     }
 
     [Fact]
-    public void WindowsPathToPosixPath_NullInput_ReturnsNull()
-    {
+    public void WindowsPathToPosixPath_NullInput_ReturnsNull() {
         var result = PathConverter.WindowsPathToPosixPath(null!);
         result.Should().BeNull();
     }
@@ -57,8 +52,7 @@ public class EnvironmentProbeServicePathGateTests
     [InlineData("D:/project/w3", "D:\\project\\w3")]
     [InlineData("//server/share/path", "\\\\server\\share\\path")]
     [InlineData("//192.168.1.1/c$/Windows", "\\\\192.168.1.1\\c$\\Windows")]
-    public void PosixPathToWindowsPath_PosixDriveLetter_ConvertsCorrectly(string input, string expected)
-    {
+    public void PosixPathToWindowsPath_PosixDriveLetter_ConvertsCorrectly(string input, string expected) {
         var result = PathConverter.PosixPathToWindowsPath(input);
         result.Should().Be(expected);
     }
@@ -68,15 +62,13 @@ public class EnvironmentProbeServicePathGateTests
     [InlineData("C:/Users/test", "C:\\Users\\test")]
     [InlineData("/home/user", "/home/user")]
     [InlineData("", "")]
-    public void PosixPathToWindowsPath_NonPosixDriveLetter_ReturnsAsIs(string input, string expected)
-    {
+    public void PosixPathToWindowsPath_NonPosixDriveLetter_ReturnsAsIs(string input, string expected) {
         var result = PathConverter.PosixPathToWindowsPath(input);
         result.Should().Be(expected);
     }
 
     [Fact]
-    public void PosixPathToWindowsPath_NullInput_ReturnsNull()
-    {
+    public void PosixPathToWindowsPath_NullInput_ReturnsNull() {
         var result = PathConverter.PosixPathToWindowsPath(null!);
         result.Should().BeNull();
     }
@@ -93,8 +85,7 @@ public class EnvironmentProbeServicePathGateTests
     [InlineData("/home/user", false)]
     [InlineData("relative/path", false)]
     [InlineData("", false)]
-    public void LooksLikeWindowsPath_DetectsCorrectly(string input, bool expected)
-    {
+    public void LooksLikeWindowsPath_DetectsCorrectly(string input, bool expected) {
         PathConverter.LooksLikeWindowsPath(input).Should().Be(expected);
     }
 
@@ -113,15 +104,13 @@ public class EnvironmentProbeServicePathGateTests
     [InlineData("python D:/project/script.py", true, "python /d/project/script.py")]
     [InlineData("python D:/project/script.py", false, "python D:\\project\\script.py")]
     [InlineData("cat C:/Users/test/file.txt", false, "cat C:\\Users\\test\\file.txt")]
-    public void GateCommandPaths_ConvertsPathsInCommand(string input, bool toPosix, string expected)
-    {
+    public void GateCommandPaths_ConvertsPathsInCommand(string input, bool toPosix, string expected) {
         var result = PathConverter.GateCommandPaths(input, toPosix);
         result.Should().Be(expected);
     }
 
     [Fact]
-    public void GateCommandPaths_ExcludesUrls()
-    {
+    public void GateCommandPaths_ExcludesUrls() {
         var cmd = "curl https://api.example.com/data C:\\Users\\test\\output.json";
         var result = PathConverter.GateCommandPaths(cmd, toPosix: true);
         result.Should().Contain("https://api.example.com/data");
@@ -129,16 +118,14 @@ public class EnvironmentProbeServicePathGateTests
     }
 
     [Fact]
-    public void GateCommandPaths_MultiplePaths()
-    {
+    public void GateCommandPaths_MultiplePaths() {
         var cmd = "copy C:\\Users\\test\\a.txt C:\\Users\\test\\b.txt";
         var result = PathConverter.GateCommandPaths(cmd, toPosix: true);
         result.Should().Be("copy /c/Users/test/a.txt /c/Users/test/b.txt");
     }
 
     [Fact]
-    public void GateCommandPaths_NullOrEmpty_ReturnsAsIs()
-    {
+    public void GateCommandPaths_NullOrEmpty_ReturnsAsIs() {
         PathConverter.GateCommandPaths(null!, true).Should().BeNull();
         PathConverter.GateCommandPaths("", true).Should().Be("");
     }

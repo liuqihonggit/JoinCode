@@ -3,8 +3,7 @@ namespace JoinCode.Hands.Desktop.Native;
 /// <summary>
 /// gdi32.dll P/Invoke 声明 — 截图（BitBlt 兼容位图复制）
 /// </summary>
-internal static class Gdi32NativeMethods
-{
+internal static class Gdi32NativeMethods {
     [DllImport("gdi32.dll")]
     public static extern IntPtr BitBlt(IntPtr hdcDest, int xDest, int yDest, int width, int height,
         IntPtr hdcSrc, int xSrc, int ySrc, int rasterOp);

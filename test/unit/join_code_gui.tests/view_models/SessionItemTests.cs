@@ -5,19 +5,16 @@ namespace JoinCode.Gui.Tests.ViewModels;
 /// SessionItem 的 4 个 ObservableProperty（Title/IsSelected/IsRenaming/RenameDraft）
 /// 驱动 UI 绑定刷新，INPC 通知断裂会导致界面不更新。
 /// </summary>
-public sealed class SessionItemTests
-{
+public sealed class SessionItemTests {
     [Fact]
-    public void Constructor_GeneratesNonEmptyId()
-    {
+    public void Constructor_GeneratesNonEmptyId() {
         var item = new SessionItem();
 
         item.Id.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
-    public void Constructor_TwoInstances_HaveDistinctIds()
-    {
+    public void Constructor_TwoInstances_HaveDistinctIds() {
         var a = new SessionItem();
         var b = new SessionItem();
 
@@ -25,8 +22,7 @@ public sealed class SessionItemTests
     }
 
     [Fact]
-    public void Defaults_TitleEmpty_IsSelectedFalse_IsRenamingFalse_RenameDraftEmpty()
-    {
+    public void Defaults_TitleEmpty_IsSelectedFalse_IsRenamingFalse_RenameDraftEmpty() {
         var item = new SessionItem();
 
         item.Title.Should().BeEmpty();
@@ -36,8 +32,7 @@ public sealed class SessionItemTests
     }
 
     [Fact]
-    public void Title_SetValue_RaisesPropertyChanged()
-    {
+    public void Title_SetValue_RaisesPropertyChanged() {
         var item = new SessionItem();
         var fired = new List<string?>();
         ((INotifyPropertyChanged)item).PropertyChanged += (_, e) => fired.Add(e.PropertyName);
@@ -49,8 +44,7 @@ public sealed class SessionItemTests
     }
 
     [Fact]
-    public void Title_SameValue_DoesNotRaisePropertyChanged()
-    {
+    public void Title_SameValue_DoesNotRaisePropertyChanged() {
         var item = new SessionItem { Title = "会话 1" };
         var fired = new List<string?>();
         ((INotifyPropertyChanged)item).PropertyChanged += (_, e) => fired.Add(e.PropertyName);
@@ -61,8 +55,7 @@ public sealed class SessionItemTests
     }
 
     [Fact]
-    public void IsSelected_Toggle_RaisesPropertyChanged()
-    {
+    public void IsSelected_Toggle_RaisesPropertyChanged() {
         var item = new SessionItem();
         var fired = new List<string?>();
         ((INotifyPropertyChanged)item).PropertyChanged += (_, e) => fired.Add(e.PropertyName);
@@ -74,8 +67,7 @@ public sealed class SessionItemTests
     }
 
     [Fact]
-    public void IsRenaming_Toggle_RaisesPropertyChanged()
-    {
+    public void IsRenaming_Toggle_RaisesPropertyChanged() {
         var item = new SessionItem();
         var fired = new List<string?>();
         ((INotifyPropertyChanged)item).PropertyChanged += (_, e) => fired.Add(e.PropertyName);
@@ -87,8 +79,7 @@ public sealed class SessionItemTests
     }
 
     [Fact]
-    public void RenameDraft_SetValue_RaisesPropertyChanged()
-    {
+    public void RenameDraft_SetValue_RaisesPropertyChanged() {
         var item = new SessionItem();
         var fired = new List<string?>();
         ((INotifyPropertyChanged)item).PropertyChanged += (_, e) => fired.Add(e.PropertyName);
@@ -100,8 +91,7 @@ public sealed class SessionItemTests
     }
 
     [Fact]
-    public void Id_CanBeOverridden_ForPersistenceRestore()
-    {
+    public void Id_CanBeOverridden_ForPersistenceRestore() {
         var item = new SessionItem { Id = "fixed-id-123" };
 
         item.Id.Should().Be("fixed-id-123");

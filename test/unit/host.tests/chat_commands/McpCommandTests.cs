@@ -5,39 +5,33 @@ namespace Host.Tests.ChatCommands;
 /// 覆盖:list/ls/add/create/new/remove/delete/rm/status/reconnect/enable/disable/未知子命令
 /// 验证目标:Step 9 重构后,所有 case 标签能被正确识别
 /// </summary>
-public sealed class McpCommandTests
-{
+public sealed class McpCommandTests {
     [Fact]
-    public void Name_Should_Be_mcp()
-    {
+    public void Name_Should_Be_mcp() {
         var cmd = new McpCommand();
         cmd.Name.Should().Be("mcp");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new McpCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new McpCommand();
         cmd.Usage.Should().StartWith("/mcp");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new McpCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public void Aliases_Should_Be_Empty()
-    {
+    public void Aliases_Should_Be_Empty() {
         var cmd = new McpCommand();
         cmd.Aliases.Should().BeEmpty();
     }
@@ -45,8 +39,7 @@ public sealed class McpCommandTests
     [Theory]
     [InlineData("list")]
     [InlineData("ls")]
-    public async Task Execute_WithListVariants_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithListVariants_Should_Return_Continue(string subCommand) {
         // list/ls — CrudAction.List/Ls 别名
         var cmd = new McpCommand();
         var context = CreateContext(subCommand);
@@ -58,8 +51,7 @@ public sealed class McpCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithEmptyArgs_Should_Default_To_List()
-    {
+    public async Task Execute_WithEmptyArgs_Should_Default_To_List() {
         // 无参数时默认 list
         var cmd = new McpCommand();
         var context = CreateContext("");
@@ -70,8 +62,7 @@ public sealed class McpCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithStatus_Should_Return_Continue()
-    {
+    public async Task Execute_WithStatus_Should_Return_Continue() {
         // status → McpActionEnumConstants.Status(MCP 专属子命令)
         var cmd = new McpCommand();
         var context = CreateContext("status");
@@ -85,8 +76,7 @@ public sealed class McpCommandTests
     [InlineData("add")]
     [InlineData("create")]
     [InlineData("new")]
-    public async Task Execute_WithCreateVariants_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithCreateVariants_Should_Return_Continue(string subCommand) {
         // add/create/new — CrudAction.Create/New 别名(MCP 增删改查中的"添加服务器")
         var cmd = new McpCommand();
         var context = CreateContext(subCommand);
@@ -100,8 +90,7 @@ public sealed class McpCommandTests
     [InlineData("remove")]
     [InlineData("delete")]
     [InlineData("rm")]
-    public async Task Execute_WithDeleteVariants_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithDeleteVariants_Should_Return_Continue(string subCommand) {
         // remove/delete/rm — CrudAction.Delete/Rm/Remove 别名
         var cmd = new McpCommand();
         var context = CreateContext(subCommand);
@@ -112,8 +101,7 @@ public sealed class McpCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithReconnect_Should_Return_Continue()
-    {
+    public async Task Execute_WithReconnect_Should_Return_Continue() {
         // reconnect → McpActionEnumConstants.Reconnect(MCP 专属子命令)
         var cmd = new McpCommand();
         var context = CreateContext("reconnect myserver");
@@ -124,8 +112,7 @@ public sealed class McpCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithEnable_Should_Return_Continue()
-    {
+    public async Task Execute_WithEnable_Should_Return_Continue() {
         // enable → McpActionEnumConstants.Enable → ToggleAction.On
         var cmd = new McpCommand();
         var context = CreateContext("enable myserver");
@@ -136,8 +123,7 @@ public sealed class McpCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithDisable_Should_Return_Continue()
-    {
+    public async Task Execute_WithDisable_Should_Return_Continue() {
         // disable → McpActionEnumConstants.Disable → ToggleAction.Off
         var cmd = new McpCommand();
         var context = CreateContext("disable myserver");
@@ -148,8 +134,7 @@ public sealed class McpCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithUnknownSubcommand_Should_NotThrow()
-    {
+    public async Task Execute_WithUnknownSubcommand_Should_NotThrow() {
         var cmd = new McpCommand();
         var context = CreateContext("unknown-action");
 
@@ -171,8 +156,7 @@ public sealed class McpCommandTests
     [InlineData("RECONNECT")]
     [InlineData("ENABLE")]
     [InlineData("DISABLE")]
-    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand)
-    {
+    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand) {
         // 验证小写化路由(toLowerInvariant 后枚举匹配)
         var cmd = new McpCommand();
         var context = CreateContext(subCommand);
@@ -189,14 +173,12 @@ public sealed class McpCommandTests
     [InlineData("reconnect", McpAction.Reconnect)]
     [InlineData("enable", McpAction.Enable)]
     [InlineData("disable", McpAction.Disable)]
-    public void McpAction_FromValue_ValidString_Should_Resolve_Correctly(string input, McpAction expected)
-    {
+    public void McpAction_FromValue_ValidString_Should_Resolve_Correctly(string input, McpAction expected) {
         McpActionExtensions.FromValue(input).Should().Be(expected);
     }
 
     [Fact]
-    public void McpActionEnumConstants_Values_Should_Match_Route()
-    {
+    public void McpActionEnumConstants_Values_Should_Match_Route() {
         // 验证枚举常量值与原硬编码字符串完全一致(行为不变)
         McpActionEnumConstants.Status.Should().Be("status");
         McpActionEnumConstants.Reconnect.Should().Be("reconnect");
@@ -204,8 +186,7 @@ public sealed class McpCommandTests
         McpActionEnumConstants.Disable.Should().Be("disable");
     }
 
-    private static ChatCommandContext CreateContext(string arguments)
-    {
+    private static ChatCommandContext CreateContext(string arguments) {
         // mock IMcpServerConfigStore 和 IMcpToolRegistry,避免 ListServersAsync 抛 "服务未初始化"
         var configStoreMock = new Mock<IMcpServerConfigStore>();
         configStoreMock.Setup(s => s.GetAllServersAsync(It.IsAny<CancellationToken>()))
@@ -227,18 +208,16 @@ public sealed class McpCommandTests
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IMcpToolRegistry)))
             .Returns(mcpRegistryMock.Object);
 
-        return new ChatCommandContext
-        {
+        return new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = serviceProviderMock.Object,
                 ToolRegistry = mcpRegistryMock.Object,
-            FileSystem = TestFileSystem.Current,
+                FileSystem = TestFileSystem.Current,
             }),
         };
     }

@@ -18,8 +18,7 @@ namespace Core.Hooks.Execution.Interception;
 /// 复杂状态(如 sed 的 Idle→Previewing→Applying)封装在拦截器内部,不暴露给框架。
 /// </para>
 /// </summary>
-public interface ICommandInterceptor
-{
+public interface ICommandInterceptor {
     /// <summary>
     /// 优先级 — 数值越大越先评估
     /// </summary>

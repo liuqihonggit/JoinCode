@@ -6,8 +6,7 @@ namespace Tools.Handlers;
 /// <para>download_file 工具:启动下载→等待完成→返回结果</para>
 /// </summary>
 [McpToolDispatch(ToolCategory.Web)]
-public class DownloadToolHandlers
-{
+public class DownloadToolHandlers {
     private readonly IDownloader _downloader;
     private readonly IFileSystem? _fs;
     private readonly ITelemetryService? _telemetryService;
@@ -18,8 +17,7 @@ public class DownloadToolHandlers
     /// <param name="downloader">下载器抽象，提供多线程并发与断点续传能力。</param>
     /// <param name="fs">可选的文件系统抽象，用于计算下载文件 MD5。</param>
     /// <param name="telemetryService">可选的遥测服务，用于记录下载指标。</param>
-    public DownloadToolHandlers(IDownloader downloader, IFileSystem? fs = null, ITelemetryService? telemetryService = null)
-    {
+    public DownloadToolHandlers(IDownloader downloader, IFileSystem? fs = null, ITelemetryService? telemetryService = null) {
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs;
         _telemetryService = telemetryService;
@@ -40,32 +38,27 @@ public class DownloadToolHandlers
         [McpToolParameter("目标文件保存路径")] string file_path,
         [McpToolParameter("最大并发线程数(1-32,默认 4)", Required = false)] int? max_threads = null,
         [McpToolParameter("是否启用断点续传(默认 true)", Required = false)] bool? resume = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(url, "url"),
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateStringLength(url, 2048, "URL"),
             ValidationHelper.ValidateRange(max_threads, 1, 32, "max_threads"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = WebToolHandlers.BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
-        var options = new DownloadOptions
-        {
+        var options = new DownloadOptions {
             MaxThreads = max_threads ?? 4,
             Resume = resume ?? true,
         };
 
         await using var session = _downloader.StartDownload(url, file_path, options, null, cancellationToken);
-        try
-        {
+        try {
             var result = await session.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 RecordDownloadMetrics("failed", result.DownloadedBytes);
                 var errorMsg = result.ErrorMessage ?? "下载失败";
                 return ToolResultBuilder.Error()
@@ -86,13 +79,9 @@ public class DownloadToolHandlers
                 .WithEntityMetadata(EntityMetadataEntry.Long("total_bytes", result.TotalBytes))
                 .WithEntityMetadata(EntityMetadataEntry.Long("downloaded_bytes", result.DownloadedBytes))
                 .Build();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             return ToolResultBuilder.Error().WithText("下载已取消").Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error()
                 .WithText($"下载异常: {ex.Message}")
                 .WithDiagnostic(ToolDiagnostic.Create("DownloadException", ex.Message,
@@ -102,26 +91,21 @@ public class DownloadToolHandlers
         }
     }
 
-    private string? ComputeFileMd5(string filePath)
-    {
+    private string? ComputeFileMd5(string filePath) {
         if (_fs is null || !_fs.FileExists(filePath))
             return null;
-        try
-        {
+        try {
             using var stream = _fs.OpenRead(filePath);
             using var md5 = System.Security.Cryptography.MD5.Create();
             var hash = md5.ComputeHash(stream);
             return Convert.ToHexString(hash).ToLowerInvariant();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             System.Diagnostics.Debug.WriteLine($"MD5 计算失败: {ex.Message}");
             return null;
         }
     }
 
-    private void RecordDownloadMetrics(string result, long bytes)
-    {
+    private void RecordDownloadMetrics(string result, long bytes) {
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "download.count", "download", result);
         if (bytes > 0)
             ToolTelemetryHelper.RecordToolHistogram(_telemetryService, "download.size", (int)Math.Min(bytes, int.MaxValue),

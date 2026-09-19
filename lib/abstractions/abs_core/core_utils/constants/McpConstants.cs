@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// MCP 协议常量（协议版本/错误码/JSON-RPC版本已迁移至 McpProtocol.Contracts.JsonRpc/McpProtocolVersion/ErrorCodes）
 /// </summary>
-public static class McpConstants
-{
+public static class McpConstants {
     /// <summary>
     /// 默认服务器名称
     /// </summary>

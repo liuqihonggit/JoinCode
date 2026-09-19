@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 功能权限服务接口 — 对齐 TS isBriefEntitled()/isBriefEnabled() 模式
 /// 开源项目默认允许所有功能，但保留接口以便扩展（如订阅制、远程特性开关等）
 /// </summary>
-public interface IEntitlementService
-{
+public interface IEntitlementService {
     /// <summary>
     /// Brief 模式是否有权限使用 — 对齐 TS isBriefEntitled()
     /// 开源项目默认 true；可通过 JCC_BRIEF 环境变量控制

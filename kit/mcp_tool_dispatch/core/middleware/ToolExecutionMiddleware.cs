@@ -5,8 +5,7 @@ namespace McpToolRegistry;
 /// 工具执行终端中间件 — Order=900 — 实际调用工具处理器执行
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ToolExecutionMiddleware : ServiceEntity, IToolExecutionMiddleware
-{
+public sealed partial class ToolExecutionMiddleware : ServiceEntity, IToolExecutionMiddleware {
 
     private readonly ILogger<ToolExecutionMiddleware> _logger;
 
@@ -14,8 +13,7 @@ public sealed partial class ToolExecutionMiddleware : ServiceEntity, IToolExecut
     /// 构造函数 — 注入日志记录器
     /// </summary>
     /// <param name="logger">日志记录器实例</param>
-    public ToolExecutionMiddleware(ILogger<ToolExecutionMiddleware> logger)
-    {
+    public ToolExecutionMiddleware(ILogger<ToolExecutionMiddleware> logger) {
         _logger = logger;
     }
 
@@ -29,12 +27,9 @@ public sealed partial class ToolExecutionMiddleware : ServiceEntity, IToolExecut
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,
-        CancellationToken ct)
-    {
-        if (context.Handler is null)
-        {
-            context.Result = new ToolResult
-            {
+        CancellationToken ct) {
+        if (context.Handler is null) {
+            context.Result = new ToolResult {
                 Content = [new ToolContent { Type = ToolContentType.Text, Text = $"Tool '{context.ToolName}' handler not found." }],
                 IsError = true
             };
@@ -42,20 +37,15 @@ public sealed partial class ToolExecutionMiddleware : ServiceEntity, IToolExecut
         }
 
         _logger.LogDebug(L.T(StringKey.ToolExecStartLog, context.ToolName));
-        try
-        {
+        try {
             var result = await context.Handler.ExecuteAsync(
                 context.Arguments, ct, context.OnProgress).ConfigureAwait(false);
             _logger.LogInformation(L.T(StringKey.ToolExecSuccessLog, context.ToolName));
             context.Span?.SetStatus(TelemetryStatusCode.Ok);
             context.Result = result;
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger.LogError(ex, L.T(StringKey.ToolExecFailedLog, context.ToolName));
-            context.Result = new ToolResult
-            {
+            context.Result = new ToolResult {
                 Content = [new ToolContent { Type = ToolContentType.Text, Text = $"{ex.GetType().Name}: {ex.Message}" }],
                 IsError = true
             };

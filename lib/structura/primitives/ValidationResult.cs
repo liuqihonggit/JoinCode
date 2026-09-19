@@ -3,8 +3,7 @@ namespace Structura.Primitives;
 /// <summary>
 /// 通用验证结果 — 替代各处重复的 IsValid+Message / Success+ErrorMessage 模式
 /// </summary>
-public sealed record ValidationResult
-{
+public sealed record ValidationResult {
     /// <summary>是否通过验证</summary>
     public bool IsValid { get; init; }
     /// <summary>验证失败时的消息;通过时为 null</summary>
@@ -21,8 +20,7 @@ public sealed record ValidationResult
     /// <summary>解构为 (是否通过, 消息) 元组,便于模式匹配</summary>
     /// <param name="isValid">是否通过验证</param>
     /// <param name="message">验证消息</param>
-    public void Deconstruct(out bool isValid, out string? message)
-    {
+    public void Deconstruct(out bool isValid, out string? message) {
         isValid = IsValid;
         message = Message;
     }

@@ -6,11 +6,9 @@ namespace JoinCode.Gui.Tests.Views;
 /// 同时验证 Enter/Shift+Enter 的发送/换行语义。
 /// </summary>
 [Collection("GuiUiSequential")]
-public sealed class MainWindowRegressionTests
-{
+public sealed class MainWindowRegressionTests {
     [AvaloniaFact]
-    public void Constructor_AssignsXamlNamedFields()
-    {
+    public void Constructor_AssignsXamlNamedFields() {
         var win = new MainWindow();
         var field = typeof(MainWindow).GetField(
             "MessageScrollViewer",
@@ -19,8 +17,7 @@ public sealed class MainWindowRegressionTests
     }
 
     [AvaloniaFact]
-    public void SendOnRealWindow_NoNre_AndCompletes()
-    {
+    public void SendOnRealWindow_NoNre_AndCompletes() {
         var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
@@ -34,8 +31,7 @@ public sealed class MainWindowRegressionTests
     }
 
     [AvaloniaFact]
-    public void CtrlEnterKey_SendsMessage()
-    {
+    public void CtrlEnterKey_SendsMessage() {
         var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
@@ -51,8 +47,7 @@ public sealed class MainWindowRegressionTests
 
     /// <summary>F3 新默认键位：裸 Enter=换行不发送（EnterSends=false）</summary>
     [AvaloniaFact]
-    public void PlainEnterKey_InsertsNewline_DoesNotSend_ByDefault()
-    {
+    public void PlainEnterKey_InsertsNewline_DoesNotSend_ByDefault() {
         var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
@@ -69,8 +64,7 @@ public sealed class MainWindowRegressionTests
     }
 
     [AvaloniaFact]
-    public void ShiftEnterKey_InsertsNewline_DoesNotSend()
-    {
+    public void ShiftEnterKey_InsertsNewline_DoesNotSend() {
         var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
@@ -79,8 +73,7 @@ public sealed class MainWindowRegressionTests
         vm.InputText = "abc";
         var input = win.GetVisualDescendants().OfType<TextBox>().First(t => t.Name == "InputTextBox");
         input.CaretIndex = 1;
-        input.RaiseEvent(new KeyEventArgs
-        {
+        input.RaiseEvent(new KeyEventArgs {
             RoutedEvent = InputElement.KeyDownEvent,
             Key = Key.Enter,
             KeyModifiers = KeyModifiers.Shift
@@ -92,8 +85,7 @@ public sealed class MainWindowRegressionTests
     }
 
     [AvaloniaFact]
-    public void SessionError_ShowsErrorToast_OnRealWindow()
-    {
+    public void SessionError_ShowsErrorToast_OnRealWindow() {
         var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
@@ -109,8 +101,7 @@ public sealed class MainWindowRegressionTests
     }
 
     [AvaloniaFact]
-    public void ToastAutoHide_AfterFiveSeconds_StopsTimer()
-    {
+    public void ToastAutoHide_AfterFiveSeconds_StopsTimer() {
         var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
@@ -133,8 +124,7 @@ public sealed class MainWindowRegressionTests
         var tickMethod = typeof(MainWindow).GetMethod(
             "OnErrorToastTimerTick",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-        for (var i = 0; i < 50; i++)
-        {
+        for (var i = 0; i < 50; i++) {
             tickMethod.Invoke(win, new object?[] { timer, EventArgs.Empty });
         }
 
@@ -142,8 +132,7 @@ public sealed class MainWindowRegressionTests
     }
 
     [AvaloniaFact]
-    public void ToastHover_PausesTimer_LeaveResumes()
-    {
+    public void ToastHover_PausesTimer_LeaveResumes() {
         var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
@@ -180,8 +169,7 @@ public sealed class MainWindowRegressionTests
     /// G3 后消息区为 MarkdownView 模板化渲染，通过 ElementName=Root 绑定 VM FontSize。
     /// </summary>
     [AvaloniaFact]
-    public void FontSizeSlider_Change_UpdatesMessageTextEditor()
-    {
+    public void FontSizeSlider_Change_UpdatesMessageTextEditor() {
         var session = new StaticReplySession();
         var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
@@ -206,8 +194,7 @@ public sealed class MainWindowRegressionTests
     /// 回归背景：OnRemoveClick 曾无 XAML 引用（死代码），消息删除用户不可达。
     /// </summary>
     [AvaloniaFact]
-    public void MessageRemoveButton_RemovesMessage()
-    {
+    public void MessageRemoveButton_RemovesMessage() {
         var session = new StaticReplySession();
         var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
@@ -230,8 +217,7 @@ public sealed class MainWindowRegressionTests
 
     /// <summary>G3 单条消息操作接线 — 点击 📋 按钮触发 CopyMessageCommand 置已复制反馈态</summary>
     [AvaloniaFact]
-    public void MessageCopyButton_TriggersCopyFeedback()
-    {
+    public void MessageCopyButton_TriggersCopyFeedback() {
         var session = new StaticReplySession();
         var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
@@ -252,16 +238,14 @@ public sealed class MainWindowRegressionTests
 
     /// <summary>G3 Markdown 渲染冒烟 — 非流式助手消息经 MarkdownView 渲染出控件树（标题/段落）</summary>
     [AvaloniaFact]
-    public void AssistantMarkdownMessage_RendersViaMarkdownView()
-    {
+    public void AssistantMarkdownMessage_RendersViaMarkdownView() {
         var session = new StaticReplySession();
         var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        vm.Messages.Add(new ChatUiMessage
-        {
+        vm.Messages.Add(new ChatUiMessage {
             Role = MessageRole.Assistant,
             Content = "## 标题\n\n- 列表项",
             Timestamp = DateTime.Now,
@@ -274,8 +258,7 @@ public sealed class MainWindowRegressionTests
     }
 
     /// <summary>静态回复假会话（供模板渲染测试挂载消息）</summary>
-    private sealed class StaticReplySession : IJccChatSession
-    {
+    private sealed class StaticReplySession : IJccChatSession {
         public ITranscriptService? TranscriptService => null;
         public Func<string, bool>? SlashConfirmHandler { get; set; }
 #pragma warning disable CS0067
@@ -287,13 +270,11 @@ public sealed class MainWindowRegressionTests
         public string CurrentVendor => "fake";
         public string CurrentModelId => "fake-model";
         public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
-            = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
-            {
+            = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase) {
                 ["fake"] = ["fake-model"]
             };
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
+        public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
             yield return ChatStreamEvent.Done();
             await Task.CompletedTask;
         }
@@ -327,8 +308,7 @@ public sealed class MainWindowRegressionTests
     }
 
     /// <summary>流式抛异常的假会话，用于真实窗口上验证错误 toast</summary>
-    private sealed class ThrowingSession : IJccChatSession
-    {
+    private sealed class ThrowingSession : IJccChatSession {
         public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
         public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
 
@@ -341,16 +321,14 @@ public sealed class MainWindowRegressionTests
         public string CurrentVendor => "fake";
         public string CurrentModelId => "fake-model";
         public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
-            = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
-            {
+            = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase) {
                 ["fake"] = ["fake-model"]
             };
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
             => Task.FromResult(string.Empty);
 
-        public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
+        public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
             yield return ChatStreamEvent.Done();
             throw new InvalidOperationException("引擎连接失败");
 #pragma warning disable CS0162

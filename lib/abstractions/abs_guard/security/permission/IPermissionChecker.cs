@@ -1,12 +1,10 @@
 namespace JoinCode.Abstractions.Security.Permission;
 
-public interface IPermissionChecker
-{
+public interface IPermissionChecker {
     Task<ToolPermissionCheckResult> CheckPermissionAsync(string toolName, Dictionary<string, JsonElement>? arguments = null, CancellationToken cancellationToken = default);
 }
 
-public sealed class ToolPermissionCheckResult
-{
+public sealed class ToolPermissionCheckResult {
     public bool IsApproved { get; private set; }
 
     public bool ConfirmationRequired { get; private set; }

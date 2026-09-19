@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// Bridge 服务器消息 - 简单消息格式用于 BridgeServer
 /// </summary>
-public sealed class BridgeServerMessage
-{
+public sealed class BridgeServerMessage {
     /// <summary>消息类型字符串</summary>
     [JsonPropertyName("type")]
     public required string Type { get; init; }
@@ -23,8 +22,7 @@ public sealed class BridgeServerMessage
 /// <summary>
 /// Bridge 连接成功数据
 /// </summary>
-public sealed class BridgeConnectedData
-{
+public sealed class BridgeConnectedData {
     /// <summary>客户端 ID</summary>
     [JsonPropertyName("clientId")]
     public required string ClientId { get; init; }
@@ -37,8 +35,7 @@ public sealed class BridgeConnectedData
 /// <summary>
 /// Bridge 健康状态数据
 /// </summary>
-public sealed class BridgeHealthData
-{
+public sealed class BridgeHealthData {
     /// <summary>健康状态文本</summary>
     [JsonPropertyName("status")]
     public required string Status { get; init; }
@@ -51,8 +48,7 @@ public sealed class BridgeHealthData
 /// <summary>
 /// Bridge 客户端列表数据
 /// </summary>
-public sealed class BridgeClientsData
-{
+public sealed class BridgeClientsData {
     /// <summary>客户端 ID 列表</summary>
     [JsonPropertyName("clients")]
     public required List<string> Clients { get; init; }
@@ -61,8 +57,7 @@ public sealed class BridgeClientsData
 /// <summary>
 /// Bridge 错误数据
 /// </summary>
-public sealed class BridgeErrorData
-{
+public sealed class BridgeErrorData {
     /// <summary>错误描述</summary>
     [JsonPropertyName("error")]
     public required string Error { get; init; }
@@ -71,8 +66,7 @@ public sealed class BridgeErrorData
 /// <summary>
 /// Bridge 文件内容数据
 /// </summary>
-public sealed class BridgeFileContentData
-{
+public sealed class BridgeFileContentData {
     /// <summary>文件路径</summary>
     [JsonPropertyName("path")]
     public required string Path { get; init; }
@@ -89,8 +83,7 @@ public sealed class BridgeFileContentData
 /// <summary>
 /// Bridge 选择集数据
 /// </summary>
-public sealed class BridgeSelectionSetData
-{
+public sealed class BridgeSelectionSetData {
     /// <summary>是否成功</summary>
     [JsonPropertyName("success")]
     public required bool Success { get; init; }
@@ -104,8 +97,7 @@ public sealed class BridgeSelectionSetData
 /// <summary>
 /// Bridge 命令执行结果数据
 /// </summary>
-public sealed class BridgeCommandExecutedData
-{
+public sealed class BridgeCommandExecutedData {
     /// <summary>执行的命令</summary>
     [JsonPropertyName("command")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

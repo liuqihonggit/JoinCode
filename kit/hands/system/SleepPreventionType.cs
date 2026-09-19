@@ -4,8 +4,7 @@ namespace Services.SystemPower;
 /// <summary>
 /// 防睡眠类型 — 指定 SetThreadExecutionState 的工作模式
 /// </summary>
-public enum SleepPreventionType
-{
+public enum SleepPreventionType {
     /// <summary>
     /// 连续防睡眠 — 持续阻止系统进入睡眠,直到显式调用 AllowSleepAsync
     /// </summary>

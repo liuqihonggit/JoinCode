@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// 子进程状态 — 封装退出 Promise、释放标志、强制杀死标志、首条用户消息标志
 /// 从 BridgeSubprocessHandle 提取,纯状态转换无 IO 依赖
 /// </summary>
-internal sealed class SubprocessState
-{
+internal sealed class SubprocessState {
     private readonly TaskCompletionSource<BridgeSubprocessStatus> _doneTcs = new();
     private bool _disposed;
     private int _sigkillSent;

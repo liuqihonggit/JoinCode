@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Agent 输出 chunk — 子代理/主代理的流式输出单元
 /// </summary>
-public readonly record struct AgentOutputChunk
-{
+public readonly record struct AgentOutputChunk {
     /// <summary>产生此 chunk 的 Agent ID</summary>
     public required string AgentId { get; init; }
 
@@ -21,8 +20,7 @@ public readonly record struct AgentOutputChunk
 /// <summary>
 /// Agent 输出 chunk 类型
 /// </summary>
-public enum AgentOutputChunkType
-{
+public enum AgentOutputChunkType {
     /// <summary>正文输出</summary>
     [EnumValue("text")]
     Text,
@@ -43,8 +41,7 @@ public enum AgentOutputChunkType
 /// <summary>
 /// 活跃 Agent 输出信息
 /// </summary>
-public sealed record AgentOutputInfo
-{
+public sealed record AgentOutputInfo {
     public required string AgentId { get; init; }
     public string? DisplayName { get; init; }
 }
@@ -53,8 +50,7 @@ public sealed record AgentOutputInfo
 /// Agent 输出 channel 管理器 — 汇聚所有 Agent 的流式输出到一个 channel
 /// 前台通过 ReadAllAsync 拉取显示，/switch 命令通过 AgentOutputDisplayMode 过滤
 /// </summary>
-public interface IAgentOutputChannelManager
-{
+public interface IAgentOutputChannelManager {
     /// <summary>
     /// 注册 Agent（启动时调用）
     /// </summary>

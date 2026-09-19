@@ -4,8 +4,7 @@ namespace Testing.Common.MockServer;
 /// <summary>
 /// 记录请求的角色类型
 /// </summary>
-public static class MessageRoles
-{
+public static class MessageRoles {
     public const string System = "system";
     public const string User = "user";
     public const string Assistant = "assistant";
@@ -14,8 +13,7 @@ public static class MessageRoles
 /// <summary>
 /// HTTP 请求信息
 /// </summary>
-public sealed class HttpRequestInfo
-{
+public sealed class HttpRequestInfo {
     public string Method { get; init; } = string.Empty;
     public string Path { get; init; } = string.Empty;
     public Dictionary<string, string> Headers { get; init; } = new();
@@ -25,8 +23,7 @@ public sealed class HttpRequestInfo
 /// <summary>
 /// 聊天完成请求
 /// </summary>
-public sealed class ChatCompletionRequest
-{
+public sealed class ChatCompletionRequest {
     public string Model { get; init; } = string.Empty;
     public List<ApiMessage> Messages { get; init; } = new();
     public double? Temperature { get; init; }
@@ -37,8 +34,7 @@ public sealed class ChatCompletionRequest
 /// <summary>
 /// 聊天消息
 /// </summary>
-public sealed class ApiMessage
-{
+public sealed class ApiMessage {
     public string Role { get; init; } = string.Empty;
     public string Content { get; init; } = string.Empty;
 }
@@ -46,8 +42,7 @@ public sealed class ApiMessage
 /// <summary>
 /// 记录的 HTTP 请求
 /// </summary>
-public sealed class RecordedRequest
-{
+public sealed class RecordedRequest {
     public DateTimeOffset Timestamp { get; init; }
     public string Method { get; init; } = string.Empty;
     public string Path { get; init; } = string.Empty;
@@ -78,34 +73,27 @@ public sealed class RecordedRequest
 /// HTTP 请求记录器
 /// 用于测试场景记录和验证接收到的请求
 /// </summary>
-public sealed class RequestRecorder
-{
+public sealed class RequestRecorder {
     private readonly ConcurrentQueue<RecordedRequest> _requests = new();
 
     /// <summary>
     /// 记录请求信息
     /// </summary>
-    public void Record(HttpRequestInfo requestInfo)
-    {
+    public void Record(HttpRequestInfo requestInfo) {
         ArgumentNullException.ThrowIfNull(requestInfo);
 
         ChatCompletionRequest? parsedRequest = null;
 
-        if (!string.IsNullOrWhiteSpace(requestInfo.Body))
-        {
-            try
-            {
+        if (!string.IsNullOrWhiteSpace(requestInfo.Body)) {
+            try {
                 parsedRequest = JsonSerializer.Deserialize(requestInfo.Body, MockServerJsonContext.Default.ChatCompletionRequest);
-            }
-            catch (JsonException ex)
-            {
+            } catch (JsonException ex) {
                 // 解析失败时保留原始 body，parsedRequest 为 null
                 System.Diagnostics.Trace.WriteLine($"JSON解析请求体失败: {ex.Message}");
             }
         }
 
-        var recorded = new RecordedRequest
-        {
+        var recorded = new RecordedRequest {
             Timestamp = DateTimeOffset.UtcNow,
             Method = requestInfo.Method,
             Path = requestInfo.Path,
@@ -120,8 +108,7 @@ public sealed class RequestRecorder
     /// <summary>
     /// 异步记录请求信息
     /// </summary>
-    public Task RecordAsync(HttpRequestInfo requestInfo, CancellationToken ct = default)
-    {
+    public Task RecordAsync(HttpRequestInfo requestInfo, CancellationToken ct = default) {
         Record(requestInfo);
         return Task.CompletedTask;
     }
@@ -129,13 +116,11 @@ public sealed class RequestRecorder
     /// <summary>
     /// 从 JSON body 记录请求
     /// </summary>
-    public void RecordJson(string method, string path, string jsonBody)
-    {
+    public void RecordJson(string method, string path, string jsonBody) {
         ArgumentException.ThrowIfNullOrEmpty(method);
         ArgumentException.ThrowIfNullOrEmpty(path);
         ArgumentNullException.ThrowIfNull(jsonBody);
-        Record(new HttpRequestInfo
-        {
+        Record(new HttpRequestInfo {
             Method = method,
             Path = path,
             Body = jsonBody,

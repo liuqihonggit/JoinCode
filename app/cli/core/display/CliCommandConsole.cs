@@ -4,8 +4,7 @@ namespace JoinCode.Cli;
 /// CLI 命令控制台实现 — 包装 TerminalHelper，通过 CommandTerminal.SetConsole 注入。
 /// 命令类移到 Composition 后通过 CommandTerminal 兼容类输出，最终委托到此实现。
 /// </summary>
-internal sealed class CliCommandConsole : JoinCode.Abstractions.Interfaces.ICommandConsole
-{
+internal sealed class CliCommandConsole : JoinCode.Abstractions.Interfaces.ICommandConsole {
     public bool IsInputRedirected => TerminalHelper.IsInputRedirected;
     public bool IsOutputRedirected => TerminalHelper.IsOutputRedirected;
     public bool IsHeadless => TerminalHelper.IsHeadless;

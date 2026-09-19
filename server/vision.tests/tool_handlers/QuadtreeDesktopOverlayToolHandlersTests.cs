@@ -3,20 +3,17 @@ namespace Vision.Tests.ToolHandlers;
 /// <summary>
 /// QuadtreeDesktopOverlayToolHandlers 单元测试 — quadtree_to_screen_rects MCP 工具(ADR 0032 延伸应用)
 /// </summary>
-public sealed class QuadtreeDesktopOverlayToolHandlersTests
-{
+public sealed class QuadtreeDesktopOverlayToolHandlersTests {
     private readonly QuadtreeDesktopOverlayToolHandlers _handlers;
 
-    public QuadtreeDesktopOverlayToolHandlersTests()
-    {
+    public QuadtreeDesktopOverlayToolHandlersTests() {
         var annotator = new QuadtreeEncoder();
         var mapper = new QuadtreeDesktopOverlayMapper();
         _handlers = new QuadtreeDesktopOverlayToolHandlers(annotator, mapper);
     }
 
     [Fact]
-    public async Task ToScreenRects_ValidInputs_ReturnsScreenRectsJson()
-    {
+    public async Task ToScreenRects_ValidInputs_ReturnsScreenRectsJson() {
         var result = await _handlers.QuadtreeToScreenRectsAsync(
             imageWidth: 100, imageHeight: 100, depth: 1,
             paintsJson: """{"L0.2":1.0,"L0.3":0.8}""",
@@ -43,8 +40,7 @@ public sealed class QuadtreeDesktopOverlayToolHandlersTests
     }
 
     [Fact]
-    public async Task ToScreenRects_NoPaintsJson_ReturnsAllCellsVisible()
-    {
+    public async Task ToScreenRects_NoPaintsJson_ReturnsAllCellsVisible() {
         var result = await _handlers.QuadtreeToScreenRectsAsync(
             imageWidth: 100, imageHeight: 100, depth: 1,
             paintsJson: null,
@@ -57,8 +53,7 @@ public sealed class QuadtreeDesktopOverlayToolHandlersTests
     }
 
     [Fact]
-    public async Task ToScreenRects_InvalidDimensions_ReturnsError()
-    {
+    public async Task ToScreenRects_InvalidDimensions_ReturnsError() {
         var result = await _handlers.QuadtreeToScreenRectsAsync(
             imageWidth: 0, imageHeight: 100, depth: 1,
             paintsJson: null, originScreenX: 0, originScreenY: 0);
@@ -67,8 +62,7 @@ public sealed class QuadtreeDesktopOverlayToolHandlersTests
     }
 
     [Fact]
-    public async Task ToScreenRects_InvalidPaintsJson_ReturnsError()
-    {
+    public async Task ToScreenRects_InvalidPaintsJson_ReturnsError() {
         var result = await _handlers.QuadtreeToScreenRectsAsync(
             imageWidth: 100, imageHeight: 100, depth: 1,
             paintsJson: "not-json",
@@ -78,8 +72,7 @@ public sealed class QuadtreeDesktopOverlayToolHandlersTests
     }
 
     [Fact]
-    public async Task ToScreenRects_NegativeDepth_ReturnsError()
-    {
+    public async Task ToScreenRects_NegativeDepth_ReturnsError() {
         var result = await _handlers.QuadtreeToScreenRectsAsync(
             imageWidth: 100, imageHeight: 100, depth: -1,
             paintsJson: null, originScreenX: 0, originScreenY: 0);
@@ -88,8 +81,7 @@ public sealed class QuadtreeDesktopOverlayToolHandlersTests
     }
 
     [Fact]
-    public async Task ToScreenRects_WithOffset_AddsOffsetToCoordinates()
-    {
+    public async Task ToScreenRects_WithOffset_AddsOffsetToCoordinates() {
         var result = await _handlers.QuadtreeToScreenRectsAsync(
             imageWidth: 100, imageHeight: 100, depth: 0,
             paintsJson: """{"L0":1.0}""",

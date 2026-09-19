@@ -1,15 +1,13 @@
 
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface ITeammateObserver
-{
+public interface ITeammateObserver {
     Task<IReadOnlyList<TeammateInfo>> GetRunningTeammatesAsync();
 
     event EventHandler<TeammateChangedEventArgs>? TeammateChanged;
 }
 
-public sealed record TeammateInfo
-{
+public sealed record TeammateInfo {
     public required string Id { get; init; }
     public required string DisplayName { get; init; }
     public required string SpinnerVerb { get; init; }
@@ -28,8 +26,7 @@ public sealed record TeammateInfo
     public DateTime? IdleStartedAt { get; init; }
 }
 
-public sealed class TeammateChangedEventArgs : EventArgs
-{
+public sealed class TeammateChangedEventArgs : EventArgs {
     public required string AgentId { get; init; }
     public required AgentStatus OldState { get; init; }
     public required AgentStatus NewState { get; init; }

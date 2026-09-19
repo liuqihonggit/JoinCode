@@ -5,18 +5,15 @@ namespace Core.Tests.Scheduling;
 /// AgentTaskContext 单元测试类
 /// 测试任务上下文的各种功能，包括上下文创建、元数据操作和取消令牌
 /// </summary>
-public class AgentTaskContextTests
-{
+public class AgentTaskContextTests {
     #region 上下文创建测试
 
     /// <summary>
     /// 测试使用必需属性创建上下文
     /// </summary>
     [Fact]
-    public void CreateContext_WithRequiredProperties_ShouldCreateSuccessfully()
-    {
-        var context = new AgentTaskContext
-        {
+    public void CreateContext_WithRequiredProperties_ShouldCreateSuccessfully() {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 3,
@@ -39,12 +36,10 @@ public class AgentTaskContextTests
     /// 测试上下文创建时自动生成 CreatedAt
     /// </summary>
     [Fact]
-    public void CreateContext_ShouldAutoGenerateCreatedAt()
-    {
+    public void CreateContext_ShouldAutoGenerateCreatedAt() {
         var beforeCreation = DateTime.UtcNow.AddSeconds(-1);
 
-        var context = new AgentTaskContext
-        {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -64,10 +59,8 @@ public class AgentTaskContextTests
     /// 测试上下文默认优先级为 0
     /// </summary>
     [Fact]
-    public void CreateContext_DefaultPriority_ShouldBeZero()
-    {
-        var context = new AgentTaskContext
-        {
+    public void CreateContext_DefaultPriority_ShouldBeZero() {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -84,10 +77,8 @@ public class AgentTaskContextTests
     /// 测试上下文默认 ParentTaskId 为 null
     /// </summary>
     [Fact]
-    public void CreateContext_DefaultParentTaskId_ShouldBeNull()
-    {
-        var context = new AgentTaskContext
-        {
+    public void CreateContext_DefaultParentTaskId_ShouldBeNull() {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -104,10 +95,8 @@ public class AgentTaskContextTests
     /// 测试设置自定义优先级
     /// </summary>
     [Fact]
-    public void CreateContext_WithCustomPriority_ShouldSetCorrectly()
-    {
-        var context = new AgentTaskContext
-        {
+    public void CreateContext_WithCustomPriority_ShouldSetCorrectly() {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -125,10 +114,8 @@ public class AgentTaskContextTests
     /// 测试设置父任务 ID
     /// </summary>
     [Fact]
-    public void CreateContext_WithParentTaskId_ShouldSetCorrectly()
-    {
-        var context = new AgentTaskContext
-        {
+    public void CreateContext_WithParentTaskId_ShouldSetCorrectly() {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -150,10 +137,8 @@ public class AgentTaskContextTests
     /// 测试 CreateSubContext 应创建有效的子上下文
     /// </summary>
     [Fact]
-    public void CreateSubContext_ShouldCreateValidSubContext()
-    {
-        var parentContext = new AgentTaskContext
-        {
+    public void CreateSubContext_ShouldCreateValidSubContext() {
+        var parentContext = new AgentTaskContext {
             TaskId = "parent-001",
             AgentIndex = 0,
             TotalAgents = 2,
@@ -183,11 +168,9 @@ public class AgentTaskContextTests
     /// 测试子上下文应继承父上下文的取消令牌
     /// </summary>
     [Fact]
-    public void CreateSubContext_ShouldInheritCancellationToken()
-    {
+    public void CreateSubContext_ShouldInheritCancellationToken() {
         using var cts = new CancellationTokenSource();
-        var parentContext = new AgentTaskContext
-        {
+        var parentContext = new AgentTaskContext {
             TaskId = "parent-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -212,10 +195,8 @@ public class AgentTaskContextTests
     /// 测试子上下文应重置 AgentIndex 和 TotalAgents
     /// </summary>
     [Fact]
-    public void CreateSubContext_ShouldResetAgentIndexAndTotalAgents()
-    {
-        var parentContext = new AgentTaskContext
-        {
+    public void CreateSubContext_ShouldResetAgentIndexAndTotalAgents() {
+        var parentContext = new AgentTaskContext {
             TaskId = "parent-001",
             AgentIndex = 2,
             TotalAgents = 5,
@@ -243,10 +224,8 @@ public class AgentTaskContextTests
     /// 测试 SetMetadataValue 和 GetMetadataValue 应正确工作
     /// </summary>
     [Fact]
-    public void Metadata_SetAndGetValue_ShouldWorkCorrectly()
-    {
-        var context = new AgentTaskContext
-        {
+    public void Metadata_SetAndGetValue_ShouldWorkCorrectly() {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -266,10 +245,8 @@ public class AgentTaskContextTests
     /// 测试 GetMetadataValue 返回默认值当键不存在时
     /// </summary>
     [Fact]
-    public void GetMetadataValue_NonExistentKey_ShouldReturnDefault()
-    {
-        var context = new AgentTaskContext
-        {
+    public void GetMetadataValue_NonExistentKey_ShouldReturnDefault() {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -288,10 +265,8 @@ public class AgentTaskContextTests
     /// 测试 GetMetadataValue 使用提供的默认值
     /// </summary>
     [Fact]
-    public void GetMetadataValue_WithDefaultValue_ShouldReturnProvidedDefault()
-    {
-        var context = new AgentTaskContext
-        {
+    public void GetMetadataValue_WithDefaultValue_ShouldReturnProvidedDefault() {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -310,10 +285,8 @@ public class AgentTaskContextTests
     /// 测试 SetMetadataValue 更新现有值
     /// </summary>
     [Fact]
-    public void SetMetadataValue_UpdateExisting_ShouldUpdateValue()
-    {
-        var context = new AgentTaskContext
-        {
+    public void SetMetadataValue_UpdateExisting_ShouldUpdateValue() {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -333,10 +306,8 @@ public class AgentTaskContextTests
     /// 测试 Metadata 属性返回元数据字典副本
     /// </summary>
     [Fact]
-    public void MetadataProperty_ShouldReturnCopyOfMetadata()
-    {
-        var context = new AgentTaskContext
-        {
+    public void MetadataProperty_ShouldReturnCopyOfMetadata() {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -362,10 +333,8 @@ public class AgentTaskContextTests
     [InlineData("int-key", 42)]
     [InlineData("bool-key", true)]
     [InlineData("double-key", 3.14)]
-    public void Metadata_DifferentTypes_ShouldWorkCorrectly(string key, object value)
-    {
-        var context = new AgentTaskContext
-        {
+    public void Metadata_DifferentTypes_ShouldWorkCorrectly(string key, object value) {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -385,10 +354,8 @@ public class AgentTaskContextTests
     /// 测试子上下文继承父上下文元数据
     /// </summary>
     [Fact]
-    public void CreateSubContext_ShouldInheritParentMetadata()
-    {
-        var parentContext = new AgentTaskContext
-        {
+    public void CreateSubContext_ShouldInheritParentMetadata() {
+        var parentContext = new AgentTaskContext {
             TaskId = "parent-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -417,11 +384,9 @@ public class AgentTaskContextTests
     /// 测试 IsCancellationRequested 当未取消时应返回 false
     /// </summary>
     [Fact]
-    public void IsCancellationRequested_WhenNotCancelled_ShouldReturnFalse()
-    {
+    public void IsCancellationRequested_WhenNotCancelled_ShouldReturnFalse() {
         using var cts = new CancellationTokenSource();
-        var context = new AgentTaskContext
-        {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -439,11 +404,9 @@ public class AgentTaskContextTests
     /// 测试 IsCancellationRequested 当取消时应返回 true
     /// </summary>
     [Fact]
-    public void IsCancellationRequested_WhenCancelled_ShouldReturnTrue()
-    {
+    public void IsCancellationRequested_WhenCancelled_ShouldReturnTrue() {
         using var cts = new CancellationTokenSource();
-        var context = new AgentTaskContext
-        {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -463,11 +426,9 @@ public class AgentTaskContextTests
     /// 测试 ThrowIfCancellationRequested 当未取消时不应抛出异常
     /// </summary>
     [Fact]
-    public void ThrowIfCancellationRequested_WhenNotCancelled_ShouldNotThrow()
-    {
+    public void ThrowIfCancellationRequested_WhenNotCancelled_ShouldNotThrow() {
         using var cts = new CancellationTokenSource();
-        var context = new AgentTaskContext
-        {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -487,11 +448,9 @@ public class AgentTaskContextTests
     /// 测试 ThrowIfCancellationRequested 当取消时应抛出 OperationCanceledException
     /// </summary>
     [Fact]
-    public void ThrowIfCancellationRequested_WhenCancelled_ShouldThrow()
-    {
+    public void ThrowIfCancellationRequested_WhenCancelled_ShouldThrow() {
         using var cts = new CancellationTokenSource();
-        var context = new AgentTaskContext
-        {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -513,11 +472,9 @@ public class AgentTaskContextTests
     /// 测试 Cancel 方法应取消任务
     /// </summary>
     [Fact]
-    public void Cancel_ShouldCancelTask()
-    {
+    public void Cancel_ShouldCancelTask() {
         using var cts = new CancellationTokenSource();
-        var context = new AgentTaskContext
-        {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -537,12 +494,10 @@ public class AgentTaskContextTests
     /// 测试 CancelAfter 方法应在指定时间后取消任务
     /// </summary>
     [Fact]
-    public void CancelAfter_ShouldCancelAfterDelay()
-    {
+    public void CancelAfter_ShouldCancelAfterDelay() {
         var fakeTime = new FakeTimeProvider();
         using var cts = new CancellationTokenSource(TimeSpan.FromHours(1), fakeTime);
-        var context = new AgentTaskContext
-        {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -565,12 +520,10 @@ public class AgentTaskContextTests
     /// 测试 CreateLinkedToken 应创建链接令牌
     /// </summary>
     [Fact]
-    public void CreateLinkedToken_ShouldCreateLinkedToken()
-    {
+    public void CreateLinkedToken_ShouldCreateLinkedToken() {
         using var cts1 = new CancellationTokenSource();
         using var cts2 = new CancellationTokenSource();
-        var context = new AgentTaskContext
-        {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -591,12 +544,10 @@ public class AgentTaskContextTests
     /// 测试链接令牌在任一源取消时都应被取消
     /// </summary>
     [Fact]
-    public void CreateLinkedToken_WhenEitherSourceCancels_ShouldCancelLinkedToken()
-    {
+    public void CreateLinkedToken_WhenEitherSourceCancels_ShouldCancelLinkedToken() {
         using var cts1 = new CancellationTokenSource();
         using var cts2 = new CancellationTokenSource();
-        var context = new AgentTaskContext
-        {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -618,11 +569,9 @@ public class AgentTaskContextTests
     /// 测试当 CancellationTokenSource 为 null 时 CreateLinkedToken 应返回额外令牌
     /// </summary>
     [Fact]
-    public void CreateLinkedToken_WithNullSource_ShouldReturnAdditionalToken()
-    {
+    public void CreateLinkedToken_WithNullSource_ShouldReturnAdditionalToken() {
         using var cts = new CancellationTokenSource();
-        var context = new AgentTaskContext
-        {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -646,10 +595,8 @@ public class AgentTaskContextTests
     /// 测试 AgentTaskContext 实现 IAgentTaskContext 接口
     /// </summary>
     [Fact]
-    public void AgentTaskContext_ShouldImplementIAgentTaskContext()
-    {
-        var context = new AgentTaskContext
-        {
+    public void AgentTaskContext_ShouldImplementIAgentTaskContext() {
+        var context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,
@@ -666,10 +613,8 @@ public class AgentTaskContextTests
     /// 测试通过接口访问上下文属性
     /// </summary>
     [Fact]
-    public void IAgentTaskContext_ShouldAllowPropertyAccess()
-    {
-        IAgentTaskContext context = new AgentTaskContext
-        {
+    public void IAgentTaskContext_ShouldAllowPropertyAccess() {
+        IAgentTaskContext context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 1,
             TotalAgents = 3,
@@ -695,10 +640,8 @@ public class AgentTaskContextTests
     /// 测试通过接口操作元数据
     /// </summary>
     [Fact]
-    public void IAgentTaskContext_ShouldAllowMetadataOperations()
-    {
-        IAgentTaskContext context = new AgentTaskContext
-        {
+    public void IAgentTaskContext_ShouldAllowMetadataOperations() {
+        IAgentTaskContext context = new AgentTaskContext {
             TaskId = "task-001",
             AgentIndex = 0,
             TotalAgents = 1,

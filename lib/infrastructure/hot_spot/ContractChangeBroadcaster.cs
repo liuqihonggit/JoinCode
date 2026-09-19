@@ -5,8 +5,7 @@ namespace Infrastructure.HotSpot;
 /// 非热文件不广播；复用现有 IMailbox 不新建 Broadcaster
 /// </summary>
 [Register(typeof(IContractChangeBroadcaster), ServiceLifetime.Singleton)]
-public sealed class ContractChangeBroadcaster : IContractChangeBroadcaster
-{
+public sealed class ContractChangeBroadcaster : IContractChangeBroadcaster {
     private readonly IHotFileDetector _hotFileDetector;
     private readonly IMailbox _mailbox;
 
@@ -15,15 +14,13 @@ public sealed class ContractChangeBroadcaster : IContractChangeBroadcaster
     /// </summary>
     /// <param name="hotFileDetector">热文件检测器</param>
     /// <param name="mailbox">代理间邮箱</param>
-    public ContractChangeBroadcaster(IHotFileDetector hotFileDetector, IMailbox mailbox)
-    {
+    public ContractChangeBroadcaster(IHotFileDetector hotFileDetector, IMailbox mailbox) {
         _hotFileDetector = hotFileDetector ?? throw new ArgumentNullException(nameof(hotFileDetector));
         _mailbox = mailbox ?? throw new ArgumentNullException(nameof(mailbox));
     }
 
     /// <inheritdoc/>
-    public async Task<int> BroadcastContractChangeAsync(string captainId, string filePath, IReadOnlyList<string> dependentWorkers, CancellationToken cancellationToken = default)
-    {
+    public async Task<int> BroadcastContractChangeAsync(string captainId, string filePath, IReadOnlyList<string> dependentWorkers, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(captainId);
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(dependentWorkers);
@@ -35,11 +32,9 @@ public sealed class ContractChangeBroadcaster : IContractChangeBroadcaster
             return 0;
 
         var sentCount = 0;
-        foreach (var workerId in dependentWorkers.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
+        foreach (var workerId in dependentWorkers.Distinct(StringComparer.OrdinalIgnoreCase)) {
             cancellationToken.ThrowIfCancellationRequested();
-            var msg = new CoordinatorMessage
-            {
+            var msg = new CoordinatorMessage {
                 FromAgentId = captainId,
                 ToAgentId = workerId,
                 MessageType = TeammateMessageTypeEnumConstants.ContractChanged,

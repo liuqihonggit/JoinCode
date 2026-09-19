@@ -5,8 +5,7 @@ namespace Infrastructure.Housekeeping;
 /// 聚合调度所有 CleanupOld* 方法，延迟执行+循环清理
 /// </summary>
 [Register(typeof(IHousekeepingService), ServiceLifetime.Singleton)]
-public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingService
-{
+public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingService {
 
     /// <summary>
     /// 构造家政清理服务
@@ -17,8 +16,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// <param name="worktreeService">Agent Worktree 服务</param>
     /// <param name="entityReaper">实体回收器</param>
     /// <param name="logger">日志记录器</param>
-    public HousekeepingService(IFileSystem fs, IClockService clock, IPlanModeManager planModeManager, IAgentWorktreeService worktreeService, IEntityReaper? entityReaper = null, ILogger<HousekeepingService>? logger = null)
-    {
+    public HousekeepingService(IFileSystem fs, IClockService clock, IPlanModeManager planModeManager, IAgentWorktreeService worktreeService, IEntityReaper? entityReaper = null, ILogger<HousekeepingService>? logger = null) {
         _fs = fs;
         _clock = clock;
         _planModeManager = planModeManager;
@@ -41,8 +39,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// <param name="currentSessionId">当前会话 ID，用于保留当前会话的图片缓存</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>清理的文件/目录总数</returns>
-    public async Task<int> RunAllCleanupAsync(string currentSessionId = "", CancellationToken cancellationToken = default)
-    {
+    public async Task<int> RunAllCleanupAsync(string currentSessionId = "", CancellationToken cancellationToken = default) {
         var total = 0;
 
         total += CleanupOldSessionFiles();
@@ -57,13 +54,11 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
         total += CleanupOldVersions();
         total += await CleanupStaleWorktreesAsync(cancellationToken).ConfigureAwait(false);
 
-        if (_entityReaper is not null)
-        {
+        if (_entityReaper is not null) {
             total += _entityReaper.ScanOnce();
         }
 
-        if (total > 0)
-        {
+        if (total > 0) {
             _logger?.LogDebug("家政清理完成: 共清理 {Total} 项", total);
         }
 
@@ -74,8 +69,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// 清理旧会话文件 — 对齐 TS cleanupOldSessionFiles
     /// 删除 sessions/*.json + *.cast + tool-results/ 中 mtime 超过指定天数的
     /// </summary>
-    public int CleanupOldSessionFiles(int maxAgeDays = 30)
-    {
+    public int CleanupOldSessionFiles(int maxAgeDays = 30) {
         var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
 
         var total = CleanupFilesInDirectory(
@@ -93,25 +87,19 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// <summary>
     /// 清理过期的会话子目录 — 每会话一文件夹格式,目录 mtime 超过 maxAgeDays 则整个删除
     /// </summary>
-    private int CleanupSessionDirectories(string sessionsDir, int maxAgeDays)
-    {
+    private int CleanupSessionDirectories(string sessionsDir, int maxAgeDays) {
         if (!_fs.DirectoryExists(sessionsDir)) return 0;
 
         var cutoff = _clock.GetUtcNow().AddDays(-maxAgeDays);
         var deleted = 0;
 
-        foreach (var dir in _fs.EnumerateDirectories(sessionsDir, "*", SearchOption.TopDirectoryOnly))
-        {
-            try
-            {
-                if (_fs.GetDirectoryLastWriteTimeUtc(dir) < cutoff)
-                {
+        foreach (var dir in _fs.EnumerateDirectories(sessionsDir, "*", SearchOption.TopDirectoryOnly)) {
+            try {
+                if (_fs.GetDirectoryLastWriteTimeUtc(dir) < cutoff) {
                     _fs.DeleteDirectory(dir, recursive: true);
                     deleted++;
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogDebug(ex, "删除过期会话目录失败: {Path}", dir);
             }
         }
@@ -122,8 +110,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// <summary>
     /// 清理旧文件历史备份 — 对齐 TS cleanupOldFileHistoryBackups
     /// </summary>
-    public int CleanupOldFileHistoryBackups(int maxAgeDays = 30)
-    {
+    public int CleanupOldFileHistoryBackups(int maxAgeDays = 30) {
         return CleanupDirectoryChildren(
             AppDataConstants.Paths.FileHistoryDirectory,
             maxAgeDays);
@@ -132,8 +119,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// <summary>
     /// 清理旧会话环境目录 — 对齐 TS cleanupOldSessionEnvDirs
     /// </summary>
-    public int CleanupOldSessionEnvDirs(int maxAgeDays = 30)
-    {
+    public int CleanupOldSessionEnvDirs(int maxAgeDays = 30) {
         return CleanupDirectoryChildren(
             Path.Combine(JccDir, "session-env"),
             maxAgeDays);
@@ -142,8 +128,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// <summary>
     /// 清理旧调试日志 — 对齐 TS cleanupOldDebugLogs
     /// </summary>
-    public int CleanupOldDebugLogs(int maxAgeDays = 30)
-    {
+    public int CleanupOldDebugLogs(int maxAgeDays = 30) {
         return CleanupFilesInDirectory(
             Path.Combine(JccDir, "debug"),
             maxAgeDays,
@@ -153,8 +138,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// <summary>
     /// 清理旧消息/错误日志 — 对齐 TS cleanupOldMessageFiles
     /// </summary>
-    public int CleanupOldMessageFiles(int maxAgeDays = 30)
-    {
+    public int CleanupOldMessageFiles(int maxAgeDays = 30) {
         var total = 0;
 
         total += CleanupFilesInDirectory(
@@ -162,17 +146,13 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
             maxAgeDays,
             ["*"]);
 
-        try
-        {
+        try {
             if (!_fs.DirectoryExists(JccDir)) return total;
 
-            foreach (var mcpLogDir in _fs.EnumerateDirectories(JccDir, "mcp-logs-*", SearchOption.TopDirectoryOnly))
-            {
+            foreach (var mcpLogDir in _fs.EnumerateDirectories(JccDir, "mcp-logs-*", SearchOption.TopDirectoryOnly)) {
                 total += CleanupFilesInDirectory(mcpLogDir, maxAgeDays, ["*"]);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "清理 mcp-logs 目录失败");
         }
 
@@ -182,38 +162,29 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// <summary>
     /// 清理旧 npm 缓存 — 对齐 TS cleanupNpmCacheForAnthropicPackages
     /// </summary>
-    public int CleanupNpmCache(int maxAgeDays = 1, int retentionCount = 5)
-    {
+    public int CleanupNpmCache(int maxAgeDays = 1, int retentionCount = 5) {
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var npmCacheDir = Path.Combine(userProfile, ".npm", "_cacache");
 
         if (!_fs.DirectoryExists(npmCacheDir)) return 0;
 
-        try
-        {
+        try {
             var cutoffDate = _clock.GetUtcNow().AddDays(-maxAgeDays);
             var deletedCount = 0;
 
-            foreach (var file in _fs.EnumerateFiles(npmCacheDir, "*", SearchOption.AllDirectories))
-            {
-                try
-                {
-                    if (_fs.GetLastWriteTimeUtc(file) < cutoffDate)
-                    {
+            foreach (var file in _fs.EnumerateFiles(npmCacheDir, "*", SearchOption.AllDirectories)) {
+                try {
+                    if (_fs.GetLastWriteTimeUtc(file) < cutoffDate) {
                         _fs.DeleteFile(file);
                         deletedCount++;
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogDebug(ex, "删除 npm 缓存文件失败: {Path}", file);
                 }
             }
 
             return deletedCount;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "清理 npm 缓存失败");
             return 0;
         }
@@ -222,49 +193,36 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// <summary>
     /// 清理旧版本二进制 — 对齐 TS cleanupOldVersions
     /// </summary>
-    public int CleanupOldVersions(int retentionCount = 2)
-    {
+    public int CleanupOldVersions(int retentionCount = 2) {
         var deletedCount = 0;
 
-        try
-        {
+        try {
             var versionsDir = Path.Combine(JccDir, "versions");
             if (!_fs.DirectoryExists(versionsDir)) return 0;
 
             var stagingDir = Path.Combine(versionsDir, "staging");
-            if (_fs.DirectoryExists(stagingDir))
-            {
+            if (_fs.DirectoryExists(stagingDir)) {
                 var stagingCutoff = _clock.GetUtcNow().AddHours(-1);
-                foreach (var dir in _fs.EnumerateDirectories(stagingDir, "*", SearchOption.TopDirectoryOnly))
-                {
-                    try
-                    {
-                        if (_fs.GetDirectoryLastWriteTimeUtc(dir) < stagingCutoff)
-                        {
+                foreach (var dir in _fs.EnumerateDirectories(stagingDir, "*", SearchOption.TopDirectoryOnly)) {
+                    try {
+                        if (_fs.GetDirectoryLastWriteTimeUtc(dir) < stagingCutoff) {
                             _fs.DeleteDirectory(dir, recursive: true);
                             deletedCount++;
                         }
-                    }
-                    catch (Exception ex)
-                    {
+                    } catch (Exception ex) {
                         _logger?.LogDebug(ex, "删除 staging 目录失败: {Path}", dir);
                     }
                 }
             }
 
             var currentExePath = Environment.ProcessPath;
-            foreach (var file in _fs.EnumerateFiles(versionsDir, "*.tmp.*", SearchOption.TopDirectoryOnly))
-            {
-                try
-                {
-                    if (_fs.GetLastWriteTimeUtc(file) < _clock.GetUtcNow().AddHours(-1))
-                    {
+            foreach (var file in _fs.EnumerateFiles(versionsDir, "*.tmp.*", SearchOption.TopDirectoryOnly)) {
+                try {
+                    if (_fs.GetLastWriteTimeUtc(file) < _clock.GetUtcNow().AddHours(-1)) {
                         _fs.DeleteFile(file);
                         deletedCount++;
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogDebug(ex, "删除临时版本文件失败: {Path}", file);
                 }
             }
@@ -274,27 +232,20 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
                 .OrderByDescending(f => _fs.GetLastWriteTimeUtc(f))
                 .ToList();
 
-            foreach (var file in versionFiles.Skip(retentionCount))
-            {
-                try
-                {
+            foreach (var file in versionFiles.Skip(retentionCount)) {
+                try {
                     if (currentExePath is not null &&
-                        string.Equals(Path.GetFullPath(file), Path.GetFullPath(currentExePath), StringComparison.OrdinalIgnoreCase))
-                    {
+                        string.Equals(Path.GetFullPath(file), Path.GetFullPath(currentExePath), StringComparison.OrdinalIgnoreCase)) {
                         continue;
                     }
 
                     _fs.DeleteFile(file);
                     deletedCount++;
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogDebug(ex, "删除旧版本文件失败: {Path}", file);
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "清理旧版本失败");
         }
 
@@ -308,50 +259,36 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
         string directory,
         int maxAgeDays,
         string[] patterns,
-        string? includeSubDirPattern = null)
-    {
+        string? includeSubDirPattern = null) {
         if (!_fs.DirectoryExists(directory)) return 0;
 
-        try
-        {
+        try {
             var cutoffDate = _clock.GetUtcNow().AddDays(-maxAgeDays);
             var deletedCount = 0;
 
-            foreach (var pattern in patterns)
-            {
-                foreach (var file in _fs.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly))
-                {
-                    try
-                    {
-                        if (_fs.GetLastWriteTimeUtc(file) < cutoffDate)
-                        {
+            foreach (var pattern in patterns) {
+                foreach (var file in _fs.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly)) {
+                    try {
+                        if (_fs.GetLastWriteTimeUtc(file) < cutoffDate) {
                             _fs.DeleteFile(file);
                             deletedCount++;
                         }
-                    }
-                    catch (Exception ex)
-                    {
+                    } catch (Exception ex) {
                         _logger?.LogDebug(ex, "删除旧文件失败: {Path}", file);
                     }
                 }
             }
 
-            if (includeSubDirPattern is not null)
-            {
-                foreach (var subDir in _fs.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly))
-                {
+            if (includeSubDirPattern is not null) {
+                foreach (var subDir in _fs.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly)) {
                     var toolResultsDir = Path.Combine(subDir, includeSubDirPattern);
                     if (!_fs.DirectoryExists(toolResultsDir)) continue;
 
-                    if (_fs.GetDirectoryLastWriteTimeUtc(toolResultsDir) < cutoffDate)
-                    {
-                        try
-                        {
+                    if (_fs.GetDirectoryLastWriteTimeUtc(toolResultsDir) < cutoffDate) {
+                        try {
                             _fs.DeleteDirectory(toolResultsDir, recursive: true);
                             deletedCount++;
-                        }
-                        catch (Exception ex)
-                        {
+                        } catch (Exception ex) {
                             _logger?.LogDebug(ex, "删除旧子目录失败: {Path}", toolResultsDir);
                         }
                     }
@@ -359,9 +296,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
             }
 
             return deletedCount;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "清理目录失败: {Directory}", directory);
             return 0;
         }
@@ -370,35 +305,26 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// <summary>
     /// 通用: 清理目录中 mtime 超过指定天数的子目录
     /// </summary>
-    private int CleanupDirectoryChildren(string directory, int maxAgeDays)
-    {
+    private int CleanupDirectoryChildren(string directory, int maxAgeDays) {
         if (!_fs.DirectoryExists(directory)) return 0;
 
-        try
-        {
+        try {
             var cutoffDate = _clock.GetUtcNow().AddDays(-maxAgeDays);
             var deletedCount = 0;
 
-            foreach (var subDir in _fs.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly))
-            {
-                try
-                {
-                    if (_fs.GetDirectoryLastWriteTimeUtc(subDir) < cutoffDate)
-                    {
+            foreach (var subDir in _fs.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly)) {
+                try {
+                    if (_fs.GetDirectoryLastWriteTimeUtc(subDir) < cutoffDate) {
                         _fs.DeleteDirectory(subDir, recursive: true);
                         deletedCount++;
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogDebug(ex, "删除旧子目录失败: {Path}", subDir);
                 }
             }
 
             return deletedCount;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "清理子目录失败: {Directory}", directory);
             return 0;
         }
@@ -408,49 +334,37 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// 清理旧图片缓存目录 — 对齐 TS cleanupOldImageCaches
     /// 删除 image-cache/ 下非当前会话的子目录，空目录也删除
     /// </summary>
-    public int CleanupOldImageCaches(string currentSessionId)
-    {
+    public int CleanupOldImageCaches(string currentSessionId) {
         var imageCacheDir = Path.Combine(JccDir, "image-cache");
 
         if (!_fs.DirectoryExists(imageCacheDir)) return 0;
 
-        try
-        {
+        try {
             var deletedCount = 0;
 
-            foreach (var sessionDir in _fs.EnumerateDirectories(imageCacheDir, "*", SearchOption.TopDirectoryOnly))
-            {
+            foreach (var sessionDir in _fs.EnumerateDirectories(imageCacheDir, "*", SearchOption.TopDirectoryOnly)) {
                 var dirName = Path.GetFileName(sessionDir);
                 if (dirName == currentSessionId) continue;
 
-                try
-                {
+                try {
                     _fs.DeleteDirectory(sessionDir, recursive: true);
                     deletedCount++;
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogDebug(ex, "删除旧图片缓存目录失败: {Path}", sessionDir);
                 }
             }
 
-            try
-            {
+            try {
                 if (!_fs.EnumerateDirectories(imageCacheDir, "*", SearchOption.TopDirectoryOnly).Any()
-                    && !_fs.EnumerateFiles(imageCacheDir, "*", SearchOption.TopDirectoryOnly).Any())
-                {
+                    && !_fs.EnumerateFiles(imageCacheDir, "*", SearchOption.TopDirectoryOnly).Any()) {
                     _fs.DeleteDirectory(imageCacheDir, recursive: false);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogDebug(ex, "删除空图片缓存根目录失败");
             }
 
             return deletedCount;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "清理图片缓存失败");
             return 0;
         }
@@ -460,37 +374,28 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// 清理旧粘贴缓存 — 对齐 TS cleanupOldPastes
     /// 删除 paste-cache/ 中 mtime 超过指定天数的 .txt 文件
     /// </summary>
-    public int CleanupOldPastes(int maxAgeDays = 30)
-    {
+    public int CleanupOldPastes(int maxAgeDays = 30) {
         var pasteCacheDir = AppDataConstants.Paths.PasteCacheDirectory;
 
         if (!_fs.DirectoryExists(pasteCacheDir)) return 0;
 
-        try
-        {
+        try {
             var cutoffDate = _clock.GetUtcNow().AddDays(-maxAgeDays);
             var deletedCount = 0;
 
-            foreach (var file in _fs.EnumerateFiles(pasteCacheDir, "*.txt", SearchOption.TopDirectoryOnly))
-            {
-                try
-                {
-                    if (_fs.GetLastWriteTimeUtc(file) < cutoffDate)
-                    {
+            foreach (var file in _fs.EnumerateFiles(pasteCacheDir, "*.txt", SearchOption.TopDirectoryOnly)) {
+                try {
+                    if (_fs.GetLastWriteTimeUtc(file) < cutoffDate) {
                         _fs.DeleteFile(file);
                         deletedCount++;
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogDebug(ex, "删除旧粘贴缓存文件失败: {Path}", file);
                 }
             }
 
             return deletedCount;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "清理粘贴缓存失败");
             return 0;
         }
@@ -500,14 +405,10 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// 清理旧计划文件 — 对齐 TS cleanupOldPlanFiles
     /// 委托 IPlanModeManager.CleanupOldPlanFiles
     /// </summary>
-    public int CleanupOldPlanFiles(int maxAgeDays = 30)
-    {
-        try
-        {
+    public int CleanupOldPlanFiles(int maxAgeDays = 30) {
+        try {
             return _planModeManager.CleanupOldPlanFiles(maxAgeDays);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "清理计划文件失败");
             return 0;
         }
@@ -517,14 +418,10 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// 清理过期 Agent Worktree — 对齐 TS cleanupStaleAgentWorktrees
     /// 委托 IAgentWorktreeService.CleanupStaleWorktreesAsync
     /// </summary>
-    public async Task<int> CleanupStaleWorktreesAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
+    public async Task<int> CleanupStaleWorktreesAsync(CancellationToken cancellationToken = default) {
+        try {
             return await _worktreeService.CleanupStaleWorktreesAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "清理过期 Worktree 失败");
             return 0;
         }

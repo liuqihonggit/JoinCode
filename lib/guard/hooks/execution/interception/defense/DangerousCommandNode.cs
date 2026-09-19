@@ -10,16 +10,14 @@ namespace Core.Hooks.Execution.Interception.Defense;
 /// </para>
 /// </summary>
 [Register(typeof(DangerousCommandNode), ServiceLifetime.Singleton)]
-public sealed class DangerousCommandNode
-{
+public sealed class DangerousCommandNode {
     private readonly ICommandDangerClassifier _classifier;
 
     /// <summary>
     /// 构造危险命令检测 node
     /// </summary>
     /// <param name="classifier">命令危险分类器（唯一数据源）</param>
-    public DangerousCommandNode(ICommandDangerClassifier classifier)
-    {
+    public DangerousCommandNode(ICommandDangerClassifier classifier) {
         _classifier = classifier ?? throw new ArgumentNullException(nameof(classifier));
     }
 
@@ -28,8 +26,7 @@ public sealed class DangerousCommandNode
     /// </summary>
     /// <param name="command">待检测命令</param>
     /// <returns>Dangerous 级时返回分类结果（含风险类型+详情）；非 Dangerous 返回 null</returns>
-    public DangerClassificationResult? ClassifyDangerous(string command)
-    {
+    public DangerClassificationResult? ClassifyDangerous(string command) {
         var result = _classifier.Classify(command);
         return result.IsDangerous ? result : null;
     }

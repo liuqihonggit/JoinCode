@@ -1,5 +1,4 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     /// <summary>
     /// 内存泄漏检测分析器：检查所有 IDisposable/IAsyncDisposable 字段是否在 Dispose/DisposeAsync 中释放。
     /// JCC9301: IDisposable 字段未在 Dispose/DisposeAsync 中释放
@@ -7,8 +6,7 @@ namespace AotSafety.Generator
     /// JCC9304: base.Dispose() 不在 Dispose 方法体最后位置（释放顺序错误）
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class MemoryLeakRules : DiagnosticAnalyzer
-    {
+    public sealed class MemoryLeakRules : DiagnosticAnalyzer {
         private static readonly DiagnosticDescriptor RuleDisposableFieldNotReleased = new(
             "JCC9301",
             "内存泄漏: IDisposable字段未在Dispose/DisposeAsync中释放",
@@ -49,8 +47,7 @@ namespace AotSafety.Generator
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
             ImmutableArray.Create(RuleDisposableFieldNotReleased, RuleNullableFieldNotNulled, RuleBaseDisposeNotLast);
 
-        public override void Initialize(AnalysisContext context)
-        {
+        public override void Initialize(AnalysisContext context) {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterCompilationStartAction(AnalyzeDisposableFields);
@@ -60,14 +57,12 @@ namespace AotSafety.Generator
         /// <summary>
         /// 收集所有 IDisposable 字段，编译结束时检查是否在 Dispose 中释放
         /// </summary>
-        private static void AnalyzeDisposableFields(CompilationStartAnalysisContext context)
-        {
+        private static void AnalyzeDisposableFields(CompilationStartAnalysisContext context) {
             var disposableFields = new ConcurrentDictionary<IFieldSymbol, Location>(SymbolEqualityComparer.Default);
             var idisposableType = context.Compilation.GetTypeByMetadataName("System.IDisposable");
             var iasyncDisposableType = context.Compilation.GetTypeByMetadataName("System.IAsyncDisposable");
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var fieldDecl = (FieldDeclarationSyntax)ctx.Node;
@@ -81,8 +76,7 @@ namespace AotSafety.Generator
 
                 if (IsExcludedType(fieldType)) return;
 
-                foreach (var variable in fieldDecl.Declaration.Variables)
-                {
+                foreach (var variable in fieldDecl.Declaration.Variables) {
                     if (variable.Initializer is null) continue;
 
                     if (AotSafetyHelpers.IsNullLiteral(variable.Initializer.Value)) continue;
@@ -98,12 +92,10 @@ namespace AotSafety.Generator
                 }
             }, SyntaxKind.FieldDeclaration);
 
-            context.RegisterCompilationEndAction(ctx =>
-            {
+            context.RegisterCompilationEndAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
-                foreach (var kvp in disposableFields)
-                {
+                foreach (var kvp in disposableFields) {
                     if (ctx.CancellationToken.IsCancellationRequested) return;
 
                     var field = kvp.Key;
@@ -117,17 +109,13 @@ namespace AotSafety.Generator
                     var releasedInDispose = AotSafetyHelpers.CheckInDisposeCallChain(containingType,
                         m => AotSafetyHelpers.MethodBodyReferencesField(m, field.Name));
 
-                    if (!releasedInDispose)
-                    {
+                    if (!releasedInDispose) {
                         ctx.ReportDiagnostic(Diagnostic.Create(RuleDisposableFieldNotReleased, location, field.Name));
-                    }
-                    else if (field.NullableAnnotation == NullableAnnotation.Annotated && !field.IsReadOnly)
-                    {
+                    } else if (field.NullableAnnotation == NullableAnnotation.Annotated && !field.IsReadOnly) {
                         var nulledInDispose = AotSafetyHelpers.CheckInDisposeCallChain(containingType,
                             m => AotSafetyHelpers.MethodBodyNullsField(m, field.Name));
 
-                        if (!nulledInDispose)
-                        {
+                        if (!nulledInDispose) {
                             ctx.ReportDiagnostic(Diagnostic.Create(RuleNullableFieldNotNulled, location, field.Name));
                         }
                     }
@@ -138,8 +126,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// 检测类型是否实现了 IDisposable 或 IAsyncDisposable
         /// </summary>
-        private static bool IsDisposableType(ITypeSymbol type, INamedTypeSymbol? idisposable, INamedTypeSymbol? iasyncDisposable)
-        {
+        private static bool IsDisposableType(ITypeSymbol type, INamedTypeSymbol? idisposable, INamedTypeSymbol? iasyncDisposable) {
             if (type is not INamedTypeSymbol namedType) return false;
 
             if (idisposable is not null && namedType.AllInterfaces.Contains(idisposable, SymbolEqualityComparer.Default))
@@ -160,8 +147,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// 排除由其他分析器处理的类型：SemaphoreSlim(JCC4005)、ConcurrentDictionary(JCC4006)
         /// </summary>
-        private static bool IsExcludedType(ITypeSymbol type)
-        {
+        private static bool IsExcludedType(ITypeSymbol type) {
             var nameSpan = type.Name.AsSpan();
             if (nameSpan.SequenceEqual("SemaphoreSlim".AsSpan())) return true;
             if (nameSpan.SequenceEqual("ConcurrentDictionary".AsSpan())) return true;
@@ -173,8 +159,7 @@ namespace AotSafety.Generator
         /// 释放顺序：子类资源先释放 → base.Dispose() 最后调用（父类做生命周期注销）。
         /// 检测方式：方法体中存在 base.Dispose() 调用，但最后一个语句不包含 base.Dispose() 调用。
         /// </summary>
-        private static void AnalyzeDisposeOrder(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeDisposeOrder(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var methodDecl = (MethodDeclarationSyntax)ctx.Node;
@@ -203,8 +188,7 @@ namespace AotSafety.Generator
                 .OfType<InvocationExpressionSyntax>()
                 .Any(IsBaseDisposeCall);
 
-            if (!lastHasBaseDispose)
-            {
+            if (!lastHasBaseDispose) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleBaseDisposeNotLast,
                     lastStatement.GetLocation(), "Dispose", 1));
             }
@@ -213,8 +197,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// 检测调用是否是 base.Dispose() 或 base.DisposeAsync()
         /// </summary>
-        private static bool IsBaseDisposeCall(InvocationExpressionSyntax invocation)
-        {
+        private static bool IsBaseDisposeCall(InvocationExpressionSyntax invocation) {
             if (invocation.Expression is not MemberAccessExpressionSyntax ma)
                 return false;
 

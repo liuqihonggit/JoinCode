@@ -6,8 +6,7 @@ namespace Core.Goal;
 /// 合并原 GoalLoopObserver（循环观察）+ GoalNodeHealthChecker（健康检查）+ GoalQualityScorer（评分）。
 /// </summary>
 [Register(typeof(IGoalNodeInspector), ServiceLifetime.Singleton)]
-public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspector
-{
+public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspector {
     private const int DeadLoopMaxIterations = 10;
     private static readonly TimeSpan NodeTimeoutThreshold = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan DeadLoopTimeWindow = TimeSpan.FromMinutes(5);
@@ -24,8 +23,7 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
     /// <param name="logger">可选日志记录器</param>
     /// <param name="clock">可选时钟服务，缺省使用系统时钟</param>
     /// <param name="kernel">可选聊天客户端，用于质量评分</param>
-    public GoalNodeInspector(ILogger<GoalNodeInspector>? logger = null, IClockService? clock = null, IChatClient? kernel = null)
-    {
+    public GoalNodeInspector(ILogger<GoalNodeInspector>? logger = null, IClockService? clock = null, IChatClient? kernel = null) {
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _kernel = kernel;
@@ -35,21 +33,18 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
     public Task<NodeHealthReport> CheckHealthAsync(
         IReadOnlyList<GoalNodePayload> activeNodes,
         IReadOnlyDictionary<string, IReadOnlyList<string>>? nodeModifiedFiles = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(activeNodes);
 
         var alerts = new List<NodeHealthAlert>();
         var now = _clock.GetUtcNow();
 
-        foreach (var node in activeNodes)
-        {
+        foreach (var node in activeNodes) {
             CheckNodeTimeout(node, now, alerts);
             CheckDeadLoop(node, now, alerts);
         }
 
-        if (nodeModifiedFiles is not null)
-        {
+        if (nodeModifiedFiles is not null) {
             CheckFileConflicts(activeNodes, nodeModifiedFiles, alerts);
         }
 
@@ -61,18 +56,15 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
     }
 
     /// <inheritdoc />
-    public Task<bool> ObserveLoopAsync(LoopObservationContext context, CancellationToken cancellationToken = default)
-    {
-        if (!_loopHistoryByGoal.TryGetValue(context.GoalId, out var history))
-        {
+    public Task<bool> ObserveLoopAsync(LoopObservationContext context, CancellationToken cancellationToken = default) {
+        if (!_loopHistoryByGoal.TryGetValue(context.GoalId, out var history)) {
             history = [];
             _loopHistoryByGoal[context.GoalId] = history;
         }
 
         history.Add(context.NegativeReviewCount);
 
-        if (history.Count < 2)
-        {
+        if (history.Count < 2) {
             _logger?.LogDebug("[GoalNodeInspector] 首次观察，继续循环 (Goal={GoalId}, 负评={NegCount}, 迭代={Iter})",
                 context.GoalId, context.NegativeReviewCount, context.LoopIteration);
             return Task.FromResult(false);
@@ -80,8 +72,7 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
 
         var shouldTerminate = CheckTrendImprovement(history) || CheckStalemate(history) || CheckNearHardLimit(context);
 
-        if (shouldTerminate)
-        {
+        if (shouldTerminate) {
             _loopHistoryByGoal.Remove(context.GoalId);
             _logger?.LogInformation("[GoalNodeInspector] 建议终止循环 (Goal={GoalId}, 负评={NegCount}, 迭代={Iter}, 历史=[{History}])",
                 context.GoalId, context.NegativeReviewCount, context.LoopIteration, string.Join(",", history));
@@ -91,22 +82,19 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
     }
 
     /// <inheritdoc />
-    public async Task<NodeQualityScore> ScoreAsync(string nodeOutput, IReadOnlyList<string>? criteria = null, CancellationToken cancellationToken = default)
-    {
+    public async Task<NodeQualityScore> ScoreAsync(string nodeOutput, IReadOnlyList<string>? criteria = null, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(nodeOutput);
 
         if (_kernel is null)
             return NodeQualityScore.Default;
 
-        try
-        {
+        try {
             var prompt = BuildScoringPrompt(nodeOutput, criteria);
             var chatHistory = new MessageList();
             chatHistory.AddSystemMessage(prompt);
             chatHistory.AddUserMessage("Score this node output.");
 
-            var executionSettings = new ChatOptions
-            {
+            var executionSettings = new ChatOptions {
                 Temperature = 0.0f,
                 MaxTokens = 500
             };
@@ -117,16 +105,13 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
 
             var content = results.Count > 0 ? results[0].Content : null;
             return ParseScoringResult(content, _logger);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[GoalNodeInspector] LLM 评分失败，回退默认评分");
             return NodeQualityScore.Default;
         }
     }
 
-    private static string BuildScoringPrompt(string nodeOutput, IReadOnlyList<string>? criteria)
-    {
+    private static string BuildScoringPrompt(string nodeOutput, IReadOnlyList<string>? criteria) {
         var criteriaText = criteria is not null && criteria.Count > 0
             ? string.Join(", ", criteria)
             : "completeness, correctness, format, no_hallucination";
@@ -158,8 +143,7 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
             """;
     }
 
-    private static NodeQualityScore ParseScoringResult(string? content, ILogger? logger = null)
-    {
+    private static NodeQualityScore ParseScoringResult(string? content, ILogger? logger = null) {
         if (string.IsNullOrWhiteSpace(content))
             return NodeQualityScore.Default;
 
@@ -169,32 +153,27 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
 
         var dimensions = new Dictionary<string, double>(StringComparer.Ordinal);
         var totalScore = 0.0;
-        foreach (var criterion in result.Criteria)
-        {
+        foreach (var criterion in result.Criteria) {
             var clampedScore = Math.Clamp(criterion.Score, 0.0, 1.0);
             dimensions[criterion.Name] = clampedScore;
             totalScore += clampedScore;
         }
 
         var overall = result.Criteria.Count > 0 ? totalScore / result.Criteria.Count : 0.5;
-        return new NodeQualityScore
-        {
+        return new NodeQualityScore {
             Overall = overall,
             Dimensions = dimensions,
             Reason = result.Reason,
         };
     }
 
-    private void CheckNodeTimeout(GoalNodePayload node, DateTime now, List<NodeHealthAlert> alerts)
-    {
+    private void CheckNodeTimeout(GoalNodePayload node, DateTime now, List<NodeHealthAlert> alerts) {
         if (node.Status != GoalNodeStatus.Running || node.StartedAt is not { } startedAt)
             return;
 
         var elapsed = now - startedAt;
-        if (elapsed > NodeTimeoutThreshold)
-        {
-            alerts.Add(new NodeHealthAlert
-            {
+        if (elapsed > NodeTimeoutThreshold) {
+            alerts.Add(new NodeHealthAlert {
                 NodeId = node.Name,
                 Kind = NodeAlertKind.NodeTimeout,
                 Message = $"节点运行超时: 已运行 {elapsed.TotalMinutes:F0} 分钟 (阈值 {NodeTimeoutThreshold.TotalMinutes:F0} 分钟)",
@@ -202,16 +181,13 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
         }
     }
 
-    private void CheckDeadLoop(GoalNodePayload node, DateTime now, List<NodeHealthAlert> alerts)
-    {
+    private void CheckDeadLoop(GoalNodePayload node, DateTime now, List<NodeHealthAlert> alerts) {
         if (node.LoopIteration <= DeadLoopMaxIterations || node.StartedAt is not { } startedAt)
             return;
 
         var elapsed = now - startedAt;
-        if (elapsed < DeadLoopTimeWindow)
-        {
-            alerts.Add(new NodeHealthAlert
-            {
+        if (elapsed < DeadLoopTimeWindow) {
+            alerts.Add(new NodeHealthAlert {
                 NodeId = node.Name,
                 Kind = NodeAlertKind.DeadLoop,
                 Message = $"死循环检测: 迭代 {node.LoopIteration} 次耗时 {elapsed.TotalSeconds:F0} 秒 (阈值 {DeadLoopMaxIterations} 次/{DeadLoopTimeWindow.TotalMinutes:F0} 分钟)",
@@ -222,22 +198,18 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
     private static void CheckFileConflicts(
         IReadOnlyList<GoalNodePayload> activeNodes,
         IReadOnlyDictionary<string, IReadOnlyList<string>> nodeModifiedFiles,
-        List<NodeHealthAlert> alerts)
-    {
+        List<NodeHealthAlert> alerts) {
         var runningNodes = activeNodes.Where(n => n.Status == GoalNodeStatus.Running).ToList();
         if (runningNodes.Count < 2)
             return;
 
         var fileToNodes = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var node in runningNodes)
-        {
+        foreach (var node in runningNodes) {
             if (!nodeModifiedFiles.TryGetValue(node.Name, out var files))
                 continue;
 
-            foreach (var file in files)
-            {
-                if (!fileToNodes.TryGetValue(file, out var nodeList))
-                {
+            foreach (var file in files) {
+                if (!fileToNodes.TryGetValue(file, out var nodeList)) {
                     nodeList = [];
                     fileToNodes[file] = nodeList;
                 }
@@ -245,12 +217,9 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
             }
         }
 
-        foreach (var (file, nodeIds) in fileToNodes)
-        {
-            if (nodeIds.Count >= 2)
-            {
-                alerts.Add(new NodeHealthAlert
-                {
+        foreach (var (file, nodeIds) in fileToNodes) {
+            if (nodeIds.Count >= 2) {
+                alerts.Add(new NodeHealthAlert {
                     NodeId = string.Join(",", nodeIds),
                     Kind = NodeAlertKind.FileConflict,
                     Message = $"运行时文件冲突: 文件 '{file}' 被 {nodeIds.Count} 个运行中节点同时修改: {string.Join(", ", nodeIds)}",
@@ -259,8 +228,7 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
         }
     }
 
-    private bool CheckTrendImprovement(List<int> history)
-    {
+    private bool CheckTrendImprovement(List<int> history) {
         if (history.Count < 3)
             return false;
 
@@ -271,8 +239,7 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
             return false;
 
         var reduction = (double)(recent - current) / recent;
-        if (reduction >= 0.3 && current < recent)
-        {
+        if (reduction >= 0.3 && current < recent) {
             _logger?.LogInformation("[GoalNodeInspector] 趋势向好: 负评从 {Prev} 降至 {Curr} (降幅 {Pct:P0})",
                 recent, current, reduction);
             return true;
@@ -281,14 +248,12 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
         return false;
     }
 
-    private bool CheckStalemate(List<int> history)
-    {
+    private bool CheckStalemate(List<int> history) {
         if (history.Count < 3)
             return false;
 
         var last3 = history[^3..];
-        if (last3.Distinct().Count() == 1 && last3[0] > 0)
-        {
+        if (last3.Distinct().Count() == 1 && last3[0] > 0) {
             _logger?.LogInformation("[GoalNodeInspector] 僵局检测: 连续3轮负评均为 {Count}", last3[0]);
             return true;
         }
@@ -296,10 +261,8 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
         return false;
     }
 
-    private bool CheckNearHardLimit(LoopObservationContext context)
-    {
-        if (context.LoopIteration >= 12 && context.NegativeReviewCount <= 8)
-        {
+    private bool CheckNearHardLimit(LoopObservationContext context) {
+        if (context.LoopIteration >= 12 && context.NegativeReviewCount <= 8) {
             _logger?.LogInformation("[GoalNodeInspector] 接近硬上限: 迭代={Iter} ≥ 12, 负评={Neg} ≤ 8",
                 context.LoopIteration, context.NegativeReviewCount);
             return true;

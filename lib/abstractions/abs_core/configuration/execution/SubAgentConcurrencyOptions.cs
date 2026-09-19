@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Configuration.Execution;
 /// 子代理并发控制统一配置 — spawn/execute/fork 三阶段差异化上限。
 /// 唯一数据源（ADR 0048），替代 MaxConcurrentAgents(死配置)/MaxConcurrentTasks/MaxConcurrency 分散配置。
 /// </summary>
-public sealed class SubAgentConcurrencyOptions
-{
+public sealed class SubAgentConcurrencyOptions {
     /// <summary>
     /// spawn 阶段最大并发数（同时创建子代理数，保护 worktree 磁盘资源）。
     /// 按 ADR 0050 在 AgentCoordinator.SpawnSubAgentAsync 施加 SemaphoreSlim。
@@ -27,8 +26,7 @@ public sealed class SubAgentConcurrencyOptions
     /// <summary>
     /// 校验配置合法性 — 配置加载时调用，非法值抛 ArgumentException。
     /// </summary>
-    public void Validate()
-    {
+    public void Validate() {
         if (MaxConcurrentSpawns < 1)
             throw new ArgumentException("MaxConcurrentSpawns 必须 >= 1", nameof(MaxConcurrentSpawns));
         if (MaxConcurrentExecutions < 1)

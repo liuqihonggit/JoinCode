@@ -29,12 +29,12 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
         Path.Combine(AppDataConstants.AppDataFolder, AppDataConstants.RulesFolderName)
     ];
 
-    private static readonly string[] UserRulesFilePaths = new[] { 
+    private static readonly string[] UserRulesFilePaths = new[] {
         Path.Combine(".codex", "instructions.md"),
         Path.Combine(".codex", "AGENTS.md")
      };
 
-    private static readonly string[] UserRulesDirectoryPaths = new[] { 
+    private static readonly string[] UserRulesDirectoryPaths = new[] {
         Path.Combine(".codex", "rules")
      };
 
@@ -296,7 +296,7 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
         foreach (var rulesDir in UserRulesDirectoryPaths) {
             var fullDirPath = Path.Combine(appDataRoot, rulesDir);
             if (_fs.DirectoryExists(fullDirPath)) {
-                    var mdFiles = _fs.GetFiles(fullDirPath, "*.md", SearchOption.AllDirectories);
+                var mdFiles = _fs.GetFiles(fullDirPath, "*.md", SearchOption.AllDirectories);
                 if (mdFiles.Length > 0) {
                     return mdFiles[0];
                 }

@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests;
 
-public sealed class ReasoningEngineTests
-{
+public sealed class ReasoningEngineTests {
     [Fact]
-    public async Task AddAssumptionsAsync_ShouldAddItemAsAssumption()
-    {
+    public async Task AddAssumptionsAsync_ShouldAddItemAsAssumption() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "测试假定", State = DataState.Assumption, Source = "测试" };
 
@@ -17,8 +15,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task AddAssumptionsAsync_ShouldRejectNonAssumptionState()
-    {
+    public async Task AddAssumptionsAsync_ShouldRejectNonAssumptionState() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "测试", State = DataState.Fact, Source = "测试" };
 
@@ -27,8 +24,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task AddAssumptionsAsync_ShouldRejectDuplicateContent()
-    {
+    public async Task AddAssumptionsAsync_ShouldRejectDuplicateContent() {
         var engine = CreateEngine();
         var item1 = new DataItem { Content = "重复内容", State = DataState.Assumption, Source = "测试" };
         var item2 = new DataItem { Content = "重复内容", State = DataState.Assumption, Source = "测试" };
@@ -39,8 +35,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task GetFacts_ShouldReturnOnlyFacts()
-    {
+    public async Task GetFacts_ShouldReturnOnlyFacts() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
 
@@ -49,8 +44,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task GetSummary_ShouldReturnCorrectCounts()
-    {
+    public async Task GetSummary_ShouldReturnCorrectCounts() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
 
@@ -62,14 +56,12 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task AddEvidence_ShouldLinkToClaimViaDag()
-    {
+    public async Task AddEvidence_ShouldLinkToClaimViaDag() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Content = "证据1",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.Moderate,
@@ -86,8 +78,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task RunAdversarialProcessAsync_ShouldExecuteAllAgents()
-    {
+    public async Task RunAdversarialProcessAsync_ShouldExecuteAllAgents() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
@@ -99,14 +90,12 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task PropagateEvidenceFailure_ShouldDownstreamVerdicts()
-    {
+    public async Task PropagateEvidenceFailure_ShouldDownstreamVerdicts() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Content = "证据1",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.DirectEvidence,
@@ -121,8 +110,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task IncrementalRecompute_ShouldReturnAffectedSubgraph()
-    {
+    public async Task IncrementalRecompute_ShouldReturnAffectedSubgraph() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
@@ -133,14 +121,12 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task Dag_ShouldPreventCycleOnAddEvidence()
-    {
+    public async Task Dag_ShouldPreventCycleOnAddEvidence() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Id = "ev1",
             Content = "证据1",
             Category = EvidenceCategory.Documentary,
@@ -153,8 +139,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task AddAssumptionsAsync_ShouldRejectWhenNodeLimitReached()
-    {
+    public async Task AddAssumptionsAsync_ShouldRejectWhenNodeLimitReached() {
         var options = new ReasoningOptions { MaxNodes = 2 };
         var engine = CreateEngine(options);
         var item1 = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
@@ -168,15 +153,13 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task AddEvidence_ShouldRejectWhenEvidenceLimitReached()
-    {
+    public async Task AddEvidence_ShouldRejectWhenEvidenceLimitReached() {
         var options = new ReasoningOptions { MaxEvidencePerClaim = 1 };
         var engine = CreateEngine(options);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var ev1 = new EvidenceRecord
-        {
+        var ev1 = new EvidenceRecord {
             Content = "证据1",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.Moderate,
@@ -184,8 +167,7 @@ public sealed class ReasoningEngineTests
         };
         engine.AddEvidence(ev1, item.Id);
 
-        var ev2 = new EvidenceRecord
-        {
+        var ev2 = new EvidenceRecord {
             Content = "证据2",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.Moderate,
@@ -198,8 +180,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task RunAdversarialProcessAsync_ShouldStopWhenRoundsBudgetExhausted()
-    {
+    public async Task RunAdversarialProcessAsync_ShouldStopWhenRoundsBudgetExhausted() {
         var options = new ReasoningOptions { MaxAdversarialRounds = 1, MaxTokens = 100000 };
         var engine = CreateEngine(options);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
@@ -216,8 +197,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task RunAdversarialProcessAsync_ShouldStopWhenTokenBudgetExhausted()
-    {
+    public async Task RunAdversarialProcessAsync_ShouldStopWhenTokenBudgetExhausted() {
         var options = new ReasoningOptions { MaxAdversarialRounds = 100, MaxTokens = 100 };
         var engine = CreateEngine(options);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
@@ -228,8 +208,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task ContinueAsync_ShouldRefillRoundsAndContinue()
-    {
+    public async Task ContinueAsync_ShouldRefillRoundsAndContinue() {
         var options = new ReasoningOptions { MaxAdversarialRounds = 1, MaxTokens = 100000, DefaultRefillRounds = 2 };
         var engine = CreateEngine(options);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
@@ -246,8 +225,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task ContinueAsync_ShouldRefillTokensAndContinue()
-    {
+    public async Task ContinueAsync_ShouldRefillTokensAndContinue() {
         var options = new ReasoningOptions { MaxAdversarialRounds = 100, MaxTokens = 100, DefaultRefillTokens = 5000 };
         var engine = CreateEngine(options);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
@@ -263,8 +241,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task ContinueAsync_DefaultMode_ShouldRefillOnlyExhaustedBudget()
-    {
+    public async Task ContinueAsync_DefaultMode_ShouldRefillOnlyExhaustedBudget() {
         var options = new ReasoningOptions { MaxAdversarialRounds = 1, MaxTokens = 100000, DefaultRefillRounds = 3, DefaultRefillTokens = 5000 };
         var engine = CreateEngine(options);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
@@ -282,8 +259,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task ContinueAsync_BothMode_ShouldRefillBothBudgets()
-    {
+    public async Task ContinueAsync_BothMode_ShouldRefillBothBudgets() {
         var options = new ReasoningOptions { MaxAdversarialRounds = 1, MaxTokens = 100000, DefaultRefillRounds = 3, DefaultRefillTokens = 5000 };
         var engine = CreateEngine(options);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
@@ -297,15 +273,13 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task AddEvidence_ShouldRejectWhenNodeLimitReached()
-    {
+    public async Task AddEvidence_ShouldRejectWhenNodeLimitReached() {
         var options = new ReasoningOptions { MaxNodes = 2 };
         var engine = CreateEngine(options);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var ev1 = new EvidenceRecord
-        {
+        var ev1 = new EvidenceRecord {
             Content = "证据1",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.Moderate,
@@ -313,8 +287,7 @@ public sealed class ReasoningEngineTests
         };
         engine.AddEvidence(ev1, item.Id);
 
-        var ev2 = new EvidenceRecord
-        {
+        var ev2 = new EvidenceRecord {
             Content = "证据2",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.Moderate,
@@ -327,8 +300,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void ReasoningOptions_Panda_ShouldHaveExpectedValues()
-    {
+    public void ReasoningOptions_Panda_ShouldHaveExpectedValues() {
         var opts = ReasoningOptions.Panda;
         Assert.Equal(100, opts.MaxNodes);
         Assert.Equal(20, opts.MaxEvidencePerClaim);
@@ -346,8 +318,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void ReasoningOptionsBuilder_ShouldBuildCorrectOptions()
-    {
+    public void ReasoningOptionsBuilder_ShouldBuildCorrectOptions() {
         var opts = ReasoningOptionsBuilder.Create()
             .WithMaxNodes(50)
             .WithMaxEvidencePerClaim(10)
@@ -380,8 +351,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void ReasoningOptions_Murder_ShouldBeMoreRestrictive()
-    {
+    public void ReasoningOptions_Murder_ShouldBeMoreRestrictive() {
         var murder = ReasoningOptions.Murder;
         Assert.True(murder.MaxNodes < ReasoningOptions.Panda.MaxNodes);
         Assert.True(murder.MaxEvidencePerClaim < ReasoningOptions.Panda.MaxEvidencePerClaim);
@@ -390,8 +360,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void ReasoningOptions_Divorce_ShouldBeMorePermissive()
-    {
+    public void ReasoningOptions_Divorce_ShouldBeMorePermissive() {
         var divorce = ReasoningOptions.Divorce;
         Assert.True(divorce.MaxNodes > ReasoningOptions.Panda.MaxNodes);
         Assert.True(divorce.MaxEvidencePerClaim > ReasoningOptions.Panda.MaxEvidencePerClaim);
@@ -400,8 +369,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void ReasoningOptions_IsNodeLimitReached_ShouldWorkCorrectly()
-    {
+    public void ReasoningOptions_IsNodeLimitReached_ShouldWorkCorrectly() {
         var opts = new ReasoningOptions { MaxNodes = 5 };
         Assert.False(opts.IsNodeLimitReached(4));
         Assert.True(opts.IsNodeLimitReached(5));
@@ -409,8 +377,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void ReasoningOptions_IsEvidenceLimitReached_ShouldWorkCorrectly()
-    {
+    public void ReasoningOptions_IsEvidenceLimitReached_ShouldWorkCorrectly() {
         var opts = new ReasoningOptions { MaxEvidencePerClaim = 3 };
         Assert.False(opts.IsEvidenceLimitReached(2));
         Assert.True(opts.IsEvidenceLimitReached(3));
@@ -418,8 +385,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void BudgetStatus_ShouldDetectRoundsExhaustion()
-    {
+    public void BudgetStatus_ShouldDetectRoundsExhaustion() {
         var status = new BudgetStatus { RoundsUsed = 5, RoundsBudget = 5, TokensUsed = 100, TokensBudget = 10000 };
         Assert.True(status.IsRoundsExhausted);
         Assert.False(status.IsTokensExhausted);
@@ -428,8 +394,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void BudgetStatus_ShouldDetectTokensExhaustion()
-    {
+    public void BudgetStatus_ShouldDetectTokensExhaustion() {
         var status = new BudgetStatus { RoundsUsed = 1, RoundsBudget = 5, TokensUsed = 10000, TokensBudget = 10000 };
         Assert.False(status.IsRoundsExhausted);
         Assert.True(status.IsTokensExhausted);
@@ -438,8 +403,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void BudgetStatus_ShouldDetectBothExhaustion()
-    {
+    public void BudgetStatus_ShouldDetectBothExhaustion() {
         var status = new BudgetStatus { RoundsUsed = 5, RoundsBudget = 5, TokensUsed = 10000, TokensBudget = 10000 };
         Assert.True(status.IsRoundsExhausted);
         Assert.True(status.IsTokensExhausted);
@@ -447,24 +411,21 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void BudgetStatus_ShouldReportNoneWhenNotExhausted()
-    {
+    public void BudgetStatus_ShouldReportNoneWhenNotExhausted() {
         var status = new BudgetStatus { RoundsUsed = 1, RoundsBudget = 5, TokensUsed = 100, TokensBudget = 10000 };
         Assert.False(status.IsAnyExhausted);
         Assert.Equal(BudgetExhaustionCause.None, status.ExhaustionCause);
     }
 
     [Fact]
-    public void BudgetStatus_ShouldCalculateRemaining()
-    {
+    public void BudgetStatus_ShouldCalculateRemaining() {
         var status = new BudgetStatus { RoundsUsed = 3, RoundsBudget = 5, TokensUsed = 2000, TokensBudget = 10000 };
         Assert.Equal(2, status.RoundsRemaining);
         Assert.Equal(8000, status.TokensRemaining);
     }
 
     [Fact]
-    public void ReasoningOptionsBuilder_CreateMurder_ShouldMatchMurderPreset()
-    {
+    public void ReasoningOptionsBuilder_CreateMurder_ShouldMatchMurderPreset() {
         var built = ReasoningOptionsBuilder.CreateMurder().Build();
         var preset = ReasoningOptions.Murder;
         Assert.Equal(preset.MaxNodes, built.MaxNodes);
@@ -476,8 +437,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void ReasoningOptionsBuilder_CreateDivorce_ShouldMatchDivorcePreset()
-    {
+    public void ReasoningOptionsBuilder_CreateDivorce_ShouldMatchDivorcePreset() {
         var built = ReasoningOptionsBuilder.CreateDivorce().Build();
         var preset = ReasoningOptions.Divorce;
         Assert.Equal(preset.MaxNodes, built.MaxNodes);
@@ -489,8 +449,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task GetBudgetStatus_ShouldTrackTokenUsage()
-    {
+    public async Task GetBudgetStatus_ShouldTrackTokenUsage() {
         var options = new ReasoningOptions { MaxAdversarialRounds = 100, MaxTokens = 100000 };
         var engine = CreateEngine(options);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
@@ -502,8 +461,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task ContinueAsync_WithCustomAmounts_ShouldOverrideDefaults()
-    {
+    public async Task ContinueAsync_WithCustomAmounts_ShouldOverrideDefaults() {
         var options = new ReasoningOptions { MaxAdversarialRounds = 1, MaxTokens = 100000, DefaultRefillRounds = 3, DefaultRefillTokens = 5000 };
         var engine = CreateEngine(options);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
@@ -517,16 +475,14 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void ReasoningOptions_FromPreset_ShouldReturnCorrectOptions()
-    {
+    public void ReasoningOptions_FromPreset_ShouldReturnCorrectOptions() {
         Assert.Same(ReasoningOptions.Murder, ReasoningOptions.FromPreset(ReasoningPreset.Murder));
         Assert.Same(ReasoningOptions.Panda, ReasoningOptions.FromPreset(ReasoningPreset.Panda));
         Assert.Same(ReasoningOptions.Divorce, ReasoningOptions.FromPreset(ReasoningPreset.Divorce));
     }
 
     [Fact]
-    public void ReasoningOptionsBuilder_FromPreset_ShouldReturnCorrectBuilder()
-    {
+    public void ReasoningOptionsBuilder_FromPreset_ShouldReturnCorrectBuilder() {
         var murderBuilt = ReasoningOptionsBuilder.FromPreset(ReasoningPreset.Murder).Build();
         Assert.Equal(ReasoningOptions.Murder.MaxNodes, murderBuilt.MaxNodes);
         Assert.Equal(ReasoningOptions.Murder.AcceptThreshold, murderBuilt.AcceptThreshold);
@@ -536,8 +492,7 @@ public sealed class ReasoningEngineTests
         Assert.Equal(ReasoningOptions.Divorce.AcceptThreshold, divorceBuilt.AcceptThreshold);
     }
 
-    private static ReasoningEngine CreateEngine(ReasoningOptions? options = null)
-    {
+    private static ReasoningEngine CreateEngine(ReasoningOptions? options = null) {
         var agents = new ReasoningAgent[]
         {
             new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance),
@@ -548,8 +503,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task DetectConeConflict_ShouldReturnConflictResult()
-    {
+    public async Task DetectConeConflict_ShouldReturnConflictResult() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
@@ -560,8 +514,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task ExpandFragment_ShouldExpandWithMatchingCondition()
-    {
+    public async Task ExpandFragment_ShouldExpandWithMatchingCondition() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
@@ -577,8 +530,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task ConeOrchestrator_ShouldHaveAllRolesRegistered()
-    {
+    public async Task ConeOrchestrator_ShouldHaveAllRolesRegistered() {
         var engine = CreateEngine();
 
         Assert.NotNull(engine.ConeOrchestrator.GetRole(AgentRole.Prosecutor));
@@ -587,8 +539,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task BayesianUpdater_ShouldBeAccessible()
-    {
+    public async Task BayesianUpdater_ShouldBeAccessible() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
@@ -597,14 +548,12 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task AddAssumptionsAsync_ShouldCreateFragmentsInAllCones()
-    {
+    public async Task AddAssumptionsAsync_ShouldCreateFragmentsInAllCones() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        foreach (AgentRole role in new[] { AgentRole.Prosecutor, AgentRole.Defender, AgentRole.Judge })
-        {
+        foreach (AgentRole role in new[] { AgentRole.Prosecutor, AgentRole.Defender, AgentRole.Judge }) {
             var cone = engine.ConeOrchestrator.GetRole(role);
             Assert.NotNull(cone);
             Assert.True(cone.AllFragments.Count > 0);
@@ -612,14 +561,12 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public async Task ApplyVerdicts_PartiallyAccept_ShouldSetVerifiedState()
-    {
+    public async Task ApplyVerdicts_PartiallyAccept_ShouldSetVerifiedState() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Content = "证据1",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.Moderate,
@@ -627,8 +574,7 @@ public sealed class ReasoningEngineTests
         };
         engine.AddEvidence(evidence, item.Id);
 
-        var counterEvidence = new EvidenceRecord
-        {
+        var counterEvidence = new EvidenceRecord {
             Content = "反驳1",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.Moderate,
@@ -638,8 +584,7 @@ public sealed class ReasoningEngineTests
     }
 
     [Fact]
-    public void ReasoningOptions_ConeWindowSize_ShouldDefaultTo5()
-    {
+    public void ReasoningOptions_ConeWindowSize_ShouldDefaultTo5() {
         var opts = ReasoningOptions.Panda;
         Assert.Equal(5, opts.ConeWindowSize);
     }

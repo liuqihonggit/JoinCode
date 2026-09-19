@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces.Scheduling;
 
-public sealed record CronFields
-{
+public sealed record CronFields {
     public required int[] Minute { get; init; }
     public required int[] Hour { get; init; }
     public required int[] DayOfMonth { get; init; }
@@ -11,8 +10,7 @@ public sealed record CronFields
 
 internal sealed record FieldRange(int Min, int Max);
 
-public static class CronExpressionParser
-{
+public static class CronExpressionParser {
     private static readonly FieldRange[] FieldRanges =
     [
         new FieldRange(0, 59),
@@ -26,21 +24,18 @@ public static class CronExpressionParser
     private static readonly Regex RangePattern = new(@"^(\d+)-(\d+)(?:/(\d+))?$", RegexOptions.Compiled);
     private static readonly Regex SinglePattern = new(@"^(\d+)$", RegexOptions.Compiled);
 
-    public static CronFields? Parse(string expression)
-    {
+    public static CronFields? Parse(string expression) {
         var parts = expression.Trim().Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 5) return null;
 
         var expanded = new int[5][];
-        for (int i = 0; i < 5; i++)
-        {
+        for (int i = 0; i < 5; i++) {
             var result = ExpandField(parts[i], FieldRanges[i]);
             if (result == null) return null;
             expanded[i] = result;
         }
 
-        return new CronFields
-        {
+        return new CronFields {
             Minute = expanded[0],
             Hour = expanded[1],
             DayOfMonth = expanded[2],
@@ -49,23 +44,19 @@ public static class CronExpressionParser
         };
     }
 
-    public static bool IsValid(string expression)
-    {
+    public static bool IsValid(string expression) {
         return Parse(expression) != null;
     }
 
-    private static int[]? ExpandField(string field, FieldRange range)
-    {
+    private static int[]? ExpandField(string field, FieldRange range) {
         var (min, max) = (range.Min, range.Max);
         var result = new HashSet<int>();
 
-        foreach (var part in field.Split(','))
-        {
+        foreach (var part in field.Split(',')) {
             var trimmed = part.Trim();
 
             var stepMatch = StepPattern.Match(trimmed);
-            if (stepMatch.Success)
-            {
+            if (stepMatch.Success) {
                 var step = stepMatch.Groups[1].Success ? int.Parse(stepMatch.Groups[1].Value) : 1;
                 if (step < 1) return null;
                 for (int i = min; i <= max; i += step)
@@ -74,8 +65,7 @@ public static class CronExpressionParser
             }
 
             var rangeMatch = RangePattern.Match(trimmed);
-            if (rangeMatch.Success)
-            {
+            if (rangeMatch.Success) {
                 var lo = int.Parse(rangeMatch.Groups[1].Value);
                 var hi = int.Parse(rangeMatch.Groups[2].Value);
                 var step = rangeMatch.Groups[3].Success ? int.Parse(rangeMatch.Groups[3].Value) : 1;
@@ -85,16 +75,14 @@ public static class CronExpressionParser
 
                 if (lo > hi || step < 1 || lo < min || hi > effMax) return null;
 
-                for (int i = lo; i <= hi; i += step)
-                {
+                for (int i = lo; i <= hi; i += step) {
                     result.Add(isDow && i == 7 ? 0 : i);
                 }
                 continue;
             }
 
             var singleMatch = SinglePattern.Match(trimmed);
-            if (singleMatch.Success)
-            {
+            if (singleMatch.Success) {
                 var n = int.Parse(trimmed);
                 if (min == 0 && max == 6 && n == 7) n = 0;
                 if (n < min || n > max) return null;

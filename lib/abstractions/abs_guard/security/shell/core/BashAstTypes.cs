@@ -24,8 +24,7 @@ public sealed record BashRedirectInfo(string Op, string Target, int? Fd = null);
 /// AST 安全解析结果 — 对齐 TS ParseForSecurityResult
 /// 统一 CodeIndex 和 Guard 的重复定义
 /// </summary>
-public abstract record BashAstSecurityResult
-{
+public abstract record BashAstSecurityResult {
     /// <summary>命令可静态分析，提取出简单命令列表</summary>
     public sealed record Simple(BashSimpleCommandInfo[] Commands) : BashAstSecurityResult;
 
@@ -48,8 +47,7 @@ public sealed record BashSemanticCheckResult(
 /// 安全检查ID — 对齐 TS BASH_SECURITY_CHECK_IDS
 /// 统一 BashSecurityValidator (23值) + CodeIndex (9值) + BashSemanticCheckId 的重复定义
 /// </summary>
-public enum BashSecurityCheckId
-{
+public enum BashSecurityCheckId {
     /// <summary>不完整命令</summary>
     [EnumValue("incompleteCommands")]
     IncompleteCommands = 1,

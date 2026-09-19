@@ -1,16 +1,14 @@
 
 namespace Core.DependencyInjection;
 
-public static partial class ServiceRegistration
-{
+public static partial class ServiceRegistration {
     /// <summary>
     /// 注册工作流服务：聚合所有子系统的 DI 注册（核心、文件操作、工具、基础设施、MCP、Bridge、Agent、调度、上下文压缩、Brain、Vault、CodeIndex、新服务、Reasoning）。
     /// </summary>
     /// <param name="services">DI 容器。</param>
     /// <param name="config">工作流配置根对象。</param>
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
-    public static IServiceCollection AddWorkflowServices(this IServiceCollection services, WorkflowConfig config)
-    {
+    public static IServiceCollection AddWorkflowServices(this IServiceCollection services, WorkflowConfig config) {
         services.AddSingleton(config);
         services.AddSingleton(Options.Create(config));
         services.AddSingleton(config.Provider);
@@ -56,8 +54,7 @@ public static partial class ServiceRegistration
     /// <param name="services">DI 容器。</param>
     /// <param name="config">工作流配置根对象。</param>
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
-    public static IServiceCollection AddAiWorkflowServices(this IServiceCollection services, WorkflowConfig config)
-    {
+    public static IServiceCollection AddAiWorkflowServices(this IServiceCollection services, WorkflowConfig config) {
         services.AddWorkflowServices(config);
 
         services.AddKernelWithPlugins(config);

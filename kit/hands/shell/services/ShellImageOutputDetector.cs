@@ -4,8 +4,7 @@ namespace Tools.Shell;
 /// Shell 命令输出图片检测与压缩 — 对齐 TS BashTool/utils.ts isImageOutput/parseDataUri/resizeShellImageOutput
 /// 检测 stdout 中的 Data URI 格式 base64 图片数据，超过 20MB 时自动压缩
 /// </summary>
-public static class ShellImageOutputDetector
-{
+public static class ShellImageOutputDetector {
     /// <summary>
     /// 图片最大文件大小 — 对齐 TS MAX_IMAGE_FILE_SIZE (20MB)
     /// </summary>
@@ -17,8 +16,7 @@ public static class ShellImageOutputDetector
     /// </summary>
     /// <param name="stdout">命令标准输出文本</param>
     /// <returns>若为 Data URI 格式图片返回 true，否则返回 false</returns>
-    public static bool IsImageOutput(string stdout)
-    {
+    public static bool IsImageOutput(string stdout) {
         if (string.IsNullOrEmpty(stdout))
             return false;
 
@@ -40,8 +38,7 @@ public static class ShellImageOutputDetector
     /// </summary>
     /// <param name="dataUri">Data URI 格式字符串</param>
     /// <returns>解析成功的 (媒体类型, base64 数据) 元组；格式不合法则返回 null</returns>
-    public static (string MediaType, string Base64Data)? ParseDataUri(string dataUri)
-    {
+    public static (string MediaType, string Base64Data)? ParseDataUri(string dataUri) {
         if (string.IsNullOrEmpty(dataUri))
             return null;
 
@@ -74,28 +71,23 @@ public static class ShellImageOutputDetector
     /// <param name="mediaType">图片媒体类型（如 image/png）</param>
     /// <param name="base64Data">图片 base64 编码数据</param>
     /// <returns>压缩后的 (媒体类型, base64 数据)；若未超限或压缩失败则返回原始数据</returns>
-    public static (string MediaType, string Base64Data)? ResizeIfOversized(string mediaType, string base64Data)
-    {
+    public static (string MediaType, string Base64Data)? ResizeIfOversized(string mediaType, string base64Data) {
         var bytes = Convert.FromBase64String(base64Data);
         if (bytes.Length <= MaxImageFileSizeBytes)
             return (mediaType, base64Data);
 
-        try
-        {
+        try {
             using var image = SixLabors.ImageSharp.Image.Load(bytes);
             var maxDimension = 2048;
-            if (image.Width > maxDimension || image.Height > maxDimension)
-            {
-                image.Mutate(x => x.Resize(new SixLabors.ImageSharp.Processing.ResizeOptions
-                {
+            if (image.Width > maxDimension || image.Height > maxDimension) {
+                image.Mutate(x => x.Resize(new SixLabors.ImageSharp.Processing.ResizeOptions {
                     Size = new SixLabors.ImageSharp.Size(maxDimension, maxDimension),
                     Mode = SixLabors.ImageSharp.Processing.ResizeMode.Max,
                 }));
             }
 
             using var ms = new MemoryStream();
-            var encoder = mediaType switch
-            {
+            var encoder = mediaType switch {
                 "image/png" => (SixLabors.ImageSharp.Formats.IImageEncoder)new SixLabors.ImageSharp.Formats.Png.PngEncoder(),
                 "image/gif" => new SixLabors.ImageSharp.Formats.Gif.GifEncoder(),
                 _ => new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 85 },
@@ -105,9 +97,7 @@ public static class ShellImageOutputDetector
             var compressedBase64 = Convert.ToBase64String(ms.ToArray());
             var resultMediaType = encoder is SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder ? "image/jpeg" : mediaType;
             return (resultMediaType, compressedBase64);
-        }
-        catch
-        {
+        } catch {
             return (mediaType, base64Data);
         }
     }

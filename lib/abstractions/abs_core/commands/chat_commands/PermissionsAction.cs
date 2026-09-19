@@ -11,8 +11,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - FromValue("WORKSPACE")  → PermissionsAction.Workspace (OrdinalIgnoreCase)
 /// - PermissionsAction.Clear.ToValue() → "clear"
 /// </summary>
-public enum PermissionsAction
-{
+public enum PermissionsAction {
     /// <summary>添加权限规则 (外层 add,非 CrudAction.Create)</summary>
     [EnumValue("add")] Add,
 

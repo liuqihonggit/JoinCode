@@ -1,10 +1,8 @@
 namespace Infra.Tests.Utils.Resilience;
 
-public sealed class ResilientHttpClientProviderTests
-{
+public sealed class ResilientHttpClientProviderTests {
     [Fact]
-    public void Implements_IResilientHttpClientProvider()
-    {
+    public void Implements_IResilientHttpClientProvider() {
         var inner = new Mock<IHttpClientProvider>().Object;
         var provider = new ResilientHttpClientProvider(inner);
 
@@ -13,8 +11,7 @@ public sealed class ResilientHttpClientProviderTests
     }
 
     [Fact]
-    public void GetClient_DelegatesToInner()
-    {
+    public void GetClient_DelegatesToInner() {
         var expectedClient = new HttpClient();
         var mockInner = new Mock<IHttpClientProvider>();
         mockInner.Setup(x => x.GetClient()).Returns(expectedClient);
@@ -26,8 +23,7 @@ public sealed class ResilientHttpClientProviderTests
     }
 
     [Fact]
-    public void GetClient_WithName_DelegatesToInner()
-    {
+    public void GetClient_WithName_DelegatesToInner() {
         var expectedClient = new HttpClient();
         var mockInner = new Mock<IHttpClientProvider>();
         mockInner.Setup(x => x.GetClient("test")).Returns(expectedClient);
@@ -39,15 +35,13 @@ public sealed class ResilientHttpClientProviderTests
     }
 
     [Fact]
-    public async Task SendResilientAsync_Success_ReturnsResponse()
-    {
+    public async Task SendResilientAsync_Success_ReturnsResponse() {
         var handler = new MockHttpMessageHandler(HttpStatusCode.OK, "ok");
         var client = new HttpClient(handler);
         var mockInner = new Mock<IHttpClientProvider>();
         mockInner.Setup(x => x.GetClient()).Returns(client);
 
-        var provider = new ResilientHttpClientProvider(mockInner.Object, policy: new ResiliencePolicy
-        {
+        var provider = new ResilientHttpClientProvider(mockInner.Object, policy: new ResiliencePolicy {
             Name = "test",
             OperationTimeout = TimeSpan.FromSeconds(5),
             Retry = new RetryConfig { MaxRetries = 0 },
@@ -60,15 +54,13 @@ public sealed class ResilientHttpClientProviderTests
     }
 
     [Fact]
-    public async Task SendResilientAsync_CircuitBreakerOpen_Throws()
-    {
+    public async Task SendResilientAsync_CircuitBreakerOpen_Throws() {
         var handler = new MockHttpMessageHandler(new HttpRequestException("connection refused"));
         var client = new HttpClient(handler);
         var mockInner = new Mock<IHttpClientProvider>();
         mockInner.Setup(x => x.GetClient()).Returns(client);
 
-        var policy = new ResiliencePolicy
-        {
+        var policy = new ResiliencePolicy {
             Name = "test-cb",
             OperationTimeout = TimeSpan.FromSeconds(1),
             CircuitBreaker = new CircuitBreakerConfig { FailureThreshold = 1, OpenDuration = TimeSpan.FromSeconds(10) },
@@ -86,8 +78,7 @@ public sealed class ResilientHttpClientProviderTests
     }
 
     [Fact]
-    public void Executor_ReturnsResilientHttpExecutor()
-    {
+    public void Executor_ReturnsResilientHttpExecutor() {
         var inner = new Mock<IHttpClientProvider>().Object;
         var provider = new ResilientHttpClientProvider(inner);
 
@@ -96,15 +87,13 @@ public sealed class ResilientHttpClientProviderTests
     }
 
     [Fact]
-    public async Task SendResilientAsync_WithDisabledRetry_NoRetry()
-    {
+    public async Task SendResilientAsync_WithDisabledRetry_NoRetry() {
         var handler = new MockHttpMessageHandler(new HttpRequestException("fail"));
         var client = new HttpClient(handler);
         var mockInner = new Mock<IHttpClientProvider>();
         mockInner.Setup(x => x.GetClient()).Returns(client);
 
-        var policy = new ResiliencePolicy
-        {
+        var policy = new ResiliencePolicy {
             Name = "test-no-retry",
             OperationTimeout = TimeSpan.FromSeconds(5),
             Retry = new RetryConfig { MaxRetries = 0 },
@@ -117,23 +106,19 @@ public sealed class ResilientHttpClientProviderTests
             await provider.SendResilientAsync(request, "test-op"));
     }
 
-    private sealed class MockHttpMessageHandler : HttpMessageHandler
-    {
+    private sealed class MockHttpMessageHandler : HttpMessageHandler {
         private readonly HttpResponseMessage? _response;
         private readonly Exception? _exception;
 
-        public MockHttpMessageHandler(HttpStatusCode statusCode, string body = "")
-        {
+        public MockHttpMessageHandler(HttpStatusCode statusCode, string body = "") {
             _response = new HttpResponseMessage(statusCode) { Content = new StringContent(body) };
         }
 
-        public MockHttpMessageHandler(Exception exception)
-        {
+        public MockHttpMessageHandler(Exception exception) {
             _exception = exception;
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
             if (_exception is not null) return Task.FromException<HttpResponseMessage>(_exception);
             return Task.FromResult(_response!);
         }

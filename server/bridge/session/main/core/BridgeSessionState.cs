@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// Bridge 会话状态 — 合并 8 个以 sessionId 为 key 的字典为单一不可变 record
 /// 并发更新用 ConcurrentDictionary.AddOrUpdate + record with 原子交换
 /// </summary>
-internal sealed record BridgeSessionState
-{
+internal sealed record BridgeSessionState {
     /// <summary>子进程句柄（注册时由 SpawnMiddleware 保证非 null，测试可传 null）</summary>
     public BridgeSubprocessHandle? Handle { get; init; }
 

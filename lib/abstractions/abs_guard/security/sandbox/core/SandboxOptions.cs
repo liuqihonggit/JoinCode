@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Security.Sandbox;
 
-public sealed partial class SandboxOptions
-{
+public sealed partial class SandboxOptions {
     public required SandboxType Type { get; init; }
     public string? SandboxRoot { get; init; }
     public bool RestrictNetwork { get; init; } = true;

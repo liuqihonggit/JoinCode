@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 文件读取事件参数。
 /// 对齐 TS FileReadTool: fileReadListeners — 通知监听器文件被读取的事件数据。
 /// </summary>
-public sealed record FileReadEventArgs
-{
+public sealed record FileReadEventArgs {
     /// <summary>
     /// 被读取文件的已解析绝对路径。
     /// 对齐 TS: resolvedFilePath（非用户输入的原始路径）。
@@ -23,8 +22,7 @@ public sealed record FileReadEventArgs
 /// 文件读取监听器接口。
 /// 对齐 TS FileReadTool: type FileReadListener = (filePath: string, content: string) => void
 /// </summary>
-public interface IFileReadListener
-{
+public interface IFileReadListener {
     /// <summary>
     /// 当文件被成功读取时调用。
     /// 仅在文本文件读取成功后触发，PDF/Notebook/图像等特殊文件不触发。
@@ -37,8 +35,7 @@ public interface IFileReadListener
 /// 对齐 TS FileReadTool: registerFileReadListener / fileReadListeners
 /// 支持注册/取消订阅，线程安全。
 /// </summary>
-public interface IFileReadListenerRegistry : IRegistry
-{
+public interface IFileReadListenerRegistry : IRegistry {
     /// <summary>
     /// 注册文件读取监听器，返回取消订阅的 token。
     /// 对齐 TS: registerFileReadListener(listener) => unsubscribe 函数

@@ -5,8 +5,7 @@ namespace Services.Web;
 /// Order=500 在HTTP获取之后执行
 /// </summary>
 [Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WebContentProcessingMiddleware : ServiceEntity, IWebMiddleware
-{
+public sealed partial class WebContentProcessingMiddleware : ServiceEntity, IWebMiddleware {
     private const int MaxMarkdownLength = 100_000;
 
     private readonly IHtmlToMarkdownConverter _htmlToMarkdownConverter;
@@ -20,16 +19,14 @@ public sealed partial class WebContentProcessingMiddleware : ServiceEntity, IWeb
     /// <summary>
     /// 创建 WebContentProcessingMiddleware
     /// </summary>
-    public WebContentProcessingMiddleware(IHtmlToMarkdownConverter htmlToMarkdownConverter, IBinaryContentStorage binaryContentStorage, ILogger<WebContentProcessingMiddleware>? logger = null)
-    {
+    public WebContentProcessingMiddleware(IHtmlToMarkdownConverter htmlToMarkdownConverter, IBinaryContentStorage binaryContentStorage, ILogger<WebContentProcessingMiddleware>? logger = null) {
         _htmlToMarkdownConverter = htmlToMarkdownConverter;
         _binaryContentStorage = binaryContentStorage;
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public async Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct) {
         var fetchResult = context.FetchResult ?? throw new InvalidOperationException("FetchResult is not available in WebContext.");
         var html = fetchResult.Content ?? string.Empty;
         var contentType = context.ContentType ?? "text/html";
@@ -38,13 +35,11 @@ public sealed partial class WebContentProcessingMiddleware : ServiceEntity, IWeb
         // 二进制内容持久化 — 对齐TS版: isBinaryContentType + persistBinaryContent
         string? persistedPath = null;
         var persistedSize = 0;
-        if (rawBytes is { Length: > 0 } && BinaryContentTypeDetector.IsBinaryContentType(contentType))
-        {
+        if (rawBytes is { Length: > 0 } && BinaryContentTypeDetector.IsBinaryContentType(contentType)) {
             var persistId = _binaryContentStorage.GeneratePersistId();
             var persistResult = await _binaryContentStorage.PersistAsync(
                 rawBytes, contentType, persistId, ct).ConfigureAwait(false);
-            if (persistResult.Success)
-            {
+            if (persistResult.Success) {
                 persistedPath = persistResult.FilePath;
                 persistedSize = persistResult.Size;
                 _logger?.LogDebug("二进制内容已持久化: {Path}, Size={Size}", persistedPath, persistedSize);
@@ -56,8 +51,7 @@ public sealed partial class WebContentProcessingMiddleware : ServiceEntity, IWeb
             : html;
 
         var truncated = markdownContent.Length > MaxMarkdownLength;
-        if (truncated)
-        {
+        if (truncated) {
             markdownContent = markdownContent[..MaxMarkdownLength] + "\n\n[Content truncated due to length...]";
         }
 

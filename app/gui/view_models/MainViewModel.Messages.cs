@@ -3,8 +3,7 @@ namespace JoinCode.Gui.ViewModels;
 /// <summary>
 /// MainViewModel 消息管理 partial — 消息集合、搜索过滤、复制/删除/重新生成、导出、token 估算。
 /// </summary>
-public sealed partial class MainViewModel
-{
+public sealed partial class MainViewModel {
     /// <summary>UI 对话消息集合（角色化气泡）</summary>
     public ObservableCollection<ChatUiMessage> Messages { get; } = [];
 
@@ -53,18 +52,14 @@ public sealed partial class MainViewModel
         : Messages;
 
     /// <summary>全部消息的终端式纯文本（角色标签+时间戳+内容），供 TextBox 跨行选择</summary>
-    public string AllMessagesText
-    {
-        get
-        {
+    public string AllMessagesText {
+        get {
             if (Messages.Count == 0)
                 return string.Empty;
             var sb = new System.Text.StringBuilder();
-            foreach (var msg in FilteredMessages)
-            {
+            foreach (var msg in FilteredMessages) {
                 var text = msg.CopyAllText;
-                if (text.Length > 0)
-                {
+                if (text.Length > 0) {
                     sb.AppendLine(text);
                     sb.AppendLine();
                 }
@@ -73,18 +68,15 @@ public sealed partial class MainViewModel
         }
     }
 
-    partial void OnSearchTextChanged(string value)
-    {
+    partial void OnSearchTextChanged(string value) {
         OnPropertyChanged(nameof(FilteredMessages));
         OnPropertyChanged(nameof(AllMessagesText));
     }
 
-    private void OnMessagesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-    {
+    private void OnMessagesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) {
         if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
             _assistantMessageCount = Messages.Count(m => m.Role == MessageRole.Assistant);
-        else
-        {
+        else {
             if (e.OldItems is not null)
                 foreach (ChatUiMessage m in e.OldItems)
                     if (m.Role == MessageRole.Assistant) _assistantMessageCount--;
@@ -114,8 +106,7 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>单条消息属性变化（流式输出 Content 变化）时刷新 AllMessagesText</summary>
-    private void OnMessagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
+    private void OnMessagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
         if (e.PropertyName is nameof(ChatUiMessage.Content) or nameof(ChatUiMessage.ToolResultText))
             OnPropertyChanged(nameof(AllMessagesText));
     }
@@ -126,27 +117,21 @@ public sealed partial class MainViewModel
     /// 刷新失败仅记日志，不影响命令本身的回显。
     /// </summary>
     /// <param name="echoToKeep">保留在列表末尾的命令回显消息</param>
-    private async Task ReloadMessagesFromEngineAsync(ChatUiMessage echoToKeep)
-    {
-        try
-        {
+    private async Task ReloadMessagesFromEngineAsync(ChatUiMessage echoToKeep) {
+        try {
             var records = await _session.GetMessagesAsync(_sendCts?.Token ?? CancellationToken.None);
             Messages.Clear();
-            foreach (var record in records)
-            {
+            foreach (var record in records) {
                 if (string.IsNullOrWhiteSpace(record.Content))
                     continue;
-                Messages.Add(new ChatUiMessage
-                {
+                Messages.Add(new ChatUiMessage {
                     Role = MessageRoleExtensions.FromValue(record.Role) ?? MessageRole.User,
                     Content = record.Content,
                     Timestamp = record.Timestamp.ToLocalTime()
                 });
             }
             Messages.Add(echoToKeep);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
@@ -166,8 +151,7 @@ public sealed partial class MainViewModel
 
     /// <summary>复制指定消息的完整终端式文本（含思考/工具/diff，穿透容器标签）到剪贴板并标记反馈状态</summary>
     [RelayCommand]
-    private void CopyMessage(ChatUiMessage? message)
-    {
+    private void CopyMessage(ChatUiMessage? message) {
         if (message is null || string.IsNullOrEmpty(message.CopyAllText))
             return;
         CopiedMessageCopy = message.CopyAllText;
@@ -184,16 +168,14 @@ public sealed partial class MainViewModel
 
     /// <summary>删除单条消息</summary>
     [RelayCommand]
-    private void RemoveMessage(ChatUiMessage? message)
-    {
+    private void RemoveMessage(ChatUiMessage? message) {
         if (message is not null)
             Messages.Remove(message);
     }
 
     /// <summary>撤回上一轮回复并重新生成（基于最后一条用户消息）</summary>
     [RelayCommand]
-    private async Task RegenerateLastReplyAsync()
-    {
+    private async Task RegenerateLastReplyAsync() {
         if (IsBusy)
             return;
 
@@ -217,20 +199,16 @@ public sealed partial class MainViewModel
     private Task ClearHistoryAsync()
         => ClearHistoryInternalAsync();
 
-    private async Task ClearHistoryInternalAsync()
-    {
+    private async Task ClearHistoryInternalAsync() {
         Messages.Clear();
         await _session.ClearHistoryAsync();
     }
 
     /// <summary>会话导出为文本（`角色 时间: 内容` 格式，供复制/下载）</summary>
-    public string ExportSessionText
-    {
-        get
-        {
+    public string ExportSessionText {
+        get {
             var sb = new System.Text.StringBuilder();
-            foreach (var m in Messages)
-            {
+            foreach (var m in Messages) {
                 sb.Append('[').Append(m.RoleLabel).Append(" · ")
                   .Append(m.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")).AppendLine("]");
                 sb.AppendLine(m.Content);

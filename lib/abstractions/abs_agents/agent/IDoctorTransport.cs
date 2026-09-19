@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 /// 医生 IPC 传输接口 — 从病人进程读取遥测事件，向病人发送指令
 /// 支持多种传输实现：SSE（多病人）、stdio（单病人）
 /// </summary>
-public interface IDoctorTransport : IAsyncDisposable
-{
+public interface IDoctorTransport : IAsyncDisposable {
     /// <summary>
     /// 连接到病人进程的遥测通道
     /// </summary>

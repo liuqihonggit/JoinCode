@@ -3,16 +3,14 @@ namespace McpClient;
 /// <summary>
 /// 结构化消息解析器 — 对齐 TS SendMessageTool backfillObservableInput + isStructuredProtocolMessage
 /// </summary>
-public static class StructuredMessageParser
-{
+public static class StructuredMessageParser {
     /// <summary>
     /// 尝试将 message 字符串解析为结构化协议消息
     /// </summary>
     /// <param name="message">待解析的消息字符串，可为 null</param>
     /// <param name="data">解析成功时输出结构化消息数据，失败时为 null</param>
     /// <returns>解析成功返回 true，否则返回 false</returns>
-    public static bool TryParse(string? message, out StructuredMessageData? data)
-    {
+    public static bool TryParse(string? message, out StructuredMessageData? data) {
         data = null;
 
         if (string.IsNullOrWhiteSpace(message))
@@ -23,8 +21,7 @@ public static class StructuredMessageParser
         if (trimmed.Length == 0 || trimmed[0] != '{')
             return false;
 
-        try
-        {
+        try {
             var json = RelaxedJsonSerializer.Deserialize(message, ContractsJsonContext.Default.DictionaryStringJsonElement);
             if (json is null || !json.TryGetValue("type", out var typeElement))
                 return false;
@@ -37,8 +34,7 @@ public static class StructuredMessageParser
             if (structuredType is null)
                 return false;
 
-            data = new StructuredMessageData
-            {
+            data = new StructuredMessageData {
                 Type = structuredType.Value,
                 RequestId = json.TryGetValue("request_id", out var reqId) ? reqId.GetString() : null,
                 Approve = json.TryGetValue("approve", out var approve) ? approve.ValueKind == JsonValueKind.True : (bool?)null,
@@ -49,12 +45,8 @@ public static class StructuredMessageParser
             };
 
             return true;
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             return false;
         }
     }
 }
-
-

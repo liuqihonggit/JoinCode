@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 消费方: InteractiveElicitationHandler (MCP 认证交互)
 /// 关系: IInteractiveService 提供结构化多选提问（MCP 工具协议），本接口提供简单交互
 /// </summary>
-public interface IUserInteractionService
-{
+public interface IUserInteractionService {
     /// <summary>
     /// 询问用户问题
     /// </summary>
@@ -35,8 +34,7 @@ public sealed record UserInteractionResult(
 /// <summary>
 /// 消息类型
 /// </summary>
-public enum MessageType
-{
+public enum MessageType {
     [EnumValue("info")]
     Info,
     [EnumValue("warning")]

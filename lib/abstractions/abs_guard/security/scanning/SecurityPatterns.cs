@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Security.Scanning;
 /// 密钥扫描匹配结果
 /// 对齐 TS: secretScanner.ts SecretMatch
 /// </summary>
-public sealed record SecretMatch
-{
+public sealed record SecretMatch {
     /// <summary>
     /// gitleaks 规则 ID（如 "github-pat", "aws-access-token"）
     /// </summary>
@@ -18,15 +17,13 @@ public sealed record SecretMatch
     public required string Label { get; init; }
 }
 
-public static partial class SecurityPatterns
-{
+public static partial class SecurityPatterns {
     /// <summary>
     /// 敏感文件模式按枚举分类存储 — 单一数据源来自 SensitiveFilePattern 枚举
     /// 消费方通过 ToValue() 或 IsDefined() 获取分类标识,通过本字典获取具体 Glob 模式列表
     /// </summary>
     private static readonly FrozenDictionary<SensitiveFilePattern, string[]> SensitiveFilePatternsByCategory =
-        new Dictionary<SensitiveFilePattern, string[]>
-        {
+        new Dictionary<SensitiveFilePattern, string[]> {
             [SensitiveFilePattern.EnvFiles] =
             [
                 ".env", ".env.local", ".env.production", ".env.staging", ".env.development",
@@ -94,11 +91,9 @@ public static partial class SecurityPatterns
     /// 对齐 TS: gitSafety.ts 的 .git/.svn/.hg 路径匹配逻辑
     /// 支持 / 与 \ 两种分隔符,大小写不敏感
     /// </summary>
-    public static bool MatchesVcsInternalPath(string? path)
-    {
+    public static bool MatchesVcsInternalPath(string? path) {
         if (string.IsNullOrWhiteSpace(path)) return false;
-        foreach (var segment in path.Split('/', '\\'))
-        {
+        foreach (var segment in path.Split('/', '\\')) {
             if (VcsInternalPathSegments.Contains(segment)) return true;
         }
         return false;
@@ -185,10 +180,8 @@ public static partial class SecurityPatterns
     /// 快速预筛 — 检查文本是否包含任何密钥前缀。
     /// 不包含则直接跳过全部正则检查。
     /// </summary>
-    private static bool ContainsAnySecretPrefix(string content)
-    {
-        foreach (var prefix in SecretPrefixes)
-        {
+    private static bool ContainsAnySecretPrefix(string content) {
+        foreach (var prefix in SecretPrefixes) {
             if (content.Contains(prefix, StringComparison.OrdinalIgnoreCase))
                 return true;
         }
@@ -199,8 +192,7 @@ public static partial class SecurityPatterns
     /// 规则 ID 到人类可读标签的映射
     /// 对齐 TS: secretScanner.ts ruleIdToLabel
     /// </summary>
-    private static readonly FrozenDictionary<string, string> RuleIdLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly FrozenDictionary<string, string> RuleIdLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
         ["aws"] = "AWS",
         ["gcp"] = "GCP",
         ["api"] = "API",
@@ -234,12 +226,10 @@ public static partial class SecurityPatterns
     /// 将 gitleaks 规则 ID（kebab-case）转换为人类可读标签
     /// 对齐 TS: ruleIdToLabel("github-pat") → "GitHub PAT"
     /// </summary>
-    public static string RuleIdToLabel(string ruleId)
-    {
+    public static string RuleIdToLabel(string ruleId) {
         var parts = ruleId.Split('-');
         var result = new string[parts.Length];
-        for (int i = 0; i < parts.Length; i++)
-        {
+        for (int i = 0; i < parts.Length; i++) {
             result[i] = RuleIdLabels.GetValueOrDefault(parts[i], Capitalize(parts[i]));
         }
         return string.Join(' ', result);
@@ -256,10 +246,8 @@ public static partial class SecurityPatterns
     /// <summary>
     /// 获取编译后的 gitleaks 规则（首次调用时编译）
     /// </summary>
-    public static (string Id, Regex Re)[] GetCompiledGitleaksRules()
-    {
-        if (_compiledGitleaksRules is null)
-        {
+    public static (string Id, Regex Re)[] GetCompiledGitleaksRules() {
+        if (_compiledGitleaksRules is null) {
             _compiledGitleaksRules = GitleaksRules
                 .Select(r => (r.Id, new Regex(r.Pattern, r.Flags == "i" ? RegexOptions.IgnoreCase : RegexOptions.None, TimeSpan.FromSeconds(5))))
                 .ToArray();
@@ -271,8 +259,7 @@ public static partial class SecurityPatterns
     /// 扫描内容中的密钥（对齐 TS: scanForSecrets）
     /// 返回匹配的规则列表（按规则 ID 去重），不返回匹配的密钥值本身
     /// </summary>
-    public static List<SecretMatch> ScanForSecretMatches(string content)
-    {
+    public static List<SecretMatch> ScanForSecretMatches(string content) {
         var matches = new List<SecretMatch>();
         if (string.IsNullOrWhiteSpace(content))
             return matches;
@@ -281,12 +268,10 @@ public static partial class SecurityPatterns
             return matches;
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (id, re) in GetCompiledGitleaksRules())
-        {
+        foreach (var (id, re) in GetCompiledGitleaksRules()) {
             if (seen.Contains(id))
                 continue;
-            if (re.IsMatch(content))
-            {
+            if (re.IsMatch(content)) {
                 seen.Add(id);
                 matches.Add(new SecretMatch { RuleId = id, Label = RuleIdToLabel(id) });
             }
@@ -298,20 +283,16 @@ public static partial class SecurityPatterns
     /// 涂抹内容中的密钥（对齐 TS: redactSecrets）
     /// 将匹配的密钥值替换为 [REDACTED]
     /// </summary>
-    public static string RedactSecrets(string content)
-    {
+    public static string RedactSecrets(string content) {
         if (string.IsNullOrWhiteSpace(content))
             return content;
 
         if (!ContainsAnySecretPrefix(content))
             return content;
 
-        foreach (var (_, re) in GetCompiledGitleaksRules())
-        {
-            content = re.Replace(content, match =>
-            {
-                if (match.Groups.Count > 1 && match.Groups[1].Success)
-                {
+        foreach (var (_, re) in GetCompiledGitleaksRules()) {
+            content = re.Replace(content, match => {
+                if (match.Groups.Count > 1 && match.Groups[1].Success) {
                     var groupValue = match.Groups[1].Value;
                     return match.Value.Replace(groupValue, "[REDACTED]", StringComparison.Ordinal);
                 }
@@ -374,8 +355,7 @@ public static partial class SecurityPatterns
     /// <summary>
     /// 判断文件名是否为敏感文件（含 .env 变体、密钥文件、凭据文件等）
     /// </summary>
-    public static bool IsSensitiveFileName(string fileName)
-    {
+    public static bool IsSensitiveFileName(string fileName) {
         if (string.IsNullOrWhiteSpace(fileName))
             return false;
 
@@ -397,13 +377,11 @@ public static partial class SecurityPatterns
     /// <summary>
     /// 判断路径中是否包含敏感路径段（如 .ssh、.env、credentials 等）
     /// </summary>
-    public static bool IsSensitivePathSegment(string path)
-    {
+    public static bool IsSensitivePathSegment(string path) {
         if (string.IsNullOrWhiteSpace(path))
             return false;
 
-        foreach (var segment in path.Split('/', '\\'))
-        {
+        foreach (var segment in path.Split('/', '\\')) {
             if (SensitivePathSegments.Contains(segment))
                 return true;
         }
@@ -414,8 +392,7 @@ public static partial class SecurityPatterns
     /// <summary>
     /// 判断文件是否为私钥文件（扩展名或文件名匹配）
     /// </summary>
-    public static bool IsPrivateKeyFile(string fileName)
-    {
+    public static bool IsPrivateKeyFile(string fileName) {
         if (string.IsNullOrWhiteSpace(fileName))
             return false;
 
@@ -432,8 +409,7 @@ public static partial class SecurityPatterns
     /// 对齐 TS: hasSuspiciousWindowsPathPattern — 防御路径注入攻击
     /// 包括: NTFS ADS、8.3短名、长路径前缀、尾部点/空格、DOS设备名、三点路径
     /// </summary>
-    public static bool HasSuspiciousWindowsPathPattern(string path)
-    {
+    public static bool HasSuspiciousWindowsPathPattern(string path) {
         if (string.IsNullOrWhiteSpace(path))
             return false;
 
@@ -496,8 +472,7 @@ public static partial class SecurityPatterns
     /// <summary>
     /// 判断文件是否为凭据文件（credentials.json、auth.json 等）
     /// </summary>
-    public static bool IsCredentialFile(string fileName)
-    {
+    public static bool IsCredentialFile(string fileName) {
         if (string.IsNullOrWhiteSpace(fileName))
             return false;
 
@@ -505,16 +480,14 @@ public static partial class SecurityPatterns
         return CredentialFileNames.Contains(name);
     }
 
-    public static List<SecretFinding> ScanForSecrets(string content, string filePath)
-    {
+    public static List<SecretFinding> ScanForSecrets(string content, string filePath) {
         var findings = new List<SecretFinding>();
 
         if (string.IsNullOrWhiteSpace(content))
             return findings;
 
         int lineNumber = 0;
-        foreach (var line in content.Split('\n'))
-        {
+        foreach (var line in content.Split('\n')) {
             lineNumber++;
             var trimmedLine = line.TrimStart();
 
@@ -526,13 +499,10 @@ public static partial class SecurityPatterns
             else
                 scanLine = trimmedLine;
 
-            foreach (var regex in _compiledSecretRegexes)
-            {
+            foreach (var regex in _compiledSecretRegexes) {
                 var match = regex.Match(scanLine);
-                if (match.Success)
-                {
-                    findings.Add(new SecretFinding
-                    {
+                if (match.Success) {
+                    findings.Add(new SecretFinding {
                         FilePath = filePath,
                         LineNumber = lineNumber,
                         MatchedPattern = regex.ToString(),
@@ -550,8 +520,7 @@ public static partial class SecurityPatterns
     /// 计算字符串的 SHA256 短哈希（前16字符）。
     /// 对齐 TS: fileOperationAnalytics.ts — filePathHash 用于遥测路径脱敏。
     /// </summary>
-    public static string ComputeShortHash(string input)
-    {
+    public static string ComputeShortHash(string input) {
         if (string.IsNullOrEmpty(input))
             return string.Empty;
 

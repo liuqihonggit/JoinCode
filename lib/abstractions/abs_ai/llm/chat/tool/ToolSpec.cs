@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class ToolSpec
-{
+public sealed class ToolSpec {
     public string Name { get; }
     public string? Description { get; }
     public string? InputSchemaJson { get; }
@@ -16,8 +15,7 @@ public sealed class ToolSpec
     /// </summary>
     public string? GroupName { get; }
 
-    public ToolSpec(string name, string? description = null, string? inputSchemaJson = null, string? category = null, string? groupName = null)
-    {
+    public ToolSpec(string name, string? description = null, string? inputSchemaJson = null, string? category = null, string? groupName = null) {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         Description = description;
         InputSchemaJson = inputSchemaJson;

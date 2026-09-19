@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 交互解析支持: 字母(i/e/w/l/p/a)、单词(init/error/warn/log/prompt/all/none)、数字(0/1/2/4/8/16/31)
 /// </summary>
 [Flags]
-public enum DebugDumpSection
-{
+public enum DebugDumpSection {
     /// <summary>不打开任何调试信息</summary>
     [EnumValue("0")]
     [EnumValue("n")]

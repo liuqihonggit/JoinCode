@@ -1,13 +1,11 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed partial class BridgeMainTests
-{
+public sealed partial class BridgeMainTests {
     #region RunAsync — 参数验证
 
     [Fact]
-    public async Task RunAsync_Help_ReturnsHelpText()
-    {
+    public async Task RunAsync_Help_ReturnsHelpText() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 
@@ -19,8 +17,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_ArgsError_ReturnsError()
-    {
+    public async Task RunAsync_ArgsError_ReturnsError() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 
@@ -31,8 +28,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_NoAccessToken_ReturnsError()
-    {
+    public async Task RunAsync_NoAccessToken_ReturnsError() {
         var deps = BridgeTestHelperMethods.CreateDeps(accessToken: null);
         await using var main = new BridgeMain(deps);
 
@@ -43,8 +39,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_RemoteDialogNotAccepted_ReturnsError()
-    {
+    public async Task RunAsync_RemoteDialogNotAccepted_ReturnsError() {
         var deps = BridgeTestHelperMethods.CreateDeps(checkRemoteDialog: false);
         await using var main = new BridgeMain(deps);
 
@@ -55,8 +50,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_NonHttpsUrl_ReturnsError()
-    {
+    public async Task RunAsync_NonHttpsUrl_ReturnsError() {
         var deps = BridgeTestHelperMethods.CreateDeps(baseUrl: "http://evil.example.com");
         await using var main = new BridgeMain(deps);
 
@@ -67,8 +61,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_LocalhostHttp_PassesHttpsCheck()
-    {
+    public async Task RunAsync_LocalhostHttp_PassesHttpsCheck() {
         var deps = BridgeTestHelperMethods.CreateDeps(baseUrl: "http://localhost:8080");
         await using var main = new BridgeMain(deps);
 
@@ -78,8 +71,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_127001Http_PassesHttpsCheck()
-    {
+    public async Task RunAsync_127001Http_PassesHttpsCheck() {
         var deps = BridgeTestHelperMethods.CreateDeps(baseUrl: "http://127.0.0.1:3000");
         await using var main = new BridgeMain(deps);
 

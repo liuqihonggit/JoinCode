@@ -4,8 +4,7 @@ namespace Core.Context.Compact;
 /// <summary>
 /// 微压缩服务接口 — 纯规则压缩，不调用 LLM
 /// </summary>
-public interface IMicrocompactService
-{
+public interface IMicrocompactService {
     /// <summary>
     /// 普通微压缩 — 清除旧工具结果内容，保留最近 N 个
     /// </summary>
@@ -41,8 +40,7 @@ public interface IMicrocompactService
 /// <summary>
 /// 微压缩结果
 /// </summary>
-public sealed class MicrocompactResult
-{
+public sealed class MicrocompactResult {
     /// <summary>压缩后的消息列表</summary>
     public required IReadOnlyList<ApiMessage> Messages { get; init; }
     /// <summary>清除的工具结果数</summary>
@@ -56,8 +54,7 @@ public sealed class MicrocompactResult
 /// <summary>
 /// 时间间隔微压缩结果
 /// </summary>
-public sealed class TimeBasedMicrocompactResult
-{
+public sealed class TimeBasedMicrocompactResult {
     /// <summary>压缩后的消息列表</summary>
     public required IReadOnlyList<ApiMessage> Messages { get; init; }
     /// <summary>空闲时间（分钟）</summary>

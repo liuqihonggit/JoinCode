@@ -2,13 +2,11 @@
 namespace Api.LLM;
 
 [Register(typeof(IChatClient), ServiceLifetime.Singleton)]
-public sealed partial class ChatClient : ServiceEntity, IChatClient
-{
+public sealed partial class ChatClient : ServiceEntity, IChatClient {
     private readonly IQueryService _chatCompletionService;
     private readonly ToolCollection _plugins;
 
-    public ChatClient(IQueryService chatCompletionService)
-    {
+    public ChatClient(IQueryService chatCompletionService) {
         _chatCompletionService = chatCompletionService ?? throw new ArgumentNullException(nameof(chatCompletionService));
         _plugins = new ToolCollection();
     }
@@ -18,34 +16,28 @@ public sealed partial class ChatClient : ServiceEntity, IChatClient
     public IToolCollection Plugins => _plugins;
 }
 
-internal sealed class ToolCollection : IToolCollection
-{
+internal sealed class ToolCollection : IToolCollection {
     private readonly Dictionary<string, IToolGroup> _plugins = new(StringComparer.OrdinalIgnoreCase);
 
-    public IToolGroup? GetPlugin(string name)
-    {
+    public IToolGroup? GetPlugin(string name) {
         return _plugins.TryGetValue(name, out var plugin) ? plugin : null;
     }
 
-    public void Add(IToolGroup plugin)
-    {
+    public void Add(IToolGroup plugin) {
         _plugins[plugin.Name] = plugin;
     }
 
-    public bool Remove(string name)
-    {
+    public bool Remove(string name) {
         return _plugins.Remove(name);
     }
 
     public IEnumerable<string> PluginNames => _plugins.Keys;
 }
 
-public sealed class ToolGroup : IToolGroup
-{
+public sealed class ToolGroup : IToolGroup {
     private readonly List<IToolDef> _functions;
 
-    public ToolGroup(string name, IEnumerable<IToolDef> functions)
-    {
+    public ToolGroup(string name, IEnumerable<IToolDef> functions) {
         Name = name;
         _functions = [.. functions];
     }
@@ -55,29 +47,25 @@ public sealed class ToolGroup : IToolGroup
     public IEnumerable<IToolDef> Functions => _functions;
 }
 
-public sealed class ToolDef : IToolDef
-{
+public sealed class ToolDef : IToolDef {
     public string Name { get; }
     public string Description { get; }
     public IReadOnlyList<IToolParam> Parameters { get; }
 
-    public ToolDef(string name, string description, IReadOnlyList<IToolParam>? parameters = null)
-    {
+    public ToolDef(string name, string description, IReadOnlyList<IToolParam>? parameters = null) {
         Name = name;
         Description = description;
         Parameters = parameters ?? [];
     }
 }
 
-public sealed class ToolParam : IToolParam
-{
+public sealed class ToolParam : IToolParam {
     public string Name { get; }
     public string Description { get; }
     public Type? ParameterType { get; }
     public bool IsRequired { get; }
 
-    public ToolParam(string name, string description = "", Type? parameterType = null, bool isRequired = false)
-    {
+    public ToolParam(string name, string description = "", Type? parameterType = null, bool isRequired = false) {
         Name = name;
         Description = description;
         ParameterType = parameterType;

@@ -4,8 +4,7 @@ namespace JoinCode.CodeIndex.Threading;
 /// Singleton pool that reuses <see cref="TreeSitterParser"/> instances to avoid concurrent <c>new()</c> calls.
 /// The pool lazily creates parsers on first use and reuses a fixed set for the lifetime of the application.
 /// </summary>
-public static class TreeSitterParserPool
-{
+public static class TreeSitterParserPool {
     private static readonly Lazy<TreeSitterParser> _lazyParser = new(
         static () => new TreeSitterParser("c-sharp"),
         isThreadSafe: true);
@@ -25,8 +24,7 @@ public static class TreeSitterParserPool
     /// <summary>
     /// Acquires exclusive access to the shared parser. Dispose the returned value to release.
     /// </summary>
-    public static Task<IDisposable> AcquireSharedAsync(CancellationToken ct = default)
-    {
+    public static Task<IDisposable> AcquireSharedAsync(CancellationToken ct = default) {
         var guard = _sharedLock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_sharedLock.Name}' 等待超时");
         return Task.FromResult(guard);
     }
@@ -34,8 +32,7 @@ public static class TreeSitterParserPool
     /// <summary>
     /// Acquires exclusive access to the shared parser synchronously. Dispose the returned value to release.
     /// </summary>
-    public static IDisposable AcquireShared()
-    {
+    public static IDisposable AcquireShared() {
         return _sharedLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_sharedLock.Name}' 等待超时");
     }
 

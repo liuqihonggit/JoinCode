@@ -4,13 +4,11 @@ namespace JoinCode.Gui.Hosting;
 /// 占位引擎会话实现 — 无真实引擎连接时作为 mock 占位，返回固定回显供 UI 运行验证。
 /// 被 MainViewModel 用作 mock 连接（IsMockConnection），同时用于单元测试桩。
 /// </summary>
-internal sealed class PlaceholderChatSession : IJccChatSession
-{
+internal sealed class PlaceholderChatSession : IJccChatSession {
     private readonly IConfigurationService? _configService;
     private readonly IModelConfigLoader _modelConfigLoader;
 
-    public PlaceholderChatSession(IConfigurationService? configService = null, IModelConfigLoader? modelConfigLoader = null)
-    {
+    public PlaceholderChatSession(IConfigurationService? configService = null, IModelConfigLoader? modelConfigLoader = null) {
         _configService = configService;
         _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
         CurrentVendor = ResolveCurrentVendor(configService);
@@ -29,23 +27,18 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     /// <summary>占位会话当前模型 — 从 settings.json 读取,回退供应商默认模型</summary>
     public string CurrentModelId { get; }
 
-    private static string ResolveCurrentVendor(IConfigurationService? configService)
-    {
-        if (configService is not null)
-        {
-            try
-            {
+    private static string ResolveCurrentVendor(IConfigurationService? configService) {
+        if (configService is not null) {
+            try {
                 var profile = configService.GetAsync("profile", CancellationToken.None).GetAwaiter().GetResult();
                 if (!string.IsNullOrWhiteSpace(profile))
                     return profile;
-            }
-            catch (Exception ex) { System.Console.Error.WriteLine($"[PlaceholderChatSession] 读取 settings.json profile 失败: {ex.Message}"); }
+            } catch (Exception ex) { System.Console.Error.WriteLine($"[PlaceholderChatSession] 读取 settings.json profile 失败: {ex.Message}"); }
         }
         return "";
     }
 
-    private string ResolveCurrentModelId(string vendor)
-    {
+    private string ResolveCurrentModelId(string vendor) {
         if (string.IsNullOrEmpty(vendor))
             return "";
         var id = _modelConfigLoader.GetDefaultModelId(vendor);
@@ -54,8 +47,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession
 
     public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; }
 
-    public void RefreshVendorModelMap()
-    {
+    public void RefreshVendorModelMap() {
         VendorModelMap = BuildVendorModelMap();
     }
 
@@ -66,11 +58,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
-    private IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
-    {
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap() {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in _modelConfigLoader.Config.Providers)
-        {
+        foreach (var kvp in _modelConfigLoader.Config.Providers) {
             map[kvp.Key] = kvp.Value.Models.Select(m => m.Id).ToArray();
         }
         return map;
@@ -87,15 +77,13 @@ internal sealed class PlaceholderChatSession : IJccChatSession
 
     public event Action? ExitRequested { add { } remove { } }
 
-    public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
-    {
+    public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) {
         if (_configService is not null)
             await _configService.SetAsync("model", modelId, cancellationToken);
     }
 
     /// <summary>占位会话供应商切换 — 持久化 profile 到 settings.json，引擎可用后重启生效</summary>
-    public async Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default)
-    {
+    public async Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) {
         if (_configService is null) return;
         await _configService.SetAsync("profile", vendor, cancellationToken);
     }
@@ -103,8 +91,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     /// <summary>占位会话固定返回 Auto，不持久化</summary>
     public EffortLevel EffortLevel => EffortLevel.Auto;
 
-    public async Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default)
-    {
+    public async Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) {
         if (_configService is null) return;
         if (effortLevel is EffortLevel.Auto)
             await _configService.RemoveAsync(ConfigKeyEnumConstants.EffortLevel, cancellationToken);
@@ -116,8 +103,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession
         => Task.CompletedTask;
 
     /// <summary>占位会话从 settings.json 读主题 — 引擎不可用时仍恢复上次选择</summary>
-    public async Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default) {
         if (_configService is null)
             return ThemeKind.Auto;
         var value = await _configService.GetAsync(ConfigKeyEnumConstants.Theme, cancellationToken);
@@ -125,15 +111,13 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     }
 
     /// <summary>占位会话不持久化主题 — 引擎不可用时仍写 settings.json，对齐 CLI /theme</summary>
-    public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default)
-    {
+    public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default) {
         if (_configService is not null)
             await _configService.SetAsync(ConfigKeyEnumConstants.Theme, theme.ToValue(), cancellationToken);
     }
 
     /// <summary>占位会话无 settings.json 变更，事件永不触发（空 add/remove 避免 CS0067）</summary>
-    public event EventHandler<ThemeKind>? ThemeChanged
-    {
+    public event EventHandler<ThemeKind>? ThemeChanged {
         add { }
         remove { }
     }
@@ -164,9 +148,8 @@ internal sealed class PlaceholderChatSession : IJccChatSession
 
     public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
         string message,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {        foreach (var ch in "让我先分析一下你的问题。")
-        {
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        foreach (var ch in "让我先分析一下你的问题。") {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Yield();
             yield return ChatStreamEvent.Thinking(ch.ToString());
@@ -188,8 +171,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession
         yield return ChatStreamEvent.ToolEnd("ReadFile", "读取 120 行，包含示例代码", "call_read_01");
 
         // 思考结论
-        foreach (var ch in "\n[结论] 综合搜索结果与代码分析，给出以下回答：")
-        {
+        foreach (var ch in "\n[结论] 综合搜索结果与代码分析，给出以下回答：") {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Yield();
             yield return ChatStreamEvent.Thinking(ch.ToString());
@@ -204,8 +186,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession
             "| 功能 | 状态 |\n|---|---|\n| 代码块 | ✅ |\n| 表格 | ✅ |\n\n" +
             "```csharp\npublic void Hello()\n{\n    Console.WriteLine(\"MarkdownView\");\n}\n```\n\n" +
             "> 引用块：左侧竖条样式\n\n" +
-            "---\n\n1. 有序列表第一项\n2. 有序列表第二项")
-        {
+            "---\n\n1. 有序列表第一项\n2. 有序列表第二项") {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Yield();
             yield return ChatStreamEvent.Text(ch.ToString());

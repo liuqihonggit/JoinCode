@@ -4,21 +4,17 @@ namespace Core.Skills.BuiltIn;
 /// <summary>
 /// 验证技能 — 验证代码或结果的正确性，支持自动修复
 /// </summary>
-public sealed class VerifySkill
-{
+public sealed class VerifySkill {
     /// <summary>
     /// 创建技能定义
     /// </summary>
     /// <returns>验证技能的技能定义</returns>
-    public static SkillDefinition CreateDefinition()
-    {
-        return new SkillDefinition
-        {
+    public static SkillDefinition CreateDefinition() {
+        return new SkillDefinition {
             Name = "verify",
             Description = "验证代码或结果的正确性",
             Version = "2.0",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["target"] = new() { Type = "string", Description = "要验证的目标（文件路径、函数名或模块）", Required = true },
                 ["criteria"] = new() { Type = "string", Description = "验证标准（如：编译通过、测试通过、性能达标）", Required = true },
                 ["autoFix"] = new() { Type = "boolean", Description = "是否自动修复发现的问题", Required = false, DefaultValue = false }

@@ -3,10 +3,8 @@ namespace Mcp.Tests;
 /// <summary>
 /// McpClientToolHandlers 持久化测试 — 验证 SaveStateAsync/LoadState 跨进程共享连接配置。
 /// </summary>
-public sealed class McpClientToolHandlersPersistenceTests
-{
-    private static (McpClientToolHandlers handler, InMemoryFileSystem fs) CreateHandlerWithFileSystem()
-    {
+public sealed class McpClientToolHandlersPersistenceTests {
+    private static (McpClientToolHandlers handler, InMemoryFileSystem fs) CreateHandlerWithFileSystem() {
         var fs = new InMemoryFileSystem();
         var client = new FakeMcpClient();
         var factory = new FakeClientFactory(client);
@@ -16,8 +14,7 @@ public sealed class McpClientToolHandlersPersistenceTests
         return (handler, fs);
     }
 
-    private static string GetConnectionsFilePath()
-    {
+    private static string GetConnectionsFilePath() {
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             JoinCode.Abstractions.Configuration.AppData.AppDataConstants.AppDataFolder,
@@ -26,8 +23,7 @@ public sealed class McpClientToolHandlersPersistenceTests
     }
 
     [Fact]
-    public async Task McpConnectAsync_WithFileSystem_PersistsConnections()
-    {
+    public async Task McpConnectAsync_WithFileSystem_PersistsConnections() {
         var created = CreateHandlerWithFileSystem();
         await using var handler = created.handler;
         var fs = created.fs;
@@ -45,8 +41,7 @@ public sealed class McpClientToolHandlersPersistenceTests
     }
 
     [Fact]
-    public async Task McpDisconnectAsync_WithFileSystem_RemovesConnection()
-    {
+    public async Task McpDisconnectAsync_WithFileSystem_RemovesConnection() {
         var created = CreateHandlerWithFileSystem();
         await using var handler = created.handler;
         var fs = created.fs;
@@ -63,8 +58,7 @@ public sealed class McpClientToolHandlersPersistenceTests
     }
 
     [Fact]
-    public async Task Constructor_WithFileSystem_RestoresPersistedConnections()
-    {
+    public async Task Constructor_WithFileSystem_RestoresPersistedConnections() {
         var fs = new InMemoryFileSystem();
         var filePath = GetConnectionsFilePath();
         var dir = Path.GetDirectoryName(filePath)!;
@@ -83,8 +77,7 @@ public sealed class McpClientToolHandlersPersistenceTests
         listResult.IsError.Should().BeFalse("恢复的连接应可列出工具");
     }
 
-    private sealed class FakeMcpClient : IMcpClient
-    {
+    private sealed class FakeMcpClient : IMcpClient {
         public bool IsConnected => true;
         public Implementation? ServerInfo => new() { Name = "FakeMcp", Version = "1.0.0" };
         public ServerCapabilities? ServerCapabilities => new() { Tools = new ToolsCapability { ListChanged = true } };
@@ -117,8 +110,7 @@ public sealed class McpClientToolHandlersPersistenceTests
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private sealed class FakeClientFactory : IMcpClientFactory
-    {
+    private sealed class FakeClientFactory : IMcpClientFactory {
         private readonly IMcpClient _client;
         public FakeClientFactory(IMcpClient client) => _client = client;
 
@@ -126,12 +118,10 @@ public sealed class McpClientToolHandlersPersistenceTests
         public IMcpClient CreateClient(McpServerConnectionConfig config, bool enableFallback, ILogger? logger = null) => _client;
     }
 
-    private sealed class FakeMcpToolRegistry : IMcpToolRegistry
-    {
+    private sealed class FakeMcpToolRegistry : IMcpToolRegistry {
         public List<string> SyncedClients { get; } = [];
 
-        public Task<RemoteToolsSyncResult> SyncRemoteToolsAsync(string clientId, CancellationToken cancellationToken = default)
-        {
+        public Task<RemoteToolsSyncResult> SyncRemoteToolsAsync(string clientId, CancellationToken cancellationToken = default) {
             SyncedClients.Add(clientId);
             return Task.FromResult(new RemoteToolsSyncResult(true, ["mock_echo"]));
         }

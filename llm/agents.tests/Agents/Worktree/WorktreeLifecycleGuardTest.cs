@@ -4,16 +4,13 @@ namespace JoinCode.Agents.Tests.Worktree;
 /// WorktreeLifecycleGuard 单元测试 — 验证路径锁定、标准 Dispose 模式、终结器兜底。
 /// <para>核心设计：构造时锁定 path，Dispose/析构复用同一引用，禁止二次计算路径。</para>
 /// </summary>
-public class WorktreeLifecycleGuardTest
-{
+public class WorktreeLifecycleGuardTest {
     private const string MainPath = "D:\\project\\w1";
     private const string WorktreePath = "D:\\project\\w1\\.jcc\\worktrees\\agent-abc";
 
-    private static IFileOperationService CreateFs(bool worktreeExists = false)
-    {
+    private static IFileOperationService CreateFs(bool worktreeExists = false) {
         var fs = new InMemoryFileOperationService();
-        if (worktreeExists)
-        {
+        if (worktreeExists) {
             fs.CreateDirectory(WorktreePath);
         }
         return fs;
@@ -23,8 +20,7 @@ public class WorktreeLifecycleGuardTest
     /// 路径等于主仓库时必须抛异常 — 防止误删主仓库代码。
     /// </summary>
     [Fact]
-    public void Ctor_WhenSameAsMain_Throws()
-    {
+    public void Ctor_WhenSameAsMain_Throws() {
         var act = () => new WorktreeLifecycleGuard(MainPath, MainPath, CreateFs());
 
         act.Should().Throw<ArgumentException>()
@@ -35,8 +31,7 @@ public class WorktreeLifecycleGuardTest
     /// 路径不同时构造成功，WorktreePath 返回锁定的路径。
     /// </summary>
     [Fact]
-    public void Ctor_WhenDifferent_LocksPath()
-    {
+    public void Ctor_WhenDifferent_LocksPath() {
         var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs());
 
         guard.WorktreePath.Should().Be(WorktreePath);
@@ -47,8 +42,7 @@ public class WorktreeLifecycleGuardTest
     /// 路径大小写不同时按规范化比较 — 容忍大小写差异但仍然检测主路径。
     /// </summary>
     [Fact]
-    public void Ctor_WhenCaseOnlyDifferent_Throws()
-    {
+    public void Ctor_WhenCaseOnlyDifferent_Throws() {
         var act = () => new WorktreeLifecycleGuard("d:\\project\\w1", "D:\\Project\\W1", CreateFs());
 
         act.Should().Throw<ArgumentException>();
@@ -61,8 +55,7 @@ public class WorktreeLifecycleGuardTest
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void Ctor_WhenWorktreePathBlank_Throws(string? worktreePath)
-    {
+    public void Ctor_WhenWorktreePathBlank_Throws(string? worktreePath) {
         var act = () => new WorktreeLifecycleGuard(worktreePath!, MainPath, CreateFs());
 
         act.Should().Throw<ArgumentException>();
@@ -75,8 +68,7 @@ public class WorktreeLifecycleGuardTest
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void Ctor_WhenMainPathBlank_Throws(string? mainPath)
-    {
+    public void Ctor_WhenMainPathBlank_Throws(string? mainPath) {
         var act = () => new WorktreeLifecycleGuard(WorktreePath, mainPath!, CreateFs());
 
         act.Should().Throw<ArgumentException>();
@@ -86,8 +78,7 @@ public class WorktreeLifecycleGuardTest
     /// 路径规范化后比较 — 处理尾部分隔符。
     /// </summary>
     [Fact]
-    public void Ctor_WhenPathDiffersOnlyByTrailingSeparator_Throws()
-    {
+    public void Ctor_WhenPathDiffersOnlyByTrailingSeparator_Throws() {
         var act = () => new WorktreeLifecycleGuard("D:\\project\\w1\\", MainPath, CreateFs());
 
         act.Should().Throw<ArgumentException>();
@@ -97,8 +88,7 @@ public class WorktreeLifecycleGuardTest
     /// gitRunner 为 null 时 ReleaseAsync 返回失败 — 不执行删除，根因为 GitError。
     /// </summary>
     [Fact]
-    public async Task ReleaseAsync_WhenGitRunnerNull_ReturnsFail()
-    {
+    public async Task ReleaseAsync_WhenGitRunnerNull_ReturnsFail() {
         var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: true));
 
         var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
@@ -112,8 +102,7 @@ public class WorktreeLifecycleGuardTest
     /// 路径不存在时 ReleaseAsync 返回失败 — 根因为 PathNotFound。
     /// </summary>
     [Fact]
-    public async Task ReleaseAsync_WhenPathNotExists_ReturnsFail()
-    {
+    public async Task ReleaseAsync_WhenPathNotExists_ReturnsFail() {
         var gitRunner = new Mock<IGitCommandRunner>();
         var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: false), gitRunner.Object);
 
@@ -128,8 +117,7 @@ public class WorktreeLifecycleGuardTest
     /// 路径存在且 gitRunner 返回成功时 ReleaseAsync 成功 — 正常删除流程。
     /// </summary>
     [Fact]
-    public async Task ReleaseAsync_WhenPathExistsAndGitSucceeds_ReturnsOk()
-    {
+    public async Task ReleaseAsync_WhenPathExistsAndGitSucceeds_ReturnsOk() {
         var fs = CreateFs(worktreeExists: true);
         var gitRunner = new Mock<IGitCommandRunner>();
         gitRunner
@@ -157,8 +145,7 @@ public class WorktreeLifecycleGuardTest
     /// DisposeAsync 后 ReleaseAsync 抛 ObjectDisposedException — 标准资源生命周期管理。
     /// </summary>
     [Fact]
-    public async Task ReleaseAsync_AfterDispose_ThrowsObjectDisposed()
-    {
+    public async Task ReleaseAsync_AfterDispose_ThrowsObjectDisposed() {
         var gitRunner = new Mock<IGitCommandRunner>();
         gitRunner
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -176,8 +163,7 @@ public class WorktreeLifecycleGuardTest
     /// DisposeAsync 可多次调用不报错 — 幂等释放,不执行 git 命令。
     /// </summary>
     [Fact]
-    public async Task DisposeAsync_CalledMultipleTimes_NoThrow()
-    {
+    public async Task DisposeAsync_CalledMultipleTimes_NoThrow() {
         var gitRunner = new Mock<IGitCommandRunner>();
         gitRunner
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -185,8 +171,7 @@ public class WorktreeLifecycleGuardTest
 
         var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: true), gitRunner.Object);
 
-        var act = async () =>
-        {
+        var act = async () => {
             await guard.DisposeAsync();
             await guard.DisposeAsync();
             await guard.DisposeAsync();
@@ -203,8 +188,7 @@ public class WorktreeLifecycleGuardTest
     /// await using 语法自动 DisposeAsync — Dispose 不执行 git remove,worktree 保留。
     /// </summary>
     [Fact]
-    public async Task AwaitUsing_AutoDisposeAsync_DoesNotExecuteGitRemove()
-    {
+    public async Task AwaitUsing_AutoDisposeAsync_DoesNotExecuteGitRemove() {
         var gitRunner = new Mock<IGitCommandRunner>();
         gitRunner
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -224,8 +208,7 @@ public class WorktreeLifecycleGuardTest
     /// git 删除失败且错误含 "being used" 时，Reason 为 ProcessOccupied — 诊断器集成验证。
     /// </summary>
     [Fact]
-    public async Task ReleaseAsync_WhenGitFailsWithBeingUsed_ReasonIsProcessOccupied()
-    {
+    public async Task ReleaseAsync_WhenGitFailsWithBeingUsed_ReasonIsProcessOccupied() {
         var fs = CreateFs(worktreeExists: true);
         var gitRunner = new Mock<IGitCommandRunner>();
         gitRunner
@@ -244,8 +227,7 @@ public class WorktreeLifecycleGuardTest
     /// git 删除失败且错误含 "Permission denied" 时，Reason 为 PermissionDenied — 诊断器集成验证。
     /// </summary>
     [Fact]
-    public async Task ReleaseAsync_WhenGitFailsWithPermissionDenied_ReasonIsPermissionDenied()
-    {
+    public async Task ReleaseAsync_WhenGitFailsWithPermissionDenied_ReasonIsPermissionDenied() {
         var fs = CreateFs(worktreeExists: true);
         var gitRunner = new Mock<IGitCommandRunner>();
         gitRunner
@@ -264,8 +246,7 @@ public class WorktreeLifecycleGuardTest
     /// git 删除失败且错误为未知模式时，Reason 为 GitError — 诊断器集成验证。
     /// </summary>
     [Fact]
-    public async Task ReleaseAsync_WhenGitFailsWithUnknownError_ReasonIsGitError()
-    {
+    public async Task ReleaseAsync_WhenGitFailsWithUnknownError_ReasonIsGitError() {
         var fs = CreateFs(worktreeExists: true);
         var gitRunner = new Mock<IGitCommandRunner>();
         gitRunner

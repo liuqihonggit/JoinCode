@@ -7,8 +7,7 @@ using Core.Hooks.Execution.Interception.Defense;
 /// BashDefense 链式构建器 + RetainedDeviceNode + BashDefenseService 单元测试
 /// — MTP 扰动纵深防御（计划 docs/plan/safety/mtp-perturbation-defense-plan.md 阶段1）
 /// </summary>
-public class BashDefenseTests
-{
+public class BashDefenseTests {
     private readonly RetainedDeviceNode _retainedDeviceNode = new();
     private readonly ArgvHashNode _argvHashNode = new();
     private readonly RedirectWhitelistNode _redirectWhitelistNode = new();
@@ -17,8 +16,7 @@ public class BashDefenseTests
     private readonly DangerousCommandNode _dangerousCommandNode;
     private readonly BashDefenseService _bashDefenseService;
 
-    public BashDefenseTests()
-    {
+    public BashDefenseTests() {
         _dangerousCommandNode = new DangerousCommandNode(new CommandDangerClassifier());
         _bashDefenseService = new BashDefenseService(_dangerousCommandNode, _retainedDeviceNode, _argvHashNode, _redirectWhitelistNode, _strictParseNode);
     }
@@ -26,8 +24,7 @@ public class BashDefenseTests
     #region BashDefense 链式构建器基本功能
 
     [Fact]
-    public async Task ExecuteAsync_NoSteps_ShouldReturnNullRejection()
-    {
+    public async Task ExecuteAsync_NoSteps_ShouldReturnNullRejection() {
         var (ctx, rejection) = await BashDefense
             .Begin("echo hello", "/tmp", SystemActuatorKind.Bash)
             .ExecuteAsync(CancellationToken.None);
@@ -37,8 +34,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_AllStepsPass_ShouldReturnNullRejection()
-    {
+    public async Task ExecuteAsync_AllStepsPass_ShouldReturnNullRejection() {
         var (ctx, rejection) = await _bashDefenseService
             .Begin("echo hello", "/tmp", SystemActuatorKind.Bash)
             .Then(_bashDefenseService.CheckRetainedDevice)
@@ -49,8 +45,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_StepRejects_ShouldShortCircuit()
-    {
+    public async Task ExecuteAsync_StepRejects_ShouldShortCircuit() {
         var (ctx, rejection) = await _bashDefenseService
             .Begin("cmd >nul", "/tmp", SystemActuatorKind.Bash)
             .Then(_bashDefenseService.CheckRetainedDevice)
@@ -61,8 +56,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldStopAtFirstRejection()
-    {
+    public async Task ExecuteAsync_ShouldStopAtFirstRejection() {
         var secondStepCalled = false;
 
         var (_, rejection) = await _bashDefenseService
@@ -88,8 +82,7 @@ public class BashDefenseTests
     [InlineData("cmd >aux", "aux")]
     [InlineData("cmd >com1", "com1")]
     [InlineData("cmd >lpt1", "lpt1")]
-    public void FindRetainedDevice_ShouldDetect(string command, string expectedDevice)
-    {
+    public void FindRetainedDevice_ShouldDetect(string command, string expectedDevice) {
         _retainedDeviceNode.FindRetainedDevice(command).Should().Be(expectedDevice);
     }
 
@@ -98,8 +91,7 @@ public class BashDefenseTests
     [InlineData("echo hello")]
     [InlineData("touch nul")]
     [InlineData("cmd > output.txt")]
-    public void FindRetainedDevice_ShouldNotDetect(string command)
-    {
+    public void FindRetainedDevice_ShouldNotDetect(string command) {
         _retainedDeviceNode.FindRetainedDevice(command).Should().BeNull();
     }
 
@@ -108,8 +100,7 @@ public class BashDefenseTests
     #region BashDefenseService.CheckRetainedDevice 拒绝消息封死替代路径
 
     [Fact]
-    public async Task CheckRetainedDevice_RejectMessage_ShouldContainAlternativePath()
-    {
+    public async Task CheckRetainedDevice_RejectMessage_ShouldContainAlternativePath() {
         var (_, rejection) = await _bashDefenseService
             .Begin("cmd >nul", "/tmp", SystemActuatorKind.Bash)
             .Then(_bashDefenseService.CheckRetainedDevice)
@@ -123,8 +114,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task CheckRetainedDevice_RejectMessage_ShouldContainMtpHint()
-    {
+    public async Task CheckRetainedDevice_RejectMessage_ShouldContainMtpHint() {
         var (_, rejection) = await _bashDefenseService
             .Begin("cmd >nul", "/tmp", SystemActuatorKind.Bash)
             .Then(_bashDefenseService.CheckRetainedDevice)
@@ -136,8 +126,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task CheckRetainedDevice_RejectMessage_ShouldContainCorrectWrite()
-    {
+    public async Task CheckRetainedDevice_RejectMessage_ShouldContainCorrectWrite() {
         var (_, rejection) = await _bashDefenseService
             .Begin("cmd >nul", "/tmp", SystemActuatorKind.Bash)
             .Then(_bashDefenseService.CheckRetainedDevice)
@@ -148,8 +137,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task CheckRetainedDevice_SafeCommand_ShouldReturnNull()
-    {
+    public async Task CheckRetainedDevice_SafeCommand_ShouldReturnNull() {
         var (_, rejection) = await _bashDefenseService
             .Begin("cmd >/dev/null", "/tmp", SystemActuatorKind.Bash)
             .Then(_bashDefenseService.CheckRetainedDevice)
@@ -163,8 +151,7 @@ public class BashDefenseTests
     #region 边界 case（计划第五节）
 
     [Fact]
-    public async Task BoundaryCase1_CmdRedirectNul_ShouldReject()
-    {
+    public async Task BoundaryCase1_CmdRedirectNul_ShouldReject() {
         var (_, rejection) = await _bashDefenseService
             .Begin("cmd >nul", "/tmp", SystemActuatorKind.Bash)
             .Then(_bashDefenseService.CheckRetainedDevice)
@@ -173,8 +160,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task BoundaryCase10_CmdRedirectDevNull_ShouldPass()
-    {
+    public async Task BoundaryCase10_CmdRedirectDevNull_ShouldPass() {
         var (_, rejection) = await _bashDefenseService
             .Begin("cmd >/dev/null 2>&1", "/tmp", SystemActuatorKind.Bash)
             .Then(_bashDefenseService.CheckRetainedDevice)
@@ -187,46 +173,40 @@ public class BashDefenseTests
     #region ArgvHashNode 防意图反推
 
     [Fact]
-    public void ComputeArgvHash_SameCommand_ShouldReturnSameHash()
-    {
+    public void ComputeArgvHash_SameCommand_ShouldReturnSameHash() {
         var hash1 = _argvHashNode.ComputeArgvHash("rm -rf ./build");
         var hash2 = _argvHashNode.ComputeArgvHash("rm -rf ./build");
         hash1.Should().Be(hash2);
     }
 
     [Fact]
-    public void ComputeArgvHash_DifferentCommand_ShouldReturnDifferentHash()
-    {
+    public void ComputeArgvHash_DifferentCommand_ShouldReturnDifferentHash() {
         var hash1 = _argvHashNode.ComputeArgvHash("rm -rf ./build");
         var hash2 = _argvHashNode.ComputeArgvHash("rm -rf ./buld");
         hash1.Should().NotBe(hash2, "MTP 扰动 ./build→./buld 应产生不同 hash");
     }
 
     [Fact]
-    public void ComputeArgvHash_ShouldReturn6CharHex()
-    {
+    public void ComputeArgvHash_ShouldReturn6CharHex() {
         var hash = _argvHashNode.ComputeArgvHash("echo hello");
         hash.Should().HaveLength(6);
         hash.Should().MatchRegex("^[0-9A-F]{6}$", "应为 6 位大写 hex");
     }
 
     [Fact]
-    public void ValidateArgvHash_CorrectHash_ShouldReturnTrue()
-    {
+    public void ValidateArgvHash_CorrectHash_ShouldReturnTrue() {
         var command = "rm -rf ./build";
         var hash = _argvHashNode.ComputeArgvHash(command);
         _argvHashNode.ValidateArgvHash(command, hash).Should().BeTrue();
     }
 
     [Fact]
-    public void ValidateArgvHash_WrongHash_ShouldReturnFalse()
-    {
+    public void ValidateArgvHash_WrongHash_ShouldReturnFalse() {
         _argvHashNode.ValidateArgvHash("rm -rf ./build", "000000").Should().BeFalse();
     }
 
     [Fact]
-    public void ValidateArgvHash_NullHash_ShouldReturnFalse()
-    {
+    public void ValidateArgvHash_NullHash_ShouldReturnFalse() {
         _argvHashNode.ValidateArgvHash("rm -rf ./build", null).Should().BeFalse();
     }
 
@@ -235,8 +215,7 @@ public class BashDefenseTests
     #region RequireArgvHash 二次确认
 
     [Fact]
-    public async Task RequireArgvHash_NoConfirmMode_ShouldPass()
-    {
+    public async Task RequireArgvHash_NoConfirmMode_ShouldPass() {
         var (_, rejection) = await _bashDefenseService
             .Begin("echo hello", "/tmp", SystemActuatorKind.Bash)
             .Then(_bashDefenseService.RequireArgvHash)
@@ -245,8 +224,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task RequireArgvHash_FirstRound_ShouldRejectWithHash()
-    {
+    public async Task RequireArgvHash_FirstRound_ShouldRejectWithHash() {
         var (_, rejection) = await _bashDefenseService
             .Begin("rm -rf ./build", "/tmp", SystemActuatorKind.Bash, GuardConfirmMode.AntiCharLossConfirm)
             .Then(_bashDefenseService.RequireArgvHash)
@@ -258,8 +236,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task RequireArgvHash_SecondRoundCorrectHash_ShouldPass()
-    {
+    public async Task RequireArgvHash_SecondRoundCorrectHash_ShouldPass() {
         var command = "rm -rf ./build";
         var hash = _argvHashNode.ComputeArgvHash(command);
 
@@ -272,8 +249,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task RequireArgvHash_SecondRoundWrongHash_ShouldReject()
-    {
+    public async Task RequireArgvHash_SecondRoundWrongHash_ShouldReject() {
         var command = "rm -rf ./build";
 
         var (_, rejection) = await _bashDefenseService
@@ -286,8 +262,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task RequireArgvHash_SecondRoundCommandMismatch_ShouldReject()
-    {
+    public async Task RequireArgvHash_SecondRoundCommandMismatch_ShouldReject() {
         var (_, rejection) = await _bashDefenseService
             .Begin("rm -rf ./buld", "/tmp", SystemActuatorKind.Bash, GuardConfirmMode.AntiCharLossConfirm, "rm -rf ./build", null)
             .Then(_bashDefenseService.RequireArgvHash)
@@ -310,8 +285,7 @@ public class BashDefenseTests
     [InlineData("cmd >> output.txt")]
     [InlineData("cmd 2>error.txt")]
     [InlineData("cmd >/dev/null 2>&1")]
-    public void CheckWhitelist_SafeTargets_ShouldPass(string command)
-    {
+    public void CheckWhitelist_SafeTargets_ShouldPass(string command) {
         var result = _redirectWhitelistNode.CheckWhitelist(command, WorkDir);
         result.IsWhitelisted.Should().BeTrue();
     }
@@ -319,22 +293,19 @@ public class BashDefenseTests
     [Theory]
     [InlineData("cmd > ../../etc/passwd")]
     [InlineData("cmd > /etc/passwd")]
-    public void CheckWhitelist_OutsideWorkspace_ShouldReject(string command)
-    {
+    public void CheckWhitelist_OutsideWorkspace_ShouldReject(string command) {
         var result = _redirectWhitelistNode.CheckWhitelist(command, WorkDir);
         result.IsWhitelisted.Should().BeFalse();
     }
 
     [Fact]
-    public void CheckWhitelist_NoRedirect_ShouldPass()
-    {
+    public void CheckWhitelist_NoRedirect_ShouldPass() {
         var result = _redirectWhitelistNode.CheckWhitelist("echo hello", WorkDir);
         result.IsWhitelisted.Should().BeTrue();
     }
 
     [Fact]
-    public async Task CheckRedirectWhitelist_ViolatingTarget_ShouldRejectWithMessage()
-    {
+    public async Task CheckRedirectWhitelist_ViolatingTarget_ShouldRejectWithMessage() {
         var (_, rejection) = await _bashDefenseService
             .Begin("cmd > ../../etc/passwd", WorkDir, SystemActuatorKind.Bash)
             .Then(_bashDefenseService.CheckRedirectWhitelist)
@@ -350,16 +321,14 @@ public class BashDefenseTests
     #region MtpPerturbationNode 扰动统计
 
     [Fact]
-    public void Record_SuccessCommand_ShouldNotTriggerAdaptive()
-    {
+    public void Record_SuccessCommand_ShouldNotTriggerAdaptive() {
         var report = _mtpPerturbationNode.Record("echo hello", 0, null);
         report.ShouldTriggerAdaptive.Should().BeFalse();
         report.TotalRecords.Should().Be(1);
     }
 
     [Fact]
-    public void Record_SingleAnomaly_ShouldNotTriggerAdaptive()
-    {
+    public void Record_SingleAnomaly_ShouldNotTriggerAdaptive() {
         _mtpPerturbationNode.Record("cmd >nul", 1, "The system cannot find the file specified");
         var report = _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
 
@@ -368,8 +337,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public void Record_ThreeConsecutiveAnomalies_ShouldTriggerAdaptive()
-    {
+    public void Record_ThreeConsecutiveAnomalies_ShouldTriggerAdaptive() {
         _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
         _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
         var report = _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
@@ -379,8 +347,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public void Record_SuccessAfterAnomaly_ShouldResetCounter()
-    {
+    public void Record_SuccessAfterAnomaly_ShouldResetCounter() {
         _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
         _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
         var report = _mtpPerturbationNode.Record("echo hello", 0, null);
@@ -390,8 +357,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public void Record_PathErrorInStderr_ShouldBeAnomaly()
-    {
+    public void Record_PathErrorInStderr_ShouldBeAnomaly() {
         var report = _mtpPerturbationNode.Record("cat ./buld/file", 1, "No such file or directory");
         report.ConsecutiveAnomalies.Should().Be(1, "stderr 包含路径错误应为异常");
     }
@@ -404,8 +370,7 @@ public class BashDefenseTests
     [InlineData("echo \"hello", '"')]
     [InlineData("echo 'hello", '\'')]
     [InlineData("echo \"hello >nul", '"')]
-    public void FindUnmatchedQuote_UnclosedQuote_ShouldReturnQuoteChar(string command, char expected)
-    {
+    public void FindUnmatchedQuote_UnclosedQuote_ShouldReturnQuoteChar(string command, char expected) {
         var result = _strictParseNode.FindUnmatchedQuote(command.AsSpan());
         result.Should().Be(expected);
     }
@@ -416,15 +381,13 @@ public class BashDefenseTests
     [InlineData("echo 'hello'")]
     [InlineData("echo \"hello 'world'\"")]
     [InlineData("echo 'hello \"world\"'")]
-    public void FindUnmatchedQuote_MatchedQuotes_ShouldReturnNull(string command)
-    {
+    public void FindUnmatchedQuote_MatchedQuotes_ShouldReturnNull(string command) {
         var result = _strictParseNode.FindUnmatchedQuote(command.AsSpan());
         result.Should().BeNull();
     }
 
     [Fact]
-    public async Task StrictParse_UnclosedDoubleQuote_ShouldReject()
-    {
+    public async Task StrictParse_UnclosedDoubleQuote_ShouldReject() {
         var workDir = AppContext.BaseDirectory;
         var (_, rejection) = await _bashDefenseService
             .Begin("echo \"hello >nul", workDir, SystemActuatorKind.Bash)
@@ -437,8 +400,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task StrictParse_MatchedQuotes_ShouldPass()
-    {
+    public async Task StrictParse_MatchedQuotes_ShouldPass() {
         var workDir = AppContext.BaseDirectory;
         var (_, rejection) = await _bashDefenseService
             .Begin("echo \"hello world\"", workDir, SystemActuatorKind.Bash)
@@ -453,46 +415,40 @@ public class BashDefenseTests
     #region DangerousCommandNode — 危险命令检测
 
     [Fact]
-    public void DangerousCommandNode_GitGlobalParamC_ShouldClassifyAsDangerous()
-    {
+    public void DangerousCommandNode_GitGlobalParamC_ShouldClassifyAsDangerous() {
         var result = _dangerousCommandNode.ClassifyDangerous("git -c core.sshCommand=rm status");
         result.Should().NotBeNull();
         result!.IsDangerous.Should().BeTrue();
     }
 
     [Fact]
-    public void DangerousCommandNode_GitExecPath_ShouldClassifyAsDangerous()
-    {
+    public void DangerousCommandNode_GitExecPath_ShouldClassifyAsDangerous() {
         var result = _dangerousCommandNode.ClassifyDangerous("git --exec-path=/tmp/evil status");
         result.Should().NotBeNull();
         result!.IsDangerous.Should().BeTrue();
     }
 
     [Fact]
-    public void DangerousCommandNode_GitConfigEnv_ShouldClassifyAsDangerous()
-    {
+    public void DangerousCommandNode_GitConfigEnv_ShouldClassifyAsDangerous() {
         var result = _dangerousCommandNode.ClassifyDangerous("git --config-env=foo=bar status");
         result.Should().NotBeNull();
         result!.IsDangerous.Should().BeTrue();
     }
 
     [Fact]
-    public void DangerousCommandNode_NormalGitStatus_ShouldReturnNull()
-    {
+    public void DangerousCommandNode_NormalGitStatus_ShouldReturnNull() {
         var result = _dangerousCommandNode.ClassifyDangerous("git status");
         result.Should().BeNull();
     }
 
     [Fact]
-    public void DangerousCommandNode_NormalEcho_ShouldReturnNull()
-    {
+    public void DangerousCommandNode_NormalEcho_ShouldReturnNull() {
         var result = _dangerousCommandNode.ClassifyDangerous("echo hello");
         result.Should().BeNull();
     }
 
     [Fact]
-    public async Task CheckDangerousCommand_GitC_ShouldReject()
-    {
+    public async Task CheckDangerousCommand_GitC_ShouldReject() {
         var workDir = AppContext.BaseDirectory;
         var (_, rejection) = await _bashDefenseService
             .Begin("git -c core.sshCommand=rm status", workDir, SystemActuatorKind.Bash)
@@ -505,8 +461,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task CheckDangerousCommand_GitExecPath_ShouldReject()
-    {
+    public async Task CheckDangerousCommand_GitExecPath_ShouldReject() {
         var workDir = AppContext.BaseDirectory;
         var (_, rejection) = await _bashDefenseService
             .Begin("git --exec-path=/tmp/evil log", workDir, SystemActuatorKind.Bash)
@@ -518,8 +473,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task CheckDangerousCommand_NormalGit_ShouldPass()
-    {
+    public async Task CheckDangerousCommand_NormalGit_ShouldPass() {
         var workDir = AppContext.BaseDirectory;
         var (_, rejection) = await _bashDefenseService
             .Begin("git status", workDir, SystemActuatorKind.Bash)
@@ -530,8 +484,7 @@ public class BashDefenseTests
     }
 
     [Fact]
-    public async Task CheckDangerousCommand_InChain_ShouldShortCircuitBeforeRetainedDevice()
-    {
+    public async Task CheckDangerousCommand_InChain_ShouldShortCircuitBeforeRetainedDevice() {
         var workDir = AppContext.BaseDirectory;
         var (_, rejection) = await _bashDefenseService
             .Begin("git -c x=y status >nul", workDir, SystemActuatorKind.Bash)

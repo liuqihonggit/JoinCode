@@ -5,18 +5,15 @@ namespace Tui.Tests.Views;
 /// P0-2 权限闭环：ShowAsync 显示弹窗 → 用户决策 → Hide 隐藏。
 /// </summary>
 
-public class PermissionDialogViewTests
-{
+public class PermissionDialogViewTests {
     [Fact]
-    public void Initial_Invisible()
-    {
+    public void Initial_Invisible() {
         var dialog = new PermissionDialogView();
         Assert.False(dialog.TerminalView.Visible);
     }
 
     [Fact]
-    public async Task ShowAsync_MakesVisible()
-    {
+    public async Task ShowAsync_MakesVisible() {
         var dialog = new PermissionDialogView();
         using var cts = new CancellationTokenSource();
         var task = dialog.ShowAsync("Read", "读取文件 test.txt", cts.Token);
@@ -28,8 +25,7 @@ public class PermissionDialogViewTests
     }
 
     [Fact]
-    public async Task ShowAsync_Cancelled_ReturnsFalse()
-    {
+    public async Task ShowAsync_Cancelled_ReturnsFalse() {
         var dialog = new PermissionDialogView();
         using var cts = new CancellationTokenSource();
         var task = dialog.ShowAsync("Write", "写入文件", cts.Token);
@@ -40,8 +36,7 @@ public class PermissionDialogViewTests
     }
 
     [Fact]
-    public void Hide_MakesInvisible()
-    {
+    public void Hide_MakesInvisible() {
         var dialog = new PermissionDialogView();
         using var cts = new CancellationTokenSource();
         _ = dialog.ShowAsync("Read", "test", cts.Token);
@@ -52,8 +47,7 @@ public class PermissionDialogViewTests
     }
 
     [Fact]
-    public void TerminalView_ContainsButtons()
-    {
+    public void TerminalView_ContainsButtons() {
         var dialog = new PermissionDialogView();
         var snapshot = ViewTreeSerializer.Serialize(dialog.TerminalView);
         Assert.Contains("Button", snapshot);
@@ -62,8 +56,7 @@ public class PermissionDialogViewTests
     }
 
     [Fact]
-    public void ShowWithAlways_RendersThreeTierChoices()
-    {
+    public void ShowWithAlways_RendersThreeTierChoices() {
         // T3 三档决策 — 始终允许(24h会话级)按钮必须存在
         var dialog = new PermissionDialogView();
         var snapshot = ViewTreeSerializer.Serialize(dialog.TerminalView);
@@ -71,8 +64,7 @@ public class PermissionDialogViewTests
     }
 
     [Fact]
-    public async Task ShowAlwaysAsync_AlwaysButton_CompletesWithAlwaysAllow()
-    {
+    public async Task ShowAlwaysAsync_AlwaysButton_CompletesWithAlwaysAllow() {
         var dialog = new PermissionDialogView();
         using var cts = new CancellationTokenSource();
         var task = dialog.ShowWithDecisionAsync("bash", "执行命令 npm test", cts.Token);
@@ -86,8 +78,7 @@ public class PermissionDialogViewTests
     }
 
     [Fact]
-    public async Task ShowAlwaysAsync_AllowButton_CompletesWithAllow()
-    {
+    public async Task ShowAlwaysAsync_AllowButton_CompletesWithAllow() {
         var dialog = new PermissionDialogView();
         using var cts = new CancellationTokenSource();
         var task = dialog.ShowWithDecisionAsync("Read", "读取文件", cts.Token);
@@ -99,8 +90,7 @@ public class PermissionDialogViewTests
     }
 
     [Fact]
-    public async Task ShowAlwaysAsync_DenyButton_CompletesWithDeny()
-    {
+    public async Task ShowAlwaysAsync_DenyButton_CompletesWithDeny() {
         var dialog = new PermissionDialogView();
         using var cts = new CancellationTokenSource();
         var task = dialog.ShowWithDecisionAsync("Write", "写入文件", cts.Token);
@@ -111,8 +101,7 @@ public class PermissionDialogViewTests
         Assert.Equal(PermissionConfirmAction.Deny, decision);
     }
 
-    private static void InvokeDecision(PermissionDialogView dialog, string methodName)
-    {
+    private static void InvokeDecision(PermissionDialogView dialog, string methodName) {
         typeof(PermissionDialogView).GetMethod(methodName,
             BindingFlags.Instance | BindingFlags.NonPublic)!
             .Invoke(dialog, [dialog, EventArgs.Empty]);

@@ -4,49 +4,41 @@ namespace Host.Tests.ChatCommands;
 /// PlanSubCommand 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
 /// 覆盖:ToValue / FromValue / IsDefined / PlanSubCommandEnumConstants 常量值
 /// </summary>
-public sealed class PlanSubCommandExtensionsTests
-{
+public sealed class PlanSubCommandExtensionsTests {
     // ===== ToValue 测试 =====
 
     [Fact]
-    public void ToValue_On_Should_Return_on()
-    {
+    public void ToValue_On_Should_Return_on() {
         PlanSubCommand.On.ToValue().Should().Be("on");
     }
 
     [Fact]
-    public void ToValue_Enter_Should_Return_enter()
-    {
+    public void ToValue_Enter_Should_Return_enter() {
         PlanSubCommand.Enter.ToValue().Should().Be("enter");
     }
 
     [Fact]
-    public void ToValue_Off_Should_Return_off()
-    {
+    public void ToValue_Off_Should_Return_off() {
         PlanSubCommand.Off.ToValue().Should().Be("off");
     }
 
     [Fact]
-    public void ToValue_Exit_Should_Return_exit()
-    {
+    public void ToValue_Exit_Should_Return_exit() {
         PlanSubCommand.Exit.ToValue().Should().Be("exit");
     }
 
     [Fact]
-    public void ToValue_Status_Should_Return_status()
-    {
+    public void ToValue_Status_Should_Return_status() {
         PlanSubCommand.Status.ToValue().Should().Be("status");
     }
 
     [Fact]
-    public void ToValue_Open_Should_Return_open()
-    {
+    public void ToValue_Open_Should_Return_open() {
         PlanSubCommand.Open.ToValue().Should().Be("open");
     }
 
     [Fact]
-    public void ToValue_Toggle_Should_Return_toggle()
-    {
+    public void ToValue_Toggle_Should_Return_toggle() {
         PlanSubCommand.Toggle.ToValue().Should().Be("toggle");
     }
 
@@ -60,14 +52,12 @@ public sealed class PlanSubCommandExtensionsTests
     [InlineData("status", PlanSubCommand.Status)]
     [InlineData("open", PlanSubCommand.Open)]
     [InlineData("toggle", PlanSubCommand.Toggle)]
-    public void FromValue_ValidString_Should_Return_CorrectEnum(string input, PlanSubCommand expected)
-    {
+    public void FromValue_ValidString_Should_Return_CorrectEnum(string input, PlanSubCommand expected) {
         PlanSubCommandExtensions.FromValue(input).Should().Be(expected);
     }
 
     [Fact]
-    public void FromValue_Should_Be_CaseInsensitive()
-    {
+    public void FromValue_Should_Be_CaseInsensitive() {
         PlanSubCommandExtensions.FromValue("ON").Should().Be(PlanSubCommand.On);
         PlanSubCommandExtensions.FromValue("ENTER").Should().Be(PlanSubCommand.Enter);
         PlanSubCommandExtensions.FromValue("Status").Should().Be(PlanSubCommand.Status);
@@ -75,20 +65,17 @@ public sealed class PlanSubCommandExtensionsTests
     }
 
     [Fact]
-    public void FromValue_InvalidString_Should_Return_Null()
-    {
+    public void FromValue_InvalidString_Should_Return_Null() {
         PlanSubCommandExtensions.FromValue("invalid").Should().BeNull();
     }
 
     [Fact]
-    public void FromValue_EmptyString_Should_Return_Null()
-    {
+    public void FromValue_EmptyString_Should_Return_Null() {
         PlanSubCommandExtensions.FromValue("").Should().BeNull();
     }
 
     [Fact]
-    public void FromValue_Null_Should_Return_Null()
-    {
+    public void FromValue_Null_Should_Return_Null() {
         PlanSubCommandExtensions.FromValue(null).Should().BeNull();
     }
 
@@ -102,16 +89,14 @@ public sealed class PlanSubCommandExtensionsTests
     [InlineData(PlanSubCommand.Status, true)]
     [InlineData(PlanSubCommand.Open, true)]
     [InlineData(PlanSubCommand.Toggle, true)]
-    public void IsDefined_AllValidValues_Should_Return_True(PlanSubCommand value, bool expected)
-    {
+    public void IsDefined_AllValidValues_Should_Return_True(PlanSubCommand value, bool expected) {
         PlanSubCommandExtensions.IsDefined(value).Should().Be(expected);
     }
 
     // ===== PlanSubCommandEnumConstants 测试 =====
 
     [Fact]
-    public void Constants_Should_Match_EnumValues()
-    {
+    public void Constants_Should_Match_EnumValues() {
         PlanSubCommandEnumConstants.On.Should().Be("on");
         PlanSubCommandEnumConstants.Enter.Should().Be("enter");
         PlanSubCommandEnumConstants.Off.Should().Be("off");
@@ -131,8 +116,7 @@ public sealed class PlanSubCommandExtensionsTests
     [InlineData(PlanSubCommand.Status)]
     [InlineData(PlanSubCommand.Open)]
     [InlineData(PlanSubCommand.Toggle)]
-    public void ToValue_FromValue_RoundTrip_Should_Be_Consistent(PlanSubCommand value)
-    {
+    public void ToValue_FromValue_RoundTrip_Should_Be_Consistent(PlanSubCommand value) {
         var str = value.ToValue();
         PlanSubCommandExtensions.FromValue(str).Should().Be(value);
     }
@@ -140,8 +124,7 @@ public sealed class PlanSubCommandExtensionsTests
     // ===== 数量验证 =====
 
     [Fact]
-    public void AllValues_Should_Be_7()
-    {
+    public void AllValues_Should_Be_7() {
         var values = Enum.GetValues<PlanSubCommand>();
         values.Should().HaveCount(7);
     }

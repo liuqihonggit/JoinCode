@@ -1,10 +1,8 @@
 namespace Infra.Tests.Utils.Throttle;
 
-public class FixedWindowRateLimiterTests
-{
+public class FixedWindowRateLimiterTests {
     [Fact]
-    public void TryAcquire_WithinLimit_ShouldReturnTrue()
-    {
+    public void TryAcquire_WithinLimit_ShouldReturnTrue() {
         var limiter = new FixedWindowRateLimiter(3, TimeSpan.FromSeconds(1));
         limiter.TryAcquire().Should().BeTrue();
         limiter.TryAcquire().Should().BeTrue();
@@ -12,8 +10,7 @@ public class FixedWindowRateLimiterTests
     }
 
     [Fact]
-    public void TryAcquire_ExceedsLimit_ShouldReturnFalse()
-    {
+    public void TryAcquire_ExceedsLimit_ShouldReturnFalse() {
         var limiter = new FixedWindowRateLimiter(2, TimeSpan.FromSeconds(1));
         limiter.TryAcquire().Should().BeTrue();
         limiter.TryAcquire().Should().BeTrue();
@@ -21,8 +18,7 @@ public class FixedWindowRateLimiterTests
     }
 
     [Fact]
-    public void Reset_ShouldAllowNewRequests()
-    {
+    public void Reset_ShouldAllowNewRequests() {
         var limiter = new FixedWindowRateLimiter(1, TimeSpan.FromSeconds(1));
         limiter.TryAcquire().Should().BeTrue();
         limiter.TryAcquire().Should().BeFalse();
@@ -31,11 +27,9 @@ public class FixedWindowRateLimiterTests
     }
 }
 
-public class CircuitBreakerStateTests
-{
+public class CircuitBreakerStateTests {
     [Fact]
-    public void ShouldTrip_AfterThresholdFailures_ShouldReturnTrue()
-    {
+    public void ShouldTrip_AfterThresholdFailures_ShouldReturnTrue() {
         var breaker = new CircuitBreakerState(3, TimeSpan.FromSeconds(30));
         breaker.RecordFailure();
         breaker.RecordFailure();
@@ -45,8 +39,7 @@ public class CircuitBreakerStateTests
     }
 
     [Fact]
-    public void IsOpen_AfterTripping_ShouldBeTrue()
-    {
+    public void IsOpen_AfterTripping_ShouldBeTrue() {
         var breaker = new CircuitBreakerState(2, TimeSpan.FromSeconds(30));
         breaker.RecordFailure();
         breaker.RecordFailure();
@@ -55,8 +48,7 @@ public class CircuitBreakerStateTests
     }
 
     [Fact]
-    public void RecordSuccess_ShouldResetConsecutiveFailures()
-    {
+    public void RecordSuccess_ShouldResetConsecutiveFailures() {
         var breaker = new CircuitBreakerState(3, TimeSpan.FromSeconds(30));
         breaker.RecordFailure();
         breaker.RecordFailure();
@@ -65,8 +57,7 @@ public class CircuitBreakerStateTests
     }
 
     [Fact]
-    public void Reset_ShouldClearState()
-    {
+    public void Reset_ShouldClearState() {
         var breaker = new CircuitBreakerState(2, TimeSpan.FromSeconds(30));
         breaker.RecordFailure();
         breaker.RecordFailure();
@@ -76,8 +67,7 @@ public class CircuitBreakerStateTests
     }
 
     [Fact]
-    public void IsOpen_BeforeThreshold_ShouldBeFalse()
-    {
+    public void IsOpen_BeforeThreshold_ShouldBeFalse() {
         var breaker = new CircuitBreakerState(5, TimeSpan.FromSeconds(30));
         breaker.IsOpen.Should().BeFalse();
     }

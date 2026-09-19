@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces.Scheduling;
 /// 多目标注册表 — 管理多个 GoalEngine 实例，支持多 goal 并发和持久化恢复。
 /// 对齐 PersistentDreamTaskRegistry 模式：内存缓存 + 持久化 + 启动恢复。
 /// </summary>
-public interface IGoalRegistry : IRegistry
-{
+public interface IGoalRegistry : IRegistry {
     /// <summary>启动新目标（创建新 GoalEngine 实例）</summary>
     Task<GoalState> StartAsync(string objective, List<string>? constraints = null, int? tokenBudget = null, CancellationToken cancellationToken = default);
 

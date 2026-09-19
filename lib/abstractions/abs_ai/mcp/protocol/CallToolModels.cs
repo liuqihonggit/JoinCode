@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
-public sealed record CallToolRequestParams
-{
+public sealed record CallToolRequestParams {
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
@@ -9,8 +8,7 @@ public sealed record CallToolRequestParams
     public JsonElement? Arguments { get; set; }
 }
 
-public sealed record CallToolResult
-{
+public sealed record CallToolResult {
     [JsonPropertyName("content")]
     public List<McpToolContent> Content { get; set; } = [];
 
@@ -18,8 +16,7 @@ public sealed record CallToolResult
     public bool IsError { get; set; }
 }
 
-public sealed record McpToolContent
-{
+public sealed record McpToolContent {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "text";
 

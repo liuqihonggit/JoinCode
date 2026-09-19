@@ -3,8 +3,7 @@ namespace Structura.Dag;
 /// <summary>
 /// DAG 操作结果
 /// </summary>
-public sealed class DagResult
-{
+public sealed class DagResult {
     /// <summary>操作是否成功</summary>
     public bool Success { get; init; }
     /// <summary>失败时的错误消息;成功时为 null</summary>

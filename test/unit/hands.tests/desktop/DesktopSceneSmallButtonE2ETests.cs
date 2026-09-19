@@ -5,12 +5,10 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// 验证夹逼核心场景：反复 zoom 直到 IsClearEnough=true
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed class DesktopSceneSmallButtonE2ETests
-{
+public sealed class DesktopSceneSmallButtonE2ETests {
     /// <summary>AC-08: 1920×1080 反复 zoom 直到 IsClearEnough，总次数 ≤ 7</summary>
     [Fact]
-    public async Task RepeatedZoom_ConvergesToClearEnough_Within7Steps()
-    {
+    public async Task RepeatedZoom_ConvergesToClearEnough_Within7Steps() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 
@@ -31,8 +29,7 @@ public sealed class DesktopSceneSmallButtonE2ETests
         var lastRegionWidth = capture.ImageWidth;
         var lastRegionHeight = capture.ImageHeight;
 
-        while (!isClear && zoomCount < maxZoom)
-        {
+        while (!isClear && zoomCount < maxZoom) {
             var zoom = await zoomService.ZoomAsync(sceneId, 1);
             zoomCount++;
             zoom.RegionWidth.Should().BeLessThanOrEqualTo(lastRegionWidth,
@@ -50,8 +47,7 @@ public sealed class DesktopSceneSmallButtonE2ETests
 
     /// <summary>AC-08: 每次 zoom 区域面积 ≤ 上一次 / 4（四叉树 2×2 分割选 1 块）</summary>
     [Fact]
-    public async Task EachZoom_AreaShrinksByAtLeastFactor4()
-    {
+    public async Task EachZoom_AreaShrinksByAtLeastFactor4() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 
@@ -67,8 +63,7 @@ public sealed class DesktopSceneSmallButtonE2ETests
         var capture = await captureService.CaptureWithGridAsync(sceneId, 2);
         var previousArea = (long)capture.ImageWidth * capture.ImageHeight;
 
-        for (int i = 1; i <= 5; i++)
-        {
+        for (int i = 1; i <= 5; i++) {
             var zoom = await zoomService.ZoomAsync(sceneId, 1);
             var currentArea = (long)zoom.RegionWidth * zoom.RegionHeight;
             currentArea.Should().BeLessThanOrEqualTo(previousArea / 4 + 1,

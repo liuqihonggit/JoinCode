@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// WebSearch工具提示词
 /// </summary>
 [ToolPrompt(ToolName = WebToolName.WebSearch, Category = ToolPromptCategory.Search)]
-public static class WebSearchToolPrompt
-{
+public static class WebSearchToolPrompt {
     public static string GetDescription(string currentMonthYear) => $"""
         - 允许AI搜索网络并使用结果来通知回复
         - 为当前事件和最近数据提供最新信息

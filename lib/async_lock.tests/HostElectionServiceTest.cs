@@ -3,18 +3,15 @@ namespace Core.Utils;
 /// <summary>
 /// HostElectionService 单元测试 — 验证主机选举、角色判定、心跳监控。
 /// </summary>
-public class HostElectionServiceTest
-{
+public class HostElectionServiceTest {
     [Fact]
-    public async Task ProcessId_ReturnsCurrentPid()
-    {
+    public async Task ProcessId_ReturnsCurrentPid() {
         await using var service = new HostElectionService(pipeName: $"test-pipe-{Guid.NewGuid():N}");
         service.ProcessId.Should().Be(Environment.ProcessId.ToString());
     }
 
     [Fact]
-    public async Task ElectAsync_NoExistingHost_BecomesHost()
-    {
+    public async Task ElectAsync_NoExistingHost_BecomesHost() {
         var uniquePipe = $"test-pipe-{Guid.NewGuid():N}";
         await using var service = new HostElectionService(pipeName: uniquePipe);
 
@@ -26,8 +23,7 @@ public class HostElectionServiceTest
     }
 
     [Fact]
-    public async Task ElectAsync_CalledTwice_ReturnsConsistentRole()
-    {
+    public async Task ElectAsync_CalledTwice_ReturnsConsistentRole() {
         var uniquePipe = $"test-pipe-{Guid.NewGuid():N}";
         await using var service = new HostElectionService(pipeName: uniquePipe);
 
@@ -39,8 +35,7 @@ public class HostElectionServiceTest
     }
 
     [Fact]
-    public async Task CurrentRole_SetAfterElection()
-    {
+    public async Task CurrentRole_SetAfterElection() {
         var uniquePipe = $"test-pipe-{Guid.NewGuid():N}";
         await using var service = new HostElectionService(pipeName: uniquePipe);
 
@@ -53,15 +48,13 @@ public class HostElectionServiceTest
     }
 
     [Fact]
-    public async Task ElectionChangesAsync_ProducesRoleChange()
-    {
+    public async Task ElectionChangesAsync_ProducesRoleChange() {
         var uniquePipe = $"test-pipe-{Guid.NewGuid():N}";
         await using var service = new HostElectionService(pipeName: uniquePipe);
 
         var cts = new CancellationTokenSource();
         var results = new List<HostElectionResult>();
-        var consumeTask = Task.Run(async () =>
-        {
+        var consumeTask = Task.Run(async () => {
             await foreach (var r in service.ElectionChangesAsync(cts.Token))
                 results.Add(r);
         }, cts.Token);
@@ -77,19 +70,16 @@ public class HostElectionServiceTest
     }
 
     [Fact]
-    public async Task UpdateSnapshot_StoresLastSnapshot()
-    {
+    public async Task UpdateSnapshot_StoresLastSnapshot() {
         var uniquePipe = $"test-pipe-{Guid.NewGuid():N}";
         await using var service = new HostElectionService(pipeName: uniquePipe);
 
-        var snapshot = new HostContextSnapshot
-        {
+        var snapshot = new HostContextSnapshot {
             Timestamp = DateTimeOffset.UtcNow,
             HostProcessId = "12345",
             RoutingTable = new Dictionary<string, string> { ["agent-1"] = "12345" },
             PendingMessages = new Dictionary<string, IReadOnlyList<ReadOnlyMemory<byte>>>(),
-            BuildQueue = new BuildQueueState
-            {
+            BuildQueue = new BuildQueueState {
                 PendingCount = 0,
                 RunningCount = 0,
                 PendingTasks = Array.Empty<string>()
@@ -102,18 +92,15 @@ public class HostElectionServiceTest
     }
 
     [Fact]
-    public async Task DisposeAsync_CanBeCalledMultipleTimes()
-    {
+    public async Task DisposeAsync_CanBeCalledMultipleTimes() {
         var service = new HostElectionService(pipeName: $"test-pipe-{Guid.NewGuid():N}");
         await service.DisposeAsync();
         await service.DisposeAsync();
     }
 
-    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan timeout)
-    {
+    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan timeout) {
         var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
+        while (DateTime.UtcNow < deadline) {
             if (predicate()) return;
             await Task.Delay(50);
         }

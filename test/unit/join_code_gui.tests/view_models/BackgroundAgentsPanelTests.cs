@@ -5,15 +5,13 @@ namespace JoinCode.Gui.Tests.ViewModels;
 /// 数据经委托注入（fetcher/stopper），不依赖真实引擎会话。
 /// 该面板同时是 fork 跨回合终态的权威数据源（直接读引擎运行列表）。
 /// </summary>
-public class BackgroundAgentsPanelTests
-{
+public class BackgroundAgentsPanelTests {
     private static BackgroundAgentInfo Info(string id, string state = "running") =>
         new(id, Name: "explore", Description: "调研任务", State: state,
             StartedAt: DateTime.Now.AddSeconds(-30), ToolUseCount: 4, TokenCount: 8200);
 
     [Fact]
-    public async Task Toggle_ShouldOpen_AndFetchSnapshot()
-    {
+    public async Task Toggle_ShouldOpen_AndFetchSnapshot() {
         var fetched = 0;
         var panel = new BackgroundAgentsPanelViewModel(
             fetcher: _ => { fetched++; return Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([Info("a1")]); },
@@ -28,8 +26,7 @@ public class BackgroundAgentsPanelTests
     }
 
     [Fact]
-    public async Task Toggle_Twice_ShouldCloseWithoutFetch()
-    {
+    public async Task Toggle_Twice_ShouldCloseWithoutFetch() {
         var fetched = 0;
         var panel = new BackgroundAgentsPanelViewModel(
             fetcher: _ => { fetched++; return Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([]); },
@@ -43,8 +40,7 @@ public class BackgroundAgentsPanelTests
     }
 
     [Fact]
-    public void ApplySnapshot_ShouldMapFields_AndRunningFlag()
-    {
+    public void ApplySnapshot_ShouldMapFields_AndRunningFlag() {
         var panel = new BackgroundAgentsPanelViewModel(
             _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>([]),
             (_, _) => Task.FromResult(true));
@@ -60,8 +56,7 @@ public class BackgroundAgentsPanelTests
     }
 
     [Fact]
-    public async Task Stop_ShouldCallStopper_AndRefresh()
-    {
+    public async Task Stop_ShouldCallStopper_AndRefresh() {
         var stopped = new List<string>();
         var agents = new List<BackgroundAgentInfo> { Info("a1"), Info("a2") };
         var panel = new BackgroundAgentsPanelViewModel(
@@ -76,8 +71,7 @@ public class BackgroundAgentsPanelTests
     }
 
     [Fact]
-    public async Task Stop_WhenEngineRejects_ShouldKeepRow()
-    {
+    public async Task Stop_WhenEngineRejects_ShouldKeepRow() {
         var agents = new List<BackgroundAgentInfo> { Info("keep") };
         var panel = new BackgroundAgentsPanelViewModel(
             fetcher: _ => Task.FromResult<IReadOnlyList<BackgroundAgentInfo>>(agents.ToList()),
@@ -89,4 +83,3 @@ public class BackgroundAgentsPanelTests
         panel.Items.Should().ContainSingle("引擎拒绝终止时保留该行等待下次刷新");
     }
 }
-

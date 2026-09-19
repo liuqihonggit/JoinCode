@@ -7,35 +7,29 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.Hooks, Description = "管理 Hook 配置", Usage = "/hooks [list|add|remove|test] [args]", Category = ChatCommandCategory.Tools, ArgumentHint = "[list|add|remove|test]")]
 [ChatCommandArg("action", Type = "string", Description = "Hook 操作", Enum = new[] { "list", "add", "remove", "test" })]
 [ChatCommandArg("args", Type = "string", Description = "操作特定参数,如 add 的 Hook 配置")]
-public sealed class HooksCommand : ChatCommandBase
-{
+public sealed class HooksCommand : ChatCommandBase {
     /// <summary>
     /// 异步执行 /hooks 命令
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var hookManager = context.GetCommandServices().HookConfigurationManager;
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase)) {
             return await ListHooksAsync(hookManager);
         }
 
-        if (args.StartsWith("add", StringComparison.OrdinalIgnoreCase))
-        {
+        if (args.StartsWith("add", StringComparison.OrdinalIgnoreCase)) {
             return await AddHookAsync(hookManager, args, context.CancellationToken);
         }
 
-        if (args.StartsWith("remove", StringComparison.OrdinalIgnoreCase))
-        {
+        if (args.StartsWith("remove", StringComparison.OrdinalIgnoreCase)) {
             return await RemoveHookAsync(hookManager, args, context.CancellationToken);
         }
 
-        if (args.StartsWith("test", StringComparison.OrdinalIgnoreCase))
-        {
+        if (args.StartsWith("test", StringComparison.OrdinalIgnoreCase)) {
             return TestHook(args);
         }
 
@@ -44,23 +38,19 @@ public sealed class HooksCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static async Task<ChatCommandResult> ListHooksAsync(IHookConfigurationManager? hookManager)
-    {
-        if (hookManager is null)
-        {
+    private static async Task<ChatCommandResult> ListHooksAsync(IHookConfigurationManager? hookManager) {
+        if (hookManager is null) {
             TerminalHelper.WriteLine("Hook 配置管理器未初始化");
             return ChatCommandResult.Continue();
         }
 
-        try
-        {
+        try {
             var group = await hookManager.LoadAllHooksAsync().ConfigureAwait(false);
             var allHooks = group.Groups
                 .SelectMany(g => g.Value.SelectMany(m => m.Value))
                 .ToList();
 
-            if (allHooks.Count == 0)
-            {
+            if (allHooks.Count == 0) {
                 TerminalHelper.WriteLine("Hook 配置列表:");
                 TerminalHelper.NewLine();
                 TerminalHelper.WriteLine("  当前无已配置的 Hook");
@@ -71,8 +61,7 @@ public sealed class HooksCommand : ChatCommandBase
             }
 
             // 交互模式：Selector 选择 Hook 查看详情
-            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
+            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 var selector = new Selector<HookEntry>(
                     "Hook 配置列表",
                     allHooks.Select(h => new HookEntry(h.Source.ToString(), h.Event.ToString() ?? "", h.Matcher ?? "*", h.Command.GetDisplayText())).ToArray(),
@@ -80,22 +69,18 @@ public sealed class HooksCommand : ChatCommandBase
                     h => $"命令: {h.Command}");
 
                 var result = await selector.ShowAsync(CancellationToken.None).ConfigureAwait(false);
-                if (!result.Cancelled && result.Selected is not null)
-                {
+                if (!result.Cancelled && result.Selected is not null) {
                     TerminalHelper.NewLine();
                     TerminalHelper.WriteLine($"  来源: {result.Selected.Source}");
                     TerminalHelper.WriteLine($"  事件: {result.Selected.Event}");
                     TerminalHelper.WriteLine($"  匹配: {result.Selected.Matcher}");
                     TerminalHelper.WriteLine($"  命令: {result.Selected.Command}");
                 }
-            }
-            else
-            {
+            } else {
                 // 非交互模式：纯文本列表
                 TerminalHelper.WriteLine("Hook 配置列表:");
                 TerminalHelper.NewLine();
-                foreach (var hook in allHooks)
-                {
+                foreach (var hook in allHooks) {
                     var matcher = string.IsNullOrEmpty(hook.Matcher) ? "*" : hook.Matcher;
                     TerminalHelper.WriteLine($"  [{hook.Source}] {hook.Event} matcher={matcher} → {hook.Command.GetDisplayText()}");
                 }
@@ -104,9 +89,7 @@ public sealed class HooksCommand : ChatCommandBase
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine("使用 /hooks add <event> <command> 添加 Hook");
             TerminalHelper.WriteLine("支持的事件: PreToolUse, PostToolUse, Notification, Stop, SessionStart");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("加载Hook配置", ex);
         }
 
@@ -118,25 +101,21 @@ public sealed class HooksCommand : ChatCommandBase
     private static async Task<ChatCommandResult> AddHookAsync(
         IHookConfigurationManager? hookManager,
         string args,
-        CancellationToken ct)
-    {
-        if (hookManager is null)
-        {
+        CancellationToken ct) {
+        if (hookManager is null) {
             TerminalHelper.WriteLine("Hook 配置管理器未初始化");
             return ChatCommandResult.Continue();
         }
 
         var parts = args.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 3)
-        {
+        if (parts.Length < 3) {
             TerminalHelper.WriteLine("用法: /hooks add <event> <command>");
             TerminalHelper.WriteLine("示例: /hooks add PreToolUse 'echo 检查权限'");
             return ChatCommandResult.Continue();
         }
 
         var hookEvent = HookEventExtensions.FromValue(parts[1]);
-        if (hookEvent is not { } evt)
-        {
+        if (hookEvent is not { } evt) {
             TerminalHelper.WriteLine($"未知事件: {parts[1]}");
             TerminalHelper.WriteLine("支持的事件: PreToolUse, PostToolUse, Notification, Stop, SessionStart, SubagentStart, SubagentStop, PreCompact, PostCompact");
             return ChatCommandResult.Continue();
@@ -144,13 +123,10 @@ public sealed class HooksCommand : ChatCommandBase
 
         var hook = new BashCommandHook { Command = parts[2] };
 
-        try
-        {
+        try {
             await hookManager.AddHookAsync(HookSource.UserSettings, evt, null, hook, ct).ConfigureAwait(false);
             TerminalHelper.WriteLine($"已添加 Hook: 事件={evt}, 命令={parts[2]}");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("添加Hook", ex);
         }
 
@@ -160,63 +136,52 @@ public sealed class HooksCommand : ChatCommandBase
     private static async Task<ChatCommandResult> RemoveHookAsync(
         IHookConfigurationManager? hookManager,
         string args,
-        CancellationToken ct)
-    {
-        if (hookManager is null)
-        {
+        CancellationToken ct) {
+        if (hookManager is null) {
             TerminalHelper.WriteLine("Hook 配置管理器未初始化");
             return ChatCommandResult.Continue();
         }
 
         var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 2)
-        {
+        if (parts.Length < 2) {
             TerminalHelper.WriteLine("用法: /hooks remove <event> <command>");
             TerminalHelper.WriteLine("示例: /hooks remove PreToolUse 'echo 检查权限'");
             return ChatCommandResult.Continue();
         }
 
         var removeParts = parts[1].Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        if (removeParts.Length < 2)
-        {
+        if (removeParts.Length < 2) {
             TerminalHelper.WriteLine("用法: /hooks remove <event> <command>");
             return ChatCommandResult.Continue();
         }
 
         var hookEvent = HookEventExtensions.FromValue(removeParts[0]);
-        if (hookEvent is not { } evt)
-        {
+        if (hookEvent is not { } evt) {
             TerminalHelper.WriteLine($"未知事件: {removeParts[0]}");
             return ChatCommandResult.Continue();
         }
 
         var hook = new BashCommandHook { Command = removeParts[1] };
 
-        try
-        {
+        try {
             await hookManager.RemoveHookAsync(HookSource.UserSettings, evt, null, hook, ct).ConfigureAwait(false);
             TerminalHelper.WriteLine($"已移除 Hook: 事件={evt}, 命令={removeParts[1]}");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("移除Hook", ex);
         }
 
         return ChatCommandResult.Continue();
     }
 
-    private static ChatCommandResult TestHook(string args)
-    {
+    private static ChatCommandResult TestHook(string args) {
         var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 2)
-        {
+        if (parts.Length < 2) {
             TerminalHelper.WriteLine("用法: /hooks test <event> [matcher]");
             return ChatCommandResult.Continue();
         }
 
         var hookEvent = HookEventExtensions.FromValue(parts[1]);
-        if (hookEvent is null)
-        {
+        if (hookEvent is null) {
             TerminalHelper.WriteLine($"未知事件: {parts[1]}");
             return ChatCommandResult.Continue();
         }

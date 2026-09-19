@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Configuration.Providers;
 /// Provider 完整定义接口 — 每个 Provider 实现自己的全部知识
 /// 包含：配置解析 + 模型列表 + 别名映射 + 能力判断
 /// </summary>
-public interface IProviderDefinition
-{
+public interface IProviderDefinition {
     /// <summary>
     /// 供应商枚举类型 — openai/anthropic/deepseek/azure/agnes/sensenova
     /// </summary>

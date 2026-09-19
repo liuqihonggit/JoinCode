@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// v1 传输适配器选项
 /// </summary>
-public sealed class V1TransportOptions
-{
+public sealed class V1TransportOptions {
     /// <summary>WebSocket 端点 URL（Session-Ingress WS）</summary>
     public required string WebSocketEndpoint { get; init; }
 

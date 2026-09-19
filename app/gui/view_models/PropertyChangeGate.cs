@@ -4,8 +4,7 @@ namespace JoinCode.Gui.ViewModels;
 /// 属性变更副作用门控 — 封装三个标志位（偏好加载/热重载/外部主题），
 /// 统一判断是否允许持久化副作用，用 using scope 替代手动 true/false 对。
 /// </summary>
-public sealed class PropertyChangeGate
-{
+public sealed class PropertyChangeGate {
     private volatile bool _preferencesLoaded;
     private volatile bool _refreshingConfig;
     private volatile bool _applyingTheme;
@@ -36,12 +35,10 @@ public sealed class PropertyChangeGate
     public IDisposable EnterApplyingThemeScope()
         => new Scope(() => _applyingTheme = true, () => _applyingTheme = false);
 
-    private sealed class Scope : IDisposable
-    {
+    private sealed class Scope : IDisposable {
         private readonly Action _exit;
 
-        public Scope(Action enter, Action exit)
-        {
+        public Scope(Action enter, Action exit) {
             _exit = exit;
             enter();
         }

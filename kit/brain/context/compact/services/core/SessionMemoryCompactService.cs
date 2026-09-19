@@ -6,8 +6,7 @@ namespace Core.Context.Compact;
 /// 基于持久化的会话记忆文件生成压缩摘要，避免丢失长期上下文
 /// </summary>
 [Register(typeof(ISessionMemoryCompactService), ServiceLifetime.Singleton)]
-public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessionMemoryCompactService
-{
+public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessionMemoryCompactService {
     private static readonly string SessionMemorySubdir = AppDataConstants.AppDataFolder;
     private const string SessionMemoryFileName = "session-memory.md";
 
@@ -27,8 +26,7 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
     public SessionMemoryCompactService(
         IMicrocompactService microcompactService,
         IOptions<SessionMemoryCompactConfig>? config = null,
-        IFileSystem? fileSystem = null)
-    {
+        IFileSystem? fileSystem = null) {
         _microcompactService = microcompactService ?? throw new ArgumentNullException(nameof(microcompactService));
         _config = config?.Value ?? SessionMemoryCompactConfig.Default;
         _fileSystem = fileSystem;
@@ -37,16 +35,14 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
     /// <summary>
     /// 设置会话记忆文件路径 — 由会话初始化时调用
     /// </summary>
-    public void SetMemoryFilePath(string workingDirectory)
-    {
+    public void SetMemoryFilePath(string workingDirectory) {
         _memoryFilePath = Path.Combine(workingDirectory, SessionMemorySubdir, SessionMemoryFileName);
     }
 
     /// <summary>
     /// 获取会话记忆文件路径
     /// </summary>
-    private string GetMemoryFilePath()
-    {
+    private string GetMemoryFilePath() {
         if (_memoryFilePath is not null) return _memoryFilePath;
 
         var cwd = _fileSystem?.GetCurrentDirectory()
@@ -68,18 +64,15 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
         IReadOnlyList<ApiMessage> messages,
         int autoCompactThreshold = 0,
         string? transcriptPath = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(messages);
 
         var memoryContent = await GetSessionMemoryContentAsync().ConfigureAwait(false);
-        if (string.IsNullOrEmpty(memoryContent))
-        {
+        if (string.IsNullOrEmpty(memoryContent)) {
             return null;
         }
 
-        if (IsSessionMemoryEmpty(memoryContent))
-        {
+        if (IsSessionMemoryEmpty(memoryContent)) {
             return null;
         }
 
@@ -99,15 +92,13 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
         var postCompactTokens = _microcompactService.EstimateMessageTokens(
             [new ApiMessage(MessageRole.User, summaryContent)]);
 
-        if (autoCompactThreshold > 0 && postCompactTokens >= autoCompactThreshold)
-        {
+        if (autoCompactThreshold > 0 && postCompactTokens >= autoCompactThreshold) {
             return null;
         }
 
         _tokensAtLastExtraction = _microcompactService.EstimateMessageTokens(messages);
 
-        return new CompactResult
-        {
+        return new CompactResult {
             Compacted = true,
             Level = CompactLevel.SessionMemoryCompact,
             Trigger = CompactTrigger.Auto,
@@ -123,8 +114,7 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
     /// 检查会话记忆是否可用（存在且非空）
     /// </summary>
     /// <returns>可用返回 true，否则 false</returns>
-    public async Task<bool> IsSessionMemoryAvailableAsync()
-    {
+    public async Task<bool> IsSessionMemoryAvailableAsync() {
         var content = await GetSessionMemoryContentAsync().ConfigureAwait(false);
         return !string.IsNullOrEmpty(content) && !IsSessionMemoryEmpty(content);
     }
@@ -133,18 +123,14 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
     /// 获取会话记忆内容 — 优先返回缓存，其次从文件读取
     /// </summary>
     /// <returns>会话记忆内容；不存在时返回 null</returns>
-    public async Task<string?> GetSessionMemoryContentAsync()
-    {
-        if (_cachedMemoryContent is not null)
-        {
+    public async Task<string?> GetSessionMemoryContentAsync() {
+        if (_cachedMemoryContent is not null) {
             return _cachedMemoryContent;
         }
 
-        if (_fileSystem is not null)
-        {
+        if (_fileSystem is not null) {
             var path = GetMemoryFilePath();
-            if (_fileSystem.FileExists(path))
-            {
+            if (_fileSystem.FileExists(path)) {
                 _cachedMemoryContent = await _fileSystem.ReadAllTextAsync(path).ConfigureAwait(false);
                 return _cachedMemoryContent;
             }
@@ -158,44 +144,36 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
     /// </summary>
     /// <param name="content">新的会话记忆内容</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task UpdateSessionMemoryAsync(string content, CancellationToken cancellationToken = default)
-    {
+    public async Task UpdateSessionMemoryAsync(string content, CancellationToken cancellationToken = default) {
         _cachedMemoryContent = content;
 
-        if (_fileSystem is not null)
-        {
+        if (_fileSystem is not null) {
             var path = GetMemoryFilePath();
             var dir = Path.GetDirectoryName(path)!;
-            if (!_fileSystem.DirectoryExists(dir))
-            {
+            if (!_fileSystem.DirectoryExists(dir)) {
                 _fileSystem.CreateDirectory(dir);
             }
             await _fileSystem.WriteAllTextAsync(path, content, cancellationToken).ConfigureAwait(false);
         }
     }
 
-    internal void SetMemoryContent(string content)
-    {
+    internal void SetMemoryContent(string content) {
         _cachedMemoryContent = content;
     }
 
-    private static bool IsSessionMemoryEmpty(string content)
-    {
+    private static bool IsSessionMemoryEmpty(string content) {
         var template = SessionMemoryPromptTemplate.DefaultSessionMemoryTemplate;
         var trimmedContent = content.Trim();
         var trimmedTemplate = template.Trim();
         return trimmedContent.Length <= trimmedTemplate.Length;
     }
 
-    private static int FindLastSummarizedIndex(IReadOnlyList<ApiMessage> messages)
-    {
-        for (var i = messages.Count - 1; i >= 0; i--)
-        {
+    private static int FindLastSummarizedIndex(IReadOnlyList<ApiMessage> messages) {
+        for (var i = messages.Count - 1; i >= 0; i--) {
             var msg = messages[i];
             if (msg.Metadata is not null
                 && msg.Metadata.TryGetValue("is_compact_boundary", out var val)
-                && val.ValueKind == JsonValueKind.True)
-            {
+                && val.ValueKind == JsonValueKind.True) {
                 return i;
             }
         }
@@ -203,10 +181,8 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
         return -1;
     }
 
-    private int CalculateMessagesToKeepIndex(IReadOnlyList<ApiMessage> messages, int lastSummarizedIndex)
-    {
-        if (messages.Count == 0)
-        {
+    private int CalculateMessagesToKeepIndex(IReadOnlyList<ApiMessage> messages, int lastSummarizedIndex) {
+        if (messages.Count == 0) {
             return 0;
         }
 
@@ -215,43 +191,35 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
         var totalTokens = 0;
         var textBlockMessageCount = 0;
 
-        for (var i = startIndex; i < messages.Count; i++)
-        {
+        for (var i = startIndex; i < messages.Count; i++) {
             totalTokens += _microcompactService.EstimateMessageTokens([messages[i]]);
-            if (messages[i].Role is MessageRole.User or MessageRole.Assistant && !string.IsNullOrEmpty(messages[i].Content))
-            {
+            if (messages[i].Role is MessageRole.User or MessageRole.Assistant && !string.IsNullOrEmpty(messages[i].Content)) {
                 textBlockMessageCount++;
             }
         }
 
-        if (totalTokens >= _config.MaxTokens)
-        {
+        if (totalTokens >= _config.MaxTokens) {
             return startIndex;
         }
 
-        if (totalTokens >= _config.MinTokens && textBlockMessageCount >= _config.MinTextBlockMessages)
-        {
+        if (totalTokens >= _config.MinTokens && textBlockMessageCount >= _config.MinTextBlockMessages) {
             return startIndex;
         }
 
         var floor = lastSummarizedIndex >= 0 ? lastSummarizedIndex + 1 : 0;
-        for (var i = startIndex - 1; i >= floor; i--)
-        {
+        for (var i = startIndex - 1; i >= floor; i--) {
             totalTokens += _microcompactService.EstimateMessageTokens([messages[i]]);
-            if (messages[i].Role is MessageRole.User or MessageRole.Assistant && !string.IsNullOrEmpty(messages[i].Content))
-            {
+            if (messages[i].Role is MessageRole.User or MessageRole.Assistant && !string.IsNullOrEmpty(messages[i].Content)) {
                 textBlockMessageCount++;
             }
 
             startIndex = i;
 
-            if (totalTokens >= _config.MaxTokens)
-            {
+            if (totalTokens >= _config.MaxTokens) {
                 break;
             }
 
-            if (totalTokens >= _config.MinTokens && textBlockMessageCount >= _config.MinTextBlockMessages)
-            {
+            if (totalTokens >= _config.MinTokens && textBlockMessageCount >= _config.MinTextBlockMessages) {
                 break;
             }
         }
@@ -259,8 +227,7 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
         return startIndex;
     }
 
-    private string TruncateSessionMemoryForCompact(string content)
-    {
+    private string TruncateSessionMemoryForCompact(string content) {
         var (truncated, _) = SessionMemoryPromptTemplate.TruncateSessionMemoryForCompact(content);
         return truncated;
     }

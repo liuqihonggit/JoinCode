@@ -5,23 +5,20 @@ namespace JoinCode.Gui.Tests.Theming;
 /// 校验 ≥ 4.5:1（AA 普通文字）。防止出现黑字配深底之类的低对比配色侵入。
 /// </summary>
 [Collection("GuiUiSequential")]
-public class GuiPaletteContrastTests
-{
+public class GuiPaletteContrastTests {
     /// <summary>普通文字最低对比度（WCAG AA）</summary>
     private const double MinContrast = 4.5;
 
     private static Color C(string hex) => Color.Parse(hex);
 
     /// <summary>校验"文字色 相对 背景色"对比度足够。</summary>
-    private static void AssertContrast(string textual, string back, string label, double min = MinContrast)
-    {
+    private static void AssertContrast(string textual, string back, string label, double min = MinContrast) {
         var ratio = GuiPalette.ContrastRatio(C(textual), C(back));
         ratio.Should().BeGreaterThanOrEqualTo(min, $"{label}: {textual} on {back}");
     }
 
     [Fact]
-    public void Dark_TextOnSurfaces_MeetsAAContrast()
-    {
+    public void Dark_TextOnSurfaces_MeetsAAContrast() {
         var s = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Dark);
         AssertContrast(s.PrimaryText, s.WindowBackground, "主文字/窗口底");
         AssertContrast(s.SecondaryText, s.WindowBackground, "次文字/窗口底");
@@ -34,8 +31,7 @@ public class GuiPaletteContrastTests
     }
 
     [Fact]
-    public void Button_TextOnBackground_MeetsAAContrast()
-    {
+    public void Button_TextOnBackground_MeetsAAContrast() {
         var dark = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Dark);
         var light = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);
 
@@ -48,8 +44,7 @@ public class GuiPaletteContrastTests
     }
 
     [Fact]
-    public void Light_Text_Textures_AlwaysAAContrast()
-    {
+    public void Light_Text_Textures_AlwaysAAContrast() {
         var s = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);
         AssertContrast(s.PrimaryText, s.WindowBackground, "主文字/窗口底");
         AssertContrast(s.SecondaryText, s.WindowBackground, "次文字/窗口底");
@@ -62,8 +57,7 @@ public class GuiPaletteContrastTests
     }
 
     [Fact]
-    public void BubbleText_EachKind_ContrastsOnItsSurface()
-    {
+    public void BubbleText_EachKind_ContrastsOnItsSurface() {
         var dark = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Dark);
         var light = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);
 
@@ -85,8 +79,7 @@ public class GuiPaletteContrastTests
     }
 
     [Fact]
-    public void StatusIndicators_LargeEnoughForUiContrast()
-    {
+    public void StatusIndicators_LargeEnoughForUiContrast() {
         var dark = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Dark);
         var light = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);
         // 指示器为非文字 UI 元件，按 3:1 校验
@@ -97,8 +90,7 @@ public class GuiPaletteContrastTests
     }
 
     [Fact]
-    public void DarkAndLight_ProvideContrastingAccentOnSurfaces()
-    {
+    public void DarkAndLight_ProvideContrastingAccentOnSurfaces() {
         var dark = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Dark);
         var light = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);
         AssertContrast(dark.AccentText, dark.SidebarBackground, "深:强调/侧边底", 3);
@@ -106,8 +98,7 @@ public class GuiPaletteContrastTests
     }
 
     [Fact]
-    public void Dialog_TextOnWindowBackground_MeetsAAContrast()
-    {
+    public void Dialog_TextOnWindowBackground_MeetsAAContrast() {
         var dark = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Dark);
         var light = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);
 
@@ -125,19 +116,16 @@ public class GuiPaletteContrastTests
     }
 
     /// <summary>取转换器输出的画刷色值。</summary>
-    private static Color BrushColor(object result)
-    {
+    private static Color BrushColor(object result) {
         result.Should().BeAssignableTo<ISolidColorBrush>();
         return ((ISolidColorBrush)result).Color;
     }
 
     [AvaloniaFact]
-    public void RoleAndStatusConverters_UnderLight_ReturnLightColors()
-    {
+    public void RoleAndStatusConverters_UnderLight_ReturnLightColors() {
         var light = GuiPalette.SchemeFor(GuiPalette.GuiThemeVariant.Light);
 
-        try
-        {
+        try {
             GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Light;
             var role = new BoolToRoleBrushConverter();
             var status = new StatusToBrushConverter();
@@ -146,16 +134,13 @@ public class GuiPaletteContrastTests
                 .ToString().Should().Be(Color.Parse(light.RoleUser).ToString());
             BrushColor(status.Convert(StatusKind.Error, typeof(ISolidColorBrush), null, null!))
                 .ToString().Should().Be(Color.Parse(light.ErrorText).ToString());
-        }
-        finally
-        {
+        } finally {
             GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
         }
     }
 
     [AvaloniaFact]
-    public void ResourceDictionaries_ContainBothThemeBrushes()
-    {
+    public void ResourceDictionaries_ContainBothThemeBrushes() {
         var dicts = GuiPalette.BuildResourceDictionaries();
         dicts.Should().ContainKey(GuiPalette.GuiThemeVariant.Dark);
         dicts.Should().ContainKey(GuiPalette.GuiThemeVariant.Light);
@@ -167,8 +152,7 @@ public class GuiPaletteContrastTests
     }
 
     [Fact]
-    public void ToggleThemeVm_FlipsIsDarkTheme()
-    {
+    public void ToggleThemeVm_FlipsIsDarkTheme() {
         // InMemory store → ConfigurationService 走内存文件系统，LoadThemeFromSettings 读到 Auto
         // 提前返回，不会异步覆盖 IsDarkTheme（B8：裸构造读真实 settings.json 的 theme 键导致偶发翻转）
         var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));

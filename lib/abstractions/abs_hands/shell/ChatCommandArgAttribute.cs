@@ -6,8 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 渐进式：未声明此特性的命令降级输出 ArgumentHint，不阻塞重构。
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-public sealed class ChatCommandArgAttribute : Attribute
-{
+public sealed class ChatCommandArgAttribute : Attribute {
     /// <summary>
     /// 参数名 — 对应 ToolSchemaProperty 的 key
     /// </summary>
@@ -48,8 +47,7 @@ public sealed class ChatCommandArgAttribute : Attribute
     /// </summary>
     public string? ItemsDescription { get; init; }
 
-    public ChatCommandArgAttribute(string name)
-    {
+    public ChatCommandArgAttribute(string name) {
         Name = name;
     }
 }

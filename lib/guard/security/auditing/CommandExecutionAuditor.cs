@@ -26,8 +26,7 @@ internal sealed partial class CommandAuditJsonContext : JsonSerializerContext;
 /// </para>
 /// </summary>
 [Register(typeof(ICommandExecutionAuditor), ServiceLifetime.Singleton)]
-public sealed class CommandExecutionAuditor : ICommandExecutionAuditor
-{
+public sealed class CommandExecutionAuditor : ICommandExecutionAuditor {
     private readonly IFileSystem _fs;
     private readonly string _auditDirectory;
     private readonly ILogger<CommandExecutionAuditor>? _logger;
@@ -42,29 +41,23 @@ public sealed class CommandExecutionAuditor : ICommandExecutionAuditor
     public CommandExecutionAuditor(
         IFileSystem fs,
         string? auditDirectory = null,
-        ILogger<CommandExecutionAuditor>? logger = null)
-    {
+        ILogger<CommandExecutionAuditor>? logger = null) {
         _fs = fs;
         _auditDirectory = auditDirectory ?? ".audit";
         _logger = logger;
     }
 
     /// <inheritdoc/>
-    public void Record(CommandExecutionAuditEntry entry)
-    {
-        try
-        {
+    public void Record(CommandExecutionAuditEntry entry) {
+        try {
             _fs.CreateDirectory(_auditDirectory);
             var filePath = Path.Combine(_auditDirectory, $"command-execution-{entry.Timestamp:yyyy-MM-dd}.jsonl");
             var json = RelaxedJsonSerializer.Serialize(entry, CommandAuditJsonContext.Default);
 
-            using (_writeLock.EnterScope())
-            {
+            using (_writeLock.EnterScope()) {
                 _fs.AppendAllText(filePath, json + Environment.NewLine);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "审计日志写入失败: {Command}", entry.Command);
         }
     }

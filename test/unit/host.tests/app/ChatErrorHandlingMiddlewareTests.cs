@@ -3,11 +3,9 @@ namespace Host.Tests.App;
 /// <summary>
 /// ChatErrorHandlingMiddleware 错误分类测试 — 验证纵深防御的多级报错
 /// </summary>
-public sealed class ChatErrorHandlingMiddlewareTests
-{
+public sealed class ChatErrorHandlingMiddlewareTests {
     [Fact]
-    public void ClassifyException_ConfigurationException_ShouldPreserveType()
-    {
+    public void ClassifyException_ConfigurationException_ShouldPreserveType() {
         var original = JoinCode.Abstractions.Exceptions.ConfigurationException.Missing("OPENAI_API_KEY");
 
         var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
@@ -17,8 +15,7 @@ public sealed class ChatErrorHandlingMiddlewareTests
     }
 
     [Fact]
-    public void ClassifyException_HttpRequestException_429_ShouldReturnRateLimit()
-    {
+    public void ClassifyException_HttpRequestException_429_ShouldReturnRateLimit() {
         var original = new System.Net.Http.HttpRequestException("Rate limited", null, System.Net.HttpStatusCode.TooManyRequests);
 
         var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
@@ -29,8 +26,7 @@ public sealed class ChatErrorHandlingMiddlewareTests
     }
 
     [Fact]
-    public void ClassifyException_HttpRequestException_401_ShouldReturnAuthentication()
-    {
+    public void ClassifyException_HttpRequestException_401_ShouldReturnAuthentication() {
         var original = new System.Net.Http.HttpRequestException("Unauthorized", null, System.Net.HttpStatusCode.Unauthorized);
 
         var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
@@ -41,8 +37,7 @@ public sealed class ChatErrorHandlingMiddlewareTests
     }
 
     [Fact]
-    public void ClassifyException_UnknownException_ShouldReturnWorkflowExecution()
-    {
+    public void ClassifyException_UnknownException_ShouldReturnWorkflowExecution() {
         var original = new InvalidOperationException("something broke");
 
         var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);

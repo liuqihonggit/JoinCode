@@ -4,13 +4,11 @@ namespace JoinCode.Abstractions.Utils;
 /// 位掩码工具 — 提供直观的位运算 API，用于固定集合的 O(1) 成员判断。
 /// 替代 FrozenSet&lt;T&gt;.Contains，无哈希查找、无堆分配。
 /// </summary>
-public static class BitMask
-{
+public static class BitMask {
     /// <summary>
     /// 构建包含指定枚举值的 32 位掩码。用于静态初始化，一次性 params 数组分配。
     /// </summary>
-    public static int Of<TEnum>(params TEnum[] values) where TEnum : struct, Enum
-    {
+    public static int Of<TEnum>(params TEnum[] values) where TEnum : struct, Enum {
         var mask = 0;
         for (var i = 0; i < values.Length; i++)
             mask |= 1 << Unsafe.As<TEnum, int>(ref values[i]);

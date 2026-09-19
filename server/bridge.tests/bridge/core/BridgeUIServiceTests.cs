@@ -5,13 +5,11 @@ namespace Bridge.Tests;
 /// BridgeUIService 单元测试
 /// 测试 QR 码数据生成、终端格式化、会话注册/注销
 /// </summary>
-public sealed class BridgeUIServiceTests
-{
+public sealed class BridgeUIServiceTests {
     private static BridgeUIService CreateSut() => new(logger: NullLogger<BridgeUIService>.Instance);
 
     [Fact]
-    public async Task GenerateQRDataAsync_ShouldReturnQRData_WithValidFields()
-    {
+    public async Task GenerateQRDataAsync_ShouldReturnQRData_WithValidFields() {
         // Arrange
         var sut = CreateSut();
         var sessionId = "test-session-001";
@@ -29,8 +27,7 @@ public sealed class BridgeUIServiceTests
     }
 
     [Fact]
-    public async Task GenerateQRDataAsync_ShouldSetExpiration_BasedOnTtl()
-    {
+    public async Task GenerateQRDataAsync_ShouldSetExpiration_BasedOnTtl() {
         // Arrange
         var sut = CreateSut();
         var sessionId = "test-session-002";
@@ -48,8 +45,7 @@ public sealed class BridgeUIServiceTests
     }
 
     [Fact]
-    public async Task FormatAsTerminalQR_ShouldReturnNonEmptyString()
-    {
+    public async Task FormatAsTerminalQR_ShouldReturnNonEmptyString() {
         // Arrange
         var sut = CreateSut();
         var qrData = await sut.GenerateQRDataAsync("session-003", "ws://localhost:3456").ConfigureAwait(true);
@@ -64,12 +60,10 @@ public sealed class BridgeUIServiceTests
     }
 
     [Fact]
-    public async Task RegisterSession_ShouldAppearInActiveSessionList()
-    {
+    public async Task RegisterSession_ShouldAppearInActiveSessionList() {
         // Arrange
         var sut = CreateSut();
-        var session = new BridgeSessionDisplay
-        {
+        var session = new BridgeSessionDisplay {
             SessionId = "active-session-001",
             ClientName = "TestClient",
             Status = "connected",
@@ -87,12 +81,10 @@ public sealed class BridgeUIServiceTests
     }
 
     [Fact]
-    public async Task UnregisterSession_ShouldRemoveFromActiveSessionList()
-    {
+    public async Task UnregisterSession_ShouldRemoveFromActiveSessionList() {
         // Arrange
         var sut = CreateSut();
-        var session = new BridgeSessionDisplay
-        {
+        var session = new BridgeSessionDisplay {
             SessionId = "remove-session-001",
             ClientName = "ToRemove",
             Status = "connected",
@@ -109,8 +101,7 @@ public sealed class BridgeUIServiceTests
     }
 
     [Fact]
-    public async Task GetActiveSessionList_ShouldReturnEmpty_WhenNoSessions()
-    {
+    public async Task GetActiveSessionList_ShouldReturnEmpty_WhenNoSessions() {
         // Arrange
         var sut = CreateSut();
 
@@ -127,8 +118,7 @@ public sealed class BridgeUIServiceTests
     /// 修复: 移除 BridgeUIService 对 BridgeServer 的无效依赖（字段从未被使用）
     /// </summary>
     [Fact]
-    public void Constructor_ShouldNotDependOnBridgeServer_ToPreventCircularDependency()
-    {
+    public void Constructor_ShouldNotDependOnBridgeServer_ToPreventCircularDependency() {
         // Act
         var constructors = typeof(BridgeUIService).GetConstructors();
         var parameterTypes = constructors

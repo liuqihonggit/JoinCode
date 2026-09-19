@@ -53,8 +53,7 @@ public static class PowerShellToolPrompt {
         string sleepGuidance,
         int maxTimeoutMs,
         int defaultTimeoutMs,
-        int maxOutputLength)
-    {
+        int maxOutputLength) {
         var maxTimeoutMinutes = maxTimeoutMs / 60000;
         var defaultTimeoutMinutes = defaultTimeoutMs / 60000;
 
@@ -151,8 +150,7 @@ public static class PowerShellToolPrompt {
         bool backgroundTasksEnabled = true,
         int defaultTimeoutMs = WorkflowConstants.ToolExecution.PowerShellDefaultTimeoutMs,
         int maxTimeoutMs = 600000,
-        int maxOutputLength = WorkflowConstants.ToolExecution.MaxOutputLength)
-    {
+        int maxOutputLength = WorkflowConstants.ToolExecution.MaxOutputLength) {
         var backgroundNote = backgroundTasksEnabled
             ? BackgroundNoteEnabled
             : string.Empty;

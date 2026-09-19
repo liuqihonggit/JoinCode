@@ -1,33 +1,29 @@
 
 namespace Core.Tests.ChatCommands;
 
-public class GenerateCommandTests
-{
+public class GenerateCommandTests {
     private readonly Mock<ILogger<GenerateCommand>> _loggerMock;
     private readonly Mock<ICodeService> _codeServiceMock;
     private readonly GenerateCommand _generateCommand;
 
-    public GenerateCommandTests()
-    {
+    public GenerateCommandTests() {
         _loggerMock = new Mock<ILogger<GenerateCommand>>();
         _codeServiceMock = new Mock<ICodeService>();
         _generateCommand = new GenerateCommand(_loggerMock.Object);
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithEmptyArguments_ShouldLogWarningAndContinue()
-    {
+    public async Task ExecuteAsync_WithEmptyArguments_ShouldLogWarningAndContinue() {
         // Arrange
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = null!,
                 CodeService = _codeServiceMock.Object,
                 PlanService = null!,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         // Act
@@ -48,8 +44,7 @@ public class GenerateCommandTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithArguments_ShouldGenerateCodeAndLog()
-    {
+    public async Task ExecuteAsync_WithArguments_ShouldGenerateCodeAndLog() {
         // Arrange
         var arguments = "create a hello world program";
         var generatedCode = "console.log('Hello World');";
@@ -59,13 +54,12 @@ public class GenerateCommandTests
         var context = new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = null!,
                 CodeService = _codeServiceMock.Object,
                 PlanService = null!,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         // Act
@@ -86,26 +80,22 @@ public class GenerateCommandTests
     }
 
     [Fact]
-    public void Name_ShouldReturnGenerate()
-    {
+    public void Name_ShouldReturnGenerate() {
         Assert.Equal("generate", _generateCommand.Name);
     }
 
     [Fact]
-    public void Description_ShouldNotBeEmpty()
-    {
+    public void Description_ShouldNotBeEmpty() {
         Assert.NotEmpty(_generateCommand.Description);
     }
 
     [Fact]
-    public void Usage_ShouldNotBeEmpty()
-    {
+    public void Usage_ShouldNotBeEmpty() {
         Assert.NotEmpty(_generateCommand.Usage);
     }
 
     [Fact]
-    public void Constructor_WithNullLogger_ShouldNotThrow()
-    {
+    public void Constructor_WithNullLogger_ShouldNotThrow() {
         var exception = Record.Exception(() => new GenerateCommand(null));
         Assert.Null(exception);
     }

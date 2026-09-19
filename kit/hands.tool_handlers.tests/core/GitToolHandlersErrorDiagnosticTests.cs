@@ -3,11 +3,9 @@ namespace Hands.Tests.ToolHandlers;
 /// <summary>
 /// GitToolHandlers 错误诊断方法单元测试
 /// </summary>
-public class GitToolHandlersErrorDiagnosticTests
-{
+public class GitToolHandlersErrorDiagnosticTests {
     [Fact]
-    public void BuildGitStatusFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildGitStatusFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildGitStatusFailedDiagnostic("not a git repo");
         diag.Reason.Should().Be("GitStatusFailed");
         diag.FormattedMessage.Should().Be("Git status failed:\nnot a git repo");
@@ -15,8 +13,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildPathEmptyDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildPathEmptyDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildPathEmptyDiagnostic();
         diag.Reason.Should().Be("GitPathEmpty");
         diag.FormattedMessage.Should().Be("path cannot be empty");
@@ -24,8 +21,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildGitAddFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildGitAddFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildGitAddFailedDiagnostic("pathspec did not match");
         diag.Reason.Should().Be("GitAddFailed");
         diag.FormattedMessage.Should().Be("Git add failed:\npathspec did not match");
@@ -33,8 +29,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildMessageEmptyDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildMessageEmptyDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildMessageEmptyDiagnostic();
         diag.Reason.Should().Be("GitMessageEmpty");
         diag.FormattedMessage.Should().Be("message cannot be empty");
@@ -42,8 +37,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildGitCommitFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildGitCommitFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildGitCommitFailedDiagnostic("nothing to commit");
         diag.Reason.Should().Be("GitCommitFailed");
         diag.FormattedMessage.Should().Be("Git commit failed:\nnothing to commit");
@@ -51,8 +45,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildGitPushFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildGitPushFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildGitPushFailedDiagnostic("permission denied");
         diag.Reason.Should().Be("GitPushFailed");
         diag.FormattedMessage.Should().Be("Git push failed:\npermission denied");
@@ -60,8 +53,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildGitPullFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildGitPullFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildGitPullFailedDiagnostic("merge conflict");
         diag.Reason.Should().Be("GitPullFailed");
         diag.FormattedMessage.Should().Be("Git pull failed:\nmerge conflict");
@@ -69,8 +61,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildGitLogValidationDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildGitLogValidationDiagnostic_ReturnsCorrectStructure() {
         const string validationError = "count 必须在 1-1000 之间";
         var diag = GitToolHandlers.BuildGitLogValidationDiagnostic(validationError);
         diag.Reason.Should().Be("GitLogValidationError");
@@ -79,8 +70,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildGitLogFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildGitLogFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildGitLogFailedDiagnostic("no commits yet");
         diag.Reason.Should().Be("GitLogFailed");
         diag.FormattedMessage.Should().Be("Git log failed:\nno commits yet");
@@ -88,8 +78,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildGitDiffFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildGitDiffFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildGitDiffFailedDiagnostic("bad revision");
         diag.Reason.Should().Be("GitDiffFailed");
         diag.FormattedMessage.Should().Be("Git diff failed:\nbad revision");
@@ -97,8 +86,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildBranchNameEmptyDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildBranchNameEmptyDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildBranchNameEmptyDiagnostic();
         diag.Reason.Should().Be("GitBranchNameEmpty");
         diag.FormattedMessage.Should().Be("branch_name cannot be empty");
@@ -106,8 +94,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildUnsupportedBranchOperationDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildUnsupportedBranchOperationDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildUnsupportedBranchOperationDiagnostic("rename");
         diag.Reason.Should().Be("GitUnsupportedOperation");
         diag.FormattedMessage.Should().Be("Unsupported operation: rename");
@@ -115,15 +102,13 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildUnsupportedBranchOperationDiagnostic_NullOperation_ReturnsNullText()
-    {
+    public void BuildUnsupportedBranchOperationDiagnostic_NullOperation_ReturnsNullText() {
         var diag = GitToolHandlers.BuildUnsupportedBranchOperationDiagnostic(null);
         diag.Details.Should().Contain(d => d.Key == "Operation" && d.Value == "(null)");
     }
 
     [Fact]
-    public void BuildGitBranchFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildGitBranchFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildGitBranchFailedDiagnostic("switch", "branch not found");
         diag.Reason.Should().Be("GitBranchFailed");
         diag.FormattedMessage.Should().Be("Git branch switch failed:\nbranch not found");
@@ -132,8 +117,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildUrlEmptyDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildUrlEmptyDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildUrlEmptyDiagnostic();
         diag.Reason.Should().Be("GitUrlEmpty");
         diag.FormattedMessage.Should().Be("url cannot be empty");
@@ -141,8 +125,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildGitCloneFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildGitCloneFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = GitToolHandlers.BuildGitCloneFailedDiagnostic("repository not found");
         diag.Reason.Should().Be("GitCloneFailed");
         diag.FormattedMessage.Should().Be("Git clone failed:\nrepository not found");
@@ -150,8 +133,7 @@ public class GitToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildSecurityScanBlockedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildSecurityScanBlockedDiagnostic_ReturnsCorrectStructure() {
         const string report = "Blocked: secret detected";
         var diag = GitToolHandlers.BuildSecurityScanBlockedDiagnostic(report);
         diag.Reason.Should().Be("GitSecurityScanBlocked");

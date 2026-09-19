@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Weight;
 
-public sealed class TopologicalEvidenceAnalyzerTests
-{
+public sealed class TopologicalEvidenceAnalyzerTests {
     [Fact]
-    public void AnalyzeChainTopology_ShouldReturnScoreForSingleEvidence()
-    {
+    public void AnalyzeChainTopology_ShouldReturnScoreForSingleEvidence() {
         var analyzer = new TopologicalEvidenceAnalyzer();
         var chain = new List<EvidenceRecord>
         {
@@ -18,12 +16,10 @@ public sealed class TopologicalEvidenceAnalyzerTests
     }
 
     [Fact]
-    public void AnalyzeChainTopology_LengthScore_ShouldDecayForLongChains()
-    {
+    public void AnalyzeChainTopology_LengthScore_ShouldDecayForLongChains() {
         var analyzer = new TopologicalEvidenceAnalyzer { LengthThreshold = 3 };
         var chain = Enumerable.Range(0, 10)
-            .Select(i => new EvidenceRecord
-            {
+            .Select(i => new EvidenceRecord {
                 Content = $"证据{i}",
                 Category = EvidenceCategory.Documentary,
                 TrustLevel = TrustLevel.Moderate,
@@ -37,8 +33,7 @@ public sealed class TopologicalEvidenceAnalyzerTests
     }
 
     [Fact]
-    public void AnalyzeChainTopology_IndependenceScore_ShouldScoreDiverseSourcesHigher()
-    {
+    public void AnalyzeChainTopology_IndependenceScore_ShouldScoreDiverseSourcesHigher() {
         var analyzer = new TopologicalEvidenceAnalyzer();
         var diverse = new List<EvidenceRecord>
         {
@@ -61,8 +56,7 @@ public sealed class TopologicalEvidenceAnalyzerTests
     }
 
     [Fact]
-    public void AnalyzeChainTopology_TemporalConsistency_ShouldScoreConsistentTimestampsHigher()
-    {
+    public void AnalyzeChainTopology_TemporalConsistency_ShouldScoreConsistentTimestampsHigher() {
         var analyzer = new TopologicalEvidenceAnalyzer();
         var now = DateTime.UtcNow;
         var consistent = new List<EvidenceRecord>

@@ -1,15 +1,13 @@
 
 namespace Core.Tests.Memdir;
 
-public sealed class MemorySearchHistoryServiceTests : IDisposable
-{
+public sealed class MemorySearchHistoryServiceTests : IDisposable {
     private readonly InMemoryFileOperationService _fileOpService;
     private readonly MemoryStore _memoryStore;
     private readonly string _tempBasePath;
     private bool _disposed;
 
-    public MemorySearchHistoryServiceTests()
-    {
+    public MemorySearchHistoryServiceTests() {
         _fileOpService = new InMemoryFileOperationService();
         _tempBasePath = "/test/memdir/search-history";
         _memoryStore = new MemoryStore(
@@ -18,16 +16,14 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable
             NullLogger<MemoryStore>.Instance);
     }
 
-    private MemorySearchHistoryService CreateSut()
-    {
+    private MemorySearchHistoryService CreateSut() {
         return new MemorySearchHistoryService(
             _memoryStore,
             NullLogger<MemorySearchHistoryService>.Instance);
     }
 
     [Fact]
-    public async Task RecordSearchAsync_ShouldAddSearchToHistory()
-    {
+    public async Task RecordSearchAsync_ShouldAddSearchToHistory() {
         // Arrange
         var sut = CreateSut();
         var query = "如何优化性能";
@@ -45,8 +41,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetRecentSearches_ShouldReturnRecordedSearches()
-    {
+    public async Task GetRecentSearches_ShouldReturnRecordedSearches() {
         // Arrange
         var sut = CreateSut();
         await sut.RecordSearchAsync("查询1", resultCount: 3).ConfigureAwait(true);
@@ -63,12 +58,10 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetRecentSearches_ShouldRespectLimit()
-    {
+    public async Task GetRecentSearches_ShouldRespectLimit() {
         // Arrange
         var sut = CreateSut();
-        for (var i = 0; i < 15; i++)
-        {
+        for (var i = 0; i < 15; i++) {
             await sut.RecordSearchAsync($"查询{i}", resultCount: i).ConfigureAwait(true);
         }
 
@@ -80,8 +73,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task BuildSearchingPastContextSectionAsync_ShouldReturnSection_WithPromptText()
-    {
+    public async Task BuildSearchingPastContextSectionAsync_ShouldReturnSection_WithPromptText() {
         // Arrange
         var sut = CreateSut();
 
@@ -101,8 +93,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchPastConversationsAsync_ShouldSearchMemoryStore()
-    {
+    public async Task SearchPastConversationsAsync_ShouldSearchMemoryStore() {
         // Arrange
         var sut = CreateSut();
 
@@ -119,8 +110,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable
         results.Should().Contain(m => m.Type == MemoryType.Feedback);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fileOpService.DisposeSafe();

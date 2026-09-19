@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterCommunicationEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterCommunicationEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === VoiceToolHandlers ===
         defaultEntries[StringKey.VoiceAlreadyRecording] = "Already recording, please stop the current recording first";
         defaultEntries[StringKey.VoiceRecordingStarted] = "Voice recording started";

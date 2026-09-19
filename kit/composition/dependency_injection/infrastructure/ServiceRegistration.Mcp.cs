@@ -1,8 +1,7 @@
 
 namespace Core.DependencyInjection;
 
-public static partial class ServiceRegistration
-{
+public static partial class ServiceRegistration {
     /// <summary>
     /// 注册 MCP 服务：MemoryCache、工具注册表、工具评分配置、超图自定义超边、
     /// Agent 工具管道（<see cref="MiddlewarePipeline{AgentToolContext}"/>）、
@@ -10,8 +9,7 @@ public static partial class ServiceRegistration
     /// </summary>
     /// <param name="services">DI 容器。</param>
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
-    public static IServiceCollection AddMcpServices(this IServiceCollection services)
-    {
+    public static IServiceCollection AddMcpServices(this IServiceCollection services) {
         services.AddMemoryCache();
 
         // LocalToolRegistry, RemoteClientManager, ToolCacheManager, McpToolSyncBridge,
@@ -26,31 +24,26 @@ public static partial class ServiceRegistration
             (registry, sp, ct) => GeneratedToolHandlerRegistration_JoinCode_Composition.RegisterAllMcpToolDispatchAsync(registry, sp, ct));
 
         // 工具评分配置 — 从 WorkflowConfig.ToolExecution 提取
-        services.AddSingleton(sp =>
-        {
+        services.AddSingleton(sp => {
             var config = sp.GetRequiredService<WorkflowConfig>();
             return config.ToolExecution.ToolScore.ToToolScoreConfig();
         });
-        services.AddSingleton(sp =>
-        {
+        services.AddSingleton(sp => {
             var config = sp.GetRequiredService<WorkflowConfig>();
             return new HashSet<string>(config.ToolExecution.BlacklistedTools, StringComparer.OrdinalIgnoreCase);
         });
-        services.AddSingleton(sp =>
-        {
+        services.AddSingleton(sp => {
             var config = sp.GetRequiredService<WorkflowConfig>();
             return new Dictionary<string, int>(config.ToolExecution.ToolPenalties, StringComparer.OrdinalIgnoreCase);
         });
 
         // 超图自定义超边 — 启动时从配置加载
-        services.AddSingleton(sp =>
-        {
+        services.AddSingleton(sp => {
             var config = sp.GetRequiredService<WorkflowConfig>();
             return config.ToolExecution.CustomHyperedges;
         });
 
-        services.AddSingleton<MiddlewarePipeline<AgentToolContext>>(sp =>
-        {
+        services.AddSingleton<MiddlewarePipeline<AgentToolContext>>(sp => {
             var middlewares = sp.GetServices<IAgentToolMiddleware>().Cast<IMiddleware<AgentToolContext>>();
             var builder = new PipelineBuilder<AgentToolContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
@@ -61,8 +54,7 @@ public static partial class ServiceRegistration
             return builder.Build();
         });
 
-        services.AddSingleton<MiddlewarePipeline<ToolExecutionContext>>(sp =>
-        {
+        services.AddSingleton<MiddlewarePipeline<ToolExecutionContext>>(sp => {
             var lf = sp.GetRequiredService<ILoggerFactory>();
             return new PipelineBuilder<ToolExecutionContext>()
                 .WithLoggingScope(lf)
@@ -96,23 +88,19 @@ public static partial class ServiceRegistration
     /// 转发到 <see cref="McpToolSyncBridge"/> 同步到 ChatContextManager。
     /// </summary>
     /// <param name="serviceProvider">已构建的 DI 服务提供者。</param>
-    public static void WireMcpToolSyncBridge(this IServiceProvider serviceProvider)
-    {
+    public static void WireMcpToolSyncBridge(this IServiceProvider serviceProvider) {
         var remoteClientManager = serviceProvider.GetRequiredService<RemoteClientManager>();
         var bridge = serviceProvider.GetRequiredService<McpToolSyncBridge>();
 
-        remoteClientManager.ToolsListChanged += async (_, _) =>
-        {
+        remoteClientManager.ToolsListChanged += async (_, _) => {
             await bridge.OnToolsListChangedAsync().ConfigureAwait(false);
         };
 
-        remoteClientManager.ResourcesListChanged += async (_, args) =>
-        {
+        remoteClientManager.ResourcesListChanged += async (_, args) => {
             await bridge.OnResourcesListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false);
         };
 
-        remoteClientManager.PromptsListChanged += async (_, args) =>
-        {
+        remoteClientManager.PromptsListChanged += async (_, args) => {
             await bridge.OnPromptsListChangedAsync(args.ClientId, args.SyncResult).ConfigureAwait(false);
         };
     }

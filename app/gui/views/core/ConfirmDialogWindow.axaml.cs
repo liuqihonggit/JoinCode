@@ -5,17 +5,14 @@ namespace JoinCode.Gui.Views;
 /// ShowDialog&lt;bool&gt;(owner)：true=确定，false/null=取消。
 /// 命名字段（MessageText/OkButton/CancelButton）由 AvaloniaNameSourceGenerator 从 x:Name 生成。
 /// </summary>
-public partial class ConfirmDialogWindow : Window
-{
+public partial class ConfirmDialogWindow : Window {
     /// <summary>初始化 ConfirmDialogWindow 实例</summary>
-    public ConfirmDialogWindow()
-    {
+    public ConfirmDialogWindow() {
         InitializeComponent();
     }
 
     /// <summary>以指定消息文本构建确认对话框</summary>
-    public ConfirmDialogWindow(string message) : this()
-    {
+    public ConfirmDialogWindow(string message) : this() {
         MessageText.Text = message;
     }
 

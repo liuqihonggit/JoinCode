@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>避免 bool Success + string ErrorMessage 的模糊性</para>
 /// <para>调用方可 switch (result.Status) 做不同处理</para>
 /// </summary>
-public enum PluginLoadStatus
-{
+public enum PluginLoadStatus {
     /// <summary>加载成功</summary>
     [EnumValue("success")] Success,
     /// <summary>插件已加载(重复加载)</summary>
@@ -27,8 +26,7 @@ public enum PluginLoadStatus
 /// 插件加载结果 — 含枚举状态,match/switch 友好(ADR 0098)
 /// <para>替代 bool Success + string ErrorMessage 的模糊模式</para>
 /// </summary>
-public sealed class PluginLoadResult
-{
+public sealed class PluginLoadResult {
     /// <summary>加载状态</summary>
     public PluginLoadStatus Status { get; }
     /// <summary>插件名</summary>
@@ -38,8 +36,7 @@ public sealed class PluginLoadResult
     /// <summary>是否成功</summary>
     public bool IsSuccess => Status == PluginLoadStatus.Success;
 
-    private PluginLoadResult(PluginLoadStatus status, string pluginName, string? errorMessage = null)
-    {
+    private PluginLoadResult(PluginLoadStatus status, string pluginName, string? errorMessage = null) {
         Status = status;
         PluginName = pluginName;
         ErrorMessage = errorMessage;

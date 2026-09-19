@@ -4,8 +4,7 @@ namespace Services.Api.Vcr;
 /// <summary>
 /// VCR（录像/回放）服务接口，负责管理 cassette 与交互记录
 /// </summary>
-public interface IVcrService
-{
+public interface IVcrService {
     /// <summary>
     /// 获取 cassette 文件完整路径
     /// </summary>

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// <summary>
 /// 路径验证器接口
 /// </summary>
-public interface IPathValidator
-{
+public interface IPathValidator {
     /// <summary>
     /// 验证命令中的路径是否都在工作区内
     /// </summary>

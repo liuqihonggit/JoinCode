@@ -5,10 +5,8 @@ namespace MockServer.E2E.Tests.Core;
 /// 提示词验证器
 /// 用于验证 ChatCompletionRequest 中的系统提示词和用户提示词
 /// </summary>
-public sealed class PromptValidator
-{
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
+public sealed class PromptValidator {
+    private static readonly JsonSerializerOptions JsonOptions = new() {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         PropertyNameCaseInsensitive = true,
         TypeInfoResolver = MockServerE2EJsonContext.Default
@@ -17,17 +15,13 @@ public sealed class PromptValidator
     /// <summary>
     /// 从 JSON 字符串解析请求
     /// </summary>
-    public static ChatCompletionRequest? ParseRequest(string json)
-    {
+    public static ChatCompletionRequest? ParseRequest(string json) {
         if (string.IsNullOrWhiteSpace(json))
             return null;
 
-        try
-        {
+        try {
             return JsonSerializer.Deserialize<ChatCompletionRequest>(json, JsonOptions);
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             return null;
         }
     }
@@ -37,8 +31,7 @@ public sealed class PromptValidator
     /// </summary>
     /// <param name="request">聊天完成请求</param>
     /// <returns>系统提示词列表</returns>
-    public static IReadOnlyList<string> ValidateSystemPrompt(ChatCompletionRequest? request)
-    {
+    public static IReadOnlyList<string> ValidateSystemPrompt(ChatCompletionRequest? request) {
         if (request?.Messages is null)
             return Array.Empty<string>();
 
@@ -51,8 +44,7 @@ public sealed class PromptValidator
     /// <summary>
     /// 验证系统提示词（从 JSON）
     /// </summary>
-    public static IReadOnlyList<string> ValidateSystemPrompt(string json)
-    {
+    public static IReadOnlyList<string> ValidateSystemPrompt(string json) {
         var request = ParseRequest(json);
         return ValidateSystemPrompt(request);
     }
@@ -62,8 +54,7 @@ public sealed class PromptValidator
     /// </summary>
     /// <param name="request">聊天完成请求</param>
     /// <returns>用户提示词列表</returns>
-    public static IReadOnlyList<string> ValidateUserPrompt(ChatCompletionRequest? request)
-    {
+    public static IReadOnlyList<string> ValidateUserPrompt(ChatCompletionRequest? request) {
         if (request?.Messages is null)
             return Array.Empty<string>();
 
@@ -76,8 +67,7 @@ public sealed class PromptValidator
     /// <summary>
     /// 验证用户提示词（从 JSON）
     /// </summary>
-    public static IReadOnlyList<string> ValidateUserPrompt(string json)
-    {
+    public static IReadOnlyList<string> ValidateUserPrompt(string json) {
         var request = ParseRequest(json);
         return ValidateUserPrompt(request);
     }
@@ -92,8 +82,7 @@ public sealed class PromptValidator
     public static bool ContainsSystemPrompt(
         ChatCompletionRequest? request,
         string expectedContent,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         if (request?.Messages is null || string.IsNullOrEmpty(expectedContent))
             return false;
 
@@ -108,8 +97,7 @@ public sealed class PromptValidator
     public static bool ContainsSystemPrompt(
         string json,
         string expectedContent,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         ArgumentException.ThrowIfNullOrEmpty(json);
         var request = ParseRequest(json);
         return ContainsSystemPrompt(request, expectedContent, comparison);
@@ -125,8 +113,7 @@ public sealed class PromptValidator
     public static bool ContainsUserPrompt(
         ChatCompletionRequest? request,
         string expectedContent,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         if (request?.Messages is null || string.IsNullOrEmpty(expectedContent))
             return false;
 
@@ -141,8 +128,7 @@ public sealed class PromptValidator
     public static bool ContainsUserPrompt(
         string json,
         string expectedContent,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         var request = ParseRequest(json);
         return ContainsUserPrompt(request, expectedContent, comparison);
     }
@@ -150,8 +136,7 @@ public sealed class PromptValidator
     /// <summary>
     /// 获取完整的系统提示词（合并多个 system 消息）
     /// </summary>
-    public static string GetFullSystemPrompt(ChatCompletionRequest? request, string separator = "\n\n")
-    {
+    public static string GetFullSystemPrompt(ChatCompletionRequest? request, string separator = "\n\n") {
         var prompts = ValidateSystemPrompt(request);
         return string.Join(separator, prompts);
     }
@@ -159,8 +144,7 @@ public sealed class PromptValidator
     /// <summary>
     /// 获取完整的用户提示词（合并多个 user 消息）
     /// </summary>
-    public static string GetFullUserPrompt(ChatCompletionRequest? request, string separator = "\n\n")
-    {
+    public static string GetFullUserPrompt(ChatCompletionRequest? request, string separator = "\n\n") {
         var prompts = ValidateUserPrompt(request);
         return string.Join(separator, prompts);
     }
@@ -171,8 +155,7 @@ public sealed class PromptValidator
     public static bool SystemPromptStartsWith(
         ChatCompletionRequest? request,
         string prefix,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         var firstSystem = request?.Messages
             .FirstOrDefault(m => m.Role == MessageRoles.System);
 
@@ -185,8 +168,7 @@ public sealed class PromptValidator
     public static bool UserPromptStartsWith(
         ChatCompletionRequest? request,
         string prefix,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         ArgumentException.ThrowIfNullOrEmpty(prefix);
         var firstUser = request?.Messages
             .FirstOrDefault(m => m.Role == MessageRoles.User);

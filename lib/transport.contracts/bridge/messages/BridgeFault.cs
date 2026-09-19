@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// 故障类型 — 对齐 TS 端 BridgeFault.kind
 /// </summary>
-public enum BridgeFaultKind
-{
+public enum BridgeFaultKind {
     /// <summary>致命错误（不可重试）</summary>
     [EnumValue("fatal")]
     Fatal,
@@ -16,8 +15,7 @@ public enum BridgeFaultKind
 /// <summary>
 /// 一次性故障注入描述 — 对齐 TS 端 BridgeFault
 /// </summary>
-public sealed class BridgeFault
-{
+public sealed class BridgeFault {
     /// <summary>目标 API 方法名</summary>
     public required string Method { get; init; }
 

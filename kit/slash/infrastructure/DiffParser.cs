@@ -3,43 +3,33 @@ namespace JoinCode.Cli;
 /// <summary>
 /// Diff 解析器 — 解析统一 diff 输出
 /// </summary>
-public sealed class DiffParser
-{
+public sealed class DiffParser {
     /// <summary>
     /// 解析统一 diff 输出为纯文本行列表 — 对齐 TS parseGitDiff 简化版
     /// </summary>
-    public static string Parse(string diffOutput)
-    {
+    public static string Parse(string diffOutput) {
         if (string.IsNullOrWhiteSpace(diffOutput)) return string.Empty;
 
         var sb = new StringBuilder();
         var lines = diffOutput.Split('\n');
 
-        foreach (var rawLine in lines)
-        {
+        foreach (var rawLine in lines) {
             var line = rawLine.TrimEnd('\r');
 
-            if (line.StartsWith("diff --git") || line.StartsWith("index ") || line.StartsWith("--- a/") || line.StartsWith("+++ b/"))
-            {
+            if (line.StartsWith("diff --git") || line.StartsWith("index ") || line.StartsWith("--- a/") || line.StartsWith("+++ b/")) {
                 continue;
             }
 
-            if (line.StartsWith("@@"))
-            {
+            if (line.StartsWith("@@")) {
                 sb.AppendLine($"{TerminalColors.Primary}{line}{AnsiStyleEnumConstants.Reset}");
                 continue;
             }
 
-            if (line.StartsWith('+'))
-            {
+            if (line.StartsWith('+')) {
                 sb.AppendLine($"{TerminalColors.Success}{line}{AnsiStyleEnumConstants.Reset}");
-            }
-            else if (line.StartsWith('-'))
-            {
+            } else if (line.StartsWith('-')) {
                 sb.AppendLine($"{TerminalColors.Error}{line}{AnsiStyleEnumConstants.Reset}");
-            }
-            else
-            {
+            } else {
                 sb.AppendLine(line);
             }
         }
@@ -50,8 +40,7 @@ public sealed class DiffParser
     /// <summary>
     /// 解析统一 diff 输出为按文件分组的结构化 hunk — 对齐 TS parseGitDiff
     /// </summary>
-    public static Dictionary<string, StructuredHunk[]> ParseStructured(string diffOutput)
-    {
+    public static Dictionary<string, StructuredHunk[]> ParseStructured(string diffOutput) {
         if (string.IsNullOrWhiteSpace(diffOutput)) return [];
 
         var result = new Dictionary<string, List<StructuredHunk>>();
@@ -69,19 +58,15 @@ public sealed class DiffParser
         var oldLine = 0;
         var newLine = 0;
 
-        foreach (var rawLine in lines)
-        {
+        foreach (var rawLine in lines) {
             var line = rawLine.TrimEnd('\r');
 
-            if (line.StartsWith("--- a/") || line.StartsWith("--- /dev/null"))
-            {
+            if (line.StartsWith("--- a/") || line.StartsWith("--- /dev/null")) {
                 continue;
             }
 
-            if (line.StartsWith("+++ b/"))
-            {
-                if (currentFile is not null)
-                {
+            if (line.StartsWith("+++ b/")) {
+                if (currentFile is not null) {
                     FlushHunk(currentHunks, hunkLines, hunkOldStart, hunkOldLines, hunkNewStart, hunkNewLines, hunkHeader);
                     result[currentFile] = currentHunks;
                     currentHunks = [];
@@ -93,10 +78,8 @@ public sealed class DiffParser
                 continue;
             }
 
-            if (line.StartsWith("+++ /dev/null"))
-            {
-                if (currentFile is not null)
-                {
+            if (line.StartsWith("+++ /dev/null")) {
+                if (currentFile is not null) {
                     FlushHunk(currentHunks, hunkLines, hunkOldStart, hunkOldLines, hunkNewStart, hunkNewLines, hunkHeader);
                     result[currentFile] = currentHunks;
                     currentHunks = [];
@@ -108,10 +91,8 @@ public sealed class DiffParser
                 continue;
             }
 
-            if (line.StartsWith("@@"))
-            {
-                if (inHunk)
-                {
+            if (line.StartsWith("@@")) {
+                if (inHunk) {
                     FlushHunk(currentHunks, hunkLines, hunkOldStart, hunkOldLines, hunkNewStart, hunkNewLines, hunkHeader);
                     hunkLines = [];
                 }
@@ -130,32 +111,24 @@ public sealed class DiffParser
 
             if (!inHunk) continue;
 
-            if (line.StartsWith('+'))
-            {
+            if (line.StartsWith('+')) {
                 hunkLines.Add(new DiffLine(PatchLineType.Added, line[1..], null, newLine));
                 newLine++;
                 hunkNewLines = Math.Max(hunkNewLines, newLine - hunkNewStart);
-            }
-            else if (line.StartsWith('-'))
-            {
+            } else if (line.StartsWith('-')) {
                 hunkLines.Add(new DiffLine(PatchLineType.Removed, line[1..], oldLine, null));
                 oldLine++;
                 hunkOldLines = Math.Max(hunkOldLines, oldLine - hunkOldStart);
-            }
-            else if (line.StartsWith(' '))
-            {
+            } else if (line.StartsWith(' ')) {
                 hunkLines.Add(new DiffLine(PatchLineType.Context, line[1..], oldLine, newLine));
                 oldLine++;
                 newLine++;
-            }
-            else
-            {
+            } else {
                 hunkLines.Add(new DiffLine(PatchLineType.Context, line, null, null));
             }
         }
 
-        if (inHunk && currentFile is not null)
-        {
+        if (inHunk && currentFile is not null) {
             FlushHunk(currentHunks, hunkLines, hunkOldStart, hunkOldLines, hunkNewStart, hunkNewLines, hunkHeader);
             result[currentFile] = currentHunks;
         }
@@ -164,15 +137,13 @@ public sealed class DiffParser
     }
 
     private static void FlushHunk(List<StructuredHunk> hunks, List<DiffLine> lines,
-        int oldStart, int oldLines, int newStart, int newLines, string header)
-    {
+        int oldStart, int oldLines, int newStart, int newLines, string header) {
         if (lines.Count == 0) return;
         hunks.Add(new StructuredHunk(oldStart, oldLines, newStart, newLines, header, lines.ToArray()));
         lines.Clear();
     }
 
-    private static (int OldStart, int OldLines, int NewStart, int NewLines) ParseFullHunkHeader(string line)
-    {
+    private static (int OldStart, int OldLines, int NewStart, int NewLines) ParseFullHunkHeader(string line) {
         var span = line.AsSpan();
         var i = 0;
 
@@ -185,8 +156,7 @@ public sealed class DiffParser
 
         var oldStart = ParseNumber(span, ref i);
         var oldLines = 0;
-        if (i < span.Length && span[i] == ',')
-        {
+        if (i < span.Length && span[i] == ',') {
             i++;
             oldLines = ParseNumber(span, ref i);
         }
@@ -199,8 +169,7 @@ public sealed class DiffParser
 
         var newStart = ParseNumber(span, ref i);
         var newLines = 0;
-        if (i < span.Length && span[i] == ',')
-        {
+        if (i < span.Length && span[i] == ',') {
             i++;
             newLines = ParseNumber(span, ref i);
         }
@@ -208,8 +177,7 @@ public sealed class DiffParser
         return (oldStart, oldLines, newStart, newLines);
     }
 
-    private static int ParseNumber(ReadOnlySpan<char> span, ref int i)
-    {
+    private static int ParseNumber(ReadOnlySpan<char> span, ref int i) {
         var start = i;
         while (i < span.Length && char.IsDigit(span[i])) i++;
         return i > start && int.TryParse(span[start..i], out var num) ? num : 0;

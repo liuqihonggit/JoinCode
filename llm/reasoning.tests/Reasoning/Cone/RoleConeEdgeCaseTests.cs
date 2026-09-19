@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Cone;
 
-public sealed class RoleConeEdgeCaseTests
-{
+public sealed class RoleConeEdgeCaseTests {
     [Fact]
-    public void FoldOldestFragment_WhenActiveFragmentIdsIsEmpty_DoesNothing()
-    {
+    public void FoldOldestFragment_WhenActiveFragmentIdsIsEmpty_DoesNothing() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 5 };
 
         cone.FoldOldestFragment();
@@ -14,8 +12,7 @@ public sealed class RoleConeEdgeCaseTests
     }
 
     [Fact]
-    public void ExpandFragment_WhenFragmentNotFound_ReturnsNull()
-    {
+    public void ExpandFragment_WhenFragmentNotFound_ReturnsNull() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 5 };
 
         var result = cone.ExpandFragment("missing", "*");
@@ -24,8 +21,7 @@ public sealed class RoleConeEdgeCaseTests
     }
 
     [Fact]
-    public void ExpandFragment_WhenExpandConditionIsEmpty_AlwaysExpands()
-    {
+    public void ExpandFragment_WhenExpandConditionIsEmpty_AlwaysExpands() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 5 };
         var fragment = CreateFragment("f1", AgentRole.Prosecutor, expandCondition: string.Empty);
         cone.AddFragment(fragment);
@@ -40,8 +36,7 @@ public sealed class RoleConeEdgeCaseTests
     }
 
     [Fact]
-    public void ExpandFragment_WhenAlreadyActive_KeepsInActiveList()
-    {
+    public void ExpandFragment_WhenAlreadyActive_KeepsInActiveList() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 5 };
         var fragment = CreateFragment("f1", AgentRole.Prosecutor);
         cone.AddFragment(fragment);
@@ -53,8 +48,7 @@ public sealed class RoleConeEdgeCaseTests
     }
 
     [Fact]
-    public void GetConeContext_ShouldTruncateLongRawText()
-    {
+    public void GetConeContext_ShouldTruncateLongRawText() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 5 };
         var fragment = CreateFragment("f1", AgentRole.Prosecutor, rawText: new string('x', 100));
         cone.AddFragment(fragment);
@@ -66,8 +60,7 @@ public sealed class RoleConeEdgeCaseTests
     }
 
     [Fact]
-    public void GetConeContext_ShouldNotTruncateShortRawText()
-    {
+    public void GetConeContext_ShouldNotTruncateShortRawText() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 5 };
         var fragment = CreateFragment("f1", AgentRole.Prosecutor, rawText: "short");
         cone.AddFragment(fragment);
@@ -79,8 +72,7 @@ public sealed class RoleConeEdgeCaseTests
     }
 
     [Fact]
-    public void GetActiveConclusions_WhenActiveIdNotInAllFragments_ReturnsEmpty()
-    {
+    public void GetActiveConclusions_WhenActiveIdNotInAllFragments_ReturnsEmpty() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 5 };
         cone.ActiveFragmentIds.Add("missing");
 
@@ -90,8 +82,7 @@ public sealed class RoleConeEdgeCaseTests
     }
 
     [Fact]
-    public void AddFragment_SetsIncrementalLoadOrder()
-    {
+    public void AddFragment_SetsIncrementalLoadOrder() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 5 };
 
         cone.AddFragment(CreateFragment("f1", AgentRole.Prosecutor));
@@ -102,8 +93,7 @@ public sealed class RoleConeEdgeCaseTests
     }
 
     [Fact]
-    public void FoldOldestFragment_SetsFoldedSummary()
-    {
+    public void FoldOldestFragment_SetsFoldedSummary() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 1 };
         var fragment = CreateFragment("f1", AgentRole.Prosecutor, conclusion: "结论");
         cone.AddFragment(fragment);
@@ -114,8 +104,7 @@ public sealed class RoleConeEdgeCaseTests
     }
 
     [Fact]
-    public void GetConeContext_IncludesOnlyVisibleFragments()
-    {
+    public void GetConeContext_IncludesOnlyVisibleFragments() {
         var cone = new RoleCone { RoleName = AgentRole.Prosecutor, MaxVisibleFragments = 2 };
         var f1 = CreateFragment("f1", AgentRole.Prosecutor, conclusion: "old");
         var f2 = CreateFragment("f2", AgentRole.Prosecutor, conclusion: "active1");
@@ -132,16 +121,13 @@ public sealed class RoleConeEdgeCaseTests
     }
 
     private static ObservationFragment CreateFragment(
-        string id, AgentRole role, string conclusion = "test", string expandCondition = "cross_role_review", string rawText = "")
-    {
-        return new ObservationFragment
-        {
+        string id, AgentRole role, string conclusion = "test", string expandCondition = "cross_role_review", string rawText = "") {
+        return new ObservationFragment {
             FragmentId = id,
             SourceItemId = id,
             RoleChain = role,
             RawText = string.IsNullOrEmpty(rawText) ? $"raw text for {id}" : rawText,
-            Fingerprint = new CognitiveFingerprint
-            {
+            Fingerprint = new CognitiveFingerprint {
                 EntryStimulus = $"stimulus for {id}",
                 ProcessingPath = "test_path",
                 OutputConclusion = conclusion,

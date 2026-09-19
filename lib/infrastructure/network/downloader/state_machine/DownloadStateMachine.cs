@@ -19,13 +19,11 @@ namespace Infrastructure.Network.Downloader.StateMachine;
 [Transition(DownloadState.Downloading, DownloadOperation.Fail, DownloadState.Failed)]
 [Transition(DownloadState.Paused, DownloadOperation.Fail, DownloadState.Failed)]
 [Transition(DownloadState.Merging, DownloadOperation.Fail, DownloadState.Failed)]
-internal sealed partial class DownloadStateMachine
-{
+internal sealed partial class DownloadStateMachine {
     private readonly Fsm<DownloadState, DownloadOperation> _fsm;
 
     /// <summary>构造下载状态机,初始状态为 Idle,绑定状态变更事件分发</summary>
-    public DownloadStateMachine()
-    {
+    public DownloadStateMachine() {
         _fsm = new Fsm<DownloadState, DownloadOperation>(_fsmSortedKeys, _fsmRules, DownloadState.Idle);
         _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
@@ -58,8 +56,7 @@ internal sealed partial class DownloadStateMachine
     /// 统一转换入口 — 按操作枚举分发到具体方法,消除消费方硬编码字符串
     /// </summary>
     public DownloadStateTransition TryTransition(DownloadOperation op) =>
-        op switch
-        {
+        op switch {
             DownloadOperation.Start => TryStart(),
             DownloadOperation.Pause => TryPause(),
             DownloadOperation.Resume => TryResume(),
@@ -73,8 +70,7 @@ internal sealed partial class DownloadStateMachine
     /// <summary>强制设置状态(仅用于测试/恢复场景,跳过校验)</summary>
     internal void ForceSet(DownloadState state) => _fsm.ForceSet(state);
 
-    private DownloadStateTransition Trigger(DownloadOperation op)
-    {
+    private DownloadStateTransition Trigger(DownloadOperation op) {
         var result = _fsm.Trigger(op);
         if (result.Transitioned)
             return new DownloadStateTransition(true, result.FromState, result.ToState, null);

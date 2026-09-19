@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface ICacheService
-{
+public interface ICacheService {
     T? Get<T>(string key);
     Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default);
     void Set<T>(string key, T value, TimeSpan? expiration = null);

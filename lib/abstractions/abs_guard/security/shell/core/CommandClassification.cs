@@ -11,8 +11,7 @@ public sealed record CommandClassification(
 /// <summary>
 /// 命令分类类别
 /// </summary>
-public enum CommandCategory
-{
+public enum CommandCategory {
     /// <summary>
     /// 未知命令
     /// </summary>
@@ -47,8 +46,7 @@ public enum CommandCategory
 /// <summary>
 /// 命令风险类型
 /// </summary>
-public enum CommandRisk
-{
+public enum CommandRisk {
     /// <summary>
     /// 无风险
     /// </summary>

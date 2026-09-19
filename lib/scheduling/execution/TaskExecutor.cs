@@ -4,8 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 任务执行器 - 负责执行单个任务
 /// </summary>
-internal sealed class TaskExecutor
-{
+internal sealed class TaskExecutor {
     private readonly ISubAgentCoordinator? _agentCoordinator;
     private readonly ToolPortingScheduler _scheduler;
     private readonly ILogger? _logger;
@@ -21,8 +20,7 @@ internal sealed class TaskExecutor
         CancellationTokenSource cts,
         ConcurrentDictionary<string, AgentExecutionRecord> executionRecords,
         ISubAgentContextAccessor subAgentContextAccessor,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _agentCoordinator = agentCoordinator;
         _scheduler = scheduler;
         _logger = logger;
@@ -35,11 +33,9 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 使用信号量控制并发执行任务
     /// </summary>
-    public async Task ExecuteWithSemaphoreAsync(ScheduledTask task, ExecutionContext context, CancellationToken cancellationToken = default)
-    {
+    public async Task ExecuteWithSemaphoreAsync(ScheduledTask task, ExecutionContext context, CancellationToken cancellationToken = default) {
         using (await context.ConcurrencyLock.TryLockAsync(cancellationToken).ConfigureAwait(false)
-            ?? throw new System.TimeoutException($"锁 '{context.ConcurrencyLock.Name}' 等待超时"))
-        {
+            ?? throw new System.TimeoutException($"锁 '{context.ConcurrencyLock.Name}' 等待超时")) {
             await ExecuteAsync(task, context.Options).ConfigureAwait(false);
         }
     }
@@ -47,30 +43,21 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 执行单个任务
     /// </summary>
-    private async Task ExecuteAsync(ScheduledTask task, ExecutionOptions options)
-    {
+    private async Task ExecuteAsync(ScheduledTask task, ExecutionOptions options) {
         _logger?.LogInformation(L.T(StringKey.StartTaskLog, task.Name, task.RequiredAgents));
         _scheduler.StartTask(task.Id);
 
-        try
-        {
-            if (_agentCoordinator != null)
-            {
+        try {
+            if (_agentCoordinator != null) {
                 await ExecuteWithAgentsAsync(task, options).ConfigureAwait(false);
-            }
-            else
-            {
+            } else {
                 await ExecuteInSimulationModeAsync(task, options).ConfigureAwait(false);
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             _scheduler.FailTask(task.Id, L.T(StringKey.TaskCancelledMsg));
             _logger?.LogWarning(L.T(StringKey.TaskCancelledLog, task.Name));
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _scheduler.FailTask(task.Id, ex.Message);
             _logger?.LogError(ex, L.T(StringKey.TaskExecErrorLog, task.Name));
         }
@@ -79,10 +66,8 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 使用 AgentCoordinator 执行任务
     /// </summary>
-    private async Task ExecuteWithAgentsAsync(ScheduledTask task, ExecutionOptions options)
-    {
-        if (_agentCoordinator == null)
-        {
+    private async Task ExecuteWithAgentsAsync(ScheduledTask task, ExecutionOptions options) {
+        if (_agentCoordinator == null) {
             throw new InvalidOperationException(L.T(StringKey.AgentCoordinatorNotInit));
         }
 
@@ -90,8 +75,7 @@ internal sealed class TaskExecutor
         var taskContext = CreateTaskContext(task);
         var agentTasks = new List<string>();
 
-        try
-        {
+        try {
             var subAgents = await CreateSubAgentsAsync(task, taskContext, options).ConfigureAwait(false);
             agentTasks.AddRange(subAgents.Select(a => a.ObjectId.UniqueId));
 
@@ -103,9 +87,7 @@ internal sealed class TaskExecutor
             HandleExecutionOutcome(task, results, executionLog);
 
             await CleanupAgentsAsync(subAgents.Select(a => a.ObjectId.UniqueId)).ConfigureAwait(false);
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             await CleanupAgentsAsync(agentTasks).ConfigureAwait(false);
             throw;
         }
@@ -114,8 +96,7 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 创建任务上下文
     /// </summary>
-    private AgentTaskContext CreateTaskContext(ScheduledTask task) => new()
-    {
+    private AgentTaskContext CreateTaskContext(ScheduledTask task) => new() {
         TaskId = task.Id,
         AgentIndex = 0,
         TotalAgents = task.RequiredAgents,
@@ -129,13 +110,11 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 创建子Agent集合
     /// </summary>
-    private async Task<IReadOnlyList<IAgent>> CreateSubAgentsAsync(ScheduledTask task, AgentTaskContext taskContext, ExecutionOptions options)
-    {
+    private async Task<IReadOnlyList<IAgent>> CreateSubAgentsAsync(ScheduledTask task, AgentTaskContext taskContext, ExecutionOptions options) {
         if (_agentCoordinator == null) return Array.Empty<IAgent>();
 
         var subAgents = new List<IAgent>();
-        for (int i = 0; i < task.RequiredAgents; i++)
-        {
+        for (int i = 0; i < task.RequiredAgents; i++) {
             var agent = await CreateSingleSubAgentAsync(task, taskContext, options, i).ConfigureAwait(false);
             subAgents.Add(agent);
         }
@@ -145,8 +124,7 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 创建单个SubAgent
     /// </summary>
-    private async Task<IAgent> CreateSingleSubAgentAsync(ScheduledTask task, AgentTaskContext taskContext, ExecutionOptions options, int agentIndex)
-    {
+    private async Task<IAgent> CreateSingleSubAgentAsync(ScheduledTask task, AgentTaskContext taskContext, ExecutionOptions options, int agentIndex) {
         var description = BuildAgentTaskDescription(task, agentIndex, task.RequiredAgents);
         var subAgentOptions = BuildSubAgentOptions(task, taskContext, options, agentIndex);
         var coordinator = _agentCoordinator ?? throw new InvalidOperationException("Agent coordinator not available.");
@@ -156,10 +134,8 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 构建SubAgent选项
     /// </summary>
-    private SubAgentOptions BuildSubAgentOptions(ScheduledTask task, AgentTaskContext taskContext, ExecutionOptions options, int agentIndex)
-    {
-        return new SubAgentOptions
-        {
+    private SubAgentOptions BuildSubAgentOptions(ScheduledTask task, AgentTaskContext taskContext, ExecutionOptions options, int agentIndex) {
+        return new SubAgentOptions {
             AdditionalInstructions = L.T(StringKey.AgentTaskInstructions, agentIndex + 1, task.RequiredAgents, task.Name, taskContext.Description),
             MaxIterations = 50,
             EnableThinking = options.VerboseLogging,
@@ -171,12 +147,10 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 并行执行所有Agent
     /// </summary>
-    private async Task<IReadOnlyList<SubAgentResult>> ExecuteAgentsParallelAsync(IReadOnlyList<IAgent> subAgents, ExecutionOptions options)
-    {
+    private async Task<IReadOnlyList<SubAgentResult>> ExecuteAgentsParallelAsync(IReadOnlyList<IAgent> subAgents, ExecutionOptions options) {
         if (_agentCoordinator == null) return Array.Empty<SubAgentResult>();
 
-        var parallelOptions = new ParallelOptions
-        {
+        var parallelOptions = new ParallelOptions {
             MaxDegreeOfParallelism = Math.Min(subAgents.Count, CpuParallelism.GetDegree(options.MaxConcurrentTasks)),
             CancellationToken = _cts.Token
         };
@@ -187,10 +161,8 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 记录Agent创建日志
     /// </summary>
-    private void LogAgentCreation(string taskName, IReadOnlyList<IAgent> subAgents, int totalAgents)
-    {
-        for (int i = 0; i < subAgents.Count; i++)
-        {
+    private void LogAgentCreation(string taskName, IReadOnlyList<IAgent> subAgents, int totalAgents) {
+        for (int i = 0; i < subAgents.Count; i++) {
             _logger?.LogInformation(L.T(StringKey.CreateSubAgentLog, taskName, subAgents[i].ObjectId.UniqueId, i + 1, totalAgents));
         }
     }
@@ -198,24 +170,18 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 处理执行结果
     /// </summary>
-    private void HandleExecutionOutcome(ScheduledTask task, IReadOnlyList<SubAgentResult> results, string executionLog)
-    {
+    private void HandleExecutionOutcome(ScheduledTask task, IReadOnlyList<SubAgentResult> results, string executionLog) {
         var allSuccess = results.All(r => r.IsSuccess);
         var anySuccess = results.Any(r => r.IsSuccess);
 
-        if (allSuccess)
-        {
+        if (allSuccess) {
             _scheduler.CompleteTask(task.Id, executionLog);
             _logger?.LogInformation(L.T(StringKey.TaskAllAgentsSuccessLog, task.Name, results.Count));
-        }
-        else if (anySuccess)
-        {
+        } else if (anySuccess) {
             var successCount = results.Count(r => r.IsSuccess);
             _scheduler.CompleteTask(task.Id, executionLog);
             _logger?.LogWarning(L.T(StringKey.TaskPartialSuccessLog, task.Name, successCount, results.Count));
-        }
-        else
-        {
+        } else {
             var errorMessage = L.T(StringKey.AllAgentsFailedMsg, string.Join("; ", results.Where(r => !r.IsSuccess).Select(r => r.Error)));
             _scheduler.FailTask(task.Id, errorMessage);
             _logger?.LogError(L.T(StringKey.TaskFailedLog, task.Name, errorMessage));
@@ -225,18 +191,13 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 清理Agent资源（并行执行）
     /// </summary>
-    private async Task CleanupAgentsAsync(IEnumerable<string> agentIds)
-    {
+    private async Task CleanupAgentsAsync(IEnumerable<string> agentIds) {
         if (_agentCoordinator == null) return;
 
-        var cleanupTasks = agentIds.Select(async agentId =>
-        {
-            try
-            {
+        var cleanupTasks = agentIds.Select(async agentId => {
+            try {
                 await _agentCoordinator.DisposeAgentAsync(agentId).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, L.T(StringKey.CleanupAgentFailedLog, agentId));
             }
         });
@@ -247,8 +208,7 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 模拟模式下执行任务
     /// </summary>
-    private async Task ExecuteInSimulationModeAsync(ScheduledTask task, ExecutionOptions options)
-    {
+    private async Task ExecuteInSimulationModeAsync(ScheduledTask task, ExecutionOptions options) {
         _logger?.LogInformation(L.T(StringKey.SimModeExecLog, task.Name));
         await Task.Delay(options.SimulatedWorkDurationMs, _cts.Token).ConfigureAwait(false);
         _scheduler.CompleteTask(task.Id, L.T(StringKey.SimModeCompleteLog, task.RequiredAgents));
@@ -258,16 +218,14 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 构建 Agent 任务描述
     /// </summary>
-    private static string BuildAgentTaskDescription(ScheduledTask task, int agentIndex, int totalAgents)
-    {
+    private static string BuildAgentTaskDescription(ScheduledTask task, int agentIndex, int totalAgents) {
         var sb = new StringBuilder();
         sb.AppendLine(L.T(StringKey.ExecTaskLabel, task.Name));
         sb.AppendLine(L.T(StringKey.TaskDescLabel, task.Description));
         sb.AppendLine(L.T(StringKey.AgentIndexLabel, agentIndex + 1, totalAgents));
         sb.AppendLine(L.T(StringKey.PriorityLabel, task.Priority));
 
-        if (task.Dependencies != null && task.Dependencies.Any())
-        {
+        if (task.Dependencies != null && task.Dependencies.Any()) {
             sb.AppendLine(L.T(StringKey.DepsLabel, string.Join(", ", task.Dependencies)));
         }
 
@@ -277,8 +235,7 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 处理 Agent 执行结果并生成执行日志
     /// </summary>
-    private string ProcessResults(ScheduledTask task, IReadOnlyList<SubAgentResult> results, DateTime startTime)
-    {
+    private string ProcessResults(ScheduledTask task, IReadOnlyList<SubAgentResult> results, DateTime startTime) {
         var sb = new StringBuilder();
         var endTime = _clock.GetUtcNow();
         var totalDuration = endTime - startTime;
@@ -290,8 +247,7 @@ internal sealed class TaskExecutor
         sb.AppendLine(L.T(StringKey.SuccessFailCount, results.Count(r => r.IsSuccess), results.Count(r => !r.IsSuccess)));
         sb.AppendLine();
 
-        var record = new AgentExecutionRecord
-        {
+        var record = new AgentExecutionRecord {
             TaskId = task.Id,
             TaskName = task.Name,
             StartTime = startTime,
@@ -301,27 +257,23 @@ internal sealed class TaskExecutor
         };
         _executionRecords[task.Id] = record;
 
-        for (int i = 0; i < results.Count; i++)
-        {
+        for (int i = 0; i < results.Count; i++) {
             var result = results[i];
             sb.AppendLine(L.T(StringKey.AgentResultHeader, i + 1, result.AgentId));
             sb.AppendLine($"Status: {(result.IsSuccess ? L.T(StringKey.StatusSuccess) : L.T(StringKey.StatusFailed))}");
 
-            if (result.ExecutionTimeMs.HasValue)
-            {
+            if (result.ExecutionTimeMs.HasValue) {
                 sb.AppendLine(L.T(StringKey.ExecDurationLabel, result.ExecutionTimeMs.Value));
             }
 
-            if (!string.IsNullOrEmpty(result.Output))
-            {
+            if (!string.IsNullOrEmpty(result.Output)) {
                 var output = result.Output.Length > WorkflowConstants.Limits.OutputTruncateLength
                     ? string.Concat(result.Output.AsSpan(0, WorkflowConstants.Limits.OutputTruncateLength), "...")
                     : result.Output;
                 sb.AppendLine(L.T(StringKey.OutputLabel, output));
             }
 
-            if (!string.IsNullOrEmpty(result.Error))
-            {
+            if (!string.IsNullOrEmpty(result.Error)) {
                 sb.AppendLine(L.T(StringKey.ErrorLabel, result.Error));
             }
 
@@ -329,8 +281,7 @@ internal sealed class TaskExecutor
         }
 
         var mergedOutput = MergeAgentOutputs(results);
-        if (!string.IsNullOrEmpty(mergedOutput))
-        {
+        if (!string.IsNullOrEmpty(mergedOutput)) {
             sb.AppendLine(L.T(StringKey.MergedOutputTitle));
             sb.AppendLine(mergedOutput);
         }
@@ -341,15 +292,12 @@ internal sealed class TaskExecutor
     /// <summary>
     /// 合并多个 Agent 的输出
     /// </summary>
-    private static string MergeAgentOutputs(IReadOnlyList<SubAgentResult> results)
-    {
-        if (results.Count == 0)
-        {
+    private static string MergeAgentOutputs(IReadOnlyList<SubAgentResult> results) {
+        if (results.Count == 0) {
             return string.Empty;
         }
 
-        if (results.Count == 1)
-        {
+        if (results.Count == 1) {
             return results[0].Output ?? string.Empty;
         }
 
@@ -358,13 +306,11 @@ internal sealed class TaskExecutor
             .Select(r => r.Output ?? string.Empty)
             .ToList();
 
-        if (successfulOutputs.Count == 0)
-        {
+        if (successfulOutputs.Count == 0) {
             return string.Empty;
         }
 
-        if (successfulOutputs.Count == 1)
-        {
+        if (successfulOutputs.Count == 1) {
             return successfulOutputs[0];
         }
 
@@ -372,8 +318,7 @@ internal sealed class TaskExecutor
         sb.AppendLine(L.T(StringKey.MultiAgentResultTitle));
         sb.AppendLine();
 
-        for (int i = 0; i < successfulOutputs.Count; i++)
-        {
+        for (int i = 0; i < successfulOutputs.Count; i++) {
             sb.AppendLine(L.T(StringKey.AgentContributionHeader, i + 1));
             sb.AppendLine(successfulOutputs[i]);
             sb.AppendLine();

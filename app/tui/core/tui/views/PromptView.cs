@@ -4,8 +4,7 @@ namespace JoinCode.Tui.Views;
 /// 输入框组件 — 用户输入命令的 TUI 入口。
 /// 多行 Editor 输入：Ctrl+Enter 发送，Enter 换行，Tab 补全，Ctrl+Up/Down 历史导航。
 /// </summary>
-public sealed class PromptView : ITuiComponent
-{
+public sealed class PromptView : ITuiComponent {
     private readonly CommandQueue _queue;
     private readonly View _container;
     private readonly Label _promptLabel;
@@ -18,27 +17,23 @@ public sealed class PromptView : ITuiComponent
     /// 创建 PromptView。
     /// </summary>
     /// <param name="queue">命令队列（用户输入入队目标）。</param>
-    public PromptView(CommandQueue queue)
-    {
+    public PromptView(CommandQueue queue) {
         _queue = queue ?? throw new ArgumentNullException(nameof(queue));
 
-        _container = new View
-        {
+        _container = new View {
             Width = Dim.Fill(),
             Height = InputHeight,
             CanFocus = true,
         };
 
-        _promptLabel = new Label
-        {
+        _promptLabel = new Label {
             Text = "> ",
             X = 0,
             Y = 0,
             Height = 1,
         };
 
-        _editor = new Editor
-        {
+        _editor = new Editor {
             X = Pos.Right(_promptLabel),
             Y = 0,
             Width = Dim.Fill(),
@@ -72,53 +67,43 @@ public sealed class PromptView : ITuiComponent
     public void SetFocus() => _editor.SetFocus();
 
     /// <inheritdoc />
-    public void OnQueueChanged(QueueSnapshot snapshot)
-    {
+    public void OnQueueChanged(QueueSnapshot snapshot) {
     }
 
     /// <inheritdoc />
-    public void OnResize(int cols, int rows)
-    {
+    public void OnResize(int cols, int rows) {
         _container.Width = Dim.Fill();
     }
 
-    private void OnAccepted(object? sender, CommandEventArgs e)
-    {
+    private void OnAccepted(object? sender, CommandEventArgs e) {
         var text = _editor.Text;
-        if (!string.IsNullOrWhiteSpace(text))
-        {
+        if (!string.IsNullOrWhiteSpace(text)) {
             _queue.Enqueue(new QueuedCommand(text, CommandOrigin.User, QueuePriority.Next));
             _history.Add(text);
             _editor.Text = "";
         }
     }
 
-    private void OnKeyDown(object? sender, TuiKey key)
-    {
+    private void OnKeyDown(object? sender, TuiKey key) {
         // Tab 补全
-        if (key == TuiKey.Tab)
-        {
+        if (key == TuiKey.Tab) {
             var text = _editor.Text ?? string.Empty;
             var completed = TabCompleter.Complete(text, _slashCommands);
-            if (completed is not null)
-            {
+            if (completed is not null) {
                 _editor.Text = completed;
             }
             key.Handled = true;
         }
         // Ctrl+Up 历史导航
-        else if (key == TuiKey.CursorUp.WithCtrl)
-        {
+        else if (key == TuiKey.CursorUp.WithCtrl) {
             var prev = _history.NavigateUp();
-            if (prev is not null)
-            {
+            if (prev is not null) {
                 _editor.Text = prev;
             }
             key.Handled = true;
         }
         // Ctrl+Down 历史导航
-        else if (key == TuiKey.CursorDown.WithCtrl)
-        {
+        else if (key == TuiKey.CursorDown.WithCtrl) {
             var next = _history.NavigateDown();
             _editor.Text = next ?? string.Empty;
             key.Handled = true;

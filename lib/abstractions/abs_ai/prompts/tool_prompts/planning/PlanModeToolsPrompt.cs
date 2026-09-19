@@ -4,15 +4,13 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// EnterPlanModeTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = PlanToolName.EnterPlanMode, Category = ToolPromptCategory.Planning)]
-public static class EnterPlanModeToolPrompt
-{
+public static class EnterPlanModeToolPrompt {
     public const string ToolName = PlanToolNameEnumConstants.EnterPlanMode;
 
     /// <summary>
     /// 获取外部用户提示词
     /// </summary>
-    public static string GetExternalPrompt(string askUserQuestionToolName, bool interviewPhaseEnabled = false)
-    {
+    public static string GetExternalPrompt(string askUserQuestionToolName, bool interviewPhaseEnabled = false) {
         var whatHappensSection = interviewPhaseEnabled
             ? ""
             : $@"## 计划模式中会发生什么
@@ -108,8 +106,7 @@ public static class EnterPlanModeToolPrompt
     /// <summary>
     /// 获取 Ant 内部用户提示词
     /// </summary>
-    public static string GetAntPrompt(string askUserQuestionToolName, bool interviewPhaseEnabled = false)
-    {
+    public static string GetAntPrompt(string askUserQuestionToolName, bool interviewPhaseEnabled = false) {
         var whatHappensSection = interviewPhaseEnabled
             ? ""
             : $@"## 计划模式中会发生什么

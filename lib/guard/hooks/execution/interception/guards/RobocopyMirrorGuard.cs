@@ -14,8 +14,7 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// <para>设备名数据源委托 <see cref="RetainedDeviceNames"/>（唯一数据源）</para>
 /// </summary>
 [Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
-public sealed class RobocopyMirrorGuard : ICommandGuard
-{
+public sealed class RobocopyMirrorGuard : ICommandGuard {
     /// <inheritdoc/>
     public string Name => "RobocopyMirrorGuard";
 
@@ -23,8 +22,7 @@ public sealed class RobocopyMirrorGuard : ICommandGuard
     public int Priority => 500;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, GuardContext context)
-    {
+    public bool CanHandle(string command, GuardContext context) {
         if (string.IsNullOrWhiteSpace(command))
             return false;
 
@@ -37,8 +35,7 @@ public sealed class RobocopyMirrorGuard : ICommandGuard
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, GuardContext context)
-    {
+    public CommandDecision Evaluate(string command, GuardContext context) {
         var shellCmd = ShellCommand.Parse(command);
 
         // robocopy 参数顺序: robocopy <source> <destination> [options]
@@ -66,8 +63,7 @@ public sealed class RobocopyMirrorGuard : ICommandGuard
     /// </summary>
     /// <param name="command">完整命令字符串</param>
     /// <returns>true 表示命令是 robocopy /MIR/PURGE 且目标路径含保留名文件</returns>
-    public static bool IsRobocopyMirrorRetainedNameCleanup(string command)
-    {
+    public static bool IsRobocopyMirrorRetainedNameCleanup(string command) {
         if (string.IsNullOrWhiteSpace(command))
             return false;
 

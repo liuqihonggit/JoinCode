@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Agents;
 
-public sealed class DefenderAgentTests
-{
+public sealed class DefenderAgentTests {
     [Fact]
-    public async Task ReasonAsync_WithNoTargets_ReturnsEmptyAction()
-    {
+    public async Task ReasonAsync_WithNoTargets_ReturnsEmptyAction() {
         var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
         var context = CreateContext([], []);
 
@@ -17,8 +15,7 @@ public sealed class DefenderAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithVerifiedItemAndInsufficientEvidence_AddsDoubt()
-    {
+    public async Task ReasonAsync_WithVerifiedItemAndInsufficientEvidence_AddsDoubt() {
         var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Verified };
         var context = CreateContext([item], []);
@@ -32,8 +29,7 @@ public sealed class DefenderAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithSufficientEvidence_DoesNotAddDoubt()
-    {
+    public async Task ReasonAsync_WithSufficientEvidence_DoesNotAddDoubt() {
         var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Verified };
         var evidence = new EvidenceRecord[]
@@ -63,8 +59,7 @@ public sealed class DefenderAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithValidLlmResponse_ParsesCounterEvidenceAndDoubts()
-    {
+    public async Task ReasonAsync_WithValidLlmResponse_ParsesCounterEvidenceAndDoubts() {
         var json = "{\"counterEvidence\":[{\"content\":\"不在场证明\",\"source\":\"证人\",\"trustLevel\":\"StrongCorroboration\",\"weight\":2.5}],\"doubts\":[\"证据来源可疑\"]}";
         var agent = new DefenderAgent(
             new FakeQueryEngine(),
@@ -103,8 +98,7 @@ public sealed class DefenderAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithMalformedJson_ReturnsEmptyParsedResults()
-    {
+    public async Task ReasonAsync_WithMalformedJson_ReturnsEmptyParsedResults() {
         var agent = new DefenderAgent(
             new FakeQueryEngine(),
             NullLogger<DefenderAgent>.Instance,
@@ -118,8 +112,7 @@ public sealed class DefenderAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithBroker_SendsCounterEvidenceSubmittedMessage()
-    {
+    public async Task ReasonAsync_WithBroker_SendsCounterEvidenceSubmittedMessage() {
         var broker = new FakeMessageBroker();
         var agent = new DefenderAgent(
             new FakeQueryEngine(),
@@ -137,8 +130,7 @@ public sealed class DefenderAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_CounterEvidenceDefaults_WhenOptionalFieldsMissing()
-    {
+    public async Task ReasonAsync_CounterEvidenceDefaults_WhenOptionalFieldsMissing() {
         var json = "{\"counterEvidence\":[{\"content\":\"仅内容\"}]}";
         var agent = new DefenderAgent(
             new FakeQueryEngine(),
@@ -155,10 +147,8 @@ public sealed class DefenderAgentTests
         Assert.Equal(1.0, action.CounterEvidence[0].Weight);
     }
 
-    private static ReasoningContext CreateContext(IReadOnlyList<DataItem> items, IReadOnlyList<EvidenceRecord> evidence)
-    {
-        return new ReasoningContext
-        {
+    private static ReasoningContext CreateContext(IReadOnlyList<DataItem> items, IReadOnlyList<EvidenceRecord> evidence) {
+        return new ReasoningContext {
             AllItems = items,
             AllEvidence = evidence,
             Dag = new Dag<ReasoningPayload>(),
@@ -166,16 +156,12 @@ public sealed class DefenderAgentTests
         };
     }
 
-    private static ReasoningContext CreateContextWithDag(IReadOnlyList<DataItem> items, IReadOnlyList<EvidenceRecord> evidence)
-    {
+    private static ReasoningContext CreateContextWithDag(IReadOnlyList<DataItem> items, IReadOnlyList<EvidenceRecord> evidence) {
         var dag = new Dag<ReasoningPayload>();
-        foreach (var item in items)
-        {
-            dag.AddNode(new DagNode<ReasoningPayload>
-            {
+        foreach (var item in items) {
+            dag.AddNode(new DagNode<ReasoningPayload> {
                 Id = item.Id,
-                Payload = new ReasoningPayload
-                {
+                Payload = new ReasoningPayload {
                     Id = item.Id,
                     Type = ReasoningNodeType.Assumption,
                     Content = item.Content,
@@ -184,13 +170,10 @@ public sealed class DefenderAgentTests
             });
         }
 
-        foreach (var ev in evidence)
-        {
-            dag.AddNode(new DagNode<ReasoningPayload>
-            {
+        foreach (var ev in evidence) {
+            dag.AddNode(new DagNode<ReasoningPayload> {
                 Id = ev.Id,
-                Payload = new ReasoningPayload
-                {
+                Payload = new ReasoningPayload {
                     Id = ev.Id,
                     Type = ReasoningNodeType.Evidence,
                     Content = ev.Content,
@@ -198,8 +181,7 @@ public sealed class DefenderAgentTests
                     SubmittedBy = ev.SubmittedBy,
                 },
             });
-            dag.AddEdge(new DagEdge
-            {
+            dag.AddEdge(new DagEdge {
                 FromId = ev.Id,
                 ToId = items[0].Id,
                 Label = "SUPPORTS",
@@ -207,8 +189,7 @@ public sealed class DefenderAgentTests
             });
         }
 
-        return new ReasoningContext
-        {
+        return new ReasoningContext {
             AllItems = items,
             AllEvidence = evidence,
             Dag = dag,

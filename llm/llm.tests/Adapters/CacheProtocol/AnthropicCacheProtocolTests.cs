@@ -1,25 +1,21 @@
 namespace Llm.Tests.Adapters.CacheProtocol;
 
-public sealed class AnthropicCacheProtocolTests
-{
+public sealed class AnthropicCacheProtocolTests {
     private readonly AnthropicCacheProtocol _protocol = new();
 
     [Fact]
-    public void RequiresExplicitCacheMarkers_ShouldBeTrue()
-    {
+    public void RequiresExplicitCacheMarkers_ShouldBeTrue() {
         _protocol.RequiresExplicitCacheMarkers.Should().BeTrue(
             "Anthropic requires explicit cache_control markers on messages");
     }
 
     [Fact]
-    public void DefaultCacheScope_ShouldBeEphemeral()
-    {
+    public void DefaultCacheScope_ShouldBeEphemeral() {
         _protocol.DefaultCacheScope.Should().Be("ephemeral");
     }
 
     [Fact]
-    public void CreateCacheControl_WithoutMcpTools_ScopeShouldBeNull()
-    {
+    public void CreateCacheControl_WithoutMcpTools_ScopeShouldBeNull() {
         var control = _protocol.CreateCacheControl(hasMcpTools: false);
 
         control.Type.Should().Be("ephemeral");
@@ -30,8 +26,7 @@ public sealed class AnthropicCacheProtocolTests
     }
 
     [Fact]
-    public void CreateCacheControl_WithMcpTools_ScopeShouldBeOrg()
-    {
+    public void CreateCacheControl_WithMcpTools_ScopeShouldBeOrg() {
         var control = _protocol.CreateCacheControl(hasMcpTools: true);
 
         control.Type.Should().Be("ephemeral");
@@ -40,8 +35,7 @@ public sealed class AnthropicCacheProtocolTests
     }
 
     [Fact]
-    public void CreateCacheControl_With1hTtl_TtlShouldBe1h()
-    {
+    public void CreateCacheControl_With1hTtl_TtlShouldBe1h() {
         var control = _protocol.CreateCacheControl(hasMcpTools: false, ttl: "1h");
 
         control.Ttl.Should().Be("1h",
@@ -49,8 +43,7 @@ public sealed class AnthropicCacheProtocolTests
     }
 
     [Fact]
-    public void CreateCacheControl_With5mTtl_TtlShouldBe5m()
-    {
+    public void CreateCacheControl_With5mTtl_TtlShouldBe5m() {
         var control = _protocol.CreateCacheControl(hasMcpTools: false, ttl: "5m");
 
         control.Ttl.Should().Be("5m",
@@ -58,8 +51,7 @@ public sealed class AnthropicCacheProtocolTests
     }
 
     [Fact]
-    public void CreateCacheControl_WithGlobalScope_ScopeShouldBeGlobal()
-    {
+    public void CreateCacheControl_WithGlobalScope_ScopeShouldBeGlobal() {
         var control = _protocol.CreateCacheControl(hasMcpTools: false, scope: CacheScope.Global);
 
         control.Scope.Should().Be("global",
@@ -67,20 +59,17 @@ public sealed class AnthropicCacheProtocolTests
     }
 
     [Fact]
-    public void ResolveScope_WithoutMcpTools_ShouldBeNull()
-    {
+    public void ResolveScope_WithoutMcpTools_ShouldBeNull() {
         _protocol.ResolveScope(hasMcpTools: false).Should().BeNull();
     }
 
     [Fact]
-    public void ResolveScope_WithMcpTools_ShouldBeOrg()
-    {
+    public void ResolveScope_WithMcpTools_ShouldBeOrg() {
         _protocol.ResolveScope(hasMcpTools: true).Should().Be("org");
     }
 
     [Fact]
-    public void IsStaticSystemBlock_NoMetadata_ShouldBeTrue()
-    {
+    public void IsStaticSystemBlock_NoMetadata_ShouldBeTrue() {
         var msg = new ApiMessage(MessageRole.System, "static content");
 
         _protocol.IsStaticSystemBlock(msg).Should().BeTrue(
@@ -88,10 +77,8 @@ public sealed class AnthropicCacheProtocolTests
     }
 
     [Fact]
-    public void IsStaticSystemBlock_WithCacheBreakMarker_ShouldBeFalse()
-    {
-        var msg = new ApiMessage(MessageRole.System, "dynamic content")
-        {
+    public void IsStaticSystemBlock_WithCacheBreakMarker_ShouldBeFalse() {
+        var msg = new ApiMessage(MessageRole.System, "dynamic content") {
             Metadata = CacheBreakMarker.Create()
         };
 
@@ -100,12 +87,9 @@ public sealed class AnthropicCacheProtocolTests
     }
 
     [Fact]
-    public void IsStaticSystemBlock_WithOtherMetadata_ShouldBeTrue()
-    {
-        var msg = new ApiMessage(MessageRole.System, "content")
-        {
-            Metadata = new Dictionary<string, JsonElement>
-            {
+    public void IsStaticSystemBlock_WithOtherMetadata_ShouldBeTrue() {
+        var msg = new ApiMessage(MessageRole.System, "content") {
+            Metadata = new Dictionary<string, JsonElement> {
                 ["OtherKey"] = JsonElementHelper.FromString("value")
             }
         };
@@ -115,10 +99,8 @@ public sealed class AnthropicCacheProtocolTests
     }
 
     [Fact]
-    public void MapUsage_WithCacheStats_ShouldMapCorrectly()
-    {
-        var usage = new AnthropicUsage
-        {
+    public void MapUsage_WithCacheStats_ShouldMapCorrectly() {
+        var usage = new AnthropicUsage {
             InputTokens = 100,
             OutputTokens = 50,
             CacheCreationInputTokens = 30,
@@ -134,10 +116,8 @@ public sealed class AnthropicCacheProtocolTests
     }
 
     [Fact]
-    public void MapUsage_WithoutCacheStats_ShouldDefaultToZero()
-    {
-        var usage = new AnthropicUsage
-        {
+    public void MapUsage_WithoutCacheStats_ShouldDefaultToZero() {
+        var usage = new AnthropicUsage {
             InputTokens = 100,
             OutputTokens = 50
         };
@@ -149,10 +129,8 @@ public sealed class AnthropicCacheProtocolTests
     }
 
     [Fact]
-    public void MapUsage_WithReasoningTokens_ShouldMapCorrectly()
-    {
-        var usage = new AnthropicUsage
-        {
+    public void MapUsage_WithReasoningTokens_ShouldMapCorrectly() {
+        var usage = new AnthropicUsage {
             InputTokens = 100,
             OutputTokens = 50,
             OutputTokensDetails = new AnthropicOutputTokensDetails { ReasoningTokens = 20 }

@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// MCP 认证工具处理器 - 提供 MCP 服务器认证功能
 /// </summary>
 [McpToolDispatch(ToolCategory.McpAuth)]
-public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
-{
+public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider {
     private readonly Dictionary<string, IMcpAuthProvider> _authProviders = new();
     private readonly ILogger? _logger;
     private readonly AsyncLock _authLock = new();
@@ -22,8 +21,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <param name="persistenceService">认证持久化服务（可选）</param>
     /// <param name="httpClientProvider">HTTP 客户端提供者（可选，OAuth2 使用）</param>
     /// <param name="fileSystem">文件系统抽象（可选，传入则启用磁盘持久化）</param>
-    public McpAuthToolHandlers(ILogger? logger = null, IMcpAuthPersistenceService? persistenceService = null, IHttpClientProvider? httpClientProvider = null, IFileSystem? fileSystem = null)
-    {
+    public McpAuthToolHandlers(ILogger? logger = null, IMcpAuthPersistenceService? persistenceService = null, IHttpClientProvider? httpClientProvider = null, IFileSystem? fileSystem = null) {
         _logger = logger;
         _persistenceService = persistenceService;
         _httpClientProvider = httpClientProvider;
@@ -40,20 +38,16 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
         [McpToolParameter("Authentication config name")] string auth_name,
         [McpToolParameter("API key")] string api_key,
         [McpToolParameter("Header name", Required = false, DefaultValue = "X-API-Key")] string header_name = "X-API-Key",
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(auth_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(auth_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(api_key))
-        {
+        if (string.IsNullOrWhiteSpace(api_key)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ApiKeyCannotBeEmpty)).Build();
         }
 
-        return await ToolResultBuilder.SafeExecuteAsync(async () =>
-        {
+        return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var provider = new ApiKeyAuthProvider(api_key, header_name);
             _authProviders[auth_name] = provider;
 
@@ -75,20 +69,16 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     public async Task<ToolResult> McpAuthBearerAsync(
         [McpToolParameter("Authentication config name")] string auth_name,
         [McpToolParameter("Bearer Token")] string token,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(auth_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(auth_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(token))
-        {
+        if (string.IsNullOrWhiteSpace(token)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.TokenCannotBeEmpty)).Build();
         }
 
-        return await ToolResultBuilder.SafeExecuteAsync(async () =>
-        {
+        return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var provider = new BearerAuthProvider(token);
             _authProviders[auth_name] = provider;
 
@@ -111,20 +101,16 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
         [McpToolParameter("Authentication config name")] string auth_name,
         [McpToolParameter("Username")] string username,
         [McpToolParameter("Password")] string password,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(auth_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(auth_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(username))
-        {
+        if (string.IsNullOrWhiteSpace(username)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.UsernameCannotBeEmpty)).Build();
         }
 
-        return await ToolResultBuilder.SafeExecuteAsync(async () =>
-        {
+        return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var provider = new BasicAuthProvider(username, password);
             _authProviders[auth_name] = provider;
 
@@ -149,35 +135,28 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
         [McpToolParameter("Client secret")] string client_secret,
         [McpToolParameter("Token URL")] string token_url,
         [McpToolParameter("Authorization scopes (comma-separated)", Required = false)] string? scopes = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(auth_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(auth_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(client_id))
-        {
+        if (string.IsNullOrWhiteSpace(client_id)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ClientIdCannotBeEmpty)).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(client_secret))
-        {
+        if (string.IsNullOrWhiteSpace(client_secret)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ClientSecretCannotBeEmpty)).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(token_url))
-        {
+        if (string.IsNullOrWhiteSpace(token_url)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.TokenUrlCannotBeEmpty)).Build();
         }
 
-        return await ToolResultBuilder.SafeExecuteAsync(async () =>
-        {
+        return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var scopeList = scopes?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToList() ?? new List<string>();
 
-            var provider = new OAuth2AuthProvider(new OAuth2ProviderOptions
-            {
+            var provider = new OAuth2AuthProvider(new OAuth2ProviderOptions {
                 ClientId = client_id,
                 ClientSecret = client_secret,
                 TokenUrl = token_url,
@@ -186,8 +165,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
                 Logger = _logger,
             });
 
-            using (var guard = await _authLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_authLock.Name}' 等待超时"))
-            {
+            using (var guard = await _authLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_authLock.Name}' 等待超时")) {
                 _authProviders[auth_name] = provider;
             }
 
@@ -199,8 +177,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
             response.AppendLine(L.T(StringKey.LabelClientId, client_id));
             response.AppendLine(L.T(StringKey.LabelTokenUrl, token_url));
 
-            if (scopeList.Count > 0)
-            {
+            if (scopeList.Count > 0) {
                 response.AppendLine(L.T(StringKey.LabelScopes, string.Join(", ", scopeList)));
             }
 
@@ -214,41 +191,31 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     [McpTool(McpToolNameEnumConstants.McpAuthRefresh, "Refresh MCP authentication token", "mcp")]
     public async Task<ToolResult> McpAuthRefreshAsync(
         [McpToolParameter("Authentication config name")] string auth_name,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(auth_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(auth_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
         IMcpAuthProvider? provider;
-        using (var guard = await _authLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_authLock.Name}' 等待超时"))
-        {
-            if (!_authProviders.TryGetValue(auth_name, out provider))
-            {
+        using (var guard = await _authLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_authLock.Name}' 等待超时")) {
+            if (!_authProviders.TryGetValue(auth_name, out provider)) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthConfigNotFound, auth_name)).Build();
             }
         }
 
-        try
-        {
+        try {
             var success = await provider!.RefreshAsync(cancellationToken).ConfigureAwait(false);
 
-            if (success)
-            {
+            if (success) {
                 return ToolResultBuilder.Success()
                     .WithText(L.T(StringKey.AuthTokenRefreshed, auth_name))
                     .Build();
-            }
-            else
-            {
+            } else {
                 return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.RefreshAuthTokenFailed, auth_name))
                     .Build();
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.RefreshAuthTokenFailedLog), auth_name);
             return ToolResultBuilder.Error().WithText(L.T(StringKey.RefreshFailed, ex.Message)).Build();
         }
@@ -260,36 +227,26 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     [McpTool(McpToolNameEnumConstants.McpAuthStatus, "Get MCP authentication status", "mcp")]
     public Task<ToolResult> McpAuthStatusAsync(
         [McpToolParameter("Authentication config name", Required = false)] string? auth_name = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var response = new System.Text.StringBuilder();
 
-            if (string.IsNullOrWhiteSpace(auth_name))
-            {
+            if (string.IsNullOrWhiteSpace(auth_name)) {
                 response.AppendLine(L.T(StringKey.AllAuthConfigsStatus));
                 response.AppendLine();
 
-                if (_authProviders.Count == 0)
-                {
+                if (_authProviders.Count == 0) {
                     response.AppendLine(L.T(StringKey.NoAuthConfigs));
-                }
-                else
-                {
-                    foreach (var (name, provider) in _authProviders)
-                    {
+                } else {
+                    foreach (var (name, provider) in _authProviders) {
                         response.AppendLine($"- {name}");
                         response.AppendLine($"  {L.T(StringKey.LabelType, provider.AuthType)}");
                         response.AppendLine($"  {L.T(StringKey.LabelStatus, provider.IsAuthenticated ? L.T(StringKey.Authenticated) : L.T(StringKey.NotAuthenticated))}");
                         response.AppendLine();
                     }
                 }
-            }
-            else
-            {
-                if (!_authProviders.TryGetValue(auth_name, out var provider))
-                {
+            } else {
+                if (!_authProviders.TryGetValue(auth_name, out var provider)) {
                     return Task.FromResult(ToolResultBuilder.Error()
                         .WithText(L.T(StringKey.AuthConfigNotFound, auth_name))
                         .Build());
@@ -301,9 +258,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
             }
 
             return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.GetAuthStatusFailedLog));
             return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.GetStatusFailed, ex.Message)).Build());
         }
@@ -315,17 +270,13 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     [McpTool(McpToolNameEnumConstants.McpAuthRemove, "Delete MCP authentication config", "mcp")]
     public async Task<ToolResult> McpAuthRemoveAsync(
         [McpToolParameter("Authentication config name")] string auth_name,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(auth_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(auth_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
-        try
-        {
-            if (!_authProviders.Remove(auth_name))
-            {
+        try {
+            if (!_authProviders.Remove(auth_name)) {
                 return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.AuthConfigNotFound, auth_name))
                     .Build();
@@ -337,9 +288,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
             return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.AuthConfigRemoved, auth_name))
                 .Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.RemoveAuthConfigFailedLog));
             return ToolResultBuilder.Error().WithText(L.T(StringKey.RemoveFailed, ex.Message)).Build();
         }
@@ -348,8 +297,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 获取认证提供者
     /// </summary>
-    public IMcpAuthProvider? GetAuthProvider(string authName)
-    {
+    public IMcpAuthProvider? GetAuthProvider(string authName) {
         _authProviders.TryGetValue(authName, out var provider);
         return provider;
     }
@@ -357,25 +305,20 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 根据认证名称获取 McpAuthConfig — 用于 Agent 内联 MCP 服务器认证
     /// </summary>
-    public McpAuthConfig? GetAuthConfig(string authName)
-    {
+    public McpAuthConfig? GetAuthConfig(string authName) {
         if (!_authProviders.TryGetValue(authName, out var provider))
             return null;
 
-        return provider.AuthType switch
-        {
-            McpAuthType.ApiKey => new McpAuthConfig
-            {
+        return provider.AuthType switch {
+            McpAuthType.ApiKey => new McpAuthConfig {
                 Type = McpAuthType.ApiKey,
                 ApiKey = provider is ApiKeyAuthProvider keyProvider ? keyProvider.ApiKey : null
             },
-            McpAuthType.Bearer => new McpAuthConfig
-            {
+            McpAuthType.Bearer => new McpAuthConfig {
                 Type = McpAuthType.Bearer,
                 BearerToken = provider is BearerAuthProvider bearerProvider ? bearerProvider.Token : null
             },
-            McpAuthType.Basic => new McpAuthConfig
-            {
+            McpAuthType.Basic => new McpAuthConfig {
                 Type = McpAuthType.Basic,
                 Username = provider is BasicAuthProvider basicProvider ? basicProvider.Username : null,
                 Password = provider is BasicAuthProvider basicPwdProvider ? basicPwdProvider.Password : null
@@ -384,57 +327,40 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
         };
     }
 
-    private async Task PersistAuthConfigAsync(string authName, McpAuthConfigType authType, CancellationToken ct)
-    {
+    private async Task PersistAuthConfigAsync(string authName, McpAuthConfigType authType, CancellationToken ct) {
         if (_persistenceService == null) return;
-        try
-        {
-            if (_authProviders.TryGetValue(authName, out var provider))
-            {
+        try {
+            if (_authProviders.TryGetValue(authName, out var provider)) {
                 await _persistenceService.SaveAsync(authName, authType.ToValue(), provider.AuthType.ToString(), ct).ConfigureAwait(false);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.PersistAuthConfigFailedLog), authName);
         }
     }
 
-    private async Task RemovePersistedAuthConfigAsync(string authName, CancellationToken ct)
-    {
+    private async Task RemovePersistedAuthConfigAsync(string authName, CancellationToken ct) {
         if (_persistenceService == null) return;
-        try
-        {
+        try {
             await _persistenceService.RemoveAsync(authName, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.RemovePersistedAuthConfigFailedLog), authName);
         }
     }
 
     /// <summary>释放资源 — 释放所有认证提供者并清理锁。</summary>
-    public void Dispose()
-    {
-        foreach (var provider in _authProviders.Values.OfType<IDisposable>())
-        {
-            try
-            {
+    public void Dispose() {
+        foreach (var provider in _authProviders.Values.OfType<IDisposable>()) {
+            try {
                 provider.Dispose();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, L.T(StringKey.DisposeAuthProviderErrorLog));
             }
         }
         _authProviders.Clear();
 
-        try
-        {
+        try {
             _authLock.Dispose();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.DisposeTimeoutOrFailedLog));
         }
     }
@@ -442,8 +368,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 异步释放资源 — 释放所有认证提供者并清理锁
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await Task.WhenAll(_authProviders.Values.OfType<IAsyncDisposable>()
             .Select(p => p.DisposeAsync().AsTask())).ConfigureAwait(false);

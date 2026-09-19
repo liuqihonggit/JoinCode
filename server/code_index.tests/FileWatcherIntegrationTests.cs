@@ -1,19 +1,16 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class FileWatcherIntegrationTests : IDisposable
-{
+public sealed class FileWatcherIntegrationTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
     private bool _disposed;
 
-    public FileWatcherIntegrationTests()
-    {
+    public FileWatcherIntegrationTests() {
         _store = new InMemoryIndexStore();
         _indexer = new CodeIndexer(_store, TestFileSystem.Current);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _indexer.DisposeSafe();
@@ -21,38 +18,32 @@ public sealed class FileWatcherIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task WatchAsync_NewCsFile_TriggersIndexing()
-    {
+    public async Task WatchAsync_NewCsFile_TriggersIndexing() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task WatchAsync_ModifiedCsFile_TriggersReindexing()
-    {
+    public async Task WatchAsync_ModifiedCsFile_TriggersReindexing() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task WatchAsync_DeletedCsFile_TriggersRemoval()
-    {
+    public async Task WatchAsync_DeletedCsFile_TriggersRemoval() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task WatchAsync_IgnoresNonCsFiles()
-    {
+    public async Task WatchAsync_IgnoresNonCsFiles() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task WatchAsync_IgnoresExcludedDirectories()
-    {
+    public async Task WatchAsync_IgnoresExcludedDirectories() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task WatchAsync_Debounce_RapidChangesOnlyIndexOnce()
-    {
+    public async Task WatchAsync_Debounce_RapidChangesOnlyIndexOnce() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 }

@@ -2,8 +2,7 @@ namespace Core.Agents.Coordinator;
 
 /// <summary>队友重连服务 — 监控断连队友并按指数退避策略自动重连，最大重试次数与退避上限可配置</summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateReconnectService), ServiceLifetime.Singleton)]
-public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateReconnectService
-{
+public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateReconnectService {
     private const int MaxReconnectAttempts = 5;
     private const int InitialBackoffMs = 2000;
     private const int MaxBackoffMs = 300000;
@@ -22,8 +21,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
     public TeammateReconnectService(
         ITeamManager teamManager,
         IAgentLifecycleManager lifecycleManager,
-        ILogger<TeammateReconnectService>? logger = null)
-    {
+        ILogger<TeammateReconnectService>? logger = null) {
         _teamManager = teamManager ?? throw new ArgumentNullException(nameof(teamManager));
         _lifecycleManager = lifecycleManager ?? throw new ArgumentNullException(nameof(lifecycleManager));
         _logger = logger;
@@ -37,14 +35,12 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>恢复的团队上下文，团队不存在则返回 null</returns>
     public async Task<JoinCode.Abstractions.Interfaces.TeamContext?> RestoreTeamContextAsync(
-        string teamName, string? agentName = null, CancellationToken cancellationToken = default)
-    {
+        string teamName, string? agentName = null, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(teamName);
 
         var teams = await _teamManager.ListTeamsAsync(cancellationToken).ConfigureAwait(false);
         var team = teams.FirstOrDefault(t => string.Equals(t.TeamName, teamName, StringComparison.OrdinalIgnoreCase));
-        if (team is null)
-        {
+        if (team is null) {
             _logger?.LogWarning("Team '{TeamName}' not found for context restoration", teamName);
             return null;
         }
@@ -52,11 +48,9 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
         var members = await _teamManager.GetTeammateStatusesAsync(team.TeamId, cancellationToken).ConfigureAwait(false);
         var teammates = new Dictionary<string, JoinCode.Abstractions.Interfaces.ReconnectTeammateEntry>(StringComparer.Ordinal);
 
-        foreach (var member in members)
-        {
+        foreach (var member in members) {
             if (string.IsNullOrEmpty(member.AgentId)) continue;
-            teammates[member.AgentId] = new JoinCode.Abstractions.Interfaces.ReconnectTeammateEntry
-            {
+            teammates[member.AgentId] = new JoinCode.Abstractions.Interfaces.ReconnectTeammateEntry {
                 AgentId = member.AgentId,
                 Name = member.DisplayName ?? member.AgentId,
                 Color = member.ColorHex,
@@ -70,8 +64,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
         var selfAgentId = members.FirstOrDefault(m =>
             string.Equals(m.DisplayName, agentName, StringComparison.OrdinalIgnoreCase))?.AgentId;
 
-        return new JoinCode.Abstractions.Interfaces.TeamContext
-        {
+        return new JoinCode.Abstractions.Interfaces.TeamContext {
             TeamName = teamName,
             TeamId = team.TeamId,
             LeadAgentId = team.LeadAgentId,
@@ -89,8 +82,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>团队上下文（当前实现始终返回 null）</returns>
     public Task<JoinCode.Abstractions.Interfaces.TeamContext?> RestoreFromTranscriptAsync(
-        string sessionId, CancellationToken cancellationToken = default)
-    {
+        string sessionId, CancellationToken cancellationToken = default) {
         _logger?.LogDebug("Transcript-based context restoration not yet implemented for session {SessionId}", sessionId);
         return Task.FromResult<JoinCode.Abstractions.Interfaces.TeamContext?>(null);
     }
@@ -103,30 +95,26 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>重连结果</returns>
     public async Task<JoinCode.Abstractions.Interfaces.ReconnectResult> ReconnectTeammateAsync(
-        string teamId, string agentId, CancellationToken cancellationToken = default)
-    {
+        string teamId, string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
         var attemptKey = $"{teamId}:{agentId}";
         var attempt = _reconnectAttempts.AddOrUpdate(attemptKey, 1, (_, v) => v + 1);
 
-        if (attempt > MaxReconnectAttempts)
-        {
+        if (attempt > MaxReconnectAttempts) {
             _reconnectAttempts.TryRemove(attemptKey, out _);
             _logger?.LogWarning("Max reconnect attempts ({Max}) exceeded for agent {AgentId} in team {TeamId}",
                 MaxReconnectAttempts, agentId, teamId);
 
-            return new JoinCode.Abstractions.Interfaces.ReconnectResult
-            {
+            return new JoinCode.Abstractions.Interfaces.ReconnectResult {
                 AgentId = agentId,
                 Status = JoinCode.Abstractions.Interfaces.ReconnectStatus.MaxRetriesExceeded,
                 AttemptCount = attempt
             };
         }
 
-        try
-        {
+        try {
             var backoff = new ExponentialBackoff(
                 TimeSpan.FromMilliseconds(InitialBackoffMs),
                 TimeSpan.FromMilliseconds(MaxBackoffMs));
@@ -137,10 +125,8 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
             await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
 
             var team = await _teamManager.GetTeamAsync(teamId, cancellationToken).ConfigureAwait(false);
-            if (team is null)
-            {
-                return new JoinCode.Abstractions.Interfaces.ReconnectResult
-                {
+            if (team is null) {
+                return new JoinCode.Abstractions.Interfaces.ReconnectResult {
                     AgentId = agentId,
                     Status = JoinCode.Abstractions.Interfaces.ReconnectStatus.Failed,
                     AttemptCount = attempt,
@@ -155,30 +141,23 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
             _logger?.LogInformation("Teammate {AgentId} reconnected successfully on attempt {Attempt}",
                 agentId, attempt);
 
-            return new JoinCode.Abstractions.Interfaces.ReconnectResult
-            {
+            return new JoinCode.Abstractions.Interfaces.ReconnectResult {
                 AgentId = agentId,
                 Status = JoinCode.Abstractions.Interfaces.ReconnectStatus.Success,
                 AttemptCount = attempt
             };
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             _reconnectAttempts.TryRemove(attemptKey, out _);
-            return new JoinCode.Abstractions.Interfaces.ReconnectResult
-            {
+            return new JoinCode.Abstractions.Interfaces.ReconnectResult {
                 AgentId = agentId,
                 Status = JoinCode.Abstractions.Interfaces.ReconnectStatus.Cancelled,
                 AttemptCount = attempt
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Reconnect attempt {Attempt} failed for agent {AgentId}",
                 attempt, agentId);
 
-            return new JoinCode.Abstractions.Interfaces.ReconnectResult
-            {
+            return new JoinCode.Abstractions.Interfaces.ReconnectResult {
                 AgentId = agentId,
                 Status = JoinCode.Abstractions.Interfaces.ReconnectStatus.Failed,
                 AttemptCount = attempt,
@@ -194,18 +173,15 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>聚合重连结果</returns>
     public async Task<JoinCode.Abstractions.Interfaces.ReconnectResult> ReconnectAllDisconnectedAsync(
-        string teamId, CancellationToken cancellationToken = default)
-    {
+        string teamId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
 
         var statuses = await _teamManager.GetTeammateStatusesAsync(teamId, cancellationToken).ConfigureAwait(false);
         var disconnected = statuses.Where(s => !s.IsActive).ToList();
 
-        if (disconnected.Count == 0)
-        {
+        if (disconnected.Count == 0) {
             _logger?.LogDebug("No disconnected teammates in team {TeamId}", teamId);
-            return new JoinCode.Abstractions.Interfaces.ReconnectResult
-            {
+            return new JoinCode.Abstractions.Interfaces.ReconnectResult {
                 AgentId = "all",
                 Status = JoinCode.Abstractions.Interfaces.ReconnectStatus.Success,
                 AttemptCount = 0
@@ -215,8 +191,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
         JoinCode.Abstractions.Interfaces.ReconnectStatus worstStatus = JoinCode.Abstractions.Interfaces.ReconnectStatus.Success;
         var totalAttempts = 0;
 
-        foreach (var teammate in disconnected)
-        {
+        foreach (var teammate in disconnected) {
             if (cancellationToken.IsCancellationRequested) break;
 
             var result = await ReconnectTeammateAsync(teamId, teammate.AgentId, cancellationToken).ConfigureAwait(false);
@@ -226,8 +201,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
                 worstStatus = result.Status;
         }
 
-        return new JoinCode.Abstractions.Interfaces.ReconnectResult
-        {
+        return new JoinCode.Abstractions.Interfaces.ReconnectResult {
             AgentId = "all",
             Status = worstStatus,
             AttemptCount = totalAttempts

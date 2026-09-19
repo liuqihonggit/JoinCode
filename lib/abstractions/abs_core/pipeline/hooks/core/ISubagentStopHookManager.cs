@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Hooks;
 /// SubagentStop 钩子管理器 — SubagentStop 事件的单一事件源。
 /// 所有 SubagentStop 触发必须走此接口，禁止直接调 IHookOrchestrator.ExecuteHooksAsync(HookEvent.SubagentStop)。
 /// </summary>
-public interface ISubagentStopHookManager : IHookManager, IHookHandler<SubagentStopHookContext, SubagentStopHookResult>
-{
+public interface ISubagentStopHookManager : IHookManager, IHookHandler<SubagentStopHookContext, SubagentStopHookResult> {
     /// <summary>触发 SubagentStop 钩子 — 返回 ShouldProceed=false 表示阻塞</summary>
     Task<SubagentStopHookResult> OnSubagentStopAsync(SubagentStopHookContext context, CancellationToken ct = default);
 
@@ -16,8 +15,7 @@ public interface ISubagentStopHookManager : IHookManager, IHookHandler<SubagentS
 }
 
 /// <summary>SubagentStop 钩子上下文</summary>
-public sealed partial class SubagentStopHookContext
-{
+public sealed partial class SubagentStopHookContext {
     /// <summary>会话 ID</summary>
     public required string SessionId { get; init; }
     /// <summary>Agent ID</summary>
@@ -37,8 +35,7 @@ public sealed partial class SubagentStopHookContext
 }
 
 /// <summary>SubagentStop 钩子结果</summary>
-public sealed partial class SubagentStopHookResult
-{
+public sealed partial class SubagentStopHookResult {
     /// <summary>是否继续（true=继续，false=阻塞）</summary>
     public bool ShouldProceed { get; init; } = true;
     /// <summary>消息</summary>

@@ -19,8 +19,7 @@ public sealed record QueryEngineOptions(
 /// 可选依赖通过 IQueryMiddleware 中间件管道注入，构造函数仅保留核心依赖
 /// </summary>
 [Register(typeof(IQueryEngine), ServiceLifetime.Singleton)]
-public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
-{
+public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
     private readonly IChatClient _kernel;
     private readonly IToolRegistry _toolRegistry;
     private readonly IToolExecutionGateway? _toolExecutionGateway;
@@ -51,8 +50,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         IServiceProvider? serviceProvider = null,
         ILogger<QueryEngine>? logger = null,
         ILoggerFactory? loggerFactory = null,
-        IToolExecutionGateway? toolExecutionGateway = null)
-    {
+        IToolExecutionGateway? toolExecutionGateway = null) {
         _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _toolExecutionGateway = toolExecutionGateway;
@@ -66,14 +64,12 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// <summary>
     /// 延迟构建中间件管道：DI 中间件 + 核心执行中间件
     /// </summary>
-    private MiddlewarePipeline<QueryMiddlewareContext> GetOrCreatePipeline()
-    {
+    private MiddlewarePipeline<QueryMiddlewareContext> GetOrCreatePipeline() {
         if (_pipeline is not null)
             return _pipeline;
 
         var allMiddlewares = new List<IMiddleware<QueryMiddlewareContext>>();
-        if (_serviceProvider is not null)
-        {
+        if (_serviceProvider is not null) {
             var middlewares = _serviceProvider.GetService<IEnumerable<IQueryMiddleware>>();
             if (middlewares is not null)
                 allMiddlewares.AddRange(middlewares);
@@ -94,8 +90,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// </summary>
     /// <param name="options">创建参数</param>
     /// <returns>QueryEngine 实例</returns>
-    public static QueryEngine Create(QueryEngineOptions options)
-    {
+    public static QueryEngine Create(QueryEngineOptions options) {
         ArgumentNullException.ThrowIfNull(options);
 
         return new QueryEngine(
@@ -116,10 +111,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     public async IAsyncEnumerable<QueryStreamChunk> QueryAsync(
         string userInput,
         MessageList chatHistory,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        await foreach (var chunk in QueryAsync(userInput, chatHistory, options: null, cancellationToken).ConfigureAwait(false))
-        {
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        await foreach (var chunk in QueryAsync(userInput, chatHistory, options: null, cancellationToken).ConfigureAwait(false)) {
             yield return chunk;
         }
     }
@@ -136,10 +129,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         string userInput,
         MessageList chatHistory,
         QueryOptions? options,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        var context = new QueryMiddlewareContext
-        {
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        var context = new QueryMiddlewareContext {
             UserInput = userInput,
             ChatHistory = chatHistory,
             Options = options,
@@ -156,8 +147,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         var pipeline = GetOrCreatePipeline();
         await pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-        foreach (var chunk in context.OutputChunks)
-        {
+        foreach (var chunk in context.OutputChunks) {
             yield return chunk;
         }
     }
@@ -165,22 +155,18 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// <summary>
     /// 核心执行循环 — 由 QueryCoreMiddleware 调用
     /// </summary>
-    private async Task ExecuteCoreLoopAsync(QueryMiddlewareContext context, CancellationToken cancellationToken)
-    {
+    private async Task ExecuteCoreLoopAsync(QueryMiddlewareContext context, CancellationToken cancellationToken) {
         var retryCount = 0;
 
-        while (context.TotalToolCalls < _config.MaxToolCallIterations)
-        {
+        while (context.TotalToolCalls < _config.MaxToolCallIterations) {
             cancellationToken.ThrowIfCancellationRequested();
 
             // 迭代前钩子（USD 预算检查等）
-            foreach (var hook in context.BeforeIterationHooks)
-            {
+            foreach (var hook in context.BeforeIterationHooks) {
                 await hook(context, cancellationToken).ConfigureAwait(false);
             }
 
-            if (context.ShouldStop)
-            {
+            if (context.ShouldStop) {
                 break;
             }
 
@@ -188,17 +174,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
             var success = false;
 
             // 重试机制
-            while (!success && retryCount <= _config.Retry.MaxRetries)
-            {
-                try
-                {
+            while (!success && retryCount <= _config.Retry.MaxRetries) {
+                try {
                     iterationResult = await ExecuteIterationInternalAsync(
                         context, cancellationToken).ConfigureAwait(false);
                     success = true;
                     retryCount = 0;
-                }
-                catch (Exception ex) when (retryCount < _config.Retry.MaxRetries && IsRetryable(ex))
-                {
+                } catch (Exception ex) when (retryCount < _config.Retry.MaxRetries && IsRetryable(ex)) {
                     retryCount++;
                     var delay = CalculateRetryDelay(retryCount);
                     _logger?.LogWarning(ex, "[QueryEngine] 迭代执行失败，{RetryCount}/{MaxRetries} 次重试，等待 {DelayMs}ms",
@@ -207,10 +189,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
                 }
             }
 
-            if (!success || iterationResult == null)
-            {
-                context.OutputChunks.Add(new QueryStreamChunk
-                {
+            if (!success || iterationResult == null) {
+                context.OutputChunks.Add(new QueryStreamChunk {
                     Type = AgentStreamChunkType.Error,
                     Content = $"执行失败，已达到最大重试次数 ({_config.Retry.MaxRetries})"
                 });
@@ -218,8 +198,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
             }
 
             // 处理内容输出
-            foreach (var chunk in iterationResult.Chunks)
-            {
+            foreach (var chunk in iterationResult.Chunks) {
                 context.OutputChunks.Add(chunk);
             }
 
@@ -230,28 +209,24 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
             context.HasToolCall = iterationResult.ToolCall is not null;
 
             // LLM 调用后钩子（Token 预算消耗、成本追踪等）
-            foreach (var hook in context.AfterLlmCallHooks)
-            {
+            foreach (var hook in context.AfterLlmCallHooks) {
                 await hook(context, cancellationToken).ConfigureAwait(false);
             }
 
             // 处理查询完成（无工具调用）
-            if (iterationResult.ToolCalls.Count == 0)
-            {
+            if (iterationResult.ToolCalls.Count == 0) {
                 context.Stopwatch.Stop();
                 context.IsQueryComplete = true;
 
                 // 查询完成钩子（空闲提醒、停止 Hook 等）
-                foreach (var hook in context.OnCompleteHooks)
-                {
+                foreach (var hook in context.OnCompleteHooks) {
                     await hook(context, cancellationToken).ConfigureAwait(false);
                 }
 
                 _logger?.LogInformation("[QueryEngine] 查询完成，耗时 {ElapsedMs}ms", context.Stopwatch.ElapsedMilliseconds);
 
                 var content = iterationResult.Content ?? string.Empty;
-                context.OutputChunks.Add(new QueryStreamChunk
-                {
+                context.OutputChunks.Add(new QueryStreamChunk {
                     Type = AgentStreamChunkType.Complete,
                     Content = content,
                     ExecutionTimeMs = context.Stopwatch.ElapsedMilliseconds,
@@ -263,10 +238,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
             }
 
             // 依次执行本轮所有工具调用
-            foreach (var toolCall in iterationResult.ToolCalls)
-            {
-                if (context.TotalToolCalls >= _config.MaxToolCallIterations)
-                {
+            foreach (var toolCall in iterationResult.ToolCalls) {
+                if (context.TotalToolCalls >= _config.MaxToolCallIterations) {
                     break;
                 }
 
@@ -274,8 +247,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
                 context.ToolName = toolCall.ToolName;
                 context.HasToolCall = true;
 
-                context.OutputChunks.Add(new QueryStreamChunk
-                {
+                context.OutputChunks.Add(new QueryStreamChunk {
                     Type = AgentStreamChunkType.ToolCallStart,
                     ToolName = toolCall.ToolName,
                     ToolCallNumber = context.TotalToolCalls
@@ -284,8 +256,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
                 // 执行工具调用
                 var toolResult = await ExecuteToolAsync(toolCall, context.Options, cancellationToken).ConfigureAwait(false);
 
-                context.OutputChunks.Add(new QueryStreamChunk
-                {
+                context.OutputChunks.Add(new QueryStreamChunk {
                     Type = AgentStreamChunkType.ToolCallEnd,
                     ToolName = toolCall.ToolName,
                     ToolResult = toolResult,
@@ -298,26 +269,22 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
                 AddToolResultToHistory(context, toolCall, toolResult);
 
                 // 工具调用后钩子（内容替换预算检查、递减回报检测、历史裁剪、空闲提醒等）
-                foreach (var hook in context.AfterToolCallHooks)
-                {
+                foreach (var hook in context.AfterToolCallHooks) {
                     await hook(context, cancellationToken).ConfigureAwait(false);
                 }
 
-                if (context.ShouldBreak)
-                {
+                if (context.ShouldBreak) {
                     break;
                 }
             }
 
-            if (context.ShouldBreak)
-            {
+            if (context.ShouldBreak) {
                 break;
             }
         }
 
         _logger?.LogWarning("[QueryEngine] 达到最大工具调用次数限制: {Max}", _config.MaxToolCallIterations);
-        context.OutputChunks.Add(new QueryStreamChunk
-        {
+        context.OutputChunks.Add(new QueryStreamChunk {
             Type = AgentStreamChunkType.Error,
             Content = $"达到最大工具调用次数限制 ({_config.MaxToolCallIterations})"
         });
@@ -325,10 +292,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
 
     private async Task<QueryIterationResult> ExecuteIterationInternalAsync(
         QueryMiddlewareContext context,
-        CancellationToken cancellationToken)
-    {
-        var parameters = new LlmParameters
-        {
+        CancellationToken cancellationToken) {
+        var parameters = new LlmParameters {
             Temperature = _config.Temperature,
             MaxTokens = _config.MaxTokens,
             TopP = _config.TopP
@@ -337,10 +302,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
 
         // 对齐 TS executeForkedSkill: 传递 effort 给子智能体
         // 如果 QueryOptions 指定了 EffortLevel，覆盖默认值
-        if (_currentOptions?.EffortLevel is { } effortLevel)
-        {
-            executionSettings = new JoinCode.Abstractions.LLM.ChatOptions
-            {
+        if (_currentOptions?.EffortLevel is { } effortLevel) {
+            executionSettings = new JoinCode.Abstractions.LLM.ChatOptions {
                 Temperature = executionSettings.Temperature,
                 MaxTokens = executionSettings.MaxTokens,
                 TopP = executionSettings.TopP,
@@ -352,11 +315,9 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         }
 
         // 对齐 Reasonix Coordinator: 双模型分离 — 按请求指定模型
-        if (!string.IsNullOrEmpty(_currentOptions?.ModelId))
-        {
+        if (!string.IsNullOrEmpty(_currentOptions?.ModelId)) {
             var modelId = _currentOptions.ModelId ?? string.Empty;
-            executionSettings = new JoinCode.Abstractions.LLM.ChatOptions
-            {
+            executionSettings = new JoinCode.Abstractions.LLM.ChatOptions {
                 Temperature = executionSettings.Temperature,
                 MaxTokens = executionSettings.MaxTokens,
                 TopP = executionSettings.TopP,
@@ -378,18 +339,15 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         var outputTokens = 0;
 
         await foreach (var streamChunk in chatCompletionService.GetStreamEventContentsAsync(
-            context.ChatHistory, executionSettings, _kernel, cancellationToken))
-        {
+            context.ChatHistory, executionSettings, _kernel, cancellationToken)) {
             cancellationToken.ThrowIfCancellationRequested();
             var content = streamChunk.Content ?? string.Empty;
 
             // 检查工具调用 — 统一读 AllToolCalls 数组（含0~N个工具调用）
             if (streamChunk.Metadata?.TryGetValue("AllToolCalls", out var allEl) == true &&
                 allEl.ValueKind == JsonValueKind.Array &&
-                allEl.GetArrayLength() > 0)
-            {
-                foreach (var item in allEl.EnumerateArray())
-                {
+                allEl.GetArrayLength() > 0) {
+                foreach (var item in allEl.EnumerateArray()) {
                     string? id = null;
                     string? name = null;
                     var arguments = "{}";
@@ -403,8 +361,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
 
                     if (name is null) continue;
 
-                    pendingToolCalls.Add(new ToolCallRequest
-                    {
+                    pendingToolCalls.Add(new ToolCallRequest {
                         ToolName = name,
                         ToolCallId = id,
                         RawArguments = arguments,
@@ -414,11 +371,9 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
             }
 
             // 累积内容
-            if (!string.IsNullOrEmpty(content))
-            {
+            if (!string.IsNullOrEmpty(content)) {
                 responseBuilder.Append(content);
-                chunks.Add(new QueryStreamChunk
-                {
+                chunks.Add(new QueryStreamChunk {
                     Type = AgentStreamChunkType.Content,
                     Content = content
                 });
@@ -426,35 +381,26 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
 
             // 追踪Token使用量
             if (streamChunk.Metadata?.TryGetValue("InputTokens", out var inputTokensEl) == true &&
-                inputTokensEl.ValueKind == JsonValueKind.Number)
-            {
-                try { inputTokens = inputTokensEl.GetInt32(); }
-                catch (FormatException ex)
-                {
+                inputTokensEl.ValueKind == JsonValueKind.Number) {
+                try { inputTokens = inputTokensEl.GetInt32(); } catch (FormatException ex) {
                     _logger?.LogWarning(ex, "[QueryEngine] InputTokens 值不是有效 int32(可能是浮点/科学计数法),跳过");
                 }
             }
             if (streamChunk.Metadata?.TryGetValue("OutputTokens", out var outputTokensEl) == true &&
-                outputTokensEl.ValueKind == JsonValueKind.Number)
-            {
-                try { outputTokens = outputTokensEl.GetInt32(); }
-                catch (FormatException ex)
-                {
+                outputTokensEl.ValueKind == JsonValueKind.Number) {
+                try { outputTokens = outputTokensEl.GetInt32(); } catch (FormatException ex) {
                     _logger?.LogWarning(ex, "[QueryEngine] OutputTokens 值不是有效 int32(可能是浮点/科学计数法),跳过");
                 }
             }
         }
 
-        if (pendingToolCalls.Count == 0)
-        {
+        if (pendingToolCalls.Count == 0) {
             var finalContent = responseBuilder.ToString();
-            if (!string.IsNullOrEmpty(finalContent))
-            {
+            if (!string.IsNullOrEmpty(finalContent)) {
                 context.ChatHistory.AddAssistantMessage(finalContent);
             }
 
-            return new QueryIterationResult
-            {
+            return new QueryIterationResult {
                 Content = finalContent,
                 Chunks = chunks,
                 InputTokens = inputTokens,
@@ -463,13 +409,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         }
 
         // 执行工具调用
-        foreach (var tc in pendingToolCalls)
-        {
+        foreach (var tc in pendingToolCalls) {
             _logger?.LogInformation("[QueryEngine] 执行工具调用 #{Num}: {ToolName}", context.TotalToolCalls + 1, tc.ToolName);
         }
 
-        return new QueryIterationResult
-        {
+        return new QueryIterationResult {
             ToolCalls = pendingToolCalls,
             Chunks = chunks,
             InputTokens = inputTokens,
@@ -477,32 +421,25 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         };
     }
 
-    private async Task<ToolResult> ExecuteToolAsync(ToolCallRequest request, QueryOptions? options, CancellationToken cancellationToken)
-    {
-        if (options is not null && !options.IsToolAllowed(request.ToolName))
-        {
+    private async Task<ToolResult> ExecuteToolAsync(ToolCallRequest request, QueryOptions? options, CancellationToken cancellationToken) {
+        if (options is not null && !options.IsToolAllowed(request.ToolName)) {
             _logger?.LogWarning("[QueryEngine] 工具被过滤拒绝: {ToolName}", request.ToolName);
-            return new ToolResult
-            {
+            return new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = $"工具 {request.ToolName} 不在当前代理的可用工具列表中" } },
                 IsError = true
             };
         }
 
-        try
-        {
+        try {
             var result = _toolExecutionGateway is not null
                 ? await _toolExecutionGateway.ExecuteAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false)
                 : await _toolRegistry.ExecuteToolAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false);
             _currentOptions?.ProgressTracker?.RecordToolUse(request.ToolName);
             return result;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[QueryEngine] 工具调用失败: {ToolName}", request.ToolName);
             _currentOptions?.ProgressTracker?.RecordToolUse(request.ToolName);
-            return new ToolResult
-            {
+            return new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = $"工具调用失败: {ex.Message}" } },
                 IsError = true
             };
@@ -512,44 +449,32 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// <summary>
     /// 从 ToolResult 提取纯文本结果 — 错误结果加 "Error: " 前缀，跳过图片等多模态内容
     /// </summary>
-    private static string ExtractToolResultText(ToolResult result)
-    {
+    private static string ExtractToolResultText(ToolResult result) {
         var textContents = new List<string>();
-        foreach (var c in result.Content)
-        {
-            if (result.IsError)
-            {
+        foreach (var c in result.Content) {
+            if (result.IsError) {
                 if (!string.IsNullOrEmpty(c.Text))
                     textContents.Add($"Error: {c.Text}");
-            }
-            else if (!string.IsNullOrEmpty(c.Text))
-            {
+            } else if (!string.IsNullOrEmpty(c.Text)) {
                 textContents.Add(c.Text);
             }
         }
         return string.Join("\n", textContents);
     }
 
-    private void AddToolResultToHistory(QueryMiddlewareContext context, ToolCallRequest toolCall, ToolResult result)
-    {
+    private void AddToolResultToHistory(QueryMiddlewareContext context, ToolCallRequest toolCall, ToolResult result) {
         // 对齐 TS convertResultContentToContentBlocks — 分离文本和非文本内容
         var textContents = new List<string>();
         var nonTextContents = new List<ToolContent>();
 
-        foreach (var c in result.Content)
-        {
-            if (result.IsError)
-            {
+        foreach (var c in result.Content) {
+            if (result.IsError) {
                 if (!string.IsNullOrEmpty(c.Text))
                     textContents.Add($"Error: {c.Text}");
-            }
-            else if (c.Type == ToolContentType.Image && !string.IsNullOrEmpty(c.Data) && !string.IsNullOrEmpty(c.MimeType))
-            {
+            } else if (c.Type == ToolContentType.Image && !string.IsNullOrEmpty(c.Data) && !string.IsNullOrEmpty(c.MimeType)) {
                 // 图片类型 — 保留为多模态内容块
                 nonTextContents.Add(c);
-            }
-            else if (!string.IsNullOrEmpty(c.Text))
-            {
+            } else if (!string.IsNullOrEmpty(c.Text)) {
                 textContents.Add(c.Text);
             }
             // resource 类型（二进制写盘）已在 McpClientToolHandlers 中转为文本路径
@@ -559,8 +484,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
 
         // 内容替换 — 由 ContentReplacementMiddleware 通过上下文提供 IContentReplacementService
         // MaybePersistLargeToolResult 是即时持久化（非预算机制），在添加历史时调用
-        if (context.ContentReplacementService is not null && !result.IsError && !string.IsNullOrEmpty(toolResultText))
-        {
+        if (context.ContentReplacementService is not null && !result.IsError && !string.IsNullOrEmpty(toolResultText)) {
             var sessionId = _currentOptions?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
             var replacement = context.ContentReplacementService.MaybePersistLargeToolResult(
                 toolCall.ToolName, toolCall.ToolCallId ?? string.Empty, toolResultText, sessionId);
@@ -574,17 +498,14 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         context.ChatHistory.Add(new ApiMessage(MessageRole.Assistant, null, assistantMetadata));
 
         var toolMetadata = ToolCallEntry.BuildToolResultMetadata(toolCall.ToolCallId, toolCall.ToolName);
-        context.ChatHistory.Add(new ApiMessage(MessageRole.Tool, toolResultText, toolMetadata)
-        {
+        context.ChatHistory.Add(new ApiMessage(MessageRole.Tool, toolResultText, toolMetadata) {
             // 对齐 TS — 将多模态内容块传递到 ApiMessage，由 ChatService 转换为 LLM API 格式
             ContentBlocks = nonTextContents.Count > 0 ? nonTextContents : []
         });
     }
 
-    private Dictionary<string, JsonElement> ExtractArguments(IReadOnlyDictionary<string, JsonElement>? metadata, string? rawArguments)
-    {
-        if (!string.IsNullOrEmpty(rawArguments))
-        {
+    private Dictionary<string, JsonElement> ExtractArguments(IReadOnlyDictionary<string, JsonElement>? metadata, string? rawArguments) {
+        if (!string.IsNullOrEmpty(rawArguments)) {
             var jsonRepair = LlmJsonHelper.RepairJson(rawArguments, _logger);
             var parsed = JsonArgumentParser.Parse(jsonRepair.Success ? jsonRepair.RepairedJson : rawArguments);
             if (parsed.Count > 0)
@@ -604,18 +525,15 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         return fallback;
     }
 
-    private static bool IsRetryable(Exception ex)
-    {
+    private static bool IsRetryable(Exception ex) {
         if (Environment.GetEnvironmentVariable("JCC_DISABLE_RETRY") is { } val &&
             (val.Equals("true", StringComparison.OrdinalIgnoreCase) || val == "1"))
             return false;
         return ex is HttpRequestException or TimeoutException or TaskCanceledException;
     }
 
-    private int CalculateRetryDelay(int retryCount)
-    {
-        if (!_config.Retry.EnableExponentialBackoff)
-        {
+    private int CalculateRetryDelay(int retryCount) {
+        if (!_config.Retry.EnableExponentialBackoff) {
             return _config.Retry.RetryDelayMs;
         }
 
@@ -631,15 +549,12 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// <param name="query">用户查询</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>完整响应字符串</returns>
-    public Task<string> ExecuteQueryAsync(string query, CancellationToken cancellationToken = default)
-    {
+    public Task<string> ExecuteQueryAsync(string query, CancellationToken cancellationToken = default) {
         var chatHistory = new MessageList();
         var result = new StringBuilder();
 
-        foreach (var chunk in QueryAsync(query, chatHistory, cancellationToken).ToBlockingEnumerable(cancellationToken))
-        {
-            if (chunk.Content != null)
-            {
+        foreach (var chunk in QueryAsync(query, chatHistory, cancellationToken).ToBlockingEnumerable(cancellationToken)) {
+            if (chunk.Content != null) {
                 result.Append(chunk.Content);
             }
         }
@@ -651,8 +566,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// 获取聊天补全服务
     /// </summary>
     /// <returns>查询服务接口</returns>
-    public IQueryService GetChatCompletionService()
-    {
+    public IQueryService GetChatCompletionService() {
         return _kernel.GetChatCompletionService();
     }
 
@@ -660,17 +574,14 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// 获取 LLM 客户端
     /// </summary>
     /// <returns>聊天客户端</returns>
-    public IChatClient GetKernel()
-    {
+    public IChatClient GetKernel() {
         return _kernel;
     }
 
-    private JoinCode.Abstractions.LLM.Chat.CacheSafeParams? BuildCacheSafeParams(QueryMiddlewareContext context)
-    {
+    private JoinCode.Abstractions.LLM.Chat.CacheSafeParams? BuildCacheSafeParams(QueryMiddlewareContext context) {
         var existing = context.Options?.CacheSafeParams;
 
-        return new JoinCode.Abstractions.LLM.Chat.CacheSafeParams
-        {
+        return new JoinCode.Abstractions.LLM.Chat.CacheSafeParams {
             RenderedSystemPrompt = existing?.RenderedSystemPrompt,
             ModelId = existing?.ModelId,
             ToolNames = existing?.ToolNames ?? [],
@@ -687,8 +598,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// <summary>
     /// 核心执行中间件 — 管道最内层，执行 LLM 调用 + 工具执行循环
     /// </summary>
-    private sealed class QueryCoreMiddleware : IMiddleware<QueryMiddlewareContext>
-    {
+    private sealed class QueryCoreMiddleware : IMiddleware<QueryMiddlewareContext> {
         private readonly QueryEngine _engine;
 
 
@@ -705,8 +615,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         /// <param name="next">下一委托（不调用）</param>
         /// <param name="ct">取消令牌</param>
         /// <returns>表示异步操作的任务</returns>
-        public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct)
-        {
+        public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct) {
             // 核心中间件不调用 next() — 它是管道的终端
             return _engine.ExecuteCoreLoopAsync(context, ct);
         }
@@ -716,8 +625,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
 /// <summary>
 /// 工具调用请求
 /// </summary>
-internal sealed class ToolCallRequest
-{
+internal sealed class ToolCallRequest {
     public string ToolName { get; set; } = string.Empty;
     public string? ToolCallId { get; set; }
     public string? RawArguments { get; set; }
@@ -727,8 +635,7 @@ internal sealed class ToolCallRequest
 /// <summary>
 /// 迭代执行结果
 /// </summary>
-internal sealed class QueryIterationResult
-{
+internal sealed class QueryIterationResult {
     public string? Content { get; init; }
     public ToolCallRequest? ToolCall => ToolCalls.Count > 0 ? ToolCalls[0] : null;
     public List<ToolCallRequest> ToolCalls { get; init; } = new();
@@ -741,8 +648,7 @@ internal sealed class QueryIterationResult
 /// Token 成本追踪接口 — 仅用于 Query 层内部的简单 Token 计数
 /// 注意: 与 JoinCode.Abstractions.Interfaces.ICostTracker（完整成本追踪）不同
 /// </summary>
-public interface ITokenCostTracker
-{
+public interface ITokenCostTracker {
     /// <summary>
     /// 追踪一次 Token 使用
     /// </summary>
@@ -766,8 +672,7 @@ public interface ITokenCostTracker
 /// <summary>
 /// 空 Token 成本追踪器
 /// </summary>
-public partial class NullTokenCostTracker : ITokenCostTracker
-{
+public partial class NullTokenCostTracker : ITokenCostTracker {
     /// <summary>
     /// 空实现 — 不追踪任何使用
     /// </summary>
@@ -791,8 +696,7 @@ public partial class NullTokenCostTracker : ITokenCostTracker
 /// <summary>
 /// Token 成本追踪器实现
 /// </summary>
-public partial class TokenCostTracker : ITokenCostTracker
-{
+public partial class TokenCostTracker : ITokenCostTracker {
     private readonly CostTrackingConfig _config;
     private int _totalInputTokens;
     private int _totalOutputTokens;
@@ -801,8 +705,7 @@ public partial class TokenCostTracker : ITokenCostTracker
     /// 构造函数 — 注入成本追踪配置
     /// </summary>
     /// <param name="config">成本追踪配置</param>
-    public TokenCostTracker(CostTrackingConfig config)
-    {
+    public TokenCostTracker(CostTrackingConfig config) {
         _config = config;
     }
 
@@ -811,8 +714,7 @@ public partial class TokenCostTracker : ITokenCostTracker
     /// </summary>
     /// <param name="inputTokens">输入 Token 数</param>
     /// <param name="outputTokens">输出 Token 数</param>
-    public void TrackUsage(int inputTokens, int outputTokens)
-    {
+    public void TrackUsage(int inputTokens, int outputTokens) {
         if (!_config.Enabled) return;
 
         Interlocked.Add(ref _totalInputTokens, inputTokens);
@@ -823,8 +725,7 @@ public partial class TokenCostTracker : ITokenCostTracker
     /// 获取总成本（美元）— 按输入/输出单价计算
     /// </summary>
     /// <returns>总成本</returns>
-    public decimal GetTotalCost()
-    {
+    public decimal GetTotalCost() {
         if (!_config.Enabled) return 0m;
 
         var inputCost = (_totalInputTokens / 1000m) * _config.InputTokenCostPer1K;
@@ -836,8 +737,7 @@ public partial class TokenCostTracker : ITokenCostTracker
     /// 获取累计使用情况
     /// </summary>
     /// <returns>输入 Token 数、输出 Token 数、成本</returns>
-    public (int InputTokens, int OutputTokens, decimal Cost) GetUsage()
-    {
+    public (int InputTokens, int OutputTokens, decimal Cost) GetUsage() {
         var cost = GetTotalCost();
         return (_totalInputTokens, _totalOutputTokens, cost);
     }

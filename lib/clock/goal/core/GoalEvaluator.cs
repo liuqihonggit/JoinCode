@@ -5,8 +5,7 @@ namespace Core.Goal;
 /// 目标评估器默认实现 — 调用 LLM 判断目标是否已完成
 /// </summary>
 [Register(typeof(IGoalEvaluator), ServiceLifetime.Singleton)]
-public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
-{
+public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator {
     private readonly IChatClient _kernel;
     private readonly ILogger<GoalEvaluator>? _logger;
 
@@ -15,8 +14,7 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
     /// </summary>
     /// <param name="kernel">聊天客户端</param>
     /// <param name="logger">可选日志记录器</param>
-    public GoalEvaluator(IChatClient kernel, ILogger<GoalEvaluator>? logger = null)
-    {
+    public GoalEvaluator(IChatClient kernel, ILogger<GoalEvaluator>? logger = null) {
         _kernel = kernel;
         _logger = logger;
     }
@@ -26,8 +24,7 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
         string objective,
         IReadOnlyList<string> constraints,
         string recentConversation,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
         var prompt = BuildEvaluatorPrompt(objective, constraints, recentConversation);
@@ -36,14 +33,12 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
         chatHistory.AddSystemMessage(prompt);
         chatHistory.AddUserMessage("Evaluate whether the objective has been achieved based on the conversation above.");
 
-        var executionSettings = new ChatOptions
-        {
+        var executionSettings = new ChatOptions {
             Temperature = 0.0f,
             MaxTokens = 200
         };
 
-        try
-        {
+        try {
             var chatService = _kernel.GetChatCompletionService();
             var results = await chatService.GetApiMessageContentsAsync(
                 chatHistory,
@@ -53,24 +48,19 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
 
             var content = results.Count > 0 ? results[0].Content : null;
             return ParseEvaluationResult(content, _logger);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.GoalEvaluatorCallFailed));
             return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorCallFailed));
         }
     }
 
-    internal static GoalEvaluationResult ParseEvaluationResult(string? content, ILogger? logger = null)
-    {
-        if (string.IsNullOrWhiteSpace(content))
-        {
+    internal static GoalEvaluationResult ParseEvaluationResult(string? content, ILogger? logger = null) {
+        if (string.IsNullOrWhiteSpace(content)) {
             return GoalEvaluationResult.NotCompleted(L.T(StringKey.GoalEvaluatorEmptyResult));
         }
 
         var result = LlmJsonHelper.DeserializeWithReport(content, GoalJsonContext.Default.GoalEvaluationJson, out var report, logger);
-        if (result is not null)
-        {
+        if (result is not null) {
             if (report.RepairHint is not null)
                 logger?.LogDebug("Goal evaluation JSON repaired: {RepairHint}", report.RepairHint);
 
@@ -91,8 +81,7 @@ public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
         return GoalEvaluationResult.NotCompleted(formatError);
     }
 
-    private static string BuildEvaluatorPrompt(string objective, IReadOnlyList<string> constraints, string recentConversation)
-    {
+    private static string BuildEvaluatorPrompt(string objective, IReadOnlyList<string> constraints, string recentConversation) {
         var constraintsText = constraints.Count > 0
             ? string.Join("\n", constraints.Select(c => $"- {c}"))
             : L.T(StringKey.GoalEvaluatorNoConstraints);

@@ -4,8 +4,7 @@ namespace Core.Agents.Coordinator;
 /// 团队持久化状态 DTO — 序列化到 ~/.jcc/teams/state.json
 /// 用于 CLI 无状态模式（mcp_call 单次调用）下跨进程共享团队状态
 /// </summary>
-public sealed class TeamStateData
-{
+public sealed class TeamStateData {
     /// <summary>团队列表</summary>
     public List<TeamInfo> Teams { get; set; } = [];
 

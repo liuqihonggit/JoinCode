@@ -1,14 +1,12 @@
 namespace Tests;
 
 [Trait("Category", "Integration")]
-public class ServiceRegistrationIntegrationTests
-{
+public class ServiceRegistrationIntegrationTests {
     private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
     private static readonly string DefaultModelId = Loader.GetDefaultModelId("deepseek");
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterITranscriptService()
-    {
+    public void AddWorkflowServices_ShouldRegisterITranscriptService() {
         var services = BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
@@ -17,8 +15,7 @@ public class ServiceRegistrationIntegrationTests
     }
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterIFastModeService()
-    {
+    public void AddWorkflowServices_ShouldRegisterIFastModeService() {
         var services = BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
@@ -27,8 +24,7 @@ public class ServiceRegistrationIntegrationTests
     }
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterISimpleModeService()
-    {
+    public void AddWorkflowServices_ShouldRegisterISimpleModeService() {
         var services = BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
@@ -37,8 +33,7 @@ public class ServiceRegistrationIntegrationTests
     }
 
     [Fact]
-    public void FastModeService_ShouldUsePrimaryModelIdFromConfig()
-    {
+    public void FastModeService_ShouldUsePrimaryModelIdFromConfig() {
         var services = BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
@@ -47,8 +42,7 @@ public class ServiceRegistrationIntegrationTests
     }
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterIWebService()
-    {
+    public void AddWorkflowServices_ShouldRegisterIWebService() {
         var services = BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
@@ -57,8 +51,7 @@ public class ServiceRegistrationIntegrationTests
     }
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterITaskService()
-    {
+    public void AddWorkflowServices_ShouldRegisterITaskService() {
         var services = BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
@@ -67,8 +60,7 @@ public class ServiceRegistrationIntegrationTests
     }
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterIAgentWorktreeService()
-    {
+    public void AddWorkflowServices_ShouldRegisterIAgentWorktreeService() {
         var services = BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
@@ -81,8 +73,7 @@ public class ServiceRegistrationIntegrationTests
     /// 仅在 AddAiWorkflowServices 完整路径下可用，AddWorkflowServices 不含 AI 服务。
     /// </summary>
     [Fact]
-    public void AddAiWorkflowServices_ShouldRegisterIChatService()
-    {
+    public void AddAiWorkflowServices_ShouldRegisterIChatService() {
         var services = BuildAiServiceCollection();
         var sp = services.BuildServiceProvider();
 
@@ -90,8 +81,7 @@ public class ServiceRegistrationIntegrationTests
         Assert.NotNull(chatService);
     }
 
-    private static ServiceCollection BuildServiceCollection()
-    {
+    private static ServiceCollection BuildServiceCollection() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
         var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);
@@ -109,8 +99,7 @@ public class ServiceRegistrationIntegrationTests
         return services;
     }
 
-    private static ServiceCollection BuildAiServiceCollection()
-    {
+    private static ServiceCollection BuildAiServiceCollection() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
         var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);

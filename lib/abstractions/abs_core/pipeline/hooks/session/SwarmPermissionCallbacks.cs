@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Hooks.Session;
 /// <summary>
 /// Swarm 权限回调接口 — 用于 Swarm Worker 向 Leader 转发权限请求
 /// </summary>
-public interface ISwarmPermissionCallbacks
-{
+public interface ISwarmPermissionCallbacks {
     SwarmPermissionRequest CreatePermissionRequest(string toolName, string toolUseId, Dictionary<string, JsonElement> input, string description, List<PermissionUpdate>? suggestions);
 
     Task SendPermissionRequestViaMailboxAsync(SwarmPermissionRequest request, CancellationToken cancellationToken = default);
@@ -15,8 +14,7 @@ public interface ISwarmPermissionCallbacks
 /// <summary>
 /// Swarm 权限请求
 /// </summary>
-public sealed record SwarmPermissionRequest
-{
+public sealed record SwarmPermissionRequest {
     public required string Id { get; init; }
     public required string ToolName { get; init; }
     public required string ToolUseId { get; init; }
@@ -28,8 +26,7 @@ public sealed record SwarmPermissionRequest
 /// <summary>
 /// Swarm 权限回调
 /// </summary>
-public sealed record SwarmPermissionCallback
-{
+public sealed record SwarmPermissionCallback {
     public required string RequestId { get; init; }
     public required string ToolUseId { get; init; }
     public required Func<Dictionary<string, JsonElement>?, List<PermissionUpdate>?, string?, Task> OnAllow { get; init; }

@@ -4,8 +4,7 @@ namespace JoinCode.Tui.Pipes;
 /// TUI 消息 — 多 Agent 管道中的最小渲染单元。
 /// 每条消息属于一个 Agent 管道（由 AgentId 标识），包含类型、内容、时间戳和样式。
 /// </summary>
-public sealed class TuiMessage
-{
+public sealed class TuiMessage {
     /// <summary>消息唯一标识。</summary>
     public required string Id { get; init; }
 
@@ -31,10 +30,8 @@ public sealed class TuiMessage
     public IReadOnlyDictionary<string, string> Metadata { get; init; } = new Dictionary<string, string>();
 
     /// <summary>从 AgentStreamChunk 创建 TuiMessage。</summary>
-    public static TuiMessage FromChunk(string agentId, AgentStreamChunk chunk)
-    {
-        var (type, content) = chunk.Type switch
-        {
+    public static TuiMessage FromChunk(string agentId, AgentStreamChunk chunk) {
+        var (type, content) = chunk.Type switch {
             AgentStreamChunkType.Thinking or AgentStreamChunkType.ThinkingStart or AgentStreamChunkType.ThinkingEnd
                 => (TuiMessageType.AgentThinking, chunk.ThinkingContent ?? chunk.Content ?? string.Empty),
             AgentStreamChunkType.Content
@@ -49,8 +46,7 @@ public sealed class TuiMessage
                 => (TuiMessageType.AgentContent, chunk.Content ?? string.Empty),
         };
 
-        return new TuiMessage
-        {
+        return new TuiMessage {
             Id = Guid.NewGuid().ToString("N"),
             AgentId = agentId,
             Type = type,

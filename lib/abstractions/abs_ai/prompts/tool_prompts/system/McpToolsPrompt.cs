@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// ListMcpResourcesTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = McpToolName.McpListResources, Category = ToolPromptCategory.System)]
-public static class ListMcpResourcesToolPrompt
-{
+public static class ListMcpResourcesToolPrompt {
     public const string ToolName = McpToolNameEnumConstants.McpListResources;
 
     public const string Description = """
@@ -32,8 +31,7 @@ public static class ListMcpResourcesToolPrompt
 /// ReadMcpResourceTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = McpToolName.McpReadResource, Category = ToolPromptCategory.System)]
-public static class ReadMcpResourceToolPrompt
-{
+public static class ReadMcpResourceToolPrompt {
     public const string ToolName = McpToolNameEnumConstants.McpReadResource;
 
     public const string Description = """
@@ -58,8 +56,7 @@ public static class ReadMcpResourceToolPrompt
 /// RemoteTriggerTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = McpToolName.McpRemoteTrigger, Category = ToolPromptCategory.System)]
-public static class RemoteTriggerToolPrompt
-{
+public static class RemoteTriggerToolPrompt {
     public const string ToolName = McpToolNameEnumConstants.McpRemoteTrigger;
 
     public const string Description =
@@ -84,8 +81,7 @@ public static class RemoteTriggerToolPrompt
 /// NotebookEditTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = NotebookToolName.NotebookEdit, Category = ToolPromptCategory.System)]
-public static class NotebookEditToolPrompt
-{
+public static class NotebookEditToolPrompt {
     public const string ToolName = NotebookToolNameEnumConstants.NotebookEdit;
 
     public const string Description = "替换 Jupyter notebook 中特定单元格的内容。";

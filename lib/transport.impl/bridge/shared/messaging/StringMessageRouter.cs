@@ -5,8 +5,7 @@ namespace JoinCode.Transport.Bridge;
 /// 不依赖任何业务消息类型（如 BridgeMessage），可独立于 Bridge 使用
 /// </summary>
 [Register(typeof(IMessageRouter), ServiceLifetime.Singleton)]
-public sealed partial class StringMessageRouter : IMessageRouter
-{
+public sealed partial class StringMessageRouter : IMessageRouter {
     private readonly ILogger? _logger;
     private readonly BoundedUUIDSet _processedMessageIds;
     private int _disposed;
@@ -23,8 +22,7 @@ public sealed partial class StringMessageRouter : IMessageRouter
     /// <param name="logger">日志记录器（可选）</param>
     public StringMessageRouter(
         TransportConfiguration config,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         _logger = logger;
         _processedMessageIds = new BoundedUUIDSet(config.MessageDeduplicationCapacity);
     }
@@ -39,29 +37,23 @@ public sealed partial class StringMessageRouter : IMessageRouter
     public async Task ProcessMessageAsync(
         string messageJson,
         Func<string, string?> messageIdExtractor,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var messageId = messageIdExtractor(messageJson);
 
-            if (messageId is null)
-            {
+            if (messageId is null) {
                 _logger?.LogWarning("[StringMessageRouter] 无法提取消息ID: {Message}", messageJson);
                 return;
             }
 
             // 消息去重检查
-            if (!await _processedMessageIds.AddAsync(messageId, cancellationToken).ConfigureAwait(false))
-            {
+            if (!await _processedMessageIds.AddAsync(messageId, cancellationToken).ConfigureAwait(false)) {
                 _logger?.LogDebug("[StringMessageRouter] 忽略重复消息: {MessageId}", messageId);
                 return;
             }
 
             MessageReceived?.Invoke(this, new StringMessageReceivedEventArgs(messageJson, messageId));
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[StringMessageRouter] 处理消息失败");
         }
     }
@@ -69,8 +61,7 @@ public sealed partial class StringMessageRouter : IMessageRouter
     /// <summary>
     /// 异步释放资源
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         return _processedMessageIds.DisposeAsync();
     }

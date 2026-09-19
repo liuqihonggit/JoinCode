@@ -6,18 +6,14 @@ namespace Core.Agents.Coordinator;
 /// <para>状态转换经 <see cref="ForkStateTransitions.CanTransitionTo"/> 校验,非法转换抛 InvalidOperationException。</para>
 /// <para>所有字段在 Fork 生命周期内可被 Consumer 线程反复读写(状态推进、结果填充、子代理分配、取消令牌替换)。</para>
 /// </summary>
-internal sealed class ForkRuntime
-{
+internal sealed class ForkRuntime {
     private ForkState _state = ForkState.Running;
 
     /// <summary>Fork 状态 — setter 校验转换合法性,非法转换抛 InvalidOperationException</summary>
-    public ForkState State
-    {
+    public ForkState State {
         get => _state;
-        set
-        {
-            if (!ForkStateTransitions.CanTransitionTo(_state, value))
-            {
+        set {
+            if (!ForkStateTransitions.CanTransitionTo(_state, value)) {
                 throw new InvalidOperationException(
                     $"[FORK-ILLEGAL] 非法 Fork 状态转换: {_state} → {value}");
             }

@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Fork 消息构建器 — 构建 Fork 子智能体的指令消息、工作树通知与 forked 消息列表
 /// </summary>
-public static class ForkMessageBuilder
-{
+public static class ForkMessageBuilder {
     /// <summary>Fork 模板标签名</summary>
     public const string ForkBoilerplateTag = "fork-boilerplate";
     /// <summary>Fork 指令前缀</summary>
@@ -22,8 +21,7 @@ public static class ForkMessageBuilder
     /// </summary>
     /// <param name="directive">Fork 指令内容</param>
     /// <returns>完整的子代理指令消息字符串</returns>
-    public static string BuildChildMessage(string directive)
-    {
+    public static string BuildChildMessage(string directive) {
         return ForkBoilerplateOpen + """
 STOP. READ THIS FIRST.
 
@@ -56,8 +54,7 @@ Output format (plain text labels, not markdown headers):
     /// <param name="parentCwd">父代理工作目录</param>
     /// <param name="worktreeCwd">子代理 worktree 工作目录</param>
     /// <returns>工作树通知文本</returns>
-    public static string BuildWorktreeNotice(string parentCwd, string worktreeCwd)
-    {
+    public static string BuildWorktreeNotice(string parentCwd, string worktreeCwd) {
         return "You've inherited the conversation context above from a parent agent working in " + parentCwd + ". You are operating in an isolated git worktree at " + worktreeCwd + " — same repository, same relative file structure, separate working copy. Paths in the inherited context refer to the parent's working directory; translate them to your worktree root. Re-read files before editing if the parent may have modified them since they appear in the context. Your changes stay in this worktree and will not affect the parent's files.";
     }
 
@@ -66,12 +63,10 @@ Output format (plain text labels, not markdown headers):
     /// </summary>
     /// <param name="chatHistory">聊天消息列表</param>
     /// <returns>已在 Fork 子代理上下文返回 true，否则返回 false</returns>
-    public static bool IsInForkChild(MessageList chatHistory)
-    {
+    public static bool IsInForkChild(MessageList chatHistory) {
         if (chatHistory is null) return false;
 
-        foreach (var message in chatHistory)
-        {
+        foreach (var message in chatHistory) {
             if (message.Role != MessageRole.User) continue;
             if (message.Content is not null && message.Content.Contains(ForkBoilerplateOpen, StringComparison.Ordinal))
                 return true;
@@ -86,15 +81,13 @@ Output format (plain text labels, not markdown headers):
     /// <param name="directive">Fork 指令内容</param>
     /// <param name="assistantMessage">父代理助手消息</param>
     /// <returns>Fork 后的消息列表</returns>
-    public static List<ApiMessage> BuildForkedMessages(string directive, ApiMessage assistantMessage)
-    {
+    public static List<ApiMessage> BuildForkedMessages(string directive, ApiMessage assistantMessage) {
         ArgumentNullException.ThrowIfNull(directive);
         ArgumentNullException.ThrowIfNull(assistantMessage);
 
         var result = new List<ApiMessage>();
 
-        var clonedAssistant = new ApiMessage
-        {
+        var clonedAssistant = new ApiMessage {
             Role = MessageRole.Assistant,
             Content = assistantMessage.Content,
             Metadata = assistantMessage.Metadata
@@ -103,31 +96,25 @@ Output format (plain text labels, not markdown headers):
 
         var toolCalls = ExtractToolCalls(assistantMessage);
 
-        if (toolCalls.Count == 0)
-        {
-            result.Add(new ApiMessage
-            {
+        if (toolCalls.Count == 0) {
+            result.Add(new ApiMessage {
                 Role = MessageRole.User,
                 Content = BuildChildMessage(directive)
             });
             return result;
         }
 
-        foreach (var (toolCallId, _) in toolCalls)
-        {
-            result.Add(new ApiMessage
-            {
+        foreach (var (toolCallId, _) in toolCalls) {
+            result.Add(new ApiMessage {
                 Role = MessageRole.Tool,
                 Content = ForkPlaceholderResult,
-                Metadata = new Dictionary<string, JsonElement>
-                {
+                Metadata = new Dictionary<string, JsonElement> {
                     ["ToolCallId"] = JsonElementHelper.FromString(toolCallId)
                 }
             });
         }
 
-        result.Add(new ApiMessage
-        {
+        result.Add(new ApiMessage {
             Role = MessageRole.User,
             Content = BuildChildMessage(directive)
         });
@@ -135,26 +122,20 @@ Output format (plain text labels, not markdown headers):
         return result;
     }
 
-    private static List<(string ToolCallId, string ToolName)> ExtractToolCalls(ApiMessage assistantMessage)
-    {
+    private static List<(string ToolCallId, string ToolName)> ExtractToolCalls(ApiMessage assistantMessage) {
         var toolCalls = new List<(string ToolCallId, string ToolName)>();
 
         if (assistantMessage.Metadata is null) return toolCalls;
 
-        if (assistantMessage.Metadata.TryGetValue("ToolCalls", out var toolCallsObj) && toolCallsObj.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in toolCallsObj.EnumerateArray())
-            {
+        if (assistantMessage.Metadata.TryGetValue("ToolCalls", out var toolCallsObj) && toolCallsObj.ValueKind == JsonValueKind.Array) {
+            foreach (var item in toolCallsObj.EnumerateArray()) {
                 var id = item.TryGetProperty("Id", out var idProp) ? idProp.GetString() : null;
                 var name = item.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null;
                 if (id is not null && name is not null)
                     toolCalls.Add((id, name));
             }
-        }
-        else if (assistantMessage.Metadata.TryGetValue("AllToolCalls", out var allToolCallsObj) && allToolCallsObj.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in allToolCallsObj.EnumerateArray())
-            {
+        } else if (assistantMessage.Metadata.TryGetValue("AllToolCalls", out var allToolCallsObj) && allToolCallsObj.ValueKind == JsonValueKind.Array) {
+            foreach (var item in allToolCallsObj.EnumerateArray()) {
                 var id = item.TryGetProperty("Id", out var idProp) ? idProp.GetString() : null;
                 var name = item.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null;
                 if (id is not null && name is not null)

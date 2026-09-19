@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// </summary>
 public sealed record ResourceScanReport(
     string PluginName,
-    IReadOnlyList<ObjectId> LeakedResourceIds)
-{
+    IReadOnlyList<ObjectId> LeakedResourceIds) {
     /// <summary>是否有资源泄漏(未注销的 ObjectId)</summary>
     public bool HasLeaks => LeakedResourceIds.Count > 0;
 }

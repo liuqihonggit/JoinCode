@@ -3,8 +3,7 @@ namespace Api.LLM;
 /// <summary>
 /// Anthropic API 内容块类型
 /// </summary>
-public enum AnthropicContentBlockType
-{
+public enum AnthropicContentBlockType {
     [EnumValue("text")] Text,
     [EnumValue("thinking")] Thinking,
     [EnumValue("tool_use")] ToolUse,
@@ -16,8 +15,7 @@ public enum AnthropicContentBlockType
 /// <summary>
 /// Anthropic API 流式事件类型
 /// </summary>
-public enum AnthropicStreamingEventType
-{
+public enum AnthropicStreamingEventType {
     [EnumValue("message_start")] MessageStart,
     [EnumValue("content_block_start")] ContentBlockStart,
     [EnumValue("content_block_delta")] ContentBlockDelta,
@@ -30,8 +28,7 @@ public enum AnthropicStreamingEventType
 /// <summary>
 /// Anthropic API 流式 Delta 类型
 /// </summary>
-public enum AnthropicDeltaType
-{
+public enum AnthropicDeltaType {
     [EnumValue("thinking_delta")] ThinkingDelta,
     [EnumValue("text_delta")] TextDelta,
     [EnumValue("input_json_delta")] InputJsonDelta
@@ -40,8 +37,7 @@ public enum AnthropicDeltaType
 /// <summary>
 /// Anthropic API 停止原因
 /// </summary>
-public enum AnthropicStopReason
-{
+public enum AnthropicStopReason {
     [EnumValue("end_turn")] EndTurn,
     [EnumValue("tool_use")] ToolUse,
     [EnumValue("stop_sequence")] StopSequence,
@@ -51,10 +47,8 @@ public enum AnthropicStopReason
 /// <summary>
 /// AOT 兼容的 AnthropicContentBlockType JSON 转换器
 /// </summary>
-public sealed class AnthropicContentBlockTypeConverter : JsonConverter<AnthropicContentBlockType>
-{
-    public override AnthropicContentBlockType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
+public sealed class AnthropicContentBlockTypeConverter : JsonConverter<AnthropicContentBlockType> {
+    public override AnthropicContentBlockType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
         var value = reader.GetString();
         return AnthropicContentBlockTypeExtensions.FromValue(value) ?? AnthropicContentBlockType.Text;
     }
@@ -66,10 +60,8 @@ public sealed class AnthropicContentBlockTypeConverter : JsonConverter<Anthropic
 /// <summary>
 /// AOT 兼容的 AnthropicStreamingEventType JSON 转换器
 /// </summary>
-public sealed class AnthropicStreamingEventTypeConverter : JsonConverter<AnthropicStreamingEventType>
-{
-    public override AnthropicStreamingEventType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
+public sealed class AnthropicStreamingEventTypeConverter : JsonConverter<AnthropicStreamingEventType> {
+    public override AnthropicStreamingEventType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
         var value = reader.GetString();
         return AnthropicStreamingEventTypeExtensions.FromValue(value) ?? default;
     }
@@ -81,10 +73,8 @@ public sealed class AnthropicStreamingEventTypeConverter : JsonConverter<Anthrop
 /// <summary>
 /// AOT 兼容的 AnthropicDeltaType JSON 转换器
 /// </summary>
-public sealed class AnthropicDeltaTypeConverter : JsonConverter<AnthropicDeltaType>
-{
-    public override AnthropicDeltaType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
+public sealed class AnthropicDeltaTypeConverter : JsonConverter<AnthropicDeltaType> {
+    public override AnthropicDeltaType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
         var value = reader.GetString();
         return AnthropicDeltaTypeExtensions.FromValue(value) ?? default;
     }
@@ -96,10 +86,8 @@ public sealed class AnthropicDeltaTypeConverter : JsonConverter<AnthropicDeltaTy
 /// <summary>
 /// AOT 兼容的 AnthropicStopReason JSON 转换器
 /// </summary>
-public sealed class AnthropicStopReasonConverter : JsonConverter<AnthropicStopReason>
-{
-    public override AnthropicStopReason Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
+public sealed class AnthropicStopReasonConverter : JsonConverter<AnthropicStopReason> {
+    public override AnthropicStopReason Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
         var value = reader.GetString();
         return AnthropicStopReasonExtensions.FromValue(value) ?? default;
     }

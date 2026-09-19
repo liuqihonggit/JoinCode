@@ -5,14 +5,12 @@ namespace Core.Tests.Skills;
 /// SkillExecutor 工具调用测试类
 /// 测试真实工具调用流程、参数传递和结果处理
 /// </summary>
-public class SkillExecutorToolTests
-{
+public class SkillExecutorToolTests {
     private readonly Mock<IQueryEngine> _queryEngineMock;
     private readonly Mock<IToolExecutionGateway> _toolExecutionGatewayMock;
     private readonly SkillExecutor _skillExecutor;
 
-    public SkillExecutorToolTests()
-    {
+    public SkillExecutorToolTests() {
         _queryEngineMock = new Mock<IQueryEngine>();
         _toolExecutionGatewayMock = new Mock<IToolExecutionGateway>();
         _skillExecutor = new SkillExecutor(
@@ -27,10 +25,8 @@ public class SkillExecutorToolTests
     /// 测试工具步骤应该调用 ToolRegistry
     /// </summary>
     [Fact]
-    public async Task ExecuteAsync_WithToolStep_ShouldCallToolRegistry()
-    {
-        var skill = new SkillDefinition
-        {
+    public async Task ExecuteAsync_WithToolStep_ShouldCallToolRegistry() {
+        var skill = new SkillDefinition {
             Name = "TestSkill",
             Description = "Test skill description",
             Steps = new List<SkillStep>
@@ -45,8 +41,7 @@ public class SkillExecutorToolTests
             }
         };
 
-        var toolResult = new ToolResult
-        {
+        var toolResult = new ToolResult {
             IsError = false,
             Content = new List<ToolContent>
             {
@@ -79,10 +74,8 @@ public class SkillExecutorToolTests
     /// 测试工具参数应该正确传递
     /// </summary>
     [Fact]
-    public async Task ExecuteAsync_ShouldPassCorrectToolParameters()
-    {
-        var skill = new SkillDefinition
-        {
+    public async Task ExecuteAsync_ShouldPassCorrectToolParameters() {
+        var skill = new SkillDefinition {
             Name = "TestSkill",
             Description = "Test skill description",
             Steps = new List<SkillStep>
@@ -104,12 +97,10 @@ public class SkillExecutorToolTests
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<ToolProgressCallback?>()))
-            .Callback<string, Dictionary<string, JsonElement>, CancellationToken, ToolProgressCallback?>((_, args, _, _) =>
-            {
+            .Callback<string, Dictionary<string, JsonElement>, CancellationToken, ToolProgressCallback?>((_, args, _, _) => {
                 capturedArgs = args;
             })
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 IsError = false,
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "OK" } }
             });
@@ -125,10 +116,8 @@ public class SkillExecutorToolTests
     /// 测试工具错误应该被正确处理
     /// </summary>
     [Fact]
-    public async Task ExecuteAsync_WithToolError_ShouldHandleError()
-    {
-        var skill = new SkillDefinition
-        {
+    public async Task ExecuteAsync_WithToolError_ShouldHandleError() {
+        var skill = new SkillDefinition {
             Name = "TestSkill",
             Description = "Test skill description",
             Steps = new List<SkillStep>
@@ -149,8 +138,7 @@ public class SkillExecutorToolTests
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<ToolProgressCallback?>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 IsError = true,
                 Content = new List<ToolContent>
                 {
@@ -172,10 +160,8 @@ public class SkillExecutorToolTests
     /// 测试工具参数中的变量应该被替换
     /// </summary>
     [Fact]
-    public async Task ExecuteAsync_ShouldReplaceVariablesInToolParameters()
-    {
-        var skill = new SkillDefinition
-        {
+    public async Task ExecuteAsync_ShouldReplaceVariablesInToolParameters() {
+        var skill = new SkillDefinition {
             Name = "TestSkill",
             Description = "Test skill description",
             Parameters = new Dictionary<string, SkillParameter>
@@ -201,12 +187,10 @@ public class SkillExecutorToolTests
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<ToolProgressCallback?>()))
-            .Callback<string, Dictionary<string, JsonElement>, CancellationToken, ToolProgressCallback?>((_, args, _, _) =>
-            {
+            .Callback<string, Dictionary<string, JsonElement>, CancellationToken, ToolProgressCallback?>((_, args, _, _) => {
                 capturedArgs = args;
             })
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 IsError = false,
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Hello" } }
             });
@@ -231,10 +215,8 @@ public class SkillExecutorToolTests
     /// 测试多内容结果应该被正确合并
     /// </summary>
     [Fact]
-    public async Task ExecuteAsync_WithMultiContentResult_ShouldMergeContent()
-    {
-        var skill = new SkillDefinition
-        {
+    public async Task ExecuteAsync_WithMultiContentResult_ShouldMergeContent() {
+        var skill = new SkillDefinition {
             Name = "TestSkill",
             Description = "Test skill description",
             Steps = new List<SkillStep>
@@ -255,8 +237,7 @@ public class SkillExecutorToolTests
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<ToolProgressCallback?>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 IsError = false,
                 Content = new List<ToolContent>
                 {
@@ -278,10 +259,8 @@ public class SkillExecutorToolTests
     /// 测试空内容结果应该返回空字符串
     /// </summary>
     [Fact]
-    public async Task ExecuteAsync_WithEmptyContent_ShouldReturnEmptyString()
-    {
-        var skill = new SkillDefinition
-        {
+    public async Task ExecuteAsync_WithEmptyContent_ShouldReturnEmptyString() {
+        var skill = new SkillDefinition {
             Name = "TestSkill",
             Description = "Test skill description",
             Steps = new List<SkillStep>
@@ -302,8 +281,7 @@ public class SkillExecutorToolTests
                 It.IsAny<Dictionary<string, JsonElement>>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<ToolProgressCallback?>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 IsError = false,
                 Content = new List<ToolContent>()
             });

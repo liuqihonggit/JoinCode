@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// MCP 客户端工具处理器 - 提供与远程 MCP 服务器交互的能力
 /// </summary>
 [McpToolDispatch(ToolCategory.McpClient)]
-public partial class McpClientToolHandlers : ServiceEntity
-{
+public partial class McpClientToolHandlers : ServiceEntity {
     private readonly Dictionary<string, IMcpClient> _clients = new();
     private readonly ILogger<McpClientToolHandlers>? _logger;
     private readonly AsyncLock _clientLock = new();
@@ -21,16 +20,14 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="fileSystem">文件系统抽象（可选，传入则启用磁盘持久化）</param>
     public McpClientToolHandlers(McpClientToolDeps? deps = null, ILogger<McpClientToolHandlers>? logger = null, IFileSystem? fileSystem = null)
-        : base(nameof(McpClientToolHandlers))
-    {
+        : base(nameof(McpClientToolHandlers)) {
         _deps = deps ?? new McpClientToolDeps();
         _logger = logger;
         _persistenceFs = fileSystem;
         _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;
 
         var entries = LoadState();
-        if (entries is not null && entries.Count > 0)
-        {
+        if (entries is not null && entries.Count > 0) {
             _restoreCts = new CancellationTokenSource();
             _restoreTask = RestoreConnectionsAsync(entries);
         }
@@ -46,82 +43,64 @@ public partial class McpClientToolHandlers : ServiceEntity
         [McpToolParameter("Transport type: stdio, sse, http", Required = false, DefaultValue = McpTransportTypeEnumConstants.Stdio)] string transport_type = McpTransportTypeEnumConstants.Stdio,
         [McpToolParameter("Whether to use OAuth authentication", Required = false, DefaultValue = "false")] bool use_oauth = false,
         [McpToolParameter("Authentication config name (from mcp_auth_*)", Required = false)] string? auth_name = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(connection_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(connection_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(endpoint))
-        {
+        if (string.IsNullOrWhiteSpace(endpoint)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.EndpointCannotBeEmpty)).Build();
         }
 
-        if (_deps.ServerStateManager?.IsDisabled(connection_name) == true)
-        {
+        if (_deps.ServerStateManager?.IsDisabled(connection_name) == true) {
             return ToolResultBuilder.Error().WithText($"MCP 服务器 '{connection_name}' 已被禁用，请先启用后再连接").Build();
         }
 
-        using (var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时"))
-        {
-            if (_clients.ContainsKey(connection_name))
-            {
+        using (var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时")) {
+            if (_clients.ContainsKey(connection_name)) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
             }
         }
 
-        try
-        {
+        try {
             var expandedEndpoint = endpoint.Contains('$') ? McpEnvExpander.ExpandEndpoint(endpoint) : endpoint;
 
-            var config = new McpServerConnectionConfig
-            {
+            var config = new McpServerConnectionConfig {
                 Name = connection_name,
                 Endpoint = expandedEndpoint,
                 TransportType = ParseTransportType(transport_type)
             };
 
             // 优先使用 auth_name 查询已配置的认证
-            if (!string.IsNullOrWhiteSpace(auth_name) && _deps.AuthToolHandlers != null)
-            {
+            if (!string.IsNullOrWhiteSpace(auth_name) && _deps.AuthToolHandlers != null) {
                 var authConfig = _deps.AuthToolHandlers.GetAuthConfig(auth_name);
-                if (authConfig == null)
-                {
+                if (authConfig == null) {
                     return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthConfigNotFound, auth_name)).Build();
                 }
-                config = new McpServerConnectionConfig
-                {
+                config = new McpServerConnectionConfig {
                     Name = config.Name,
                     Endpoint = config.Endpoint,
                     TransportType = config.TransportType,
                     Auth = authConfig
                 };
-            }
-            else if (use_oauth && _deps.OAuthService != null)
-            {
-                if (!_deps.OAuthService.IsAuthenticated)
-                {
+            } else if (use_oauth && _deps.OAuthService != null) {
+                if (!_deps.OAuthService.IsAuthenticated) {
                     var authSuccess = await _deps.OAuthService.StartAuthorizationFlowAsync(cancellationToken).ConfigureAwait(false);
-                    if (!authSuccess)
-                    {
+                    if (!authSuccess) {
                         return ToolResultBuilder.Error().WithText(L.T(StringKey.OAuthAuthenticationFailed)).Build();
                     }
                 }
 
                 var accessToken = await _deps.OAuthService.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
-                if (string.IsNullOrEmpty(accessToken))
-                {
+                if (string.IsNullOrEmpty(accessToken)) {
                     return ToolResultBuilder.Error().WithText(L.T(StringKey.CannotGetOAuthAccessToken)).Build();
                 }
 
-                config = new McpServerConnectionConfig
-                {
+                config = new McpServerConnectionConfig {
                     Name = config.Name,
                     Endpoint = config.Endpoint,
                     TransportType = config.TransportType,
-                    Auth = new McpAuthConfig
-                    {
+                    Auth = new McpAuthConfig {
                         Type = McpAuthType.Bearer,
                         BearerToken = accessToken
                     }
@@ -129,18 +108,12 @@ public partial class McpClientToolHandlers : ServiceEntity
             }
 
             IMcpClient client;
-            if (config.TransportType == McpClientTransportType.Stdio)
-            {
+            if (config.TransportType == McpClientTransportType.Stdio) {
                 client = new McpStdioClient(config, logger: _logger);
-            }
-            else if (_deps.ClientFactory is not null)
-            {
+            } else if (_deps.ClientFactory is not null) {
                 client = _deps.ClientFactory.CreateClient(config, enableFallback: true, logger: _logger);
-            }
-            else
-            {
-                client = config.TransportType switch
-                {
+            } else {
+                client = config.TransportType switch {
                     McpClientTransportType.Http => new McpHttpClient(config, logger: _logger),
                     McpClientTransportType.WebSocket => new McpWebSocketClient(config, logger: _logger),
                     _ => throw new NotSupportedException(L.T(StringKey.UnsupportedTransportType, transport_type))
@@ -149,16 +122,13 @@ public partial class McpClientToolHandlers : ServiceEntity
 
             await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
 
-            using (var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时"))
-            {
-                if (_clients.ContainsKey(connection_name))
-                {
+            using (var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时")) {
+                if (_clients.ContainsKey(connection_name)) {
                     await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
                     return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
                 }
                 _clients[connection_name] = client;
-                _connectionConfigs[connection_name] = new McpConnectionEntry
-                {
+                _connectionConfigs[connection_name] = new McpConnectionEntry {
                     Name = connection_name,
                     Endpoint = endpoint,
                     TransportType = transport_type,
@@ -167,17 +137,14 @@ public partial class McpClientToolHandlers : ServiceEntity
                 };
             }
 
-            if (_deps.ElicitationHandler is not null)
-            {
+            if (_deps.ElicitationHandler is not null) {
                 client.SetElicitationHandler(_deps.ElicitationHandler);
             }
 
-            if (_deps.ToolRegistry is not null)
-            {
+            if (_deps.ToolRegistry is not null) {
                 _deps.ToolRegistry.RegisterRemoteClient(connection_name, client);
                 var syncResult = await _deps.ToolRegistry.SyncRemoteToolsAsync(connection_name, cancellationToken).ConfigureAwait(false);
-                if (!syncResult.Success)
-                {
+                if (!syncResult.Success) {
                     _logger?.LogWarning("MCP 服务器 '{ConnectionName}' 连接成功但同步工具失败: {Error}", connection_name, syncResult.ErrorMessage);
                 }
             }
@@ -187,30 +154,24 @@ public partial class McpClientToolHandlers : ServiceEntity
             response.AppendLine(L.T(StringKey.LabelServer, client.ServerInfo?.Name ?? "Unknown"));
             response.AppendLine(L.T(StringKey.LabelVersion, client.ServerInfo?.Version ?? "Unknown"));
 
-            if (client.ServerCapabilities?.Tools != null)
-            {
+            if (client.ServerCapabilities?.Tools != null) {
                 response.AppendLine(L.T(StringKey.SupportsTools));
             }
 
-            if (client.ServerCapabilities?.Resources != null)
-            {
+            if (client.ServerCapabilities?.Resources != null) {
                 response.AppendLine(L.T(StringKey.SupportsResources));
             }
 
-            if (client.ServerCapabilities?.Prompts != null)
-            {
+            if (client.ServerCapabilities?.Prompts != null) {
                 response.AppendLine(L.T(StringKey.SupportsPrompts));
             }
 
-            if (!_isRestoring)
-            {
+            if (!_isRestoring) {
                 await SaveStateAsync(cancellationToken).ConfigureAwait(false);
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, L.T(StringKey.ConnectMcpServerFailedLog), connection_name);
             return ToolExceptionDiagnosticHelper.BuildErrorResult("mcp_connect", ex, _logger, "connection_name", connection_name, "endpoint", endpoint);
         }
@@ -222,18 +183,14 @@ public partial class McpClientToolHandlers : ServiceEntity
     [McpTool(McpToolNameEnumConstants.McpDisconnect, "Disconnect from MCP server", "mcp")]
     public async Task<ToolResult> McpDisconnectAsync(
         [McpToolParameter("Connection name")] string connection_name,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(connection_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(connection_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
         using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时");
-        try
-        {
-            if (!_clients.TryGetValue(connection_name, out var client))
-            {
+        try {
+            if (!_clients.TryGetValue(connection_name, out var client)) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
             }
 
@@ -241,22 +198,18 @@ public partial class McpClientToolHandlers : ServiceEntity
             _clients.Remove(connection_name);
             _connectionConfigs.TryRemove(connection_name, out _);
 
-            if (_deps.ToolRegistry is not null)
-            {
+            if (_deps.ToolRegistry is not null) {
                 await _deps.ToolRegistry.UnregisterRemoteClientAsync(connection_name, cancellationToken).ConfigureAwait(false);
             }
 
-            if (!_isRestoring)
-            {
+            if (!_isRestoring) {
                 await SaveStateAsync(cancellationToken).ConfigureAwait(false);
             }
 
             return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.Disconnected, connection_name))
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, L.T(StringKey.DisconnectFailedLog), connection_name);
             return ToolExceptionDiagnosticHelper.BuildErrorResult("mcp_disconnect", ex, _logger, "connection_name", connection_name);
         }
@@ -268,37 +221,29 @@ public partial class McpClientToolHandlers : ServiceEntity
     [McpTool("mcp_disable_server", "Disable an MCP server (persisted to disk)", "mcp")]
     public async Task<ToolResult> McpDisableServerAsync(
         [McpToolParameter("Connection name")] string connection_name,
-        CancellationToken cancellationToken = default)
-    {
-        if (_deps.ServerStateManager == null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_deps.ServerStateManager == null) {
             return ToolResultBuilder.Error().WithText("MCP 服务器状态管理器未配置").Build();
         }
 
         var disabled = await _deps.ServerStateManager.DisableAsync(connection_name, cancellationToken).ConfigureAwait(false);
 
         using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时");
-        try
-        {
-            if (_clients.TryGetValue(connection_name, out var client))
-            {
+        try {
+            if (_clients.TryGetValue(connection_name, out var client)) {
                 await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
                 _clients.Remove(connection_name);
                 _connectionConfigs.TryRemove(connection_name, out _);
 
-                if (_deps.ToolRegistry is not null)
-                {
+                if (_deps.ToolRegistry is not null) {
                     await _deps.ToolRegistry.UnregisterRemoteClientAsync(connection_name, cancellationToken).ConfigureAwait(false);
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "禁用 MCP 服务器 {ServerName} 时断开连接失败", connection_name);
         }
 
-        if (!_isRestoring)
-        {
+        if (!_isRestoring) {
             await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -313,10 +258,8 @@ public partial class McpClientToolHandlers : ServiceEntity
     [McpTool("mcp_enable_server", "Enable an MCP server (persisted to disk)", "mcp")]
     public async Task<ToolResult> McpEnableServerAsync(
         [McpToolParameter("Connection name")] string connection_name,
-        CancellationToken cancellationToken = default)
-    {
-        if (_deps.ServerStateManager == null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_deps.ServerStateManager == null) {
             return ToolResultBuilder.Error().WithText("MCP 服务器状态管理器未配置").Build();
         }
 
@@ -333,25 +276,20 @@ public partial class McpClientToolHandlers : ServiceEntity
     [McpTool(McpToolNameEnumConstants.McpListTools, "List tools on MCP server", "mcp")]
     public async Task<ToolResult> McpListToolsAsync(
         [McpToolParameter("Connection name")] string connection_name,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(connection_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(connection_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
         var client = await GetClientAsync(connection_name, cancellationToken);
-        if (client == null)
-        {
+        if (client == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        return await ToolResultBuilder.SafeExecuteAsync(async () =>
-        {
+        return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var result = await client.ListToolsAsync(cancellationToken);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ListToolsFailed, result.ErrorMessage)).Build();
             }
 
@@ -359,12 +297,10 @@ public partial class McpClientToolHandlers : ServiceEntity
             response.AppendLine(L.T(StringKey.McpServerToolsList, result.GetData().Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.GetData().Count; i++)
-            {
+            for (int i = 0; i < result.GetData().Count; i++) {
                 var tool = result.GetData()[i];
                 response.AppendLine($"{i + 1}. {tool.Name}");
-                if (!string.IsNullOrEmpty(tool.Description))
-                {
+                if (!string.IsNullOrEmpty(tool.Description)) {
                     response.AppendLine($"   {L.T(StringKey.LabelDescription, tool.Description)}");
                 }
                 response.AppendLine();
@@ -382,29 +318,23 @@ public partial class McpClientToolHandlers : ServiceEntity
         [McpToolParameter("Connection name")] string connection_name,
         [McpToolParameter("Tool name")] string tool_name,
         [McpToolParameter("Tool arguments (JSON object)", Required = false)] string? arguments_json = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(connection_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(connection_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(tool_name))
-        {
+        if (string.IsNullOrWhiteSpace(tool_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ToolNameCannotBeEmpty)).Build();
         }
 
         var client = await GetClientAsync(connection_name, cancellationToken);
-        if (client == null)
-        {
+        if (client == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        return await ToolResultBuilder.SafeExecuteAsync(async () =>
-        {
+        return await ToolResultBuilder.SafeExecuteAsync(async () => {
             Dictionary<string, JsonElement>? arguments = null;
-            if (!string.IsNullOrEmpty(arguments_json))
-            {
+            if (!string.IsNullOrEmpty(arguments_json)) {
                 arguments = LlmJsonHelper.Deserialize(arguments_json, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement, out var repairHint, _logger);
                 if (!string.IsNullOrEmpty(repairHint))
                     _logger?.LogInformation("[McpClient] tool 参数 JSON 已修复: {RepairHint}", repairHint);
@@ -414,29 +344,20 @@ public partial class McpClientToolHandlers : ServiceEntity
 
             var builder = result.IsError ? ToolResultBuilder.Error() : ToolResultBuilder.Success();
 
-            if (result.IsError)
-            {
+            if (result.IsError) {
                 builder.WithText(L.T(StringKey.ToolCallError));
-            }
-            else
-            {
+            } else {
                 builder.WithText(L.T(StringKey.ToolCallSuccess));
             }
 
-            foreach (var content in result.Content)
-            {
-                if (content.Type == ToolContentType.Image && !string.IsNullOrEmpty(content.Data) && !string.IsNullOrEmpty(content.MimeType))
-                {
+            foreach (var content in result.Content) {
+                if (content.Type == ToolContentType.Image && !string.IsNullOrEmpty(content.Data) && !string.IsNullOrEmpty(content.MimeType)) {
                     var imageData = await MaybeResizeImageAsync(content.Data, content.MimeType).ConfigureAwait(false);
                     builder.WithImage(imageData.base64, imageData.mediaType);
-                }
-                else if (content.Type == ToolContentType.Resource && !string.IsNullOrEmpty(content.Data) && !string.IsNullOrEmpty(content.MimeType))
-                {
+                } else if (content.Type == ToolContentType.Resource && !string.IsNullOrEmpty(content.Data) && !string.IsNullOrEmpty(content.MimeType)) {
                     var binaryText = await PersistBlobToTextBlockAsync(content.Data, content.MimeType, connection_name).ConfigureAwait(false);
                     builder.WithText(binaryText);
-                }
-                else if (!string.IsNullOrEmpty(content.Text))
-                {
+                } else if (!string.IsNullOrEmpty(content.Text)) {
                     builder.WithText(content.Text);
                 }
             }
@@ -451,25 +372,20 @@ public partial class McpClientToolHandlers : ServiceEntity
     [McpTool(McpToolNameEnumConstants.McpListResources, "List resources on MCP server", "mcp")]
     public async Task<ToolResult> McpListResourcesAsync(
         [McpToolParameter("Connection name")] string connection_name,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(connection_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(connection_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
         var client = await GetClientAsync(connection_name, cancellationToken);
-        if (client == null)
-        {
+        if (client == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        return await ToolResultBuilder.SafeExecuteAsync(async () =>
-        {
+        return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var result = await client.ListResourcesAsync(cancellationToken);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ListResourcesFailed, result.ErrorMessage)).Build();
             }
 
@@ -477,17 +393,14 @@ public partial class McpClientToolHandlers : ServiceEntity
             response.AppendLine(L.T(StringKey.McpServerResourcesList, result.GetData().Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.GetData().Count; i++)
-            {
+            for (int i = 0; i < result.GetData().Count; i++) {
                 var resource = result.GetData()[i];
                 response.AppendLine($"{i + 1}. {resource.Name}");
                 response.AppendLine($"   {L.T(StringKey.LabelUri, resource.Uri)}");
-                if (!string.IsNullOrEmpty(resource.Description))
-                {
+                if (!string.IsNullOrEmpty(resource.Description)) {
                     response.AppendLine($"   {L.T(StringKey.LabelDescription, resource.Description)}");
                 }
-                if (!string.IsNullOrEmpty(resource.MimeType))
-                {
+                if (!string.IsNullOrEmpty(resource.MimeType)) {
                     response.AppendLine($"   {L.T(StringKey.LabelMimeType, resource.MimeType)}");
                 }
                 response.AppendLine();
@@ -504,65 +417,51 @@ public partial class McpClientToolHandlers : ServiceEntity
     public async Task<ToolResult> McpReadResourceAsync(
         [McpToolParameter("Connection name")] string connection_name,
         [McpToolParameter("Resource URI")] string resource_uri,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(connection_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(connection_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(resource_uri))
-        {
+        if (string.IsNullOrWhiteSpace(resource_uri)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ResourceUriCannotBeEmpty)).Build();
         }
 
         var client = await GetClientAsync(connection_name, cancellationToken);
-        if (client == null)
-        {
+        if (client == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        return await ToolResultBuilder.SafeExecuteAsync(async () =>
-        {
+        return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var result = await client.ReadResourceAsync(resource_uri, cancellationToken);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ReadResourceFailed, result.ErrorMessage)).Build();
             }
 
-            if (result.Data == null)
-            {
+            if (result.Data == null) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ResourceContentEmpty)).Build();
             }
 
             var response = new System.Text.StringBuilder();
             response.AppendLine(L.T(StringKey.LabelResource, result.Data.Uri));
-            if (!string.IsNullOrEmpty(result.Data.MimeType))
-            {
+            if (!string.IsNullOrEmpty(result.Data.MimeType)) {
                 response.AppendLine(L.T(StringKey.LabelMimeType, result.Data.MimeType));
             }
             response.AppendLine();
             response.AppendLine("---");
             response.AppendLine();
 
-            if (!string.IsNullOrEmpty(result.Data.Text))
-            {
+            if (!string.IsNullOrEmpty(result.Data.Text)) {
                 response.AppendLine(result.Data.Text);
-            }
-            else if (!string.IsNullOrEmpty(result.Data.Blob))
-            {
+            } else if (!string.IsNullOrEmpty(result.Data.Blob)) {
                 var mimeType = result.Data.MimeType;
-                if (McpBinaryHelper.IsImageMimeType(mimeType))
-                {
+                if (McpBinaryHelper.IsImageMimeType(mimeType)) {
                     var builder = ToolResultBuilder.Success();
                     builder.WithText(response.ToString());
                     var imageData = await MaybeResizeImageAsync(result.Data.Blob ?? string.Empty, mimeType ?? "image/png").ConfigureAwait(false);
                     builder.WithImage(imageData.base64, imageData.mediaType);
                     return builder.Build();
-                }
-                else
-                {
+                } else {
                     var binaryText = await PersistBlobToTextBlockAsync(result.Data.Blob ?? string.Empty, mimeType, connection_name).ConfigureAwait(false);
                     response.AppendLine(binaryText);
                 }
@@ -578,25 +477,20 @@ public partial class McpClientToolHandlers : ServiceEntity
     [McpTool(McpToolNameEnumConstants.McpListPrompts, "List prompt templates on MCP server", "mcp")]
     public async Task<ToolResult> McpListPromptsAsync(
         [McpToolParameter("Connection name")] string connection_name,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(connection_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(connection_name)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
         var client = await GetClientAsync(connection_name, cancellationToken);
-        if (client == null)
-        {
+        if (client == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
-        return await ToolResultBuilder.SafeExecuteAsync(async () =>
-        {
+        return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var result = await client.ListPromptsAsync(cancellationToken);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ListPromptsFailed, result.ErrorMessage)).Build();
             }
 
@@ -604,16 +498,13 @@ public partial class McpClientToolHandlers : ServiceEntity
             response.AppendLine(L.T(StringKey.McpServerPromptsList, result.GetData().Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.GetData().Count; i++)
-            {
+            for (int i = 0; i < result.GetData().Count; i++) {
                 var prompt = result.GetData()[i];
                 response.AppendLine($"{i + 1}. {prompt.Name}");
-                if (!string.IsNullOrEmpty(prompt.Description))
-                {
+                if (!string.IsNullOrEmpty(prompt.Description)) {
                     response.AppendLine($"   {L.T(StringKey.LabelDescription, prompt.Description)}");
                 }
-                if (prompt.Arguments?.Count > 0)
-                {
+                if (prompt.Arguments?.Count > 0) {
                     response.AppendLine($"   {L.T(StringKey.LabelArguments, string.Join(", ", prompt.Arguments.Select(a => a.Name)))}");
                 }
                 response.AppendLine();
@@ -623,18 +514,15 @@ public partial class McpClientToolHandlers : ServiceEntity
         }, _logger, L.T(StringKey.ListPromptsFailedLog)).ConfigureAwait(false);
     }
 
-    private async Task<IMcpClient?> GetClientAsync(string connectionName, CancellationToken cancellationToken)
-    {
+    private async Task<IMcpClient?> GetClientAsync(string connectionName, CancellationToken cancellationToken) {
         await WaitForRestoreAsync().ConfigureAwait(false);
         using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时");
-            _clients.TryGetValue(connectionName, out var client);
-            return client;
+        _clients.TryGetValue(connectionName, out var client);
+        return client;
     }
 
-    private static McpClientTransportType ParseTransportType(string transportType)
-    {
-        return transportType.ToLowerInvariant() switch
-        {
+    private static McpClientTransportType ParseTransportType(string transportType) {
+        return transportType.ToLowerInvariant() switch {
             McpTransportTypeEnumConstants.Stdio => McpClientTransportType.Stdio,
             McpTransportTypeEnumConstants.Http => McpClientTransportType.Http,
             McpTransportTypeEnumConstants.WebSocket => McpClientTransportType.WebSocket,
@@ -645,15 +533,12 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// <summary>
     /// 异步释放所有 MCP 客户端连接和恢复任务资源
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0) return;
 
         _restoreCts?.Cancel();
-        if (_restoreTask is not null)
-        {
-            try { _ = _restoreTask; }
-            catch (Exception ex) when (ex is not OperationCanceledException) { _logger?.LogWarning(ex, "等待 MCP 连接恢复任务结束时异常"); }
+        if (_restoreTask is not null) {
+            try { _ = _restoreTask; } catch (Exception ex) when (ex is not OperationCanceledException) { _logger?.LogWarning(ex, "等待 MCP 连接恢复任务结束时异常"); }
         }
 
         var tasks = _clients.Values.Select(client => client.DisposeAsync().AsTask());
@@ -663,39 +548,32 @@ public partial class McpClientToolHandlers : ServiceEntity
     }
 
     /// <summary>释放资源 — 在未异步释放时释放客户端锁。</summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_asyncDisposed == 1) return;
         _clientLock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 
     /// <summary>
     /// 将 base64 编码的二进制内容持久化到磁盘 — 对齐 TS persistBlobToTextBlock
     /// 图片走 base64 内联路径，非图片二进制走写盘路径
     /// </summary>
-    private async Task<string> PersistBlobToTextBlockAsync(string base64Data, string? mimeType, string serverName)
-    {
-        try
-        {
+    private async Task<string> PersistBlobToTextBlockAsync(string base64Data, string? mimeType, string serverName) {
+        try {
             var bytes = Convert.FromBase64String(base64Data);
             var sourceDescription = $"[MCP:{serverName}] ";
 
-            if (_deps.OutputStorage is not null)
-            {
+            if (_deps.OutputStorage is not null) {
                 var persistId = McpBinaryHelper.GeneratePersistId(serverName);
                 var result = _deps.OutputStorage.PersistBinaryContent(bytes, mimeType, persistId);
-                if (result is not null)
-                {
+                if (result is not null) {
                     return McpBinaryHelper.GetBinaryBlobSavedMessage(result.Filepath, mimeType, result.Size, sourceDescription);
                 }
             }
 
             // 回退：无持久化服务时输出 base64 长度信息
             return $"{sourceDescription}Binary content ({mimeType ?? "unknown type"}, {bytes.Length} bytes) - persistence service not available";
-        }
-        catch (FormatException ex)
-        {
+        } catch (FormatException ex) {
             _logger?.LogWarning(ex, "Failed to decode base64 binary content from MCP server {Server}", serverName);
             return $"[Binary content from {serverName}] Failed to decode: {ex.Message}";
         }
@@ -705,15 +583,12 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// 对图片进行降采样 — 对齐 TS maybeResizeAndDownsampleImageBuffer
     /// 当图片超过大小限制时自动压缩/缩放
     /// </summary>
-    private async Task<(string base64, string mediaType)> MaybeResizeImageAsync(string base64Data, string mimeType)
-    {
-        if (_deps.ImageResizer is null)
-        {
+    private async Task<(string base64, string mediaType)> MaybeResizeImageAsync(string base64Data, string mimeType) {
+        if (_deps.ImageResizer is null) {
             return (base64Data, mimeType);
         }
 
-        try
-        {
+        try {
             var bytes = Convert.FromBase64String(base64Data);
             var extension = GetExtensionFromMimeType(mimeType);
 
@@ -721,18 +596,14 @@ public partial class McpClientToolHandlers : ServiceEntity
 
             var resizedBase64 = Convert.ToBase64String(result.Buffer);
             return (resizedBase64, result.MediaType);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to resize MCP image, using original");
             return (base64Data, mimeType);
         }
     }
 
-    private static string GetExtensionFromMimeType(string mimeType)
-    {
-        return mimeType switch
-        {
+    private static string GetExtensionFromMimeType(string mimeType) {
+        return mimeType switch {
             "image/png" => "png",
             "image/jpeg" or "image/jpg" => "jpg",
             "image/gif" => "gif",

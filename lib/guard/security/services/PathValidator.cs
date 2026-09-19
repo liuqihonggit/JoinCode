@@ -4,11 +4,9 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 路径验证器实现
 /// </summary>
 [Register(typeof(IPathValidator), ServiceLifetime.Singleton)]
-public sealed partial class PathValidator : ServiceEntity, IPathValidator
-{
+public sealed partial class PathValidator : ServiceEntity, IPathValidator {
     // 路径逃逸模式字典
-    private static readonly FrozenDictionary<string, string> PathEscapePatterns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly FrozenDictionary<string, string> PathEscapePatterns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
         [".."] = "Parent directory traversal",
         ["~"] = "Home directory reference",
         ["/etc/"] = "System configuration directory",
@@ -47,37 +45,30 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
     }.ToFrozenSet();
 
     /// <inheritdoc />
-    public ValidationResult ValidatePaths(ShellCommand command, string workingDirectory)
-    {
-        if (string.IsNullOrWhiteSpace(workingDirectory))
-        {
+    public ValidationResult ValidatePaths(ShellCommand command, string workingDirectory) {
+        if (string.IsNullOrWhiteSpace(workingDirectory)) {
             return ValidationResult.Invalid("Working directory is not specified");
         }
 
         var normalizedWorkingDir = NormalizePath(workingDirectory);
 
-        foreach (var path in command.ReferencedPaths)
-        {
+        foreach (var path in command.ReferencedPaths) {
             // 检查路径逃逸模式
-            foreach (var pattern in PathEscapePatterns)
-            {
-                if (path.Contains(pattern.Key, StringComparison.OrdinalIgnoreCase))
-                {
+            foreach (var pattern in PathEscapePatterns) {
+                if (path.Contains(pattern.Key, StringComparison.OrdinalIgnoreCase)) {
                     return ValidationResult.Invalid(
                         $"Path '{path}' contains escape pattern: {pattern.Value}");
                 }
             }
 
             // 检查是否为危险绝对路径
-            if (IsDangerousAbsolutePath(path))
-            {
+            if (IsDangerousAbsolutePath(path)) {
                 return ValidationResult.Invalid(
                     $"Path '{path}' references a dangerous system location");
             }
 
             // 检查是否在工作区内
-            if (!IsPathWithinWorkspace(path, normalizedWorkingDir))
-            {
+            if (!IsPathWithinWorkspace(path, normalizedWorkingDir)) {
                 return ValidationResult.Invalid(
                     $"Path '{path}' is outside the working directory '{workingDirectory}'");
             }
@@ -87,10 +78,8 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
     }
 
     /// <inheritdoc />
-    public bool IsPathWithinWorkspace(string path, string workingDirectory)
-    {
-        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(workingDirectory))
-        {
+    public bool IsPathWithinWorkspace(string path, string workingDirectory) {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(workingDirectory)) {
             return false;
         }
 
@@ -98,14 +87,11 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
 
         // 如果是相对路径，先与工作目录组合，再解析
         string normalizedPath;
-        if (!IsAbsolutePath(path))
-        {
+        if (!IsAbsolutePath(path)) {
             // 使用 Path.Combine 将相对路径与工作目录组合
             var combinedPath = Path.Combine(normalizedWorkingDir, path);
             normalizedPath = NormalizePathWithBase(combinedPath);
-        }
-        else
-        {
+        } else {
             normalizedPath = NormalizePath(path);
         }
 
@@ -113,10 +99,8 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
         return normalizedPath.StartsWith(normalizedWorkingDir, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsDangerousAbsolutePath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
+    private static bool IsDangerousAbsolutePath(string path) {
+        if (string.IsNullOrWhiteSpace(path)) {
             return false;
         }
 
@@ -124,32 +108,26 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
             path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool IsAbsolutePath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
+    private static bool IsAbsolutePath(string path) {
+        if (string.IsNullOrWhiteSpace(path)) {
             return false;
         }
 
         // Windows 绝对路径
-        if (path.Length >= 2 && char.IsLetter(path[0]) && path[1] == ':')
-        {
+        if (path.Length >= 2 && char.IsLetter(path[0]) && path[1] == ':') {
             return true;
         }
 
         // Unix 绝对路径
-        if (path.StartsWith('/'))
-        {
+        if (path.StartsWith('/')) {
             return true;
         }
 
         return false;
     }
 
-    private static string NormalizePath(string path, ILogger? logger = null)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
+    private static string NormalizePath(string path, ILogger? logger = null) {
+        if (string.IsNullOrWhiteSpace(path)) {
             return path;
         }
 
@@ -160,18 +138,14 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
         // 移除末尾的路径分隔符（除了根路径）
         if (normalized.Length > 1 &&
             (normalized.EndsWith(Path.DirectorySeparatorChar) ||
-             normalized.EndsWith('/')))
-        {
+             normalized.EndsWith('/'))) {
             normalized = normalized.TrimEnd(Path.DirectorySeparatorChar, '/');
         }
 
         // 解析 . 和 ..
-        try
-        {
+        try {
             normalized = Path.GetFullPath(normalized);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 如果无法解析，返回原路径（如路径格式无效）
             logger?.LogWarning(ex, "Path normalization failed for '{Normalized}'", normalized);
         }
@@ -182,10 +156,8 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
     /// <summary>
     /// 使用基础路径规范化路径（用于已经组合好的路径）
     /// </summary>
-    private static string NormalizePathWithBase(string path, ILogger? logger = null)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
+    private static string NormalizePathWithBase(string path, ILogger? logger = null) {
+        if (string.IsNullOrWhiteSpace(path)) {
             return path;
         }
 
@@ -196,18 +168,14 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
         // 移除末尾的路径分隔符（除了根路径）
         if (normalized.Length > 1 &&
             (normalized.EndsWith(Path.DirectorySeparatorChar) ||
-             normalized.EndsWith('/')))
-        {
+             normalized.EndsWith('/'))) {
             normalized = normalized.TrimEnd(Path.DirectorySeparatorChar, '/');
         }
 
         // 解析 . 和 ..
-        try
-        {
+        try {
             normalized = Path.GetFullPath(normalized);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 如果无法解析，返回原路径（如路径格式无效）
             logger?.LogWarning(ex, "Path normalization failed for '{Normalized}'", normalized);
         }

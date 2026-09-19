@@ -4,8 +4,7 @@ namespace MockServer.E2E.Tests;
 /// 扩展/Bridge/平台/社交/生成 聊天命令 E2E 覆盖测试 — 拆分自 ChatCommandAdvancedCoverageTests 以启用 xUnit 集合并行
 /// 包含 目标与主动 (2) + 扩展与集成 (5) + Bridge (2) + 平台集成 (4) + 社交与反馈 (5) + 简化模式 (1) + 生成与协作 (3) = 22 个测试
 /// </summary>
-public sealed class ChatCommandExtendedCoverageTests : CoverageTestBase
-{
+public sealed class ChatCommandExtendedCoverageTests : CoverageTestBase {
     public ChatCommandExtendedCoverageTests(ITestOutputHelper output) : base(output) { }
 
     // ============================================================
@@ -13,14 +12,12 @@ public sealed class ChatCommandExtendedCoverageTests : CoverageTestBase
     // ============================================================
 
     [Fact]
-    public async Task GoalCommand_ShouldShowGoalStatus()
-    {
+    public async Task GoalCommand_ShouldShowGoalStatus() {
         await RunScriptAsync(ChatCommandConversationScripts.GoalCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ProactiveCommand_ShouldNotHang()
-    {
+    public async Task ProactiveCommand_ShouldNotHang() {
         await RunScriptAsync(ChatCommandConversationScripts.ProactiveCommand).ConfigureAwait(true);
     }
 
@@ -29,32 +26,27 @@ public sealed class ChatCommandExtendedCoverageTests : CoverageTestBase
     // ============================================================
 
     [Fact]
-    public async Task McpCommand_ShouldListServers()
-    {
+    public async Task McpCommand_ShouldListServers() {
         await RunScriptAsync(ChatCommandConversationScripts.McpCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task HooksCommand_ShouldListHooks()
-    {
+    public async Task HooksCommand_ShouldListHooks() {
         await RunScriptAsync(ChatCommandConversationScripts.HooksCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task SkillsCommand_ShouldListSkills()
-    {
+    public async Task SkillsCommand_ShouldListSkills() {
         await RunScriptAsync(ChatCommandConversationScripts.SkillsCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task PluginCommand_ShouldListPlugins()
-    {
+    public async Task PluginCommand_ShouldListPlugins() {
         await RunScriptAsync(ChatCommandConversationScripts.PluginCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task InstallCommand_ShouldShowInstallGuide()
-    {
+    public async Task InstallCommand_ShouldShowInstallGuide() {
         await RunScriptAsync(ChatCommandConversationScripts.InstallCommand).ConfigureAwait(true);
     }
 
@@ -63,14 +55,12 @@ public sealed class ChatCommandExtendedCoverageTests : CoverageTestBase
     // ============================================================
 
     [Fact]
-    public async Task BridgeCommand_ShouldShowBridgeStatus()
-    {
+    public async Task BridgeCommand_ShouldShowBridgeStatus() {
         await RunScriptAsync(ChatCommandConversationScripts.BridgeCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BridgeKickCommand_ShouldShowUsage()
-    {
+    public async Task BridgeKickCommand_ShouldShowUsage() {
         await RunScriptAsync(ChatCommandConversationScripts.BridgeKickCommand).ConfigureAwait(true);
     }
 
@@ -79,26 +69,22 @@ public sealed class ChatCommandExtendedCoverageTests : CoverageTestBase
     // ============================================================
 
     [Fact]
-    public async Task ChromeCommand_ShouldNotHang()
-    {
+    public async Task ChromeCommand_ShouldNotHang() {
         await RunScriptAsync(ChatCommandConversationScripts.ChromeCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task IdeCommand_ShouldNotHang()
-    {
+    public async Task IdeCommand_ShouldNotHang() {
         await RunScriptAsync(ChatCommandConversationScripts.IdeCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task DesktopCommand_ShouldNotHang()
-    {
+    public async Task DesktopCommand_ShouldNotHang() {
         await RunScriptAsync(ChatCommandConversationScripts.DesktopCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task MobileCommand_ShouldNotHang()
-    {
+    public async Task MobileCommand_ShouldNotHang() {
         await RunScriptAsync(ChatCommandConversationScripts.MobileCommand).ConfigureAwait(true);
     }
 
@@ -107,32 +93,27 @@ public sealed class ChatCommandExtendedCoverageTests : CoverageTestBase
     // ============================================================
 
     [Fact]
-    public async Task BtwCommand_ShouldShowUsage()
-    {
+    public async Task BtwCommand_ShouldShowUsage() {
         await RunScriptAsync(ChatCommandConversationScripts.BtwCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task FeedbackCommand_ShouldShowFeedbackPrompt()
-    {
+    public async Task FeedbackCommand_ShouldShowFeedbackPrompt() {
         await RunScriptAsync(ChatCommandConversationScripts.FeedbackCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ShareCommand_ShouldGenerateShareContent()
-    {
+    public async Task ShareCommand_ShouldGenerateShareContent() {
         await RunScriptAsync(ChatCommandConversationScripts.ShareCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task VoiceCommand_ShouldNotHang()
-    {
+    public async Task VoiceCommand_ShouldNotHang() {
         await RunScriptAsync(ChatCommandConversationScripts.VoiceCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task StickersCommand_ShouldNotHang()
-    {
+    public async Task StickersCommand_ShouldNotHang() {
         await RunScriptAsync(ChatCommandConversationScripts.StickersCommand).ConfigureAwait(true);
     }
 
@@ -141,8 +122,7 @@ public sealed class ChatCommandExtendedCoverageTests : CoverageTestBase
     // ============================================================
 
     [Fact]
-    public async Task SimpleCommand_ShouldToggleSimpleMode()
-    {
+    public async Task SimpleCommand_ShouldToggleSimpleMode() {
         await RunScriptAsync(ChatCommandConversationScripts.SimpleCommand).ConfigureAwait(true);
     }
 
@@ -151,20 +131,17 @@ public sealed class ChatCommandExtendedCoverageTests : CoverageTestBase
     // ============================================================
 
     [Fact]
-    public async Task GenerateCommand_ShouldNotHang()
-    {
+    public async Task GenerateCommand_ShouldNotHang() {
         await RunScriptAsync(ChatCommandConversationScripts.GenerateCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task PeersCommand_ShouldShowPeerStatus()
-    {
+    public async Task PeersCommand_ShouldShowPeerStatus() {
         await RunScriptAsync(ChatCommandConversationScripts.PeersCommand).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task InstallGitHubAppCommand_ShouldCheckGitHubCli()
-    {
+    public async Task InstallGitHubAppCommand_ShouldCheckGitHubCli() {
         await RunScriptAsync(ChatCommandConversationScripts.InstallGitHubAppCommand).ConfigureAwait(true);
     }
 }

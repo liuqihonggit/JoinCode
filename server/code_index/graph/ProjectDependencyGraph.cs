@@ -4,8 +4,7 @@ namespace JoinCode.CodeIndex;
 /// 项目依赖图 — 重写为基于 InMemoryIndexStore 的实时查询
 /// store 已维护 Projects/ProjectRefs/NuGetRefs 数据,无需额外缓存层
 /// </summary>
-public sealed class ProjectDependencyGraph : IProjectDependencyGraph
-{
+public sealed class ProjectDependencyGraph : IProjectDependencyGraph {
     private readonly InMemoryIndexStore _store;
     private int _cacheVersion;
 
@@ -13,8 +12,7 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     /// 构造项目依赖图
     /// </summary>
     /// <param name="store">内存索引存储</param>
-    public ProjectDependencyGraph(InMemoryIndexStore store)
-    {
+    public ProjectDependencyGraph(InMemoryIndexStore store) {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
     }
@@ -22,8 +20,7 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     /// <summary>
     /// 使缓存失效 — 递增缓存版本号强制下次查询重新读取
     /// </summary>
-    internal void InvalidateCache()
-    {
+    internal void InvalidateCache() {
         Interlocked.Increment(ref _cacheVersion);
     }
 
@@ -33,8 +30,7 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     /// <param name="projectPath">项目路径</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>项目引用边列表</returns>
-    public Task<IReadOnlyList<ProjectReferenceEdge>> GetProjectDependenciesAsync(string projectPath, CancellationToken ct)
-    {
+    public Task<IReadOnlyList<ProjectReferenceEdge>> GetProjectDependenciesAsync(string projectPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(projectPath);
 
         var normalized = ResolveProjectPath(projectPath);
@@ -51,8 +47,7 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     /// <param name="projectPath">项目路径</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>项目引用边列表</returns>
-    public Task<IReadOnlyList<ProjectReferenceEdge>> GetProjectDependentsAsync(string projectPath, CancellationToken ct)
-    {
+    public Task<IReadOnlyList<ProjectReferenceEdge>> GetProjectDependentsAsync(string projectPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(projectPath);
 
         var normalized = ResolveProjectPath(projectPath);
@@ -70,15 +65,13 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     /// <param name="filePath">文件路径</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>受影响的项目路径列表</returns>
-    public async Task<IReadOnlyList<string>> GetAffectedProjectsAsync(string filePath, CancellationToken ct)
-    {
+    public async Task<IReadOnlyList<string>> GetAffectedProjectsAsync(string filePath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePath);
 
         var normalized = NormalizePath(filePath);
         var owningProject = await FindOwningProjectAsync(normalized, ct).ConfigureAwait(false);
 
-        if (owningProject is null)
-        {
+        if (owningProject is null) {
             return Array.Empty<string>();
         }
 
@@ -90,18 +83,15 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
         visited.Add(owningProject);
         queue.Enqueue(owningProject);
 
-        while (queue.Count > 0)
-        {
+        while (queue.Count > 0) {
             var current = queue.Dequeue();
             var dependents = _store.ProjectRefs.Values
                 .SelectMany(v => v)
                 .Where(e => NormalizePath(e.TargetProjectPath) == current)
                 .Select(e => e.SourceProjectPath);
 
-            foreach (var dep in dependents)
-            {
-                if (visited.Add(dep))
-                {
+            foreach (var dep in dependents) {
+                if (visited.Add(dep)) {
                     queue.Enqueue(dep);
                 }
             }
@@ -117,8 +107,7 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     /// <param name="projectPath">项目路径</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>NuGet 包引用列表</returns>
-    public Task<IReadOnlyList<NuGetPackageReference>> GetProjectNuGetPackagesAsync(string projectPath, CancellationToken ct)
-    {
+    public Task<IReadOnlyList<NuGetPackageReference>> GetProjectNuGetPackagesAsync(string projectPath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(projectPath);
 
         var normalized = ResolveProjectPath(projectPath);
@@ -135,8 +124,7 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     /// <param name="packageName">NuGet 包名</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>项目路径列表</returns>
-    public Task<IReadOnlyList<string>> GetProjectsUsingNuGetPackageAsync(string packageName, CancellationToken ct)
-    {
+    public Task<IReadOnlyList<string>> GetProjectsUsingNuGetPackageAsync(string packageName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(packageName);
 
         using var scope = _store.EnterReadLock();
@@ -154,8 +142,7 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>项目信息列表</returns>
-    public Task<IReadOnlyList<ProjectInfo>> GetAllProjectsAsync(CancellationToken ct)
-    {
+    public Task<IReadOnlyList<ProjectInfo>> GetAllProjectsAsync(CancellationToken ct) {
         using var scope = _store.EnterReadLock();
         return Task.FromResult<IReadOnlyList<ProjectInfo>>(_store.Projects.Values.ToList());
     }
@@ -166,30 +153,24 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     /// <param name="filePath">文件路径</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>所属项目路径；null 表示未找到</returns>
-    internal Task<string?> FindOwningProjectAsync(string filePath, CancellationToken ct)
-    {
+    internal Task<string?> FindOwningProjectAsync(string filePath, CancellationToken ct) {
         var normalizedFilePath = NormalizePath(filePath);
 
         using var scope = _store.EnterReadLock();
         string? bestMatch = null;
         var bestLength = 0;
 
-        foreach (var project in _store.Projects.Values)
-        {
+        foreach (var project in _store.Projects.Values) {
             var projectDir = Path.GetDirectoryName(project.FilePath);
             bool isMatch;
 
-            if (string.IsNullOrEmpty(projectDir))
-            {
+            if (string.IsNullOrEmpty(projectDir)) {
                 isMatch = string.Equals(normalizedFilePath, NormalizePath(project.FilePath), StringComparison.OrdinalIgnoreCase);
-            }
-            else
-            {
+            } else {
                 isMatch = normalizedFilePath.StartsWith(NormalizePath(projectDir), StringComparison.OrdinalIgnoreCase);
             }
 
-            if (isMatch && project.FilePath.Length > bestLength)
-            {
+            if (isMatch && project.FilePath.Length > bestLength) {
                 bestMatch = project.FilePath;
                 bestLength = project.FilePath.Length;
             }
@@ -198,31 +179,26 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
         return Task.FromResult(bestMatch);
     }
 
-    private static string NormalizePath(string path)
-    {
+    private static string NormalizePath(string path) {
         return path.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
     }
 
     /// <summary>
     /// 解析项目路径: 如果是相对路径,在 store 中查找以该路径结尾的绝对路径; 否则规范化
     /// </summary>
-    private string ResolveProjectPath(string projectPath)
-    {
+    private string ResolveProjectPath(string projectPath) {
         var normalized = NormalizePath(projectPath);
 
         // 绝对路径直接返回
-        if (Path.IsPathRooted(normalized))
-        {
+        if (Path.IsPathRooted(normalized)) {
             return normalized;
         }
 
         // 相对路径: 在 store 中查找以该路径结尾的项目
         using var scope = _store.EnterReadLock();
-        foreach (var key in _store.Projects.Keys)
-        {
+        foreach (var key in _store.Projects.Keys) {
             var normalizedKey = NormalizePath(key);
-            if (normalizedKey.EndsWith(normalized, StringComparison.OrdinalIgnoreCase))
-            {
+            if (normalizedKey.EndsWith(normalized, StringComparison.OrdinalIgnoreCase)) {
                 return normalizedKey;
             }
         }

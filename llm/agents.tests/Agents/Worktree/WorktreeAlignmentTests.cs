@@ -1,69 +1,59 @@
 namespace JoinCode.Agents.Tests.Worktree;
 
-public class WorktreeAlignmentTests
-{
+public class WorktreeAlignmentTests {
     [Fact]
-    public void ParsePRReference_ShouldParseHashFormat()
-    {
+    public void ParsePRReference_ShouldParseHashFormat() {
         var result = AgentWorktreeSession.ParsePRReference("#123");
         result.Should().Be(123);
     }
 
     [Fact]
-    public void ParsePRReference_ShouldParseGitHubUrl()
-    {
+    public void ParsePRReference_ShouldParseGitHubUrl() {
         var result = AgentWorktreeSession.ParsePRReference("https://github.com/owner/repo/pull/456");
         result.Should().Be(456);
     }
 
     [Fact]
-    public void ParsePRReference_ShouldParseGitHubUrlWithTrailingSlash()
-    {
+    public void ParsePRReference_ShouldParseGitHubUrlWithTrailingSlash() {
         var result = AgentWorktreeSession.ParsePRReference("https://github.com/owner/repo/pull/789/");
         result.Should().Be(789);
     }
 
     [Fact]
-    public void ParsePRReference_ShouldReturnNullForNonPR()
-    {
+    public void ParsePRReference_ShouldReturnNullForNonPR() {
         AgentWorktreeSession.ParsePRReference("feature-branch").Should().BeNull();
         AgentWorktreeSession.ParsePRReference("").Should().BeNull();
         AgentWorktreeSession.ParsePRReference("123").Should().BeNull();
     }
 
     [Fact]
-    public void GenerateBranchName_ShouldFlattenSlashes()
-    {
+    public void GenerateBranchName_ShouldFlattenSlashes() {
         var result = AgentWorktreeSession.GenerateBranchName("user/feature");
         result.Should().Be("worktree-user+feature");
     }
 
     [Fact]
-    public void GenerateBranchName_ShouldNotTruncate()
-    {
+    public void GenerateBranchName_ShouldNotTruncate() {
         var longId = new string('a', 64);
         var result = AgentWorktreeSession.GenerateBranchName(longId);
         result.Should().Be($"worktree-{longId}");
     }
 
     [Fact]
-    public void GenerateBranchName_ShouldFlattenBackslashes()
-    {
+    public void GenerateBranchName_ShouldFlattenBackslashes() {
         var result = AgentWorktreeSession.GenerateBranchName("user\\feature");
         result.Should().Be("worktree-user+feature");
     }
 
     [Fact]
-    public void GenerateWorktreePath_ShouldUseJccWorktreesDir()
-    {
+    public void GenerateWorktreePath_ShouldUseJccWorktreesDir() {
         var result = AgentWorktreeSession.GenerateWorktreePath("/home/user/project", "my-agent");
         var normalized = result.Replace('\\', '/');
         normalized.Should().Be("/home/user/project/.jcc/worktrees/my-agent");
     }
 
     [Fact]
-    public void GenerateWorktreePath_ShouldFlattenSlashes()
-    {
+    public void GenerateWorktreePath_ShouldFlattenSlashes() {
         var result = AgentWorktreeSession.GenerateWorktreePath("/home/user/project", "user/feature");
         var normalized = result.Replace('\\', '/');
         normalized.Should().Be("/home/user/project/.jcc/worktrees/user+feature");
@@ -79,40 +69,33 @@ public class WorktreeAlignmentTests
     [InlineData("my-feature", false)]
     [InlineData("work-main", false)]
     [InlineData("wf-myfeature", false)]
-    public void EphemeralPatterns_ShouldMatchCorrectly(string dirName, bool expectedMatch)
-    {
+    public void EphemeralPatterns_ShouldMatchCorrectly(string dirName, bool expectedMatch) {
         var opts = new WorktreeOptions();
-        var isEphemeral = opts.EphemeralPatterns.Any(pattern =>
-        {
-            try { return System.Text.RegularExpressions.Regex.IsMatch(dirName, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase); }
-            catch { return false; }
+        var isEphemeral = opts.EphemeralPatterns.Any(pattern => {
+            try { return System.Text.RegularExpressions.Regex.IsMatch(dirName, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase); } catch { return false; }
         });
         isEphemeral.Should().Be(expectedMatch);
     }
 
     [Fact]
-    public void WorktreeOptions_PrNumber_ShouldDefaultToNull()
-    {
+    public void WorktreeOptions_PrNumber_ShouldDefaultToNull() {
         var opts = new WorktreeOptions();
         opts.PrNumber.Should().BeNull();
     }
 
     [Fact]
-    public void WorktreeOptions_PrNumber_ShouldBeSettable()
-    {
+    public void WorktreeOptions_PrNumber_ShouldBeSettable() {
         var opts = new WorktreeOptions { PrNumber = 42 };
         opts.PrNumber.Should().Be(42);
     }
 
     [Fact]
-    public async Task KeepWorktreeAsync_ShouldRemoveSessionButKeepDirectory()
-    {
+    public async Task KeepWorktreeAsync_ShouldRemoveSessionButKeepDirectory() {
         var fs = new InMemoryFileOperationService();
         var gitRunner = new Mock<IGitCommandRunner>();
         var service = new AgentWorktreeService(fs, gitRunner.Object, fs.FileSystem);
 
-        var session = new AgentWorktreeSession
-        {
+        var session = new AgentWorktreeSession {
             AgentId = "test-agent",
             OriginalCwd = "/home/user/project",
             WorktreePath = "/home/user/project/.jcc/worktrees/test-agent",

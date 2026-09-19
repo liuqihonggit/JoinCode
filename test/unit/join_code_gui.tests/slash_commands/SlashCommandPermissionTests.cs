@@ -3,11 +3,9 @@ namespace JoinCode.Gui.Tests.SlashCommands;
 /// <summary>
 /// 斜杠命令权限过滤测试 — 验证 IsEnabled=false 的命令从候选面板排除。
 /// </summary>
-public class SlashCommandPermissionTests
-{
+public class SlashCommandPermissionTests {
     [Fact]
-    public void Filter_ExcludesDisabledCommands()
-    {
+    public void Filter_ExcludesDisabledCommands() {
         var commands = new List<SlashCommandItem>
         {
             new() { Name = "/apple", Description = "", IsEnabled = true },
@@ -22,8 +20,7 @@ public class SlashCommandPermissionTests
     }
 
     [Fact]
-    public void Filter_AllEnabled_ReturnsAll()
-    {
+    public void Filter_AllEnabled_ReturnsAll() {
         var commands = new List<SlashCommandItem>
         {
             new() { Name = "/apple", Description = "" },
@@ -35,8 +32,7 @@ public class SlashCommandPermissionTests
     }
 
     [Fact]
-    public void Filter_AllDisabled_ReturnsEmpty()
-    {
+    public void Filter_AllDisabled_ReturnsEmpty() {
         var commands = new List<SlashCommandItem>
         {
             new() { Name = "/apple", Description = "", IsEnabled = false },
@@ -48,8 +44,7 @@ public class SlashCommandPermissionTests
     }
 
     [Fact]
-    public void FromMetadata_MapsIsEnabled()
-    {
+    public void FromMetadata_MapsIsEnabled() {
         var metadata = new List<SlashCommandMetadata>
         {
             new() { Name = "clear", Description = "", IsEnabled = true },
@@ -62,8 +57,7 @@ public class SlashCommandPermissionTests
     }
 
     [Fact]
-    public void FromMetadata_DefaultIsEnabledTrue()
-    {
+    public void FromMetadata_DefaultIsEnabledTrue() {
         var metadata = new List<SlashCommandMetadata>
         {
             new() { Name = "clear", Description = "" }

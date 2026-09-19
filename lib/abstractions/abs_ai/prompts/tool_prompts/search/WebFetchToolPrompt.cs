@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// WebFetch工具提示词
 /// </summary>
 [ToolPrompt(ToolName = WebToolName.WebFetch, Category = ToolPromptCategory.Search, HasParameters = true)]
-public static class WebFetchToolPrompt
-{
+public static class WebFetchToolPrompt {
     public static string GetDescription() => """
         - 从指定URL获取内容并使用AI模型处理它
         - 将URL和提示词作为输入
@@ -29,8 +28,7 @@ public static class WebFetchToolPrompt
     public static string MakeSecondaryModelPrompt(
         string markdownContent,
         string prompt,
-        bool isPreapprovedDomain)
-    {
+        bool isPreapprovedDomain) {
         var guidelines = isPreapprovedDomain
             ? "根据上述内容提供简洁的回复。根据需要包括相关详细信息、代码示例和文档摘录。"
             : GetNonPreapprovedGuidelines();
@@ -47,8 +45,7 @@ public static class WebFetchToolPrompt
             """;
     }
 
-    private static string GetNonPreapprovedGuidelines()
-    {
+    private static string GetNonPreapprovedGuidelines() {
         return """
             根据上述内容提供简洁的回复。在您的回复中：
              - 对任何源文档的引用强制执行严格的125字符最大值。开源软件可以，只要我们尊重许可证。

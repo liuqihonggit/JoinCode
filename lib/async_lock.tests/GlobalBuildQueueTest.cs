@@ -3,14 +3,11 @@ namespace Core.Utils;
 /// <summary>
 /// GlobalBuildQueue 单元测试 — 验证串行执行、背压、取消、队列状态。
 /// </summary>
-public class GlobalBuildQueueTest
-{
+public class GlobalBuildQueueTest {
     [Fact]
-    public async Task EnqueueAsync_SingleRequest_ExecutedSuccessfully()
-    {
+    public async Task EnqueueAsync_SingleRequest_ExecutedSuccessfully() {
         await using var queue = new GlobalBuildQueue(static (req, ct) =>
-            ValueTask.FromResult(new GlobalBuildResult
-            {
+            ValueTask.FromResult(new GlobalBuildResult {
                 RequestId = req.RequestId,
                 Success = true,
                 Output = "build ok",
@@ -25,15 +22,12 @@ public class GlobalBuildQueueTest
     }
 
     [Fact]
-    public async Task EnqueueAsync_MultipleRequests_ExecutedSerially()
-    {
+    public async Task EnqueueAsync_MultipleRequests_ExecutedSerially() {
         var executionOrder = new ConcurrentQueue<string>();
 
-        await using var queue = new GlobalBuildQueue((req, ct) =>
-        {
+        await using var queue = new GlobalBuildQueue((req, ct) => {
             executionOrder.Enqueue(req.RequestId);
-            return ValueTask.FromResult(new GlobalBuildResult
-            {
+            return ValueTask.FromResult(new GlobalBuildResult {
                 RequestId = req.RequestId,
                 Success = true,
                 Output = "",
@@ -55,8 +49,7 @@ public class GlobalBuildQueueTest
     }
 
     [Fact]
-    public async Task EnqueueAsync_ExecutorThrows_ReturnsFailedResult()
-    {
+    public async Task EnqueueAsync_ExecutorThrows_ReturnsFailedResult() {
         await using var queue = new GlobalBuildQueue((req, ct) =>
             throw new InvalidOperationException("build failed"));
 
@@ -68,14 +61,11 @@ public class GlobalBuildQueueTest
     }
 
     [Fact]
-    public async Task CurrentBuild_SetDuringExecution_NullAfterCompletion()
-    {
+    public async Task CurrentBuild_SetDuringExecution_NullAfterCompletion() {
         var tcs = new TaskCompletionSource();
-        await using var queue = new GlobalBuildQueue(async (req, ct) =>
-        {
+        await using var queue = new GlobalBuildQueue(async (req, ct) => {
             await tcs.Task;
-            return new GlobalBuildResult
-            {
+            return new GlobalBuildResult {
                 RequestId = req.RequestId,
                 Success = true,
                 Output = "",
@@ -97,11 +87,9 @@ public class GlobalBuildQueueTest
     }
 
     [Fact]
-    public async Task GetQueueState_ReturnsCurrentState()
-    {
+    public async Task GetQueueState_ReturnsCurrentState() {
         await using var queue = new GlobalBuildQueue(static (req, ct) =>
-            ValueTask.FromResult(new GlobalBuildResult
-            {
+            ValueTask.FromResult(new GlobalBuildResult {
                 RequestId = req.RequestId,
                 Success = true,
                 Output = "",
@@ -120,11 +108,9 @@ public class GlobalBuildQueueTest
     }
 
     [Fact]
-    public async Task OutputAsync_ProducesBuildEvents()
-    {
+    public async Task OutputAsync_ProducesBuildEvents() {
         await using var queue = new GlobalBuildQueue(static (req, ct) =>
-            ValueTask.FromResult(new GlobalBuildResult
-            {
+            ValueTask.FromResult(new GlobalBuildResult {
                 RequestId = req.RequestId,
                 Success = true,
                 Output = "ok",
@@ -133,8 +119,7 @@ public class GlobalBuildQueueTest
 
         var events = new List<GlobalBuildEvent>();
         var cts = new CancellationTokenSource();
-        var consumeTask = Task.Run(async () =>
-        {
+        var consumeTask = Task.Run(async () => {
             await foreach (var evt in queue.OutputAsync(cts.Token))
                 events.Add(evt);
         }, cts.Token);
@@ -151,19 +136,16 @@ public class GlobalBuildQueueTest
         events.Should().Contain(e => e is GlobalBuildCompletedEvt);
     }
 
-    private static GlobalBuildRequest CreateRequest(string id) => new()
-    {
+    private static GlobalBuildRequest CreateRequest(string id) => new() {
         RequestId = id,
         ProjectPath = "test.csproj",
         Arguments = Array.Empty<string>(),
         RequestingProcessId = Environment.ProcessId.ToString()
     };
 
-    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan timeout)
-    {
+    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan timeout) {
         var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
+        while (DateTime.UtcNow < deadline) {
             if (predicate()) return;
             await Task.Delay(50);
         }

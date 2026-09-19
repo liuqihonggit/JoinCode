@@ -4,8 +4,7 @@ namespace JoinCode.Cli.Output;
 /// CLI 输出契约 — stdout 结构化 JSON 输出模型
 /// 对齐架构指南：stdout 只输出结构化数据 {ok, data, meta, schema_version}
 /// </summary>
-public sealed class CliOutputEnvelope
-{
+public sealed class CliOutputEnvelope {
     /// <summary>操作是否成功</summary>
     public bool Ok { get; init; }
 
@@ -44,8 +43,7 @@ public sealed class CliOutputEnvelope
 /// <summary>
 /// 输出元数据 — 非业务数据，辅助消费方理解上下文
 /// </summary>
-public sealed class CliOutputMeta
-{
+public sealed class CliOutputMeta {
     /// <summary>CLI 版本号</summary>
     public string? Version { get; init; }
 

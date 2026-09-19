@@ -5,8 +5,7 @@ namespace Core.Configuration.ModelFetch;
 /// 写入用 FileShare.ReadWrite 避免与 jcc 内部并发的文件读取冲突
 /// 写回前调用 IConfigChangeNotifier.MarkInternalWrite 防抖，避免自身写入触发循环刷新
 /// </summary>
-public sealed class SettingsJsonModelWriter
-{
+public sealed class SettingsJsonModelWriter {
     private readonly IFileSystem _fs;
     private readonly IConfigChangeNotifier? _changeNotifier;
     private readonly ILogger<SettingsJsonModelWriter>? _logger;
@@ -14,8 +13,7 @@ public sealed class SettingsJsonModelWriter
     /// <summary>
     /// 构造函数 — 注入文件系统、可选的配置变更通知器和日志器
     /// </summary>
-    public SettingsJsonModelWriter(IFileSystem fs, IConfigChangeNotifier? changeNotifier = null, ILogger<SettingsJsonModelWriter>? logger = null)
-    {
+    public SettingsJsonModelWriter(IFileSystem fs, IConfigChangeNotifier? changeNotifier = null, ILogger<SettingsJsonModelWriter>? logger = null) {
         _fs = fs;
         _changeNotifier = changeNotifier;
         _logger = logger;
@@ -30,17 +28,14 @@ public sealed class SettingsJsonModelWriter
     public async Task WriteAsync(
         SettingsJson settings,
         IReadOnlyDictionary<string, List<ModelItemConfig>> updates,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (updates.Count == 0) return;
         if (settings.Vendor is null) return;
 
         var newVendor = new Dictionary<string, ProfileSettings>(settings.Vendor, StringComparer.OrdinalIgnoreCase);
-        foreach (var (profile, models) in updates)
-        {
+        foreach (var (profile, models) in updates) {
             if (!newVendor.TryGetValue(profile, out var oldProfile)) continue;
-            newVendor[profile] = new ProfileSettings
-            {
+            newVendor[profile] = new ProfileSettings {
                 Provider = oldProfile.Provider,
                 Protocol = oldProfile.Protocol,
                 Model = oldProfile.Model,
@@ -51,8 +46,7 @@ public sealed class SettingsJsonModelWriter
             };
         }
 
-        var newSettings = new SettingsJson
-        {
+        var newSettings = new SettingsJson {
             Vendor = newVendor,
             Current = settings.Current,
             AutoFetchModels = settings.AutoFetchModels,
@@ -69,8 +63,7 @@ public sealed class SettingsJsonModelWriter
     /// <summary>
     /// 用 FileShare.ReadWrite 写入 — 允许其他线程同时读取，避免与 jcc 内部并发冲突
     /// </summary>
-    private async Task WriteWithSharedAccessAsync(string path, string content, CancellationToken cancellationToken)
-    {
+    private async Task WriteWithSharedAccessAsync(string path, string content, CancellationToken cancellationToken) {
         using var stream = _fs.CreateStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         using var writer = new StreamWriter(stream);
         await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);

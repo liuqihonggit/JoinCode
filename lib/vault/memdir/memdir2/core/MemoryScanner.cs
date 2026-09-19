@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// 记忆扫描器接口
 /// 发现和索引记忆文件
 /// </summary>
-public interface IMemoryScanner
-{
+public interface IMemoryScanner {
     /// <summary>
     /// 扫描所有记忆
     /// </summary>
@@ -35,8 +34,7 @@ public interface IMemoryScanner
 /// 记忆扫描器实现
 /// </summary>
 [Register(typeof(IMemoryScanner), ServiceLifetime.Singleton)]
-public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
-{
+public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner {
     private readonly IMemoryPaths _memoryPaths;
     private readonly ILogger<MemoryScanner>? _logger;
     private readonly IFileSystem _fs;
@@ -47,25 +45,21 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
     /// <param name="fs">文件系统抽象</param>
     /// <param name="memoryPaths">记忆路径解析器</param>
     /// <param name="logger">可选的日志记录器</param>
-    public MemoryScanner(IFileSystem fs, IMemoryPaths memoryPaths, ILogger<MemoryScanner>? logger = null)
-    {
+    public MemoryScanner(IFileSystem fs, IMemoryPaths memoryPaths, ILogger<MemoryScanner>? logger = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _memoryPaths = memoryPaths ?? throw new ArgumentNullException(nameof(memoryPaths));
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<MemoryEntry>> ScanAllAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<MemoryEntry>> ScanAllAsync(CancellationToken cancellationToken = default) {
         var allMemories = new ConcurrentBag<MemoryEntry>();
 
         // 扫描所有记忆类型
         var types = Enum.GetValues<MemoryType>();
-        var tasks = types.Select(type => Task.Run(async () =>
-        {
+        var tasks = types.Select(type => Task.Run(async () => {
             var memories = await ScanByTypeAsync(type, cancellationToken).ConfigureAwait(false);
-            foreach (var memory in memories)
-            {
+            foreach (var memory in memories) {
                 allMemories.Add(memory);
             }
         }, cancellationToken));
@@ -79,17 +73,14 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<MemoryEntry>> ScanByTypeAsync(MemoryType type, CancellationToken cancellationToken = default)
-    {
+    public Task<IReadOnlyList<MemoryEntry>> ScanByTypeAsync(MemoryType type, CancellationToken cancellationToken = default) {
         var directory = _memoryPaths.GetMemoryDirectoryByType(type);
         return ScanDirectoryAsync(directory, cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<MemoryEntry>> ScanDirectoryAsync(string directory, CancellationToken cancellationToken = default)
-    {
-        if (!_fs.DirectoryExists(directory))
-        {
+    public async Task<IReadOnlyList<MemoryEntry>> ScanDirectoryAsync(string directory, CancellationToken cancellationToken = default) {
+        if (!_fs.DirectoryExists(directory)) {
             _logger?.LogDebug("Memory directory does not exist: {Directory}", directory);
             return ImmutableList<MemoryEntry>.Empty;
         }
@@ -99,18 +90,13 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
 
         _logger?.LogDebug("Scanning {Count} memory files in {Directory}", files.Length, directory);
 
-        var tasks = files.Select(file => Task.Run(async () =>
-        {
-            try
-            {
+        var tasks = files.Select(file => Task.Run(async () => {
+            try {
                 var memory = await LoadMemoryAsync(file, cancellationToken).ConfigureAwait(false);
-                if (memory != null)
-                {
+                if (memory != null) {
                     memories.Add(memory);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "Failed to load memory from {File}", file);
             }
         }, cancellationToken));
@@ -123,12 +109,10 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
     /// <summary>
     /// 从文件加载记忆
     /// </summary>
-    private async Task<MemoryEntry?> LoadMemoryAsync(string filePath, CancellationToken cancellationToken)
-    {
+    private async Task<MemoryEntry?> LoadMemoryAsync(string filePath, CancellationToken cancellationToken) {
         var memory = await _fs.ReadAndDeserializeAsync(filePath, MemdirJsonContext.Default.MemoryEntry, cancellationToken).ConfigureAwait(false);
 
-        if (memory == null)
-        {
+        if (memory == null) {
             return null;
         }
 
@@ -136,8 +120,7 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
         var expectedFileName = $"{memory.Id}.json";
         var actualFileName = Path.GetFileName(filePath);
 
-        if (!string.Equals(expectedFileName, actualFileName, StringComparison.OrdinalIgnoreCase))
-        {
+        if (!string.Equals(expectedFileName, actualFileName, StringComparison.OrdinalIgnoreCase)) {
             _logger?.LogWarning(
                 "Memory ID mismatch: expected {Expected}, found {Actual} in {File}",
                 expectedFileName, actualFileName, filePath);
@@ -151,12 +134,10 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
     /// </summary>
     /// <param name="memories">待索引的记忆条目集合</param>
     /// <returns>构建完成的记忆索引</returns>
-    public MemoryIndex BuildIndex(IEnumerable<MemoryEntry> memories)
-    {
+    public MemoryIndex BuildIndex(IEnumerable<MemoryEntry> memories) {
         var index = new MemoryIndex();
 
-        foreach (var memory in memories)
-        {
+        foreach (var memory in memories) {
             // 按类型索引
             index.ByType.AddOrUpdate(
                 memory.Type,
@@ -164,8 +145,7 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
                 (_, list) => { list.Add(memory); return list; });
 
             // 按标签索引
-            foreach (var tag in memory.Tags)
-            {
+            foreach (var tag in memory.Tags) {
                 index.ByTag.AddOrUpdate(
                     tag,
                     new List<MemoryEntry> { memory },
@@ -173,8 +153,7 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
             }
 
             // 按来源索引
-            if (!string.IsNullOrEmpty(memory.Source))
-            {
+            if (!string.IsNullOrEmpty(memory.Source)) {
                 index.BySource.AddOrUpdate(
                     memory.Source,
                     new List<MemoryEntry> { memory },
@@ -195,8 +174,7 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
 /// <summary>
 /// 记忆索引
 /// </summary>
-public sealed partial class MemoryIndex
-{
+public sealed partial class MemoryIndex {
     /// <summary>
     /// 按类型索引
     /// </summary>
@@ -215,8 +193,7 @@ public sealed partial class MemoryIndex
     /// <summary>
     /// 查找特定类型的记忆
     /// </summary>
-    public IReadOnlyList<MemoryEntry> FindByType(MemoryType type)
-    {
+    public IReadOnlyList<MemoryEntry> FindByType(MemoryType type) {
         return ByType.TryGetValue(type, out var list)
             ? list.AsReadOnly()
             : Array.Empty<MemoryEntry>();
@@ -225,8 +202,7 @@ public sealed partial class MemoryIndex
     /// <summary>
     /// 查找特定标签的记忆
     /// </summary>
-    public IReadOnlyList<MemoryEntry> FindByTag(string tag)
-    {
+    public IReadOnlyList<MemoryEntry> FindByTag(string tag) {
         return ByTag.TryGetValue(tag, out var list)
             ? list.AsReadOnly()
             : Array.Empty<MemoryEntry>();
@@ -235,8 +211,7 @@ public sealed partial class MemoryIndex
     /// <summary>
     /// 查找特定来源的记忆
     /// </summary>
-    public IReadOnlyList<MemoryEntry> FindBySource(string source)
-    {
+    public IReadOnlyList<MemoryEntry> FindBySource(string source) {
         return BySource.TryGetValue(source, out var list)
             ? list.AsReadOnly()
             : Array.Empty<MemoryEntry>();
@@ -246,15 +221,13 @@ public sealed partial class MemoryIndex
 /// <summary>
 /// ConcurrentDictionary 扩展
 /// </summary>
-internal static class ConcurrentDictionaryExtensions
-{
+internal static class ConcurrentDictionaryExtensions {
     public static TValue AddOrUpdate<TKey, TValue>(
         this ConcurrentDictionary<TKey, TValue> dictionary,
         TKey key,
         TValue addValue,
         Func<TKey, TValue, TValue> updateValueFactory)
-        where TKey : notnull
-    {
+        where TKey : notnull {
         return dictionary.AddOrUpdate(key, addValue, updateValueFactory);
     }
 }

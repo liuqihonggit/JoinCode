@@ -4,22 +4,18 @@ namespace JoinCode.Abs.Tests.LLM.Chat;
 /// SubAgentEventChannel 测试 — AsyncLocal 环境通道的作用域/读写/完成语义。
 /// 模式对齐 SubAgentContext.Current（AsyncLocal 环境态），供 QueryLoop 与 Agent 中间件跨层桥接。
 /// </summary>
-public class SubAgentEventChannelTests
-{
+public class SubAgentEventChannelTests {
     [Fact]
-    public void EnterScope_SetsCurrent_AndRestoreRestoresPrevious()
-    {
+    public void EnterScope_SetsCurrent_AndRestoreRestoresPrevious() {
         SubAgentEventChannel.Current.Should().BeNull();
 
         var outer = new SubAgentEventChannel();
         var inner = new SubAgentEventChannel();
 
-        using (outer.EnterScope())
-        {
+        using (outer.EnterScope()) {
             SubAgentEventChannel.Current.Should().BeSameAs(outer);
 
-            using (inner.EnterScope())
-            {
+            using (inner.EnterScope()) {
                 SubAgentEventChannel.Current.Should().BeSameAs(inner);
             }
 
@@ -30,8 +26,7 @@ public class SubAgentEventChannelTests
     }
 
     [Fact]
-    public async Task TryEmit_TryRead_ShouldPreserveOrder()
-    {
+    public async Task TryEmit_TryRead_ShouldPreserveOrder() {
         using var scope = new SubAgentEventChannel().EnterScope();
         var channel = SubAgentEventChannel.Current!;
 
@@ -52,16 +47,14 @@ public class SubAgentEventChannelTests
     }
 
     [Fact]
-    public void Emit_WithoutScope_ShouldNotThrow()
-    {
+    public void Emit_WithoutScope_ShouldNotThrow() {
         // 无作用域时静默丢弃 — CLI/测试环境无 GUI 显示也不得崩溃
         var act = () => new SubAgentEventChannel().Emit(ChatStreamEvent.AgentStarted("a2"));
         act.Should().NotThrow();
     }
 
     [Fact]
-    public void TryDrain_ShouldReturnAllAndClear()
-    {
+    public void TryDrain_ShouldReturnAllAndClear() {
         using var scope = new SubAgentEventChannel().EnterScope();
         var channel = SubAgentEventChannel.Current!;
         channel.Emit(ChatStreamEvent.AgentStarted("a3"));

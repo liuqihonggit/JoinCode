@@ -6,8 +6,7 @@ namespace JoinCode.Transport;
 /// <remarks>
 /// 退避公式: backoffMs = Min(InitialBackoffMs * 2^(attempt-1), MaxBackoffMs)
 /// </remarks>
-public sealed class ReconnectPolicy
-{
+public sealed class ReconnectPolicy {
     /// <summary>最大重试次数</summary>
     public int MaxAttempts { get; init; } = 5;
 
@@ -23,8 +22,7 @@ public sealed class ReconnectPolicy
     /// <param name="attempt">当前重试次数（从1开始）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>true 表示继续重试，false 表示已达到最大次数</returns>
-    public async Task<bool> WaitAsync(int attempt, CancellationToken ct = default)
-    {
+    public async Task<bool> WaitAsync(int attempt, CancellationToken ct = default) {
         if (attempt > MaxAttempts) return false;
 
         var backoff = new ExponentialBackoff(

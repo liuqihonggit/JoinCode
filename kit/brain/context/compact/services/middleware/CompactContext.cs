@@ -3,8 +3,7 @@ namespace Core.Context.Compact;
 /// <summary>
 /// 压缩上下文 — 在中间件管道中流转的共享状态
 /// </summary>
-public sealed class CompactContext
-{
+public sealed class CompactContext {
     /// <summary>压缩请求</summary>
     public required CompactRequest Request { get; init; }
 

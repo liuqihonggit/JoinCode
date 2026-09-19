@@ -10,8 +10,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <item>plugin_info(resp_ptr, resp_cap) → int32 (可选)</item>
 /// </list>
 /// </summary>
-public static class NativePluginAbi
-{
+public static class NativePluginAbi {
     /// <summary>加载入口 — 传入 JSON 配置</summary>
     public const string EntryLoad = "plugin_load";
 
@@ -34,8 +33,7 @@ public static class NativePluginAbi
 /// <summary>
 /// Native 插件调用错误码 — plugin_invoke 返回负数时的具体含义
 /// </summary>
-public enum NativePluginError : int
-{
+public enum NativePluginError : int {
     /// <summary>成功</summary>
     [EnumValue("ok")]
     Ok = 0,
@@ -68,8 +66,7 @@ public enum NativePluginError : int
 /// <summary>
 /// Native 插件加载结果
 /// </summary>
-public readonly struct NativePluginLoadResult
-{
+public readonly struct NativePluginLoadResult {
     /// <summary>是否成功</summary>
     public bool IsSuccess { get; }
 
@@ -79,8 +76,7 @@ public readonly struct NativePluginLoadResult
     /// <summary>错误消息 (失败时)</summary>
     public string? ErrorMessage { get; }
 
-    private NativePluginLoadResult(bool isSuccess, NativePluginError error, string? errorMessage)
-    {
+    private NativePluginLoadResult(bool isSuccess, NativePluginError error, string? errorMessage) {
         IsSuccess = isSuccess;
         Error = error;
         ErrorMessage = errorMessage;
@@ -97,8 +93,7 @@ public readonly struct NativePluginLoadResult
 /// <summary>
 /// Native 插件调用结果 — 成功返回 JSON 响应，失败返回错误码
 /// </summary>
-public readonly struct NativePluginInvokeResult
-{
+public readonly struct NativePluginInvokeResult {
     /// <summary>是否成功</summary>
     public bool IsSuccess { get; }
 
@@ -111,8 +106,7 @@ public readonly struct NativePluginInvokeResult
     /// <summary>错误消息 (失败时)</summary>
     public string? ErrorMessage { get; }
 
-    private NativePluginInvokeResult(bool isSuccess, string? responseJson, NativePluginError error, string? errorMessage)
-    {
+    private NativePluginInvokeResult(bool isSuccess, string? responseJson, NativePluginError error, string? errorMessage) {
         IsSuccess = isSuccess;
         ResponseJson = responseJson;
         Error = error;

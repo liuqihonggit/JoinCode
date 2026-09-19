@@ -4,8 +4,7 @@ namespace Core.Security.Sandbox;
 /// <summary>
 /// 沙箱提供器抽象基类 — 封装沙箱创建/销毁/路径解析的通用逻辑,子类通过钩子方法扩展特定行为
 /// </summary>
-public abstract class SandboxProviderBase : ISandboxProvider
-{
+public abstract class SandboxProviderBase : ISandboxProvider {
     private protected readonly IFileSystem Fs;
     private protected readonly ILogger? Logger;
     private protected readonly IClockService Clock;
@@ -23,8 +22,7 @@ public abstract class SandboxProviderBase : ISandboxProvider
     /// <summary>
     /// 初始化沙箱提供器基类
     /// </summary>
-    protected SandboxProviderBase(IFileSystem fs, ILogger? logger, IClockService clock, ITelemetryService? telemetryService)
-    {
+    protected SandboxProviderBase(IFileSystem fs, ILogger? logger, IClockService clock, ITelemetryService? telemetryService) {
         Fs = fs;
         Logger = logger;
         Clock = clock;
@@ -35,8 +33,7 @@ public abstract class SandboxProviderBase : ISandboxProvider
     public virtual bool IsAvailable => true;
 
     /// <inheritdoc/>
-    public async Task<SandboxInfo> CreateSandboxAsync(SandboxOptions options, CancellationToken ct = default)
-    {
+    public async Task<SandboxInfo> CreateSandboxAsync(SandboxOptions options, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(options);
 
         var effectiveType = DetermineEffectiveType(options.Type);
@@ -45,8 +42,7 @@ public abstract class SandboxProviderBase : ISandboxProvider
 
         await EnsureRootPathExistsAsync(rootPath, ct).ConfigureAwait(false);
 
-        var info = new SandboxInfo
-        {
+        var info = new SandboxInfo {
             Type = effectiveType,
             SandboxId = sandboxId,
             RootPath = rootPath,
@@ -71,43 +67,34 @@ public abstract class SandboxProviderBase : ISandboxProvider
     }
 
     /// <inheritdoc/>
-    public async Task DestroySandboxAsync(string sandboxId, CancellationToken ct = default)
-    {
-        if (!_sandboxes.TryRemove(sandboxId, out var info))
-        {
+    public async Task DestroySandboxAsync(string sandboxId, CancellationToken ct = default) {
+        if (!_sandboxes.TryRemove(sandboxId, out var info)) {
             Logger?.LogWarning("[Sandbox:{Type}] 沙箱 '{Id}' 不存在", SandboxType, sandboxId);
             return;
         }
 
-        try
-        {
+        try {
             await OnDestroyAsync(info, ct).ConfigureAwait(false);
             Logger?.LogInformation("[Sandbox:{Type}] 销毁沙箱 - Id: {Id}", SandboxType, sandboxId);
             RecordMetrics("destroy", SandboxType.ToValue());
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Logger?.LogError(ex, "[Sandbox:{Type}] 销毁沙箱 '{Id}' 失败", SandboxType, sandboxId);
             RecordMetrics("destroy_failed", SandboxType.ToValue());
         }
     }
 
     /// <inheritdoc/>
-    public SandboxInfo? GetSandboxInfo(string sandboxId)
-    {
+    public SandboxInfo? GetSandboxInfo(string sandboxId) {
         return _sandboxes.TryGetValue(sandboxId, out var info) ? info : null;
     }
 
     /// <inheritdoc/>
-    public string ResolvePath(string path, string sandboxId)
-    {
-        if (!_sandboxes.TryGetValue(sandboxId, out var info))
-        {
+    public string ResolvePath(string path, string sandboxId) {
+        if (!_sandboxes.TryGetValue(sandboxId, out var info)) {
             throw new InvalidOperationException($"[GRD010] 沙箱 '{sandboxId}' 不存在");
         }
 
-        if (!info.IsRestricted)
-        {
+        if (!info.IsRestricted) {
             return Path.GetFullPath(path);
         }
 
@@ -115,18 +102,15 @@ public abstract class SandboxProviderBase : ISandboxProvider
     }
 
     /// <inheritdoc/>
-    public Task<bool> IsPathInSandboxAsync(string path, string sandboxId, CancellationToken ct = default)
-    {
-        if (!_sandboxes.TryGetValue(sandboxId, out var info))
-        {
+    public Task<bool> IsPathInSandboxAsync(string path, string sandboxId, CancellationToken ct = default) {
+        if (!_sandboxes.TryGetValue(sandboxId, out var info)) {
             return Task.FromResult(false);
         }
 
         var fullPath = Path.GetFullPath(path);
         var sandboxRoot = Path.GetFullPath(info.RootPath);
 
-        if (!fullPath.StartsWith(sandboxRoot, StringComparison.OrdinalIgnoreCase))
-        {
+        if (!fullPath.StartsWith(sandboxRoot, StringComparison.OrdinalIgnoreCase)) {
             return Task.FromResult(false);
         }
 
@@ -139,33 +123,27 @@ public abstract class SandboxProviderBase : ISandboxProvider
     /// <summary>
     /// 异步释放提供器,销毁所有活跃沙箱
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         var tasks = new List<Task>(_sandboxes.Count);
-        foreach (var sandboxId in _sandboxes.Keys)
-        {
+        foreach (var sandboxId in _sandboxes.Keys) {
             tasks.Add(DestroySandboxAsync(sandboxId));
         }
         return new ValueTask(Task.WhenAll(tasks));
     }
 
-    private protected virtual SandboxType DetermineEffectiveType(SandboxType requestedType)
-    {
-        if (requestedType != SandboxType.None)
-        {
+    private protected virtual SandboxType DetermineEffectiveType(SandboxType requestedType) {
+        if (requestedType != SandboxType.None) {
             return requestedType;
         }
 
         var envType = Environment.GetEnvironmentVariable(JccEnvVar.SandboxMode.ToValue());
-        if (string.IsNullOrEmpty(envType))
-        {
+        if (string.IsNullOrEmpty(envType)) {
             return SandboxType;
         }
 
         var parsed = SandboxTypeExtensions.FromValue(envType);
-        if (parsed is not null)
-        {
+        if (parsed is not null) {
             return parsed.Value;
         }
 
@@ -173,16 +151,13 @@ public abstract class SandboxProviderBase : ISandboxProvider
         return SandboxType;
     }
 
-    private protected virtual string ResolveRootPath(SandboxOptions options, string sandboxId)
-    {
+    private protected virtual string ResolveRootPath(SandboxOptions options, string sandboxId) {
         return options.SandboxRoot
                ?? Path.Combine(Path.GetTempPath(), "jcc-sandbox", sandboxId);
     }
 
-    private protected virtual Task EnsureRootPathExistsAsync(string rootPath, CancellationToken ct)
-    {
-        if (!Fs.DirectoryExists(rootPath))
-        {
+    private protected virtual Task EnsureRootPathExistsAsync(string rootPath, CancellationToken ct) {
+        if (!Fs.DirectoryExists(rootPath)) {
             Fs.CreateDirectory(rootPath);
         }
         return Task.CompletedTask;
@@ -194,23 +169,18 @@ public abstract class SandboxProviderBase : ISandboxProvider
     private protected virtual Task OnDestroyAsync(SandboxInfo info, CancellationToken ct)
         => Task.CompletedTask;
 
-    private protected virtual string OnResolvePath(string path, SandboxInfo info)
-    {
+    private protected virtual string OnResolvePath(string path, SandboxInfo info) {
         var fullPath = Path.GetFullPath(path);
         var sandboxRoot = Path.GetFullPath(info.RootPath);
 
-        if (fullPath.StartsWith(sandboxRoot, StringComparison.OrdinalIgnoreCase))
-        {
+        if (fullPath.StartsWith(sandboxRoot, StringComparison.OrdinalIgnoreCase)) {
             return fullPath;
         }
 
-        if (info.AllowedPaths is not null)
-        {
-            foreach (var allowed in info.AllowedPaths)
-            {
+        if (info.AllowedPaths is not null) {
+            foreach (var allowed in info.AllowedPaths) {
                 var fullAllowed = Path.GetFullPath(allowed);
-                if (fullPath.StartsWith(fullAllowed, StringComparison.OrdinalIgnoreCase))
-                {
+                if (fullPath.StartsWith(fullAllowed, StringComparison.OrdinalIgnoreCase)) {
                     return fullPath;
                 }
             }

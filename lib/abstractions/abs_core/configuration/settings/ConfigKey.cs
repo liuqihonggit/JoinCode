@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Configuration.Settings;
 /// 枚举值即存储键(单数据源),消费方通过 ToValue() 获取
 /// 所有键对应 settings.json 的 current 分支内部字段
 /// </summary>
-public enum ConfigKey
-{
+public enum ConfigKey {
     /// <summary>当前供应商预设名（指向 vendor 字典的键）</summary>
     [EnumValue("profile")] Profile,
 

@@ -5,8 +5,7 @@ namespace Core.Goal;
 /// Goal Graph 执行引擎 — 事件驱动队列 + 条件路由 + 回退重激活
 /// </summary>
 [Register(typeof(GoalGraphEngine), ServiceLifetime.Singleton)]
-public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrencyUpdater
-{
+public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrencyUpdater {
     private readonly IChatClient _kernel;
     private readonly IGoalEvaluator _evaluator;
     private readonly IGoalHeartbeat _heartbeat;
@@ -52,8 +51,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         IGoalNodeInspector? nodeInspector = null,
         IGoalConflictMessenger? conflictMessenger = null,
         SubAgentConcurrencyOptions? concurrencyOptions = null,
-        IGraphScheduler? graphScheduler = null)
-    {
+        IGraphScheduler? graphScheduler = null) {
         _kernel = kernel;
         _evaluator = evaluator;
         _serviceProvider = serviceProvider;
@@ -88,16 +86,14 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
     /// </summary>
     /// <param name="nodeId">节点 ID</param>
     /// <param name="fn">节点执行委托</param>
-    public void RegisterFunction(string nodeId, Func<NodeContext, Task<NodeResult>> fn)
-    {
+    public void RegisterFunction(string nodeId, Func<NodeContext, Task<NodeResult>> fn) {
         _functionRegistry[nodeId] = fn;
     }
 
     /// <summary>
     /// 热重载 execute 并发上限 — 原子替换配置引用（ADR 0048）
     /// </summary>
-    public void UpdateConcurrencyOptions(SubAgentConcurrencyOptions options)
-    {
+    public void UpdateConcurrencyOptions(SubAgentConcurrencyOptions options) {
         Interlocked.Exchange(ref _concurrencyOptions, options);
         _logger?.LogInformation("execute 并发上限已热重载为 {Limit}", options.MaxConcurrentExecutions);
     }
@@ -114,10 +110,8 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         GoalGraph graph,
         GoalState goalState,
         MessageList chatHistory,
-        CancellationToken ct)
-    {
-        var context = new GraphExecutionContext
-        {
+        CancellationToken ct) {
+        var context = new GraphExecutionContext {
             Graph = graph,
             State = goalState,
             ChatHistory = chatHistory,
@@ -126,23 +120,18 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         };
 
         // T8.3: 接入 team 组件 — 图执行开始时建团队，节点派发的 sub-agent 加入此团队
-        if (_teamManager is not null)
-        {
-            try
-            {
+        if (_teamManager is not null) {
+            try {
                 var teamResult = await _teamManager.CreateTeamAsync(
                     teamName: $"goal-{goalState.GoalId}",
                     description: goalState.Objective,
                     initialMembers: null,
                     ct).ConfigureAwait(false);
-                if (teamResult.Success && teamResult.Data is not null)
-                {
+                if (teamResult.Success && teamResult.Data is not null) {
                     context.TeamId = teamResult.Data.TeamId;
                     _logger?.LogInformation("[GoalGraph] 团队已创建: {TeamId} ({TeamName})", context.TeamId, teamResult.Data.TeamName);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning("[GoalGraph] 建团队失败，退化为单 Agent 模式: {Message}", ex.Message);
             }
         }
@@ -174,30 +163,26 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         string nodeId,
         DagNode<GoalNodePayload> dagNode,
         GraphExecutionContext context,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         var graph = context.Graph;
         var payload = dagNode.Payload;
 
         await ExecuteNodeAsync(nodeId, dagNode, context, ct).ConfigureAwait(false);
         await _stateUpdater.UpdateGoalStateAsync(context).ConfigureAwait(false);
 
-        if (payload.Status == GoalNodeStatus.Failed)
-        {
+        if (payload.Status == GoalNodeStatus.Failed) {
             context.MarkNodeFailed(nodeId);
 
             var failureOutcome = _retryHandler.CheckFailureRateTermination(context);
             if (failureOutcome is not null)
                 return failureOutcome.Value;
 
-            foreach (var edgeId in dagNode.OutEdgeIds)
-            {
+            foreach (var edgeId in dagNode.OutEdgeIds) {
                 if (!graph.Dag.Edges.TryGetValue(edgeId, out var edge))
                     continue;
                 if (edge.Label.Length > 0)
                     continue;
-                if (!context.IsNodeFinished(edge.ToId))
-                {
+                if (!context.IsNodeFinished(edge.ToId)) {
                     context.ReadyQueue.Enqueue(edge.ToId);
                 }
             }
@@ -210,8 +195,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         context.MarkNodeCompleted(nodeId);
 
-        var postCtx = new NodePostCompletionContext
-        {
+        var postCtx = new NodePostCompletionContext {
             NodeId = nodeId,
             Payload = payload,
             Context = context,
@@ -219,28 +203,22 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         };
         await _completionPipeline.ExecuteAsync(postCtx).ConfigureAwait(false);
 
-        if (postCtx.ShouldTerminateLoop)
-        {
+        if (postCtx.ShouldTerminateLoop) {
             _logger?.LogInformation("[GoalGraph] 循环终止条件满足: {NodeId} (迭代={Iter}, 负评={NegCount}, 协调者终止={CoordTerm})",
                 nodeId, context.GlobalLoopIteration, payload.NegativeReviewCount, context.CoordinatorTerminated);
             return NodeCompletionOutcome.GoalAchieved;
         }
 
         var nextIds = context.GetNextNodeIds(nodeId, payload.Routes, payload.RouteMatchMode);
-        foreach (var nextId in nextIds)
-        {
-            if (context.IsNodeCompleted(nextId))
-            {
+        foreach (var nextId in nextIds) {
+            if (context.IsNodeCompleted(nextId)) {
                 await _retryHandler.HandleRetryAsync(nextId, context, ct).ConfigureAwait(false);
-            }
-            else
-            {
+            } else {
                 context.ReadyQueue.Enqueue(nextId);
             }
         }
 
-        if (graph.IsEndNode(nodeId) && payload.Status == GoalNodeStatus.Completed)
-        {
+        if (graph.IsEndNode(nodeId) && payload.Status == GoalNodeStatus.Completed) {
             var allEndsDone = graph.EndNodeIds.All(end => context.IsNodeCompleted(end) || end == nodeId);
             if (allEndsDone)
                 return NodeCompletionOutcome.GoalAchieved;
@@ -249,8 +227,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         return NodeCompletionOutcome.Continue;
     }
 
-    private async Task ExecuteNodeAsync(string nodeId, DagNode<GoalNodePayload> dagNode, GraphExecutionContext context, CancellationToken ct)
-    {
+    private async Task ExecuteNodeAsync(string nodeId, DagNode<GoalNodePayload> dagNode, GraphExecutionContext context, CancellationToken ct) {
         var payload = dagNode.Payload;
         payload.Status = GoalNodeStatus.Running;
         payload.StartedAt = _clock.GetUtcNow();
@@ -258,8 +235,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(payload.TimeoutSeconds));
 
-        try
-        {
+        try {
             NodeResult result = await _nodeExecutor.ExecuteAsync(nodeId, payload, context, timeoutCts.Token).ConfigureAwait(false);
 
             payload.Output = result.Output;
@@ -268,26 +244,20 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             payload.CompletedAt = _clock.GetUtcNow();
             context.TotalTokensConsumed += result.TokensUsed;
 
-            if (result.IsFailed)
-            {
+            if (result.IsFailed) {
                 payload.Status = GoalNodeStatus.Failed;
                 payload.ErrorMessage = result.Message;
                 _logger?.LogWarning("[GoalGraph] {NodeId}({Name}): {Message}", nodeId, payload.Name, result.Message);
-            }
-            else
-            {
+            } else {
                 payload.Status = GoalNodeStatus.Completed;
-                if (result.Message is not null)
-                {
+                if (result.Message is not null) {
                     _logger?.LogInformation("[GoalGraph] {NodeId}({Name}): {Message}", nodeId, payload.Name, result.Message);
                 }
             }
 
-            if (_conflictMessenger is not null && payload.Status == GoalNodeStatus.Completed)
-            {
+            if (_conflictMessenger is not null && payload.Status == GoalNodeStatus.Completed) {
                 var conflicts = await _conflictMessenger.DequeueConflictsAsync(nodeId, ct).ConfigureAwait(false);
-                if (conflicts.Count > 0)
-                {
+                if (conflicts.Count > 0) {
                     var conflictSummary = string.Join("; ", conflicts.Select(c => $"[{c.SourceNodeId}] {c.Content}"));
                     payload.Output = string.IsNullOrWhiteSpace(payload.Output)
                         ? $"[冲突通知] {conflictSummary}"
@@ -295,16 +265,12 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
                     _logger?.LogInformation("[GoalGraph] {NodeId} 拉取 {Count} 条冲突消息", nodeId, conflicts.Count);
                 }
             }
-        }
-        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested) {
             payload.Status = GoalNodeStatus.Failed;
             payload.ErrorMessage = $"Timeout after {payload.TimeoutSeconds}s";
             payload.CompletedAt = _clock.GetUtcNow();
             _logger?.LogWarning("[GoalGraph] {NodeId}({Name}): 超时", nodeId, payload.Name);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             payload.Status = GoalNodeStatus.Failed;
             payload.ErrorMessage = ex.Message;
             payload.CompletedAt = _clock.GetUtcNow();

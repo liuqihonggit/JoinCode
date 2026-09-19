@@ -10,8 +10,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - FromValue("OFF") → ToggleAction.Off (OrdinalIgnoreCase)
 /// - ToggleAction.Status.ToValue() → "status"
 /// </summary>
-public enum ToggleAction
-{
+public enum ToggleAction {
     /// <summary>开启/激活</summary>
     [EnumValue("on")] On,
 

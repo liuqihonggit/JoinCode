@@ -4,8 +4,7 @@ namespace Services.Api;
 /// <summary>
 /// 速率限制异常 - 当 API 返回 429 状态码时抛出
 /// </summary>
-public sealed class RateLimitException : ApiException
-{
+public sealed class RateLimitException : ApiException {
     /// <summary>
     /// 建议重试等待时间
     /// </summary>
@@ -26,8 +25,7 @@ public sealed class RateLimitException : ApiException
             statusCode: 429,
             endpoint: endpoint,
             responseContent: responseContent,
-            errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiRateLimit.ToValue())
-    {
+            errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiRateLimit.ToValue()) {
         RetryAfter = retryAfter;
     }
 

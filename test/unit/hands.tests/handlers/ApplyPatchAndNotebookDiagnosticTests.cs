@@ -1,12 +1,9 @@
 namespace Tools.Handlers.Tests;
 
-public sealed class ApplyPatchDiagnosticTests
-{
+public sealed class ApplyPatchDiagnosticTests {
     [Fact]
-    public void BuildContextMismatchMessage_ContainsExpectedAndActual()
-    {
-        var hunk = new ApplyPatchLogic.PatchHunk
-        {
+    public void BuildContextMismatchMessage_ContainsExpectedAndActual() {
+        var hunk = new ApplyPatchLogic.PatchHunk {
             FilePath = "test.cs",
             StartLine = 5,
         };
@@ -26,10 +23,8 @@ public sealed class ApplyPatchDiagnosticTests
     }
 
     [Fact]
-    public void BuildContextMismatchMessage_MatchingLine_NoDiffMarker()
-    {
-        var hunk = new ApplyPatchLogic.PatchHunk
-        {
+    public void BuildContextMismatchMessage_MatchingLine_NoDiffMarker() {
+        var hunk = new ApplyPatchLogic.PatchHunk {
             FilePath = "test.cs",
             StartLine = 1,
         };
@@ -43,13 +38,10 @@ public sealed class ApplyPatchDiagnosticTests
     }
 }
 
-public sealed class NotebookCellDiagnosticTests
-{
+public sealed class NotebookCellDiagnosticTests {
     [Fact]
-    public void BuildCellNotFoundMessage_ListsAvailableCellIds()
-    {
-        var notebook = new NotebookDocument
-        {
+    public void BuildCellNotFoundMessage_ListsAvailableCellIds() {
+        var notebook = new NotebookDocument {
             Cells = new List<NotebookCell>
             {
                 new() { Id = "cell-abc", CellType = "code" },
@@ -69,11 +61,9 @@ public sealed class NotebookCellDiagnosticTests
     }
 
     [Fact]
-    public void BuildCellNotFoundMessage_TooManyCells_TruncatesList()
-    {
+    public void BuildCellNotFoundMessage_TooManyCells_TruncatesList() {
         var cells = new List<NotebookCell>();
-        for (int i = 0; i < 25; i++)
-        {
+        for (int i = 0; i < 25; i++) {
             cells.Add(new NotebookCell { Id = $"cell-{i}", CellType = "code" });
         }
 

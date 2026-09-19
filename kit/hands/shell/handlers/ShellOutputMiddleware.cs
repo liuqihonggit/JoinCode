@@ -5,15 +5,13 @@ namespace Tools.Shell;
 /// 包括中断检测、图片输出检测、输出构建、命令语义解释
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddleware {
 
     /// <summary>
     /// 构造输出格式化中间件
     /// </summary>
     /// <param name="telemetryService">遥测服务（可选）</param>
-    public ShellOutputMiddleware(ITelemetryService? telemetryService = null)
-    {
+    public ShellOutputMiddleware(ITelemetryService? telemetryService = null) {
         _telemetryService = telemetryService;
     }
     private readonly ITelemetryService? _telemetryService;
@@ -24,11 +22,9 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
         var result = context.ExecutionResult;
-        if (result is null)
-        {
+        if (result is null) {
             var diag = BuildNoExecutionResultDiagnostic();
             context.Result = ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             return Task.CompletedTask;
@@ -36,8 +32,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
 
         var shellType = context.Provider.Kind.Id;
 
-        if (result.Interrupted)
-        {
+        if (result.Interrupted) {
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "execute", ["result"] = "interrupted" });
             var interruptDiag = BuildInterruptedDiagnostic(context.Command, result.ExitCode ?? -1);
             context.Result = ToolResultBuilder.Error()
@@ -50,15 +45,12 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
             return Task.CompletedTask;
         }
 
-        if (ShellImageOutputDetector.IsImageOutput(result.Stdout))
-        {
+        if (ShellImageOutputDetector.IsImageOutput(result.Stdout)) {
             var parsed = ShellImageOutputDetector.ParseDataUri(result.Stdout);
-            if (parsed is { } img)
-            {
+            if (parsed is { } img) {
                 var (resizedMediaType, resizedBase64Data) = ShellImageOutputDetector.ResizeIfOversized(img.MediaType, img.Base64Data) ?? img;
                 ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "execute", ["result"] = "ok" });
-                context.Result = new ToolResult
-                {
+                context.Result = new ToolResult {
                     Content = [new ToolContent { Type = ToolContentType.Image, Data = resizedBase64Data, MimeType = resizedMediaType }],
                     IsImage = true,
                     EntityMetadata = BuildShellEntityMetadata(result),
@@ -70,15 +62,13 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
         var output = BuildOutputResponse(result, context.Command);
 
         var hintResult = ShellPluginHintExtractor.Extract(output, context.Command);
-        if (hintResult.Hints.Count > 0)
-        {
+        if (hintResult.Hints.Count > 0) {
             _telemetryService?.RecordCount("shell.hints.detected", new Dictionary<string, string> { ["type"] = string.Join(",", hintResult.Hints.Select(h => h.Type)) }, description: "Shell plugin hints detected");
         }
         output = hintResult.StrippedOutput;
 
         var interpretation = InterpretCommandResult(context.Command, result.ExitCode ?? 0, result.Stdout ?? string.Empty, result.Stderr ?? string.Empty);
-        if (interpretation.IsError)
-        {
+        if (interpretation.IsError) {
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "execute", ["result"] = "failed" });
             var failedDiag = BuildCommandFailedDiagnostic(context.Command, result.ExitCode ?? -1);
             context.Result = ToolResultBuilder.Error()
@@ -102,8 +92,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
     /// <summary>
     /// 构建 Shell 执行实体元数据 — 用于回填 BashProcessEntity 子类字段
     /// </summary>
-    internal static List<EntityMetadataEntry> BuildShellEntityMetadata(SystemActuatorExecutionResult result)
-    {
+    internal static List<EntityMetadataEntry> BuildShellEntityMetadata(SystemActuatorExecutionResult result) {
         var metadata = new List<EntityMetadataEntry>();
         if (result.ExitCode.HasValue)
             metadata.Add(EntityMetadataEntry.Int("exit_code", result.ExitCode.Value));
@@ -121,27 +110,23 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
     /// 构建输出响应 — 对齐 TS mapToolResultToToolResultBlockParam
     /// 供 PowerShellToolHandlers 等非管道路径复用，避免重复实现输出格式化
     /// </summary>
-    internal static string BuildOutputResponse(SystemActuatorExecutionResult result, string? command = null)
-    {
+    internal static string BuildOutputResponse(SystemActuatorExecutionResult result, string? command = null) {
         // 对齐 TS mapToolResultToToolResultBlockParam: stdout 处理
         var processedStdout = result.Stdout ?? string.Empty;
-        if (processedStdout.Length > 0)
-        {
+        if (processedStdout.Length > 0) {
             // 去除前导空行 — 对齐 TS stdout.replace(/^(\s*\n)+/, '')
             processedStdout = LeadingBlankLineRegex().Replace(processedStdout, string.Empty);
             processedStdout = processedStdout.TrimEnd();
         }
 
         // 大输出持久化 — 对齐 TS persistedOutputPath
-        if (result.PersistedOutputPath is not null)
-        {
+        if (result.PersistedOutputPath is not null) {
             processedStdout = result.BuildPersistedOutputMessage();
         }
 
         // stderr + interrupted 处理 — 对齐 TS errorMessage
         var errorMessage = (result.Stderr ?? string.Empty).Trim();
-        if (result.Interrupted)
-        {
+        if (result.Interrupted) {
             if (errorMessage.Length > 0) errorMessage += Environment.NewLine;
             errorMessage += "<error>Command was aborted before completion</error>";
         }
@@ -175,18 +160,15 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
     /// <summary>
     /// 构建后台任务信息 — 对齐 TS mapToolResultToToolResultBlockParam backgroundInfo
     /// </summary>
-    private static string BuildBackgroundInfo(SystemActuatorExecutionResult result)
-    {
+    private static string BuildBackgroundInfo(SystemActuatorExecutionResult result) {
         if (result.BackgroundTaskId is null) return string.Empty;
 
         // 对齐 TS: 区分 assistantAutoBackgrounded / backgroundedByUser / 默认
-        if (result.AssistantAutoBackgrounded)
-        {
+        if (result.AssistantAutoBackgrounded) {
             return $"Command exceeded the assistant-mode blocking budget and was moved to the background with ID: {result.BackgroundTaskId}. It is still running — you will be notified when it completes.";
         }
 
-        if (result.BackgroundedByUser)
-        {
+        if (result.BackgroundedByUser) {
             return $"Command was manually backgrounded by user with ID: {result.BackgroundTaskId}.";
         }
 
@@ -197,36 +179,30 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
     /// 退出码语义解释 — 对齐 TS commandSemantics.ts interpretCommandResult
     /// 供 PowerShellToolHandlers 等非管道路径复用
     /// </summary>
-    internal static (bool IsError, string? Message) InterpretCommandResult(string? command, int exitCode, string stdout, string stderr)
-    {
+    internal static (bool IsError, string? Message) InterpretCommandResult(string? command, int exitCode, string stdout, string stderr) {
         if (string.IsNullOrEmpty(command)) return (exitCode != 0, exitCode != 0 ? $"Command failed with exit code {exitCode}" : null);
         var baseCmd = GetBaseCommand(command);
-        return baseCmd switch
-        {
+        return baseCmd switch {
             // grep/rg: 0=匹配, 1=无匹配(非错误), 2+=错误 — 对齐 TS COMMAND_SEMANTICS
-            "grep" or "rg" or "ack" or "ag" or "findstr" => exitCode switch
-            {
+            "grep" or "rg" or "ack" or "ag" or "findstr" => exitCode switch {
                 1 => (false, "No matches found"),
                 >= 2 => (true, null),
                 _ => (false, null)
             },
             // find: 0=成功, 1=部分成功, 2+=错误
-            "find" => exitCode switch
-            {
+            "find" => exitCode switch {
                 1 => (false, "Some directories were inaccessible"),
                 >= 2 => (true, null),
                 _ => (false, null)
             },
             // diff: 0=无差异, 1=有差异(非错误), 2+=错误
-            "diff" => exitCode switch
-            {
+            "diff" => exitCode switch {
                 1 => (false, "Files differ"),
                 >= 2 => (true, null),
                 _ => (false, null)
             },
             // test/[: 0=条件真, 1=条件假(非错误), 2+=错误
-            "test" or "[" => exitCode switch
-            {
+            "test" or "[" => exitCode switch {
                 1 => (false, "Condition is false"),
                 >= 2 => (true, null),
                 _ => (false, null)
@@ -239,8 +215,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
     /// <summary>
     /// 提取命令的基础命令名（去除路径和参数）
     /// </summary>
-    private static string GetBaseCommand(string command)
-    {
+    private static string GetBaseCommand(string command) {
         var trimmed = command.TrimStart();
         var spaceIndex = trimmed.IndexOf(' ');
         var firstToken = spaceIndex > 0 ? trimmed[..spaceIndex] : trimmed;

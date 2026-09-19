@@ -5,8 +5,7 @@ namespace Services.CodeIndex;
 /// 代码索引托管服务 — 启动时构建索引，集成文件监视器与 LSP，停止时优雅关闭
 /// </summary>
 [Register(typeof(IHostedService), ServiceLifetime.Singleton)]
-public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable
-{
+public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable {
     private readonly ICodeIndexer _indexer;
     private readonly FileWatcherIntegration? _watcher;
     private readonly LspIntegration? _lspIntegration;
@@ -27,8 +26,7 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable
         CodeIndexOptions options,
         FileWatcherIntegration? watcher = null,
         LspIntegration? lspIntegration = null,
-        ILogger<CodeIndexService>? logger = null)
-    {
+        ILogger<CodeIndexService>? logger = null) {
         _indexer = indexer ?? throw new ArgumentNullException(nameof(indexer));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _watcher = watcher;
@@ -41,32 +39,26 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步启动操作的任务</returns>
-    public async Task StartAsync(CancellationToken cancellationToken)
-    {
+    public async Task StartAsync(CancellationToken cancellationToken) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         _logger?.LogInformation(L.T(StringKey.CodeIndexServiceWorkspace), _options.WorkspaceRoot);
 
-        try
-        {
+        try {
             var result = await _indexer.BuildIndexAsync(_options, cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation(L.T(StringKey.CodeIndexBuildCompleted),
                 result.UpdatedCount, result.SkippedCount, result.DeletedCount);
 
-            if (_watcher is not null)
-            {
+            if (_watcher is not null) {
                 await _watcher.StartAsync(cancellationToken).ConfigureAwait(false);
                 _logger?.LogInformation(L.T(StringKey.CodeIndexWatcherStarted));
             }
 
-            if (_lspIntegration is not null)
-            {
+            if (_lspIntegration is not null) {
                 _logger?.LogInformation(L.T(StringKey.CodeIndexLspReady), _lspIntegration.IsLspAvailable);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.CodeIndexStartFailed));
             throw;
         }
@@ -77,14 +69,12 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步停止操作的任务</returns>
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
+    public async Task StopAsync(CancellationToken cancellationToken) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         _logger?.LogInformation(L.T(StringKey.CodeIndexServiceStopped));
 
-        if (_watcher is not null)
-        {
+        if (_watcher is not null) {
             await _watcher.StopAsync(cancellationToken).ConfigureAwait(false);
         }
     }
@@ -93,10 +83,8 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable
     /// 异步释放资源 — 释放文件监视器、LSP 集成与索引器
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-        {
+    public ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) {
             return ValueTask.CompletedTask;
         }
 

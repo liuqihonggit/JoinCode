@@ -11,8 +11,7 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// </para>
 /// </summary>
 [Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
-public sealed partial class VpnRouteGuard : ICommandGuard
-{
+public sealed partial class VpnRouteGuard : ICommandGuard {
     private readonly ILogger<VpnRouteGuard>? _logger;
     private readonly INetworkConnectivityService? _networkService;
 
@@ -21,8 +20,7 @@ public sealed partial class VpnRouteGuard : ICommandGuard
     /// </summary>
     /// <param name="logger">日志器(可选)</param>
     /// <param name="networkService">网络连通性服务(可选,用于 VPN 检测)</param>
-    public VpnRouteGuard(ILogger<VpnRouteGuard>? logger = null, INetworkConnectivityService? networkService = null)
-    {
+    public VpnRouteGuard(ILogger<VpnRouteGuard>? logger = null, INetworkConnectivityService? networkService = null) {
         _logger = logger;
         _networkService = networkService;
     }
@@ -34,8 +32,7 @@ public sealed partial class VpnRouteGuard : ICommandGuard
     public int Priority => 30;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, GuardContext context)
-    {
+    public bool CanHandle(string command, GuardContext context) {
         if (!IsVpnActive()) return false;
 
         var normalized = command.TrimStart();
@@ -46,23 +43,19 @@ public sealed partial class VpnRouteGuard : ICommandGuard
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, GuardContext context)
-    {
+    public CommandDecision Evaluate(string command, GuardContext context) {
         var proxyUrl = context.ProxyUrl;
-        if (string.IsNullOrWhiteSpace(proxyUrl))
-        {
+        if (string.IsNullOrWhiteSpace(proxyUrl)) {
             return new CommandDecision.Allow();
         }
 
-        if (command.StartsWith("git ", StringComparison.OrdinalIgnoreCase))
-        {
+        if (command.StartsWith("git ", StringComparison.OrdinalIgnoreCase)) {
             var rewritten = $"git -c http.proxy={proxyUrl} -c https.proxy={proxyUrl} {command[4..]}";
             _logger?.LogInformation("为 git 命令添加 VPN 代理: {Proxy}", proxyUrl);
             return new CommandDecision.Rewrite(rewritten, "VPN 代理");
         }
 
-        if (command.StartsWith("curl ", StringComparison.OrdinalIgnoreCase))
-        {
+        if (command.StartsWith("curl ", StringComparison.OrdinalIgnoreCase)) {
             var rewritten = $"curl --proxy {proxyUrl} {command[5..]}";
             _logger?.LogInformation("为 curl 命令添加 VPN 代理: {Proxy}", proxyUrl);
             return new CommandDecision.Rewrite(rewritten, "VPN 代理");
@@ -80,30 +73,23 @@ public sealed partial class VpnRouteGuard : ICommandGuard
     /// <summary>
     /// 静态 VPN 检测(fallback) — 进程名 + 环境变量
     /// </summary>
-    private static bool DetectVpn()
-    {
-        try
-        {
+    private static bool DetectVpn() {
+        try {
             var vpnProcesses = new[] { "vpn", "openvpn", "wireguard", "clash", "v2ray" };
-            foreach (var proc in vpnProcesses)
-            {
-                if (System.Diagnostics.Process.GetProcessesByName(proc).Length > 0)
-                {
+            foreach (var proc in vpnProcesses) {
+                if (System.Diagnostics.Process.GetProcessesByName(proc).Length > 0) {
                     return true;
                 }
             }
 
             var httpProxy = Environment.GetEnvironmentVariable("HTTP_PROXY");
             var httpsProxy = Environment.GetEnvironmentVariable("HTTPS_PROXY");
-            if (!string.IsNullOrEmpty(httpProxy) || !string.IsNullOrEmpty(httpsProxy))
-            {
+            if (!string.IsNullOrEmpty(httpProxy) || !string.IsNullOrEmpty(httpsProxy)) {
                 return true;
             }
 
             return false;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }

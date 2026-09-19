@@ -4,16 +4,14 @@ namespace Tools.Handlers;
 /// 桌面情景模式菜单工具处理器 — AI 通过菜单发现桌面操作场景的工具集与编排流程
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
-public sealed class DesktopSceneMenuToolHandlers
-{
+public sealed class DesktopSceneMenuToolHandlers {
     /// <summary>
     /// 获取桌面操作场景菜单 — 返回场景清单、工具集、建议流程与提示
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果，含场景菜单 JSON</returns>
     [McpTool("desktop_scene_menu", "桌面操作场景入口。调用获取可用动作菜单、场景说明（四叉树夹逼法）、建议编排流程。AI 通过此菜单发现桌面操作工具集。", "desktop")]
-    public Task<ToolResult> SceneMenuAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<ToolResult> SceneMenuAsync(CancellationToken cancellationToken = default) {
         var menu = """
             {
               "scenes": [{

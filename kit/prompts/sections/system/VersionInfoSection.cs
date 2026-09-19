@@ -5,18 +5,15 @@ namespace Core.Prompts.Sections;
 /// 版本信息部分 - 应用版本和构建信息
 /// </summary>
 [PromptSection(Name = "version_info", Order = 68, IsDynamic = true)]
-public static class VersionInfoSection
-{
+public static class VersionInfoSection {
     /// <summary>
     /// 获取版本信息部分的内容。
     /// </summary>
     /// <returns>版本信息文本；未设置版本时返回 <c>null</c>。</returns>
-    public static string? GetContent()
-    {
+    public static string? GetContent() {
         var version = PromptConfigSnapshot.Current.Version;
         var buildTime = PromptConfigSnapshot.Current.BuildTime;
-        if (string.IsNullOrWhiteSpace(version))
-        {
+        if (string.IsNullOrWhiteSpace(version)) {
             return null;
         }
 
@@ -24,8 +21,7 @@ public static class VersionInfoSection
         result.AppendLine("# 版本信息");
         result.AppendLine($"JoinCode 版本: {version}");
 
-        if (!string.IsNullOrWhiteSpace(buildTime))
-        {
+        if (!string.IsNullOrWhiteSpace(buildTime)) {
             result.AppendLine($"构建时间: {buildTime}");
         }
 

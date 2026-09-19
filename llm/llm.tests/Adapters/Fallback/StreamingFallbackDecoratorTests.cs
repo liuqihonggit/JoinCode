@@ -1,15 +1,12 @@
 namespace Llm.Tests.Adapters.Fallback;
 
-public class StreamingFallbackDecoratorTests
-{
+public class StreamingFallbackDecoratorTests {
     private static IQueryService CreateMockStreamingService(
         bool shouldFail,
-        Exception? exception = null)
-    {
+        Exception? exception = null) {
         var mock = new Mock<IQueryService>();
 
-        if (shouldFail)
-        {
+        if (shouldFail) {
             mock.Setup(s => s.GetStreamEventContentsAsync(
                     It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
                     It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
@@ -23,9 +20,7 @@ public class StreamingFallbackDecoratorTests
                 {
                     new(MessageRole.Assistant, "fallback response")
                 });
-        }
-        else
-        {
+        } else {
             mock.Setup(s => s.GetStreamEventContentsAsync(
                     It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
                     It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
@@ -44,40 +39,34 @@ public class StreamingFallbackDecoratorTests
     }
 
     private static async IAsyncEnumerable<StreamEvent> SucceedStreamAsync(
-        [EnumeratorCancellation] CancellationToken ct = default)
-    {
+        [EnumeratorCancellation] CancellationToken ct = default) {
         await Task.Yield();
         yield return new StreamEvent(MessageRole.Assistant, "hello", "test-model");
         yield return new StreamEvent(MessageRole.Assistant, " world", "test-model");
     }
 
     private static IAsyncEnumerable<StreamEvent> FailStreamAsync(
-        Exception exception, CancellationToken ct)
-    {
+        Exception exception, CancellationToken ct) {
         return FailStreamCoreAsync(exception, ct);
     }
 
     private static async IAsyncEnumerable<StreamEvent> FailStreamCoreAsync(
         Exception exception,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
+        [EnumeratorCancellation] CancellationToken ct) {
         await Task.Yield();
         yield return new StreamEvent(MessageRole.Assistant, "partial", "test-model");
         throw exception;
     }
 
     [Fact]
-    public async Task GetStreamEventContentsAsync_WhenStreamingSucceeds_ReturnsStreamEvents()
-    {
+    public async Task GetStreamEventContentsAsync_WhenStreamingSucceeds_ReturnsStreamEvents() {
         var inner = CreateMockStreamingService(shouldFail: false);
-        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig
-        {
+        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig {
             StreamWatchdogEnabled = false
         });
 
         var events = new List<StreamEvent>();
-        await foreach (var evt in decorator.GetStreamEventContentsAsync(new MessageList()))
-        {
+        await foreach (var evt in decorator.GetStreamEventContentsAsync(new MessageList())) {
             events.Add(evt);
         }
 
@@ -88,20 +77,17 @@ public class StreamingFallbackDecoratorTests
     }
 
     [Fact]
-    public async Task GetStreamEventContentsAsync_WhenStreamingFails_FallsBackToNonStreaming()
-    {
+    public async Task GetStreamEventContentsAsync_WhenStreamingFails_FallsBackToNonStreaming() {
         var inner = CreateMockStreamingService(
             shouldFail: true,
             exception: new TimeoutException("Stream timeout"));
 
-        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig
-        {
+        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig {
             StreamWatchdogEnabled = false
         });
 
         var events = new List<StreamEvent>();
-        await foreach (var evt in decorator.GetStreamEventContentsAsync(new MessageList()))
-        {
+        await foreach (var evt in decorator.GetStreamEventContentsAsync(new MessageList())) {
             events.Add(evt);
         }
 
@@ -111,22 +97,18 @@ public class StreamingFallbackDecoratorTests
     }
 
     [Fact]
-    public async Task GetStreamEventContentsAsync_WhenFallbackDisabled_ThrowsException()
-    {
+    public async Task GetStreamEventContentsAsync_WhenFallbackDisabled_ThrowsException() {
         var inner = CreateMockStreamingService(
             shouldFail: true,
             exception: new TimeoutException("Stream timeout"));
 
-        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig
-        {
+        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig {
             Enabled = false,
             StreamWatchdogEnabled = false
         });
 
-        var act = async () =>
-        {
-            await foreach (var _ in decorator.GetStreamEventContentsAsync(new MessageList()))
-            {
+        var act = async () => {
+            await foreach (var _ in decorator.GetStreamEventContentsAsync(new MessageList())) {
             }
         };
 
@@ -135,20 +117,17 @@ public class StreamingFallbackDecoratorTests
     }
 
     [Fact]
-    public async Task GetStreamEventContentsAsync_On503Error_TriggersFallback()
-    {
+    public async Task GetStreamEventContentsAsync_On503Error_TriggersFallback() {
         var inner = CreateMockStreamingService(
             shouldFail: true,
             exception: new HttpRequestException("Unavailable", null, System.Net.HttpStatusCode.ServiceUnavailable));
 
-        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig
-        {
+        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig {
             StreamWatchdogEnabled = false
         });
 
         var events = new List<StreamEvent>();
-        await foreach (var evt in decorator.GetStreamEventContentsAsync(new MessageList()))
-        {
+        await foreach (var evt in decorator.GetStreamEventContentsAsync(new MessageList())) {
             events.Add(evt);
         }
 
@@ -157,30 +136,26 @@ public class StreamingFallbackDecoratorTests
     }
 
     [Fact]
-    public async Task OnStreamingFallback_EventIsRaised_OnFallback()
-    {
+    public async Task OnStreamingFallback_EventIsRaised_OnFallback() {
         var inner = CreateMockStreamingService(
             shouldFail: true,
             exception: new TimeoutException());
 
-        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig
-        {
+        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig {
             StreamWatchdogEnabled = false
         });
 
         var fallbackTriggered = false;
         decorator.OnStreamingFallback += () => fallbackTriggered = true;
 
-        await foreach (var _ in decorator.GetStreamEventContentsAsync(new MessageList()))
-        {
+        await foreach (var _ in decorator.GetStreamEventContentsAsync(new MessageList())) {
         }
 
         fallbackTriggered.Should().BeTrue();
     }
 
     [Fact]
-    public async Task GetApiMessageContentsAsync_DelegatesToInner()
-    {
+    public async Task GetApiMessageContentsAsync_DelegatesToInner() {
         var inner = CreateMockStreamingService(shouldFail: false);
         var decorator = new StreamingFallbackDecorator(inner);
 
@@ -192,20 +167,17 @@ public class StreamingFallbackDecoratorTests
     }
 
     [Fact]
-    public async Task GetStreamEventContentsAsync_FallbackEvents_HaveStreamingFallbackMetadata()
-    {
+    public async Task GetStreamEventContentsAsync_FallbackEvents_HaveStreamingFallbackMetadata() {
         var inner = CreateMockStreamingService(
             shouldFail: true,
             exception: new TimeoutException());
 
-        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig
-        {
+        var decorator = new StreamingFallbackDecorator(inner, new StreamingFallbackConfig {
             StreamWatchdogEnabled = false
         });
 
         var events = new List<StreamEvent>();
-        await foreach (var evt in decorator.GetStreamEventContentsAsync(new MessageList()))
-        {
+        await foreach (var evt in decorator.GetStreamEventContentsAsync(new MessageList())) {
             events.Add(evt);
         }
 
@@ -214,8 +186,7 @@ public class StreamingFallbackDecoratorTests
     }
 
     [Fact]
-    public async Task GetStreamEventContentsAsync_WhenBothFail_ThrowsAggregateException()
-    {
+    public async Task GetStreamEventContentsAsync_WhenBothFail_ThrowsAggregateException() {
         var mock = new Mock<IQueryService>();
         mock.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
@@ -227,15 +198,12 @@ public class StreamingFallbackDecoratorTests
                 It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("non-stream also failed"));
 
-        var decorator = new StreamingFallbackDecorator(mock.Object, new StreamingFallbackConfig
-        {
+        var decorator = new StreamingFallbackDecorator(mock.Object, new StreamingFallbackConfig {
             StreamWatchdogEnabled = false
         });
 
-        var act = async () =>
-        {
-            await foreach (var _ in decorator.GetStreamEventContentsAsync(new MessageList()))
-            {
+        var act = async () => {
+            await foreach (var _ in decorator.GetStreamEventContentsAsync(new MessageList())) {
             }
         };
 

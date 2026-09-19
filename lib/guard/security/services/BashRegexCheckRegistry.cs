@@ -11,8 +11,7 @@ public sealed record BashRegexCheckItem(
 /// <summary>
 /// Bash 正则检查注册表 — 汇总所有基于正则/模式匹配的 Bash 安全检查项
 /// </summary>
-public static class BashRegexCheckRegistry
-{
+public static class BashRegexCheckRegistry {
     /// <summary>
     /// 全部已注册的 Bash 正则检查项数组
     /// </summary>
@@ -179,13 +178,10 @@ public static class BashRegexCheckRegistry
     private static BashSecurityResult Safe()
         => new(true);
 
-    private static bool HasUnescapedChar(string content, char ch)
-    {
+    private static bool HasUnescapedChar(string content, char ch) {
         var i = 0;
-        while (i < content.Length)
-        {
-            if (content[i] == '\\' && i + 1 < content.Length)
-            {
+        while (i < content.Length) {
+            if (content[i] == '\\' && i + 1 < content.Length) {
                 i += 2;
                 continue;
             }
@@ -195,18 +191,14 @@ public static class BashRegexCheckRegistry
         return false;
     }
 
-    private static bool HasBackslashEscapedWhitespace(string command)
-    {
+    private static bool HasBackslashEscapedWhitespace(string command) {
         var inSingleQuote = false;
         var inDoubleQuote = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
-            if (c == '\\' && !inSingleQuote)
-            {
-                if (!inDoubleQuote)
-                {
+            if (c == '\\' && !inSingleQuote) {
+                if (!inDoubleQuote) {
                     if (i + 1 < command.Length && (command[i + 1] == ' ' || command[i + 1] == '\t'))
                         return true;
                 }
@@ -220,17 +212,13 @@ public static class BashRegexCheckRegistry
         return false;
     }
 
-    private static bool HasBackslashEscapedOperator(string command)
-    {
+    private static bool HasBackslashEscapedOperator(string command) {
         var inSingleQuote = false;
         var inDoubleQuote = false;
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
-            if (c == '\\' && !inSingleQuote)
-            {
-                if (!inDoubleQuote)
-                {
+            if (c == '\\' && !inSingleQuote) {
+                if (!inDoubleQuote) {
                     if (i + 1 < command.Length && ShellOperators.Contains(command[i + 1]))
                         return true;
                 }
@@ -243,14 +231,12 @@ public static class BashRegexCheckRegistry
         return false;
     }
 
-    private static BashSecurityResult CheckBraceExpansion(string command)
-    {
+    private static BashSecurityResult CheckBraceExpansion(string command) {
         var fullyUnquoted = ExtractFullyUnquoted(command);
 
         var unescapedOpenBraces = 0;
         var unescapedCloseBraces = 0;
-        for (var i = 0; i < fullyUnquoted.Length; i++)
-        {
+        for (var i = 0; i < fullyUnquoted.Length; i++) {
             if (fullyUnquoted[i] == '{' && !IsEscapedAtPosition(fullyUnquoted, i))
                 unescapedOpenBraces++;
             else if (fullyUnquoted[i] == '}' && !IsEscapedAtPosition(fullyUnquoted, i))
@@ -265,21 +251,17 @@ public static class BashRegexCheckRegistry
             return Fail(BashSecurityCheckId.BraceExpansion,
                 "命令包含花括号上下文中的引号花括号字符（潜在花括号展开混淆）", true);
 
-        for (var i = 0; i < fullyUnquoted.Length; i++)
-        {
+        for (var i = 0; i < fullyUnquoted.Length; i++) {
             if (fullyUnquoted[i] != '{') continue;
             if (IsEscapedAtPosition(fullyUnquoted, i)) continue;
 
             var depth = 1;
             var matchingClose = -1;
-            for (var j = i + 1; j < fullyUnquoted.Length; j++)
-            {
+            for (var j = i + 1; j < fullyUnquoted.Length; j++) {
                 if (fullyUnquoted[j] == '{' && !IsEscapedAtPosition(fullyUnquoted, j)) depth++;
-                else if (fullyUnquoted[j] == '}' && !IsEscapedAtPosition(fullyUnquoted, j))
-                {
+                else if (fullyUnquoted[j] == '}' && !IsEscapedAtPosition(fullyUnquoted, j)) {
                     depth--;
-                    if (depth == 0)
-                    {
+                    if (depth == 0) {
                         matchingClose = j;
                         break;
                     }
@@ -289,13 +271,11 @@ public static class BashRegexCheckRegistry
             if (matchingClose == -1) continue;
 
             var innerDepth = 0;
-            for (var k = i + 1; k < matchingClose; k++)
-            {
+            for (var k = i + 1; k < matchingClose; k++) {
                 var ch = fullyUnquoted[k];
                 if (ch == '{' && !IsEscapedAtPosition(fullyUnquoted, k)) innerDepth++;
                 else if (ch == '}' && !IsEscapedAtPosition(fullyUnquoted, k)) innerDepth--;
-                else if (innerDepth == 0)
-                {
+                else if (innerDepth == 0) {
                     if (ch == ',' || (ch == '.' && k + 1 < matchingClose && fullyUnquoted[k + 1] == '.'))
                         return Fail(BashSecurityCheckId.BraceExpansion,
                             "命令包含花括号展开，可能改变命令解析", true);
@@ -306,8 +286,7 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static BashSecurityResult CheckObfuscatedFlags(string command)
-    {
+    private static BashSecurityResult CheckObfuscatedFlags(string command) {
         var baseCmd = ExtractBaseCommand(command);
         var hasShellOps = Regex.IsMatch(command, @"[|&;]");
 
@@ -345,14 +324,12 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static BashSecurityResult ScanForQuotedFlags(string command, string baseCmd)
-    {
+    private static BashSecurityResult ScanForQuotedFlags(string command, string baseCmd) {
         var inSingleQuote = false;
         var inDoubleQuote = false;
         var escaped = false;
 
-        for (var i = 0; i < command.Length - 1; i++)
-        {
+        for (var i = 0; i < command.Length - 1; i++) {
             var currentChar = command[i];
             var nextChar = command[i + 1];
 
@@ -365,14 +342,12 @@ public static class BashRegexCheckRegistry
 
             if (inSingleQuote || inDoubleQuote) continue;
 
-            if (char.IsWhiteSpace(currentChar) && nextChar is '\'' or '"' or '`')
-            {
+            if (char.IsWhiteSpace(currentChar) && nextChar is '\'' or '"' or '`') {
                 var quoteChar = nextChar;
                 var j = i + 2;
                 var insideQuoteBuilder = new StringBuilder();
 
-                while (j < command.Length && command[j] != quoteChar)
-                {
+                while (j < command.Length && command[j] != quoteChar) {
                     insideQuoteBuilder.Append(command[j]);
                     j++;
                 }
@@ -393,31 +368,26 @@ public static class BashRegexCheckRegistry
                     CheckChainedQuoteFlags(command, j + 1, insideQuote);
 
                 if (j < command.Length && command[j] == quoteChar &&
-                    (hasFlagCharsInside || hasFlagCharsContinuing || hasFlagCharsInNextQuote))
-                {
+                    (hasFlagCharsInside || hasFlagCharsContinuing || hasFlagCharsInNextQuote)) {
                     return Fail(BashSecurityCheckId.ObfuscatedFlags, "命令包含引号内标志名", true);
                 }
             }
 
-            if (char.IsWhiteSpace(currentChar) && nextChar == '-')
-            {
+            if (char.IsWhiteSpace(currentChar) && nextChar == '-') {
                 var j = i + 1;
                 var flagContentBuilder = new StringBuilder();
 
-                while (j < command.Length)
-                {
+                while (j < command.Length) {
                     var flagChar = command[j];
 
                     if (char.IsWhiteSpace(flagChar) || flagChar == '=') break;
 
-                    if (flagChar is '\'' or '"' or '`')
-                    {
+                    if (flagChar is '\'' or '"' or '`') {
                         if (baseCmd.Equals("cut", StringComparison.OrdinalIgnoreCase) &&
                             flagContentBuilder.ToString() == "-d")
                             break;
 
-                        if (j + 1 < command.Length)
-                        {
+                        if (j + 1 < command.Length) {
                             var nextFlagChar = command[j + 1];
                             if (!Regex.IsMatch(nextFlagChar.ToString(), @"[a-zA-Z0-9_'""-]"))
                                 break;
@@ -437,13 +407,11 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static bool CheckChainedQuoteFlags(string command, int startPos, string initialContent)
-    {
+    private static bool CheckChainedQuoteFlags(string command, int startPos, string initialContent) {
         var pos = startPos;
         var combinedBuilder = new StringBuilder(initialContent);
 
-        while (pos < command.Length && (command[pos] is '\'' or '"' or '`'))
-        {
+        while (pos < command.Length && (command[pos] is '\'' or '"' or '`')) {
             var segQuote = command[pos];
             var end = pos + 1;
             while (end < command.Length && command[end] != segQuote)
@@ -467,10 +435,8 @@ public static class BashRegexCheckRegistry
         }
 
         var finalContent = combinedBuilder.ToString();
-        if (pos < command.Length && Regex.IsMatch(command[pos].ToString(), @"[a-zA-Z0-9\\${`-]"))
-        {
-            if (Regex.IsMatch(finalContent, @"^-+$") || finalContent == "")
-            {
+        if (pos < command.Length && Regex.IsMatch(command[pos].ToString(), @"[a-zA-Z0-9\\${`-]")) {
+            if (Regex.IsMatch(finalContent, @"^-+$") || finalContent == "") {
                 if (command[pos] == '-') return true;
                 if (Regex.IsMatch(command[pos].ToString(), @"[a-zA-Z0-9\\${`]") && finalContent != "")
                     return true;
@@ -481,8 +447,7 @@ public static class BashRegexCheckRegistry
         return false;
     }
 
-    private static BashSecurityResult CheckShellMetacharacters(string command)
-    {
+    private static BashSecurityResult CheckShellMetacharacters(string command) {
         var unquotedContent = ExtractWithDoubleQuotes(command);
         var message = "命令参数中包含Shell元字符（;、|或&）";
 
@@ -500,8 +465,7 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static BashSecurityResult CheckDangerousVariables(string command)
-    {
+    private static BashSecurityResult CheckDangerousVariables(string command) {
         var fullyUnquoted = ExtractFullyUnquoted(command);
 
         if (Regex.IsMatch(fullyUnquoted, @"[<>|]\s*\$[A-Za-z_]") ||
@@ -512,8 +476,7 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static BashSecurityResult CheckMidWordHash(string command)
-    {
+    private static BashSecurityResult CheckMidWordHash(string command) {
         var unquotedKeepQuoteChars = ExtractUnquotedKeepQuoteChars(command);
 
         if (HasMidWordHash(unquotedKeepQuoteChars))
@@ -528,10 +491,8 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static bool HasMidWordHash(string content)
-    {
-        for (var i = 1; i < content.Length; i++)
-        {
+    private static bool HasMidWordHash(string content) {
+        for (var i = 1; i < content.Length; i++) {
             if (content[i] != '#') continue;
             if (!char.IsWhiteSpace(content[i - 1])) continue;
 
@@ -543,36 +504,27 @@ public static class BashRegexCheckRegistry
         return false;
     }
 
-    private static string JoinContinuations(string content)
-    {
+    private static string JoinContinuations(string content) {
         var result = new StringBuilder(content.Length);
         var i = 0;
-        while (i < content.Length)
-        {
-            if (content[i] == '\\' && i + 1 < content.Length && content[i + 1] == '\n')
-            {
+        while (i < content.Length) {
+            if (content[i] == '\\' && i + 1 < content.Length && content[i + 1] == '\n') {
                 var backslashCount = 1;
                 var j = i + 2;
-                while (j + 1 < content.Length && content[j] == '\\' && content[j + 1] == '\n')
-                {
+                while (j + 1 < content.Length && content[j] == '\\' && content[j + 1] == '\n') {
                     backslashCount++;
                     j += 2;
                 }
-                if (backslashCount % 2 == 1)
-                {
+                if (backslashCount % 2 == 1) {
                     for (var k = 0; k < backslashCount - 1; k++)
                         result.Append('\\');
-                }
-                else
-                {
+                } else {
                     for (var k = 0; k < backslashCount; k++)
                         result.Append('\\');
                     result.Append('\n');
                 }
                 i = j;
-            }
-            else
-            {
+            } else {
                 result.Append(content[i]);
                 i++;
             }
@@ -580,8 +532,7 @@ public static class BashRegexCheckRegistry
         return result.ToString();
     }
 
-    private static BashSecurityResult CheckGitCommit(string command)
-    {
+    private static BashSecurityResult CheckGitCommit(string command) {
         var trimmed = command.TrimStart();
         if (!trimmed.StartsWith("git ", StringComparison.OrdinalIgnoreCase)) return Safe();
 
@@ -607,8 +558,7 @@ public static class BashRegexCheckRegistry
         if (remainder.Length > 0 && Regex.IsMatch(remainder, @"[;|&()`]|\$\(|\$\{"))
             return Safe();
 
-        if (remainder.Length > 0)
-        {
+        if (remainder.Length > 0) {
             var unquotedRemainder = ExtractUnquotedSimple(remainder);
             if (unquotedRemainder.Contains('<') || unquotedRemainder.Contains('>'))
                 return Safe();
@@ -621,8 +571,7 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static BashSecurityResult CheckNewlines(string command)
-    {
+    private static BashSecurityResult CheckNewlines(string command) {
         if (!command.Contains('\n') && !command.Contains('\r')) return Safe();
 
         var fullyUnquoted = ExtractFullyUnquoted(command);
@@ -639,18 +588,15 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static bool HasNonContinuationNewline(string content)
-    {
-        for (var i = 0; i < content.Length; i++)
-        {
+    private static bool HasNonContinuationNewline(string content) {
+        for (var i = 0; i < content.Length; i++) {
             var c = content[i];
             if (c != '\n' && c != '\r') continue;
 
             if (i > 0 && content[i - 1] == '\\' && char.IsWhiteSpace(content[i - 2]))
                 continue;
 
-            for (var j = i + 1; j < content.Length; j++)
-            {
+            for (var j = i + 1; j < content.Length; j++) {
                 if (content[j] == '\n' || content[j] == '\r') break;
                 if (!char.IsWhiteSpace(content[j]))
                     return true;
@@ -659,22 +605,18 @@ public static class BashRegexCheckRegistry
         return false;
     }
 
-    private static BashSecurityResult CheckRedirections(string command)
-    {
+    private static BashSecurityResult CheckRedirections(string command) {
         var inSingleQuote = false;
         var inDoubleQuote = false;
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
-            if (c == '\\' && !inSingleQuote && i + 1 < command.Length)
-            {
+            if (c == '\\' && !inSingleQuote && i + 1 < command.Length) {
                 i++;
                 continue;
             }
             if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
             if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
-            if (!inSingleQuote && !inDoubleQuote)
-            {
+            if (!inSingleQuote && !inDoubleQuote) {
                 if (c == '<')
                     return Fail(BashSecurityCheckId.InputRedirection, "命令包含输入重定向（<），可能读取敏感文件");
                 if (c == '>')
@@ -684,14 +626,12 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static BashSecurityResult CheckCommentQuoteDesync(string command)
-    {
+    private static BashSecurityResult CheckCommentQuoteDesync(string command) {
         var inSingleQuote = false;
         var inDoubleQuote = false;
         var escaped = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
 
             if (escaped) { escaped = false; continue; }
@@ -699,8 +639,7 @@ public static class BashRegexCheckRegistry
             if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
             if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
 
-            if (c == '#' && !inSingleQuote && !inDoubleQuote)
-            {
+            if (c == '#' && !inSingleQuote && !inDoubleQuote) {
                 var lineEnd = command.IndexOf('\n', i);
                 var commentText = lineEnd == -1
                     ? command.Substring(i + 1)
@@ -716,8 +655,7 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static BashSecurityResult CheckQuotedNewline(string command)
-    {
+    private static BashSecurityResult CheckQuotedNewline(string command) {
         if (!command.Contains('\n') || !command.Contains('#'))
             return Safe();
 
@@ -725,8 +663,7 @@ public static class BashRegexCheckRegistry
         var inDoubleQuote = false;
         var escaped = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
 
             if (escaped) { escaped = false; continue; }
@@ -734,8 +671,7 @@ public static class BashRegexCheckRegistry
             if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
             if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
 
-            if (c == '\n' && (inSingleQuote || inDoubleQuote))
-            {
+            if (c == '\n' && (inSingleQuote || inDoubleQuote)) {
                 var lineStart = i + 1;
                 var nextNewline = command.IndexOf('\n', lineStart);
                 var lineEnd = nextNewline == -1 ? command.Length : nextNewline;
@@ -749,14 +685,12 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static bool HasUnquotedCarriageReturn(string command)
-    {
+    private static bool HasUnquotedCarriageReturn(string command) {
         var inSingleQuote = false;
         var inDoubleQuote = false;
         var escaped = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
 
             if (escaped) { escaped = false; continue; }
@@ -771,24 +705,20 @@ public static class BashRegexCheckRegistry
         return false;
     }
 
-    private static bool IsEscapedAtPosition(string content, int pos)
-    {
+    private static bool IsEscapedAtPosition(string content, int pos) {
         var backslashCount = 0;
         var i = pos - 1;
-        while (i >= 0 && content[i] == '\\')
-        {
+        while (i >= 0 && content[i] == '\\') {
             backslashCount++;
             i--;
         }
         return backslashCount % 2 == 1;
     }
 
-    private static string ExtractBaseCommand(string command)
-    {
+    private static string ExtractBaseCommand(string command) {
         var trimmed = command.Trim();
         var tokens = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var token in tokens)
-        {
+        foreach (var token in tokens) {
             if (Regex.IsMatch(token, @"^[A-Za-z_]\w*=")) continue;
             if (token is "command" or "builtin" or "noglob" or "nocorrect") continue;
             return token;
@@ -796,15 +726,13 @@ public static class BashRegexCheckRegistry
         return "";
     }
 
-    private static string ExtractFullyUnquoted(string command)
-    {
+    private static string ExtractFullyUnquoted(string command) {
         var result = new StringBuilder(command.Length);
         var inSingleQuote = false;
         var inDoubleQuote = false;
         var escaped = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
             if (escaped) { escaped = false; continue; }
             if (c == '\\' && !inSingleQuote) { escaped = true; continue; }
@@ -816,14 +744,12 @@ public static class BashRegexCheckRegistry
         return result.ToString();
     }
 
-    private static string ExtractWithDoubleQuotes(string command)
-    {
+    private static string ExtractWithDoubleQuotes(string command) {
         var result = new StringBuilder(command.Length);
         var inSingleQuote = false;
         var escaped = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
             if (escaped) { escaped = false; if (!inSingleQuote) result.Append(c); continue; }
             if (c == '\\' && !inSingleQuote) { escaped = true; if (!inSingleQuote) result.Append(c); continue; }
@@ -834,15 +760,13 @@ public static class BashRegexCheckRegistry
         return result.ToString();
     }
 
-    private static string ExtractUnquotedKeepQuoteChars(string command)
-    {
+    private static string ExtractUnquotedKeepQuoteChars(string command) {
         var result = new StringBuilder(command.Length);
         var inSingleQuote = false;
         var inDoubleQuote = false;
         var escaped = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
             if (escaped) { escaped = false; if (!inSingleQuote && !inDoubleQuote) result.Append(c); continue; }
             if (c == '\\' && !inSingleQuote) { escaped = true; if (!inSingleQuote && !inDoubleQuote) result.Append(c); continue; }
@@ -854,13 +778,11 @@ public static class BashRegexCheckRegistry
         return result.ToString();
     }
 
-    private static string ExtractUnquotedSimple(string text)
-    {
+    private static string ExtractUnquotedSimple(string text) {
         var result = new StringBuilder(text.Length);
         var inSQ = false;
         var inDQ = false;
-        for (var i = 0; i < text.Length; i++)
-        {
+        for (var i = 0; i < text.Length; i++) {
             var c = text[i];
             if (c == '\'' && !inDQ) { inSQ = !inSQ; continue; }
             if (c == '"' && !inSQ) { inDQ = !inDQ; continue; }
@@ -872,8 +794,7 @@ public static class BashRegexCheckRegistry
     /// <summary>
     /// 判断命令是否为安全的 heredoc 形式 — 仅当命令为 $((cat &lt;&lt; ...)) 且 body 仅含安全字符时返回 true
     /// </summary>
-    public static bool IsSafeHeredoc(string command)
-    {
+    public static bool IsSafeHeredoc(string command) {
         if (!command.Contains("$(", StringComparison.Ordinal) || !command.Contains("<<", StringComparison.Ordinal))
             return false;
 
@@ -883,8 +804,7 @@ public static class BashRegexCheckRegistry
 
         var safeHeredocs = new List<(int Start, int OperatorEnd, string Delimiter, bool IsDash)>();
 
-        foreach (Match match in heredocPattern.Matches(command))
-        {
+        foreach (Match match in heredocPattern.Matches(command)) {
             var delimiter = match.Groups[2].Value;
             if (string.IsNullOrEmpty(delimiter))
                 delimiter = match.Groups[3].Value;
@@ -897,8 +817,7 @@ public static class BashRegexCheckRegistry
 
         var verified = new List<(int Start, int End)>();
 
-        foreach (var (start, operatorEnd, delimiter, isDash) in safeHeredocs)
-        {
+        foreach (var (start, operatorEnd, delimiter, isDash) in safeHeredocs) {
             var afterOperator = command[operatorEnd..];
             var openLineEnd = afterOperator.IndexOf('\n');
             if (openLineEnd == -1) return false;
@@ -914,13 +833,11 @@ public static class BashRegexCheckRegistry
             var closeParenLineIdx = -1;
             var closeParenColIdx = -1;
 
-            for (var i = 0; i < bodyLines.Length; i++)
-            {
+            for (var i = 0; i < bodyLines.Length; i++) {
                 var rawLine = bodyLines[i];
                 var line = isDash ? Regex.Replace(rawLine, @"^\t*", "") : rawLine;
 
-                if (line == delimiter)
-                {
+                if (line == delimiter) {
                     closingLineIdx = i;
                     if (i + 1 >= bodyLines.Length) return false;
                     var parenMatch = Regex.Match(bodyLines[i + 1], @"^([ \t]*)\)");
@@ -930,12 +847,10 @@ public static class BashRegexCheckRegistry
                     break;
                 }
 
-                if (line.StartsWith(delimiter, StringComparison.Ordinal))
-                {
+                if (line.StartsWith(delimiter, StringComparison.Ordinal)) {
                     var afterDelim = line[delimiter.Length..];
                     var parenMatch2 = Regex.Match(afterDelim, @"^([ \t]*)\)");
-                    if (parenMatch2.Success)
-                    {
+                    if (parenMatch2.Success) {
                         closingLineIdx = i;
                         closeParenLineIdx = i;
                         var tabPrefix = isDash ? (Regex.Match(rawLine, @"^\t*").Value) : "";
@@ -957,10 +872,8 @@ public static class BashRegexCheckRegistry
             verified.Add((start, endPos));
         }
 
-        for (var i = 0; i < verified.Count; i++)
-        {
-            for (var j = 0; j < verified.Count; j++)
-            {
+        for (var i = 0; i < verified.Count; i++) {
+            for (var j = 0; j < verified.Count; j++) {
                 if (i == j) continue;
                 if (verified[j].Start > verified[i].Start && verified[j].Start < verified[i].End)
                     return false;
@@ -972,8 +885,7 @@ public static class BashRegexCheckRegistry
             remaining = remaining[..s] + remaining[e..];
 
         var trimmedRemaining = remaining.Trim();
-        if (trimmedRemaining.Length > 0)
-        {
+        if (trimmedRemaining.Length > 0) {
             var firstHeredocStart = verified.Min(v => v.Start);
             var prefix = command[..firstHeredocStart];
             if (prefix.Trim().Length == 0)
@@ -986,8 +898,7 @@ public static class BashRegexCheckRegistry
         return true;
     }
 
-    private static BashSecurityResult CheckMalformedTokenInjection(string command)
-    {
+    private static BashSecurityResult CheckMalformedTokenInjection(string command) {
         if (!HasCommandSeparator(command))
             return Safe();
 
@@ -998,22 +909,19 @@ public static class BashRegexCheckRegistry
         return Safe();
     }
 
-    private static bool HasCommandSeparator(string command)
-    {
+    private static bool HasCommandSeparator(string command) {
         var inSingleQuote = false;
         var inDoubleQuote = false;
         var escaped = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
             if (escaped) { escaped = false; continue; }
             if (c == '\\' && !inSingleQuote) { escaped = true; continue; }
             if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
             if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
 
-            if (!inSingleQuote && !inDoubleQuote)
-            {
+            if (!inSingleQuote && !inDoubleQuote) {
                 if (c == ';') return true;
                 if (c == '&' && i + 1 < command.Length && command[i + 1] == '&') return true;
                 if (c == '|' && i + 1 < command.Length && command[i + 1] == '|') return true;
@@ -1023,34 +931,28 @@ public static class BashRegexCheckRegistry
         return false;
     }
 
-    private static bool HasMalformedTokens(string command)
-    {
+    private static bool HasMalformedTokens(string command) {
         var inSingle = false;
         var inDouble = false;
         var doubleCount = 0;
         var singleCount = 0;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
             if (c == '\\' && !inSingle && i + 1 < command.Length) { i++; continue; }
-            if (c == '"' && !inSingle) { doubleCount++; inDouble = !inDouble; }
-            else if (c == '\'' && !inDouble) { singleCount++; inSingle = !inSingle; }
+            if (c == '"' && !inSingle) { doubleCount++; inDouble = !inDouble; } else if (c == '\'' && !inDouble) { singleCount++; inSingle = !inSingle; }
         }
 
         if (doubleCount % 2 != 0 || singleCount % 2 != 0) return true;
 
         var unquotedTokens = ExtractUnquotedTokens(command);
-        foreach (var token in unquotedTokens)
-        {
+        foreach (var token in unquotedTokens) {
             var openBraces = 0; var closeBraces = 0;
             var openParens = 0; var closeParens = 0;
             var openBrackets = 0; var closeBrackets = 0;
 
-            foreach (var ch in token)
-            {
-                switch (ch)
-                {
+            foreach (var ch in token) {
+                switch (ch) {
                     case '{': openBraces++; break;
                     case '}': closeBraces++; break;
                     case '(': openParens++; break;
@@ -1067,26 +969,22 @@ public static class BashRegexCheckRegistry
         return false;
     }
 
-    private static List<string> ExtractUnquotedTokens(string command)
-    {
+    private static List<string> ExtractUnquotedTokens(string command) {
         var tokens = new List<string>();
         var current = new StringBuilder();
         var inSingleQuote = false;
         var inDoubleQuote = false;
         var escaped = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
             if (escaped) { escaped = false; if (!inSingleQuote) current.Append(c); continue; }
             if (c == '\\' && !inSingleQuote) { escaped = true; continue; }
             if (c == '\'' && !inDoubleQuote) { inSingleQuote = !inSingleQuote; continue; }
             if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
 
-            if (!inSingleQuote && !inDoubleQuote)
-            {
-                if (char.IsWhiteSpace(c) || c is ';' or '|' or '&')
-                {
+            if (!inSingleQuote && !inDoubleQuote) {
+                if (char.IsWhiteSpace(c) || c is ';' or '|' or '&') {
                     if (current.Length > 0) { tokens.Add(current.ToString()); current.Clear(); }
                     continue;
                 }

@@ -4,21 +4,17 @@ namespace Core.Skills.BuiltIn;
 /// <summary>
 /// 技能化技能 — 将重复操作转化为可复用技能
 /// </summary>
-public sealed class SkillifySkill
-{
+public sealed class SkillifySkill {
     /// <summary>
     /// 创建技能定义
     /// </summary>
     /// <returns>技能化技能的技能定义</returns>
-    public static SkillDefinition CreateDefinition()
-    {
-        return new SkillDefinition
-        {
+    public static SkillDefinition CreateDefinition() {
+        return new SkillDefinition {
             Name = "skillify",
             Description = "将重复操作转化为可复用技能",
             Version = "1.0",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["name"] = new() { Type = "string", Description = "技能名称", Required = true, Validation = new ParameterValidation { Pattern = @"^[a-z][a-z0-9_]*$", MinLength = 3, MaxLength = 50 } },
                 ["description"] = new() { Type = "string", Description = "技能描述", Required = false },
                 ["fromHistory"] = new() { Type = "boolean", Description = "是否从操作历史中提取", Required = false, DefaultValue = false }

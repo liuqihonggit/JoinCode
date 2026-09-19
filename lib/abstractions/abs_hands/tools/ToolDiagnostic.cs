@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Tools;
 /// 所有工具在失败路径可返回此对象，GUI 可根据 Reason/Details/Suggestions 分区域渲染。
 /// FormattedMessage 保持向后兼容 ErrorMessage 字符串。
 /// </summary>
-public sealed record ToolDiagnostic
-{
+public sealed record ToolDiagnostic {
     /// <summary>
     /// 诊断原因分类（工具特定，如 "StringNotFound", "PartialMatch", "WhitespaceMismatch", "SimilarFound", "NoResults", "UnknownSetting", "ContextMismatch", "CellNotFound"）。
     /// </summary>
@@ -37,13 +36,12 @@ public sealed record ToolDiagnostic
         string reason,
         string formattedMessage,
         IReadOnlyList<DiagnosticDetail>? details = null,
-        IReadOnlyList<string>? suggestions = null) => new()
-    {
-        Reason = reason,
-        FormattedMessage = formattedMessage,
-        Details = details ?? [],
-        Suggestions = suggestions ?? [],
-    };
+        IReadOnlyList<string>? suggestions = null) => new() {
+            Reason = reason,
+            FormattedMessage = formattedMessage,
+            Details = details ?? [],
+            Suggestions = suggestions ?? [],
+        };
 
     /// <summary>
     /// 创建带单条详情的诊断信息。
@@ -53,13 +51,12 @@ public sealed record ToolDiagnostic
         string formattedMessage,
         string detailKey,
         string detailValue,
-        params string[] suggestions) => new()
-    {
-        Reason = reason,
-        FormattedMessage = formattedMessage,
-        Details = [new DiagnosticDetail(detailKey, detailValue)],
-        Suggestions = suggestions,
-    };
+        params string[] suggestions) => new() {
+            Reason = reason,
+            FormattedMessage = formattedMessage,
+            Details = [new DiagnosticDetail(detailKey, detailValue)],
+            Suggestions = suggestions,
+        };
 }
 
 /// <summary>

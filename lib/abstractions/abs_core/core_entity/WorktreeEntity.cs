@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Entity;
 /// Git Worktree 实体 — 派生自 Entity，追踪 git worktree 生命周期
 /// 超时自动清理，避免遗忘的 worktree 占用磁盘
 /// </summary>
-public sealed class WorktreeEntity : Entity
-{
+public sealed class WorktreeEntity : Entity {
     public string WorktreePath { get; }
     public string? BranchName { get; init; }
     public ObjectId? AgentObjectId { get; init; }
@@ -19,16 +18,14 @@ public sealed class WorktreeEntity : Entity
         ObjectId? agentObjectId = default,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base(ObjectType.Worktree, sessionId, displayName ?? worktreePath)
-    {
+        : base(ObjectType.Worktree, sessionId, displayName ?? worktreePath) {
         WorktreePath = worktreePath;
         BranchName = branchName;
         AgentObjectId = agentObjectId;
         Registry.Add(ObjectId, this);
     }
 
-    public override void Dispose()
-    {
+    public override void Dispose() {
         Registry.Remove(ObjectId);
         base.Dispose();
     }
@@ -37,15 +34,13 @@ public sealed class WorktreeEntity : Entity
 /// <summary>
 /// Worktree 状态
 /// </summary>
-public enum WorktreeEntityStatus
-{
+public enum WorktreeEntityStatus {
     [EnumValue("active")] Active,
     [EnumValue("stale")] Stale,
     [EnumValue("removed")] Removed,
 }
 
-public sealed class WorktreeEntityRegistry : MapRegistry<ObjectId, WorktreeEntity>
-{
+public sealed class WorktreeEntityRegistry : MapRegistry<ObjectId, WorktreeEntity> {
     internal void Add(ObjectId id, WorktreeEntity worktree) => AddCore(id, worktree);
     internal bool Remove(ObjectId id) => RemoveCore(id);
     public IEnumerable<WorktreeEntity> GetActive() => Where(w => w.Status == WorktreeEntityStatus.Active);

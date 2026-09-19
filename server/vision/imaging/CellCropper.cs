@@ -4,8 +4,7 @@ namespace JoinCode.Vision.Imaging;
 /// 图像格子裁剪器 — 用 ImageSharp 裁剪指定矩形区域，返回 PNG 字节
 /// 用于 quadtree_zoom：聚焦格子 → 裁剪子图 → 重新编码
 /// </summary>
-public static class CellCropper
-{
+public static class CellCropper {
     /// <summary>裁剪图像指定矩形区域，返回 PNG 字节</summary>
     /// <param name="imageBytes">原图字节</param>
     /// <param name="x">裁剪区左上角 X</param>
@@ -20,8 +19,7 @@ public static class CellCropper
         int y,
         int width,
         int height,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(imageBytes);
         if (imageBytes.Length == 0) throw new ArgumentException("[VIS010] 图像字节为空", nameof(imageBytes));
         if (width <= 0 || height <= 0) throw new ArgumentException("[VIS011] 裁剪尺寸必须为正");
@@ -41,8 +39,7 @@ public static class CellCropper
         int y,
         int width,
         int height,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var bytes = await CropAsync(imageBytes, x, y, width, height, cancellationToken).ConfigureAwait(false);
         return Convert.ToBase64String(bytes);
     }

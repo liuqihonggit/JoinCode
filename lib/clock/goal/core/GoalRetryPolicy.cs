@@ -3,8 +3,7 @@ namespace Core.Goal;
 /// <summary>
 /// 分级重试决策
 /// </summary>
-public enum RetryDecision
-{
+public enum RetryDecision {
     /// <summary>接受当前结果，不重试</summary>
     [EnumValue("accept")]
     Accept,
@@ -21,8 +20,7 @@ public enum RetryDecision
 /// 分数&lt;0.3 立即放弃 | 0.3-0.7 有限重试(≤2次) | &gt;=0.7 接受。
 /// 不修改现有 RetryPolicy（Agent/API 层），仅用于 Goal 图执行。
 /// </summary>
-public sealed class GoalRetryPolicy
-{
+public sealed class GoalRetryPolicy {
     private const double AbandonThreshold = 0.3;
     private const double AcceptThreshold = 0.7;
     private const int MaxRetryWithPatch = 2;
@@ -32,8 +30,7 @@ public sealed class GoalRetryPolicy
     /// </summary>
     /// <param name="score">质量分数（0.0-1.0）</param>
     /// <param name="currentRetryCount">当前已重试次数</param>
-    public static RetryDecision Decide(double score, int currentRetryCount)
-    {
+    public static RetryDecision Decide(double score, int currentRetryCount) {
         if (score >= AcceptThreshold)
             return RetryDecision.Accept;
 

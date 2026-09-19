@@ -3,8 +3,7 @@ namespace JoinCode.Cli.Output;
 /// <summary>
 /// NDJSON 事件 — AX 模式下每行一个 JSON 对象的结构化事件流
 /// </summary>
-public sealed class CliStreamEvent
-{
+public sealed class CliStreamEvent {
     /// <summary>事件类型（text/thinking/tool_start/tool_end/tool_progress/loop_detected/timing/done）</summary>
     public string Type { get; init; }
 
@@ -16,8 +15,7 @@ public sealed class CliStreamEvent
 
     /// <summary>初始化 <see cref="CliStreamEvent"/> 实例，并自动生成 UTC 时间戳</summary>
     /// <param name="type">事件类型（text/thinking/tool_start/tool_end/tool_progress/loop_detected/timing/done）</param>
-    public CliStreamEvent(string type)
-    {
+    public CliStreamEvent(string type) {
         Type = type;
         Timestamp = DateTime.UtcNow.ToString("O");
     }
@@ -26,8 +24,7 @@ public sealed class CliStreamEvent
 /// <summary>
 /// NDJSON 事件负载 — 使用强类型属性替代 Dictionary&lt;string, object&gt;（AOT 兼容）
 /// </summary>
-public sealed class CliStreamEventData
-{
+public sealed class CliStreamEventData {
     /// <summary>文本内容（text 事件）</summary>
     public string? Content { get; init; }
 

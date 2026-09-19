@@ -4,8 +4,7 @@ namespace Core.Agents.Coordinator.Liveness;
 /// 子代理活性检测状态 — [Flags] 位标志枚举，对齐 ADR 0038 状态机+守卫模式
 /// </summary>
 [Flags]
-public enum SubAgentLivenessState : byte
-{
+public enum SubAgentLivenessState : byte {
     /// <summary>无状态 — 初始或重置后</summary>
     None = 0,
 
@@ -22,8 +21,7 @@ public enum SubAgentLivenessState : byte
 /// <summary>
 /// 活性检测事件 — 驱动状态机转换
 /// </summary>
-public enum SubAgentLivenessEvent : byte
-{
+public enum SubAgentLivenessEvent : byte {
     /// <summary>检测到无活动 — Monitoring→Suspected 或 Confirmed 自循环</summary>
     Idle,
 
@@ -52,8 +50,7 @@ public enum SubAgentLivenessEvent : byte
 public sealed record SubAgentIdleResult(
     SubAgentLivenessState State,
     SubAgentLivenessEvent? Event,
-    bool IsStalled)
-{
+    bool IsStalled) {
     /// <summary>未检测到卡死的默认结果</summary>
     public static readonly SubAgentIdleResult NotStalled = new(SubAgentLivenessState.Monitoring, null, false);
 }
@@ -67,8 +64,7 @@ public sealed record SubAgentIdleResult(
 /// </para>
 /// <para>复用 ShannonEntropyDetector 的状态机模式（ADR 0040），但检测信号从"熵减"改为"无活动时间超限"</para>
 /// </summary>
-public sealed class SubAgentIdleDetector
-{
+public sealed class SubAgentIdleDetector {
     private SubAgentLivenessState _state = SubAgentLivenessState.Monitoring;
     private DateTimeOffset _suspectedAt;
     private readonly TimeSpan _idleThreshold;
@@ -84,8 +80,7 @@ public sealed class SubAgentIdleDetector
     public SubAgentIdleDetector(
         TimeSpan? idleThreshold = null,
         TimeSpan? confirmationWindow = null,
-        Func<DateTimeOffset>? clock = null)
-    {
+        Func<DateTimeOffset>? clock = null) {
         _idleThreshold = idleThreshold ?? TimeSpan.FromSeconds(30);
         _confirmationWindow = confirmationWindow ?? TimeSpan.FromSeconds(5);
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
@@ -106,15 +101,13 @@ public sealed class SubAgentIdleDetector
     /// <param name="lastActivityAt">子代理最后活跃时刻</param>
     /// <param name="hasGrandchildren">是否有活跃的孙代理</param>
     /// <returns>检测结果（含新状态和触发事件）</returns>
-    public SubAgentIdleResult Record(DateTimeOffset lastActivityAt, bool hasGrandchildren)
-    {
+    public SubAgentIdleResult Record(DateTimeOffset lastActivityAt, bool hasGrandchildren) {
         var now = _clock();
         var idleSpan = now - lastActivityAt;
         var isIdle = idleSpan > _idleThreshold && !hasGrandchildren;
 
         var evt = SelectEvent(isIdle, now);
-        if (evt.HasValue)
-        {
+        if (evt.HasValue) {
             _state = Transition(_state, evt.Value);
             if (evt.Value == SubAgentLivenessEvent.Idle && _state == SubAgentLivenessState.Suspected)
                 _suspectedAt = now;
@@ -127,23 +120,19 @@ public sealed class SubAgentIdleDetector
     /// <summary>
     /// 标记恢复 — 干预后子代理恢复活动时调用
     /// </summary>
-    public void MarkRecovered()
-    {
+    public void MarkRecovered() {
         if (_state == SubAgentLivenessState.Confirmed)
             _state = SubAgentLivenessState.Monitoring;
     }
 
     /// <summary>重置检测器到 Monitoring 状态</summary>
-    public void Reset()
-    {
+    public void Reset() {
         _state = SubAgentLivenessState.Monitoring;
         _suspectedAt = default;
     }
 
-    private SubAgentLivenessEvent? SelectEvent(bool isIdle, DateTimeOffset now)
-    {
-        return _state switch
-        {
+    private SubAgentLivenessEvent? SelectEvent(bool isIdle, DateTimeOffset now) {
+        return _state switch {
             SubAgentLivenessState.Monitoring => isIdle ? SubAgentLivenessEvent.Idle : null,
             SubAgentLivenessState.Suspected => SelectSuspectedEvent(isIdle, now),
             SubAgentLivenessState.Confirmed => isIdle ? null : SubAgentLivenessEvent.Recover,
@@ -151,18 +140,15 @@ public sealed class SubAgentIdleDetector
         };
     }
 
-    private SubAgentLivenessEvent? SelectSuspectedEvent(bool isIdle, DateTimeOffset now)
-    {
+    private SubAgentLivenessEvent? SelectSuspectedEvent(bool isIdle, DateTimeOffset now) {
         var inWindow = (now - _suspectedAt) <= _confirmationWindow;
         if (!inWindow)
             return isIdle ? SubAgentLivenessEvent.Confirm : SubAgentLivenessEvent.Timeout;
         return isIdle ? SubAgentLivenessEvent.Confirm : SubAgentLivenessEvent.Active;
     }
 
-    private static SubAgentLivenessState Transition(SubAgentLivenessState state, SubAgentLivenessEvent evt)
-    {
-        return (state, evt) switch
-        {
+    private static SubAgentLivenessState Transition(SubAgentLivenessState state, SubAgentLivenessEvent evt) {
+        return (state, evt) switch {
             (SubAgentLivenessState.Monitoring, SubAgentLivenessEvent.Idle) => SubAgentLivenessState.Suspected,
             (SubAgentLivenessState.Suspected, SubAgentLivenessEvent.Confirm) => SubAgentLivenessState.Confirmed,
             (SubAgentLivenessState.Suspected, SubAgentLivenessEvent.Timeout) => SubAgentLivenessState.Monitoring,

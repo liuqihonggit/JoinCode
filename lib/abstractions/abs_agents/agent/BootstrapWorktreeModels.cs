@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 /// <summary>
 /// 自举 worktree — Doctor 专属的 git worktree 隔离环境
 /// </summary>
-public sealed record BootstrapWorktree
-{
+public sealed record BootstrapWorktree {
     /// <summary>worktree 路径</summary>
     public required string WorktreePath { get; init; }
 
@@ -24,8 +23,7 @@ public sealed record BootstrapWorktree
 /// <summary>
 /// worktree 提交结果
 /// </summary>
-public sealed record WorktreeCommitResult
-{
+public sealed record WorktreeCommitResult {
     /// <summary>是否成功</summary>
     public required bool Success { get; init; }
 

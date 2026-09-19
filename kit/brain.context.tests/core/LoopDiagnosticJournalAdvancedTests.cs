@@ -1,20 +1,15 @@
 namespace Core.Context;
 
-public sealed class LoopDiagnosticJournalAdvancedTests
-{
+public sealed class LoopDiagnosticJournalAdvancedTests {
     [Fact]
-    public async Task ConcurrentRecord_DoesNotCorruptWindow()
-    {
+    public async Task ConcurrentRecord_DoesNotCorruptWindow() {
         await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 100);
         var tasks = new List<Task>();
 
-        for (var i = 0; i < 10; i++)
-        {
+        for (var i = 0; i < 10; i++) {
             var turn = i;
-            tasks.Add(Task.Run(() =>
-            {
-                for (var j = 0; j < 50; j++)
-                {
+            tasks.Add(Task.Run(() => {
+                for (var j = 0; j < 50; j++) {
                     journal.Record("concurrent_event", "s1", turn, j);
                 }
             }));
@@ -28,18 +23,14 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     }
 
     [Fact]
-    public async Task ConcurrentRecordAndAnomaly_DoesNotCorruptWindow()
-    {
+    public async Task ConcurrentRecordAndAnomaly_DoesNotCorruptWindow() {
         await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 100);
         var tasks = new List<Task>();
 
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             var turn = i;
-            tasks.Add(Task.Run(() =>
-            {
-                for (var j = 0; j < 30; j++)
-                {
+            tasks.Add(Task.Run(() => {
+                for (var j = 0; j < 30; j++) {
                     journal.Record("event", "s1", turn, j);
                 }
                 journal.OnLoopDetected("OutputLoop", "s1", turn, 30, 1, "循环");
@@ -54,12 +45,10 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     }
 
     [Fact]
-    public async Task ChannelFull_DropOldest_DoesNotBlockCaller()
-    {
+    public async Task ChannelFull_DropOldest_DoesNotBlockCaller() {
         await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 10);
 
-        for (var i = 0; i < 500; i++)
-        {
+        for (var i = 0; i < 500; i++) {
             journal.Record("burst", "s1", 1, i);
         }
 
@@ -68,12 +57,10 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     }
 
     [Fact]
-    public async Task Reset_DuringConsumption_DoesNotDeadlock()
-    {
+    public async Task Reset_DuringConsumption_DoesNotDeadlock() {
         await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 50);
 
-        for (var i = 0; i < 100; i++)
-        {
+        for (var i = 0; i < 100; i++) {
             journal.Record("event", "s1", 1, i);
         }
 
@@ -84,12 +71,10 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     }
 
     [Fact]
-    public async Task Dispose_StopsBackgroundConsumer()
-    {
+    public async Task Dispose_StopsBackgroundConsumer() {
         await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 50);
 
-        for (var i = 0; i < 100; i++)
-        {
+        for (var i = 0; i < 100; i++) {
             journal.Record("event", "s1", 1, i);
         }
 
@@ -97,8 +82,7 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     }
 
     [Fact]
-    public async Task OnLoopDetected_MultipleAnomalies_AllRecordedToWindow()
-    {
+    public async Task OnLoopDetected_MultipleAnomalies_AllRecordedToWindow() {
         await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 50);
 
         journal.Record("event", "s1", 1, 0);
@@ -113,12 +97,10 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     }
 
     [Fact]
-    public async Task Record_WithCustomData_PreservedInEntry()
-    {
+    public async Task Record_WithCustomData_PreservedInEntry() {
         await using var journal = new LoopDiagnosticJournal();
 
-        var entry = journal.Record("tool_start", "s1", 1, 0, new Dictionary<string, string>
-        {
+        var entry = journal.Record("tool_start", "s1", 1, 0, new Dictionary<string, string> {
             ["tool_name"] = "Read",
             ["file_path"] = "/test.cs"
         });
@@ -131,8 +113,7 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     }
 
     [Fact]
-    public async Task OnLoopDetected_WithEntropyAndSnippet_DataPreserved()
-    {
+    public async Task OnLoopDetected_WithEntropyAndSnippet_DataPreserved() {
         await using var journal = new LoopDiagnosticJournal();
         journal.Record("event", "s1", 1, 0);
 

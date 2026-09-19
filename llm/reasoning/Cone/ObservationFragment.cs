@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Cone;
 /// <summary>
 /// 观察链片段 — 零散但可结构化的认知单元，关联 DAG 中的源数据项
 /// </summary>
-public sealed class ObservationFragment
-{
+public sealed class ObservationFragment {
     /// <summary>
     /// 片段唯一标识
     /// </summary>

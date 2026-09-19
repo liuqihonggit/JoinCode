@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class PromptStateSnapshot
-{
+public sealed class PromptStateSnapshot {
     public required string SystemPromptHash { get; init; }
     public required string ToolSpecsHash { get; init; }
     public required int ToolCount { get; init; }
@@ -16,8 +15,7 @@ public sealed class PromptStateSnapshot
     public bool? FastMode { get; init; }
 }
 
-public enum CacheBreakKind
-{
+public enum CacheBreakKind {
     [EnumValue("none")]
     None,
     [EnumValue("system_prompt_changed")]
@@ -49,8 +47,7 @@ public enum CacheBreakKind
     ServerSideRouting
 }
 
-public sealed class CacheBreakResult
-{
+public sealed class CacheBreakResult {
     public bool BreakDetected { get; init; }
     public CacheBreakKind Kind { get; init; }
     public string? Detail { get; init; }
@@ -58,8 +55,7 @@ public sealed class CacheBreakResult
 
     public static CacheBreakResult NoBreak() => new() { BreakDetected = false, Kind = CacheBreakKind.None };
 
-    public static CacheBreakResult Break(CacheBreakKind kind, string detail, ToolDriftReport? toolDrift = null) => new()
-    {
+    public static CacheBreakResult Break(CacheBreakKind kind, string detail, ToolDriftReport? toolDrift = null) => new() {
         BreakDetected = true,
         Kind = kind,
         Detail = detail,

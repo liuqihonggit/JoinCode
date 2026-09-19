@@ -5,8 +5,7 @@ namespace Core.Goal;
 /// 节点间冲突消息队列 — 每节点独立 Channel，非阻塞入队/拉取。
 /// </summary>
 [Register(typeof(IGoalConflictMessenger), ServiceLifetime.Singleton)]
-public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflictMessenger
-{
+public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflictMessenger {
     private readonly ConcurrentDictionary<string, Channel<ConflictMessage>> _channels = new(StringComparer.Ordinal);
 
     private readonly ILogger<GoalConflictMessenger>? _logger;
@@ -15,14 +14,12 @@ public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflict
     /// 构造 GoalConflictMessenger — 注入可选日志记录器
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
-    public GoalConflictMessenger(ILogger<GoalConflictMessenger>? logger = null)
-    {
+    public GoalConflictMessenger(ILogger<GoalConflictMessenger>? logger = null) {
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public async ValueTask EnqueueConflictAsync(ConflictMessage message, CancellationToken cancellationToken = default)
-    {
+    public async ValueTask EnqueueConflictAsync(ConflictMessage message, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(message);
         var channel = _channels.GetOrAdd(message.TargetNodeId, _ => Channel.CreateUnbounded<ConflictMessage>());
         await channel.Writer.WriteAsync(message, cancellationToken).ConfigureAwait(false);
@@ -31,19 +28,16 @@ public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflict
     }
 
     /// <inheritdoc />
-    public async ValueTask<IReadOnlyList<ConflictMessage>> DequeueConflictsAsync(string nodeId, CancellationToken cancellationToken = default)
-    {
+    public async ValueTask<IReadOnlyList<ConflictMessage>> DequeueConflictsAsync(string nodeId, CancellationToken cancellationToken = default) {
         if (!_channels.TryGetValue(nodeId, out var channel))
             return [];
 
         var messages = new List<ConflictMessage>();
-        while (channel.Reader.TryRead(out var message))
-        {
+        while (channel.Reader.TryRead(out var message)) {
             messages.Add(message);
         }
 
-        if (messages.Count > 0)
-        {
+        if (messages.Count > 0) {
             _logger?.LogDebug("[GoalConflictMessenger] 拉取冲突: {NodeId} 共 {Count} 条", nodeId, messages.Count);
         }
 
@@ -52,8 +46,7 @@ public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflict
     }
 
     /// <inheritdoc />
-    public int GetPendingCount(string nodeId)
-    {
+    public int GetPendingCount(string nodeId) {
         if (!_channels.TryGetValue(nodeId, out var channel))
             return 0;
         return channel.Reader.Count;

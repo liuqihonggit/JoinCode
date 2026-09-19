@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.CodeIndex;
 /// 图可视化接口 — 导出为 DOT/HTML 格式
 /// 对齐 graphify 的 graph.html 交互式可视化 + code-review-graph 的 visualize 命令
 /// </summary>
-public interface IGraphVisualization
-{
+public interface IGraphVisualization {
     /// <summary>
     /// 导出调用图为 DOT 格式(Graphviz)
     /// </summary>

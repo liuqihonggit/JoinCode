@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// TUI 模式: 待引入 Terminal.Gui 渲染层（见 docs/plans/TUI架构与消息管道重构设计.md）。
 /// GUI 模式: Avalonia 适配器（JoinCodeGui）。
 /// </summary>
-public interface IPresentationAdapter : IDisposable
-{
+public interface IPresentationAdapter : IDisposable {
     /// <summary>
     /// 启动表示层
     /// </summary>

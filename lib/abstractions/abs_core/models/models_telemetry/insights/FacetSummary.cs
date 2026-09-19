@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Insights;
 /// <summary>
 /// Facet 聚合摘要 — 对齐 TS insights.ts facets_summary
 /// </summary>
-public sealed class FacetSummary
-{
+public sealed class FacetSummary {
     public int Total { get; init; }
     public IReadOnlyDictionary<string, int> GoalCategories { get; init; } = new Dictionary<string, int>();
     public IReadOnlyDictionary<string, int> Outcomes { get; init; } = new Dictionary<string, int>();

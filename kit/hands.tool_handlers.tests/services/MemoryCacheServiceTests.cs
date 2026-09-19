@@ -1,4 +1,5 @@
-#pragma warning disable JCC3010, JCC3011, JCC3012
+
+#pragma warning disable JCC3010, JCC3011, JCC3012
 namespace Core.Tests.Services;
 
 /// <summary>

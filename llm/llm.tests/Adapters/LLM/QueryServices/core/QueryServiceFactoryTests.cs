@@ -1,11 +1,9 @@
 namespace Llm.Tests.Adapters.LLM.QueryServices;
 
-public sealed class QueryServiceFactoryTests
-{
+public sealed class QueryServiceFactoryTests {
     private readonly QueryServiceFactory _factory = new();
 
-    public QueryServiceFactoryTests()
-    {
+    public QueryServiceFactoryTests() {
         _factory.RegisterProvider(ProtocolKind.Anthropic,
             (config, http, logger, fs, executor) => new AnthropicQueryService(config, http, logger, fs, executor));
         _factory.RegisterProvider(ProtocolKind.Azure,
@@ -19,8 +17,7 @@ public sealed class QueryServiceFactoryTests
     }
 
     [Fact]
-    public void Create_NullConfig_ThrowsArgumentNullException()
-    {
+    public void Create_NullConfig_ThrowsArgumentNullException() {
         var act = () => _factory.Create(null!);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("config");
@@ -35,11 +32,9 @@ public sealed class QueryServiceFactoryTests
     [InlineData("deepseek", "responses", typeof(ResponsesQueryService))]
     [InlineData("openai", "responses", typeof(ResponsesQueryService))]
     [InlineData("unknown", "openai-compatible", typeof(OpenAIQueryService))]
-    public void Create_WithProviderKind_ReturnsExpectedType(string provider, string protocol, Type expectedType)
-    {
+    public void Create_WithProviderKind_ReturnsExpectedType(string provider, string protocol, Type expectedType) {
         // Azure 需要 Endpoint + ModelId 才能构造合法 URL，其他 provider 忽略这两个字段
-        var config = new ProviderConfig
-        {
+        var config = new ProviderConfig {
             Vendor = provider,
             Protocol = protocol,
             ApiKey = "sk-test",
@@ -53,8 +48,7 @@ public sealed class QueryServiceFactoryTests
     }
 
     [Fact]
-    public void Create_WithoutDefinition_InjectFallbackDefinition()
-    {
+    public void Create_WithoutDefinition_InjectFallbackDefinition() {
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", Definition = null };
 
         _factory.Create(config);
@@ -64,8 +58,7 @@ public sealed class QueryServiceFactoryTests
     }
 
     [Fact]
-    public void Create_WithExistingDefinition_PreservesDefinition()
-    {
+    public void Create_WithExistingDefinition_PreservesDefinition() {
         var definition = new Mock<IProviderDefinition>();
         definition.Setup(d => d.GetBaseUrl(It.IsAny<ProviderConfig>())).Returns("https://api.example.com/");
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", Definition = definition.Object };
@@ -76,8 +69,7 @@ public sealed class QueryServiceFactoryTests
     }
 
     [Fact]
-    public void Create_PassesDependenciesToService()
-    {
+    public void Create_PassesDependenciesToService() {
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test" };
         using var httpClient = new HttpClient();
         var logger = new Mock<ILogger>().Object;
@@ -88,8 +80,7 @@ public sealed class QueryServiceFactoryTests
     }
 
     [Fact]
-    public void Create_AsInterfaceFactory_ResolvesDependencies()
-    {
+    public void Create_AsInterfaceFactory_ResolvesDependencies() {
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test" };
 
         var service = ((IQueryServiceFactory)_factory).Create(config, null, null, null);

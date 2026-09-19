@@ -4,8 +4,7 @@ namespace McpToolDispatch;
 /// 图分析工具处理器 - 提供社区检测、枢纽节点分析、死代码检测、变更影响分析、子图提取等图分析功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Graph, Optional = true)]
-public sealed class GraphToolHandlers
-{
+public sealed class GraphToolHandlers {
     private readonly ICodeIndexer _indexer;
     private readonly ICodeIndexerRegistry? _registry;
 
@@ -14,19 +13,16 @@ public sealed class GraphToolHandlers
     /// </summary>
     /// <param name="indexer">代码索引器</param>
     /// <param name="registry">多仓库索引器注册表（可选）</param>
-    public GraphToolHandlers(ICodeIndexer indexer, ICodeIndexerRegistry? registry = null)
-    {
+    public GraphToolHandlers(ICodeIndexer indexer, ICodeIndexerRegistry? registry = null) {
         _indexer = indexer ?? throw new ArgumentNullException(nameof(indexer));
         _registry = registry;
     }
 
-    private async Task<ICodeIndexer> ResolveIndexerAsync(string? repoId, CancellationToken ct)
-    {
+    private async Task<ICodeIndexer> ResolveIndexerAsync(string? repoId, CancellationToken ct) {
         ICodeIndexer indexer;
         if (string.IsNullOrWhiteSpace(repoId) || repoId == "default")
             indexer = _indexer;
-        else
-        {
+        else {
             if (_registry is null)
                 throw new InvalidOperationException("Multi-repo is not available (no ICodeIndexerRegistry registered).");
             indexer = _registry.GetIndexer(repoId) ?? throw new InvalidOperationException($"Repository '{repoId}' is not registered. Use graph_register first.");
@@ -44,10 +40,8 @@ public sealed class GraphToolHandlers
     [McpTool(CodeToolNameEnumConstants.GraphDetectCommunities, "Detect code communities (modules/subsystems) using label propagation algorithm on the call graph", "graph")]
     public async Task<ToolResult> DetectCommunitiesAsync(
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var communities = await indexer.Analytics.DetectCommunitiesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -58,8 +52,7 @@ public sealed class GraphToolHandlers
             sb.AppendLine($"Detected {communities.Count} communities:");
             sb.AppendLine();
 
-            for (int i = 0; i < communities.Count; i++)
-            {
+            for (int i = 0; i < communities.Count; i++) {
                 var c = communities[i];
                 sb.AppendLine($"Community {c.CommunityId}: {c.MemberCount} members, {c.InternalEdges} internal edges, {c.ExternalEdges} external edges");
                 var preview = c.Members.Take(5);
@@ -71,9 +64,7 @@ public sealed class GraphToolHandlers
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Community detection failed: {ex.Message}").Build();
         }
     }
@@ -89,10 +80,8 @@ public sealed class GraphToolHandlers
     public async Task<ToolResult> GetHubNodesAsync(
         [McpToolParameter("Number of top hub nodes to return (default 10)")] int top_n = 10,
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var hubs = await indexer.Analytics.GetHubNodesAsync(top_n, cancellationToken).ConfigureAwait(false);
 
@@ -103,8 +92,7 @@ public sealed class GraphToolHandlers
             sb.AppendLine($"Top {hubs.Count} hub nodes:");
             sb.AppendLine();
 
-            for (int i = 0; i < hubs.Count; i++)
-            {
+            for (int i = 0; i < hubs.Count; i++) {
                 var h = hubs[i];
                 sb.AppendLine($"{i + 1}. {h.SymbolName} (in={h.InDegree}, out={h.OutDegree}, total={h.TotalDegree})");
                 if (!string.IsNullOrEmpty(h.FilePath))
@@ -112,9 +100,7 @@ public sealed class GraphToolHandlers
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Hub analysis failed: {ex.Message}").Build();
         }
     }
@@ -128,10 +114,8 @@ public sealed class GraphToolHandlers
     [McpTool(CodeToolNameEnumConstants.GraphDetectDeadCode, "Detect potentially dead code: methods with no callers that are not entry points", "graph")]
     public async Task<ToolResult> DetectDeadCodeAsync(
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var dead = await indexer.Analytics.DetectDeadCodeAsync(cancellationToken).ConfigureAwait(false);
 
@@ -143,8 +127,7 @@ public sealed class GraphToolHandlers
             sb.AppendLine();
 
             var grouped = dead.GroupBy(d => d.FilePath).ToList();
-            foreach (var group in grouped)
-            {
+            foreach (var group in grouped) {
                 sb.AppendLine($"File: {group.Key}");
                 foreach (var entry in group.OrderBy(e => e.Line))
                     sb.AppendLine($"  Line {entry.Line}: {entry.SymbolName} ({entry.Reason})");
@@ -152,9 +135,7 @@ public sealed class GraphToolHandlers
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Dead code detection failed: {ex.Message}").Build();
         }
     }
@@ -172,13 +153,11 @@ public sealed class GraphToolHandlers
         [McpToolParameter("Center symbol name")] string center_symbol,
         [McpToolParameter("Number of hops (radius, default 2)")] int hops = 2,
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(center_symbol))
             return ToolResultBuilder.Error().WithText("center_symbol cannot be empty.").Build();
 
-        try
-        {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var result = await indexer.Analytics.ExtractSubgraphAsync(center_symbol, hops, cancellationToken).ConfigureAwait(false);
 
@@ -196,9 +175,7 @@ public sealed class GraphToolHandlers
                 sb.AppendLine($"  {edge.CallerSymbol} -> {edge.CalleeSymbol} [{edge.CallKind}]");
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Subgraph extraction failed: {ex.Message}").Build();
         }
     }
@@ -214,13 +191,11 @@ public sealed class GraphToolHandlers
     public async Task<ToolResult> AnalyzeChangeImpactAsync(
         [McpToolParameter("Comma-separated list of changed file paths")] string changed_files,
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(changed_files))
             return ToolResultBuilder.Error().WithText("changed_files cannot be empty.").Build();
 
-        try
-        {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var files = changed_files.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             var result = await indexer.Analytics.AnalyzeChangeImpactAsync(files, cancellationToken).ConfigureAwait(false);
@@ -232,8 +207,7 @@ public sealed class GraphToolHandlers
             sb.AppendLine($"  Affected projects: {result.AffectedProjects.Count}");
             sb.AppendLine();
 
-            if (result.AffectedSymbols.Count > 0)
-            {
+            if (result.AffectedSymbols.Count > 0) {
                 sb.AppendLine("Affected symbols:");
                 foreach (var sym in result.AffectedSymbols.Take(30))
                     sb.AppendLine($"  - {sym}");
@@ -242,17 +216,14 @@ public sealed class GraphToolHandlers
                 sb.AppendLine();
             }
 
-            if (result.AffectedProjects.Count > 0)
-            {
+            if (result.AffectedProjects.Count > 0) {
                 sb.AppendLine("Affected projects:");
                 foreach (var proj in result.AffectedProjects)
                     sb.AppendLine($"  - {proj}");
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Change impact analysis failed: {ex.Message}").Build();
         }
     }
@@ -268,16 +239,12 @@ public sealed class GraphToolHandlers
     public async Task<ToolResult> SaveAsync(
         [McpToolParameter("Directory path to save the index (default: .jcc/graph)")] string directory = ".jcc/graph",
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             await indexer.Persistence.SaveAsync(directory, cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText($"Index saved to {directory}").Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Save failed: {ex.Message}").Build();
         }
     }
@@ -293,18 +260,14 @@ public sealed class GraphToolHandlers
     public async Task<ToolResult> LoadAsync(
         [McpToolParameter("Directory path to load the index from (default: .jcc/graph)")] string directory = ".jcc/graph",
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var loaded = await indexer.Persistence.LoadAsync(directory, cancellationToken).ConfigureAwait(false);
             return loaded
                 ? ToolResultBuilder.Success().WithText($"Index loaded from {directory}").Build()
                 : ToolResultBuilder.Error().WithText($"No valid index found at {directory}").Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Load failed: {ex.Message}").Build();
         }
     }
@@ -318,16 +281,12 @@ public sealed class GraphToolHandlers
     [McpTool(CodeToolNameEnumConstants.GraphExportDot, "Export the call graph as DOT format for Graphviz visualization", "graph")]
     public async Task<ToolResult> ExportDotAsync(
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var dot = await indexer.Visualization.ExportDotAsync(cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(dot).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"DOT export failed: {ex.Message}").Build();
         }
     }
@@ -341,16 +300,12 @@ public sealed class GraphToolHandlers
     [McpTool(CodeToolNameEnumConstants.GraphExportHtml, "Export the call graph as interactive HTML with D3.js force-directed layout", "graph")]
     public async Task<ToolResult> ExportHtmlAsync(
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var html = await indexer.Visualization.ExportHtmlAsync(cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(html).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"HTML export failed: {ex.Message}").Build();
         }
     }
@@ -364,16 +319,12 @@ public sealed class GraphToolHandlers
     [McpTool(CodeToolNameEnumConstants.GraphExportWiki, "Export code architecture as Markdown wiki based on community structure", "graph")]
     public async Task<ToolResult> ExportWikiAsync(
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var wiki = await indexer.Visualization.ExportWikiAsync(cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(wiki).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Wiki export failed: {ex.Message}").Build();
         }
     }
@@ -391,13 +342,11 @@ public sealed class GraphToolHandlers
         [McpToolParameter("Natural language query (e.g. 'how does auth work')")] string query,
         [McpToolParameter("Maximum number of results (default 20)")] int max_results = 20,
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(query))
             return ToolResultBuilder.Error().WithText("query cannot be empty.").Build();
 
-        try
-        {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var result = await indexer.Analytics.QueryAsync(query, max_results, cancellationToken).ConfigureAwait(false);
 
@@ -405,8 +354,7 @@ public sealed class GraphToolHandlers
             sb.AppendLine($"Query: \"{result.Query}\" — {result.TotalMatches} total matches, showing {result.Matches.Count}:");
             sb.AppendLine();
 
-            for (int i = 0; i < result.Matches.Count; i++)
-            {
+            for (int i = 0; i < result.Matches.Count; i++) {
                 var m = result.Matches[i];
                 sb.AppendLine($"{i + 1}. {m.SymbolName} [{m.Kind}] (score={m.RelevanceScore})");
                 sb.AppendLine($"   {m.FilePath}");
@@ -415,9 +363,7 @@ public sealed class GraphToolHandlers
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Graph query failed: {ex.Message}").Build();
         }
     }
@@ -435,15 +381,13 @@ public sealed class GraphToolHandlers
         [McpToolParameter("Starting symbol name")] string from_symbol,
         [McpToolParameter("Target symbol name")] string to_symbol,
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(from_symbol))
             return ToolResultBuilder.Error().WithText("from_symbol cannot be empty.").Build();
         if (string.IsNullOrWhiteSpace(to_symbol))
             return ToolResultBuilder.Error().WithText("to_symbol cannot be empty.").Build();
 
-        try
-        {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var result = await indexer.Analytics.FindPathAsync(from_symbol, to_symbol, cancellationToken).ConfigureAwait(false);
 
@@ -454,17 +398,14 @@ public sealed class GraphToolHandlers
             sb.AppendLine($"Path from '{result.FromSymbol}' to '{result.ToSymbol}' (length={result.PathLength}):");
             sb.AppendLine();
 
-            for (int i = 0; i < result.PathNodes.Count; i++)
-            {
+            for (int i = 0; i < result.PathNodes.Count; i++) {
                 sb.AppendLine($"  {i}: {result.PathNodes[i]}");
                 if (i < result.PathEdges.Count)
                     sb.AppendLine($"     └─[{result.PathEdges[i].CallKind}]→");
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Path search failed: {ex.Message}").Build();
         }
     }
@@ -480,13 +421,11 @@ public sealed class GraphToolHandlers
     public async Task<ToolResult> ExplainAsync(
         [McpToolParameter("Symbol name to explain")] string symbol_name,
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(symbol_name))
             return ToolResultBuilder.Error().WithText("symbol_name cannot be empty.").Build();
 
-        try
-        {
+        try {
             var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var result = await indexer.Analytics.ExplainAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
@@ -499,8 +438,7 @@ public sealed class GraphToolHandlers
             sb.AppendLine($"Degree: in={result.InDegree}, out={result.OutDegree}");
             sb.AppendLine();
 
-            if (result.Callers.Count > 0)
-            {
+            if (result.Callers.Count > 0) {
                 sb.AppendLine($"Callers ({result.Callers.Count}):");
                 foreach (var c in result.Callers.Take(15))
                     sb.AppendLine($"  ← {c}");
@@ -509,8 +447,7 @@ public sealed class GraphToolHandlers
                 sb.AppendLine();
             }
 
-            if (result.Callees.Count > 0)
-            {
+            if (result.Callees.Count > 0) {
                 sb.AppendLine($"Callees ({result.Callees.Count}):");
                 foreach (var c in result.Callees.Take(15))
                     sb.AppendLine($"  → {c}");
@@ -519,8 +456,7 @@ public sealed class GraphToolHandlers
                 sb.AppendLine();
             }
 
-            if (result.SameCommunity.Count > 0)
-            {
+            if (result.SameCommunity.Count > 0) {
                 sb.AppendLine($"Same community ({result.SameCommunity.Count}):");
                 foreach (var c in result.SameCommunity.Take(10))
                     sb.AppendLine($"  ~ {c}");
@@ -529,8 +465,7 @@ public sealed class GraphToolHandlers
                 sb.AppendLine();
             }
 
-            if (result.SameFile.Count > 0)
-            {
+            if (result.SameFile.Count > 0) {
                 sb.AppendLine($"Same file ({result.SameFile.Count}):");
                 foreach (var c in result.SameFile.Take(10))
                     sb.AppendLine($"  # {c}");
@@ -539,9 +474,7 @@ public sealed class GraphToolHandlers
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Explain failed: {ex.Message}").Build();
         }
     }
@@ -557,8 +490,7 @@ public sealed class GraphToolHandlers
     public async Task<ToolResult> RegisterRepoAsync(
         [McpToolParameter("Repository identifier (e.g. 'frontend', 'backend')")] string repo_id,
         [McpToolParameter("Workspace root path of the repository")] string workspace_root,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(repo_id))
             return ToolResultBuilder.Error().WithText("repo_id cannot be empty.").Build();
         if (string.IsNullOrWhiteSpace(workspace_root))
@@ -567,17 +499,12 @@ public sealed class GraphToolHandlers
         if (_registry is null)
             return ToolResultBuilder.Error().WithText("Multi-repo registry is not available.").Build();
 
-        try
-        {
+        try {
             var reg = await _registry.RegisterAsync(repo_id, workspace_root, cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText($"Repository '{reg.RepoId}' registered (root: {reg.WorkspaceRoot}).").Build();
-        }
-        catch (InvalidOperationException ex)
-        {
+        } catch (InvalidOperationException ex) {
             return ToolResultBuilder.Error().WithText(ex.Message).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Register failed: {ex.Message}").Build();
         }
     }
@@ -591,23 +518,19 @@ public sealed class GraphToolHandlers
     [McpTool(CodeToolNameEnumConstants.GraphUnregister, "Unregister a repository from multi-repo graph analysis", "graph")]
     public async Task<ToolResult> UnregisterRepoAsync(
         [McpToolParameter("Repository identifier to remove")] string repo_id,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(repo_id))
             return ToolResultBuilder.Error().WithText("repo_id cannot be empty.").Build();
 
         if (_registry is null)
             return ToolResultBuilder.Error().WithText("Multi-repo registry is not available.").Build();
 
-        try
-        {
+        try {
             var removed = await _registry.UnregisterAsync(repo_id, cancellationToken).ConfigureAwait(false);
             return removed
                 ? ToolResultBuilder.Success().WithText($"Repository '{repo_id}' unregistered.").Build()
                 : ToolResultBuilder.Error().WithText($"Repository '{repo_id}' not found.").Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"Unregister failed: {ex.Message}").Build();
         }
     }
@@ -619,29 +542,24 @@ public sealed class GraphToolHandlers
     /// <returns>包含已注册仓库列表的工具结果</returns>
     [McpTool(CodeToolNameEnumConstants.GraphRepos, "List all registered repositories for multi-repo graph analysis", "graph")]
     public async Task<ToolResult> ListReposAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_registry is null)
             return ToolResultBuilder.Success().WithText("Multi-repo not available. Only default repository is in use.").Build();
 
-        try
-        {
+        try {
             var repos = await _registry.ListReposAsync(cancellationToken).ConfigureAwait(false);
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"Registered repositories ({repos.Count}):");
             sb.AppendLine();
 
-            foreach (var repo in repos)
-            {
+            foreach (var repo in repos) {
                 var marker = repo.IsDefault ? " (default)" : "";
                 sb.AppendLine($"  {repo.RepoId}{marker}: {repo.WorkspaceRoot}");
             }
 
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"List repos failed: {ex.Message}").Build();
         }
     }

@@ -3,8 +3,7 @@ namespace JoinCode.Hands.Desktop.Native;
 /// <summary>
 /// kernel32.dll P/Invoke 声明 — 进程快照/父进程查找。
 /// </summary>
-internal static class Kernel32NativeMethods
-{
+internal static class Kernel32NativeMethods {
     public const uint TH32CS_SNAPPROCESS = 0x00000002;
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -24,8 +23,7 @@ internal static class Kernel32NativeMethods
 }
 
 [StructLayout(LayoutKind.Sequential)]
-internal struct PROCESSENTRY32
-{
+internal struct PROCESSENTRY32 {
     public uint dwSize;
     public uint cntUsage;
     public uint th32ProcessID;

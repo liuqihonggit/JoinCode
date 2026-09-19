@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface ITeammateMailboxService
-{
+public interface ITeammateMailboxService {
     ValueTask<MailboxMessage> SendAsync(MailboxSendRequest request, CancellationToken ct = default);
 
     ValueTask<IReadOnlyList<MailboxMessage>> ReadUnreadAsync(string agentId, string sessionId, CancellationToken ct = default);

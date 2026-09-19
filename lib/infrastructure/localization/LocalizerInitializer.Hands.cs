@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterHandsEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterHandsEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === NotebookToolHandlers ===
         defaultEntries[StringKey.NotebookFilePathCannotBeEmpty] = "file_path cannot be empty";
         defaultEntries[StringKey.NotebookFileAlreadyExists] = "File already exists: {0}";

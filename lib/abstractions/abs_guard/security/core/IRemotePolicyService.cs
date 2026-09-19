@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface IRemotePolicyService : IAsyncDisposable
-{
+public interface IRemotePolicyService : IAsyncDisposable {
     Task<PolicyEvaluationResult> EvaluateAsync(string action, Dictionary<string, string>? context = null, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<PolicyRule>> GetActiveRulesAsync(CancellationToken cancellationToken = default);
     Task RefreshAsync(CancellationToken cancellationToken = default);

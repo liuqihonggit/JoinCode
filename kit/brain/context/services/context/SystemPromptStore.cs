@@ -4,8 +4,7 @@ namespace Core.Context;
 /// 系统提示存储 — 管理静态系统提示、动态系统消息和系统消息缓存
 /// 从 ChatContextManager 提取,降低大类字段数和复杂度
 /// </summary>
-internal sealed class SystemPromptStore
-{
+internal sealed class SystemPromptStore {
     private string _staticPrompt = string.Empty;
     private readonly List<string> _dynamicMessages = [];
     private string _previousDynamicHash = string.Empty;
@@ -13,29 +12,25 @@ internal sealed class SystemPromptStore
     private bool _systemMessagesCached;
 
     /// <summary>静态系统提示</summary>
-    public string StaticPrompt
-    {
+    public string StaticPrompt {
         get => _staticPrompt;
         set => _staticPrompt = value;
     }
 
     /// <summary>更新静态系统提示，并清空缓存</summary>
-    public void Update(string prompt)
-    {
+    public void Update(string prompt) {
         _staticPrompt = prompt;
         InvalidateCache();
     }
 
     /// <summary>添加动态系统消息，并清空缓存</summary>
-    public void AddDynamic(string message)
-    {
+    public void AddDynamic(string message) {
         _dynamicMessages.Add(message);
         InvalidateCache();
     }
 
     /// <summary>清除所有动态系统消息</summary>
-    public void ClearDynamic()
-    {
+    public void ClearDynamic() {
         _dynamicMessages.Clear();
         InvalidateCache();
     }
@@ -47,8 +42,7 @@ internal sealed class SystemPromptStore
     public List<string> GetDynamicMessages() => _dynamicMessages;
 
     /// <summary>获取或创建缓存的系统消息列表 — 动态消息未变时复用缓存</summary>
-    public List<ApiMessage> GetOrCreateCachedSystemMessages()
-    {
+    public List<ApiMessage> GetOrCreateCachedSystemMessages() {
         var dynamicContent = GetDynamicContent();
         var currentDynamicHash = string.IsNullOrEmpty(dynamicContent)
             ? string.Empty
@@ -56,36 +50,27 @@ internal sealed class SystemPromptStore
         var dynamicChanged = currentDynamicHash != _previousDynamicHash;
         _previousDynamicHash = currentDynamicHash;
 
-        if (!dynamicChanged && _systemMessagesCached)
-        {
+        if (!dynamicChanged && _systemMessagesCached) {
             return _cachedSystemMessages;
         }
 
         var systemMessages = new List<ApiMessage>();
-        if (!string.IsNullOrWhiteSpace(_staticPrompt))
-        {
+        if (!string.IsNullOrWhiteSpace(_staticPrompt)) {
             systemMessages.Add(new ApiMessage(MessageRole.System, _staticPrompt));
         }
 
-        foreach (var dynamicMsg in _dynamicMessages)
-        {
-            if (dynamicChanged)
-            {
+        foreach (var dynamicMsg in _dynamicMessages) {
+            if (dynamicChanged) {
                 systemMessages.Add(new ApiMessage(MessageRole.System, dynamicMsg, CacheBreakMarker.Create()));
-            }
-            else
-            {
+            } else {
                 systemMessages.Add(new ApiMessage(MessageRole.System, dynamicMsg));
             }
         }
 
-        if (dynamicChanged)
-        {
+        if (dynamicChanged) {
             _cachedSystemMessages = [];
             _systemMessagesCached = false;
-        }
-        else
-        {
+        } else {
             _cachedSystemMessages = systemMessages;
             _systemMessagesCached = true;
         }
@@ -93,15 +78,13 @@ internal sealed class SystemPromptStore
     }
 
     /// <summary>重置缓存（回退到初始状态时调用）</summary>
-    public void ResetCache()
-    {
+    public void ResetCache() {
         _dynamicMessages.Clear();
         _cachedSystemMessages = [];
         _systemMessagesCached = false;
     }
 
-    private void InvalidateCache()
-    {
+    private void InvalidateCache() {
         _cachedSystemMessages = [];
         _systemMessagesCached = false;
     }

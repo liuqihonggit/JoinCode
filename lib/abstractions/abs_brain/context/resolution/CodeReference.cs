@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Brain.Context.Resolution;
 
-public sealed record CodeReference
-{
+public sealed record CodeReference {
     public required string ReferencePath { get; init; }
 
     public required string ResolvedPath { get; init; }
@@ -15,8 +14,7 @@ public sealed record CodeReference
     public bool IsResolved => FileMatches.Count > 0 && RelevanceScore > 0;
 
     public static CodeReference Unresolved(string referencePath)
-        => new()
-        {
+        => new() {
             ReferencePath = referencePath,
             ResolvedPath = string.Empty,
             MatchType = ReferenceMatchType.Partial,
@@ -25,8 +23,7 @@ public sealed record CodeReference
         };
 
     public static CodeReference ExactMatch(string referencePath, string resolvedPath, IReadOnlyList<FileMatch> matches)
-        => new()
-        {
+        => new() {
             ReferencePath = referencePath,
             ResolvedPath = resolvedPath,
             MatchType = ReferenceMatchType.Exact,

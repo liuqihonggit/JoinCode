@@ -1,15 +1,13 @@
 
 namespace Core.Tests.Todo;
 
-public sealed class TaskToolHandlersTests
-{
+public sealed class TaskToolHandlersTests {
     private readonly Mock<ITaskService> _taskServiceMock = new();
 
     private TaskToolHandlers CreateSut() => new(_taskServiceMock.Object);
 
     [Fact]
-    public async Task TaskCreateAsync_EmptyTitle_ReturnsEmptyTitleDiagnostic()
-    {
+    public async Task TaskCreateAsync_EmptyTitle_ReturnsEmptyTitleDiagnostic() {
         var sut = CreateSut();
 
         var result = await sut.TaskCreateAsync("  ").ConfigureAwait(true);
@@ -21,8 +19,7 @@ public sealed class TaskToolHandlersTests
     }
 
     [Fact]
-    public async Task TaskUpdateAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic()
-    {
+    public async Task TaskUpdateAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic() {
         var sut = CreateSut();
         var options = new TaskUpdateOptions { TaskId = "  " };
 
@@ -35,8 +32,7 @@ public sealed class TaskToolHandlersTests
     }
 
     [Fact]
-    public async Task TaskStopAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic()
-    {
+    public async Task TaskStopAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic() {
         var sut = CreateSut();
 
         var result = await sut.TaskStopAsync("  ").ConfigureAwait(true);
@@ -47,8 +43,7 @@ public sealed class TaskToolHandlersTests
     }
 
     [Fact]
-    public async Task TaskGetAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic()
-    {
+    public async Task TaskGetAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic() {
         var sut = CreateSut();
 
         var result = await sut.TaskGetAsync("  ").ConfigureAwait(true);
@@ -59,8 +54,7 @@ public sealed class TaskToolHandlersTests
     }
 
     [Fact]
-    public async Task TaskGetAsync_TaskNotFound_ReturnsTaskNotFoundDiagnostic()
-    {
+    public async Task TaskGetAsync_TaskNotFound_ReturnsTaskNotFoundDiagnostic() {
         var sut = CreateSut();
         _taskServiceMock.Setup(s => s.GetTaskAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((TaskItem?)null);
@@ -74,8 +68,7 @@ public sealed class TaskToolHandlersTests
     }
 
     [Fact]
-    public async Task TaskSetDependencyAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic()
-    {
+    public async Task TaskSetDependencyAsync_EmptyTaskId_ReturnsEmptyTaskIdDiagnostic() {
         var sut = CreateSut();
 
         var result = await sut.TaskSetDependencyAsync("  ", "dep-id").ConfigureAwait(true);
@@ -86,8 +79,7 @@ public sealed class TaskToolHandlersTests
     }
 
     [Fact]
-    public async Task TaskSetDependencyAsync_EmptyDependsOnTaskId_ReturnsEmptyDependsOnTaskIdDiagnostic()
-    {
+    public async Task TaskSetDependencyAsync_EmptyDependsOnTaskId_ReturnsEmptyDependsOnTaskIdDiagnostic() {
         var sut = CreateSut();
 
         var result = await sut.TaskSetDependencyAsync("task-id", "  ").ConfigureAwait(true);
@@ -99,8 +91,7 @@ public sealed class TaskToolHandlersTests
     }
 
     [Fact]
-    public async Task TaskRemoveDependencyAsync_EmptyDependsOnTaskId_ReturnsEmptyDependsOnTaskIdDiagnostic()
-    {
+    public async Task TaskRemoveDependencyAsync_EmptyDependsOnTaskId_ReturnsEmptyDependsOnTaskIdDiagnostic() {
         var sut = CreateSut();
 
         var result = await sut.TaskRemoveDependencyAsync("task-id", "  ").ConfigureAwait(true);
@@ -111,8 +102,7 @@ public sealed class TaskToolHandlersTests
     }
 
     [Fact]
-    public async Task TaskCreateAsync_ServiceFailure_ReturnsServiceFailureDiagnostic()
-    {
+    public async Task TaskCreateAsync_ServiceFailure_ReturnsServiceFailureDiagnostic() {
         var sut = CreateSut();
         _taskServiceMock.Setup(s => s.CreateTaskAsync(
                 It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(),
@@ -130,8 +120,7 @@ public sealed class TaskToolHandlersTests
     }
 
     [Fact]
-    public async Task TaskUpdateAsync_ServiceFailure_ReturnsServiceFailureDiagnostic()
-    {
+    public async Task TaskUpdateAsync_ServiceFailure_ReturnsServiceFailureDiagnostic() {
         var sut = CreateSut();
         var options = new TaskUpdateOptions { TaskId = "task-id" };
         _taskServiceMock.Setup(s => s.UpdateTaskAsync(It.IsAny<UpdateTaskRequest>(), It.IsAny<CancellationToken>()))
@@ -146,8 +135,7 @@ public sealed class TaskToolHandlersTests
     }
 
     [Fact]
-    public void BuildEmptyTaskIdDiagnostic_ReturnsCorrectReasonAndDetails()
-    {
+    public void BuildEmptyTaskIdDiagnostic_ReturnsCorrectReasonAndDetails() {
         var diagnostic = TaskToolHandlers.BuildEmptyTaskIdDiagnostic();
 
         diagnostic.Reason.Should().Be("EmptyTaskId");
@@ -156,8 +144,7 @@ public sealed class TaskToolHandlersTests
     }
 
     [Fact]
-    public void BuildEmptyFieldDiagnostic_ReturnsCorrectReasonAndDetails()
-    {
+    public void BuildEmptyFieldDiagnostic_ReturnsCorrectReasonAndDetails() {
         var diagnostic = TaskToolHandlers.BuildEmptyFieldDiagnostic("EmptyTitle", "title", "title cannot be empty");
 
         diagnostic.Reason.Should().Be("EmptyTitle");

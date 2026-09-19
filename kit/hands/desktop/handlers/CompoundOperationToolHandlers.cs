@@ -4,16 +4,14 @@ namespace Tools.Handlers;
 /// 复合操作工具处理器 — 右键菜单链/拖拽悬停等多步原子操作序列（PRD M-04/M-05）
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
-public class CompoundOperationToolHandlers
-{
+public class CompoundOperationToolHandlers {
     private readonly IDesktopInputService _input;
     private readonly ILogger<CompoundOperationToolHandlers>? _logger;
 
     /// <summary>构造复合操作工具处理器实例。</summary>
     /// <param name="input">桌面输入服务，用于执行鼠标点击与拖拽。</param>
     /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
-    public CompoundOperationToolHandlers(IDesktopInputService input, ILogger<CompoundOperationToolHandlers>? logger = null)
-    {
+    public CompoundOperationToolHandlers(IDesktopInputService input, ILogger<CompoundOperationToolHandlers>? logger = null) {
         _input = input;
         _logger = logger;
     }
@@ -26,8 +24,7 @@ public class CompoundOperationToolHandlers
         [McpToolParameter("菜单项 X 坐标", Required = true)] int menuItemX,
         [McpToolParameter("菜单项 Y 坐标", Required = true)] int menuItemY,
         [McpToolParameter("等待菜单渲染毫秒数", Required = false)] int menuRenderDelayMs = 500,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var rightClick = await _input.ClickAsync(targetX, targetY, MouseAction.RightClick, ct).ConfigureAwait(false);
         if (!rightClick.Succeeded)
             return ToolResultBuilder.Error().WithText($"右键点击失败: {rightClick.Error}").Build();
@@ -54,8 +51,7 @@ public class CompoundOperationToolHandlers
         [McpToolParameter("悬停等待毫秒数（等待弹出）", Required = false)] int hoverMs = 800,
         [McpToolParameter("弹出项 X 坐标（不传则仅拖拽悬停）", Required = false)] int? popupItemX = null,
         [McpToolParameter("弹出项 Y 坐标", Required = false)] int? popupItemY = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var drag = await _input.DragAsync(fromX, fromY, toX, toY, hoverMs, ct).ConfigureAwait(false);
         if (!drag.Succeeded)
             return ToolResultBuilder.Error().WithText($"拖拽失败: {drag.Error}").Build();
@@ -63,8 +59,7 @@ public class CompoundOperationToolHandlers
         var sb = new StringBuilder(128);
         sb.AppendLine($"拖拽完成: ({fromX},{fromY}) → ({toX},{toY}),悬停 {hoverMs}ms");
 
-        if (popupItemX is not null && popupItemY is not null)
-        {
+        if (popupItemX is not null && popupItemY is not null) {
             await Task.Delay(300, ct).ConfigureAwait(false);
             var popupClick = await _input.ClickAsync(popupItemX.Value, popupItemY.Value, MouseAction.Click, ct).ConfigureAwait(false);
             if (popupClick.Succeeded)
@@ -81,11 +76,9 @@ public class CompoundOperationToolHandlers
     public async Task<ToolResult> MultiClickAsync(
         [McpToolParameter("坐标列表,格式:x1,y1;x2,y2;x3,y3", Required = true)] string coordinates,
         [McpToolParameter("每步间隔毫秒数", Required = false)] int stepDelayMs = 500,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
-        if (!env.IsInteractive)
-        {
+        if (!env.IsInteractive) {
             _logger?.LogWarning("MultiClickAsync 被环境守卫拦截: {Diagnostic}", env.Diagnostic);
             return ToolResultBuilder.Error().WithText($"桌面操作不可用: {env.Diagnostic}").Build();
         }
@@ -97,8 +90,7 @@ public class CompoundOperationToolHandlers
         var sb = new StringBuilder(128);
         sb.AppendLine($"开始 {points.Count} 步点击序列:");
 
-        for (var i = 0; i < points.Count; i++)
-        {
+        for (var i = 0; i < points.Count; i++) {
             var (x, y) = points[i];
             var click = await _input.ClickAsync(x, y, MouseAction.Click, ct).ConfigureAwait(false);
             sb.AppendLine($"  [{i + 1}] ({x},{y}): {(click.Succeeded ? "成功" : $"失败({click.Error})")}");
@@ -110,13 +102,11 @@ public class CompoundOperationToolHandlers
         return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
 
-    internal static List<(int X, int Y)> ParseCoordinateList(string coordinates)
-    {
+    internal static List<(int X, int Y)> ParseCoordinateList(string coordinates) {
         var result = new List<(int, int)>();
         var pairs = coordinates.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        foreach (var pair in pairs)
-        {
+        foreach (var pair in pairs) {
             var parts = pair.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (parts.Length == 2 && int.TryParse(parts[0], out var x) && int.TryParse(parts[1], out var y))
                 result.Add((x, y));

@@ -28,8 +28,7 @@ public sealed record DispatchOutcome(string FinalCommand, ToolResult? ShortCircu
 /// </para>
 /// </summary>
 [Register(typeof(CommandInterceptionDispatcher), ServiceLifetime.Singleton)]
-public sealed partial class CommandInterceptionDispatcher : ServiceEntity
-{
+public sealed partial class CommandInterceptionDispatcher : ServiceEntity {
     private readonly ICommandGuard[] _guards;
     private readonly ICommandInterceptor[] _interceptors;
     private readonly ILogger<CommandInterceptionDispatcher>? _logger;
@@ -43,8 +42,7 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity
     public CommandInterceptionDispatcher(
         IEnumerable<ICommandGuard> guards,
         IEnumerable<ICommandInterceptor> interceptors,
-        ILogger<CommandInterceptionDispatcher>? logger = null)
-    {
+        ILogger<CommandInterceptionDispatcher>? logger = null) {
         _guards = guards.OrderByDescending(static g => g.Priority).ToArray();
         _interceptors = interceptors.OrderByDescending(static i => i.Priority).ToArray();
         _logger = logger;
@@ -60,27 +58,23 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity
     public async Task<DispatchOutcome> DispatchAsync(
         string command,
         GuardContext context,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         ArgumentException.ThrowIfNullOrWhiteSpace(command);
         var currentCommand = command;
 
         // 阶段0: [Flags] 属性检测 — 一次性检测命令拦截属性,用于日志诊断
         var flags = InterceptionFlagDetector.Detect(command, context);
-        if (flags != InterceptionFlags.None)
-        {
+        if (flags != InterceptionFlags.None) {
             _logger?.LogDebug("命令拦截属性: {Flags} ({Command})", flags, command);
         }
 
         // 阶段1: 守卫链(无状态瞬时决策)
-        foreach (var guard in _guards)
-        {
+        foreach (var guard in _guards) {
             if (!guard.CanHandle(currentCommand, context)) continue;
 
             var decision = guard.Evaluate(currentCommand, context);
 
-            if (decision is CommandDecision.Rewrite r)
-            {
+            if (decision is CommandDecision.Rewrite r) {
                 _logger?.LogInformation(
                     "命令改写({Guard}): {Old} → {New}{Reason}",
                     guard.Name, currentCommand, r.NewCommand,
@@ -89,20 +83,17 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity
                 continue;
             }
 
-            if (decision is CommandDecision.Deny d)
-            {
+            if (decision is CommandDecision.Deny d) {
                 _logger?.LogInformation("命令拒绝({Guard}): {Reason}", guard.Name, d.Diagnostic.Reason);
                 return new DispatchOutcome(currentCommand, BuildDenyResult(d));
             }
 
-            if (decision is CommandDecision.Redirect red)
-            {
+            if (decision is CommandDecision.Redirect red) {
                 _logger?.LogInformation("命令转交({Guard}): → {Target}", guard.Name, red.TargetTool);
                 return new DispatchOutcome(currentCommand, BuildRedirectResult(red));
             }
 
-            if (decision is CommandDecision.Handoff)
-            {
+            if (decision is CommandDecision.Handoff) {
                 _logger?.LogDebug("守卫 {Guard} Handoff,降级到拦截器层", guard.Name);
                 break;
             }
@@ -111,27 +102,20 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity
         }
 
         // 阶段2: 拦截器链(有状态异步处理)
-        foreach (var interceptor in _interceptors)
-        {
+        foreach (var interceptor in _interceptors) {
             if (!interceptor.CanHandle(currentCommand, context)) continue;
 
             InterceptResult result;
-            try
-            {
+            try {
                 result = await interceptor.HandleAsync(currentCommand, context, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                 throw;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "拦截器 {Name} 处理命令时抛异常,跳过", interceptor.Name);
                 continue;
             }
 
-            if (result is InterceptResult.Handled h)
-            {
+            if (result is InterceptResult.Handled h) {
                 _logger?.LogDebug("拦截器 {Name} 处理命令(短路)", interceptor.Name);
                 return new DispatchOutcome(currentCommand, h.Result);
             }
@@ -155,8 +139,7 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity
     /// <summary>
     /// 构建转交引导结果 — 软引导,返回提示文本由 LLM 自行调用目标工具
     /// </summary>
-    private static ToolResult BuildRedirectResult(CommandDecision.Redirect red)
-    {
+    private static ToolResult BuildRedirectResult(CommandDecision.Redirect red) {
         var builder = ToolResultBuilder.Error().WithText(red.Hint);
         if (red.Diagnostic is not null)
             builder = builder.WithDiagnostic(red.Diagnostic);

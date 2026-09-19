@@ -4,14 +4,12 @@ namespace Core.Goal;
 /// <summary>
 /// 预定义 Graph 模板 — 重构、修bug、调研报告、代码审查、测试生成
 /// </summary>
-public static class GoalGraphTemplates
-{
+public static class GoalGraphTemplates {
     /// <summary>
     /// 注册全部预定义 Graph 模板到注册表
     /// </summary>
     /// <param name="registry">模板注册表</param>
-    public static void RegisterAll(IGoalGraphTemplateRegistry registry)
-    {
+    public static void RegisterAll(IGoalGraphTemplateRegistry registry) {
         registry.Register(RefactorTemplate);
         registry.Register(BugFixTemplate);
         registry.Register(ResearchTemplate);
@@ -22,8 +20,7 @@ public static class GoalGraphTemplates
     }
 
     /// <summary>重构模板 — explore → implement → review → {PASS: commit, FAIL: implement}</summary>
-    public static GoalGraphTemplate RefactorTemplate => new()
-    {
+    public static GoalGraphTemplate RefactorTemplate => new() {
         Name = "refactor",
         Keywords = ["重构", "refactor", "重写", "rewrite", "优化", "optimize", "迁移", "migrate"],
         Description = "explore → implement → review → {PASS: commit, FAIL: implement}",
@@ -31,8 +28,7 @@ public static class GoalGraphTemplates
     };
 
     /// <summary>修 Bug 模板 — reproduce → locate → fix → verify → {PASS: done, FAIL: fix}</summary>
-    public static GoalGraphTemplate BugFixTemplate => new()
-    {
+    public static GoalGraphTemplate BugFixTemplate => new() {
         Name = "bugfix",
         Keywords = ["修复", "fix", "bug", "缺陷", "defect", "解决", "resolve", "调试", "debug"],
         Description = "reproduce → locate → fix → verify → {PASS: done, FAIL: fix}",
@@ -40,8 +36,7 @@ public static class GoalGraphTemplates
     };
 
     /// <summary>调研模板 — start → [research_a ∥ research_b] → gather → synthesize → review</summary>
-    public static GoalGraphTemplate ResearchTemplate => new()
-    {
+    public static GoalGraphTemplate ResearchTemplate => new() {
         Name = "research",
         Keywords = ["调研", "research", "分析", "analyze", "报告", "report", "调查", "investigate"],
         Description = "start → [research_a ∥ research_b] → gather → synthesize → review",
@@ -49,8 +44,7 @@ public static class GoalGraphTemplates
     };
 
     /// <summary>代码审查模板 — read → analyze → {PASS: approve, FAIL: suggest_fixes}</summary>
-    public static GoalGraphTemplate CodeReviewTemplate => new()
-    {
+    public static GoalGraphTemplate CodeReviewTemplate => new() {
         Name = "code_review",
         Keywords = ["审查", "review", "评审", "code review", "检查", "inspect", "审计", "audit"],
         Description = "read → analyze → {PASS: approve, FAIL: suggest_fixes}",
@@ -58,8 +52,7 @@ public static class GoalGraphTemplates
     };
 
     /// <summary>测试生成模板 — analyze → write_tests → run_tests → {PASS: done, FAIL: write_tests}</summary>
-    public static GoalGraphTemplate TestGenTemplate => new()
-    {
+    public static GoalGraphTemplate TestGenTemplate => new() {
         Name = "test_gen",
         Keywords = ["测试", "test", "单测", "unit test", "覆盖率", "coverage", "tdd"],
         Description = "analyze → write_tests → run_tests → {PASS: done, FAIL: write_tests}",
@@ -70,8 +63,7 @@ public static class GoalGraphTemplates
     /// 负向评价循环模板 — execute → neg_review ⟲ fix_neg
     /// 终止条件: 负评≤5→停止 | 6~10→ask_user | token预算耗尽 | 协调者终止 | 16轮硬上限
     /// </summary>
-    public static GoalGraphTemplate NegativeReviewLoopTemplate => new()
-    {
+    public static GoalGraphTemplate NegativeReviewLoopTemplate => new() {
         Name = "negative_review_loop",
         Keywords = ["负评", "负向评价", "negative review", "质量循环", "quality loop", "迭代改进", "iterative improvement"],
         Description = "execute → neg_review → {NEG_CONTINUE: fix_neg, NEG_STOP: done} ⟲ neg_review",
@@ -79,8 +71,7 @@ public static class GoalGraphTemplates
     };
 
 
-    private static GoalGraph BuildRefactorGraph(GoalGraphEngine engine, string objective)
-    {
+    private static GoalGraph BuildRefactorGraph(GoalGraphEngine engine, string objective) {
         var dag = new Dag<GoalNodePayload>();
 
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "explore", Payload = new() { Kind = GoalNodeKind.Agent, Name = "explorer", Role = AgentRole.Executor, Variant = ExecutorVariant.Explore, SystemPrompt = "You are a code exploration expert. Analyze module structure, identify refactoring opportunities, and create a detailed refactoring plan.", Instruction = objective } });
@@ -98,8 +89,7 @@ public static class GoalGraphTemplates
         return new GoalGraph { Name = $"refactor: {objective}", Dag = dag, StartNodeId = "explore", EndNodeIds = FrozenSet.Create("commit") };
     }
 
-    private static GoalGraph BuildBugFixGraph(GoalGraphEngine engine, string objective)
-    {
+    private static GoalGraph BuildBugFixGraph(GoalGraphEngine engine, string objective) {
         var dag = new Dag<GoalNodePayload>();
 
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "reproduce", Payload = new() { Kind = GoalNodeKind.Agent, Name = "reproducer", Role = AgentRole.Executor, Variant = ExecutorVariant.Code, SystemPrompt = "You are a bug reproduction expert. Create a minimal test case that reliably reproduces the bug.", Instruction = objective } });
@@ -117,8 +107,7 @@ public static class GoalGraphTemplates
         return new GoalGraph { Name = $"bugfix: {objective}", Dag = dag, StartNodeId = "reproduce", EndNodeIds = FrozenSet.Create("verify") };
     }
 
-    private static GoalGraph BuildResearchGraph(GoalGraphEngine engine, string objective)
-    {
+    private static GoalGraph BuildResearchGraph(GoalGraphEngine engine, string objective) {
         var dag = new Dag<GoalNodePayload>();
 
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "start", Payload = new() { Kind = GoalNodeKind.Function, Name = "start", Instruction = "Start research" } });
@@ -141,8 +130,7 @@ public static class GoalGraphTemplates
         return new GoalGraph { Name = $"research: {objective}", Dag = dag, StartNodeId = "start", EndNodeIds = FrozenSet.Create("review") };
     }
 
-    private static GoalGraph BuildCodeReviewGraph(GoalGraphEngine engine, string objective)
-    {
+    private static GoalGraph BuildCodeReviewGraph(GoalGraphEngine engine, string objective) {
         var dag = new Dag<GoalNodePayload>();
 
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "read", Payload = new() { Kind = GoalNodeKind.Agent, Name = "reader", Role = AgentRole.Executor, Variant = ExecutorVariant.Explore, SystemPrompt = "You are a code reading expert. Thoroughly read and understand the code changes, identifying all modified files, functions, and logic.", Instruction = objective } });
@@ -157,8 +145,7 @@ public static class GoalGraphTemplates
         return new GoalGraph { Name = $"code-review: {objective}", Dag = dag, StartNodeId = "read", EndNodeIds = FrozenSet.Create("approve", "suggest_fixes") };
     }
 
-    private static GoalGraph BuildTestGenGraph(GoalGraphEngine engine, string objective)
-    {
+    private static GoalGraph BuildTestGenGraph(GoalGraphEngine engine, string objective) {
         var dag = new Dag<GoalNodePayload>();
 
         dag.AddNode(new DagNode<GoalNodePayload> { Id = "analyze", Payload = new() { Kind = GoalNodeKind.Agent, Name = "analyzer", Role = AgentRole.Coordinator, SystemPrompt = "You are a test analysis expert. Analyze the code to identify all testable behaviors, edge cases, and error paths.", Instruction = objective } });
@@ -178,28 +165,24 @@ public static class GoalGraphTemplates
     /// 构建负向评价循环图: execute → neg_review → {NEG_CONTINUE: fix_neg, NEG_STOP: done}
     /// fix_neg 完成后回退到 neg_review 形成循环
     /// </summary>
-    private static GoalGraph BuildNegativeReviewLoopGraph(GoalGraphEngine engine, string objective)
-    {
+    private static GoalGraph BuildNegativeReviewLoopGraph(GoalGraphEngine engine, string objective) {
         var dag = new Dag<GoalNodePayload>();
 
-        dag.AddNode(new DagNode<GoalNodePayload>
-        {
+        dag.AddNode(new DagNode<GoalNodePayload> {
             Id = "execute",
-            Payload = new()
-            {
+            Payload = new() {
                 Kind = GoalNodeKind.Agent,
                 Name = "executor",
-                Role = AgentRole.Executor, Variant = ExecutorVariant.Code,
+                Role = AgentRole.Executor,
+                Variant = ExecutorVariant.Code,
                 SystemPrompt = "You are a code execution expert. Complete the task thoroughly and precisely. After completion, summarize what was done.",
                 Instruction = objective,
             }
         });
 
-        dag.AddNode(new DagNode<GoalNodePayload>
-        {
+        dag.AddNode(new DagNode<GoalNodePayload> {
             Id = "neg_review",
-            Payload = new()
-            {
+            Payload = new() {
                 Kind = GoalNodeKind.Agent,
                 Name = "negative-reviewer",
                 Role = AgentRole.Coordinator,
@@ -211,25 +194,22 @@ public static class GoalGraphTemplates
             }
         });
 
-        dag.AddNode(new DagNode<GoalNodePayload>
-        {
+        dag.AddNode(new DagNode<GoalNodePayload> {
             Id = "fix_neg",
-            Payload = new()
-            {
+            Payload = new() {
                 Kind = GoalNodeKind.Agent,
                 Name = "fix-negative-review",
-                Role = AgentRole.Executor, Variant = ExecutorVariant.Code,
+                Role = AgentRole.Executor,
+                Variant = ExecutorVariant.Code,
                 SystemPrompt = BuildFixNegSystemPrompt(),
                 Instruction = "根据负向评价要求完成任务。完成后决定：\n- 如果你想再经历一轮负向评价以保证工程质量，输出路由 NEG_CONTINUE\n- 如果当前负评超过10条，建议输出路由 NEG_STOP\n- 否则输出路由 NEG_STOP",
                 RouteMatchMode = RouteMatchMode.ConditionalOnly,
             }
         });
 
-        dag.AddNode(new DagNode<GoalNodePayload>
-        {
+        dag.AddNode(new DagNode<GoalNodePayload> {
             Id = "done",
-            Payload = new()
-            {
+            Payload = new() {
                 Kind = GoalNodeKind.Function,
                 Name = "loop-done",
                 Instruction = "Negative review loop completed",
@@ -249,8 +229,7 @@ public static class GoalGraphTemplates
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("negative-review-loop-completed")));
 
-        return new GoalGraph
-        {
+        return new GoalGraph {
             Name = $"negative-review-loop: {objective}",
             Dag = dag,
             StartNodeId = "execute",
@@ -259,8 +238,7 @@ public static class GoalGraphTemplates
         };
     }
 
-    private static string BuildNegReviewSystemPrompt()
-    {
+    private static string BuildNegReviewSystemPrompt() {
         return """
 你是一个严格的负向评价专家。你的职责是勇敢说出不足，而非赞美。
 
@@ -323,8 +301,7 @@ public static class GoalGraphTemplates
 """;
     }
 
-    private static string BuildNegReviewInstruction(string objective)
-    {
+    private static string BuildNegReviewInstruction(string objective) {
         return $"""
 对以下任务执行负向评价:
 
@@ -335,8 +312,7 @@ public static class GoalGraphTemplates
 """;
     }
 
-    private static string BuildFixNegSystemPrompt()
-    {
+    private static string BuildFixNegSystemPrompt() {
         return """
 你是一个修复专家。根据负向评价的要求去完成任务。
 
@@ -377,23 +353,19 @@ public static class GoalGraphTemplates
     }
 
     /// <summary>集群模板 — cluster_analyze → [动态展开并行Worker] → gather → merge → review</summary>
-    public static GoalGraphTemplate ClusterTemplate => new()
-    {
+    public static GoalGraphTemplate ClusterTemplate => new() {
         Name = "cluster",
         Keywords = ["集群", "cluster", "并行", "parallel", "批量", "batch", "多任务", "multi-task", "同时", "concurrent"],
         Description = "cluster_analyze → [动态展开并行Worker] → gather → merge → review",
         BuildGraph = BuildClusterGraph,
     };
 
-    private static GoalGraph BuildClusterGraph(GoalGraphEngine engine, string objective)
-    {
+    private static GoalGraph BuildClusterGraph(GoalGraphEngine engine, string objective) {
         var dag = new Dag<GoalNodePayload>();
 
-        dag.AddNode(new DagNode<GoalNodePayload>
-        {
+        dag.AddNode(new DagNode<GoalNodePayload> {
             Id = "cluster_analyze",
-            Payload = new()
-            {
+            Payload = new() {
                 Kind = GoalNodeKind.Agent,
                 Name = "cluster-analyzer",
                 Role = AgentRole.Coordinator,
@@ -402,22 +374,18 @@ public static class GoalGraphTemplates
             }
         });
 
-        dag.AddNode(new DagNode<GoalNodePayload>
-        {
+        dag.AddNode(new DagNode<GoalNodePayload> {
             Id = "cluster_expand",
-            Payload = new()
-            {
+            Payload = new() {
                 Kind = GoalNodeKind.Function,
                 Name = "cluster-expander",
                 Instruction = "Dynamically expand parallel worker nodes based on analysis results",
             }
         });
 
-        dag.AddNode(new DagNode<GoalNodePayload>
-        {
+        dag.AddNode(new DagNode<GoalNodePayload> {
             Id = "cluster_review",
-            Payload = new()
-            {
+            Payload = new() {
                 Kind = GoalNodeKind.Agent,
                 Name = "cluster-reviewer",
                 Role = AgentRole.Coordinator,
@@ -432,8 +400,7 @@ public static class GoalGraphTemplates
 
         engine.RegisterFunction("cluster_expand", ClusterExpandFunction);
 
-        return new GoalGraph
-        {
+        return new GoalGraph {
             Name = $"cluster: {objective}",
             Dag = dag,
             StartNodeId = "cluster_analyze",
@@ -441,11 +408,9 @@ public static class GoalGraphTemplates
         };
     }
 
-    private static async Task<NodeResult> ClusterExpandFunction(NodeContext ctx)
-    {
+    private static async Task<NodeResult> ClusterExpandFunction(NodeContext ctx) {
         var mutator = ctx.GraphMutator;
-        if (mutator is null)
-        {
+        if (mutator is null) {
             return NodeResult.Failed("GraphMutator not available — cannot expand cluster graph");
         }
 
@@ -453,8 +418,7 @@ public static class GoalGraphTemplates
         var validator = ctx.Services.GetService<IClusterPlanValidator>();
         var approvalHook = ctx.Services.GetService<IClusterPlanApprovalHookManager>();
 
-        if (analyzer is null)
-        {
+        if (analyzer is null) {
             return NodeResult.Failed("IDecomposabilityAnalyzer not available");
         }
 
@@ -463,41 +427,34 @@ public static class GoalGraphTemplates
 
         var decomposition = await analyzer.AnalyzeAsync(objective, constraints, ctx.CancellationToken).ConfigureAwait(false);
 
-        if (!decomposition.IsDecomposable)
-        {
+        if (!decomposition.IsDecomposable) {
             return NodeResult.Routed($"任务不可分解: {decomposition.Reason}，回退到单Agent模式", ["FALLBACK"]);
         }
 
-        var plan = new ClusterPlan
-        {
+        var plan = new ClusterPlan {
             Objective = objective,
             Decomposition = decomposition,
             ExecutionOptions = new ClusterExecutionOptions()
         };
 
-        if (validator is not null)
-        {
+        if (validator is not null) {
             var validationResult = validator.Validate(plan);
             plan.ValidationResult = validationResult;
 
-            if (!validationResult.IsValid)
-            {
+            if (!validationResult.IsValid) {
                 return NodeResult.Routed($"计划验证失败: {string.Join(", ", validationResult.Errors)}", ["FALLBACK"]);
             }
         }
 
-        if (approvalHook is not null)
-        {
+        if (approvalHook is not null) {
             var approvalResult = await approvalHook.OnClusterPlanApprovalAsync(
-                new ClusterPlanApprovalHookContext
-                {
+                new ClusterPlanApprovalHookContext {
                     SessionId = ctx.GlobalState.GoalId,
                     Objective = objective,
                     Plan = plan,
                 }, ctx.CancellationToken).ConfigureAwait(false);
 
-            if (!approvalResult.ShouldProceed)
-            {
+            if (!approvalResult.ShouldProceed) {
                 return NodeResult.Routed($"计划审批被阻止: {approvalResult.Message}", ["FALLBACK"]);
             }
         }
@@ -506,8 +463,7 @@ public static class GoalGraphTemplates
         var workerIds = new List<string>();
         var edgeCounter = 0;
 
-        foreach (var task in subTasks)
-        {
+        foreach (var task in subTasks) {
             var workerId = $"worker_{task.Id}";
             workerIds.Add(workerId);
 
@@ -515,8 +471,7 @@ public static class GoalGraphTemplates
                 ? ExecutorVariant.Explore
                 : ExecutorVariant.Code;
 
-            mutator.AddNode(workerId, new GoalNodePayload
-            {
+            mutator.AddNode(workerId, new GoalNodePayload {
                 Kind = GoalNodeKind.Agent,
                 Name = $"worker-{task.Id}",
                 Role = AgentRole.Executor,
@@ -527,33 +482,26 @@ public static class GoalGraphTemplates
                 Instruction = task.Description,
             });
 
-            if (task.DependsOn is { Count: > 0 })
-            {
-                foreach (var depId in task.DependsOn)
-                {
+            if (task.DependsOn is { Count: > 0 }) {
+                foreach (var depId in task.DependsOn) {
                     var depWorkerId = $"worker_{depId}";
                     mutator.AddEdge($"e-w-{edgeCounter++}", depWorkerId, workerId, "depends-on");
                 }
-            }
-            else
-            {
+            } else {
                 mutator.AddEdge($"e-ce-{edgeCounter++}", "cluster_expand", workerId);
             }
         }
 
-        mutator.AddNode("cluster_gather", new GoalNodePayload
-        {
+        mutator.AddNode("cluster_gather", new GoalNodePayload {
             Kind = GoalNodeKind.Join,
             Name = "cluster-gatherer",
         });
 
-        foreach (var workerId in workerIds)
-        {
+        foreach (var workerId in workerIds) {
             mutator.AddEdge($"e-g-{edgeCounter++}", workerId, "cluster_gather");
         }
 
-        mutator.AddNode("cluster_merge", new GoalNodePayload
-        {
+        mutator.AddNode("cluster_merge", new GoalNodePayload {
             Kind = GoalNodeKind.Agent,
             Name = "cluster-merger",
             Role = AgentRole.Coordinator,
@@ -566,16 +514,14 @@ public static class GoalGraphTemplates
 
         mutator.AddEndNode("cluster_review");
 
-        foreach (var workerId in workerIds)
-        {
+        foreach (var workerId in workerIds) {
             mutator.EnqueueNode(workerId);
         }
 
         return NodeResult.Succeeded($"集群图已展开: {workerIds.Count} 个并行Worker");
     }
 
-    private static string BuildClusterAnalyzerSystemPrompt()
-    {
+    private static string BuildClusterAnalyzerSystemPrompt() {
         return """
             You are a cluster analysis agent. Your job is to:
             1. Use the DecomposabilityAnalyzer to determine if the objective can be split into parallel subtasks
@@ -599,8 +545,7 @@ public static class GoalGraphTemplates
     /// cluster_merge 节点的系统提示词 — 管理者在完整上下文中同时评估 Worker 输出质量并合成最终结果。
     /// 对齐 Anthropic orchestrator-worker 模式：Lead agent synthesizes subagent results，不做独立评分步骤。
     /// </summary>
-    private static string BuildClusterMergerSystemPrompt()
-    {
+    private static string BuildClusterMergerSystemPrompt() {
         return """
             You are the merge coordinator for a parallel cluster execution. You have full context of the original objective and all worker outputs.
 

@@ -5,8 +5,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// 反馈状态
 /// </summary>
-public sealed class FeedbackState
-{
+public sealed class FeedbackState {
     /// <summary>
     /// 当前反馈步骤
     /// </summary>
@@ -26,8 +25,7 @@ public sealed class FeedbackState
 /// <summary>
 /// 反馈步骤
 /// </summary>
-public enum FeedbackStep
-{
+public enum FeedbackStep {
     /// <summary>
     /// 用户输入阶段
     /// </summary>
@@ -62,40 +60,33 @@ public enum FeedbackStep
 /// <summary>
 /// 反馈渲染器 — CLI 简化版
 /// </summary>
-public sealed class FeedbackRenderer
-{
+public sealed class FeedbackRenderer {
     /// <summary>
     /// 根据反馈状态渲染对应文本
     /// </summary>
     /// <param name="state">反馈状态</param>
     /// <returns>渲染后的文本</returns>
-    public string Render(FeedbackState state)
-    {
+    public string Render(FeedbackState state) {
         var sb = new StringBuilder();
 
-        switch (state.Step)
-        {
+        switch (state.Step) {
             case FeedbackStep.UserInput:
-                sb.AppendLine($"{AnsiStyleEnumConstants.Bold}反馈{AnsiStyleEnumConstants.Reset}");
-                sb.AppendLine("请输入您的反馈内容:");
-                break;
+            sb.AppendLine($"{AnsiStyleEnumConstants.Bold}反馈{AnsiStyleEnumConstants.Reset}");
+            sb.AppendLine("请输入您的反馈内容:");
+            break;
             case FeedbackStep.Done:
-                if (state.IsSuccess)
-                {
-                    sb.AppendLine($"{TerminalColors.Success}反馈已提交{AnsiStyleEnumConstants.Reset}");
-                    if (!string.IsNullOrEmpty(state.Description))
-                    {
-                        sb.AppendLine($"  内容: {state.Description}");
-                    }
+            if (state.IsSuccess) {
+                sb.AppendLine($"{TerminalColors.Success}反馈已提交{AnsiStyleEnumConstants.Reset}");
+                if (!string.IsNullOrEmpty(state.Description)) {
+                    sb.AppendLine($"  内容: {state.Description}");
                 }
-                else
-                {
-                    sb.AppendLine($"{TerminalColors.Error}反馈提交失败{AnsiStyleEnumConstants.Reset}");
-                }
-                break;
+            } else {
+                sb.AppendLine($"{TerminalColors.Error}反馈提交失败{AnsiStyleEnumConstants.Reset}");
+            }
+            break;
             default:
-                sb.AppendLine($"反馈步骤: {state.Step}");
-                break;
+            sb.AppendLine($"反馈步骤: {state.Step}");
+            break;
         }
 
         return sb.ToString();
@@ -105,8 +96,7 @@ public sealed class FeedbackRenderer
     /// 显示星级评分，5 星制
     /// </summary>
     /// <param name="rating">评分值，0 到 5</param>
-    public static void ShowRating(int rating)
-    {
+    public static void ShowRating(int rating) {
         var stars = new string('★', rating) + new string('☆', 5 - rating);
         TerminalHelper.WriteLine($"  评分: {TerminalColors.Warning}{stars}{AnsiStyleEnumConstants.Reset}");
     }
@@ -115,10 +105,8 @@ public sealed class FeedbackRenderer
     /// 显示评论内容，空白时不输出
     /// </summary>
     /// <param name="comment">评论文本</param>
-    public static void ShowComment(string comment)
-    {
-        if (!string.IsNullOrWhiteSpace(comment))
-        {
+    public static void ShowComment(string comment) {
+        if (!string.IsNullOrWhiteSpace(comment)) {
             TerminalHelper.WriteLine($"  评论: {comment}");
         }
     }
@@ -127,15 +115,13 @@ public sealed class FeedbackRenderer
 /// <summary>
 /// 反馈脱敏器
 /// </summary>
-public static class FeedbackRedactor
-{
+public static class FeedbackRedactor {
     /// <summary>
     /// 对文本进行脱敏处理，当前实现原样返回
     /// </summary>
     /// <param name="text">待脱敏文本</param>
     /// <returns>脱敏后的文本</returns>
-    public static string Redact(string text)
-    {
+    public static string Redact(string text) {
         return text;
     }
 }

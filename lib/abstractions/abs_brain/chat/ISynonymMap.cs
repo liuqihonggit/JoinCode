@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 同义词映射接口 — 提供同义词查找能力
 /// </summary>
-public interface ISynonymMap
-{
+public interface ISynonymMap {
     /// <summary>
     /// 同义词映射条目
     /// </summary>

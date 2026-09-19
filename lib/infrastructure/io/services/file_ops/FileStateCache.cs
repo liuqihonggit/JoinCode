@@ -5,8 +5,7 @@ namespace IO;
 /// Mirrors TS FileStateCache with normalized path keys and size limits.
 /// </summary>
 [Register(typeof(IFileStateCache), ServiceLifetime.Singleton)]
-public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
-{
+public sealed partial class FileStateCache : ServiceEntity, IFileStateCache {
     private const int DefaultMaxEntries = 100;
     private const long DefaultMaxSizeBytes = 25 * 1024 * 1024; // 25MB
 
@@ -17,8 +16,7 @@ public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
     /// </summary>
     /// <param name="maxEntries">最大缓存条目数</param>
     /// <param name="maxSizeBytes">最大缓存字节数</param>
-    public FileStateCache(int maxEntries = DefaultMaxEntries, long maxSizeBytes = DefaultMaxSizeBytes)
-    {
+    public FileStateCache(int maxEntries = DefaultMaxEntries, long maxSizeBytes = DefaultMaxSizeBytes) {
         _cache = new LruCache<string, FileReadState>(
             maxEntries,
             maxSizeBytes,
@@ -34,14 +32,12 @@ public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
     /// <param name="timestampMs">读取时间戳(毫秒)</param>
     /// <param name="offset">可选行偏移</param>
     /// <param name="limit">可选行限制</param>
-    public void RecordRead(string filePath, string content, long timestampMs, int? offset = null, int? limit = null)
-    {
+    public void RecordRead(string filePath, string content, long timestampMs, int? offset = null, int? limit = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var normalizedPath = NormalizePath(filePath);
 
-        var state = new FileReadState
-        {
+        var state = new FileReadState {
             Content = content,
             TimestampMs = timestampMs,
             Offset = offset,
@@ -57,8 +53,7 @@ public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>已读取过返回 true，否则 false</returns>
-    public bool HasBeenRead(string filePath)
-    {
+    public bool HasBeenRead(string filePath) {
         var normalizedPath = NormalizePath(filePath);
         return _cache.ContainsKey(normalizedPath);
     }
@@ -68,8 +63,7 @@ public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>读取时间戳，未读取过返回 null</returns>
-    public long? GetReadTimestampMs(string filePath)
-    {
+    public long? GetReadTimestampMs(string filePath) {
         var normalizedPath = NormalizePath(filePath);
         return _cache.TryGetValue(normalizedPath, out var state) ? state.TimestampMs : null;
     }
@@ -79,8 +73,7 @@ public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>读取内容，未读取过返回 null</returns>
-    public string? GetReadContent(string filePath)
-    {
+    public string? GetReadContent(string filePath) {
         var normalizedPath = NormalizePath(filePath);
         return _cache.TryGetValue(normalizedPath, out var state) ? state.Content : null;
     }
@@ -90,8 +83,7 @@ public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>读取状态，未读取过返回 null</returns>
-    public FileReadState? GetReadState(string filePath)
-    {
+    public FileReadState? GetReadState(string filePath) {
         var normalizedPath = NormalizePath(filePath);
         return _cache.TryGetValue(normalizedPath, out var state) ? state : null;
     }
@@ -100,8 +92,7 @@ public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
     /// 使指定文件的缓存失效
     /// </summary>
     /// <param name="filePath">文件路径</param>
-    public void Invalidate(string filePath)
-    {
+    public void Invalidate(string filePath) {
         var normalizedPath = NormalizePath(filePath);
         _cache.Remove(normalizedPath);
     }
@@ -115,13 +106,10 @@ public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
     /// 克隆当前缓存，返回独立副本
     /// </summary>
     /// <returns>缓存副本</returns>
-    public IFileStateCache Clone()
-    {
+    public IFileStateCache Clone() {
         var cloned = new FileStateCache();
-        foreach (var (key, state) in _cache.Entries())
-        {
-            cloned._cache.Set(key, new FileReadState
-            {
+        foreach (var (key, state) in _cache.Entries()) {
+            cloned._cache.Set(key, new FileReadState {
                 Content = state.Content,
                 TimestampMs = state.TimestampMs,
                 Offset = state.Offset,
@@ -132,8 +120,7 @@ public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
         return cloned;
     }
 
-    private static string NormalizePath(string path)
-    {
+    private static string NormalizePath(string path) {
         return Path.GetFullPath(path).Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
     }
 }

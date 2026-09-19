@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// Bridge 工作管道上下文 — 承载单次 Work 处理过程中的共享状态与回调
 /// </summary>
-public sealed class HandleWorkContext : IPipelineContext
-{
+public sealed class HandleWorkContext : IPipelineContext {
     /// <summary>Bridge 配置（必需）</summary>
     public required BridgeConfig Config { get; init; }
     /// <summary>当前处理的 Bridge 工作项（必需）</summary>
@@ -74,8 +73,7 @@ public sealed class HandleWorkContext : IPipelineContext
     /// 标记管道失败并记录错误消息
     /// </summary>
     /// <param name="message">错误消息</param>
-    void IPipelineContext.Fail(string message)
-    {
+    void IPipelineContext.Fail(string message) {
         ((IPipelineContext)this).Failed = true;
         ((IPipelineContext)this).ErrorMessage = message;
     }
@@ -84,11 +82,9 @@ public sealed class HandleWorkContext : IPipelineContext
     /// 标记 Work 失败：记录完成、停止工作、唤醒容量、短路管道
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    internal void FailWork(CancellationToken ct = default)
-    {
+    internal void FailWork(CancellationToken ct = default) {
         Tracker.WorkCompletion.Mark(Work.WorkId);
-        if (TrackCleanup is not null && StopWorkAsync is not null)
-        {
+        if (TrackCleanup is not null && StopWorkAsync is not null) {
             TrackCleanup(StopWorkAsync(Work.WorkId, ct));
         }
         CapacityWake?.Invoke();

@@ -6,13 +6,11 @@ namespace JoinCode.Vision.ToolHandlers;
 /// 参考物不内置，LLM 联网检索（国际化考虑）；高维变换排除，标注为模型层能力
 /// </summary>
 [McpToolDispatch(ToolCategory.Vision)]
-public class MeasurementToolHandlers
-{
+public class MeasurementToolHandlers {
     private readonly ILogger<MeasurementToolHandlers>? _logger;
 
     /// <param name="logger">可选日志器</param>
-    public MeasurementToolHandlers(ILogger<MeasurementToolHandlers>? logger = null)
-    {
+    public MeasurementToolHandlers(ILogger<MeasurementToolHandlers>? logger = null) {
         _logger = logger;
     }
 
@@ -23,8 +21,7 @@ public class MeasurementToolHandlers
         [McpToolParameter("起点Y坐标（像素）", Required = true)] int y1,
         [McpToolParameter("终点X坐标（像素）", Required = true)] int x2,
         [McpToolParameter("终点Y坐标（像素）", Required = true)] int y2,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var dx = x2 - x1;
         var dy = y2 - y1;
         var distance = Math.Sqrt(dx * dx + dy * dy);
@@ -51,8 +48,7 @@ public class MeasurementToolHandlers
         [McpToolParameter("区域左上角Y（像素）", Required = true)] int y,
         [McpToolParameter("区域宽度（像素）", Required = true)] int width,
         [McpToolParameter("区域高度（像素）", Required = true)] int height,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(imageBase64))
             return ToolResultBuilder.Error().WithText("[VIS400] imageBase64 不能为空").Build();
         if (width <= 0 || height <= 0)
@@ -62,12 +58,9 @@ public class MeasurementToolHandlers
             return ToolResultBuilder.Error().WithText($"[VIS403] {decodeError}").Build();
 
         Image<Rgb24> image;
-        try
-        {
+        try {
             image = Image.Load<Rgb24>(bytes);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolResultBuilder.Error().WithText("[VIS403] 无法解码图片，请检查 base64 是否为有效图片").Build();
         }
         using var img = image;
@@ -98,8 +91,7 @@ public class MeasurementToolHandlers
     public Task<ToolResult> MeasureRatioAsync(
         [McpToolParameter("区域宽度（像素）", Required = true)] int width,
         [McpToolParameter("区域高度（像素）", Required = true)] int height,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (width <= 0 || height <= 0)
             return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS410] 尺寸必须为正").Build());
 
@@ -123,24 +115,20 @@ public class MeasurementToolHandlers
 
     /// <summary>分析区域颜色统计 — 返回平均值/方差/梯度</summary>
     private static (double AvgR, double AvgG, double AvgB, double VarR, double VarG, double VarB, double Gradient) AnalyzeRegion(
-        Image<Rgb24> image, int x, int y, int width, int height)
-    {
+        Image<Rgb24> image, int x, int y, int width, int height) {
         var count = width * height;
         var sumR = 0.0; var sumG = 0.0; var sumB = 0.0;
         var sumR2 = 0.0; var sumG2 = 0.0; var sumB2 = 0.0;
         var gradientSum = 0.0;
         var gradientCount = 0;
 
-        for (var row = y; row < y + height; row++)
-        {
-            for (var col = x; col < x + width; col++)
-            {
+        for (var row = y; row < y + height; row++) {
+            for (var col = x; col < x + width; col++) {
                 var p = image[col, row];
                 sumR += p.R; sumG += p.G; sumB += p.B;
                 sumR2 += (double)p.R * p.R; sumG2 += (double)p.G * p.G; sumB2 += (double)p.B * p.B;
 
-                if (col > x)
-                {
+                if (col > x) {
                     var left = image[col - 1, row];
                     gradientSum += Math.Abs(p.R - left.R) + Math.Abs(p.G - left.G) + Math.Abs(p.B - left.B);
                     gradientCount++;
@@ -158,15 +146,13 @@ public class MeasurementToolHandlers
     }
 
     /// <summary>最大公约数 — 用于简化比例</summary>
-    private static int Gcd(int a, int b)
-    {
+    private static int Gcd(int a, int b) {
         while (b != 0) { var t = b; b = a % b; a = t; }
         return a;
     }
 
     /// <summary>识别常见长宽比 — 如16:9, 4:3, 3:2, 1:1等</summary>
-    private static string? IdentifyCommonRatio(double ratio)
-    {
+    private static string? IdentifyCommonRatio(double ratio) {
         var commonRatios = new (double Ratio, string Name)[]
         {
             (1.0, "1:1 (正方形)"),
@@ -180,8 +166,7 @@ public class MeasurementToolHandlers
             (0.75, "3:4 (竖版屏幕)"),
         };
 
-        foreach (var (r, name) in commonRatios)
-        {
+        foreach (var (r, name) in commonRatios) {
             if (Math.Abs(ratio - r) < 0.02) return name;
         }
         return null;

@@ -1,9 +1,7 @@
 namespace MockServer.E2E.Tests.Scripts;
 
-public static class ToolCallScripts
-{
-    public static ConversationScript BashToolCall => new()
-    {
+public static class ToolCallScripts {
+    public static ConversationScript BashToolCall => new() {
         Name = "Bash工具调用对话",
         Turns =
         [
@@ -33,8 +31,7 @@ public static class ToolCallScripts
         ]
     };
 
-    public static ConversationScript ReadFileToolCall => new()
-    {
+    public static ConversationScript ReadFileToolCall => new() {
         Name = "ReadFile工具调用对话",
         Turns =
         [
@@ -64,8 +61,7 @@ public static class ToolCallScripts
         ]
     };
 
-    public static ConversationScript MultiToolCalls => new()
-    {
+    public static ConversationScript MultiToolCalls => new() {
         Name = "多工具调用对话",
         Turns =
         [
@@ -101,8 +97,7 @@ public static class ToolCallScripts
         ]
     };
 
-    public static ConversationScript UnknownToolCall => new()
-    {
+    public static ConversationScript UnknownToolCall => new() {
         Name = "未知工具调用",
         Turns =
         [
@@ -133,8 +128,7 @@ public static class ToolCallScripts
         ]
     };
 
-    public static ConversationScript ThinkingThenResponse => new()
-    {
+    public static ConversationScript ThinkingThenResponse => new() {
         Name = "思考后回复",
         Turns =
         [
@@ -156,8 +150,7 @@ public static class ToolCallScripts
         ]
     };
 
-    public static ConversationScript ToolCallWithFollowUpText => new()
-    {
+    public static ConversationScript ToolCallWithFollowUpText => new() {
         Name = "工具调用后文本回复",
         Turns =
         [
@@ -188,10 +181,8 @@ public static class ToolCallScripts
     };
 }
 
-public static class MultiTurnScripts
-{
-    public static ConversationScript FiveRoundMemory => new()
-    {
+public static class MultiTurnScripts {
+    public static ConversationScript FiveRoundMemory => new() {
         Name = "五轮对话记忆",
         Turns =
         [
@@ -228,8 +219,7 @@ public static class MultiTurnScripts
         ]
     };
 
-    public static ConversationScript ToolCallThenFollowUp => new()
-    {
+    public static ConversationScript ToolCallThenFollowUp => new() {
         Name = "工具调用后追问",
         Turns =
         [
@@ -262,10 +252,8 @@ public static class MultiTurnScripts
     };
 }
 
-public static class PromptInjectionScripts
-{
-    public static ConversationScript NegativeKeyword => new()
-    {
+public static class PromptInjectionScripts {
+    public static ConversationScript NegativeKeyword => new() {
         Name = "负面关键词触发适应性提示词",
         Turns =
         [
@@ -282,8 +270,7 @@ public static class PromptInjectionScripts
         ]
     };
 
-    public static ConversationScript KeepGoingKeyword => new()
-    {
+    public static ConversationScript KeepGoingKeyword => new() {
         Name = "继续关键词触发延续提示词",
         Turns =
         [
@@ -302,8 +289,7 @@ public static class PromptInjectionScripts
         ]
     };
 
-    public static ConversationScript NormalInputNoInjection => new()
-    {
+    public static ConversationScript NormalInputNoInjection => new() {
         Name = "正常输入不触发注入",
         Turns =
         [
@@ -321,10 +307,8 @@ public static class PromptInjectionScripts
     };
 }
 
-public static class EdgeCaseScripts
-{
-    public static ConversationScript EmptyInput => new()
-    {
+public static class EdgeCaseScripts {
+    public static ConversationScript EmptyInput => new() {
         Name = "空输入处理",
         Turns =
         [
@@ -337,8 +321,7 @@ public static class EdgeCaseScripts
         ]
     };
 
-    public static ConversationScript ExitCommand => new()
-    {
+    public static ConversationScript ExitCommand => new() {
         Name = "退出命令",
         Turns =
         [
@@ -351,8 +334,7 @@ public static class EdgeCaseScripts
         ]
     };
 
-    public static ConversationScript TokenUsageNoError => new()
-    {
+    public static ConversationScript TokenUsageNoError => new() {
         Name = "TokenUsage反序列化无错误",
         Turns =
         [
@@ -370,8 +352,7 @@ public static class EdgeCaseScripts
         ]
     };
 
-    public static ConversationScript LongStreamingResponse => new()
-    {
+    public static ConversationScript LongStreamingResponse => new() {
         Name = "长流式响应",
         Turns =
         [
@@ -393,10 +374,8 @@ public static class EdgeCaseScripts
     };
 }
 
-public static class PrefixCacheScripts
-{
-    public static ConversationScript ThreeTurnPrefixStable => new()
-    {
+public static class PrefixCacheScripts {
+    public static ConversationScript ThreeTurnPrefixStable => new() {
         Name = "三轮对话前缀缓存稳定",
         DumpMessages = true,
         Turns =
@@ -422,8 +401,7 @@ public static class PrefixCacheScripts
         ]
     };
 
-    public static ConversationScript FiveTurnPrefixStable => new()
-    {
+    public static ConversationScript FiveTurnPrefixStable => new() {
         Name = "五轮对话前缀缓存稳定",
         DumpMessages = true,
         Turns =
@@ -461,8 +439,7 @@ public static class PrefixCacheScripts
         ]
     };
 
-    public static ConversationScript ToolCallPrefixStable => new()
-    {
+    public static ConversationScript ToolCallPrefixStable => new() {
         Name = "工具调用后前缀缓存稳定",
         DumpMessages = true,
         Turns =
@@ -495,10 +472,8 @@ public static class PrefixCacheScripts
     };
 }
 
-public static class ToolIterationScripts
-{
-    public static ConversationScript SequentialToolCalls => new()
-    {
+public static class ToolIterationScripts {
+    public static ConversationScript SequentialToolCalls => new() {
         Name = "连续工具调用迭代",
         Turns =
         [
@@ -543,8 +518,7 @@ public static class ToolIterationScripts
         ]
     };
 
-    public static ConversationScript ToolCallThenErrorRecovery => new()
-    {
+    public static ConversationScript ToolCallThenErrorRecovery => new() {
         Name = "工具调用后错误恢复",
         Turns =
         [
@@ -584,8 +558,7 @@ public static class ToolIterationScripts
         ]
     };
 
-    public static ConversationScript ThreeRoundToolIteration => new()
-    {
+    public static ConversationScript ThreeRoundToolIteration => new() {
         Name = "三轮工具调用迭代",
         Turns =
         [
@@ -644,8 +617,7 @@ public static class ToolIterationScripts
         ]
     };
 
-    public static ConversationScript ToolCallContextPreservation => new()
-    {
+    public static ConversationScript ToolCallContextPreservation => new() {
         Name = "工具调用后上下文保持",
         Turns =
         [
@@ -695,8 +667,7 @@ public static class ToolIterationScripts
         ]
     };
 
-    public static ConversationScript MixedToolAndTextConversation => new()
-    {
+    public static ConversationScript MixedToolAndTextConversation => new() {
         Name = "混合工具和文本对话",
         Turns =
         [

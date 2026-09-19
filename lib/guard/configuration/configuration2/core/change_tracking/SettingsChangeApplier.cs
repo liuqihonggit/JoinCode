@@ -6,8 +6,7 @@ namespace Core.Configuration;
 /// <para>死循环防护: ConfigChangeNotifier.MarkInternalWrite 抑制自身写入的文件变更事件,不触发 OnConfigChanged。</para>
 /// </summary>
 [Register(typeof(ISettingsChangeApplier), ServiceLifetime.Singleton)]
-public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeApplier.SettingsChangeCommand, Unit>, ISettingsChangeApplier
-{
+public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeApplier.SettingsChangeCommand, Unit>, ISettingsChangeApplier {
     private readonly IConfigChangeNotifier _configChangeNotifier;
     private readonly MiddlewarePipeline<SettingsContext> _pipeline;
     private readonly IFileSystem _fs;
@@ -23,8 +22,7 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
         IFileSystem fs,
         ILogger<SettingsChangeApplier>? logger = null,
         ITelemetryService? telemetryService = null)
-        : base(new ActorBackpressure(100, BoundedChannelFullMode.DropOldest), null)
-    {
+        : base(new ActorBackpressure(100, BoundedChannelFullMode.DropOldest), null) {
         _configChangeNotifier = configChangeNotifier;
         _pipeline = pipeline;
         _fs = fs;
@@ -37,31 +35,26 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
     public abstract record SettingsChangeCommand;
 
     /// <summary>应用设置变更命令 — 带 TaskCompletionSource 让调用方等待处理完成</summary>
-    private sealed record ApplySettingsCmd : SettingsChangeCommand
-    {
+    private sealed record ApplySettingsCmd : SettingsChangeCommand {
         public TaskCompletionSource<bool> Tcs { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
     /// <summary>
     /// 手动触发设置重新加载 — 投递命令到 Actor 邮箱,等待 Consumer 处理完成。
     /// </summary>
-    public async Task ApplySettingsChangeAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task ApplySettingsChangeAsync(CancellationToken cancellationToken = default) {
         var cmd = new ApplySettingsCmd();
-        if (!TrySend(cmd))
-        {
+        if (!TrySend(cmd)) {
             _logger?.LogWarning("SettingsChangeApplier 邮箱已满或已释放,跳过设置变更应用");
             return;
         }
         await cmd.Tcs.Task.ConfigureAwait(false);
     }
 
-    private void OnConfigChanged(object? sender, ConfigChangeEventArgs e)
-    {
+    private void OnConfigChanged(object? sender, ConfigChangeEventArgs e) {
         var fileName = Path.GetFileName(e.FilePath);
         if (!string.Equals(fileName, AppDataConstants.SettingsFileName, StringComparison.OrdinalIgnoreCase) &&
-            !fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-        {
+            !fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) {
             return;
         }
         _logger?.LogInformation("检测到配置文件变更: {Path} ({ChangeType})", e.FilePath, e.ChangeType);
@@ -69,15 +62,12 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
     }
 
     /// <inheritdoc />
-    protected override async ValueTask HandleAsync(SettingsChangeCommand cmd, CancellationToken ct)
-    {
+    protected override async ValueTask HandleAsync(SettingsChangeCommand cmd, CancellationToken ct) {
         if (cmd is not ApplySettingsCmd apply) return;
 
         _logger?.LogInformation("正在应用设置变更...");
-        try
-        {
-            var context = new SettingsContext
-            {
+        try {
+            var context = new SettingsContext {
                 FileSystem = _fs,
                 Logger = _logger,
                 TelemetryService = _telemetryService,
@@ -86,9 +76,7 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
             _telemetryService?.RecordCount("guard.settings.apply.count", [], "count", "Settings apply count");
             _logger?.LogInformation("设置变更已应用");
             apply.Tcs.TrySetResult(true);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "应用设置变更失败");
             _telemetryService?.RecordCount("guard.settings.apply.error.count", [], "count", "Settings apply error count");
             apply.Tcs.TrySetException(ex);
@@ -96,8 +84,7 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
     }
 
     /// <inheritdoc />
-    public override ValueTask DisposeAsync()
-    {
+    public override ValueTask DisposeAsync() {
         _configChangeNotifier.ConfigChanged -= OnConfigChanged;
         return base.DisposeAsync();
     }

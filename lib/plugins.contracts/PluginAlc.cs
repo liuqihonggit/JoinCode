@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>isCollectible=true 允许 Unload 后被 GC 回收</para>
 /// <para>NativeAOT 下 AssemblyLoadContext.IsCollectible 可能受限,降级为诊断警告</para>
 /// </summary>
-public sealed class PluginAlc : AssemblyLoadContext
-{
+public sealed class PluginAlc : AssemblyLoadContext {
     /// <summary>创建可收集的插件 ALC</summary>
     public PluginAlc(string name) : base(name, isCollectible: true) { }
 }
@@ -18,23 +17,19 @@ public sealed class PluginAlc : AssemblyLoadContext
 /// <para>成功回收 → 返回 null</para>
 /// <para>注意:调用方应在创建 alcRef 后释放对 ALC 的所有强引用,否则 GC 无法回收</para>
 /// </summary>
-public static class AlcUnloadVerifier
-{
+public static class AlcUnloadVerifier {
     /// <summary>
     /// 验证 ALC 卸载并回收 — 接收 WeakReference 避免方法内强引用阻止 GC
     /// </summary>
     /// <param name="alcRef">ALC 的弱引用(null 时直接返回 null)</param>
     /// <param name="pluginId">插件标识(用于诊断)</param>
     /// <returns>null=成功,非 null=诊断事件</returns>
-    public static PluginDiagnostic? VerifyUnload(WeakReference<AssemblyLoadContext>? alcRef, string pluginId)
-    {
+    public static PluginDiagnostic? VerifyUnload(WeakReference<AssemblyLoadContext>? alcRef, string pluginId) {
         if (alcRef is null) return null;
         if (!alcRef.TryGetTarget(out var alc)) return null;
 
-        if (!alc.IsCollectible)
-        {
-            return new PluginDiagnostic
-            {
+        if (!alc.IsCollectible) {
+            return new PluginDiagnostic {
                 PluginId = pluginId,
                 Kind = PluginDiagnosticKind.AlcNotCollectible,
                 Message = $"插件 {pluginId} 的 ALC 不可回收，已跳过 Unload。",
@@ -45,16 +40,13 @@ public static class AlcUnloadVerifier
         alc.Unload();
         alc = null!;
 
-        for (int i = 0; i < 10; i++)
-        {
+        for (int i = 0; i < 10; i++) {
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
 
-        if (alcRef.TryGetTarget(out _))
-        {
-            return new PluginDiagnostic
-            {
+        if (alcRef.TryGetTarget(out _)) {
+            return new PluginDiagnostic {
                 PluginId = pluginId,
                 Kind = PluginDiagnosticKind.AlcLeak,
                 Message = $"插件 {pluginId} 的 ALC 在 10 次 GC 后仍未被回收。",

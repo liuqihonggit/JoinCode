@@ -14,8 +14,7 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// </para>
 /// </summary>
 [Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
-public sealed partial class HeredocGuard : ICommandGuard
-{
+public sealed partial class HeredocGuard : ICommandGuard {
     private readonly ILogger<HeredocGuard>? _logger;
 
     // 匹配 $(cat <<'DELIMITER'\ncontent\nDELIMITER) 或 $(cat <<DELIMITER\ncontent\nDELIMITER)
@@ -32,8 +31,7 @@ public sealed partial class HeredocGuard : ICommandGuard
     /// 构造 HEREDOC 守卫
     /// </summary>
     /// <param name="logger">日志器(可选)</param>
-    public HeredocGuard(ILogger<HeredocGuard>? logger = null)
-    {
+    public HeredocGuard(ILogger<HeredocGuard>? logger = null) {
         _logger = logger;
     }
 
@@ -44,45 +42,38 @@ public sealed partial class HeredocGuard : ICommandGuard
     public int Priority => 200;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, GuardContext context)
-    {
+    public bool CanHandle(string command, GuardContext context) {
         return command.Contains("<<");
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, GuardContext context)
-    {
+    public CommandDecision Evaluate(string command, GuardContext context) {
         // Bash 原生支持 HEREDOC,不需要转换
-        if (IsBashShell(context))
-        {
+        if (IsBashShell(context)) {
             return new CommandDecision.Allow();
         }
 
         var result = command;
 
         // 先处理 $(cat <<'EOF'...EOF) 模式 — 命令替换内不加外层双引号(避免嵌套)
-        result = HeredocInCommandSubstitution.Replace(result, static m =>
-        {
+        result = HeredocInCommandSubstitution.Replace(result, static m => {
             var content = m.Groups[2].Value;
             return EscapeForDoubleQuotedString(content);
         });
 
         // 再处理独立 HEREDOC 模式 — 加外层双引号
-        result = StandaloneHeredoc.Replace(result, static m =>
-        {
+        result = StandaloneHeredoc.Replace(result, static m => {
             var content = m.Groups[2].Value;
             return "\"" + EscapeForDoubleQuotedString(content) + "\"";
         });
 
         // 最后转义剩余的孤立 << 标记 — PowerShell/Cmd 解析为重定向操作符导致命令失败
-        if (result.Contains("<<"))
-        {
+        if (result.Contains("<<")) {
             result = result.Replace("<<", "`<`<");
             _logger?.LogWarning("检测到孤立的 << 标记,已转义为 PowerShell 安全形式");
         }
 
-        if (result == command)
-        {
+        if (result == command) {
             return new CommandDecision.Allow();
         }
 
@@ -93,16 +84,14 @@ public sealed partial class HeredocGuard : ICommandGuard
     /// <summary>
     /// 判断当前 shell 是否为 Bash — Bash 原生支持 HEREDOC,无需转换
     /// </summary>
-    private static bool IsBashShell(GuardContext context)
-    {
+    private static bool IsBashShell(GuardContext context) {
         return context.ShellKind == SystemActuatorKind.Bash;
     }
 
     /// <summary>
     /// 转义双引号字符串中的特殊字符 — 双引号、反斜杠、$ 需要转义
     /// </summary>
-    private static string EscapeForDoubleQuotedString(string content)
-    {
+    private static string EscapeForDoubleQuotedString(string content) {
         return content
             .Replace("\\", "\\\\")
             .Replace("\"", "\\\"")

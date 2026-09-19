@@ -5,8 +5,7 @@ namespace Core.Ssh;
 /// <summary>
 /// SSH 端口转发管理器 — 集中管理多个 SshForwardedPort 实例，支持本地/远程转发的添加、查询与统一停止
 /// </summary>
-public sealed class SshPortForwardManager : IAsyncDisposable
-{
+public sealed class SshPortForwardManager : IAsyncDisposable {
     private readonly ConcurrentDictionary<string, SshForwardedPort> _forwards = new();
     private readonly ILogger? _logger;
     private int _isDisposed;
@@ -15,8 +14,7 @@ public sealed class SshPortForwardManager : IAsyncDisposable
     /// 构造端口转发管理器
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
-    public SshPortForwardManager(ILogger? logger = null)
-    {
+    public SshPortForwardManager(ILogger? logger = null) {
         _logger = logger;
     }
 
@@ -36,8 +34,7 @@ public sealed class SshPortForwardManager : IAsyncDisposable
         int localPort,
         string remoteHost,
         int remotePort,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var forward = new SshForwardedPort(
             SshForwardType.Local,
             $"127.0.0.1:{localPort}",
@@ -71,8 +68,7 @@ public sealed class SshPortForwardManager : IAsyncDisposable
         int remotePort,
         string localHost,
         int localPort,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var forward = new SshForwardedPort(
             SshForwardType.Remote,
             $"{localHost}:{localPort}",
@@ -94,8 +90,7 @@ public sealed class SshPortForwardManager : IAsyncDisposable
     /// 获取所有处于活动状态的端口转发
     /// </summary>
     /// <returns>活动端口转发的集合</returns>
-    public IEnumerable<ISshForwardedPort> GetActiveForwards()
-    {
+    public IEnumerable<ISshForwardedPort> GetActiveForwards() {
         return _forwards.Values.Where(f => f.IsForwarding);
     }
 
@@ -104,8 +99,7 @@ public sealed class SshPortForwardManager : IAsyncDisposable
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步停止操作的任务</returns>
-    public async Task StopAllAsync(CancellationToken ct = default)
-    {
+    public async Task StopAllAsync(CancellationToken ct = default) {
         await Task.WhenAll(_forwards.Values.Select(forward => forward.StopAsync(ct))).ConfigureAwait(false);
 
         _forwards.Clear();
@@ -115,10 +109,8 @@ public sealed class SshPortForwardManager : IAsyncDisposable
     /// 异步释放资源 — 停止所有端口转发
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
-        {
+    public ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
             return ValueTask.CompletedTask;
         }
 

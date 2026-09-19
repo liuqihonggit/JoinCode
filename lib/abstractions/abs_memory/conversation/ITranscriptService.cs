@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface ITranscriptService
-{
+public interface ITranscriptService {
     Task AppendEntryAsync(string sessionId, TranscriptEntry entry, CancellationToken cancellationToken = default);
 
     Task AppendEntriesAsync(string sessionId, IReadOnlyList<TranscriptEntry> entries, CancellationToken cancellationToken = default);
@@ -58,8 +57,7 @@ public interface ITranscriptService
 /// 会话信息 — 存储到 {sessionId}/meta.json,替代 SessionData 的非消息字段
 /// CustomTitle 不在此处(通过 transcript entry Type="custom-title" 存储,GetCustomTitleAsync 读取)
 /// </summary>
-public sealed record SessionInfo
-{
+public sealed record SessionInfo {
     public string Id { get; init; } = string.Empty;
     public string ProjectPath { get; init; } = string.Empty;
     public string ProjectName { get; init; } = string.Empty;

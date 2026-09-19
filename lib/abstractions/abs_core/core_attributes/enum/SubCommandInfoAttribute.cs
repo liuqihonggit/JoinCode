@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Attributes;
 /// <para>生成器扫描此特性, 生成 SubCommandHelpText 类, 支持按分类逐级展开</para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
-public sealed class SubCommandInfoAttribute : Attribute
-{
+public sealed class SubCommandInfoAttribute : Attribute {
     /// <summary>中文描述</summary>
     public string Description { get; }
 
@@ -37,8 +36,7 @@ public sealed class SubCommandInfoAttribute : Attribute
     /// </summary>
     public bool IsDeprecated { get; init; }
 
-    public SubCommandInfoAttribute(string description, string category)
-    {
+    public SubCommandInfoAttribute(string description, string category) {
         Description = description ?? throw new ArgumentNullException(nameof(description));
         Category = category ?? throw new ArgumentNullException(nameof(category));
     }

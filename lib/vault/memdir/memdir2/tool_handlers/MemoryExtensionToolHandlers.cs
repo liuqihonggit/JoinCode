@@ -5,8 +5,7 @@ namespace Core.Memdir.ToolHandlers;
 /// 记忆扩展工具处理器 - 提供助手日志、搜索历史和团队记忆同步功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Memory, Optional = true)]
-public class MemoryExtensionToolHandlers
-{
+public class MemoryExtensionToolHandlers {
     private readonly IMemoryManagementService _memoryManagementService;
     private readonly global::Memdir.Sync.ITeamMemorySyncService? _teamMemorySyncService;
     private readonly IClockService _clock;
@@ -20,8 +19,7 @@ public class MemoryExtensionToolHandlers
     public MemoryExtensionToolHandlers(
         IMemoryManagementService memoryManagementService,
         global::Memdir.Sync.ITeamMemorySyncService? teamMemorySyncService = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _memoryManagementService = memoryManagementService ?? throw new ArgumentNullException(nameof(memoryManagementService));
         _teamMemorySyncService = teamMemorySyncService;
         _clock = clock ?? SystemClockService.Instance;
@@ -35,10 +33,8 @@ public class MemoryExtensionToolHandlers
         [McpToolParameter("Log content")] string content,
         [McpToolParameter("Log category (Action/Observation/Decision/Result, optional)", Required = false)] string? category = null,
         [McpToolParameter("Related memory ID (optional)", Required = false)] string? related_memory_id = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(content))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(content)) {
             var diag = BuildEmptyContentDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -53,8 +49,7 @@ public class MemoryExtensionToolHandlers
         response.AppendLine(L.T(StringKey.VaultLabelCategory, categoryValue.GetLabel()));
         response.AppendLine(L.T(StringKey.VaultLabelContent, entry.Content));
 
-        if (!string.IsNullOrEmpty(entry.RelatedMemoryId))
-        {
+        if (!string.IsNullOrEmpty(entry.RelatedMemoryId)) {
             response.AppendLine(L.T(StringKey.VaultLabelRelatedMemory, entry.RelatedMemoryId));
         }
 
@@ -68,13 +63,11 @@ public class MemoryExtensionToolHandlers
     /// </summary>
     [McpTool(MemoryToolNameEnumConstants.MemoryDailyLogGet, "Get today's assistant daily log", "memory")]
     public async Task<ToolResult> MemoryDailyLogGetAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var dailyLogPrompt = await _memoryManagementService.BuildDailyLogPromptAsync(
             ct: cancellationToken).ConfigureAwait(false);
 
-        if (string.IsNullOrWhiteSpace(dailyLogPrompt))
-        {
+        if (string.IsNullOrWhiteSpace(dailyLogPrompt)) {
             return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.VaultNoDailyLogToday, ObjectSymbol.DiamondOpen.ToValue()))
                 .Build();
@@ -92,10 +85,8 @@ public class MemoryExtensionToolHandlers
     public async Task<ToolResult> MemorySearchHistoryAsync(
         [McpToolParameter("Search query")] string query,
         [McpToolParameter("Result count limit", Required = false, DefaultValue = "10")] int? limit = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(query))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(query)) {
             var diag = BuildEmptyQueryDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -109,18 +100,13 @@ public class MemoryExtensionToolHandlers
         response.AppendLine(L.T(StringKey.VaultFoundRelevantMemories, results.Count, results.Count));
         response.AppendLine();
 
-        if (results.Count == 0)
-        {
+        if (results.Count == 0) {
             response.AppendLine(L.T(StringKey.VaultNoPastConversationMemories));
-        }
-        else
-        {
-            for (int i = 0; i < results.Count; i++)
-            {
+        } else {
+            for (int i = 0; i < results.Count; i++) {
                 var memory = results[i];
                 var ageDays = (_clock.GetUtcNow() - memory.CreatedAt).Days;
-                var ageLabel = ageDays switch
-                {
+                var ageLabel = ageDays switch {
                     0 => L.T(StringKey.VaultToday),
                     1 => L.T(StringKey.VaultYesterday),
                     < 7 => L.T(StringKey.VaultDaysAgo, ageDays),
@@ -132,8 +118,7 @@ public class MemoryExtensionToolHandlers
                 response.AppendLine(L.T(StringKey.VaultLabelContent, memory.Content[..Math.Min(100, memory.Content.Length)]));
                 response.AppendLine(L.T(StringKey.VaultLabelIdAccess, memory.Id, memory.AccessCount));
 
-                if (!memory.Tags.IsEmpty)
-                {
+                if (!memory.Tags.IsEmpty) {
                     response.AppendLine(L.T(StringKey.VaultLabelTags, string.Join(", ", memory.Tags.Take(5))));
                 }
 
@@ -150,16 +135,13 @@ public class MemoryExtensionToolHandlers
     [McpTool(MemoryToolNameEnumConstants.MemoryTeamSync, "Sync team memories", "memory")]
     public async Task<ToolResult> MemoryTeamSyncAsync(
         [McpToolParameter("Team ID")] string team_id,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(team_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(team_id)) {
             var diag = BuildEmptyTeamIdDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
-        if (_teamMemorySyncService is null)
-        {
+        if (_teamMemorySyncService is null) {
             var diag = BuildSyncServiceNotRegisteredDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(diag.FormattedMessage)
@@ -176,15 +158,12 @@ public class MemoryExtensionToolHandlers
         response.AppendLine(L.T(StringKey.VaultLabelSyncedCount, status.SyncedMemoryCount));
         response.AppendLine(L.T(StringKey.VaultLabelWatching, status.IsWatching ? L.T(StringKey.VaultYes) : L.T(StringKey.VaultNo)));
 
-        if (status.HasConflicts)
-        {
+        if (status.HasConflicts) {
             response.AppendLine();
             response.AppendLine(L.T(StringKey.VaultConflictCount, StatusSymbol.Warning.ToValue(), status.Conflicts.Count));
 
-            foreach (var conflict in status.Conflicts.Take(10))
-            {
-                var conflictType = conflict.ConflictType switch
-                {
+            foreach (var conflict in status.Conflicts.Take(10)) {
+                var conflictType = conflict.ConflictType switch {
                     ConflictType.ContentMismatch => L.T(StringKey.VaultConflictContentMismatch),
                     ConflictType.DeletedLocally => L.T(StringKey.VaultConflictDeletedLocally),
                     ConflictType.DeletedRemotely => L.T(StringKey.VaultConflictDeletedRemotely),
@@ -194,8 +173,7 @@ public class MemoryExtensionToolHandlers
                 response.AppendLine(L.T(StringKey.VaultConflictMemoryId, conflictType, conflict.MemoryId));
             }
 
-            if (status.Conflicts.Count > 10)
-            {
+            if (status.Conflicts.Count > 10) {
                 response.AppendLine(L.T(StringKey.VaultMoreConflicts, status.Conflicts.Count - 10));
             }
         }
@@ -209,16 +187,13 @@ public class MemoryExtensionToolHandlers
     [McpTool(MemoryToolNameEnumConstants.MemoryTeamStatus, "Get team sync status", "memory")]
     public Task<ToolResult> MemoryTeamStatusAsync(
         [McpToolParameter("Team ID")] string team_id,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(team_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(team_id)) {
             var diag = BuildEmptyTeamIdDiagnostic();
             return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
         }
 
-        if (_teamMemorySyncService is null)
-        {
+        if (_teamMemorySyncService is null) {
             var diag = BuildSyncServiceNotRegisteredStatusDiagnostic();
             return Task.FromResult(ToolResultBuilder.Error()
                 .WithText(diag.FormattedMessage)
@@ -228,8 +203,7 @@ public class MemoryExtensionToolHandlers
 
         var status = _teamMemorySyncService.GetSyncStatus(team_id);
 
-        if (status is null)
-        {
+        if (status is null) {
             return Task.FromResult(ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.VaultTeamNeverSynced, team_id))
                 .Build());

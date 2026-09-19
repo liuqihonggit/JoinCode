@@ -4,8 +4,7 @@ namespace MockServer.E2E.Tests.Triggers;
 /// <summary>
 /// 工具提示词验证结果
 /// </summary>
-public sealed class ToolPromptValidationResult
-{
+public sealed class ToolPromptValidationResult {
     /// <summary>
     /// 验证是否通过
     /// </summary>
@@ -36,8 +35,7 @@ public sealed class ToolPromptValidationResult
         string message,
         IReadOnlyList<string>? foundTools = null,
         IReadOnlyList<string>? missingTools = null,
-        IReadOnlyDictionary<string, ToolInfo>? toolDetails = null)
-    {
+        IReadOnlyDictionary<string, ToolInfo>? toolDetails = null) {
         IsValid = isValid;
         Message = message;
         FoundTools = foundTools ?? Array.Empty<string>();
@@ -50,8 +48,7 @@ public sealed class ToolPromptValidationResult
     /// </summary>
     public static ToolPromptValidationResult Success(
         IReadOnlyList<string> foundTools,
-        IReadOnlyDictionary<string, ToolInfo>? toolDetails = null)
-    {
+        IReadOnlyDictionary<string, ToolInfo>? toolDetails = null) {
         return new ToolPromptValidationResult(true, "工具提示词验证通过", foundTools, Array.Empty<string>(), toolDetails);
     }
 
@@ -61,8 +58,7 @@ public sealed class ToolPromptValidationResult
     public static ToolPromptValidationResult Failure(
         string message,
         IReadOnlyList<string>? missingTools = null,
-        IReadOnlyList<string>? foundTools = null)
-    {
+        IReadOnlyList<string>? foundTools = null) {
         return new ToolPromptValidationResult(false, message, foundTools ?? Array.Empty<string>(), missingTools);
     }
 }
@@ -70,8 +66,7 @@ public sealed class ToolPromptValidationResult
 /// <summary>
 /// 工具信息
 /// </summary>
-public sealed class ToolInfo
-{
+public sealed class ToolInfo {
     /// <summary>
     /// 工具名称
     /// </summary>
@@ -102,8 +97,7 @@ public sealed class ToolInfo
         string? description = null,
         IReadOnlyList<ToolParameter>? parameters = null,
         bool isFound = false,
-        int? position = null)
-    {
+        int? position = null) {
         Name = name;
         Description = description;
         Parameters = parameters ?? Array.Empty<ToolParameter>();
@@ -115,8 +109,7 @@ public sealed class ToolInfo
 /// <summary>
 /// 工具参数
 /// </summary>
-public sealed class ToolParameter
-{
+public sealed class ToolParameter {
     /// <summary>
     /// 参数名称
     /// </summary>
@@ -137,8 +130,7 @@ public sealed class ToolParameter
     /// </summary>
     public string? Description { get; }
 
-    public ToolParameter(string name, string? type = null, bool isRequired = false, string? description = null)
-    {
+    public ToolParameter(string name, string? type = null, bool isRequired = false, string? description = null) {
         Name = name;
         Type = type;
         IsRequired = isRequired;
@@ -150,8 +142,7 @@ public sealed class ToolParameter
 /// 工具提示词验证器
 /// 验证工具描述是否正确包含在系统提示词中
 /// </summary>
-public sealed class ToolPromptValidator
-{
+public sealed class ToolPromptValidator {
     // 工具章节标记
     private static readonly string[] ToolSectionMarkers = new[]
     {
@@ -174,24 +165,20 @@ public sealed class ToolPromptValidator
     /// <returns>验证结果</returns>
     public ToolPromptValidationResult Validate(
         ChatCompletionRequest? request,
-        IEnumerable<string>? expectedToolNames = null)
-    {
+        IEnumerable<string>? expectedToolNames = null) {
         var systemPrompt = GetSystemPrompt(request);
 
-        if (string.IsNullOrWhiteSpace(systemPrompt))
-        {
+        if (string.IsNullOrWhiteSpace(systemPrompt)) {
             return ToolPromptValidationResult.Failure("未找到系统提示词");
         }
 
         var toolSection = ExtractToolSection(systemPrompt);
 
-        if (string.IsNullOrWhiteSpace(toolSection))
-        {
+        if (string.IsNullOrWhiteSpace(toolSection)) {
             return ToolPromptValidationResult.Failure("未在系统提示词中找到工具描述部分");
         }
 
-        if (expectedToolNames is null)
-        {
+        if (expectedToolNames is null) {
             var foundTools = ExtractToolNames(toolSection);
             return ToolPromptValidationResult.Success(foundTools);
         }
@@ -201,23 +188,18 @@ public sealed class ToolPromptValidator
         var missingList = new List<string>();
         var toolDetails = new Dictionary<string, ToolInfo>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var toolName in expectedList)
-        {
+        foreach (var toolName in expectedList) {
             var toolInfo = FindToolInSection(toolSection, toolName);
             toolDetails[toolName] = toolInfo;
 
-            if (toolInfo.IsFound)
-            {
+            if (toolInfo.IsFound) {
                 foundList.Add(toolName);
-            }
-            else
-            {
+            } else {
                 missingList.Add(toolName);
             }
         }
 
-        if (missingList.Count > 0)
-        {
+        if (missingList.Count > 0) {
             return ToolPromptValidationResult.Failure(
                 $"未找到 {missingList.Count} 个工具: {string.Join(", ", missingList)}",
                 missingList,
@@ -233,8 +215,7 @@ public sealed class ToolPromptValidator
     /// <param name="request">聊天完成请求</param>
     /// <param name="toolName">工具名称</param>
     /// <returns>工具信息，如果未找到则返回 null</returns>
-    public ToolInfo? ValidateByName(ChatCompletionRequest? request, string toolName)
-    {
+    public ToolInfo? ValidateByName(ChatCompletionRequest? request, string toolName) {
         if (string.IsNullOrWhiteSpace(toolName))
             return null;
 
@@ -252,32 +233,28 @@ public sealed class ToolPromptValidator
     /// <summary>
     /// 验证系统提示词是否包含指定工具
     /// </summary>
-    public bool ContainsTool(ChatCompletionRequest? request, string toolName)
-    {
+    public bool ContainsTool(ChatCompletionRequest? request, string toolName) {
         return ValidateByName(request, toolName)?.IsFound ?? false;
     }
 
     /// <summary>
     /// 验证系统提示词是否包含所有指定工具
     /// </summary>
-    public bool ContainsAllTools(ChatCompletionRequest? request, IEnumerable<string> toolNames)
-    {
+    public bool ContainsAllTools(ChatCompletionRequest? request, IEnumerable<string> toolNames) {
         return toolNames.All(name => ContainsTool(request, name));
     }
 
     /// <summary>
     /// 验证系统提示词是否包含任意指定工具
     /// </summary>
-    public bool ContainsAnyTool(ChatCompletionRequest? request, IEnumerable<string> toolNames)
-    {
+    public bool ContainsAnyTool(ChatCompletionRequest? request, IEnumerable<string> toolNames) {
         return toolNames.Any(name => ContainsTool(request, name));
     }
 
     /// <summary>
     /// 获取系统提示词中所有工具名称
     /// </summary>
-    public IReadOnlyList<string> GetAllToolNames(ChatCompletionRequest? request)
-    {
+    public IReadOnlyList<string> GetAllToolNames(ChatCompletionRequest? request) {
         var systemPrompt = GetSystemPrompt(request);
         if (string.IsNullOrWhiteSpace(systemPrompt))
             return Array.Empty<string>();
@@ -291,8 +268,7 @@ public sealed class ToolPromptValidator
     /// <summary>
     /// 获取工具数量
     /// </summary>
-    public int GetToolCount(ChatCompletionRequest? request)
-    {
+    public int GetToolCount(ChatCompletionRequest? request) {
         return GetAllToolNames(request).Count;
     }
 
@@ -303,8 +279,7 @@ public sealed class ToolPromptValidator
         ChatCompletionRequest? request,
         string toolName,
         string expectedContent,
-        StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-    {
+        StringComparison comparison = StringComparison.OrdinalIgnoreCase) {
         var toolInfo = ValidateByName(request, toolName);
         if (toolInfo?.Description is null)
             return false;
@@ -318,8 +293,7 @@ public sealed class ToolPromptValidator
     public bool ToolHasParameter(
         ChatCompletionRequest? request,
         string toolName,
-        string parameterName)
-    {
+        string parameterName) {
         var toolInfo = ValidateByName(request, toolName);
         if (toolInfo?.Parameters is null)
             return false;
@@ -332,10 +306,8 @@ public sealed class ToolPromptValidator
     /// 断言系统提示词包含指定工具
     /// </summary>
     /// <exception cref="AssertException">当断言失败时抛出</exception>
-    public void AssertContainsTool(ChatCompletionRequest? request, string toolName, string? message = null)
-    {
-        if (!ContainsTool(request, toolName))
-        {
+    public void AssertContainsTool(ChatCompletionRequest? request, string toolName, string? message = null) {
+        if (!ContainsTool(request, toolName)) {
             var availableTools = string.Join(", ", GetAllToolNames(request));
             var errorMessage = message ??
                 $"系统提示词应包含工具 '{toolName}'，但找到的工具: {availableTools}";
@@ -350,11 +322,9 @@ public sealed class ToolPromptValidator
     public void AssertContainsAllTools(
         ChatCompletionRequest? request,
         IEnumerable<string> toolNames,
-        string? message = null)
-    {
+        string? message = null) {
         var missingTools = toolNames.Where(name => !ContainsTool(request, name)).ToList();
-        if (missingTools.Count > 0)
-        {
+        if (missingTools.Count > 0) {
             var errorMessage = message ??
                 $"系统提示词缺少以下工具: {string.Join(", ", missingTools)}";
             throw new AssertException(errorMessage);
@@ -369,10 +339,8 @@ public sealed class ToolPromptValidator
         ChatCompletionRequest? request,
         string toolName,
         string expectedContent,
-        string? message = null)
-    {
-        if (!ToolDescriptionContains(request, toolName, expectedContent))
-        {
+        string? message = null) {
+        if (!ToolDescriptionContains(request, toolName, expectedContent)) {
             var toolInfo = ValidateByName(request, toolName);
             var errorMessage = message ??
                 $"工具 '{toolName}' 的描述应包含 '{expectedContent}'，但实际描述: {toolInfo?.Description ?? "(未找到)"}";
@@ -388,10 +356,8 @@ public sealed class ToolPromptValidator
         ChatCompletionRequest? request,
         string toolName,
         string parameterName,
-        string? message = null)
-    {
-        if (!ToolHasParameter(request, toolName, parameterName))
-        {
+        string? message = null) {
+        if (!ToolHasParameter(request, toolName, parameterName)) {
             var errorMessage = message ??
                 $"工具 '{toolName}' 应包含参数 '{parameterName}'";
             throw new AssertException(errorMessage);
@@ -401,8 +367,7 @@ public sealed class ToolPromptValidator
     /// <summary>
     /// 获取系统提示词
     /// </summary>
-    private static string? GetSystemPrompt(ChatCompletionRequest? request)
-    {
+    private static string? GetSystemPrompt(ChatCompletionRequest? request) {
         if (request?.Messages is null)
             return null;
 
@@ -417,13 +382,10 @@ public sealed class ToolPromptValidator
     /// <summary>
     /// 从系统提示词中提取工具章节
     /// </summary>
-    private static string? ExtractToolSection(string systemPrompt)
-    {
-        foreach (var marker in ToolSectionMarkers)
-        {
+    private static string? ExtractToolSection(string systemPrompt) {
+        foreach (var marker in ToolSectionMarkers) {
             var startIndex = systemPrompt.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (startIndex >= 0)
-            {
+            if (startIndex >= 0) {
                 // 查找章节结束位置（下一个 ## 或 ### 或文件末尾）
                 var searchStart = startIndex + marker.Length;
                 var endIndex = systemPrompt.IndexOf("\n## ", searchStart, StringComparison.Ordinal);
@@ -440,10 +402,8 @@ public sealed class ToolPromptValidator
 
         // 如果没有找到明确的工具章节标记，尝试查找工具相关关键词
         var toolKeywords = new[] { "function", "tool", "api", "调用" };
-        foreach (var keyword in toolKeywords)
-        {
-            if (systemPrompt.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            {
+        foreach (var keyword in toolKeywords) {
+            if (systemPrompt.Contains(keyword, StringComparison.OrdinalIgnoreCase)) {
                 // 返回包含工具关键词的部分
                 var keywordIndex = systemPrompt.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
                 var sectionStart = systemPrompt.LastIndexOf("\n\n", keywordIndex, StringComparison.Ordinal);
@@ -462,29 +422,24 @@ public sealed class ToolPromptValidator
     /// <summary>
     /// 从工具章节中提取工具名称列表
     /// </summary>
-    private static IReadOnlyList<string> ExtractToolNames(string toolSection)
-    {
+    private static IReadOnlyList<string> ExtractToolNames(string toolSection) {
         var names = new List<string>();
         var lines = toolSection.Split('\n');
 
-        foreach (var line in lines)
-        {
+        foreach (var line in lines) {
             var trimmedLine = line.Trim();
             if (string.IsNullOrWhiteSpace(trimmedLine))
                 continue;
 
             // 尝试匹配工具名称前缀
-            foreach (var prefix in ToolNamePrefixes)
-            {
-                if (trimmedLine.StartsWith(prefix, StringComparison.Ordinal))
-                {
+            foreach (var prefix in ToolNamePrefixes) {
+                if (trimmedLine.StartsWith(prefix, StringComparison.Ordinal)) {
                     var namePart = trimmedLine[prefix.Length..].Trim();
                     // 提取名称（到第一个空格或特殊字符为止）
                     var nameEnd = namePart.IndexOfAny(new[] { ' ', '(', ':', '-', '\n' });
                     var name = nameEnd > 0 ? namePart[..nameEnd].Trim() : namePart;
 
-                    if (!string.IsNullOrWhiteSpace(name) && name.Length > 1)
-                    {
+                    if (!string.IsNullOrWhiteSpace(name) && name.Length > 1) {
                         names.Add(name);
                     }
                     break;
@@ -498,29 +453,25 @@ public sealed class ToolPromptValidator
     /// <summary>
     /// 在工具章节中查找特定工具
     /// </summary>
-    private static ToolInfo FindToolInSection(string toolSection, string toolName)
-    {
+    private static ToolInfo FindToolInSection(string toolSection, string toolName) {
         var lines = toolSection.Split('\n');
         var inTargetTool = false;
         var description = new List<string>();
         var parameters = new List<ToolParameter>();
         var position = -1;
 
-        for (var i = 0; i < lines.Length; i++)
-        {
+        for (var i = 0; i < lines.Length; i++) {
             var line = lines[i];
             var trimmedLine = line.Trim();
 
             // 检测工具标题行
-            if (trimmedLine.Contains(toolName, StringComparison.OrdinalIgnoreCase))
-            {
+            if (trimmedLine.Contains(toolName, StringComparison.OrdinalIgnoreCase)) {
                 var isToolHeader = ToolNamePrefixes.Any(prefix =>
                     trimmedLine.StartsWith(prefix + toolName, StringComparison.OrdinalIgnoreCase) ||
                     trimmedLine.StartsWith(prefix, StringComparison.Ordinal) &&
                     trimmedLine.Contains(toolName, StringComparison.OrdinalIgnoreCase));
 
-                if (isToolHeader || trimmedLine.Equals(toolName, StringComparison.OrdinalIgnoreCase))
-                {
+                if (isToolHeader || trimmedLine.Equals(toolName, StringComparison.OrdinalIgnoreCase)) {
                     inTargetTool = true;
                     position = i;
                     description.Add(trimmedLine);
@@ -529,14 +480,12 @@ public sealed class ToolPromptValidator
             }
 
             // 检测下一个工具开始
-            if (inTargetTool)
-            {
+            if (inTargetTool) {
                 var isNextTool = ToolNamePrefixes.Any(prefix =>
                     trimmedLine.StartsWith(prefix, StringComparison.Ordinal) &&
                     !trimmedLine.Contains(toolName, StringComparison.OrdinalIgnoreCase));
 
-                if (isNextTool || trimmedLine.StartsWith("## ") || trimmedLine.StartsWith("### "))
-                {
+                if (isNextTool || trimmedLine.StartsWith("## ") || trimmedLine.StartsWith("### ")) {
                     break;
                 }
 
@@ -544,8 +493,7 @@ public sealed class ToolPromptValidator
 
                 // 尝试解析参数
                 var param = TryParseParameter(line);
-                if (param is not null)
-                {
+                if (param is not null) {
                     parameters.Add(param);
                 }
             }
@@ -564,8 +512,7 @@ public sealed class ToolPromptValidator
     /// <summary>
     /// 尝试从行文本解析参数
     /// </summary>
-    private static ToolParameter? TryParseParameter(string line)
-    {
+    private static ToolParameter? TryParseParameter(string line) {
         var trimmed = line.Trim();
 
         // 匹配常见的参数格式:
@@ -574,27 +521,23 @@ public sealed class ToolPromptValidator
         // * paramName - description
         // paramName: type - description
 
-        if (trimmed.StartsWith("-") || trimmed.StartsWith("*") || trimmed.StartsWith("•"))
-        {
+        if (trimmed.StartsWith("-") || trimmed.StartsWith("*") || trimmed.StartsWith("•")) {
             var content = trimmed[1..].Trim();
             var colonIndex = content.IndexOf(':');
             var parenIndex = content.IndexOf('(');
 
-            if (colonIndex > 0 || parenIndex > 0)
-            {
+            if (colonIndex > 0 || parenIndex > 0) {
                 var nameEnd = colonIndex > 0 && (parenIndex < 0 || colonIndex < parenIndex)
                     ? colonIndex
                     : parenIndex > 0 ? parenIndex : content.IndexOf(' ');
 
-                if (nameEnd > 0)
-                {
+                if (nameEnd > 0) {
                     var name = content[..nameEnd].Trim();
                     var rest = content[nameEnd..].Trim();
 
                     // 提取类型
                     string? type = null;
-                    if (rest.StartsWith("(") && rest.Contains(')'))
-                    {
+                    if (rest.StartsWith("(") && rest.Contains(')')) {
                         var typeEnd = rest.IndexOf(')');
                         type = rest[1..typeEnd].Trim();
                         rest = rest[(typeEnd + 1)..].Trim();

@@ -1,10 +1,8 @@
 namespace Infrastructure.Tests.Services;
 
-public sealed class FileReadListenerRegistryTests
-{
+public sealed class FileReadListenerRegistryTests {
     [Fact]
-    public void Register_And_Notify_CallsListener()
-    {
+    public void Register_And_Notify_CallsListener() {
         var registry = new FileReadListenerRegistry();
         var listener = new TestListener();
         using var token = registry.Register(listener);
@@ -17,8 +15,7 @@ public sealed class FileReadListenerRegistryTests
     }
 
     [Fact]
-    public void Notify_MultipleListeners_AllCalled()
-    {
+    public void Notify_MultipleListeners_AllCalled() {
         var registry = new FileReadListenerRegistry();
         var listener1 = new TestListener();
         var listener2 = new TestListener();
@@ -33,8 +30,7 @@ public sealed class FileReadListenerRegistryTests
     }
 
     [Fact]
-    public void Unsubscribe_NoLongerNotified()
-    {
+    public void Unsubscribe_NoLongerNotified() {
         var registry = new FileReadListenerRegistry();
         var listener = new TestListener();
         var token = registry.Register(listener);
@@ -50,8 +46,7 @@ public sealed class FileReadListenerRegistryTests
     }
 
     [Fact]
-    public void Unsubscribe_InCallback_DoesNotSkipOtherListeners()
-    {
+    public void Unsubscribe_InCallback_DoesNotSkipOtherListeners() {
         // 对齐 TS: fileReadListeners.slice() — 快照遍历，回调中取消订阅不影响后续监听器
         var registry = new FileReadListenerRegistry();
         var listener2 = new TestListener();
@@ -69,8 +64,7 @@ public sealed class FileReadListenerRegistryTests
     }
 
     [Fact]
-    public void Notify_ListenerThrows_OtherListenersStillCalled()
-    {
+    public void Notify_ListenerThrows_OtherListenersStillCalled() {
         // 对齐 TS: 监听器异常不影响其他监听器
         var registry = new FileReadListenerRegistry();
         var throwingListener = new ThrowingListener();
@@ -85,8 +79,7 @@ public sealed class FileReadListenerRegistryTests
     }
 
     [Fact]
-    public void Notify_NoListeners_DoesNotThrow()
-    {
+    public void Notify_NoListeners_DoesNotThrow() {
         var registry = new FileReadListenerRegistry();
         var args = new FileReadEventArgs { FilePath = "/test/file.txt", Content = "hello" };
 
@@ -95,24 +88,21 @@ public sealed class FileReadListenerRegistryTests
     }
 
     [Fact]
-    public void Register_NullListener_ThrowsArgumentNullException()
-    {
+    public void Register_NullListener_ThrowsArgumentNullException() {
         var registry = new FileReadListenerRegistry();
         var act = () => registry.Register(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void Notify_NullArgs_ThrowsArgumentNullException()
-    {
+    public void Notify_NullArgs_ThrowsArgumentNullException() {
         var registry = new FileReadListenerRegistry();
         var act = () => registry.Notify(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void Dispose_TokenTwice_OnlyUnsubscribesOnce()
-    {
+    public void Dispose_TokenTwice_OnlyUnsubscribesOnce() {
         var registry = new FileReadListenerRegistry();
         var listener = new TestListener();
         var token = registry.Register(listener);
@@ -126,8 +116,7 @@ public sealed class FileReadListenerRegistryTests
     }
 
     [Fact]
-    public void Register_SameListenerTwice_ReceivesNotificationsTwice()
-    {
+    public void Register_SameListenerTwice_ReceivesNotificationsTwice() {
         var registry = new FileReadListenerRegistry();
         var listener = new TestListener();
         using var token1 = registry.Register(listener);
@@ -142,8 +131,7 @@ public sealed class FileReadListenerRegistryTests
     /// <summary>
     /// 测试用监听器，记录所有收到的通知。
     /// </summary>
-    private sealed class TestListener : IFileReadListener
-    {
+    private sealed class TestListener : IFileReadListener {
         public List<FileReadEventArgs> ReceivedCalls { get; } = [];
 
         public void OnFileRead(FileReadEventArgs e) => ReceivedCalls.Add(e);
@@ -153,15 +141,13 @@ public sealed class FileReadListenerRegistryTests
     /// 自取消订阅监听器，在回调中取消自身订阅。
     /// 用于验证快照遍历机制。
     /// </summary>
-    private sealed class SelfUnsubscribingListener : IFileReadListener
-    {
+    private sealed class SelfUnsubscribingListener : IFileReadListener {
         public int CallCount { get; private set; }
         private IDisposable? _token;
 
         public void SetToken(IDisposable token) => _token = token;
 
-        public void OnFileRead(FileReadEventArgs e)
-        {
+        public void OnFileRead(FileReadEventArgs e) {
             CallCount++;
             _token?.Dispose();
         }
@@ -170,8 +156,7 @@ public sealed class FileReadListenerRegistryTests
     /// <summary>
     /// 抛出异常的监听器，用于验证异常隔离。
     /// </summary>
-    private sealed class ThrowingListener : IFileReadListener
-    {
+    private sealed class ThrowingListener : IFileReadListener {
         public void OnFileRead(FileReadEventArgs e) => throw new InvalidOperationException("[GEN049] 测试异常");
     }
 }

@@ -5,16 +5,14 @@ namespace Tools;
 /// <summary>
 /// 工具参数解析器 - 解析命令行参数为工具调用参数
 /// </summary>
-public sealed class ToolArgumentParser
-{
+public sealed class ToolArgumentParser {
     private readonly ILogger<ToolArgumentParser>? _logger;
 
     /// <summary>
     /// 构造工具参数解析器
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
-    public ToolArgumentParser(ILogger<ToolArgumentParser>? logger = null)
-    {
+    public ToolArgumentParser(ILogger<ToolArgumentParser>? logger = null) {
         _logger = logger;
     }
 
@@ -23,24 +21,18 @@ public sealed class ToolArgumentParser
     /// </summary>
     /// <param name="arguments">参数字符串，可为 JSON 对象或键值对格式</param>
     /// <returns>解析后的参数字典</returns>
-    public Dictionary<string, JsonElement> Parse(string arguments)
-    {
-        if (string.IsNullOrWhiteSpace(arguments))
-        {
+    public Dictionary<string, JsonElement> Parse(string arguments) {
+        if (string.IsNullOrWhiteSpace(arguments)) {
             return new Dictionary<string, JsonElement>();
         }
 
         // 尝试解析为JSON对象
-        try
-        {
+        try {
             var json = RelaxedJsonSerializer.Deserialize(arguments, ToolsJsonContext.Default.DictionaryStringJsonElement);
-            if (json != null)
-            {
+            if (json != null) {
                 return json;
             }
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             // 不是有效的JSON，继续尝试其他格式
             _logger?.LogDebug(ex, "JSON 解析失败，将尝试键值对格式");
         }
@@ -52,16 +44,13 @@ public sealed class ToolArgumentParser
     /// <summary>
     /// 解析键值对格式参数
     /// </summary>
-    private Dictionary<string, JsonElement> ParseKeyValuePairs(string arguments)
-    {
+    private Dictionary<string, JsonElement> ParseKeyValuePairs(string arguments) {
         var result = new Dictionary<string, JsonElement>();
         var pairs = SplitArguments(arguments);
 
-        foreach (var pair in pairs)
-        {
+        foreach (var pair in pairs) {
             var separatorIndex = pair.IndexOf('=');
-            if (separatorIndex > 0)
-            {
+            if (separatorIndex > 0) {
                 var key = pair[..separatorIndex].Trim();
                 var value = pair[(separatorIndex + 1)..].Trim();
 
@@ -77,43 +66,32 @@ public sealed class ToolArgumentParser
     /// <summary>
     /// 分割参数字符串
     /// </summary>
-    private List<string> SplitArguments(string arguments)
-    {
+    private List<string> SplitArguments(string arguments) {
         var result = new List<string>();
         var current = new System.Text.StringBuilder();
         var inQuotes = false;
         var quoteChar = '\0';
 
-        for (int i = 0; i < arguments.Length; i++)
-        {
+        for (int i = 0; i < arguments.Length; i++) {
             var c = arguments[i];
 
-            if (!inQuotes && (c == '"' || c == '\''))
-            {
+            if (!inQuotes && (c == '"' || c == '\'')) {
                 inQuotes = true;
                 quoteChar = c;
-            }
-            else if (inQuotes && c == quoteChar)
-            {
+            } else if (inQuotes && c == quoteChar) {
                 inQuotes = false;
                 quoteChar = '\0';
-            }
-            else if (!inQuotes && char.IsWhiteSpace(c))
-            {
-                if (current.Length > 0)
-                {
+            } else if (!inQuotes && char.IsWhiteSpace(c)) {
+                if (current.Length > 0) {
                     result.Add(current.ToString());
                     current.Clear();
                 }
-            }
-            else
-            {
+            } else {
                 current.Append(c);
             }
         }
 
-        if (current.Length > 0)
-        {
+        if (current.Length > 0) {
             result.Add(current.ToString());
         }
 
@@ -123,36 +101,30 @@ public sealed class ToolArgumentParser
     /// <summary>
     /// 解析值为JsonElement
     /// </summary>
-    private JsonElement ParseValue(string value)
-    {
+    private JsonElement ParseValue(string value) {
         // 去除引号
         if ((value.StartsWith('"') && value.EndsWith('"')) ||
-            (value.StartsWith('\'') && value.EndsWith('\'')))
-        {
+            (value.StartsWith('\'') && value.EndsWith('\''))) {
             value = value[1..^1];
         }
 
         // 尝试解析为布尔值
-        if (bool.TryParse(value, out var boolValue))
-        {
+        if (bool.TryParse(value, out var boolValue)) {
             return JsonSerializer.SerializeToElement(boolValue, ToolsJsonContext.Default.Boolean);
         }
 
         // 尝试解析为整数
-        if (int.TryParse(value, out var intValue))
-        {
+        if (int.TryParse(value, out var intValue)) {
             return JsonSerializer.SerializeToElement(intValue, ToolsJsonContext.Default.Int32);
         }
 
         // 尝试解析为长整数
-        if (long.TryParse(value, out var longValue))
-        {
+        if (long.TryParse(value, out var longValue)) {
             return JsonSerializer.SerializeToElement(longValue, ToolsJsonContext.Default.Int64);
         }
 
         // 尝试解析为浮点数
-        if (double.TryParse(value, out var doubleValue))
-        {
+        if (double.TryParse(value, out var doubleValue)) {
             return JsonSerializer.SerializeToElement(doubleValue, ToolsJsonContext.Default.Double);
         }
 
@@ -166,40 +138,30 @@ public sealed class ToolArgumentParser
     /// <param name="arguments">待验证的参数字典</param>
     /// <param name="schema">工具参数模式</param>
     /// <returns>验证结果，包含是否合法与错误列表</returns>
-    public ValidationResult Validate(Dictionary<string, JsonElement> arguments, ToolSchema schema)
-    {
+    public ValidationResult Validate(Dictionary<string, JsonElement> arguments, ToolSchema schema) {
         var errors = new List<string>();
 
         // 检查必需参数
-        if (schema.Required != null)
-        {
-            foreach (var requiredParam in schema.Required)
-            {
-                if (!arguments.ContainsKey(requiredParam))
-                {
+        if (schema.Required != null) {
+            foreach (var requiredParam in schema.Required) {
+                if (!arguments.ContainsKey(requiredParam)) {
                     errors.Add($"Missing required parameter: {requiredParam}");
                 }
             }
         }
 
         // 检查参数类型
-        foreach (var (key, value) in arguments)
-        {
-            if (schema.Properties.TryGetValue(key, out var property))
-            {
-                if (!ValidateType(value, property.Type))
-                {
+        foreach (var (key, value) in arguments) {
+            if (schema.Properties.TryGetValue(key, out var property)) {
+                if (!ValidateType(value, property.Type)) {
                     errors.Add($"Parameter '{key}' has invalid type. Expected: {property.Type}");
                 }
-            }
-            else
-            {
+            } else {
                 errors.Add($"Unknown parameter: {key}");
             }
         }
 
-        return new ValidationResult
-        {
+        return new ValidationResult {
             IsValid = errors.Count == 0,
             Errors = errors
         };
@@ -208,10 +170,8 @@ public sealed class ToolArgumentParser
     /// <summary>
     /// 验证JSON元素类型
     /// </summary>
-    private bool ValidateType(JsonElement element, string expectedType)
-    {
-        return expectedType.ToLowerInvariant() switch
-        {
+    private bool ValidateType(JsonElement element, string expectedType) {
+        return expectedType.ToLowerInvariant() switch {
             "string" => element.ValueKind == JsonValueKind.String,
             "integer" => element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out _),
             "number" => element.ValueKind == JsonValueKind.Number,
@@ -228,14 +188,12 @@ public sealed class ToolArgumentParser
     /// <param name="toolName">工具名称</param>
     /// <param name="args">命令行参数数组</param>
     /// <returns>构建好的工具调用请求</returns>
-    public ToolCallRequest BuildRequest(string toolName, string[] args)
-    {
+    public ToolCallRequest BuildRequest(string toolName, string[] args) {
         var arguments = args.Length > 0
             ? Parse(string.Join(" ", args))
             : new Dictionary<string, JsonElement>();
 
-        return new ToolCallRequest
-        {
+        return new ToolCallRequest {
             ToolName = toolName,
             Arguments = arguments
         };
@@ -245,8 +203,7 @@ public sealed class ToolArgumentParser
 /// <summary>
 /// 验证结果
 /// </summary>
-public class ValidationResult
-{
+public class ValidationResult {
     /// <summary>
     /// 是否验证通过
     /// </summary>

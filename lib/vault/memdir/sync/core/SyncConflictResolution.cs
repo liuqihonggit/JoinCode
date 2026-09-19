@@ -4,8 +4,7 @@ namespace Memdir.Sync;
 /// <summary>
 /// 同步冲突解决策略 — 当本地与远程文件发生冲突时指定保留哪一方或进行合并。
 /// </summary>
-public enum SyncConflictResolution
-{
+public enum SyncConflictResolution {
     /// <summary>保留本地版本。</summary>
     [EnumValue("keepLocal")]
     KeepLocal,

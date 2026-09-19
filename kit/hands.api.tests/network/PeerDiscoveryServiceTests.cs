@@ -1,23 +1,19 @@
 namespace Hands.Tests.Network;
 
-public sealed class PeerDiscoveryServiceTests
-{
+public sealed class PeerDiscoveryServiceTests {
     private readonly PeerDiscoveryService _service;
 
-    public PeerDiscoveryServiceTests()
-    {
+    public PeerDiscoveryServiceTests() {
         _service = new PeerDiscoveryService();
     }
 
     [Fact]
-    public void GetConnectedPeers_InitiallyEmpty()
-    {
+    public void GetConnectedPeers_InitiallyEmpty() {
         _service.GetConnectedPeers().Should().BeEmpty();
     }
 
     [Fact]
-    public void AddPeer_IncreasesPeerListAndRaisesEvent()
-    {
+    public void AddPeer_IncreasesPeerListAndRaisesEvent() {
         PeerInfo? raisedPeer = null;
         _service.PeerConnected += (_, peer) => raisedPeer = peer;
 
@@ -29,8 +25,7 @@ public sealed class PeerDiscoveryServiceTests
     }
 
     [Fact]
-    public void RemovePeer_RemovesMatchingPeerAndRaisesEvent()
-    {
+    public void RemovePeer_RemovesMatchingPeerAndRaisesEvent() {
         string? removedId = null;
         _service.PeerDisconnected += (_, id) => removedId = id;
         _service.AddPeer(new PeerInfo { Id = "peer-1", Name = "Peer 1", ConnectedAt = DateTime.UtcNow });
@@ -44,8 +39,7 @@ public sealed class PeerDiscoveryServiceTests
     }
 
     [Fact]
-    public void GetConnectedPeers_ReturnsSnapshot_DoesNotReflectFutureChanges()
-    {
+    public void GetConnectedPeers_ReturnsSnapshot_DoesNotReflectFutureChanges() {
         _service.AddPeer(new PeerInfo { Id = "peer-1", Name = "Peer 1", ConnectedAt = DateTime.UtcNow });
 
         var snapshot = _service.GetConnectedPeers();

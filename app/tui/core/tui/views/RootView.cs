@@ -6,8 +6,7 @@ namespace JoinCode.Tui.Views;
 /// 用 Pos.Bottom 链式垂直排列（相对定位），Content 用 Dim.Fill(2) 填充中间并底部留2行。
 /// 由 TerminalPainter 唯一入口驱动渲染，禁止子组件直接操作 Application。
 /// </summary>
-public sealed class RootView : View
-{
+public sealed class RootView : View {
     private readonly TerminalPainter _painter;
     private readonly CommandQueue _queue;
     private readonly View _statusBarArea;
@@ -21,8 +20,7 @@ public sealed class RootView : View
     /// </summary>
     /// <param name="painter">终端绘制入口。</param>
     /// <param name="queue">命令队列（驱动"投递中"组件）。</param>
-    public RootView(TerminalPainter painter, CommandQueue queue)
-    {
+    public RootView(TerminalPainter painter, CommandQueue queue) {
         _painter = painter ?? throw new ArgumentNullException(nameof(painter));
         _queue = queue ?? throw new ArgumentNullException(nameof(queue));
 
@@ -30,32 +28,28 @@ public sealed class RootView : View
         Height = Dim.Fill();
         CanFocus = true;
 
-        _statusBarArea = new View
-        {
+        _statusBarArea = new View {
             X = 0,
             Y = 0,
             Width = Dim.Fill(),
             Height = 1,
         };
 
-        _toolBarArea = new View
-        {
+        _toolBarArea = new View {
             X = 0,
             Y = Pos.Bottom(_statusBarArea),
             Width = Dim.Fill(),
             Height = 1,
         };
 
-        _contentArea = new View
-        {
+        _contentArea = new View {
             X = 0,
             Y = Pos.Bottom(_toolBarArea),
             Width = Dim.Fill(),
             Height = Dim.Fill(4),
         };
 
-        _promptArea = new View
-        {
+        _promptArea = new View {
             X = 0,
             Y = Pos.Bottom(_contentArea),
             Width = Dim.Fill(),
@@ -63,8 +57,7 @@ public sealed class RootView : View
             CanFocus = true,
         };
 
-        _footerArea = new View
-        {
+        _footerArea = new View {
             X = 0,
             Y = Pos.Bottom(_promptArea),
             Width = Dim.Fill(),
@@ -91,8 +84,7 @@ public sealed class RootView : View
 
     /// <summary>安装状态栏组件。</summary>
     /// <param name="component">状态栏组件。</param>
-    public void SetStatusBar(ITuiComponent component)
-    {
+    public void SetStatusBar(ITuiComponent component) {
         ArgumentNullException.ThrowIfNull(component);
         _statusBarArea.Add(component.TerminalView);
         _painter.Register(component);
@@ -100,8 +92,7 @@ public sealed class RootView : View
 
     /// <summary>安装工具栏组件。</summary>
     /// <param name="component">工具栏组件。</param>
-    public void SetToolBar(ITuiComponent component)
-    {
+    public void SetToolBar(ITuiComponent component) {
         ArgumentNullException.ThrowIfNull(component);
         _toolBarArea.Add(component.TerminalView);
         _painter.Register(component);
@@ -109,8 +100,7 @@ public sealed class RootView : View
 
     /// <summary>安装输入区组件。</summary>
     /// <param name="component">输入区组件。</param>
-    public void SetPrompt(ITuiComponent component)
-    {
+    public void SetPrompt(ITuiComponent component) {
         ArgumentNullException.ThrowIfNull(component);
         _promptArea.Add(component.TerminalView);
         _painter.Register(component);
@@ -118,8 +108,7 @@ public sealed class RootView : View
 
     /// <summary>安装底部状态栏组件。</summary>
     /// <param name="component">底部状态栏组件。</param>
-    public void SetFooter(ITuiComponent component)
-    {
+    public void SetFooter(ITuiComponent component) {
         ArgumentNullException.ThrowIfNull(component);
         _footerArea.Add(component.TerminalView);
         _painter.Register(component);
@@ -127,8 +116,7 @@ public sealed class RootView : View
 
     /// <summary>添加子组件到内容区域并注册到 TerminalPainter。</summary>
     /// <param name="component">TUI 组件。</param>
-    public void AddComponent(ITuiComponent component)
-    {
+    public void AddComponent(ITuiComponent component) {
         ArgumentNullException.ThrowIfNull(component);
         _contentArea.Add(component.TerminalView);
         _painter.Register(component);
@@ -136,8 +124,7 @@ public sealed class RootView : View
 
     /// <summary>移除子组件。</summary>
     /// <param name="component">TUI 组件。</param>
-    public void RemoveComponent(ITuiComponent component)
-    {
+    public void RemoveComponent(ITuiComponent component) {
         ArgumentNullException.ThrowIfNull(component);
         _contentArea.Remove(component.TerminalView);
         _painter.Unregister(component);

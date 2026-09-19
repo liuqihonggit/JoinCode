@@ -5,14 +5,12 @@ namespace JoinCode.Gui.Persistence;
 /// 通过 IFileSystem 抽象注入，生产用 PhysicalFileSystem，测试用 InMemoryFileSystem。
 /// 文件不存在或损坏时返回默认 <see cref="GuiPreferences"/>，不阻塞 UI 启动。
 /// </summary>
-public sealed class GuiPreferencesStore
-{
+public sealed class GuiPreferencesStore {
     private readonly IFileSystem _fs;
     private readonly string _filePath;
 
     /// <summary>初始化 GuiPreferencesStore 实例</summary>
-    public GuiPreferencesStore(IFileSystem fs, string? filePath = null)
-    {
+    public GuiPreferencesStore(IFileSystem fs, string? filePath = null) {
         _fs = fs;
         _filePath = filePath ?? AppDataConstants.Paths.GuiPreferencesFilePath;
     }
@@ -25,26 +23,21 @@ public sealed class GuiPreferencesStore
     public IFileSystem FileSystem => _fs;
 
     /// <summary>加载偏好；文件不存在或损坏返回默认值，不抛异常（不阻塞 UI 启动）</summary>
-    public GuiPreferences Load()
-    {
-        try
-        {
+    public GuiPreferences Load() {
+        try {
             if (!_fs.FileExists(_filePath))
                 return new GuiPreferences();
 
             var json = _fs.ReadAllText(_filePath);
             return RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiPreferences)
                 ?? new GuiPreferences();
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return new GuiPreferences();
         }
     }
 
     /// <summary>保存偏好到磁盘（目录不存在则创建）</summary>
-    public void Save(GuiPreferences preferences)
-    {
+    public void Save(GuiPreferences preferences) {
         ArgumentNullException.ThrowIfNull(preferences);
 
         var dir = _fs.GetParentPath(_filePath);

@@ -4,8 +4,7 @@ namespace Core.Agents.Coordinator;
 /// tmux 终端面板后端 — 通过 tmux CLI 创建并管理队友面板，支持在 tmux 会话内嵌套或外部独立会话两种模式
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IPaneBackend), ServiceLifetime.Singleton)]
-public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend
-{
+public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend {
     private static readonly string[] TmuxColorMap =
     new[] {
         "red", "blue", "green", "yellow", "magenta", "colour208", "colour205", "cyan",
@@ -32,16 +31,14 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     /// </summary>
     /// <param name="processService">进程执行服务，用于调用 tmux CLI</param>
     /// <param name="logger">可选日志记录器</param>
-    public TmuxPaneBackend(IProcessService processService, ILogger<TmuxPaneBackend>? logger = null)
-    {
+    public TmuxPaneBackend(IProcessService processService, ILogger<TmuxPaneBackend>? logger = null) {
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
         _logger = logger;
         _insideTmux = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TMUX"));
         _swarmSocket = $"claude-swarm-{Environment.ProcessId}";
 
         IsAvailable = CheckTmuxAvailable();
-        if (!IsAvailable)
-        {
+        if (!IsAvailable) {
             _logger?.LogDebug("tmux not available on this system");
         }
     }
@@ -54,8 +51,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>面板创建结果，包含面板 ID 与后端类型</returns>
     public async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreateTeammatePaneAsync(
-        string teammateId, string command, CancellationToken cancellationToken = default)
-    {
+        string teammateId, string command, CancellationToken cancellationToken = default) {
         using var guard = await _creationLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_creationLock.Name}' 等待超时");
 
         if (_insideTmux)
@@ -71,8 +67,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     /// <param name="paneId">目标面板 ID</param>
     /// <param name="command">要发送的命令文本</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task SendCommandToPaneAsync(string paneId, string command, CancellationToken cancellationToken = default)
-    {
+    public async Task SendCommandToPaneAsync(string paneId, string command, CancellationToken cancellationToken = default) {
         var args = GetTmuxArgs("send-keys", "-t", paneId, command, "Enter");
         var result = await RunTmuxAsync(args, cancellationToken).ConfigureAwait(false);
         if (result.ExitCode != 0)
@@ -85,8 +80,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     /// <param name="paneId">目标面板 ID</param>
     /// <param name="colorHex">十六进制颜色值，自动转换为 tmux colour256 颜色名</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task SetPaneBorderColorAsync(string paneId, string colorHex, CancellationToken cancellationToken = default)
-    {
+    public async Task SetPaneBorderColorAsync(string paneId, string colorHex, CancellationToken cancellationToken = default) {
         var tmuxColor = HexToTmuxColor(colorHex);
 
         await RunTmuxAsync(GetTmuxArgs("select-pane", "-t", paneId, "-P", $"fg={tmuxColor}"), cancellationToken).ConfigureAwait(false);
@@ -100,8 +94,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     /// <param name="paneId">目标面板 ID</param>
     /// <param name="title">面板标题文本</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task SetPaneTitleAsync(string paneId, string title, CancellationToken cancellationToken = default)
-    {
+    public async Task SetPaneTitleAsync(string paneId, string title, CancellationToken cancellationToken = default) {
         await RunTmuxAsync(GetTmuxArgs("select-pane", "-t", paneId, "-T", title), cancellationToken).ConfigureAwait(false);
     }
 
@@ -110,8 +103,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     /// </summary>
     /// <param name="paneId">目标面板 ID</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task KillPaneAsync(string paneId, CancellationToken cancellationToken = default)
-    {
+    public async Task KillPaneAsync(string paneId, CancellationToken cancellationToken = default) {
         var result = await RunTmuxAsync(GetTmuxArgs("kill-pane", "-t", paneId), cancellationToken).ConfigureAwait(false);
         _managedPanes.Remove(paneId);
 
@@ -123,32 +115,25 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     /// 重新平衡 tmux 面板布局；会话内模式使用 main-vertical 并固定主面板宽度，外部会话模式使用 tiled 布局
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task RebalancePanesAsync(CancellationToken cancellationToken = default)
-    {
-        if (_insideTmux && _leaderPaneId is not null && _windowTarget is not null)
-        {
+    public async Task RebalancePanesAsync(CancellationToken cancellationToken = default) {
+        if (_insideTmux && _leaderPaneId is not null && _windowTarget is not null) {
             await RunTmuxAsync(GetTmuxArgs("select-layout", "-t", _windowTarget, "main-vertical"), cancellationToken).ConfigureAwait(false);
             await RunTmuxAsync(GetTmuxArgs("resize-pane", "-t", _leaderPaneId, "-x", "30%"), cancellationToken).ConfigureAwait(false);
-        }
-        else if (_windowTarget is not null)
-        {
+        } else if (_windowTarget is not null) {
             await RunTmuxAsync(GetSwarmTmuxArgs("select-layout", "-t", _windowTarget, "tiled"), cancellationToken).ConfigureAwait(false);
         }
     }
 
     private async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreatePaneInsideTmuxAsync(
-        string teammateId, string command, CancellationToken cancellationToken)
-    {
-        if (_leaderPaneId is null)
-        {
+        string teammateId, string command, CancellationToken cancellationToken) {
+        if (_leaderPaneId is null) {
             _leaderPaneId = Environment.GetEnvironmentVariable("TMUX_PANE");
             _windowTarget = _leaderPaneId;
         }
 
         var leaderPaneId = _leaderPaneId ?? throw new InvalidOperationException("Leader pane ID not set.");
 
-        if (_managedPanes.Count == 0)
-        {
+        if (_managedPanes.Count == 0) {
             var result = await RunTmuxAsync(["split-window", "-t", leaderPaneId, "-h", "-l", "70%", "-P", "-F", "#{pane_id}"], cancellationToken).ConfigureAwait(false);
             var paneId = result.Output.Trim();
 
@@ -179,10 +164,8 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     }
 
     private async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreatePaneExternalSessionAsync(
-        string teammateId, string command, CancellationToken cancellationToken)
-    {
-        if (_managedPanes.Count == 0)
-        {
+        string teammateId, string command, CancellationToken cancellationToken) {
+        if (_managedPanes.Count == 0) {
             var result = await RunTmuxAsync(GetSwarmTmuxArgs("new-session", "-d", "-s", "claude-swarm", "-n", "swarm-view", "-P", "-F", "#{pane_id}"), cancellationToken).ConfigureAwait(false);
             var paneId = result.Output.Trim();
 
@@ -214,8 +197,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
 
     private string[] GetTmuxArgs(params string[] args) => args;
 
-    private string[] GetSwarmTmuxArgs(params string[] args)
-    {
+    private string[] GetSwarmTmuxArgs(params string[] args) {
         var result = new string[2 + args.Length];
         result[0] = "-L";
         result[1] = _swarmSocket ?? throw new InvalidOperationException("Swarm socket not set.");
@@ -223,43 +205,34 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
         return result;
     }
 
-    private static string HexToTmuxColor(string hex)
-    {
+    private static string HexToTmuxColor(string hex) {
         if (hex.StartsWith('#') && hex.Length == 7)
             return $"colour{HexToAnsi256(hex)}";
         return hex;
     }
 
-    private static int HexToAnsi256(string hex)
-    {
+    private static int HexToAnsi256(string hex) {
         var r = Convert.ToInt32(hex[1..3], 16);
         var g = Convert.ToInt32(hex[3..5], 16);
         var b = Convert.ToInt32(hex[5..7], 16);
         return 16 + (36 * (r / 51)) + (6 * (g / 51)) + (b / 51);
     }
 
-    private bool CheckTmuxAvailable()
-    {
-        try
-        {
-            var result = _processService.ExecuteAsync(new ProcessOptions
-            {
+    private bool CheckTmuxAvailable() {
+        try {
+            var result = _processService.ExecuteAsync(new ProcessOptions {
                 FileName = "tmux",
                 ArgumentList = new[] { "-V" },
                 TimeoutMs = 5000
             }).GetAwaiter().GetResult();
             return result.Success;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
 
-    private async Task<(int ExitCode, string Output, string Error)> RunTmuxAsync(string[] args, CancellationToken cancellationToken)
-    {
-        var result = await _processService.ExecuteAsync(new ProcessOptions
-        {
+    private async Task<(int ExitCode, string Output, string Error)> RunTmuxAsync(string[] args, CancellationToken cancellationToken) {
+        var result = await _processService.ExecuteAsync(new ProcessOptions {
             FileName = "tmux",
             ArgumentList = args
         }, cancellationToken).ConfigureAwait(false);
@@ -268,8 +241,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     }
 
     /// <summary>释放资源 — 释放 tmux 会话创建锁</summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         _creationLock.Dispose();
         base.Dispose();
     }

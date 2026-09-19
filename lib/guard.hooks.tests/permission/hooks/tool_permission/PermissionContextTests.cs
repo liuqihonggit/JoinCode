@@ -1,18 +1,15 @@
 
 namespace Core.Tests.Hooks.ToolPermission;
 
-public class PermissionContextTests
-{
+public class PermissionContextTests {
     private readonly TestPermissionLogger _logger;
 
-    public PermissionContextTests()
-    {
+    public PermissionContextTests() {
         _logger = new TestPermissionLogger();
     }
 
     [Fact]
-    public void Constructor_ShouldSetProperties()
-    {
+    public void Constructor_ShouldSetProperties() {
         var toolName = "test_tool";
         var input = new Dictionary<string, JsonElement> { ["key"] = JsonElementHelper.FromString("value") };
         var messageId = "msg_123";
@@ -27,13 +24,10 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void LogDecision_Accept_ShouldLogToLogger()
-    {
+    public void LogDecision_Accept_ShouldLogToLogger() {
         var ctx = CreateTestContext();
-        var args = new AcceptDecisionArgs
-        {
-            ApprovalSource = new PermissionApprovalSource
-            {
+        var args = new AcceptDecisionArgs {
+            ApprovalSource = new PermissionApprovalSource {
                 Type = PermissionDecisionSourceType.User,
                 Permanent = true
             }
@@ -46,13 +40,10 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void LogDecision_Reject_ShouldLogToLogger()
-    {
+    public void LogDecision_Reject_ShouldLogToLogger() {
         var ctx = CreateTestContext();
-        var args = new RejectDecisionArgs
-        {
-            RejectionSource = new PermissionRejectionSource
-            {
+        var args = new RejectDecisionArgs {
+            RejectionSource = new PermissionRejectionSource {
                 Type = PermissionDecisionSourceType.UserReject,
                 HasFeedback = true
             }
@@ -64,8 +55,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void LogCancelled_ShouldLogToLogger()
-    {
+    public void LogCancelled_ShouldLogToLogger() {
         var ctx = CreateTestContext();
 
         ctx.LogCancelled();
@@ -74,8 +64,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void ResolveIfAborted_NotCancelled_ShouldReturnFalse()
-    {
+    public void ResolveIfAborted_NotCancelled_ShouldReturnFalse() {
         var ctx = CreateTestContext();
         var resolved = false;
 
@@ -86,8 +75,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void ResolveIfAborted_Cancelled_ShouldReturnTrueAndResolve()
-    {
+    public void ResolveIfAborted_Cancelled_ShouldReturnTrueAndResolve() {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
         var ctx = CreateTestContext(cts.Token);
@@ -101,8 +89,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void CancelAndAbort_NoFeedback_ShouldReturnDenyDecision()
-    {
+    public void CancelAndAbort_NoFeedback_ShouldReturnDenyDecision() {
         var ctx = CreateTestContext();
 
         var result = ctx.CancelAndAbort();
@@ -112,8 +99,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void CancelAndAbort_WithFeedback_ShouldIncludeFeedback()
-    {
+    public void CancelAndAbort_WithFeedback_ShouldIncludeFeedback() {
         var ctx = CreateTestContext();
         var feedback = "User provided reason";
 
@@ -124,8 +110,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void BuildAllow_ShouldReturnAllowDecision()
-    {
+    public void BuildAllow_ShouldReturnAllowDecision() {
         var ctx = CreateTestContext();
         var updatedInput = new Dictionary<string, JsonElement> { ["key"] = JsonElementHelper.FromString("updated") };
 
@@ -136,8 +121,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void BuildAllow_WithDecisionReason_ShouldIncludeReason()
-    {
+    public void BuildAllow_WithDecisionReason_ShouldIncludeReason() {
         var ctx = CreateTestContext();
         var updatedInput = new Dictionary<string, JsonElement>();
         var reason = new HookDecisionReason { HookName = "TestHook", Reason = "Test" };
@@ -148,8 +132,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void BuildDeny_ShouldReturnDenyDecision()
-    {
+    public void BuildDeny_ShouldReturnDenyDecision() {
         var ctx = CreateTestContext();
         var message = "Access denied";
         var reason = new HookDecisionReason { HookName = "TestHook" };
@@ -162,8 +145,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public async Task HandleUserAllow_ShouldReturnAllowDecision()
-    {
+    public async Task HandleUserAllow_ShouldReturnAllowDecision() {
         var ctx = CreateTestContext();
         var updatedInput = new Dictionary<string, JsonElement> { ["key"] = JsonElementHelper.FromString("value") };
         var permissionUpdates = new List<PermissionUpdate>();
@@ -174,8 +156,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public async Task HandleUserAllow_WithFeedback_ShouldIncludeFeedback()
-    {
+    public async Task HandleUserAllow_WithFeedback_ShouldIncludeFeedback() {
         var ctx = CreateTestContext();
         var updatedInput = new Dictionary<string, JsonElement>();
         var permissionUpdates = new List<PermissionUpdate>();
@@ -187,8 +168,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public async Task HandleHookAllow_ShouldReturnAllowDecision()
-    {
+    public async Task HandleHookAllow_ShouldReturnAllowDecision() {
         var ctx = CreateTestContext();
         var updatedInput = new Dictionary<string, JsonElement> { ["key"] = JsonElementHelper.FromString("value") };
         var permissionUpdates = new List<PermissionUpdate>();
@@ -200,12 +180,10 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void PushToQueue_WithQueueOps_ShouldCallPush()
-    {
+    public void PushToQueue_WithQueueOps_ShouldCallPush() {
         var queueOps = new TestPermissionQueueOperations();
         var ctx = CreateTestContext(queueOps: queueOps);
-        var item = new PermissionQueueItem
-        {
+        var item = new PermissionQueueItem {
             ToolUseId = "test_id",
             ToolName = "test_tool",
             Description = "Test",
@@ -218,8 +196,7 @@ public class PermissionContextTests
     }
 
     [Fact]
-    public void RemoveFromQueue_WithQueueOps_ShouldCallRemove()
-    {
+    public void RemoveFromQueue_WithQueueOps_ShouldCallRemove() {
         var queueOps = new TestPermissionQueueOperations();
         var ctx = CreateTestContext(queueOps: queueOps);
 
@@ -230,8 +207,7 @@ public class PermissionContextTests
 
     private PermissionContext CreateTestContext(
         CancellationToken cancellationToken = default,
-        IPermissionQueueOperations? queueOps = null)
-    {
+        IPermissionQueueOperations? queueOps = null) {
         return new PermissionContext(
             "test_tool",
             new Dictionary<string, JsonElement> { ["key"] = JsonElementHelper.FromString("value") },
@@ -244,44 +220,36 @@ public class PermissionContextTests
 
     #region Test Helpers
 
-    private class TestPermissionLogger : IPermissionLogger
-    {
+    private class TestPermissionLogger : IPermissionLogger {
         public List<(PermissionLogContext Context, PermissionDecisionArgs Args)> LoggedDecisions { get; } = new();
         public List<PermissionLogContext> LoggedCancellations { get; } = new();
 
-        public void LogPermissionDecision(PermissionLogContext context, PermissionDecisionArgs args)
-        {
+        public void LogPermissionDecision(PermissionLogContext context, PermissionDecisionArgs args) {
             LoggedDecisions.Add((context, args));
         }
 
-        public void LogPermissionCancelled(PermissionLogContext context)
-        {
+        public void LogPermissionCancelled(PermissionLogContext context) {
             LoggedCancellations.Add(context);
         }
 
-        public void LogCodeEditToolDecision(string toolName, string decision, string source, string? language = null)
-        {
+        public void LogCodeEditToolDecision(string toolName, string decision, string source, string? language = null) {
         }
     }
 
-    private class TestPermissionQueueOperations : IPermissionQueueOperations
-    {
+    private class TestPermissionQueueOperations : IPermissionQueueOperations {
         public List<PermissionQueueItem> PushedItems { get; } = new();
         public List<string> RemovedToolUseIds { get; } = new();
         public List<(string ToolUseId, Action<PermissionQueueItem> Patch)> Updates { get; } = new();
 
-        public void Push(PermissionQueueItem item)
-        {
+        public void Push(PermissionQueueItem item) {
             PushedItems.Add(item);
         }
 
-        public void Remove(string toolUseId)
-        {
+        public void Remove(string toolUseId) {
             RemovedToolUseIds.Add(toolUseId);
         }
 
-        public void Update(string toolUseId, Action<PermissionQueueItem> patch)
-        {
+        public void Update(string toolUseId, Action<PermissionQueueItem> patch) {
             Updates.Add((toolUseId, patch));
         }
     }

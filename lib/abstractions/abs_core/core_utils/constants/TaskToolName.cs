@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 任务管理工具名称枚举
 /// </summary>
-public enum TaskToolName
-{
+public enum TaskToolName {
     [EnumValue("task_create")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     TaskCreate,

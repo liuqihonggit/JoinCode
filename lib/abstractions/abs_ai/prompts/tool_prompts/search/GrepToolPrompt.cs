@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// Grep工具提示词
 /// </summary>
 [ToolPrompt(ToolName = SearchToolName.Grep, Category = ToolPromptCategory.Search)]
-public static class GrepToolPrompt
-{
+public static class GrepToolPrompt {
     public static string GetDescription() => $$"""
         基于ripgrep的强大搜索工具。
 

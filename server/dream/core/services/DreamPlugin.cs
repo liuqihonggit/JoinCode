@@ -6,8 +6,7 @@ namespace JoinCode.Dream;
 /// </summary>
 [Register(typeof(IWorkflowPlugin), ServiceLifetime.Singleton)]
 [Register(typeof(ICommandRegistrationHook), ServiceLifetime.Singleton)]
-public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrationHook
-{
+public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrationHook {
     private readonly List<string> _registeredCommandNames = new();
 
     /// <summary>
@@ -28,8 +27,7 @@ public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrati
     /// <param name="ctx">插件上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>操作结果</returns>
-    public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default)
-    {
+    public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default) {
         ctx.ConfigureServices(static s => s.AddDreamPluginServices());
         return Task.FromResult(OperationResult.Ok());
     }
@@ -40,11 +38,9 @@ public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrati
     /// <param name="serviceProvider">服务提供者</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>操作结果</returns>
-    public override async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
-    {
+    public override async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default) {
         var registry = serviceProvider.GetService<IDreamTaskRegistry>();
-        if (registry is Persistence.PersistentDreamTaskRegistry persistentRegistry)
-        {
+        if (registry is Persistence.PersistentDreamTaskRegistry persistentRegistry) {
             await persistentRegistry.LoadActiveTasksAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -56,8 +52,7 @@ public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrati
     /// </summary>
     /// <param name="registry">命令注册表</param>
     /// <param name="serviceProvider">服务提供者</param>
-    public void RegisterCommands(ICommandRegistry registry, IServiceProvider serviceProvider)
-    {
+    public void RegisterCommands(ICommandRegistry registry, IServiceProvider serviceProvider) {
         var dreamFeature = serviceProvider.GetRequiredService<IDreamFeature>();
 
         var dreamCmd = new DreamCommand(Name, dreamFeature);
@@ -75,10 +70,8 @@ public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrati
 
     /// <summary>撤销命令注册 — 可逆效应,使用 _registeredCommandNames 精确撤销</summary>
     /// <param name="registry">命令注册表</param>
-    public void UnregisterCommands(ICommandRegistry registry)
-    {
-        foreach (var commandName in _registeredCommandNames)
-        {
+    public void UnregisterCommands(ICommandRegistry registry) {
+        foreach (var commandName in _registeredCommandNames) {
             registry.UnregisterCommand(commandName);
         }
         _registeredCommandNames.Clear();
@@ -87,13 +80,11 @@ public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrati
     /// <summary>
     /// 插件卸载时撤销命令注册
     /// </summary>
-    protected override void OnUnload()
-    {
+    protected override void OnUnload() {
         UnregisterCommandsIfRegistered();
     }
 
-    private void UnregisterCommandsIfRegistered()
-    {
+    private void UnregisterCommandsIfRegistered() {
         _registeredCommandNames.Clear();
     }
 }

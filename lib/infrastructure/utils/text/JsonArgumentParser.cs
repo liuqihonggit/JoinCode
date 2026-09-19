@@ -7,15 +7,13 @@ namespace Infrastructure.Utils.Text;
 /// 修复后再次尝试解析。仍失败则返回空字典（保持原 API 契约）。
 /// </para>
 /// </summary>
-public static class JsonArgumentParser
-{
+public static class JsonArgumentParser {
     /// <summary>
     /// 解析原始 JSON 参数字符串为字典
     /// </summary>
     /// <param name="rawArguments">原始 JSON 字符串，可为 null</param>
     /// <returns>解析得到的字典；解析失败时返回空字典</returns>
-    public static Dictionary<string, JsonElement> Parse(string? rawArguments)
-    {
+    public static Dictionary<string, JsonElement> Parse(string? rawArguments) {
         if (string.IsNullOrEmpty(rawArguments))
             return new Dictionary<string, JsonElement>();
 
@@ -37,15 +35,11 @@ public static class JsonArgumentParser
         return new Dictionary<string, JsonElement>();
     }
 
-    private static bool TryDeserialize(string json, out Dictionary<string, JsonElement>? result)
-    {
-        try
-        {
+    private static bool TryDeserialize(string json, out Dictionary<string, JsonElement>? result) {
+        try {
             result = RelaxedJsonSerializer.Deserialize(json, ContractsJsonContext.Default.DictionaryStringJsonElement);
             return result is not null;
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             result = null;
             return false;
         }

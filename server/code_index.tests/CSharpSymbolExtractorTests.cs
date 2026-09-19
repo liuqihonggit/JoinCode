@@ -1,12 +1,10 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class CSharpSymbolExtractorTests
-{
+public sealed class CSharpSymbolExtractorTests {
     private readonly CSharpSymbolExtractor _extractor = new();
 
     [Fact]
-    public void ExtractSymbols_ClassDeclaration_ReturnsClassSymbol()
-    {
+    public void ExtractSymbols_ClassDeclaration_ReturnsClassSymbol() {
         var source = """
             public class UserService
             {
@@ -22,8 +20,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_InterfaceDeclaration_ReturnsInterfaceSymbol()
-    {
+    public void ExtractSymbols_InterfaceDeclaration_ReturnsInterfaceSymbol() {
         var source = """
             public interface IUserRepository
             {
@@ -37,8 +34,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_StructDeclaration_ReturnsStructSymbol()
-    {
+    public void ExtractSymbols_StructDeclaration_ReturnsStructSymbol() {
         var source = """
             public struct Point
             {
@@ -52,8 +48,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_EnumDeclaration_ReturnsEnumSymbol()
-    {
+    public void ExtractSymbols_EnumDeclaration_ReturnsEnumSymbol() {
         var source = """
             public enum Color
             {
@@ -68,8 +63,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_MethodDeclaration_ReturnsMethodSymbol()
-    {
+    public void ExtractSymbols_MethodDeclaration_ReturnsMethodSymbol() {
         var source = """
             public class Service
             {
@@ -85,8 +79,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_PropertyDeclaration_ReturnsPropertySymbol()
-    {
+    public void ExtractSymbols_PropertyDeclaration_ReturnsPropertySymbol() {
         var source = """
             public class Model
             {
@@ -101,8 +94,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_ConstructorDeclaration_ReturnsConstructorSymbol()
-    {
+    public void ExtractSymbols_ConstructorDeclaration_ReturnsConstructorSymbol() {
         var source = """
             public class Service
             {
@@ -118,8 +110,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_FieldDeclaration_ReturnsFieldSymbol()
-    {
+    public void ExtractSymbols_FieldDeclaration_ReturnsFieldSymbol() {
         var source = """
             public class Service
             {
@@ -134,8 +125,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_ConstField_ReturnsConstantSymbol()
-    {
+    public void ExtractSymbols_ConstField_ReturnsConstantSymbol() {
         var source = """
             public class Config
             {
@@ -150,8 +140,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_NestedClass_SetsParentSymbol()
-    {
+    public void ExtractSymbols_NestedClass_SetsParentSymbol() {
         var source = """
             public class Outer
             {
@@ -166,8 +155,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_Namespace_SetsNamespaceContext()
-    {
+    public void ExtractSymbols_Namespace_SetsNamespaceContext() {
         var source = """
             namespace MyApp.Services
             {
@@ -185,8 +173,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_DelegateDeclaration_ReturnsDelegateSymbol()
-    {
+    public void ExtractSymbols_DelegateDeclaration_ReturnsDelegateSymbol() {
         var source = """
             public delegate void NotifyHandler(string message);
             """;
@@ -198,8 +185,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_MultipleFields_ReturnsAllFieldSymbols()
-    {
+    public void ExtractSymbols_MultipleFields_ReturnsAllFieldSymbols() {
         var source = """
             public class Data
             {
@@ -216,27 +202,23 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_EmptySource_ReturnsEmptyList()
-    {
+    public void ExtractSymbols_EmptySource_ReturnsEmptyList() {
         var symbols = _extractor.ExtractSymbols("", "empty.cs");
         Assert.Empty(symbols);
     }
 
     [Fact]
-    public void LanguageId_ReturnsCSharp()
-    {
+    public void LanguageId_ReturnsCSharp() {
         Assert.Equal("c-sharp", _extractor.LanguageId);
     }
 
     [Fact]
-    public void FileExtensions_ReturnsCs()
-    {
+    public void FileExtensions_ReturnsCs() {
         Assert.Equal([".cs"], _extractor.FileExtensions);
     }
 
     [Fact]
-    public void ExtractSymbols_RecordDeclaration_ReturnsRecordSymbol()
-    {
+    public void ExtractSymbols_RecordDeclaration_ReturnsRecordSymbol() {
         var source = """
             public record Person(string Name, int Age);
             """;
@@ -248,8 +230,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_RecordStructDeclaration_ReturnsRecordStructSymbol()
-    {
+    public void ExtractSymbols_RecordStructDeclaration_ReturnsRecordStructSymbol() {
         var source = """
             public record struct Point(double X, double Y);
             """;
@@ -261,8 +242,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_OperatorDeclaration_ReturnsOperatorSymbol()
-    {
+    public void ExtractSymbols_OperatorDeclaration_ReturnsOperatorSymbol() {
         var source = """
             public class Vector
             {
@@ -278,8 +258,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_IndexerDeclaration_ReturnsIndexerSymbol()
-    {
+    public void ExtractSymbols_IndexerDeclaration_ReturnsIndexerSymbol() {
         var source = """
             public class Container
             {
@@ -294,8 +273,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_DestructorDeclaration_ReturnsDestructorSymbol()
-    {
+    public void ExtractSymbols_DestructorDeclaration_ReturnsDestructorSymbol() {
         var source = """
             public class Resource
             {
@@ -310,8 +288,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_LocalFunction_ReturnsLocalFunctionSymbol()
-    {
+    public void ExtractSymbols_LocalFunction_ReturnsLocalFunctionSymbol() {
         var source = """
             public class Service
             {
@@ -330,8 +307,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_FileScopedNamespace_ReturnsNamespaceSymbol()
-    {
+    public void ExtractSymbols_FileScopedNamespace_ReturnsNamespaceSymbol() {
         var source = """
             namespace MyApp;
 
@@ -348,8 +324,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_PrimaryConstructor_ReturnsConstructorSymbol()
-    {
+    public void ExtractSymbols_PrimaryConstructor_ReturnsConstructorSymbol() {
         var source = """
             public class Person(string name)
             {
@@ -367,8 +342,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_PrimaryConstructor_Record_ExtractsCtorSymbol()
-    {
+    public void ExtractSymbols_PrimaryConstructor_Record_ExtractsCtorSymbol() {
         var source = "public record Person(string Name, int Age);";
 
         var symbols = _extractor.ExtractSymbols(source, "test.cs");
@@ -383,8 +357,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_PrimaryConstructor_RecordStruct_ExtractsCtorSymbol()
-    {
+    public void ExtractSymbols_PrimaryConstructor_RecordStruct_ExtractsCtorSymbol() {
         var source = "public record struct Point(double X, double Y);";
 
         var symbols = _extractor.ExtractSymbols(source, "test.cs");
@@ -398,8 +371,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_PrimaryConstructor_Struct_ExtractsCtorSymbol()
-    {
+    public void ExtractSymbols_PrimaryConstructor_Struct_ExtractsCtorSymbol() {
         var source = """
             public struct Value(int count)
             {
@@ -417,8 +389,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_PrimaryConstructor_WithBaseInit_ExtractsCtorSymbol()
-    {
+    public void ExtractSymbols_PrimaryConstructor_WithBaseInit_ExtractsCtorSymbol() {
         var source = """
             public class Derived(int x) : Base(x)
             {
@@ -432,8 +403,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_PrimaryConstructor_WithRegularCtor_ExtractsBoth()
-    {
+    public void ExtractSymbols_PrimaryConstructor_WithRegularCtor_ExtractsBoth() {
         var source = """
             public class Service(int x)
             {
@@ -450,8 +420,7 @@ public sealed class CSharpSymbolExtractorTests
     }
 
     [Fact]
-    public void ExtractSymbols_PrimaryConstructor_RecordNoParams_NoCtorSymbol()
-    {
+    public void ExtractSymbols_PrimaryConstructor_RecordNoParams_NoCtorSymbol() {
         var source = """
             public record Empty
             {

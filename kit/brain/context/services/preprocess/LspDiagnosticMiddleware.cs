@@ -4,8 +4,7 @@ namespace Core.Context;
 /// LSP 诊断注入中间件 — 检查待处理的 LSP 诊断并注入提醒
 /// </summary>
 [Register(typeof(IPreparePreprocessMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePreprocessMiddleware
-{
+public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePreprocessMiddleware {
 
     /// <summary>
     /// 初始化 LSP 诊断注入中间件
@@ -13,8 +12,7 @@ public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePre
     /// <param name="reminderManager">系统提醒管理器</param>
     /// <param name="contextManager">聊天上下文管理器</param>
     /// <param name="lspDiagnosticProvider">可选 LSP 诊断提供者，null 时跳过 LSP 诊断注入</param>
-    public LspDiagnosticMiddleware(ISystemReminderManager reminderManager, IChatContextManager contextManager, JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider? lspDiagnosticProvider = null)
-    {
+    public LspDiagnosticMiddleware(ISystemReminderManager reminderManager, IChatContextManager contextManager, JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider? lspDiagnosticProvider = null) {
         _reminderManager = reminderManager;
         _contextManager = contextManager;
         _lspDiagnosticProvider = lspDiagnosticProvider;
@@ -27,13 +25,10 @@ public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePre
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc/>
-    public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct)
-    {
-        if (_lspDiagnosticProvider is not null)
-        {
+    public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct) {
+        if (_lspDiagnosticProvider is not null) {
             var pendingDiagnostics = _lspDiagnosticProvider.CheckPendingDiagnostics();
-            if (pendingDiagnostics.Count > 0)
-            {
+            if (pendingDiagnostics.Count > 0) {
                 var diagnosticText = FormatLspDiagnostics(pendingDiagnostics);
                 context.LspDiagnosticText = diagnosticText;
 
@@ -44,8 +39,7 @@ public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePre
                     ct: ct).ConfigureAwait(false);
 
                 var updatedReminders = await _reminderManager.FormatAsSystemRemindersAsync().ConfigureAwait(false);
-                if (!string.IsNullOrWhiteSpace(updatedReminders))
-                {
+                if (!string.IsNullOrWhiteSpace(updatedReminders)) {
                     await _contextManager.AddDynamicSystemMessageAsync(updatedReminders, ct).ConfigureAwait(false);
                 }
             }
@@ -54,24 +48,19 @@ public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePre
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private static string FormatLspDiagnostics(List<(string ServerName, List<JoinCode.Abstractions.Interfaces.Lsp.LspDiagnosticSummary> Files)> pendingDiagnostics)
-    {
+    private static string FormatLspDiagnostics(List<(string ServerName, List<JoinCode.Abstractions.Interfaces.Lsp.LspDiagnosticSummary> Files)> pendingDiagnostics) {
         var sb = new StringBuilder();
         sb.AppendLine("<new-diagnostics>The following new diagnostic issues were detected:");
         sb.AppendLine();
 
-        foreach (var (_, files) in pendingDiagnostics)
-        {
-            foreach (var file in files)
-            {
+        foreach (var (_, files) in pendingDiagnostics) {
+            foreach (var file in files) {
                 var filePath = file.Uri.StartsWith("file://", StringComparison.OrdinalIgnoreCase)
                     ? file.Uri[7..]
                     : file.Uri;
 
-                foreach (var diag in file.Diagnostics)
-                {
-                    var severityIcon = diag.Severity switch
-                    {
+                foreach (var diag in file.Diagnostics) {
+                    var severityIcon = diag.Severity switch {
                         "Error" => "✗",
                         "Warning" => "⚠",
                         "Info" => "ℹ",

@@ -5,13 +5,11 @@ namespace Core.Prompts.Sections;
 /// 关键词触发：睡觉/离开/你看着办/不要问了/你直接做完/你全权负责
 /// </summary>
 [PromptSection(Name = "user_delegation", Keywords = new[] { "睡觉", "离开", "走了", "看着办", "不要问", "别问", "直接做", "全权", "不用等", "自己处理", "回来再", "先忙", "忙去了", "sleep", "away", "you decide", "交给你", "你决定" }, InjectOn = PromptSectionInject.Keyword, Order = 83)]
-public static class UserDelegationSection
-{
+public static class UserDelegationSection {
     /// <summary>
     /// 用户委托自主决策规则提示词
     /// </summary>
-    public static string GetContent()
-    {
+    public static string GetContent() {
         return """
 # 用户委托自主决策模式
 

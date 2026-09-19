@@ -3,13 +3,11 @@ namespace DeepSeek.MockServer;
 /// <summary>
 /// DeepSeek 脚本化响应策略 — 支持预设对话返回、工具调用和思考内容
 /// </summary>
-public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
-{
+public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase {
     public DeepSeekResponseStrategy(List<ScriptedTurn>? turns, string defaultResponse)
         : base(turns, defaultResponse) { }
 
-    public override string BuildResponse(JsonElement request, CacheStats cacheStats)
-    {
+    public override string BuildResponse(JsonElement request, CacheStats cacheStats) {
         var turn = CurrentTurn;
         var cacheHitTokens = cacheStats.CacheReadTokens;
         var cacheMissTokens = cacheStats.CacheCreationTokens;
@@ -36,10 +34,8 @@ public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
         """;
     }
 
-    public override string BuildStreamChunk(string id, string content, bool isLast)
-    {
-        if (isLast)
-        {
+    public override string BuildStreamChunk(string id, string content, bool isLast) {
+        if (isLast) {
             return $"data: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"choices\":[{{\"index\":0,\"delta\":{{}},\"finish_reason\":\"stop\"}}]}}\n\ndata: [DONE]\n\n";
         }
 
@@ -50,8 +46,7 @@ public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
     /// 流式最终 chunk — 真实 DeepSeek API 在最后一个 chunk 的 usage 中包含
     /// prompt_cache_hit_tokens 和 prompt_cache_miss_tokens 字段。
     /// </summary>
-    public override string BuildStreamFinalChunk(string id, CacheStats cacheStats)
-    {
+    public override string BuildStreamFinalChunk(string id, CacheStats cacheStats) {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(cacheStats);
 
@@ -60,8 +55,7 @@ public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
 
     public override string? BuildStreamPreamble(string id) => null;
 
-    public override string BuildToolCallResponse(JsonElement request, CacheStats cacheStats)
-    {
+    public override string BuildToolCallResponse(JsonElement request, CacheStats cacheStats) {
         var turn = CurrentTurn;
         var toolCalls = turn.ToolCalls ?? [];
         var toolCallsJson = BuildToolCallsJson(toolCalls);
@@ -86,8 +80,7 @@ public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
         """;
     }
 
-    public override string BuildStreamToolCallResponse(string id, CacheStats cacheStats)
-    {
+    public override string BuildStreamToolCallResponse(string id, CacheStats cacheStats) {
         var turn = CurrentTurn;
         var toolCalls = turn.ToolCalls ?? [];
         var sb = new StringBuilder();
@@ -97,8 +90,7 @@ public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
         sb.Append($"data: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"choices\":[{{\"index\":0,\"delta\":{{\"role\":\"assistant\",\"tool_calls\":[{{\"index\":0,\"id\":\"{firstId}\",\"type\":\"function\",\"function\":{{\"name\":\"{first.ToolName}\",\"arguments\":\"\"}}}}]}},\"finish_reason\":null}}]}}\n\n");
         sb.Append($"data: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"choices\":[{{\"index\":0,\"delta\":{{\"tool_calls\":[{{\"index\":0,\"function\":{{\"arguments\":\"{EscapeJsonString(first.Arguments)}\"}}}}]}},\"finish_reason\":null}}]}}\n\n");
 
-        for (var i = 1; i < toolCalls.Count; i++)
-        {
+        for (var i = 1; i < toolCalls.Count; i++) {
             var tc = toolCalls[i];
             var tcId = GenerateToolCallId(tc);
             sb.Append($"data: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"choices\":[{{\"index\":0,\"delta\":{{\"tool_calls\":[{{\"index\":{i},\"id\":\"{tcId}\",\"type\":\"function\",\"function\":{{\"name\":\"{tc.ToolName}\",\"arguments\":\"\"}}}}]}},\"finish_reason\":null}}]}}\n\n");
@@ -109,8 +101,7 @@ public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
         return sb.ToString();
     }
 
-    public override string BuildStreamThinkingResponse(string id)
-    {
+    public override string BuildStreamThinkingResponse(string id) {
         var thinking = CurrentTurn.ThinkingContent;
         if (string.IsNullOrEmpty(thinking)) return "";
 
@@ -120,11 +111,9 @@ public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
         return sb.ToString();
     }
 
-    private static string BuildToolCallsJson(List<ToolCallConfig> toolCalls)
-    {
+    private static string BuildToolCallsJson(List<ToolCallConfig> toolCalls) {
         var parts = new List<string>();
-        for (var i = 0; i < toolCalls.Count; i++)
-        {
+        for (var i = 0; i < toolCalls.Count; i++) {
             var tc = toolCalls[i];
             var tcId = !string.IsNullOrEmpty(tc.ToolCallId) ? tc.ToolCallId : $"call_{Guid.NewGuid():N}";
             parts.Add($"{{\"id\":\"{tcId}\",\"type\":\"function\",\"function\":{{\"name\":\"{tc.ToolName}\",\"arguments\":\"{EscapeJsonString(tc.Arguments)}\"}}}}");
@@ -132,14 +121,11 @@ public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
         return string.Join(",", parts);
     }
 
-    private static string EscapeJsonString(string s)
-    {
+    private static string EscapeJsonString(string s) {
         if (string.IsNullOrEmpty(s)) return "";
         var sb = new StringBuilder(s.Length);
-        foreach (var c in s)
-        {
-            switch (c)
-            {
+        foreach (var c in s) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;

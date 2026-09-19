@@ -5,8 +5,7 @@ namespace Services.SystemActuator;
 /// 按 Kind 查找执行器 + 统一管理跨执行器的后台任务
 /// </summary>
 [Register(typeof(ISystemActuatorRegistry), ServiceLifetime.Singleton)]
-public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IAsyncDisposable
-{
+public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IAsyncDisposable {
     private static FrozenDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> _factories = FrozenDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>>.Empty;
     private static bool _factoriesLoaded;
 
@@ -37,8 +36,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         IPreventSleepService? preventSleepService = null,
         ShellExecutionConfig? config = null,
         ITelemetryService? telemetryService = null,
-        IAgentNotificationQueue? notificationQueue = null)
-    {
+        IAgentNotificationQueue? notificationQueue = null) {
         _fs = fs;
         _logger = logger;
         _sandboxManager = sandboxManager;
@@ -52,15 +50,13 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     /// 注册执行器工厂 — 应用启动时调用一次
     /// </summary>
     public static void RegisterFactories(
-        IReadOnlyDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> factories)
-    {
+        IReadOnlyDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> factories) {
         _factories = factories.ToFrozenDictionary();
         _factoriesLoaded = true;
     }
 
     /// <inheritdoc />
-    public ISystemActuator Get(SystemActuatorKind kind)
-    {
+    public ISystemActuator Get(SystemActuatorKind kind) {
         if (!_factoriesLoaded)
             throw new InvalidOperationException("SystemActuatorRegistry not initialized. Call RegisterFactories() first.");
 
@@ -72,10 +68,8 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     /// <inheritdoc />
-    public bool TryGet(SystemActuatorKind kind, [NotNullWhen(true)] out ISystemActuator? actuator)
-    {
-        if (!_factoriesLoaded || !_factories.TryGetValue(kind, out var factory))
-        {
+    public bool TryGet(SystemActuatorKind kind, [NotNullWhen(true)] out ISystemActuator? actuator) {
+        if (!_factoriesLoaded || !_factories.TryGetValue(kind, out var factory)) {
             actuator = null;
             return false;
         }
@@ -89,8 +83,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         => _factories.Keys;
 
     /// <inheritdoc />
-    public IReadOnlyDictionary<SystemActuatorKind, SystemActuatorInfo> GetAllInfos()
-    {
+    public IReadOnlyDictionary<SystemActuatorKind, SystemActuatorInfo> GetAllInfos() {
         if (!_factoriesLoaded)
             return FrozenDictionary<SystemActuatorKind, SystemActuatorInfo>.Empty;
 
@@ -98,15 +91,13 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         return _factories.ToFrozenDictionary(
             kvp => kvp.Key,
             kvp => kvp.Value(deps) is SystemActuatorBase sab
-                ? new SystemActuatorInfo
-                {
+                ? new SystemActuatorInfo {
                     Kind = sab.Kind,
                     DisplayName = sab.DisplayName,
                     ShellPath = sab.ShellPath,
                     Version = sab.Version,
                 }
-                : new SystemActuatorInfo
-                {
+                : new SystemActuatorInfo {
                     Kind = kvp.Key,
                     DisplayName = kvp.Key.DisplayName,
                     ShellPath = "",
@@ -120,10 +111,8 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     public Task<SystemActuatorBackgroundTaskInfo> RegisterContextAsync(
         ISystemActuatorCommandContext context,
         string? workingDirectory = null,
-        CancellationToken cancellationToken = default)
-    {
-        var entry = new SystemActuatorBackgroundTaskEntry
-        {
+        CancellationToken cancellationToken = default) {
+        var entry = new SystemActuatorBackgroundTaskEntry {
             TaskId = context.TaskId,
             Command = context.Command,
             WorkingDirectory = workingDirectory,
@@ -135,21 +124,16 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 
         _tasks[context.TaskId] = entry;
 
-        _ = context.ResultTask.ContinueWith(t =>
-        {
-            try
-            {
+        _ = context.ResultTask.ContinueWith(t => {
+            try {
                 var result = t.Result;
 
                 entry.ExitCode = result.ExitCode;
                 entry.CompletedAt = DateTime.UtcNow;
 
-                if (result.ExitCode == 0)
-                {
+                if (result.ExitCode == 0) {
                     entry.Status = TaskExecutionStatus.Completed;
-                }
-                else
-                {
+                } else {
                     entry.Status = TaskExecutionStatus.Failed;
                     entry.ErrorMessage = result.ExitCode != 0
                         ? $"Process exited with code {result.ExitCode}"
@@ -162,17 +146,13 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 
                 RecordBackgroundTaskMetrics(entry.Status.ToString(), result.ExitCode == 0);
                 EnqueueTaskNotification(entry, context);
-            }
-            catch (AggregateException ae) when (ae.InnerException is OperationCanceledException)
-            {
+            } catch (AggregateException ae) when (ae.InnerException is OperationCanceledException) {
                 entry.Status = TaskExecutionStatus.Cancelled;
                 entry.CompletedAt = DateTime.UtcNow;
                 RecordBackgroundTaskMetrics("cancelled", false);
                 _logger?.LogInformation("后台任务被取消: {TaskId}", entry.TaskId);
                 EnqueueTaskNotification(entry, context, "killed");
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 entry.Status = TaskExecutionStatus.Failed;
                 entry.ErrorMessage = ex.Message;
                 entry.CompletedAt = DateTime.UtcNow;
@@ -188,16 +168,14 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     /// <inheritdoc />
-    public Task<SystemActuatorBackgroundTaskInfo?> GetTaskAsync(string taskId, CancellationToken cancellationToken = default)
-    {
+    public Task<SystemActuatorBackgroundTaskInfo?> GetTaskAsync(string taskId, CancellationToken cancellationToken = default) {
         if (_tasks.TryGetValue(taskId, out var entry))
             return Task.FromResult<SystemActuatorBackgroundTaskInfo?>(ToInfo(entry));
         return Task.FromResult<SystemActuatorBackgroundTaskInfo?>(null);
     }
 
     /// <inheritdoc />
-    public Task<List<SystemActuatorBackgroundTaskInfo>> ListTasksAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<List<SystemActuatorBackgroundTaskInfo>> ListTasksAsync(CancellationToken cancellationToken = default) {
         var infos = _tasks.Values
             .OrderByDescending(t => t.CreatedAt)
             .Select(ToInfo)
@@ -206,14 +184,11 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     /// <inheritdoc />
-    public Task<bool> CancelTaskAsync(string taskId, CancellationToken cancellationToken = default)
-    {
+    public Task<bool> CancelTaskAsync(string taskId, CancellationToken cancellationToken = default) {
         if (!_tasks.TryGetValue(taskId, out var entry)) return Task.FromResult(false);
 
-        if (entry.Context is not null && BackgroundTaskStateTransitions.CanCancel(entry.Status))
-        {
-            try { entry.Context.Kill(); }
-            catch (Exception ex) { _logger?.LogDebug(ex, "杀死后台任务进程失败: {TaskId}", taskId); }
+        if (entry.Context is not null && BackgroundTaskStateTransitions.CanCancel(entry.Status)) {
+            try { entry.Context.Kill(); } catch (Exception ex) { _logger?.LogDebug(ex, "杀死后台任务进程失败: {TaskId}", taskId); }
         }
 
         entry.Status = TaskExecutionStatus.Cancelled;
@@ -224,13 +199,11 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     /// <inheritdoc />
-    public async Task<SystemActuatorBackgroundTaskInfo> WaitForTaskAsync(string taskId, CancellationToken cancellationToken = default)
-    {
+    public async Task<SystemActuatorBackgroundTaskInfo> WaitForTaskAsync(string taskId, CancellationToken cancellationToken = default) {
         if (!_tasks.TryGetValue(taskId, out var entry))
             throw new InvalidOperationException($"Background task not found: {taskId}");
 
-        while (BackgroundTaskStateTransitions.CanCancel(entry.Status))
-        {
+        while (BackgroundTaskStateTransitions.CanCancel(entry.Status)) {
             await Task.Delay(100, cancellationToken).ConfigureAwait(false);
         }
 
@@ -238,31 +211,24 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     /// <inheritdoc />
-    public Task<string> GetTaskOutputAsync(string taskId, CancellationToken cancellationToken = default)
-    {
-        if (_tasks.TryGetValue(taskId, out var entry))
-        {
+    public Task<string> GetTaskOutputAsync(string taskId, CancellationToken cancellationToken = default) {
+        if (_tasks.TryGetValue(taskId, out var entry)) {
             var output = new StringBuilder();
 
-            if (entry.Context is not null)
-            {
+            if (entry.Context is not null) {
                 var stdout = entry.Context.GetCurrentStdout();
                 var stderr = entry.Context.GetCurrentStderr();
 
                 if (!string.IsNullOrEmpty(stdout))
                     output.AppendLine(stdout);
 
-                if (!string.IsNullOrEmpty(stderr))
-                {
+                if (!string.IsNullOrEmpty(stderr)) {
                     output.AppendLine("[stderr]");
                     output.AppendLine(stderr);
                 }
-            }
-            else if (!string.IsNullOrEmpty(entry.Stdout))
-            {
+            } else if (!string.IsNullOrEmpty(entry.Stdout)) {
                 output.AppendLine(entry.Stdout);
-                if (!string.IsNullOrEmpty(entry.Stderr))
-                {
+                if (!string.IsNullOrEmpty(entry.Stderr)) {
                     output.AppendLine("[stderr]");
                     output.AppendLine(entry.Stderr);
                 }
@@ -275,8 +241,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     /// <inheritdoc />
-    public Task<List<SystemActuatorBackgroundTaskInfo>> ListTasksForAgentAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public Task<List<SystemActuatorBackgroundTaskInfo>> ListTasksForAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
         var infos = _tasks.Values
@@ -289,8 +254,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     /// <inheritdoc />
-    public async Task<int> CancelTasksForAgentAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public async Task<int> CancelTasksForAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
         var agentTaskIds = _tasks.Values
@@ -300,17 +264,12 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 
         var cancelledCount = 0;
         cancellationToken.ThrowIfCancellationRequested();
-        foreach (var taskId in agentTaskIds)
-        {
+        foreach (var taskId in agentTaskIds) {
             cancellationToken.ThrowIfCancellationRequested();
-            try
-            {
+            try {
                 if (await CancelTaskAsync(taskId, cancellationToken).ConfigureAwait(false))
                     cancelledCount++;
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex)
-            {
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) {
                 _logger?.LogDebug(ex, "取消 Agent {AgentId} 的后台任务 {TaskId} 失败（继续取消其余任务）", agentId, taskId);
             }
         }
@@ -322,19 +281,15 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     /// <inheritdoc />
-    public Task<int> KillAllRunningAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<int> KillAllRunningAsync(CancellationToken cancellationToken = default) {
         var runningTasks = _tasks.Values
             .Where(t => BackgroundTaskStateTransitions.CanCancel(t.Status))
             .ToList();
 
         var killedCount = 0;
-        foreach (var entry in runningTasks)
-        {
-            if (entry.Context is not null)
-            {
-                try { entry.Context.Kill(); }
-                catch (Exception ex) { _logger?.LogDebug(ex, "杀死后台任务进程失败: {TaskId}", entry.TaskId); }
+        foreach (var entry in runningTasks) {
+            if (entry.Context is not null) {
+                try { entry.Context.Kill(); } catch (Exception ex) { _logger?.LogDebug(ex, "杀死后台任务进程失败: {TaskId}", entry.TaskId); }
             }
 
             entry.Status = TaskExecutionStatus.Cancelled;
@@ -349,15 +304,11 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        foreach (var entry in _tasks.Values)
-        {
-            if (entry.Context is not null && BackgroundTaskStateTransitions.CanCancel(entry.Status))
-            {
-                try { entry.Context.Kill(); }
-                catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 时终止后台任务进程失败"); }
+        foreach (var entry in _tasks.Values) {
+            if (entry.Context is not null && BackgroundTaskStateTransitions.CanCancel(entry.Status)) {
+                try { entry.Context.Kill(); } catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 时终止后台任务进程失败"); }
                 await entry.Context.DisposeSafeAsync(_logger).ConfigureAwait(false);
             }
         }
@@ -372,10 +323,8 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     private void RecordBackgroundTaskMetrics(string status, bool isSuccess)
         => _telemetryService?.RecordCount("systemactuator.background.count", new Dictionary<string, string> { ["status"] = status, ["success"] = isSuccess.ToString() }, description: "SystemActuator background task count");
 
-    private static SystemActuatorBackgroundTaskInfo ToInfo(SystemActuatorBackgroundTaskEntry entry)
-    {
-        return new SystemActuatorBackgroundTaskInfo
-        {
+    private static SystemActuatorBackgroundTaskInfo ToInfo(SystemActuatorBackgroundTaskEntry entry) {
+        return new SystemActuatorBackgroundTaskInfo {
             TaskId = entry.TaskId,
             Command = entry.Command,
             Status = entry.Status,
@@ -391,8 +340,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         };
     }
 
-    private void EnqueueTaskNotification(SystemActuatorBackgroundTaskEntry entry, ISystemActuatorCommandContext context, string? forcedStatus = null)
-    {
+    private void EnqueueTaskNotification(SystemActuatorBackgroundTaskEntry entry, ISystemActuatorCommandContext context, string? forcedStatus = null) {
         if (_notificationQueue is null) return;
         if (Interlocked.CompareExchange(ref entry.Notified, 1, 0) != 0) return;
 
@@ -416,8 +364,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         _logger?.LogDebug("后台任务通知已入队: {TaskId}, 状态: {Status}", entry.TaskId, status);
     }
 
-    private class SystemActuatorBackgroundTaskEntry
-    {
+    private class SystemActuatorBackgroundTaskEntry {
         public required string TaskId { get; init; }
         public required string Command { get; init; }
         public string? WorkingDirectory { get; init; }

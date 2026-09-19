@@ -17,8 +17,7 @@ public sealed partial class SystemPromptBuilder : ServiceEntity {
     /// <param name="provider">可选系统提示词提供者，非空时自动追加其全部部分。</param>
     public SystemPromptBuilder(ILogger<SystemPromptBuilder>? logger = null, ISystemPromptProvider? provider = null) {
         _logger = logger;
-        if (provider is not null)
-        {
+        if (provider is not null) {
             AddFromProvider(provider);
         }
     }

@@ -13,8 +13,7 @@ public sealed record LoopDetectionResult(
     string? RepeatedPattern,
     int RepeatCount,
     int LoopStartIndex,
-    int LoopTriggerCount = 0)
-{
+    int LoopTriggerCount = 0) {
     /// <summary>
     /// 未检测到循环的空结果
     /// </summary>

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 二进制内容持久化接口 — 对齐TS版 mcpOutputStorage.ts 的 persistBinaryContent
 /// </summary>
-public interface IBinaryContentStorage
-{
+public interface IBinaryContentStorage {
     /// <summary>
     /// 持久化二进制内容到文件
     /// </summary>

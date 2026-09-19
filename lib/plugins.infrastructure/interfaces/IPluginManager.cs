@@ -4,8 +4,7 @@ namespace Core.Plugins;
 /// <summary>
 /// 插件管理器接口 — 统一管理工作流插件、外部进程插件、native DLL 插件的加载、卸载和查询
 /// </summary>
-public interface IPluginManager : IAsyncDisposable
-{
+public interface IPluginManager : IAsyncDisposable {
     /// <summary>已加载的全部插件名称（工作流 + 外部 + native）</summary>
     IReadOnlyCollection<string> LoadedPluginNames { get; }
 

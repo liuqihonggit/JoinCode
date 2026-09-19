@@ -4,8 +4,7 @@ namespace Infrastructure.ReaperScheduler;
 /// 扫描策略接口 — 按会话隔离扫描, EntityReaper/ShellProcessWatchdog 各为一个策略
 /// ReaperScheduler 空闲时按会话轮流调用各策略的 Scan
 /// </summary>
-public interface IScanStrategy
-{
+public interface IScanStrategy {
     /// <summary>策略名称 — 诊断用</summary>
     string Name { get; }
 

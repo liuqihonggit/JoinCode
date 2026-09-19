@@ -7,37 +7,31 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 从 Anthropic API 获取 utilization，C# 从本地 RateLimitTracker 获取
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Usage, Description = "查看速率限制用量", Usage = "/usage", Category = ChatCommandCategory.Info, Aliases = ["rate-limit"])]
-public sealed class UsageCommand : ChatCommandBase
-{
+public sealed class UsageCommand : ChatCommandBase {
     private readonly IClockService _clock = SystemClockService.Instance;
     /// <summary>
     /// 执行 /usage 命令 — 通过 TabPanel 展示 Rate Limits(速率限制用量)和 Token Usage(今日 Token 用量)两个标签页
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>表示命令执行完成的任务,结果为继续会话</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
         // 预收集 Rate Limits 数据
         string rateLimitsContent;
 
-        if (services.RateLimitTracker is not null)
-        {
+        if (services.RateLimitTracker is not null) {
             var snapshot = services.RateLimitTracker.GetLatestSnapshot();
-            if (snapshot is not null)
-            {
+            if (snapshot is not null) {
                 var sb = new StringBuilder();
 
-                if (snapshot.RequestLimit.HasValue && snapshot.RequestRemaining.HasValue && snapshot.RequestLimit.Value > 0)
-                {
+                if (snapshot.RequestLimit.HasValue && snapshot.RequestRemaining.HasValue && snapshot.RequestLimit.Value > 0) {
                     var usedRequests = snapshot.RequestLimit.Value - snapshot.RequestRemaining.Value;
                     var percentage = Math.Round((double)usedRequests / snapshot.RequestLimit.Value * 100, 1);
                     var resetsAt = snapshot.RequestResetsAt ?? _clock.GetUtcNow().AddHours(5);
                     RenderLimitBar(sb, "Current session", percentage, resetsAt, _clock);
                 }
 
-                if (snapshot.TokenLimit.HasValue && snapshot.TokenRemaining.HasValue && snapshot.TokenLimit.Value > 0)
-                {
+                if (snapshot.TokenLimit.HasValue && snapshot.TokenRemaining.HasValue && snapshot.TokenLimit.Value > 0) {
                     var usedTokens = snapshot.TokenLimit.Value - snapshot.TokenRemaining.Value;
                     var percentage = Math.Round((double)usedTokens / snapshot.TokenLimit.Value * 100, 1);
                     var resetsAt = snapshot.TokenResetsAt ?? _clock.GetUtcNow().AddDays(7);
@@ -45,24 +39,18 @@ public sealed class UsageCommand : ChatCommandBase
                 }
 
                 rateLimitsContent = sb.ToString();
-            }
-            else
-            {
+            } else {
                 rateLimitsContent = $"  {TerminalColors.Muted}速率限制数据暂不可用{AnsiStyleEnumConstants.Reset}\n  {TerminalColors.Muted}数据将在首次 API 请求后自动填充{AnsiStyleEnumConstants.Reset}";
             }
-        }
-        else
-        {
+        } else {
             rateLimitsContent = $"  {TerminalColors.Muted}速率限制数据暂不可用{AnsiStyleEnumConstants.Reset}\n  {TerminalColors.Muted}数据将在首次 API 请求后自动填充{AnsiStyleEnumConstants.Reset}";
         }
 
         // 预收集 Token Usage 数据
         string tokenUsageContent;
-        if (services.UsageTracker is not null)
-        {
+        if (services.UsageTracker is not null) {
             var stats = services.UsageTracker.GetTodayStatistics();
-            if (stats.TotalTokens > 0)
-            {
+            if (stats.TotalTokens > 0) {
                 var sb = new StringBuilder();
                 sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Token Usage (Today){AnsiStyleEnumConstants.Reset}");
                 sb.AppendLine();
@@ -75,37 +63,29 @@ public sealed class UsageCommand : ChatCommandBase
                 sb.Append($" · Requests: {stats.TotalRequests}");
                 sb.AppendLine(AnsiStyleEnumConstants.Reset);
 
-                if (stats.TotalCacheReadTokens > 0)
-                {
+                if (stats.TotalCacheReadTokens > 0) {
                     sb.AppendLine($"{TerminalColors.Muted}  Cache read: {stats.TotalCacheReadTokens:N0} tokens{AnsiStyleEnumConstants.Reset}");
                 }
 
-                if (stats.TotalCacheCreationTokens > 0)
-                {
+                if (stats.TotalCacheCreationTokens > 0) {
                     sb.AppendLine($"{TerminalColors.Muted}  Cache creation: {stats.TotalCacheCreationTokens:N0} tokens{AnsiStyleEnumConstants.Reset}");
                 }
 
-                if (stats.TotalCostUsd > 0)
-                {
+                if (stats.TotalCostUsd > 0) {
                     sb.AppendLine($"{TerminalColors.Muted}  Cost: ${stats.TotalCostUsd:F4} USD{AnsiStyleEnumConstants.Reset}");
                 }
 
                 tokenUsageContent = sb.ToString();
-            }
-            else
-            {
+            } else {
                 tokenUsageContent = $"  {TerminalColors.Muted}暂无今日 Token 用量数据{AnsiStyleEnumConstants.Reset}";
             }
-        }
-        else
-        {
+        } else {
             tokenUsageContent = $"  {TerminalColors.Muted}用量追踪器不可用{AnsiStyleEnumConstants.Reset}";
         }
 
         var panel = new TabPanel(
             ["Rate Limits", "Token Usage"],
-            tabIndex => tabIndex switch
-            {
+            tabIndex => tabIndex switch {
                 0 => rateLimitsContent,
                 1 => tokenUsageContent,
                 _ => string.Empty
@@ -118,8 +98,7 @@ public sealed class UsageCommand : ChatCommandBase
     /// <summary>
     /// 渲染限制进度条 — 对齐 TS Usage.tsx LimitBar
     /// </summary>
-    private static void RenderLimitBar(StringBuilder sb, string title, double percentage, DateTime resetsAt, IClockService clock)
-    {
+    private static void RenderLimitBar(StringBuilder sb, string title, double percentage, DateTime resetsAt, IClockService clock) {
         var color = GetLimitColor(percentage);
         var bar = new UsageBar(percentage / 100.0, 30, color, TerminalColors.Muted);
 
@@ -138,8 +117,7 @@ public sealed class UsageCommand : ChatCommandBase
 
         // 重置时间 — 对齐 TS "Resets in X"
         var remaining = resetsAt - clock.GetUtcNow();
-        if (remaining > TimeSpan.Zero)
-        {
+        if (remaining > TimeSpan.Zero) {
             sb.Append(TerminalColors.Muted);
             sb.Append($" · resets in {FormatRemaining(remaining)}");
             sb.Append(AnsiStyleEnumConstants.Reset);
@@ -152,8 +130,7 @@ public sealed class UsageCommand : ChatCommandBase
     /// <summary>
     /// 渲染 Token 用量条 — 对齐 TS Usage.tsx 中的 token 统计
     /// </summary>
-    private static void RenderTokenBar(StringBuilder sb, string label, long count, long total)
-    {
+    private static void RenderTokenBar(StringBuilder sb, string label, long count, long total) {
         if (total <= 0) return;
 
         var percentage = (double)count / total * 100;
@@ -175,15 +152,13 @@ public sealed class UsageCommand : ChatCommandBase
         sb.AppendLine(AnsiStyleEnumConstants.Reset);
     }
 
-    private static string GetLimitColor(double percentage)
-    {
+    private static string GetLimitColor(double percentage) {
         if (percentage >= 90) return TerminalColors.Error;
         if (percentage >= 70) return TerminalColors.Warning;
         return TerminalColors.Success;
     }
 
-    private static string FormatRemaining(TimeSpan remaining)
-    {
+    private static string FormatRemaining(TimeSpan remaining) {
         if (remaining.TotalDays >= 1)
             return $"{(int)remaining.TotalDays}d {(int)remaining.Hours}h";
         if (remaining.TotalHours >= 1)

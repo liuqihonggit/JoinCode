@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 文件写入事件参数 — 文件被修改/创建/删除时触发
 /// </summary>
-public sealed record FileWriteEventArgs
-{
+public sealed record FileWriteEventArgs {
     /// <summary>
     /// 被修改文件的已解析绝对路径
     /// </summary>
@@ -24,8 +23,7 @@ public sealed record FileWriteEventArgs
 /// <summary>
 /// 文件写入监听器接口 — 文件被修改/创建/删除时通知
 /// </summary>
-public interface IFileWriteListener
-{
+public interface IFileWriteListener {
     /// <summary>
     /// 当文件被成功写入/编辑/删除时调用
     /// </summary>
@@ -35,8 +33,7 @@ public interface IFileWriteListener
 /// <summary>
 /// 文件写入监听器注册中心 — 线程安全，支持注册/取消订阅
 /// </summary>
-public interface IFileWriteListenerRegistry : IRegistry
-{
+public interface IFileWriteListenerRegistry : IRegistry {
     /// <summary>
     /// 注册文件写入监听器，返回取消订阅的 token
     /// </summary>

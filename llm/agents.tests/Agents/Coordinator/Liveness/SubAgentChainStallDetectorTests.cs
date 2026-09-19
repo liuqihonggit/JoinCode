@@ -3,11 +3,9 @@ namespace Sync.Tests.Agents.Coordinator.Liveness;
 /// <summary>
 /// SubAgentChainStallDetector 单元测试 — 验证链路构建 + 全卡死判定（ADR 0106 L2）
 /// </summary>
-public sealed class SubAgentChainStallDetectorTests
-{
+public sealed class SubAgentChainStallDetectorTests {
     [Fact]
-    public void CheckChain_SingleConfirmedNode_BelowThreshold_NotStalled()
-    {
+    public void CheckChain_SingleConfirmedNode_BelowThreshold_NotStalled() {
         var detector = new SubAgentChainStallDetector(chainStallThreshold: 3);
         var parentMap = new Dictionary<string, string>();
         var confirmed = new HashSet<string> { "agent-1" };
@@ -20,11 +18,9 @@ public sealed class SubAgentChainStallDetectorTests
     }
 
     [Fact]
-    public void CheckChain_AllConfirmed_AboveThreshold_IsStalled()
-    {
+    public void CheckChain_AllConfirmed_AboveThreshold_IsStalled() {
         var detector = new SubAgentChainStallDetector(chainStallThreshold: 3);
-        var parentMap = new Dictionary<string, string>
-        {
+        var parentMap = new Dictionary<string, string> {
             ["agent-3"] = "agent-2",
             ["agent-2"] = "agent-1",
         };
@@ -38,11 +34,9 @@ public sealed class SubAgentChainStallDetectorTests
     }
 
     [Fact]
-    public void CheckChain_PartialConfirmed_NotStalled()
-    {
+    public void CheckChain_PartialConfirmed_NotStalled() {
         var detector = new SubAgentChainStallDetector(chainStallThreshold: 3);
-        var parentMap = new Dictionary<string, string>
-        {
+        var parentMap = new Dictionary<string, string> {
             ["agent-3"] = "agent-2",
             ["agent-2"] = "agent-1",
         };
@@ -56,8 +50,7 @@ public sealed class SubAgentChainStallDetectorTests
     }
 
     [Fact]
-    public void CheckChain_EmptyParentMap_SingleNodeChain()
-    {
+    public void CheckChain_EmptyParentMap_SingleNodeChain() {
         var detector = new SubAgentChainStallDetector(chainStallThreshold: 1);
         var parentMap = new Dictionary<string, string>();
         var confirmed = new HashSet<string> { "agent-1" };
@@ -69,11 +62,9 @@ public sealed class SubAgentChainStallDetectorTests
     }
 
     [Fact]
-    public void CheckAllChains_ReturnsOnlyStalledChains()
-    {
+    public void CheckAllChains_ReturnsOnlyStalledChains() {
         var detector = new SubAgentChainStallDetector(chainStallThreshold: 2);
-        var parentMap = new Dictionary<string, string>
-        {
+        var parentMap = new Dictionary<string, string> {
             ["agent-2"] = "agent-1",
             ["agent-4"] = "agent-3",
         };
@@ -88,8 +79,7 @@ public sealed class SubAgentChainStallDetectorTests
     }
 
     [Fact]
-    public void CheckChain_SelfLoopProtection_DoesNotInfiniteLoop()
-    {
+    public void CheckChain_SelfLoopProtection_DoesNotInfiniteLoop() {
         var detector = new SubAgentChainStallDetector(chainStallThreshold: 1);
         var parentMap = new Dictionary<string, string> { ["agent-1"] = "agent-1" }; // 自环
         var confirmed = new HashSet<string> { "agent-1" };

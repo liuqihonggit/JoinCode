@@ -1,26 +1,22 @@
 
 namespace Core.Tests.Scheduling;
 
-public class TaskRuntimeTests : IDisposable
-{
+public class TaskRuntimeTests : IDisposable {
     private readonly TaskRuntime _runtime;
     private bool _disposed;
 
-    public TaskRuntimeTests()
-    {
+    public TaskRuntimeTests() {
         _runtime = new TaskRuntime();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _runtime.DisposeSafe();
     }
 
     [Fact]
-    public async Task CreateTaskAsync_ShouldReturnTaskWithId()
-    {
+    public async Task CreateTaskAsync_ShouldReturnTaskWithId() {
         var result = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "test" });
 
         result.Success.Should().BeTrue();
@@ -30,15 +26,13 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateTaskAsync_NullInput_ShouldThrow()
-    {
+    public async Task CreateTaskAsync_NullInput_ShouldThrow() {
         var act = () => _runtime.CreateTaskAsync(null!);
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
     [Fact]
-    public async Task CreateTaskAsync_WithDependencies_ShouldBuildDag()
-    {
+    public async Task CreateTaskAsync_WithDependencies_ShouldBuildDag() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
         var b = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "b", Dependencies = new List<string> { a.Data!.Id } });
 
@@ -49,15 +43,13 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateTaskAsync_NonExistent_ShouldFail()
-    {
+    public async Task UpdateTaskAsync_NonExistent_ShouldFail() {
         var result = await _runtime.UpdateTaskAsync("missing", new RuntimeTaskUpdate { Status = TaskExecutionStatus.Completed });
         result.Success.Should().BeFalse();
     }
 
     [Fact]
-    public async Task UpdateTaskAsync_ShouldSetStartedAt_WhenRunning()
-    {
+    public async Task UpdateTaskAsync_ShouldSetStartedAt_WhenRunning() {
         var created = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "x" });
 
         var result = await _runtime.UpdateTaskAsync(created.Data!.Id, new RuntimeTaskUpdate { Status = TaskExecutionStatus.Running });
@@ -67,8 +59,7 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateTaskAsync_ShouldSetCompletedAt_WhenTerminal()
-    {
+    public async Task UpdateTaskAsync_ShouldSetCompletedAt_WhenTerminal() {
         var created = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "x" });
 
         var result = await _runtime.UpdateTaskAsync(created.Data!.Id, new RuntimeTaskUpdate { Status = TaskExecutionStatus.Completed });
@@ -78,15 +69,13 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task GetTaskAsync_NonExistent_ShouldFail()
-    {
+    public async Task GetTaskAsync_NonExistent_ShouldFail() {
         var result = await _runtime.GetTaskAsync("missing");
         result.Success.Should().BeFalse();
     }
 
     [Fact]
-    public async Task ListTasksAsync_ShouldFilterByStatus()
-    {
+    public async Task ListTasksAsync_ShouldFilterByStatus() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
         await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "b" });
         await _runtime.UpdateTaskAsync(a.Data!.Id, new RuntimeTaskUpdate { Status = TaskExecutionStatus.Running });
@@ -98,8 +87,7 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task ListTasksAsync_IncludeCompletedFalse_ShouldExcludeCompleted()
-    {
+    public async Task ListTasksAsync_IncludeCompletedFalse_ShouldExcludeCompleted() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
         var b = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "b" });
         await _runtime.UpdateTaskAsync(a.Data!.Id, new RuntimeTaskUpdate { Status = TaskExecutionStatus.Completed });
@@ -111,10 +99,8 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task ListTasksAsync_ShouldPage()
-    {
-        for (int i = 0; i < 5; i++)
-        {
+    public async Task ListTasksAsync_ShouldPage() {
+        for (int i = 0; i < 5; i++) {
             await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = $"task-{i}" });
         }
 
@@ -124,8 +110,7 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task SetDependencyAsync_Cycle_ShouldFail()
-    {
+    public async Task SetDependencyAsync_Cycle_ShouldFail() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
         var b = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "b", Dependencies = new List<string> { a.Data!.Id } });
 
@@ -134,8 +119,7 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task SetDependencyAsync_NonExistentTask_ShouldFail()
-    {
+    public async Task SetDependencyAsync_NonExistentTask_ShouldFail() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
 
         var result = await _runtime.SetDependencyAsync(a.Data!.Id, "missing");
@@ -143,8 +127,7 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task SetDependencyAsync_Duplicate_ShouldBeAllowed()
-    {
+    public async Task SetDependencyAsync_Duplicate_ShouldBeAllowed() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
         var b = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "b" });
         await _runtime.SetDependencyAsync(b.Data!.Id, a.Data!.Id);
@@ -155,8 +138,7 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task RemoveDependencyAsync_ShouldWork()
-    {
+    public async Task RemoveDependencyAsync_ShouldWork() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
         var b = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "b" });
         await _runtime.SetDependencyAsync(b.Data!.Id, a.Data!.Id);
@@ -167,14 +149,12 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task CanExecuteTaskAsync_NonExistent_ShouldReturnFalse()
-    {
+    public async Task CanExecuteTaskAsync_NonExistent_ShouldReturnFalse() {
         (await _runtime.CanExecuteTaskAsync("missing")).Should().BeFalse();
     }
 
     [Fact]
-    public async Task CanExecuteTaskAsync_NonPendingOrReady_ShouldReturnFalse()
-    {
+    public async Task CanExecuteTaskAsync_NonPendingOrReady_ShouldReturnFalse() {
         var task = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "x" });
         await _runtime.UpdateTaskAsync(task.Data!.Id, new RuntimeTaskUpdate { Status = TaskExecutionStatus.Running });
 
@@ -182,8 +162,7 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task DequeueReadyTasksAsync_ShouldReturnReadyTasks()
-    {
+    public async Task DequeueReadyTasksAsync_ShouldReturnReadyTasks() {
         var a = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "a" });
         var b = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "b", Dependencies = new List<string> { a.Data!.Id } });
         var lightweight = await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "lw", IsLightweight = true });
@@ -198,8 +177,7 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task Clear_ShouldRemoveAllTasks()
-    {
+    public async Task Clear_ShouldRemoveAllTasks() {
         await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "x" });
         _runtime.Clear();
 
@@ -208,36 +186,31 @@ public class TaskRuntimeTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteRemoteAgentTaskAsync_WithoutExecutor_ShouldThrow()
-    {
+    public async Task ExecuteRemoteAgentTaskAsync_WithoutExecutor_ShouldThrow() {
         var act = () => _runtime.ExecuteRemoteAgentTaskAsync(new RemoteAgentTaskDefinition { TaskId = "x", Endpoint = "http://x", TaskDescription = "d" });
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
-    public async Task ExecuteWorkflowTaskAsync_WithoutExecutor_ShouldThrow()
-    {
+    public async Task ExecuteWorkflowTaskAsync_WithoutExecutor_ShouldThrow() {
         var act = () => _runtime.ExecuteWorkflowTaskAsync(new WorkflowDefinition { WorkflowId = "x", Steps = new List<WorkflowStep>() });
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
-    public async Task StartMcpMonitoringAsync_WithoutExecutor_ShouldThrow()
-    {
+    public async Task StartMcpMonitoringAsync_WithoutExecutor_ShouldThrow() {
         var act = () => _runtime.StartMcpMonitoringAsync(new McpMonitorConfig { ServerName = "x" });
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
-    public async Task ExecuteLocalShellTaskAsync_WithoutExecutor_ShouldThrow()
-    {
+    public async Task ExecuteLocalShellTaskAsync_WithoutExecutor_ShouldThrow() {
         var act = () => _runtime.ExecuteLocalShellTaskAsync(new LocalShellTaskDefinition { TaskId = "x", Command = "echo" });
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
-    public async Task ExecuteInProcessTeammateAsync_WithoutExecutor_ShouldThrow()
-    {
+    public async Task ExecuteInProcessTeammateAsync_WithoutExecutor_ShouldThrow() {
         var act = () => _runtime.ExecuteInProcessTeammateAsync(new InProcessTeammateDefinition { TaskId = "x", TeammateId = "t", Task = "task" });
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
@@ -246,33 +219,28 @@ public class TaskRuntimeTests : IDisposable
 /// <summary>
 /// TaskRuntime 持久化恢复的纵深防御测试
 /// </summary>
-public sealed class TaskRuntimeRecoveryTests : IDisposable
-{
+public sealed class TaskRuntimeRecoveryTests : IDisposable {
     private readonly InMemoryFileOperationService _fileOperationService;
     private bool _disposed;
 
-    public TaskRuntimeRecoveryTests()
-    {
+    public TaskRuntimeRecoveryTests() {
         _fileOperationService = new InMemoryFileOperationService();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fileOperationService.DisposeSafe();
     }
 
-    private TaskRuntime CreateRuntime()
-    {
+    private TaskRuntime CreateRuntime() {
         return new TaskRuntime(new TaskRuntimeDeps(
             FileOperationService: _fileOperationService,
             PersistenceDirectory: "/test/runtime-tasks"));
     }
 
     [Fact]
-    public async Task RecoverTasksAsync_CorruptFile_ShouldNotThrow()
-    {
+    public async Task RecoverTasksAsync_CorruptFile_ShouldNotThrow() {
         using var runtime = CreateRuntime();
         _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
         _fileOperationService.FileSystem.WriteAllText("/test/runtime-tasks/runtime-tasks.json", "{not valid json");
@@ -282,8 +250,7 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable
     }
 
     [Fact]
-    public async Task RecoverTasksAsync_CorruptFile_ShouldReturnEmpty()
-    {
+    public async Task RecoverTasksAsync_CorruptFile_ShouldReturnEmpty() {
         using var runtime = CreateRuntime();
         _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
         _fileOperationService.FileSystem.WriteAllText("/test/runtime-tasks/runtime-tasks.json", "{not valid json");
@@ -293,8 +260,7 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable
     }
 
     [Fact]
-    public async Task RecoverTasksAsync_CorruptFile_ShouldQuarantineCorruptFile()
-    {
+    public async Task RecoverTasksAsync_CorruptFile_ShouldQuarantineCorruptFile() {
         using var runtime = CreateRuntime();
         _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
         var originalPath = "/test/runtime-tasks/runtime-tasks.json";
@@ -308,8 +274,7 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable
     }
 
     [Fact]
-    public async Task RecoverTasksAsync_ValidFile_ShouldRestoreTasks()
-    {
+    public async Task RecoverTasksAsync_ValidFile_ShouldRestoreTasks() {
         using var runtime = CreateRuntime();
         var created = await runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "persist", IsDurable = true });
         await runtime.PersistAsync();
@@ -320,8 +285,7 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable
     }
 
     [Fact]
-    public async Task PersistAsync_ShouldUseAtomicWrite_WithTempFileMove()
-    {
+    public async Task PersistAsync_ShouldUseAtomicWrite_WithTempFileMove() {
         using var runtime = CreateRuntime();
         _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
 
@@ -335,8 +299,7 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable
     }
 
     [Fact]
-    public async Task PersistAsync_AtomicWrite_ShouldProduceValidJson()
-    {
+    public async Task PersistAsync_AtomicWrite_ShouldProduceValidJson() {
         using var runtime = CreateRuntime();
         _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
 

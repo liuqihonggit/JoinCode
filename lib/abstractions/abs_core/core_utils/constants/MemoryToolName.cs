@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 内存管理工具名称枚举
 /// </summary>
-public enum MemoryToolName
-{
+public enum MemoryToolName {
     [EnumValue("memory_scan")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     MemoryScan,

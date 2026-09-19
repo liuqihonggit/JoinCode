@@ -1,24 +1,19 @@
 namespace Core.Tests.Plugins;
 
-public sealed class EventDispatcherTests
-{
-    private static Func<T, CancellationToken, Task> Handler<T>(Action<T> action)
-    {
-        return (arg, _) =>
-        {
+public sealed class EventDispatcherTests {
+    private static Func<T, CancellationToken, Task> Handler<T>(Action<T> action) {
+        return (arg, _) => {
             action(arg);
             return Task.CompletedTask;
         };
     }
 
-    private static Func<T, CancellationToken, Task<bool>> BailHandler<T>(Func<T, bool> shouldBail)
-    {
+    private static Func<T, CancellationToken, Task<bool>> BailHandler<T>(Func<T, bool> shouldBail) {
         return (arg, _) => Task.FromResult(shouldBail(arg));
     }
 
     [Fact]
-    public async Task EmitAsync_FireAndForget_DoesNotAwaitOrder()
-    {
+    public async Task EmitAsync_FireAndForget_DoesNotAwaitOrder() {
         var order = new List<int>();
         var handlers = new Func<string, CancellationToken, Task>[]
         {
@@ -31,15 +26,13 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task EmitAsync_EmptyHandlers_Completes()
-    {
+    public async Task EmitAsync_EmptyHandlers_Completes() {
         var handlers = Array.Empty<Func<string, CancellationToken, Task>>();
         await EventDispatcher.EmitAsync(handlers, "x", default);
     }
 
     [Fact]
-    public async Task ParallelAsync_AllHandlersComplete()
-    {
+    public async Task ParallelAsync_AllHandlersComplete() {
         var results = new ConcurrentBag<int>();
         var handlers = new Func<string, CancellationToken, Task>[]
         {
@@ -52,8 +45,7 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task SerialAsync_ExecutedInOrder()
-    {
+    public async Task SerialAsync_ExecutedInOrder() {
         var order = new List<int>();
         var handlers = new Func<string, CancellationToken, Task>[]
         {
@@ -66,8 +58,7 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task BailAsync_FirstBailStops()
-    {
+    public async Task BailAsync_FirstBailStops() {
         var called = new List<int>();
         var handlers = new Func<string, CancellationToken, Task<bool>>[]
         {
@@ -81,8 +72,7 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task BailAsync_NoBail_ReturnsFalse()
-    {
+    public async Task BailAsync_NoBail_ReturnsFalse() {
         var handlers = new Func<string, CancellationToken, Task<bool>>[]
         {
             BailHandler<string>(_ => false),
@@ -93,16 +83,14 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task BailAsync_EmptyHandlers_ReturnsFalse()
-    {
+    public async Task BailAsync_EmptyHandlers_ReturnsFalse() {
         var handlers = Array.Empty<Func<string, CancellationToken, Task<bool>>>();
         var bailed = await EventDispatcher.BailAsync(handlers, "x", default);
         Assert.False(bailed);
     }
 
     [Fact]
-    public async Task WaterfallAsync_ChainsNextCalls()
-    {
+    public async Task WaterfallAsync_ChainsNextCalls() {
         var calls = new List<int>();
         var handlers = new Func<int, Func<CancellationToken, Task<int>>, CancellationToken, Task<int>>[]
         {
@@ -116,8 +104,7 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task WaterfallAsync_SkipNext_ShortCircuits()
-    {
+    public async Task WaterfallAsync_SkipNext_ShortCircuits() {
         var calls = new List<int>();
         var handlers = new Func<int, Func<CancellationToken, Task<int>>, CancellationToken, Task<int>>[]
         {
@@ -130,16 +117,14 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task WaterfallAsync_EmptyHandlers_ReturnsInitial()
-    {
+    public async Task WaterfallAsync_EmptyHandlers_ReturnsInitial() {
         var handlers = Array.Empty<Func<int, Func<CancellationToken, Task<int>>, CancellationToken, Task<int>>>();
         var result = await EventDispatcher.WaterfallAsync(handlers, 42, default);
         Assert.Equal(42, result);
     }
 
     [Fact]
-    public async Task WaterfallAsync_LastHandlerNextReturnsInitial()
-    {
+    public async Task WaterfallAsync_LastHandlerNextReturnsInitial() {
         var handlers = new Func<int, Func<CancellationToken, Task<int>>, CancellationToken, Task<int>>[]
         {
             (arg, next, _) => next(default),
@@ -149,8 +134,7 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task WaterfallAsync_TransformsValueThroughChain()
-    {
+    public async Task WaterfallAsync_TransformsValueThroughChain() {
         var handlers = new Func<int, Func<CancellationToken, Task<int>>, CancellationToken, Task<int>>[]
         {
             async (arg, next, _) => { var n = await next(default); return n + 100; },
@@ -162,8 +146,7 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchAsync_EmitMode_Works()
-    {
+    public async Task DispatchAsync_EmitMode_Works() {
         var called = false;
         var handlers = new[] { Handler<string>(_ => called = true) };
         await EventDispatcher.DispatchAsync(EventDispatchMode.Emit, handlers, "x", default);
@@ -171,8 +154,7 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchAsync_ParallelMode_Works()
-    {
+    public async Task DispatchAsync_ParallelMode_Works() {
         var count = 0;
         var handlers = new[]
         {
@@ -184,8 +166,7 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchAsync_SerialMode_Works()
-    {
+    public async Task DispatchAsync_SerialMode_Works() {
         var order = new List<int>();
         var handlers = new[]
         {
@@ -197,8 +178,7 @@ public sealed class EventDispatcherTests
     }
 
     [Fact]
-    public async Task DispatchAsync_BailMode_Throws()
-    {
+    public async Task DispatchAsync_BailMode_Throws() {
         var handlers = Array.Empty<Func<string, CancellationToken, Task>>();
         var ex = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
             () => EventDispatcher.DispatchAsync(EventDispatchMode.Bail, handlers, "x", default));

@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// ObjectId = ObjectType + 领域ID，跨域引用'一引用即定位'
 /// None = 0 是 ObjectId.Empty 的类型标记，保证 default(ObjectId) == ObjectId.Empty
 /// </summary>
-public enum ObjectType
-{
+public enum ObjectType {
     [EnumValue("none")] None = 0,
     [EnumValue("agent")] Agent = 1,
     [EnumValue("session")] Session = 2,

@@ -3,8 +3,7 @@ namespace Core.Configuration;
 /// <summary>
 /// 自定义命令定义 — 用户通过 markdown 文件定义的斜杠命令
 /// </summary>
-public sealed record CustomCommand
-{
+public sealed record CustomCommand {
     /// <summary>命令名称</summary>
     public required string Name { get; init; }
     /// <summary>命令正文模板(可含 $ARGUMENTS 占位符)</summary>
@@ -28,8 +27,7 @@ public sealed record CustomCommand
     /// </summary>
     /// <param name="arguments">要替换的参数文本</param>
     /// <returns>替换后的命令正文</returns>
-    public string ApplyArguments(string arguments)
-    {
+    public string ApplyArguments(string arguments) {
         return Content.Replace("$ARGUMENTS", arguments, StringComparison.Ordinal);
     }
 }

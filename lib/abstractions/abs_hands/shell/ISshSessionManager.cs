@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface ISshSessionManager : IAsyncDisposable
-{
+public interface ISshSessionManager : IAsyncDisposable {
     Task<ISshSession> CreateSessionAsync(
         SshSessionConfig config,
         CancellationToken ct = default);
@@ -18,8 +17,7 @@ public interface ISshSessionManager : IAsyncDisposable
     event EventHandler<SshSessionStateChangedEventArgs>? SessionStateChanged;
 }
 
-public interface ISshSession : IAsyncDisposable
-{
+public interface ISshSession : IAsyncDisposable {
     string SessionId { get; }
 
     SshSessionConfig Config { get; }
@@ -55,8 +53,7 @@ public interface ISshSession : IAsyncDisposable
     event EventHandler<SshConnectionStateChangedEventArgs>? ConnectionStateChanged;
 }
 
-public interface ISshForwardedPort : IAsyncDisposable
-{
+public interface ISshForwardedPort : IAsyncDisposable {
     string ForwardId { get; }
 
     SshForwardType ForwardType { get; }

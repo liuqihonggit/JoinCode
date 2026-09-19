@@ -4,8 +4,7 @@ namespace MockServer.E2E.Tests.Scripts;
 /// 聊天命令 E2E 测试脚本 — Phase 2: Auth/Agent/Task/Tools/Bridge 类命令
 /// 拆分自 ChatCommandConversationScripts.cs 以满足 JCC8001 2000 行限制
 /// </summary>
-public static partial class ChatCommandConversationScripts
-{
+public static partial class ChatCommandConversationScripts {
     // ============================================================
     // 阶段 2a: Auth 类命令 E2E — 2026-06-28 新增
     // ============================================================
@@ -14,8 +13,7 @@ public static partial class ChatCommandConversationScripts
     /// /login 命令 — 登录
     /// 无参数默认走 API Key 流程,ReadPassword 返回 null 后输出 "API Key 不能为空"
     /// </summary>
-    public static ConversationScript LoginCommand => new()
-    {
+    public static ConversationScript LoginCommand => new() {
         Name = "/login 命令",
         Turns =
         [
@@ -40,8 +38,7 @@ public static partial class ChatCommandConversationScripts
     /// /logout 命令 — 登出
     /// 非交互模式 Confirmation 返回 false,不执行破坏性操作
     /// </summary>
-    public static ConversationScript LogoutCommand => new()
-    {
+    public static ConversationScript LogoutCommand => new() {
         Name = "/logout 命令",
         Turns =
         [
@@ -65,8 +62,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /trust 命令 — 信任目录管理
     /// </summary>
-    public static ConversationScript TrustCommand => new()
-    {
+    public static ConversationScript TrustCommand => new() {
         Name = "/trust 命令",
         Turns =
         [
@@ -91,8 +87,7 @@ public static partial class ChatCommandConversationScripts
     /// /oauth-refresh 命令 — 刷新 OAuth Token
     /// 无 Token 时输出 "无已存储的 OAuth Token" 或服务不可用提示
     /// </summary>
-    public static ConversationScript OauthRefreshCommand => new()
-    {
+    public static ConversationScript OauthRefreshCommand => new() {
         Name = "/oauth-refresh 命令",
         Turns =
         [
@@ -116,8 +111,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /privacy-settings 命令 — 隐私设置
     /// </summary>
-    public static ConversationScript PrivacySettingsCommand => new()
-    {
+    public static ConversationScript PrivacySettingsCommand => new() {
         Name = "/privacy-settings 命令",
         Turns =
         [
@@ -146,8 +140,7 @@ public static partial class ChatCommandConversationScripts
     /// /plan 命令 — 计划模式
     /// 注意: 不加 NoErrors 断言,因为进入/退出计划模式失败时输出 "未知错误" 含 "错误" 二字
     /// </summary>
-    public static ConversationScript PlanCommand => new()
-    {
+    public static ConversationScript PlanCommand => new() {
         Name = "/plan 命令",
         Turns =
         [
@@ -172,8 +165,7 @@ public static partial class ChatCommandConversationScripts
     /// 无参数显示帮助 "=== 超级计划模式 ==="
     /// 注意: 不加 NoErrors 断言,因为示例文本 "/ultraplan 修复所有编译错误 --execute" 含 "错误" 二字会误判
     /// </summary>
-    public static ConversationScript UltraplanCommand => new()
-    {
+    public static ConversationScript UltraplanCommand => new() {
         Name = "/ultraplan 命令",
         Turns =
         [
@@ -196,8 +188,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /memory 命令 — 记忆文件管理
     /// </summary>
-    public static ConversationScript MemoryCommand => new()
-    {
+    public static ConversationScript MemoryCommand => new() {
         Name = "/memory 命令",
         Turns =
         [
@@ -221,8 +212,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /agents 命令 — 代理列表
     /// </summary>
-    public static ConversationScript AgentsCommand => new()
-    {
+    public static ConversationScript AgentsCommand => new() {
         Name = "/agents 命令",
         Turns =
         [
@@ -247,8 +237,7 @@ public static partial class ChatCommandConversationScripts
     /// /advisor 命令 — 顾问模式
     /// 服务未注册时无输出,仅断言 NoErrors
     /// </summary>
-    public static ConversationScript AdvisorCommand => new()
-    {
+    public static ConversationScript AdvisorCommand => new() {
         Name = "/advisor 命令",
         Turns =
         [
@@ -272,8 +261,7 @@ public static partial class ChatCommandConversationScripts
     /// /buddy 命令 — 伙伴宠物
     /// 服务未注册时无输出,仅断言 NoErrors
     /// </summary>
-    public static ConversationScript BuddyCommand => new()
-    {
+    public static ConversationScript BuddyCommand => new() {
         Name = "/buddy 命令",
         Turns =
         [
@@ -297,8 +285,7 @@ public static partial class ChatCommandConversationScripts
     /// /assistant 命令 — 长期助手模式
     /// 服务未注册时无输出,仅断言 NoErrors
     /// </summary>
-    public static ConversationScript AssistantCommand => new()
-    {
+    public static ConversationScript AssistantCommand => new() {
         Name = "/assistant 命令",
         Turns =
         [
@@ -326,8 +313,7 @@ public static partial class ChatCommandConversationScripts
     /// /goal 命令 — 目标引擎
     /// 注意: 不加 NoErrors,因为 GoalEngine 未注册时输出 "错误: 目标引擎未注册" 含 "错误" 二字
     /// </summary>
-    public static ConversationScript GoalCommand => new()
-    {
+    public static ConversationScript GoalCommand => new() {
         Name = "/goal 命令",
         Turns =
         [
@@ -351,8 +337,7 @@ public static partial class ChatCommandConversationScripts
     /// /proactive 命令 — 主动执行模式
     /// 服务未注册时无输出,仅断言 NoErrors
     /// </summary>
-    public static ConversationScript ProactiveCommand => new()
-    {
+    public static ConversationScript ProactiveCommand => new() {
         Name = "/proactive 命令",
         Turns =
         [
@@ -379,8 +364,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /mcp 命令 — MCP 服务器列表
     /// </summary>
-    public static ConversationScript McpCommand => new()
-    {
+    public static ConversationScript McpCommand => new() {
         Name = "/mcp 命令",
         Turns =
         [
@@ -404,8 +388,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /hooks 命令 — Hook 配置列表
     /// </summary>
-    public static ConversationScript HooksCommand => new()
-    {
+    public static ConversationScript HooksCommand => new() {
         Name = "/hooks 命令",
         Turns =
         [
@@ -429,8 +412,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /skills 命令 — 自定义技能列表
     /// </summary>
-    public static ConversationScript SkillsCommand => new()
-    {
+    public static ConversationScript SkillsCommand => new() {
         Name = "/skills 命令",
         Turns =
         [
@@ -454,8 +436,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /plugin 命令 — 插件列表
     /// </summary>
-    public static ConversationScript PluginCommand => new()
-    {
+    public static ConversationScript PluginCommand => new() {
         Name = "/plugin 命令",
         Turns =
         [
@@ -480,8 +461,7 @@ public static partial class ChatCommandConversationScripts
     /// /install 命令 — 安装引导
     /// 无参数显示 StepFlow 引导步骤 "选择安装类型"
     /// </summary>
-    public static ConversationScript InstallCommand => new()
-    {
+    public static ConversationScript InstallCommand => new() {
         Name = "/install 命令",
         Turns =
         [
@@ -509,8 +489,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /bridge 命令 — Bridge 状态
     /// </summary>
-    public static ConversationScript BridgeCommand => new()
-    {
+    public static ConversationScript BridgeCommand => new() {
         Name = "/bridge 命令",
         Turns =
         [
@@ -535,8 +514,7 @@ public static partial class ChatCommandConversationScripts
     /// /bridge-kick 命令 — 断开 Bridge 会话
     /// 无参数显示用法 "用法: /bridge-kick <session-id>"
     /// </summary>
-    public static ConversationScript BridgeKickCommand => new()
-    {
+    public static ConversationScript BridgeKickCommand => new() {
         Name = "/bridge-kick 命令",
         Turns =
         [

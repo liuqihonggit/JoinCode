@@ -5,13 +5,11 @@ namespace Core.Planning;
 /// 消费者：PlanService
 /// </summary>
 [PromptTemplate(Name = "plan_execution", Category = PromptTemplateCategory.Plan, Description = "计划执行系统提示词模板", HasParameters = true)]
-public static class PlanPrompts
-{
+public static class PlanPrompts {
     /// <summary>
     /// 动态构建计划执行系统提示词
     /// </summary>
-    public static string BuildPlanExecutionSystemPrompt(IReadOnlyDictionary<string, List<ToolCategoryEntry>> visibleToolCategories)
-    {
+    public static string BuildPlanExecutionSystemPrompt(IReadOnlyDictionary<string, List<ToolCategoryEntry>> visibleToolCategories) {
         var sb = new StringBuilder(2048);
 
         sb.AppendLine("您是一位专业的 AI 规划助手。您的任务是：");
@@ -28,12 +26,10 @@ public static class PlanPrompts
         sb.AppendLine();
         sb.AppendLine("可用工具：");
 
-        foreach (var category in visibleToolCategories.OrderBy(t => t.Key))
-        {
+        foreach (var category in visibleToolCategories.OrderBy(t => t.Key)) {
             sb.AppendLine();
             sb.AppendLine($"【{GetCategoryDisplayName(category.Key)}】");
-            foreach (var tool in category.Value.OrderBy(t => t.Name))
-            {
+            foreach (var tool in category.Value.OrderBy(t => t.Name)) {
                 sb.AppendLine($"- {category.Key}.{tool.Name}: {tool.Description}");
             }
         }
@@ -41,10 +37,8 @@ public static class PlanPrompts
         return sb.ToString();
     }
 
-    private static string GetCategoryDisplayName(string category)
-    {
-        return category switch
-        {
+    private static string GetCategoryDisplayName(string category) {
+        return category switch {
             "code_generation" => "代码生成",
             "code_analysis" => "代码分析",
             "code_execution" => "代码执行",

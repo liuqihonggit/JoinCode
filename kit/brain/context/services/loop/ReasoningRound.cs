@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 推理轮次记录 — 持久化每轮推理的完整上下文(文本/指纹/熵值/工具调用/计时/循环检测)
 /// </summary>
-public sealed record ReasoningRound
-{
+public sealed record ReasoningRound {
     /// <summary>轮次号(从 1 开始)</summary>
     public required int Turn { get; init; }
 
@@ -43,8 +42,7 @@ public sealed record ReasoningRound
 /// 推理轮次记录器 — 用无锁 RingBuffer 存储最近 N 轮记录,支持快照查询
 /// </summary>
 [Register(typeof(ReasoningRoundRecorder), ServiceLifetime.Singleton)]
-public sealed class ReasoningRoundRecorder
-{
+public sealed class ReasoningRoundRecorder {
     private readonly RingBuffer<ReasoningRound> _rounds;
     private readonly TimeProvider _timeProvider;
     private int _currentTurn;
@@ -55,8 +53,7 @@ public sealed class ReasoningRoundRecorder
     /// </summary>
     /// <param name="capacity">最多保留的轮次记录数(超出覆盖最旧)</param>
     /// <param name="timeProvider">时间提供者(测试可注入)</param>
-    public ReasoningRoundRecorder(int capacity = 50, TimeProvider? timeProvider = null)
-    {
+    public ReasoningRoundRecorder(int capacity = 50, TimeProvider? timeProvider = null) {
         ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
         _rounds = new RingBuffer<ReasoningRound>(RingBuffer<ReasoningRound>.RoundUpToPowerOfTwo(capacity));
         _timeProvider = timeProvider ?? TimeProvider.System;
@@ -65,8 +62,7 @@ public sealed class ReasoningRoundRecorder
     /// <summary>
     /// 开始一轮推理记录
     /// </summary>
-    public void StartRound()
-    {
+    public void StartRound() {
         _currentTurn++;
         _currentStart = _timeProvider.GetUtcNow();
     }
@@ -81,11 +77,9 @@ public sealed class ReasoningRoundRecorder
         double? shannonEntropy = null,
         IReadOnlyList<string>? toolCalls = null,
         bool isLoopDetected = false,
-        string? loopReason = null)
-    {
+        string? loopReason = null) {
         var now = _timeProvider.GetUtcNow();
-        var round = new ReasoningRound
-        {
+        var round = new ReasoningRound {
             Turn = _currentTurn,
             StartTime = _currentStart,
             EndTime = now,
@@ -124,8 +118,7 @@ public sealed class ReasoningRoundRecorder
     /// <summary>
     /// 重置记录器
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         _rounds.Clear();
         _currentTurn = 0;
         _currentStart = default;

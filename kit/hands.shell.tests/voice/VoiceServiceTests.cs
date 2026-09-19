@@ -1,30 +1,25 @@
 namespace Core.Tests.Services.Voice;
 
-public sealed class VoiceServiceTests : IDisposable
-{
+public sealed class VoiceServiceTests : IDisposable {
     private readonly VoiceService _service;
     private readonly VoiceOptions _options;
     private bool _disposed;
 
-    public VoiceServiceTests()
-    {
-        _options = new VoiceOptions
-        {
+    public VoiceServiceTests() {
+        _options = new VoiceOptions {
             Backend = SttBackend.WhisperApi,
             WhisperApiKey = TestConfiguration.GetRealApiKey()
         };
         var mockInner = new Infrastructure.Http.MockHttpClientProvider();
         mockInner.SetupDefaultResponse(System.Net.HttpStatusCode.OK, """{"text":"mock transcription"}""");
-        var mockProvider = new Infrastructure.Http.ResilientHttpClientProvider(mockInner, policy: new Infrastructure.Utils.Resilience.ResiliencePolicy
-        {
+        var mockProvider = new Infrastructure.Http.ResilientHttpClientProvider(mockInner, policy: new Infrastructure.Utils.Resilience.ResiliencePolicy {
             Name = "voice-test",
             Retry = new Infrastructure.Utils.Resilience.RetryConfig { MaxRetries = 0 },
         });
         _service = new VoiceService(_options, new IO.FileSystem.PhysicalFileSystem(), mockProvider);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
 
@@ -32,32 +27,26 @@ public sealed class VoiceServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task StartRecordingAsync_WhenIdle_ChangesStateToRecording()
-    {
+    public async Task StartRecordingAsync_WhenIdle_ChangesStateToRecording() {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var ct = cts.Token;
 
         _service.State.Should().Be(VoiceRecordingState.Idle);
 
-        try
-        {
+        try {
             await _service.StartRecordingAsync(ct).ConfigureAwait(true);
 
             _service.State.Should().Be(VoiceRecordingState.Recording);
             _service.IsRecording.Should().BeTrue();
-        }
-        finally
-        {
-            if (_service.IsRecording)
-            {
+        } finally {
+            if (_service.IsRecording) {
                 await _service.StopRecordingAsync(ct).ConfigureAwait(true);
             }
         }
     }
 
     [Fact]
-    public async Task StopRecordingAsync_WhenRecording_ReturnsTranscribedText()
-    {
+    public async Task StopRecordingAsync_WhenRecording_ReturnsTranscribedText() {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var ct = cts.Token;
 
@@ -70,8 +59,7 @@ public sealed class VoiceServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task StopRecordingAsync_WhenIdle_ReturnsFailure()
-    {
+    public async Task StopRecordingAsync_WhenIdle_ReturnsFailure() {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var ct = cts.Token;
 
@@ -82,56 +70,45 @@ public sealed class VoiceServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task StartRecordingAsync_WhenAlreadyRecording_DoesNotChangeState()
-    {
+    public async Task StartRecordingAsync_WhenAlreadyRecording_DoesNotChangeState() {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var ct = cts.Token;
 
-        try
-        {
+        try {
             await _service.StartRecordingAsync(ct).ConfigureAwait(true);
             var stateBefore = _service.State;
 
             await _service.StartRecordingAsync(ct).ConfigureAwait(true);
 
             _service.State.Should().Be(stateBefore);
-        }
-        finally
-        {
-            if (_service.IsRecording)
-            {
+        } finally {
+            if (_service.IsRecording) {
                 await _service.StopRecordingAsync(ct).ConfigureAwait(true);
             }
         }
     }
 
     [Fact]
-    public async Task StateChanged_EventRaisedOnStateChange()
-    {
+    public async Task StateChanged_EventRaisedOnStateChange() {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var ct = cts.Token;
 
         var stateChanges = new List<VoiceRecordingState>();
         _service.StateChanged += (_, state) => stateChanges.Add(state);
 
-        try
-        {
+        try {
             await _service.StartRecordingAsync(ct).ConfigureAwait(true);
 
             stateChanges.Should().Contain(VoiceRecordingState.Recording);
-        }
-        finally
-        {
-            if (_service.IsRecording)
-            {
+        } finally {
+            if (_service.IsRecording) {
                 await _service.StopRecordingAsync(ct).ConfigureAwait(true);
             }
         }
     }
 
     [Fact]
-    public async Task TranscribeFileAsync_WithNonExistentFile_ThrowsFileNotFoundException()
-    {
+    public async Task TranscribeFileAsync_WithNonExistentFile_ThrowsFileNotFoundException() {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var act = () => _service.TranscribeFileAsync("/nonexistent/file.wav", ct: cts.Token);
 
@@ -139,8 +116,7 @@ public sealed class VoiceServiceTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_WithNullOptions_ThrowsArgumentNullException()
-    {
+    public void Constructor_WithNullOptions_ThrowsArgumentNullException() {
         var mockProvider = new Infrastructure.Http.ResilientHttpClientProvider(new Infrastructure.Http.MockHttpClientProvider());
         var act = () => new VoiceService(null!, new IO.FileSystem.PhysicalFileSystem(), mockProvider);
 

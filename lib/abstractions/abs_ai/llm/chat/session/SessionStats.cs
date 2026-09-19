@@ -1,8 +1,7 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
 [Register(typeof(ISessionStats), ServiceLifetime.Singleton)]
-public sealed partial class SessionStats : ServiceEntity, ISessionStats
-{
+public sealed partial class SessionStats : ServiceEntity, ISessionStats {
     public long CarryoverCacheHitTokens { get; private set; }
     public long CarryoverCacheMissTokens { get; private set; }
     public long TotalPromptTokens { get; private set; }
@@ -22,10 +21,8 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats
     private decimal _carryoverCostUsd;
     private decimal _turnsCostUsd;
 
-    public double AggregateCacheHitRatio
-    {
-        get
-        {
+    public double AggregateCacheHitRatio {
+        get {
             var hit = CarryoverCacheHitTokens + TotalCacheHitTokens;
             var miss = CarryoverCacheMissTokens + TotalCacheMissTokens;
             var total = hit + miss;
@@ -33,15 +30,13 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats
         }
     }
 
-    public void SeedCarryover(long cacheHitTokens, long cacheMissTokens, decimal totalCostUsd = 0)
-    {
+    public void SeedCarryover(long cacheHitTokens, long cacheMissTokens, decimal totalCostUsd = 0) {
         CarryoverCacheHitTokens = cacheHitTokens;
         CarryoverCacheMissTokens = cacheMissTokens;
         _carryoverCostUsd = totalCostUsd;
     }
 
-    public void RecordTurn(TokenUsage usage, decimal costUsd = 0, CacheBreakResult? cacheBreak = null)
-    {
+    public void RecordTurn(TokenUsage usage, decimal costUsd = 0, CacheBreakResult? cacheBreak = null) {
         ArgumentNullException.ThrowIfNull(usage);
 
         TotalPromptTokens += usage.PromptTokens;
@@ -51,40 +46,37 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats
         _turnsCostUsd += costUsd;
         TurnCount++;
 
-        if (cacheBreak is not null && cacheBreak.BreakDetected)
-        {
-            switch (cacheBreak.Kind)
-            {
+        if (cacheBreak is not null && cacheBreak.BreakDetected) {
+            switch (cacheBreak.Kind) {
                 case CacheBreakKind.SystemPromptChanged:
-                    SystemPromptCacheBreaks++;
-                    break;
+                SystemPromptCacheBreaks++;
+                break;
                 case CacheBreakKind.ToolSpecsChanged:
-                    ToolSpecsCacheBreaks++;
-                    break;
+                ToolSpecsCacheBreaks++;
+                break;
                 case CacheBreakKind.DynamicContentChanged:
-                    DynamicContentCacheBreaks++;
-                    break;
+                DynamicContentCacheBreaks++;
+                break;
                 case CacheBreakKind.CacheEviction:
-                    CacheEvictionBreaks++;
-                    break;
+                CacheEvictionBreaks++;
+                break;
                 case CacheBreakKind.CompactionEntered:
-                    CompactionEnteredBreaks++;
-                    break;
+                CompactionEnteredBreaks++;
+                break;
                 case CacheBreakKind.TtlExpiration5Min:
-                    TtlExpiration5MinBreaks++;
-                    break;
+                TtlExpiration5MinBreaks++;
+                break;
                 case CacheBreakKind.TtlExpiration1Hour:
-                    TtlExpiration1HourBreaks++;
-                    break;
+                TtlExpiration1HourBreaks++;
+                break;
                 case CacheBreakKind.ServerSideRouting:
-                    ServerSideRoutingBreaks++;
-                    break;
+                ServerSideRoutingBreaks++;
+                break;
             }
         }
     }
 
-    public void Reset()
-    {
+    public void Reset() {
         CarryoverCacheHitTokens = 0;
         CarryoverCacheMissTokens = 0;
         TotalPromptTokens = 0;
@@ -104,10 +96,8 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats
         ServerSideRoutingBreaks = 0;
     }
 
-    public SessionMeta ToMeta(long updatedAtUtcTicks = 0)
-    {
-        return new SessionMeta
-        {
+    public SessionMeta ToMeta(long updatedAtUtcTicks = 0) {
+        return new SessionMeta {
             CacheHitTokens = CarryoverCacheHitTokens + TotalCacheHitTokens,
             CacheMissTokens = CarryoverCacheMissTokens + TotalCacheMissTokens,
             LastPromptTokens = TurnCount > 0 ? (int)(TotalPromptTokens / TurnCount) : 0,

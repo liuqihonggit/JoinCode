@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.LLM.Chat;
 /// <summary>
 /// 图片降采样服务接口 — 对齐 TS maybeResizeAndDownsampleImageBuffer
 /// </summary>
-public interface IImageResizeService
-{
+public interface IImageResizeService {
     /// <summary>
     /// 对图片进行降采样/压缩 — 对齐 TS maybeResizeAndDownsampleImageBuffer
     /// </summary>
@@ -18,8 +17,7 @@ public interface IImageResizeService
 /// <summary>
 /// 图片降采样结果 — 对齐 TS ResizeResult
 /// </summary>
-public sealed class McpImageResizeResult
-{
+public sealed class McpImageResizeResult {
     /// <summary>处理后的图片字节数据</summary>
     public required byte[] Buffer { get; init; }
 

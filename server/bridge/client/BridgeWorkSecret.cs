@@ -7,8 +7,7 @@ namespace Core.Bridge;
 /// CCR 工作密钥 — 对齐 TS 端 WorkSecret
 /// base64url 解码后的 JSON 结构，包含会话入口令牌和 API 基础 URL
 /// </summary>
-public sealed class BridgeWorkSecret
-{
+public sealed class BridgeWorkSecret {
     /// <summary>工作密钥版本</summary>
     [JsonPropertyName("version")]
     public int Version { get; init; }
@@ -47,8 +46,7 @@ public sealed class BridgeWorkSecret
 }
 
 /// <summary>工作密钥来源</summary>
-public sealed class BridgeWorkSecretSource
-{
+public sealed class BridgeWorkSecretSource {
     /// <summary>来源类型</summary>
     [JsonPropertyName("type")]
     public string? Type { get; init; }
@@ -59,8 +57,7 @@ public sealed class BridgeWorkSecretSource
 }
 
 /// <summary>Git 信息</summary>
-public sealed class BridgeWorkSecretGitInfo
-{
+public sealed class BridgeWorkSecretGitInfo {
     /// <summary>Git 类型</summary>
     [JsonPropertyName("type")]
     public string? Type { get; init; }
@@ -79,8 +76,7 @@ public sealed class BridgeWorkSecretGitInfo
 }
 
 /// <summary>工作密钥认证信息</summary>
-public sealed class BridgeWorkSecretAuth
-{
+public sealed class BridgeWorkSecretAuth {
     /// <summary>认证类型</summary>
     [JsonPropertyName("type")]
     public string? Type { get; init; }
@@ -93,8 +89,7 @@ public sealed class BridgeWorkSecretAuth
 /// <summary>
 /// Worker 注册响应 — 对齐 TS 端 registerWorker 返回值
 /// </summary>
-public sealed class BridgeWorkerRegisterResponse
-{
+public sealed class BridgeWorkerRegisterResponse {
     /// <summary>Worker epoch（protojson 序列化的 int64，可能是字符串或数字）</summary>
     [JsonPropertyName("worker_epoch")]
     public JsonElement WorkerEpoch { get; init; }
@@ -105,15 +100,13 @@ public sealed class BridgeWorkerRegisterResponse
 /// <summary>
 /// WorkSecret 解码 + URL 构建 — 对齐 TS 端 workSecret.ts
 /// </summary>
-public static class BridgeWorkSecretDecoder
-{
+public static class BridgeWorkSecretDecoder {
     /// <summary>
     /// 解码 base64url 编码的工作密钥 — 对齐 TS 端 decodeWorkSecret
     /// </summary>
     /// <param name="secret">base64url 编码的工作密钥字符串</param>
     /// <returns>解码后的 BridgeWorkSecret 实例</returns>
-    public static BridgeWorkSecret DecodeWorkSecret(string secret)
-    {
+    public static BridgeWorkSecret DecodeWorkSecret(string secret) {
         ArgumentNullException.ThrowIfNull(secret);
 
         // base64url → base64
@@ -123,8 +116,7 @@ public static class BridgeWorkSecretDecoder
 
         // 补齐 padding
         var padding = base64.Length % 4;
-        if (padding > 0)
-        {
+        if (padding > 0) {
             base64 += new string('=', 4 - padding);
         }
 
@@ -133,23 +125,19 @@ public static class BridgeWorkSecretDecoder
 
         var parsed = JsonSerializer.Deserialize<BridgeWorkSecret>(json, BridgeJsonContext.Default.BridgeWorkSecret);
 
-        if (parsed is null)
-        {
+        if (parsed is null) {
             throw new InvalidOperationException("Invalid work secret: failed to parse JSON");
         }
 
-        if (parsed.Version != 1)
-        {
+        if (parsed.Version != 1) {
             throw new InvalidOperationException($"Unsupported work secret version: {parsed.Version}");
         }
 
-        if (string.IsNullOrEmpty(parsed.SessionIngressToken))
-        {
+        if (string.IsNullOrEmpty(parsed.SessionIngressToken)) {
             throw new InvalidOperationException("Invalid work secret: missing or empty session_ingress_token");
         }
 
-        if (string.IsNullOrEmpty(parsed.ApiBaseUrl))
-        {
+        if (string.IsNullOrEmpty(parsed.ApiBaseUrl)) {
             throw new InvalidOperationException("Invalid work secret: missing api_base_url");
         }
 
@@ -163,8 +151,7 @@ public static class BridgeWorkSecretDecoder
     /// <param name="apiBaseUrl">API 基础 URL</param>
     /// <param name="sessionId">会话 ID</param>
     /// <returns>WebSocket SDK URL</returns>
-    public static string BuildSdkUrl(string apiBaseUrl, string sessionId)
-    {
+    public static string BuildSdkUrl(string apiBaseUrl, string sessionId) {
         var isLocalhost = apiBaseUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase)
                        || apiBaseUrl.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase);
         var protocol = isLocalhost ? "ws" : "wss";
@@ -172,12 +159,9 @@ public static class BridgeWorkSecretDecoder
 
         // 去除协议前缀和尾部斜杠
         var host = apiBaseUrl.AsSpan();
-        if (host.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
+        if (host.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
             host = host.Slice(8);
-        }
-        else if (host.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-        {
+        } else if (host.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) {
             host = host.Slice(7);
         }
 
@@ -193,8 +177,7 @@ public static class BridgeWorkSecretDecoder
     /// <param name="apiBaseUrl">API 基础 URL</param>
     /// <param name="sessionId">会话 ID</param>
     /// <returns>CCR v2 会话 HTTP(S) URL</returns>
-    public static string BuildCCRv2SdkUrl(string apiBaseUrl, string sessionId)
-    {
+    public static string BuildCCRv2SdkUrl(string apiBaseUrl, string sessionId) {
         var baseSpan = apiBaseUrl.AsSpan().TrimEnd('/');
         return $"{baseSpan}/v1/code/sessions/{sessionId}";
     }
@@ -212,12 +195,10 @@ public static class BridgeWorkSecretDecoder
         string sessionUrl,
         string accessToken,
         HttpClient httpClient,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(httpClient);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{sessionUrl}/worker/register")
-        {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{sessionUrl}/worker/register") {
             Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
@@ -229,26 +210,19 @@ public static class BridgeWorkSecretDecoder
         var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         var parsed = JsonSerializer.Deserialize<BridgeWorkerRegisterResponse>(responseBody, BridgeJsonContext.Default.BridgeWorkerRegisterResponse);
 
-        if (parsed is null)
-        {
+        if (parsed is null) {
             throw new InvalidOperationException("registerWorker: invalid response");
         }
 
         // protojson 序列化 int64 为字符串避免 JS 精度丢失
         long epoch;
-        if (parsed.WorkerEpoch.ValueKind == JsonValueKind.String)
-        {
-            if (!long.TryParse(parsed.WorkerEpoch.GetString(), out epoch))
-            {
+        if (parsed.WorkerEpoch.ValueKind == JsonValueKind.String) {
+            if (!long.TryParse(parsed.WorkerEpoch.GetString(), out epoch)) {
                 throw new InvalidOperationException($"registerWorker: invalid worker_epoch string: {parsed.WorkerEpoch}");
             }
-        }
-        else if (parsed.WorkerEpoch.ValueKind == JsonValueKind.Number)
-        {
+        } else if (parsed.WorkerEpoch.ValueKind == JsonValueKind.Number) {
             epoch = parsed.WorkerEpoch.GetInt64();
-        }
-        else
-        {
+        } else {
             throw new InvalidOperationException($"registerWorker: invalid worker_epoch type: {parsed.WorkerEpoch.ValueKind}");
         }
 

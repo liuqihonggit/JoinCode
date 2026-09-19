@@ -16,8 +16,7 @@ internal sealed record MarkAsReadCmd(HashSet<string> MessageIds, TaskCompletionS
 /// <para>crossProcess=true 时，写操作用 FileMailboxLock 跨进程互斥。</para>
 /// <para>crossProcess=false 时，纯进程内 Actor 串行化，零锁零跨进程开销。</para>
 /// </summary>
-internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit>
-{
+internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit> {
     private readonly IFileSystem _fs;
     private readonly string _filePath;
     private readonly bool _crossProcess;
@@ -31,8 +30,7 @@ internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit>
     /// <param name="crossProcess">是否启用跨进程锁</param>
     /// <param name="logger">日志记录器</param>
     public MailboxActor(IFileSystem fs, string filePath, bool crossProcess, ILogger? logger)
-        : base(new ActorBackpressure(100, BoundedChannelFullMode.Wait), null)
-    {
+        : base(new ActorBackpressure(100, BoundedChannelFullMode.Wait), null) {
         _fs = fs;
         _filePath = filePath;
         _crossProcess = crossProcess;
@@ -42,82 +40,65 @@ internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit>
     /// <summary>
     /// 处理邮箱命令 — Consumer 线程独占执行，无需锁
     /// </summary>
-    protected override async ValueTask HandleAsync(MailboxCommand cmd, CancellationToken ct)
-    {
-        switch (cmd)
-        {
+    protected override async ValueTask HandleAsync(MailboxCommand cmd, CancellationToken ct) {
+        switch (cmd) {
             case AppendMessageCmd append:
-                await AppendMessageCoreAsync(append.Message, ct).ConfigureAwait(false);
-                append.Tcs.SetResult(append.Message);
-                break;
+            await AppendMessageCoreAsync(append.Message, ct).ConfigureAwait(false);
+            append.Tcs.SetResult(append.Message);
+            break;
             case MarkAsReadCmd mark:
-                await MarkAsReadCoreAsync(mark.MessageIds, ct).ConfigureAwait(false);
-                mark.Tcs.SetResult();
-                break;
+            await MarkAsReadCoreAsync(mark.MessageIds, ct).ConfigureAwait(false);
+            mark.Tcs.SetResult();
+            break;
         }
     }
 
-    private async ValueTask AppendMessageCoreAsync(MailboxMessage message, CancellationToken ct)
-    {
+    private async ValueTask AppendMessageCoreAsync(MailboxMessage message, CancellationToken ct) {
         var line = JsonSerializer.Serialize(message, MailboxJsonContext.Default.CoordinatorMessage);
-        if (_crossProcess)
-        {
+        if (_crossProcess) {
             await using var fileLock = await FileMailboxLock.AcquireAsync(_filePath, TimeSpan.FromSeconds(30), ct, _logger).ConfigureAwait(false);
             await _fs.AppendAllTextAsync(_filePath, line + '\n', ct).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await _fs.AppendAllTextAsync(_filePath, line + '\n', ct).ConfigureAwait(false);
         }
     }
 
-    private async ValueTask MarkAsReadCoreAsync(HashSet<string> messageIds, CancellationToken ct)
-    {
+    private async ValueTask MarkAsReadCoreAsync(HashSet<string> messageIds, CancellationToken ct) {
         if (!_fs.FileExists(_filePath)) return;
 
         var lines = await _fs.ReadAllLinesAsync(_filePath, ct).ConfigureAwait(false);
         var messages = new List<MailboxMessage>();
         var modified = false;
 
-        foreach (var line in lines)
-        {
+        foreach (var line in lines) {
             if (string.IsNullOrWhiteSpace(line)) continue;
-            try
-            {
+            try {
                 var msg = RelaxedJsonSerializer.Deserialize(line, MailboxJsonContext.Default.CoordinatorMessage);
                 if (msg is null) continue;
-                if (messageIds.Contains(msg.MessageId) && !msg.IsRead)
-                {
+                if (messageIds.Contains(msg.MessageId) && !msg.IsRead) {
                     msg.IsRead = true;
                     modified = true;
                 }
                 messages.Add(msg);
-            }
-            catch (JsonException ex)
-            {
+            } catch (JsonException ex) {
                 _logger?.LogWarning(ex, "MailboxActor: skipping malformed mailbox line");
             }
         }
 
         if (!modified) return;
 
-        if (_crossProcess)
-        {
+        if (_crossProcess) {
             await using var fileLock = await FileMailboxLock.AcquireAsync(_filePath, TimeSpan.FromSeconds(30), ct, _logger).ConfigureAwait(false);
             await RewriteFileCoreAsync(messages, ct).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await RewriteFileCoreAsync(messages, ct).ConfigureAwait(false);
         }
     }
 
-    private async ValueTask RewriteFileCoreAsync(IReadOnlyList<MailboxMessage> messages, CancellationToken ct)
-    {
+    private async ValueTask RewriteFileCoreAsync(IReadOnlyList<MailboxMessage> messages, CancellationToken ct) {
         await using var stream = _fs.CreateStream(_filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         await using var writer = new StreamWriter(stream);
-        for (var i = 0; i < messages.Count; i++)
-        {
+        for (var i = 0; i < messages.Count; i++) {
             var line = JsonSerializer.Serialize(messages[i], MailboxJsonContext.Default.CoordinatorMessage);
             await writer.WriteLineAsync(line.AsMemory(), ct).ConfigureAwait(false);
         }

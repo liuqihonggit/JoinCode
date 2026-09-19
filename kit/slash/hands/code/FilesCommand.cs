@@ -5,26 +5,22 @@ namespace JoinCode.ChatCommands;
 /// /files 命令 — 列出当前上下文中已操作的文件
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Files, Description = "列出当前上下文中的文件", Usage = "/files", Category = ChatCommandCategory.Code, ExposeToMcp = true)]
-public sealed class FilesCommand : ChatCommandBase
-{
+public sealed class FilesCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /files 命令，列出当前上下文中的文件及其操作记录
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var tracker = context.GetCommandServices().FileOperationTracker;
 
-        if (tracker is null)
-        {
+        if (tracker is null) {
             TerminalHelper.WriteLine("上下文中无文件");
             return Task.FromResult(ChatCommandResult.Continue());
         }
 
         var entries = tracker.GetAllEntries();
-        if (!entries.Any())
-        {
+        if (!entries.Any()) {
             TerminalHelper.WriteLine("上下文中无文件");
             return Task.FromResult(ChatCommandResult.Continue());
         }
@@ -35,8 +31,7 @@ public sealed class FilesCommand : ChatCommandBase
         TerminalHelper.WriteLine($"上下文中的文件 ({filePaths.Count()} 个):");
         TerminalHelper.NewLine();
 
-        foreach (var path in filePaths)
-        {
+        foreach (var path in filePaths) {
             var relativePath = DirectoryHelper.GetRelativePath(cwd, path);
             var fileEntries = entries.Where(e =>
                 string.Equals(e.FilePath, path, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -55,8 +50,7 @@ public sealed class FilesCommand : ChatCommandBase
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    private static string FormatTimeAgo(DateTime timestamp)
-    {
+    private static string FormatTimeAgo(DateTime timestamp) {
         var diff = DateTime.UtcNow - timestamp;
         if (diff.TotalMinutes < 1) return "刚刚";
         if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}分钟前";

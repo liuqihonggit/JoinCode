@@ -7,8 +7,7 @@ namespace Structura.Collections;
 /// 兼容覆盖式快照语义:Add 满则丢弃最旧再入队,ToArray/indexer/Slice 只读不消费
 /// </summary>
 /// <typeparam name="T">队列元素类型</typeparam>
-public sealed class RingBuffer<T>
-{
+public sealed class RingBuffer<T> {
     private readonly T[] _buffer;
     private readonly int _capacity;
     private readonly int _mask;
@@ -17,8 +16,7 @@ public sealed class RingBuffer<T>
     private int _cachedProducerTail;
 
 #pragma warning disable 0169
-    private struct PaddedInt
-    {
+    private struct PaddedInt {
         internal int Value;
         private long _p1, _p2, _p3, _p4, _p5, _p6, _p7;
     }
@@ -28,8 +26,7 @@ public sealed class RingBuffer<T>
     /// 初始化队列
     /// </summary>
     /// <param name="capacity">期望容量;物理缓冲向上取整到 2 次幂,实际可用容量 = 物理大小 - 1(留一空位区分空/满)</param>
-    public RingBuffer(int capacity)
-    {
+    public RingBuffer(int capacity) {
         if (capacity <= 0 || (capacity & (capacity - 1)) != 0)
             throw new ArgumentException("容量必须是2的幂", nameof(capacity));
         var actualSize = RoundUpToPowerOfTwo(capacity + 1);
@@ -49,10 +46,8 @@ public sealed class RingBuffer<T>
     /// <summary>
     /// 队列中元素数量(近似值,并发下不保证精确)
     /// </summary>
-    public int Count
-    {
-        get
-        {
+    public int Count {
+        get {
             var head = Volatile.Read(ref _consumerHead.Value);
             var tail = Volatile.Read(ref _producerTail.Value);
             return (tail - head + _capacity) & _mask;
@@ -67,10 +62,8 @@ public sealed class RingBuffer<T>
     /// <summary>
     /// 是否已满
     /// </summary>
-    public bool IsFull
-    {
-        get
-        {
+    public bool IsFull {
+        get {
             var head = Volatile.Read(ref _consumerHead.Value);
             var tail = Volatile.Read(ref _producerTail.Value);
             return ((tail + 1) & _mask) == head;
@@ -84,19 +77,16 @@ public sealed class RingBuffer<T>
     /// <returns>成功入队返回 true;队列已满返回 false</returns>
     /// <exception cref="ArgumentNullException">item 为 null</exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryEnqueue(T item)
-    {
+    public bool TryEnqueue(T item) {
         ArgumentNullException.ThrowIfNull(item);
 
         int currentTail;
         int nextTail;
-        do
-        {
+        do {
             currentTail = Volatile.Read(ref _producerTail.Value);
             nextTail = (currentTail + 1) & _mask;
 
-            if (nextTail == Volatile.Read(ref _consumerHead.Value))
-            {
+            if (nextTail == Volatile.Read(ref _consumerHead.Value)) {
                 _cachedProducerTail = currentTail;
                 if (nextTail == Volatile.Read(ref _consumerHead.Value))
                     return false;
@@ -115,14 +105,12 @@ public sealed class RingBuffer<T>
     /// <param name="item">出队的元素</param>
     /// <returns>成功出队返回 true;队列为空返回 false</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryDequeue(out T item)
-    {
+    public bool TryDequeue(out T item) {
         item = default!;
         var currentHead = Volatile.Read(ref _consumerHead.Value);
         var currentTail = Volatile.Read(ref _producerTail.Value);
 
-        if (currentHead == currentTail)
-        {
+        if (currentHead == currentTail) {
             _cachedProducerTail = currentTail;
             return false;
         }
@@ -140,15 +128,13 @@ public sealed class RingBuffer<T>
     /// <param name="offset">起始偏移</param>
     /// <param name="count">期望入队数</param>
     /// <returns>实际入队数</returns>
-    public int EnqueueBatch(T[] items, int offset, int count)
-    {
+    public int EnqueueBatch(T[] items, int offset, int count) {
         ArgumentNullException.ThrowIfNull(items);
         if (offset < 0 || count < 0 || offset + count > items.Length)
             throw new ArgumentOutOfRangeException();
 
         var enqueued = 0;
-        for (var i = 0; i < count; i++)
-        {
+        for (var i = 0; i < count; i++) {
             if (TryEnqueue(items[offset + i]))
                 enqueued++;
             else
@@ -164,21 +150,17 @@ public sealed class RingBuffer<T>
     /// <param name="offset">起始偏移</param>
     /// <param name="count">期望出队数</param>
     /// <returns>实际出队数</returns>
-    public int DequeueBatch(T[] output, int offset, int count)
-    {
+    public int DequeueBatch(T[] output, int offset, int count) {
         ArgumentNullException.ThrowIfNull(output);
         if (offset < 0 || count < 0 || offset + count > output.Length)
             throw new ArgumentOutOfRangeException();
 
         var dequeued = 0;
-        for (var i = 0; i < count; i++)
-        {
-            if (TryDequeue(out var item))
-            {
+        for (var i = 0; i < count; i++) {
+            if (TryDequeue(out var item)) {
                 output[offset + i] = item;
                 dequeued++;
-            }
-            else
+            } else
                 break;
         }
         return dequeued;
@@ -188,8 +170,7 @@ public sealed class RingBuffer<T>
     /// 添加元素(覆盖式) — TryEnqueue 满则 TryDequeue 丢弃最旧再入队,保证不丢新元素
     /// </summary>
     /// <param name="item">要添加的元素</param>
-    public void Add(T item)
-    {
+    public void Add(T item) {
         while (!TryEnqueue(item))
             TryDequeue(out _);
     }
@@ -197,8 +178,7 @@ public sealed class RingBuffer<T>
     /// <summary>
     /// 获取一致只读快照(不消费元素) — 读 head/tail 遍历 _buffer 拷贝,不移动指针
     /// </summary>
-    public T[] ToArray()
-    {
+    public T[] ToArray() {
         var head = Volatile.Read(ref _consumerHead.Value);
         var tail = Volatile.Read(ref _producerTail.Value);
         var count = (tail - head + _capacity) & _mask;
@@ -211,10 +191,8 @@ public sealed class RingBuffer<T>
     /// <summary>
     /// 按逻辑索引访问元素(只读,不消费) — 0=最旧,Count-1=最新
     /// </summary>
-    public T this[int index]
-    {
-        get
-        {
+    public T this[int index] {
+        get {
             ArgumentOutOfRangeException.ThrowIfNegative(index);
             var head = Volatile.Read(ref _consumerHead.Value);
             var tail = Volatile.Read(ref _producerTail.Value);
@@ -237,8 +215,7 @@ public sealed class RingBuffer<T>
     /// <summary>
     /// 获取从 start 开始的 count 个元素的切片(只读快照)
     /// </summary>
-    public IEnumerable<T> Slice(int start, int count)
-    {
+    public IEnumerable<T> Slice(int start, int count) {
         ArgumentOutOfRangeException.ThrowIfNegative(start);
         ArgumentOutOfRangeException.ThrowIfNegative(count);
         var snapshot = ToArray();
@@ -246,8 +223,7 @@ public sealed class RingBuffer<T>
         return SliceCore(snapshot, start, count);
     }
 
-    private static IEnumerable<T> SliceCore(T[] snapshot, int start, int count)
-    {
+    private static IEnumerable<T> SliceCore(T[] snapshot, int start, int count) {
         for (var i = start; i < start + count; i++)
             yield return snapshot[i];
     }
@@ -255,8 +231,7 @@ public sealed class RingBuffer<T>
     /// <summary>
     /// 从最旧到最新枚举元素(只读快照)
     /// </summary>
-    public IEnumerator<T> GetEnumerator()
-    {
+    public IEnumerator<T> GetEnumerator() {
         var snapshot = ToArray();
         foreach (var item in snapshot)
             yield return item;
@@ -265,16 +240,14 @@ public sealed class RingBuffer<T>
     /// <summary>
     /// 清空队列
     /// </summary>
-    public void Clear()
-    {
+    public void Clear() {
         Volatile.Write(ref _consumerHead.Value, Volatile.Read(ref _producerTail.Value));
     }
 
     /// <summary>
     /// 向上取整到不小于 value 的最小 2 次幂
     /// </summary>
-    public static int RoundUpToPowerOfTwo(int value)
-    {
+    public static int RoundUpToPowerOfTwo(int value) {
         var v = value - 1;
         v |= v >> 1;
         v |= v >> 2;

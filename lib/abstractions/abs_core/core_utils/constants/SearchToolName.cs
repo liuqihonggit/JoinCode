@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 搜索工具名称枚举
 /// </summary>
-public enum SearchToolName
-{
+public enum SearchToolName {
     [EnumValue("search_code")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     SearchCode,

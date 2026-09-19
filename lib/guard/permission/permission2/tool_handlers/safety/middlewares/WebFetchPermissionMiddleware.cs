@@ -7,21 +7,18 @@ namespace Core.Permission;
 /// 对齐 TS 版 WebFetchTool.checkPermissions
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermissionMiddleware
-{
+public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermissionMiddleware {
     /// <inheritdoc />
 
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         if (context.CurrentMode != PermissionMode.Auto || !PermissionCheckContext.IsWebFetchTool(context.ToolName))
             return next(context, ct);
 
         var webFetchResult = CheckWebFetchPermission(context);
-        if (webFetchResult is not null)
-        {
+        if (webFetchResult is not null) {
             context.Result = webFetchResult;
             return Task.CompletedTask;
         }
@@ -32,8 +29,7 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
     /// <summary>
     /// WebFetch 域名级权限检查 — 对齐 TS 版 WebFetchTool.checkPermissions
     /// </summary>
-    private static ToolPermissionCheckResult? CheckWebFetchPermission(PermissionCheckContext context)
-    {
+    private static ToolPermissionCheckResult? CheckWebFetchPermission(PermissionCheckContext context) {
         var toolName = context.ToolName;
         var arguments = context.Arguments;
         var config = context.Config;
@@ -70,15 +66,11 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
     /// <summary>
     /// 提取 WebFetch ruleContent — 格式: "domain:{hostname}"
     /// </summary>
-    private static string ExtractWebFetchRuleContent(string url, ILogger? logger = null)
-    {
-        try
-        {
+    private static string ExtractWebFetchRuleContent(string url, ILogger? logger = null) {
+        try {
             if (Uri.TryCreate(url, UriKind.Absolute, out var parsed))
                 return $"domain:{parsed.Host}";
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogWarning(ex, "Failed to parse URL '{Url}'", url);
         }
 
@@ -88,10 +80,8 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
     /// <summary>
     /// 检查规则列表中是否有匹配的 RuleContent
     /// </summary>
-    private static bool MatchesWebFetchRule(IEnumerable<ToolPermissionRule> rules, string ruleContent)
-    {
-        foreach (var rule in rules)
-        {
+    private static bool MatchesWebFetchRule(IEnumerable<ToolPermissionRule> rules, string ruleContent) {
+        foreach (var rule in rules) {
             if (!string.Equals(rule.ToolName, WebToolNameEnumConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
                 continue;
             if (string.IsNullOrEmpty(rule.RuleContent))
@@ -107,10 +97,8 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
     /// 检查 allow 规则列表中是否有匹配的 RuleContent
     /// 无 RuleContent 的 WebFetch 规则不匹配（避免无条件批准所有域名）
     /// </summary>
-    private static bool MatchesWebFetchRuleWithContent(IEnumerable<ToolPermissionRule> rules, string ruleContent)
-    {
-        foreach (var rule in rules)
-        {
+    private static bool MatchesWebFetchRuleWithContent(IEnumerable<ToolPermissionRule> rules, string ruleContent) {
+        foreach (var rule in rules) {
             if (!string.Equals(rule.ToolName, WebToolNameEnumConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
                 continue;
             if (string.IsNullOrEmpty(rule.RuleContent))

@@ -6,8 +6,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Vim, Description = "切换 Vim 输入模式 (无参数时 toggle)", Usage = "/vim [on|off]", Category = ChatCommandCategory.Config)]
 [ChatCommandArg("action", Type = "string", Description = "Vim 模式动作,省略时 toggle", Enum = new[] { "on", "off" })]
-public sealed class VimCommand : ToggleCommandBase
-{
+public sealed class VimCommand : ToggleCommandBase {
     /// <summary>
     /// 获取命令名称
     /// </summary>
@@ -28,11 +27,9 @@ public sealed class VimCommand : ToggleCommandBase
     /// </summary>
     /// <param name="args">原始参数字符串</param>
     /// <returns>解析得到的切换动作,无法解析时返回 null</returns>
-    protected override ToggleAction? ResolveToggleAction(string args)
-    {
+    protected override ToggleAction? ResolveToggleAction(string args) {
         var lower = args.ToLowerInvariant();
-        return lower switch
-        {
+        return lower switch {
             "enable" => ToggleAction.On,
             "disable" => ToggleAction.Off,
             _ => ToggleActionExtensions.FromValue(args),
@@ -44,8 +41,7 @@ public sealed class VimCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>表示异步操作完成的任务</returns>
-    protected override Task OnEnabledAsync(ChatCommandContext context)
-    {
+    protected override Task OnEnabledAsync(ChatCommandContext context) {
         var vimEngine = GetService<IVimEngine>(context);
         var editorModeService = GetService<IEditorModeService>(context);
 
@@ -62,8 +58,7 @@ public sealed class VimCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>表示异步操作完成的任务</returns>
-    protected override Task OnDisabledAsync(ChatCommandContext context)
-    {
+    protected override Task OnDisabledAsync(ChatCommandContext context) {
         var vimEngine = GetService<IVimEngine>(context);
         var editorModeService = GetService<IEditorModeService>(context);
 
@@ -79,23 +74,19 @@ public sealed class VimCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>表示异步操作完成的任务</returns>
-    protected override Task OnToggleAsync(ChatCommandContext context)
-    {
+    protected override Task OnToggleAsync(ChatCommandContext context) {
         var vimEngine = GetService<IVimEngine>(context);
         var editorModeService = GetService<IEditorModeService>(context);
 
         var currentMode = editorModeService?.CurrentMode ?? EditorMode.Normal;
         var newMode = currentMode == EditorMode.Vim ? EditorMode.Normal : EditorMode.Vim;
 
-        if (newMode == EditorMode.Vim)
-        {
+        if (newMode == EditorMode.Vim) {
             vimEngine?.Enable();
             editorModeService?.SetMode(EditorMode.Vim);
             TerminalHelper.WriteLine("编辑模式: Vim");
             TerminalHelper.WriteLine("使用 hjkl 移动，i 进入插入模式，Esc 返回普通模式");
-        }
-        else
-        {
+        } else {
             vimEngine?.Disable();
             editorModeService?.SetMode(EditorMode.Normal);
             TerminalHelper.WriteLine("编辑模式: Normal (标准 readline 键绑定)");

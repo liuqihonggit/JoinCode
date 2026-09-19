@@ -4,8 +4,7 @@ namespace McpToolRegistry;
 /// <summary>
 /// 远程 MCP 工具处理器
 /// </summary>
-internal sealed class RemoteMcpToolDispatch : IToolHandler
-{
+internal sealed class RemoteMcpToolDispatch : IToolHandler {
     private readonly string _clientId;
     private readonly IMcpClient _client;
     private readonly ToolInfo _tool;
@@ -18,8 +17,7 @@ internal sealed class RemoteMcpToolDispatch : IToolHandler
     public string? Category { get; } = "mcp_client";
     public ToolTimeoutPolicy TimeoutPolicy => ToolTimeoutPolicy.None;
 
-    public RemoteMcpToolDispatch(string clientId, IMcpClient client, ToolInfo tool, string? groupName = null)
-    {
+    public RemoteMcpToolDispatch(string clientId, IMcpClient client, ToolInfo tool, string? groupName = null) {
         _clientId = clientId;
         _client = client;
         _tool = tool;
@@ -30,35 +28,28 @@ internal sealed class RemoteMcpToolDispatch : IToolHandler
     public async Task<ToolResult> ExecuteAsync(
         Dictionary<string, JsonElement> arguments,
         CancellationToken cancellationToken = default,
-        ToolProgressCallback? onProgress = null)
-    {
+        ToolProgressCallback? onProgress = null) {
         McpProgressCallback? mcpProgress = null;
-        if (onProgress is not null)
-        {
+        if (onProgress is not null) {
             var clientId = _clientId;
             var toolName = _tool.Name;
             var serverNameElement = JsonSerializer.SerializeToElement(clientId, McpClientJsonContext.Default.String);
             var toolNameElement = JsonSerializer.SerializeToElement(toolName, McpClientJsonContext.Default.String);
             var toolUseId = $"{clientId}.{toolName}";
-            mcpProgress = progress =>
-            {
-                var extra = new Dictionary<string, JsonElement>
-                {
+            mcpProgress = progress => {
+                var extra = new Dictionary<string, JsonElement> {
                     ["serverName"] = serverNameElement,
                     ["toolName"] = toolNameElement,
                     ["status"] = JsonSerializer.SerializeToElement(progress.Status, McpClientJsonContext.Default.String),
                 };
-                if (progress.Progress.HasValue)
-                {
+                if (progress.Progress.HasValue) {
                     extra["progress"] = JsonSerializer.SerializeToElement(progress.Progress.Value, McpClientJsonContext.Default.Double);
                 }
-                if (progress.Total.HasValue)
-                {
+                if (progress.Total.HasValue) {
                     extra["total"] = JsonSerializer.SerializeToElement(progress.Total.Value, McpClientJsonContext.Default.Double);
                 }
 
-                onProgress(new ToolProgressData
-                {
+                onProgress(new ToolProgressData {
                     ProgressType = progress.Type,
                     ToolUseId = toolUseId,
                     Message = progress.ProgressMessage,

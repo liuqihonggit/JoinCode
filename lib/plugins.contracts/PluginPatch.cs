@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Entity;
 /// patch 条目 — 对齐 DSH cordis.patch.yml 行
 /// <para>两种操作：insert（按 id 在目标追加子列表）/ 按 id 覆盖整行</para>
 /// </summary>
-public sealed class PluginPatchEntry
-{
+public sealed class PluginPatchEntry {
     /// <summary>条目 id（定位目标行）</summary>
     public required string Id { get; init; }
 
@@ -37,8 +36,7 @@ public sealed class PluginPatchEntry
 /// <summary>
 /// patch 层 — 对齐 DSH cordis.patch.yml 顶层数组
 /// </summary>
-public sealed class PluginPatch
-{
+public sealed class PluginPatch {
     /// <summary>patch 条目列表</summary>
     public List<PluginPatchEntry> Entries { get; init; } = new();
 }
@@ -46,8 +44,7 @@ public sealed class PluginPatch
 /// <summary>
 /// 配置行 — 被 patch 操作的目标
 /// </summary>
-public sealed class PluginConfigRow
-{
+public sealed class PluginConfigRow {
     /// <summary>行 id</summary>
     public required string Id { get; set; }
 
@@ -76,8 +73,7 @@ public sealed class PluginConfigRow
 /// <summary>
 /// patch 应用结果（含 warn）
 /// </summary>
-public sealed class PluginPatchApplyResult
-{
+public sealed class PluginPatchApplyResult {
     /// <summary>应用后的配置行</summary>
     public required List<PluginConfigRow> Rows { get; init; }
 
@@ -90,43 +86,35 @@ public sealed class PluginPatchApplyResult
 /// <para>对齐 DSH applyEntryPatches：后层覆盖前层，一次性应用</para>
 /// <para>三条约束：config 整行替换非深合并；name 不符 warn 后跳过；无 replace/ignore 动词</para>
 /// </summary>
-public static class PluginPatchApplicator
-{
+public static class PluginPatchApplicator {
     /// <summary>
     /// 应用单层 patch 到配置行列表
     /// </summary>
-    public static PluginPatchApplyResult Apply(List<PluginConfigRow> rows, PluginPatch patch)
-    {
+    public static PluginPatchApplyResult Apply(List<PluginConfigRow> rows, PluginPatch patch) {
         ArgumentNullException.ThrowIfNull(rows);
         ArgumentNullException.ThrowIfNull(patch);
 
         var result = new List<PluginConfigRow>(rows);
         var warnings = new List<string>();
         var idIndex = new Dictionary<string, int>();
-        for (int i = 0; i < result.Count; i++)
-        {
+        for (int i = 0; i < result.Count; i++) {
             idIndex[result[i].Id] = i;
         }
 
-        for (int i = 0; i < patch.Entries.Count; i++)
-        {
+        for (int i = 0; i < patch.Entries.Count; i++) {
             var entry = patch.Entries[i];
             idIndex.TryGetValue(entry.Id, out var idx);
             var found = idx >= 0 && idx < result.Count && result[idx].Id == entry.Id;
 
-            if (entry.Insert.Count > 0)
-            {
+            if (entry.Insert.Count > 0) {
                 var insertList = entry.Insert;
-                if (!found)
-                {
+                if (!found) {
                     warnings.Add($"patch id '{entry.Id}' 找不到目标行，insert 跳过");
                     continue;
                 }
-                for (int j = 0; j < insertList.Count; j++)
-                {
+                for (int j = 0; j < insertList.Count; j++) {
                     var insert = insertList[j];
-                    var newRow = new PluginConfigRow
-                    {
+                    var newRow = new PluginConfigRow {
                         Id = insert.Id,
                         Name = insert.Name,
                         Config = insert.Config,
@@ -138,12 +126,9 @@ public static class PluginPatchApplicator
                     result.Add(newRow);
                     idIndex[insert.Id] = result.Count - 1;
                 }
-            }
-            else if (found)
-            {
+            } else if (found) {
                 var target = result[idx];
-                if (entry.Name is not null && target.Name is not null && entry.Name != target.Name)
-                {
+                if (entry.Name is not null && target.Name is not null && entry.Name != target.Name) {
                     warnings.Add($"patch id '{entry.Id}' name '{entry.Name}' 与目标 '{target.Name}' 不符，跳过");
                     continue;
                 }
@@ -154,9 +139,7 @@ public static class PluginPatchApplicator
                 if (entry.Group is not null) target.Group = entry.Group;
                 if (entry.Isolate is not null) target.Isolate = entry.Isolate.Value;
                 if (entry.Intercept is not null) target.Intercept = entry.Intercept;
-            }
-            else
-            {
+            } else {
                 warnings.Add($"patch id '{entry.Id}' 找不到目标行，跳过");
             }
         }
@@ -168,13 +151,11 @@ public static class PluginPatchApplicator
     /// 多层拍平应用 — 按序应用多个 patch 层，后层覆盖前层
     /// <para>对齐 DSH 完整应用顺序：profile.bundles → profile patch → 全局 patch → overlays</para>
     /// </summary>
-    public static PluginPatchApplyResult ApplyLayers(List<PluginConfigRow> baseRows, params PluginPatch[] layers)
-    {
+    public static PluginPatchApplyResult ApplyLayers(List<PluginConfigRow> baseRows, params PluginPatch[] layers) {
         ArgumentNullException.ThrowIfNull(baseRows);
         var rows = new List<PluginConfigRow>(baseRows);
         var allWarnings = new List<string>();
-        for (int i = 0; i < layers.Length; i++)
-        {
+        for (int i = 0; i < layers.Length; i++) {
             var result = Apply(rows, layers[i]);
             rows = result.Rows;
             allWarnings.AddRange(result.Warnings);
@@ -186,8 +167,7 @@ public static class PluginPatchApplicator
 /// <summary>
 /// 插件 Bundle — 自带 patch 层的插件包，作为一层加入 profile
 /// </summary>
-public sealed class PluginBundle
-{
+public sealed class PluginBundle {
     /// <summary>bundle 名</summary>
     public required string Name { get; init; }
 
@@ -199,8 +179,7 @@ public sealed class PluginBundle
 /// 插件 Profile — bundle 依赖声明 + 自身 patch
 /// <para>对齐 DSH profile.bundles + profile 自身 cordis.patch.yml</para>
 /// </summary>
-public sealed class PluginProfile
-{
+public sealed class PluginProfile {
     /// <summary>profile 名</summary>
     public required string Name { get; init; }
 
@@ -213,11 +192,9 @@ public sealed class PluginProfile
     /// <summary>
     /// 收集所有 patch 层（bundle patch 按序 + profile patch）
     /// </summary>
-    public IReadOnlyList<PluginPatch> CollectLayers()
-    {
+    public IReadOnlyList<PluginPatch> CollectLayers() {
         var layers = new List<PluginPatch>();
-        for (int i = 0; i < Bundles.Count; i++)
-        {
+        for (int i = 0; i < Bundles.Count; i++) {
             if (Bundles[i].Patch is { } bp) layers.Add(bp);
         }
         if (Patch is { } pp) layers.Add(pp);

@@ -6,27 +6,22 @@ namespace JoinCode.Pipelines.Middlewares;
 /// 注意：StartTotal/StopTotal 由 PreChatMiddleware(100) 和 SaveContextMiddleware(330) 负责，
 /// 本中间件仅负责在管道最外层输出 TimingSummary 事件
 /// </summary>
-internal sealed partial class ChatTimingMiddleware : ServiceEntity, Core.Context.IChatMiddleware
-{
+internal sealed partial class ChatTimingMiddleware : ServiceEntity, Core.Context.IChatMiddleware {
     private readonly bool _debugLog;
 
-    public ChatTimingMiddleware()
-    {
+    public ChatTimingMiddleware() {
         _debugLog = Diag.IsDebugLog;
     }
 
     public async IAsyncEnumerable<JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> InvokeAsync(
         Core.Context.ChatMiddlewareContext context,
         JoinCode.Abstractions.Pipeline.StreamMiddlewareDelegate<Core.Context.ChatMiddlewareContext, JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> next,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
-    {
-        await foreach (var evt in next(context, ct).ConfigureAwait(false))
-        {
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct) {
+        await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             yield return evt;
         }
 
-        if (_debugLog)
-        {
+        if (_debugLog) {
             yield return JoinCode.Abstractions.LLM.Chat.ChatStreamEvent.TimingSummary(context.Timing.FormatSummary(context.FinalUsage));
         }
     }

@@ -1,26 +1,22 @@
 
 namespace Core.Tests.Services;
 
-public class TaskServiceEnhancedTests
-{
+public class TaskServiceEnhancedTests {
     private readonly ITaskService _taskService;
 
-    public TaskServiceEnhancedTests()
-    {
+    public TaskServiceEnhancedTests() {
 #pragma warning disable CS0618 // 内存版TaskService用于测试
         _taskService = new TaskService();
 #pragma warning restore CS0618
     }
 
-    private async Task<TaskItem> CreateTestTask(string title, string description = "")
-    {
+    private async Task<TaskItem> CreateTestTask(string title, string description = "") {
         var result = await _taskService.CreateTaskAsync(title, description, null, null, "medium", null).ConfigureAwait(true);
         return result.Data!;
     }
 
     [Fact]
-    public async Task SetTaskDependencyAsync_WithValidTasks_ShouldSetDependency()
-    {
+    public async Task SetTaskDependencyAsync_WithValidTasks_ShouldSetDependency() {
         // Arrange
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         var task2 = await CreateTestTask("Task 2", "Description 2").ConfigureAwait(true);
@@ -37,8 +33,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task SetTaskDependencyAsync_WithNonExistentTask_ShouldFail()
-    {
+    public async Task SetTaskDependencyAsync_WithNonExistentTask_ShouldFail() {
         // Arrange
         var task = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
 
@@ -53,8 +48,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task SetTaskDependencyAsync_DuplicateDependency_ShouldFail()
-    {
+    public async Task SetTaskDependencyAsync_DuplicateDependency_ShouldFail() {
         // Arrange
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         var task2 = await CreateTestTask("Task 2", "Description 2").ConfigureAwait(true);
@@ -70,8 +64,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task SetTaskDependencyAsync_CircularDependency_ShouldFail()
-    {
+    public async Task SetTaskDependencyAsync_CircularDependency_ShouldFail() {
         // Arrange
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         var task2 = await CreateTestTask("Task 2", "Description 2").ConfigureAwait(true);
@@ -90,8 +83,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task GetTaskDependenciesAsync_WithNoDependencies_ShouldReturnEmpty()
-    {
+    public async Task GetTaskDependenciesAsync_WithNoDependencies_ShouldReturnEmpty() {
         // Arrange
         var task = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
 
@@ -103,8 +95,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task GetTaskDependenciesAsync_WithDependencies_ShouldReturnList()
-    {
+    public async Task GetTaskDependenciesAsync_WithDependencies_ShouldReturnList() {
         // Arrange
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         var task2 = await CreateTestTask("Task 2", "Description 2").ConfigureAwait(true);
@@ -123,8 +114,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task RemoveTaskDependencyAsync_WithValidDependency_ShouldRemove()
-    {
+    public async Task RemoveTaskDependencyAsync_WithValidDependency_ShouldRemove() {
         // Arrange
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         var task2 = await CreateTestTask("Task 2", "Description 2").ConfigureAwait(true);
@@ -142,8 +132,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task RemoveTaskDependencyAsync_WithNoDependencies_ShouldFail()
-    {
+    public async Task RemoveTaskDependencyAsync_WithNoDependencies_ShouldFail() {
         // Arrange
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         var task2 = await CreateTestTask("Task 2", "Description 2").ConfigureAwait(true);
@@ -157,8 +146,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task CanExecuteTaskAsync_WithNoDependencies_ShouldReturnTrue()
-    {
+    public async Task CanExecuteTaskAsync_WithNoDependencies_ShouldReturnTrue() {
         // Arrange
         var task = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
 
@@ -170,8 +158,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task CanExecuteTaskAsync_WithCompletedDependency_ShouldReturnTrue()
-    {
+    public async Task CanExecuteTaskAsync_WithCompletedDependency_ShouldReturnTrue() {
         // Arrange
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         var task2 = await CreateTestTask("Task 2", "Description 2").ConfigureAwait(true);
@@ -189,8 +176,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task CanExecuteTaskAsync_WithPendingDependency_ShouldReturnFalse()
-    {
+    public async Task CanExecuteTaskAsync_WithPendingDependency_ShouldReturnFalse() {
         // Arrange
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         var task2 = await CreateTestTask("Task 2", "Description 2").ConfigureAwait(true);
@@ -205,8 +191,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task CanExecuteTaskAsync_WithNonExistentTask_ShouldReturnFalse()
-    {
+    public async Task CanExecuteTaskAsync_WithNonExistentTask_ShouldReturnFalse() {
         // Act
         var canExecute = await _taskService.CanExecuteTaskAsync("non-existent-id").ConfigureAwait(true);
 
@@ -215,8 +200,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task CanExecuteTaskAsync_WithInProgressStatus_ShouldReturnFalse()
-    {
+    public async Task CanExecuteTaskAsync_WithInProgressStatus_ShouldReturnFalse() {
         // Arrange
         var task = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         await _taskService.UpdateTaskAsync(new UpdateTaskRequest { TaskId = task.Id, Status = "in_progress" }).ConfigureAwait(true);
@@ -229,8 +213,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task TaskDependency_WithDifferentTypes_ShouldWork()
-    {
+    public async Task TaskDependency_WithDifferentTypes_ShouldWork() {
         // Arrange
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         var task2 = await CreateTestTask("Task 2", "Description 2").ConfigureAwait(true);
@@ -249,8 +232,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task TaskDependency_ShouldHaveCreatedAtTimestamp()
-    {
+    public async Task TaskDependency_ShouldHaveCreatedAtTimestamp() {
         // Arrange
         var before = DateTime.UtcNow.AddSeconds(-1);
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
@@ -269,8 +251,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task RemoveTaskDependency_AndCanExecute_ShouldUpdate()
-    {
+    public async Task RemoveTaskDependency_AndCanExecute_ShouldUpdate() {
         // Arrange
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         var task2 = await CreateTestTask("Task 2", "Description 2").ConfigureAwait(true);
@@ -290,8 +271,7 @@ public class TaskServiceEnhancedTests
     }
 
     [Fact]
-    public async Task MultipleDependencies_AllMustBeCompleted()
-    {
+    public async Task MultipleDependencies_AllMustBeCompleted() {
         // Arrange
         var task1 = await CreateTestTask("Task 1", "Description 1").ConfigureAwait(true);
         var task2 = await CreateTestTask("Task 2", "Description 2").ConfigureAwait(true);

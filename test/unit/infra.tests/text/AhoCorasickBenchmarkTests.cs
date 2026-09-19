@@ -5,23 +5,19 @@ namespace JoinCode.Infra.Tests.Text;
 /// 注意: Debug 模式下 AC 自动机有 Dictionary 开销,Release 模式下 JIT 优化后差距更明显。
 /// AC 自动机的核心优势在于: 模式多(500+) + 长文本 + 无公共前缀时,一次扫描替代 N 次扫描。
 /// </summary>
-public class AhoCorasickBenchmarkTests
-{
+public class AhoCorasickBenchmarkTests {
     private const int Iterations = 1000;
 
     [Fact]
-    public void ContainsAny_50Patterns_AcComparableToContains()
-    {
+    public void ContainsAny_50Patterns_AcComparableToContains() {
         var patterns = Enumerable.Range(0, 50).Select(i => $"pattern_{i}").ToList();
         var text = new string('x', 5000) + "pattern_25" + new string('x', 5000);
 
         var ac = AhoCorasick.Create(patterns, ignoreCase: true);
 
         var acMs = Time(() => ac.ContainsAny(text.AsSpan()));
-        var containsMs = Time(() =>
-        {
-            foreach (var p in patterns)
-            {
+        var containsMs = Time(() => {
+            foreach (var p in patterns) {
                 if (text.Contains(p, StringComparison.OrdinalIgnoreCase))
                     break;
             }
@@ -31,18 +27,15 @@ public class AhoCorasickBenchmarkTests
     }
 
     [Fact]
-    public void ContainsAny_500Patterns_NoMatch_AcFaster()
-    {
+    public void ContainsAny_500Patterns_NoMatch_AcFaster() {
         var patterns = Enumerable.Range(0, 500).Select(i => $"kw{i}_unique").ToList();
         var text = new string('x', 50000);
 
         var ac = AhoCorasick.Create(patterns, ignoreCase: true);
 
         var acMs = Time(() => ac.ContainsAny(text.AsSpan()));
-        var containsMs = Time(() =>
-        {
-            foreach (var p in patterns)
-            {
+        var containsMs = Time(() => {
+            foreach (var p in patterns) {
                 if (text.Contains(p, StringComparison.OrdinalIgnoreCase))
                     break;
             }
@@ -52,18 +45,15 @@ public class AhoCorasickBenchmarkTests
     }
 
     [Fact]
-    public void ContainsAny_200Patterns_NoMatch_AcFaster()
-    {
+    public void ContainsAny_200Patterns_NoMatch_AcFaster() {
         var patterns = Enumerable.Range(0, 200).Select(i => $"keyword_{i}").ToList();
         var text = new string('x', 40000);
 
         var ac = AhoCorasick.Create(patterns, ignoreCase: true);
 
         var acMs = Time(() => ac.ContainsAny(text.AsSpan()));
-        var containsMs = Time(() =>
-        {
-            foreach (var p in patterns)
-            {
+        var containsMs = Time(() => {
+            foreach (var p in patterns) {
                 if (text.Contains(p, StringComparison.OrdinalIgnoreCase))
                     break;
             }
@@ -73,8 +63,7 @@ public class AhoCorasickBenchmarkTests
     }
 
     [Fact]
-    public void FindAll_100Patterns_AcComparableToContains()
-    {
+    public void FindAll_100Patterns_AcComparableToContains() {
         var patterns = Enumerable.Range(0, 100).Select(i => $"tag_{i}").ToList();
         var sb = new StringBuilder();
         for (var i = 0; i < 100; i++)
@@ -84,11 +73,9 @@ public class AhoCorasickBenchmarkTests
         var ac = AhoCorasick.Create(patterns, ignoreCase: true);
 
         var acMs = Time(() => ac.FindAll(text.AsSpan()));
-        var containsMs = Time(() =>
-        {
+        var containsMs = Time(() => {
             var results = new List<string>();
-            foreach (var p in patterns)
-            {
+            foreach (var p in patterns) {
                 if (text.Contains(p, StringComparison.OrdinalIgnoreCase))
                     results.Add(p);
             }
@@ -98,8 +85,7 @@ public class AhoCorasickBenchmarkTests
     }
 
     [Fact]
-    public void DualBuffer_SwapPatterns_OverheadAcceptable()
-    {
+    public void DualBuffer_SwapPatterns_OverheadAcceptable() {
         var db = DualBufferAhoCorasick.Create(Enumerable.Range(0, 50).Select(i => $"init_{i}"));
         var newPatterns = Enumerable.Range(0, 50).Select(i => $"new_{i}").ToList();
 
@@ -109,8 +95,7 @@ public class AhoCorasickBenchmarkTests
         swapMs.Should().BeLessThanOrEqualTo(500);
     }
 
-    private static long Time(Action action)
-    {
+    private static long Time(Action action) {
         action();
         var sw = Stopwatch.StartNew();
         for (var i = 0; i < Iterations; i++)

@@ -4,15 +4,13 @@ namespace Core.Skills;
 /// 代码缓存中间件 — Generate/Analyze 操作的缓存检查与写入
 /// </summary>
 [Register(typeof(ICodeMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class CodeCacheMiddleware : ServiceEntity, ICodeMiddleware
-{
+public sealed partial class CodeCacheMiddleware : ServiceEntity, ICodeMiddleware {
 
     /// <summary>
     /// 创建 CodeCacheMiddleware
     /// </summary>
     /// <param name="cacheService">缓存服务</param>
-    public CodeCacheMiddleware(ICacheService cacheService)
-    {
+    public CodeCacheMiddleware(ICacheService cacheService) {
         _cacheService = cacheService;
     }
     private readonly ICacheService _cacheService;
@@ -23,11 +21,9 @@ public sealed partial class CodeCacheMiddleware : ServiceEntity, ICodeMiddleware
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public async Task InvokeAsync(CodeContext context, MiddlewareDelegate<CodeContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(CodeContext context, MiddlewareDelegate<CodeContext> next, CancellationToken ct) {
         // Execute 操作不使用缓存
-        if (context.Operation == CodeOperation.Execute)
-        {
+        if (context.Operation == CodeOperation.Execute) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -38,8 +34,7 @@ public sealed partial class CodeCacheMiddleware : ServiceEntity, ICodeMiddleware
             context.Input);
 
         var cachedResult = await _cacheService.GetAsync<string>(cacheKey, ct).ConfigureAwait(false);
-        if (cachedResult != null)
-        {
+        if (cachedResult != null) {
             context.Result = cachedResult;
             context.IsCached = true;
             return; // 缓存命中，短路
@@ -49,8 +44,7 @@ public sealed partial class CodeCacheMiddleware : ServiceEntity, ICodeMiddleware
         await next(context, ct).ConfigureAwait(false);
 
         // 缓存写入
-        if (context.Result is not null)
-        {
+        if (context.Result is not null) {
             await _cacheService.SetAsync(cacheKey, context.Result, TimeSpan.FromHours(1), ct).ConfigureAwait(false);
         }
     }

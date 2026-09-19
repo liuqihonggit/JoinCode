@@ -10,8 +10,7 @@ namespace McpToolDispatch;
 /// <para>5. 不经 PowerShell 管道，C# Process 直接调 gh</para>
 /// </summary>
 [McpToolDispatch(ToolCategory.GitHub)]
-public partial class GitHubToolHandlers
-{
+public partial class GitHubToolHandlers {
     internal readonly IGitHubApiClient? _apiClient;
     private readonly IGitCommandRunner? _git;
     private readonly IDownloader _downloader;
@@ -42,8 +41,7 @@ public partial class GitHubToolHandlers
         IPersistencePipeline pipeline,
         IGitHubApiClient? apiClient = null,
         IGitCommandRunner? git = null,
-        ILogger<GitHubToolHandlers>? logger = null)
-    {
+        ILogger<GitHubToolHandlers>? logger = null) {
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
@@ -60,8 +58,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 转义并引用命令行参数 — 值用双引号包裹，内部双引号转义
     /// </summary>
-    private static string Quote(string value)
-    {
+    private static string Quote(string value) {
         if (string.IsNullOrEmpty(value)) return "\"\"";
         var escaped = value.Replace("\"", "\\\"");
         return $"\"{escaped}\"";
@@ -70,15 +67,13 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 截断输出到指定行数 — 避免大日志撑爆 LLM 上下文（避坑2/5）
     /// </summary>
-    private static string TruncateLines(string output, int maxLines)
-    {
+    private static string TruncateLines(string output, int maxLines) {
         if (string.IsNullOrEmpty(output) || maxLines <= 0) return output;
         var ranges = LineSpanIndexer.BuildLineRanges(output.AsSpan());
         if (ranges.Count <= maxLines) return output;
         var sb = new StringBuilder(maxLines * 80);
         var span = output.AsSpan();
-        for (int i = 0; i < maxLines; i++)
-        {
+        for (int i = 0; i < maxLines; i++) {
             var (start, length) = ranges[i];
             sb.Append(span.Slice(start, length));
             sb.Append('\n');
@@ -90,16 +85,14 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 构建失败 ToolResult(直接错误消息)
     /// </summary>
-    internal static ToolResult Fail(string message)
-    {
+    internal static ToolResult Fail(string message) {
         return ToolResultBuilder.Error().WithText(message).Build();
     }
 
     /// <summary>
     /// 构建成功 ToolResult
     /// </summary>
-    internal static ToolResult Ok(string output, string? prefix = null)
-    {
+    internal static ToolResult Ok(string output, string? prefix = null) {
         var text = string.IsNullOrEmpty(prefix) ? output : $"{prefix}\n{output}";
         return ToolResultBuilder.Success().WithText(text).Build();
     }
@@ -107,10 +100,8 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 精简 PR JSON 输出 — 提取关键字段构建人类可读文本
     /// </summary>
-    private static string SummarizePr(string json)
-    {
-        try
-        {
+    private static string SummarizePr(string json) {
+        try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             var sb = new StringBuilder(512);
@@ -135,9 +126,7 @@ public partial class GitHubToolHandlers
             sb.AppendLine($"变更: +{additions} -{deletions} ({changedFiles} files)");
             sb.Append($"URL: {url}");
             return sb.ToString();
-        }
-        catch
-        {
+        } catch {
             return json;
         }
     }
@@ -145,10 +134,8 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 精简 Issue JSON 输出 — 提取关键字段构建人类可读文本
     /// </summary>
-    private static string SummarizeIssue(string json)
-    {
-        try
-        {
+    private static string SummarizeIssue(string json) {
+        try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             var sb = new StringBuilder(512);
@@ -169,9 +156,7 @@ public partial class GitHubToolHandlers
             sb.AppendLine($"创建: {createdAt}");
             sb.Append($"URL: {url}");
             return sb.ToString();
-        }
-        catch
-        {
+        } catch {
             return json;
         }
     }
@@ -179,10 +164,8 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 精简 Repo JSON 输出 — 提取关键字段构建人类可读文本
     /// </summary>
-    private static string SummarizeRepo(string json)
-    {
-        try
-        {
+    private static string SummarizeRepo(string json) {
+        try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             var sb = new StringBuilder(512);
@@ -200,9 +183,7 @@ public partial class GitHubToolHandlers
             sb.AppendLine($"Stars: {stars}, Forks: {forks}");
             sb.Append($"URL: {url}");
             return sb.ToString();
-        }
-        catch
-        {
+        } catch {
             return json;
         }
     }
@@ -210,16 +191,13 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 精简 PR 列表 JSON — 表格格式(number, state, title, author)
     /// </summary>
-    private static string SummarizePrList(string json)
-    {
-        try
-        {
+    private static string SummarizePrList(string json) {
+        try {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
             var sb = new StringBuilder(512);
             sb.AppendLine("PR#\t状态\t标题\t作者");
-            foreach (var pr in doc.RootElement.EnumerateArray())
-            {
+            foreach (var pr in doc.RootElement.EnumerateArray()) {
                 var number = pr.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
                 var state = pr.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
                 var title = pr.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
@@ -227,9 +205,7 @@ public partial class GitHubToolHandlers
                 sb.AppendLine($"{number}\t{state}\t{title}\t{author}");
             }
             return sb.ToString();
-        }
-        catch
-        {
+        } catch {
             return json;
         }
     }
@@ -237,16 +213,13 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 精简 Issue 列表 JSON — 表格格式(number, state, title, author)
     /// </summary>
-    private static string SummarizeIssueList(string json)
-    {
-        try
-        {
+    private static string SummarizeIssueList(string json) {
+        try {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
             var sb = new StringBuilder(512);
             sb.AppendLine("Issue#\t状态\t标题\t作者");
-            foreach (var issue in doc.RootElement.EnumerateArray())
-            {
+            foreach (var issue in doc.RootElement.EnumerateArray()) {
                 var number = issue.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
                 var state = issue.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
                 var title = issue.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
@@ -254,9 +227,7 @@ public partial class GitHubToolHandlers
                 sb.AppendLine($"{number}\t{state}\t{title}\t{author}");
             }
             return sb.ToString();
-        }
-        catch
-        {
+        } catch {
             return json;
         }
     }
@@ -264,8 +235,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 构建 GitHub 工具缓存 key — {toolName}_{SHA256(argsJson)[..8]}.json
     /// </summary>
-    private static string BuildGhCacheKey(string toolName, string argsJson)
-    {
+    private static string BuildGhCacheKey(string toolName, string argsJson) {
         var hashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(argsJson));
         var hashHex = Convert.ToHexString(hashBytes)[..8].ToLowerInvariant();
         return $"{toolName}_{hashHex}.json";
@@ -274,19 +244,15 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 尝试读取 GitHub 工具缓存 — verbose=true 时优先用缓存节约 API
     /// </summary>
-    private string? TryGetGhCache(string cacheKey)
-    {
+    private string? TryGetGhCache(string cacheKey) {
         var cacheDir = GetCacheDir(null);
 #pragma warning disable JCC9001
         var cachePath = Path.Combine(cacheDir, cacheKey);
         if (!File.Exists(cachePath))
             return null;
-        try
-        {
+        try {
             return File.ReadAllText(cachePath);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to read gh cache {Key}", cacheKey);
             return null;
         }
@@ -296,18 +262,14 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 保存 GitHub 工具缓存 — 默认调用时更新缓存保证数据新鲜
     /// </summary>
-    private void SaveGhCache(string cacheKey, string json)
-    {
+    private void SaveGhCache(string cacheKey, string json) {
         var cacheDir = GetCacheDir(null);
 #pragma warning disable JCC9001
         Directory.CreateDirectory(cacheDir);
         var cachePath = Path.Combine(cacheDir, cacheKey);
-        try
-        {
+        try {
             File.WriteAllText(cachePath, json);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to save gh cache {Key}", cacheKey);
         }
 #pragma warning restore JCC9001
@@ -322,10 +284,8 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 将源 JsonElement 的指定属性原样复制到 Utf8JsonWriter — AOT 友好(无反射/emit)
     /// </summary>
-    private static void CopyProperty(JsonElement source, Utf8JsonWriter writer, string name)
-    {
-        if (source.TryGetProperty(name, out var value))
-        {
+    private static void CopyProperty(JsonElement source, Utf8JsonWriter writer, string name) {
+        if (source.TryGetProperty(name, out var value)) {
             writer.WritePropertyName(name);
             writer.WriteRawValue(value.GetRawText());
         }
@@ -334,10 +294,8 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 解析 owner/repo — 优先用 repo 参数，否则从 git remote origin 推断（ADR 0073）
     /// </summary>
-    private async Task<(string owner, string repo)?> ResolveOwnerRepoAsync(string? repo, string? workingDir, CancellationToken ct)
-    {
-        if (!string.IsNullOrWhiteSpace(repo))
-        {
+    private async Task<(string owner, string repo)?> ResolveOwnerRepoAsync(string? repo, string? workingDir, CancellationToken ct) {
+        if (!string.IsNullOrWhiteSpace(repo)) {
             var parsed = ParseGitHubRepoRef(repo);
             if (parsed is not null) return parsed;
         }
@@ -350,8 +308,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 解析 "owner/repo" 格式
     /// </summary>
-    private static (string owner, string repo)? ParseGitHubRepoRef(string repo)
-    {
+    private static (string owner, string repo)? ParseGitHubRepoRef(string repo) {
         var parts = repo.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2) return null;
         var owner = parts[0];
@@ -362,22 +319,17 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 解析 GitHub remote URL — 支持 https://github.com/owner/repo.git 和 git@github.com:owner/repo.git
     /// </summary>
-    private static (string owner, string repo)? ParseGitHubRemoteUrl(string url)
-    {
+    private static (string owner, string repo)? ParseGitHubRemoteUrl(string url) {
         if (string.IsNullOrEmpty(url)) return null;
         string path;
-        if (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-        {
+        if (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)) {
             var uri = new Uri(url);
             path = uri.AbsolutePath.TrimStart('/');
-        }
-        else if (url.Contains('@'))
-        {
+        } else if (url.Contains('@')) {
             var colonIdx = url.IndexOf(':');
             if (colonIdx < 0) return null;
             path = url[(colonIdx + 1)..];
-        }
-        else return null;
+        } else return null;
 
         if (path.EndsWith(".git", StringComparison.OrdinalIgnoreCase)) path = path[..^4];
         var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);

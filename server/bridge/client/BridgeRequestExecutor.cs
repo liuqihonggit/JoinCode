@@ -4,13 +4,11 @@ namespace Core.Bridge;
 /// Bridge 请求执行器 — 从 BridgeApiClient 提取的单一职责小类
 /// <para>职责: 认证 token 获取 + 请求头设置 + OAuth 401 重试 + 网络重试</para>
 /// </summary>
-internal sealed class BridgeRequestExecutor
-{
+internal sealed class BridgeRequestExecutor {
     private readonly BridgeApiOptions _options;
     private readonly ILogger? _logger;
 
-    public BridgeRequestExecutor(BridgeApiOptions options, ILogger? logger)
-    {
+    public BridgeRequestExecutor(BridgeApiOptions options, ILogger? logger) {
         _options = options;
         _logger = logger;
     }
@@ -25,13 +23,10 @@ internal sealed class BridgeRequestExecutor
     /// 为请求设置 Authorization header — OAuth 启用时动态获取 token
     /// 同时附加 X-Trusted-Device-Token header（如果可用）— 对齐 TS 端 getHeaders()
     /// </summary>
-    public void SetAuthHeader(HttpRequestMessage request)
-    {
-        if (_options.IsOAuthRetryEnabled)
-        {
+    public void SetAuthHeader(HttpRequestMessage request) {
+        if (_options.IsOAuthRetryEnabled) {
             var token = GetCurrentToken();
-            if (!string.IsNullOrEmpty(token))
-            {
+            if (!string.IsNullOrEmpty(token)) {
                 request.Headers.Add("Authorization", $"Bearer {token}");
             }
         }
@@ -39,8 +34,7 @@ internal sealed class BridgeRequestExecutor
 
         // 对齐 TS 端: const deviceToken = deps.getTrustedDeviceToken?.()
         var deviceToken = _options.GetTrustedDeviceToken?.Invoke();
-        if (!string.IsNullOrEmpty(deviceToken))
-        {
+        if (!string.IsNullOrEmpty(deviceToken)) {
             request.Headers.Add("X-Trusted-Device-Token", deviceToken);
         }
     }
@@ -50,8 +44,7 @@ internal sealed class BridgeRequestExecutor
     /// </summary>
     public async Task<T> SendWithRetryAsync<T>(
         Func<CancellationToken, Task<T>> sendFunc,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(sendFunc);
         return await sendFunc(ct).ConfigureAwait(false);
     }
@@ -64,10 +57,8 @@ internal sealed class BridgeRequestExecutor
     public async Task<T> SendWithOAuthAndNetworkRetryAsync<T>(
         Func<CancellationToken, Task<T>> sendFunc,
         bool useOAuthRetry,
-        CancellationToken ct = default)
-    {
-        if (!useOAuthRetry || !_options.IsOAuthRetryEnabled)
-        {
+        CancellationToken ct = default) {
+        if (!useOAuthRetry || !_options.IsOAuthRetryEnabled) {
             // 无 OAuth 重试 — 直接走网络重试
             return await SendWithRetryAsync(sendFunc, ct).ConfigureAwait(false);
         }
@@ -75,21 +66,16 @@ internal sealed class BridgeRequestExecutor
         // OAuth 重试 + 网络重试双层
         // 第一层：网络重试（指数退避）
         // 第二层：OAuth 重试（401 刷新 token 后重试一次）
-        return await SendWithRetryAsync(async token =>
-        {
-            try
-            {
+        return await SendWithRetryAsync(async token => {
+            try {
                 return await sendFunc(token).ConfigureAwait(false);
-            }
-            catch (BridgeFatalError ex) when (ex.StatusCode == 401 && _options.OnAuth401 is not null)
-            {
+            } catch (BridgeFatalError ex) when (ex.StatusCode == 401 && _options.OnAuth401 is not null) {
                 // 401 致命错误 — 尝试 OAuth 刷新
                 var staleToken = GetCurrentToken() ?? string.Empty;
                 _logger?.LogInformation("[BridgeApiClient] 401 认证失败，尝试 OAuth token 刷新");
 
                 var refreshed = await _options.OnAuth401(staleToken).ConfigureAwait(false);
-                if (!refreshed)
-                {
+                if (!refreshed) {
                     _logger?.LogWarning("[BridgeApiClient] OAuth token 刷新失败");
                     throw;
                 }
@@ -97,12 +83,9 @@ internal sealed class BridgeRequestExecutor
                 _logger?.LogInformation("[BridgeApiClient] OAuth token 刷新成功，重试请求");
 
                 // 刷新成功 — 重试一次
-                try
-                {
+                try {
                     return await sendFunc(token).ConfigureAwait(false);
-                }
-                catch (BridgeFatalError retryEx) when (retryEx.StatusCode == 401)
-                {
+                } catch (BridgeFatalError retryEx) when (retryEx.StatusCode == 401) {
                     // 重试仍 401 — 抛出原始错误
                     _logger?.LogWarning("[BridgeApiClient] OAuth 重试后仍 401，放弃");
                     throw;

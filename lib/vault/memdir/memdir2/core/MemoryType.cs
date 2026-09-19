@@ -4,8 +4,7 @@ namespace Core.Memdir;
 /// 记忆类型枚举
 /// 定义四种记忆分类：用户、反馈、项目、参考
 /// </summary>
-public enum MemoryType
-{
+public enum MemoryType {
     /// <summary>
     /// 用户记忆 - 用户直接输入或确认的信息
     /// </summary>
@@ -39,18 +38,15 @@ public readonly record struct MemoryTypeProfile(TimeSpan Ttl, double RelevanceWe
 /// <summary>
 /// 记忆类型扩展方法
 /// </summary>
-public static class MemoryTypeExtensions
-{
-    private static readonly FrozenDictionary<string, MemoryType> __reverseMap = new Dictionary<string, MemoryType>
-    {
+public static class MemoryTypeExtensions {
+    private static readonly FrozenDictionary<string, MemoryType> __reverseMap = new Dictionary<string, MemoryType> {
         ["user"] = MemoryType.User,
         ["feedback"] = MemoryType.Feedback,
         ["project"] = MemoryType.Project,
         ["reference"] = MemoryType.Reference
     }.ToFrozenDictionary();
 
-    private static readonly FrozenDictionary<MemoryType, MemoryTypeProfile> Profiles = new Dictionary<MemoryType, MemoryTypeProfile>
-    {
+    private static readonly FrozenDictionary<MemoryType, MemoryTypeProfile> Profiles = new Dictionary<MemoryType, MemoryTypeProfile> {
         [MemoryType.User] = new(TimeSpan.FromDays(365), 1.0),
         [MemoryType.Feedback] = new(TimeSpan.FromDays(180), 0.9),
         [MemoryType.Project] = new(TimeSpan.FromDays(90), 0.8),
@@ -68,24 +64,21 @@ public static class MemoryTypeExtensions
     /// <summary>
     /// 获取记忆类型名称
     /// </summary>
-    public static string GetName(this MemoryType type)
-    {
+    public static string GetName(this MemoryType type) {
         return type.ToString();
     }
 
     /// <summary>
     /// 获取默认 TTL
     /// </summary>
-    public static TimeSpan GetDefaultTtl(this MemoryType type)
-    {
+    public static TimeSpan GetDefaultTtl(this MemoryType type) {
         return Profiles.GetValueOrDefault(type, DefaultProfile).Ttl;
     }
 
     /// <summary>
     /// 获取基础相关性权重
     /// </summary>
-    public static double GetBaseRelevanceWeight(this MemoryType type)
-    {
+    public static double GetBaseRelevanceWeight(this MemoryType type) {
         return Profiles.GetValueOrDefault(type, DefaultProfile).RelevanceWeight;
     }
 }

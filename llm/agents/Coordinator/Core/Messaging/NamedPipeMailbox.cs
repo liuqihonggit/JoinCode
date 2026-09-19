@@ -9,8 +9,7 @@ namespace Core.Agents.Coordinator;
 /// <para>序列化：<see cref="MailboxJsonContext"/> AOT 兼容，写入用 JsonSerializer，读取用 RelaxedJsonSerializer 容错。</para>
 /// </summary>
 [Register(typeof(NamedPipeMailbox), ServiceLifetime.Singleton)]
-public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMessage, TransportFrame>
-{
+public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMessage, TransportFrame> {
     private readonly NamedPipeTransport _transport;
     private readonly ConcurrentDictionary<string, string> _agentToProcess;
     private readonly ILogger<NamedPipeMailbox>? _logger;
@@ -30,8 +29,7 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
         : base(
             commandBackpressure ?? ActorBackpressure.CodingAgentTask,
             agentBackpressure ?? MailboxBase<CoordinatorMessage>.DefaultAgentBackpressure,
-            outputCapacity: 128)
-    {
+            outputCapacity: 128) {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _logger = logger;
         _agentToProcess = new ConcurrentDictionary<string, string>();
@@ -48,8 +46,7 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
     /// <para>调用方：应用启动时调用一次。</para>
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    public async Task StartAsync(CancellationToken ct = default)
-    {
+    public async Task StartAsync(CancellationToken ct = default) {
         await _transport.StartAsync(ct).ConfigureAwait(false);
         StartReceiveLoop();
         _logger?.LogInformation("NamedPipeMailbox started (role={Role}, pid={Pid})",
@@ -61,17 +58,13 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
     /// <para>目标 Agent 在本进程：直接写入 Agent Channel。</para>
     /// <para>目标 Agent 在远程进程：序列化后通过传输层发送。</para>
     /// </summary>
-    protected override async ValueTask HandleSendAsync(string agentId, CoordinatorMessage message, CancellationToken ct)
-    {
+    protected override async ValueTask HandleSendAsync(string agentId, CoordinatorMessage message, CancellationToken ct) {
         DeliverToAgent(agentId, message);
 
         if (_agentToProcess.TryGetValue(agentId, out var targetPid)
-            && targetPid != _transport.ProcessId)
-        {
+            && targetPid != _transport.ProcessId) {
             await SendRemoteAsync(targetPid, message, ct).ConfigureAwait(false);
-        }
-        else if (_transport.Role == ProcessRole.Slave)
-        {
+        } else if (_transport.Role == ProcessRole.Slave) {
             await SendRemoteAsync(_transport.HostProcessId, message, ct).ConfigureAwait(false);
         }
     }
@@ -79,22 +72,17 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
     /// <summary>
     /// 广播命令处理 — 本地广播 + 跨进程广播。
     /// </summary>
-    protected override async ValueTask HandleBroadcastAsync(CoordinatorMessage message, string? excludeAgentId, CancellationToken ct)
-    {
-        foreach (var kvp in _agentToProcess)
-        {
+    protected override async ValueTask HandleBroadcastAsync(CoordinatorMessage message, string? excludeAgentId, CancellationToken ct) {
+        foreach (var kvp in _agentToProcess) {
             if (kvp.Key == excludeAgentId) continue;
             DeliverToAgent(kvp.Key, message);
         }
 
-        try
-        {
+        try {
             var data = JsonSerializer.Serialize(message, MailboxJsonContext.Default.CoordinatorMessage);
             var bytes = Encoding.UTF8.GetBytes(data);
             await _transport.BroadcastAsync(bytes, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "NamedPipeMailbox: remote broadcast failed");
         }
     }
@@ -102,8 +90,7 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
     /// <summary>
     /// 注册 Agent — 本地注册 + 通知主机路由表更新。
     /// </summary>
-    public new ValueTask RegisterAgentAsync(string agentId, string? sessionId = null, CancellationToken ct = default)
-    {
+    public new ValueTask RegisterAgentAsync(string agentId, string? sessionId = null, CancellationToken ct = default) {
         _agentToProcess[agentId] = _transport.ProcessId;
         return base.RegisterAgentAsync(agentId, sessionId, ct);
     }
@@ -122,24 +109,19 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
     /// </summary>
     /// <param name="frame">传输帧</param>
     /// <param name="ct">取消令牌</param>
-    protected override ValueTask HandleFrameAsync(TransportFrame frame, CancellationToken ct)
-    {
+    protected override ValueTask HandleFrameAsync(TransportFrame frame, CancellationToken ct) {
         CoordinatorMessage? message;
-        try
-        {
+        try {
             var json = Encoding.UTF8.GetString(frame.Data.Span);
             message = RelaxedJsonSerializer.Deserialize(json, MailboxJsonContext.Default.CoordinatorMessage);
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             _logger?.LogWarning(ex, "NamedPipeMailbox: failed to deserialize message from {Source}", frame.SourceProcessId);
             return ValueTask.CompletedTask;
         }
 
         if (message is null) return ValueTask.CompletedTask;
 
-        if (message.ToAgentId is not null)
-        {
+        if (message.ToAgentId is not null) {
             _agentToProcess.TryAdd(message.ToAgentId, frame.SourceProcessId);
             DeliverToAgent(message.ToAgentId, message);
         }
@@ -157,16 +139,12 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
     /// <summary>
     /// 序列化消息并通过传输层发送到指定进程。
     /// </summary>
-    private async ValueTask SendRemoteAsync(string targetPid, CoordinatorMessage message, CancellationToken ct)
-    {
-        try
-        {
+    private async ValueTask SendRemoteAsync(string targetPid, CoordinatorMessage message, CancellationToken ct) {
+        try {
             var data = JsonSerializer.Serialize(message, MailboxJsonContext.Default.CoordinatorMessage);
             var bytes = Encoding.UTF8.GetBytes(data);
             await _transport.SendAsync(targetPid, bytes, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "NamedPipeMailbox: remote send to {Target} failed", targetPid);
         }
     }
@@ -174,8 +152,7 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
     /// <summary>
     /// 释放邮箱 — 停止接收循环 + 释放传输层。
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await StopReceiveLoopAsync().ConfigureAwait(false);
         await _transport.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);

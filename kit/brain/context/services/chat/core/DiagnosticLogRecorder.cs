@@ -6,16 +6,14 @@ namespace Core.Context;
 /// OnError=Continue：日志记录失败不影响管道继续执行
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddleware
-{
+public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddleware {
 
     /// <summary>
     /// 初始化诊断日志记录中间件
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public DiagnosticLogRecorder(IFileSystem fs, ILogger<DiagnosticLogRecorder>? logger = null)
-    {
+    public DiagnosticLogRecorder(IFileSystem fs, ILogger<DiagnosticLogRecorder>? logger = null) {
         _fs = fs;
         _logger = logger;
     }
@@ -35,8 +33,7 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
+        [EnumeratorCancellation] CancellationToken ct) {
         var sessionId = context.SessionId;
         var logPath = BuildLogPath(sessionId);
 
@@ -44,38 +41,31 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
 
         var entryWriter = new DiagnosticEntryWriter(_fs, logPath, _logger);
 
-        await using (entryWriter)
-        {
-            await entryWriter.WriteEntryAsync(new DiagnosticLogEntry
-            {
+        await using (entryWriter) {
+            await entryWriter.WriteEntryAsync(new DiagnosticLogEntry {
                 EventType = "turn_start",
                 Timestamp = DateTimeOffset.UtcNow,
                 SessionId = sessionId,
-                Data = new Dictionary<string, string>
-                {
+                Data = new Dictionary<string, string> {
                     ["message_length"] = context.Message.Length.ToString(),
                     ["conversation_turn"] = context.ConversationTurn.ToString(),
                 }
             }, ct).ConfigureAwait(false);
 
-            await foreach (var evt in next(context, ct).ConfigureAwait(false))
-            {
+            await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
                 var entry = MapEventToEntry(evt, sessionId);
-                if (entry is not null)
-                {
+                if (entry is not null) {
                     await entryWriter.WriteEntryAsync(entry, ct).ConfigureAwait(false);
                 }
 
                 yield return evt;
             }
 
-            await entryWriter.WriteEntryAsync(new DiagnosticLogEntry
-            {
+            await entryWriter.WriteEntryAsync(new DiagnosticLogEntry {
                 EventType = "turn_end",
                 Timestamp = DateTimeOffset.UtcNow,
                 SessionId = sessionId,
-                Data = new Dictionary<string, string>
-                {
+                Data = new Dictionary<string, string> {
                     ["total_tool_calls"] = context.TotalToolCalls.ToString(),
                     ["loop_trigger_count"] = context.LoopTriggerCount.ToString(),
                     ["total_ms"] = context.Timing.TotalMs.ToString(),
@@ -84,54 +74,44 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
         }
     }
 
-    private static DiagnosticLogEntry? MapEventToEntry(ChatStreamEvent evt, string sessionId)
-    {
-        return evt.Type switch
-        {
-            ChatStreamEventType.ToolCallStart => new DiagnosticLogEntry
-            {
+    private static DiagnosticLogEntry? MapEventToEntry(ChatStreamEvent evt, string sessionId) {
+        return evt.Type switch {
+            ChatStreamEventType.ToolCallStart => new DiagnosticLogEntry {
                 EventType = "tool_start",
                 Timestamp = DateTimeOffset.UtcNow,
                 SessionId = sessionId,
-                Data = new Dictionary<string, string>
-                {
+                Data = new Dictionary<string, string> {
                     ["tool_name"] = evt.ToolName ?? "",
                     ["tool_call_id"] = evt.ToolCallId ?? "",
                 }
             },
-            ChatStreamEventType.ToolCallEnd => new DiagnosticLogEntry
-            {
+            ChatStreamEventType.ToolCallEnd => new DiagnosticLogEntry {
                 EventType = evt.IsToolError ? "tool_error" : "tool_end",
                 Timestamp = DateTimeOffset.UtcNow,
                 SessionId = sessionId,
                 IsAnomaly = evt.IsToolError,
-                Data = new Dictionary<string, string>
-                {
+                Data = new Dictionary<string, string> {
                     ["tool_name"] = evt.ToolName ?? "",
                     ["tool_call_id"] = evt.ToolCallId ?? "",
                     ["is_error"] = evt.IsToolError.ToString(),
                 }
             },
-            ChatStreamEventType.LoopDetected => new DiagnosticLogEntry
-            {
+            ChatStreamEventType.LoopDetected => new DiagnosticLogEntry {
                 EventType = "loop_detected",
                 Timestamp = DateTimeOffset.UtcNow,
                 SessionId = sessionId,
                 IsAnomaly = true,
-                Data = new Dictionary<string, string>
-                {
+                Data = new Dictionary<string, string> {
                     ["trigger_count"] = evt.LoopTriggerCount.ToString(),
                     ["loop_start_index"] = evt.LoopStartIndex.ToString(),
                     ["repeated_pattern"] = evt.Content ?? "",
                 }
             },
-            ChatStreamEventType.Complete => new DiagnosticLogEntry
-            {
+            ChatStreamEventType.Complete => new DiagnosticLogEntry {
                 EventType = "api_complete",
                 Timestamp = DateTimeOffset.UtcNow,
                 SessionId = sessionId,
-                Data = new Dictionary<string, string>
-                {
+                Data = new Dictionary<string, string> {
                     ["model_id"] = evt.ModelId ?? "",
                     ["input_tokens"] = evt.Usage?.PromptTokens.ToString() ?? "0",
                     ["output_tokens"] = evt.Usage?.CompletionTokens.ToString() ?? "0",
@@ -143,23 +123,17 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
         };
     }
 
-    private static string BuildLogPath(string sessionId)
-    {
+    private static string BuildLogPath(string sessionId) {
         return Path.Combine(AppDataConstants.Paths.SessionsDirectory, sessionId, "diag", $"{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}.json");
     }
 
-    private async Task EnsureDiagDirectoryAsync(string logPath)
-    {
-        try
-        {
+    private async Task EnsureDiagDirectoryAsync(string logPath) {
+        try {
             var dir = Path.GetDirectoryName(logPath);
-            if (dir is not null && !_fs.DirectoryExists(dir))
-            {
+            if (dir is not null && !_fs.DirectoryExists(dir)) {
                 _fs.CreateDirectory(dir);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[DiagnosticLogRecorder] 无法创建诊断目录: {Path}", logPath);
         }
     }
@@ -168,8 +142,7 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
 /// <summary>
 /// 诊断日志条目 — JSONL 文件中的一行
 /// </summary>
-public sealed record DiagnosticLogEntry
-{
+public sealed record DiagnosticLogEntry {
     /// <summary>事件类型标识（如 turn_start、tool_start、tool_end、loop_detected 等）</summary>
     public required string EventType { get; init; }
     /// <summary>时间戳</summary>
@@ -191,23 +164,20 @@ public sealed record DiagnosticLogEntry
 /// <summary>
 /// 诊断条目写入器 — 负责将 DiagnosticLogEntry 序列化并追加到 JSONL 文件
 /// </summary>
-internal sealed class DiagnosticEntryWriter : IAsyncDisposable
-{
+internal sealed class DiagnosticEntryWriter : IAsyncDisposable {
     private readonly IFileSystem _fs;
     private readonly string _logPath;
     private readonly ILogger? _logger;
     private readonly WriteEntryActor _actor;
 
-    public DiagnosticEntryWriter(IFileSystem fs, string logPath, ILogger? logger)
-    {
+    public DiagnosticEntryWriter(IFileSystem fs, string logPath, ILogger? logger) {
         _fs = fs;
         _logPath = logPath;
         _logger = logger;
         _actor = new WriteEntryActor(fs, logPath, logger);
     }
 
-    public async Task WriteEntryAsync(DiagnosticLogEntry entry, CancellationToken ct)
-    {
+    public async Task WriteEntryAsync(DiagnosticLogEntry entry, CancellationToken ct) {
         var anomalyFlag = entry.IsAnomaly ? ",\"anomaly\":true" : "";
         var dataProps = string.Join(",", entry.Data.Select(kv => $"\"{kv.Key}\":\"{EscapeJsonString(kv.Value)}\""));
         var line = $"{{\"ts\":\"{entry.Timestamp:O}\",\"event\":\"{entry.EventType}\",\"session\":\"{entry.SessionId}\",\"trace\":\"{entry.TraceId}\"{anomalyFlag},\"data\":{{{dataProps}}}}}";
@@ -220,8 +190,7 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable
     public async ValueTask DisposeAsync()
         => await _actor.DisposeAsync().ConfigureAwait(false);
 
-    private static string EscapeJsonString(string value)
-    {
+    private static string EscapeJsonString(string value) {
         return value
             .Replace("\\", "\\\\")
             .Replace("\"", "\\\"")
@@ -232,14 +201,12 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable
 
     private sealed record WriteEntryCmd(string Line, TaskCompletionSource Reply);
 
-    private sealed class WriteEntryActor : ActorBase<WriteEntryCmd, Unit>
-    {
+    private sealed class WriteEntryActor : ActorBase<WriteEntryCmd, Unit> {
         private readonly IFileSystem _fs;
         private readonly string _logPath;
         private readonly ILogger? _logger;
 
-        public WriteEntryActor(IFileSystem fs, string logPath, ILogger? logger) : base()
-        {
+        public WriteEntryActor(IFileSystem fs, string logPath, ILogger? logger) : base() {
             _fs = fs;
             _logPath = logPath;
             _logger = logger;
@@ -248,14 +215,10 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(WriteEntryCmd cmd, CancellationToken ct)
-        {
-            try
-            {
+        protected override async ValueTask HandleAsync(WriteEntryCmd cmd, CancellationToken ct) {
+            try {
                 await _fs.AppendAllTextAsync(_logPath, cmd.Line + "\n", ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[DiagnosticLogRecorder] 写入诊断日志失败: {Path}", _logPath);
             }
             cmd.Reply.SetResult();

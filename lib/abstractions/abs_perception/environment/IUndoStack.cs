@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 撤销栈 — 维护桌面操作历史，支持回退最近 N 步（PRD U-03）
 /// </summary>
-public interface IUndoStack
-{
+public interface IUndoStack {
     /// <summary>记录一个已执行的操作</summary>
     void Push(DesktopOperation operation);
 

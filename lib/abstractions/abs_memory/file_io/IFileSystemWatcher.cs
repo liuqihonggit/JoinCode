@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>生产环境: PhysicalFileSystemWatcher (委托给 System.IO.FileSystemWatcher)</para>
 /// <para>测试环境: InMemoryFileSystemWatcher (文件操作触发事件)</para>
 /// </summary>
-public interface IFileSystemWatcher : IDisposable
-{
+public interface IFileSystemWatcher : IDisposable {
     /// <summary>获取或设置要监视的目录路径</summary>
     string Path { get; set; }
 
@@ -76,8 +75,7 @@ public interface IFileSystemWatcher : IDisposable
 /// <summary>
 /// 文件变更事件参数 — 对齐 System.IO.FileSystemEventArgs
 /// </summary>
-public class FileChangedEventArgs : EventArgs
-{
+public class FileChangedEventArgs : EventArgs {
     public WatcherChangeTypes ChangeType { get; init; }
     public string FullPath { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
@@ -86,8 +84,7 @@ public class FileChangedEventArgs : EventArgs
 /// <summary>
 /// 文件重命名事件参数 — 对齐 System.IO.RenamedEventArgs
 /// </summary>
-public sealed class FileRenamedEventArgs : FileChangedEventArgs
-{
+public sealed class FileRenamedEventArgs : FileChangedEventArgs {
     public string OldFullPath { get; init; } = string.Empty;
     public string OldName { get; init; } = string.Empty;
 }

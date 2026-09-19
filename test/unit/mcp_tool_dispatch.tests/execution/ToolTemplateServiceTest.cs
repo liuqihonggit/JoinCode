@@ -3,36 +3,30 @@ namespace McpToolDispatch.Tests.Execution;
 /// <summary>
 /// ToolTemplateService 单元测试 — 验证模板加载、Schema构建、占位符替换
 /// </summary>
-public sealed class ToolTemplateServiceTest : IAsyncLifetime
-{
+public sealed class ToolTemplateServiceTest : IAsyncLifetime {
     private InMemoryFileSystem _fs = null!;
     private ToolTemplateService _service = null!;
 
-    public Task InitializeAsync()
-    {
+    public Task InitializeAsync() {
         _fs = new InMemoryFileSystem();
         _service = new ToolTemplateService(_fs);
         return Task.CompletedTask;
     }
 
-    public Task DisposeAsync()
-    {
+    public Task DisposeAsync() {
         _service.DisposeSafe();
         return Task.CompletedTask;
     }
 
     [Fact]
-    public async Task LoadTemplatesAsync_NoTemplatesDir_ReturnsEmptyList()
-    {
+    public async Task LoadTemplatesAsync_NoTemplatesDir_ReturnsEmptyList() {
         var templates = await _service.LoadTemplatesAsync();
         templates.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task SaveTemplateAsync_And_LoadTemplatesAsync_RoundTrip()
-    {
-        var template = new ToolTemplate
-        {
+    public async Task SaveTemplateAsync_And_LoadTemplatesAsync_RoundTrip() {
+        var template = new ToolTemplate {
             Id = "test_tool",
             ToolName = "test_tool",
             Description = "A test tool",
@@ -48,8 +42,7 @@ public sealed class ToolTemplateServiceTest : IAsyncLifetime
                     Required = true
                 }
             ],
-            Execution = new ToolTemplateExecution
-            {
+            Execution = new ToolTemplateExecution {
                 Type = "shell",
                 Command = "echo",
                 Args = ["{{input}}"],
@@ -68,10 +61,8 @@ public sealed class ToolTemplateServiceTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ListTemplatesAsync_ReturnsCachedTemplates()
-    {
-        var template = new ToolTemplate
-        {
+    public async Task ListTemplatesAsync_ReturnsCachedTemplates() {
+        var template = new ToolTemplate {
             Id = "cached_tool",
             ToolName = "cached_tool",
             Description = "Cached tool",
@@ -87,8 +78,7 @@ public sealed class ToolTemplateServiceTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task LoadTemplatesAsync_InvalidJson_SkipsFile()
-    {
+    public async Task LoadTemplatesAsync_InvalidJson_SkipsFile() {
         var templatesDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".jcc", "tool-templates");

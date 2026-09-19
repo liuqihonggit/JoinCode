@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Localization;
 
-public static partial class StringKey
-{
+public static partial class StringKey {
     public const string GoalEngineAlreadyRunning = "GoalEngineAlreadyRunning";
     public const string GoalEngineBudgetUnlimited = "GoalEngineBudgetUnlimited";
     public const string GoalEngineUserResumeReason = "GoalEngineUserResumeReason";
@@ -15,12 +14,12 @@ public static partial class StringKey
     public const string GoalEngineCompleted = "GoalEngineCompleted";
     public const string GoalEngineContinuing = "GoalEngineContinuing";
     public const string GoalEngineHeartbeatTriggered = "GoalEngineHeartbeatTriggered";
-    
+
     public const string GoalEvaluatorCallFailed = "GoalEvaluatorCallFailed";
     public const string GoalEvaluatorEmptyResult = "GoalEvaluatorEmptyResult";
     public const string GoalEvaluatorFormatError = "GoalEvaluatorFormatError";
     public const string GoalEvaluatorNoConstraints = "GoalEvaluatorNoConstraints";
-    
+
     public const string ServiceHostAlreadyRegistered = "ServiceHostAlreadyRegistered";
     public const string ServiceHostAlreadyRunning = "ServiceHostAlreadyRunning";
     public const string ServiceHostStarting = "ServiceHostStarting";
@@ -36,7 +35,7 @@ public static partial class StringKey
     public const string ServiceHostStoppingService = "ServiceHostStoppingService";
     public const string ServiceHostServiceStopped = "ServiceHostServiceStopped";
     public const string ServiceHostStopFailed = "ServiceHostStopFailed";
-    
+
     public const string WorkflowAppInitializing = "WorkflowAppInitializing";
     public const string WorkflowAppCronRegistered = "WorkflowAppCronRegistered";
     public const string WorkflowAppInitialized = "WorkflowAppInitialized";
@@ -45,7 +44,7 @@ public static partial class StringKey
     public const string WorkflowAppStopping = "WorkflowAppStopping";
     public const string WorkflowAppStopped = "WorkflowAppStopped";
     public const string WorkflowAppStatusChanged = "WorkflowAppStatusChanged";
-    
+
     public const string CronSchedulerAlreadyRunning = "CronSchedulerAlreadyRunning";
     public const string CronSchedulerStarting = "CronSchedulerStarting";
     public const string CronSchedulerTaskFired = "CronSchedulerTaskFired";
@@ -54,12 +53,12 @@ public static partial class StringKey
     public const string CronSchedulerStopping = "CronSchedulerStopping";
     public const string CronSchedulerStopped = "CronSchedulerStopped";
     public const string CronSchedulerDisposeError = "CronSchedulerDisposeError";
-    
+
     public const string PermissionModeSwitched = "PermissionModeSwitched";
     public const string PermissionModeSwitchFailed = "PermissionModeSwitchFailed";
     public const string PermissionModeRestored = "PermissionModeRestored";
     public const string PermissionModeRestoreFailed = "PermissionModeRestoreFailed";
-    
+
     public const string GoalHeartbeatActivityStarted = "GoalHeartbeatActivityStarted";
     public const string GoalHeartbeatActivityStopped = "GoalHeartbeatActivityStopped";
     public const string GoalHeartbeatReset = "GoalHeartbeatReset";

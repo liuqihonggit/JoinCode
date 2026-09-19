@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public interface ICallGraph
-{
+public interface ICallGraph {
     Task<IReadOnlyList<CallEdge>> GetCallersAsync(string symbolName, CancellationToken ct);
     Task<IReadOnlyList<CallEdge>> GetCalleesAsync(string symbolName, CancellationToken ct);
     Task<IReadOnlyList<CallEdge>> GetCallChainAsync(string from, string to, CancellationToken ct);

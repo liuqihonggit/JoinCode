@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// 传输层工厂接口 — 用于创建 v1/v2 传输
 /// </summary>
-public interface IReplBridgeTransportFactory
-{
+public interface IReplBridgeTransportFactory {
     /// <summary>
     /// 创建 v2 传输（简化参数，env-less 路径使用）
     /// </summary>

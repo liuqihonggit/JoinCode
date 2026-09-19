@@ -1,12 +1,9 @@
 namespace Llm.Tests.Adapters.LLM.Serialization;
 
-public class AnthropicJsonContextTests
-{
+public class AnthropicJsonContextTests {
     [Fact]
-    public void AnthropicMessagesRequest_RoundTrip_SerializesModelAndMessages()
-    {
-        var request = new AnthropicMessagesRequest
-        {
+    public void AnthropicMessagesRequest_RoundTrip_SerializesModelAndMessages() {
+        var request = new AnthropicMessagesRequest {
             Model = "claude",
             MaxTokens = 100,
             Stream = true,
@@ -26,10 +23,8 @@ public class AnthropicJsonContextTests
     }
 
     [Fact]
-    public void AnthropicMessagesResponse_RoundTrip_PreservesContentBlocks()
-    {
-        var response = new AnthropicMessagesResponse
-        {
+    public void AnthropicMessagesResponse_RoundTrip_PreservesContentBlocks() {
+        var response = new AnthropicMessagesResponse {
             Id = "msg-1",
             Model = "claude",
             StopReason = AnthropicStopReason.EndTurn,
@@ -52,14 +47,11 @@ public class AnthropicJsonContextTests
     }
 
     [Fact]
-    public void AnthropicStreamingEvent_RoundTrip_PreservesType()
-    {
-        var evt = new AnthropicStreamingEvent
-        {
+    public void AnthropicStreamingEvent_RoundTrip_PreservesType() {
+        var evt = new AnthropicStreamingEvent {
             Type = AnthropicStreamingEventType.ContentBlockDelta,
             Index = 0,
-            Delta = new AnthropicStreamingDelta
-            {
+            Delta = new AnthropicStreamingDelta {
                 Type = AnthropicDeltaType.TextDelta,
                 Text = "delta"
             }
@@ -74,17 +66,13 @@ public class AnthropicJsonContextTests
     }
 
     [Fact]
-    public void AnthropicToolDefinition_RoundTrip_PreservesNameAndSchema()
-    {
-        var tool = new AnthropicToolDefinition
-        {
+    public void AnthropicToolDefinition_RoundTrip_PreservesNameAndSchema() {
+        var tool = new AnthropicToolDefinition {
             Name = "ToolA",
             Description = "desc",
-            InputSchema = new AnthropicInputSchema
-            {
+            InputSchema = new AnthropicInputSchema {
                 Type = "object",
-                Properties = new Dictionary<string, AnthropicSchemaProperty>
-                {
+                Properties = new Dictionary<string, AnthropicSchemaProperty> {
                     ["x"] = new() { Type = "integer" }
                 }
             }
@@ -99,10 +87,8 @@ public class AnthropicJsonContextTests
     }
 
     [Fact]
-    public void AnthropicContextManagement_RoundTrip_PreservesStrategies()
-    {
-        var management = new AnthropicContextManagement
-        {
+    public void AnthropicContextManagement_RoundTrip_PreservesStrategies() {
+        var management = new AnthropicContextManagement {
             Edits =
             [
                 new AnthropicClearThinkingStrategy { Keep = JsonElementHelper.FromInt32(10) }
@@ -117,8 +103,7 @@ public class AnthropicJsonContextTests
     }
 
     [Fact]
-    public void AnthropicToolReferenceBlock_RoundTrip_PreservesToolName()
-    {
+    public void AnthropicToolReferenceBlock_RoundTrip_PreservesToolName() {
         var block = new AnthropicToolReferenceBlock { ToolName = "ToolA" };
 
         var json = JsonSerializer.Serialize(block, AnthropicJsonContext.Default.AnthropicToolReferenceBlock);

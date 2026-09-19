@@ -5,8 +5,7 @@ namespace Core.Context;
 /// 提取自 ChatService.HandleIdleDetectionAsync + DetectToolUsageAsync
 /// </summary>
 [Register(typeof(IChatIdleDetector), ServiceLifetime.Singleton)]
-public sealed partial class ChatIdleDetector : ServiceEntity, IChatIdleDetector
-{
+public sealed partial class ChatIdleDetector : ServiceEntity, IChatIdleDetector {
 
     /// <summary>
     /// 初始化聊天空闲检测器
@@ -16,8 +15,7 @@ public sealed partial class ChatIdleDetector : ServiceEntity, IChatIdleDetector
     /// <param name="toolIdleReminder">工具空闲提醒服务</param>
     /// <param name="idleDetector">空闲工具检测器</param>
     /// <param name="logger">可选日志记录器</param>
-    public ChatIdleDetector(IChatContextManager contextManager, ISystemReminderManager reminderManager, ToolIdleReminderService toolIdleReminder, IdleToolDetector idleDetector, ILogger<ChatIdleDetector>? logger = null)
-    {
+    public ChatIdleDetector(IChatContextManager contextManager, ISystemReminderManager reminderManager, ToolIdleReminderService toolIdleReminder, IdleToolDetector idleDetector, ILogger<ChatIdleDetector>? logger = null) {
         _contextManager = contextManager;
         _reminderManager = reminderManager;
         _toolIdleReminder = toolIdleReminder;
@@ -33,21 +31,18 @@ public sealed partial class ChatIdleDetector : ServiceEntity, IChatIdleDetector
     /// <summary>
     /// 记录助手轮次使用的工具名
     /// </summary>
-    public void RecordAssistantTurn(string? toolNameUsed)
-    {
+    public void RecordAssistantTurn(string? toolNameUsed) {
         _toolIdleReminder.RecordAssistantTurn(toolNameUsed);
     }
 
     /// <summary>
     /// 检测空闲并注入提醒（如有需要）
     /// </summary>
-    public async Task HandleIdleDetectionAsync(CancellationToken ct)
-    {
+    public async Task HandleIdleDetectionAsync(CancellationToken ct) {
         var usedTool = await DetectToolUsageAsync(ct).ConfigureAwait(false);
         _idleDetector.OnLlmResponse(usedTool);
 
-        if (_idleDetector.ShouldInjectReminder())
-        {
+        if (_idleDetector.ShouldInjectReminder()) {
             var idleMessage = _idleDetector.GetReminderMessage();
             await _reminderManager.AddReminderAsync(
                 "idle-tool-reminder",
@@ -62,26 +57,19 @@ public sealed partial class ChatIdleDetector : ServiceEntity, IChatIdleDetector
     /// <summary>
     /// 重置空闲检测状态
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         _toolIdleReminder.Reset();
     }
 
-    private async Task<bool> DetectToolUsageAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task<bool> DetectToolUsageAsync(CancellationToken cancellationToken) {
+        try {
             var history = await _contextManager.GetMessageListAsync(cancellationToken).ConfigureAwait(false);
-            for (int i = history.Count - 1; i >= 0; i--)
-            {
-                if (history[i].Role == MessageRole.Tool)
-                {
+            for (int i = history.Count - 1; i >= 0; i--) {
+                if (history[i].Role == MessageRole.Tool) {
                     return true;
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[IdleDetection] 检测工具使用失败，默认未使用工具");
         }
 

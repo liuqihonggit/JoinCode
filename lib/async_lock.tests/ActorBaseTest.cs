@@ -3,11 +3,9 @@ namespace Core.Utils;
 /// <summary>
 /// ActorBase 单元测试 — 验证命令串行处理、异常容错、生命周期、背压、输出流。
 /// </summary>
-public class ActorBaseTest
-{
+public class ActorBaseTest {
     [Fact]
-    public async Task SendAsync_CommandProcessed_OutputReceived()
-    {
+    public async Task SendAsync_CommandProcessed_OutputReceived() {
         await using var actor = new TestActor();
         await actor.SendAsync("hello");
         await actor.SendAsync("world");
@@ -18,8 +16,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task TrySend_CommandProcessed_ReturnsTrue()
-    {
+    public async Task TrySend_CommandProcessed_ReturnsTrue() {
         await using var actor = new TestActor();
         actor.TrySend("test").Should().BeTrue();
         await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
@@ -27,8 +24,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task MultipleCommands_ProcessedSerially_InOrder()
-    {
+    public async Task MultipleCommands_ProcessedSerially_InOrder() {
         await using var actor = new TestActor();
         for (var i = 0; i < 100; i++)
             await actor.SendAsync($"msg-{i}");
@@ -41,8 +37,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task ConcurrentSend_AllCommandsProcessed_NoLoss()
-    {
+    public async Task ConcurrentSend_AllCommandsProcessed_NoLoss() {
         await using var actor = new TestActor();
         var tasks = Enumerable.Range(0, 500)
             .Select(i => actor.SendAsync($"msg-{i}").AsTask())
@@ -55,8 +50,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task CommandThrows_ConsumerContinues_NextCommandSucceeds()
-    {
+    public async Task CommandThrows_ConsumerContinues_NextCommandSucceeds() {
         await using var actor = new TestActor();
         await actor.SendAsync("throw");
         await actor.SendAsync("normal");
@@ -68,8 +62,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task DisposeAsync_TrySendReturnsFalse()
-    {
+    public async Task DisposeAsync_TrySendReturnsFalse() {
         var actor = new TestActor();
         await actor.DisposeAsync();
 
@@ -77,8 +70,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task SendAsync_AfterDispose_ThrowsObjectDisposed()
-    {
+    public async Task SendAsync_AfterDispose_ThrowsObjectDisposed() {
         var actor = new TestActor();
         await actor.DisposeAsync();
 
@@ -87,8 +79,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task OutputAsync_ReceivesPublishedMessages()
-    {
+    public async Task OutputAsync_ReceivesPublishedMessages() {
         await using var actor = new TestActor();
         await actor.SendAsync("hello");
 
@@ -99,8 +90,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task BoundedChannel_ProcessesAllCommandsNoLoss()
-    {
+    public async Task BoundedChannel_ProcessesAllCommandsNoLoss() {
         await using var actor = new TestActor(boundedCapacity: 4);
         var tasks = Enumerable.Range(0, 100)
             .Select(i => actor.SendAsync($"msg-{i}").AsTask())
@@ -113,8 +103,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task DisposeAsync_WaitsForConsumerExit()
-    {
+    public async Task DisposeAsync_WaitsForConsumerExit() {
         var actor = new TestActor();
         await actor.SendAsync("test");
         await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
@@ -125,8 +114,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task SendAsync_WithBackpressure_WatermarkEventTriggered()
-    {
+    public async Task SendAsync_WithBackpressure_WatermarkEventTriggered() {
         var bp = new ActorBackpressure(Capacity: 2, SendTimeout: TimeSpan.FromSeconds(1));
         await using var actor = new TestActor(bp);
 
@@ -140,8 +128,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task OutputCount_ReflectsPublishedMessages()
-    {
+    public async Task OutputCount_ReflectsPublishedMessages() {
         await using var actor = new TestActor();
         actor.OutputCount.Should().Be(0);
 
@@ -152,8 +139,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task OutputAsync_CancellationToken_CancelsStream()
-    {
+    public async Task OutputAsync_CancellationToken_CancelsStream() {
         await using var actor = new TestActor();
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
 
@@ -162,8 +148,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task OutputAsync_SingleConsumer_ReceivesAllMessages()
-    {
+    public async Task OutputAsync_SingleConsumer_ReceivesAllMessages() {
         await using var actor = new TestActor();
         await actor.SendAsync("test");
         await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
@@ -174,8 +159,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task SendAsync_Timeout_ThrowsTimeoutException()
-    {
+    public async Task SendAsync_Timeout_ThrowsTimeoutException() {
         var bp = new ActorBackpressure(Capacity: 1, SendTimeout: TimeSpan.FromMilliseconds(100));
         await using var actor = new TestActor(bp) { Gate = new() };
 
@@ -189,8 +173,7 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task IActorInterface_SendAsync_CommandProcessed()
-    {
+    public async Task IActorInterface_SendAsync_CommandProcessed() {
         await using IActor<string> actor = new TestActor();
         await actor.SendAsync("via-interface");
         var concrete = (TestActor)actor;
@@ -199,19 +182,16 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task IActorInterface_TrySend_Id_InputCount_Accessible()
-    {
+    public async Task IActorInterface_TrySend_Id_InputCount_Accessible() {
         await using IActor<string> actor = new TestActor();
         actor.Id.Should().NotBeNullOrEmpty();
         actor.InputCount.Should().Be(0);
         actor.TrySend("test").Should().BeTrue();
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
-    {
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout) {
         var sw = Stopwatch.StartNew();
-        while (sw.Elapsed < timeout)
-        {
+        while (sw.Elapsed < timeout) {
             if (condition()) return;
             await Task.Delay(10);
         }
@@ -222,24 +202,20 @@ public class ActorBaseTest
 /// <summary>
 /// 测试用 Actor — 输入 string，输出 "processed-{input}"。
 /// </summary>
-internal sealed class TestActor : ActorBase<string, string>
-{
+internal sealed class TestActor : ActorBase<string, string> {
     public readonly List<string> ProcessedCommands = new();
     public int ErrorCount { get; private set; }
     public TaskCompletionSource? Gate;
 
     public TestActor(int? boundedCapacity = null)
-        : base(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value))
-    {
+        : base(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value)) {
     }
 
     public TestActor(ActorBackpressure? backpressure)
-        : base(backpressure)
-    {
+        : base(backpressure) {
     }
 
-    protected override async ValueTask HandleAsync(string command, CancellationToken ct)
-    {
+    protected override async ValueTask HandleAsync(string command, CancellationToken ct) {
         await Task.Yield();
         if (command == "throw")
             throw new InvalidOperationException("test error");
@@ -248,8 +224,7 @@ internal sealed class TestActor : ActorBase<string, string>
         TryPublish($"processed-{command}");
     }
 
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         ErrorCount++;
     }
 }

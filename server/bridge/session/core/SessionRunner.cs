@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// Bridge 会话状态枚举
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<BridgeSessionStatus>))]
-public enum BridgeSessionStatus
-{
+public enum BridgeSessionStatus {
     /// <summary>活跃状态 - 会话正在使用</summary>
     [EnumValue("active")] Active,
 
@@ -23,8 +22,7 @@ public enum BridgeSessionStatus
 /// <summary>
 /// 会话快照 - 用于崩溃恢复
 /// </summary>
-public sealed class BridgeSessionSnapshot
-{
+public sealed class BridgeSessionSnapshot {
     /// <summary>会话唯一标识</summary>
     public required string SessionId { get; init; }
     /// <summary>客户端标识</summary>
@@ -39,8 +37,7 @@ public sealed class BridgeSessionSnapshot
 /// Bridge 会话模型 - 表示一个远程 Bridge 会话
 /// 对标 TS 原版的 Session 类型
 /// </summary>
-public sealed class BridgeSession
-{
+public sealed class BridgeSession {
     /// <summary>会话唯一标识</summary>
     [JsonPropertyName("sessionId")]
     public required string SessionId { get; init; }
@@ -71,8 +68,7 @@ public sealed class BridgeSession
 /// Bridge 会话配置
 /// </summary>
 [Register(typeof(BridgeSessionConfiguration), ServiceLifetime.Singleton)]
-public sealed partial class BridgeSessionConfiguration 
-{
+public sealed partial class BridgeSessionConfiguration {
     /// <summary>会话超时时间（默认 30 分钟）</summary>
     public TimeSpan SessionTimeout { get; init; } = TimeSpan.FromMinutes(30);
 
@@ -89,8 +85,7 @@ public sealed partial class BridgeSessionConfiguration
     /// 从 BridgeConfig 构造会话配置
     /// </summary>
     /// <param name="config">Bridge 配置</param>
-    public BridgeSessionConfiguration(BridgeConfig config)
-    {
+    public BridgeSessionConfiguration(BridgeConfig config) {
         SessionTimeout = TimeSpan.FromMinutes(config.SessionTimeoutMinutes);
         MaxActiveSessions = config.MaxSessions;
     }
@@ -100,16 +95,14 @@ public sealed partial class BridgeSessionConfiguration
 /// Bridge 会话工厂 - 创建新的会话实例
 /// </summary>
 [Register(typeof(BridgeSessionFactory), ServiceLifetime.Singleton)]
-public sealed partial class BridgeSessionFactory 
-{
+public sealed partial class BridgeSessionFactory {
     private readonly TimeProvider _timeProvider;
 
     /// <summary>
     /// 构造 BridgeSessionFactory
     /// </summary>
     /// <param name="timeProvider">可选时间提供者，默认系统时间</param>
-    public BridgeSessionFactory(TimeProvider? timeProvider = null)
-    {
+    public BridgeSessionFactory(TimeProvider? timeProvider = null) {
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
@@ -119,13 +112,11 @@ public sealed partial class BridgeSessionFactory
     /// <param name="clientId">客户端标识</param>
     /// <param name="metadata">可选元数据</param>
     /// <returns>新创建的 Bridge 会话</returns>
-    public BridgeSession Create(string clientId, Dictionary<string, string>? metadata = null)
-    {
+    public BridgeSession Create(string clientId, Dictionary<string, string>? metadata = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
 
         var now = _timeProvider.GetUtcNow();
-        return new BridgeSession
-        {
+        return new BridgeSession {
             SessionId = Guid.NewGuid().ToString("N"),
             ClientId = clientId,
             CreatedAt = now,
@@ -141,8 +132,7 @@ public sealed partial class BridgeSessionFactory
 /// 对标 TS 原版的 sessionRunner.ts 和 createSession.ts
 /// </summary>
 [Register(typeof(BridgeSessionRunner), ServiceLifetime.Singleton)]
-public sealed partial class BridgeSessionRunner : ServiceEntity
-{
+public sealed partial class BridgeSessionRunner : ServiceEntity {
     private readonly SessionRegistry _registry = new();
     private readonly BridgeSessionFactory _sessionFactory;
     private readonly BridgeSessionConfiguration _configuration;
@@ -172,8 +162,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         BridgeSessionConfiguration? configuration = null,
         ILogger? logger = null,
         TimeProvider? timeProvider = null)
-        : base(nameof(BridgeSessionRunner))
-    {
+        : base(nameof(BridgeSessionRunner)) {
         _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
         _configuration = configuration ?? new BridgeSessionConfiguration();
         _logger = logger;
@@ -185,10 +174,8 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// 启动会话运行器（启动过期清理后台任务）
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    public Task StartAsync(CancellationToken cancellationToken = default)
-    {
-        if (_cleanupTask is { IsCompleted: false })
-        {
+    public Task StartAsync(CancellationToken cancellationToken = default) {
+        if (_cleanupTask is { IsCompleted: false }) {
             _logger?.LogWarning("[SessionRunner] 会话运行器已在运行");
             return Task.CompletedTask;
         }
@@ -204,18 +191,13 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// 停止会话运行器
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task StopAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task StopAsync(CancellationToken cancellationToken = default) {
         _cleanupCts?.Cancel();
 
-        if (_cleanupTask is not null)
-        {
-            try
-            {
+        if (_cleanupTask is not null) {
+            try {
                 await _cleanupTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 // 预期中的取消，忽略
             }
         }
@@ -238,13 +220,11 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     public async Task<BridgeSession> StartSessionAsync(
         string clientId,
         Dictionary<string, string>? metadata = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var activeCount = _registry.CountActive();
-        if (activeCount >= _configuration.MaxActiveSessions)
-        {
+        if (activeCount >= _configuration.MaxActiveSessions) {
             throw new InvalidOperationException(
                 $"活跃会话数已达上限 ({_configuration.MaxActiveSessions})，无法创建新会话");
         }
@@ -263,7 +243,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
             previousStatus: null));
 
         return session;
-    
+
     }
 
     /// <summary>
@@ -272,17 +252,14 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <param name="sessionId">会话标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <exception cref="KeyNotFoundException">会话不存在</exception>
-    public async Task StopSessionAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
+    public async Task StopSessionAsync(string sessionId, CancellationToken cancellationToken = default) {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_registry.TryGet(sessionId, out var session))
-        {
+        if (!_registry.TryGet(sessionId, out var session)) {
             throw new KeyNotFoundException($"[BRG009] 会话不存在: {sessionId}");
         }
 
-        if (!BridgeSessionTransitions.CanStop(session.Status))
-        {
+        if (!BridgeSessionTransitions.CanStop(session.Status)) {
             _logger?.LogWarning("[SessionRunner] 会话已关闭: {SessionId}", sessionId);
             return;
         }
@@ -300,7 +277,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
             sessionId,
             BridgeSessionStatus.Closed,
             previousStatus));
-    
+
     }
 
     /// <summary>
@@ -308,17 +285,14 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// </summary>
     /// <param name="sessionId">会话标识</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task SuspendSessionAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
+    public async Task SuspendSessionAsync(string sessionId, CancellationToken cancellationToken = default) {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_registry.TryGet(sessionId, out var session))
-        {
+        if (!_registry.TryGet(sessionId, out var session)) {
             throw new KeyNotFoundException($"[BRG010] 会话不存在: {sessionId}");
         }
 
-        if (!BridgeSessionTransitions.CanSuspend(session.Status))
-        {
+        if (!BridgeSessionTransitions.CanSuspend(session.Status)) {
             _logger?.LogWarning("[SessionRunner] 无法挂起非活跃/空闲会话: {SessionId}, 状态: {Status}", sessionId, session.Status);
             return;
         }
@@ -333,7 +307,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
             sessionId,
             BridgeSessionStatus.Suspended,
             previousStatus));
-    
+
     }
 
     /// <summary>
@@ -341,17 +315,14 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// </summary>
     /// <param name="sessionId">会话标识</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task ResumeSessionAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
+    public async Task ResumeSessionAsync(string sessionId, CancellationToken cancellationToken = default) {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_registry.TryGet(sessionId, out var session))
-        {
+        if (!_registry.TryGet(sessionId, out var session)) {
             throw new KeyNotFoundException($"[BRG011] 会话不存在: {sessionId}");
         }
 
-        if (!BridgeSessionTransitions.CanResume(session.Status))
-        {
+        if (!BridgeSessionTransitions.CanResume(session.Status)) {
             _logger?.LogWarning("[SessionRunner] 无法恢复非挂起会话: {SessionId}, 状态: {Status}", sessionId, session.Status);
             return;
         }
@@ -366,7 +337,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
             sessionId,
             BridgeSessionStatus.Active,
             previousStatus));
-    
+
     }
 
     /// <summary>
@@ -374,8 +345,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// </summary>
     /// <param name="sessionId">会话标识</param>
     /// <returns>会话实例，不存在则返回 null</returns>
-    public BridgeSession? GetSession(string sessionId)
-    {
+    public BridgeSession? GetSession(string sessionId) {
         return _registry.TryGet(sessionId, out var session) ? session : null;
     }
 
@@ -384,8 +354,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// </summary>
     /// <param name="clientId">客户端标识</param>
     /// <returns>会话实例，不存在则返回 null</returns>
-    public BridgeSession? GetByClientId(string clientId)
-    {
+    public BridgeSession? GetByClientId(string clientId) {
         return _registry.GetByClientId(clientId);
     }
 
@@ -394,13 +363,11 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// </summary>
     /// <param name="sessionId">会话标识</param>
     /// <returns>会话快照，会话不存在返回 null</returns>
-    public BridgeSessionSnapshot? CreateSnapshot(string sessionId)
-    {
+    public BridgeSessionSnapshot? CreateSnapshot(string sessionId) {
         var session = GetSession(sessionId);
         if (session is null) return null;
 
-        return new BridgeSessionSnapshot
-        {
+        return new BridgeSessionSnapshot {
             SessionId = session.SessionId,
             ClientId = session.ClientId,
             State = session.Status,
@@ -416,25 +383,20 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <returns>恢复后的会话，会话不存在或不可恢复返回 null</returns>
     public async ValueTask<BridgeSession?> RestoreFromSnapshotAsync(
         BridgeSessionSnapshot snapshot,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(snapshot);
 
         var session = GetSession(snapshot.SessionId);
         if (session is null) return null;
 
-        if (!BridgeSessionTransitions.CanRestore(session.Status))
-        {
+        if (!BridgeSessionTransitions.CanRestore(session.Status)) {
             return null;
         }
 
         // 快照记录为活跃但当前挂起 → 恢复
-        if (snapshot.State == BridgeSessionStatus.Active && session.Status == BridgeSessionStatus.Suspended)
-        {
+        if (snapshot.State == BridgeSessionStatus.Active && session.Status == BridgeSessionStatus.Suspended) {
             await ResumeSessionAsync(snapshot.SessionId, ct).ConfigureAwait(false);
-        }
-        else if (session.Status != snapshot.State)
-        {
+        } else if (session.Status != snapshot.State) {
             // 状态不一致 → 激活
             using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -446,7 +408,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
                 session.SessionId,
                 BridgeSessionStatus.Active,
                 previousStatus));
-        
+
         }
 
         return session;
@@ -456,8 +418,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// 获取所有活跃会话
     /// </summary>
     /// <returns>活跃会话列表</returns>
-    public IReadOnlyList<BridgeSession> GetActiveSessions()
-    {
+    public IReadOnlyList<BridgeSession> GetActiveSessions() {
         return _registry.Values
             .Where(s => s.Status == BridgeSessionStatus.Active)
             .OrderByDescending(s => s.LastActiveAt)
@@ -470,18 +431,15 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <param name="sessionId">会话标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>刷新是否成功</returns>
-    public async Task<bool> KeepAliveAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> KeepAliveAsync(string sessionId, CancellationToken cancellationToken = default) {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_registry.TryGet(sessionId, out var session))
-        {
+        if (!_registry.TryGet(sessionId, out var session)) {
             _logger?.LogWarning("[SessionRunner] KeepAlive 失败，会话不存在: {SessionId}", sessionId);
             return false;
         }
 
-        if (!BridgeSessionTransitions.CanKeepAlive(session.Status))
-        {
+        if (!BridgeSessionTransitions.CanKeepAlive(session.Status)) {
             _logger?.LogWarning("[SessionRunner] KeepAlive 失败，会话已关闭: {SessionId}", sessionId);
             return false;
         }
@@ -492,8 +450,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
 
         _logger?.LogDebug("[SessionRunner] KeepAlive 成功: {SessionId}", sessionId);
 
-        if (previousStatus != BridgeSessionStatus.Active)
-        {
+        if (previousStatus != BridgeSessionStatus.Active) {
             SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
                 sessionId,
                 BridgeSessionStatus.Active,
@@ -501,7 +458,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         }
 
         return true;
-    
+
     }
 
     /// <summary>
@@ -509,8 +466,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>被清理的会话数量</returns>
-    public async Task<int> CleanupExpiredSessionsAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<int> CleanupExpiredSessionsAsync(CancellationToken cancellationToken = default) {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var now = _timeProvider.GetUtcNow();
@@ -521,10 +477,8 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
             .Select(s => s.SessionId)
             .ToList();
 
-        foreach (var sessionId in expiredSessionIds)
-        {
-            if (_registry.TryGet(sessionId, out var session))
-            {
+        foreach (var sessionId in expiredSessionIds) {
+            if (_registry.TryGet(sessionId, out var session)) {
                 var previousStatus = session.Status;
                 session.Status = BridgeSessionStatus.Closed;
                 session.LastActiveAt = now;
@@ -549,14 +503,12 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
             .Select(s => s.SessionId)
             .ToList();
 
-        foreach (var sessionId in closedSessionIds)
-        {
+        foreach (var sessionId in closedSessionIds) {
             _registry.Remove(sessionId);
         }
 
         var totalCleaned = expiredSessionIds.Count + closedSessionIds.Count;
-        if (totalCleaned > 0)
-        {
+        if (totalCleaned > 0) {
             _logger?.LogInformation(
                 "[SessionRunner] 清理完成: {ExpiredCount} 个过期, {ClosedCount} 个已关闭移除",
                 expiredSessionIds.Count,
@@ -564,37 +516,28 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         }
 
         return totalCleaned;
-    
+
     }
 
     /// <summary>
     /// 过期清理后台循环
     /// </summary>
-    private async Task RunCleanupLoopAsync(CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            try
-            {
+    private async Task RunCleanupLoopAsync(CancellationToken cancellationToken) {
+        while (!cancellationToken.IsCancellationRequested) {
+            try {
                 await Task.Delay(_configuration.CleanupInterval, _timeProvider, cancellationToken).ConfigureAwait(false);
                 await CleanupExpiredSessionsAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 break;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "[SessionRunner] 清理循环发生错误");
             }
         }
     }
 
     /// <inheritdoc />
-    public override async ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0)
-        {
+    public override async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0) {
             return;
         }
 
@@ -605,19 +548,17 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <summary>
     /// 释放资源时的清理回调 — 释放异步锁
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_asyncDisposed == 1) return;
         _lock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 }
 
 /// <summary>
 /// 会话状态变更事件参数
 /// </summary>
-public sealed class BridgeSessionStateChangedEventArgs : EventArgs
-{
+public sealed class BridgeSessionStateChangedEventArgs : EventArgs {
     /// <summary>会话标识</summary>
     public string SessionId { get; }
     /// <summary>新状态</summary>
@@ -634,8 +575,7 @@ public sealed class BridgeSessionStateChangedEventArgs : EventArgs
     public BridgeSessionStateChangedEventArgs(
         string sessionId,
         BridgeSessionStatus newStatus,
-        BridgeSessionStatus? previousStatus)
-    {
+        BridgeSessionStatus? previousStatus) {
         SessionId = sessionId;
         NewStatus = newStatus;
         PreviousStatus = previousStatus;
@@ -645,8 +585,7 @@ public sealed class BridgeSessionStateChangedEventArgs : EventArgs
 /// <summary>
 /// 会话过期事件参数
 /// </summary>
-public sealed class BridgeSessionExpiredEventArgs : EventArgs
-{
+public sealed class BridgeSessionExpiredEventArgs : EventArgs {
     /// <summary>会话标识</summary>
     public string SessionId { get; }
     /// <summary>客户端标识</summary>
@@ -657,8 +596,7 @@ public sealed class BridgeSessionExpiredEventArgs : EventArgs
     /// </summary>
     /// <param name="sessionId">会话标识</param>
     /// <param name="clientId">客户端标识</param>
-    public BridgeSessionExpiredEventArgs(string sessionId, string clientId)
-    {
+    public BridgeSessionExpiredEventArgs(string sessionId, string clientId) {
         SessionId = sessionId;
         ClientId = clientId;
     }

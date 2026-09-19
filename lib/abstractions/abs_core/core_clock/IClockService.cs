@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Clock;
 /// <para>基于 TimeProvider 抽象，消费方通过 GetUtcNow()/GetLocalNow() 获取时间</para>
 /// <para>FakeClockService 支持手动推进时间，用于调试和 E2E 测试</para>
 /// </summary>
-public interface IClockService
-{
+public interface IClockService {
     /// <summary>
     /// 获取底层 TimeProvider（用于需要 TimeProvider 参数的 API，如 Task.Delay、Timer 等）
     /// </summary>

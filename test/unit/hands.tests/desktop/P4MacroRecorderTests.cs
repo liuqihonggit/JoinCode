@@ -3,13 +3,11 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// P4 宏录制单元测试
 /// </summary>
-public sealed class P4MacroRecorderTests
-{
+public sealed class P4MacroRecorderTests {
     private static DesktopOperation SuccessOp(DesktopOperationKind kind = DesktopOperationKind.Click) =>
         new(kind, 0, 0, null, null, null, DateTimeOffset.UtcNow, true, null);
 
-    private static Mock<IDesktopInputService> CreateInputMock()
-    {
+    private static Mock<IDesktopInputService> CreateInputMock() {
         var mock = new Mock<IDesktopInputService>();
         mock.Setup(i => i.ClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<MouseAction>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SuccessOp(DesktopOperationKind.Click));
@@ -25,8 +23,7 @@ public sealed class P4MacroRecorderTests
     #region Recording
 
     [Fact]
-    public void StartRecording_SetsIsRecordingTrue_AndClearsPrevious()
-    {
+    public void StartRecording_SetsIsRecordingTrue_AndClearsPrevious() {
         var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
 
         recorder.IsRecording.Should().BeFalse();
@@ -44,8 +41,7 @@ public sealed class P4MacroRecorderTests
     }
 
     [Fact]
-    public void RecordOperation_WhenNotRecording_DoesNothing()
-    {
+    public void RecordOperation_WhenNotRecording_DoesNothing() {
         var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
 
         recorder.RecordOperation(SuccessOp());
@@ -56,8 +52,7 @@ public sealed class P4MacroRecorderTests
     }
 
     [Fact]
-    public void StopRecording_ReturnsMacroWithRecordedOperations()
-    {
+    public void StopRecording_ReturnsMacroWithRecordedOperations() {
         var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
 
         recorder.StartRecording("my-macro");
@@ -78,8 +73,7 @@ public sealed class P4MacroRecorderTests
     #region Playback
 
     [Fact]
-    public async Task PlayAsync_ExecutesAllOperations_ReturnsResult()
-    {
+    public async Task PlayAsync_ExecutesAllOperations_ReturnsResult() {
         var inputMock = CreateInputMock();
         var recorder = new MacroRecorder(inputMock.Object, new Mock<IFileSystem>().Object);
 
@@ -102,8 +96,7 @@ public sealed class P4MacroRecorderTests
     }
 
     [Fact]
-    public async Task PlayAsync_WithFailures_CountsFailedSteps()
-    {
+    public async Task PlayAsync_WithFailures_CountsFailedSteps() {
         var inputMock = new Mock<IDesktopInputService>();
         inputMock.Setup(i => i.ClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<MouseAction>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopOperation(DesktopOperationKind.Click, 0, 0, null, MouseAction.Click, null, DateTimeOffset.UtcNow, false, "error"));
@@ -125,8 +118,7 @@ public sealed class P4MacroRecorderTests
     }
 
     [Fact]
-    public async Task PlayAsync_EmptyMacro_ReturnsZero()
-    {
+    public async Task PlayAsync_EmptyMacro_ReturnsZero() {
         var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
         var macro = new Macro("empty", [], DateTimeOffset.UtcNow);
 
@@ -141,8 +133,7 @@ public sealed class P4MacroRecorderTests
     #region Save/Load
 
     [Fact]
-    public void SaveMacro_WritesJsonToFile()
-    {
+    public void SaveMacro_WritesJsonToFile() {
         var fsMock = new Mock<IFileSystem>();
         var recorder = new MacroRecorder(CreateInputMock().Object, fsMock.Object);
 
@@ -157,8 +148,7 @@ public sealed class P4MacroRecorderTests
     }
 
     [Fact]
-    public void LoadMacro_ReadsJsonFromFile()
-    {
+    public void LoadMacro_ReadsJsonFromFile() {
         var json = """{"name":"loaded","operations":[{"kind":1,"x":100,"y":200,"text":null,"mouseAction":1,"modifiers":null,"timestamp":"2026-01-01T00:00:00Z","succeeded":true,"error":null}],"createdAt":"2026-01-01T00:00:00Z"}""";
         var fsMock = new Mock<IFileSystem>();
         fsMock.Setup(fs => fs.ReadAllText("/tmp/test.json")).Returns(json);
@@ -178,8 +168,7 @@ public sealed class P4MacroRecorderTests
     #region MacroToolHandlers
 
     [Fact]
-    public async Task StartRecording_ValidName_ReturnsSuccess()
-    {
+    public async Task StartRecording_ValidName_ReturnsSuccess() {
         var recorderMock = new Mock<IMacroRecorder>();
         var handler = new MacroToolHandlers(recorderMock.Object, new Mock<IFileSystem>().Object);
 
@@ -191,8 +180,7 @@ public sealed class P4MacroRecorderTests
     }
 
     [Fact]
-    public async Task StopRecording_NotRecording_ReturnsError()
-    {
+    public async Task StopRecording_NotRecording_ReturnsError() {
         var recorderMock = new Mock<IMacroRecorder>();
         recorderMock.SetupGet(r => r.IsRecording).Returns(false);
         var handler = new MacroToolHandlers(recorderMock.Object, new Mock<IFileSystem>().Object);
@@ -204,8 +192,7 @@ public sealed class P4MacroRecorderTests
     }
 
     [Fact]
-    public async Task StopRecording_Recording_ReturnsMacroInfo()
-    {
+    public async Task StopRecording_Recording_ReturnsMacroInfo() {
         var recorderMock = new Mock<IMacroRecorder>();
         recorderMock.SetupGet(r => r.IsRecording).Returns(true);
         recorderMock.Setup(r => r.StopRecording())
@@ -220,8 +207,7 @@ public sealed class P4MacroRecorderTests
     }
 
     [Fact]
-    public async Task PlayMacro_LoadFails_ReturnsError()
-    {
+    public async Task PlayMacro_LoadFails_ReturnsError() {
         var recorderMock = new Mock<IMacroRecorder>();
         recorderMock.Setup(r => r.LoadMacro(It.IsAny<string>()))
             .Throws(new FileNotFoundException("文件不存在"));
@@ -234,8 +220,7 @@ public sealed class P4MacroRecorderTests
     }
 
     [Fact]
-    public async Task PlayMacro_LoadSucceeds_ReturnsPlaybackResult()
-    {
+    public async Task PlayMacro_LoadSucceeds_ReturnsPlaybackResult() {
         var macro = new Macro("test", new[] { SuccessOp() }, DateTimeOffset.UtcNow);
         var recorderMock = new Mock<IMacroRecorder>();
         recorderMock.Setup(r => r.LoadMacro(It.IsAny<string>())).Returns(macro);

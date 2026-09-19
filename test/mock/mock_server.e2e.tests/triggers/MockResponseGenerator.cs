@@ -5,10 +5,8 @@ namespace MockServer.E2E.Tests.Triggers;
 /// 模拟响应生成器
 /// 根据测试触发器类型生成不同的响应内容
 /// </summary>
-public sealed class MockResponseGenerator
-{
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
+public sealed class MockResponseGenerator {
+    private static readonly JsonSerializerOptions JsonOptions = new() {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         WriteIndented = true,
         TypeInfoResolver = MockServerE2EJsonContext.Default
@@ -20,11 +18,9 @@ public sealed class MockResponseGenerator
     /// <param name="trigger">测试触发器</param>
     /// <param name="request">原始请求</param>
     /// <returns>生成的响应内容</returns>
-    public string GenerateResponse(TestTrigger trigger, ChatCompletionRequest? request)
-    {
+    public string GenerateResponse(TestTrigger trigger, ChatCompletionRequest? request) {
         ArgumentNullException.ThrowIfNull(trigger);
-        return trigger.Type switch
-        {
+        return trigger.Type switch {
             TestTriggerType.SystemPrompt => GenerateSystemPromptResponse(request),
             TestTriggerType.UserPrompt => GenerateUserPromptResponse(request),
             TestTriggerType.ToolPrompt => GenerateToolPromptResponse(request, trigger.Parameter),
@@ -38,8 +34,7 @@ public sealed class MockResponseGenerator
     /// <summary>
     /// 生成系统提示词响应 - 返回系统提示词摘要
     /// </summary>
-    private static string GenerateSystemPromptResponse(ChatCompletionRequest? request)
-    {
+    private static string GenerateSystemPromptResponse(ChatCompletionRequest? request) {
         if (request?.Messages is null)
             return "[系统提示词验证] 请求为空或没有消息";
 
@@ -56,8 +51,7 @@ public sealed class MockResponseGenerator
         sb.AppendLine($"找到 {systemMessages.Count} 条系统提示词:");
         sb.AppendLine();
 
-        for (var i = 0; i < systemMessages.Count; i++)
-        {
+        for (var i = 0; i < systemMessages.Count; i++) {
             var content = systemMessages[i];
             var preview = content.Length > 200 ? content[..200] + "..." : content;
             var lineCount = content.Split('\n').Length;
@@ -77,8 +71,7 @@ public sealed class MockResponseGenerator
     /// <summary>
     /// 生成用户提示词响应 - 返回用户提示词摘要
     /// </summary>
-    private static string GenerateUserPromptResponse(ChatCompletionRequest? request)
-    {
+    private static string GenerateUserPromptResponse(ChatCompletionRequest? request) {
         if (request?.Messages is null)
             return "[用户提示词验证] 请求为空或没有消息";
 
@@ -95,8 +88,7 @@ public sealed class MockResponseGenerator
         sb.AppendLine($"找到 {userMessages.Count} 条用户消息:");
         sb.AppendLine();
 
-        for (var i = 0; i < userMessages.Count; i++)
-        {
+        for (var i = 0; i < userMessages.Count; i++) {
             var content = userMessages[i];
             var preview = content.Length > 300 ? content[..300] + "..." : content;
             var lineCount = content.Split('\n').Length;
@@ -116,8 +108,7 @@ public sealed class MockResponseGenerator
     /// <summary>
     /// 生成工具提示词响应 - 返回工具提示词内容
     /// </summary>
-    private static string GenerateToolPromptResponse(ChatCompletionRequest? request, string? toolName)
-    {
+    private static string GenerateToolPromptResponse(ChatCompletionRequest? request, string? toolName) {
         if (request?.Messages is null)
             return "[工具提示词验证] 请求为空或没有消息";
 
@@ -132,23 +123,17 @@ public sealed class MockResponseGenerator
         var sb = new StringBuilder();
         sb.AppendLine("=== 工具提示词验证结果 ===");
 
-        if (!string.IsNullOrWhiteSpace(toolName))
-        {
+        if (!string.IsNullOrWhiteSpace(toolName)) {
             sb.AppendLine($"查找工具: {toolName}");
             var toolSection = ExtractToolSection(systemPrompt, toolName);
 
-            if (string.IsNullOrWhiteSpace(toolSection))
-            {
+            if (string.IsNullOrWhiteSpace(toolSection)) {
                 sb.AppendLine($"未找到工具 '{toolName}' 的描述");
-            }
-            else
-            {
+            } else {
                 sb.AppendLine($"找到工具 '{toolName}' 的描述:");
                 sb.AppendLine(toolSection);
             }
-        }
-        else
-        {
+        } else {
             sb.AppendLine("系统提示词中的工具相关部分:");
             var toolsSection = ExtractAllToolsSection(systemPrompt);
             sb.AppendLine(string.IsNullOrWhiteSpace(toolsSection) ? "未找到工具描述部分" : toolsSection);
@@ -160,8 +145,7 @@ public sealed class MockResponseGenerator
     /// <summary>
     /// 生成用户提示词注入响应 - 返回注入检测确认
     /// </summary>
-    private static string GenerateUserInjectionResponse(ChatCompletionRequest? request)
-    {
+    private static string GenerateUserInjectionResponse(ChatCompletionRequest? request) {
         if (request?.Messages is null)
             return "[注入验证] 请求为空或没有消息";
 
@@ -190,12 +174,10 @@ public sealed class MockResponseGenerator
         sb.AppendLine($"检测到注入标记: {(hasInjectionMarkers ? "是" : "否")}");
         sb.AppendLine();
 
-        if (hasInjectionMarkers)
-        {
+        if (hasInjectionMarkers) {
             sb.AppendLine("包含注入标记的用户消息:");
             foreach (var msg in userMessages.Where(m =>
-                injectionKeywords.Any(k => m.Contains(k, StringComparison.OrdinalIgnoreCase))))
-            {
+                injectionKeywords.Any(k => m.Contains(k, StringComparison.OrdinalIgnoreCase)))) {
                 sb.AppendLine($"  - {msg[..Math.Min(100, msg.Length)]}...");
             }
         }
@@ -206,18 +188,14 @@ public sealed class MockResponseGenerator
     /// <summary>
     /// 生成 API Key 验证响应
     /// </summary>
-    private static string GenerateApiKeyResponse(string? apiKey)
-    {
+    private static string GenerateApiKeyResponse(string? apiKey) {
         var sb = new StringBuilder();
         sb.AppendLine("=== API Key 验证结果 ===");
 
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
+        if (string.IsNullOrWhiteSpace(apiKey)) {
             sb.AppendLine("状态: 未提供 API Key");
             sb.AppendLine("结果: 跳过验证");
-        }
-        else
-        {
+        } else {
             var maskedKey = apiKey.Length > 8
                 ? $"{apiKey[..4]}...{apiKey[^4..]}"
                 : "****";
@@ -235,8 +213,7 @@ public sealed class MockResponseGenerator
     /// <summary>
     /// 生成完整请求响应 - 返回完整请求 JSON
     /// </summary>
-    private static string GenerateFullRequestResponse(ChatCompletionRequest? request)
-    {
+    private static string GenerateFullRequestResponse(ChatCompletionRequest? request) {
         if (request is null)
             return "[完整请求] 请求为空";
 
@@ -244,13 +221,10 @@ public sealed class MockResponseGenerator
         sb.AppendLine("=== 完整请求 JSON ===");
         sb.AppendLine();
 
-        try
-        {
+        try {
             var json = JsonSerializer.Serialize(request, JsonOptions);
             sb.AppendLine(json);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             sb.AppendLine($"序列化失败: {ex.Message}");
         }
 
@@ -268,39 +242,33 @@ public sealed class MockResponseGenerator
     /// <summary>
     /// 生成默认响应
     /// </summary>
-    private static string GenerateDefaultResponse(TestTrigger trigger)
-    {
+    private static string GenerateDefaultResponse(TestTrigger trigger) {
         return $"[测试触发器] 类型: {trigger.Type}, 参数: {trigger.Parameter ?? "(无)"}";
     }
 
     /// <summary>
     /// 从系统提示词中提取特定工具的章节
     /// </summary>
-    private static string? ExtractToolSection(string systemPrompt, string toolName)
-    {
+    private static string? ExtractToolSection(string systemPrompt, string toolName) {
         var lines = systemPrompt.Split('\n');
         var sb = new StringBuilder();
         var inTargetTool = false;
 
-        foreach (var line in lines)
-        {
+        foreach (var line in lines) {
             // 检测工具标题行
             if (line.Contains(toolName, StringComparison.OrdinalIgnoreCase) &&
-                (line.StartsWith("##") || line.StartsWith("**") || line.Contains("tool")))
-            {
+                (line.StartsWith("##") || line.StartsWith("**") || line.Contains("tool"))) {
                 inTargetTool = true;
                 sb.AppendLine(line);
                 continue;
             }
 
             // 检测下一个工具开始（假设工具之间有分隔）
-            if (inTargetTool && (line.StartsWith("##") || line.StartsWith("---")))
-            {
+            if (inTargetTool && (line.StartsWith("##") || line.StartsWith("---"))) {
                 break;
             }
 
-            if (inTargetTool)
-            {
+            if (inTargetTool) {
                 sb.AppendLine(line);
             }
         }
@@ -311,19 +279,16 @@ public sealed class MockResponseGenerator
     /// <summary>
     /// 提取系统提示词中的所有工具相关部分
     /// </summary>
-    private static string? ExtractAllToolsSection(string systemPrompt)
-    {
+    private static string? ExtractAllToolsSection(string systemPrompt) {
         var toolSectionMarkers = new[]
         {
             "## Tools", "## 工具", "### Available Tools", "### 可用工具",
             "Tools:", "工具:", "**Tools**", "**工具**"
         };
 
-        foreach (var marker in toolSectionMarkers)
-        {
+        foreach (var marker in toolSectionMarkers) {
             var index = systemPrompt.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (index >= 0)
-            {
+            if (index >= 0) {
                 // 提取从标记开始的一段内容
                 var endIndex = systemPrompt.IndexOf("\n## ", index + marker.Length, StringComparison.Ordinal);
                 if (endIndex < 0) endIndex = systemPrompt.Length;

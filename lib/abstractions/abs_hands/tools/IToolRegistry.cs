@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Tools;
 /// 执行侧工具注册表 — 异步操作，含注册/查询/执行能力
 /// 关系: IToolCollection (01-ai) 是本接口的 LLM 侧只读投影
 /// </summary>
-public interface IToolRegistry : IAsyncDisposable, IRegistry
-{
+public interface IToolRegistry : IAsyncDisposable, IRegistry {
     Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default);
 
     Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null);

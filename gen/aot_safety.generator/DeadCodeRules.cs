@@ -1,8 +1,6 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class DeadCodeRules : DiagnosticAnalyzer
-    {
+    public sealed class DeadCodeRules : DiagnosticAnalyzer {
         private static readonly DiagnosticDescriptor RuleOrphanMethod = new(
             "JCC7001",
             "死代码: 方法 '{0}' 未被任何代码引用",
@@ -36,15 +34,13 @@ namespace AotSafety.Generator
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
             ImmutableArray.Create(RuleOrphanMethod, RuleOrphanType, RuleOrphanEnum);
 
-        public override void Initialize(AnalysisContext context)
-        {
+        public override void Initialize(AnalysisContext context) {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterCompilationStartAction(AnalyzeDeadCode);
         }
 
-        private static void AnalyzeDeadCode(CompilationStartAnalysisContext context)
-        {
+        private static void AnalyzeDeadCode(CompilationStartAnalysisContext context) {
             var methodDeclarations = new ConcurrentDictionary<IMethodSymbol, MethodDeclarationSyntax>(SymbolEqualityComparer.Default);
             var typeDeclarations = new ConcurrentDictionary<INamedTypeSymbol, BaseTypeDeclarationSyntax>(SymbolEqualityComparer.Default);
             var enumDeclarations = new ConcurrentDictionary<INamedTypeSymbol, EnumDeclarationSyntax>(SymbolEqualityComparer.Default);
@@ -59,8 +55,7 @@ namespace AotSafety.Generator
 
             var eventSubscribedMethodNames = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var method = (MethodDeclarationSyntax)ctx.Node;
@@ -75,8 +70,7 @@ namespace AotSafety.Generator
                 methodDeclarations[symbol] = method;
             }, SyntaxKind.MethodDeclaration);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var typeNode = (BaseTypeDeclarationSyntax)ctx.Node;
@@ -97,8 +91,7 @@ namespace AotSafety.Generator
                 typeDeclarations[symbol] = typeNode;
             }, SyntaxKind.ClassDeclaration, SyntaxKind.StructDeclaration, SyntaxKind.RecordDeclaration);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var enumNode = (EnumDeclarationSyntax)ctx.Node;
@@ -125,21 +118,18 @@ namespace AotSafety.Generator
                 enumDeclarations[symbol] = enumNode;
             }, SyntaxKind.EnumDeclaration);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var invocation = (InvocationExpressionSyntax)ctx.Node;
                 var symbolInfo = ctx.SemanticModel.GetSymbolInfo(invocation, ctx.CancellationToken);
                 var symbol = symbolInfo.Symbol;
 
-                if (symbol is null && symbolInfo.CandidateSymbols.Length > 0)
-                {
+                if (symbol is null && symbolInfo.CandidateSymbols.Length > 0) {
                     symbol = symbolInfo.CandidateSymbols[0];
                 }
 
-                if (symbol is IMethodSymbol methodSymbol)
-                {
+                if (symbol is IMethodSymbol methodSymbol) {
                     referencedMethods.TryAdd(methodSymbol, 0);
                     if (methodSymbol.IsGenericMethod && !methodSymbol.IsDefinition)
                         referencedMethods.TryAdd(methodSymbol.ConstructedFrom, 0);
@@ -154,8 +144,7 @@ namespace AotSafety.Generator
                     syntaxReferencedMethodNames.TryAdd(syntaxName, 0);
             }, SyntaxKind.InvocationExpression);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 if (ctx.Node is not IdentifierNameSyntax identifierName) return;
@@ -168,21 +157,18 @@ namespace AotSafety.Generator
                     return;
 
                 var symbol = ctx.SemanticModel.GetSymbolInfo(identifierName, ctx.CancellationToken).Symbol;
-                if (symbol is IMethodSymbol methodGroupSymbol)
-                {
+                if (symbol is IMethodSymbol methodGroupSymbol) {
                     referencedMethods.TryAdd(methodGroupSymbol, 0);
                 }
             }, SyntaxKind.IdentifierName);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var attr = (AttributeSyntax)ctx.Node;
                 if (attr.ArgumentList is null) return;
 
-                foreach (var arg in attr.ArgumentList.Arguments)
-                {
+                foreach (var arg in attr.ArgumentList.Arguments) {
                     if (arg.Expression is not LiteralExpressionSyntax literal) continue;
                     if (!literal.IsKind(SyntaxKind.StringLiteralExpression)) continue;
                     var value = literal.Token.ValueText;
@@ -191,8 +177,7 @@ namespace AotSafety.Generator
                 }
             }, SyntaxKind.Attribute);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 if (ctx.Node is not AssignmentExpressionSyntax assignment) return;
@@ -209,8 +194,7 @@ namespace AotSafety.Generator
                     eventSubscribedMethodNames.TryAdd(methodName, 0);
             }, SyntaxKind.AddAssignmentExpression);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var objCreation = (ObjectCreationExpressionSyntax)ctx.Node;
@@ -219,63 +203,52 @@ namespace AotSafety.Generator
                 AddReferencedEnum(referencedEnums, typeInfo);
             }, SyntaxKind.ObjectCreationExpression);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
-                if (ctx.Node is VariableDeclarationSyntax varDecl)
-                {
+                if (ctx.Node is VariableDeclarationSyntax varDecl) {
                     var typeInfo = ctx.SemanticModel.GetTypeInfo(varDecl.Type, ctx.CancellationToken).Type;
                     AddReferencedType(referencedTypes, typeInfo);
                     AddReferencedEnum(referencedEnums, typeInfo);
                 }
             }, SyntaxKind.VariableDeclaration);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
-                if (ctx.Node is ParameterSyntax param && param.Type is not null)
-                {
+                if (ctx.Node is ParameterSyntax param && param.Type is not null) {
                     var typeInfo = ctx.SemanticModel.GetTypeInfo(param.Type, ctx.CancellationToken).Type;
                     AddReferencedType(referencedTypes, typeInfo);
                     AddReferencedEnum(referencedEnums, typeInfo);
                 }
             }, SyntaxKind.Parameter);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
-                if (ctx.Node is MemberAccessExpressionSyntax memberAccess)
-                {
+                if (ctx.Node is MemberAccessExpressionSyntax memberAccess) {
                     var symbolInfo = ctx.SemanticModel.GetSymbolInfo(memberAccess, ctx.CancellationToken).Symbol;
                     if (symbolInfo is IFieldSymbol fieldSymbol &&
                         fieldSymbol.ContainingType is not null &&
-                        fieldSymbol.ContainingType.TypeKind == TypeKind.Enum)
-                    {
+                        fieldSymbol.ContainingType.TypeKind == TypeKind.Enum) {
                         referencedEnums.TryAdd(fieldSymbol.ContainingType, 0);
                     }
                 }
             }, SyntaxKind.SimpleMemberAccessExpression);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
-                if (ctx.Node is TypeOfExpressionSyntax typeOfExpr)
-                {
+                if (ctx.Node is TypeOfExpressionSyntax typeOfExpr) {
                     var typeInfo = ctx.SemanticModel.GetTypeInfo(typeOfExpr.Type, ctx.CancellationToken).Type;
                     AddReferencedEnum(referencedEnums, typeInfo);
                 }
             }, SyntaxKind.TypeOfExpression);
 
-            context.RegisterCompilationEndAction(ctx =>
-            {
+            context.RegisterCompilationEndAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
-                foreach (var kvp in methodDeclarations)
-                {
+                foreach (var kvp in methodDeclarations) {
                     var symbol = kvp.Key;
                     var syntax = kvp.Value;
 
@@ -307,8 +280,7 @@ namespace AotSafety.Generator
                     if (symbol.MethodKind == MethodKind.Destructor) continue;
 
                     if (symbol.DeclaredAccessibility == Accessibility.Internal ||
-                        symbol.DeclaredAccessibility == Accessibility.ProtectedAndInternal)
-                    {
+                        symbol.DeclaredAccessibility == Accessibility.ProtectedAndInternal) {
                         if (HasInternalsVisibleTo(symbol.ContainingAssembly))
                             continue;
                     }
@@ -327,8 +299,7 @@ namespace AotSafety.Generator
                     ctx.ReportDiagnostic(Diagnostic.Create(RuleOrphanMethod, syntax.Identifier.GetLocation(), methodName));
                 }
 
-                foreach (var kvp in typeDeclarations)
-                {
+                foreach (var kvp in typeDeclarations) {
                     var symbol = kvp.Key;
                     var syntax = kvp.Value;
 
@@ -337,8 +308,7 @@ namespace AotSafety.Generator
                     if (HasPublicMembers(symbol)) continue;
 
                     if (symbol.DeclaredAccessibility == Accessibility.Internal ||
-                        symbol.DeclaredAccessibility == Accessibility.ProtectedAndInternal)
-                    {
+                        symbol.DeclaredAccessibility == Accessibility.ProtectedAndInternal) {
                         if (HasInternalsVisibleTo(symbol.ContainingAssembly))
                             continue;
                     }
@@ -350,8 +320,7 @@ namespace AotSafety.Generator
                     ctx.ReportDiagnostic(Diagnostic.Create(RuleOrphanType, location, typeNameStr));
                 }
 
-                foreach (var kvp in enumDeclarations)
-                {
+                foreach (var kvp in enumDeclarations) {
                     var symbol = kvp.Key;
                     var syntax = kvp.Value;
 
@@ -365,8 +334,7 @@ namespace AotSafety.Generator
             });
         }
 
-        private static string? GetInvocationMethodName(InvocationExpressionSyntax invocation)
-        {
+        private static string? GetInvocationMethodName(InvocationExpressionSyntax invocation) {
             if (invocation.Expression is IdentifierNameSyntax directName)
                 return directName.Identifier.ValueText;
 
@@ -376,26 +344,19 @@ namespace AotSafety.Generator
             return null;
         }
 
-        private static bool IsInterfaceImplementation(IMethodSymbol method)
-        {
+        private static bool IsInterfaceImplementation(IMethodSymbol method) {
             if (method.ExplicitInterfaceImplementations.Length > 0) return true;
 
             var containingType = method.ContainingType;
             if (containingType is null) return false;
 
-            foreach (var iface in containingType.AllInterfaces)
-            {
-                foreach (var ifaceMember in iface.GetMembers(method.Name))
-                {
-                    if (ifaceMember is IMethodSymbol ifaceMethod)
-                    {
-                        if (method.Parameters.Length == ifaceMethod.Parameters.Length)
-                        {
+            foreach (var iface in containingType.AllInterfaces) {
+                foreach (var ifaceMember in iface.GetMembers(method.Name)) {
+                    if (ifaceMember is IMethodSymbol ifaceMethod) {
+                        if (method.Parameters.Length == ifaceMethod.Parameters.Length) {
                             var paramsMatch = true;
-                            for (var i = 0; i < method.Parameters.Length; i++)
-                            {
-                                if (!method.Parameters[i].Type.Equals(ifaceMethod.Parameters[i].Type, SymbolEqualityComparer.Default))
-                                {
+                            for (var i = 0; i < method.Parameters.Length; i++) {
+                                if (!method.Parameters[i].Type.Equals(ifaceMethod.Parameters[i].Type, SymbolEqualityComparer.Default)) {
                                     paramsMatch = false;
                                     break;
                                 }
@@ -409,44 +370,36 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool HasInternalsVisibleTo(IAssemblySymbol? assembly)
-        {
+        private static bool HasInternalsVisibleTo(IAssemblySymbol? assembly) {
             if (assembly is null) return false;
-            foreach (var attr in assembly.GetAttributes())
-            {
+            foreach (var attr in assembly.GetAttributes()) {
                 if (attr.AttributeClass is not null &&
-                    attr.AttributeClass.Name == "InternalsVisibleToAttribute")
-                {
+                    attr.AttributeClass.Name == "InternalsVisibleToAttribute") {
                     return true;
                 }
             }
             return false;
         }
 
-        private static bool IsMethodReferenced(IMethodSymbol method, ConcurrentDictionary<IMethodSymbol, byte> referencedMethods)
-        {
+        private static bool IsMethodReferenced(IMethodSymbol method, ConcurrentDictionary<IMethodSymbol, byte> referencedMethods) {
             if (referencedMethods.ContainsKey(method)) return true;
 
             if (method.PartialDefinitionPart is not null && referencedMethods.ContainsKey(method.PartialDefinitionPart)) return true;
             if (method.PartialImplementationPart is not null && referencedMethods.ContainsKey(method.PartialImplementationPart)) return true;
 
-            if (method.IsGenericMethod && !method.IsDefinition)
-            {
+            if (method.IsGenericMethod && !method.IsDefinition) {
                 if (referencedMethods.ContainsKey(method.ConstructedFrom)) return true;
             }
 
             return false;
         }
 
-        private static bool HasCustomAttribute(IMethodSymbol method)
-        {
-            foreach (var attr in method.GetAttributes())
-            {
+        private static bool HasCustomAttribute(IMethodSymbol method) {
+            foreach (var attr in method.GetAttributes()) {
                 if (attr.AttributeClass is null) continue;
 
                 var ns = attr.AttributeClass.ContainingNamespace;
-                if (ns is not null)
-                {
+                if (ns is not null) {
                     var nsName = ns.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                     if (nsName.StartsWith("global::System", StringComparison.Ordinal))
                         continue;
@@ -458,40 +411,32 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsExplicitInterfaceImplementationSyntax(MethodDeclarationSyntax syntax)
-        {
+        private static bool IsExplicitInterfaceImplementationSyntax(MethodDeclarationSyntax syntax) {
             return syntax.ExplicitInterfaceSpecifier is not null;
         }
 
-        private static bool IsTypeReferenced(INamedTypeSymbol type, ConcurrentDictionary<INamedTypeSymbol, byte> referencedTypes)
-        {
+        private static bool IsTypeReferenced(INamedTypeSymbol type, ConcurrentDictionary<INamedTypeSymbol, byte> referencedTypes) {
             return referencedTypes.ContainsKey(type);
         }
 
-        private static void AddReferencedType(ConcurrentDictionary<INamedTypeSymbol, byte> referencedTypes, ITypeSymbol? typeInfo)
-        {
+        private static void AddReferencedType(ConcurrentDictionary<INamedTypeSymbol, byte> referencedTypes, ITypeSymbol? typeInfo) {
             if (typeInfo is not INamedTypeSymbol namedType) return;
             referencedTypes.TryAdd(namedType, 0);
             if (namedType.ConstructedFrom is not null && !namedType.ConstructedFrom.Equals(namedType, SymbolEqualityComparer.Default))
                 referencedTypes.TryAdd(namedType.ConstructedFrom, 0);
         }
 
-        private static void AddReferencedEnum(ConcurrentDictionary<INamedTypeSymbol, byte> referencedEnums, ITypeSymbol? typeInfo)
-        {
-            if (typeInfo is INamedTypeSymbol namedType && namedType.TypeKind == TypeKind.Enum)
-            {
+        private static void AddReferencedEnum(ConcurrentDictionary<INamedTypeSymbol, byte> referencedEnums, ITypeSymbol? typeInfo) {
+            if (typeInfo is INamedTypeSymbol namedType && namedType.TypeKind == TypeKind.Enum) {
                 referencedEnums.TryAdd(namedType, 0);
             }
         }
 
-        private static bool HasPublicMembers(INamedTypeSymbol type)
-        {
-            foreach (var member in type.GetMembers())
-            {
+        private static bool HasPublicMembers(INamedTypeSymbol type) {
+            foreach (var member in type.GetMembers()) {
                 if (member.DeclaredAccessibility == Accessibility.Public ||
                     member.DeclaredAccessibility == Accessibility.Protected ||
-                    member.DeclaredAccessibility == Accessibility.ProtectedOrInternal)
-                {
+                    member.DeclaredAccessibility == Accessibility.ProtectedOrInternal) {
                     if (member is IMethodSymbol method &&
                         (method.MethodKind == MethodKind.Constructor ||
                          method.MethodKind == MethodKind.PropertyGet ||

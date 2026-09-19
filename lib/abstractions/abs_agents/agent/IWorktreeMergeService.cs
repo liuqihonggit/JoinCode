@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public enum WorktreeMergeStrategy
-{
+public enum WorktreeMergeStrategy {
     [EnumValue("fail")]
     Fail,
     [EnumValue("ours")]
@@ -12,8 +11,7 @@ public enum WorktreeMergeStrategy
     AutoMerge
 }
 
-public sealed class WorktreeMergeResult
-{
+public sealed class WorktreeMergeResult {
     public required string SourceWorktreePath { get; init; }
     public required string TargetWorktreePath { get; init; }
     public bool IsSuccess { get; init; }
@@ -23,8 +21,7 @@ public sealed class WorktreeMergeResult
     public IReadOnlyList<string> ConflictFiles { get; init; } = [];
     public string? StrategyUsed { get; init; }
 
-    public static WorktreeMergeResult Success(string source, string target, IReadOnlyList<string> mergedFiles, string strategy) => new()
-    {
+    public static WorktreeMergeResult Success(string source, string target, IReadOnlyList<string> mergedFiles, string strategy) => new() {
         SourceWorktreePath = source,
         TargetWorktreePath = target,
         IsSuccess = true,
@@ -32,8 +29,7 @@ public sealed class WorktreeMergeResult
         StrategyUsed = strategy
     };
 
-    public static WorktreeMergeResult Failed(string source, string target, string error, IReadOnlyList<string>? conflictFiles = null) => new()
-    {
+    public static WorktreeMergeResult Failed(string source, string target, string error, IReadOnlyList<string>? conflictFiles = null) => new() {
         SourceWorktreePath = source,
         TargetWorktreePath = target,
         IsSuccess = false,
@@ -42,8 +38,7 @@ public sealed class WorktreeMergeResult
     };
 }
 
-public interface IWorktreeMergeService
-{
+public interface IWorktreeMergeService {
     Task<WorktreeMergeResult> MergeToTargetAsync(
         string sourceWorktreePath,
         string targetWorktreePath,

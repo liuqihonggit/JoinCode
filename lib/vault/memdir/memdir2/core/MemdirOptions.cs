@@ -4,8 +4,7 @@ namespace Core.Memdir;
 /// Memdir 组件配置选项
 /// </summary>
 [Register(typeof(MemdirOptions), ServiceLifetime.Singleton)]
-public sealed partial class MemdirOptions : ServiceEntity
-{
+public sealed partial class MemdirOptions : ServiceEntity {
     /// <summary>
     /// 存储根路径
     /// </summary>
@@ -19,8 +18,7 @@ public sealed partial class MemdirOptions : ServiceEntity
     /// <summary>
     /// DI 构造函数 — 从 WorkflowConfig 获取 StoragePath
     /// </summary>
-    public MemdirOptions(WorkflowConfig? config)
-    {
+    public MemdirOptions(WorkflowConfig? config) {
         StoragePath = config?.MemdirPath ?? AppDataConstants.Paths.MemdirDirectory;
     }
 }

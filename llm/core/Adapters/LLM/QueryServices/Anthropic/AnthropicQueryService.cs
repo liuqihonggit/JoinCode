@@ -5,13 +5,11 @@ namespace Api.LLM.QueryServices.Anthropic;
 /// Anthropic 协议 QueryService 实现 — 完全独立的协议（v1/messages 端点 + x-api-key Header + content blocks）
 /// 不复用 OpenAI 协议路径，仅继承基类的协议无关基础设施（HttpClient / 速率限制 / 角色转换）
 /// </summary>
-public sealed class AnthropicQueryService : QueryServiceBase
-{
+public sealed class AnthropicQueryService : QueryServiceBase {
     private static readonly AnthropicCacheProtocol CacheProtocol = new();
 
     public AnthropicQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
-        : base(config, httpClient, logger, fs, resilientExecutor)
-    {
+        : base(config, httpClient, logger, fs, resilientExecutor) {
     }
 
     /// <summary>非流式：构建 Anthropic 请求 → 发送 → 转换为 ApiMessage</summary>
@@ -19,15 +17,13 @@ public sealed class AnthropicQueryService : QueryServiceBase
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var request = await CreateAnthropicRequest(chatHistory, executionSettings, stream: false, kernel).ConfigureAwait(false);
         var response = await SendAnthropicRequestAsync(request, cancellationToken).ConfigureAwait(false);
 
         // 两阶段工具加载: 非流式检测 tool_description_request → 发送第二次请求
         var firstContent = response.Content.FirstOrDefault(c => c.Type == AnthropicContentBlockType.Text)?.Text ?? string.Empty;
-        if (firstContent.Contains("tool_description_request") && kernel != null)
-        {
+        if (firstContent.Contains("tool_description_request") && kernel != null) {
             Logger?.LogDebug("[WIRE] Anthropic 非流式收到 tool_description_request, 发送第二次请求");
             var secondRequest = CreateSecondAnthropicRequestWithDescriptions(request, firstContent, kernel);
             var secondResponse = await SendAnthropicRequestAsync(secondRequest, cancellationToken).ConfigureAwait(false);
@@ -42,14 +38,11 @@ public sealed class AnthropicQueryService : QueryServiceBase
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
+        [EnumeratorCancellation] CancellationToken cancellationToken = default) {
         var request = await CreateAnthropicRequest(chatHistory, executionSettings, stream: true, kernel).ConfigureAwait(false);
         var isFirstChunk = true;
-        await foreach (var msg in SendAnthropicStreamingRequestAsync(request, kernel, cancellationToken).ConfigureAwait(false))
-        {
-            if (isFirstChunk)
-            {
+        await foreach (var msg in SendAnthropicStreamingRequestAsync(request, kernel, cancellationToken).ConfigureAwait(false)) {
+            if (isFirstChunk) {
                 isFirstChunk = false;
                 var enrichedMsg = EnrichWithRateLimitMetadata(msg);
                 yield return enrichedMsg ?? msg;
@@ -65,16 +58,14 @@ public sealed class AnthropicQueryService : QueryServiceBase
         MessageList chatHistory,
         ChatOptions? settings,
         bool stream,
-        IChatClient? kernel)
-    {
+        IChatClient? kernel) {
         var (systemBlocks, anthropicMessages) = ConvertToAnthropicMessages(chatHistory);
 
         var modelId = Config.ModelId;
         if (settings?.FastMode == true && !string.IsNullOrEmpty(settings.FastModelId))
             modelId = settings.FastModelId;
 
-        var request = new AnthropicMessagesRequest
-        {
+        var request = new AnthropicMessagesRequest {
             Model = modelId,
             MaxTokens = settings?.MaxTokens ?? 4096,
             System = systemBlocks,
@@ -84,25 +75,20 @@ public sealed class AnthropicQueryService : QueryServiceBase
             TopP = settings?.TopP
         };
 
-        if (settings?.EffortLevel is not null)
-        {
-            request.Thinking = new AnthropicThinkingConfig
-            {
+        if (settings?.EffortLevel is not null) {
+            request.Thinking = new AnthropicThinkingConfig {
                 Type = "enabled",
                 BudgetTokens = ChatOptions.EffortToBudgetTokens(settings.EffortLevel.Value)
             };
         }
 
-        if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null)
-        {
+        if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null) {
             var (allTools, toolGroups) = BuildAnthropicToolsFromKernel(kernel);
-            if (allTools.Count > 0 || toolGroups.Count > 0)
-            {
+            if (allTools.Count > 0 || toolGroups.Count > 0) {
                 var deferredToolInfos = settings.DeferredTools;
                 var discoveredTools = settings.DiscoveredTools;
 
-                if (deferredToolInfos is { Count: > 0 } && discoveredTools != null)
-                {
+                if (deferredToolInfos is { Count: > 0 } && discoveredTools != null) {
                     var deferredNames = new HashSet<string>(
                         deferredToolInfos.Select(t => t.Name), StringComparer.Ordinal);
 
@@ -112,28 +98,20 @@ public sealed class AnthropicQueryService : QueryServiceBase
                     var filteredTools = new List<AnthropicToolDefinition>();
                     var deferredNotDiscovered = new List<DeferredToolInfo>();
 
-                    foreach (var tool in allTools)
-                    {
-                        if (deferredNames.Contains(tool.Name))
-                        {
-                            if (discoveredSet.Contains(tool.Name))
-                            {
+                    foreach (var tool in allTools) {
+                        if (deferredNames.Contains(tool.Name)) {
+                            if (discoveredSet.Contains(tool.Name)) {
                                 filteredTools.Add(tool);
-                            }
-                            else
-                            {
+                            } else {
                                 var info = deferredToolInfos.First(t => t.Name == tool.Name);
                                 deferredNotDiscovered.Add(info);
                             }
-                        }
-                        else
-                        {
+                        } else {
                             filteredTools.Add(tool);
                         }
                     }
 
-                    if (deferredNotDiscovered.Count > 0)
-                    {
+                    if (deferredNotDiscovered.Count > 0) {
                         var deferredDefs = BuildDeferredToolDefinitions(deferredNotDiscovered);
                         filteredTools.AddRange(deferredDefs);
 
@@ -141,14 +119,11 @@ public sealed class AnthropicQueryService : QueryServiceBase
                     }
 
                     request.Tools = filteredTools;
-                }
-                else
-                {
+                } else {
                     request.Tools = allTools;
                 }
 
-                if (toolGroups.Count > 0)
-                {
+                if (toolGroups.Count > 0) {
                     request.ToolGroups = toolGroups;
                 }
 
@@ -157,11 +132,9 @@ public sealed class AnthropicQueryService : QueryServiceBase
         }
 
         if (settings?.ExtensionData != null &&
-            settings.ExtensionData.TryGetValue("web_search_tool", out var webSearchToolJson))
-        {
+            settings.ExtensionData.TryGetValue("web_search_tool", out var webSearchToolJson)) {
             var webSearchTool = RelaxedJsonSerializer.Deserialize(webSearchToolJson, AnthropicJsonContext.Default.AnthropicToolDefinition);
-            if (webSearchTool is not null)
-            {
+            if (webSearchTool is not null) {
                 request.Tools ??= [];
                 request.Tools.Add(webSearchTool);
             }
@@ -171,23 +144,18 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
         CacheProtocol.AddCacheBreakpoints(systemBlocks, request.Tools ?? [], anthropicMessages, hasMcpTools);
 
-        if (settings?.ContextManagement is not null)
-        {
+        if (settings?.ContextManagement is not null) {
             request.ContextManagement = ConvertContextManagement(settings.ContextManagement);
         }
 
         return request;
     }
 
-    private static AnthropicContextManagement ConvertContextManagement(ContextManagementConfig config)
-    {
+    private static AnthropicContextManagement ConvertContextManagement(ContextManagementConfig config) {
         var edits = new List<AnthropicContextEditStrategy>(config.Edits.Count);
-        foreach (var strategy in config.Edits)
-        {
-            edits.Add(strategy switch
-            {
-                ClearToolUsesStrategy s => new AnthropicClearToolUsesStrategy
-                {
+        foreach (var strategy in config.Edits) {
+            edits.Add(strategy switch {
+                ClearToolUsesStrategy s => new AnthropicClearToolUsesStrategy {
                     Trigger = s.Trigger is not null
                         ? new AnthropicContextTrigger { Type = s.Trigger.Type, Value = s.Trigger.Value }
                         : null,
@@ -204,8 +172,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
                         ? new AnthropicContextTokenThreshold { Type = s.ClearAtLeast.Type, Value = s.ClearAtLeast.Value }
                         : null,
                 },
-                ClearThinkingStrategy s => new AnthropicClearThinkingStrategy
-                {
+                ClearThinkingStrategy s => new AnthropicClearThinkingStrategy {
                     Keep = JsonElementHelper.FromPrimitives(s.Keep),
                 },
                 _ => throw new InvalidOperationException($"Unknown ContextEditStrategy type: {strategy.Type}")
@@ -219,90 +186,73 @@ public sealed class AnthropicQueryService : QueryServiceBase
         => ConvertToAnthropicMessages(chatHistory);
 
     private static (List<AnthropicSystemContentBlock> System, List<AnthropicMessage> Messages) ConvertToAnthropicMessages(
-        MessageList chatHistory)
-    {
+        MessageList chatHistory) {
         var systemBlocks = new List<AnthropicSystemContentBlock>();
         var messages = new List<AnthropicMessage>();
         var pendingToolResults = new List<AnthropicToolResultBlock>();
 
-        foreach (var msg in chatHistory)
-        {
-            switch (msg.Role)
-            {
+        foreach (var msg in chatHistory) {
+            switch (msg.Role) {
                 case MessageRole.System:
-                    var isStatic = CacheProtocol.IsStaticSystemBlock(msg);
-                    systemBlocks.Add(new AnthropicSystemContentBlock
-                    {
-                        Text = msg.Content ?? string.Empty,
-                        IsStatic = isStatic
-                    });
-                    break;
+                var isStatic = CacheProtocol.IsStaticSystemBlock(msg);
+                systemBlocks.Add(new AnthropicSystemContentBlock {
+                    Text = msg.Content ?? string.Empty,
+                    IsStatic = isStatic
+                });
+                break;
 
                 case MessageRole.User:
-                    if (pendingToolResults.Count > 0)
-                    {
-                        pendingToolResults.Add(CreateToolResultBlock(msg));
-                        messages.Add(new AnthropicMessage
-                        {
-                            Role = "user",
-                            Content = pendingToolResults.Cast<AnthropicContentBlock>().ToList()
-                        });
-                        pendingToolResults.Clear();
-                    }
-                    else
-                    {
-                        messages.Add(new AnthropicMessage { Role = "user", Content = msg.Content });
-                    }
-                    break;
+                if (pendingToolResults.Count > 0) {
+                    pendingToolResults.Add(CreateToolResultBlock(msg));
+                    messages.Add(new AnthropicMessage {
+                        Role = "user",
+                        Content = pendingToolResults.Cast<AnthropicContentBlock>().ToList()
+                    });
+                    pendingToolResults.Clear();
+                } else {
+                    messages.Add(new AnthropicMessage { Role = "user", Content = msg.Content });
+                }
+                break;
 
                 case MessageRole.Assistant:
-                    FlushToolResultsAsUserMessage(pendingToolResults, messages);
+                FlushToolResultsAsUserMessage(pendingToolResults, messages);
 
-                    if (msg.Metadata != null &&
-                        msg.Metadata.TryGetValue("ToolCalls", out var toolCallsObj))
-                    {
-                        var contentBlocks = new List<AnthropicContentBlock>();
-                        if (!string.IsNullOrWhiteSpace(msg.Content))
-                        {
-                            contentBlocks.Add(new AnthropicTextBlock { Text = msg.Content });
-                        }
-
-                        var toolCalls = ConvertToOpenAIToolCalls(toolCallsObj);
-                        if (toolCalls != null)
-                        {
-                            foreach (var tc in toolCalls)
-                            {
-                                contentBlocks.Add(new AnthropicToolUseBlock
-                                {
-                                    Id = tc.Id ?? "",
-                                    Name = tc.Function?.Name ?? "",
-                                    Input = tc.Function?.Arguments is not null
-                                        ? JsonElementHelper.FromJson(tc.Function.Arguments)
-                                        : null
-                                });
-                            }
-                        }
-
-                        messages.Add(new AnthropicMessage { Role = "assistant", Content = contentBlocks });
+                if (msg.Metadata != null &&
+                    msg.Metadata.TryGetValue("ToolCalls", out var toolCallsObj)) {
+                    var contentBlocks = new List<AnthropicContentBlock>();
+                    if (!string.IsNullOrWhiteSpace(msg.Content)) {
+                        contentBlocks.Add(new AnthropicTextBlock { Text = msg.Content });
                     }
-                    else
-                    {
-                        messages.Add(new AnthropicMessage { Role = "assistant", Content = msg.Content });
+
+                    var toolCalls = ConvertToOpenAIToolCalls(toolCallsObj);
+                    if (toolCalls != null) {
+                        foreach (var tc in toolCalls) {
+                            contentBlocks.Add(new AnthropicToolUseBlock {
+                                Id = tc.Id ?? "",
+                                Name = tc.Function?.Name ?? "",
+                                Input = tc.Function?.Arguments is not null
+                                    ? JsonElementHelper.FromJson(tc.Function.Arguments)
+                                    : null
+                            });
+                        }
                     }
-                    break;
+
+                    messages.Add(new AnthropicMessage { Role = "assistant", Content = contentBlocks });
+                } else {
+                    messages.Add(new AnthropicMessage { Role = "assistant", Content = msg.Content });
+                }
+                break;
 
                 case MessageRole.Tool:
-                    if (msg.Metadata != null &&
-                        msg.Metadata.TryGetValue("ToolCallId", out var toolCallIdObj) &&
-                        toolCallIdObj.TryGetString(out var toolCallId))
-                    {
-                        pendingToolResults.Add(new AnthropicToolResultBlock
-                        {
-                            ToolUseId = toolCallId ?? string.Empty,
-                            Content = JsonElementHelper.FromString(msg.Content)
-                        });
-                    }
-                    break;
+                if (msg.Metadata != null &&
+                    msg.Metadata.TryGetValue("ToolCallId", out var toolCallIdObj) &&
+                    toolCallIdObj.TryGetString(out var toolCallId)) {
+                    pendingToolResults.Add(new AnthropicToolResultBlock {
+                        ToolUseId = toolCallId ?? string.Empty,
+                        Content = JsonElementHelper.FromString(msg.Content)
+                    });
+                }
+                break;
             }
         }
 
@@ -313,52 +263,40 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
     private static void FlushToolResultsAsUserMessage(
         List<AnthropicToolResultBlock> pendingToolResults,
-        List<AnthropicMessage> messages)
-    {
+        List<AnthropicMessage> messages) {
         if (pendingToolResults.Count == 0) return;
 
-        messages.Add(new AnthropicMessage
-        {
+        messages.Add(new AnthropicMessage {
             Role = "user",
             Content = pendingToolResults.Cast<AnthropicContentBlock>().ToList()
         });
         pendingToolResults.Clear();
     }
 
-    private static AnthropicToolResultBlock CreateToolResultBlock(ApiMessage msg)
-    {
+    private static AnthropicToolResultBlock CreateToolResultBlock(ApiMessage msg) {
         var toolUseId = "";
         if (msg.Metadata != null &&
             msg.Metadata.TryGetValue("ToolCallId", out var idObj) &&
-            idObj.TryGetString(out var tid))
-        {
+            idObj.TryGetString(out var tid)) {
             toolUseId = tid;
         }
 
         JsonElement? content;
-        if (msg.ContentBlocks is { Count: > 0 })
-        {
+        if (msg.ContentBlocks is { Count: > 0 }) {
             var blocks = new List<Dictionary<string, JsonElement>>();
-            foreach (var block in msg.ContentBlocks)
-            {
-                if (block.Type == ToolContentType.Image && !string.IsNullOrEmpty(block.Data) && !string.IsNullOrEmpty(block.MimeType))
-                {
-                    var sourceDict = new Dictionary<string, JsonElement>
-                    {
+            foreach (var block in msg.ContentBlocks) {
+                if (block.Type == ToolContentType.Image && !string.IsNullOrEmpty(block.Data) && !string.IsNullOrEmpty(block.MimeType)) {
+                    var sourceDict = new Dictionary<string, JsonElement> {
                         ["type"] = JsonElementHelper.FromString("base64"),
                         ["media_type"] = JsonElementHelper.FromString(block.MimeType),
                         ["data"] = JsonElementHelper.FromString(block.Data)
                     };
-                    blocks.Add(new Dictionary<string, JsonElement>
-                    {
+                    blocks.Add(new Dictionary<string, JsonElement> {
                         ["type"] = JsonElementHelper.FromString("image"),
                         ["source"] = JsonElementHelper.FromObject(sourceDict, ContractsJsonContext.Default.DictionaryStringJsonElement)
                     });
-                }
-                else if (block.Type == ToolContentType.Text && !string.IsNullOrEmpty(block.Text))
-                {
-                    blocks.Add(new Dictionary<string, JsonElement>
-                    {
+                } else if (block.Type == ToolContentType.Text && !string.IsNullOrEmpty(block.Text)) {
+                    blocks.Add(new Dictionary<string, JsonElement> {
                         ["type"] = JsonElementHelper.FromString("text"),
                         ["text"] = JsonElementHelper.FromString(block.Text)
                     });
@@ -367,14 +305,11 @@ public sealed class AnthropicQueryService : QueryServiceBase
             content = blocks.Count > 0
                 ? JsonElementHelper.FromObject(blocks, ContractsJsonContext.Default.ListDictionaryStringJsonElement)
                 : JsonElementHelper.FromString(msg.Content);
-        }
-        else
-        {
+        } else {
             content = JsonElementHelper.FromString(msg.Content);
         }
 
-        return new AnthropicToolResultBlock
-        {
+        return new AnthropicToolResultBlock {
             ToolUseId = toolUseId ?? string.Empty,
             Content = content
         };
@@ -383,31 +318,23 @@ public sealed class AnthropicQueryService : QueryServiceBase
     /// <summary>
     /// 构建工具列表 — 两阶段加载：core_tools 发完整 schema，mcp_tools 发分组+名称
     /// </summary>
-    internal static (List<AnthropicToolDefinition> Tools, List<OpenAIToolGroup> ToolGroups) BuildAnthropicToolsFromKernel(IChatClient kernel)
-    {
+    internal static (List<AnthropicToolDefinition> Tools, List<OpenAIToolGroup> ToolGroups) BuildAnthropicToolsFromKernel(IChatClient kernel) {
         var tools = new List<AnthropicToolDefinition>();
         var toolGroups = new List<OpenAIToolGroup>();
 
-        foreach (var pluginName in kernel.Plugins.PluginNames)
-        {
+        foreach (var pluginName in kernel.Plugins.PluginNames) {
             var plugin = kernel.Plugins.GetPlugin(pluginName);
             if (plugin is not IToolGroup group)
                 continue;
 
-            if (group.Name == ToolGroupNameConstants.McpTools)
-            {
-                toolGroups.Add(new OpenAIToolGroup
-                {
+            if (group.Name == ToolGroupNameConstants.McpTools) {
+                toolGroups.Add(new OpenAIToolGroup {
                     Name = group.Name,
                     Tools = group.Functions.Select(f => f.Name).ToList()
                 });
-            }
-            else
-            {
-                foreach (var function in group.Functions)
-                {
-                    tools.Add(new AnthropicToolDefinition
-                    {
+            } else {
+                foreach (var function in group.Functions) {
+                    tools.Add(new AnthropicToolDefinition {
                         Name = function.Name,
                         Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
                         InputSchema = BuildAnthropicInputSchema(function.Parameters)
@@ -423,35 +350,27 @@ public sealed class AnthropicQueryService : QueryServiceBase
     /// 两阶段工具加载 — 解析 tool_description_request,构建第二次 Anthropic 请求(含 tool_descriptions)
     /// </summary>
     internal static AnthropicMessagesRequest CreateSecondAnthropicRequestWithDescriptions(
-        AnthropicMessagesRequest originalRequest, string descRequestContent, IChatClient kernel)
-    {
+        AnthropicMessagesRequest originalRequest, string descRequestContent, IChatClient kernel) {
         HashSet<string> toolNames;
-        try
-        {
+        try {
             var doc = JsonDocument.Parse(descRequestContent);
             toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
                 .Select(t => t.GetString() ?? "")
                 .Where(s => !string.IsNullOrEmpty(s))
                 .ToHashSet(StringComparer.Ordinal);
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             throw new InvalidOperationException(
                 $"Failed to parse tool_description_request JSON: {ex.Message} | Content: {descRequestContent[..Math.Min(descRequestContent.Length, 200)]}", ex);
         }
 
         var descriptions = new List<AnthropicToolDefinition>();
-        foreach (var pluginName in kernel.Plugins.PluginNames)
-        {
+        foreach (var pluginName in kernel.Plugins.PluginNames) {
             var plugin = kernel.Plugins.GetPlugin(pluginName);
             if (plugin is not IToolGroup group)
                 continue;
-            foreach (var function in group.Functions)
-            {
-                if (toolNames.Contains(function.Name))
-                {
-                    descriptions.Add(new AnthropicToolDefinition
-                    {
+            foreach (var function in group.Functions) {
+                if (toolNames.Contains(function.Name)) {
+                    descriptions.Add(new AnthropicToolDefinition {
                         Name = function.Name,
                         Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
                         InputSchema = BuildAnthropicInputSchema(function.Parameters)
@@ -460,8 +379,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
             }
         }
 
-        return new AnthropicMessagesRequest
-        {
+        return new AnthropicMessagesRequest {
             Model = originalRequest.Model,
             Messages = originalRequest.Messages,
             MaxTokens = originalRequest.MaxTokens,
@@ -478,10 +396,8 @@ public sealed class AnthropicQueryService : QueryServiceBase
         };
     }
 
-    private static List<AnthropicToolDefinition> BuildDeferredToolDefinitions(IEnumerable<DeferredToolInfo> deferredTools)
-    {
-        return deferredTools.Select(t => new AnthropicToolDefinition
-        {
+    private static List<AnthropicToolDefinition> BuildDeferredToolDefinitions(IEnumerable<DeferredToolInfo> deferredTools) {
+        return deferredTools.Select(t => new AnthropicToolDefinition {
             Name = t.Name,
             Description = BuildDeferredToolDescription(t),
             InputSchema = null,
@@ -489,8 +405,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         }).ToList();
     }
 
-    private static string BuildDeferredToolDescription(DeferredToolInfo t)
-    {
+    private static string BuildDeferredToolDescription(DeferredToolInfo t) {
         var path = t.Category is not null
             ? $"{t.Category}{(t.GroupName is not null ? $"[{t.GroupName}]" : string.Empty)}"
             : (t.GroupName is not null ? t.GroupName : "其他");
@@ -498,19 +413,14 @@ public sealed class AnthropicQueryService : QueryServiceBase
         return $"[{path}] {baseDesc}";
     }
 
-    private static AnthropicToolDefinition BuildToolSearchToolDefinition()
-    {
-        return new AnthropicToolDefinition
-        {
+    private static AnthropicToolDefinition BuildToolSearchToolDefinition() {
+        return new AnthropicToolDefinition {
             Name = SystemToolName.ToolSearch.ToValue(),
             Description = "Search for deferred tools by name or keyword. Use 'select:ToolName1,ToolName2' to directly select tools, 'map[主分组]' to browse a category, 'map[主分组][子分组]' to browse a sub-group, 'list_groups' to list all groups, or enter keywords to search. Deferred tools are loaded on-demand to save context window space.",
-            InputSchema = new AnthropicInputSchema
-            {
+            InputSchema = new AnthropicInputSchema {
                 Type = "object",
-                Properties = new Dictionary<string, AnthropicSchemaProperty>
-                {
-                    ["query"] = new()
-                    {
+                Properties = new Dictionary<string, AnthropicSchemaProperty> {
+                    ["query"] = new() {
                         Type = "string",
                         Description = "Search query: use 'select:tool_name' for exact selection, or keywords to search by name and description"
                     }
@@ -520,32 +430,26 @@ public sealed class AnthropicQueryService : QueryServiceBase
         };
     }
 
-    private static AnthropicInputSchema BuildAnthropicInputSchema(IReadOnlyList<IToolParam> parameters)
-    {
-        if (parameters.Count == 0)
-        {
+    private static AnthropicInputSchema BuildAnthropicInputSchema(IReadOnlyList<IToolParam> parameters) {
+        if (parameters.Count == 0) {
             return new AnthropicInputSchema();
         }
 
         var props = new Dictionary<string, AnthropicSchemaProperty>();
         var required = new List<string>();
 
-        foreach (var param in parameters)
-        {
-            props[param.Name] = new AnthropicSchemaProperty
-            {
+        foreach (var param in parameters) {
+            props[param.Name] = new AnthropicSchemaProperty {
                 Type = MapClrTypeToJsonSchemaType(param.ParameterType),
                 Description = string.IsNullOrEmpty(param.Description) ? null : param.Description
             };
 
-            if (param.IsRequired)
-            {
+            if (param.IsRequired) {
                 required.Add(param.Name);
             }
         }
 
-        return new AnthropicInputSchema
-        {
+        return new AnthropicInputSchema {
             Properties = props,
             Required = required.Count > 0 ? required : []
         };
@@ -557,8 +461,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
     private async Task<AnthropicMessagesResponse> SendAnthropicRequestAsync(
         AnthropicMessagesRequest request,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
         var endpoint = GetChatEndpoint(Config);
 
@@ -574,118 +477,96 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         AnthropicMessagesResponse? result;
-        try
-        {
+        try {
             result = RelaxedJsonSerializer.Deserialize(responseJson, AnthropicJsonContext.Default.AnthropicMessagesResponse);
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             throw new InvalidOperationException($"Failed to deserialize Anthropic messages response: {ex.Message}", ex);
         }
 
-        if (result == null)
-        {
+        if (result == null) {
             throw new InvalidOperationException("Failed to deserialize Anthropic messages response");
         }
 
         return result;
     }
 
-    internal static IReadOnlyList<ApiMessage> ConvertAnthropicResponseToApiMessages(AnthropicMessagesResponse response)
-    {
+    internal static IReadOnlyList<ApiMessage> ConvertAnthropicResponseToApiMessages(AnthropicMessagesResponse response) {
         var textParts = new StringBuilder();
         var thinkingParts = new StringBuilder();
         var toolUseBlocks = new List<(string Id, string Name, string Input)>();
         var webSearchResults = new List<string>();
 
-        foreach (var block in response.Content)
-        {
-            switch (block.Type)
-            {
+        foreach (var block in response.Content) {
+            switch (block.Type) {
                 case AnthropicContentBlockType.Thinking:
-                    if (block.Thinking != null)
-                        thinkingParts.Append(block.Thinking);
-                    break;
+                if (block.Thinking != null)
+                    thinkingParts.Append(block.Thinking);
+                break;
                 case AnthropicContentBlockType.Text:
-                    textParts.Append(block.Text);
-                    break;
+                textParts.Append(block.Text);
+                break;
                 case AnthropicContentBlockType.ToolUse:
-                    var inputJson = block.Input switch
-                    {
-                        JsonElement je => je.GetRawText(),
-                        _ => "{}"
-                    };
-                    toolUseBlocks.Add((block.Id ?? "", block.Name ?? "", inputJson));
-                    break;
+                var inputJson = block.Input switch {
+                    JsonElement je => je.GetRawText(),
+                    _ => "{}"
+                };
+                toolUseBlocks.Add((block.Id ?? "", block.Name ?? "", inputJson));
+                break;
                 case AnthropicContentBlockType.ServerToolUse:
-                    break;
+                break;
                 case AnthropicContentBlockType.WebSearchToolResult:
-                    if (block.Content is JsonElement contentEl)
-                    {
-                        if (contentEl.ValueKind == JsonValueKind.Array)
-                        {
-                            foreach (var item in contentEl.EnumerateArray())
-                            {
-                                var title = item.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null;
-                                var url = item.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
-                                if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(url))
-                                {
-                                    textParts.Append($"[{title}]({url})\n");
-                                }
+                if (block.Content is JsonElement contentEl) {
+                    if (contentEl.ValueKind == JsonValueKind.Array) {
+                        foreach (var item in contentEl.EnumerateArray()) {
+                            var title = item.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null;
+                            var url = item.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
+                            if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(url)) {
+                                textParts.Append($"[{title}]({url})\n");
                             }
-                            webSearchResults.Add(contentEl.GetRawText());
                         }
-                        else
-                        {
-                            var errorCode = contentEl.TryGetProperty("error_code", out var ec) ? ec.GetString() : "unknown";
-                            textParts.Append($"Web search error: {errorCode}\n");
-                        }
+                        webSearchResults.Add(contentEl.GetRawText());
+                    } else {
+                        var errorCode = contentEl.TryGetProperty("error_code", out var ec) ? ec.GetString() : "unknown";
+                        textParts.Append($"Web search error: {errorCode}\n");
                     }
-                    break;
+                }
+                break;
             }
         }
 
-        var metadata = new Dictionary<string, JsonElement>
-        {
+        var metadata = new Dictionary<string, JsonElement> {
             ["Id"] = JsonElementHelper.FromString(response.Id),
             ["FinishReason"] = JsonElementHelper.FromString(response.StopReason?.ToValue()),
             ["Model"] = JsonElementHelper.FromString(response.Model)
         };
 
-        if (thinkingParts.Length > 0)
-        {
+        if (thinkingParts.Length > 0) {
             metadata["thinking_content"] = JsonElementHelper.FromString(thinkingParts.ToString());
         }
 
-        if (webSearchResults.Count > 0)
-        {
+        if (webSearchResults.Count > 0) {
             metadata["web_search_results"] = JsonElementHelper.FromString($"[{string.Join(",", webSearchResults)}]");
         }
 
-        if (response.Usage != null)
-        {
+        if (response.Usage != null) {
             var tokenUsage = BuildTokenUsage(response.Usage);
 
             metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
         }
 
-        if (toolUseBlocks.Count > 0)
-        {
-            var openaiToolCalls = toolUseBlocks.Select((tc, i) => new OpenAIToolCall
-            {
+        if (toolUseBlocks.Count > 0) {
+            var openaiToolCalls = toolUseBlocks.Select((tc, i) => new OpenAIToolCall {
                 Index = i,
                 Id = tc.Id,
                 Type = "function",
-                Function = new OpenAIToolCallFunction
-                {
+                Function = new OpenAIToolCallFunction {
                     Name = tc.Name,
                     Arguments = tc.Input
                 }
             }).ToList();
             metadata["ToolCalls"] = JsonElementHelper.FromObject(openaiToolCalls, NativeJsonContext.Default.ListOpenAIToolCall);
 
-            var entries = toolUseBlocks.Select(tc => new ToolCallEntry
-            {
+            var entries = toolUseBlocks.Select(tc => new ToolCallEntry {
                 Id = tc.Id,
                 Name = tc.Name,
                 Arguments = tc.Input
@@ -700,8 +581,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
     private async IAsyncEnumerable<StreamEvent> SendAnthropicStreamingRequestAsync(
         AnthropicMessagesRequest request,
         IChatClient? kernel,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
+        [EnumeratorCancellation] CancellationToken cancellationToken) {
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
         var endpoint = GetChatEndpoint(Config);
 
@@ -729,13 +609,11 @@ public sealed class AnthropicQueryService : QueryServiceBase
         string? descRequestContent = null;
         var descRequestAccumulator = new StringBuilder();
         string? line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
-        {
+        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null) {
             if (cancellationToken.IsCancellationRequested) yield break;
             if (string.IsNullOrWhiteSpace(line)) continue;
 
-            if (line.StartsWith("event: "))
-            {
+            if (line.StartsWith("event: ")) {
                 continue;
             }
 
@@ -743,223 +621,181 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
             var data = line[6..];
             AnthropicStreamingEvent? evt;
-            try
-            {
+            try {
                 evt = RelaxedJsonSerializer.Deserialize(data, AnthropicJsonContext.Default.AnthropicStreamingEvent);
-            }
-            catch (JsonException)
-            {
+            } catch (JsonException) {
                 continue;
             }
 
             if (evt == null) continue;
 
-            switch (evt.Type)
-            {
+            switch (evt.Type) {
                 case AnthropicStreamingEventType.MessageStart:
-                    if (evt.Message != null)
-                    {
-                        messageId = evt.Message.Id;
-                        modelName = evt.Message.Model;
+                if (evt.Message != null) {
+                    messageId = evt.Message.Id;
+                    modelName = evt.Message.Model;
 
-                        var idElement = JsonElementHelper.FromString(messageId);
-                        var modelElement = JsonElementHelper.FromString(modelName);
-                        textDeltaMetadata = new Dictionary<string, JsonElement>
-                        {
-                            ["Id"] = idElement,
-                            ["Model"] = modelElement
-                        }.ToFrozenDictionary();
-                        thinkingDeltaMetadata = new Dictionary<string, JsonElement>
-                        {
-                            ["Id"] = idElement,
-                            ["Model"] = modelElement,
-                            ["thinking_content"] = JsonElementHelper.FromBoolean(true)
-                        }.ToFrozenDictionary();
-                    }
-                    break;
+                    var idElement = JsonElementHelper.FromString(messageId);
+                    var modelElement = JsonElementHelper.FromString(modelName);
+                    textDeltaMetadata = new Dictionary<string, JsonElement> {
+                        ["Id"] = idElement,
+                        ["Model"] = modelElement
+                    }.ToFrozenDictionary();
+                    thinkingDeltaMetadata = new Dictionary<string, JsonElement> {
+                        ["Id"] = idElement,
+                        ["Model"] = modelElement,
+                        ["thinking_content"] = JsonElementHelper.FromBoolean(true)
+                    }.ToFrozenDictionary();
+                }
+                break;
 
                 case AnthropicStreamingEventType.ContentBlockStart:
-                    if (evt.ContentBlock != null && evt.Index.HasValue)
-                    {
-                        var idx = evt.Index.Value;
-                        if (evt.ContentBlock.Type == AnthropicContentBlockType.ToolUse)
-                        {
-                            toolCallAccumulator[idx] = (
-                                evt.ContentBlock.Id ?? "",
-                                evt.ContentBlock.Name ?? "",
-                                new StringBuilder()
-                            );
-                        }
-                        else if (evt.ContentBlock.Type == AnthropicContentBlockType.ServerToolUse)
-                        {
-                            var serverToolUseId = evt.ContentBlock.Id ?? "";
-                            serverToolUseTracker[idx] = (serverToolUseId, null, new StringBuilder(), 0);
+                if (evt.ContentBlock != null && evt.Index.HasValue) {
+                    var idx = evt.Index.Value;
+                    if (evt.ContentBlock.Type == AnthropicContentBlockType.ToolUse) {
+                        toolCallAccumulator[idx] = (
+                            evt.ContentBlock.Id ?? "",
+                            evt.ContentBlock.Name ?? "",
+                            new StringBuilder()
+                        );
+                    } else if (evt.ContentBlock.Type == AnthropicContentBlockType.ServerToolUse) {
+                        var serverToolUseId = evt.ContentBlock.Id ?? "";
+                        serverToolUseTracker[idx] = (serverToolUseId, null, new StringBuilder(), 0);
 
-                            var metadata = new Dictionary<string, JsonElement>
-                            {
-                                ["Id"] = JsonElementHelper.FromString(messageId),
-                                ["Model"] = JsonElementHelper.FromString(modelName),
-                                ["server_tool_use"] = JsonElementHelper.FromBoolean(true),
-                                ["tool_use_id"] = JsonElementHelper.FromString(serverToolUseId),
-                                ["tool_name"] = JsonElementHelper.FromString(evt.ContentBlock.Name ?? "")
-                            };
-                            yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata);
-                        }
-                        else if (evt.ContentBlock.Type == AnthropicContentBlockType.WebSearchToolResult)
-                        {
-                            var searchMetadata = new Dictionary<string, JsonElement>
-                            {
-                                ["Id"] = JsonElementHelper.FromString(messageId),
-                                ["Model"] = JsonElementHelper.FromString(modelName),
-                                ["web_search_result"] = JsonElementHelper.FromBoolean(true),
-                                ["tool_use_id"] = JsonElementHelper.FromString(evt.ContentBlock.Id ?? "")
-                            };
-
-                            if (evt.ContentBlock.Content is JsonElement contentEl)
-                            {
-                                if (contentEl.ValueKind == JsonValueKind.Array)
-                                {
-                                    var links = new StringBuilder();
-                                    foreach (var item in contentEl.EnumerateArray())
-                                    {
-                                        var title = item.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null;
-                                        var url = item.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
-                                        if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(url))
-                                        {
-                                            links.Append($"[{title}]({url})\n");
-                                        }
-                                    }
-                                    if (links.Length > 0)
-                                    {
-                                        searchMetadata["search_links"] = JsonElementHelper.FromString(links.ToString());
-                                    }
-                                }
-                                else if (contentEl.ValueKind == JsonValueKind.Object)
-                                {
-                                    var errorCode = contentEl.TryGetProperty("error_code", out var ec) ? ec.GetString() : "unknown";
-                                    searchMetadata["search_error"] = JsonElementHelper.FromString(errorCode);
-                                }
-                            }
-
-                            yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, searchMetadata);
-                        }
-                    }
-                    break;
-
-                case AnthropicStreamingEventType.ContentBlockDelta:
-                    if (evt.Delta == null || !evt.Index.HasValue) break;
-                    {
-                        var idx = evt.Index.Value;
-                        var delta = evt.Delta;
-
-                        if (delta.Type == AnthropicDeltaType.ThinkingDelta && delta.Thinking != null)
-                        {
-                            yield return new StreamEvent(MessageRole.Assistant, delta.Thinking, modelName, thinkingDeltaMetadata);
-                        }
-                        else if (delta.Type == AnthropicDeltaType.TextDelta && delta.Text != null)
-                        {
-                            descRequestAccumulator.Append(delta.Text);
-                            var accumulated = descRequestAccumulator.ToString();
-                            if (kernel != null && accumulated.Contains("tool_description_request") && accumulated.TrimEnd().EndsWith('}'))
-                            {
-                                descRequestContent = accumulated;
-                                break;
-                            }
-                            yield return new StreamEvent(MessageRole.Assistant, delta.Text, modelName, textDeltaMetadata);
-                        }
-                        else if (delta.Type == AnthropicDeltaType.InputJsonDelta && delta.PartialJson != null)
-                        {
-                            if (toolCallAccumulator.TryGetValue(idx, out var existing))
-                            {
-                                existing.Arguments.Append(delta.PartialJson);
-                            }
-
-                            if (serverToolUseTracker.TryGetValue(idx, out var tracker))
-                            {
-                                tracker.JsonBuilder.Append(delta.PartialJson);
-
-                                if (tracker.JsonBuilder.Length - tracker.LastExtractionLength >= 50)
-                                {
-                                    var partialJson = tracker.JsonBuilder.ToString();
-
-                                    var queryMatch = System.Text.RegularExpressions.Regex.Match(
-                                        partialJson, @"""query""\s*:\s*""((?:[^""\\]|\\.)*)""");
-                                    if (queryMatch.Success)
-                                    {
-                                        var extractedQuery = queryMatch.Groups[1].Value;
-                                        extractedQuery = extractedQuery.Replace("\\\"", "\"")
-                                            .Replace("\\\\", "\\")
-                                            .Replace("\\n", "\n");
-
-                                        if (extractedQuery != tracker.LastQuery)
-                                        {
-                                            serverToolUseTracker[idx] = (tracker.ToolUseId, extractedQuery, tracker.JsonBuilder, tracker.JsonBuilder.Length);
-                                            var queryUpdateMetadata = new Dictionary<string, JsonElement>
-                                            {
-                                                ["Id"] = JsonElementHelper.FromString(messageId),
-                                                ["Model"] = JsonElementHelper.FromString(modelName),
-                                                ["server_tool_use"] = JsonElementHelper.FromBoolean(true),
-                                                ["tool_use_id"] = JsonElementHelper.FromString(tracker.ToolUseId),
-                                                ["tool_name"] = JsonElementHelper.FromString("web_search"),
-                                                ["query_update"] = JsonElementHelper.FromString(extractedQuery)
-                                            };
-                                            yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, queryUpdateMetadata);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    break;
-
-                case AnthropicStreamingEventType.MessageDelta:
-                    if (evt.Delta?.StopReason != null || evt.Usage != null)
-                    {
-                        var metadata = new Dictionary<string, JsonElement>
-                        {
+                        var metadata = new Dictionary<string, JsonElement> {
                             ["Id"] = JsonElementHelper.FromString(messageId),
                             ["Model"] = JsonElementHelper.FromString(modelName),
-                            ["FinishReason"] = JsonElementHelper.FromString(evt.Delta?.StopReason?.ToValue())
+                            ["server_tool_use"] = JsonElementHelper.FromBoolean(true),
+                            ["tool_use_id"] = JsonElementHelper.FromString(serverToolUseId),
+                            ["tool_name"] = JsonElementHelper.FromString(evt.ContentBlock.Name ?? "")
+                        };
+                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata);
+                    } else if (evt.ContentBlock.Type == AnthropicContentBlockType.WebSearchToolResult) {
+                        var searchMetadata = new Dictionary<string, JsonElement> {
+                            ["Id"] = JsonElementHelper.FromString(messageId),
+                            ["Model"] = JsonElementHelper.FromString(modelName),
+                            ["web_search_result"] = JsonElementHelper.FromBoolean(true),
+                            ["tool_use_id"] = JsonElementHelper.FromString(evt.ContentBlock.Id ?? "")
                         };
 
-                        if (evt.Usage != null)
-                        {
-                            var tokenUsage = BuildTokenUsage(evt.Usage);
-
-                            metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
+                        if (evt.ContentBlock.Content is JsonElement contentEl) {
+                            if (contentEl.ValueKind == JsonValueKind.Array) {
+                                var links = new StringBuilder();
+                                foreach (var item in contentEl.EnumerateArray()) {
+                                    var title = item.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null;
+                                    var url = item.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
+                                    if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(url)) {
+                                        links.Append($"[{title}]({url})\n");
+                                    }
+                                }
+                                if (links.Length > 0) {
+                                    searchMetadata["search_links"] = JsonElementHelper.FromString(links.ToString());
+                                }
+                            } else if (contentEl.ValueKind == JsonValueKind.Object) {
+                                var errorCode = contentEl.TryGetProperty("error_code", out var ec) ? ec.GetString() : "unknown";
+                                searchMetadata["search_error"] = JsonElementHelper.FromString(errorCode);
+                            }
                         }
 
-                        if (evt.Delta?.StopReason == AnthropicStopReason.ToolUse && toolCallAccumulator.Count > 0)
-                        {
-                            var entries = toolCallAccumulator.Values
-                                .Select(tc => new ToolCallEntry
-                                {
-                                    Id = tc.Id,
-                                    Name = tc.Name,
-                                    Arguments = tc.Arguments.ToString()
-                                })
-                                .ToList();
-                            metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
-                        }
-
-                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata);
+                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, searchMetadata);
                     }
-                    break;
+                }
+                break;
+
+                case AnthropicStreamingEventType.ContentBlockDelta:
+                if (evt.Delta == null || !evt.Index.HasValue) break; {
+                    var idx = evt.Index.Value;
+                    var delta = evt.Delta;
+
+                    if (delta.Type == AnthropicDeltaType.ThinkingDelta && delta.Thinking != null) {
+                        yield return new StreamEvent(MessageRole.Assistant, delta.Thinking, modelName, thinkingDeltaMetadata);
+                    } else if (delta.Type == AnthropicDeltaType.TextDelta && delta.Text != null) {
+                        descRequestAccumulator.Append(delta.Text);
+                        var accumulated = descRequestAccumulator.ToString();
+                        if (kernel != null && accumulated.Contains("tool_description_request") && accumulated.TrimEnd().EndsWith('}')) {
+                            descRequestContent = accumulated;
+                            break;
+                        }
+                        yield return new StreamEvent(MessageRole.Assistant, delta.Text, modelName, textDeltaMetadata);
+                    } else if (delta.Type == AnthropicDeltaType.InputJsonDelta && delta.PartialJson != null) {
+                        if (toolCallAccumulator.TryGetValue(idx, out var existing)) {
+                            existing.Arguments.Append(delta.PartialJson);
+                        }
+
+                        if (serverToolUseTracker.TryGetValue(idx, out var tracker)) {
+                            tracker.JsonBuilder.Append(delta.PartialJson);
+
+                            if (tracker.JsonBuilder.Length - tracker.LastExtractionLength >= 50) {
+                                var partialJson = tracker.JsonBuilder.ToString();
+
+                                var queryMatch = System.Text.RegularExpressions.Regex.Match(
+                                    partialJson, @"""query""\s*:\s*""((?:[^""\\]|\\.)*)""");
+                                if (queryMatch.Success) {
+                                    var extractedQuery = queryMatch.Groups[1].Value;
+                                    extractedQuery = extractedQuery.Replace("\\\"", "\"")
+                                        .Replace("\\\\", "\\")
+                                        .Replace("\\n", "\n");
+
+                                    if (extractedQuery != tracker.LastQuery) {
+                                        serverToolUseTracker[idx] = (tracker.ToolUseId, extractedQuery, tracker.JsonBuilder, tracker.JsonBuilder.Length);
+                                        var queryUpdateMetadata = new Dictionary<string, JsonElement> {
+                                            ["Id"] = JsonElementHelper.FromString(messageId),
+                                            ["Model"] = JsonElementHelper.FromString(modelName),
+                                            ["server_tool_use"] = JsonElementHelper.FromBoolean(true),
+                                            ["tool_use_id"] = JsonElementHelper.FromString(tracker.ToolUseId),
+                                            ["tool_name"] = JsonElementHelper.FromString("web_search"),
+                                            ["query_update"] = JsonElementHelper.FromString(extractedQuery)
+                                        };
+                                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, queryUpdateMetadata);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+
+                case AnthropicStreamingEventType.MessageDelta:
+                if (evt.Delta?.StopReason != null || evt.Usage != null) {
+                    var metadata = new Dictionary<string, JsonElement> {
+                        ["Id"] = JsonElementHelper.FromString(messageId),
+                        ["Model"] = JsonElementHelper.FromString(modelName),
+                        ["FinishReason"] = JsonElementHelper.FromString(evt.Delta?.StopReason?.ToValue())
+                    };
+
+                    if (evt.Usage != null) {
+                        var tokenUsage = BuildTokenUsage(evt.Usage);
+
+                        metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
+                    }
+
+                    if (evt.Delta?.StopReason == AnthropicStopReason.ToolUse && toolCallAccumulator.Count > 0) {
+                        var entries = toolCallAccumulator.Values
+                            .Select(tc => new ToolCallEntry {
+                                Id = tc.Id,
+                                Name = tc.Name,
+                                Arguments = tc.Arguments.ToString()
+                            })
+                            .ToList();
+                        metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
+                    }
+
+                    yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata);
+                }
+                break;
 
                 case AnthropicStreamingEventType.MessageStop:
-                    yield break;
+                yield break;
             }
 
             if (descRequestContent is not null) break;
         }
 
         // 两阶段工具加载: 检测到 tool_description_request → 构建第二次请求(含 tool_descriptions)
-        if (descRequestContent is not null && kernel != null)
-        {
+        if (descRequestContent is not null && kernel != null) {
             Logger?.LogDebug("[WIRE] Anthropic 收到 tool_description_request, 发送第二次请求");
             var secondRequest = CreateSecondAnthropicRequestWithDescriptions(request, descRequestContent, kernel);
-            await foreach (var msg in SendAnthropicStreamingRequestAsync(secondRequest, null, cancellationToken).ConfigureAwait(false))
-            {
+            await foreach (var msg in SendAnthropicStreamingRequestAsync(secondRequest, null, cancellationToken).ConfigureAwait(false)) {
                 yield return msg;
             }
         }
@@ -967,8 +803,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
     #endregion
 
-    private static TokenUsage BuildTokenUsage(AnthropicUsage usage)
-    {
+    private static TokenUsage BuildTokenUsage(AnthropicUsage usage) {
         return CacheProtocol.MapUsage(usage);
     }
 }

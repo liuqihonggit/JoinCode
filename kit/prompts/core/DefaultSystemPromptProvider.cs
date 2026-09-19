@@ -4,8 +4,7 @@ namespace Core.Prompts;
 /// 默认系统提示词提供者 - 组合所有标准提示词部分
 /// </summary>
 [Register(typeof(ISystemPromptProvider), ServiceLifetime.Singleton)]
-public sealed partial class DefaultSystemPromptProvider : ServiceEntity, ISystemPromptProvider
-{
+public sealed partial class DefaultSystemPromptProvider : ServiceEntity, ISystemPromptProvider {
     private readonly SystemPromptProviderOptions _options;
 
     /// <summary>
@@ -16,13 +15,11 @@ public sealed partial class DefaultSystemPromptProvider : ServiceEntity, ISystem
     /// <param name="briefModeService">简短模式服务（可选，已被 options.BriefModeService 覆盖）。</param>
     /// <param name="clock">时钟服务（可选，已被 options.Clock 覆盖）。</param>
     /// <param name="logger">日志器。</param>
-    public DefaultSystemPromptProvider(IFileSystem fs, SystemPromptProviderOptions options, IBriefModeService? briefModeService = null, IClockService? clock = null, ILogger<DefaultSystemPromptProvider>? logger = null)
-    {
+    public DefaultSystemPromptProvider(IFileSystem fs, SystemPromptProviderOptions options, IBriefModeService? briefModeService = null, IClockService? clock = null, ILogger<DefaultSystemPromptProvider>? logger = null) {
         ArgumentNullException.ThrowIfNull(fs);
         ArgumentNullException.ThrowIfNull(options);
 
-        _options = new SystemPromptProviderOptions
-        {
+        _options = new SystemPromptProviderOptions {
             CustomIntro = options.CustomIntro,
             EnabledTools = options.EnabledTools,
             AdditionalEnvInfo = options.AdditionalEnvInfo,
@@ -64,21 +61,18 @@ public sealed partial class DefaultSystemPromptProvider : ServiceEntity, ISystem
     /// 获取所有系统提示词部分，按运行模式组合返回。
     /// </summary>
     /// <returns>系统提示词部分的可枚举序列。</returns>
-    public IEnumerable<SystemPromptSection> GetSections()
-    {
+    public IEnumerable<SystemPromptSection> GetSections() {
         using var scope = PromptConfigSnapshot.EnterScope(_options);
 
         foreach (var section in PromptSectionRegistration.GetAlwaysSections())
             yield return section;
 
-        if (_options.IsAgentMode)
-        {
+        if (_options.IsAgentMode) {
             foreach (var section in PromptSectionRegistration.GetAgentModeSections())
                 yield return section;
         }
 
-        if (_options.IsCoordinatorMode)
-        {
+        if (_options.IsCoordinatorMode) {
             foreach (var section in PromptSectionRegistration.GetCoordinatorModeSections())
                 yield return section;
         }

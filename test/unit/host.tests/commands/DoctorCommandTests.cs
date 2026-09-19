@@ -1,52 +1,44 @@
 
 namespace Core.Tests.Commands;
 
-public class DoctorCommandTests
-{
+public class DoctorCommandTests {
     private readonly DoctorCommand _command;
 
-    public DoctorCommandTests()
-    {
+    public DoctorCommandTests() {
         _command = new DoctorCommand();
     }
 
-    private static ChatCommandContext CreateContext()
-    {
+    private static ChatCommandContext CreateContext() {
         return new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
     }
 
     [Fact]
-    public void Name_ShouldBeDoctor()
-    {
+    public void Name_ShouldBeDoctor() {
         _command.Name.Should().Be("doctor");
     }
 
     [Fact]
-    public void Description_ShouldNotBeEmpty()
-    {
+    public void Description_ShouldNotBeEmpty() {
         _command.Description.Should().NotBeNullOrEmpty();
         _command.Description.Should().Contain("诊断");
     }
 
     [Fact]
-    public void Usage_ShouldContainDoctor()
-    {
+    public void Usage_ShouldContainDoctor() {
         _command.Usage.Should().Contain("doctor");
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShouldReturnContinue()
-    {
+    public async Task ExecuteAsync_ShouldReturnContinue() {
         var context = CreateContext();
         var result = await _command.ExecuteAsync(context).ConfigureAwait(true);
         result.Should().BeEquivalentTo(ChatCommandResult.Continue());

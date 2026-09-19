@@ -12,8 +12,7 @@ public sealed record MemoryOptionalServices(
     IMemoryTruncator? MemoryTruncator = null,
     IMemoryRelevanceSelector? RelevanceSelector = null,
     IMemoryAgeCalculator? AgeCalculator = null,
-    ITelemetryService? TelemetryService = null)
-{
+    ITelemetryService? TelemetryService = null) {
     /// <summary>
     /// 从 DI 容器解析所有可选服务 — 保持向后兼容
     /// </summary>

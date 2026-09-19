@@ -2,27 +2,23 @@
 namespace State.Tests;
 
 
-public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable
-{
+public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable {
     private readonly TestInMemFs _fs = new();
     private readonly string _tempDir;
     private readonly Mock<IPasteStore> _pasteStore = new();
     private readonly TranscriptFileWriter _writer;
     private bool _disposed;
 
-    public TranscriptFileWriterPasteStoreTests()
-    {
+    public TranscriptFileWriterPasteStoreTests() {
         _tempDir = Path.Combine(Path.GetTempPath(), $"paste_store_test_{Guid.NewGuid():N}");
         _fs.CreateDirectory(_tempDir);
         _writer = new TranscriptFileWriter(_fs, _tempDir, NullLogger.Instance, _pasteStore.Object);
     }
 
     [Fact]
-    public async Task AppendEntryAsync_SmallContent_ShouldStoreInline()
-    {
+    public async Task AppendEntryAsync_SmallContent_ShouldStoreInline() {
         var filePath = Path.Combine(_tempDir, "test.json");
-        var entry = new TranscriptEntry
-        {
+        var entry = new TranscriptEntry {
             SessionId = "s1",
             Role = "user",
             Content = "short text",
@@ -39,8 +35,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task AppendEntryAsync_LargeContent_ShouldOffloadToPasteStore()
-    {
+    public async Task AppendEntryAsync_LargeContent_ShouldOffloadToPasteStore() {
         var largeContent = new string('x', 1025);
         var hash = "ABCDEF0123456789";
 
@@ -48,8 +43,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable
         _pasteStore.Setup(p => p.StorePastedText(hash, largeContent));
 
         var filePath = Path.Combine(_tempDir, "large.json");
-        var entry = new TranscriptEntry
-        {
+        var entry = new TranscriptEntry {
             SessionId = "s1",
             Role = "user",
             Content = largeContent,
@@ -63,8 +57,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task LoadTranscriptAsync_WithContentHash_ShouldResolveFromPasteStore()
-    {
+    public async Task LoadTranscriptAsync_WithContentHash_ShouldResolveFromPasteStore() {
         var hash = "ABCDEF0123456789";
         var originalContent = new string('x', 1025);
 
@@ -81,8 +74,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task LoadTranscriptAsync_WithContentHash_MissingInPasteStore_ShouldKeepHash()
-    {
+    public async Task LoadTranscriptAsync_WithContentHash_MissingInPasteStore_ShouldKeepHash() {
         var hash = "MISSINGHASH0000";
         _pasteStore.Setup(p => p.RetrievePastedText(hash)).Returns((string?)null);
 
@@ -97,14 +89,12 @@ public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task AppendEntryAsync_WithoutPasteStore_ShouldStoreInlineRegardlessOfSize()
-    {
+    public async Task AppendEntryAsync_WithoutPasteStore_ShouldStoreInlineRegardlessOfSize() {
         await using var writerNoPaste = new TranscriptFileWriter(_fs, _tempDir, NullLogger.Instance, pasteStore: null);
         var largeContent = new string('y', 2000);
 
         var filePath = Path.Combine(_tempDir, "nopaste.json");
-        var entry = new TranscriptEntry
-        {
+        var entry = new TranscriptEntry {
             SessionId = "s1",
             Role = "user",
             Content = largeContent,
@@ -119,8 +109,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable
         loaded[0].ContentHash.Should().BeNull();
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
 

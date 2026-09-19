@@ -6,19 +6,16 @@ namespace Tui.Tests;
 /// 进程退出对话即丢、无法被 CLI/GUI resume。T6 对齐 CLI 增量 AppendEntries 语义，
 /// sessionId 复用 JoinCode.Cli.SessionIdGenerator（{yyyyMMdd-HHmm}-{项目名}-{分支名} 可读格式）。
 /// </summary>
-public sealed class TuiSessionStoreTests
-{
+public sealed class TuiSessionStoreTests {
     private static (TuiSessionStore Store, Mock<ITranscriptService> Transcript) Create(
-        string? workingDir = null, DateTime? createdAt = null)
-    {
+        string? workingDir = null, DateTime? createdAt = null) {
         var transcript = new Mock<ITranscriptService>();
         var store = new TuiSessionStore(transcript.Object, workingDir, createdAt);
         return (store, transcript);
     }
 
     [Fact]
-    public void SessionId_UsesCliReadableFormat()
-    {
+    public void SessionId_UsesCliReadableFormat() {
         var dir = Path.Combine(Path.GetTempPath(), "tuitest-proj");
         var (store, _) = Create(dir, new DateTime(2026, 8, 22, 7, 12, 0, DateTimeKind.Utc));
 
@@ -27,8 +24,7 @@ public sealed class TuiSessionStoreTests
     }
 
     [Fact]
-    public async Task SaveMetaAsync_WritesSessionInfo_WithConfigSnapshot()
-    {
+    public async Task SaveMetaAsync_WritesSessionInfo_WithConfigSnapshot() {
         var (store, transcript) = Create();
         var config = new WorkflowConfig();
         config.Provider.Vendor = "anthropic";
@@ -47,8 +43,7 @@ public sealed class TuiSessionStoreTests
     // === T7：会话切换 ===
 
     [Fact]
-    public async Task ListSessionsAsync_DelegatesToTranscriptService()
-    {
+    public async Task ListSessionsAsync_DelegatesToTranscriptService() {
         var (store, transcript) = Create();
         var summaries = new List<TranscriptSummary> { new() { SessionId = "s1", MessageCount = 3 } };
         transcript.Setup(t => t.ListTranscriptsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -62,8 +57,7 @@ public sealed class TuiSessionStoreTests
     }
 
     [Fact]
-    public void TryResolveTarget_ByIndex_ReturnsSummaryAtPosition()
-    {
+    public void TryResolveTarget_ByIndex_ReturnsSummaryAtPosition() {
         var summaries = new[]
         {
             new TranscriptSummary { SessionId = "aaa" },
@@ -81,8 +75,7 @@ public sealed class TuiSessionStoreTests
     [InlineData("0")]
     [InlineData("99")]
     [InlineData("")]
-    public void TryResolveTarget_IndexOutOfRange_ReturnsFalse(string arg)
-    {
+    public void TryResolveTarget_IndexOutOfRange_ReturnsFalse(string arg) {
         var summaries = new[] { new TranscriptSummary { SessionId = "aaa" } };
 
         var ok = TuiSessionStore.TryResolveTarget(arg, summaries, out _);
@@ -91,8 +84,7 @@ public sealed class TuiSessionStoreTests
     }
 
     [Fact]
-    public void TryResolveTarget_RawId_PassesThrough()
-    {
+    public void TryResolveTarget_RawId_PassesThrough() {
         var summaries = new[] { new TranscriptSummary { SessionId = "aaa" } };
 
         var ok = TuiSessionStore.TryResolveTarget("20260822-1200-myproj-main", summaries, out var target);
@@ -102,8 +94,7 @@ public sealed class TuiSessionStoreTests
     }
 
     [Fact]
-    public async Task SwitchToAsync_SwitchesEngineBucketAndUpdatesCurrentId()
-    {
+    public async Task SwitchToAsync_SwitchesEngineBucketAndUpdatesCurrentId() {
         var (store, _) = Create();
         var ctxMgr = new Mock<IChatContextManager>();
         var chatService = new Mock<IChatService>();

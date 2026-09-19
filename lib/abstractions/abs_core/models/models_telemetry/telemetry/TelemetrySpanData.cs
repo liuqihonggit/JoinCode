@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Models.Telemetry;
 
-public sealed class TelemetrySpanData
-{
+public sealed class TelemetrySpanData {
     public string Name { get; init; } = string.Empty;
     public string SpanId { get; init; } = string.Empty;
     public string TraceId { get; init; } = string.Empty;
@@ -17,8 +16,7 @@ public sealed class TelemetrySpanData
     public List<TelemetrySpanEvent> Events { get; init; } = [];
 }
 
-public sealed class TelemetrySpanEvent
-{
+public sealed class TelemetrySpanEvent {
     public string Name { get; init; } = string.Empty;
     public DateTimeOffset Timestamp { get; init; }
     public Dictionary<string, string> Tags { get; init; } = [];

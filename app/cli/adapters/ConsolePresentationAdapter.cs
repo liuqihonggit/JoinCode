@@ -4,8 +4,7 @@ namespace JoinCode.Adapters;
 /// <summary>
 /// 控制台表示层适配器 — 纯 CLI 模式，无 TUI 依赖
 /// </summary>
-public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamingOutputWriter
-{
+public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamingOutputWriter {
     private readonly IConsoleOutput _output;
     private string _streamingContent = string.Empty;
     private int _isDisposed;
@@ -17,8 +16,7 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
     /// 构造函数 — 注入控制台输出接口
     /// </summary>
     /// <param name="output">控制台输出接口</param>
-    public ConsolePresentationAdapter(IConsoleOutput output)
-    {
+    public ConsolePresentationAdapter(IConsoleOutput output) {
         _output = output;
     }
 
@@ -41,15 +39,13 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
     public void UpdateStreamingMessage(string content) => _streamingContent = content;
 
     /// <summary>提交流式消息的最终内容</summary>
-    public void CommitStreamingMessage(string finalContent)
-    {
+    public void CommitStreamingMessage(string finalContent) {
         _output.WriteLine(finalContent);
         _streamingContent = string.Empty;
     }
 
     /// <summary>如果流式消息不为空则提交</summary>
-    public void CommitStreamingIfNotEmpty()
-    {
+    public void CommitStreamingIfNotEmpty() {
         if (!string.IsNullOrEmpty(_streamingContent)) CommitStreamingMessage(_streamingContent);
     }
 
@@ -57,25 +53,21 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
     public void StartNewTurn() { }
 
     /// <summary>显示工具调用开始</summary>
-    public void ShowToolStart(string toolName, string? arguments)
-    {
+    public void ShowToolStart(string toolName, string? arguments) {
         if (string.IsNullOrEmpty(arguments))
             _output.WriteLine($"[Tool] {toolName}");
-        else
-        {
+        else {
             var display = arguments.Length > 200 ? string.Concat(arguments.AsSpan(0, 200), "...") : arguments;
             _output.WriteLine($"[Tool] {toolName}({display})");
         }
     }
 
     /// <summary>显示工具调用结果</summary>
-    public void ShowToolResult(string toolName, string? result, bool success)
-    {
+    public void ShowToolResult(string toolName, string? result, bool success) {
         var glyph = success ? "OK" : "FAIL";
         if (string.IsNullOrEmpty(result))
             _output.WriteLine($"[{glyph}] {toolName}");
-        else
-        {
+        else {
             var lines = result.Split('\n');
             var displayCount = Math.Min(lines.Length, 10);
             _output.WriteLine($"[{glyph}] {toolName}");
@@ -95,10 +87,8 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
         => _output.WriteLine(dialogContent);
 
     /// <summary>请求用户输入</summary>
-    public Task<string> RequestInputAsync(string? prompt, CancellationToken ct = default)
-    {
-        if (prompt is not null)
-        {
+    public Task<string> RequestInputAsync(string? prompt, CancellationToken ct = default) {
+        if (prompt is not null) {
             var result = _output.Prompt(prompt);
             return Task.FromResult(result ?? string.Empty);
         }
@@ -121,8 +111,7 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
     public void MarkFailed(string errorMessage) { }
 
     /// <summary>释放资源 — 标记已释放并停止表示层</summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
         Stop();
     }
@@ -131,8 +120,7 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
 /// <summary>
 /// 流式输出写入器接口 — 简化版，无 TUI 依赖
 /// </summary>
-public interface IStreamingOutputWriter
-{
+public interface IStreamingOutputWriter {
     /// <summary>写入文本到输出流</summary>
     /// <param name="text">要写入的文本</param>
     void Write(string text);

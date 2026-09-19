@@ -3,14 +3,11 @@ namespace Core.Prompts.Testing;
 /// <summary>
 /// 触发条件映射器 - 基于命名约定推导Section触发条件
 /// </summary>
-public sealed class TriggerConditionMapper
-{
+public sealed class TriggerConditionMapper {
     private static readonly Dictionary<string, TriggerCondition> ParameterMappings;
 
-    static TriggerConditionMapper()
-    {
-        ParameterMappings = new Dictionary<string, TriggerCondition>(StringComparer.OrdinalIgnoreCase)
-        {
+    static TriggerConditionMapper() {
+        ParameterMappings = new Dictionary<string, TriggerCondition>(StringComparer.OrdinalIgnoreCase) {
             ["isBriefEnabled"] = new("简洁模式", ctx => ctx.Config.IsBriefEnabled),
             ["isAgentMode"] = new("Agent模式", ctx => ctx.Config.IsAgentMode),
             ["isReplMode"] = new("REPL模式", ctx => ctx.Config.IsReplMode),
@@ -42,18 +39,15 @@ public sealed class TriggerConditionMapper
     /// </summary>
     /// <param name="parameterName">参数名。</param>
     /// <returns>匹配的触发条件；若未找到则返回 null。</returns>
-    public TriggerCondition? GetCondition(string parameterName)
-    {
+    public TriggerCondition? GetCondition(string parameterName) {
         return ParameterMappings.GetValueOrDefault(parameterName);
     }
 
     /// <summary>
     /// 从Section名称推导触发条件
     /// </summary>
-    public TriggerCondition? DeriveFromSectionName(string sectionName)
-    {
-        return sectionName.ToLowerInvariant() switch
-        {
+    public TriggerCondition? DeriveFromSectionName(string sectionName) {
+        return sectionName.ToLowerInvariant() switch {
             // 条件触发的Section
             "brief" => GetCondition("isBriefEnabled"),
             "agent_default" or "agent_notes" => GetCondition("isAgentMode"),

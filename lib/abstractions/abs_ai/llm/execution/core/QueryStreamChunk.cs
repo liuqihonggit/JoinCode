@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Execution;
 
-public sealed class QueryStreamChunk
-{
+public sealed class QueryStreamChunk {
     public AgentStreamChunkType Type { get; init; }
     public string? Content { get; init; }
     public string? ThinkingContent { get; init; }

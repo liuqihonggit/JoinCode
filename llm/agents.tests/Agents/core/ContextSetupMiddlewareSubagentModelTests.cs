@@ -6,38 +6,31 @@ namespace Core.Agents.Tests.Unit.Agents;
 /// 验证优先级链: JCC_SUBAGENT_MODEL > SpawnOptions.Model > Definition.ModelName > inherit/父级模型
 /// 对齐 TS 原版 getAgentModel 设计
 /// </summary>
-public sealed class ContextSetupMiddlewareSubagentModelTests
-{
+public sealed class ContextSetupMiddlewareSubagentModelTests {
     private static MiddlewareDelegate<UnifiedSpawnContext> NoopNext => (_, _) => Task.CompletedTask;
 
     #region 环境变量优先级
 
     [Fact]
-    public async Task InvokeAsync_EnvSubagentModelSet_OverridesAll()
-    {
+    public async Task InvokeAsync_EnvSubagentModelSet_OverridesAll() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", "gpt-4o-mini");
-        try
-        {
+        try {
             var ctx = await InvokeMiddleware(model: "definition-model");
             ctx.ResolvedSubOptions!.ModelName.Should().Be("gpt-4o-mini");
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         }
     }
 
     [Fact]
-    public async Task InvokeAsync_EnvSubagentModelUnset_FallsBackToSpawnOptions()
-    {
+    public async Task InvokeAsync_EnvSubagentModelUnset_FallsBackToSpawnOptions() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         var ctx = await InvokeMiddleware(spawnModel: "spawn-model", model: "definition-model");
         ctx.ResolvedSubOptions!.ModelName.Should().Be("spawn-model");
     }
 
     [Fact]
-    public async Task InvokeAsync_EnvAndSpawnUnset_FallsBackToDefinition()
-    {
+    public async Task InvokeAsync_EnvAndSpawnUnset_FallsBackToDefinition() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         var ctx = await InvokeMiddleware(model: "definition-model");
         ctx.ResolvedSubOptions!.ModelName.Should().Be("definition-model");
@@ -51,8 +44,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests
     [InlineData("inherit")]
     [InlineData("Inherit")]
     [InlineData("INHERIT")]
-    public async Task InvokeAsync_SpawnModelIsInherit_ResolvesToParentModel(string inheritKeyword)
-    {
+    public async Task InvokeAsync_SpawnModelIsInherit_ResolvesToParentModel(string inheritKeyword) {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         var ctx = await InvokeMiddleware(spawnModel: inheritKeyword, model: "definition-model", parentModel: "parent-opus-4-6");
         ctx.ResolvedSubOptions!.ModelName.Should().Be("parent-opus-4-6");
@@ -61,32 +53,28 @@ public sealed class ContextSetupMiddlewareSubagentModelTests
     [Theory]
     [InlineData("inherit")]
     [InlineData("Inherit")]
-    public async Task InvokeAsync_DefinitionModelIsInherit_ResolvesToParentModel(string inheritKeyword)
-    {
+    public async Task InvokeAsync_DefinitionModelIsInherit_ResolvesToParentModel(string inheritKeyword) {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         var ctx = await InvokeMiddleware(model: inheritKeyword, parentModel: "parent-opus-4-6");
         ctx.ResolvedSubOptions!.ModelName.Should().Be("parent-opus-4-6");
     }
 
     [Fact]
-    public async Task InvokeAsync_BothNullAndParentModelSet_ResolvesToParentModel()
-    {
+    public async Task InvokeAsync_BothNullAndParentModelSet_ResolvesToParentModel() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         var ctx = await InvokeMiddleware(parentModel: "parent-opus-4-6");
         ctx.ResolvedSubOptions!.ModelName.Should().Be("parent-opus-4-6");
     }
 
     [Fact]
-    public async Task InvokeAsync_BothNullAndNoParentModel_ResolvesToNull()
-    {
+    public async Task InvokeAsync_BothNullAndNoParentModel_ResolvesToNull() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         var ctx = await InvokeMiddleware();
         ctx.ResolvedSubOptions!.ModelName.Should().BeNull();
     }
 
     [Fact]
-    public async Task InvokeAsync_InheritWithNoParentModel_ResolvesToNull()
-    {
+    public async Task InvokeAsync_InheritWithNoParentModel_ResolvesToNull() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         var ctx = await InvokeMiddleware(spawnModel: "inherit");
         ctx.ResolvedSubOptions!.ModelName.Should().BeNull();
@@ -97,16 +85,14 @@ public sealed class ContextSetupMiddlewareSubagentModelTests
     #region alias 匹配父 tier
 
     [Fact]
-    public async Task InvokeAsync_SpawnModelAliasMatchesParentTier_ResolvesToParentModel()
-    {
+    public async Task InvokeAsync_SpawnModelAliasMatchesParentTier_ResolvesToParentModel() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         var ctx = await InvokeMiddleware(spawnModel: "opus", parentModel: "claude-opus-4-6");
         ctx.ResolvedSubOptions!.ModelName.Should().Be("claude-opus-4-6");
     }
 
     [Fact]
-    public async Task InvokeAsync_SpawnModelAliasDoesNotMatchParentTier_ResolvesToSpawnModel()
-    {
+    public async Task InvokeAsync_SpawnModelAliasDoesNotMatchParentTier_ResolvesToSpawnModel() {
         Environment.SetEnvironmentVariable("JCC_SUBAGENT_MODEL", null);
         var ctx = await InvokeMiddleware(spawnModel: "opus", parentModel: "claude-sonnet-4-6");
         ctx.ResolvedSubOptions!.ModelName.Should().Be("opus");
@@ -115,10 +101,8 @@ public sealed class ContextSetupMiddlewareSubagentModelTests
     #endregion
 
     private static async Task<UnifiedSpawnContext> InvokeMiddleware(
-        string? spawnModel = null, string? model = null, string? parentModel = null)
-    {
-        var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
-        {
+        string? spawnModel = null, string? model = null, string? parentModel = null) {
+        var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
             Role = AgentRole.Executor,
             Variant = ExecutorVariant.Code,
             WhenToUse = "code agent",
@@ -126,10 +110,8 @@ public sealed class ContextSetupMiddlewareSubagentModelTests
         };
 
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
-        if (parentModel is not null)
-        {
-            var parentContext = new SubAgentContext
-            {
+        if (parentModel is not null) {
+            var parentContext = new SubAgentContext {
                 AgentId = "parent-agent",
                 Role = AgentRole.Executor,
                 Task = "parent task",
@@ -140,12 +122,10 @@ public sealed class ContextSetupMiddlewareSubagentModelTests
 
         var mw = new ContextSetupMiddleware(contextAccessor.Object);
 
-        var ctx = new UnifiedSpawnContext
-        {
+        var ctx = new UnifiedSpawnContext {
             Task = "test task",
             IsMainAgent = false,
-            SpawnOptions = new AgentSpawnOptions
-            {
+            SpawnOptions = new AgentSpawnOptions {
                 Description = "test",
                 Prompt = "do something",
                 Role = AgentRole.Executor,

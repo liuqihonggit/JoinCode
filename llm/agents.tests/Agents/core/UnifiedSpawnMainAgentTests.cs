@@ -4,16 +4,13 @@ namespace Core.Agents.Tests.Unit.Agents;
 /// 统一 Spawn 管道主代理 no-op 单元测试
 /// 验证 IsMainAgent=true 时各中间件正确跳过，防止递归和副作用
 /// </summary>
-public sealed class UnifiedSpawnMainAgentTests
-{
+public sealed class UnifiedSpawnMainAgentTests {
     private static MiddlewareDelegate<UnifiedSpawnContext> NoopNext => (_, _) => Task.CompletedTask;
 
-    private static UnifiedSpawnContext CreateMainAgentContext()
-    {
+    private static UnifiedSpawnContext CreateMainAgentContext() {
         var agentMock = new Mock<IAgent>();
         agentMock.SetupGet(x => x.ObjectId).Returns(JoinCode.Abstractions.Entity.ObjectId.Empty);
-        return new UnifiedSpawnContext
-        {
+        return new UnifiedSpawnContext {
             Task = "main task",
             IsMainAgent = true,
             Agent = agentMock.Object,
@@ -21,8 +18,7 @@ public sealed class UnifiedSpawnMainAgentTests
     }
 
     [Fact]
-    public async Task DefinitionResolution_IsMainAgent_SkipsGetProfile()
-    {
+    public async Task DefinitionResolution_IsMainAgent_SkipsGetProfile() {
         var roleRegistry = new Mock<IAgentRoleRegistry>();
         var mw = new DefinitionResolutionMiddleware(roleRegistry.Object);
 
@@ -34,8 +30,7 @@ public sealed class UnifiedSpawnMainAgentTests
     }
 
     [Fact]
-    public async Task PromptBuilding_IsMainAgent_SkipsBuildPrompt()
-    {
+    public async Task PromptBuilding_IsMainAgent_SkipsBuildPrompt() {
         var promptBuilder = new Mock<IAgentPromptBuilder>();
         var mw = new PromptBuildingMiddleware(promptBuilder.Object);
 
@@ -47,8 +42,7 @@ public sealed class UnifiedSpawnMainAgentTests
     }
 
     [Fact]
-    public async Task LifecycleSpawn_AgentExists_SkipsSpawn()
-    {
+    public async Task LifecycleSpawn_AgentExists_SkipsSpawn() {
         var lifecycleManager = new Mock<IAgentLifecycleManager>();
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
         var mw = new LifecycleSpawnMiddleware(lifecycleManager.Object, contextAccessor.Object);
@@ -62,8 +56,7 @@ public sealed class UnifiedSpawnMainAgentTests
     }
 
     [Fact]
-    public async Task WorktreeSpawn_IsMainAgent_SkipsWorktree()
-    {
+    public async Task WorktreeSpawn_IsMainAgent_SkipsWorktree() {
         var worktreeService = new Mock<IAgentWorktreeService>();
         var worktreeManager = new Mock<IAgentWorktreeManager>();
         var mw = new WorktreeSpawnMiddleware(worktreeService.Object, worktreeManager.Object);
@@ -77,8 +70,7 @@ public sealed class UnifiedSpawnMainAgentTests
     }
 
     [Fact]
-    public async Task TeammatePane_IsMainAgent_SkipsPane()
-    {
+    public async Task TeammatePane_IsMainAgent_SkipsPane() {
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
         var layoutManager = new Mock<ITeammateLayoutManager>();
         var mw = new TeammatePaneMiddleware(contextAccessor.Object, NullLogger<TeammatePaneMiddleware>.Instance, layoutManager.Object);
@@ -91,8 +83,7 @@ public sealed class UnifiedSpawnMainAgentTests
     }
 
     [Fact]
-    public async Task Transcript_IsMainAgent_SkipsTranscript()
-    {
+    public async Task Transcript_IsMainAgent_SkipsTranscript() {
         var clock = new Mock<JoinCode.Abstractions.Clock.IClockService>();
         var transcriptService = new Mock<IAgentTranscriptService>();
         // T10：构造新增 IChatContextManager 参数（子代理挂当前引擎会话）；主代理路径不触达
@@ -105,8 +96,7 @@ public sealed class UnifiedSpawnMainAgentTests
     }
 
     [Fact]
-    public async Task RegisterMessage_IsMainAgent_SkipsRegister()
-    {
+    public async Task RegisterMessage_IsMainAgent_SkipsRegister() {
         var messageBroker = new Mock<IMailbox>();
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
         var mw = new RegisterMessageMiddleware(messageBroker.Object, contextAccessor.Object, NullLogger<RegisterMessageMiddleware>.Instance);
@@ -119,8 +109,7 @@ public sealed class UnifiedSpawnMainAgentTests
     }
 
     [Fact]
-    public async Task ContextSetup_IsMainAgent_SkipsSubOptionsAssembly()
-    {
+    public async Task ContextSetup_IsMainAgent_SkipsSubOptionsAssembly() {
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
         var mw = new ContextSetupMiddleware(contextAccessor.Object);
 

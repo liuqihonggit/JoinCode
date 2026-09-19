@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 /// <summary>
 /// 反思记忆存储 — 持久化修复经验
 /// </summary>
-public interface IReflexionMemory
-{
+public interface IReflexionMemory {
     /// <summary>
     /// 存储修复经验
     /// </summary>
@@ -31,8 +30,7 @@ public interface IReflexionMemory
 /// <summary>
 /// 反思记忆规则统计
 /// </summary>
-public sealed record ReflexionRuleStats
-{
+public sealed record ReflexionRuleStats {
     public required string RuleId { get; init; }
     public required int TotalAttempts { get; init; }
     public required int SuccessfulPatches { get; init; }

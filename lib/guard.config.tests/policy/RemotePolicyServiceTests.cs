@@ -1,38 +1,32 @@
 namespace Core.Tests.Services.Policy;
 
-public sealed class RemotePolicyServiceTests : IAsyncDisposable
-{
+public sealed class RemotePolicyServiceTests : IAsyncDisposable {
     private readonly RemotePolicyService _service;
     private readonly HttpClient _httpClient;
     private bool _disposed;
 
-    public RemotePolicyServiceTests()
-    {
+    public RemotePolicyServiceTests() {
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-        var options = Options.Create(new RemotePolicyOptions
-        {
+        var options = Options.Create(new RemotePolicyOptions {
             EnableCache = false
         });
         _service = new RemotePolicyService(_httpClient, options);
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
         await _service.DisposeSafeAsync();
         _httpClient.DisposeSafe();
     }
 
-    private static global::System.Collections.Concurrent.ConcurrentDictionary<string, PolicyRule> GetRules(RemotePolicyService service)
-    {
+    private static global::System.Collections.Concurrent.ConcurrentDictionary<string, PolicyRule> GetRules(RemotePolicyService service) {
         var rulesField = typeof(RemotePolicyService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
         return (global::System.Collections.Concurrent.ConcurrentDictionary<string, PolicyRule>)rulesField!.GetValue(service)!;
     }
 
     [Fact]
-    public async Task EvaluateAsync_AllowedAction_ReturnsAllowed()
-    {
+    public async Task EvaluateAsync_AllowedAction_ReturnsAllowed() {
         var result = await _service.EvaluateAsync("allowed-action").ConfigureAwait(true);
 
         result.Should().NotBeNull();
@@ -41,11 +35,9 @@ public sealed class RemotePolicyServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task EvaluateAsync_DeniedAction_ReturnsDenied()
-    {
+    public async Task EvaluateAsync_DeniedAction_ReturnsDenied() {
         var rules = GetRules(_service);
-        rules["deny-rule"] = new PolicyRule
-        {
+        rules["deny-rule"] = new PolicyRule {
             RuleId = "deny-rule",
             Name = "Deny Test",
             Type = PolicyType.ToolRestriction,
@@ -62,11 +54,9 @@ public sealed class RemotePolicyServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetActiveRulesAsync_ReturnsEnabledPolicies()
-    {
+    public async Task GetActiveRulesAsync_ReturnsEnabledPolicies() {
         var rules = GetRules(_service);
-        rules["enabled-rule"] = new PolicyRule
-        {
+        rules["enabled-rule"] = new PolicyRule {
             RuleId = "enabled-rule",
             Name = "Enabled Rule",
             Type = PolicyType.ToolUsageLimit,
@@ -74,8 +64,7 @@ public sealed class RemotePolicyServiceTests : IAsyncDisposable
             Enabled = true,
             Priority = 10
         };
-        rules["disabled-rule"] = new PolicyRule
-        {
+        rules["disabled-rule"] = new PolicyRule {
             RuleId = "disabled-rule",
             Name = "Disabled Rule",
             Type = PolicyType.ToolUsageLimit,
@@ -91,35 +80,30 @@ public sealed class RemotePolicyServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RefreshAsync_WithNoEndpoint_DoesNotThrow()
-    {
+    public async Task RefreshAsync_WithNoEndpoint_DoesNotThrow() {
         var act = () => _service.RefreshAsync();
 
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task EvaluateAsync_WithEmptyAction_ThrowsArgumentException()
-    {
+    public async Task EvaluateAsync_WithEmptyAction_ThrowsArgumentException() {
         var act = () => _service.EvaluateAsync(string.Empty);
 
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
 
     [Fact]
-    public void Constructor_WithNullHttpClient_ThrowsArgumentNullException()
-    {
+    public void Constructor_WithNullHttpClient_ThrowsArgumentNullException() {
         var act = () => new RemotePolicyService(null!);
 
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public async Task EvaluateAsync_UsageLimit_EnforcesLimit()
-    {
+    public async Task EvaluateAsync_UsageLimit_EnforcesLimit() {
         var rules = GetRules(_service);
-        rules["limit-rule"] = new PolicyRule
-        {
+        rules["limit-rule"] = new PolicyRule {
             RuleId = "limit-rule",
             Name = "Usage Limit",
             Type = PolicyType.ToolUsageLimit,

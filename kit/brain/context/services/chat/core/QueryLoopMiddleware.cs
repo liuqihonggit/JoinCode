@@ -85,17 +85,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     private async IAsyncEnumerable<ChatStreamEvent> WaitForTaskWithDrainAsync(
         Task task,
         SubAgentEventChannel? channel,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        while (!task.IsCompleted)
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        while (!task.IsCompleted) {
             // WhenAny 不传播成员异常 — Task.Delay 的取消由其捕获，此处永不抛出。
             // 目标任务是本方法参数、已在本上下文启动，仅借 WhenAny 轮询完成状态
             await Task.WhenAny(task, Task.Delay(SubAgentEventPollIntervalMs, ct)).ConfigureAwait(false);
         }
 
-        if (channel is not null)
-        {
+        if (channel is not null) {
             foreach (var evt in channel.TryDrain())
                 yield return evt;
         }
@@ -260,10 +257,10 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
         // 排空等待：工具执行期间实时 yield 子代理事件（GUI 多 subAgent 显示链路）；
         // yield 禁止出现在带 catch 的 try 内（CS1626），故排空在 try 外、结果读取在 try 内保持原异常语义
-            var remainingTask = streamingExecutor.GetRemainingResultsAsync();
-            await foreach (var agentEvt in WaitForTaskWithDrainAsync(remainingTask, context.SubAgentEvents, ct).ConfigureAwait(false)) {
-                yield return agentEvt;
-            }
+        var remainingTask = streamingExecutor.GetRemainingResultsAsync();
+        await foreach (var agentEvt in WaitForTaskWithDrainAsync(remainingTask, context.SubAgentEvents, ct).ConfigureAwait(false)) {
+            yield return agentEvt;
+        }
 
         IReadOnlyList<StreamingToolResult> allResults;
         try {

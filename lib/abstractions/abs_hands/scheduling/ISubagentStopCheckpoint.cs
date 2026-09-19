@@ -4,16 +4,14 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// SubagentStop 质量关卡 — 在子代理结束时执行质量检查
 /// </summary>
-public interface ISubagentStopCheckpoint
-{
+public interface ISubagentStopCheckpoint {
     Task<CheckpointResult> ExecuteAsync(CheckpointContext context, CancellationToken ct = default);
 }
 
 /// <summary>
 /// 关卡上下文
 /// </summary>
-public sealed class CheckpointContext
-{
+public sealed class CheckpointContext {
     public required string AgentId { get; init; }
     public required string SessionId { get; init; }
     public string? WorktreePath { get; init; }
@@ -23,8 +21,7 @@ public sealed class CheckpointContext
 /// <summary>
 /// 关卡结果
 /// </summary>
-public sealed class CheckpointResult
-{
+public sealed class CheckpointResult {
     public bool Passed { get; init; }
     public IReadOnlyList<CheckpointViolation> Violations { get; init; } = [];
 
@@ -35,8 +32,7 @@ public sealed class CheckpointResult
 /// <summary>
 /// 关卡违规项
 /// </summary>
-public sealed class CheckpointViolation
-{
+public sealed class CheckpointViolation {
     public required string Rule { get; init; }
     public required string Message { get; init; }
     public string Severity { get; init; } = "error";

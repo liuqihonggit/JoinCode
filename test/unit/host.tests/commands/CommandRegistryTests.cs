@@ -1,13 +1,11 @@
 
 namespace Core.Tests.Commands;
 
-public class CommandRegistryTests
-{
+public class CommandRegistryTests {
     private readonly ChatCommandRegistry _registry = new();
 
     [Fact]
-    public void Register_ValidCommand_ShouldBeRegistered()
-    {
+    public void Register_ValidCommand_ShouldBeRegistered() {
         var command = new TestChatCommand("test", "Test command");
 
         _registry.Register(command);
@@ -16,8 +14,7 @@ public class CommandRegistryTests
     }
 
     [Fact]
-    public void GetCommand_ExistingCommand_ShouldReturnCommand()
-    {
+    public void GetCommand_ExistingCommand_ShouldReturnCommand() {
         var command = new TestChatCommand("test", "Test command");
         _registry.Register(command);
 
@@ -28,16 +25,14 @@ public class CommandRegistryTests
     }
 
     [Fact]
-    public void GetCommand_NonExistingCommand_ShouldReturnNull()
-    {
+    public void GetCommand_NonExistingCommand_ShouldReturnNull() {
         var result = _registry.GetCommand("nonexistent");
 
         result.Should().BeNull();
     }
 
     [Fact]
-    public void UnregisterCommand_ExistingCommand_ShouldRemoveCommand()
-    {
+    public void UnregisterCommand_ExistingCommand_ShouldRemoveCommand() {
         var command = new TestChatCommand("test", "Test command");
         _registry.Register(command);
 
@@ -48,16 +43,14 @@ public class CommandRegistryTests
     }
 
     [Fact]
-    public void UnregisterCommand_NonExistingCommand_ShouldReturnFalse()
-    {
+    public void UnregisterCommand_NonExistingCommand_ShouldReturnFalse() {
         var result = ((JoinCode.Abstractions.Interfaces.ICommandRegistry)_registry).UnregisterCommand("nonexistent");
 
         result.Should().BeFalse();
     }
 
     [Fact]
-    public void GetAllCommands_WithMultipleCommands_ShouldReturnAll()
-    {
+    public void GetAllCommands_WithMultipleCommands_ShouldReturnAll() {
         _registry.Register(new TestChatCommand("cmd1", "Command 1"));
         _registry.Register(new TestChatCommand("cmd2", "Command 2"));
         _registry.Register(new TestChatCommand("cmd3", "Command 3"));
@@ -69,8 +62,7 @@ public class CommandRegistryTests
     }
 
     [Fact]
-    public void Parse_ValidCommand_ShouldReturnSuccess()
-    {
+    public void Parse_ValidCommand_ShouldReturnSuccess() {
         _registry.Register(new TestChatCommand("test", "Test command"));
 
         var result = _registry.Parse("/test arg1 arg2");
@@ -81,16 +73,14 @@ public class CommandRegistryTests
     }
 
     [Fact]
-    public void Parse_EmptyInput_ShouldReturnFailure()
-    {
+    public void Parse_EmptyInput_ShouldReturnFailure() {
         var result = _registry.Parse("");
 
         result.IsSuccess.Should().BeFalse();
     }
 
     [Fact]
-    public void Parse_CommandOnly_ShouldHaveEmptyArguments()
-    {
+    public void Parse_CommandOnly_ShouldHaveEmptyArguments() {
         _registry.Register(new TestChatCommand("test", "Test command"));
 
         var result = _registry.Parse("/test");
@@ -100,8 +90,7 @@ public class CommandRegistryTests
     }
 
     [Fact]
-    public void Register_DuplicateCommand_ShouldOverwrite()
-    {
+    public void Register_DuplicateCommand_ShouldOverwrite() {
         var command1 = new TestChatCommand("test", "First command");
         var command2 = new TestChatCommand("test", "Second command");
         _registry.Register(command1);
@@ -114,8 +103,7 @@ public class CommandRegistryTests
     }
 
     [Fact]
-    public void RegisterRange_MultipleCommands_ShouldRegisterAll()
-    {
+    public void RegisterRange_MultipleCommands_ShouldRegisterAll() {
         var commands = new IChatCommand[]
         {
             new TestChatCommand("cmd1", "Command 1"),
@@ -131,8 +119,7 @@ public class CommandRegistryTests
     }
 
     [Fact]
-    public void GetCommand_CaseInsensitive_ShouldReturnCommand()
-    {
+    public void GetCommand_CaseInsensitive_ShouldReturnCommand() {
         _registry.Register(new TestChatCommand("TestCommand", "Test command"));
 
         _registry.GetCommand("testcommand").Should().NotBeNull();
@@ -141,8 +128,7 @@ public class CommandRegistryTests
     }
 
     [Fact]
-    public void HasCommand_CaseInsensitive_ShouldWork()
-    {
+    public void HasCommand_CaseInsensitive_ShouldWork() {
         _registry.Register(new TestChatCommand("TestCommand", "Test command"));
 
         _registry.HasCommand("testcommand").Should().BeTrue();
@@ -151,16 +137,14 @@ public class CommandRegistryTests
     }
 
     [Fact]
-    public void GetAllCommands_EmptyRegistry_ShouldReturnEmpty()
-    {
+    public void GetAllCommands_EmptyRegistry_ShouldReturnEmpty() {
         var commands = _registry.GetAllCommands();
 
         commands.Should().BeEmpty();
     }
 
     [Fact]
-    public void GetCommandInfos_ShouldReturnAllCommandInfo()
-    {
+    public void GetCommandInfos_ShouldReturnAllCommandInfo() {
         _registry.Register(new TestChatCommand("cmd1", "Command 1"));
         _registry.Register(new TestChatCommand("cmd2", "Command 2"));
 
@@ -171,8 +155,7 @@ public class CommandRegistryTests
     }
 
     [Fact]
-    public void ICommandRegistry_Register_LegacyCommand_ShouldAdapt()
-    {
+    public void ICommandRegistry_Register_LegacyCommand_ShouldAdapt() {
         var legacyCommand = new TestLegacyCommand("legacy", "Legacy command");
         var iRegistry = (JoinCode.Abstractions.Interfaces.ICommandRegistry)_registry;
 
@@ -182,8 +165,7 @@ public class CommandRegistryTests
         _registry.GetCommand("legacy").Should().NotBeNull();
     }
 
-    private sealed class TestChatCommand : IChatCommand
-    {
+    private sealed class TestChatCommand : IChatCommand {
         public string Name { get; }
         public string Description { get; }
         public string Usage => $"/{Name}";
@@ -191,32 +173,27 @@ public class CommandRegistryTests
         public string ArgumentHint => string.Empty;
         public bool IsHidden => false;
 
-        public TestChatCommand(string name, string description)
-        {
+        public TestChatCommand(string name, string description) {
             Name = name;
             Description = description;
         }
 
-        public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-        {
+        public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
             return Task.FromResult(ChatCommandResult.Continue());
         }
     }
 
-    private sealed class TestLegacyCommand : JoinCode.Abstractions.Interfaces.ICommand
-    {
+    private sealed class TestLegacyCommand : JoinCode.Abstractions.Interfaces.ICommand {
         public string Name { get; }
         public string Description { get; }
         public string Usage => $"/{Name}";
 
-        public TestLegacyCommand(string name, string description)
-        {
+        public TestLegacyCommand(string name, string description) {
             Name = name;
             Description = description;
         }
 
-        public Task ExecuteAsync(JoinCode.Abstractions.Interfaces.ICommandContext context, CancellationToken cancellationToken = default)
-        {
+        public Task ExecuteAsync(JoinCode.Abstractions.Interfaces.ICommandContext context, CancellationToken cancellationToken = default) {
             return Task.CompletedTask;
         }
     }

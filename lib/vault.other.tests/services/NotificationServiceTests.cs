@@ -1,20 +1,17 @@
 
 namespace Core.Tests.Services;
 
-public partial class NotificationServiceTests
-{
+public partial class NotificationServiceTests {
     private readonly Mock<ILogger<NotificationService>> _loggerMock;
     private readonly NotificationService _notificationService;
 
-    public NotificationServiceTests()
-    {
+    public NotificationServiceTests() {
         _loggerMock = new Mock<ILogger<NotificationService>>();
         _notificationService = new NotificationService(_loggerMock.Object);
     }
 
     [Fact]
-    public async Task NotifyAsync_ShouldLogInformation()
-    {
+    public async Task NotifyAsync_ShouldLogInformation() {
         var title = "Test Title";
         var message = "Test Message";
 
@@ -33,8 +30,7 @@ public partial class NotificationServiceTests
     }
 
     [Fact]
-    public async Task NotifyAsync_WithEmptyTitle_ShouldNotLog()
-    {
+    public async Task NotifyAsync_WithEmptyTitle_ShouldNotLog() {
         await _notificationService.NotifyAsync("", "Test Message").ConfigureAwait(true);
 
         _loggerMock.Verify(
@@ -48,8 +44,7 @@ public partial class NotificationServiceTests
     }
 
     [Fact]
-    public async Task NotifyAsync_WithEmptyMessage_ShouldNotLog()
-    {
+    public async Task NotifyAsync_WithEmptyMessage_ShouldNotLog() {
         await _notificationService.NotifyAsync("Test Title", "").ConfigureAwait(true);
 
         _loggerMock.Verify(
@@ -63,8 +58,7 @@ public partial class NotificationServiceTests
     }
 
     [Fact]
-    public async Task NotifyTaskCompletedAsync_WithSuccess_ShouldLog()
-    {
+    public async Task NotifyTaskCompletedAsync_WithSuccess_ShouldLog() {
         var taskId = "task-123";
         var description = "Test task";
 
@@ -83,8 +77,7 @@ public partial class NotificationServiceTests
     }
 
     [Fact]
-    public async Task NotifyTaskCompletedAsync_WithFailure_ShouldLog()
-    {
+    public async Task NotifyTaskCompletedAsync_WithFailure_ShouldLog() {
         var taskId = "task-123";
         var description = "Test task";
 
@@ -103,8 +96,7 @@ public partial class NotificationServiceTests
     }
 
     [Fact]
-    public async Task NotifyAgentMessageAsync_ShouldLogInformation()
-    {
+    public async Task NotifyAgentMessageAsync_ShouldLogInformation() {
         var agentId = "agent-123";
         var agentName = "Test Agent";
         var message = "Test message";
@@ -125,40 +117,34 @@ public partial class NotificationServiceTests
     }
 
     [Fact]
-    public void IsAvailable_ShouldReturnValueBasedOnPlatform()
-    {
+    public void IsAvailable_ShouldReturnValueBasedOnPlatform() {
         var isAvailable = _notificationService.IsAvailable;
         Assert.True(isAvailable || !isAvailable);
     }
 
     [Fact]
-    public void Constructor_WithNullLogger_ShouldNotThrow()
-    {
+    public void Constructor_WithNullLogger_ShouldNotThrow() {
         var exception = Record.Exception(() => new NotificationService(null));
         Assert.Null(exception);
     }
 }
 
-public partial class ConsoleNotificationServiceTests
-{
+public partial class ConsoleNotificationServiceTests {
     private readonly Mock<ILogger<ConsoleNotificationService>> _loggerMock;
     private readonly ConsoleNotificationService _consoleNotificationService;
 
-    public ConsoleNotificationServiceTests()
-    {
+    public ConsoleNotificationServiceTests() {
         _loggerMock = new Mock<ILogger<ConsoleNotificationService>>();
         _consoleNotificationService = new ConsoleNotificationService(_loggerMock.Object);
     }
 
     [Fact]
-    public void IsAvailable_ShouldAlwaysReturnTrue()
-    {
+    public void IsAvailable_ShouldAlwaysReturnTrue() {
         Assert.True(_consoleNotificationService.IsAvailable);
     }
 
     [Fact]
-    public async Task NotifyAsync_ShouldLogInformation()
-    {
+    public async Task NotifyAsync_ShouldLogInformation() {
         var title = "Test Title";
         var message = "Test Message";
 
@@ -177,8 +163,7 @@ public partial class ConsoleNotificationServiceTests
     }
 
     [Fact]
-    public async Task NotifyTaskCompletedAsync_WithSuccess_ShouldLog()
-    {
+    public async Task NotifyTaskCompletedAsync_WithSuccess_ShouldLog() {
         var taskId = "task-123";
         var description = "Test task";
 
@@ -197,8 +182,7 @@ public partial class ConsoleNotificationServiceTests
     }
 
     [Fact]
-    public async Task NotifyTaskCompletedAsync_WithFailure_ShouldLog()
-    {
+    public async Task NotifyTaskCompletedAsync_WithFailure_ShouldLog() {
         var taskId = "task-123";
         var description = "Test task";
 
@@ -217,8 +201,7 @@ public partial class ConsoleNotificationServiceTests
     }
 
     [Fact]
-    public async Task NotifyAgentMessageAsync_ShouldLogInformation()
-    {
+    public async Task NotifyAgentMessageAsync_ShouldLogInformation() {
         var agentId = "agent-123";
         var agentName = "Test Agent";
         var message = "Test message";
@@ -239,8 +222,7 @@ public partial class ConsoleNotificationServiceTests
     }
 
     [Fact]
-    public void Constructor_WithNullLogger_ShouldNotThrow()
-    {
+    public void Constructor_WithNullLogger_ShouldNotThrow() {
         var exception = Record.Exception(() => new ConsoleNotificationService(null));
         Assert.Null(exception);
     }

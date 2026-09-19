@@ -2,8 +2,7 @@ namespace Host.Tests.Cli;
 
 using JoinCode.CliCommands;
 
-public sealed class RgSubCommandTests
-{
+public sealed class RgSubCommandTests {
     [Theory]
     [InlineData(@"finally\s*\{", @"finally\s*\{")]
     [InlineData(@"finally\\s*\\{", @"finally\s*\{")]
@@ -16,29 +15,25 @@ public sealed class RgSubCommandTests
     [InlineData(@"foo", "foo")]
     [InlineData("", "")]
     [InlineData("no backslash", "no backslash")]
-    public void FixPowerShellEscaping_ShouldNormalizeDoubleBackslash(string input, string expected)
-    {
+    public void FixPowerShellEscaping_ShouldNormalizeDoubleBackslash(string input, string expected) {
         RgSubCommand.FixPowerShellEscaping(input).Should().Be(expected);
     }
 
     [Fact]
-    public void FixPowerShellEscaping_ShouldHandleMixedEscaping()
-    {
+    public void FixPowerShellEscaping_ShouldHandleMixedEscaping() {
         var input = @"finally\\s*\{\\d";
         var result = RgSubCommand.FixPowerShellEscaping(input);
         result.Should().Be(@"finally\s*\{\d");
     }
 
     [Fact]
-    public void FixPowerShellEscaping_ShouldNotTouchSingleBackslashBeforeNonMeta()
-    {
+    public void FixPowerShellEscaping_ShouldNotTouchSingleBackslashBeforeNonMeta() {
         var input = @"foo\bar";
         RgSubCommand.FixPowerShellEscaping(input).Should().Be(@"foo\bar");
     }
 
     [Fact]
-    public void FixPowerShellEscaping_ShouldNotTouchTrailingDoubleBackslash()
-    {
+    public void FixPowerShellEscaping_ShouldNotTouchTrailingDoubleBackslash() {
         var input = @"foo\\";
         RgSubCommand.FixPowerShellEscaping(input).Should().Be(@"foo\\");
     }
@@ -54,8 +49,7 @@ public sealed class RgSubCommandTests
     [InlineData(".", false)]
     [InlineData("", false)]
     [InlineData("src", false)]
-    public void IsRootPath_ShouldDetectRootPaths(string path, bool expected)
-    {
+    public void IsRootPath_ShouldDetectRootPaths(string path, bool expected) {
         RgSubCommand.IsRootPath(path).Should().Be(expected);
     }
 
@@ -98,14 +92,12 @@ public sealed class RgSubCommandTests
     [InlineData('m', false)]
     [InlineData('q', false)]
     [InlineData('y', false)]
-    public void IsRegexMetaChar_ShouldClassifyCorrectly(char c, bool expected)
-    {
+    public void IsRegexMetaChar_ShouldClassifyCorrectly(char c, bool expected) {
         RgSubCommand.IsRegexMetaChar(c).Should().Be(expected);
     }
 
     [Fact]
-    public void ParseArgs_SmartCase_ShouldSetSmartCaseFlag()
-    {
+    public void ParseArgs_SmartCase_ShouldSetSmartCaseFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-S"]);
         opts.Should().NotBeNull();
         opts!.SmartCase.Should().BeTrue();
@@ -113,96 +105,84 @@ public sealed class RgSubCommandTests
     }
 
     [Fact]
-    public void ParseArgs_SmartCaseLongForm_ShouldSetSmartCaseFlag()
-    {
+    public void ParseArgs_SmartCaseLongForm_ShouldSetSmartCaseFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--smart-case"]);
         opts.Should().NotBeNull();
         opts!.SmartCase.Should().BeTrue();
     }
 
     [Fact]
-    public void ParseArgs_WordRegexp_ShouldSetWordRegexpFlag()
-    {
+    public void ParseArgs_WordRegexp_ShouldSetWordRegexpFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-w"]);
         opts.Should().NotBeNull();
         opts!.WordRegexp.Should().BeTrue();
     }
 
     [Fact]
-    public void ParseArgs_WordRegexpLongForm_ShouldSetWordRegexpFlag()
-    {
+    public void ParseArgs_WordRegexpLongForm_ShouldSetWordRegexpFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--word-regexp"]);
         opts.Should().NotBeNull();
         opts!.WordRegexp.Should().BeTrue();
     }
 
     [Fact]
-    public void ParseArgs_OnlyMatching_ShouldSetOnlyMatchingFlag()
-    {
+    public void ParseArgs_OnlyMatching_ShouldSetOnlyMatchingFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-o"]);
         opts.Should().NotBeNull();
         opts!.OnlyMatching.Should().BeTrue();
     }
 
     [Fact]
-    public void ParseArgs_OnlyMatchingLongForm_ShouldSetOnlyMatchingFlag()
-    {
+    public void ParseArgs_OnlyMatchingLongForm_ShouldSetOnlyMatchingFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--only-matching"]);
         opts.Should().NotBeNull();
         opts!.OnlyMatching.Should().BeTrue();
     }
 
     [Fact]
-    public void ParseArgs_Replace_ShouldSetReplaceValue()
-    {
+    public void ParseArgs_Replace_ShouldSetReplaceValue() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-r", "REPLACEMENT"]);
         opts.Should().NotBeNull();
         opts!.Replace.Should().Be("REPLACEMENT");
     }
 
     [Fact]
-    public void ParseArgs_ReplaceLongForm_ShouldSetReplaceValue()
-    {
+    public void ParseArgs_ReplaceLongForm_ShouldSetReplaceValue() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--replace", "XYZ"]);
         opts.Should().NotBeNull();
         opts!.Replace.Should().Be("XYZ");
     }
 
     [Fact]
-    public void ParseArgs_Sort_ShouldSetSortMode()
-    {
+    public void ParseArgs_Sort_ShouldSetSortMode() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--sort", "path"]);
         opts.Should().NotBeNull();
         opts!.Sort.Should().Be("path");
     }
 
     [Fact]
-    public void ParseArgs_SortModified_ShouldSetSortMode()
-    {
+    public void ParseArgs_SortModified_ShouldSetSortMode() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--sort", "modified"]);
         opts.Should().NotBeNull();
         opts!.Sort.Should().Be("modified");
     }
 
     [Fact]
-    public void ParseArgs_Hidden_ShouldSetHiddenFlag()
-    {
+    public void ParseArgs_Hidden_ShouldSetHiddenFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--hidden"]);
         opts.Should().NotBeNull();
         opts!.Hidden.Should().BeTrue();
     }
 
     [Fact]
-    public void ParseArgs_NoIgnore_ShouldSetNoIgnoreFlag()
-    {
+    public void ParseArgs_NoIgnore_ShouldSetNoIgnoreFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--no-ignore"]);
         opts.Should().NotBeNull();
         opts!.NoIgnore.Should().BeTrue();
     }
 
     [Fact]
-    public void ParseArgs_MultiplePaths_ShouldCollectAllPaths()
-    {
+    public void ParseArgs_MultiplePaths_ShouldCollectAllPaths() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "app/", "core/"]);
         opts.Should().NotBeNull();
         opts!.Paths.Should().HaveCount(3);
@@ -210,8 +190,7 @@ public sealed class RgSubCommandTests
     }
 
     [Fact]
-    public void ParseArgs_CombinedShortOptions_ShouldParseAllFlags()
-    {
+    public void ParseArgs_CombinedShortOptions_ShouldParseAllFlags() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-inSwo"]);
         opts.Should().NotBeNull();
         opts!.CaseInsensitive.Should().BeTrue();
@@ -222,62 +201,54 @@ public sealed class RgSubCommandTests
     }
 
     [Fact]
-    public void ParseArgs_Timeout_ShouldClampToMax()
-    {
+    public void ParseArgs_Timeout_ShouldClampToMax() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--timeout", "999"]);
         opts.Should().NotBeNull();
         opts!.TimeoutSeconds.Should().Be(300);
     }
 
     [Fact]
-    public void ParseArgs_TimeoutZero_ShouldUseDefault()
-    {
+    public void ParseArgs_TimeoutZero_ShouldUseDefault() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--timeout", "0"]);
         opts.Should().NotBeNull();
         opts!.TimeoutSeconds.Should().Be(30);
     }
 
     [Fact]
-    public void ParseArgs_HeadLimitZero_ShouldAllowUnlimited()
-    {
+    public void ParseArgs_HeadLimitZero_ShouldAllowUnlimited() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--head-limit", "0"]);
         opts.Should().NotBeNull();
         opts!.HeadLimit.Should().Be(0);
     }
 
     [Fact]
-    public void ParseArgs_Offset_ShouldSetOffsetValue()
-    {
+    public void ParseArgs_Offset_ShouldSetOffsetValue() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--offset", "10"]);
         opts.Should().NotBeNull();
         opts!.Offset.Should().Be(10);
     }
 
     [Fact]
-    public void ParseArgs_MissingPath_ShouldReturnNull()
-    {
+    public void ParseArgs_MissingPath_ShouldReturnNull() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern"]);
         opts.Should().BeNull();
     }
 
     [Fact]
-    public void ParseArgs_MissingPattern_ShouldReturnNull()
-    {
+    public void ParseArgs_MissingPattern_ShouldReturnNull() {
         var opts = RgSubCommand.ParseArgs(["src/"]);
         opts.Should().BeNull();
     }
 
     [Fact]
-    public void ParseArgs_DefaultTimeout_ShouldBe30Seconds()
-    {
+    public void ParseArgs_DefaultTimeout_ShouldBe30Seconds() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/"]);
         opts.Should().NotBeNull();
         opts!.TimeoutSeconds.Should().Be(30);
     }
 
     [Fact]
-    public void ParseArgs_MultipleGlobs_ShouldCollectAllGlobs()
-    {
+    public void ParseArgs_MultipleGlobs_ShouldCollectAllGlobs() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--glob", "*.cs", "--glob", "!**/tests/**"]);
         opts.Should().NotBeNull();
         opts!.Globs.Should().HaveCount(2);
@@ -285,8 +256,7 @@ public sealed class RgSubCommandTests
     }
 
     [Fact]
-    public void ParseArgs_MultipleShortGlobs_ShouldCollectAllGlobs()
-    {
+    public void ParseArgs_MultipleShortGlobs_ShouldCollectAllGlobs() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-g", "*.cs", "-g", "!**/obj/**"]);
         opts.Should().NotBeNull();
         opts!.Globs.Should().HaveCount(2);
@@ -294,16 +264,14 @@ public sealed class RgSubCommandTests
     }
 
     [Fact]
-    public void ParseArgs_NoGlob_ShouldReturnEmptyGlobsList()
-    {
+    public void ParseArgs_NoGlob_ShouldReturnEmptyGlobsList() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/"]);
         opts.Should().NotBeNull();
         opts!.Globs.Should().BeEmpty();
     }
 
     [Fact]
-    public void ParseArgs_MultilineDotall_ShouldSetMultilineFlag()
-    {
+    public void ParseArgs_MultilineDotall_ShouldSetMultilineFlag() {
         var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--multiline-dotall"]);
         opts.Should().NotBeNull();
         opts!.Multiline.Should().BeTrue();

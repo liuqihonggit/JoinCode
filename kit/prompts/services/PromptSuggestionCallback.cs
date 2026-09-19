@@ -7,8 +7,7 @@ namespace Core.Prompts.Templates.System;
 /// 核心消费链路：PromptSuggestionFilter.SuggestionPrompt → IForkSubAgentManager.ForkAsync() → PromptSuggestionFilter.ShouldFilterSuggestion()
 /// </summary>
 [Register(typeof(IPostSamplingCallback), ServiceLifetime.Singleton)]
-public sealed partial class PromptSuggestionCallback : ServiceEntity, IPostSamplingCallback
-{
+public sealed partial class PromptSuggestionCallback : ServiceEntity, IPostSamplingCallback {
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ILogger<PromptSuggestionCallback>? _logger;
 
@@ -19,8 +18,7 @@ public sealed partial class PromptSuggestionCallback : ServiceEntity, IPostSampl
     /// <param name="logger">日志记录器，可选。</param>
     public PromptSuggestionCallback(
         IForkSubAgentManager? forkManager = null,
-        ILogger<PromptSuggestionCallback>? logger = null)
-    {
+        ILogger<PromptSuggestionCallback>? logger = null) {
         _forkManager = forkManager;
         _logger = logger;
     }
@@ -30,38 +28,30 @@ public sealed partial class PromptSuggestionCallback : ServiceEntity, IPostSampl
     /// </summary>
     /// <param name="context">采样后上下文。</param>
     /// <returns>表示异步操作的任务。</returns>
-    public async Task OnPostSamplingAsync(PostSamplingContext context)
-    {
+    public async Task OnPostSamplingAsync(PostSamplingContext context) {
         if (context.QuerySource != "repl_main_thread") return;
 
-        if (_forkManager is null || context.SessionId is null)
-        {
+        if (_forkManager is null || context.SessionId is null) {
             _logger?.LogDebug("PromptSuggestion forked agent 不可用（IForkSubAgentManager 或 SessionId 缺失），跳过执行");
             return;
         }
 
-        try
-        {
+        try {
             var suggestion = await GenerateSuggestionAsync(context).ConfigureAwait(false);
 
-            if (suggestion is null || PromptSuggestionFilter.ShouldFilterSuggestion(suggestion))
-            {
+            if (suggestion is null || PromptSuggestionFilter.ShouldFilterSuggestion(suggestion)) {
                 _logger?.LogDebug("PromptSuggestion 建议被过滤或为空");
                 return;
             }
 
             _logger?.LogDebug("PromptSuggestion 生成建议: {Suggestion}", suggestion);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "PromptSuggestion 回调执行失败");
         }
     }
 
-    private async Task<string?> GenerateSuggestionAsync(PostSamplingContext context)
-    {
-        var forkOptions = new ForkOptions
-        {
+    private async Task<string?> GenerateSuggestionAsync(PostSamplingContext context) {
+        var forkOptions = new ForkOptions {
             ParentSessionId = context.SessionId ?? string.Empty,
             TaskDescription = "prompt_suggestion",
             AllowedTools = [],

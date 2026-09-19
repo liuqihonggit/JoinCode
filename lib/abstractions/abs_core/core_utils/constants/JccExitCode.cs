@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// jcc 退出码枚举 — 源码生成器自动生成 JccExitCodeEnumConstants + JccExitCodeExtensions + JccExitCodeHelpText
 /// </summary>
-public enum JccExitCode
-{
+public enum JccExitCode {
     [EnumValue("0")]
     [SubCommandInfo("成功", "退出码")]
     Success,

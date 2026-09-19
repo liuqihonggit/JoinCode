@@ -4,8 +4,7 @@ namespace Guard.Security.Tests;
 /// SecurityPatterns.DosDeviceNameRegex 裸设备名匹配测试 — ADR 0012 阶段2
 /// 验证裸 NUL/CON/PRN/AUX/COM1-9/LPT1-9 作为完整文件名被检测（不只是扩展名位置）
 /// </summary>
-public class SecurityPatternsDosDeviceNameTests
-{
+public class SecurityPatternsDosDeviceNameTests {
     #region 裸设备名作为完整文件名 — 应检测
 
     [Theory]
@@ -22,8 +21,7 @@ public class SecurityPatternsDosDeviceNameTests
     [InlineData("COM1")]
     [InlineData("lpt1")]
     [InlineData("LPT9")]
-    public void Bare_Device_Name_Should_Be_Suspicious(string path)
-    {
+    public void Bare_Device_Name_Should_Be_Suspicious(string path) {
         SecurityPatterns.HasSuspiciousWindowsPathPattern(path).Should().BeTrue();
     }
 
@@ -38,8 +36,7 @@ public class SecurityPatternsDosDeviceNameTests
     [InlineData("path/to/prn")]
     [InlineData("D:\\nul.txt")]
     [InlineData("nul.txt")]
-    public void Path_With_Device_Name_Component_Should_Be_Suspicious(string path)
-    {
+    public void Path_With_Device_Name_Component_Should_Be_Suspicious(string path) {
         SecurityPatterns.HasSuspiciousWindowsPathPattern(path).Should().BeTrue();
     }
 
@@ -51,8 +48,7 @@ public class SecurityPatternsDosDeviceNameTests
     [InlineData("foo.NUL")]
     [InlineData("settings.json.CON")]
     [InlineData(".bashrc.AUX")]
-    public void Extension_Position_Device_Name_Should_Be_Suspicious(string path)
-    {
+    public void Extension_Position_Device_Name_Should_Be_Suspicious(string path) {
         SecurityPatterns.HasSuspiciousWindowsPathPattern(path).Should().BeTrue();
     }
 
@@ -68,8 +64,7 @@ public class SecurityPatternsDosDeviceNameTests
     [InlineData("audio")]
     [InlineData("company1")]
     [InlineData("loop1")]
-    public void Non_Device_Name_Should_Not_Be_Suspicious(string path)
-    {
+    public void Non_Device_Name_Should_Not_Be_Suspicious(string path) {
         SecurityPatterns.HasSuspiciousWindowsPathPattern(path).Should().BeFalse();
     }
 

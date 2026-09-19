@@ -12,8 +12,7 @@ namespace JoinCode.Cli.Output;
 /// 2. XDG_CONFIG_HOME/jcc/
 /// 3. ~/.jcc/（传统路径，向后兼容）
 /// </summary>
-public static class XdgPathResolver
-{
+public static class XdgPathResolver {
     /// <summary>jcc 在 XDG 目录下的子目录名</summary>
     private const string AppName = "jcc";
 
@@ -23,8 +22,7 @@ public static class XdgPathResolver
     /// 2. XDG_CONFIG_HOME/jcc/
     /// 3. ~/.jcc/（传统路径）
     /// </summary>
-    public static string GetConfigDirectory()
-    {
+    public static string GetConfigDirectory() {
         // 1. JCC_CONFIG_PATH — 用户自定义
         var customPath = Environment.GetEnvironmentVariable("JCC_CONFIG_PATH");
         if (!string.IsNullOrEmpty(customPath))
@@ -44,8 +42,7 @@ public static class XdgPathResolver
     /// <summary>
     /// 获取数据目录
     /// </summary>
-    public static string GetDataDirectory()
-    {
+    public static string GetDataDirectory() {
         var xdgDataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
         if (!string.IsNullOrEmpty(xdgDataHome))
             return System.IO.Path.Combine(xdgDataHome, AppName);
@@ -58,8 +55,7 @@ public static class XdgPathResolver
     /// <summary>
     /// 获取缓存目录
     /// </summary>
-    public static string GetCacheDirectory()
-    {
+    public static string GetCacheDirectory() {
         var xdgCacheHome = Environment.GetEnvironmentVariable("XDG_CACHE_HOME");
         if (!string.IsNullOrEmpty(xdgCacheHome))
             return System.IO.Path.Combine(xdgCacheHome, AppName);
@@ -94,8 +90,7 @@ public static class XdgPathResolver
     /// 优先级: XDG_RUNTIME_DIR/jcc/ → ~/.jcc/runtime/
     /// ADR 0055: 从 %TEMP%/jcc/ 改为 ~/.jcc/runtime/，持久性日志不随 OS 清理临时目录丢失
     /// </summary>
-    public static string GetRuntimeDirectory()
-    {
+    public static string GetRuntimeDirectory() {
         var xdgRuntimeDir = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
         if (!string.IsNullOrEmpty(xdgRuntimeDir))
             return System.IO.Path.Combine(xdgRuntimeDir, AppName);

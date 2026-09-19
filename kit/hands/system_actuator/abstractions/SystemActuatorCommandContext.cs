@@ -3,8 +3,7 @@ namespace Services.SystemActuator;
 /// <summary>
 /// 系统执行器命令上下文 — 封装单次命令执行的全生命周期：进程启动、输出收集、超时/后台化/中断/杀死、CWD 追踪与异步释放
 /// </summary>
-public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext, ISystemActuatorLifecycle, IAsyncDisposable
-{
+public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext, ISystemActuatorLifecycle, IAsyncDisposable {
     private readonly Process _process;
     private readonly ProcessOutputCollector _outputCollector;
     private readonly CwdTracker _cwdTracker;
@@ -53,8 +52,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         ILogger? logger,
         IFileSystem fs,
         string? cwdFilePath,
-        bool detached)
-    {
+        bool detached) {
         _process = process;
         _command = command;
         _workingDirectory = workingDirectory;
@@ -69,17 +67,14 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _outputCollector = new ProcessOutputCollector(fs, logger, TaskId);
         _cwdTracker = new CwdTracker(fs, logger, cwdFilePath, workingDirectory);
 
-        process.OutputDataReceived += (_, e) =>
-        {
+        process.OutputDataReceived += (_, e) => {
             if (e.Data != null) _outputCollector.OnOutputDataReceived(e.Data);
         };
-        process.ErrorDataReceived += (_, e) =>
-        {
+        process.ErrorDataReceived += (_, e) => {
             if (e.Data != null) _outputCollector.OnErrorDataReceived(e.Data);
         };
 
-        if (timeoutMs.HasValue && timeoutMs.Value > 0)
-        {
+        if (timeoutMs.HasValue && timeoutMs.Value > 0) {
             _timeoutTimer = new Timer(
                 static state => HandleTimeout(state ?? throw new InvalidOperationException("Timer state is null.")),
                 this,
@@ -114,11 +109,9 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         bool shouldAutoBackground = true,
         bool useSandbox = false,
         string? sandboxTmpDir = null,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         var sessionId = global::Core.Utils.SessionIdFactory.DefaultSessionId;
-        var options = new SystemActuatorExecOptions
-        {
+        var options = new SystemActuatorExecOptions {
             SessionId = sessionId,
             UseSandbox = useSandbox,
             SandboxTmpDir = sandboxTmpDir,
@@ -129,8 +122,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
         var spawnArgs = actuator.GetSpawnArgs(execResult.CommandString);
 
-        var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
-        {
+        var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions {
             FileName = actuator.ShellPath,
             WorkingDirectory = workingDirectory,
             ArgumentList = spawnArgs,
@@ -141,10 +133,8 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
         psi.RedirectStandardInput = true;
 
-        if (actuator.Detached)
-        {
-            if (OperatingSystem.IsWindows())
-            {
+        if (actuator.Detached) {
+            if (OperatingSystem.IsWindows()) {
                 psi.WindowStyle = ProcessWindowStyle.Hidden;
             }
         }
@@ -169,8 +159,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     /// </summary>
     /// <param name="taskId">后台任务 ID</param>
     /// <returns>成功转后台返回 true；命令非 Running 状态返回 false</returns>
-    public bool Background(string taskId)
-    {
+    public bool Background(string taskId) {
         if (_status != SystemActuatorCommandStatus.Running) return false;
 
         _backgroundTaskId = taskId;
@@ -199,16 +188,13 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     /// <returns>当前标准错误字符串</returns>
     public string GetCurrentStderr() => _outputCollector.GetCurrentStderr();
 
-    private void StartSizeWatchdog()
-    {
-        _sizeWatchdogTimer = new Timer(static state =>
-        {
+    private void StartSizeWatchdog() {
+        _sizeWatchdogTimer = new Timer(static state => {
             var ctx = (SystemActuatorCommandContext)(state ?? throw new InvalidOperationException("Timer state is null."));
             if (ctx._status is not (SystemActuatorCommandStatus.Running or SystemActuatorCommandStatus.Backgrounded)) return;
 
             var outputLength = ctx._outputCollector.GetCurrentStdoutLength();
-            if (outputLength > SystemActuatorExecutionResult.MaxPersistedSizeBytes)
-            {
+            if (outputLength > SystemActuatorExecutionResult.MaxPersistedSizeBytes) {
                 ctx._logger?.LogWarning("任务输出超过硬上限，强制杀死: {TaskId}, Size={Size}", ctx._backgroundTaskId ?? ctx.TaskId, outputLength);
                 ctx.Kill();
             }
@@ -216,12 +202,10 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     }
 
     /// <summary>强制杀死进程树并将状态置为 Killed — 已非 Running/Backgrounded 状态时为空操作</summary>
-    public void Kill()
-    {
+    public void Kill() {
         if (_status is not (SystemActuatorCommandStatus.Running or SystemActuatorCommandStatus.Backgrounded)) return;
 
-        try { ProcessKillHelper.KillProcessTree(_process, _logger); }
-        catch (Exception ex) { _logger?.LogWarning(ex, "杀进程树失败"); }
+        try { ProcessKillHelper.KillProcessTree(_process, _logger); } catch (Exception ex) { _logger?.LogWarning(ex, "杀进程树失败"); }
 
         _status = SystemActuatorCommandStatus.Killed;
     }
@@ -230,8 +214,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     /// 中断当前前台命令 — 通过将其转后台实现（生成新任务 ID）
     /// </summary>
     /// <returns>成功转后台返回 true；命令非 Running 状态返回 false</returns>
-    public bool Interrupt()
-    {
+    public bool Interrupt() {
         if (_status != SystemActuatorCommandStatus.Running) return false;
 
         var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
@@ -244,19 +227,15 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     /// <summary>
     /// 启动 Assistant 自动后台化定时器 — 当 ShouldAutoBackground 为 true 且命令在 Assistant 阻塞预算耗尽后仍 Running 时自动转后台
     /// </summary>
-    public void StartAssistantAutoBackgroundTimer()
-    {
+    public void StartAssistantAutoBackgroundTimer() {
         if (!ShouldAutoBackground || _status != SystemActuatorCommandStatus.Running) return;
 
         _assistantTimer = new Timer(
-            static state =>
-            {
+            static state => {
                 var ctx = (SystemActuatorCommandContext)(state ?? throw new InvalidOperationException("Timer state is null."));
-                if (ctx._status == SystemActuatorCommandStatus.Running && ctx._backgroundTaskId is null)
-                {
+                if (ctx._status == SystemActuatorCommandStatus.Running && ctx._backgroundTaskId is null) {
                     var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
-                    if (ctx.Background(taskId))
-                    {
+                    if (ctx.Background(taskId)) {
                         ctx._logger?.LogInformation("Assistant 自动后台化: {TaskId}, 命令: {Command}", taskId, ctx._command);
                     }
                 }
@@ -267,8 +246,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     }
 
     /// <summary>生命周期状态 — 由命令状态映射而来</summary>
-    public SystemActuatorLifecycleState LifecycleState => _status switch
-    {
+    public SystemActuatorLifecycleState LifecycleState => _status switch {
         SystemActuatorCommandStatus.Running => SystemActuatorLifecycleState.Active,
         SystemActuatorCommandStatus.Backgrounded => SystemActuatorLifecycleState.Backgrounded,
         SystemActuatorCommandStatus.Killed => SystemActuatorLifecycleState.Terminated,
@@ -281,22 +259,17 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>已完成的任务</returns>
-    public Task CompactAsync(CancellationToken cancellationToken = default)
-    {
-        if (_status == SystemActuatorCommandStatus.Running)
-        {
+    public Task CompactAsync(CancellationToken cancellationToken = default) {
+        if (_status == SystemActuatorCommandStatus.Running) {
             var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
             Background(taskId);
         }
 
-        if (_status is SystemActuatorCommandStatus.Backgrounded && _outputCollector.SpillFilePath is null)
-        {
+        if (_status is SystemActuatorCommandStatus.Backgrounded && _outputCollector.SpillFilePath is null) {
             var currentLen = _outputCollector.GetCurrentStdoutLength();
-            if (currentLen > SystemActuatorExecutionResult.PreviewSizeBytes)
-            {
+            if (currentLen > SystemActuatorExecutionResult.PreviewSizeBytes) {
                 _outputCollector.SpillToDisk();
-                if (_outputCollector.SpillFilePath is null)
-                {
+                if (_outputCollector.SpillFilePath is null) {
                     _outputCollector.TruncateStdout(SystemActuatorExecutionResult.PreviewSizeBytes);
                 }
             }
@@ -310,39 +283,30 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>已完成的任务</returns>
-    public Task TerminateAsync(CancellationToken cancellationToken = default)
-    {
+    public Task TerminateAsync(CancellationToken cancellationToken = default) {
         Kill();
         return Task.CompletedTask;
     }
 
-    private static void HandleTimeout(object state)
-    {
+    private static void HandleTimeout(object state) {
         var ctx = (SystemActuatorCommandContext)state;
         if (ctx._status != SystemActuatorCommandStatus.Running) return;
 
-        if (ctx.ShouldAutoBackground)
-        {
+        if (ctx.ShouldAutoBackground) {
             var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
             ctx.Background(taskId);
             ctx._logger?.LogInformation("超时自动后台化: {TaskId}, 命令: {Command}", taskId, ctx._command);
-        }
-        else
-        {
+        } else {
             ctx.Kill();
         }
     }
 
-    private async Task MonitorProcessExitAsync()
-    {
-        try
-        {
+    private async Task MonitorProcessExitAsync() {
+        try {
             await _process.WaitForExitAsync(_processCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
 
-        if (_status == SystemActuatorCommandStatus.Killed)
-        {
+        if (_status == SystemActuatorCommandStatus.Killed) {
             _resultTcs.TrySetResult(SystemActuatorExecutionResult.FailureResult(
                 "Process killed",
                 _outputCollector.GetCurrentStdout(),
@@ -355,16 +319,14 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
         string? persistedPath = null;
         long? persistedSize = null;
-        if (stdout.Length > SystemActuatorExecutionResult.MaxInlineOutputChars)
-        {
+        if (stdout.Length > SystemActuatorExecutionResult.MaxInlineOutputChars) {
             (persistedPath, persistedSize) = await OutputPersister.PersistLargeOutputAsync(stdout, _fs, _logger).ConfigureAwait(false);
             stdout = stdout[..Math.Min(stdout.Length, SystemActuatorExecutionResult.PreviewSizeBytes)];
         }
 
         var cwdWasReset = _isForeground ? _cwdTracker.TryUpdateCwdFromTrackingFile() : _cwdTracker.CleanupCwdTrackingFile();
 
-        var result = SystemActuatorExecutionResult.SuccessResult(stdout, stderr, _process.ExitCode) with
-        {
+        var result = SystemActuatorExecutionResult.SuccessResult(stdout, stderr, _process.ExitCode) with {
             ProcessId = _process.Id,
             PersistedOutputPath = persistedPath,
             PersistedOutputSize = persistedSize,
@@ -380,8 +342,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     /// 异步释放资源 — 释放定时器、取消令牌、杀死未退出进程、释放输出收集器与 CWD 追踪器
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
 
         _timeoutTimer?.Dispose();
@@ -390,11 +351,9 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _processCts.Cancel();
         _processCts.Dispose();
 
-        try
-        {
+        try {
             if (!_process.HasExited) ProcessKillHelper.KillProcessTree(_process, _logger);
-        }
-        catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 时终止进程失败"); }
+        } catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 时终止进程失败"); }
 
         _process.Dispose();
 

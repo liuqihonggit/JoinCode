@@ -4,8 +4,7 @@ namespace McpToolRegistry;
 /// MCP 工具注册表适配器 — 桥接 IToolRegistry 与 RemoteClientManager，实现 IMcpToolRegistry
 /// </summary>
 [Register(typeof(IMcpToolRegistry), ServiceLifetime.Singleton)]
-public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
-{
+public sealed partial class ToolRegistryAdapter : IMcpToolRegistry {
     private readonly IToolRegistry _toolRegistry;
     private readonly RemoteClientManager _remoteClientManager;
     private readonly ILogger<ToolRegistryAdapter>? _logger;
@@ -19,8 +18,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     public ToolRegistryAdapter(
         IToolRegistry toolRegistry,
         RemoteClientManager remoteClientManager,
-        ILogger<ToolRegistryAdapter>? logger = null)
-    {
+        ILogger<ToolRegistryAdapter>? logger = null) {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _remoteClientManager = remoteClientManager ?? throw new ArgumentNullException(nameof(remoteClientManager));
         _logger = logger;
@@ -34,8 +32,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <param name="handler">工具处理器</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default)
-    {
+    public async Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(handler);
 
         await _toolRegistry.RegisterToolAsync(handler, cancellationToken);
@@ -56,8 +53,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <param name="timeoutPolicy">超时策略（可选）</param>
     /// <param name="category">工具分类（可选）</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null)
-    {
+    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null) {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrEmpty(description);
         ArgumentNullException.ThrowIfNull(inputSchema);
@@ -73,8 +69,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <param name="toolName">工具名称</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>若注销成功返回 true；否则 false</returns>
-    public Task<bool> UnregisterToolAsync(string toolName, CancellationToken cancellationToken = default)
-    {
+    public Task<bool> UnregisterToolAsync(string toolName, CancellationToken cancellationToken = default) {
         return _toolRegistry.UnregisterToolAsync(toolName, cancellationToken);
     }
 
@@ -87,8 +82,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// </summary>
     /// <param name="clientId">客户端标识</param>
     /// <param name="client">MCP 客户端实例</param>
-    public void RegisterRemoteClient(string clientId, IMcpClient client)
-    {
+    public void RegisterRemoteClient(string clientId, IMcpClient client) {
         ArgumentException.ThrowIfNullOrEmpty(clientId);
         ArgumentNullException.ThrowIfNull(client);
 
@@ -101,8 +95,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <param name="clientId">客户端标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>若注销成功返回 true；否则 false</returns>
-    public Task<bool> UnregisterRemoteClientAsync(string clientId, CancellationToken cancellationToken = default)
-    {
+    public Task<bool> UnregisterRemoteClientAsync(string clientId, CancellationToken cancellationToken = default) {
         return _remoteClientManager.UnregisterClientAsync(clientId, cancellationToken);
     }
 
@@ -112,8 +105,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <param name="clientId">客户端标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>MCP 客户端实例；若不存在返回 null</returns>
-    public Task<IMcpClient?> GetRemoteClientAsync(string clientId, CancellationToken cancellationToken = default)
-    {
+    public Task<IMcpClient?> GetRemoteClientAsync(string clientId, CancellationToken cancellationToken = default) {
         return _remoteClientManager.GetClientAsync(clientId, cancellationToken);
     }
 
@@ -122,8 +114,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>以客户端标识为键的 MCP 客户端只读字典</returns>
-    public Task<IReadOnlyDictionary<string, IMcpClient>> GetAllRemoteClientsAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<IReadOnlyDictionary<string, IMcpClient>> GetAllRemoteClientsAsync(CancellationToken cancellationToken = default) {
         return _remoteClientManager.GetAllClientsAsync(cancellationToken);
     }
 
@@ -133,8 +124,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <param name="clientId">客户端标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>远程工具同步结果</returns>
-    public Task<RemoteToolsSyncResult> SyncRemoteToolsAsync(string clientId, CancellationToken cancellationToken = default)
-    {
+    public Task<RemoteToolsSyncResult> SyncRemoteToolsAsync(string clientId, CancellationToken cancellationToken = default) {
         return _remoteClientManager.SyncToolsAsync(clientId, cancellationToken);
     }
 
@@ -148,8 +138,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <param name="toolName">工具名称</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具处理器；若不存在返回 null</returns>
-    public Task<IToolHandler?> GetToolAsync(string toolName, CancellationToken cancellationToken = default)
-    {
+    public Task<IToolHandler?> GetToolAsync(string toolName, CancellationToken cancellationToken = default) {
         return _toolRegistry.GetToolAsync(toolName, cancellationToken);
     }
 
@@ -158,8 +147,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>以工具名为键的处理器只读字典</returns>
-    public async Task<IReadOnlyDictionary<string, IToolHandler>> GetAllToolsAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyDictionary<string, IToolHandler>> GetAllToolsAsync(CancellationToken cancellationToken = default) {
         return await _toolRegistry.GetAllToolsAsync(cancellationToken);
     }
 
@@ -175,8 +163,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
         string toolName,
         Dictionary<string, JsonElement> arguments,
         CancellationToken cancellationToken = default,
-        ToolProgressCallback? onProgress = null)
-    {
+        ToolProgressCallback? onProgress = null) {
         return _toolRegistry.ExecuteToolAsync(toolName, arguments, cancellationToken, onProgress);
     }
 
@@ -186,8 +173,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <param name="toolName">工具名称</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具元信息；若不存在返回 null</returns>
-    public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default)
-    {
+    public Task<ToolInfo?> GetToolInfoAsync(string toolName, CancellationToken cancellationToken = default) {
         return _toolRegistry.GetToolInfoAsync(toolName, cancellationToken);
     }
 
@@ -196,8 +182,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具元信息只读列表</returns>
-    public Task<IReadOnlyList<ToolInfo>> GetAllToolInfosAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<IReadOnlyList<ToolInfo>> GetAllToolInfosAsync(CancellationToken cancellationToken = default) {
         return _toolRegistry.GetAllToolInfosAsync(cancellationToken);
     }
 
@@ -207,8 +192,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <param name="toolName">工具名称</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>若已注册返回 true；否则 false</returns>
-    public Task<bool> ContainsToolAsync(string toolName, CancellationToken cancellationToken = default)
-    {
+    public Task<bool> ContainsToolAsync(string toolName, CancellationToken cancellationToken = default) {
         return _toolRegistry.ContainsToolAsync(toolName, cancellationToken);
     }
 
@@ -217,8 +201,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>分组名称的冻结集合</returns>
-    public Task<FrozenSet<string>> GetGroupNamesAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<FrozenSet<string>> GetGroupNamesAsync(CancellationToken cancellationToken = default) {
         return _toolRegistry.GetGroupNamesAsync(cancellationToken);
     }
 
@@ -228,8 +211,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <param name="kind">工具种类</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>以工具名为键的处理器只读字典</returns>
-    public Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByKindAsync(ToolKind kind, CancellationToken cancellationToken = default)
-    {
+    public Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByKindAsync(ToolKind kind, CancellationToken cancellationToken = default) {
         return _toolRegistry.GetToolsByKindAsync(kind, cancellationToken);
     }
 
@@ -239,8 +221,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <param name="groupName">分组名称</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>以工具名为键的处理器只读字典</returns>
-    public Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByGroupAsync(string groupName, CancellationToken cancellationToken = default)
-    {
+    public Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByGroupAsync(string groupName, CancellationToken cancellationToken = default) {
         return _toolRegistry.GetToolsByGroupAsync(groupName, cancellationToken);
     }
 
@@ -251,8 +232,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// <summary>
     /// 清除远程客户端缓存
     /// </summary>
-    public void ClearCache()
-    {
+    public void ClearCache() {
         _remoteClientManager.ClearCache();
     }
 
@@ -265,8 +245,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>本地工具数量</returns>
-    public Task<int> GetLocalToolCountAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<int> GetLocalToolCountAsync(CancellationToken cancellationToken = default) {
         return _toolRegistry.GetCountAsync(cancellationToken);
     }
 
@@ -275,8 +254,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>远程客户端数量</returns>
-    public Task<int> GetRemoteClientCountAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<int> GetRemoteClientCountAsync(CancellationToken cancellationToken = default) {
         return _remoteClientManager.GetClientCountAsync(cancellationToken);
     }
 
@@ -285,8 +263,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>本地工具数量</returns>
-    public Task<int> GetCountAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<int> GetCountAsync(CancellationToken cancellationToken = default) {
         return _toolRegistry.GetCountAsync(cancellationToken);
     }
 
@@ -299,8 +276,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public Task ClearAsync(CancellationToken cancellationToken = default)
-    {
+    public Task ClearAsync(CancellationToken cancellationToken = default) {
         return _toolRegistry.ClearAsync(cancellationToken);
     }
 
@@ -309,8 +285,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task ClearRemoteClientsAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task ClearRemoteClientsAsync(CancellationToken cancellationToken = default) {
         await _remoteClientManager.ClearAllClientsAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -318,11 +293,9 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
     /// 异步释放适配器资源（委托给底层工具注册表）
     /// </summary>
     /// <returns>表示异步释放操作的值任务</returns>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         return _toolRegistry.DisposeAsync();
     }
 
     #endregion
 }
-

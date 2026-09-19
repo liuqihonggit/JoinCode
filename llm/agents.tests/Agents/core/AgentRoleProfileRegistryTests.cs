@@ -1,11 +1,9 @@
 namespace Core.Agents;
 
 
-public sealed class AgentRoleProfileRegistryTests
-{
+public sealed class AgentRoleProfileRegistryTests {
     [Fact]
-    public void BuildBuiltInProfiles_ReturnsNineProfiles()
-    {
+    public void BuildBuiltInProfiles_ReturnsNineProfiles() {
         var profiles = AgentRoleProfileRegistry.BuildBuiltInProfiles();
 
         profiles.Should().HaveCount(9);
@@ -14,8 +12,7 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetProfile_Coordinator_ReturnsCoordinatorProfile()
-    {
+    public void GetProfile_Coordinator_ReturnsCoordinatorProfile() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -28,8 +25,7 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetProfile_ExecutorCode_ReturnsCodeProfile()
-    {
+    public void GetProfile_ExecutorCode_ReturnsCodeProfile() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -43,8 +39,7 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetProfile_ExecutorExplore_IsOneShot()
-    {
+    public void GetProfile_ExecutorExplore_IsOneShot() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -57,8 +52,7 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetProfile_ExecutorDoctor_IsBackground()
-    {
+    public void GetProfile_ExecutorDoctor_IsBackground() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -70,8 +64,7 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetProfile_UnknownVariant_ReturnsNull()
-    {
+    public void GetProfile_UnknownVariant_ReturnsNull() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -81,10 +74,8 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetProfile_CustomDefinitionWithSourcePath_OverridesBuiltIn()
-    {
-        var customDef = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
-        {
+    public void GetProfile_CustomDefinitionWithSourcePath_OverridesBuiltIn() {
+        var customDef = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
             Role = AgentRole.Executor,
             Variant = ExecutorVariant.Code,
             WhenToUse = "custom code agent",
@@ -106,8 +97,7 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetAvailableVariants_ReturnsEightVariants()
-    {
+    public void GetAvailableVariants_ReturnsEightVariants() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -122,13 +112,11 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void Register_AddsCustomProfile()
-    {
+    public void Register_AddsCustomProfile() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
-        var custom = new AgentRoleProfile
-        {
+        var custom = new AgentRoleProfile {
             Role = AgentRole.Executor,
             Variant = (ExecutorVariant)100,
             WhenToUse = "Custom agent",
@@ -141,13 +129,11 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void ClearCache_ResetsToBuiltInProfiles()
-    {
+    public void ClearCache_ResetsToBuiltInProfiles() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
-        var custom = new AgentRoleProfile
-        {
+        var custom = new AgentRoleProfile {
             Role = AgentRole.Executor,
             Variant = (ExecutorVariant)100,
             WhenToUse = "Custom agent",
@@ -162,8 +148,7 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetProfilesByRole_ReturnsOnlyExecutorProfiles()
-    {
+    public void GetProfilesByRole_ReturnsOnlyExecutorProfiles() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -174,8 +159,7 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetProfile_ExecutorVerification_HasCorrectTools()
-    {
+    public void GetProfile_ExecutorVerification_HasCorrectTools() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -188,8 +172,7 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetProfile_ExecutorJoinCodeGuide_HasCorrectTools()
-    {
+    public void GetProfile_ExecutorJoinCodeGuide_HasCorrectTools() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -202,8 +185,7 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetProfile_ExecutorContextCompression_HasCorrectTools()
-    {
+    public void GetProfile_ExecutorContextCompression_HasCorrectTools() {
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 

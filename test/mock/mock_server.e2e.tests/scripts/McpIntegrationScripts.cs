@@ -4,15 +4,13 @@ namespace MockServer.E2E.Tests.Scripts;
 /// MCP 集成 E2E 测试脚本 — 验证 jcc 作为 MCP 客户端连接外部 MCP 服务器并调用工具的正向链路
 /// 链路: LLM(MockServer)返回 mcp_connect/mcp_call_tool 工具调用 → jcc 执行 → Mcp.MockServer 响应
 /// </summary>
-public static class McpIntegrationScripts
-{
+public static class McpIntegrationScripts {
     /// <summary>
     /// MCP 正向链路验证 — 连接 Mcp.MockServer 并调用 echo 工具
     /// 链路: jcc → mcp_connect → Mcp.MockServer → mcp_call_tool(echo) → 返回结果
     /// 使用 {MCP_MOCK_PORT} 占位符,DualRoleConversationRunner 启动 Mcp.MockServer 后自动替换为实际端口
     /// </summary>
-    public static ConversationScript McpConnectAndCallEcho => new()
-    {
+    public static ConversationScript McpConnectAndCallEcho => new() {
         Name = "MCP连接并调用echo工具",
         RequiresMcpMockServer = true,
         Turns =

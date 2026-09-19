@@ -4,8 +4,7 @@ namespace JoinCode.Gui.ViewModels;
 /// MainViewModel 的斜杠补全 partial — 处理 / 命令、@ 子代理、# 文件补全的解析、刷新、回填、导航。
 /// 从 MainViewModel.cs 拆出以满足 JCC8001 文件行数限制。
 /// </summary>
-public sealed partial class MainViewModel
-{
+public sealed partial class MainViewModel {
     /// <summary>斜杠命令缓存（懒加载；空命令时回退内置高频命令列表）</summary>
     private IReadOnlyList<SlashCommandItem> _slashCommandCache = [];
 
@@ -29,10 +28,8 @@ public sealed partial class MainViewModel
     public bool IsSlashPopupOpen => _slashParseResult.ShouldComplete && SlashSuggestions.Count > 0;
 
     /// <summary>补全面板头部模式徽章文本（参数模式特殊处理；其他从 Registry 查 Provider Label）</summary>
-    public string SlashModeLabel
-    {
-        get
-        {
+    public string SlashModeLabel {
+        get {
             if (_slashParseResult.Mode == SlashCompletionMode.Argument)
                 return "参数补全";
             return CompletionTriggerRegistry.TryGet(_slashParseResult.TriggerChar)?.Label ?? "斜杠命令";
@@ -44,39 +41,33 @@ public sealed partial class MainViewModel
     private int _slashSelectedIndex = -1;
 
     /// <summary>刷新斜杠命令建议 — 由 View 层防抖后调用；Argument 保留特殊分支，Command/Agent/File 走 Registry 统一路径</summary>
-    public void RefreshSlashSuggestions()
-    {
-        if (IsBusy)
-        {
+    public void RefreshSlashSuggestions() {
+        if (IsBusy) {
             ClearSlashSuggestions();
             return;
         }
 
         _slashParseResult = SlashCommandParser.Parse(InputText, InputCaretIndex);
-        if (!_slashParseResult.ShouldComplete)
-        {
+        if (!_slashParseResult.ShouldComplete) {
             ClearSlashSuggestions();
             return;
         }
 
         // Argument 模式回填区间不同（替换参数区间而非触发符区间），保留特殊分支
-        if (_slashParseResult.Mode == SlashCompletionMode.Argument)
-        {
+        if (_slashParseResult.Mode == SlashCompletionMode.Argument) {
             RefreshArgumentSuggestions();
             return;
         }
 
         // Command/Agent/File 走统一 Registry — 加新触发符只写 Provider + 注册，零改此处
         var provider = CompletionTriggerRegistry.TryGet(_slashParseResult.TriggerChar);
-        if (provider is null)
-        {
+        if (provider is null) {
             ClearSlashSuggestions();
             return;
         }
 
         _slashCommandCache ??= BuildSlashCommandCache();
-        var context = new CompletionContext
-        {
+        var context = new CompletionContext {
             Session = _session,
             SlashCommandCache = _slashCommandCache,
             AvailableSubAgentsCache = _availableSubAgentsCache
@@ -86,15 +77,13 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>刷新命令参数补全候选 — 由 CommandArgumentProvider 按命令名提供参数列表</summary>
-    private void RefreshArgumentSuggestions()
-    {
+    private void RefreshArgumentSuggestions() {
         var args = CommandArgumentProvider.GetArguments(
             _slashParseResult.CommandName, _slashParseResult.ArgumentPrefix, _session);
 
         SlashSuggestions.Clear();
         var prefixLen = _slashParseResult.ArgumentPrefix.Length;
-        foreach (var item in args)
-        {
+        foreach (var item in args) {
             item.MatchedPart = item.Name.Length >= prefixLen ? item.Name[..prefixLen] : item.Name;
             item.RemainingPart = item.Name.Length >= prefixLen ? item.Name[prefixLen..] : string.Empty;
             SlashSuggestions.Add(item);
@@ -104,12 +93,10 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>填充补全候选列表（高亮匹配前缀）</summary>
-    private void PopulateSuggestions(IReadOnlyList<SlashCommandItem> candidates, string prefix)
-    {
+    private void PopulateSuggestions(IReadOnlyList<SlashCommandItem> candidates, string prefix) {
         SlashSuggestions.Clear();
         var prefixLen = prefix.Length;
-        foreach (var item in candidates)
-        {
+        foreach (var item in candidates) {
             item.MatchedPart = item.Name.Length >= prefixLen ? item.Name[..prefixLen] : item.Name;
             item.RemainingPart = item.Name.Length >= prefixLen ? item.Name[prefixLen..] : string.Empty;
             SlashSuggestions.Add(item);
@@ -119,15 +106,13 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>补全面板状态通知归纳 — 开关与模式徽章同步变更（规则6：消除 4 处重复 OnPropertyChanged）</summary>
-    private void NotifySlashPanelChanged()
-    {
+    private void NotifySlashPanelChanged() {
         OnPropertyChanged(nameof(IsSlashPopupOpen));
         OnPropertyChanged(nameof(SlashModeLabel));
     }
 
     /// <summary>清空斜杠建议并关闭面板</summary>
-    private void ClearSlashSuggestions()
-    {
+    private void ClearSlashSuggestions() {
         _slashParseResult = SlashParseResult.None;
         SlashSuggestions.Clear();
         SlashSelectedIndex = -1;
@@ -138,8 +123,7 @@ public sealed partial class MainViewModel
     public void CloseSlashPopup() => ClearSlashSuggestions();
 
     /// <summary>构建斜杠命令缓存 — 引擎命令为空时回退内置高频子集</summary>
-    private IReadOnlyList<SlashCommandItem> BuildSlashCommandCache()
-    {
+    private IReadOnlyList<SlashCommandItem> BuildSlashCommandCache() {
         var metadata = GetAvailableSlashCommands();
         return metadata.Count > 0 ? SlashCommandItem.FromMetadata(metadata) : SlashCommandItem.BuiltInCommands;
     }
@@ -148,8 +132,7 @@ public sealed partial class MainViewModel
     public void InvalidateSlashCommandCache() => _slashCommandCache = [];
 
     /// <summary>完成斜杠命令补全 — 将选中命令回填到光标位置（替换 / 到前缀结束区间），不破坏其他文本</summary>
-    public void CompleteSlashSuggestion()
-    {
+    public void CompleteSlashSuggestion() {
         if (SlashSelectedIndex < 0 || SlashSelectedIndex >= SlashSuggestions.Count)
             return;
         if (!_slashParseResult.ShouldComplete)
@@ -157,23 +140,18 @@ public sealed partial class MainViewModel
 
         var item = SlashSuggestions[SlashSelectedIndex];
 
-        if (_slashParseResult.Mode == SlashCompletionMode.Argument)
-        {
+        if (_slashParseResult.Mode == SlashCompletionMode.Argument) {
             var argStart = _slashParseResult.ArgumentStart;
             var prefixEnd = _slashParseResult.PrefixEnd;
             InputText = InputText[..argStart] + item.Name + InputText[prefixEnd..];
             InputCaretIndex = argStart + item.Name.Length;
-        }
-        else if (_slashParseResult.Mode == SlashCompletionMode.File ||
-                 _slashParseResult.Mode == SlashCompletionMode.Agent)
-        {
+        } else if (_slashParseResult.Mode == SlashCompletionMode.File ||
+                   _slashParseResult.Mode == SlashCompletionMode.Agent) {
             var triggerEnd = _slashParseResult.SlashIndex + 1;
             var prefixEnd = _slashParseResult.PrefixEnd;
             InputText = InputText[..triggerEnd] + item.Name + " " + InputText[prefixEnd..];
             InputCaretIndex = triggerEnd + item.Name.Length + 1;
-        }
-        else
-        {
+        } else {
             var slashIndex = _slashParseResult.SlashIndex;
             var prefixEnd = _slashParseResult.PrefixEnd;
             InputText = InputText[..slashIndex] + item.Name + " " + InputText[prefixEnd..];
@@ -183,8 +161,7 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>斜杠建议导航（↑ 传 -1，↓ 传 1），到顶/到底不再移动（不循环回绕）</summary>
-    public void SlashNavigate(int delta)
-    {
+    public void SlashNavigate(int delta) {
         if (SlashSuggestions.Count == 0)
             return;
         SlashSelectedIndex = Math.Clamp(SlashSelectedIndex + delta, 0, SlashSuggestions.Count - 1);

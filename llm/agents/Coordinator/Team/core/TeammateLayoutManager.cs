@@ -2,8 +2,7 @@ namespace Core.Agents.Coordinator;
 
 /// <summary>队友布局管理器 — 管理多队友在终端中的窗格布局、颜色分配与位置调度</summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateLayoutManager), ServiceLifetime.Singleton)]
-public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateLayoutManager
-{
+public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateLayoutManager {
     private static readonly string[] AgentColors =
     new[] {
         "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4",
@@ -30,8 +29,7 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     /// <param name="logger">日志记录器</param>
     public TeammateLayoutManager(
         JoinCode.Abstractions.Interfaces.IPaneBackend backend,
-        ILogger<TeammateLayoutManager>? logger = null)
-    {
+        ILogger<TeammateLayoutManager>? logger = null) {
         _backend = backend ?? throw new ArgumentNullException(nameof(backend));
         _logger = logger;
     }
@@ -45,8 +43,7 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>创建面板结果</returns>
     public async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreateTeammatePaneAsync(
-        string teammateId, string agentType, string command, CancellationToken cancellationToken = default)
-    {
+        string teammateId, string agentType, string command, CancellationToken cancellationToken = default) {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var result = await _backend.CreateTeammatePaneAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
@@ -60,7 +57,7 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
             teammateId, result.PaneId, result.BackendType);
 
         return result;
-    
+
     }
 
     /// <summary>
@@ -68,8 +65,7 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     /// </summary>
     /// <param name="teammateId">Teammate 标识</param>
     /// <returns>分配的颜色十六进制字符串</returns>
-    public string AssignTeammateColor(string teammateId)
-    {
+    public string AssignTeammateColor(string teammateId) {
         if (_teammateColors.TryGetValue(teammateId, out var existing))
             return existing;
 
@@ -85,12 +81,10 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     /// <param name="teammateId">Teammate 标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task RemoveTeammatePaneAsync(string teammateId, CancellationToken cancellationToken = default)
-    {
+    public async Task RemoveTeammatePaneAsync(string teammateId, CancellationToken cancellationToken = default) {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (_teammatePanes.TryGetValue(teammateId, out var paneId))
-        {
+        if (_teammatePanes.TryGetValue(teammateId, out var paneId)) {
             await _backend.KillPaneAsync(paneId, cancellationToken).ConfigureAwait(false);
             _teammatePanes.Remove(teammateId);
             _teammateColors.Remove(teammateId);
@@ -98,7 +92,7 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
             if (_teammatePanes.Count > 0)
                 await _backend.RebalancePanesAsync(cancellationToken).ConfigureAwait(false);
         }
-    
+
     }
 
     /// <summary>
@@ -106,17 +100,15 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task RebalanceLayoutAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task RebalanceLayoutAsync(CancellationToken cancellationToken = default) {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         await _backend.RebalancePanesAsync(cancellationToken).ConfigureAwait(false);
-    
+
     }
 
     /// <summary>释放资源 — 释放布局管理锁</summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         _lock.Dispose();
         base.Dispose();
     }

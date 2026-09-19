@@ -4,8 +4,7 @@ namespace Core.Agents.Coordinator;
 /// 邮箱轮询器 — 周期性从文件邮箱拉取未读消息并投递到进程内邮箱或消息接收器
 /// </summary>
 [Register(typeof(IMailboxPoller), ServiceLifetime.Singleton)]
-public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
-{
+public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
     private readonly ITeammateMailboxService _mailboxService;
     private readonly IMailbox _messageBroker;
     private readonly IMailboxMessageSink? _messageSink;
@@ -27,8 +26,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
         IMailbox messageBroker,
         ILogger<MailboxPoller>? logger = null,
         TimeSpan? pollInterval = null,
-        IMailboxMessageSink? messageSink = null)
-    {
+        IMailboxMessageSink? messageSink = null) {
         _mailboxService = mailboxService ?? throw new ArgumentNullException(nameof(mailboxService));
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));
         _logger = logger;
@@ -42,18 +40,15 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
     /// </summary>
     /// <param name="agentId">Agent 标识</param>
     /// <param name="sessionId">会话标识</param>
-    public void StartPolling(string agentId, string sessionId)
-    {
+    public void StartPolling(string agentId, string sessionId) {
         var key = GetPollingKey(agentId, sessionId);
-        if (_pollingAgents.ContainsKey(key))
-        {
+        if (_pollingAgents.ContainsKey(key)) {
             _logger?.LogDebug("Polling already active for {AgentId} in session {SessionId}", agentId, sessionId);
             return;
         }
 
         var cts = new CancellationTokenSource();
-        if (!_pollingAgents.TryAdd(key, cts))
-        {
+        if (!_pollingAgents.TryAdd(key, cts)) {
             cts.Dispose();
             return;
         }
@@ -68,27 +63,21 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
     /// </summary>
     /// <param name="agentId">Agent 标识</param>
     /// <param name="sessionId">会话标识</param>
-    public void StopPolling(string agentId, string sessionId)
-    {
+    public void StopPolling(string agentId, string sessionId) {
         var key = GetPollingKey(agentId, sessionId);
-        if (_pollingAgents.TryRemove(key, out var cts))
-        {
+        if (_pollingAgents.TryRemove(key, out var cts)) {
             cts.Cancel();
             cts.Dispose();
             _logger?.LogInformation("Mailbox polling stopped for {AgentId} in session {SessionId}", agentId, sessionId);
         }
     }
 
-    private async Task PollLoopAsync(string agentId, string sessionId, CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task PollLoopAsync(string agentId, string sessionId, CancellationToken cancellationToken) {
+        try {
             var cursor = await _mailboxService.GetOrCreateCursorAsync(agentId, sessionId, cancellationToken).ConfigureAwait(false);
 
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                try
-                {
+            while (!cancellationToken.IsCancellationRequested) {
+                try {
                     await Task.Delay(_pollInterval, cancellationToken).ConfigureAwait(false);
 
                     var unreadMessages = await _mailboxService.ReadUnreadAsync(
@@ -98,17 +87,13 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
 
                     var messageIds = new List<string>(unreadMessages.Count);
 
-                    for (var i = 0; i < unreadMessages.Count; i++)
-                    {
+                    for (var i = 0; i < unreadMessages.Count; i++) {
                         var mailboxMsg = unreadMessages[i];
                         messageIds.Add(mailboxMsg.MessageId);
 
-                        if (_messageSink is not null)
-                        {
+                        if (_messageSink is not null) {
                             await _messageSink.DeliverAsync(agentId, mailboxMsg, cancellationToken).ConfigureAwait(false);
-                        }
-                        else
-                        {
+                        } else {
                             await _messageBroker.SendAsync(agentId, mailboxMsg, cancellationToken).ConfigureAwait(false);
                         }
                     }
@@ -116,42 +101,31 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
                     await _mailboxService.MarkAsReadAsync(agentId, sessionId, messageIds, cancellationToken).ConfigureAwait(false);
 
                     _logger?.LogDebug("Polled {Count} new messages for {AgentId}", unreadMessages.Count, agentId);
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
+                } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
                     break;
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "Error during mailbox polling for {AgentId}", agentId);
                     await Task.Delay(_pollInterval, cancellationToken).ConfigureAwait(false);
                 }
             }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Mailbox polling loop terminated unexpectedly for {AgentId}", agentId);
         }
     }
 
-    private static string GetPollingKey(string agentId, string sessionId)
-    {
+    private static string GetPollingKey(string agentId, string sessionId) {
         return $"{sessionId}:{agentId}";
     }
 
     /// <summary>
     /// 异步释放轮询器，取消所有活跃轮询任务并清理资源
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return ValueTask.CompletedTask;
 
         var tasks = new List<Task>();
-        foreach (var kvp in _pollingAgents)
-        {
+        foreach (var kvp in _pollingAgents) {
             var cts = kvp.Value;
             tasks.Add(cts.CancelAsync().ContinueWith(
                 static (_, state) => ((CancellationTokenSource)state!).Dispose(),

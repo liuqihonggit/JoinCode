@@ -4,8 +4,7 @@ namespace Core.Security.Constants;
 /// 工具分类常量 - 统一管理工具的安全分类
 /// 数据源: JoinCode.Abstractions.Security.ToolSecuritySets（由 SecurityClassGenerator 从 [SecurityClass] 特性自动生成）
 /// </summary>
-public static class ToolClassification
-{
+public static class ToolClassification {
     /// <summary>
     /// 只读工具 - 仅读取信息，不修改任何状态
     /// </summary>

@@ -3,8 +3,7 @@ namespace Guard.Tests.Hooks.Execution.Interception;
 /// <summary>
 /// GitCommitGuard 单元测试 — 验证 git commit 检测命中/不命中、Redirect 引导
 /// </summary>
-public sealed class GitCommitGuardTests
-{
+public sealed class GitCommitGuardTests {
     private static readonly GuardContext EmptyContext = new(SystemActuatorKind.Bash, "");
 
     // === CanHandle 命中 ===
@@ -17,8 +16,7 @@ public sealed class GitCommitGuardTests
     [InlineData("git commit --amend")]
     [InlineData("\"git\" commit -m x")]
     [InlineData("\"C:\\Program Files\\Git\\bin\\git.exe\" commit -m x")]
-    public void CanHandle_GitCommitCommand_ReturnsTrue(string command)
-    {
+    public void CanHandle_GitCommitCommand_ReturnsTrue(string command) {
         var guard = new GitCommitGuard();
 
         guard.CanHandle(command, EmptyContext).Should().BeTrue();
@@ -37,8 +35,7 @@ public sealed class GitCommitGuardTests
     [InlineData("echo git commit")]
     [InlineData("gitcommit")]
     [InlineData("")]
-    public void CanHandle_NonGitCommitCommand_ReturnsFalse(string command)
-    {
+    public void CanHandle_NonGitCommitCommand_ReturnsFalse(string command) {
         var guard = new GitCommitGuard();
 
         guard.CanHandle(command, EmptyContext).Should().BeFalse();
@@ -47,8 +44,7 @@ public sealed class GitCommitGuardTests
     // === Evaluate 返回 Redirect ===
 
     [Fact]
-    public void Evaluate_ReturnsRedirectToCommit()
-    {
+    public void Evaluate_ReturnsRedirectToCommit() {
         var guard = new GitCommitGuard();
 
         var decision = guard.Evaluate("git commit -m x", EmptyContext);
@@ -60,8 +56,7 @@ public sealed class GitCommitGuardTests
     }
 
     [Fact]
-    public void Evaluate_HintContainsSubtractionHonestyGuidance()
-    {
+    public void Evaluate_HintContainsSubtractionHonestyGuidance() {
         var guard = new GitCommitGuard();
 
         var decision = guard.Evaluate("git commit", EmptyContext);
@@ -73,8 +68,7 @@ public sealed class GitCommitGuardTests
     // === 优先级 ===
 
     [Fact]
-    public void Priority_IsHighest()
-    {
+    public void Priority_IsHighest() {
         var guard = new GitCommitGuard();
 
         guard.Priority.Should().Be(1000);
@@ -83,8 +77,7 @@ public sealed class GitCommitGuardTests
     // === 名称 ===
 
     [Fact]
-    public void Name_IsGitCommitGuard()
-    {
+    public void Name_IsGitCommitGuard() {
         new GitCommitGuard().Name.Should().Be("GitCommitGuard");
     }
 }

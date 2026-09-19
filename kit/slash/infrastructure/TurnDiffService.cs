@@ -4,8 +4,7 @@ namespace JoinCode.Cli;
 /// Turn Diff 服务 — 对齐 TS useTurnDiffs
 /// 从消息历史中提取每个 AI 对话轮次的文件编辑 diff
 /// </summary>
-public sealed class TurnDiffService : ITurnDiffProvider
-{
+public sealed class TurnDiffService : ITurnDiffProvider {
     private readonly List<TurnToolCall> _toolCalls = [];
     private int _currentTurnIndex;
     private string? _currentUserPrompt;
@@ -15,8 +14,7 @@ public sealed class TurnDiffService : ITurnDiffProvider
     /// <summary>
     /// 构造 Turn Diff 服务实例
     /// </summary>
-    public TurnDiffService()
-    {
+    public TurnDiffService() {
         _currentTimestamp = _clock.GetUtcNowOffset();
     }
 
@@ -27,8 +25,7 @@ public sealed class TurnDiffService : ITurnDiffProvider
     private readonly List<TurnDiff> _completedTurns = [];
 
     /// <inheritdoc/>
-    public void RecordUserPrompt(string prompt)
-    {
+    public void RecordUserPrompt(string prompt) {
         FlushCurrentTurn();
 
         _currentTurnIndex++;
@@ -37,8 +34,7 @@ public sealed class TurnDiffService : ITurnDiffProvider
     }
 
     /// <inheritdoc/>
-    public void RecordFileEdit(string filePath, string? result, bool isNewFile = false)
-    {
+    public void RecordFileEdit(string filePath, string? result, bool isNewFile = false) {
         var hunks = ParseHunksFromResult(result);
         RecordFileEditInternal(filePath, hunks, isNewFile, result);
     }
@@ -46,35 +42,28 @@ public sealed class TurnDiffService : ITurnDiffProvider
     /// <summary>
     /// 从 StructuredPatchHunk[] 记录文件编辑 — 对齐 TS 从 toolUseResult.structuredPatch 直接读取
     /// </summary>
-    public void RecordFileEditWithPatch(string filePath, StructuredPatchHunk[] patch, bool isNewFile = false)
-    {
+    public void RecordFileEditWithPatch(string filePath, StructuredPatchHunk[] patch, bool isNewFile = false) {
         var hunks = ConvertPatchHunks(patch);
         RecordFileEditInternal(filePath, hunks, isNewFile);
     }
 
-    private void RecordFileEditInternal(string filePath, StructuredHunk[] hunks, bool isNewFile, string? result = null)
-    {
+    private void RecordFileEditInternal(string filePath, StructuredHunk[] hunks, bool isNewFile, string? result = null) {
         var (added, removed) = CountHunkLines(hunks);
 
-        if (_currentFiles.TryGetValue(filePath, out var existing))
-        {
+        if (_currentFiles.TryGetValue(filePath, out var existing)) {
             var mergedHunks = new List<StructuredHunk>(existing.Hunks);
             mergedHunks.AddRange(hunks);
-            _currentFiles[filePath] = existing with
-            {
+            _currentFiles[filePath] = existing with {
                 Hunks = mergedHunks.ToArray(),
                 LinesAdded = existing.LinesAdded + added,
                 LinesRemoved = existing.LinesRemoved + removed,
                 IsNewFile = existing.IsNewFile || isNewFile
             };
-        }
-        else
-        {
+        } else {
             _currentFiles[filePath] = new TurnFileDiff(filePath, hunks, isNewFile, added, removed);
         }
 
-        _toolCalls.Add(new TurnToolCall
-        {
+        _toolCalls.Add(new TurnToolCall {
             IsUserPrompt = false,
             IsFileEdit = true,
             FilePath = filePath,
@@ -84,19 +73,16 @@ public sealed class TurnDiffService : ITurnDiffProvider
     }
 
     /// <inheritdoc/>
-    public IEnumerable<TurnDiffSnapshot> GetTurnDiffs()
-    {
+    public IEnumerable<TurnDiffSnapshot> GetTurnDiffs() {
         var allTurns = new List<TurnDiff>(_completedTurns);
 
-        if (_currentFiles.Count > 0)
-        {
+        if (_currentFiles.Count > 0) {
             allTurns.Add(BuildTurnDiff(_currentTurnIndex, _currentUserPrompt, _currentTimestamp, _currentFiles));
         }
 
         allTurns.Reverse();
 
-        return allTurns.Select(t => new TurnDiffSnapshot
-        {
+        return allTurns.Select(t => new TurnDiffSnapshot {
             TurnIndex = t.TurnIndex,
             UserPromptPreview = t.UserPromptPreview,
             Timestamp = t.Timestamp,
@@ -107,8 +93,7 @@ public sealed class TurnDiffService : ITurnDiffProvider
     }
 
     /// <inheritdoc/>
-    public void Clear()
-    {
+    public void Clear() {
         _toolCalls.Clear();
         _completedTurns.Clear();
         _currentFiles.Clear();
@@ -120,8 +105,7 @@ public sealed class TurnDiffService : ITurnDiffProvider
     /// <summary>
     /// 获取完整的 Turn Diff 列表（包含文件详情）— 对齐 TS getFullTurnDiffs
     /// </summary>
-    public IEnumerable<TurnDiff> GetFullTurnDiffs()
-    {
+    public IEnumerable<TurnDiff> GetFullTurnDiffs() {
         FlushCurrentTurn();
 
         var allTurns = new List<TurnDiff>(_completedTurns);
@@ -132,13 +116,11 @@ public sealed class TurnDiffService : ITurnDiffProvider
     /// <summary>
     /// 将 TurnDiff 转换为 DiffData — 对齐 TS turnDiffToDiffData
     /// </summary>
-    public DiffData TurnDiffToDiffData(TurnDiff turnDiff)
-    {
+    public DiffData TurnDiffToDiffData(TurnDiff turnDiff) {
         var files = new List<DiffFileStats>();
         var hunks = new Dictionary<string, StructuredHunk[]>();
 
-        foreach (var (filePath, fileDiff) in turnDiff.Files)
-        {
+        foreach (var (filePath, fileDiff) in turnDiff.Files) {
             files.Add(new DiffFileStats(filePath, fileDiff.LinesAdded, fileDiff.LinesRemoved, IsNewFile: fileDiff.IsNewFile));
             hunks[filePath] = fileDiff.Hunks;
         }
@@ -146,17 +128,14 @@ public sealed class TurnDiffService : ITurnDiffProvider
         return new DiffData(turnDiff.Stats, files, hunks, false);
     }
 
-    private void FlushCurrentTurn()
-    {
-        if (_currentFiles.Count > 0)
-        {
+    private void FlushCurrentTurn() {
+        if (_currentFiles.Count > 0) {
             _completedTurns.Add(BuildTurnDiff(_currentTurnIndex, _currentUserPrompt, _currentTimestamp, _currentFiles));
             _currentFiles.Clear();
         }
     }
 
-    private static TurnDiff BuildTurnDiff(int turnIndex, string? userPrompt, DateTimeOffset timestamp, Dictionary<string, TurnFileDiff> files)
-    {
+    private static TurnDiff BuildTurnDiff(int turnIndex, string? userPrompt, DateTimeOffset timestamp, Dictionary<string, TurnFileDiff> files) {
         var totalAdded = files.Values.Sum(f => f.LinesAdded);
         var totalRemoved = files.Values.Sum(f => f.LinesRemoved);
 
@@ -168,8 +147,7 @@ public sealed class TurnDiffService : ITurnDiffProvider
             new DiffStats(files.Count, totalAdded, totalRemoved));
     }
 
-    private static StructuredHunk[] ParseHunksFromResult(string? result)
-    {
+    private static StructuredHunk[] ParseHunksFromResult(string? result) {
         if (string.IsNullOrWhiteSpace(result)) return [];
 
         return DiffParser.ParseStructured(result)
@@ -177,18 +155,15 @@ public sealed class TurnDiffService : ITurnDiffProvider
             .ToArray();
     }
 
-    private static StructuredHunk[] ConvertPatchHunks(StructuredPatchHunk[] patch)
-    {
+    private static StructuredHunk[] ConvertPatchHunks(StructuredPatchHunk[] patch) {
         if (patch.Length == 0) return [];
 
         var result = new StructuredHunk[patch.Length];
-        for (var i = 0; i < patch.Length; i++)
-        {
+        for (var i = 0; i < patch.Length; i++) {
             var p = patch[i];
             var pLines = p.Lines.ToArray();
             var lines = new DiffLine[pLines.Length];
-            for (var j = 0; j < pLines.Length; j++)
-            {
+            for (var j = 0; j < pLines.Length; j++) {
                 var pl = pLines[j];
                 lines[j] = new DiffLine(
                     pl.Type,
@@ -207,14 +182,11 @@ public sealed class TurnDiffService : ITurnDiffProvider
         return result;
     }
 
-    private static (int Added, int Removed) CountHunkLines(StructuredHunk[] hunks)
-    {
+    private static (int Added, int Removed) CountHunkLines(StructuredHunk[] hunks) {
         var added = 0;
         var removed = 0;
-        foreach (var hunk in hunks)
-        {
-            foreach (var line in hunk.Lines)
-            {
+        foreach (var hunk in hunks) {
+            foreach (var line in hunk.Lines) {
                 if (line.Type == PatchLineType.Added) added++;
                 else if (line.Type == PatchLineType.Removed) removed++;
             }
@@ -226,8 +198,7 @@ public sealed class TurnDiffService : ITurnDiffProvider
 /// <summary>
 /// Turn 工具调用记录 — 用于传递给 TurnDiffService
 /// </summary>
-public sealed record TurnToolCall
-{
+public sealed record TurnToolCall {
     /// <summary>
     /// 是否为用户提示（标记新 Turn 的开始）
     /// </summary>

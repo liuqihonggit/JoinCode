@@ -4,8 +4,7 @@ namespace Core.Tests.Hooks.Events;
 /// <summary>
 /// HookEvent 枚举测试
 /// </summary>
-public class HookEventTests
-{
+public class HookEventTests {
     [Theory]
     [InlineData(HookEvent.PreToolUse, "tool_name")]
     [InlineData(HookEvent.PostToolUse, "tool_name")]
@@ -25,8 +24,7 @@ public class HookEventTests
     [InlineData(HookEvent.ElicitationResult, "mcp_server_name")]
     [InlineData(HookEvent.ConfigChange, "source")]
     [InlineData(HookEvent.InstructionsLoaded, "load_reason")]
-    public void GetMatcherField_ShouldReturnCorrectField(HookEvent hookEvent, string expectedField)
-    {
+    public void GetMatcherField_ShouldReturnCorrectField(HookEvent hookEvent, string expectedField) {
         // Act
         var result = hookEvent.GetMatcherField();
 
@@ -38,8 +36,7 @@ public class HookEventTests
     [InlineData(HookEvent.TaskCreated)]
     [InlineData(HookEvent.TaskCompleted)]
     [InlineData(HookEvent.TeammateIdle)]
-    public void GetMatcherField_EventsWithoutMatcher_ShouldReturnNull(HookEvent hookEvent)
-    {
+    public void GetMatcherField_EventsWithoutMatcher_ShouldReturnNull(HookEvent hookEvent) {
         // Act
         var result = hookEvent.GetMatcherField();
 
@@ -53,8 +50,7 @@ public class HookEventTests
     [InlineData(HookEvent.PermissionRequest, true)]
     [InlineData(HookEvent.TaskCreated, false)]
     [InlineData(HookEvent.TaskCompleted, false)]
-    public void RequiresMatcher_ShouldReturnCorrectValue(HookEvent hookEvent, bool expected)
-    {
+    public void RequiresMatcher_ShouldReturnCorrectValue(HookEvent hookEvent, bool expected) {
         // Act
         var result = hookEvent.RequiresMatcher();
 
@@ -70,8 +66,7 @@ public class HookEventTests
     [InlineData(HookEvent.SubagentStop, true)]
     [InlineData(HookEvent.SessionStart, false)]
     [InlineData(HookEvent.PostCompact, false)]
-    public void SupportsBlocking_ShouldReturnCorrectValue(HookEvent hookEvent, bool expected)
-    {
+    public void SupportsBlocking_ShouldReturnCorrectValue(HookEvent hookEvent, bool expected) {
         // Act
         var result = hookEvent.SupportsBlocking();
 
@@ -80,8 +75,7 @@ public class HookEventTests
     }
 
     [Fact]
-    public void HookEvent_ShouldHaveExpectedValues()
-    {
+    public void HookEvent_ShouldHaveExpectedValues() {
         // Arrange & Act
         var values = Enum.GetValues<HookEvent>();
 

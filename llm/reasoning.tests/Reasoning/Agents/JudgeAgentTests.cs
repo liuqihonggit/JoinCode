@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Agents;
 
-public sealed class JudgeAgentTests
-{
+public sealed class JudgeAgentTests {
     [Fact]
-    public async Task ReasonAsync_WithNoPendingItems_ReturnsEmptyAction()
-    {
+    public async Task ReasonAsync_WithNoPendingItems_ReturnsEmptyAction() {
         var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
         var context = CreateContext([], []);
 
@@ -16,8 +14,7 @@ public sealed class JudgeAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithNoEvidence_ReturnsEmptyVerdicts()
-    {
+    public async Task ReasonAsync_WithNoEvidence_ReturnsEmptyVerdicts() {
         var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Assumption };
         var context = CreateContext([item], []);
@@ -28,8 +25,7 @@ public sealed class JudgeAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithStrongProsecutionEvidence_ReturnsAcceptVerdict()
-    {
+    public async Task ReasonAsync_WithStrongProsecutionEvidence_ReturnsAcceptVerdict() {
         var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Assumption };
         var evidence = new[]
@@ -63,12 +59,10 @@ public sealed class JudgeAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithStrongDefenseEvidence_ReturnsRejectVerdict()
-    {
+    public async Task ReasonAsync_WithStrongDefenseEvidence_ReturnsRejectVerdict() {
         var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Assumption };
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Id = "ev1",
             Content = "强反驳",
             Category = EvidenceCategory.Documentary,
@@ -85,12 +79,10 @@ public sealed class JudgeAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithBalancedEvidence_ReturnsPendingOrPartial()
-    {
+    public async Task ReasonAsync_WithBalancedEvidence_ReturnsPendingOrPartial() {
         var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Assumption };
-        var pros = new EvidenceRecord
-        {
+        var pros = new EvidenceRecord {
             Id = "ev1",
             Content = "控方证据",
             Category = EvidenceCategory.Documentary,
@@ -98,8 +90,7 @@ public sealed class JudgeAgentTests
             SubmittedBy = AgentRole.Prosecutor,
             Weight = 1.0,
         };
-        var def = new EvidenceRecord
-        {
+        var def = new EvidenceRecord {
             Id = "ev2",
             Content = "辩方证据",
             Category = EvidenceCategory.Documentary,
@@ -115,8 +106,7 @@ public sealed class JudgeAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithLlmResponse_ParsesVerdicts()
-    {
+    public async Task ReasonAsync_WithLlmResponse_ParsesVerdicts() {
         var json = "{\"verdicts\":[{\"claimContent\":\"假定1\",\"decision\":\"Accept\",\"reason\":\"证据充分\",\"confidence\":90}]}";
         var agent = new JudgeAgent(
             new FakeQueryEngine(),
@@ -135,8 +125,7 @@ public sealed class JudgeAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithMalformedLlmResponse_ReturnsEmptyParsedVerdicts()
-    {
+    public async Task ReasonAsync_WithMalformedLlmResponse_ReturnsEmptyParsedVerdicts() {
         var agent = new JudgeAgent(
             new FakeQueryEngine(),
             NullLogger<JudgeAgent>.Instance,
@@ -150,8 +139,7 @@ public sealed class JudgeAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithBroker_BroadcastsVerdictIssued()
-    {
+    public async Task ReasonAsync_WithBroker_BroadcastsVerdictIssued() {
         var broker = new FakeMessageBroker();
         var agent = new JudgeAgent(
             new FakeQueryEngine(),
@@ -168,8 +156,7 @@ public sealed class JudgeAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_LlmVerdictDefaults_WhenOptionalFieldsMissing()
-    {
+    public async Task ReasonAsync_LlmVerdictDefaults_WhenOptionalFieldsMissing() {
         var json = "{\"verdicts\":[{\"claimContent\":\"未知\"}]}";
         var agent = new JudgeAgent(
             new FakeQueryEngine(),
@@ -187,10 +174,8 @@ public sealed class JudgeAgentTests
         Assert.Equal(50, action.Verdicts[0].Confidence);
     }
 
-    private static ReasoningContext CreateContext(IReadOnlyList<DataItem> items, IReadOnlyList<EvidenceRecord> evidence)
-    {
-        return new ReasoningContext
-        {
+    private static ReasoningContext CreateContext(IReadOnlyList<DataItem> items, IReadOnlyList<EvidenceRecord> evidence) {
+        return new ReasoningContext {
             AllItems = items,
             AllEvidence = evidence,
             Dag = new Dag<ReasoningPayload>(),
@@ -202,16 +187,12 @@ public sealed class JudgeAgentTests
         IReadOnlyList<DataItem> items,
         IReadOnlyList<EvidenceRecord> prosEvidence,
         IReadOnlyList<EvidenceRecord> defEvidence,
-        ReasoningOptions? options = null)
-    {
+        ReasoningOptions? options = null) {
         var dag = new Dag<ReasoningPayload>();
-        foreach (var item in items)
-        {
-            dag.AddNode(new DagNode<ReasoningPayload>
-            {
+        foreach (var item in items) {
+            dag.AddNode(new DagNode<ReasoningPayload> {
                 Id = item.Id,
-                Payload = new ReasoningPayload
-                {
+                Payload = new ReasoningPayload {
                     Id = item.Id,
                     Type = ReasoningNodeType.Assumption,
                     Content = item.Content,
@@ -220,13 +201,10 @@ public sealed class JudgeAgentTests
             });
         }
 
-        foreach (var ev in prosEvidence)
-        {
-            dag.AddNode(new DagNode<ReasoningPayload>
-            {
+        foreach (var ev in prosEvidence) {
+            dag.AddNode(new DagNode<ReasoningPayload> {
                 Id = ev.Id,
-                Payload = new ReasoningPayload
-                {
+                Payload = new ReasoningPayload {
                     Id = ev.Id,
                     Type = ReasoningNodeType.Evidence,
                     Content = ev.Content,
@@ -234,8 +212,7 @@ public sealed class JudgeAgentTests
                     SubmittedBy = ev.SubmittedBy,
                 },
             });
-            dag.AddEdge(new DagEdge
-            {
+            dag.AddEdge(new DagEdge {
                 FromId = ev.Id,
                 ToId = items[0].Id,
                 Label = "SUPPORTS",
@@ -243,13 +220,10 @@ public sealed class JudgeAgentTests
             });
         }
 
-        foreach (var ev in defEvidence)
-        {
-            dag.AddNode(new DagNode<ReasoningPayload>
-            {
+        foreach (var ev in defEvidence) {
+            dag.AddNode(new DagNode<ReasoningPayload> {
                 Id = ev.Id,
-                Payload = new ReasoningPayload
-                {
+                Payload = new ReasoningPayload {
                     Id = ev.Id,
                     Type = ReasoningNodeType.Evidence,
                     Content = ev.Content,
@@ -257,8 +231,7 @@ public sealed class JudgeAgentTests
                     SubmittedBy = ev.SubmittedBy,
                 },
             });
-            dag.AddEdge(new DagEdge
-            {
+            dag.AddEdge(new DagEdge {
                 FromId = ev.Id,
                 ToId = items[0].Id,
                 Label = "REFUTES",
@@ -266,8 +239,7 @@ public sealed class JudgeAgentTests
             });
         }
 
-        return new ReasoningContext
-        {
+        return new ReasoningContext {
             AllItems = items,
             AllEvidence = prosEvidence.Concat(defEvidence).ToList(),
             Dag = dag,

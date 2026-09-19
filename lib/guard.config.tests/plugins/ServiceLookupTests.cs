@@ -1,10 +1,8 @@
 namespace Core.Tests.Plugins;
 
-public sealed class ServiceLookupTests
-{
+public sealed class ServiceLookupTests {
     [Fact]
-    public void ServiceUnavailableException_ContainsServiceTypeAndReason()
-    {
+    public void ServiceUnavailableException_ContainsServiceTypeAndReason() {
         var ex = new ServiceUnavailableException(typeof(string), ServiceLookup.ProviderDead);
         Assert.Equal(typeof(string), ex.ServiceType);
         Assert.Equal(ServiceLookup.ProviderDead, ex.Reason);
@@ -13,15 +11,13 @@ public sealed class ServiceLookupTests
     }
 
     [Fact]
-    public void ServiceUnavailableException_NotRegistered_MessageContainsReason()
-    {
+    public void ServiceUnavailableException_NotRegistered_MessageContainsReason() {
         var ex = new ServiceUnavailableException(typeof(int), ServiceLookup.NotRegistered);
         Assert.Contains("NotRegistered", ex.Message);
     }
 
     [Fact]
-    public void ServiceLookup_AllValuesAreDistinct()
-    {
+    public void ServiceLookup_AllValuesAreDistinct() {
         var values = Enum.GetValues<ServiceLookup>();
         var distinct = values.Distinct().Count();
         Assert.Equal(values.Length, distinct);

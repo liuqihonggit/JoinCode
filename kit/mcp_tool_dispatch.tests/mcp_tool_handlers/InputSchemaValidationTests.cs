@@ -1,17 +1,13 @@
 namespace McpToolRegistry.Tests;
 
-public class InputSchemaValidationTests
-{
+public class InputSchemaValidationTests {
     private readonly SimpleJsonSchemaValidator _validator = new();
 
     [Fact]
-    public void ValidateInput_MissingRequiredParameter_ReturnsError()
-    {
-        var schema = new ToolSchema
-        {
+    public void ValidateInput_MissingRequiredParameter_ReturnsError() {
+        var schema = new ToolSchema {
             Type = "object",
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["command"] = new() { Type = "string", Description = "Command to execute" }
             },
             Required = new List<string> { "command" }
@@ -26,20 +22,16 @@ public class InputSchemaValidationTests
     }
 
     [Fact]
-    public void ValidateInput_AllRequiredPresent_NoError()
-    {
-        var schema = new ToolSchema
-        {
+    public void ValidateInput_AllRequiredPresent_NoError() {
+        var schema = new ToolSchema {
             Type = "object",
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["command"] = new() { Type = "string", Description = "Command to execute" }
             },
             Required = new List<string> { "command" }
         };
 
-        var arguments = new Dictionary<string, JsonElement>
-        {
+        var arguments = new Dictionary<string, JsonElement> {
             ["command"] = JsonSerializer.SerializeToElement("echo hello")
         };
 
@@ -48,19 +40,15 @@ public class InputSchemaValidationTests
     }
 
     [Fact]
-    public void ValidateInput_WrongType_ReturnsError()
-    {
-        var schema = new ToolSchema
-        {
+    public void ValidateInput_WrongType_ReturnsError() {
+        var schema = new ToolSchema {
             Type = "object",
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["count"] = new() { Type = "integer", Description = "Count" }
             }
         };
 
-        var arguments = new Dictionary<string, JsonElement>
-        {
+        var arguments = new Dictionary<string, JsonElement> {
             ["count"] = JsonSerializer.SerializeToElement("not_a_number")
         };
 
@@ -71,19 +59,15 @@ public class InputSchemaValidationTests
     }
 
     [Fact]
-    public void ValidateInput_InvalidEnumValue_ReturnsError()
-    {
-        var schema = new ToolSchema
-        {
+    public void ValidateInput_InvalidEnumValue_ReturnsError() {
+        var schema = new ToolSchema {
             Type = "object",
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["mode"] = new() { Type = "string", Enum = ["read", "write", "append"] }
             }
         };
 
-        var arguments = new Dictionary<string, JsonElement>
-        {
+        var arguments = new Dictionary<string, JsonElement> {
             ["mode"] = JsonSerializer.SerializeToElement("delete")
         };
 
@@ -93,19 +77,15 @@ public class InputSchemaValidationTests
     }
 
     [Fact]
-    public void ValidateInput_ValidEnumValue_NoError()
-    {
-        var schema = new ToolSchema
-        {
+    public void ValidateInput_ValidEnumValue_NoError() {
+        var schema = new ToolSchema {
             Type = "object",
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["mode"] = new() { Type = "string", Enum = ["read", "write", "append"] }
             }
         };
 
-        var arguments = new Dictionary<string, JsonElement>
-        {
+        var arguments = new Dictionary<string, JsonElement> {
             ["mode"] = JsonSerializer.SerializeToElement("read")
         };
 
@@ -114,11 +94,9 @@ public class InputSchemaValidationTests
     }
 
     [Fact]
-    public void ValidateInput_EmptySchema_NoError()
-    {
+    public void ValidateInput_EmptySchema_NoError() {
         var schema = new ToolSchema();
-        var arguments = new Dictionary<string, JsonElement>
-        {
+        var arguments = new Dictionary<string, JsonElement> {
             ["anything"] = JsonSerializer.SerializeToElement("value")
         };
 
@@ -127,13 +105,10 @@ public class InputSchemaValidationTests
     }
 
     [Fact]
-    public void ValidateInput_MultipleMissingRequired_ListsAll()
-    {
-        var schema = new ToolSchema
-        {
+    public void ValidateInput_MultipleMissingRequired_ListsAll() {
+        var schema = new ToolSchema {
             Type = "object",
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["command"] = new() { Type = "string", Description = "Command" },
                 ["timeout"] = new() { Type = "integer", Description = "Timeout" }
             },
@@ -150,21 +125,17 @@ public class InputSchemaValidationTests
     }
 
     [Fact]
-    public void ValidateInput_OptionalParameterMissing_NoError()
-    {
-        var schema = new ToolSchema
-        {
+    public void ValidateInput_OptionalParameterMissing_NoError() {
+        var schema = new ToolSchema {
             Type = "object",
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["command"] = new() { Type = "string", Description = "Command" },
                 ["timeout"] = new() { Type = "integer", Description = "Timeout", Default = "30000" }
             },
             Required = new List<string> { "command" }
         };
 
-        var arguments = new Dictionary<string, JsonElement>
-        {
+        var arguments = new Dictionary<string, JsonElement> {
             ["command"] = JsonSerializer.SerializeToElement("echo hello")
         };
 
@@ -173,8 +144,7 @@ public class InputSchemaValidationTests
     }
 
     [Fact]
-    public void FormatValidationError_MissingRequired_MatchesTsFormat()
-    {
+    public void FormatValidationError_MissingRequired_MatchesTsFormat() {
         var toolName = "Bash";
         var errors = new List<ValidationError>
         {
@@ -188,8 +158,7 @@ public class InputSchemaValidationTests
     }
 
     [Fact]
-    public void FormatValidationError_WrongType_MatchesTsFormat()
-    {
+    public void FormatValidationError_WrongType_MatchesTsFormat() {
         var toolName = "FileRead";
         var errors = new List<ValidationError>
         {
@@ -201,8 +170,7 @@ public class InputSchemaValidationTests
         formatted.Should().Contain("offset");
     }
 
-    private ToolResult? ValidateToolInput(ToolSchema schema, Dictionary<string, JsonElement> arguments)
-    {
+    private ToolResult? ValidateToolInput(ToolSchema schema, Dictionary<string, JsonElement> arguments) {
         var schemaJson = JsonSerializer.Serialize(schema);
         var argsJson = JsonSerializer.Serialize(arguments);
 
@@ -212,8 +180,7 @@ public class InputSchemaValidationTests
         var toolName = "TestTool";
         var formatted = InputSchemaValidationFormatter.FormatErrors(toolName, validation.Errors);
 
-        return new ToolResult
-        {
+        return new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = formatted }],
             IsError = true
         };

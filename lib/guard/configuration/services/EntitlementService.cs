@@ -5,16 +5,14 @@ namespace Core.Configuration;
 /// 开源项目默认允许所有功能，通过 JCC_BRIEF 环境变量控制
 /// </summary>
 [Register(typeof(IEntitlementService), ServiceLifetime.Singleton)]
-public sealed partial class EntitlementService : ServiceEntity, IEntitlementService
-{
+public sealed partial class EntitlementService : ServiceEntity, IEntitlementService {
     private readonly IBriefModeService _briefModeService;
 
     /// <summary>
     /// 初始化功能权限服务
     /// </summary>
     /// <param name="briefModeService">Brief 模式服务</param>
-    public EntitlementService(IBriefModeService briefModeService)
-    {
+    public EntitlementService(IBriefModeService briefModeService) {
         _briefModeService = briefModeService ?? throw new ArgumentNullException(nameof(briefModeService));
     }
 
@@ -22,14 +20,11 @@ public sealed partial class EntitlementService : ServiceEntity, IEntitlementServ
     /// Brief 模式是否有权限 — 对齐 TS isBriefEntitled()
     /// 开源项目默认 true；JCC_BRIEF 环境变量可强制开启/关闭
     /// </summary>
-    public bool IsBriefEntitled
-    {
-        get
-        {
+    public bool IsBriefEntitled {
+        get {
             // 对齐 TS: isEnvTruthy(process.env.CLAUDE_CODE_BRIEF)
             var envValue = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.Brief);
-            if (!string.IsNullOrEmpty(envValue))
-            {
+            if (!string.IsNullOrEmpty(envValue)) {
                 // 环境变量显式设置时遵循其值
                 return !envValue.Equals("0", StringComparison.OrdinalIgnoreCase)
                     && !envValue.Equals("false", StringComparison.OrdinalIgnoreCase);

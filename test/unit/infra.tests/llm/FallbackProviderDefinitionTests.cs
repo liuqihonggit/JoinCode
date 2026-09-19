@@ -1,11 +1,9 @@
 
 namespace Infra.Tests.LLM;
 
-public sealed class FallbackProviderDefinitionTests
-{
+public sealed class FallbackProviderDefinitionTests {
     [Fact]
-    public void GetBaseUrl_OpenAI_ReturnsDefaultEndpoint()
-    {
+    public void GetBaseUrl_OpenAI_ReturnsDefaultEndpoint() {
         var def = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig();
         var url = def.GetBaseUrl(config);
@@ -14,8 +12,7 @@ public sealed class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetBaseUrl_OpenAI_WithCustomEndpoint_ReturnsCustomEndpoint()
-    {
+    public void GetBaseUrl_OpenAI_WithCustomEndpoint_ReturnsCustomEndpoint() {
         var def = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig { Endpoint = "https://custom.api.com/v1" };
         var url = def.GetBaseUrl(config);
@@ -24,8 +21,7 @@ public sealed class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetBaseUrl_Anthropic_ReturnsDefaultEndpoint()
-    {
+    public void GetBaseUrl_Anthropic_ReturnsDefaultEndpoint() {
         var def = new FallbackProviderDefinition(ProtocolKind.Anthropic);
         var config = new ProviderConfig();
         var url = def.GetBaseUrl(config);
@@ -34,8 +30,7 @@ public sealed class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetBaseUrl_Azure_ReturnsDeploymentPath()
-    {
+    public void GetBaseUrl_Azure_ReturnsDeploymentPath() {
         var def = new FallbackProviderDefinition(ProtocolKind.Azure);
         var config = new ProviderConfig { Endpoint = "https://my-resource.openai.azure.com", ModelId = "gpt-4o" };
         var url = def.GetBaseUrl(config);
@@ -44,8 +39,7 @@ public sealed class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetChatEndpoint_OpenAI_ReturnsChatCompletions()
-    {
+    public void GetChatEndpoint_OpenAI_ReturnsChatCompletions() {
         var def = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig();
         var endpoint = def.GetChatEndpoint(config);
@@ -54,8 +48,7 @@ public sealed class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetChatEndpoint_Anthropic_ReturnsV1Messages()
-    {
+    public void GetChatEndpoint_Anthropic_ReturnsV1Messages() {
         var def = new FallbackProviderDefinition(ProtocolKind.Anthropic);
         var config = new ProviderConfig();
         var endpoint = def.GetChatEndpoint(config);
@@ -64,8 +57,7 @@ public sealed class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetChatEndpoint_Azure_ReturnsWithApiVersion()
-    {
+    public void GetChatEndpoint_Azure_ReturnsWithApiVersion() {
         var def = new FallbackProviderDefinition(ProtocolKind.Azure);
         var config = new ProviderConfig { ApiVersion = "2024-02-01" };
         var endpoint = def.GetChatEndpoint(config);
@@ -74,8 +66,7 @@ public sealed class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void ConfigureHttpClient_OpenAI_SetsBearerToken()
-    {
+    public void ConfigureHttpClient_OpenAI_SetsBearerToken() {
         var def = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig { ApiKey = "sk-test" };
         using var client = new HttpClient();
@@ -86,8 +77,7 @@ public sealed class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void ConfigureHttpClient_Anthropic_SetsXApiKeyHeader()
-    {
+    public void ConfigureHttpClient_Anthropic_SetsXApiKeyHeader() {
         var def = new FallbackProviderDefinition(ProtocolKind.Anthropic);
         var config = new ProviderConfig { ApiKey = "sk-ant-test" };
         using var client = new HttpClient();
@@ -98,8 +88,7 @@ public sealed class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void ConfigureHttpClient_Azure_SetsApiKeyHeader()
-    {
+    public void ConfigureHttpClient_Azure_SetsApiKeyHeader() {
         var def = new FallbackProviderDefinition(ProtocolKind.Azure);
         var config = new ProviderConfig { ApiKey = "azure-key" };
         using var client = new HttpClient();
@@ -109,8 +98,7 @@ public sealed class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void Protocol_ReturnsCorrectProtocolKind()
-    {
+    public void Protocol_ReturnsCorrectProtocolKind() {
         new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible).Protocol.Should().Be(ProtocolKind.OpenAiCompatible);
         new FallbackProviderDefinition(ProtocolKind.Azure).Protocol.Should().Be(ProtocolKind.Azure);
         new FallbackProviderDefinition(ProtocolKind.Anthropic).Protocol.Should().Be(ProtocolKind.Anthropic);
@@ -118,16 +106,14 @@ public sealed class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void IsValid_WithApiKey_ReturnsTrue()
-    {
+    public void IsValid_WithApiKey_ReturnsTrue() {
         var def = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig { ApiKey = "sk-test" };
         def.IsValid(config).Should().BeTrue();
     }
 
     [Fact]
-    public void IsValid_WithoutApiKey_ReturnsFalse()
-    {
+    public void IsValid_WithoutApiKey_ReturnsFalse() {
         var def = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig { ApiKey = "" };
         def.IsValid(config).Should().BeFalse();

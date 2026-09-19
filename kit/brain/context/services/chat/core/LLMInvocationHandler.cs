@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// LLM 调用处理器接口 — 负责LLM流式调用和事件生成
 /// </summary>
-public interface ILLMInvocationHandler
-{
+public interface ILLMInvocationHandler {
     /// <summary>
     /// 调用LLM并返回流式事件，同时填充迭代状态
     /// </summary>
@@ -29,8 +28,7 @@ public interface ILLMInvocationHandler
 /// LLM 调用处理器 — 封装LLM流式调用、块处理、首token延迟追踪、对话转储
 /// </summary>
 [Register(typeof(ILLMInvocationHandler), ServiceLifetime.Singleton)]
-public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocationHandler
-{
+public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocationHandler {
     private readonly IChatClient _kernel;
     private readonly IChatStreamChunkProcessor _chunkProcessor;
     private readonly IChatContextManager _contextManager;
@@ -50,8 +48,7 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
         IChatStreamChunkProcessor chunkProcessor,
         IChatContextManager contextManager,
         QueryLoopServices? services = null,
-        ILogger<LLMInvocationHandler>? logger = null)
-    {
+        ILogger<LLMInvocationHandler>? logger = null) {
         _kernel = kernel;
         _chunkProcessor = chunkProcessor;
         _contextManager = contextManager;
@@ -67,8 +64,7 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
         int iterationIndex,
         IterationState iterState,
         bool streamingToolExecution = false,
-        [EnumeratorCancellation] CancellationToken ct = default)
-    {
+        [EnumeratorCancellation] CancellationToken ct = default) {
         var callId = _contextManager is ChatContextManager cm ? cm.NextCallId() : $"?.{iterationIndex}";
         iterState.CallId = callId;
         using var scope = CallTrace.EnterScope(callId);
@@ -82,18 +78,15 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
         var isFirstChunk = true;
 
         await foreach (var chunk in chatCompletionService.GetStreamEventContentsAsync(
-            historySnapshot, executionSettings, _kernel, ct).ConfigureAwait(false))
-        {
-            if (isFirstChunk)
-            {
+            historySnapshot, executionSettings, _kernel, ct).ConfigureAwait(false)) {
+            if (isFirstChunk) {
                 isFirstChunk = false;
                 context.Timing.FirstTokenLatencyMs = context.Timing.LlmTotalMs;
             }
 
             var result = _chunkProcessor.ProcessChunk(chunk, iterState, streamingToolExecution);
 
-            foreach (var evt in result.Events)
-            {
+            foreach (var evt in result.Events) {
                 yield return evt;
             }
 

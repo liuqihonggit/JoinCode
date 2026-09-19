@@ -9,8 +9,7 @@ namespace Core.Utils;
 /// <para>消息协议：复用 <see cref="BinaryProtocol"/> 二进制长度前缀协议。</para>
 /// <para>适用场景：少量进程需要共享所有消息（如配置同步、状态广播），无需定向路由。</para>
 /// </summary>
-public sealed class BusTransport : ITransportTopology
-{
+public sealed class BusTransport : ITransportTopology {
     private readonly string _pipeName;
     private readonly HostElectionService _election;
     private readonly ILogger? _logger;
@@ -35,15 +34,13 @@ public sealed class BusTransport : ITransportTopology
         string pipeName = "jcc-bus",
         HostElectionService? election = null,
         ILogger? logger = null,
-        string? processId = null)
-    {
+        string? processId = null) {
         _pipeName = pipeName;
         _processId = processId ?? Environment.ProcessId.ToString();
         _election = election ?? new HostElectionService(pipeName, logger, processId: _processId);
         _logger = logger;
         _clientConnections = new ConcurrentDictionary<string, BusClientConnection>();
-        _receiveChannel = Channel.CreateUnbounded<TransportFrame>(new UnboundedChannelOptions
-        {
+        _receiveChannel = Channel.CreateUnbounded<TransportFrame>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false
         });
@@ -69,72 +66,55 @@ public sealed class BusTransport : ITransportTopology
     public HostElectionService Election => _election;
 
     /// <inheritdoc/>
-    public async ValueTask StartAsync(CancellationToken ct = default)
-    {
+    public async ValueTask StartAsync(CancellationToken ct = default) {
         ThrowIfDisposed();
         _role = await _election.ElectAsync(ct).ConfigureAwait(false);
 
-        if (_role.Role == ProcessRole.Host)
-        {
+        if (_role.Role == ProcessRole.Host) {
             await StartHostAsync(ct).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await StartSlaveAsync(ct).ConfigureAwait(false);
         }
     }
 
     /// <inheritdoc/>
-    public async ValueTask SendAsync(string targetProcessId, ReadOnlyMemory<byte> data, CancellationToken ct = default)
-    {
+    public async ValueTask SendAsync(string targetProcessId, ReadOnlyMemory<byte> data, CancellationToken ct = default) {
         ThrowIfDisposed();
         if (_role is null) throw new InvalidOperationException("Transport not started");
 
         var envelope = BinaryProtocol.Encode(MessageType.Data, ProcessId, targetProcessId, data);
 
-        if (_role.Role == ProcessRole.Host)
-        {
-            if (targetProcessId == ProcessId)
-            {
+        if (_role.Role == ProcessRole.Host) {
+            if (targetProcessId == ProcessId) {
                 _receiveChannel.Writer.TryWrite(new TransportFrame(ProcessId, data));
                 return;
             }
 
-            foreach (var kvp in _clientConnections)
-            {
+            foreach (var kvp in _clientConnections) {
                 if (kvp.Key != targetProcessId) continue;
                 await kvp.Value.WriteAsync(envelope, ct).ConfigureAwait(false);
                 break;
             }
-        }
-        else
-        {
-            if (_slaveClient is { IsConnected: true } client)
-            {
+        } else {
+            if (_slaveClient is { IsConnected: true } client) {
                 await client.WriteAsync(envelope, ct).ConfigureAwait(false);
             }
         }
     }
 
     /// <inheritdoc/>
-    public async ValueTask BroadcastAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default)
-    {
+    public async ValueTask BroadcastAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default) {
         ThrowIfDisposed();
         if (_role is null) throw new InvalidOperationException("Transport not started");
 
         var envelope = BinaryProtocol.Encode(MessageType.Broadcast, ProcessId, null, data);
 
-        if (_role.Role == ProcessRole.Host)
-        {
-            foreach (var kvp in _clientConnections)
-            {
+        if (_role.Role == ProcessRole.Host) {
+            foreach (var kvp in _clientConnections) {
                 await kvp.Value.WriteAsync(envelope, ct).ConfigureAwait(false);
             }
-        }
-        else
-        {
-            if (_slaveClient is { IsConnected: true } client)
-            {
+        } else {
+            if (_slaveClient is { IsConnected: true } client) {
                 await client.WriteAsync(envelope, ct).ConfigureAwait(false);
             }
         }
@@ -147,21 +127,18 @@ public sealed class BusTransport : ITransportTopology
     /// <inheritdoc/>
     public IReadOnlyCollection<string> GetConnectedProcesses() => _clientConnections.Keys.ToArray();
 
-    private async Task StartHostAsync(CancellationToken ct)
-    {
+    private async Task StartHostAsync(CancellationToken ct) {
         _logger?.LogInformation("BusTransport: HOST started on pipe {Pipe} (pid={Pid})", _pipeName, ProcessId);
         _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(_pipeName, HandleBusConnectionAsync, _cts.Token));
     }
 
-    private async Task StartSlaveAsync(CancellationToken ct)
-    {
+    private async Task StartSlaveAsync(CancellationToken ct) {
         _slaveClient = NamedPipeFactory.CreateClient(_pipeName);
 
         await _slaveClient.ConnectAsync(ct).ConfigureAwait(false);
 
         var hostLine = await BinaryProtocol.ReadLineRawAsync(_slaveClient, ct).ConfigureAwait(false);
-        if (hostLine is not null && hostLine.StartsWith("HOST:", StringComparison.Ordinal))
-        {
+        if (hostLine is not null && hostLine.StartsWith("HOST:", StringComparison.Ordinal)) {
             _logger?.LogDebug("BusTransport: received host handshake {Line}", hostLine);
         }
 
@@ -178,26 +155,21 @@ public sealed class BusTransport : ITransportTopology
         _slaveReceiveTask = Task.Run(() => SlaveReceiveLoopAsync(_cts.Token));
     }
 
-    private async Task HandleBusConnectionAsync(NamedPipeServerStream server, CancellationToken ct)
-    {
+    private async Task HandleBusConnectionAsync(NamedPipeServerStream server, CancellationToken ct) {
         string? slavePid = null;
-        try
-        {
+        try {
             await BinaryProtocol.WriteLineRawAsync(server, $"HOST:{ProcessId}", ct).ConfigureAwait(false);
 
             var firstMsg = await BinaryProtocol.ReadAsync(server, ct).ConfigureAwait(false);
             TransportDiagnostics.Log("BUS", () => $"host recv handshake: type={firstMsg.Type}, payload={Encoding.UTF8.GetString(firstMsg.Payload.Span)}");
-            if (firstMsg.Type == MessageType.Control)
-            {
+            if (firstMsg.Type == MessageType.Control) {
                 var text = Encoding.UTF8.GetString(firstMsg.Payload.Span);
-                if (text.StartsWith("BUS_SLAVE:", StringComparison.Ordinal))
-                {
+                if (text.StartsWith("BUS_SLAVE:", StringComparison.Ordinal)) {
                     slavePid = text["BUS_SLAVE:".Length..].Trim();
                 }
             }
 
-            if (slavePid is null)
-            {
+            if (slavePid is null) {
                 _logger?.LogWarning("BusTransport: connection without BUS_SLAVE handshake, closing");
                 await server.DisposeAsync().ConfigureAwait(false);
                 return;
@@ -215,68 +187,50 @@ public sealed class BusTransport : ITransportTopology
             _clientConnections[slavePid] = conn;
             _logger?.LogDebug("BusTransport: slave {Slave} joined bus", slavePid);
 
-            await foreach (var msg in conn.ReadMessagesAsync(ct).ConfigureAwait(false))
-            {
+            await foreach (var msg in conn.ReadMessagesAsync(ct).ConfigureAwait(false)) {
                 TransportDiagnostics.Log("BUS", () => $"host recv msg: type={msg.Type}, source={msg.SourcePid}, len={msg.Payload.Length}");
-                if (msg.Type is MessageType.Data or MessageType.Broadcast)
-                {
+                if (msg.Type is MessageType.Data or MessageType.Broadcast) {
                     _receiveChannel.Writer.TryWrite(new TransportFrame(msg.SourcePid, msg.Payload));
 
-                    foreach (var kvp in _clientConnections)
-                    {
+                    foreach (var kvp in _clientConnections) {
                         if (kvp.Key == msg.SourcePid) continue;
                         var forwarded = BinaryProtocol.Encode(msg.Type, msg.SourcePid, msg.TargetPid, msg.Payload);
                         await kvp.Value.WriteAsync(forwarded, ct).ConfigureAwait(false);
                     }
                 }
             }
-        }
-        catch (OperationCanceledException) { TransportDiagnostics.Log("BUS", () => $"HandleBusConnection cancelled, slave={slavePid}"); }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { TransportDiagnostics.Log("BUS", () => $"HandleBusConnection cancelled, slave={slavePid}"); } catch (Exception ex) {
             TransportDiagnostics.Log("BUS", () => $"HandleBusConnection error: {ex.GetType().Name}: {ex.Message}, slave={slavePid}");
             _logger?.LogError(ex, "BusTransport: connection error for slave {Slave}", slavePid);
-        }
-        finally
-        {
-            if (slavePid is not null)
-            {
+        } finally {
+            if (slavePid is not null) {
                 _clientConnections.TryRemove(slavePid, out _);
             }
             await server.DisposeAsync().ConfigureAwait(false);
         }
     }
 
-    private async Task SlaveReceiveLoopAsync(CancellationToken ct)
-    {
+    private async Task SlaveReceiveLoopAsync(CancellationToken ct) {
         if (_slaveClient is null) return;
-        try
-        {
-            await foreach (var msg in BinaryProtocol.ReadStreamAsync(_slaveClient, ct).ConfigureAwait(false))
-            {
+        try {
+            await foreach (var msg in BinaryProtocol.ReadStreamAsync(_slaveClient, ct).ConfigureAwait(false)) {
                 TransportDiagnostics.Log("BUS", () => $"slave recv msg: type={msg.Type}, source={msg.SourcePid}, len={msg.Payload.Length}");
-                if (msg.Type is MessageType.Data or MessageType.Broadcast)
-                {
+                if (msg.Type is MessageType.Data or MessageType.Broadcast) {
                     _receiveChannel.Writer.TryWrite(new TransportFrame(msg.SourcePid, msg.Payload));
                 }
             }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogError(ex, "BusTransport: slave receive loop error");
         }
     }
 
-    private void ThrowIfDisposed()
-    {
+    private void ThrowIfDisposed() {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(nameof(BusTransport));
     }
 
     /// <inheritdoc/>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
@@ -293,8 +247,7 @@ public sealed class BusTransport : ITransportTopology
         Cleanup(conns, slaveClient, _election, _cts);
     }
 
-    private static void Cleanup(IAsyncDisposable[] conns, NamedPipeClientStream? slaveClient, HostElectionService election, CancellationTokenSource cts)
-    {
+    private static void Cleanup(IAsyncDisposable[] conns, NamedPipeClientStream? slaveClient, HostElectionService election, CancellationTokenSource cts) {
         foreach (var conn in conns) conn.DisposeAsync().AsTask().Wait();
         slaveClient?.DisposeAsync().AsTask().Wait();
         election.DisposeAsync().AsTask().Wait();
@@ -303,8 +256,7 @@ public sealed class BusTransport : ITransportTopology
 }
 
 /// <summary>总线客户端连接 — 封装主机侧单个从机连接的读写，用 Channel 串行化写入（无锁 Actor 模型）。</summary>
-internal sealed class BusClientConnection : IAsyncDisposable
-{
+internal sealed class BusClientConnection : IAsyncDisposable {
     private readonly NamedPipeServerStream _stream;
     private readonly ILogger? _logger;
     private readonly Channel<ReadOnlyMemory<byte>> _writeQueue;
@@ -313,57 +265,44 @@ internal sealed class BusClientConnection : IAsyncDisposable
 
     public string ProcessId { get; }
 
-    public BusClientConnection(string processId, NamedPipeServerStream stream, ILogger? logger)
-    {
+    public BusClientConnection(string processId, NamedPipeServerStream stream, ILogger? logger) {
         ProcessId = processId;
         _stream = stream;
         _logger = logger;
-        _writeQueue = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
-        {
+        _writeQueue = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false
         });
         _writeLoop = Task.Run(WriteLoopAsync);
     }
 
-    public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct)
-    {
+    public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct) {
         if (Volatile.Read(ref _disposed) != 0) return ValueTask.CompletedTask;
         return _writeQueue.Writer.WriteAsync(data, ct);
     }
 
-    private async Task WriteLoopAsync()
-    {
-        try
-        {
-            await foreach (var data in _writeQueue.Reader.ReadAllAsync().ConfigureAwait(false))
-            {
+    private async Task WriteLoopAsync() {
+        try {
+            await foreach (var data in _writeQueue.Reader.ReadAllAsync().ConfigureAwait(false)) {
                 if (Volatile.Read(ref _disposed) != 0) return;
-                try
-                {
+                try {
                     await _stream.WriteAsync(data).ConfigureAwait(false);
                     await _stream.FlushAsync().ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
+                } catch (Exception ex) when (ex is not OperationCanceledException) {
                     _logger?.LogWarning(ex, "BusClientConnection: write failed for {Pid}", ProcessId);
                 }
             }
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
     }
 
     public async IAsyncEnumerable<DecodedMessage> ReadMessagesAsync(
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        await foreach (var msg in BinaryProtocol.ReadStreamAsync(_stream, ct).ConfigureAwait(false))
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        await foreach (var msg in BinaryProtocol.ReadStreamAsync(_stream, ct).ConfigureAwait(false)) {
             yield return msg;
         }
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _writeQueue.Writer.TryComplete();
         await _writeLoop.ConfigureAwait(false);

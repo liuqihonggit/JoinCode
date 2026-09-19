@@ -6,8 +6,7 @@ namespace JoinCode.Transport.Bridge;
 /// 连接管理器 - 管理传输连接生命周期和重连逻辑
 /// </summary>
 [Register(typeof(IConnectionManager), ServiceLifetime.Singleton)]
-public sealed partial class ConnectionManager : ServiceEntity, IConnectionManager
-{
+public sealed partial class ConnectionManager : ServiceEntity, IConnectionManager {
     private readonly ILogger? _logger;
     private readonly TransportConfiguration _config;
     private readonly AsyncLock _stateLock = new();
@@ -30,26 +29,23 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>当前连接状态</returns>
-    public async ValueTask<TransportConnectionState> GetConnectionStateAsync(CancellationToken ct = default)
-    {
+    public async ValueTask<TransportConnectionState> GetConnectionStateAsync(CancellationToken ct = default) {
         using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         return _connectionState;
-    
+
     }
 
-    private async Task SetConnectionStateAsync(TransportConnectionState value, CancellationToken ct = default)
-    {
+    private async Task SetConnectionStateAsync(TransportConnectionState value, CancellationToken ct = default) {
         using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         var oldState = _connectionState;
         _connectionState = value;
-        if (oldState != value)
-        {
+        if (oldState != value) {
             _logger?.LogDebug("[ConnectionManager] 连接状态变更: {OldState} -> {NewState}", oldState, value);
             ConnectionStateChanged?.Invoke(this, new StateChangedEventArgs<TransportConnectionState>(oldState, value));
         }
-    
+
     }
 
     /// <summary>当前传输协议</summary>
@@ -78,8 +74,7 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
         TransportConfiguration config,
         ILogger? logger = null,
         INetworkConnectivityService? networkService = null)
-        : base(nameof(ConnectionManager))
-    {
+        : base(nameof(ConnectionManager)) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
         _networkService = networkService;
@@ -91,32 +86,26 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 启动连接
     /// </summary>
-    public async Task StartAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task StartAsync(CancellationToken cancellationToken = default) {
         var currentState = await GetConnectionStateAsync(cancellationToken).ConfigureAwait(false);
-        if (IsConnected || currentState == TransportConnectionState.Connecting)
-        {
+        if (IsConnected || currentState == TransportConnectionState.Connecting) {
             _logger?.LogWarning("[ConnectionManager] 传输已在运行或正在连接");
             return;
         }
 
         await SetConnectionStateAsync(TransportConnectionState.Connecting, cancellationToken).ConfigureAwait(false);
 
-        try
-        {
+        try {
             await InitializeTransportAsync(cancellationToken).ConfigureAwait(false);
             await SetConnectionStateAsync(TransportConnectionState.Connected, cancellationToken).ConfigureAwait(false);
             _reconnectAttemptCount = 0;
             _logger?.LogInformation("[ConnectionManager] 传输已启动，协议: {Protocol}", _currentProtocol);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             await SetConnectionStateAsync(TransportConnectionState.Error, cancellationToken).ConfigureAwait(false);
             _logger?.LogError(ex, "[ConnectionManager] 启动传输失败");
             ErrorOccurred?.Invoke(this, new TransportErrorEventArgs(ex, "启动传输失败"));
 
-            if (_config.AutoReconnect)
-            {
+            if (_config.AutoReconnect) {
                 StartReconnectLoop(cancellationToken);
             }
             throw;
@@ -126,23 +115,17 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 停止连接
     /// </summary>
-    public async Task StopAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task StopAsync(CancellationToken cancellationToken = default) {
         _reconnectCts?.Cancel();
 
-        if (_reconnectTask is not null)
-        {
-            try
-            {
+        if (_reconnectTask is not null) {
+            try {
                 await _reconnectTask.WaitAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
             }
         }
 
-        if (_currentTransport is not null)
-        {
+        if (_currentTransport is not null) {
             await _currentTransport.StopAsync(cancellationToken).ConfigureAwait(false);
             _currentTransport.ErrorOccurred -= OnTransportError;
             _currentTransport = null;
@@ -155,10 +138,8 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 切换传输协议
     /// </summary>
-    public async Task SwitchProtocolAsync(TransportProtocol protocol, CancellationToken cancellationToken = default)
-    {
-        if (_currentProtocol == protocol)
-        {
+    public async Task SwitchProtocolAsync(TransportProtocol protocol, CancellationToken cancellationToken = default) {
+        if (_currentProtocol == protocol) {
             return;
         }
 
@@ -172,10 +153,8 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 发送消息
     /// </summary>
-    public async Task SendMessageAsync(string messageJson, CancellationToken cancellationToken = default)
-    {
-        if (_currentTransport is null || !IsConnected)
-        {
+    public async Task SendMessageAsync(string messageJson, CancellationToken cancellationToken = default) {
+        if (_currentTransport is null || !IsConnected) {
             throw new InvalidOperationException(Core.Utils.ErrorMessages.TransportNotConnected);
         }
 
@@ -186,10 +165,8 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 注册消息接收回调
     /// </summary>
-    public void OnMessageReceived(Func<string, Task> handler)
-    {
-        if (_currentTransport is not null)
-        {
+    public void OnMessageReceived(Func<string, Task> handler) {
+        if (_currentTransport is not null) {
             _currentTransport.MessageReceived += async (_, e) => await handler(e.Message).ConfigureAwait(false);
         }
     }
@@ -197,10 +174,8 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 初始化传输
     /// </summary>
-    private async Task InitializeTransportAsync(CancellationToken cancellationToken)
-    {
-        _currentTransport = _currentProtocol switch
-        {
+    private async Task InitializeTransportAsync(CancellationToken cancellationToken) {
+        _currentTransport = _currentProtocol switch {
             TransportProtocol.WebSocket => new WebSocketTransport(_config.WebSocketEndpoint, _logger),
             TransportProtocol.Sse => new SseBridgeTransport(_config.SseEndpoint, _logger),
             _ => throw new NotSupportedException($"[TRN011] 不支持的协议: {_currentProtocol}")
@@ -214,19 +189,16 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 处理传输层错误
     /// </summary>
-    private void OnTransportError(object? sender, TransportErrorEventArgs e)
-    {
+    private void OnTransportError(object? sender, TransportErrorEventArgs e) {
         _logger?.LogError(e.Exception, "[ConnectionManager] 传输错误: {Message}", e.Message);
         ErrorOccurred?.Invoke(this, e);
 
-        if (IsConnected && _config.AutoReconnect)
-        {
+        if (IsConnected && _config.AutoReconnect) {
             _ = HandleTransportErrorAsync(_reconnectCts?.Token ?? CancellationToken.None);
         }
     }
 
-    private async Task HandleTransportErrorAsync(CancellationToken cancellationToken = default)
-    {
+    private async Task HandleTransportErrorAsync(CancellationToken cancellationToken = default) {
         await SetConnectionStateAsync(TransportConnectionState.Error, cancellationToken).ConfigureAwait(false);
         StartReconnectLoop();
     }
@@ -234,10 +206,8 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 启动重连循环
     /// </summary>
-    private void StartReconnectLoop(CancellationToken cancellationToken = default)
-    {
-        if (_reconnectTask is { IsCompleted: false })
-        {
+    private void StartReconnectLoop(CancellationToken cancellationToken = default) {
+        if (_reconnectTask is { IsCompleted: false }) {
             return;
         }
 
@@ -248,32 +218,24 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 等待网络恢复 — 网络不可用时阻塞等待(带 30s 超时),恢复后继续重连
     /// </summary>
-    private async Task WaitForNetworkAsync(CancellationToken ct)
-    {
+    private async Task WaitForNetworkAsync(CancellationToken ct) {
         if (_networkService is null) return;
         if (_networkService.IsNetworkAvailable()) return;
 
         _logger?.LogWarning("[ConnectionManager] 网络不可用,等待恢复...");
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
-        {
+        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) => {
             if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
         };
         _networkService.StateChanged += handler;
-        try
-        {
-            if (!_networkService.IsNetworkAvailable())
-            {
+        try {
+            if (!_networkService.IsNetworkAvailable()) {
                 await tcs.Task.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
             }
-        }
-        catch (TimeoutException)
-        {
+        } catch (TimeoutException) {
             _logger?.LogWarning("[ConnectionManager] 等待网络恢复超时(30s),继续重连");
-        }
-        finally
-        {
+        } finally {
             _networkService.StateChanged -= handler;
         }
 
@@ -283,13 +245,11 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 重连循环
     /// </summary>
-    private async Task RunReconnectLoopAsync(CancellationToken cancellationToken)
-    {
+    private async Task RunReconnectLoopAsync(CancellationToken cancellationToken) {
         await SetConnectionStateAsync(TransportConnectionState.Reconnecting, cancellationToken).ConfigureAwait(false);
         Reconnecting?.Invoke(this, EventArgs.Empty);
 
-        while (!cancellationToken.IsCancellationRequested && _reconnectAttemptCount < _config.MaxReconnectAttempts)
-        {
+        while (!cancellationToken.IsCancellationRequested && _reconnectAttemptCount < _config.MaxReconnectAttempts) {
             _reconnectAttemptCount++;
             var delay = CalculateReconnectDelay(_reconnectAttemptCount);
 
@@ -298,8 +258,7 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
                 _reconnectAttemptCount,
                 delay.TotalMilliseconds);
 
-            try
-            {
+            try {
                 await WaitForNetworkAsync(cancellationToken).ConfigureAwait(false);
                 await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
 
@@ -310,13 +269,9 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
                 _logger?.LogInformation("[ConnectionManager] 重连成功");
                 Reconnected?.Invoke(this, EventArgs.Empty);
                 return;
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 break;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "[ConnectionManager] 重连失败");
             }
         }
@@ -328,8 +283,7 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 计算重连延迟（指数退避）
     /// </summary>
-    private TimeSpan CalculateReconnectDelay(int attempt)
-    {
+    private TimeSpan CalculateReconnectDelay(int attempt) {
         return TimeSpan.FromMilliseconds(
             Math.Min(
                 _config.ReconnectDelayMs * Math.Pow(2, attempt - 1),
@@ -339,10 +293,8 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 异步释放资源，停止连接
     /// </summary>
-    public override ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0)
-        {
+    public override ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0) {
             return ValueTask.CompletedTask;
         }
 
@@ -354,11 +306,10 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 释放托管资源（重连令牌和锁）
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_asyncDisposed == 1) return;
         _reconnectCts?.Dispose();
         _stateLock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 }

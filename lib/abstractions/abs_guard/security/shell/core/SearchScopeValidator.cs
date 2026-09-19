@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 搜索范围验证器 — 检测 CLI 搜索命令是否存在范围过大风险
 /// 如 rg --no-ignore、搜索 C:\ 或 / 等系统目录、find / 等
 /// </summary>
-public interface ISearchScopeValidator
-{
+public interface ISearchScopeValidator {
     /// <summary>
     /// 验证命令的搜索范围是否安全
     /// </summary>
@@ -18,8 +17,7 @@ public interface ISearchScopeValidator
 /// <summary>
 /// 搜索范围热重载接口 — settings.json 变更时更新危险标志和过大路径配置
 /// </summary>
-public interface ISearchScopeReloadable
-{
+public interface ISearchScopeReloadable {
     /// <summary>
     /// 热重载搜索范围配置 — 双变量切换模式
     /// </summary>
@@ -29,8 +27,7 @@ public interface ISearchScopeReloadable
 /// <summary>
 /// 搜索范围运行时配置 — 从 SearchScopeSettings 转换而来
 /// </summary>
-public sealed class SearchScopeConfig
-{
+public sealed class SearchScopeConfig {
     public bool Enabled { get; init; } = true;
     public Dictionary<string, FrozenSet<string>> ExtraDangerousFlags { get; init; } = new(StringComparer.OrdinalIgnoreCase);
     public FrozenSet<string> ExtraExcessivePathPrefixes { get; init; } = FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase);

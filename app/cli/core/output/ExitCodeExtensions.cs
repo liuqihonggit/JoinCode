@@ -3,14 +3,12 @@ namespace JoinCode.Cli.Output;
 /// <summary>
 /// ExitCode 扩展方法 — 细粒度退出码到逻辑分组的映射
 /// </summary>
-public static class ExitCodeExtensions
-{
+public static class ExitCodeExtensions {
     /// <summary>
     /// 将细粒度 ExitCode 映射到 CliErrorCategory 逻辑分组
     /// 对齐架构指南5类退出码语义，同时保留现有细粒度值
     /// </summary>
-    public static CliErrorCategory ToCategory(this ExitCode exitCode) => exitCode switch
-    {
+    public static CliErrorCategory ToCategory(this ExitCode exitCode) => exitCode switch {
         ExitCode.Success => CliErrorCategory.Success,
 
         // 1: 参数错误
@@ -47,8 +45,7 @@ public static class ExitCodeExtensions
     /// <summary>
     /// 获取退出码的人类可读描述
     /// </summary>
-    public static string ToFriendlyString(this ExitCode exitCode) => exitCode switch
-    {
+    public static string ToFriendlyString(this ExitCode exitCode) => exitCode switch {
         ExitCode.Success => "成功",
         ExitCode.GeneralError => "通用错误",
         ExitCode.ConfigurationError => "配置错误",

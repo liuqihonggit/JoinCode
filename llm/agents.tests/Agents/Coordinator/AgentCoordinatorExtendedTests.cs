@@ -1,8 +1,7 @@
 
 namespace Core.Tests.Agents.Coordinator;
 
-public class AgentCoordinatorExtendedTests : IAsyncLifetime
-{
+public class AgentCoordinatorExtendedTests : IAsyncLifetime {
     private readonly Mock<IQueryEngine> _queryEngineMock;
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
     private readonly Mock<IAgentWorktreeManager> _worktreeManagerMock;
@@ -10,8 +9,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     private readonly Mock<IAgentExecutionEngine> _executionEngineMock;
     private readonly AgentCoordinator _coordinator;
 
-    public AgentCoordinatorExtendedTests()
-    {
+    public AgentCoordinatorExtendedTests() {
         _queryEngineMock = new Mock<IQueryEngine>();
         _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();
         _worktreeManagerMock = new Mock<IAgentWorktreeManager>();
@@ -58,8 +56,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SpawnSubAgentAsync_ShouldCreateAgentWithUniqueId()
-    {
+    public async Task SpawnSubAgentAsync_ShouldCreateAgentWithUniqueId() {
         var agent1 = new AgentBase("Task 1", null, _queryEngineMock.Object, null);
         var agent2 = new AgentBase("Task 2", null, _queryEngineMock.Object, null);
 
@@ -74,12 +71,10 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SpawnSubAgentsAsync_BatchCreation_ShouldCreateAllAgents()
-    {
+    public async Task SpawnSubAgentsAsync_BatchCreation_ShouldCreateAllAgents() {
         var tasks = new[] { "Task 1", "Task 2", "Task 3" };
 
-        for (int i = 0; i < tasks.Length; i++)
-        {
+        for (int i = 0; i < tasks.Length; i++) {
             var task = tasks[i];
             var agent = new AgentBase(task, null, _queryEngineMock.Object, null);
             _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(task, null, default))
@@ -92,11 +87,9 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetStateReport_ShouldReturnCorrectCounts()
-    {
+    public async Task GetStateReport_ShouldReturnCorrectCounts() {
         // Arrange
-        var report = new AgentStateReport
-        {
+        var report = new AgentStateReport {
             TotalAgents = 5,
             PendingCount = 2,
             RunningCount = 2,
@@ -118,8 +111,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CancelAll_ShouldCancelAllAgents()
-    {
+    public async Task CancelAll_ShouldCancelAllAgents() {
         // Act
         await _coordinator.CancelAllAsync().ConfigureAwait(true);
 
@@ -128,8 +120,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetRunningAgents_ShouldReturnOnlyRunningAgents()
-    {
+    public async Task GetRunningAgents_ShouldReturnOnlyRunningAgents() {
         // Arrange
         var runningAgents = new List<RunningAgentInfo>
         {
@@ -147,11 +138,9 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetCoordinatorReport_ShouldMapStateReportCorrectly()
-    {
+    public async Task GetCoordinatorReport_ShouldMapStateReportCorrectly() {
         // Arrange
-        var stateReport = new AgentStateReport
-        {
+        var stateReport = new AgentStateReport {
             TotalAgents = 3,
             PendingCount = 1,
             RunningCount = 1,
@@ -180,8 +169,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PauseResumeAgent_ShouldChangeTaskExecutionStatus()
-    {
+    public async Task PauseResumeAgent_ShouldChangeTaskExecutionStatus() {
         // Arrange
         var agentId = "test-agent";
         _lifecycleManagerMock.Setup(x => x.PauseAgentAsync(agentId, default)).ReturnsAsync(true);
@@ -193,8 +181,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CancelAgent_ShouldCancelSpecificAgent()
-    {
+    public async Task CancelAgent_ShouldCancelSpecificAgent() {
         // Arrange
         var agentId = "test-agent";
         _lifecycleManagerMock.Setup(x => x.CancelAgentAsync(agentId, default)).ReturnsAsync(true);
@@ -208,8 +195,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RetryAsync_ShouldRetryFailedAgent()
-    {
+    public async Task RetryAsync_ShouldRetryFailedAgent() {
         // Arrange - 需要先创建Agent以建立执行上下文
         var agent = new AgentBase("Task", null, _queryEngineMock.Object, null);
         var agentId = agent.ObjectId.UniqueId;
@@ -230,8 +216,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetResult_ShouldReturnAgentResult()
-    {
+    public async Task GetResult_ShouldReturnAgentResult() {
         // Arrange
         var agentId = "test-agent";
         var expectedResult = new SubAgentResult { AgentId = agentId, IsSuccess = true, Output = "Output" };
@@ -246,11 +231,9 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetAllResults_ShouldReturnAllAgentResults()
-    {
+    public async Task GetAllResults_ShouldReturnAllAgentResults() {
         // Arrange
-        var results = new Dictionary<string, SubAgentResult>
-        {
+        var results = new Dictionary<string, SubAgentResult> {
             ["agent-1"] = new() { AgentId = "agent-1", IsSuccess = true, Output = "Output 1" },
             ["agent-2"] = new() { AgentId = "agent-2", IsSuccess = false, Output = "Output 2" }
         };
@@ -265,8 +248,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DisposeAgentAsync_ShouldCleanupResources()
-    {
+    public async Task DisposeAgentAsync_ShouldCleanupResources() {
         // Arrange
         var agentId = "test-agent";
         _worktreeManagerMock.Setup(x => x.IsWorktreeIsolationEnabled).Returns(true);
@@ -283,8 +265,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DisposeAgentAsync_WhenWorktreeDisabled_ShouldNotCleanupWorktree()
-    {
+    public async Task DisposeAgentAsync_WhenWorktreeDisabled_ShouldNotCleanupWorktree() {
         // Arrange
         var agentId = "test-agent";
         _worktreeManagerMock.Setup(x => x.IsWorktreeIsolationEnabled).Returns(false);
@@ -299,8 +280,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ExecuteParallelAsync_ShouldExecuteAgentsInParallel()
-    {
+    public async Task ExecuteParallelAsync_ShouldExecuteAgentsInParallel() {
         // Arrange
         var agents = new List<AgentBase>();
         var expectedResults = new List<SubAgentResult>();
@@ -316,8 +296,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ExecuteSequentialAsync_ShouldExecuteAgentsSequentially()
-    {
+    public async Task ExecuteSequentialAsync_ShouldExecuteAgentsSequentially() {
         // Arrange
         var agents = new List<AgentBase>();
         var expectedResults = new List<SubAgentResult>();
@@ -333,8 +312,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SendMessageAsync_ShouldSendMessageToAgent()
-    {
+    public async Task SendMessageAsync_ShouldSendMessageToAgent() {
         // Arrange
         var agent = new AgentBase("Task", null, _queryEngineMock.Object, null);
         var agentId = agent.ObjectId.UniqueId;
@@ -352,8 +330,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task BroadcastAsync_ShouldBroadcastMessageToAllAgents()
-    {
+    public async Task BroadcastAsync_ShouldBroadcastMessageToAllAgents() {
         // Arrange
         var message = new AgentMsg { FromAgentId = "sender", ToAgentId = "broadcast", MessageType = "text", Content = "Hello everyone" };
 
@@ -364,10 +341,8 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
         _messageBrokerMock.Verify(x => x.BroadcastAsync(message, default), Times.Once);
     }
 
-    private static AgentWorktreeSession CreateTestWorktreeSession(string agentId, string worktreePath)
-    {
-        return new AgentWorktreeSession
-        {
+    private static AgentWorktreeSession CreateTestWorktreeSession(string agentId, string worktreePath) {
+        return new AgentWorktreeSession {
             AgentId = agentId,
             WorktreePath = worktreePath,
             OriginalCwd = "/original",
@@ -378,8 +353,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetWorktreeSession_ShouldReturnWorktreeSession()
-    {
+    public async Task GetWorktreeSession_ShouldReturnWorktreeSession() {
         // Arrange
         var agentId = "test-agent";
         var expectedSession = CreateTestWorktreeSession(agentId, "/path/to/worktree");
@@ -394,11 +368,9 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetAllWorktreeSessions_ShouldReturnAllSessions()
-    {
+    public async Task GetAllWorktreeSessions_ShouldReturnAllSessions() {
         // Arrange
-        var sessions = new Dictionary<string, AgentWorktreeSession>
-        {
+        var sessions = new Dictionary<string, AgentWorktreeSession> {
             ["agent-1"] = CreateTestWorktreeSession("agent-1", "/path/1"),
             ["agent-2"] = CreateTestWorktreeSession("agent-2", "/path/2")
         };
@@ -413,8 +385,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task StopAgentAsync_ShouldStopRunningAgent()
-    {
+    public async Task StopAgentAsync_ShouldStopRunningAgent() {
         // Arrange
         var agent = new AgentBase("Task", null, _queryEngineMock.Object, null);
         var agentId = agent.ObjectId.UniqueId;
@@ -432,14 +403,12 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public Task DisposeAsync()
-    {
+    public Task DisposeAsync() {
         _coordinator.DisposeSafe();
         return Task.CompletedTask;
     }
 }
 
-file sealed class ActionMiddleware<TContext>(Func<TContext, MiddlewareDelegate<TContext>, CancellationToken, Task> invoke) : IMiddleware<TContext>
-{
+file sealed class ActionMiddleware<TContext>(Func<TContext, MiddlewareDelegate<TContext>, CancellationToken, Task> invoke) : IMiddleware<TContext> {
     public Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct) => invoke(context, next, ct);
 }

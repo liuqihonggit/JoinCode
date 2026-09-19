@@ -4,18 +4,15 @@ namespace JoinCode.ChatCommands;
 /// /help 命令 - 显示所有可用命令帮助
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Help, Description = "显示可用命令帮助", Usage = "/help", Category = ChatCommandCategory.Info, Aliases = ["?"], ExposeToMcp = true)]
-public sealed class HelpCommand : ChatCommandBase
-{
+public sealed class HelpCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /help 命令 — 按分类分组展示所有可用命令的用法和描述,通过 TabPanel 提供分类切换
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>表示命令执行完成的任务,结果为继续会话</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
-        if (services.CommandRegistry is null)
-        {
+        if (services.CommandRegistry is null) {
             TerminalHelper.WriteLine("命令注册表不可用。");
             return Task.FromResult(ChatCommandResult.Continue());
         }
@@ -27,14 +24,12 @@ public sealed class HelpCommand : ChatCommandBase
 
         var tabs = categories.Select(c => c.Category.ToValue()).ToArray();
 
-        var panel = new TabPanel(tabs, tabIndex =>
-        {
+        var panel = new TabPanel(tabs, tabIndex => {
             var cat = categories[tabIndex];
             var sb = new StringBuilder();
             sb.AppendLine($"{AnsiStyleEnumConstants.Bold}{cat.Category.ToValue()}{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
-            foreach (var cmd in cat.Commands)
-            {
+            foreach (var cmd in cat.Commands) {
                 sb.AppendLine($"  {cmd.Usage,-24} {cmd.Description}");
             }
             return sb.ToString();
@@ -47,15 +42,12 @@ public sealed class HelpCommand : ChatCommandBase
     /// <summary>
     /// 使用 ChatCommandInfo.Category 分组 — 特性解耦，每个命令自己声明分类
     /// </summary>
-    private static List<CommandCategoryGroup> CategorizeCommands(List<ChatCommandInfo> commands)
-    {
+    private static List<CommandCategoryGroup> CategorizeCommands(List<ChatCommandInfo> commands) {
         // 按分类枚举顺序分组，保持一致的展示顺序
         var groups = new Dictionary<ChatCommandCategory, List<ChatCommandInfo>>();
 
-        foreach (var cmd in commands)
-        {
-            if (!groups.TryGetValue(cmd.Category, out var list))
-            {
+        foreach (var cmd in commands) {
+            if (!groups.TryGetValue(cmd.Category, out var list)) {
                 list = [];
                 groups[cmd.Category] = list;
             }
@@ -64,10 +56,8 @@ public sealed class HelpCommand : ChatCommandBase
 
         // 按枚举定义顺序输出（会话→模型→代码→...→其他）
         var result = new List<CommandCategoryGroup>();
-        foreach (ChatCommandCategory cat in Enum.GetValues<ChatCommandCategory>())
-        {
-            if (groups.TryGetValue(cat, out var cmds) && cmds.Count > 0)
-            {
+        foreach (ChatCommandCategory cat in Enum.GetValues<ChatCommandCategory>()) {
+            if (groups.TryGetValue(cat, out var cmds) && cmds.Count > 0) {
                 result.Add(new CommandCategoryGroup(cat, cmds));
             }
         }

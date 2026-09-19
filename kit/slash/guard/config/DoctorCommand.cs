@@ -7,16 +7,14 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 npm/native/package-manager 安装类型检测，C# 为 NativeAOT 单文件发布
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Doctor, Description = "诊断环境配置和依赖", Usage = "/doctor", Category = ChatCommandCategory.Config, Aliases = ["dr"])]
-public sealed class DoctorCommand : ChatCommandBase
-{
+public sealed class DoctorCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /doctor 命令 — 收集并展示环境诊断信息
     /// 检查项包括:应用版本、.NET 运行时、Git、常用工具、搜索工具、环境变量、磁盘空间、网络状态、API 连接、权限配置、MCP 服务
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var sb = new StringBuilder();
 
         // 版本信息 — 对齐 TS DiagnosticInfo.version
@@ -35,12 +33,9 @@ public sealed class DoctorCommand : ChatCommandBase
 
         sb.AppendLine("\n[Git]");
         var gitCheck = await RunCommandAsync("git", ["--version"], context.CancellationToken).ConfigureAwait(false);
-        if (gitCheck.success)
-        {
+        if (gitCheck.success) {
             sb.AppendLine($"{TerminalColors.Success}  {gitCheck.output}{AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             sb.AppendLine($"{TerminalColors.Error}  Git 未安装或不在 PATH 中{AnsiStyleEnumConstants.Reset}");
         }
 
@@ -65,8 +60,7 @@ public sealed class DoctorCommand : ChatCommandBase
 
         sb.AppendLine("\n[磁盘空间]");
         var drives = DriveInfo.GetDrives().Where(d => d.IsReady);
-        foreach (var drive in drives)
-        {
+        foreach (var drive in drives) {
             var freeSpaceGB = drive.AvailableFreeSpace / (1024.0 * 1024.0 * 1024.0);
             var totalSpaceGB = drive.TotalSize / (1024.0 * 1024.0 * 1024.0);
             var usedPercent = (1 - (double)drive.AvailableFreeSpace / drive.TotalSize) * 100;
@@ -93,39 +87,28 @@ public sealed class DoctorCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private async Task AppendToolCheckAsync(StringBuilder sb, string command, string[] args, string name, CancellationToken cancellationToken)
-    {
+    private async Task AppendToolCheckAsync(StringBuilder sb, string command, string[] args, string name, CancellationToken cancellationToken) {
         var result = await RunCommandAsync(command, args, cancellationToken).ConfigureAwait(false);
-        if (result.success)
-        {
+        if (result.success) {
             sb.AppendLine($"{TerminalColors.Success}  {name}: {result.output.Trim()}{AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             sb.AppendLine($"  {name}: 未找到");
         }
     }
 
-    private static void AppendEnvironmentVariable(StringBuilder sb, string variableName, string displayName)
-    {
+    private static void AppendEnvironmentVariable(StringBuilder sb, string variableName, string displayName) {
         var value = Environment.GetEnvironmentVariable(variableName);
-        if (!string.IsNullOrEmpty(value))
-        {
+        if (!string.IsNullOrEmpty(value)) {
             sb.AppendLine($"{TerminalColors.Success}  {displayName}: 已设置{AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             sb.AppendLine($"  {displayName}: 未设置");
         }
     }
 
-    private static async Task<(bool success, string output)> RunCommandAsync(string command, string[] args, CancellationToken cancellationToken, IProcessService? processService = null)
-    {
-        try
-        {
+    private static async Task<(bool success, string output)> RunCommandAsync(string command, string[] args, CancellationToken cancellationToken, IProcessService? processService = null) {
+        try {
             var effectiveProcessService = processService ?? IO.ProcessService.ProcessServiceFactory.Create();
-            var options = new ProcessOptions
-            {
+            var options = new ProcessOptions {
                 FileName = command,
                 ArgumentList = args,
                 TimeoutMs = 10000
@@ -133,31 +116,25 @@ public sealed class DoctorCommand : ChatCommandBase
 
             var result = await effectiveProcessService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
             return (result.Success, string.IsNullOrEmpty(result.StandardOutput) ? result.StandardError : result.StandardOutput);
-        }
-        catch
-        {
+        } catch {
             return (false, string.Empty);
         }
     }
 
-    private static IProviderDefinition? ResolveProviderDefinition(ChatCommandContext context, string provider)
-    {
+    private static IProviderDefinition? ResolveProviderDefinition(ChatCommandContext context, string provider) {
         var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
         return registry?.TryGet(provider);
     }
 
-    private static void AppendNetworkStatus(StringBuilder sb, ChatCommandContext context)
-    {
+    private static void AppendNetworkStatus(StringBuilder sb, ChatCommandContext context) {
         var networkService = ChatCommandBase.GetService<INetworkConnectivityService>(context, typeof(INetworkConnectivityService));
-        if (networkService is null)
-        {
+        if (networkService is null) {
             sb.AppendLine("  网络检测服务不可用");
             return;
         }
 
         var state = networkService.CurrentState;
-        var stateText = state switch
-        {
+        var stateText = state switch {
             NetworkConnectivityState.Online => $"{TerminalColors.Success}在线{AnsiStyleEnumConstants.Reset}",
             NetworkConnectivityState.OnlineWithVpn => $"{TerminalColors.Success}在线 (VPN){AnsiStyleEnumConstants.Reset}",
             NetworkConnectivityState.OnlineWithProxy => $"{TerminalColors.Success}在线 (代理){AnsiStyleEnumConstants.Reset}",
@@ -170,21 +147,17 @@ public sealed class DoctorCommand : ChatCommandBase
         sb.AppendLine($"  路由: {route.Type}");
 
         var interfaces = networkService.GetActiveInterfaces();
-        if (interfaces.Count > 0)
-        {
+        if (interfaces.Count > 0) {
             sb.AppendLine($"  活跃接口 ({interfaces.Count}):");
-            foreach (var iface in interfaces)
-            {
+            foreach (var iface in interfaces) {
                 sb.AppendLine($"    {iface.Name} [{iface.Kind}] {(iface.IsUp ? "UP" : "DOWN")}");
             }
         }
     }
 
-    private static async Task AppendApiConnectionAsync(StringBuilder sb, ChatCommandContext context)
-    {
+    private static async Task AppendApiConnectionAsync(StringBuilder sb, ChatCommandContext context) {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
-        if (configService is null)
-        {
+        if (configService is null) {
             sb.AppendLine("  配置服务不可用");
             return;
         }
@@ -197,105 +170,79 @@ public sealed class DoctorCommand : ChatCommandBase
 
         var apiKey = ResolveProviderDefinition(context, provider)?.ResolveApiKeyFromEnv();
 
-        if (string.IsNullOrEmpty(apiKey))
-        {
+        if (string.IsNullOrEmpty(apiKey)) {
             sb.AppendLine($"  {TerminalColors.Warning}Provider: {provider} — API Key 未设置{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         sb.AppendLine($"  Provider: {TerminalColors.Success}{provider}{AnsiStyleEnumConstants.Reset}");
 
-        if (!string.IsNullOrEmpty(endpoint))
-        {
-            try
-            {
+        if (!string.IsNullOrEmpty(endpoint)) {
+            try {
                 using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
                 var response = await http.GetAsync(endpoint, context.CancellationToken).ConfigureAwait(false);
-                if (response.IsSuccessStatusCode)
-                {
+                if (response.IsSuccessStatusCode) {
                     sb.AppendLine($"  Endpoint: {TerminalColors.Success}可达 ({(int)response.StatusCode}){AnsiStyleEnumConstants.Reset}");
-                }
-                else
-                {
+                } else {
                     sb.AppendLine($"  Endpoint: {TerminalColors.Warning}响应异常 ({(int)response.StatusCode}){AnsiStyleEnumConstants.Reset}");
                 }
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 sb.AppendLine($"  Endpoint: {TerminalColors.Error}连接超时{AnsiStyleEnumConstants.Reset}");
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 sb.AppendLine($"  Endpoint: {TerminalColors.Error}{ex.Message}{AnsiStyleEnumConstants.Reset}");
             }
-        }
-        else
-        {
+        } else {
             sb.AppendLine("  Endpoint: 使用默认端点");
         }
 
         sb.AppendLine($"  API Key: {TerminalColors.Success}已设置{AnsiStyleEnumConstants.Reset}");
     }
 
-    private static void AppendPermissionConfig(StringBuilder sb, ChatCommandContext context)
-    {
+    private static void AppendPermissionConfig(StringBuilder sb, ChatCommandContext context) {
         var trustManager = ChatCommandBase.GetService<ITrustFolderManager>(context, typeof(ITrustFolderManager));
-        if (trustManager is null)
-        {
+        if (trustManager is null) {
             sb.AppendLine("  信任管理器不可用");
             return;
         }
 
         var cwd = context.GetCommandServices().FileSystem.GetCurrentDirectory();
-        if (trustManager.IsTrusted(cwd))
-        {
+        if (trustManager.IsTrusted(cwd)) {
             sb.AppendLine($"  工作目录: {TerminalColors.Success}已信任 ({cwd}){AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             sb.AppendLine($"  工作目录: {TerminalColors.Warning}未信任 ({cwd}){AnsiStyleEnumConstants.Reset}");
             sb.AppendLine("    使用 /trust add 添加信任");
         }
 
         var workspaceService = context.GetCommandServices().WorkspaceService;
-        if (workspaceService is not null)
-        {
+        if (workspaceService is not null) {
             var dirs = workspaceService.GetAdditionalDirectories();
-            if (dirs.Any())
-            {
+            if (dirs.Any()) {
                 sb.AppendLine($"  额外工作目录: {dirs.Count()} 个");
-                foreach (var dir in dirs)
-                {
+                foreach (var dir in dirs) {
                     var trusted = trustManager.IsTrusted(dir);
                     var status = trusted ? $"{TerminalColors.Success}已信任{AnsiStyleEnumConstants.Reset}" : $"{TerminalColors.Warning}未信任{AnsiStyleEnumConstants.Reset}";
                     sb.AppendLine($"    {dir} — {status}");
                 }
-            }
-            else
-            {
+            } else {
                 sb.AppendLine("  额外工作目录: 无");
             }
         }
     }
 
-    private static async Task AppendMcpServicesAsync(StringBuilder sb, ChatCommandContext context)
-    {
+    private static async Task AppendMcpServicesAsync(StringBuilder sb, ChatCommandContext context) {
         var registry = ChatCommandBase.GetService<IMcpToolRegistry>(context, typeof(IMcpToolRegistry));
-        if (registry is null)
-        {
+        if (registry is null) {
             sb.AppendLine("  MCP 工具注册表不可用");
             return;
         }
 
-        try
-        {
+        try {
             var localCount = await registry.GetLocalToolCountAsync(context.CancellationToken).ConfigureAwait(false);
             var remoteCount = await registry.GetRemoteClientCountAsync(context.CancellationToken).ConfigureAwait(false);
 
             sb.AppendLine($"  本地工具: {localCount} 个");
 
-            if (remoteCount == 0)
-            {
+            if (remoteCount == 0) {
                 sb.AppendLine("  远程 MCP 服务器: 无连接");
                 return;
             }
@@ -303,8 +250,7 @@ public sealed class DoctorCommand : ChatCommandBase
             sb.AppendLine($"  远程 MCP 服务器: {remoteCount} 个");
 
             var clients = await registry.GetAllRemoteClientsAsync(context.CancellationToken).ConfigureAwait(false);
-            foreach (var (clientId, client) in clients)
-            {
+            foreach (var (clientId, client) in clients) {
                 var connected = client.IsConnected;
                 var serverName = client.ServerInfo?.Name ?? clientId;
                 var status = connected
@@ -313,25 +259,19 @@ public sealed class DoctorCommand : ChatCommandBase
 
                 sb.AppendLine($"    {serverName} — {status}");
 
-                if (connected)
-                {
-                    try
-                    {
+                if (connected) {
+                    try {
                         using var mcpCts = CancellationTokenSource.CreateLinkedTokenSource(context.CancellationToken);
                         mcpCts.CancelAfter(TimeSpan.FromSeconds(10));
                         var toolsResult = await client.ListToolsAsync(mcpCts.Token).ConfigureAwait(false);
                         if (toolsResult.Success)
                             sb.AppendLine($"      工具: {toolsResult.GetData().Count} 个");
-                    }
-                    catch
-                    {
+                    } catch {
                         sb.AppendLine("      工具: 获取失败");
                     }
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             sb.AppendLine($"  {TerminalColors.Error}MCP状态检查失败: {ex.Message}{AnsiStyleEnumConstants.Reset}");
         }
     }

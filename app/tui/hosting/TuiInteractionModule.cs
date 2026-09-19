@@ -6,14 +6,12 @@ namespace JoinCode.Tui.Hosting;
 /// 服务实例由 TuiModeRunner 启动时 Attach(painter, dialogView) 绑定真实 UI 通道。
 /// </summary>
 [AppModule(Order = 80)]
-public sealed class TuiInteractionModule : IAppModule
-{
+public sealed class TuiInteractionModule : IAppModule {
     /// <summary>模块加载顺序（80 = TUI 交互层）</summary>
     public int Order => 80;
 
     /// <summary>注册 TUI 交互服务到 DI 容器</summary>
-    public void ConfigureServices(IServiceCollection services, AppModuleContext context)
-    {
+    public void ConfigureServices(IServiceCollection services, AppModuleContext context) {
         services.AddSingleton<TerminalGuiInteractiveService>();
         services.AddSingleton<IInteractiveService>(sp => sp.GetRequiredService<TerminalGuiInteractiveService>());
     }

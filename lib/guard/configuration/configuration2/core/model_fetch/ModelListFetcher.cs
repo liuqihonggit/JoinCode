@@ -6,8 +6,7 @@ namespace Core.Configuration.ModelFetch;
 /// API Key 优先级：环境变量 > auth.json（按供应商名）
 /// 单个供应商失败不影响其他供应商
 /// </summary>
-public sealed class ModelListFetcher : IModelListFetcher
-{
+public sealed class ModelListFetcher : IModelListFetcher {
     private readonly IHttpClientProvider _httpClientProvider;
     private readonly IFileSystem _fs;
     private readonly ILogger<ModelListFetcher>? _logger;
@@ -18,8 +17,7 @@ public sealed class ModelListFetcher : IModelListFetcher
     /// <param name="httpClientProvider">HTTP 客户端提供者</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志器，可为空</param>
-    public ModelListFetcher(IHttpClientProvider httpClientProvider, IFileSystem fs, ILogger<ModelListFetcher>? logger = null)
-    {
+    public ModelListFetcher(IHttpClientProvider httpClientProvider, IFileSystem fs, ILogger<ModelListFetcher>? logger = null) {
         _httpClientProvider = httpClientProvider;
         _fs = fs;
         _logger = logger;
@@ -31,20 +29,17 @@ public sealed class ModelListFetcher : IModelListFetcher
     /// </summary>
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<RemoteModelInfo>>> FetchAllAsync(
         IReadOnlyDictionary<string, ProfileSettings> vendor,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var authKeys = await LoadAuthKeysAsync(cancellationToken).ConfigureAwait(false);
 
         var tasks = new List<Task<(string Profile, IReadOnlyList<RemoteModelInfo>? Models)>>(vendor.Count);
 
-        foreach (var (profile, settings) in vendor)
-        {
+        foreach (var (profile, settings) in vendor) {
             if (string.IsNullOrEmpty(settings.Endpoint) || string.IsNullOrEmpty(settings.ModelsEndpoint))
                 continue;
 
             var apiKey = ResolveApiKey(settings, authKeys);
-            if (string.IsNullOrEmpty(apiKey))
-            {
+            if (string.IsNullOrEmpty(apiKey)) {
                 _logger?.LogWarning("[ModelListFetcher] 跳过 {Profile}：未配置 API Key", profile);
                 continue;
             }
@@ -58,8 +53,7 @@ public sealed class ModelListFetcher : IModelListFetcher
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
         var dict = new Dictionary<string, IReadOnlyList<RemoteModelInfo>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (profile, models) in results)
-        {
+        foreach (var (profile, models) in results) {
             if (models is not null && models.Count > 0)
                 dict[profile] = models;
         }
@@ -68,18 +62,15 @@ public sealed class ModelListFetcher : IModelListFetcher
 
     private async Task<(string Profile, IReadOnlyList<RemoteModelInfo>? Models)> FetchOneAsync(
         string profile, string endpoint, string modelsEndpoint, string apiKey, string? protocol,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
+        CancellationToken cancellationToken) {
+        try {
             var url = BuildUrl(endpoint, modelsEndpoint);
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             ConfigureAuth(request, apiKey, protocol);
 
             var client = _httpClientProvider.GetClient();
             using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
+            if (!response.IsSuccessStatusCode) {
                 _logger?.LogWarning("[ModelListFetcher] {Profile} 返回 {Status}，跳过", profile, (int)response.StatusCode);
                 return (profile, null);
             }
@@ -88,16 +79,13 @@ public sealed class ModelListFetcher : IModelListFetcher
             var models = ParseModels(json);
             _logger?.LogInformation("[ModelListFetcher] {Profile} 拉取到 {Count} 个模型", profile, models.Count);
             return (profile, models);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ModelListFetcher] 拉取 {Profile} 失败，跳过", profile);
             return (profile, null);
         }
     }
 
-    private static string BuildUrl(string endpoint, string modelsEndpoint)
-    {
+    private static string BuildUrl(string endpoint, string modelsEndpoint) {
         var baseUrl = endpoint.TrimEnd('/');
         var relative = modelsEndpoint.Trim('/');
         return $"{baseUrl}/{relative}";
@@ -106,31 +94,25 @@ public sealed class ModelListFetcher : IModelListFetcher
     /// <summary>
     /// 加载 auth.json — 供应商名 → API Key 映射（一次性读取，所有供应商共享）
     /// </summary>
-    private async Task<Dictionary<string, string>> LoadAuthKeysAsync(CancellationToken cancellationToken)
-    {
+    private async Task<Dictionary<string, string>> LoadAuthKeysAsync(CancellationToken cancellationToken) {
         var settingsPath = SettingsLoader.GetUserSettingsPath();
         var authPath = Path.Combine(Path.GetDirectoryName(settingsPath)!, AppDataConstants.AuthFileName);
         if (!_fs.FileExists(authPath))
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        try
-        {
+        try {
             var json = await _fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
             var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var prop in doc.RootElement.EnumerateObject())
-            {
-                if (prop.Value.ValueKind == JsonValueKind.String)
-                {
+            foreach (var prop in doc.RootElement.EnumerateObject()) {
+                if (prop.Value.ValueKind == JsonValueKind.String) {
                     var value = prop.Value.GetString();
                     if (!string.IsNullOrEmpty(value))
                         dict[prop.Name] = value;
                 }
             }
             return dict;
-        }
-        catch
-        {
+        } catch {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
     }
@@ -138,10 +120,8 @@ public sealed class ModelListFetcher : IModelListFetcher
     /// <summary>
     /// 解析 API Key — 优先级1: 环境变量，优先级2: auth.json（按供应商名）
     /// </summary>
-    private static string? ResolveApiKey(ProfileSettings settings, IReadOnlyDictionary<string, string> authKeys)
-    {
-        if (!string.IsNullOrEmpty(settings.ApiKeyEnvVar))
-        {
+    private static string? ResolveApiKey(ProfileSettings settings, IReadOnlyDictionary<string, string> authKeys) {
+        if (!string.IsNullOrEmpty(settings.ApiKeyEnvVar)) {
             var key = Environment.GetEnvironmentVariable(settings.ApiKeyEnvVar);
             if (!string.IsNullOrEmpty(key)) return key;
         }
@@ -150,15 +130,11 @@ public sealed class ModelListFetcher : IModelListFetcher
         return null;
     }
 
-    private static void ConfigureAuth(HttpRequestMessage request, string apiKey, string? protocol)
-    {
-        if (string.Equals(protocol, ProtocolKindEnumConstants.Anthropic, StringComparison.OrdinalIgnoreCase))
-        {
+    private static void ConfigureAuth(HttpRequestMessage request, string apiKey, string? protocol) {
+        if (string.Equals(protocol, ProtocolKindEnumConstants.Anthropic, StringComparison.OrdinalIgnoreCase)) {
             request.Headers.Add("x-api-key", apiKey);
             request.Headers.Add("anthropic-version", "2024-10-22");
-        }
-        else
-        {
+        } else {
             request.Headers.Add("Authorization", $"Bearer {apiKey}");
         }
     }
@@ -167,17 +143,14 @@ public sealed class ModelListFetcher : IModelListFetcher
     /// 解析 OpenAI 兼容格式的模型列表响应 — 提取 id/description/context_length/input_modalities 等完整字段
     /// Anthropic /v1/models 也返回相同格式
     /// </summary>
-    private static IReadOnlyList<RemoteModelInfo> ParseModels(string json)
-    {
-        try
-        {
+    private static IReadOnlyList<RemoteModelInfo> ParseModels(string json) {
+        try {
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
                 return Array.Empty<RemoteModelInfo>();
 
             var list = new List<RemoteModelInfo>();
-            foreach (var item in data.EnumerateArray())
-            {
+            foreach (var item in data.EnumerateArray()) {
                 var info = new RemoteModelInfo();
                 if (item.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.String)
                     info.Id = idProp.GetString() ?? string.Empty;
@@ -200,9 +173,7 @@ public sealed class ModelListFetcher : IModelListFetcher
                 list.Add(info);
             }
             return list;
-        }
-        catch
-        {
+        } catch {
             return Array.Empty<RemoteModelInfo>();
         }
     }
@@ -210,16 +181,13 @@ public sealed class ModelListFetcher : IModelListFetcher
     /// <summary>
     /// 解析 JSON 对象中的字符串数组属性 — 返回只读列表，属性不存在或非数组时返回空
     /// </summary>
-    private static IReadOnlyList<string> ParseStringArray(JsonElement item, string propertyName)
-    {
+    private static IReadOnlyList<string> ParseStringArray(JsonElement item, string propertyName) {
         if (!item.TryGetProperty(propertyName, out var prop) || prop.ValueKind != JsonValueKind.Array)
             return [];
 
         var list = new List<string>();
-        foreach (var el in prop.EnumerateArray())
-        {
-            if (el.ValueKind == JsonValueKind.String)
-            {
+        foreach (var el in prop.EnumerateArray()) {
+            if (el.ValueKind == JsonValueKind.String) {
                 var s = el.GetString();
                 if (!string.IsNullOrEmpty(s))
                     list.Add(s);

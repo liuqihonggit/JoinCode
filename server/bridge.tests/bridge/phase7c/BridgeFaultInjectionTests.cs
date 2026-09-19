@@ -1,13 +1,10 @@
 
 namespace Bridge.Tests.Phase7C;
 
-public sealed class BridgeFaultInjectionTests
-{
+public sealed class BridgeFaultInjectionTests {
     [Fact]
-    public void InjectFault_DoesNotThrow()
-    {
-        var fault = new BridgeFault
-        {
+    public void InjectFault_DoesNotThrow() {
+        var fault = new BridgeFault {
             Method = "pollForWork",
             Kind = BridgeFaultKind.Transient,
             Status = 500,
@@ -19,10 +16,8 @@ public sealed class BridgeFaultInjectionTests
     }
 
     [Fact]
-    public void ClearHandle_RemovesAllFaults()
-    {
-        BridgeDebugController.InjectFault(new BridgeFault
-        {
+    public void ClearHandle_RemovesAllFaults() {
+        BridgeDebugController.InjectFault(new BridgeFault {
             Method = "pollForWork",
             Kind = BridgeFaultKind.Transient,
             Status = 500,
@@ -35,8 +30,7 @@ public sealed class BridgeFaultInjectionTests
     }
 
     [Fact]
-    public void RegisterHandle_AndGetHandle_ReturnsHandle()
-    {
+    public void RegisterHandle_AndGetHandle_ReturnsHandle() {
         var handle = new MockDebugHandle();
         BridgeDebugController.RegisterHandle(handle);
 
@@ -47,8 +41,7 @@ public sealed class BridgeFaultInjectionTests
     }
 
     [Fact]
-    public void ClearHandle_SetsHandleToNull()
-    {
+    public void ClearHandle_SetsHandleToNull() {
         var handle = new MockDebugHandle();
         BridgeDebugController.RegisterHandle(handle);
         BridgeDebugController.ClearHandle();
@@ -58,8 +51,7 @@ public sealed class BridgeFaultInjectionTests
     }
 
     [Fact]
-    public void FaultInjectionBridgeApiClient_ConstructsSuccessfully()
-    {
+    public void FaultInjectionBridgeApiClient_ConstructsSuccessfully() {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
         var inner = new BridgeApiClient(http, options);
@@ -69,15 +61,13 @@ public sealed class BridgeFaultInjectionTests
     }
 
     [Fact]
-    public async Task FaultInjectionBridgeApiClient_WithFatalFault_ThrowsFatalError()
-    {
+    public async Task FaultInjectionBridgeApiClient_WithFatalFault_ThrowsFatalError() {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
         var inner = new BridgeApiClient(http, options);
         using var client = new FaultInjectionBridgeApiClient(inner);
 
-        BridgeDebugController.InjectFault(new BridgeFault
-        {
+        BridgeDebugController.InjectFault(new BridgeFault {
             Method = "pollForWork",
             Kind = BridgeFaultKind.Fatal,
             Status = 401,
@@ -92,15 +82,13 @@ public sealed class BridgeFaultInjectionTests
     }
 
     [Fact]
-    public async Task FaultInjectionBridgeApiClient_WithTransientFault_ThrowsHttpRequestException()
-    {
+    public async Task FaultInjectionBridgeApiClient_WithTransientFault_ThrowsHttpRequestException() {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
         var inner = new BridgeApiClient(http, options);
         using var client = new FaultInjectionBridgeApiClient(inner);
 
-        BridgeDebugController.InjectFault(new BridgeFault
-        {
+        BridgeDebugController.InjectFault(new BridgeFault {
             Method = "pollForWork",
             Kind = BridgeFaultKind.Transient,
             Status = 500,
@@ -113,8 +101,7 @@ public sealed class BridgeFaultInjectionTests
         BridgeDebugController.ClearHandle();
     }
 
-    private sealed class MockDebugHandle : IBridgeDebugHandle
-    {
+    private sealed class MockDebugHandle : IBridgeDebugHandle {
         public void FireClose() { }
         public void ForceReconnect() { }
         public void InjectFault(BridgeFault fault) { }

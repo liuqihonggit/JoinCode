@@ -6,8 +6,7 @@ public sealed record BashPreCheckItem(
     string Message,
     Func<string, bool> IsMatch);
 
-public static class BashPreCheckRegistry
-{
+public static class BashPreCheckRegistry {
     public static readonly BashPreCheckItem ControlCharacters = new(
         BashSecurityCheckId.ControlCharacters,
         "CONTROL_CHAR",

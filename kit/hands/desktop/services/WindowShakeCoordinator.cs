@@ -7,8 +7,7 @@ namespace JoinCode.Hands.Desktop;
 /// <para>启动时后台读取初始值，监听 <see cref="IConfigurationService.SettingChanged"/> 事件热更新。</para>
 /// </summary>
 [Register(typeof(IWindowShakeCoordinator), ServiceLifetime.Singleton)]
-public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordinator
-{
+public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordinator {
     /// <summary>
     /// 上次震动的 <see cref="Environment.TickCount"/> — volatile 保证可见性，Interlocked 保证原子性。
     /// </summary>
@@ -43,13 +42,11 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     public WindowShakeCoordinator(
         IConfigurationService? configService = null,
         Func<bool?>? shakeEnabledProvider = null,
-        ILogger<WindowShakeCoordinator>? logger = null)
-    {
+        ILogger<WindowShakeCoordinator>? logger = null) {
         _shakeEnabledProvider = shakeEnabledProvider;
         _configService = configService;
 
-        if (configService is not null)
-        {
+        if (configService is not null) {
             _ = ReadConfigAsync(configService, logger);
             configService.SettingChanged += OnSettingChanged;
         }
@@ -64,8 +61,7 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     /// 尝试获取震动时间槽。1 秒内只允许一次成功。
     /// </summary>
     /// <returns>true 表示可执行震动；false 表示 1 秒内已震动过。</returns>
-    public bool TryAcquireShakeSlot()
-    {
+    public bool TryAcquireShakeSlot() {
         var now = Environment.TickCount;
         var last = _lastShakeTick;
         if (now - last < ShakeIntervalMs)
@@ -76,16 +72,12 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     /// <summary>
     /// 后台读取 windowShakeEnabled 配置初始值。
     /// </summary>
-    private async Task ReadConfigAsync(IConfigurationService configService, ILogger<WindowShakeCoordinator>? logger)
-    {
-        try
-        {
+    private async Task ReadConfigAsync(IConfigurationService configService, ILogger<WindowShakeCoordinator>? logger) {
+        try {
             var value = await configService.GetAsync("windowShakeEnabled", CancellationToken.None).ConfigureAwait(false);
             if (bool.TryParse(value, out var enabled))
                 _cachedEnabled = enabled;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogWarning(ex, "WindowShakeCoordinator: failed to read windowShakeEnabled config");
         }
     }
@@ -93,8 +85,7 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     /// <summary>
     /// 配置变更事件处理 — 更新缓存值。
     /// </summary>
-    private void OnSettingChanged(object? sender, SettingChangeEventArgs e)
-    {
+    private void OnSettingChanged(object? sender, SettingChangeEventArgs e) {
         if (e.Key == "windowShakeEnabled" && bool.TryParse(e.NewValue, out var enabled))
             _cachedEnabled = enabled;
     }
@@ -102,8 +93,7 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     /// <summary>
     /// 释放 — 取消配置变更事件订阅。
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_configService is not null)
             _configService.SettingChanged -= OnSettingChanged;
         base.Dispose();

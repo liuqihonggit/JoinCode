@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// 任务输出工具处理器 — 提供获取后台任务输出结果的功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Task, Optional = true)]
-public partial class TaskOutputToolHandlers
-{
+public partial class TaskOutputToolHandlers {
     private readonly ITaskService _taskService;
     private readonly ILogger<TaskOutputToolHandlers>? _logger;
 
@@ -16,8 +15,7 @@ public partial class TaskOutputToolHandlers
     /// </summary>
     /// <param name="taskService">任务服务</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public TaskOutputToolHandlers(ITaskService taskService, ILogger<TaskOutputToolHandlers>? logger = null)
-    {
+    public TaskOutputToolHandlers(ITaskService taskService, ILogger<TaskOutputToolHandlers>? logger = null) {
         _taskService = taskService ?? throw new ArgumentNullException(nameof(taskService));
         _logger = logger;
     }
@@ -35,15 +33,13 @@ public partial class TaskOutputToolHandlers
         [McpToolParameter("Task ID")] string task_id,
         [McpToolParameter("Output type: stdout/stderr/all (optional, default all)", Required = false)] string? output_type = "all",
         [McpToolParameter("Maximum output lines (optional, default 100)", Required = false)] int? max_lines = 100,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(task_id))
             return ToolResultBuilder.Error().WithText(L.T(StringKey.TaskIdCannotBeEmpty)).Build();
 
         var outputType = TaskOutputTypeExtensions.FromValue(output_type ?? "all") ?? TaskOutputType.All;
 
-        try
-        {
+        try {
             var task = await _taskService.GetTaskAsync(task_id, cancellationToken).ConfigureAwait(false);
             if (task == null)
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.TaskNotFound, task_id)).Build();
@@ -57,8 +53,7 @@ public partial class TaskOutputToolHandlers
             var description = task.Description ?? string.Empty;
             var effectiveMaxLines = max_lines ?? 100;
 
-            if (!string.IsNullOrEmpty(description))
-            {
+            if (!string.IsNullOrEmpty(description)) {
                 var lines = description.Split('\n');
                 var truncated = lines.Length > effectiveMaxLines;
                 var displayLines = lines.Take(effectiveMaxLines);
@@ -67,17 +62,12 @@ public partial class TaskOutputToolHandlers
                 if (truncated)
                     response.AppendLine(L.T(StringKey.TaskOutputTruncated, lines.Length, effectiveMaxLines));
                 response.AppendLine();
-            }
-            else
-            {
+            } else {
                 response.AppendLine(L.T(StringKey.TaskNoOutput));
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.TaskOutputFailedLog, task_id));
             return ToolResultBuilder.Error().WithText(L.T(StringKey.TaskOutputFailed, ex.Message)).Build();
         }

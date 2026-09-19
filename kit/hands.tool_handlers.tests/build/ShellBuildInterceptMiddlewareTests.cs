@@ -3,19 +3,16 @@ namespace Hands.Tests.Build;
 /// <summary>
 /// ShellBuildInterceptMiddleware 单元测试
 /// </summary>
-public class ShellBuildInterceptMiddlewareTests
-{
+public class ShellBuildInterceptMiddlewareTests {
     [Fact]
-    public async Task InvokeAsync_BuildCommand_SubmitsToQueue()
-    {
+    public async Task InvokeAsync_BuildCommand_SubmitsToQueue() {
         var queueMock = new Mock<IBuildQueueService>();
         queueMock.Setup(x => x.SubmitAsync(It.IsAny<BuildRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("b-0001");
         queueMock.Setup(x => x.GetBuild("b-0001"))
             .Returns((BuildQueueEntry?)null);
         queueMock.Setup(x => x.WaitAsync("b-0001", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BuildQueueResult
-            {
+            .ReturnsAsync(new BuildQueueResult {
                 BuildId = "b-0001",
                 ExitCode = 0,
                 Output = "ok",
@@ -35,16 +32,14 @@ public class ShellBuildInterceptMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_BuildCommand_DoesNotCallNext()
-    {
+    public async Task InvokeAsync_BuildCommand_DoesNotCallNext() {
         var queueMock = new Mock<IBuildQueueService>();
         queueMock.Setup(x => x.SubmitAsync(It.IsAny<BuildRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("b-0001");
         queueMock.Setup(x => x.GetBuild("b-0001"))
             .Returns((BuildQueueEntry?)null);
         queueMock.Setup(x => x.WaitAsync("b-0001", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BuildQueueResult
-            {
+            .ReturnsAsync(new BuildQueueResult {
                 BuildId = "b-0001",
                 ExitCode = 0,
                 Output = "ok",
@@ -64,8 +59,7 @@ public class ShellBuildInterceptMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_NonBuildCommand_CallsNext()
-    {
+    public async Task InvokeAsync_NonBuildCommand_CallsNext() {
         var queueMock = new Mock<IBuildQueueService>();
         var sut = CreateSut(buildQueueService: queueMock.Object);
 
@@ -85,16 +79,14 @@ public class ShellBuildInterceptMiddlewareTests
     [InlineData("dotnet msbuild JoinCode.slnx")]
     [InlineData("dotnet.exe build JoinCode.slnx")]
     [InlineData("\"C:\\Program Files\\dotnet\\dotnet.exe\" build JoinCode.slnx")]
-    public async Task InvokeAsync_RecognizesBuildCommands(string command)
-    {
+    public async Task InvokeAsync_RecognizesBuildCommands(string command) {
         var queueMock = new Mock<IBuildQueueService>();
         queueMock.Setup(x => x.SubmitAsync(It.IsAny<BuildRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("b-0001");
         queueMock.Setup(x => x.GetBuild("b-0001"))
             .Returns((BuildQueueEntry?)null);
         queueMock.Setup(x => x.WaitAsync("b-0001", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BuildQueueResult
-            {
+            .ReturnsAsync(new BuildQueueResult {
                 BuildId = "b-0001",
                 ExitCode = 0,
                 Output = "ok",
@@ -121,8 +113,7 @@ public class ShellBuildInterceptMiddlewareTests
     [InlineData("dotnet add package Newtonsoft.Json")]
     [InlineData("echo dotnet build")]
     [InlineData("dir")]
-    public async Task InvokeAsync_IgnoresNonBuildCommands(string command)
-    {
+    public async Task InvokeAsync_IgnoresNonBuildCommands(string command) {
         var queueMock = new Mock<IBuildQueueService>();
         var sut = CreateSut(buildQueueService: queueMock.Object);
 
@@ -136,16 +127,14 @@ public class ShellBuildInterceptMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_BuildCommand_PassesWorkingDirectory()
-    {
+    public async Task InvokeAsync_BuildCommand_PassesWorkingDirectory() {
         var queueMock = new Mock<IBuildQueueService>();
         queueMock.Setup(x => x.SubmitAsync(It.IsAny<BuildRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("b-0001");
         queueMock.Setup(x => x.GetBuild("b-0001"))
             .Returns((BuildQueueEntry?)null);
         queueMock.Setup(x => x.WaitAsync("b-0001", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BuildQueueResult
-            {
+            .ReturnsAsync(new BuildQueueResult {
                 BuildId = "b-0001",
                 ExitCode = 0,
                 Output = "ok",
@@ -167,19 +156,16 @@ public class ShellBuildInterceptMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_CacheHitCompleted_ReturnsFullOutput()
-    {
+    public async Task InvokeAsync_CacheHitCompleted_ReturnsFullOutput() {
         var queueMock = new Mock<IBuildQueueService>();
         queueMock.Setup(x => x.SubmitAsync(It.IsAny<BuildRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("b-0001");
         queueMock.Setup(x => x.GetBuild("b-0001"))
-            .Returns(new BuildQueueEntry
-            {
+            .Returns(new BuildQueueEntry {
                 BuildId = "b-0001",
                 Request = CreateRequest(),
                 Status = BuildQueueEntryStatus.Completed,
-                Result = new BuildQueueResult
-                {
+                Result = new BuildQueueResult {
                     BuildId = "b-0001",
                     ExitCode = 0,
                     Output = "Build succeeded.",
@@ -202,16 +188,14 @@ public class ShellBuildInterceptMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_BuildCompletesWithinTimeout_ReturnsFullOutput()
-    {
+    public async Task InvokeAsync_BuildCompletesWithinTimeout_ReturnsFullOutput() {
         var queueMock = new Mock<IBuildQueueService>();
         queueMock.Setup(x => x.SubmitAsync(It.IsAny<BuildRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("b-0001");
         queueMock.Setup(x => x.GetBuild("b-0001"))
             .Returns((BuildQueueEntry?)null);
         queueMock.Setup(x => x.WaitAsync("b-0001", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BuildQueueResult
-            {
+            .ReturnsAsync(new BuildQueueResult {
                 BuildId = "b-0001",
                 ExitCode = 0,
                 Output = "Build OK",
@@ -233,16 +217,14 @@ public class ShellBuildInterceptMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_BuildFails_ReturnsErrorOutput()
-    {
+    public async Task InvokeAsync_BuildFails_ReturnsErrorOutput() {
         var queueMock = new Mock<IBuildQueueService>();
         queueMock.Setup(x => x.SubmitAsync(It.IsAny<BuildRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("b-0001");
         queueMock.Setup(x => x.GetBuild("b-0001"))
             .Returns((BuildQueueEntry?)null);
         queueMock.Setup(x => x.WaitAsync("b-0001", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new BuildQueueResult
-            {
+            .ReturnsAsync(new BuildQueueResult {
                 BuildId = "b-0001",
                 ExitCode = 1,
                 Output = "Build output",
@@ -266,14 +248,12 @@ public class ShellBuildInterceptMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_CancelledBuild_ReturnsCancelledMessage()
-    {
+    public async Task InvokeAsync_CancelledBuild_ReturnsCancelledMessage() {
         var queueMock = new Mock<IBuildQueueService>();
         queueMock.Setup(x => x.SubmitAsync(It.IsAny<BuildRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("b-0001");
         queueMock.Setup(x => x.GetBuild("b-0001"))
-            .Returns(new BuildQueueEntry
-            {
+            .Returns(new BuildQueueEntry {
                 BuildId = "b-0001",
                 Request = CreateRequest(),
                 Status = BuildQueueEntryStatus.Cancelled,
@@ -292,8 +272,7 @@ public class ShellBuildInterceptMiddlewareTests
     }
 
     [Fact]
-    public void BuildCancelledDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildCancelledDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellBuildInterceptMiddleware.BuildCancelledDiagnostic("b-002");
 
         diagnostic.Reason.Should().Be("构建已取消");
@@ -302,8 +281,7 @@ public class ShellBuildInterceptMiddlewareTests
     }
 
     [Fact]
-    public void BuildFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildFailedDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellBuildInterceptMiddleware.BuildFailedDiagnostic("b-003", 42);
 
         diagnostic.Reason.Should().Be("构建失败");
@@ -315,27 +293,23 @@ public class ShellBuildInterceptMiddlewareTests
     }
 
     private static ShellBuildInterceptMiddleware CreateSut(
-        IBuildQueueService? buildQueueService = null)
-    {
+        IBuildQueueService? buildQueueService = null) {
         return new ShellBuildInterceptMiddleware(
             buildQueueService: buildQueueService ?? Mock.Of<IBuildQueueService>(),
             subAgentContextAccessor: new SubAgentContextAccessor(),
             clock: SystemClockService.Instance);
     }
 
-    private static ShellPipelineContext CreateContext(string command, string? workingDirectory = null)
-    {
+    private static ShellPipelineContext CreateContext(string command, string? workingDirectory = null) {
         var provider = Mock.Of<ISystemActuator>(p => p.Kind == SystemActuatorKind.Bash);
-        return new ShellPipelineContext
-        {
+        return new ShellPipelineContext {
             Command = command,
             Provider = provider,
             WorkingDirectory = workingDirectory,
         };
     }
 
-    private static BuildRequest CreateRequest() => new()
-    {
+    private static BuildRequest CreateRequest() => new() {
         Command = "dotnet build JoinCode.slnx -c Release",
         AgentId = "test-agent",
     };

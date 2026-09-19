@@ -10,44 +10,40 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.Session, Description = "管理历史会话", Usage = "/session [list|resume|delete] [id]", Category = ChatCommandCategory.Session, Aliases = ["sessions"], ArgumentHint = "[list|resume|delete]")]
 [ChatCommandArg("action", Type = "string", Description = "会话操作", Enum = new[] { "list", "resume", "delete" })]
 [ChatCommandArg("id", Type = "string", Description = "会话 ID（resume/delete 时需要）")]
-public sealed class SessionCommand : ChatCommandBase
-{
+public sealed class SessionCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /session 命令，根据子操作分发到 list/resume/delete 会话管理逻辑。
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>命令执行结果。</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "list";
 
-        switch (action)
-        {
+        switch (action) {
             case CrudActionEnumConstants.List:
             case CrudActionEnumConstants.Ls:
-                ShowSessionList(context);
-                break;
+            ShowSessionList(context);
+            break;
             case "resume" or "open":
-                var resumeId = args.Length > 1 ? args[1] : null;
-                ResumeSession(context, resumeId);
-                break;
+            var resumeId = args.Length > 1 ? args[1] : null;
+            ResumeSession(context, resumeId);
+            break;
             case CrudActionEnumConstants.Delete:
             case CrudActionEnumConstants.Rm:
-                var deleteId = args.Length > 1 ? args[1] : null;
-                DeleteSession(context, deleteId);
-                break;
+            var deleteId = args.Length > 1 ? args[1] : null;
+            DeleteSession(context, deleteId);
+            break;
             default:
-                TerminalHelper.WriteLine($"未知操作: {action}");
-                TerminalHelper.WriteLine("支持: list, resume, delete");
-                break;
+            TerminalHelper.WriteLine($"未知操作: {action}");
+            TerminalHelper.WriteLine("支持: list, resume, delete");
+            break;
         }
 
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    private static void ShowSessionList(ChatCommandContext context)
-    {
+    private static void ShowSessionList(ChatCommandContext context) {
         TerminalHelper.WriteLine("=== 历史会话 ===\n");
 
         // 待办：接入 SessionStore 服务后替换为真实会话列表
@@ -57,10 +53,8 @@ public sealed class SessionCommand : ChatCommandBase
         TerminalHelper.WriteLine("使用 /session delete <id> 删除会话");
     }
 
-    private static void ResumeSession(ChatCommandContext context, string? id)
-    {
-        if (string.IsNullOrEmpty(id))
-        {
+    private static void ResumeSession(ChatCommandContext context, string? id) {
+        if (string.IsNullOrEmpty(id)) {
             TerminalHelper.WriteLine("用法: /session resume <id>");
             return;
         }
@@ -69,10 +63,8 @@ public sealed class SessionCommand : ChatCommandBase
         TerminalHelper.WriteLine($"恢复会话: {id}");
     }
 
-    private static void DeleteSession(ChatCommandContext context, string? id)
-    {
-        if (string.IsNullOrEmpty(id))
-        {
+    private static void DeleteSession(ChatCommandContext context, string? id) {
+        if (string.IsNullOrEmpty(id)) {
             TerminalHelper.WriteLine("用法: /session delete <id>");
             return;
         }

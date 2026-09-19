@@ -3,8 +3,7 @@ namespace Core.CostTracking;
 /// <summary>
 /// 会话成本持久化接口 — 负责保存、恢复、列举和删除会话成本数据
 /// </summary>
-public interface ISessionCostPersistence
-{
+public interface ISessionCostPersistence {
     /// <summary>
     /// 异步保存当前会话的成本数据到持久化存储
     /// </summary>
@@ -40,8 +39,7 @@ public interface ISessionCostPersistence
 /// <summary>
 /// 会话成本数据传输对象 — 持久化到 JSON 文件的结构
 /// </summary>
-public sealed partial class SessionCostData
-{
+public sealed partial class SessionCostData {
     /// <summary>
     /// 会话标识
     /// </summary>
@@ -62,8 +60,7 @@ public sealed partial class SessionCostData
 /// 会话成本持久化服务 — 将会话成本数据以 JSON 文件形式存储到本地成本目录
 /// </summary>
 [Register(typeof(ISessionCostPersistence), ServiceLifetime.Singleton)]
-public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCostPersistence
-{
+public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCostPersistence {
     private readonly IFileOperationService _fileOperationService;
     private readonly string _storageDirectory;
     private readonly ILogger<SessionCostPersistence>? _logger;
@@ -84,8 +81,7 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
         IFileOperationService fileOperationService,
         ILogger<SessionCostPersistence>? logger = null,
         ITelemetryService? telemetryService = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _costTracker = costTracker ?? throw new ArgumentNullException(nameof(costTracker));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _storageDirectory = AppDataConstants.Paths.JccDirectory;
@@ -100,23 +96,19 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
     /// <param name="sessionId">会话标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task SaveCurrentSessionCostsAsync(string sessionId, CancellationToken ct = default)
-    {
+    public async Task SaveCurrentSessionCostsAsync(string sessionId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        try
-        {
+        try {
             var stats = _costTracker.GetSessionStatistics(sessionId);
-            var data = new SessionCostData
-            {
+            var data = new SessionCostData {
                 SessionId = sessionId,
                 Statistics = stats,
                 SavedAt = _clock.GetUtcNow()
             };
 
             var costsDir = AppDataConstants.Paths.CostsDirectory;
-            if (!_fileOperationService.DirectoryExists(costsDir))
-            {
+            if (!_fileOperationService.DirectoryExists(costsDir)) {
                 _fileOperationService.CreateDirectory(costsDir);
             }
 
@@ -125,19 +117,14 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
 
             var result = await _fileOperationService.WriteFileAsync(filePath, json, ct).ConfigureAwait(false);
 
-            if (result.Success)
-            {
+            if (result.Success) {
                 _logger?.LogInformation("[SessionCostPersistence] 已保存会话 {SessionId} 的成本数据", sessionId);
                 RecordCostPersistenceMetrics("save", true);
-            }
-            else
-            {
+            } else {
                 _logger?.LogError("[SessionCostPersistence] 保存会话 {SessionId} 成本数据失败: {Error}", sessionId, result.ErrorMessage);
                 RecordCostPersistenceMetrics("save", false);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[SessionCostPersistence] 保存会话 {SessionId} 成本数据异常", sessionId);
         }
     }
@@ -148,32 +135,27 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
     /// <param name="sessionId">会话标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>恢复的成本统计信息；若不存在或读取失败则返回 null</returns>
-    public async Task<CostStatistics?> RestoreCostStateForSessionAsync(string sessionId, CancellationToken ct = default)
-    {
+    public async Task<CostStatistics?> RestoreCostStateForSessionAsync(string sessionId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        try
-        {
+        try {
             var filePath = Path.Combine(AppDataConstants.Paths.CostsDirectory, $"{sessionId}.json");
 
-            if (!_fileOperationService.FileExists(filePath))
-            {
+            if (!_fileOperationService.FileExists(filePath)) {
                 _logger?.LogDebug("[SessionCostPersistence] 会话 {SessionId} 无保存的成本数据", sessionId);
                 return null;
             }
 
             var result = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: ct).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 _logger?.LogWarning("[SessionCostPersistence] 读取会话 {SessionId} 成本数据失败: {Error}", sessionId, result.ErrorMessage);
                 return null;
             }
 
             var data = RelaxedJsonSerializer.Deserialize(result.Content, CostTrackingJsonContext.Default.SessionCostData);
 
-            if (data is null)
-            {
+            if (data is null) {
                 _logger?.LogWarning("[SessionCostPersistence] 反序列化会话 {SessionId} 成本数据失败", sessionId);
                 return null;
             }
@@ -181,9 +163,7 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
             _logger?.LogInformation("[SessionCostPersistence] 已恢复会话 {SessionId} 的成本数据 (保存于 {SavedAt})", sessionId, data.SavedAt);
             RecordCostPersistenceMetrics("restore", true);
             return data.Statistics;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[SessionCostPersistence] 恢复会话 {SessionId} 成本数据异常", sessionId);
             return null;
         }
@@ -194,33 +174,26 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>已保存会话标识的只读列表</returns>
-    public async Task<IReadOnlyList<string>> GetSavedSessionIdsAsync(CancellationToken ct = default)
-    {
-        try
-        {
+    public async Task<IReadOnlyList<string>> GetSavedSessionIdsAsync(CancellationToken ct = default) {
+        try {
             var costsDir = AppDataConstants.Paths.CostsDirectory;
 
-            if (!_fileOperationService.DirectoryExists(costsDir))
-            {
+            if (!_fileOperationService.DirectoryExists(costsDir)) {
                 return Array.Empty<string>();
             }
 
             var listResult = await _fileOperationService.ListDirectoryAsync(costsDir, cancellationToken: ct).ConfigureAwait(false);
 
             var sessionIds = new List<string>();
-            foreach (var file in listResult.Files)
-            {
-                if (file.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-                {
+            foreach (var file in listResult.Files) {
+                if (file.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) {
                     var id = file.Name[..^5];
                     sessionIds.Add(id);
                 }
             }
 
             return sessionIds;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[SessionCostPersistence] 获取已保存会话列表异常");
             return Array.Empty<string>();
         }
@@ -232,22 +205,17 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
     /// <param name="sessionId">会话标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task DeleteSessionCostsAsync(string sessionId, CancellationToken ct = default)
-    {
+    public async Task DeleteSessionCostsAsync(string sessionId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        try
-        {
+        try {
             var filePath = Path.Combine(AppDataConstants.Paths.CostsDirectory, $"{sessionId}.json");
 
-            if (_fileOperationService.FileExists(filePath))
-            {
+            if (_fileOperationService.FileExists(filePath)) {
                 await _fileOperationService.DeleteFileAsync(filePath, ct).ConfigureAwait(false);
                 _logger?.LogInformation("[SessionCostPersistence] 已删除会话 {SessionId} 的成本数据", sessionId);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[SessionCostPersistence] 删除会话 {SessionId} 成本数据异常", sessionId);
         }
     }

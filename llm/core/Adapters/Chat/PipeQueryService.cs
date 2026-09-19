@@ -1,15 +1,13 @@
 
 namespace Api.Chat;
 
-public sealed partial class PipeQueryService : IQueryService
-{
+public sealed partial class PipeQueryService : IQueryService {
     private readonly PipeTransportConfig _config;
     private readonly ILogger<PipeQueryService>? _logger;
     private readonly HttpClient _httpClient;
     private readonly ResilientHttpExecutor? _resilientExecutor;
 
-    public PipeQueryService(PipeTransportConfig config, string? apiKey = null, ILogger<PipeQueryService>? logger = null, ResilientHttpExecutor? resilientExecutor = null)
-    {
+    public PipeQueryService(PipeTransportConfig config, string? apiKey = null, ILogger<PipeQueryService>? logger = null, ResilientHttpExecutor? resilientExecutor = null) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
         _httpClient = CreatePipeHttpClient(config, apiKey);
@@ -20,8 +18,7 @@ public sealed partial class PipeQueryService : IQueryService
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var request = CreateChatRequest(chatHistory, executionSettings, stream: false);
         var response = await SendRequestAsync(request, cancellationToken);
 
@@ -32,8 +29,7 @@ public sealed partial class PipeQueryService : IQueryService
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
+        [EnumeratorCancellation] CancellationToken cancellationToken = default) {
         var request = CreateChatRequest(chatHistory, executionSettings, stream: true);
         var responseStream = SendStreamingRequestAsync(request, cancellationToken);
 
@@ -42,8 +38,7 @@ public sealed partial class PipeQueryService : IQueryService
         string? toolCallName = null;
         var toolCallArguments = new StringBuilder();
 
-        await foreach (var chunk in responseStream)
-        {
+        await foreach (var chunk in responseStream) {
             if (chunk.Choices.Count == 0) continue;
 
             var choice = chunk.Choices[0];
@@ -51,10 +46,8 @@ public sealed partial class PipeQueryService : IQueryService
             var role = ConvertRole(choice.Delta?.Role);
 
             // 检测流式 tool_calls
-            if (choice.Delta?.ToolCalls?.Count > 0)
-            {
-                foreach (var tc in choice.Delta.ToolCalls)
-                {
+            if (choice.Delta?.ToolCalls?.Count > 0) {
+                foreach (var tc in choice.Delta.ToolCalls) {
                     if (tc.Id != null) toolCallId = tc.Id;
                     if (tc.Function?.Name != null) toolCallName = tc.Function.Name;
                     if (tc.Function?.Arguments != null) toolCallArguments.Append(tc.Function.Arguments);
@@ -62,11 +55,9 @@ public sealed partial class PipeQueryService : IQueryService
             }
 
             // finish_reason = tool_calls 时，输出完整的工具调用信息
-            if (choice.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && toolCallName != null)
-            {
+            if (choice.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && toolCallName != null) {
                 yield return new StreamEvent(role, content, chunk.Model,
-                    new Dictionary<string, JsonElement>
-                    {
+                    new Dictionary<string, JsonElement> {
                         ["Id"] = JsonElementHelper.FromString(chunk.Id),
                         ["FinishReason"] = JsonElementHelper.FromString(choice.FinishReason),
                         ["Created"] = JsonElementHelper.FromInt64(chunk.Created),
@@ -83,8 +74,7 @@ public sealed partial class PipeQueryService : IQueryService
             }
 
             yield return new StreamEvent(role, content, chunk.Model,
-                new Dictionary<string, JsonElement>
-                {
+                new Dictionary<string, JsonElement> {
                     ["Id"] = JsonElementHelper.FromString(chunk.Id),
                     ["FinishReason"] = JsonElementHelper.FromString(choice.FinishReason),
                     ["Created"] = JsonElementHelper.FromInt64(chunk.Created)
@@ -92,13 +82,11 @@ public sealed partial class PipeQueryService : IQueryService
         }
     }
 
-    private HttpClient CreatePipeHttpClient(PipeTransportConfig config, string? apiKey)
-    {
+    private HttpClient CreatePipeHttpClient(PipeTransportConfig config, string? apiKey) {
         // P1-13: 添加 PooledConnectionLifetime 解决 DNS 不刷新（保留自定义 ConnectCallback 用于管道协议）
         // 决策: 管道通信必须自定义 ConnectCallback（NamedPipeClientStream），不能用 IHttpClientProvider 替代
         var handler = SocketsHttpHandlerFactory.CreateWithDnsRefresh();
-        handler.ConnectCallback = async (context, cancellationToken) =>
-        {
+        handler.ConnectCallback = async (context, cancellationToken) => {
             var pipeClient = new NamedPipeClientStream(
                 serverName: ".",
                 pipeName: config.PipeName,
@@ -114,28 +102,24 @@ public sealed partial class PipeQueryService : IQueryService
             return pipeClient;
         };
 
-        var client = new HttpClient(handler)
-        {
+        var client = new HttpClient(handler) {
             Timeout = TimeSpan.FromMilliseconds(config.RequestTimeoutMs),
             BaseAddress = new Uri("http://localhost/")
         };
 
         client.DefaultRequestHeaders.Add("Accept", "application/json");
 
-        if (!string.IsNullOrEmpty(apiKey))
-        {
+        if (!string.IsNullOrEmpty(apiKey)) {
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
         }
 
         return client;
     }
 
-    private ChatRequest CreateChatRequest(MessageList chatHistory, ChatOptions? settings, bool stream)
-    {
+    private ChatRequest CreateChatRequest(MessageList chatHistory, ChatOptions? settings, bool stream) {
         var messages = chatHistory.Select(ConvertToMessage).ToList();
 
-        return new ChatRequest
-        {
+        return new ChatRequest {
             Model = settings?.ExtensionData?.TryGetValue("model", out var model) == true && model.ValueKind == JsonValueKind.String ? model.GetString() ?? "gpt-4" : "gpt-4",
             Messages = messages,
             Stream = stream,
@@ -144,8 +128,7 @@ public sealed partial class PipeQueryService : IQueryService
         };
     }
 
-    private async Task<OpenAIChatResponse> SendRequestAsync(ChatRequest request, CancellationToken cancellationToken)
-    {
+    private async Task<OpenAIChatResponse> SendRequestAsync(ChatRequest request, CancellationToken cancellationToken) {
         var json = JsonSerializer.Serialize(request, PipeJsonContext.Default.ChatRequest);
 
         _logger?.LogDebug("Sending chat request to pipe");
@@ -158,8 +141,7 @@ public sealed partial class PipeQueryService : IQueryService
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
         var result = RelaxedJsonSerializer.Deserialize(responseJson, PipeJsonContext.Default.OpenAIChatResponse);
 
-        if (result == null)
-        {
+        if (result == null) {
             throw new InvalidOperationException("Failed to deserialize response from pipe");
         }
 
@@ -168,8 +150,7 @@ public sealed partial class PipeQueryService : IQueryService
 
     private async IAsyncEnumerable<OpenAIChatChunk> SendStreamingRequestAsync(
         ChatRequest request,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
+        [EnumeratorCancellation] CancellationToken cancellationToken) {
         var json = JsonSerializer.Serialize(request, PipeJsonContext.Default.ChatRequest);
 
         _logger?.LogDebug("Sending streaming chat request to pipe");
@@ -183,8 +164,7 @@ public sealed partial class PipeQueryService : IQueryService
         using var reader = stream.AsUtf8Reader();
 
         string? line;
-        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
-        {
+        while ((line = await reader.ReadLineAsync(cancellationToken)) != null) {
             if (cancellationToken.IsCancellationRequested) yield break;
             if (string.IsNullOrWhiteSpace(line)) continue;
             if (!line.StartsWith("data: ")) continue;
@@ -193,30 +173,25 @@ public sealed partial class PipeQueryService : IQueryService
             if (data == "[DONE]") yield break;
 
             var chunk = RelaxedJsonSerializer.Deserialize(data, PipeJsonContext.Default.OpenAIChatChunk);
-            if (chunk != null)
-            {
+            if (chunk != null) {
                 yield return chunk;
             }
         }
     }
 
-    private static ApiMessage ConvertToApiMessage(OpenAIChoice choice)
-    {
+    private static ApiMessage ConvertToApiMessage(OpenAIChoice choice) {
         var message = choice.Message;
         var role = ConvertRole(message.Role);
 
         // 处理 tool_calls 响应
-        if (message.ToolCalls?.Count > 0)
-        {
-            var entries = message.ToolCalls.Select(tc => new ToolCallEntry
-            {
+        if (message.ToolCalls?.Count > 0) {
+            var entries = message.ToolCalls.Select(tc => new ToolCallEntry {
                 Id = tc.Id,
                 Name = tc.Function?.Name ?? "",
                 Arguments = tc.Function?.Arguments ?? "{}"
             }).ToList();
             return new ApiMessage(role, message.Content?.Text,
-                new Dictionary<string, JsonElement>
-                {
+                new Dictionary<string, JsonElement> {
                     ["FinishReason"] = JsonElementHelper.FromString(choice.FinishReason),
                     ["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries)
                 });
@@ -229,17 +204,14 @@ public sealed partial class PipeQueryService : IQueryService
     private static MessageRole ConvertRole(string? role)
         => QueryServiceBase.ConvertRole(role);
 
-    private static OpenAIApiMessage ConvertToMessage(ApiMessage content)
-    {
-        var msg = new OpenAIApiMessage
-        {
+    private static OpenAIApiMessage ConvertToMessage(ApiMessage content) {
+        var msg = new OpenAIApiMessage {
             Role = QueryServiceBase.ConvertRoleToString(content.Role),
             Content = content.Content
         };
 
         // Tool 角色消息必须带 tool_call_id
-        if (content.Role == MessageRole.Tool && content.Metadata != null)
-        {
+        if (content.Role == MessageRole.Tool && content.Metadata != null) {
             if (content.Metadata.TryGetValue("ToolCallId", out var tcIdEl) && tcIdEl.ValueKind == JsonValueKind.String)
                 msg.ToolCallId = tcIdEl.GetString();
             if (content.Metadata.TryGetValue("ToolName", out var tcNameEl) && tcNameEl.ValueKind == JsonValueKind.String)
@@ -248,17 +220,14 @@ public sealed partial class PipeQueryService : IQueryService
 
         // Assistant 消息带工具调用时，需要包含 tool_calls
         if (content.Role == MessageRole.Assistant && content.Metadata != null &&
-            content.Metadata.TryGetValue("ToolCalls", out var tcEl) && tcEl.ValueKind == JsonValueKind.Array)
-        {
+            content.Metadata.TryGetValue("ToolCalls", out var tcEl) && tcEl.ValueKind == JsonValueKind.Array) {
             var toolCalls = new List<OpenAIToolCall>();
-            foreach (var tcItem in tcEl.EnumerateArray())
-            {
+            foreach (var tcItem in tcEl.EnumerateArray()) {
                 var tc = new OpenAIToolCall();
                 if (tcItem.TryGetProperty("Id", out var idEl) && idEl.ValueKind == JsonValueKind.String)
                     tc.Id = idEl.GetString();
                 if (tcItem.TryGetProperty("Name", out var nameEl) && nameEl.ValueKind == JsonValueKind.String)
-                    tc.Function = new OpenAIToolCallFunction
-                    {
+                    tc.Function = new OpenAIToolCallFunction {
                         Name = nameEl.GetString(),
                         Arguments = tcItem.TryGetProperty("Arguments", out var argsEl) && argsEl.ValueKind == JsonValueKind.String
                             ? argsEl.GetString() : "{}"
@@ -272,8 +241,7 @@ public sealed partial class PipeQueryService : IQueryService
     }
 
 
-    internal sealed class ChatRequest
-    {
+    internal sealed class ChatRequest {
         [JsonPropertyName("model")]
         public string Model { get; set; } = string.Empty;
 

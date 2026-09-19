@@ -4,22 +4,19 @@ namespace Core.Tests.State;
 /// <summary>
 /// AppStateSelectors 单元测试 — 验证各类选择器正确提取派生状态
 /// </summary>
-public sealed class AppStateSelectorsTests : IDisposable
-{
+public sealed class AppStateSelectorsTests : IDisposable {
     private readonly Store<AppState> _store;
     private readonly FakeTelemetryService _telemetry;
     private readonly AppStateSelectors _selectors;
     private bool _disposed;
 
-    public AppStateSelectorsTests()
-    {
+    public AppStateSelectorsTests() {
         _store = new Store<AppState>(CreateSampleState());
         _telemetry = new FakeTelemetryService();
         _selectors = new AppStateSelectors(_store, _telemetry);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
 
@@ -29,40 +26,35 @@ public sealed class AppStateSelectorsTests : IDisposable
     #region Session Selectors
 
     [Fact]
-    public void SelectSessionId_ReturnsSessionId()
-    {
+    public void SelectSessionId_ReturnsSessionId() {
         var selector = _selectors.SelectSessionId();
 
         selector.CurrentValue.Should().Be("session-001");
     }
 
     [Fact]
-    public void SelectSystemPrompt_ReturnsSystemPrompt()
-    {
+    public void SelectSystemPrompt_ReturnsSystemPrompt() {
         var selector = _selectors.SelectSystemPrompt();
 
         selector.CurrentValue.Should().Be("You are a helpful assistant");
     }
 
     [Fact]
-    public void SelectMessageList_ReturnsMessages()
-    {
+    public void SelectMessageList_ReturnsMessages() {
         var selector = _selectors.SelectMessageList();
 
         selector.CurrentValue.Should().HaveCount(2);
     }
 
     [Fact]
-    public void SelectCurrentModel_ReturnsCurrentModel()
-    {
+    public void SelectCurrentModel_ReturnsCurrentModel() {
         var selector = _selectors.SelectCurrentModel();
 
         selector.CurrentValue.Should().Be("gpt-4o");
     }
 
     [Fact]
-    public void SelectIsPlanMode_ReturnsPlanMode()
-    {
+    public void SelectIsPlanMode_ReturnsPlanMode() {
         var selector = _selectors.SelectIsPlanMode();
 
         selector.CurrentValue.Should().BeTrue();
@@ -73,8 +65,7 @@ public sealed class AppStateSelectorsTests : IDisposable
     #region Agent Selectors
 
     [Fact]
-    public void SelectAgents_ReturnsAllAgents()
-    {
+    public void SelectAgents_ReturnsAllAgents() {
         var selector = _selectors.SelectAgents();
 
         selector.CurrentValue.Should().HaveCount(2);
@@ -82,8 +73,7 @@ public sealed class AppStateSelectorsTests : IDisposable
     }
 
     [Fact]
-    public void SelectAgent_ExistingAgent_ReturnsAgent()
-    {
+    public void SelectAgent_ExistingAgent_ReturnsAgent() {
         var selector = _selectors.SelectAgent("agent-1");
 
         selector.CurrentValue.Should().NotBeNull();
@@ -91,24 +81,21 @@ public sealed class AppStateSelectorsTests : IDisposable
     }
 
     [Fact]
-    public void SelectAgent_NonExistingAgent_ReturnsNull()
-    {
+    public void SelectAgent_NonExistingAgent_ReturnsNull() {
         var selector = _selectors.SelectAgent("missing-agent");
 
         selector.CurrentValue.Should().BeNull();
     }
 
     [Fact]
-    public void SelectRunningAgentCount_ReturnsCorrectCount()
-    {
+    public void SelectRunningAgentCount_ReturnsCorrectCount() {
         var selector = _selectors.SelectRunningAgentCount();
 
         selector.CurrentValue.Should().Be(1);
     }
 
     [Fact]
-    public void SelectActiveAgents_ReturnsAgentsNotIdle()
-    {
+    public void SelectActiveAgents_ReturnsAgentsNotIdle() {
         var selector = _selectors.SelectActiveAgents();
 
         selector.CurrentValue.Should().HaveCount(1);
@@ -120,16 +107,14 @@ public sealed class AppStateSelectorsTests : IDisposable
     #region Task Selectors
 
     [Fact]
-    public void SelectTasks_ReturnsAllTasks()
-    {
+    public void SelectTasks_ReturnsAllTasks() {
         var selector = _selectors.SelectTasks();
 
         selector.CurrentValue.Should().HaveCount(3);
     }
 
     [Fact]
-    public void SelectTask_ExistingTask_ReturnsTask()
-    {
+    public void SelectTask_ExistingTask_ReturnsTask() {
         var selector = _selectors.SelectTask("task-1");
 
         selector.CurrentValue.Should().NotBeNull();
@@ -137,16 +122,14 @@ public sealed class AppStateSelectorsTests : IDisposable
     }
 
     [Fact]
-    public void SelectTask_NonExistingTask_ReturnsNull()
-    {
+    public void SelectTask_NonExistingTask_ReturnsNull() {
         var selector = _selectors.SelectTask("missing-task");
 
         selector.CurrentValue.Should().BeNull();
     }
 
     [Fact]
-    public void SelectRunningTasks_ReturnsRunningTasks()
-    {
+    public void SelectRunningTasks_ReturnsRunningTasks() {
         var selector = _selectors.SelectRunningTasks();
 
         selector.CurrentValue.Should().HaveCount(1);
@@ -154,16 +137,14 @@ public sealed class AppStateSelectorsTests : IDisposable
     }
 
     [Fact]
-    public void SelectPendingTaskCount_ReturnsPendingCount()
-    {
+    public void SelectPendingTaskCount_ReturnsPendingCount() {
         var selector = _selectors.SelectPendingTaskCount();
 
         selector.CurrentValue.Should().Be(1);
     }
 
     [Fact]
-    public void SelectCompletedTaskCount_ReturnsCompletedCount()
-    {
+    public void SelectCompletedTaskCount_ReturnsCompletedCount() {
         var selector = _selectors.SelectCompletedTaskCount();
 
         selector.CurrentValue.Should().Be(1);
@@ -174,32 +155,28 @@ public sealed class AppStateSelectorsTests : IDisposable
     #region Config Selectors
 
     [Fact]
-    public void SelectDebugLogMode_ReturnsDebugLog()
-    {
+    public void SelectDebugLogMode_ReturnsDebugLog() {
         var selector = _selectors.SelectDebugLogMode();
 
         selector.CurrentValue.Should().BeTrue();
     }
 
     [Fact]
-    public void SelectBriefMode_ReturnsBriefMode()
-    {
+    public void SelectBriefMode_ReturnsBriefMode() {
         var selector = _selectors.SelectBriefMode();
 
         selector.CurrentValue.Should().BeFalse();
     }
 
     [Fact]
-    public void SelectTheme_ReturnsTheme()
-    {
+    public void SelectTheme_ReturnsTheme() {
         var selector = _selectors.SelectTheme();
 
         selector.CurrentValue.Should().Be("dark");
     }
 
     [Fact]
-    public void SelectTokenUsage_SelectorReturnsBudgetAndUsed()
-    {
+    public void SelectTokenUsage_SelectorReturnsBudgetAndUsed() {
         var selector = _selectors.SelectTokenUsage();
 
         var result = selector.Selector(_store.GetState());
@@ -213,24 +190,21 @@ public sealed class AppStateSelectorsTests : IDisposable
     #region UI Selectors
 
     [Fact]
-    public void SelectStatusLineText_ReturnsStatusText()
-    {
+    public void SelectStatusLineText_ReturnsStatusText() {
         var selector = _selectors.SelectStatusLineText();
 
         selector.CurrentValue.Should().Be("Ready");
     }
 
     [Fact]
-    public void SelectIsLoading_ReturnsLoadingState()
-    {
+    public void SelectIsLoading_ReturnsLoadingState() {
         var selector = _selectors.SelectIsLoading();
 
         selector.CurrentValue.Should().BeFalse();
     }
 
     [Fact]
-    public void SelectCurrentNotification_ReturnsNotification()
-    {
+    public void SelectCurrentNotification_ReturnsNotification() {
         var selector = _selectors.SelectCurrentNotification();
 
         selector.CurrentValue.Should().NotBeNull();
@@ -242,16 +216,14 @@ public sealed class AppStateSelectorsTests : IDisposable
     #region MCP Selectors
 
     [Fact]
-    public void SelectMcpServers_ReturnsServers()
-    {
+    public void SelectMcpServers_ReturnsServers() {
         var selector = _selectors.SelectMcpServers();
 
         selector.CurrentValue.Should().HaveCount(2);
     }
 
     [Fact]
-    public void SelectAvailableTools_ReturnsTools()
-    {
+    public void SelectAvailableTools_ReturnsTools() {
         var selector = _selectors.SelectAvailableTools();
 
         selector.CurrentValue.Should().HaveCount(2);
@@ -259,8 +231,7 @@ public sealed class AppStateSelectorsTests : IDisposable
     }
 
     [Fact]
-    public void SelectConnectedMcpServerCount_ReturnsConnectedCount()
-    {
+    public void SelectConnectedMcpServerCount_ReturnsConnectedCount() {
         var selector = _selectors.SelectConnectedMcpServerCount();
 
         selector.CurrentValue.Should().Be(1);
@@ -271,16 +242,14 @@ public sealed class AppStateSelectorsTests : IDisposable
     #region Bridge Selectors
 
     [Fact]
-    public void SelectBridgeConnected_ReturnsConnectionState()
-    {
+    public void SelectBridgeConnected_ReturnsConnectionState() {
         var selector = _selectors.SelectBridgeConnected();
 
         selector.CurrentValue.Should().BeTrue();
     }
 
     [Fact]
-    public void SelectBridgeEnabled_ReturnsEnabledState()
-    {
+    public void SelectBridgeEnabled_ReturnsEnabledState() {
         var selector = _selectors.SelectBridgeEnabled();
 
         selector.CurrentValue.Should().BeTrue();
@@ -291,16 +260,14 @@ public sealed class AppStateSelectorsTests : IDisposable
     #region Permission Selectors
 
     [Fact]
-    public void SelectPermissionMode_ReturnsMode()
-    {
+    public void SelectPermissionMode_ReturnsMode() {
         var selector = _selectors.SelectPermissionMode();
 
         selector.CurrentValue.Should().Be(PermissionMode.Auto);
     }
 
     [Fact]
-    public void SelectPendingPermissions_ReturnsPendingRequests()
-    {
+    public void SelectPendingPermissions_ReturnsPendingRequests() {
         var selector = _selectors.SelectPendingPermissions();
 
         selector.CurrentValue.Should().HaveCount(1);
@@ -311,8 +278,7 @@ public sealed class AppStateSelectorsTests : IDisposable
     #region Combined Selectors
 
     [Fact]
-    public void SelectSessionOverview_ReturnsCorrectOverview()
-    {
+    public void SelectSessionOverview_ReturnsCorrectOverview() {
         var selector = _selectors.SelectSessionOverview();
 
         selector.CurrentValue.SessionId.Should().Be("session-001");
@@ -322,8 +288,7 @@ public sealed class AppStateSelectorsTests : IDisposable
     }
 
     [Fact]
-    public void SelectWorkloadOverview_ReturnsCorrectOverview()
-    {
+    public void SelectWorkloadOverview_ReturnsCorrectOverview() {
         var selector = _selectors.SelectWorkloadOverview();
 
         selector.CurrentValue.RunningAgents.Should().Be(1);
@@ -336,8 +301,7 @@ public sealed class AppStateSelectorsTests : IDisposable
     #region Metrics
 
     [Fact]
-    public void SelectSessionId_RecordsTelemetry()
-    {
+    public void SelectSessionId_RecordsTelemetry() {
         _selectors.SelectSessionId();
 
         _telemetry.Counters.Should().Contain(c =>
@@ -348,8 +312,7 @@ public sealed class AppStateSelectorsTests : IDisposable
     }
 
     [Fact]
-    public void SelectWorkloadOverview_RecordsTelemetry()
-    {
+    public void SelectWorkloadOverview_RecordsTelemetry() {
         _selectors.SelectWorkloadOverview();
 
         _telemetry.Counters.Should().Contain(c =>
@@ -361,12 +324,9 @@ public sealed class AppStateSelectorsTests : IDisposable
 
     #endregion
 
-    private static AppState CreateSampleState()
-    {
-        return new AppState
-        {
-            Session = new SessionState
-            {
+    private static AppState CreateSampleState() {
+        return new AppState {
+            Session = new SessionState {
                 SessionId = "session-001",
                 SystemPrompt = "You are a helpful assistant",
                 MessageList = ImmutableList.Create(
@@ -375,41 +335,35 @@ public sealed class AppStateSelectorsTests : IDisposable
                 CurrentModel = "gpt-4o",
                 IsPlanMode = true
             },
-            Agents = ImmutableDictionary.CreateRange(new Dictionary<string, AgentState>
-            {
+            Agents = ImmutableDictionary.CreateRange(new Dictionary<string, AgentState> {
                 ["agent-1"] = new() { AgentId = "agent-1", Name = "Alpha", Status = AgentStatus.Running },
                 ["agent-2"] = new() { AgentId = "agent-2", Name = "Beta", Status = AgentStatus.Idle }
             }),
-            Tasks = ImmutableDictionary.CreateRange(new Dictionary<string, JoinCode.Abstractions.State.TaskState>
-            {
+            Tasks = ImmutableDictionary.CreateRange(new Dictionary<string, JoinCode.Abstractions.State.TaskState> {
                 ["task-1"] = new() { TaskId = "task-1", Name = "Task One", Status = TaskExecutionStatus.Running },
                 ["task-2"] = new() { TaskId = "task-2", Name = "Task Two", Status = TaskExecutionStatus.Pending },
                 ["task-3"] = new() { TaskId = "task-3", Name = "Task Three", Status = TaskExecutionStatus.Completed }
             }),
-            Config = new ConfigState
-            {
+            Config = new ConfigState {
                 DebugLog = true,
                 IsBriefMode = false,
                 Theme = "dark",
                 MaxTokenBudget = 100000,
                 UsedTokens = 5000
             },
-            Ui = new UiState
-            {
+            Ui = new UiState {
                 StatusLineText = "Ready",
                 IsLoading = false,
                 CurrentNotification = new NotificationState { Message = "Hello" }
             },
-            Mcp = new McpState
-            {
+            Mcp = new McpState {
                 Servers = ImmutableList.Create(
                     new McpServerState { Name = "server-1", Status = McpConnectionStatus.Connected },
                     new McpServerState { Name = "server-2", Status = McpConnectionStatus.Disconnected }),
                 AvailableTools = ImmutableList.Create("read_file", "write_file")
             },
             Bridge = new BridgeState { Lifecycle = BridgeLifecycleState.Connected },
-            Permission = new PermissionState
-            {
+            Permission = new PermissionState {
                 PermissionMode = PermissionMode.Auto,
                 PendingRequests = ImmutableList.Create(new PermissionRequestState { ToolName = "read_file" })
             }

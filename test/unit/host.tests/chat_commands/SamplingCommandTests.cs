@@ -5,10 +5,8 @@ namespace Host.Tests.ChatCommands;
 /// 回归背景（T4）：温度与 MaxTokens 只有 GUI 设置面板能改（session 方法写 provider），
 /// CLI/TUI 无任何入口；新增共享 ChatCommand 让三端同享（对齐 /effort 的写回模式）。
 /// </summary>
-public sealed class SamplingCommandTests
-{
-    private sealed class StubSettingsProvider : IExecutionSettingsProvider
-    {
+public sealed class SamplingCommandTests {
+    private sealed class StubSettingsProvider : IExecutionSettingsProvider {
         public EffortLevel EffortLevel { get; set; } = EffortLevel.Auto;
         public bool ThinkingEnabled { get; set; }
         public bool FastMode => false;
@@ -17,19 +15,16 @@ public sealed class SamplingCommandTests
         public int? MaxTokens { get; set; }
     }
 
-    private static (SamplingCommand Cmd, StubSettingsProvider Provider, ChatCommandContext Ctx) Create(string arguments)
-    {
+    private static (SamplingCommand Cmd, StubSettingsProvider Provider, ChatCommandContext Ctx) Create(string arguments) {
         var provider = new StubSettingsProvider();
-        var services = new CommandServices
-        {
+        var services = new CommandServices {
             ChatService = Mock.Of<IChatService>(),
             CodeService = Mock.Of<ICodeService>(),
             PlanService = Mock.Of<IPlanService>(),
             FileSystem = TestFileSystem.Current,
             ExecutionSettingsProvider = provider,
         };
-        var ctx = new ChatCommandContext
-        {
+        var ctx = new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
             Services = new CommandServiceProvider(services),
@@ -38,15 +33,13 @@ public sealed class SamplingCommandTests
     }
 
     [Fact]
-    public void Name_Is_Sampling()
-    {
+    public void Name_Is_Sampling() {
         var cmd = new SamplingCommand();
         cmd.Name.Should().Be(ChatCommandNameEnumConstants.Sampling);
     }
 
     [Fact]
-    public async Task Execute_WithTemperatureAndMaxTokens_WritesBoth()
-    {
+    public async Task Execute_WithTemperatureAndMaxTokens_WritesBoth() {
         var (cmd, provider, ctx) = Create("0.7 4096");
 
         var result = await cmd.ExecuteAsync(ctx);
@@ -57,8 +50,7 @@ public sealed class SamplingCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithTemperatureOnly_LeavesMaxTokensUntouched()
-    {
+    public async Task Execute_WithTemperatureOnly_LeavesMaxTokensUntouched() {
         var (cmd, provider, ctx) = Create("0.3");
         provider.MaxTokens = 1024;
 
@@ -69,8 +61,7 @@ public sealed class SamplingCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithoutArgs_ShowsCurrent_AndWritesNothing()
-    {
+    public async Task Execute_WithoutArgs_ShowsCurrent_AndWritesNothing() {
         var (cmd, provider, ctx) = Create("");
         provider.Temperature = 0.5f;
 
@@ -81,8 +72,7 @@ public sealed class SamplingCommandTests
     }
 
     [Fact]
-    public async Task Execute_Unset_ClearsBoth()
-    {
+    public async Task Execute_Unset_ClearsBoth() {
         var (cmd, provider, ctx) = Create("unset");
         provider.Temperature = 0.9f;
         provider.MaxTokens = 8192;
@@ -97,8 +87,7 @@ public sealed class SamplingCommandTests
     [InlineData("abc")]
     [InlineData("-1")]
     [InlineData("2.5")]
-    public async Task Execute_WithInvalidTemperature_DoesNotWrite(string args)
-    {
+    public async Task Execute_WithInvalidTemperature_DoesNotWrite(string args) {
         var (cmd, provider, ctx) = Create(args);
 
         var result = await cmd.ExecuteAsync(ctx);

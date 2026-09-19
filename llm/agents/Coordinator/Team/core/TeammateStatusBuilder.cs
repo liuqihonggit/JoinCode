@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Teammate 状态构建器 — 合并团队注册表与运行时观察器数据，生成 TeammateStatus 列表
 /// </summary>
-internal sealed class TeammateStatusBuilder
-{
+internal sealed class TeammateStatusBuilder {
     private readonly TeamRegistry _registry;
     private readonly Func<ITeammateObserver?> _resolveObserver;
 
@@ -13,8 +12,7 @@ internal sealed class TeammateStatusBuilder
     /// </summary>
     /// <param name="registry">团队注册表</param>
     /// <param name="resolveObserver">延迟解析 ITeammateObserver 的委托，打破循环依赖</param>
-    public TeammateStatusBuilder(TeamRegistry registry, Func<ITeammateObserver?> resolveObserver)
-    {
+    public TeammateStatusBuilder(TeamRegistry registry, Func<ITeammateObserver?> resolveObserver) {
         _registry = registry;
         _resolveObserver = resolveObserver;
     }
@@ -27,10 +25,8 @@ internal sealed class TeammateStatusBuilder
     /// <returns>Teammate 状态只读列表</returns>
     public async Task<IReadOnlyList<TeammateStatus>> GetTeammateStatusesAsync(
         string teamId,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return Array.Empty<TeammateStatus>();
         }
 
@@ -55,8 +51,7 @@ internal sealed class TeammateStatusBuilder
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>所有 Teammate 状态只读列表</returns>
     public async Task<IReadOnlyList<TeammateStatus>> GetAllTeammateStatusesAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var runningTeammates = _resolveObserver() is { } observer
             ? await observer.GetRunningTeammatesAsync().ConfigureAwait(false)
             : [];
@@ -65,13 +60,11 @@ internal sealed class TeammateStatusBuilder
 
         var statuses = new List<TeammateStatus>();
 
-        foreach (var room in _registry.Rooms)
-        {
+        foreach (var room in _registry.Rooms) {
             var team = room.Info;
             var memberDetails = room.MemberDetails;
 
-            foreach (var md in memberDetails.Values)
-            {
+            foreach (var md in memberDetails.Values) {
                 statuses.Add(BuildTeammateStatus(md, team, runningMap));
             }
         }
@@ -82,12 +75,10 @@ internal sealed class TeammateStatusBuilder
     private static TeammateStatus BuildTeammateStatus(
         TeamMemberInfo memberInfo,
         TeamInfo team,
-        Dictionary<string, TeammateInfo> runningMap)
-    {
+        Dictionary<string, TeammateInfo> runningMap) {
         runningMap.TryGetValue(memberInfo.AgentId, out var running);
 
-        return new TeammateStatus
-        {
+        return new TeammateStatus {
             AgentId = memberInfo.AgentId,
             TeamId = team.TeamId,
             TeamName = team.TeamName,

@@ -1,25 +1,21 @@
 namespace Core.Tests.Services.SystemPower;
 
-public sealed class PreventSleepServiceTests : IDisposable
-{
+public sealed class PreventSleepServiceTests : IDisposable {
     private readonly PreventSleepService _service;
     private bool _disposed;
 
-    public PreventSleepServiceTests()
-    {
+    public PreventSleepServiceTests() {
         _service = new PreventSleepService();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _service.DisposeSafe();
     }
 
     [Fact]
-    public async Task PreventSleep_Continuous_SetsIsSleepPrevented()
-    {
+    public async Task PreventSleep_Continuous_SetsIsSleepPrevented() {
         var result = await _service.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(true);
 
         result.Should().BeTrue();
@@ -27,19 +23,16 @@ public sealed class PreventSleepServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task PreventSleep_OneTime_ReturnsBooleanWithoutThrowing()
-    {
+    public async Task PreventSleep_OneTime_ReturnsBooleanWithoutThrowing() {
         var result = await _service.PreventSleepAsync(SleepPreventionType.OneTime).ConfigureAwait(true);
 
-        if (result)
-        {
+        if (result) {
             _service.IsSleepPrevented.Should().BeTrue();
         }
     }
 
     [Fact]
-    public async Task AllowSleep_RestoresNormalState()
-    {
+    public async Task AllowSleep_RestoresNormalState() {
         await _service.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(true);
 
         var result = await _service.AllowSleepAsync().ConfigureAwait(true);
@@ -49,8 +42,7 @@ public sealed class PreventSleepServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AllowSleep_WhenNotPrevented_ReturnsTrue()
-    {
+    public async Task AllowSleep_WhenNotPrevented_ReturnsTrue() {
         var result = await _service.AllowSleepAsync().ConfigureAwait(true);
 
         result.Should().BeTrue();
@@ -58,8 +50,7 @@ public sealed class PreventSleepServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Dispose_AllowsSleep()
-    {
+    public async Task Dispose_AllowsSleep() {
         await _service.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(true);
 
         _service.DisposeSafe();
@@ -68,8 +59,7 @@ public sealed class PreventSleepServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task PreventSleep_WhenAlreadyPrevented_ReturnsTrue()
-    {
+    public async Task PreventSleep_WhenAlreadyPrevented_ReturnsTrue() {
         await _service.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(true);
 
         var result = await _service.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(true);

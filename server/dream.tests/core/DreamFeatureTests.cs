@@ -4,15 +4,13 @@ namespace Dream.Tests;
 /// <summary>
 /// DreamFeature 单元测试
 /// </summary>
-public sealed class DreamFeatureTests
-{
+public sealed class DreamFeatureTests {
     private readonly Mock<IChatCompletionClient> _chatCompletionClientMock;
     private readonly Mock<ISessionScanner> _sessionScannerMock;
     private readonly InMemoryDreamTaskRegistry _taskRegistry;
     private readonly DreamFeature _feature;
 
-    public DreamFeatureTests()
-    {
+    public DreamFeatureTests() {
         _chatCompletionClientMock = new Mock<IChatCompletionClient>();
         _sessionScannerMock = new Mock<ISessionScanner>();
         _taskRegistry = new InMemoryDreamTaskRegistry();
@@ -26,8 +24,7 @@ public sealed class DreamFeatureTests
             logger: Mock.Of<ILogger<DreamFeature>>());
     }
 
-    private void SetupChatCompletionResponse(string content)
-    {
+    private void SetupChatCompletionResponse(string content) {
         _chatCompletionClientMock
             .Setup(c => c.GetCompletionAsync(
                 It.IsAny<MessageList>(),
@@ -36,8 +33,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenDisabledAndNotForce_ReturnsSkippedResult()
-    {
+    public async Task ExecuteAsync_WhenDisabledAndNotForce_ReturnsSkippedResult() {
         // Arrange
         var config = new AutoDreamConfig { Enabled = false };
         var feature = new DreamFeature(
@@ -56,8 +52,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenForceTrue_IgnoresGateCheck()
-    {
+    public async Task ExecuteAsync_WhenForceTrue_IgnoresGateCheck() {
         // Arrange
         _sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { "session1" });
@@ -80,8 +75,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithNoSessions_ReturnsSkippedResult()
-    {
+    public async Task ExecuteAsync_WithNoSessions_ReturnsSkippedResult() {
         // Arrange
         _sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<string>());
@@ -96,8 +90,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithInsufficientSessions_ReturnsSkippedResult()
-    {
+    public async Task ExecuteAsync_WithInsufficientSessions_ReturnsSkippedResult() {
         // Arrange
         var config = new AutoDreamConfig { Enabled = true, MinSessions = 5 };
         var feature = new DreamFeature(
@@ -119,8 +112,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithValidSessions_ReturnsSuccessResult()
-    {
+    public async Task ExecuteAsync_WithValidSessions_ReturnsSuccessResult() {
         // Arrange
         var sessions = new[] { "session1", "session2", "session3" };
         _sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
@@ -141,8 +133,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithSpecifiedSessions_UsesProvidedSessions()
-    {
+    public async Task ExecuteAsync_WithSpecifiedSessions_UsesProvidedSessions() {
         // Arrange
         var specifiedSessions = new[] { "custom1", "custom2" };
 
@@ -160,8 +151,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhenLLMThrows_ReturnsFailureResult()
-    {
+    public async Task ExecuteAsync_WhenLLMThrows_ReturnsFailureResult() {
         // Arrange
         _sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { "session1" });
@@ -183,8 +173,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_RegistersAndCompletesTask()
-    {
+    public async Task ExecuteAsync_RegistersAndCompletesTask() {
         // Arrange
         _sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { "session1" });
@@ -206,8 +195,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task GetTaskStatusAsync_ReturnsCorrectTask()
-    {
+    public async Task GetTaskStatusAsync_ReturnsCorrectTask() {
         // Arrange
         _sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { "session1" });
@@ -225,8 +213,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task GetTaskStatusAsync_NonExistentTask_ReturnsNull()
-    {
+    public async Task GetTaskStatusAsync_NonExistentTask_ReturnsNull() {
         // Act
         var task = await _feature.GetTaskStatusAsync("nonexistent").ConfigureAwait(true);
 
@@ -235,8 +222,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task ListTasksAsync_ReturnsAllTasks()
-    {
+    public async Task ListTasksAsync_ReturnsAllTasks() {
         // Arrange
         _sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { "session1" });
@@ -254,8 +240,7 @@ public sealed class DreamFeatureTests
     }
 
     [Fact]
-    public async Task KillTaskAsync_TerminatesRunningTask()
-    {
+    public async Task KillTaskAsync_TerminatesRunningTask() {
         // Arrange - 注册一个任务但不完成它
         var taskId = await _taskRegistry.RegisterDreamTaskAsync(
             new DreamTaskRegistrationRequest(

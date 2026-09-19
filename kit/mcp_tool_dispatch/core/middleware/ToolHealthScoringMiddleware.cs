@@ -6,8 +6,7 @@ namespace McpToolRegistry;
 /// 设计原则：永远不禁用工具，失败多次只注入提示词，由LLM自行决策是否换工具
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolExecutionMiddleware
-{
+public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolExecutionMiddleware {
     private readonly ToolHealthMonitor _monitor;
     private readonly ToolHypergraphScorer _scorer;
     private readonly ILogger<ToolHealthScoringMiddleware> _logger;
@@ -21,8 +20,7 @@ public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolEx
     public ToolHealthScoringMiddleware(
         ToolHealthMonitor monitor,
         ToolHypergraphScorer scorer,
-        ILogger<ToolHealthScoringMiddleware> logger)
-    {
+        ILogger<ToolHealthScoringMiddleware> logger) {
         _monitor = monitor;
         _scorer = scorer;
         _logger = logger;
@@ -40,13 +38,10 @@ public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolEx
     /// <param name="next">下一层中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct)
-    {
-        if (_monitor.IsBlacklisted(context.ToolName))
-        {
+    public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct) {
+        if (_monitor.IsBlacklisted(context.ToolName)) {
             _logger.LogWarning("工具 {ToolName} 已被用户加入黑名单，拒绝执行", context.ToolName);
-            context.Result = new ToolResult
-            {
+            context.Result = new ToolResult {
                 Content = [new ToolContent
                 {
                     Type = ToolContentType.Text,
@@ -65,21 +60,17 @@ public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolEx
 
         if (context.Result is null) return;
 
-        if (context.Result.IsError)
-        {
+        if (context.Result.IsError) {
             var errorMsg = context.Result.GetFirstText();
             await _monitor.RecordFailureAsync(context.ToolName, errorMsg, ct).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await _monitor.RecordSuccessAsync(context.ToolName, ct).ConfigureAwait(false);
         }
 
         var allRecords = await _monitor.GetAllRecordsAsync(ct).ConfigureAwait(false);
         _scorer.UpdateSharedScores(allRecords);
 
-        if (consecutiveFailuresBefore >= _monitor.Config.WarningThreshold && context.Result.IsError)
-        {
+        if (consecutiveFailuresBefore >= _monitor.Config.WarningThreshold && context.Result.IsError) {
             var effectiveScore = _scorer.CalculateFinalScore(context.ToolName, recordBefore?.Score ?? 0);
             _logger.LogWarning("工具 {ToolName} 连续失败{Count}次（评分{EffectiveScore}），注入提示词",
                 context.ToolName, consecutiveFailuresBefore, effectiveScore);
@@ -89,8 +80,7 @@ public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolEx
                 $"[系统提示] 工具 '{context.ToolName}' 已连续失败 {consecutiveFailuresBefore} 次" +
                 $"（评分: {effectiveScore}）。建议尝试替代工具或换一种方式完成任务。");
 
-            context.Result = context.Result with
-            {
+            context.Result = context.Result with {
                 InjectedMessages = [.. (context.Result.InjectedMessages ?? []), warning]
             };
         }

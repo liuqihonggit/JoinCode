@@ -11,8 +11,7 @@ namespace Core.Hooks.Execution.Interception;
 /// </para>
 /// </summary>
 [Flags]
-public enum InterceptionFlags : ushort
-{
+public enum InterceptionFlags : ushort {
     /// <summary>无匹配属性 — 命令不需要任何守卫干预</summary>
     None = 0,
 

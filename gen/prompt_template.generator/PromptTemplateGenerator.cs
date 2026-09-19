@@ -1,12 +1,10 @@
 namespace PromptTemplate.Generator;
 
 [Generator]
-internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBase<PromptTemplateGenerator.PromptTemplateInfo>
-{
+internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBase<PromptTemplateGenerator.PromptTemplateInfo> {
     internal override string AttributeFullName => "JoinCode.Abstractions.Attributes.PromptTemplateAttribute";
 
-    internal override PromptTemplateInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
-    {
+    internal override PromptTemplateInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation) {
         var name = AttributeScanner.GetStringNamedArg(attr, "Name");
         var category = AttributeScanner.GetIntNamedArg(attr, "Category");
         var description = AttributeScanner.GetStringNamedArg(attr, "Description") ?? "";
@@ -19,10 +17,8 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         string contentMethod = "";
         bool isFieldAccess = false;
 
-        if (!hasParameters)
-        {
-            if (!string.IsNullOrEmpty(contentMember))
-            {
+        if (!hasParameters) {
+            if (!string.IsNullOrEmpty(contentMember)) {
                 contentMethod = contentMember;
                 var isMethod = AttributeScanner.HasParameterlessStaticMethod(typeSymbol, contentMember);
                 var isField = AttributeScanner.HasStaticStringField(typeSymbol, contentMember);
@@ -30,31 +26,20 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
 
                 if (!isMethod && !isField)
                     return null;
-            }
-            else
-            {
-                if (AttributeScanner.HasParameterlessStaticMethod(typeSymbol, "GetContent"))
-                {
+            } else {
+                if (AttributeScanner.HasParameterlessStaticMethod(typeSymbol, "GetContent")) {
                     contentMethod = "GetContent";
                     isFieldAccess = false;
-                }
-                else if (AttributeScanner.HasParameterlessStaticMethod(typeSymbol, "GetPrompt"))
-                {
+                } else if (AttributeScanner.HasParameterlessStaticMethod(typeSymbol, "GetPrompt")) {
                     contentMethod = "GetPrompt";
                     isFieldAccess = false;
-                }
-                else if (AttributeScanner.HasStaticStringField(typeSymbol, "Prompt"))
-                {
+                } else if (AttributeScanner.HasStaticStringField(typeSymbol, "Prompt")) {
                     contentMethod = "Prompt";
                     isFieldAccess = true;
-                }
-                else if (AttributeScanner.HasStaticStringField(typeSymbol, "SystemPrompt"))
-                {
+                } else if (AttributeScanner.HasStaticStringField(typeSymbol, "SystemPrompt")) {
                     contentMethod = "SystemPrompt";
                     isFieldAccess = true;
-                }
-                else
-                {
+                } else {
                     return null;
                 }
             }
@@ -72,8 +57,7 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
             hasParameters);
     }
 
-    internal override void GenerateRegistration(SourceProductionContext context, ImmutableArray<PromptTemplateInfo> infos)
-    {
+    internal override void GenerateRegistration(SourceProductionContext context, ImmutableArray<PromptTemplateInfo> infos) {
         var orderedInfos = infos.OrderBy(i => i.Category).ThenBy(i => i.Name).ToList();
 
         if (orderedInfos.Count == 0)
@@ -102,8 +86,7 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         sb.AppendLine("        return templateName switch");
         sb.AppendLine("        {");
 
-        foreach (var info in orderedInfos)
-        {
+        foreach (var info in orderedInfos) {
             if (info.HasParameters) continue;
 
             var fqn = info.FullyQualifiedName;
@@ -124,8 +107,7 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         sb.AppendLine("    public static IEnumerable<(string Name, string Category, string Description, bool HasParameters)> GetAllTemplates()");
         sb.AppendLine("    {");
 
-        foreach (var info in orderedInfos)
-        {
+        foreach (var info in orderedInfos) {
             var categoryName = ((PromptTemplateCategoryValue)info.Category).ToString();
             var escaped = info.Description.Replace("\"", "\\\"");
             sb.AppendLine($"        yield return (\"{info.Name}\", \"{categoryName}\", \"{escaped}\", {info.HasParameters.ToString().ToLowerInvariant()});");
@@ -137,14 +119,11 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         context.AddSource($"{className}.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private static string InferClassName(List<PromptTemplateInfo> infos)
-    {
+    private static string InferClassName(List<PromptTemplateInfo> infos) {
         var categories = infos.Select(i => (PromptTemplateCategoryValue)i.Category).Distinct().ToList();
 
-        if (categories.Count == 1)
-        {
-            return categories[0] switch
-            {
+        if (categories.Count == 1) {
+            return categories[0] switch {
                 PromptTemplateCategoryValue.Memory or PromptTemplateCategoryValue.Agent or PromptTemplateCategoryValue.Plan => "BrainPromptTemplates",
                 PromptTemplateCategoryValue.Dream => "DreamPromptTemplates",
                 PromptTemplateCategoryValue.Mcp => "McpPromptTemplates",
@@ -164,8 +143,7 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         return "PromptTemplates";
     }
 
-    private enum PromptTemplateCategoryValue
-    {
+    private enum PromptTemplateCategoryValue {
         Memory = 0,
         Agent = 1,
         System = 2,
@@ -176,8 +154,7 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         Goal = 7
     }
 
-    internal sealed class PromptTemplateInfo
-    {
+    internal sealed class PromptTemplateInfo {
         public string FullyQualifiedName { get; }
         public string TypeName { get; }
         public string Namespace { get; }
@@ -191,8 +168,7 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         public PromptTemplateInfo(
             string fullyQualifiedName, string typeName, string ns,
             string name, int category, string description,
-            string contentMethod, bool isFieldAccess, bool hasParameters)
-        {
+            string contentMethod, bool isFieldAccess, bool hasParameters) {
             FullyQualifiedName = fullyQualifiedName;
             TypeName = typeName;
             Namespace = ns;

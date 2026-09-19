@@ -3,8 +3,7 @@ namespace Structura.Dag;
 /// <summary>
 /// DAG 边类型标签
 /// </summary>
-public sealed class DagEdge
-{
+public sealed class DagEdge {
     /// <summary>边唯一标识,默认生成 GUID(N 格式)</summary>
     public string Id { get; init; } = Guid.NewGuid().ToString("N");
     /// <summary>源节点 ID</summary>

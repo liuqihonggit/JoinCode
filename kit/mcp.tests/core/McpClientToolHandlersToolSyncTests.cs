@@ -4,11 +4,9 @@ namespace Mcp.Tests;
 /// McpConnectAsync 连接成功后应同步远程工具到注册表，
 /// 否则 ToolSearch 无法发现刚连接的 MCP 工具（两阶段加载链路断裂）。
 /// </summary>
-public sealed class McpClientToolHandlersToolSyncTests
-{
+public sealed class McpClientToolHandlersToolSyncTests {
     [Fact]
-    public async Task McpConnectAsync_ConnectionSucceeded_SyncsRemoteTools()
-    {
+    public async Task McpConnectAsync_ConnectionSucceeded_SyncsRemoteTools() {
         var client = new FakeMcpClient();
         var factory = new FakeClientFactory(client);
         var registry = new FakeMcpToolRegistry();
@@ -25,8 +23,7 @@ public sealed class McpClientToolHandlersToolSyncTests
         registry.SyncedClients.Should().Contain("mock", "连接成功后应同步远程工具，使 ToolSearch 可发现");
     }
 
-    private sealed class FakeMcpClient : IMcpClient
-    {
+    private sealed class FakeMcpClient : IMcpClient {
         public bool IsConnected => true;
         public Implementation? ServerInfo => new Implementation { Name = "FakeMcp", Version = "1.0.0" };
         public ServerCapabilities? ServerCapabilities => new ServerCapabilities { Tools = new ToolsCapability { ListChanged = true } };
@@ -59,8 +56,7 @@ public sealed class McpClientToolHandlersToolSyncTests
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private sealed class FakeClientFactory : IMcpClientFactory
-    {
+    private sealed class FakeClientFactory : IMcpClientFactory {
         private readonly IMcpClient _client;
         public FakeClientFactory(IMcpClient client) => _client = client;
 
@@ -68,12 +64,10 @@ public sealed class McpClientToolHandlersToolSyncTests
         public IMcpClient CreateClient(McpServerConnectionConfig config, bool enableFallback, ILogger? logger = null) => _client;
     }
 
-    private sealed class FakeMcpToolRegistry : IMcpToolRegistry
-    {
+    private sealed class FakeMcpToolRegistry : IMcpToolRegistry {
         public List<string> SyncedClients { get; } = [];
 
-        public Task<RemoteToolsSyncResult> SyncRemoteToolsAsync(string clientId, CancellationToken cancellationToken = default)
-        {
+        public Task<RemoteToolsSyncResult> SyncRemoteToolsAsync(string clientId, CancellationToken cancellationToken = default) {
             SyncedClients.Add(clientId);
             return Task.FromResult(new RemoteToolsSyncResult(true, ["mock_echo"]));
         }

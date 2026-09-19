@@ -4,8 +4,7 @@ namespace Services.Lsp.Internal;
 /// LSP 服务器状态 — 与 Clock 组件的 ServiceStatus 结构相似，
 /// 唯一差异：Error（可恢复错误）vs Failed（彻底失败）
 /// </summary>
-public enum LspServerState
-{
+public enum LspServerState {
     /// <summary>已停止 — 初始状态</summary>
     [EnumValue("stopped")] Stopped,
     /// <summary>启动中 — 正在连接 LSP 进程</summary>
@@ -21,8 +20,7 @@ public enum LspServerState
 /// <summary>
 /// LSP 服务器事件 — 触发状态转换的事件（ADR 0040 事件枚举）
 /// </summary>
-internal enum LspServerEvent
-{
+internal enum LspServerEvent {
     /// <summary>启动请求 — Stopped/Error → Starting</summary>
     Start,
     /// <summary>连接成功 — Starting → Running</summary>
@@ -40,8 +38,7 @@ internal enum LspServerEvent
 /// <summary>
 /// LSP 服务器实例接口 — 管理单个 LSP 进程的生命周期与通信
 /// </summary>
-public interface ILspServerInstance : IAsyncDisposable
-{
+public interface ILspServerInstance : IAsyncDisposable {
     /// <summary>服务器名称</summary>
     string Name { get; }
     /// <summary>当前状态</summary>
@@ -92,8 +89,7 @@ public interface ILspServerInstance : IAsyncDisposable
 /// <summary>
 /// LSP 服务器错误事件参数
 /// </summary>
-public sealed partial class LspServerErrorEventArgs : EventArgs
-{
+public sealed partial class LspServerErrorEventArgs : EventArgs {
     /// <summary>错误异常</summary>
     public required Exception Error { get; init; }
     /// <summary>服务器名称</summary>
@@ -103,8 +99,7 @@ public sealed partial class LspServerErrorEventArgs : EventArgs
 /// <summary>
 /// LSP 服务器状态变更事件参数
 /// </summary>
-public sealed partial class LspServerStateChangedEventArgs : EventArgs
-{
+public sealed partial class LspServerStateChangedEventArgs : EventArgs {
     /// <summary>旧状态</summary>
     public required LspServerState OldState { get; init; }
     /// <summary>新状态</summary>
@@ -114,8 +109,7 @@ public sealed partial class LspServerStateChangedEventArgs : EventArgs
 /// <summary>
 /// LSP 实例配置 — 定义 LSP 进程的启动参数与连接选项
 /// </summary>
-public sealed partial class LspInstanceConfig
-{
+public sealed partial class LspInstanceConfig {
     /// <summary>服务器名称 — 唯一标识</summary>
     public required string Name { get; init; }
     /// <summary>语言标识 — 如 "csharp"、"python"</summary>
@@ -149,8 +143,7 @@ public sealed partial class LspInstanceConfig
 [Transition(LspServerState.Error, LspServerEvent.BeginStop, LspServerState.Stopping)]
 [Transition(LspServerState.Stopping, LspServerEvent.StopSucceeded, LspServerState.Stopped)]
 [Transition(LspServerState.Stopping, LspServerEvent.StopFailed, LspServerState.Error)]
-public sealed partial class LspServerInstance : ILspServerInstance
-{
+public sealed partial class LspServerInstance : ILspServerInstance {
     private const int LspErrorContentModified = -32801;
     private const int MaxRetriesForTransientErrors = 3;
     private const int RetryBaseDelayMs = 500;
@@ -191,8 +184,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
     /// <param name="fs">文件系统抽象</param>
     /// <param name="processService">进程服务抽象</param>
     /// <param name="logger">日志器</param>
-    public LspServerInstance(LspInstanceConfig config, IFileSystem fs, IProcessService processService, ILogger logger)
-    {
+    public LspServerInstance(LspInstanceConfig config, IFileSystem fs, IProcessService processService, ILogger logger) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _client = new LspClient(fs, processService, logger);
@@ -201,8 +193,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
         _stateMachine.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
 
-    private void OnStateChanged(object? sender, TransitionResult<LspServerState, LspServerEvent> e)
-    {
+    private void OnStateChanged(object? sender, TransitionResult<LspServerState, LspServerEvent> e) {
         _logger.LogInformation("LSP server '{Name}' state: {OldState} → {NewState}", Name, e.FromState, e.ToState);
         StateChanged?.Invoke(this, new LspServerStateChangedEventArgs { OldState = e.FromState, NewState = e.ToState });
     }
@@ -212,47 +203,39 @@ public sealed partial class LspServerInstance : ILspServerInstance
     /// </summary>
     /// <param name="workingDirectory">工作目录 — null 使用配置默认值</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task StartAsync(string? workingDirectory = null, CancellationToken cancellationToken = default)
-    {
-        if (State is LspServerState.Running or LspServerState.Starting)
-        {
+    public async Task StartAsync(string? workingDirectory = null, CancellationToken cancellationToken = default) {
+        if (State is LspServerState.Running or LspServerState.Starting) {
             _logger.LogDebug("LSP server '{Name}' is already {State}", Name, State);
             return;
         }
 
         var maxRestarts = _config.MaxRestarts ?? DefaultMaxRestarts;
-        if (State == LspServerState.Error && _crashRecoveryCount > maxRestarts)
-        {
+        if (State == LspServerState.Error && _crashRecoveryCount > maxRestarts) {
             var error = new InvalidOperationException($"LSP server '{Name}' exceeded max crash recovery attempts ({maxRestarts})");
             _lastError = error;
             ErrorOccurred?.Invoke(this, new LspServerErrorEventArgs { Error = error, ServerName = Name });
             throw error;
         }
 
-        try
-        {
+        try {
             _stateMachine.Trigger(LspServerEvent.Start);
 
             var effectiveWorkDir = workingDirectory ?? _config.WorkingDirectory;
-            var connected = await _client.ConnectAsync(new LspServerConfig
-            {
+            var connected = await _client.ConnectAsync(new LspServerConfig {
                 LanguageId = _config.LanguageId,
                 Command = _config.Command,
                 Arguments = _config.Arguments,
                 WorkingDirectory = effectiveWorkDir,
             }, cancellationToken).ConfigureAwait(false);
 
-            if (!connected)
-            {
+            if (!connected) {
                 throw new InvalidOperationException($"Failed to connect to LSP server '{Name}'");
             }
 
             _stateMachine.Trigger(LspServerEvent.ConnectSucceeded);
             _crashRecoveryCount = 0;
             _logger.LogInformation("LSP server '{Name}' started successfully", Name);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _lastError = ex;
             _stateMachine.ForceSet(LspServerState.Error);
             ErrorOccurred?.Invoke(this, new LspServerErrorEventArgs { Error = ex, ServerName = Name });
@@ -265,22 +248,17 @@ public sealed partial class LspServerInstance : ILspServerInstance
     /// 停止 LSP 服务器
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task StopAsync(CancellationToken cancellationToken = default)
-    {
-        if (State is LspServerState.Stopped or LspServerState.Stopping)
-        {
+    public async Task StopAsync(CancellationToken cancellationToken = default) {
+        if (State is LspServerState.Stopped or LspServerState.Stopping) {
             return;
         }
 
-        try
-        {
+        try {
             _stateMachine.Trigger(LspServerEvent.BeginStop);
             await _client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
             _stateMachine.Trigger(LspServerEvent.StopSucceeded);
             _logger.LogInformation("LSP server '{Name}' stopped", Name);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _lastError = ex;
             _stateMachine.ForceSet(LspServerState.Error);
             ErrorOccurred?.Invoke(this, new LspServerErrorEventArgs { Error = ex, ServerName = Name });
@@ -292,14 +270,12 @@ public sealed partial class LspServerInstance : ILspServerInstance
     /// 重启 LSP 服务器
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task RestartAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task RestartAsync(CancellationToken cancellationToken = default) {
         await StopAsync(cancellationToken).ConfigureAwait(false);
 
         _restartCount++;
         var maxRestarts = _config.MaxRestarts ?? DefaultMaxRestarts;
-        if (_restartCount > maxRestarts)
-        {
+        if (_restartCount > maxRestarts) {
             throw new InvalidOperationException($"LSP server '{Name}' exceeded max restart attempts ({maxRestarts})");
         }
 
@@ -313,33 +289,25 @@ public sealed partial class LspServerInstance : ILspServerInstance
     /// <param name="params">请求参数 — null 表示无参数</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>响应 JSON 节点 — null 表示无返回值</returns>
-    public async Task<JsonNode?> SendRequestAsync(string method, object? @params, CancellationToken cancellationToken = default)
-    {
-        if (!IsHealthy)
-        {
+    public async Task<JsonNode?> SendRequestAsync(string method, object? @params, CancellationToken cancellationToken = default) {
+        if (!IsHealthy) {
             var errorMsg = _lastError != null ? $", last error: {_lastError.Message}" : "";
             throw new InvalidOperationException($"Cannot send request to LSP server '{Name}': server is {State}{errorMsg}");
         }
 
         Exception? lastAttemptError = null;
 
-        for (var attempt = 0; attempt <= MaxRetriesForTransientErrors; attempt++)
-        {
-            try
-            {
+        for (var attempt = 0; attempt <= MaxRetriesForTransientErrors; attempt++) {
+            try {
                 return await SendRequestCoreAsync(method, @params, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (IsContentModifiedError(ex) && attempt < MaxRetriesForTransientErrors)
-            {
+            } catch (Exception ex) when (IsContentModifiedError(ex) && attempt < MaxRetriesForTransientErrors) {
                 lastAttemptError = ex;
                 var delay = RetryBaseDelayMs * (int)Math.Pow(2, attempt);
                 _logger.LogDebug("LSP request '{Method}' to '{Name}' got ContentModified, retrying in {Delay}ms (attempt {Attempt}/{Max})",
                     method, Name, delay, attempt + 1, MaxRetriesForTransientErrors);
                 await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                 continue;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 lastAttemptError = ex;
                 break;
             }
@@ -354,28 +322,21 @@ public sealed partial class LspServerInstance : ILspServerInstance
     /// <param name="method">通知方法名</param>
     /// <param name="params">通知参数 — null 表示无参数</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task SendNotificationAsync(string method, object? @params, CancellationToken cancellationToken = default)
-    {
-        if (!IsHealthy)
-        {
+    public async Task SendNotificationAsync(string method, object? @params, CancellationToken cancellationToken = default) {
+        if (!IsHealthy) {
             throw new InvalidOperationException($"Cannot send notification to LSP server '{Name}': server is {State}");
         }
 
-        try
-        {
+        try {
             await SendNotificationCoreAsync(method, @params, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogError(ex, "LSP notification '{Method}' failed for server '{Name}'", method, Name);
             throw;
         }
     }
 
-    private async Task<JsonNode?> SendRequestCoreAsync(string method, object? @params, CancellationToken cancellationToken)
-    {
-        var node = @params switch
-        {
+    private async Task<JsonNode?> SendRequestCoreAsync(string method, object? @params, CancellationToken cancellationToken) {
+        var node = @params switch {
             JsonNode jn => jn,
             Dictionary<string, JsonElement> dict => JsonSerializer.SerializeToNode(dict, LspJsonContext.Default.DictionaryStringJsonElement),
             LspTextDocumentPositionParams p => JsonSerializer.SerializeToNode(p, LspJsonContext.Default.LspTextDocumentPositionParams),
@@ -388,10 +349,8 @@ public sealed partial class LspServerInstance : ILspServerInstance
         return await _client.SendRequestCoreAsync(method, node, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task SendNotificationCoreAsync(string method, object? @params, CancellationToken cancellationToken)
-    {
-        var node = @params switch
-        {
+    private async Task SendNotificationCoreAsync(string method, object? @params, CancellationToken cancellationToken) {
+        var node = @params switch {
             JsonNode jn => jn,
             Dictionary<string, JsonElement> dict => JsonSerializer.SerializeToNode(dict, LspJsonContext.Default.DictionaryStringJsonElement),
             LspTextDocumentPositionParams p => JsonSerializer.SerializeToNode(p, LspJsonContext.Default.LspTextDocumentPositionParams),
@@ -409,8 +368,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
     /// </summary>
     /// <param name="method">通知方法名</param>
     /// <param name="handler">通知处理委托</param>
-    public void OnNotification(string method, Func<JsonNode?, CancellationToken, ValueTask> handler)
-    {
+    public void OnNotification(string method, Func<JsonNode?, CancellationToken, ValueTask> handler) {
         _client.OnNotification(method, handler);
     }
 
@@ -419,13 +377,11 @@ public sealed partial class LspServerInstance : ILspServerInstance
     /// </summary>
     /// <param name="method">请求方法名</param>
     /// <param name="handler">请求处理委托 — 返回响应 JSON 节点</param>
-    public void OnRequest(string method, Func<string, JsonNode?, CancellationToken, ValueTask<JsonNode?>> handler)
-    {
+    public void OnRequest(string method, Func<string, JsonNode?, CancellationToken, ValueTask<JsonNode?>> handler) {
         _client.OnRequest(method, handler);
     }
 
-    private static bool IsContentModifiedError(Exception ex)
-    {
+    private static bool IsContentModifiedError(Exception ex) {
         return ex is InvalidOperationException ioe &&
                ioe.Data.Contains("LspErrorCode") &&
                ioe.Data["LspErrorCode"] is int code &&
@@ -435,8 +391,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
     /// <summary>
     /// 异步释放 — 停止服务器并释放底层客户端资源
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
 
         await StopAsync().ConfigureAwait(false);

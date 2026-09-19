@@ -5,11 +5,9 @@ namespace Core.Tests.Context;
 /// ChatTiming.FormatSummary 缓存统计输出单元测试
 /// 验证 [Timing] 行在传入 TokenUsage 时正确显示前缀缓存命中情况（省钱刚需可见性）
 /// </summary>
-public partial class ChatTimingSummaryTests
-{
+public partial class ChatTimingSummaryTests {
     [Fact]
-    public void FormatSummary_WithoutUsage_DoesNotContainCacheStats()
-    {
+    public void FormatSummary_WithoutUsage_DoesNotContainCacheStats() {
         var timing = new ChatTiming();
         timing.StartTotal();
         timing.StopTotal();
@@ -22,8 +20,7 @@ public partial class ChatTimingSummaryTests
     }
 
     [Fact]
-    public void FormatSummary_WithNullUsage_DoesNotContainCacheStats()
-    {
+    public void FormatSummary_WithNullUsage_DoesNotContainCacheStats() {
         var timing = new ChatTiming();
         timing.StartTotal();
         timing.StopTotal();
@@ -35,13 +32,11 @@ public partial class ChatTimingSummaryTests
     }
 
     [Fact]
-    public void FormatSummary_WithCacheHit_ShowsCacheStats()
-    {
+    public void FormatSummary_WithCacheHit_ShowsCacheStats() {
         var timing = new ChatTiming();
         timing.StartTotal();
         timing.StopTotal();
-        var usage = new TokenUsage
-        {
+        var usage = new TokenUsage {
             PromptTokens = 10470,
             CompletionTokens = 100,
             CacheCreationInputTokens = 1729,
@@ -55,13 +50,11 @@ public partial class ChatTimingSummaryTests
     }
 
     [Fact]
-    public void FormatSummary_WithZeroCache_ShowsZeroStats()
-    {
+    public void FormatSummary_WithZeroCache_ShowsZeroStats() {
         var timing = new ChatTiming();
         timing.StartTotal();
         timing.StopTotal();
-        var usage = new TokenUsage
-        {
+        var usage = new TokenUsage {
             PromptTokens = 8963,
             CompletionTokens = 50,
             CacheCreationInputTokens = 8963,
@@ -75,15 +68,13 @@ public partial class ChatTimingSummaryTests
     }
 
     [Fact]
-    public void FormatSummary_PreservesTimingFields_WhenUsageProvided()
-    {
+    public void FormatSummary_PreservesTimingFields_WhenUsageProvided() {
         var timing = new ChatTiming();
         timing.StartTotal();
         timing.StopTotal();
         timing.FirstTokenLatencyMs = 563;
         timing.LlmCallCount = 9;
-        var usage = new TokenUsage
-        {
+        var usage = new TokenUsage {
             CacheCreationInputTokens = 0,
             CacheReadInputTokens = 8741,
         };

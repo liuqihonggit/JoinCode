@@ -1,10 +1,8 @@
 namespace Core.Tests.Configuration;
 
-public sealed class RuleFrontmatterParserTests
-{
+public sealed class RuleFrontmatterParserTests {
     [Fact]
-    public void Parse_NoFrontmatter_Should_Return_Raw_Content()
-    {
+    public void Parse_NoFrontmatter_Should_Return_Raw_Content() {
         var (content, alwaysApply, globs, description) = RuleFrontmatterParser.Parse("Just a rule");
 
         Assert.Equal("Just a rule", content);
@@ -14,8 +12,7 @@ public sealed class RuleFrontmatterParserTests
     }
 
     [Fact]
-    public void Parse_WithAlwaysApply_Should_Parse_Bool()
-    {
+    public void Parse_WithAlwaysApply_Should_Parse_Bool() {
         var raw = "---\nalwaysApply: true\n---\nRule content";
         var (content, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(raw);
 
@@ -24,8 +21,7 @@ public sealed class RuleFrontmatterParserTests
     }
 
     [Fact]
-    public void Parse_WithGlobs_Should_Parse_Patterns()
-    {
+    public void Parse_WithGlobs_Should_Parse_Patterns() {
         var raw = "---\nglobs: \"*.cs, *.tsx\"\n---\nTypeScript rules";
         var (content, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(raw);
 
@@ -34,8 +30,7 @@ public sealed class RuleFrontmatterParserTests
     }
 
     [Fact]
-    public void Parse_WithDescription_Should_Parse_Text()
-    {
+    public void Parse_WithDescription_Should_Parse_Text() {
         var raw = "---\ndescription: \"Rules for API development\"\n---\nAPI rules";
         var (content, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(raw);
 
@@ -44,8 +39,7 @@ public sealed class RuleFrontmatterParserTests
     }
 
     [Fact]
-    public void Parse_AllFields_Should_Parse_Everything()
-    {
+    public void Parse_AllFields_Should_Parse_Everything() {
         var raw = "---\nalwaysApply: false\nglobs: \"*.py\"\ndescription: Python rules\n---\nPython coding standards";
         var (content, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(raw);
 
@@ -56,8 +50,7 @@ public sealed class RuleFrontmatterParserTests
     }
 
     [Fact]
-    public void Parse_UnclosedFrontmatter_Should_Return_Raw()
-    {
+    public void Parse_UnclosedFrontmatter_Should_Return_Raw() {
         var raw = "---\nalwaysApply: true\nNo closing";
         var (content, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(raw);
 
@@ -66,8 +59,7 @@ public sealed class RuleFrontmatterParserTests
     }
 
     [Fact]
-    public void Parse_WithQuotedDescription_Should_Strip_Quotes()
-    {
+    public void Parse_WithQuotedDescription_Should_Strip_Quotes() {
         var raw = "---\ndescription: 'My rule'\n---\nBody";
         var (content, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(raw);
 
@@ -75,8 +67,7 @@ public sealed class RuleFrontmatterParserTests
     }
 
     [Fact]
-    public void Parse_AlwaysApplyHyphenated_Should_Parse()
-    {
+    public void Parse_AlwaysApplyHyphenated_Should_Parse() {
         var raw = "---\nalways-apply: true\n---\nBody";
         var (content, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(raw);
 
@@ -84,73 +75,61 @@ public sealed class RuleFrontmatterParserTests
     }
 }
 
-public sealed class RuleFileTests
-{
+public sealed class RuleFileTests {
     [Fact]
-    public void MatchStrategy_AlwaysApply_Should_Be_Always()
-    {
+    public void MatchStrategy_AlwaysApply_Should_Be_Always() {
         var rule = new RuleFile { Name = "test", Content = "test", AlwaysApply = true };
         Assert.Equal(RuleMatchStrategy.Always, rule.MatchStrategy);
     }
 
     [Fact]
-    public void MatchStrategy_WithGlobs_Should_Be_Glob()
-    {
+    public void MatchStrategy_WithGlobs_Should_Be_Glob() {
         var rule = new RuleFile { Name = "test", Content = "test", Globs = "*.cs" };
         Assert.Equal(RuleMatchStrategy.Glob, rule.MatchStrategy);
     }
 
     [Fact]
-    public void MatchStrategy_WithDescription_Should_Be_Description()
-    {
+    public void MatchStrategy_WithDescription_Should_Be_Description() {
         var rule = new RuleFile { Name = "test", Content = "test", Description = "API rules" };
         Assert.Equal(RuleMatchStrategy.Description, rule.MatchStrategy);
     }
 
     [Fact]
-    public void MatchStrategy_NoMetadata_Should_Be_Manual()
-    {
+    public void MatchStrategy_NoMetadata_Should_Be_Manual() {
         var rule = new RuleFile { Name = "test", Content = "test" };
         Assert.Equal(RuleMatchStrategy.Manual, rule.MatchStrategy);
     }
 
     [Fact]
-    public void MatchStrategy_GlobsTakesPrecedenceOverDescription()
-    {
+    public void MatchStrategy_GlobsTakesPrecedenceOverDescription() {
         var rule = new RuleFile { Name = "test", Content = "test", Globs = "*.cs", Description = "C# rules" };
         Assert.Equal(RuleMatchStrategy.Glob, rule.MatchStrategy);
     }
 }
 
-public sealed class ExternalRulesLoaderTests
-{
+public sealed class ExternalRulesLoaderTests {
     [Fact]
-    public void MatchesGlobPattern_StarCs_Should_Match_CsFile()
-    {
+    public void MatchesGlobPattern_StarCs_Should_Match_CsFile() {
         Assert.True(ExternalRulesLoader.MatchesGlobPattern("Program.cs", "*.cs"));
     }
 
     [Fact]
-    public void MatchesGlobPattern_StarCs_Should_Not_Match_TsFile()
-    {
+    public void MatchesGlobPattern_StarCs_Should_Not_Match_TsFile() {
         Assert.False(ExternalRulesLoader.MatchesGlobPattern("app.ts", "*.cs"));
     }
 
     [Fact]
-    public void MatchesGlobPattern_ExactMatch_Should_Work()
-    {
+    public void MatchesGlobPattern_ExactMatch_Should_Work() {
         Assert.True(ExternalRulesLoader.MatchesGlobPattern("README.md", "README.md"));
     }
 
     [Fact]
-    public void MatchesGlobPattern_QuestionMark_Should_Match_SingleChar()
-    {
+    public void MatchesGlobPattern_QuestionMark_Should_Match_SingleChar() {
         Assert.True(ExternalRulesLoader.MatchesGlobPattern("f1.ts", "f?.ts"));
     }
 
     [Fact]
-    public void FilterAlwaysApply_Should_Return_OnlyAlwaysRules()
-    {
+    public void FilterAlwaysApply_Should_Return_OnlyAlwaysRules() {
         var loader = new ExternalRulesLoader(new IO.FileSystem.PhysicalFileSystem());
         var rules = new List<RuleFile>
         {
@@ -166,8 +145,7 @@ public sealed class ExternalRulesLoaderTests
     }
 
     [Fact]
-    public void FilterByGlobs_Should_Match_FilePath()
-    {
+    public void FilterByGlobs_Should_Match_FilePath() {
         var loader = new ExternalRulesLoader(new IO.FileSystem.PhysicalFileSystem());
         var rules = new List<RuleFile>
         {
@@ -182,8 +160,7 @@ public sealed class ExternalRulesLoaderTests
     }
 
     [Fact]
-    public void FilterByGlobs_MultiplePatterns_Should_Match_Any()
-    {
+    public void FilterByGlobs_MultiplePatterns_Should_Match_Any() {
         var loader = new ExternalRulesLoader(new IO.FileSystem.PhysicalFileSystem());
         var rules = new List<RuleFile>
         {
@@ -195,8 +172,7 @@ public sealed class ExternalRulesLoaderTests
     }
 
     [Fact]
-    public void FilterByDescription_Should_Return_DescriptionRules()
-    {
+    public void FilterByDescription_Should_Return_DescriptionRules() {
         var loader = new ExternalRulesLoader(new IO.FileSystem.PhysicalFileSystem());
         var rules = new List<RuleFile>
         {
@@ -211,14 +187,12 @@ public sealed class ExternalRulesLoaderTests
     }
 
     [Fact]
-    public Task LoadProjectRulesAsync_WithFrontmatter_Should_Parse_Metadata()
-    {
+    public Task LoadProjectRulesAsync_WithFrontmatter_Should_Parse_Metadata() {
         return Task.CompletedTask;
     }
 
     [Fact]
-    public Task LoadProjectRulesAsync_GlobRule_Should_Have_Glob_Strategy()
-    {
+    public Task LoadProjectRulesAsync_GlobRule_Should_Have_Glob_Strategy() {
         return Task.CompletedTask;
     }
 }

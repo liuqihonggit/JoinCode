@@ -7,8 +7,7 @@ namespace McpToolRegistry;
 /// 修正方式：按优先级遍历 IToolFixHook，将修正建议注入到结果的 InjectedMessages 中
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ToolFixHookMiddleware : ServiceEntity, IToolExecutionMiddleware
-{
+public sealed partial class ToolFixHookMiddleware : ServiceEntity, IToolExecutionMiddleware {
     private readonly Core.Hooks.Execution.ToolFixHookRegistry _fixHookRegistry;
     private readonly ILogger<ToolFixHookMiddleware> _logger;
 
@@ -19,8 +18,7 @@ public sealed partial class ToolFixHookMiddleware : ServiceEntity, IToolExecutio
     /// <param name="logger">日志记录器实例</param>
     public ToolFixHookMiddleware(
         Core.Hooks.Execution.ToolFixHookRegistry fixHookRegistry,
-        ILogger<ToolFixHookMiddleware> logger)
-    {
+        ILogger<ToolFixHookMiddleware> logger) {
         _fixHookRegistry = fixHookRegistry;
         _logger = logger;
     }
@@ -37,8 +35,7 @@ public sealed partial class ToolFixHookMiddleware : ServiceEntity, IToolExecutio
     /// <param name="next">下一层中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct) {
         await next(context, ct).ConfigureAwait(false);
 
         if (context.Result is null || !context.Result.IsError) return;
@@ -46,8 +43,7 @@ public sealed partial class ToolFixHookMiddleware : ServiceEntity, IToolExecutio
         var errorMsg = context.Result.GetFirstText();
         if (string.IsNullOrEmpty(errorMsg)) return;
 
-        try
-        {
+        try {
             var fixResult = await _fixHookRegistry.TryFixAsync(
                 context.ToolName,
                 new InvalidOperationException(errorMsg),
@@ -61,13 +57,10 @@ public sealed partial class ToolFixHookMiddleware : ServiceEntity, IToolExecutio
                 JoinCode.Abstractions.LLM.Chat.MessageRole.User,
                 $"[系统提示] 工具 '{context.ToolName}' 触发自动修正: {fixResult.Description}");
 
-            context.Result = context.Result with
-            {
+            context.Result = context.Result with {
                 InjectedMessages = [.. (context.Result.InjectedMessages ?? []), fixMessage]
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogWarning(ex, "工具 {ToolName} 修正 Hook 执行失败", context.ToolName);
         }
     }

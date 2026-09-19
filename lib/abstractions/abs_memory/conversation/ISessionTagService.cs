@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 会话标签服务接口 - 管理会话标签的增删查
 /// </summary>
-public interface ISessionTagService
-{
+public interface ISessionTagService {
     /// <summary>
     /// 为会话添加标签
     /// </summary>

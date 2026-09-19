@@ -4,18 +4,15 @@ namespace Core.Tests.Services;
 /// <summary>
 /// FileOperationService 单元测试 - 使用内存文件系统实现高速测试
 /// </summary>
-public sealed class FileOperationServiceTests : IDisposable
-{
+public sealed class FileOperationServiceTests : IDisposable {
     private readonly InMemoryFileOperationService _service;
     private bool _disposed;
 
-    public FileOperationServiceTests()
-    {
+    public FileOperationServiceTests() {
         _service = new InMemoryFileOperationService();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
 
@@ -23,8 +20,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadFileAsync_ExistingFile_ReturnsContent()
-    {
+    public async Task ReadFileAsync_ExistingFile_ReturnsContent() {
         // Arrange
         var filePath = "test.txt";
         var content = "Line 1\nLine 2\nLine 3";
@@ -41,8 +37,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadFileAsync_WithOffsetAndLimit_ReturnsPartialContent()
-    {
+    public async Task ReadFileAsync_WithOffsetAndLimit_ReturnsPartialContent() {
         // Arrange
         var filePath = "test.txt";
         var content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
@@ -59,8 +54,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadFileAsync_NonExistingFile_ReturnsFailure()
-    {
+    public async Task ReadFileAsync_NonExistingFile_ReturnsFailure() {
         // Arrange
         var filePath = "nonexistent.txt";
 
@@ -73,8 +67,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task WriteFileAsync_NewFile_CreatesFile()
-    {
+    public async Task WriteFileAsync_NewFile_CreatesFile() {
         // Arrange
         var filePath = "newfile.txt";
         var content = "Hello, World!";
@@ -91,8 +84,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task WriteFileAsync_ExistingFile_UpdatesFile()
-    {
+    public async Task WriteFileAsync_ExistingFile_UpdatesFile() {
         // Arrange
         var filePath = "existing.txt";
         await _service.WriteFileAsync(filePath, "Original content").ConfigureAwait(true);
@@ -110,8 +102,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditFileAsync_SingleReplace_ReplacesFirstOccurrence()
-    {
+    public async Task EditFileAsync_SingleReplace_ReplacesFirstOccurrence() {
         // Arrange
         var filePath = "edit.txt";
         await _service.WriteFileAsync(filePath, "alpha beta alpha").ConfigureAwait(true);
@@ -127,8 +118,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditFileAsync_ReplaceAll_ReplacesAllOccurrences()
-    {
+    public async Task EditFileAsync_ReplaceAll_ReplacesAllOccurrences() {
         // Arrange
         var filePath = "edit.txt";
         await _service.WriteFileAsync(filePath, "alpha beta alpha").ConfigureAwait(true);
@@ -144,8 +134,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditFileAsync_StringNotFound_ReturnsFailure()
-    {
+    public async Task EditFileAsync_StringNotFound_ReturnsFailure() {
         // Arrange
         var filePath = "edit.txt";
         await _service.WriteFileAsync(filePath, "some content").ConfigureAwait(true);
@@ -159,8 +148,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteFileAsync_ExistingFile_DeletesFile()
-    {
+    public async Task DeleteFileAsync_ExistingFile_DeletesFile() {
         // Arrange
         var filePath = "todelete.txt";
         await _service.WriteFileAsync(filePath, "content").ConfigureAwait(true);
@@ -174,8 +162,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteFileAsync_NonExistingFile_ReturnsFalse()
-    {
+    public async Task DeleteFileAsync_NonExistingFile_ReturnsFalse() {
         // Arrange
         var filePath = "nonexistent.txt";
 
@@ -187,8 +174,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ListDirectoryAsync_ReturnsFilesAndDirectories()
-    {
+    public async Task ListDirectoryAsync_ReturnsFilesAndDirectories() {
         // Arrange - 使用具体路径而不是 "."
         var baseDir = "testdir";
         _service.CreateDirectory(baseDir);
@@ -209,8 +195,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ListDirectoryAsync_Recursive_ReturnsNestedContent()
-    {
+    public async Task ListDirectoryAsync_Recursive_ReturnsNestedContent() {
         // Arrange - 使用具体路径而不是 "."
         var baseDir = "testdir2";
         _service.CreateDirectory(baseDir);
@@ -229,8 +214,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ConcurrentReadOperations_Succeed()
-    {
+    public async Task ConcurrentReadOperations_Succeed() {
         // Arrange
         var filePath = "concurrent.txt";
         await _service.WriteFileAsync(filePath, "test content").ConfigureAwait(true);
@@ -247,8 +231,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadWriteConcurrent_SequentialAccess()
-    {
+    public async Task ReadWriteConcurrent_SequentialAccess() {
         // Arrange
         var filePath = "concurrent.txt";
 
@@ -263,8 +246,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditByLineRangeAsync_ReplaceMiddleLines_ReplacesCorrectly()
-    {
+    public async Task EditByLineRangeAsync_ReplaceMiddleLines_ReplacesCorrectly() {
         // Arrange
         var filePath = "editlines.txt";
         var originalContent = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
@@ -286,8 +268,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditByLineRangeAsync_ReplaceFirstLine_ReplacesCorrectly()
-    {
+    public async Task EditByLineRangeAsync_ReplaceFirstLine_ReplacesCorrectly() {
         // Arrange
         var filePath = "editlines.txt";
         var originalContent = "Line 1\nLine 2\nLine 3";
@@ -306,8 +287,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditByLineRangeAsync_ReplaceLastLine_ReplacesCorrectly()
-    {
+    public async Task EditByLineRangeAsync_ReplaceLastLine_ReplacesCorrectly() {
         // Arrange
         var filePath = "editlines.txt";
         var originalContent = "Line 1\nLine 2\nLine 3";
@@ -326,8 +306,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditByLineRangeAsync_ReplaceAllLines_ReplacesCorrectly()
-    {
+    public async Task EditByLineRangeAsync_ReplaceAllLines_ReplacesCorrectly() {
         // Arrange
         var filePath = "editlines.txt";
         var originalContent = "Line 1\nLine 2\nLine 3";
@@ -348,8 +327,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditByLineRangeAsync_EndLineBeyondTotal_AdjustsAutomatically()
-    {
+    public async Task EditByLineRangeAsync_EndLineBeyondTotal_AdjustsAutomatically() {
         // Arrange
         var filePath = "editlines.txt";
         var originalContent = "Line 1\nLine 2\nLine 3";
@@ -369,8 +347,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditByLineRangeAsync_NonExistingFile_ReturnsFailure()
-    {
+    public async Task EditByLineRangeAsync_NonExistingFile_ReturnsFailure() {
         // Arrange
         var filePath = "nonexistent.txt";
         var request = new LineRangeEditRequest(filePath, startLine: 1, endLine: 5, newContent: "New Content");
@@ -384,8 +361,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditByLineRangeAsync_StartLineLessThanOne_ReturnsFailure()
-    {
+    public async Task EditByLineRangeAsync_StartLineLessThanOne_ReturnsFailure() {
         // Arrange
         var filePath = "editlines.txt";
         await _service.WriteFileAsync(filePath, "Line 1\nLine 2").ConfigureAwait(true);
@@ -400,8 +376,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditByLineRangeAsync_EndLineLessThanStartLine_ReturnsFailure()
-    {
+    public async Task EditByLineRangeAsync_EndLineLessThanStartLine_ReturnsFailure() {
         // Arrange
         var filePath = "editlines.txt";
         await _service.WriteFileAsync(filePath, "Line 1\nLine 2").ConfigureAwait(true);
@@ -416,8 +391,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditByLineRangeAsync_StartLineBeyondTotal_ReturnsFailure()
-    {
+    public async Task EditByLineRangeAsync_StartLineBeyondTotal_ReturnsFailure() {
         // Arrange
         var filePath = "editlines.txt";
         await _service.WriteFileAsync(filePath, "Line 1\nLine 2").ConfigureAwait(true);
@@ -432,8 +406,7 @@ public sealed class FileOperationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EditByLineRangeAsync_NullRequest_ThrowsArgumentNullException()
-    {
+    public async Task EditByLineRangeAsync_NullRequest_ThrowsArgumentNullException() {
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(() => _service.EditByLineRangeAsync(null!)).ConfigureAwait(true);
     }

@@ -9,8 +9,7 @@ namespace Core.Prompts.Services;
 /// </summary>
 [Register(typeof(IFileReadListener), ServiceLifetime.Singleton)]
 [Register(typeof(IPostSamplingCallback), ServiceLifetime.Singleton)]
-public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener, IPostSamplingCallback
-{
+public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener, IPostSamplingCallback {
     private readonly IFileSystem _fileSystem;
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ILogger<MagicDocsManager>? _logger;
@@ -31,20 +30,17 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         IFileReadListenerRegistry? fileReadListenerRegistry = null,
         IPostSamplingCallbackManager? postSamplingCallbacks = null,
         IForkSubAgentManager? forkManager = null,
-        ILogger<MagicDocsManager>? logger = null)
-    {
+        ILogger<MagicDocsManager>? logger = null) {
         _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
         _forkManager = forkManager;
         _logger = logger;
         _actor = new MagicDocsActor(this, logger);
 
-        if (fileReadListenerRegistry is not null)
-        {
+        if (fileReadListenerRegistry is not null) {
             _fileReadSubscription = fileReadListenerRegistry.Register(this);
         }
 
-        if (postSamplingCallbacks is not null)
-        {
+        if (postSamplingCallbacks is not null) {
             postSamplingCallbacks.Register(this);
         }
     }
@@ -52,14 +48,12 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     /// <summary>
     /// FileRead 监听器 — 检测读取的文件是否为 Magic Doc
     /// </summary>
-    public void OnFileRead(FileReadEventArgs e)
-    {
+    public void OnFileRead(FileReadEventArgs e) {
         var detection = MagicDocDetector.Detect(e.Content);
         if (detection is null) return;
 
         var reply = new TaskCompletionSource();
-        if (!_actor.TrySend(new OnFileReadCmd(e.FilePath, detection, reply)))
-        {
+        if (!_actor.TrySend(new OnFileReadCmd(e.FilePath, detection, reply))) {
             _logger?.LogWarning("MagicDocsManager.OnFileRead Actor 已释放，跳过注册: {FilePath}", e.FilePath);
         }
     }
@@ -67,8 +61,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     /// <summary>
     /// PostSampling 回调 — 在对话空闲时更新 Magic Doc
     /// </summary>
-    public async Task OnPostSamplingAsync(PostSamplingContext context)
-    {
+    public async Task OnPostSamplingAsync(PostSamplingContext context) {
         if (context.QuerySource != "repl_main_thread") return;
 
         var reply = new TaskCompletionSource<IReadOnlyList<MagicDocEntry>>();
@@ -77,31 +70,24 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
 
         if (docsToUpdate.Count == 0) return;
 
-        foreach (var doc in docsToUpdate)
-        {
-            try
-            {
+        foreach (var doc in docsToUpdate) {
+            try {
                 await UpdateMagicDocAsync(doc, context).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "更新 Magic Doc 失败: {FilePath}", doc.FilePath);
             }
         }
     }
 
-    private async Task UpdateMagicDocAsync(MagicDocEntry doc, PostSamplingContext context)
-    {
-        if (!_fileSystem.FileExists(doc.FilePath))
-        {
+    private async Task UpdateMagicDocAsync(MagicDocEntry doc, PostSamplingContext context) {
+        if (!_fileSystem.FileExists(doc.FilePath)) {
             await RemoveTrackedDocAsync(doc.FilePath).ConfigureAwait(false);
             return;
         }
 
         var content = await _fileSystem.ReadAllTextAsync(doc.FilePath, context.CancellationToken).ConfigureAwait(false);
         var detection = MagicDocDetector.Detect(content);
-        if (detection is null)
-        {
+        if (detection is null) {
             await RemoveTrackedDocAsync(doc.FilePath).ConfigureAwait(false);
             return;
         }
@@ -111,10 +97,8 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
 
         _logger?.LogDebug("Magic Docs 更新提示词已构建: {FilePath}", doc.FilePath);
 
-        if (_forkManager is not null && context.SessionId is not null)
-        {
-            var forkOptions = new ForkOptions
-            {
+        if (_forkManager is not null && context.SessionId is not null) {
+            var forkOptions = new ForkOptions {
                 ParentSessionId = context.SessionId,
                 TaskDescription = "magic_docs",
                 AllowedTools = [FileToolNameEnumConstants.FileEdit],
@@ -130,8 +114,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         }
     }
 
-    private async Task RemoveTrackedDocAsync(string filePath)
-    {
+    private async Task RemoveTrackedDocAsync(string filePath) {
         var reply = new TaskCompletionSource();
         await _actor.SendAsync(new RemoveTrackedCmd(filePath, reply)).ConfigureAwait(false);
         await _actor.AskReplyAsync(reply).ConfigureAwait(false);
@@ -140,22 +123,16 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     /// <summary>
     /// 获取当前追踪的 Magic Doc 数量
     /// </summary>
-    public int TrackedCount
-    {
-        get
-        {
+    public int TrackedCount {
+        get {
             var reply = new TaskCompletionSource<int>();
-            if (!_actor.TrySend(new GetTrackedCountCmd(reply)))
-            {
+            if (!_actor.TrySend(new GetTrackedCountCmd(reply))) {
                 _logger?.LogWarning("MagicDocsManager.TrackedCount Actor 已释放，返回 0");
                 return 0;
             }
-            try
-            {
+            try {
                 return _actor.AskReplyAsync(reply).GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "MagicDocsManager.TrackedCount Actor Ask 失败，返回 0");
                 return 0;
             }
@@ -165,11 +142,9 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     /// <summary>
     /// 清除所有追踪的 Magic Doc
     /// </summary>
-    public void Clear()
-    {
+    public void Clear() {
         var reply = new TaskCompletionSource();
-        if (!_actor.TrySend(new ClearCmd(reply)))
-        {
+        if (!_actor.TrySend(new ClearCmd(reply))) {
             _logger?.LogWarning("MagicDocsManager.Clear Actor 已释放，跳过清除");
         }
     }
@@ -177,18 +152,15 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     /// <summary>
     /// 异步释放资源 — await Actor 完全退出
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 
     // === 锁内逻辑（由 Actor Consumer 串行调用，无需锁）===
 
-    private void OnFileReadInternal(string filePath, MagicDocDetection detection)
-    {
-        _trackedDocs[filePath] = new MagicDocEntry
-        {
+    private void OnFileReadInternal(string filePath, MagicDocDetection detection) {
+        _trackedDocs[filePath] = new MagicDocEntry {
             FilePath = filePath,
             Title = detection.Title,
             CustomInstructions = detection.CustomInstructions
@@ -213,13 +185,11 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     /// MagicDocs 管理 Actor — 串行化所有 _trackedDocs 访问，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
-    private sealed class MagicDocsActor : ActorBase<MagicDocsCommand, Unit>
-    {
+    private sealed class MagicDocsActor : ActorBase<MagicDocsCommand, Unit> {
         private readonly MagicDocsManager _owner;
         private readonly ILogger<MagicDocsManager>? _logger;
 
-        public MagicDocsActor(MagicDocsManager owner, ILogger<MagicDocsManager>? logger) : base()
-        {
+        public MagicDocsActor(MagicDocsManager owner, ILogger<MagicDocsManager>? logger) : base() {
             _owner = owner;
             _logger = logger;
         }
@@ -232,45 +202,37 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(MagicDocsCommand cmd, CancellationToken ct)
-        {
-            try
-            {
-                switch (cmd)
-                {
+        protected override async ValueTask HandleAsync(MagicDocsCommand cmd, CancellationToken ct) {
+            try {
+                switch (cmd) {
                     case OnFileReadCmd(var filePath, var detection, var reply):
-                        _owner.OnFileReadInternal(filePath, detection);
-                        reply.SetResult();
-                        break;
+                    _owner.OnFileReadInternal(filePath, detection);
+                    reply.SetResult();
+                    break;
                     case PostSamplingCmd(var reply):
-                        reply.SetResult(_owner.GetTrackedDocsSnapshot());
-                        break;
+                    reply.SetResult(_owner.GetTrackedDocsSnapshot());
+                    break;
                     case RemoveTrackedCmd(var filePath, var reply):
-                        _owner.RemoveTrackedDocInternal(filePath);
-                        reply.SetResult();
-                        break;
+                    _owner.RemoveTrackedDocInternal(filePath);
+                    reply.SetResult();
+                    break;
                     case GetTrackedCountCmd(var reply):
-                        reply.SetResult(_owner.GetTrackedCountInternal());
-                        break;
+                    reply.SetResult(_owner.GetTrackedCountInternal());
+                    break;
                     case ClearCmd(var reply):
-                        _owner.ClearInternal();
-                        reply.SetResult();
-                        break;
+                    _owner.ClearInternal();
+                    reply.SetResult();
+                    break;
                     default:
-                        throw new InvalidOperationException($"未知 MagicDocs 命令类型: {cmd.GetType().Name}");
+                    throw new InvalidOperationException($"未知 MagicDocs 命令类型: {cmd.GetType().Name}");
                 }
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex)
-            {
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) {
                 SetReplyException(cmd, ex);
             }
         }
 
-        private static void SetReplyException(MagicDocsCommand cmd, Exception ex)
-        {
-            switch (cmd)
-            {
+        private static void SetReplyException(MagicDocsCommand cmd, Exception ex) {
+            switch (cmd) {
                 case OnFileReadCmd(_, _, var reply): reply.TrySetException(ex); break;
                 case PostSamplingCmd(var reply): reply.TrySetException(ex); break;
                 case RemoveTrackedCmd(_, var reply): reply.TrySetException(ex); break;

@@ -3,8 +3,7 @@ namespace JoinCode.Transport;
 /// <summary>
 /// 传输层事件参数
 /// </summary>
-public sealed class TransportMessageEventArgs : EventArgs
-{
+public sealed class TransportMessageEventArgs : EventArgs {
     /// <summary>消息内容</summary>
     public required string Message { get; init; }
     /// <summary>消息来源通道（输出或错误）</summary>
@@ -16,8 +15,7 @@ public sealed class TransportMessageEventArgs : EventArgs
 /// <summary>
 /// 传输通道类型
 /// </summary>
-public enum TransportChannel
-{
+public enum TransportChannel {
     /// <summary>标准输出通道</summary>
     [EnumValue("output")]
     Output,
@@ -29,8 +27,7 @@ public enum TransportChannel
 /// <summary>
 /// 传输连接状态
 /// </summary>
-public enum TransportState
-{
+public enum TransportState {
     /// <summary>已断开</summary>
     [EnumValue("disconnected")] Disconnected,
     /// <summary>连接中</summary>
@@ -57,8 +54,7 @@ public enum TransportState
 /// await transport.SendMessageAsync("hello");
 /// </code>
 /// </remarks>
-public interface IAgentTransport : IAsyncDisposable
-{
+public interface IAgentTransport : IAsyncDisposable {
     /// <summary>当前连接状态</summary>
     TransportState State { get; }
 

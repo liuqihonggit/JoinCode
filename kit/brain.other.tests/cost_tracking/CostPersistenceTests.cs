@@ -5,29 +5,25 @@ namespace Core.Tests.CostTracking;
 /// <summary>
 /// CostPersistence 单元测试 - 使用内存文件系统实现高速测试
 /// </summary>
-public class CostPersistenceTests : IDisposable
-{
+public class CostPersistenceTests : IDisposable {
     private readonly InMemoryFileOperationService _fileOperationService;
     private readonly string _storageDir;
     private bool _disposed;
 
-    public CostPersistenceTests()
-    {
+    public CostPersistenceTests() {
         _fileOperationService = new InMemoryFileOperationService();
         _storageDir = "/test/cost";
         _fileOperationService.CreateDirectory(_storageDir);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fileOperationService.DisposeSafe();
     }
 
     [Fact]
-    public async Task CostTracker_ShouldPersistUsageHistory()
-    {
+    public async Task CostTracker_ShouldPersistUsageHistory() {
         // Arrange
         var storagePath = $"{_storageDir}/usage.json";
 
@@ -44,8 +40,7 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task CostTracker_ShouldMaintainSessionInfo()
-    {
+    public async Task CostTracker_ShouldMaintainSessionInfo() {
         // Arrange
         var storagePath = $"{_storageDir}/usage_sessions.json";
         var sessionId = "test-session-abc";
@@ -61,8 +56,7 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task CostTracker_NewFile_ShouldCreateEmptyHistory()
-    {
+    public async Task CostTracker_NewFile_ShouldCreateEmptyHistory() {
         // Arrange
         var storagePath = $"{_storageDir}/new_file_{Guid.NewGuid():N}.json";
 
@@ -76,8 +70,7 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task CostTracker_ShouldAccumulateMultipleRecords()
-    {
+    public async Task CostTracker_ShouldAccumulateMultipleRecords() {
         // Arrange
         var storagePath = $"{_storageDir}/append_test.json";
 
@@ -93,8 +86,7 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task CostTracker_InvalidJsonFile_ShouldHandleGracefully()
-    {
+    public async Task CostTracker_InvalidJsonFile_ShouldHandleGracefully() {
         // Arrange
         var storagePath = $"{_storageDir}/invalid.json";
         await _fileOperationService.WriteFileAsync(storagePath, "invalid json content").ConfigureAwait(true);
@@ -108,8 +100,7 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task CostTracker_EmptyJsonFile_ShouldHandleGracefully()
-    {
+    public async Task CostTracker_EmptyJsonFile_ShouldHandleGracefully() {
         // Arrange
         var storagePath = $"{_storageDir}/empty.json";
         await _fileOperationService.WriteFileAsync(storagePath, "").ConfigureAwait(true);
@@ -123,8 +114,7 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task CostTracker_ShouldCreateDirectoryIfNotExists()
-    {
+    public async Task CostTracker_ShouldCreateDirectoryIfNotExists() {
         // Arrange
         var nestedDir = $"{_storageDir}/nested/deep/dir";
         var storagePath = $"{nestedDir}/usage.json";
@@ -141,11 +131,9 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task TokenUsageRecord_Serialization_ShouldPreserveAllFields()
-    {
+    public async Task TokenUsageRecord_Serialization_ShouldPreserveAllFields() {
         // Arrange
-        var record = new TokenUsageRecord
-        {
+        var record = new TokenUsageRecord {
             Timestamp = DateTime.UtcNow,
             Model = "model-a",
             PromptTokens = 1000,
@@ -168,8 +156,7 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task CostTracker_ConcurrentWrites_ShouldHandleSafely()
-    {
+    public async Task CostTracker_ConcurrentWrites_ShouldHandleSafely() {
         // Arrange
         var storagePath = $"{_storageDir}/concurrent.json";
         await using var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
@@ -187,11 +174,9 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public void ModelCostInfo_Properties_ShouldBeAccessible()
-    {
+    public void ModelCostInfo_Properties_ShouldBeAccessible() {
         // Arrange & Act
-        var costInfo = new ModelCostInfo
-        {
+        var costInfo = new ModelCostInfo {
             Model = "test-model",
             PromptCostPer1KTokens = 0.01m,
             CompletionCostPer1KTokens = 0.03m
@@ -204,8 +189,7 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public void CostStatistics_DefaultValues_ShouldBeZero()
-    {
+    public void CostStatistics_DefaultValues_ShouldBeZero() {
         // Arrange & Act
         var stats = new CostStatistics();
 
@@ -219,11 +203,9 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public void ModelCostStatistics_DefaultValues_ShouldBeZero()
-    {
+    public void ModelCostStatistics_DefaultValues_ShouldBeZero() {
         // Arrange & Act
-        var stats = new ModelCostStatistics
-        {
+        var stats = new ModelCostStatistics {
             Model = "test-model"
         };
 
@@ -237,8 +219,7 @@ public class CostPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task CostTracker_ShouldRecordTimestamp()
-    {
+    public async Task CostTracker_ShouldRecordTimestamp() {
         // Arrange
         var storagePath = $"{_storageDir}/timestamps.json";
         var beforeTime = DateTime.UtcNow;

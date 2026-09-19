@@ -6,32 +6,23 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Insights, Description = "AI生成会话洞察分析", Usage = "/insights [stats|deep|report]", Category = ChatCommandCategory.Info, ArgumentHint = "[stats|deep|report]")]
 [ChatCommandArg("mode", Type = "string", Description = "洞察模式: stats=跨会话统计, deep=深度洞察, report=HTML报告; 省略=AI基础洞察", Enum = new[] { "stats", "deep", "report" })]
-public sealed class InsightsCommand : ChatCommandBase
-{
+public sealed class InsightsCommand : ChatCommandBase {
     private readonly IClockService _clock = SystemClockService.Instance;
     /// <summary>
     /// 执行 /insights 命令 — 根据参数分派到 stats/deep/report 或基础 AI 洞察模式
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>表示命令执行完成的任务,结果为继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
 
-        if (args is "stats" or "s")
-        {
+        if (args is "stats" or "s") {
             await ShowStatsAsync(context).ConfigureAwait(false);
-        }
-        else if (args is "deep" or "d")
-        {
+        } else if (args is "deep" or "d") {
             await DeepInsightsAsync(context).ConfigureAwait(false);
-        }
-        else if (args is "report" or "r")
-        {
+        } else if (args is "report" or "r") {
             await GenerateReportAsync(context).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await AiInsightsAsync(context).ConfigureAwait(false);
         }
 
@@ -41,11 +32,9 @@ public sealed class InsightsCommand : ChatCommandBase
     /// <summary>
     /// 跨会话统计模式 — 对齐 TS insights.ts aggregateData + generateUsageReport 统计部分
     /// </summary>
-    private async Task ShowStatsAsync(ChatCommandContext context)
-    {
+    private async Task ShowStatsAsync(ChatCommandContext context) {
         var scanner = ChatCommandBase.GetService<IInsightSessionScanner>(context);
-        if (scanner is null)
-        {
+        if (scanner is null) {
             // 回退到当前会话统计
             ShowCurrentSessionStats(context);
             return;
@@ -54,12 +43,10 @@ public sealed class InsightsCommand : ChatCommandBase
         TerminalHelper.WriteLine("正在扫描会话文件...");
         TerminalHelper.NewLine();
 
-        try
-        {
+        try {
             var sessions = await scanner.ScanAllSessionsAsync(context.CancellationToken).ConfigureAwait(false);
 
-            if (sessions.Count == 0)
-            {
+            if (sessions.Count == 0) {
                 TerminalHelper.WriteLine("未找到会话记录。");
                 TerminalHelper.NewLine();
                 TerminalHelper.WriteLine("使用 /insights (不带stats) 获取AI生成的洞察分析");
@@ -70,13 +57,9 @@ public sealed class InsightsCommand : ChatCommandBase
             var report = InsightDataAggregator.FormatStatsReport(aggregated);
 
             TerminalHelper.WriteLine(report);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             TerminalHelper.WriteLine("扫描已取消。");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             TerminalHelper.WriteLine($"扫描会话失败: {ex.Message}");
             TerminalHelper.NewLine();
             // 回退到当前会话统计
@@ -87,8 +70,7 @@ public sealed class InsightsCommand : ChatCommandBase
     /// <summary>
     /// 当前会话统计（回退模式，scanner 不可用时使用）
     /// </summary>
-    private void ShowCurrentSessionStats(ChatCommandContext context)
-    {
+    private void ShowCurrentSessionStats(ChatCommandContext context) {
         var sessionDuration = _clock.GetUtcNow() - context.SessionStartedAt;
         var costTracker = context.GetCommandServices().CostTracker;
 
@@ -97,23 +79,17 @@ public sealed class InsightsCommand : ChatCommandBase
         TerminalHelper.WriteLine($"  会话时长: {sessionDuration.TotalMinutes:F1} 分钟");
         TerminalHelper.WriteLine($"  会话ID: {context.SessionId}");
 
-        if (costTracker is not null)
-        {
-            try
-            {
+        if (costTracker is not null) {
+            try {
                 var stats = costTracker.GetTodayStatistics();
                 TerminalHelper.WriteLine($"  输入 Token: {stats.PromptTokens:N0}");
                 TerminalHelper.WriteLine($"  输出 Token: {stats.CompletionTokens:N0}");
                 TerminalHelper.WriteLine($"  总 Token: {stats.PromptTokens + stats.CompletionTokens:N0}");
                 TerminalHelper.WriteLine($"  估算成本: ${stats.TotalCostUsd:F4}");
-            }
-            catch
-            {
+            } catch {
                 TerminalHelper.WriteLine("  (成本数据暂不可用)");
             }
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine("  (成本追踪器不可用)");
         }
 
@@ -126,39 +102,27 @@ public sealed class InsightsCommand : ChatCommandBase
     /// TS 中此命令类型为 'prompt'，返回 prompt 让 LLM 回复
     /// C# 端简化为直接发送 prompt 给 ChatService
     /// </summary>
-    private async Task AiInsightsAsync(ChatCommandContext context)
-    {
+    private async Task AiInsightsAsync(ChatCommandContext context) {
         var scanner = ChatCommandBase.GetService<IInsightSessionScanner>(context);
         string dataContext;
 
-        if (scanner is not null)
-        {
-            try
-            {
+        if (scanner is not null) {
+            try {
                 TerminalHelper.WriteLine("正在分析会话数据...");
                 var sessions = await scanner.ScanAllSessionsAsync(context.CancellationToken).ConfigureAwait(false);
 
-                if (sessions.Count > 0)
-                {
+                if (sessions.Count > 0) {
                     var aggregated = InsightDataAggregator.Aggregate(sessions);
                     dataContext = BuildCrossSessionPrompt(aggregated, sessions.Count);
-                }
-                else
-                {
+                } else {
                     dataContext = BuildCurrentSessionPrompt(context);
                 }
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 return;
-            }
-            catch
-            {
+            } catch {
                 dataContext = BuildCurrentSessionPrompt(context);
             }
-        }
-        else
-        {
+        } else {
             dataContext = BuildCurrentSessionPrompt(context);
         }
 
@@ -172,26 +136,22 @@ public sealed class InsightsCommand : ChatCommandBase
     /// 深度洞察模式 — Phase2: Facet提取 + 并行Insight生成
     /// 对齐 TS insights.ts generateUsageReport 的完整流程
     /// </summary>
-    private async Task DeepInsightsAsync(ChatCommandContext context)
-    {
+    private async Task DeepInsightsAsync(ChatCommandContext context) {
         var scanner = ChatCommandBase.GetService<IInsightSessionScanner>(context);
         var facetCache = ChatCommandBase.GetService<IFacetCacheService>(context);
 
-        if (scanner is null)
-        {
+        if (scanner is null) {
             TerminalHelper.WriteLine("会话扫描服务不可用，无法生成深度洞察。");
             TerminalHelper.WriteLine("使用 /insights (不带deep) 获取基础AI洞察分析");
             return;
         }
 
-        try
-        {
+        try {
             // Step 1: 扫描会话
             TerminalHelper.WriteLine("正在扫描会话文件...");
             var sessions = await scanner.ScanAllSessionsAsync(context.CancellationToken).ConfigureAwait(false);
 
-            if (sessions.Count == 0)
-            {
+            if (sessions.Count == 0) {
                 TerminalHelper.WriteLine("未找到会话记录。");
                 return;
             }
@@ -220,13 +180,9 @@ public sealed class InsightsCommand : ChatCommandBase
 
             var deepPrompt = BuildDeepInsightPrompt(dataContext, aggregated, facetSummary, multiClauding);
             await context.GetCommandServices().ChatService.SendMessageAsync(deepPrompt, context.CancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             TerminalHelper.WriteLine("深度洞察生成已取消。");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             TerminalHelper.WriteLine($"生成深度洞察失败: {ex.Message}");
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine("使用 /insights (不带deep) 获取基础AI洞察分析");
@@ -237,25 +193,21 @@ public sealed class InsightsCommand : ChatCommandBase
     /// 生成 HTML 报告 — Phase3: 对齐 TS insights.ts generateHtmlReport
     /// 生成 HTML 文件保存到 ~/.jcc/usage-data/report.html
     /// </summary>
-    private async Task GenerateReportAsync(ChatCommandContext context)
-    {
+    private async Task GenerateReportAsync(ChatCommandContext context) {
         var scanner = ChatCommandBase.GetService<IInsightSessionScanner>(context);
         var facetCache = ChatCommandBase.GetService<IFacetCacheService>(context);
 
-        if (scanner is null)
-        {
+        if (scanner is null) {
             TerminalHelper.WriteLine("会话扫描服务不可用，无法生成报告。");
             return;
         }
 
-        try
-        {
+        try {
             // Step 1: 扫描会话
             TerminalHelper.WriteLine("正在扫描会话文件...");
             var sessions = await scanner.ScanAllSessionsAsync(context.CancellationToken).ConfigureAwait(false);
 
-            if (sessions.Count == 0)
-            {
+            if (sessions.Count == 0) {
                 TerminalHelper.WriteLine("未找到会话记录。");
                 return;
             }
@@ -300,13 +252,9 @@ public sealed class InsightsCommand : ChatCommandBase
             var report = InsightDataAggregator.FormatStatsReport(aggregated);
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine(report);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             TerminalHelper.WriteLine("报告生成已取消。");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             TerminalHelper.WriteLine($"生成报告失败: {ex.Message}");
         }
     }
@@ -318,43 +266,34 @@ public sealed class InsightsCommand : ChatCommandBase
         IReadOnlyList<InsightSessionMeta> sessions,
         IFacetCacheService? facetCache,
         ChatCommandContext context,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         var facets = new List<SessionFacets>();
         var chatService = context.GetCommandServices().ChatService;
 
-        foreach (var session in sessions)
-        {
+        foreach (var session in sessions) {
             context.CancellationToken.ThrowIfCancellationRequested();
 
             // 尝试从缓存加载
-            if (facetCache is not null)
-            {
-                try
-                {
+            if (facetCache is not null) {
+                try {
                     var cached = await facetCache.LoadAsync(session.SessionId, context.CancellationToken).ConfigureAwait(false);
-                    if (cached is not null)
-                    {
+                    if (cached is not null) {
                         facets.Add(cached);
                         continue;
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     // 缓存读取失败，继续提取
                     logger?.LogWarning(ex, "Facet缓存读取失败");
                 }
             }
 
             // 通过 LLM 提取 Facet — 对齐 TS extractFacetsFromAPI
-            try
-            {
+            try {
                 var transcriptText = BuildTranscriptText(session);
                 if (string.IsNullOrWhiteSpace(transcriptText)) continue;
 
                 // 长会话摘要 — 对齐 TS: >30000 字符时分块摘要
-                if (transcriptText.Length > 30000)
-                {
+                if (transcriptText.Length > 30000) {
                     transcriptText = await SummarizeLongTranscriptAsync(transcriptText, chatService, context.CancellationToken, logger).ConfigureAwait(false);
                 }
 
@@ -362,28 +301,20 @@ public sealed class InsightsCommand : ChatCommandBase
                 var response = await chatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
 
                 var facet = ParseFacetResponse(response, session.SessionId);
-                if (facet is not null)
-                {
+                if (facet is not null) {
                     facets.Add(facet);
 
                     // 保存到缓存
-                    if (facetCache is not null)
-                    {
-                        try
-                        {
+                    if (facetCache is not null) {
+                        try {
                             await facetCache.SaveAsync(facet, context.CancellationToken).ConfigureAwait(false);
-                        }
-                        catch (Exception ex2)
-                        {
+                        } catch (Exception ex2) {
                             // 缓存保存失败不影响主流程
                             logger?.LogWarning(ex2, "Facet缓存保存失败");
                         }
                     }
                 }
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex)
-            {
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) {
                 // 单个会话 Facet 提取失败不影响其他会话
                 logger?.LogWarning(ex, "Facet提取失败");
             }
@@ -395,8 +326,7 @@ public sealed class InsightsCommand : ChatCommandBase
     /// <summary>
     /// 从 InsightSessionMeta 构建转录文本
     /// </summary>
-    private static string BuildTranscriptText(InsightSessionMeta session)
-    {
+    private static string BuildTranscriptText(InsightSessionMeta session) {
         var sb = new StringBuilder();
 
         sb.AppendLine($"Session: {session.SessionId}");
@@ -405,20 +335,16 @@ public sealed class InsightsCommand : ChatCommandBase
         sb.AppendLine($"Assistant messages: {session.AssistantMessageCount}");
         sb.AppendLine($"First prompt: {session.FirstPrompt}");
 
-        if (session.ToolCounts.Count > 0)
-        {
+        if (session.ToolCounts.Count > 0) {
             sb.AppendLine("Tools used:");
-            foreach (var (tool, count) in session.ToolCounts.OrderByDescending(kvp => kvp.Value))
-            {
+            foreach (var (tool, count) in session.ToolCounts.OrderByDescending(kvp => kvp.Value)) {
                 sb.AppendLine($"  {tool}: {count}");
             }
         }
 
-        if (session.Languages.Count > 0)
-        {
+        if (session.Languages.Count > 0) {
             sb.AppendLine("Languages:");
-            foreach (var (lang, count) in session.Languages.OrderByDescending(kvp => kvp.Value).Take(5))
-            {
+            foreach (var (lang, count) in session.Languages.OrderByDescending(kvp => kvp.Value).Take(5)) {
                 sb.AppendLine($"  {lang}: {count}");
             }
         }
@@ -438,13 +364,11 @@ public sealed class InsightsCommand : ChatCommandBase
         string transcriptText,
         IChatService chatService,
         CancellationToken cancellationToken,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         const int chunkSize = 25000;
         var chunks = new List<string>();
 
-        for (var i = 0; i < transcriptText.Length; i += chunkSize)
-        {
+        for (var i = 0; i < transcriptText.Length; i += chunkSize) {
             var length = Math.Min(chunkSize, transcriptText.Length - i);
             chunks.Add(transcriptText[i..(i + length)]);
         }
@@ -453,22 +377,16 @@ public sealed class InsightsCommand : ChatCommandBase
         chunks = chunks.Take(5).ToList();
 
         var summaries = new List<string>();
-        foreach (var chunk in chunks)
-        {
+        foreach (var chunk in chunks) {
             cancellationToken.ThrowIfCancellationRequested();
 
-            try
-            {
+            try {
                 var prompt = InsightPrompts.BuildTranscriptSummaryPrompt(chunk);
                 var summary = await chatService.SendMessageAsync(prompt, cancellationToken).ConfigureAwait(false);
-                if (!string.IsNullOrWhiteSpace(summary))
-                {
+                if (!string.IsNullOrWhiteSpace(summary)) {
                     summaries.Add(summary);
                 }
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex)
-            {
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) {
                 // 单个块摘要失败不影响其他块
                 logger?.LogWarning(ex, "会话摘要块处理失败");
             }
@@ -487,16 +405,13 @@ public sealed class InsightsCommand : ChatCommandBase
     /// 4. JsonLenientCoercer（类型强制转换）
     /// </para>
     /// </summary>
-    private static SessionFacets? ParseFacetResponse(string response, string sessionId)
-    {
+    private static SessionFacets? ParseFacetResponse(string response, string sessionId) {
         var facet = LlmJsonHelper.Deserialize(response, SessionFacetsJsonContext.Default.SessionFacets, out _);
         if (facet is null) return null;
 
         // 确保 SessionId 正确 — SessionFacets 是 sealed class，不能使用 with
-        if (facet.SessionId != sessionId)
-        {
-            return new SessionFacets
-            {
+        if (facet.SessionId != sessionId) {
+            return new SessionFacets {
                 SessionId = sessionId,
                 UnderlyingGoal = facet.UnderlyingGoal,
                 GoalCategories = facet.GoalCategories,
@@ -522,8 +437,7 @@ public sealed class InsightsCommand : ChatCommandBase
         string dataContext,
         AggregatedInsightData data,
         FacetSummary? facets,
-        MultiClaudingResult? multiClauding)
-    {
+        MultiClaudingResult? multiClauding) {
         var sb = new StringBuilder();
 
         sb.AppendLine("You are generating a comprehensive JoinCode Insights report.");
@@ -542,8 +456,7 @@ public sealed class InsightsCommand : ChatCommandBase
         sb.AppendLine("6. ON THE HORIZON: Identify 3 future opportunities with copyable prompts");
         sb.AppendLine("7. FUN ENDING: Find an interesting or amusing moment");
 
-        if (multiClauding is not null && multiClauding.OverlapEvents > 0)
-        {
+        if (multiClauding is not null && multiClauding.OverlapEvents > 0) {
             sb.AppendLine("8. MULTI-SESSION USAGE: Analyze the parallel session usage patterns");
         }
 
@@ -558,8 +471,7 @@ public sealed class InsightsCommand : ChatCommandBase
     /// <summary>
     /// 构建跨会话分析 prompt — 对齐 TS insights.ts getPromptForCommand 中的 prompt 构建
     /// </summary>
-    private static string BuildCrossSessionPrompt(AggregatedInsightData data, int sessionCount)
-    {
+    private static string BuildCrossSessionPrompt(AggregatedInsightData data, int sessionCount) {
         var topTools = data.ToolCounts
             .OrderByDescending(kvp => kvp.Value)
             .Take(8)
@@ -614,8 +526,7 @@ public sealed class InsightsCommand : ChatCommandBase
     /// <summary>
     /// 构建当前会话分析 prompt（回退模式）
     /// </summary>
-    private string BuildCurrentSessionPrompt(ChatCommandContext context)
-    {
+    private string BuildCurrentSessionPrompt(ChatCommandContext context) {
         var sessionDuration = _clock.GetUtcNow() - context.SessionStartedAt;
         var tokenInfo = GetTokenInfo(context);
 
@@ -635,18 +546,14 @@ public sealed class InsightsCommand : ChatCommandBase
             """;
     }
 
-    private static string GetTokenInfo(ChatCommandContext context)
-    {
+    private static string GetTokenInfo(ChatCommandContext context) {
         var costTracker = context.GetCommandServices().CostTracker;
         if (costTracker is null) return "- Token data: unavailable";
 
-        try
-        {
+        try {
             var stats = costTracker.GetTodayStatistics();
             return $"- Input tokens: {stats.PromptTokens:N0}\n- Output tokens: {stats.CompletionTokens:N0}\n- Total tokens: {stats.PromptTokens + stats.CompletionTokens:N0}\n- Estimated cost: ${stats.TotalCostUsd:F4}";
-        }
-        catch
-        {
+        } catch {
             return "- Token data: unavailable";
         }
     }
@@ -655,8 +562,7 @@ public sealed class InsightsCommand : ChatCommandBase
 /// <summary>
 /// LINQ 风格的字符串连接扩展
 /// </summary>
-file static class InsightsStringExtensions
-{
+file static class InsightsStringExtensions {
     public static string Join(this IEnumerable<string> source, string separator) =>
         string.Join(separator, source);
 }

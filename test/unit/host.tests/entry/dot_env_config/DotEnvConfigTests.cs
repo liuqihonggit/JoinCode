@@ -2,13 +2,11 @@ namespace JoinCode.Entry.Tests;
 
 #pragma warning disable JCC9001, JCC3013
 
-public sealed class DotEnvConfigTests
-{
+public sealed class DotEnvConfigTests {
     private static readonly string TempDir = Path.Combine(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
 
     [Fact]
-    public void LoadFrom_OpenAIKey_SetsProviderToOpenAI()
-    {
+    public void LoadFrom_OpenAIKey_SetsProviderToOpenAI() {
         var json = """{"env":{"OPENAI_API_KEY":"sk-test123"}}""";
         var path = WriteTempFile(json);
 
@@ -21,8 +19,7 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_AnthropicKey_SetsProviderToAnthropic()
-    {
+    public void LoadFrom_AnthropicKey_SetsProviderToAnthropic() {
         var json = """{"env":{"ANTHROPIC_API_KEY":"sk-ant-test"}}""";
         var path = WriteTempFile(json);
 
@@ -35,8 +32,7 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_AzureKey_SetsProviderToAzure()
-    {
+    public void LoadFrom_AzureKey_SetsProviderToAzure() {
         var json = """{"env":{"AZURE_OPENAI_API_KEY":"azure-key"}}""";
         var path = WriteTempFile(json);
 
@@ -49,8 +45,7 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_AgnesKey_SetsProviderToAgnes()
-    {
+    public void LoadFrom_AgnesKey_SetsProviderToAgnes() {
         var json = """{"env":{"AGNES_API_KEY":"agnes-key"}}""";
         var path = WriteTempFile(json);
 
@@ -63,8 +58,7 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_AnthropicAuthToken_SetsProviderToAnthropic()
-    {
+    public void LoadFrom_AnthropicAuthToken_SetsProviderToAnthropic() {
         var json = """{"env":{"ANTHROPIC_AUTH_TOKEN":"auth-token-123"}}""";
         var path = WriteTempFile(json);
 
@@ -77,8 +71,7 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_JccVendor_OverridesInferredProvider()
-    {
+    public void LoadFrom_JccVendor_OverridesInferredProvider() {
         var json = """{"env":{"OPENAI_API_KEY":"sk-test","JCC_VENDOR":"anthropic"}}""";
         var path = WriteTempFile(json);
 
@@ -90,8 +83,7 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_AzureEndpoint_SetsEndpoint()
-    {
+    public void LoadFrom_AzureEndpoint_SetsEndpoint() {
         var json = """{"env":{"AZURE_OPENAI_API_KEY":"azure-key","AZURE_OPENAI_ENDPOINT":"https://my.openai.azure.com"}}""";
         var path = WriteTempFile(json);
 
@@ -103,8 +95,7 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_AnthropicBaseUrl_SetsEndpoint()
-    {
+    public void LoadFrom_AnthropicBaseUrl_SetsEndpoint() {
         var json = """{"env":{"ANTHROPIC_API_KEY":"sk-ant","ANTHROPIC_BASE_URL":"https://custom.anthropic.com/v1"}}""";
         var path = WriteTempFile(json);
 
@@ -116,8 +107,7 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_JccModelId_SetsModelId()
-    {
+    public void LoadFrom_JccModelId_SetsModelId() {
         var json = """{"env":{"OPENAI_API_KEY":"sk-test","JCC_MODEL_ID":"gpt-4.1"}}""";
         var path = WriteTempFile(json);
 
@@ -129,8 +119,7 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_NoEnvProperty_ReturnsNull()
-    {
+    public void LoadFrom_NoEnvProperty_ReturnsNull() {
         var json = """{"other":"data"}""";
         var path = WriteTempFile(json);
 
@@ -141,8 +130,7 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_NonExistentFile_ReturnsNull()
-    {
+    public void LoadFrom_NonExistentFile_ReturnsNull() {
         var config = DotEnvConfig.LoadFrom(Path.Combine(TempDir, "nonexistent.json"));
 
         config.Should().BeNull();
@@ -150,8 +138,7 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_InvalidJson_ReturnsNull()
-    {
+    public void LoadFrom_InvalidJson_ReturnsNull() {
         var path = WriteTempFile("not json at all");
 
         var config = DotEnvConfig.LoadFrom(path);
@@ -160,25 +147,19 @@ public sealed class DotEnvConfigTests
         Cleanup();
     }
 
-    private string WriteTempFile(string content)
-    {
+    private string WriteTempFile(string content) {
         Directory.CreateDirectory(TempDir);
         var path = Path.Combine(TempDir, $"test_{Guid.NewGuid():N}.json");
         IO.FileSystem.SafeFileIO.WriteAllText(path, content);
         return path;
     }
 
-    private void Cleanup()
-    {
-        try
-        {
-            if (Directory.Exists(TempDir))
-            {
+    private void Cleanup() {
+        try {
+            if (Directory.Exists(TempDir)) {
                 Directory.Delete(TempDir, true);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             System.Diagnostics.Trace.WriteLine($"DotEnvConfigTests cleanup failed: {ex.Message}");
         }
     }
@@ -186,8 +167,7 @@ public sealed class DotEnvConfigTests
     /// <summary>
     /// 构建含 openai/anthropic/agnes/azure 定义的 mock registry — 不依赖全局 settings.json
     /// </summary>
-    private static IProviderDefinitionRegistry CreateMockRegistry()
-    {
+    private static IProviderDefinitionRegistry CreateMockRegistry() {
         var providers = new (string Name, string ApiKeyEnvVar, string? EndpointEnvVar)[]
         {
             ("openai", "OPENAI_API_KEY", null),
@@ -197,8 +177,7 @@ public sealed class DotEnvConfigTests
         };
 
         var dict = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (name, apiKeyEnv, endpointEnv) in providers)
-        {
+        foreach (var (name, apiKeyEnv, endpointEnv) in providers) {
             var defMock = new Mock<IProviderDefinition>();
             defMock.Setup(d => d.ApiKeyEnvironmentVariable).Returns(apiKeyEnv);
             defMock.Setup(d => d.EndpointEnvironmentVariable).Returns(endpointEnv);

@@ -15,8 +15,7 @@ public sealed class PluginUnloadOptions {
     /// <summary>
     /// 快速卸载选项（1秒超时，强制卸载）
     /// </summary>
-    public static readonly PluginUnloadOptions Fast = new()
-    {
+    public static readonly PluginUnloadOptions Fast = new() {
         CooperativeTimeout = TimeSpan.FromSeconds(1),
         ForceAlcUnloadOnTimeout = true
     };
@@ -24,8 +23,7 @@ public sealed class PluginUnloadOptions {
     /// <summary>
     /// 优雅卸载选项（10秒超时，不强制卸载）
     /// </summary>
-    public static readonly PluginUnloadOptions Graceful = new()
-    {
+    public static readonly PluginUnloadOptions Graceful = new() {
         CooperativeTimeout = TimeSpan.FromSeconds(10),
         ForceAlcUnloadOnTimeout = false
     };
@@ -33,8 +31,7 @@ public sealed class PluginUnloadOptions {
     /// <summary>
     /// 强制卸载选项（立即超时，强制卸载）
     /// </summary>
-    public static readonly PluginUnloadOptions Force = new()
-    {
+    public static readonly PluginUnloadOptions Force = new() {
         CooperativeTimeout = TimeSpan.Zero,
         ForceAlcUnloadOnTimeout = true
     };
@@ -43,13 +40,11 @@ public sealed class PluginUnloadOptions {
 /// <summary>
 /// 插件卸载选项构建器 - 支持链式配置
 /// </summary>
-public sealed class PluginUnloadOptionsBuilder
-{
+public sealed class PluginUnloadOptionsBuilder {
     private TimeSpan _cooperativeTimeout = TimeSpan.FromSeconds(5);
     private bool _forceAlcUnloadOnTimeout = true;
 
-    private PluginUnloadOptionsBuilder()
-    {
+    private PluginUnloadOptionsBuilder() {
     }
 
     /// <summary>
@@ -86,8 +81,7 @@ public sealed class PluginUnloadOptionsBuilder
     /// <summary>
     /// 设置超时时间
     /// </summary>
-    public PluginUnloadOptionsBuilder WithTimeout(TimeSpan timeout)
-    {
+    public PluginUnloadOptionsBuilder WithTimeout(TimeSpan timeout) {
         _cooperativeTimeout = timeout;
         return this;
     }
@@ -95,8 +89,7 @@ public sealed class PluginUnloadOptionsBuilder
     /// <summary>
     /// 设置超时时间（秒）
     /// </summary>
-    public PluginUnloadOptionsBuilder WithTimeoutSeconds(int seconds)
-    {
+    public PluginUnloadOptionsBuilder WithTimeoutSeconds(int seconds) {
         _cooperativeTimeout = TimeSpan.FromSeconds(seconds);
         return this;
     }
@@ -104,8 +97,7 @@ public sealed class PluginUnloadOptionsBuilder
     /// <summary>
     /// 设置超时时间（毫秒）
     /// </summary>
-    public PluginUnloadOptionsBuilder WithTimeoutMilliseconds(int milliseconds)
-    {
+    public PluginUnloadOptionsBuilder WithTimeoutMilliseconds(int milliseconds) {
         _cooperativeTimeout = TimeSpan.FromMilliseconds(milliseconds);
         return this;
     }
@@ -113,8 +105,7 @@ public sealed class PluginUnloadOptionsBuilder
     /// <summary>
     /// 启用强制卸载
     /// </summary>
-    public PluginUnloadOptionsBuilder WithForceUnload(bool force)
-    {
+    public PluginUnloadOptionsBuilder WithForceUnload(bool force) {
         _forceAlcUnloadOnTimeout = force;
         return this;
     }
@@ -122,8 +113,7 @@ public sealed class PluginUnloadOptionsBuilder
     /// <summary>
     /// 强制卸载
     /// </summary>
-    public PluginUnloadOptionsBuilder ForceUnload()
-    {
+    public PluginUnloadOptionsBuilder ForceUnload() {
         _forceAlcUnloadOnTimeout = true;
         return this;
     }
@@ -131,8 +121,7 @@ public sealed class PluginUnloadOptionsBuilder
     /// <summary>
     /// 不强制卸载
     /// </summary>
-    public PluginUnloadOptionsBuilder NoForceUnload()
-    {
+    public PluginUnloadOptionsBuilder NoForceUnload() {
         _forceAlcUnloadOnTimeout = false;
         return this;
     }
@@ -140,8 +129,7 @@ public sealed class PluginUnloadOptionsBuilder
     /// <summary>
     /// 立即卸载（零超时）
     /// </summary>
-    public PluginUnloadOptionsBuilder Immediate()
-    {
+    public PluginUnloadOptionsBuilder Immediate() {
         _cooperativeTimeout = TimeSpan.Zero;
         return this;
     }
@@ -149,10 +137,8 @@ public sealed class PluginUnloadOptionsBuilder
     /// <summary>
     /// 构建插件卸载选项
     /// </summary>
-    public PluginUnloadOptions Build()
-    {
-        return new PluginUnloadOptions
-        {
+    public PluginUnloadOptions Build() {
+        return new PluginUnloadOptions {
             CooperativeTimeout = _cooperativeTimeout,
             ForceAlcUnloadOnTimeout = _forceAlcUnloadOnTimeout
         };

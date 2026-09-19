@@ -5,11 +5,9 @@ namespace Core.Agents.Tests.Unit.Agents;
 /// AgentLifecycleManager 子会话 ID 派生测试
 /// 验证 SpawnSubAgentAsync 传入 parentSessionId 时,生成的 agent.ObjectId.UniqueId 是 {parentSessionId}-sub-{NN} 格式
 /// </summary>
-public sealed class AgentLifecycleManagerSubSessionIdTests
-{
+public sealed class AgentLifecycleManagerSubSessionIdTests {
     [Fact]
-    public async Task SpawnSubAgentAsync_WithParentSessionId_GeneratesDerivedSubSessionId()
-    {
+    public async Task SpawnSubAgentAsync_WithParentSessionId_GeneratesDerivedSubSessionId() {
         var queryEngineMock = new Mock<IQueryEngine>();
         queryEngineMock
             .Setup(x => x.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<QueryOptions?>(), It.IsAny<CancellationToken>()))
@@ -27,8 +25,7 @@ public sealed class AgentLifecycleManagerSubSessionIdTests
     }
 
     [Fact]
-    public async Task SpawnSubAgentAsync_WithoutParentSessionId_GeneratesDefaultGuidStyleId()
-    {
+    public async Task SpawnSubAgentAsync_WithoutParentSessionId_GeneratesDefaultGuidStyleId() {
         var queryEngineMock = new Mock<IQueryEngine>();
         queryEngineMock
             .Setup(x => x.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<QueryOptions?>(), It.IsAny<CancellationToken>()))
@@ -44,8 +41,7 @@ public sealed class AgentLifecycleManagerSubSessionIdTests
     }
 
     [Fact]
-    public async Task SpawnSubAgentAsync_MultipleSpawnWithSameParent_IncrementingCounter()
-    {
+    public async Task SpawnSubAgentAsync_MultipleSpawnWithSameParent_IncrementingCounter() {
         var queryEngineMock = new Mock<IQueryEngine>();
         queryEngineMock
             .Setup(x => x.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<QueryOptions?>(), It.IsAny<CancellationToken>()))

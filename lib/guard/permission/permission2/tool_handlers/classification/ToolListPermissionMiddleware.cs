@@ -6,25 +6,21 @@ namespace Core.Permission;
 /// Default/Auto/Plan 模式下均生效
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ToolListPermissionMiddleware : ServiceEntity, IPermissionMiddleware
-{
+public sealed partial class ToolListPermissionMiddleware : ServiceEntity, IPermissionMiddleware {
     /// <inheritdoc />
 
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         // 自动批准列表
-        if (context.AutoApprovedTools.Contains(context.ToolName))
-        {
+        if (context.AutoApprovedTools.Contains(context.ToolName)) {
             context.Result = ToolPermissionCheckResult.Approved();
             return Task.CompletedTask;
         }
 
         // 自动拒绝列表
-        if (context.AutoRejectedTools.Contains(context.ToolName))
-        {
+        if (context.AutoRejectedTools.Contains(context.ToolName)) {
             context.Result = ToolPermissionCheckResult.Rejected("工具在自动拒绝列表中");
             return Task.CompletedTask;
         }

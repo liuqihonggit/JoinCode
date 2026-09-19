@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Security;
 /// <summary>
 /// 权限待确认异常，当工具调用需要用户确认时抛出
 /// </summary>
-public sealed partial class PermissionPendingConfirmationException : WorkflowException
-{
+public sealed partial class PermissionPendingConfirmationException : WorkflowException {
     /// <summary>
     /// 工具名称
     /// </summary>
@@ -37,8 +36,7 @@ public sealed partial class PermissionPendingConfirmationException : WorkflowExc
         : base(
             $"工具 '{toolName}' 需要确认: {confirmationPrompt}",
             "PERM_CONFIRM",
-            ErrorCategory.Permission)
-    {
+            ErrorCategory.Permission) {
         ToolName = toolName ?? throw new ArgumentNullException(nameof(toolName));
         ConfirmationPrompt = confirmationPrompt ?? throw new ArgumentNullException(nameof(confirmationPrompt));
         RequestId = requestId;

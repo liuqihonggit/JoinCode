@@ -7,16 +7,14 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// </para>
 /// </summary>
 [Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
-public sealed partial class GhTimeoutGuard : ICommandGuard
-{
+public sealed partial class GhTimeoutGuard : ICommandGuard {
     private readonly ILogger<GhTimeoutGuard>? _logger;
 
     /// <summary>
     /// 构造 gh 超时守卫
     /// </summary>
     /// <param name="logger">日志器(可选)</param>
-    public GhTimeoutGuard(ILogger<GhTimeoutGuard>? logger = null)
-    {
+    public GhTimeoutGuard(ILogger<GhTimeoutGuard>? logger = null) {
         _logger = logger;
     }
 
@@ -27,16 +25,14 @@ public sealed partial class GhTimeoutGuard : ICommandGuard
     public int Priority => 50;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, GuardContext context)
-    {
+    public bool CanHandle(string command, GuardContext context) {
         var normalized = command.TrimStart();
         return normalized.StartsWith("gh ", StringComparison.OrdinalIgnoreCase)
                || normalized.StartsWith("gh.exe ", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, GuardContext context)
-    {
+    public CommandDecision Evaluate(string command, GuardContext context) {
         _logger?.LogDebug("gh 命令超时控制: {Command}", command);
         return new CommandDecision.Allow();
     }

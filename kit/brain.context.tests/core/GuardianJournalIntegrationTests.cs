@@ -1,10 +1,8 @@
 namespace Core.Context;
 
-public sealed class GuardianJournalIntegrationTests
-{
+public sealed class GuardianJournalIntegrationTests {
     [Fact]
-    public async Task Detect_OutputLoopTriggered_JournalReceivesAnomalyCommand()
-    {
+    public async Task Detect_OutputLoopTriggered_JournalReceivesAnomalyCommand() {
         await using var journal = new LoopDiagnosticJournal(logger: null);
         var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
@@ -26,8 +24,7 @@ public sealed class GuardianJournalIntegrationTests
     }
 
     [Fact]
-    public async Task CheckTextLoop_ShannonEntropyTriggered_JournalReceivesAnomalyCommand()
-    {
+    public async Task CheckTextLoop_ShannonEntropyTriggered_JournalReceivesAnomalyCommand() {
         await using var journal = new LoopDiagnosticJournal(logger: null);
         var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
@@ -60,8 +57,7 @@ public sealed class GuardianJournalIntegrationTests
     }
 
     [Fact]
-    public async Task CheckToolCallLoop_Triggered_JournalReceivesAnomalyCommand()
-    {
+    public async Task CheckToolCallLoop_Triggered_JournalReceivesAnomalyCommand() {
         await using var journal = new LoopDiagnosticJournal(logger: null);
         var guardian = new InformationEntropyGuardian(
             toolCallSequenceDetector: new ToolCallSequenceDetector(
@@ -73,20 +69,16 @@ public sealed class GuardianJournalIntegrationTests
         using var doc1 = JsonDocument.Parse("\"test.cs\"");
         using var doc2 = JsonDocument.Parse("\"TODO\"");
 
-        for (var i = 0; i < 6; i++)
-        {
-            guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement>
-            {
+        for (var i = 0; i < 6; i++) {
+            guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement> {
                 ["file_path"] = doc1.RootElement.Clone()
             });
-            guardian.CheckToolCallLoop("Grep", new Dictionary<string, JsonElement>
-            {
+            guardian.CheckToolCallLoop("Grep", new Dictionary<string, JsonElement> {
                 ["pattern"] = doc2.RootElement.Clone()
             });
         }
 
-        var result = guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement>
-        {
+        var result = guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement> {
             ["file_path"] = doc1.RootElement.Clone()
         });
 
@@ -97,8 +89,7 @@ public sealed class GuardianJournalIntegrationTests
     }
 
     [Fact]
-    public async Task Reset_ClearsGuardianAndJournalState()
-    {
+    public async Task Reset_ClearsGuardianAndJournalState() {
         await using var journal = new LoopDiagnosticJournal(logger: null);
         var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
@@ -125,8 +116,7 @@ public sealed class GuardianJournalIntegrationTests
     }
 
     [Fact]
-    public async Task SetContext_UpdatesSessionAndTurnInfo()
-    {
+    public async Task SetContext_UpdatesSessionAndTurnInfo() {
         await using var journal = new LoopDiagnosticJournal(logger: null);
         var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
@@ -145,8 +135,7 @@ public sealed class GuardianJournalIntegrationTests
     }
 
     [Fact]
-    public async Task MultipleTriggers_EachRecordedToJournal()
-    {
+    public async Task MultipleTriggers_EachRecordedToJournal() {
         await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 50, logger: null);
         var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(

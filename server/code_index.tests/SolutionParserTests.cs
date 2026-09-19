@@ -1,25 +1,21 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class SolutionParserTests : IDisposable
-{
+public sealed class SolutionParserTests : IDisposable {
     private readonly IO.FileSystem.InMemoryFileSystem _fs;
     private bool _disposed;
 
-    public SolutionParserTests()
-    {
+    public SolutionParserTests() {
         _fs = new IO.FileSystem.InMemoryFileSystem();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fs.Clear();
     }
 
     [Fact]
-    public void ParseSln_ExtractsProjectEntries()
-    {
+    public void ParseSln_ExtractsProjectEntries() {
         var dir = Path.Combine(Path.GetTempPath(), $"sln_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var slnPath = Path.Combine(dir, "Test.sln");
@@ -40,8 +36,7 @@ public sealed class SolutionParserTests : IDisposable
     }
 
     [Fact]
-    public void ParseSln_SkipsNonCsprojProjects()
-    {
+    public void ParseSln_SkipsNonCsprojProjects() {
         var dir = Path.Combine(Path.GetTempPath(), $"sln_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var slnPath = Path.Combine(dir, "Test.sln");
@@ -61,8 +56,7 @@ public sealed class SolutionParserTests : IDisposable
     }
 
     [Fact]
-    public void ParseSlnx_ExtractsProjectEntries()
-    {
+    public void ParseSlnx_ExtractsProjectEntries() {
         var dir = Path.Combine(Path.GetTempPath(), $"sln_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var slnxPath = Path.Combine(dir, "Test.slnx");
@@ -82,8 +76,7 @@ public sealed class SolutionParserTests : IDisposable
     }
 
     [Fact]
-    public void ParseSln_EmptySolution_ReturnsEmptyList()
-    {
+    public void ParseSln_EmptySolution_ReturnsEmptyList() {
         var dir = Path.Combine(Path.GetTempPath(), $"sln_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var slnPath = Path.Combine(dir, "Empty.sln");
@@ -95,8 +88,7 @@ public sealed class SolutionParserTests : IDisposable
     }
 
     [Fact]
-    public void ParseSln_MalformedProjectLine_NoEquals_ReturnsEmpty()
-    {
+    public void ParseSln_MalformedProjectLine_NoEquals_ReturnsEmpty() {
         var dir = Path.Combine(Path.GetTempPath(), $"sln_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var slnPath = Path.Combine(dir, "Test.sln");
@@ -113,8 +105,7 @@ public sealed class SolutionParserTests : IDisposable
     }
 
     [Fact]
-    public void ParseSln_MalformedProjectLine_NotQuoted_ReturnsEmpty()
-    {
+    public void ParseSln_MalformedProjectLine_NotQuoted_ReturnsEmpty() {
         var dir = Path.Combine(Path.GetTempPath(), $"sln_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var slnPath = Path.Combine(dir, "Test.sln");
@@ -131,8 +122,7 @@ public sealed class SolutionParserTests : IDisposable
     }
 
     [Fact]
-    public void ParseSlnx_EmptyPath_IsSkipped()
-    {
+    public void ParseSlnx_EmptyPath_IsSkipped() {
         var dir = Path.Combine(Path.GetTempPath(), $"sln_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var slnxPath = Path.Combine(dir, "Test.slnx");
@@ -151,26 +141,22 @@ public sealed class SolutionParserTests : IDisposable
     }
 
     [Fact]
-    public void ParseSln_NullFilePath_Throws()
-    {
+    public void ParseSln_NullFilePath_Throws() {
         Assert.Throws<ArgumentNullException>(() => SolutionParser.ParseSln(null!, _fs));
     }
 
     [Fact]
-    public void ParseSln_NullFileSystem_Throws()
-    {
+    public void ParseSln_NullFileSystem_Throws() {
         Assert.Throws<ArgumentNullException>(() => SolutionParser.ParseSln("test.sln", null!));
     }
 
     [Fact]
-    public void ParseSlnx_NullFilePath_Throws()
-    {
+    public void ParseSlnx_NullFilePath_Throws() {
         Assert.Throws<ArgumentNullException>(() => SolutionParser.ParseSlnx(null!, _fs));
     }
 
     [Fact]
-    public void ParseSlnx_NullFileSystem_Throws()
-    {
+    public void ParseSlnx_NullFileSystem_Throws() {
         Assert.Throws<ArgumentNullException>(() => SolutionParser.ParseSlnx("test.slnx", null!));
     }
 }

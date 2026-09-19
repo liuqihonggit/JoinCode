@@ -1,17 +1,14 @@
 namespace Core.Tests.Plugins;
 
-public sealed class PluginCascadeUnloadE2ETests
-{
-    private sealed class ProviderPlugin : WorkflowPluginBase
-    {
+public sealed class PluginCascadeUnloadE2ETests {
+    private sealed class ProviderPlugin : WorkflowPluginBase {
         public override string Name => "ProviderPlugin";
         public override string Version => "1.0.0";
         public override string Description => "Provides a service";
 
         public ProviderPlugin() : base("ProviderPlugin") { }
 
-        public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default)
-        {
+        public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default) {
             ctx.RegisterService<ICascadeService, CascadeServiceImpl>();
             return Task.FromResult(OperationResult.Ok());
         }
@@ -22,8 +19,7 @@ public sealed class PluginCascadeUnloadE2ETests
         protected override void OnUnload() { }
     }
 
-    private sealed class ConsumerPlugin : WorkflowPluginBase, IPluginDependencies
-    {
+    private sealed class ConsumerPlugin : WorkflowPluginBase, IPluginDependencies {
         public override string Name => "ConsumerPlugin";
         public override string Version => "1.0.0";
         public override string Description => "Consumes a service from ProviderPlugin";
@@ -43,8 +39,7 @@ public sealed class PluginCascadeUnloadE2ETests
     private interface ICascadeService { }
     private sealed class CascadeServiceImpl : ICascadeService { }
 
-    private static PluginManager CreatePluginManager()
-    {
+    private static PluginManager CreatePluginManager() {
         var services = new ServiceCollection();
         services.AddLogging();
         var sp = services.BuildServiceProvider();
@@ -56,8 +51,7 @@ public sealed class PluginCascadeUnloadE2ETests
     }
 
     [Fact]
-    public async Task UnloadProvider_CascadesConsumer()
-    {
+    public async Task UnloadProvider_CascadesConsumer() {
         var pm = CreatePluginManager();
         await pm.LoadWorkflowPluginAsync<ProviderPlugin>();
         await pm.LoadWorkflowPluginAsync<ConsumerPlugin>();
@@ -77,8 +71,7 @@ public sealed class PluginCascadeUnloadE2ETests
     }
 
     [Fact]
-    public async Task UnloadConsumer_DoesNotCascadeProvider()
-    {
+    public async Task UnloadConsumer_DoesNotCascadeProvider() {
         var pm = CreatePluginManager();
         await pm.LoadWorkflowPluginAsync<ProviderPlugin>();
         await pm.LoadWorkflowPluginAsync<ConsumerPlugin>();
@@ -95,8 +88,7 @@ public sealed class PluginCascadeUnloadE2ETests
     }
 
     [Fact]
-    public async Task LoadAfterCascadeUnload_Succeeds()
-    {
+    public async Task LoadAfterCascadeUnload_Succeeds() {
         var pm = CreatePluginManager();
         await pm.LoadWorkflowPluginAsync<ProviderPlugin>();
         await pm.LoadWorkflowPluginAsync<ConsumerPlugin>();

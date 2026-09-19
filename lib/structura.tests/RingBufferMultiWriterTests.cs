@@ -7,11 +7,9 @@ namespace Structura.Tests;
 /// 故快照不可能严格连续。但每槽位 seq 标记应保证读到完整写入而非新旧值混装,
 /// 即快照中不应出现重复元素(每个槽位是唯一的最新写入)。
 /// </summary>
-public sealed class RingBufferMultiWriterTests
-{
+public sealed class RingBufferMultiWriterTests {
     [Fact]
-    public void MultiWriter_ToArraySnapshot_NoDuplicates()
-    {
+    public void MultiWriter_ToArraySnapshot_NoDuplicates() {
         const int capacity = 256;
         const int writers = 4;
         const int writesPerWriter = 100_000;
@@ -21,20 +19,14 @@ public sealed class RingBufferMultiWriterTests
         var errors = new List<string>();
         var errLock = new object();
 
-        var consumer = new Thread(() =>
-        {
-            try
-            {
-                while (!doneSignal.IsSet)
-                {
+        var consumer = new Thread(() => {
+            try {
+                while (!doneSignal.IsSet) {
                     var snap = buf.ToArray();
                     var set = new HashSet<int>(snap.Length);
-                    foreach (var v in snap)
-                    {
-                        if (!set.Add(v))
-                        {
-                            lock (errLock)
-                            {
+                    foreach (var v in snap) {
+                        if (!set.Add(v)) {
+                            lock (errLock) {
                                 if (errors.Count < 5)
                                     errors.Add($"快照出现重复元素 {v}, 说明每槽位 seq 标记未正确隔离新旧写入");
                             }
@@ -42,9 +34,7 @@ public sealed class RingBufferMultiWriterTests
                         }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 lock (errLock) { if (errors.Count < 5) errors.Add($"消费者异常: {ex.Message}"); }
             }
         }) { IsBackground = true };
@@ -52,19 +42,14 @@ public sealed class RingBufferMultiWriterTests
 
         var threadErrors = new List<Exception>();
         var threads = new Thread[writers];
-        for (var w = 0; w < writers; w++)
-        {
-            threads[w] = new Thread(() =>
-            {
-                try
-                {
-                    for (var i = 0; i < writesPerWriter; i++)
-                    {
+        for (var w = 0; w < writers; w++) {
+            threads[w] = new Thread(() => {
+                try {
+                    for (var i = 0; i < writesPerWriter; i++) {
                         var seq = Interlocked.Increment(ref globalSeq);
                         buf.Add(seq);
                     }
-                }
-                catch (Exception ex) { lock (threadErrors) threadErrors.Add(ex); }
+                } catch (Exception ex) { lock (threadErrors) threadErrors.Add(ex); }
             }) { IsBackground = true };
         }
 

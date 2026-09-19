@@ -4,8 +4,7 @@ namespace Services.Api.Vcr;
 /// <summary>
 /// VCR cassette（录像带），存储一组 HTTP 交互记录
 /// </summary>
-public sealed class VcrCassette
-{
+public sealed class VcrCassette {
     /// <summary>
     /// cassette 名称
     /// </summary>
@@ -28,8 +27,7 @@ public sealed class VcrCassette
 /// <summary>
 /// VCR 单次交互记录（请求+响应）
 /// </summary>
-public sealed class VcrInteraction
-{
+public sealed class VcrInteraction {
     /// <summary>
     /// 请求信息
     /// </summary>
@@ -52,8 +50,7 @@ public sealed class VcrInteraction
 /// <summary>
 /// VCR 请求记录
 /// </summary>
-public sealed record VcrRequest
-{
+public sealed record VcrRequest {
     /// <summary>
     /// HTTP 方法
     /// </summary>
@@ -82,8 +79,7 @@ public sealed record VcrRequest
 /// <summary>
 /// VCR 响应记录
 /// </summary>
-public sealed record VcrResponse
-{
+public sealed record VcrResponse {
     /// <summary>
     /// HTTP 状态码
     /// </summary>

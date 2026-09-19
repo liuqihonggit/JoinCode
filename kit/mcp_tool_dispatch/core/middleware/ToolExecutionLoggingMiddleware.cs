@@ -4,16 +4,14 @@ namespace McpToolRegistry;
 /// 工具执行日志中间件 — 捕获工具执行管道中的异常并记录日志，异常继续向外层传播
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ToolExecutionLoggingMiddleware : ServiceEntity, IToolExecutionMiddleware
-{
+public sealed partial class ToolExecutionLoggingMiddleware : ServiceEntity, IToolExecutionMiddleware {
     private readonly ILogger<ToolExecutionLoggingMiddleware> _logger;
 
     /// <summary>
     /// 构造函数 — 注入日志记录器
     /// </summary>
     /// <param name="logger">日志记录器实例</param>
-    public ToolExecutionLoggingMiddleware(ILogger<ToolExecutionLoggingMiddleware> logger)
-    {
+    public ToolExecutionLoggingMiddleware(ILogger<ToolExecutionLoggingMiddleware> logger) {
         _logger = logger;
     }
 
@@ -29,14 +27,10 @@ public sealed partial class ToolExecutionLoggingMiddleware : ServiceEntity, IToo
     /// <param name="next">下一层中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct)
-    {
-        try
-        {
+    public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct) {
+        try {
             await next(context, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogError(ex, "Tool {ToolName} middleware error", context.ToolName);
             throw;
         }

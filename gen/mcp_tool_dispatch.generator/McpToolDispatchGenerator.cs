@@ -2,24 +2,20 @@
 namespace McpToolDispatch.Generator;
 
 [Generator]
-public sealed class McpToolDispatchGenerator : IIncrementalGenerator
-{
+public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
     private const string HandlerAttributeFullName = "JoinCode.Abstractions.Attributes.McpToolDispatchAttribute";
     private const string ToolAttributeFullName = "JoinCode.Abstractions.Attributes.McpToolAttribute";
     private const string ParamAttributeFullName = "JoinCode.Abstractions.Attributes.McpToolParameterAttribute";
     private const string OptionsAttributeFullName = "JoinCode.Abstractions.Attributes.McpToolOptionsAttribute";
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
+    public void Initialize(IncrementalGeneratorInitializationContext context) {
         var handlerTypes = context.CompilationProvider
-            .Select(static (compilation, _) =>
-            {
+            .Select(static (compilation, _) => {
                 var assemblyName = compilation.AssemblyName ?? "Unknown";
                 return assemblyName;
             })
             .Combine(context.CompilationProvider
-            .SelectMany(static (compilation, _) =>
-            {
+            .SelectMany(static (compilation, _) => {
                 var handlerAttr = compilation.GetTypeByMetadataName(HandlerAttributeFullName);
                 var toolAttr = compilation.GetTypeByMetadataName(ToolAttributeFullName);
                 var paramAttr = compilation.GetTypeByMetadataName(ParamAttributeFullName);
@@ -33,8 +29,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             })
             .Collect());
 
-        context.RegisterSourceOutput(handlerTypes, static (ctx, pair) =>
-        {
+        context.RegisterSourceOutput(handlerTypes, static (ctx, pair) => {
             var assemblyName = pair.Left;
             var handlers = pair.Right;
             GenerateRegistrationCode(ctx, handlers, assemblyName);
@@ -48,51 +43,38 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         INamedTypeSymbol? toolAttr,
         INamedTypeSymbol? paramAttr,
         INamedTypeSymbol? optionsAttr,
-        List<HandlerInfo> results)
-    {
-        foreach (var member in namespaceSymbol.GetMembers())
-        {
+        List<HandlerInfo> results) {
+        foreach (var member in namespaceSymbol.GetMembers()) {
             if (member is INamespaceSymbol childNamespace)
                 VisitNamespaces(compilation, childNamespace, handlerAttr, toolAttr, paramAttr, optionsAttr, results);
-            else if (member is INamedTypeSymbol typeSymbol)
-            {
+            else if (member is INamedTypeSymbol typeSymbol) {
                 var attribute = typeSymbol.GetAttributes()
                     .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, handlerAttr));
-                if (attribute is not null)
-                {
+                if (attribute is not null) {
                     var displayName = attribute.ConstructorArguments.FirstOrDefault().Value as string ?? typeSymbol.Name;
                     var optional = false;
                     var kind = "system";
                     string? groupName = null;
-                    foreach (var namedArg in attribute.NamedArguments)
-                    {
+                    foreach (var namedArg in attribute.NamedArguments) {
                         if (namedArg.Key == "Optional" && namedArg.Value.Value is bool b)
                             optional = b;
-                        else if (namedArg.Key == "CategoryEnum" && namedArg.Value.Value is int enumValue)
-                        {
+                        else if (namedArg.Key == "CategoryEnum" && namedArg.Value.Value is int enumValue) {
                             var resolved = TryResolveEnumValue(compilation, enumValue);
                             if (resolved is not null)
                                 displayName = resolved;
-                        }
-                        else if (namedArg.Key == "Kind" && namedArg.Value.Value is int kindValue)
-                        {
+                        } else if (namedArg.Key == "Kind" && namedArg.Value.Value is int kindValue) {
                             kind = TryResolveToolKindValue(compilation, kindValue) ?? "system";
-                        }
-                        else if (namedArg.Key == "GroupName" && namedArg.Value.Value is string gn)
-                        {
+                        } else if (namedArg.Key == "GroupName" && namedArg.Value.Value is string gn) {
                             groupName = gn;
                         }
                     }
 
                     var tools = new List<ToolMethodInfo>();
-                    if (toolAttr is not null)
-                    {
-                        foreach (var method in typeSymbol.GetMembers().OfType<IMethodSymbol>())
-                        {
+                    if (toolAttr is not null) {
+                        foreach (var method in typeSymbol.GetMembers().OfType<IMethodSymbol>()) {
                             var toolAttribute = method.GetAttributes()
                                 .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, toolAttr));
-                            if (toolAttribute is not null)
-                            {
+                            if (toolAttribute is not null) {
                                 var toolName = toolAttribute.ConstructorArguments.ElementAtOrDefault(0).Value as string ?? method.Name;
                                 var toolDescription = toolAttribute.ConstructorArguments.ElementAtOrDefault(1).Value as string ?? method.Name;
                                 var hasExplicitCategory = toolAttribute.ConstructorArguments.Length > 2;
@@ -103,8 +85,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                 var concurrencySafe = false;
                                 var toolKind = (string?)null;
                                 var toolGroupName = (string?)null;
-                                foreach (var named in toolAttribute.NamedArguments)
-                                {
+                                foreach (var named in toolAttribute.NamedArguments) {
                                     if (named.Key == "ConcurrencySafe" && named.Value.Value is bool cs)
                                         concurrencySafe = cs;
                                     else if (named.Key == "Kind" && named.Value.Value is int tkValue && tkValue >= 0)
@@ -116,14 +97,12 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                 var parameters = new List<ParamInfo>();
                                 var optionsTypeNames = new Dictionary<string, string>();
                                 var hasProgressCallback = false;
-                                foreach (var param in method.Parameters)
-                                {
+                                foreach (var param in method.Parameters) {
                                     var paramTypeName = param.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                                     if (IsCancellationToken(paramTypeName))
                                         continue;
                                     // 跳过 ToolProgressCallback? 参数 — 对齐 TS onProgress，由生成器自动传递
-                                    if (IsToolProgressCallback(paramTypeName))
-                                    {
+                                    if (IsToolProgressCallback(paramTypeName)) {
                                         hasProgressCallback = true;
                                         continue;
                                     }
@@ -133,13 +112,11 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                         ? param.GetAttributes().FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, optionsAttr))
                                         : null;
 
-                                    if (optionsAttrInstance is not null && param.Type is INamedTypeSymbol optionsType)
-                                    {
+                                    if (optionsAttrInstance is not null && param.Type is INamedTypeSymbol optionsType) {
                                         var optionsParamName = param.Name ?? "options";
                                         optionsTypeNames[optionsParamName] = paramTypeName;
 
-                                        foreach (var property in optionsType.GetMembers().OfType<IPropertySymbol>())
-                                        {
+                                        foreach (var property in optionsType.GetMembers().OfType<IPropertySymbol>()) {
                                             var propAttrInstance = property.GetAttributes()
                                                 .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, paramAttr));
 
@@ -151,8 +128,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                             var propDefault = (string?)null;
                                             var propEnum = (string[]?)null;
 
-                                            foreach (var named in propAttrInstance.NamedArguments)
-                                            {
+                                            foreach (var named in propAttrInstance.NamedArguments) {
                                                 if (named.Key == "Required" && named.Value.Value is bool r)
                                                     propRequired = r;
                                                 else if (named.Key == "DefaultValue" && named.Value.Value is string dv)
@@ -187,10 +163,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                     var paramDefault = (string?)null;
                                     var paramEnum = (string[]?)null;
 
-                                    if (paramAttrInstance is not null)
-                                    {
-                                        foreach (var named in paramAttrInstance.NamedArguments)
-                                        {
+                                    if (paramAttrInstance is not null) {
+                                        foreach (var named in paramAttrInstance.NamedArguments) {
                                             if (named.Key == "Required" && named.Value.Value is bool r)
                                                 paramRequired = r;
                                             else if (named.Key == "DefaultValue" && named.Value.Value is string dv)
@@ -200,8 +174,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                         }
                                     }
 
-                                    if (param.HasExplicitDefaultValue)
-                                    {
+                                    if (param.HasExplicitDefaultValue) {
                                         paramRequired = false;
                                         if (paramDefault is null && param.ExplicitDefaultValue is not null)
                                             paramDefault = param.ExplicitDefaultValue.ToString();
@@ -249,11 +222,9 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
     /// <summary>
     /// 检测工具处理组的超时策略 — 遍历基类链查找 OneShotCommandGroup / LongRunningGroup
     /// </summary>
-    private static string DetectTimeoutPolicy(INamedTypeSymbol typeSymbol)
-    {
+    private static string DetectTimeoutPolicy(INamedTypeSymbol typeSymbol) {
         var baseType = typeSymbol.BaseType;
-        while (baseType is not null)
-        {
+        while (baseType is not null) {
             if (baseType.Name == "OneShotCommandGroup")
                 return "AbsoluteTwoMinutes";
             if (baseType.Name == "LongRunningGroup")
@@ -272,11 +243,9 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         || typeName == "JoinCode.Abstractions.Tools.ToolProgressCallback?"
         || typeName == "global::JoinCode.Abstractions.Tools.ToolProgressCallback?";
 
-    private static bool IsArrayType(string typeName, out string elementType)
-    {
+    private static bool IsArrayType(string typeName, out string elementType) {
         // 匹配 string[], string[]?, global::System.String[], global::System.String[]?
-        if (typeName.EndsWith("[]") || typeName.EndsWith("[]?"))
-        {
+        if (typeName.EndsWith("[]") || typeName.EndsWith("[]?")) {
             var baseName = typeName.EndsWith("[]?")
                 ? typeName.Substring(0, typeName.Length - 3)
                 : typeName.Substring(0, typeName.Length - 2);
@@ -285,8 +254,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         }
         // 匹配 List<T>, List<T>?, IList<T>, IEnumerable<T>, IReadOnlyList<T> 等泛型集合
         var listElement = ExtractListElementType(typeName);
-        if (listElement != null)
-        {
+        if (listElement != null) {
             elementType = listElement;
             return true;
         }
@@ -298,8 +266,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
     /// 从 List&lt;T&gt;/IList&lt;T&gt;/IEnumerable&lt;T&gt; 等类型名中提取元素类型 T。
     /// 返回 null 表示不是泛型集合类型。
     /// </summary>
-    private static string? ExtractListElementType(string typeName)
-    {
+    private static string? ExtractListElementType(string typeName) {
         // 去除 nullable 后缀
         var baseName = typeName.EndsWith("?") ? typeName.Substring(0, typeName.Length - 1) : typeName;
 
@@ -320,14 +287,11 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             "global::System.Collections.Generic.IReadOnlyCollection<",
         };
 
-        foreach (var prefix in listTypePrefixes)
-        {
-            if (baseName.StartsWith(prefix, StringComparison.Ordinal))
-            {
+        foreach (var prefix in listTypePrefixes) {
+            if (baseName.StartsWith(prefix, StringComparison.Ordinal)) {
                 // 提取 <T> 中的 T
                 var innerStart = prefix.Length;
-                if (innerStart < baseName.Length && baseName.EndsWith(">"))
-                {
+                if (innerStart < baseName.Length && baseName.EndsWith(">")) {
                     return baseName.Substring(innerStart, baseName.Length - innerStart - 1);
                 }
             }
@@ -335,11 +299,9 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static string GetSimpleTypeName(string typeName)
-    {
+    private static string GetSimpleTypeName(string typeName) {
         // 将 global::System.String → string, global::System.Int32 → int 等
-        return typeName switch
-        {
+        return typeName switch {
             "global::System.String" or "global::System.String?" => typeName.EndsWith("?") ? "string?" : "string",
             "global::System.Int32" or "global::System.Int32?" => typeName.EndsWith("?") ? "int?" : "int",
             "global::System.Int64" or "global::System.Int64?" => typeName.EndsWith("?") ? "long?" : "long",
@@ -353,8 +315,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         };
     }
 
-    private static string MapTypeToJsonType(ITypeSymbol type)
-    {
+    private static string MapTypeToJsonType(ITypeSymbol type) {
         var typeName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         var simplified = GetSimpleTypeName(typeName);
 
@@ -368,8 +329,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             return "number";
         if (simplified == "bool" || simplified == "bool?")
             return "boolean";
-        if (IsArrayType(typeName, out var elementType))
-        {
+        if (IsArrayType(typeName, out var elementType)) {
             var simplifiedElement = GetSimpleTypeName(elementType);
             if (simplifiedElement == "string" || simplifiedElement == "string?")
                 return "array:string";
@@ -387,22 +347,19 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         return "string";
     }
 
-    private static string GenerateArgExtractor(ParamInfo param)
-    {
+    private static string GenerateArgExtractor(ParamInfo param) {
         var name = param.Name;
         var typeName = param.TypeName;
         var snakeName = ToSnakeCase(name);
         var simplified = GetSimpleTypeName(typeName);
 
         // 处理数组/集合类型
-        if (IsArrayType(typeName, out var elementType))
-        {
+        if (IsArrayType(typeName, out var elementType)) {
             var simplifiedElement = GetSimpleTypeName(elementType);
             var isDictElement = IsDictionaryOfJsonElement(elementType);
             var isListType = typeName.Contains("List<") || typeName.Contains("IList<") || typeName.Contains("IEnumerable<") || typeName.Contains("IReadOnlyList<") || typeName.Contains("ICollection<") || typeName.Contains("IReadOnlyCollection<");
             var isSimpleElement = simplifiedElement is "string" or "string?" or "int" or "int?" or "long" or "long?" or "double" or "double?" or "float" or "float?" or "bool" or "bool?";
-            var elementExtractor = simplifiedElement switch
-            {
+            var elementExtractor = simplifiedElement switch {
                 "string" or "string?" => $"{JsonElementToStringExpr("e")} ?? \"\"",
                 "int" or "int?" => "e.GetInt32()",
                 "long" or "long?" => "e.GetInt64()",
@@ -424,8 +381,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         }
 
         // 处理 Dictionary<string, JsonElement> 类型（非数组元素）
-        if (IsDictionaryOfJsonElement(typeName))
-        {
+        if (IsDictionaryOfJsonElement(typeName)) {
             if (param.IsNullable || !param.Required)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Object ? __{name}El.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone()) : null";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Object ? __{name}El.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone()) : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
@@ -435,8 +391,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         var isNullableType = simplified.EndsWith("?") || param.IsNullable;
         var baseType = simplified.EndsWith("?") ? simplified.Substring(0, simplified.Length - 1) : simplified;
 
-        if (baseType == "string")
-        {
+        if (baseType == "string") {
             var elExpr = JsonElementToStringExpr($"__{name}El");
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {elExpr} : null";
@@ -446,8 +401,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {elExpr} ?? \"\" : \"\"";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {elExpr} ?? \"\" : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
-        if (baseType == "int")
-        {
+        if (baseType == "int") {
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (int?)__{name}El.GetInt32() : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
@@ -456,8 +410,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt32() : 0";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt32() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
-        if (baseType == "long")
-        {
+        if (baseType == "long") {
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (long?)__{name}El.GetInt64() : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
@@ -466,8 +419,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt64() : 0L";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt64() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
-        if (baseType == "double")
-        {
+        if (baseType == "double") {
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (double?)__{name}El.GetDouble() : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
@@ -476,8 +428,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetDouble() : 0.0";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetDouble() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
-        if (baseType == "float")
-        {
+        if (baseType == "float") {
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (float?)__{name}El.GetSingle() : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
@@ -486,8 +437,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetSingle() : 0.0f";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetSingle() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
-        if (baseType == "bool")
-        {
+        if (baseType == "bool") {
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (bool?)__{name}El.GetBoolean() : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
@@ -521,11 +471,9 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
     private static bool IsDictionaryOfJsonElement(string typeName)
         => typeName.Contains("Dictionary") && typeName.Contains("JsonElement");
 
-    private static string ToSnakeCase(string name)
-    {
+    private static string ToSnakeCase(string name) {
         var sb = new StringBuilder(name.Length + 4);
-        for (int i = 0; i < name.Length; i++)
-        {
+        for (int i = 0; i < name.Length; i++) {
             var c = name[i];
             if (char.IsUpper(c) && i > 0)
                 sb.Append('_');
@@ -534,8 +482,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    private static void GenerateRegistrationCode(SourceProductionContext context, ImmutableArray<HandlerInfo> handlers, string assemblyName)
-    {
+    private static void GenerateRegistrationCode(SourceProductionContext context, ImmutableArray<HandlerInfo> handlers, string assemblyName) {
         var validHandlers = handlers.OrderBy(h => h.DisplayName).ToList();
 
         if (validHandlers.Count == 0)
@@ -581,11 +528,9 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         context.AddSource(fileName, SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private static string SanitizeAssemblyName(string assemblyName)
-    {
+    private static string SanitizeAssemblyName(string assemblyName) {
         var sb = new StringBuilder(assemblyName.Length);
-        foreach (var c in assemblyName)
-        {
+        foreach (var c in assemblyName) {
             if (char.IsLetterOrDigit(c))
                 sb.Append(c);
             else if (c == '.' || c == '-' || c == '_')
@@ -594,13 +539,11 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    private static void GenerateAddSingletonsMethod(StringBuilder sb, List<HandlerInfo> handlers)
-    {
+    private static void GenerateAddSingletonsMethod(StringBuilder sb, List<HandlerInfo> handlers) {
         sb.AppendLine("    internal static IServiceCollection AddMcpToolDispatchSingletons(this IServiceCollection services)");
         sb.AppendLine("    {");
 
-        foreach (var handler in handlers)
-        {
+        foreach (var handler in handlers) {
             sb.AppendLine($"        services.AddSingleton<{handler.FullyQualifiedName}>();");
         }
 
@@ -608,8 +551,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
     }
 
-    private static void GenerateRegisterAllMethod(StringBuilder sb, List<HandlerInfo> handlers)
-    {
+    private static void GenerateRegisterAllMethod(StringBuilder sb, List<HandlerInfo> handlers) {
         const int BatchCount = 16;
         var batchSize = (handlers.Count + BatchCount - 1) / BatchCount;
 
@@ -625,8 +567,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("        var batchTasks = new Task[]");
         sb.AppendLine("        {");
 
-        for (var i = 0; i < BatchCount && i * batchSize < handlers.Count; i++)
-        {
+        for (var i = 0; i < BatchCount && i * batchSize < handlers.Count; i++) {
             sb.AppendLine($"            BatchRegister{i}Async(registry, serviceProvider, logger, cancellationToken),");
         }
 
@@ -640,8 +581,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("        return registry;");
         sb.AppendLine("    }");
 
-        for (var i = 0; i < BatchCount && i * batchSize < handlers.Count; i++)
-        {
+        for (var i = 0; i < BatchCount && i * batchSize < handlers.Count; i++) {
             var start = i * batchSize;
             var end = Math.Min(start + batchSize, handlers.Count);
 
@@ -653,8 +593,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             sb.AppendLine("        CancellationToken cancellationToken)");
             sb.AppendLine("    {");
 
-            for (var j = start; j < end; j++)
-            {
+            for (var j = start; j < end; j++) {
                 var handler = handlers[j];
                 var optionalArg = handler.Optional ? "true" : "false";
                 sb.AppendLine($"        await Register{handler.TypeName}ToolsAsync(registry, serviceProvider, logger, cancellationToken, {optionalArg}).ConfigureAwait(false);");
@@ -664,17 +603,14 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         }
     }
 
-    private static void GeneratePerHandlerRegisterMethods(StringBuilder sb, List<HandlerInfo> handlers)
-    {
-        foreach (var handler in handlers)
-        {
+    private static void GeneratePerHandlerRegisterMethods(StringBuilder sb, List<HandlerInfo> handlers) {
+        foreach (var handler in handlers) {
             GenerateSingleHandlerMethod(sb, handler);
             sb.AppendLine();
         }
     }
 
-    private static void GenerateSingleHandlerMethod(StringBuilder sb, HandlerInfo handler)
-    {
+    private static void GenerateSingleHandlerMethod(StringBuilder sb, HandlerInfo handler) {
         sb.AppendLine($"    private static async Task Register{handler.TypeName}ToolsAsync(");
         sb.AppendLine("        IMcpToolRegistry registry,");
         sb.AppendLine("        IServiceProvider serviceProvider,");
@@ -707,8 +643,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine();
 
-        foreach (var tool in handler.Tools)
-        {
+        foreach (var tool in handler.Tools) {
             GenerateToolRegistration(sb, handler, tool);
         }
 
@@ -716,8 +651,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
     }
 
-    private static void GenerateToolRegistration(StringBuilder sb, HandlerInfo handler, ToolMethodInfo tool)
-    {
+    private static void GenerateToolRegistration(StringBuilder sb, HandlerInfo handler, ToolMethodInfo tool) {
         sb.AppendLine("        {");
         sb.AppendLine($"            var __schema = new ToolSchema");
         sb.AppendLine("            {");
@@ -725,8 +659,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("                Properties = new Dictionary<string, ToolSchemaProperty>");
         sb.AppendLine("                {");
 
-        foreach (var param in tool.Parameters)
-        {
+        foreach (var param in tool.Parameters) {
             var jsonType = param.JsonType;
             var isArray = jsonType.StartsWith("array:");
             var actualType = isArray ? jsonType.Substring(6) : jsonType;
@@ -735,16 +668,13 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             sb.AppendLine("                    {");
             sb.AppendLine($"                        Type = \"{(isArray ? "array" : actualType)}\",");
             sb.AppendLine($"                        Description = \"{EscapeString(param.Description)}\",");
-            if (isArray)
-            {
+            if (isArray) {
                 sb.AppendLine($"                        Items = new ToolSchemaProperty {{ Type = \"{actualType}\" }},");
             }
-            if (param.EnumValues is not null && param.EnumValues.Length > 0)
-            {
+            if (param.EnumValues is not null && param.EnumValues.Length > 0) {
                 sb.AppendLine($"                        Enum = new List<string> {{ {string.Join(", ", param.EnumValues.Select(e => $"\"{EscapeString(e)}\""))} }},");
             }
-            if (param.DefaultValue is not null)
-            {
+            if (param.DefaultValue is not null) {
                 sb.AppendLine($"                        Default = \"{EscapeString(param.DefaultValue)}\",");
             }
             sb.AppendLine("                    },");
@@ -752,8 +682,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
 
         sb.AppendLine("                },");
         var requiredParams = tool.Parameters.Where(p => p.Required).ToList();
-        if (requiredParams.Count > 0)
-        {
+        if (requiredParams.Count > 0) {
             sb.AppendLine($"                Required = new List<string> {{ {string.Join(", ", requiredParams.Select(p => $"\"{ToSnakeCase(p.Name)}\""))} }},");
         }
         sb.AppendLine("            };");
@@ -763,20 +692,16 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         var argsList = string.Join(", ", argExtractors);
 
         // 处理 [McpToolOptions] 参数：将展开的属性参数合并为对象初始化器
-        if (tool.OptionsTypeNames.Count > 0)
-        {
+        if (tool.OptionsTypeNames.Count > 0) {
             var invocationArgs = new List<string>();
             var i = 0;
-            while (i < tool.Parameters.Count)
-            {
+            while (i < tool.Parameters.Count) {
                 var param = tool.Parameters[i];
-                if (param.OptionsParamName is not null)
-                {
+                if (param.OptionsParamName is not null) {
                     // 收集同一 [McpToolOptions] 参数的所有展开属性
                     var optionsName = param.OptionsParamName;
                     var optionsParams = new List<(ParamInfo Param, string Extractor)>();
-                    while (i < tool.Parameters.Count && tool.Parameters[i].OptionsParamName == optionsName)
-                    {
+                    while (i < tool.Parameters.Count && tool.Parameters[i].OptionsParamName == optionsName) {
                         optionsParams.Add((tool.Parameters[i], argExtractors[i]));
                         i++;
                     }
@@ -784,9 +709,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                     var typeName = tool.OptionsTypeNames[optionsName];
                     var propertyInitializers = optionsParams.Select(p => $"{p.Param.Name} = {p.Extractor}");
                     invocationArgs.Add($"new {typeName} {{ {string.Join(", ", propertyInitializers)} }}");
-                }
-                else
-                {
+                } else {
                     invocationArgs.Add(argExtractors[i]);
                     i++;
                 }
@@ -794,14 +717,12 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             argsList = string.Join(", ", invocationArgs);
         }
 
-        if (tool.Parameters.Any(p => p.Name == "cancellationToken") == false)
-        {
+        if (tool.Parameters.Any(p => p.Name == "cancellationToken") == false) {
             argsList = string.IsNullOrEmpty(argsList) ? "ct" : argsList + ", ct";
         }
 
         // 对齐 TS onProgress: 仅当方法签名包含 ToolProgressCallback? 时才传递 onProgress
-        if (tool.HasProgressCallback)
-        {
+        if (tool.HasProgressCallback) {
             argsList = string.IsNullOrEmpty(argsList) ? "onProgress" : argsList + ", onProgress";
         }
 
@@ -816,27 +737,23 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("        }");
     }
 
-    private static string EscapeString(string s)
-    {
+    private static string EscapeString(string s) {
         return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
 
-    private static void GenerateToolCategoriesMethod(StringBuilder sb, List<HandlerInfo> handlers)
-    {
+    private static void GenerateToolCategoriesMethod(StringBuilder sb, List<HandlerInfo> handlers) {
         sb.AppendLine($"    public static Dictionary<string, List<ToolCategoryEntry>> GetAvailableToolCategories()");
         sb.AppendLine("    {");
         sb.AppendLine("        var categories = new Dictionary<string, List<ToolCategoryEntry>>(StringComparer.OrdinalIgnoreCase);");
         sb.AppendLine();
 
-        foreach (var handler in handlers)
-        {
+        foreach (var handler in handlers) {
             if (handler.Tools.Count == 0) continue;
 
             var displayName = EscapeString(handler.DisplayName);
             var handlerKind = EscapeString(handler.Kind);
 
-            foreach (var tool in handler.Tools)
-            {
+            foreach (var tool in handler.Tools) {
                 var toolName = EscapeString(tool.Name);
                 var toolDesc = EscapeString(tool.Description);
                 var effectiveKind = tool.Kind ?? handlerKind;
@@ -855,8 +772,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
     }
 
-    private static void GenerateVisibleToolCategoriesMethod(StringBuilder sb, List<HandlerInfo> handlers)
-    {
+    private static void GenerateVisibleToolCategoriesMethod(StringBuilder sb, List<HandlerInfo> handlers) {
         sb.AppendLine($"    public static Dictionary<string, List<ToolCategoryEntry>> GetVisibleToolCategories()");
         sb.AppendLine("    {");
         sb.AppendLine("        var all = GetAvailableToolCategories();");
@@ -869,8 +785,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
     }
 
-    private static void GenerateConcurrencyCacheMethod(StringBuilder sb, List<HandlerInfo> handlers)
-    {
+    private static void GenerateConcurrencyCacheMethod(StringBuilder sb, List<HandlerInfo> handlers) {
         var safeTools = handlers
             .SelectMany(h => h.Tools)
             .Where(t => t.ConcurrencySafe)
@@ -882,25 +797,20 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("    /// 并发安全工具名称集合 — 由源码生成器从 [McpTool(ConcurrencySafe = true)] 自动生成");
         sb.AppendLine("    /// 对齐 TS StreamingToolExecutor.isConcurrencySafe: 不在此集合中的工具默认非并发安全");
         sb.AppendLine("    /// </summary>");
-        if (safeTools.Count > 0)
-        {
+        if (safeTools.Count > 0) {
             sb.AppendLine($"    public static System.Collections.Frozen.FrozenSet<string> SafeToolNames {{ get; }} = System.Collections.Frozen.FrozenSet.Create<string>(");
             sb.AppendLine("        System.StringComparer.OrdinalIgnoreCase,");
             sb.AppendLine("        [");
-            foreach (var name in safeTools)
-            {
+            foreach (var name in safeTools) {
                 sb.AppendLine($"            \"{EscapeString(name)}\",");
             }
             sb.AppendLine("        ]);");
-        }
-        else
-        {
+        } else {
             sb.AppendLine($"    public static System.Collections.Frozen.FrozenSet<string> SafeToolNames {{ get; }} = System.Collections.Frozen.FrozenSet<string>.Empty;");
         }
     }
 
-    private sealed class HandlerInfo
-    {
+    private sealed class HandlerInfo {
         public string FullyQualifiedName { get; }
         public string TypeName { get; }
         public string DisplayName { get; }
@@ -910,8 +820,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         public string TimeoutPolicy { get; }
         public List<ToolMethodInfo> Tools { get; }
 
-        public HandlerInfo(string fullyQualifiedName, string typeName, string displayName, bool optional, string kind, string? groupName, string timeoutPolicy, List<ToolMethodInfo> tools)
-        {
+        public HandlerInfo(string fullyQualifiedName, string typeName, string displayName, bool optional, string kind, string? groupName, string timeoutPolicy, List<ToolMethodInfo> tools) {
             FullyQualifiedName = fullyQualifiedName;
             TypeName = typeName;
             DisplayName = displayName;
@@ -923,8 +832,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         }
     }
 
-    private sealed class ToolMethodInfo
-    {
+    private sealed class ToolMethodInfo {
         public string Name { get; }
         public string Description { get; }
         public string? Category { get; }
@@ -952,8 +860,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         /// </summary>
         public string? GroupName { get; }
 
-        public ToolMethodInfo(string name, string description, string? category, string methodName, List<ParamInfo> parameters, string returnTypeName, Dictionary<string, string> optionsTypeNames, bool hasProgressCallback, bool concurrencySafe, string? kind, string? groupName)
-        {
+        public ToolMethodInfo(string name, string description, string? category, string methodName, List<ParamInfo> parameters, string returnTypeName, Dictionary<string, string> optionsTypeNames, bool hasProgressCallback, bool concurrencySafe, string? kind, string? groupName) {
             Name = name;
             Description = description;
             Category = category;
@@ -968,8 +875,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         }
     }
 
-    private sealed class ParamInfo
-    {
+    private sealed class ParamInfo {
         public string Name { get; }
         public string TypeName { get; }
         public string JsonType { get; }
@@ -984,8 +890,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         /// </summary>
         public string? OptionsParamName { get; }
 
-        public ParamInfo(string name, string typeName, string jsonType, string description, bool required, bool isNullable, bool hasDefaultValue, string? defaultValue, string[]? enumValues, string? optionsParamName = null)
-        {
+        public ParamInfo(string name, string typeName, string jsonType, string description, bool required, bool isNullable, bool hasDefaultValue, string? defaultValue, string[]? enumValues, string? optionsParamName = null) {
             Name = name;
             TypeName = typeName;
             JsonType = jsonType;
@@ -999,20 +904,16 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         }
     }
 
-    private static string? TryResolveEnumValue(Compilation compilation, int enumValue)
-    {
+    private static string? TryResolveEnumValue(Compilation compilation, int enumValue) {
         var enumType = compilation.GetTypeByMetadataName("JoinCode.Abstractions.Utils.ToolCategory");
         if (enumType is null || enumType.TypeKind != TypeKind.Enum)
             return null;
 
-        foreach (var member in enumType.GetMembers().OfType<IFieldSymbol>())
-        {
-            if (member.HasConstantValue && member.ConstantValue is int intValue && intValue == enumValue)
-            {
+        foreach (var member in enumType.GetMembers().OfType<IFieldSymbol>()) {
+            if (member.HasConstantValue && member.ConstantValue is int intValue && intValue == enumValue) {
                 var enumValueAttr = member.GetAttributes()
                     .FirstOrDefault(a => a.AttributeClass?.Name == "EnumValueAttribute");
-                if (enumValueAttr is not null)
-                {
+                if (enumValueAttr is not null) {
                     return enumValueAttr.ConstructorArguments.FirstOrDefault().Value as string;
                 }
                 return member.Name;
@@ -1021,20 +922,16 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         return null;
     }
 
-    private static string? TryResolveToolKindValue(Compilation compilation, int enumValue)
-    {
+    private static string? TryResolveToolKindValue(Compilation compilation, int enumValue) {
         var enumType = compilation.GetTypeByMetadataName("JoinCode.Abstractions.Utils.ToolKind");
         if (enumType is null || enumType.TypeKind != TypeKind.Enum)
             return null;
 
-        foreach (var member in enumType.GetMembers().OfType<IFieldSymbol>())
-        {
-            if (member.HasConstantValue && member.ConstantValue is int intValue && intValue == enumValue)
-            {
+        foreach (var member in enumType.GetMembers().OfType<IFieldSymbol>()) {
+            if (member.HasConstantValue && member.ConstantValue is int intValue && intValue == enumValue) {
                 var enumValueAttr = member.GetAttributes()
                     .FirstOrDefault(a => a.AttributeClass?.Name == "EnumValueAttribute");
-                if (enumValueAttr is not null)
-                {
+                if (enumValueAttr is not null) {
                     return enumValueAttr.ConstructorArguments.FirstOrDefault().Value as string;
                 }
                 return member.Name;

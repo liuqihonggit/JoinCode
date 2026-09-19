@@ -3,8 +3,7 @@ namespace Core.Configuration.ModelFetch;
 /// <summary>
 /// 模型列表远程拉取器 — 从各供应商的 modelsEndpoint 并行拉取最新模型完整元数据
 /// </summary>
-public interface IModelListFetcher
-{
+public interface IModelListFetcher {
     /// <summary>
     /// 并行拉取所有已配置 modelsEndpoint 的供应商的模型列表
     /// </summary>

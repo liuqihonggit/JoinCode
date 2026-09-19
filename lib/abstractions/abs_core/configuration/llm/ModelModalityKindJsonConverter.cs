@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Configuration.Llm;
 /// 序列化: Text | ReadImage | ToolUse → ["text","readImage","toolUse"]
 /// 反序列化: ["text","readImage","toolUse"] → Text | ReadImage | ToolUse
 /// </summary>
-public sealed class ModelModalityKindJsonConverter : JsonConverter<ModelModalityKind>
-{
+public sealed class ModelModalityKindJsonConverter : JsonConverter<ModelModalityKind> {
     private static readonly ModelModalityKind[] SingleFlags =
     [
         ModelModalityKind.Text,
@@ -25,13 +24,10 @@ public sealed class ModelModalityKindJsonConverter : JsonConverter<ModelModality
         ModelModalityKind.ToolUse
     ];
 
-    public override ModelModalityKind Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        if (reader.TokenType == JsonTokenType.StartArray)
-        {
+    public override ModelModalityKind Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+        if (reader.TokenType == JsonTokenType.StartArray) {
             var flags = ModelModalityKind.None;
-            while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
-            {
+            while (reader.Read() && reader.TokenType != JsonTokenType.EndArray) {
                 var str = reader.GetString();
                 if (str is not null && ModelModalityKindExtensions.FromValue(str) is { } flag)
                     flags |= flag;
@@ -45,11 +41,9 @@ public sealed class ModelModalityKindJsonConverter : JsonConverter<ModelModality
         return ModelModalityKind.Text;
     }
 
-    public override void Write(Utf8JsonWriter writer, ModelModalityKind value, JsonSerializerOptions options)
-    {
+    public override void Write(Utf8JsonWriter writer, ModelModalityKind value, JsonSerializerOptions options) {
         writer.WriteStartArray();
-        foreach (var flag in SingleFlags)
-        {
+        foreach (var flag in SingleFlags) {
             if (value.HasFlag(flag))
                 writer.WriteStringValue(flag.ToValue());
         }

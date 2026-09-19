@@ -4,19 +4,16 @@ namespace Tui.Tests.Snapshot;
 /// OutputView 渲染快照测试 — 验证追加文本后的 View 树状态。
 /// 为 P0-1（chunk 处理）修复提供测试网：修 chunk 映射后断言 OutputView 收到正确文本。
 /// </summary>
-public class OutputViewSnapshotTests
-{
+public class OutputViewSnapshotTests {
     [Fact]
-    public void Empty_NoText()
-    {
+    public void Empty_NoText() {
         var view = new OutputView();
         var actual = ViewTreeSerializer.Serialize(view.TerminalView);
         SnapshotVerifier.Verify(actual, "OutputView_Empty");
     }
 
     [Fact]
-    public void AppendSingleLine_TextReflects()
-    {
+    public void AppendSingleLine_TextReflects() {
         var view = new OutputView();
         view.AppendLine("👤 hello");
 
@@ -25,8 +22,7 @@ public class OutputViewSnapshotTests
     }
 
     [Fact]
-    public void AppendMultipleLines_ToolChunkSequence()
-    {
+    public void AppendMultipleLines_ToolChunkSequence() {
         var view = new OutputView();
         view.AppendLine("👤 分析项目结构");
         view.AppendLine("  [工具] Read");
@@ -38,8 +34,7 @@ public class OutputViewSnapshotTests
     }
 
     [Fact]
-    public void Clear_RemovesAllText()
-    {
+    public void Clear_RemovesAllText() {
         var view = new OutputView();
         view.AppendLine("line1");
         view.AppendLine("line2");

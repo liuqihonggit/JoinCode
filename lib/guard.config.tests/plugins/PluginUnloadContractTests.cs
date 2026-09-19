@@ -1,10 +1,8 @@
 namespace Core.Tests.Plugins;
 
-public sealed class PluginUnloadContractTests
-{
+public sealed class PluginUnloadContractTests {
     [Fact]
-    public void PluginUnloadContract_Valid_HasNoViolations()
-    {
+    public void PluginUnloadContract_Valid_HasNoViolations() {
         var contract = PluginUnloadContract.Valid;
         Assert.True(contract.IsValid);
         Assert.Null(contract.Reason);
@@ -12,8 +10,7 @@ public sealed class PluginUnloadContractTests
     }
 
     [Fact]
-    public void PluginUnloadContract_Invalid_JoinsViolationsAsReason()
-    {
+    public void PluginUnloadContract_Invalid_JoinsViolationsAsReason() {
         var contract = PluginUnloadContract.Invalid("资源A无disposer", "资源B无disposer");
         Assert.False(contract.IsValid);
         Assert.Equal("资源A无disposer; 资源B无disposer", contract.Reason);
@@ -21,14 +18,12 @@ public sealed class PluginUnloadContractTests
     }
 
     [Fact]
-    public void NonEmptyUndo_ConstructWithNull_ThrowsArgumentNullException()
-    {
+    public void NonEmptyUndo_ConstructWithNull_ThrowsArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() => new NonEmptyUndo(null!));
     }
 
     [Fact]
-    public void NonEmptyUndo_Invoke_ExecutesUnderlyingAction()
-    {
+    public void NonEmptyUndo_Invoke_ExecutesUnderlyingAction() {
         var invoked = false;
         var undo = new NonEmptyUndo(() => invoked = true);
         undo.Invoke();
@@ -36,8 +31,7 @@ public sealed class PluginUnloadContractTests
     }
 
     [Fact]
-    public void NonEmptyUndo_ImplicitConversionToAction_Works()
-    {
+    public void NonEmptyUndo_ImplicitConversionToAction_Works() {
         var invoked = false;
         NonEmptyUndo undo = new(() => invoked = true);
         Action action = undo;
@@ -46,8 +40,7 @@ public sealed class PluginUnloadContractTests
     }
 
     [Fact]
-    public async Task LoadWorkflowPlugin_ContractViolation_ThrowsAndRejectsLoad()
-    {
+    public async Task LoadWorkflowPlugin_ContractViolation_ThrowsAndRejectsLoad() {
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole());
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
@@ -64,8 +57,7 @@ public sealed class PluginUnloadContractTests
     }
 
     [Fact]
-    public async Task LoadWorkflowPlugin_ContractValid_LoadsSuccessfully()
-    {
+    public async Task LoadWorkflowPlugin_ContractValid_LoadsSuccessfully() {
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole());
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
@@ -79,8 +71,7 @@ public sealed class PluginUnloadContractTests
         await pm.UnloadPluginAsync("contract-valid").ConfigureAwait(true);
     }
 
-    private sealed class ContractViolatingPlugin : WorkflowPluginBase
-    {
+    private sealed class ContractViolatingPlugin : WorkflowPluginBase {
         public ContractViolatingPlugin() : base("contract-violating") { }
         public override string Name => "contract-violating";
         public override string Version => "1.0.0";
@@ -92,8 +83,7 @@ public sealed class PluginUnloadContractTests
         public override PluginUnloadContract ValidateUnloadContract() => PluginUnloadContract.Invalid("测试违规");
     }
 
-    private sealed class ContractValidPlugin : WorkflowPluginBase
-    {
+    private sealed class ContractValidPlugin : WorkflowPluginBase {
         public ContractValidPlugin() : base("contract-valid") { }
         public override string Name => "contract-valid";
         public override string Version => "1.0.0";

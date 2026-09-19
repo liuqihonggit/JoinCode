@@ -1,15 +1,12 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed partial class BridgeMainTests
-{
+public sealed partial class BridgeMainTests {
     #region P2-6: Perpetual/Resume 模式 — resume forces single-session
 
     [Fact]
-    public async Task BuildConfig_ResumeForcesSingleSessionMode()
-    {
-        var deps = new BridgeMainDeps
-        {
+    public async Task BuildConfig_ResumeForcesSingleSessionMode() {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -31,8 +28,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task BuildConfig_ResumeAlreadySingleSession_NoChange()
-    {
+    public async Task BuildConfig_ResumeAlreadySingleSession_NoChange() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         var args = new BridgeMainArgs();
         await using var main = new BridgeMain(deps);
@@ -42,8 +38,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task BuildConfig_ResumeWithExplicitSpawnMode_OverridesToSingleSession()
-    {
+    public async Task BuildConfig_ResumeWithExplicitSpawnMode_OverridesToSingleSession() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         var args = new BridgeMainArgs { SpawnMode = BridgeSpawnMode.SameDir };
         await using var main = new BridgeMain(deps);
@@ -53,20 +48,17 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_ContinueSession_ReadsPointerFile()
-    {
+    public async Task RunAsync_ContinueSession_ReadsPointerFile() {
         var fs = new InMemoryFileSystem();
         var pointerService = new BridgePointerService(fs);
 
-        await pointerService.WriteAsync("C:\\test", new BridgePointer
-        {
+        await pointerService.WriteAsync("C:\\test", new BridgePointer {
             SessionId = "existing-session",
             EnvironmentId = "env-123",
             Source = BridgePointerSource.Standalone.ToValue(),
         }).ConfigureAwait(true);
 
-        var deps = new BridgeMainDeps
-        {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = fs,
@@ -83,8 +75,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_SessionId_SetsResumeSessionId()
-    {
+    public async Task RunAsync_SessionId_SetsResumeSessionId() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 
@@ -96,12 +87,10 @@ public sealed partial class BridgeMainTests
     #region P3-8: v2 Token 刷新 reconnectSession 分支
 
     [Fact]
-    public void TokenRefresh_V2Session_CallsReconnectSession()
-    {
+    public void TokenRefresh_V2Session_CallsReconnectSession() {
         string? reconnectedEnvId = null;
         string? reconnectedSessionId = null;
-        var deps = new BridgeMainDeps
-        {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -110,8 +99,7 @@ public sealed partial class BridgeMainTests
             GetAccessToken = () => "test-token",
             GetBaseUrl = () => "https://api.test.com",
             CheckRemoteDialogAccepted = () => true,
-            ReconnectSession = (envId, sid, ct) =>
-            {
+            ReconnectSession = (envId, sid, ct) => {
                 reconnectedEnvId = envId;
                 reconnectedSessionId = sid;
                 return Task.CompletedTask;
@@ -123,15 +111,13 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void TokenRefresh_V1Session_UpdatesAccessTokenDirectly()
-    {
+    public void TokenRefresh_V1Session_UpdatesAccessTokenDirectly() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         Assert.Null(deps.ReconnectSession);
     }
 
     [Fact]
-    public async Task RunAsync_CreatesTokenRefreshScheduler_WhenGetAccessTokenProvided()
-    {
+    public async Task RunAsync_CreatesTokenRefreshScheduler_WhenGetAccessTokenProvided() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 
@@ -139,18 +125,15 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_FallsBackToInjectedScheduler_WhenNoGetAccessToken()
-    {
+    public async Task RunAsync_FallsBackToInjectedScheduler_WhenNoGetAccessToken() {
         var injectedScheduler = new BridgeTokenRefreshScheduler(
-            new TokenRefreshOptions
-            {
+            new TokenRefreshOptions {
                 GetAccessToken = () => "injected-token",
                 OnRefresh = (_, _) => { },
                 Label = "injected",
             });
 
-        var deps = new BridgeMainDeps
-        {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -166,10 +149,8 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeMainDeps_ReconnectSession_PropertyExists()
-    {
-        var deps = new BridgeMainDeps
-        {
+    public void BridgeMainDeps_ReconnectSession_PropertyExists() {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -189,15 +170,13 @@ public sealed partial class BridgeMainTests
     #region P3-3: sessionCompatIds 映射 — cse_*→session_* 兼容 ID 转换
 
     [Fact]
-    public void SessionIdCompat_ToCompatSessionId_ConvertsCsePrefix()
-    {
+    public void SessionIdCompat_ToCompatSessionId_ConvertsCsePrefix() {
         var compatId = SessionIdCompat.ToCompatSessionId("cse_abc123");
         Assert.Equal("session_abc123", compatId);
     }
 
     [Fact]
-    public void SessionIdCompat_ToCompatSessionId_NoConvertNonCse()
-    {
+    public void SessionIdCompat_ToCompatSessionId_NoConvertNonCse() {
         var compatId = SessionIdCompat.ToCompatSessionId("session_abc123");
         Assert.Equal("session_abc123", compatId);
 
@@ -206,15 +185,13 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void SessionIdCompat_ToInfraSessionId_ConvertsSessionPrefix()
-    {
+    public void SessionIdCompat_ToInfraSessionId_ConvertsSessionPrefix() {
         var infraId = SessionIdCompat.ToInfraSessionId("session_abc123");
         Assert.Equal("cse_abc123", infraId);
     }
 
     [Fact]
-    public void SessionIdCompat_SameSessionId_CrossPrefixComparison()
-    {
+    public void SessionIdCompat_SameSessionId_CrossPrefixComparison() {
         Assert.True(SessionIdCompat.SameSessionId("cse_abc", "session_abc"));
         Assert.True(SessionIdCompat.SameSessionId("session_abc", "cse_abc"));
         Assert.False(SessionIdCompat.SameSessionId("cse_abc", "cse_def"));
@@ -222,8 +199,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BuildConfig_SessionCompatIds_RegisteredForV2Sessions()
-    {
+    public void BuildConfig_SessionCompatIds_RegisteredForV2Sessions() {
         var cseId = "cse_test123";
         var compatId = SessionIdCompat.ToCompatSessionId(cseId);
         Assert.Equal("session_test123", compatId);

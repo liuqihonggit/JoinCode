@@ -4,8 +4,7 @@ namespace Core.CostTracking;
 /// <summary>
 /// 预算状态类
 /// </summary>
-public sealed class BudgetStatus
-{
+public sealed class BudgetStatus {
     /// <summary>
     /// 今日已使用金额 (USD)
     /// </summary>
@@ -45,10 +44,8 @@ public sealed class BudgetStatus
     /// <summary>
     /// 获取每日剩余预算
     /// </summary>
-    public decimal GetDailyRemainingBudget()
-    {
-        if (DailyLimit <= 0)
-        {
+    public decimal GetDailyRemainingBudget() {
+        if (DailyLimit <= 0) {
             return decimal.MaxValue;
         }
 
@@ -58,10 +55,8 @@ public sealed class BudgetStatus
     /// <summary>
     /// 获取每月剩余预算
     /// </summary>
-    public decimal GetMonthlyRemainingBudget()
-    {
-        if (MonthlyLimit <= 0)
-        {
+    public decimal GetMonthlyRemainingBudget() {
+        if (MonthlyLimit <= 0) {
             return decimal.MaxValue;
         }
 
@@ -71,10 +66,8 @@ public sealed class BudgetStatus
     /// <summary>
     /// 获取每日预算使用百分比 (0.0 - 1.0)
     /// </summary>
-    public double GetDailyUsagePercentage()
-    {
-        if (DailyLimit <= 0)
-        {
+    public double GetDailyUsagePercentage() {
+        if (DailyLimit <= 0) {
             return 0.0;
         }
 
@@ -84,10 +77,8 @@ public sealed class BudgetStatus
     /// <summary>
     /// 获取每月预算使用百分比 (0.0 - 1.0)
     /// </summary>
-    public double GetMonthlyUsagePercentage()
-    {
-        if (MonthlyLimit <= 0)
-        {
+    public double GetMonthlyUsagePercentage() {
+        if (MonthlyLimit <= 0) {
             return 0.0;
         }
 
@@ -97,18 +88,15 @@ public sealed class BudgetStatus
     /// <summary>
     /// 获取剩余预算（取每日和每月剩余的最小值）
     /// </summary>
-    public decimal GetRemainingBudget()
-    {
+    public decimal GetRemainingBudget() {
         var dailyRemaining = GetDailyRemainingBudget();
         var monthlyRemaining = GetMonthlyRemainingBudget();
 
-        if (dailyRemaining == decimal.MaxValue)
-        {
+        if (dailyRemaining == decimal.MaxValue) {
             return monthlyRemaining;
         }
 
-        if (monthlyRemaining == decimal.MaxValue)
-        {
+        if (monthlyRemaining == decimal.MaxValue) {
             return dailyRemaining;
         }
 
@@ -118,16 +106,14 @@ public sealed class BudgetStatus
     /// <summary>
     /// 检查是否超出任何预算限制
     /// </summary>
-    public bool IsAnyBudgetExceeded()
-    {
+    public bool IsAnyBudgetExceeded() {
         return IsDailyExceeded || IsMonthlyExceeded;
     }
 
     /// <summary>
     /// 获取预算状态摘要
     /// </summary>
-    public string GetStatusSummary()
-    {
+    public string GetStatusSummary() {
         var dailyPercent = GetDailyUsagePercentage() * 100;
         var monthlyPercent = GetMonthlyUsagePercentage() * 100;
 

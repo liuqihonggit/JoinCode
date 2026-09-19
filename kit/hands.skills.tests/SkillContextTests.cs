@@ -1,21 +1,17 @@
 namespace Core.Tests.Skills;
 
-public sealed class SkillContextTests
-{
-    private static SkillDefinition CreateSkill(string name) => new()
-    {
+public sealed class SkillContextTests {
+    private static SkillDefinition CreateSkill(string name) => new() {
         Name = name,
         Description = "test description",
         Steps = []
     };
 
     [Fact]
-    public void MetricsProperties_ShouldReturnExpectedValues()
-    {
+    public void MetricsProperties_ShouldReturnExpectedValues() {
         var executionContext = new ExecutionContext(CancellationToken.None);
         var skill = CreateSkill("test-skill");
-        var context = new SkillContext
-        {
+        var context = new SkillContext {
             SkillName = "test-skill",
             Skill = skill,
             ExecutionContext = executionContext
@@ -28,13 +24,11 @@ public sealed class SkillContextTests
     }
 
     [Fact]
-    public void MetricsProperties_WithResult_ShouldReturnSuccessAndDuration()
-    {
+    public void MetricsProperties_WithResult_ShouldReturnSuccessAndDuration() {
         var executionContext = new ExecutionContext(CancellationToken.None);
         var skill = CreateSkill("test-skill");
         var stopwatch = Stopwatch.StartNew();
-        var context = new SkillContext
-        {
+        var context = new SkillContext {
             SkillName = "test-skill",
             Skill = skill,
             ExecutionContext = executionContext,
@@ -49,15 +43,13 @@ public sealed class SkillContextTests
     }
 
     [Fact]
-    public void Properties_ShouldBeSettable()
-    {
+    public void Properties_ShouldBeSettable() {
         var executionContext = new ExecutionContext(CancellationToken.None);
         var skill = CreateSkill("test-skill");
         var parameters = new Dictionary<string, JsonElement>();
         var result = SkillResult.SuccessResult("test-skill", "ok");
 
-        var context = new SkillContext
-        {
+        var context = new SkillContext {
             SkillName = "test-skill",
             Parameters = parameters,
             Skill = skill,

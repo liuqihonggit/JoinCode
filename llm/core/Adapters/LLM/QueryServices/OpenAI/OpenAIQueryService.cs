@@ -6,13 +6,11 @@ namespace Api.LLM.QueryServices.OpenAI;
 /// Azure / Agnes 等 OpenAI 兼容供应商可继承本类，覆写 URL/端点/认证差异部分
 /// 注：URL/端点/认证差异已通过 IProviderDefinition 多态在基类处理，本类仅实现协议请求/响应
 /// </summary>
-public class OpenAIQueryService : QueryServiceBase
-{
+public class OpenAIQueryService : QueryServiceBase {
     private static readonly OpenAICacheProtocol CacheProtocol = new();
 
     public OpenAIQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
-        : base(config, httpClient, logger, fs, resilientExecutor)
-    {
+        : base(config, httpClient, logger, fs, resilientExecutor) {
     }
 
     /// <summary>非流式：构建 OpenAI 请求 → 发送 → 转换为 ApiMessage</summary>
@@ -20,8 +18,7 @@ public class OpenAIQueryService : QueryServiceBase
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         Logger?.LogDebug("[WIRE {CallId}] 非流式请求入口 | 消息数={MsgCount}", CallTrace.CurrentId, chatHistory.Count);
         var request = CreateRequest(chatHistory, executionSettings, stream: false, kernel);
         var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
@@ -29,8 +26,7 @@ public class OpenAIQueryService : QueryServiceBase
 
         // 两阶段工具加载: 非流式检测 tool_description_request → 发送第二次请求
         var firstContent = response.Choices.FirstOrDefault()?.Message?.Content?.Text ?? string.Empty;
-        if (firstContent.Contains("tool_description_request") && kernel != null)
-        {
+        if (firstContent.Contains("tool_description_request") && kernel != null) {
             Logger?.LogDebug("[WIRE {CallId}] 非流式收到 tool_description_request, 发送第二次请求", CallTrace.CurrentId);
             var secondRequest = CreateSecondRequestWithDescriptions(request, firstContent, kernel);
             var secondResponse = await SendRequestAsync(secondRequest, cancellationToken).ConfigureAwait(false);
@@ -45,8 +41,7 @@ public class OpenAIQueryService : QueryServiceBase
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
+        [EnumeratorCancellation] CancellationToken cancellationToken = default) {
         Logger?.LogDebug("[WIRE {CallId}] 流式请求入口 | 消息数={MsgCount}", CallTrace.CurrentId, chatHistory.Count);
         var request = CreateRequest(chatHistory, executionSettings, stream: true, kernel);
         var responseStream = SendStreamingRequestAsync(request, cancellationToken);
@@ -55,19 +50,16 @@ public class OpenAIQueryService : QueryServiceBase
         var isFirstChunk = true;
         var descRequestAccumulator = new StringBuilder();
 
-        await foreach (var chunk in responseStream)
-        {
+        await foreach (var chunk in responseStream) {
             // 最终 usage chunk: choices 为空但包含 usage 字段 —
             // stream_options.include_usage=true 时, OpenAI API 在最后发送一个仅含 usage 的 chunk
             // 必须将其转换为 TokenUsage 并通过 metadata["Usage"] 传递给消费者(用于缓存命中分析)
-            if (chunk.Choices.Count == 0)
-            {
+            if (chunk.Choices.Count == 0) {
                 if (chunk.Usage is null) continue;
 
                 var tokenUsage = BuildTokenUsage(chunk.Usage);
 
-                var usageMetadata = new Dictionary<string, JsonElement>
-                {
+                var usageMetadata = new Dictionary<string, JsonElement> {
                     ["Id"] = JsonElementHelper.FromString(chunk.Id),
                     ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.Stop),
                     ["Created"] = JsonElementHelper.FromInt64(chunk.Created),
@@ -86,22 +78,18 @@ public class OpenAIQueryService : QueryServiceBase
             if (!string.IsNullOrEmpty(content))
                 descRequestAccumulator.Append(content);
             var accumulatedContent = descRequestAccumulator.ToString();
-            if (kernel != null && accumulatedContent.Contains("tool_description_request") && accumulatedContent.TrimEnd().EndsWith('}'))
-            {
+            if (kernel != null && accumulatedContent.Contains("tool_description_request") && accumulatedContent.TrimEnd().EndsWith('}')) {
                 Logger?.LogDebug("[WIRE {CallId}] 收到 tool_description_request, 发送第二次请求", CallTrace.CurrentId);
                 var secondRequest = CreateSecondRequestWithDescriptions(request, accumulatedContent, kernel);
                 var secondStream = SendStreamingRequestAsync(secondRequest, cancellationToken);
                 var secondAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
                 var secondFirstChunk = true;
 
-                await foreach (var sc in secondStream)
-                {
-                    if (sc.Choices.Count == 0)
-                    {
+                await foreach (var sc in secondStream) {
+                    if (sc.Choices.Count == 0) {
                         if (sc.Usage is null) continue;
                         var tu = BuildTokenUsage(sc.Usage);
-                        var um = new Dictionary<string, JsonElement>
-                        {
+                        var um = new Dictionary<string, JsonElement> {
                             ["Id"] = JsonElementHelper.FromString(sc.Id),
                             ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.Stop),
                             ["Created"] = JsonElementHelper.FromInt64(sc.Created),
@@ -115,10 +103,8 @@ public class OpenAIQueryService : QueryServiceBase
                     var scContent = sc2.Delta?.Content?.Text ?? string.Empty;
                     var scRole = ConvertRole(sc2.Delta?.Role);
 
-                    if (sc2.Delta?.ToolCalls != null)
-                    {
-                        foreach (var tc in sc2.Delta.ToolCalls)
-                        {
+                    if (sc2.Delta?.ToolCalls != null) {
+                        foreach (var tc in sc2.Delta.ToolCalls) {
                             var idx = tc.Index ?? 0;
                             if (!string.IsNullOrEmpty(tc.Id))
                                 secondAccumulator[idx] = (tc.Id, tc.Function?.Name ?? "", new StringBuilder());
@@ -127,15 +113,13 @@ public class OpenAIQueryService : QueryServiceBase
                         }
                     }
 
-                    var scMeta = new Dictionary<string, JsonElement>
-                    {
+                    var scMeta = new Dictionary<string, JsonElement> {
                         ["Id"] = JsonElementHelper.FromString(sc.Id),
                         ["FinishReason"] = JsonElementHelper.FromString(sc2.FinishReason),
                         ["Created"] = JsonElementHelper.FromInt64(sc.Created)
                     };
 
-                    if (sc.Usage is not null)
-                    {
+                    if (sc.Usage is not null) {
                         var tu = BuildTokenUsage(sc.Usage);
                         scMeta["Usage"] = JsonElementHelper.FromObject(tu, NativeJsonContext.Default.TokenUsage);
                     }
@@ -143,8 +127,7 @@ public class OpenAIQueryService : QueryServiceBase
                     if (sc2.Delta?.ReasoningContent != null)
                         scMeta["reasoning_content"] = JsonElementHelper.FromBoolean(true);
 
-                    if (sc2.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && secondAccumulator.Count > 0)
-                    {
+                    if (sc2.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && secondAccumulator.Count > 0) {
                         var entries = secondAccumulator
                             .OrderBy(kv => kv.Key)
                             .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
@@ -153,8 +136,7 @@ public class OpenAIQueryService : QueryServiceBase
                     }
 
                     var scStreamContent = sc2.Delta?.ReasoningContent ?? scContent;
-                    if (secondFirstChunk)
-                    {
+                    if (secondFirstChunk) {
                         secondFirstChunk = false;
                         var rlh = GetLastRateLimitHeaders();
                         if (rlh != null)
@@ -166,50 +148,41 @@ public class OpenAIQueryService : QueryServiceBase
                 yield break;
             }
 
-            if (choice.Delta?.ToolCalls != null)
-            {
-                foreach (var tc in choice.Delta.ToolCalls)
-                {
+            if (choice.Delta?.ToolCalls != null) {
+                foreach (var tc in choice.Delta.ToolCalls) {
                     var idx = tc.Index ?? 0;
 
-                    if (!string.IsNullOrEmpty(tc.Id))
-                    {
+                    if (!string.IsNullOrEmpty(tc.Id)) {
                         toolCallAccumulator[idx] = (tc.Id, tc.Function?.Name ?? "", new StringBuilder());
                     }
 
-                    if (tc.Function?.Arguments != null && toolCallAccumulator.TryGetValue(idx, out var existing))
-                    {
+                    if (tc.Function?.Arguments != null && toolCallAccumulator.TryGetValue(idx, out var existing)) {
                         existing.Arguments.Append(tc.Function.Arguments);
                     }
                 }
             }
 
-            var metadata = new Dictionary<string, JsonElement>
-            {
+            var metadata = new Dictionary<string, JsonElement> {
                 ["Id"] = JsonElementHelper.FromString(chunk.Id),
                 ["FinishReason"] = JsonElementHelper.FromString(choice.FinishReason),
                 ["Created"] = JsonElementHelper.FromInt64(chunk.Created)
             };
 
             // 部分供应商(如 DeepSeek)可能在中间 chunk 也带 usage — 合并到 metadata
-            if (chunk.Usage is not null)
-            {
+            if (chunk.Usage is not null) {
                 var tokenUsage = BuildTokenUsage(chunk.Usage);
 
                 metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
             }
 
-            if (choice.Delta?.ReasoningContent != null)
-            {
+            if (choice.Delta?.ReasoningContent != null) {
                 metadata["reasoning_content"] = JsonElementHelper.FromBoolean(true);
             }
 
-            if (choice.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && toolCallAccumulator.Count > 0)
-            {
+            if (choice.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && toolCallAccumulator.Count > 0) {
                 var entries = toolCallAccumulator
                     .OrderBy(kv => kv.Key)
-                    .Select(kv => new ToolCallEntry
-                    {
+                    .Select(kv => new ToolCallEntry {
                         Id = kv.Value.Id,
                         Name = kv.Value.Name,
                         Arguments = kv.Value.Arguments.ToString()
@@ -219,14 +192,11 @@ public class OpenAIQueryService : QueryServiceBase
             }
 
             var streamContent = choice.Delta?.ReasoningContent ?? content;
-            if (isFirstChunk)
-            {
+            if (isFirstChunk) {
                 isFirstChunk = false;
                 var rateLimitHeaders = GetLastRateLimitHeaders();
-                if (rateLimitHeaders != null)
-                {
-                    foreach (var kvp in rateLimitHeaders)
-                    {
+                if (rateLimitHeaders != null) {
+                    foreach (var kvp in rateLimitHeaders) {
                         metadata[$"ratelimit_{kvp.Key}"] = JsonElementHelper.FromString(kvp.Value);
                     }
                 }
@@ -237,16 +207,14 @@ public class OpenAIQueryService : QueryServiceBase
 
     #region 请求构建
 
-    internal virtual OpenAIChatRequest CreateRequest(MessageList chatHistory, ChatOptions? settings, bool stream, IChatClient? kernel)
-    {
+    internal virtual OpenAIChatRequest CreateRequest(MessageList chatHistory, ChatOptions? settings, bool stream, IChatClient? kernel) {
         var messages = chatHistory.Select(ConvertToOpenAIMessage).ToList();
 
         var modelId = Config.ModelId;
         if (settings?.FastMode == true && !string.IsNullOrEmpty(settings.FastModelId))
             modelId = settings.FastModelId;
 
-        var request = new OpenAIChatRequest
-        {
+        var request = new OpenAIChatRequest {
             Model = modelId,
             Messages = messages,
             Stream = stream,
@@ -259,31 +227,25 @@ public class OpenAIQueryService : QueryServiceBase
 
         // 流式请求时显式要求 API 返回 usage(含 cached_tokens) —
         // 真实 OpenAI API 在最后一个 chunk(choices 为空)返回 usage 字段
-        if (stream)
-        {
+        if (stream) {
             request.StreamOptions = new OpenAIStreamOptions { IncludeUsage = true };
         }
 
-        if (settings?.EffortLevel is not null)
-        {
+        if (settings?.EffortLevel is not null) {
             request.ReasoningEffort = ChatOptions.EffortToReasoningEffort(settings.EffortLevel.Value);
         }
 
-        if (settings?.ThinkingEnabled == true)
-        {
+        if (settings?.ThinkingEnabled == true) {
             request.Thinking = new OpenAIThinkingOptions { Type = "enabled" };
         }
 
-        if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null)
-        {
+        if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null) {
             var (tools, toolGroups) = BuildToolsFromKernel(kernel);
-            if (tools.Count > 0)
-            {
+            if (tools.Count > 0) {
                 request.Tools = tools;
                 request.ToolChoice = "auto";
             }
-            if (toolGroups.Count > 0)
-            {
+            if (toolGroups.Count > 0) {
                 request.ToolGroups = toolGroups;
             }
         }
@@ -291,39 +253,30 @@ public class OpenAIQueryService : QueryServiceBase
         return request;
     }
 
-    internal static OpenAIApiMessage ConvertToOpenAIMessage(ApiMessage m)
-    {
+    internal static OpenAIApiMessage ConvertToOpenAIMessage(ApiMessage m) {
         var role = m.Role;
         var content = m.Content;
 
-        var msg = new OpenAIApiMessage
-        {
+        var msg = new OpenAIApiMessage {
             Role = ConvertRoleToString(role),
             Content = content
         };
 
-        if (m.Role == MessageRole.Assistant && m.Metadata != null)
-        {
-            if (m.Metadata.TryGetValue("ToolCalls", out var toolCallsObj))
-            {
+        if (m.Role == MessageRole.Assistant && m.Metadata != null) {
+            if (m.Metadata.TryGetValue("ToolCalls", out var toolCallsObj)) {
                 msg.ToolCalls = ConvertToOpenAIToolCalls(toolCallsObj) ?? [];
-                if (msg.ToolCalls is { Count: > 0 })
-                {
+                if (msg.ToolCalls is { Count: > 0 }) {
                     msg.Content = null;
                 }
             }
-        }
-        else if (m.Role == MessageRole.Tool && m.Metadata != null)
-        {
+        } else if (m.Role == MessageRole.Tool && m.Metadata != null) {
             if (m.Metadata.TryGetValue("ToolCallId", out var toolCallIdObj) &&
-                toolCallIdObj.TryGetString(out var toolCallId))
-            {
+                toolCallIdObj.TryGetString(out var toolCallId)) {
                 msg.ToolCallId = toolCallId;
             }
 
             if (m.Metadata.TryGetValue("ToolName", out var toolNameObj) &&
-                toolNameObj.TryGetString(out var toolName))
-            {
+                toolNameObj.TryGetString(out var toolName)) {
                 msg.Name = toolName;
             }
         }
@@ -331,24 +284,18 @@ public class OpenAIQueryService : QueryServiceBase
         // 多模态内容块 — 对齐 AnthropicQueryService:340，将 Image block 转为 OpenAI image_url content part
         // DeepSeek vision / OpenAI vision 等多模态模型通过 image_url 接收图片
         // tool_calls 消息保持 Content=null，其余角色有 ContentBlocks 时构建 content part 数组
-        if (m.ContentBlocks is { Count: > 0 } && msg.ToolCalls is { Count: 0 })
-        {
+        if (m.ContentBlocks is { Count: > 0 } && msg.ToolCalls is { Count: 0 }) {
             var parts = new List<OpenAIContentPart>();
             if (!string.IsNullOrEmpty(content))
                 parts.Add(new OpenAIContentPart { Type = "text", Text = content });
 
-            foreach (var block in m.ContentBlocks)
-            {
-                if (block.Type == ToolContentType.Image && !string.IsNullOrEmpty(block.Data) && !string.IsNullOrEmpty(block.MimeType))
-                {
-                    parts.Add(new OpenAIContentPart
-                    {
+            foreach (var block in m.ContentBlocks) {
+                if (block.Type == ToolContentType.Image && !string.IsNullOrEmpty(block.Data) && !string.IsNullOrEmpty(block.MimeType)) {
+                    parts.Add(new OpenAIContentPart {
                         Type = "image_url",
                         ImageUrl = new OpenAIImageUrl { Url = $"data:{block.MimeType};base64,{block.Data}" }
                     });
-                }
-                else if (block.Type == ToolContentType.Text && !string.IsNullOrEmpty(block.Text))
-                {
+                } else if (block.Type == ToolContentType.Text && !string.IsNullOrEmpty(block.Text)) {
                     parts.Add(new OpenAIContentPart { Type = "text", Text = block.Text });
                 }
             }
@@ -364,33 +311,24 @@ public class OpenAIQueryService : QueryServiceBase
     /// 构建工具列表 — 两阶段加载：core_tools 发完整 schema，mcp_tools 发分组+名称
     /// 其他 group name 向后兼容，发完整 schema
     /// </summary>
-    internal static (List<OpenAITool> Tools, List<OpenAIToolGroup> ToolGroups) BuildToolsFromKernel(IChatClient kernel)
-    {
+    internal static (List<OpenAITool> Tools, List<OpenAIToolGroup> ToolGroups) BuildToolsFromKernel(IChatClient kernel) {
         var tools = new List<OpenAITool>();
         var toolGroups = new List<OpenAIToolGroup>();
 
-        foreach (var pluginName in kernel.Plugins.PluginNames)
-        {
+        foreach (var pluginName in kernel.Plugins.PluginNames) {
             var plugin = kernel.Plugins.GetPlugin(pluginName);
             if (plugin is not IToolGroup group)
                 continue;
 
-            if (group.Name == ToolGroupNameConstants.McpTools)
-            {
-                toolGroups.Add(new OpenAIToolGroup
-                {
+            if (group.Name == ToolGroupNameConstants.McpTools) {
+                toolGroups.Add(new OpenAIToolGroup {
                     Name = group.Name,
                     Tools = group.Functions.Select(f => f.Name).ToList()
                 });
-            }
-            else
-            {
-                foreach (var function in group.Functions)
-                {
-                    tools.Add(new OpenAITool
-                    {
-                        Function = new OpenAIFunctionDefinition
-                        {
+            } else {
+                foreach (var function in group.Functions) {
+                    tools.Add(new OpenAITool {
+                        Function = new OpenAIFunctionDefinition {
                             Name = function.Name,
                             Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
                             Parameters = BuildParameters(function.Parameters)
@@ -407,37 +345,28 @@ public class OpenAIQueryService : QueryServiceBase
     /// 两阶段工具加载 — 解析 tool_description_request,构建第二次请求(含 tool_descriptions)
     /// </summary>
     internal static OpenAIChatRequest CreateSecondRequestWithDescriptions(
-        OpenAIChatRequest originalRequest, string descRequestContent, IChatClient kernel)
-    {
+        OpenAIChatRequest originalRequest, string descRequestContent, IChatClient kernel) {
         HashSet<string> toolNames;
-        try
-        {
+        try {
             var doc = JsonDocument.Parse(descRequestContent);
             toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
                 .Select(t => t.GetString() ?? "")
                 .Where(s => !string.IsNullOrEmpty(s))
                 .ToHashSet(StringComparer.Ordinal);
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             throw new InvalidOperationException(
                 $"Failed to parse tool_description_request JSON: {ex.Message} | Content: {descRequestContent[..Math.Min(descRequestContent.Length, 200)]}", ex);
         }
 
         var descriptions = new List<OpenAITool>();
-        foreach (var pluginName in kernel.Plugins.PluginNames)
-        {
+        foreach (var pluginName in kernel.Plugins.PluginNames) {
             var plugin = kernel.Plugins.GetPlugin(pluginName);
             if (plugin is not IToolGroup group)
                 continue;
-            foreach (var function in group.Functions)
-            {
-                if (toolNames.Contains(function.Name))
-                {
-                    descriptions.Add(new OpenAITool
-                    {
-                        Function = new OpenAIFunctionDefinition
-                        {
+            foreach (var function in group.Functions) {
+                if (toolNames.Contains(function.Name)) {
+                    descriptions.Add(new OpenAITool {
+                        Function = new OpenAIFunctionDefinition {
                             Name = function.Name,
                             Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
                             Parameters = BuildParameters(function.Parameters)
@@ -447,8 +376,7 @@ public class OpenAIQueryService : QueryServiceBase
             }
         }
 
-        return new OpenAIChatRequest
-        {
+        return new OpenAIChatRequest {
             Model = originalRequest.Model,
             Messages = originalRequest.Messages,
             Stream = originalRequest.Stream,
@@ -467,16 +395,13 @@ public class OpenAIQueryService : QueryServiceBase
         };
     }
 
-    private static OpenAIFunctionParameters BuildParameters(IReadOnlyList<IToolParam> parameters)
-    {
+    private static OpenAIFunctionParameters BuildParameters(IReadOnlyList<IToolParam> parameters) {
         if (parameters.Count == 0) return new OpenAIFunctionParameters();
 
         var props = new Dictionary<string, OpenAIParameterProperty>();
 
-        foreach (var param in parameters)
-        {
-            props[param.Name] = new OpenAIParameterProperty
-            {
+        foreach (var param in parameters) {
+            props[param.Name] = new OpenAIParameterProperty {
                 Type = MapClrTypeToJsonSchemaType(param.ParameterType),
                 Description = string.IsNullOrEmpty(param.Description) ? null : param.Description
             };
@@ -484,8 +409,7 @@ public class OpenAIQueryService : QueryServiceBase
 
         var required = parameters.Where(p => p.IsRequired).Select(p => p.Name).ToList();
 
-        return new OpenAIFunctionParameters
-        {
+        return new OpenAIFunctionParameters {
             Properties = props,
             Required = required.Count > 0 ? required : []
         };
@@ -495,8 +419,7 @@ public class OpenAIQueryService : QueryServiceBase
 
     #region 请求发送
 
-    private async Task<OpenAIChatResponse> SendRequestAsync(OpenAIChatRequest request, CancellationToken cancellationToken)
-    {
+    private async Task<OpenAIChatResponse> SendRequestAsync(OpenAIChatRequest request, CancellationToken cancellationToken) {
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.OpenAIChatRequest);
         var endpoint = GetChatEndpoint(Config);
 
@@ -511,17 +434,13 @@ public class OpenAIQueryService : QueryServiceBase
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         OpenAIChatResponse? result;
-        try
-        {
+        try {
             result = RelaxedJsonSerializer.Deserialize(responseJson, NativeJsonContext.Default.OpenAIChatResponse);
-        }
-        catch (Exception ex) when (ex is JsonException or FormatException)
-        {
+        } catch (Exception ex) when (ex is JsonException or FormatException) {
             throw new InvalidOperationException($"Failed to deserialize chat completion response: {ex.Message}", ex);
         }
 
-        if (result == null)
-        {
+        if (result == null) {
             throw new InvalidOperationException("Failed to deserialize chat completion response");
         }
 
@@ -530,8 +449,7 @@ public class OpenAIQueryService : QueryServiceBase
 
     private async IAsyncEnumerable<OpenAIChatChunk> SendStreamingRequestAsync(
         OpenAIChatRequest request,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
+        [EnumeratorCancellation] CancellationToken cancellationToken) {
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.OpenAIChatRequest);
         var endpoint = GetChatEndpoint(Config);
 
@@ -553,43 +471,34 @@ public class OpenAIQueryService : QueryServiceBase
         var toolCallChunks = 0;
 
         string? line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
-        {
+        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null) {
             if (cancellationToken.IsCancellationRequested) yield break;
             if (string.IsNullOrWhiteSpace(line)) continue;
             if (!line.StartsWith("data: ")) continue;
 
             var data = line[6..];
-            if (data == "[DONE]")
-            {
+            if (data == "[DONE]") {
                 Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流结束 | chunks={chunkCount}, content={contentChunks}, toolCalls={toolCallChunks}");
                 yield break;
             }
 
             OpenAIChatChunk? chunk;
-            try
-            {
+            try {
                 chunk = RelaxedJsonSerializer.Deserialize(data, NativeJsonContext.Default.OpenAIChatChunk);
-            }
-            catch (Exception ex) when (ex is JsonException or FormatException)
-            {
+            } catch (Exception ex) when (ex is JsonException or FormatException) {
                 Logger?.LogWarning(ex, "[WIRE {CallId}] chunk 反序列化失败, 跳过", CallTrace.CurrentId);
                 continue;
             }
 
-            if (chunk != null)
-            {
+            if (chunk != null) {
                 chunkCount++;
-                if (chunk.Choices.Count > 0)
-                {
+                if (chunk.Choices.Count > 0) {
                     var choice = chunk.Choices[0];
                     if (!string.IsNullOrEmpty(choice.Delta?.Content?.Text)) contentChunks++;
                     if (choice.Delta?.ToolCalls != null && choice.Delta.ToolCalls.Count > 0) toolCallChunks++;
                 }
                 yield return chunk;
-            }
-            else
-            {
+            } else {
                 Logger?.LogWarning("[WIRE {CallId}] chunk 反序列化为 null, data={Data}", CallTrace.CurrentId, data);
             }
         }
@@ -597,27 +506,22 @@ public class OpenAIQueryService : QueryServiceBase
         Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流异常结束(无[DONE]) | chunks={chunkCount}, content={contentChunks}, toolCalls={toolCallChunks}");
     }
 
-    internal static ApiMessage ConvertToApiMessage(OpenAIChoice choice, OpenAIUsage? usage)
-    {
+    internal static ApiMessage ConvertToApiMessage(OpenAIChoice choice, OpenAIUsage? usage) {
         var metadata = new Dictionary<string, JsonElement> { ["FinishReason"] = JsonElementHelper.FromString(choice.FinishReason) };
 
-        if (usage != null)
-        {
+        if (usage != null) {
             var tokenUsage = BuildTokenUsage(usage);
 
             metadata["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage);
         }
 
-        if (choice.Message.ReasoningContent != null)
-        {
+        if (choice.Message.ReasoningContent != null) {
             metadata["reasoning_content"] = JsonElementHelper.FromString(choice.Message.ReasoningContent);
         }
 
-        if (choice.Message.ToolCalls is { Count: > 0 })
-        {
+        if (choice.Message.ToolCalls is { Count: > 0 }) {
             metadata["ToolCalls"] = JsonElementHelper.FromObject(choice.Message.ToolCalls, NativeJsonContext.Default.ListOpenAIToolCall);
-            var entries = choice.Message.ToolCalls.Select(tc => new ToolCallEntry
-            {
+            var entries = choice.Message.ToolCalls.Select(tc => new ToolCallEntry {
                 Id = tc.Id,
                 Name = tc.Function?.Name ?? "",
                 Arguments = tc.Function?.Arguments ?? "{}"
@@ -633,8 +537,7 @@ public class OpenAIQueryService : QueryServiceBase
 
     #endregion
 
-    private static TokenUsage BuildTokenUsage(OpenAIUsage usage)
-    {
+    private static TokenUsage BuildTokenUsage(OpenAIUsage usage) {
         return CacheProtocol.MapUsage(usage);
     }
 }

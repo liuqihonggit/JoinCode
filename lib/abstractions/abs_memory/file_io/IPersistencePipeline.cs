@@ -8,8 +8,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// Actor 线程只做 I/O(CreateDirectory + WriteAllTextAsync),不访问共享可变状态。</para>
 /// <para>详见 ADR [0068](docs/adr/0068-unified-persistence-pipeline-actor.md)</para>
 /// </summary>
-public interface IPersistencePipeline : IAsyncDisposable
-{
+public interface IPersistencePipeline : IAsyncDisposable {
     /// <summary>
     /// 异步入队持久化请求 — 有界通道在满时按 DropOldest 丢弃最旧请求。
     /// </summary>
@@ -24,8 +23,7 @@ public interface IPersistencePipeline : IAsyncDisposable
 /// <summary>
 /// 持久化请求 — 不可变快照,生产者已序列化为 JSON 字符串。
 /// </summary>
-public sealed class PersistRequest
-{
+public sealed class PersistRequest {
     /// <summary>分类标识("code_index"/"memory"/"permission"/...),用于日志和监控</summary>
     public required string Category { get; init; }
     /// <summary>目标目录(如 ".jcc/code-index")</summary>

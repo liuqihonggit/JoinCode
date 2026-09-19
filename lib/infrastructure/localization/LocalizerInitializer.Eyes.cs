@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterEyesEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterEyesEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === CodeIndexService ===
         defaultEntries[StringKey.CodeIndexServiceStarting] = "Starting CodeIndex service...";
         defaultEntries[StringKey.CodeIndexServiceStarted] = "CodeIndex service started";

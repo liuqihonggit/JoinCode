@@ -6,8 +6,7 @@ namespace MockServer.E2E.Tests;
 /// 验证: stderr 输出 [STEP] CodeIndexService.StartAsync done, elapsed=Xms (性能计时)
 /// 验证: code_index_stats / code_index_search / code_index_find_references / code_index_get_callers 4 个工具链路
 /// </summary>
-public sealed class AstIntegrationTests : CoverageTestBase
-{
+public sealed class AstIntegrationTests : CoverageTestBase {
     public AstIntegrationTests(ITestOutputHelper output) : base(output) { }
 
     /// <summary>
@@ -15,8 +14,7 @@ public sealed class AstIntegrationTests : CoverageTestBase
     /// WorkingDirectory 由 ResolveAstWorkingDirectory() 动态解析,让 AST 扫描真实代码,验证完整链路
     /// </summary>
     [Fact]
-    public async Task AstStartupAndQueryLinks_ShouldVerifyCodeIndexChain()
-    {
+    public async Task AstStartupAndQueryLinks_ShouldVerifyCodeIndexChain() {
         await RunScriptAsync(AstIntegrationScripts.AstStartupAndQueryLinks).ConfigureAwait(true);
     }
 }

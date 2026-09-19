@@ -5,15 +5,13 @@ namespace Services.Web;
 /// Order=600 在内容处理之后执行
 /// </summary>
 [Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WebCacheWriteMiddleware : ServiceEntity, IWebMiddleware
-{
+public sealed partial class WebCacheWriteMiddleware : ServiceEntity, IWebMiddleware {
 
     /// <summary>
     /// 初始化 <see cref="WebCacheWriteMiddleware"/> 实例。
     /// </summary>
     /// <param name="cache">Web 抓取缓存，用于写入抓取结果。</param>
-    public WebCacheWriteMiddleware(IWebFetchCache cache)
-    {
+    public WebCacheWriteMiddleware(IWebFetchCache cache) {
         _cache = cache;
     }
     private readonly IWebFetchCache _cache;
@@ -24,8 +22,7 @@ public sealed partial class WebCacheWriteMiddleware : ServiceEntity, IWebMiddlew
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct) {
         var fetchResult = context.FetchResult ?? throw new InvalidOperationException("FetchResult is not available in WebContext.");
 
         // 写入缓存 — 对齐 TS 版: size 使用 Markdown 转换后的字节长度

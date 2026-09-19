@@ -5,8 +5,7 @@ namespace Testing.Common.Process;
 /// 管理CLI进程的stdin/stdout通信
 /// 实现真实的双向对话
 /// </summary>
-public sealed class StdioProcessManager : IAsyncDisposable
-{
+public sealed class StdioProcessManager : IAsyncDisposable {
     private System.Diagnostics.Process? _process;
     private StreamWriter? _stdinWriter;
     private StreamReader? _stdoutReader;
@@ -24,8 +23,7 @@ public sealed class StdioProcessManager : IAsyncDisposable
     private TaskCompletionSource _outputChangedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private TaskCompletionSource _errorChangedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public StdioProcessManager(ILogger<StdioProcessManager> logger)
-    {
+    public StdioProcessManager(ILogger<StdioProcessManager> logger) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -37,10 +35,8 @@ public sealed class StdioProcessManager : IAsyncDisposable
     /// <summary>
     /// 启动CLI进程
     /// </summary>
-    public async Task StartAsync(StdioProcessConfig config, CancellationToken ct = default)
-    {
-        var startInfo = new System.Diagnostics.ProcessStartInfo
-        {
+    public async Task StartAsync(StdioProcessConfig config, CancellationToken ct = default) {
+        var startInfo = new System.Diagnostics.ProcessStartInfo {
             FileName = config.ExecutablePath,
             Arguments = config.Arguments,
             RedirectStandardInput = true,
@@ -54,10 +50,8 @@ public sealed class StdioProcessManager : IAsyncDisposable
             WorkingDirectory = config.WorkingDirectory ?? Path.GetDirectoryName(config.ExecutablePath) ?? Testing.Common.TestConfiguration.FileSystem.GetCurrentDirectory()
         };
 
-        if (config.EnvironmentVariables != null)
-        {
-            foreach (var (key, value) in config.EnvironmentVariables)
-            {
+        if (config.EnvironmentVariables != null) {
+            foreach (var (key, value) in config.EnvironmentVariables) {
                 startInfo.EnvironmentVariables[key] = value;
             }
         }
@@ -85,11 +79,9 @@ public sealed class StdioProcessManager : IAsyncDisposable
     /// 等待进程首行输出 — 替代固定500ms延迟，确保进程真正开始运行
     /// 同时检查 stdout 和 stderr，因为 jcc.exe 初始化时先输出到 stderr
     /// </summary>
-    private async Task WaitForFirstOutputAsync(TimeSpan timeout, CancellationToken ct)
-    {
+    private async Task WaitForFirstOutputAsync(TimeSpan timeout, CancellationToken ct) {
         var startTime = DateTime.UtcNow;
-        while (DateTime.UtcNow - startTime < timeout)
-        {
+        while (DateTime.UtcNow - startTime < timeout) {
             ct.ThrowIfCancellationRequested();
             if (_process?.HasExited == true) return;
 
@@ -107,8 +99,7 @@ public sealed class StdioProcessManager : IAsyncDisposable
     /// <summary>
     /// 向进程发送消息
     /// </summary>
-    public async Task SendAsync(string message, CancellationToken ct = default)
-    {
+    public async Task SendAsync(string message, CancellationToken ct = default) {
         if (_stdinWriter == null)
             throw new InvalidOperationException("[TCU001] 进程未启动");
 
@@ -124,18 +115,15 @@ public sealed class StdioProcessManager : IAsyncDisposable
     public async Task<string> WaitForOutputAsync(
         Func<string, bool> predicate,
         TimeSpan? timeout = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(predicate);
         timeout ??= TimeSpan.FromSeconds(30);
         var startTime = DateTime.UtcNow;
 
-        while (DateTime.UtcNow - startTime < timeout)
-        {
+        while (DateTime.UtcNow - startTime < timeout) {
             ct.ThrowIfCancellationRequested();
 
-            if (await _outputChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(true))
-            {
+            if (await _outputChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(true)) {
                 return await _outputChannel.GetAllAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(true);
             }
 
@@ -151,35 +139,27 @@ public sealed class StdioProcessManager : IAsyncDisposable
         string? method = null,
         object? id = null,
         TimeSpan? timeout = null,
-        CancellationToken ct = default)
-    {
-        return await WaitForOutputAsync(output =>
-        {
+        CancellationToken ct = default) {
+        return await WaitForOutputAsync(output => {
             if (!output.Contains('{')) return false;
 
             var lines = output.Split('\n');
-            foreach (var line in lines)
-            {
+            foreach (var line in lines) {
                 var trimmed = line.Trim();
                 if (!trimmed.StartsWith('{')) continue;
 
-                try
-                {
+                try {
                     using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
                     var root = doc.RootElement;
 
-                    if (method != null)
-                    {
-                        if (root.TryGetProperty("method", out var methodProp))
-                        {
+                    if (method != null) {
+                        if (root.TryGetProperty("method", out var methodProp)) {
                             if (methodProp.GetString() == method) return true;
                         }
                     }
 
-                    if (id != null)
-                    {
-                        if (root.TryGetProperty("id", out var idProp))
-                        {
+                    if (id != null) {
+                        if (root.TryGetProperty("id", out var idProp)) {
                             var idMatch = idProp.ValueKind == System.Text.Json.JsonValueKind.Number
                                 ? idProp.GetInt64().Equals(id)
                                 : idProp.GetString()?.Equals(id.ToString()) == true;
@@ -189,9 +169,7 @@ public sealed class StdioProcessManager : IAsyncDisposable
 
                     if (root.TryGetProperty("result", out _) || root.TryGetProperty("error", out _))
                         return true;
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     // 忽略解析错误
                     System.Diagnostics.Trace.WriteLine($"JSON-RPC响应解析失败: {ex.Message}");
                 }
@@ -224,18 +202,15 @@ public sealed class StdioProcessManager : IAsyncDisposable
     public async Task<string> WaitForErrorAsync(
         Func<string, bool> predicate,
         TimeSpan? timeout = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(predicate);
         timeout ??= TimeSpan.FromSeconds(30);
         var startTime = DateTime.UtcNow;
 
-        while (DateTime.UtcNow - startTime < timeout)
-        {
+        while (DateTime.UtcNow - startTime < timeout) {
             ct.ThrowIfCancellationRequested();
 
-            if (await _errorChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(true))
-            {
+            if (await _errorChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(true)) {
                 return await _errorChannel.GetAllAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(true);
             }
 
@@ -248,8 +223,7 @@ public sealed class StdioProcessManager : IAsyncDisposable
     /// <summary>
     /// 停止进程
     /// </summary>
-    public async Task StopAsync()
-    {
+    public async Task StopAsync() {
         _logger.LogInformation("[{PidTag}StdioManager] 停止进程", _pidTag);
 
         _readCts?.Cancel();
@@ -257,31 +231,24 @@ public sealed class StdioProcessManager : IAsyncDisposable
         // 先关闭 stdin，让子进程感知到输入结束
         _stdinWriter?.Close();
 
-        if (_process != null && !_process.HasExited)
-        {
-            try
-            {
+        if (_process != null && !_process.HasExited) {
+            try {
                 _process.Kill(entireProcessTree: true);
                 await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(true);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 System.Diagnostics.Trace.WriteLine($"停止进程时Kill失败: {ex.Message}");
             }
         }
 
         // 等待读取任务退出（进程已终止，管道会关闭）
-        try
-        {
+        try {
             var stdoutTask = _stdoutReadTask;
             var stderrTask = _stderrReadTask;
             if (stdoutTask != null)
                 await stdoutTask.ConfigureAwait(true);
             if (stderrTask != null)
                 await stderrTask.ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             System.Diagnostics.Trace.WriteLine($"等待读取任务退出时异常: {ex.Message}");
         }
 
@@ -293,14 +260,11 @@ public sealed class StdioProcessManager : IAsyncDisposable
         _logger.LogInformation("[{PidTag}StdioManager] 进程已停止", _pidTag);
     }
 
-    private async Task ReadStdoutAsync(CancellationToken ct)
-    {
+    private async Task ReadStdoutAsync(CancellationToken ct) {
         if (_stdoutReader == null) return;
 
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
+        try {
+            while (!ct.IsCancellationRequested) {
                 var line = await _stdoutReader.ReadLineAsync()
                     .WaitAsync(TimeSpan.FromSeconds(30), ct)
                     .ConfigureAwait(true);
@@ -310,30 +274,21 @@ public sealed class StdioProcessManager : IAsyncDisposable
                 _logger.LogTrace("[{PidTag}StdioManager] stdout: {Line}", _pidTag, line.Length > 200 ? line[..200] + "..." : line);
                 SignalOutputChanged();
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             // 正常取消
-        }
-        catch (TimeoutException)
-        {
+        } catch (TimeoutException) {
             // 读取超时，视为管道关闭
             _logger.LogDebug("[{PidTag}StdioManager] stdout 读取超时，退出读取循环", _pidTag);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogError(ex, "[{PidTag}StdioManager] 读取stdout时出错", _pidTag);
         }
     }
 
-    private async Task ReadStderrAsync(CancellationToken ct)
-    {
+    private async Task ReadStderrAsync(CancellationToken ct) {
         if (_stderrReader == null) return;
 
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
+        try {
+            while (!ct.IsCancellationRequested) {
                 var line = await _stderrReader.ReadLineAsync()
                     .WaitAsync(TimeSpan.FromSeconds(30), ct)
                     .ConfigureAwait(true);
@@ -343,38 +298,29 @@ public sealed class StdioProcessManager : IAsyncDisposable
                 _logger.LogTrace("[{PidTag}StdioManager] stderr: {Line}", _pidTag, line);
                 SignalErrorChanged();
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             // 正常取消
-        }
-        catch (TimeoutException ex)
-        {
+        } catch (TimeoutException ex) {
             // 读取超时，视为管道关闭
             System.Diagnostics.Trace.WriteLine($"stderr读取超时，视为管道关闭: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogError(ex, "[{PidTag}StdioManager] 读取stderr时出错", _pidTag);
         }
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
 
         await StopAsync().ConfigureAwait(false);
     }
-    private void SignalOutputChanged()
-    {
+    private void SignalOutputChanged() {
         var oldTcs = _outputChangedTcs;
         if (oldTcs.Task.IsCompleted) return;
         oldTcs.TrySetResult();
     }
 
-    private void SignalErrorChanged()
-    {
+    private void SignalErrorChanged() {
         var oldTcs = _errorChangedTcs;
         if (oldTcs.Task.IsCompleted) return;
         oldTcs.TrySetResult();
@@ -383,42 +329,34 @@ public sealed class StdioProcessManager : IAsyncDisposable
     /// <summary>
     /// 等待输出变化 — 事件驱动替代轮询
     /// </summary>
-    public async Task WaitForOutputChangeAsync(TimeSpan timeout, CancellationToken ct = default)
-    {
+    public async Task WaitForOutputChangeAsync(TimeSpan timeout, CancellationToken ct = default) {
         var currentTcs = _outputChangedTcs;
-        if (currentTcs.Task.IsCompleted)
-        {
+        if (currentTcs.Task.IsCompleted) {
             _outputChangedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
             return;
         }
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
-        try
-        {
+        try {
             await currentTcs.Task.WaitAsync(cts.Token).ConfigureAwait(true);
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
         _outputChangedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
     /// <summary>
     /// 等待stderr变化 — 事件驱动替代轮询
     /// </summary>
-    public async Task WaitForErrorChangeAsync(TimeSpan timeout, CancellationToken ct = default)
-    {
+    public async Task WaitForErrorChangeAsync(TimeSpan timeout, CancellationToken ct = default) {
         var currentTcs = _errorChangedTcs;
-        if (currentTcs.Task.IsCompleted)
-        {
+        if (currentTcs.Task.IsCompleted) {
             _errorChangedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
             return;
         }
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
-        try
-        {
+        try {
             await currentTcs.Task.WaitAsync(cts.Token).ConfigureAwait(true);
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
         _errorChangedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 }
@@ -426,8 +364,7 @@ public sealed class StdioProcessManager : IAsyncDisposable
 /// <summary>
 /// STDIO进程配置
 /// </summary>
-public sealed record StdioProcessConfig
-{
+public sealed record StdioProcessConfig {
     public required string ExecutablePath { get; init; }
     public string Arguments { get; init; } = "";
     public Dictionary<string, string>? EnvironmentVariables { get; init; }

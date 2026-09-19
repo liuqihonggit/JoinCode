@@ -10,8 +10,7 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.Login, Description = "登录到 AI 服务", Usage = "/login [provider] [--oauth]", Category = ChatCommandCategory.Auth)]
 [ChatCommandArg("provider", Type = "string", Description = "AI 服务供应商名称")]
 [ChatCommandArg("oauth", Type = "boolean", Description = "使用 OAuth 登录而非 API Key", Default = "false")]
-public sealed class LoginCommand : ChatCommandBase
-{
+public sealed class LoginCommand : ChatCommandBase {
     private static readonly string AuthPath = AppDataConstants.Paths.AuthFilePath;
 
     /// <summary>
@@ -20,15 +19,13 @@ public sealed class LoginCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var providerName = args.Length > 0 ? args[0].ToLowerInvariant() : VendorKind.OpenAi.ToValue();
         var useOAuth = args.Contains("--oauth") || args.Contains("-o");
 
         var definition = ResolveProviderDefinition(context, providerName);
-        if (definition is null)
-        {
+        if (definition is null) {
             var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
             TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的提供商: {providerName}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"支持的提供商: {string.Join(", ", registry?.RegisteredProviders ?? [])}");
@@ -39,18 +36,14 @@ public sealed class LoginCommand : ChatCommandBase
 
         var loginSuccess = false;
 
-        if (useOAuth && definition.SupportsOAuth)
-        {
+        if (useOAuth && definition.SupportsOAuth) {
             loginSuccess = await LoginWithOAuthAsync(context, definition).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             loginSuccess = await LoginWithApiKeyAsync(context, definition).ConfigureAwait(false);
         }
 
         // 登录后刷新 — 对齐 TS login.tsx post-login refresh logic
-        if (loginSuccess)
-        {
+        if (loginSuccess) {
             await PostLoginRefreshAsync(context).ConfigureAwait(false);
         }
 
@@ -62,18 +55,13 @@ public sealed class LoginCommand : ChatCommandBase
     /// TS: resetCostState + refreshRemoteManagedSettings + refreshPolicyLimits + resetUserCache + etc.
     /// C#: 成本重置 + 速率限制清除 + 服务刷新
     /// </summary>
-    private static Task PostLoginRefreshAsync(ChatCommandContext context, ILogger? logger = null)
-    {
+    private static Task PostLoginRefreshAsync(ChatCommandContext context, ILogger? logger = null) {
         // 重置成本追踪 — 对齐 TS resetCostState
         var costTracker = context.GetCommandServices().CostTracker;
-        if (costTracker is not null)
-        {
-            try
-            {
+        if (costTracker is not null) {
+            try {
                 costTracker.Reset();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 // 成本重置失败不影响登录
                 logger?.LogWarning(ex, "成本重置失败");
             }
@@ -88,19 +76,16 @@ public sealed class LoginCommand : ChatCommandBase
         return Task.CompletedTask;
     }
 
-    private static IProviderDefinition? ResolveProviderDefinition(ChatCommandContext context, string providerName)
-    {
+    private static IProviderDefinition? ResolveProviderDefinition(ChatCommandContext context, string providerName) {
         var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
         return registry?.TryGet(providerName);
     }
 
-    private async Task<bool> LoginWithApiKeyAsync(ChatCommandContext context, IProviderDefinition definition)
-    {
+    private async Task<bool> LoginWithApiKeyAsync(ChatCommandContext context, IProviderDefinition definition) {
         var fs = context.GetCommandServices().FileSystem;
         var apiKey = context.ReadPassword?.Invoke($"请输入 {definition.DisplayName} API Key:");
 
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
+        if (string.IsNullOrWhiteSpace(apiKey)) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}API Key 不能为空{AnsiStyleEnumConstants.Reset}");
             return false;
         }
@@ -108,11 +93,9 @@ public sealed class LoginCommand : ChatCommandBase
         // 多态：通过 IProviderDefinition.RequiresInteractiveEndpoint + SerializeAuthCredentials 消除 `if (definition.Kind == VendorKind.Azure)` 硬编码
         // Azure 覆写为收集 Endpoint + 返回 JSON 对象；其余 Provider 默认直接返回 apiKey
         string? endpoint = null;
-        if (definition.RequiresInteractiveEndpoint)
-        {
+        if (definition.RequiresInteractiveEndpoint) {
             endpoint = context.Prompt?.Invoke(definition.EndpointPromptText ?? "请输入 Endpoint:");
-            if (string.IsNullOrWhiteSpace(endpoint))
-            {
+            if (string.IsNullOrWhiteSpace(endpoint)) {
                 TerminalHelper.WriteLine($"{TerminalColors.Error}{definition.EndpointRequiredMessage ?? "Endpoint 不能为空"}{AnsiStyleEnumConstants.Reset}");
                 return false;
             }
@@ -125,26 +108,21 @@ public sealed class LoginCommand : ChatCommandBase
         return true;
     }
 
-    private async Task<bool> LoginWithOAuthAsync(ChatCommandContext context, IProviderDefinition definition)
-    {
+    private async Task<bool> LoginWithOAuthAsync(ChatCommandContext context, IProviderDefinition definition) {
         var services = context.GetCommandServices();
-        if (services.PkceGenerator is null)
-        {
+        if (services.PkceGenerator is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}PKCE 生成器未初始化，无法使用 OAuth 登录{AnsiStyleEnumConstants.Reset}");
             return false;
         }
 
-        if (services.TokenStorage is null)
-        {
+        if (services.TokenStorage is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}Token 存储未初始化{AnsiStyleEnumConstants.Reset}");
             return false;
         }
 
-        try
-        {
+        try {
             var config = definition.GetOAuthConfig();
-            if (config is null)
-            {
+            if (config is null) {
                 TerminalHelper.WriteLine($"{TerminalColors.Error}{definition.DisplayName} 不支持 OAuth 登录{AnsiStyleEnumConstants.Reset}");
                 return false;
             }
@@ -163,8 +141,7 @@ public sealed class LoginCommand : ChatCommandBase
 
             var code = context.Prompt?.Invoke("")?.Trim();
 
-            if (string.IsNullOrEmpty(code))
-            {
+            if (string.IsNullOrEmpty(code)) {
                 TerminalHelper.WriteLine($"{TerminalColors.Error}授权码不能为空{AnsiStyleEnumConstants.Reset}");
                 return false;
             }
@@ -177,44 +154,31 @@ public sealed class LoginCommand : ChatCommandBase
             TerminalHelper.WriteLine($"{TerminalColors.Success}{definition.DisplayName} OAuth 登录成功！{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"令牌过期时间: {token.ExpiresAt:yyyy-MM-dd HH:mm:ss}");
             return true;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             TerminalHelper.WriteLine("登录已取消。");
             return false;
-        }
-        catch (OAuthException ex)
-        {
+        } catch (OAuthException ex) {
             ChatCommandBase.HandleError("OAuth登录", ex);
             return false;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("登录", ex);
             return false;
         }
     }
 
-    private async Task SaveAuthAsync(string provider, string credentials, IFileSystem fs)
-    {
+    private async Task SaveAuthAsync(string provider, string credentials, IFileSystem fs) {
         var directory = Path.GetDirectoryName(AuthPath);
-        if (!string.IsNullOrEmpty(directory) && !fs.DirectoryExists(directory))
-        {
+        if (!string.IsNullOrEmpty(directory) && !fs.DirectoryExists(directory)) {
             DirectoryHelper.EnsureDirectoryExists(fs, directory);
         }
 
-        try
-        {
-            await fs.EditFileAsync<bool>(AuthPath, async (bytes, ct) =>
-            {
+        try {
+            await fs.EditFileAsync<bool>(AuthPath, async (bytes, ct) => {
                 var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                 Dictionary<string, string> authData;
-                try
-                {
+                try {
                     authData = RelaxedJsonSerializer.Deserialize(content, CliJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
-                }
-                catch
-                {
+                } catch {
                     authData = new Dictionary<string, string>();
                 }
                 authData[provider] = credentials;
@@ -222,9 +186,7 @@ public sealed class LoginCommand : ChatCommandBase
                 var newBytes = FileEncodingDetector.EncodeString(json, encoding);
                 return (newBytes, true);
             }, CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (FileNotFoundException)
-        {
+        } catch (FileNotFoundException) {
             var authData = new Dictionary<string, string> { [provider] = credentials };
             var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
             await fs.WriteAllTextAsync(AuthPath, json).ConfigureAwait(false);

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 /// 源码工程引擎 — Doctor 模式的源码工程能力核心
 /// 解决 "拿着 exe 无法自举" 的根本问题
 /// </summary>
-public interface ISourceCodeEngine
-{
+public interface ISourceCodeEngine {
     /// <summary>
     /// 定位源码仓库根目录
     /// 从 exe 所在目录向上搜索 .git，或从环境变量/配置获取

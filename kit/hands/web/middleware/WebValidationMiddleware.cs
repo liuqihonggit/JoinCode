@@ -5,8 +5,7 @@ namespace Services.Web;
 /// Order=100 确保最先执行，验证失败时短路管道
 /// </summary>
 [Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WebValidationMiddleware : ServiceEntity, IWebMiddleware
-{
+public sealed partial class WebValidationMiddleware : ServiceEntity, IWebMiddleware {
     private const int MaxUrlLength = 2000;
 
     /// <inheritdoc />
@@ -19,10 +18,8 @@ public sealed partial class WebValidationMiddleware : ServiceEntity, IWebMiddlew
     public WebValidationMiddleware() { }
 
     /// <inheritdoc />
-    public Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct)
-    {
-        if (!ValidateUrl(context.Url))
-        {
+    public Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct) {
+        if (!ValidateUrl(context.Url)) {
             context.Result = new WebFetchResult(false, context.Url,
                 ErrorMessage: L.T(StringKey.WebInvalidUrl, context.Url));
             return Task.CompletedTask; // 短路
@@ -32,8 +29,7 @@ public sealed partial class WebValidationMiddleware : ServiceEntity, IWebMiddlew
         return next(context, ct);
     }
 
-    private static bool ValidateUrl(string url)
-    {
+    private static bool ValidateUrl(string url) {
         if (string.IsNullOrEmpty(url) || url.Length > MaxUrlLength)
             return false;
 
@@ -51,13 +47,11 @@ public sealed partial class WebValidationMiddleware : ServiceEntity, IWebMiddlew
         return parts.Length >= 2;
     }
 
-    private static string UpgradeToHttps(string url)
-    {
+    private static string UpgradeToHttps(string url) {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var parsed))
             return url;
 
-        if (parsed.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase))
-        {
+        if (parsed.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase)) {
             var builder = new UriBuilder(parsed) { Scheme = "https" };
             return builder.Uri.ToString();
         }

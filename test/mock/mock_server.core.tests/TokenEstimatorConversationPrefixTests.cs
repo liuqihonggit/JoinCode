@@ -18,11 +18,9 @@ namespace MockServer.Core.Tests;
 ///
 /// 修复目标: ExtractConversationPrefix 提取 system + 所有消息内容, 作为完整前缀
 /// </summary>
-public sealed class TokenEstimatorConversationPrefixTests
-{
+public sealed class TokenEstimatorConversationPrefixTests {
     [Fact]
-    public void OpenAIFormat_SingleSystemMessage_PrefixIsSystemContent()
-    {
+    public void OpenAIFormat_SingleSystemMessage_PrefixIsSystemContent() {
         var json = """{"messages":[{"role":"system","content":"You are helpful."}]}""";
         var req = JsonDocument.Parse(json).RootElement.Clone();
 
@@ -32,8 +30,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void OpenAIFormat_SystemPlusUser_PrefixIncludesBoth()
-    {
+    public void OpenAIFormat_SystemPlusUser_PrefixIncludesBoth() {
         var json = """{"messages":[{"role":"system","content":"SYS"},{"role":"user","content":"Hello"}]}""";
         var req = JsonDocument.Parse(json).RootElement.Clone();
 
@@ -45,8 +42,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void AnthropicFormat_SystemFieldPlusMessages_PrefixIncludesBoth()
-    {
+    public void AnthropicFormat_SystemFieldPlusMessages_PrefixIncludesBoth() {
         var json = """{"system":"SYS","messages":[{"role":"user","content":"Hello"}]}""";
         var req = JsonDocument.Parse(json).RootElement.Clone();
 
@@ -58,8 +54,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void MultiTurn_SameSystemGrowingMessages_PrefixGrows()
-    {
+    public void MultiTurn_SameSystemGrowingMessages_PrefixGrows() {
         // Turn 1: system + user1
         var turn1Json = """{"system":"SYS","messages":[{"role":"user","content":"question1"}]}""";
         // Turn 2: system + user1 + assistant1 + user2
@@ -75,8 +70,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void MultiTurn_SameSystemSameMessages_PrefixEqual()
-    {
+    public void MultiTurn_SameSystemSameMessages_PrefixEqual() {
         var json = """{"system":"SYS","messages":[{"role":"user","content":"question1"}]}""";
 
         var prefix1 = TokenEstimator.ExtractConversationPrefix(JsonDocument.Parse(json).RootElement.Clone());
@@ -86,8 +80,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void DifferentUserContent_PrefixDifferent()
-    {
+    public void DifferentUserContent_PrefixDifferent() {
         var json1 = """{"system":"SYS","messages":[{"role":"user","content":"question1"}]}""";
         var json2 = """{"system":"SYS","messages":[{"role":"user","content":"question2"}]}""";
 
@@ -98,8 +91,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void AnthropicContentBlocks_ExtractsTextFromBlocks()
-    {
+    public void AnthropicContentBlocks_ExtractsTextFromBlocks() {
         // Anthropic content 可以是数组 (content blocks)
         var json = """{"system":"SYS","messages":[{"role":"user","content":[{"type":"text","text":"block content"}]}]}""";
         var req = JsonDocument.Parse(json).RootElement.Clone();
@@ -110,8 +102,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void EmptyRequest_ReturnsEmptyString()
-    {
+    public void EmptyRequest_ReturnsEmptyString() {
         var json = """{}""";
         var req = JsonDocument.Parse(json).RootElement.Clone();
 
@@ -123,8 +114,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     // === Responses API 格式 (input 数组 + instructions 字段) ===
 
     [Fact]
-    public void ResponsesFormat_InstructionsPlusInput_PrefixIncludesBoth()
-    {
+    public void ResponsesFormat_InstructionsPlusInput_PrefixIncludesBoth() {
         var json = """{"instructions":"SYS","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"Hello"}]}]}""";
         var req = JsonDocument.Parse(json).RootElement.Clone();
 
@@ -136,8 +126,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void ResponsesFormat_InputOnly_PrefixIncludesInputContent()
-    {
+    public void ResponsesFormat_InputOnly_PrefixIncludesInputContent() {
         var json = """{"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"echo hello"}]}]}""";
         var req = JsonDocument.Parse(json).RootElement.Clone();
 
@@ -147,8 +136,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void ResponsesFormat_MultiTurn_PrefixGrows()
-    {
+    public void ResponsesFormat_MultiTurn_PrefixGrows() {
         var turn1Json = """{"instructions":"SYS","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"q1"}]}]}""";
         var turn2Json = """{"instructions":"SYS","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"q1"}]},{"type":"message","role":"assistant","content":[{"type":"output_text","text":"a1"}]},{"type":"message","role":"user","content":[{"type":"input_text","text":"q2"}]}]}""";
 
@@ -161,8 +149,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void ResponsesFormat_EstimateFromMessages_ReturnsNonZero()
-    {
+    public void ResponsesFormat_EstimateFromMessages_ReturnsNonZero() {
         var json = """{"instructions":"You are helpful.","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"echo hello"}]}]}""";
         var req = JsonDocument.Parse(json).RootElement.Clone();
 
@@ -172,8 +159,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void ResponsesFormat_AssistantOutputText_ExtractedAsPrefix()
-    {
+    public void ResponsesFormat_AssistantOutputText_ExtractedAsPrefix() {
         var json = """{"input":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"response text"}]}]}""";
         var req = JsonDocument.Parse(json).RootElement.Clone();
 
@@ -185,8 +171,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     // === Tools 定义计入 token 估算和前缀 ===
 
     [Fact]
-    public void ToolsDefinition_IncludedInTokenEstimate()
-    {
+    public void ToolsDefinition_IncludedInTokenEstimate() {
         var jsonNoTools = """{"messages":[{"role":"user","content":"hello"}]}""";
         var jsonWithTools = """{"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"read","description":"read a file"}}]}""";
 
@@ -198,8 +183,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void ToolsDefinition_IncludedInPrefix()
-    {
+    public void ToolsDefinition_IncludedInPrefix() {
         var json = """{"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"read","description":"read a file"}}]}""";
         var req = JsonDocument.Parse(json).RootElement.Clone();
 
@@ -210,8 +194,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void SameToolsSameMessages_PrefixEqual()
-    {
+    public void SameToolsSameMessages_PrefixEqual() {
         var json = """{"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"read"}}]}""";
 
         var prefix1 = TokenEstimator.ExtractConversationPrefix(JsonDocument.Parse(json).RootElement.Clone());
@@ -221,8 +204,7 @@ public sealed class TokenEstimatorConversationPrefixTests
     }
 
     [Fact]
-    public void DifferentTools_PrefixDifferent()
-    {
+    public void DifferentTools_PrefixDifferent() {
         var json1 = """{"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"read"}}]}""";
         var json2 = """{"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"write"}}]}""";
 

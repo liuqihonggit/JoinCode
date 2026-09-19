@@ -4,8 +4,7 @@ namespace JoinCode.Hands.Desktop;
 /// 桌面场景 UI 元素检测服务实现 — 多模态识别当前区域的 UI 元素
 /// </summary>
 [Register(typeof(IDesktopSceneDetectService), ServiceLifetime.Singleton)]
-public sealed class DesktopSceneDetectService : ServiceEntity, IDesktopSceneDetectService
-{
+public sealed class DesktopSceneDetectService : ServiceEntity, IDesktopSceneDetectService {
     private readonly IUiElementDetector _detector;
     private readonly IDesktopSceneStateStore _stateStore;
     private readonly IFileSystem _fileSystem;
@@ -16,8 +15,7 @@ public sealed class DesktopSceneDetectService : ServiceEntity, IDesktopSceneDete
     public DesktopSceneDetectService(
         IUiElementDetector detector,
         IDesktopSceneStateStore stateStore,
-        IFileSystem fileSystem)
-    {
+        IFileSystem fileSystem) {
         _detector = detector ?? throw new ArgumentNullException(nameof(detector));
         _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
         _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
@@ -26,8 +24,7 @@ public sealed class DesktopSceneDetectService : ServiceEntity, IDesktopSceneDete
     /// <summary>
     /// 识别当前缩放区域的 UI 元素（按钮/输入框/标签等）
     /// </summary>
-    public async Task<DesktopSceneDetection> DetectAsync(string sceneId, CancellationToken cancellationToken = default)
-    {
+    public async Task<DesktopSceneDetection> DetectAsync(string sceneId, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNullOrWhiteSpace(sceneId);
 
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
@@ -50,8 +47,7 @@ public sealed class DesktopSceneDetectService : ServiceEntity, IDesktopSceneDete
         return new DesktopSceneDetection(sceneId, elements);
     }
 
-    private static string MapElementType(UiElementType type) => type switch
-    {
+    private static string MapElementType(UiElementType type) => type switch {
         UiElementType.Button => "button",
         UiElementType.TextBox => "input",
         UiElementType.Menu or UiElementType.MenuItem => "menu",

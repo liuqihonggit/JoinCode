@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Notebook;
 /// <summary>
 /// Notebook单元格类型
 /// </summary>
-public enum NotebookCellType
-{
+public enum NotebookCellType {
     [EnumValue("code")] Code,
     [EnumValue("markdown")] Markdown,
     [EnumValue("raw")] Raw
@@ -14,13 +13,11 @@ public enum NotebookCellType
 /// <summary>
 /// Notebook单元格类型扩展方法 — 委托给源码生成器自动生成的 NotebookCellTypeExtensions
 /// </summary>
-public static class NotebookCellTypeHelper
-{
+public static class NotebookCellTypeHelper {
     /// <summary>
     /// 获取单元格类型字符串
     /// </summary>
-    public static string ToCellTypeString(this NotebookCellType cellType)
-    {
+    public static string ToCellTypeString(this NotebookCellType cellType) {
         return NotebookCellTypeExtensions.ToValue(cellType) ?? cellType.ToString().ToLowerInvariant();
     }
 }
@@ -28,8 +25,7 @@ public static class NotebookCellTypeHelper
 /// <summary>
 /// Notebook单元格输出类型
 /// </summary>
-public enum OutputType
-{
+public enum OutputType {
     [EnumValue("execute_result")] ExecuteResult,
     [EnumValue("display_data")] DisplayData,
     [EnumValue("stream")] Stream,
@@ -39,8 +35,7 @@ public enum OutputType
 /// <summary>
 /// Notebook 编辑模式枚举 — 替代 NotebookToolHandlers 中的 "replace"/"insert"/"delete" 硬编码字符串
 /// </summary>
-public enum NotebookEditMode
-{
+public enum NotebookEditMode {
     [EnumValue("replace")] Replace = 0,
     [EnumValue("insert")] Insert = 1,
     [EnumValue("delete")] Delete = 2
@@ -49,8 +44,7 @@ public enum NotebookEditMode
 /// <summary>
 /// Notebook单元格输出
 /// </summary>
-public sealed record NotebookOutput
-{
+public sealed record NotebookOutput {
     [JsonPropertyName("output_type")]
     public string OutputType { get; init; } = "stream";
 
@@ -86,8 +80,7 @@ public sealed record NotebookOutput
 /// <summary>
 /// Notebook单元格
 /// </summary>
-public sealed record NotebookCell
-{
+public sealed record NotebookCell {
     [JsonPropertyName("id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Id { get; init; }
@@ -113,8 +106,7 @@ public sealed record NotebookCell
     public string SourceText => string.Join("", Source);
 
     [JsonIgnore]
-    public NotebookCellType Type => CellType.ToLowerInvariant() switch
-    {
+    public NotebookCellType Type => CellType.ToLowerInvariant() switch {
         "markdown" => NotebookCellType.Markdown,
         "raw" => NotebookCellType.Raw,
         _ => NotebookCellType.Code
@@ -124,8 +116,7 @@ public sealed record NotebookCell
 /// <summary>
 /// Notebook元数据
 /// </summary>
-public sealed record NotebookMetadata
-{
+public sealed record NotebookMetadata {
     [JsonPropertyName("kernelspec")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public KernelSpec? KernelSpec { get; init; }
@@ -142,8 +133,7 @@ public sealed record NotebookMetadata
 /// <summary>
 /// 内核规范
 /// </summary>
-public sealed record KernelSpec
-{
+public sealed record KernelSpec {
     [JsonPropertyName("display_name")]
     public string DisplayName { get; init; } = "";
 
@@ -157,8 +147,7 @@ public sealed record KernelSpec
 /// <summary>
 /// 语言信息
 /// </summary>
-public sealed record LanguageInfo
-{
+public sealed record LanguageInfo {
     [JsonPropertyName("name")]
     public string Name { get; init; } = "";
 
@@ -178,8 +167,7 @@ public sealed record LanguageInfo
 /// <summary>
 /// Notebook文档 (.ipynb 格式)
 /// </summary>
-public sealed record NotebookDocument
-{
+public sealed record NotebookDocument {
     [JsonPropertyName("nbformat")]
     public int NbFormat { get; init; } = 4;
 
@@ -205,8 +193,7 @@ public sealed record NotebookDocument
 /// <summary>
 /// Notebook编辑结果
 /// </summary>
-public sealed record NotebookEditResult
-{
+public sealed record NotebookEditResult {
     public bool Success { get; init; }
     public string? ErrorMessage { get; init; }
     public NotebookDocument? Notebook { get; init; }

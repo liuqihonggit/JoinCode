@@ -10,8 +10,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - FromValue("INSTALL")     → PlatformAction.Install (OrdinalIgnoreCase)
 /// - PlatformAction.Status.ToValue() → "status"
 /// </summary>
-public enum PlatformAction
-{
+public enum PlatformAction {
     /// <summary>建立连接 (chrome connect + ide connect 共用)</summary>
     [EnumValue("connect")] Connect,
 

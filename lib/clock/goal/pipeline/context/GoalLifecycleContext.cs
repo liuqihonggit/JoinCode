@@ -4,8 +4,7 @@ namespace Core.Goal;
 /// <summary>
 /// 目标生命周期操作类型
 /// </summary>
-public enum GoalOperation
-{
+public enum GoalOperation {
     /// <summary>启动目标</summary>
     [EnumValue("start")]
     Start,
@@ -29,8 +28,7 @@ public enum GoalOperation
 /// <summary>
 /// 目标生命周期管道共享上下文 — 在中间件各阶段间传递状态
 /// </summary>
-public sealed class GoalLifecycleContext : PipelineContextBase
-{
+public sealed class GoalLifecycleContext : PipelineContextBase {
     // === 输入 ===
 
     /// <summary>操作类型</summary>

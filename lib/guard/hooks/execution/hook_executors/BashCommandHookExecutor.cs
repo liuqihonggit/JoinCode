@@ -5,8 +5,7 @@ namespace Core.Hooks.Execution;
 /// Bash 命令钩子执行器
 /// </summary>
 [Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
-public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashCommandHook>
-{
+public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashCommandHook> {
     private const string DefaultShell = "bash";
 
     private readonly IProcessService _processService;
@@ -15,8 +14,7 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
     /// 构造 Bash 命令钩子执行器
     /// </summary>
     public BashCommandHookExecutor(IProcessService processService, ILogger<BashCommandHookExecutor>? logger = null)
-        : base(logger)
-    {
+        : base(logger) {
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
     }
 
@@ -27,20 +25,17 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
     public override async Task<HookResult> ExecuteTypedAsync(
         BashCommandHook hook,
         HookInput input,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         LogExecutionStart(hook, input);
         var stopwatch = Stopwatch.StartNew();
 
-        try
-        {
+        try {
             var context = CreateContext(hook, input);
             var inputJson = PrepareInputJson(input);
             var processedCommand = SubstituteArguments(hook.Command, inputJson);
 
             // 异步钩子只启动进程不等待
-            if (hook.Async == true || hook.AsyncRewake == true)
-            {
+            if (hook.Async == true || hook.AsyncRewake == true) {
                 _ = ExecuteAsyncInternal(hook, processedCommand, input, cancellationToken);
                 return HookResult.Success();
             }
@@ -53,17 +48,11 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
 
             LogExecutionComplete(hook, result, stopwatch.Elapsed);
             return result;
-        }
-        catch (HookTimeoutException)
-        {
+        } catch (HookTimeoutException) {
             throw;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Logger?.LogError(ex, "Failed to execute bash command hook");
             return HookResult.NonBlockingError(
                 error: ex.Message,
@@ -75,32 +64,23 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
         BashCommandHook hook,
         string command,
         HookInput input,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
+        CancellationToken cancellationToken) {
+        try {
             var result = await ExecuteCommandAsync(hook, command, input, cancellationToken).ConfigureAwait(false);
 
             // 异步唤醒：退出码 2 时触发唤醒
             if (hook.AsyncRewake == true &&
-                result.BlockingError != null)
-            {
-                if (input.OnModelWake != null)
-                {
-                    try
-                    {
+                result.BlockingError != null) {
+                if (input.OnModelWake != null) {
+                    try {
                         await input.OnModelWake(input.EventName).ConfigureAwait(false);
                         Logger?.LogInformation(
                             "Async hook triggered model wake for event {Event}",
                             input.Event);
-                    }
-                    catch (Exception wakeEx)
-                    {
+                    } catch (Exception wakeEx) {
                         Logger?.LogError(wakeEx, "Model wake callback failed for event {Event}", input.Event);
                     }
-                }
-                else
-                {
+                } else {
                     Logger?.LogWarning(
                         "Async hook requested model wake but no wake callback configured for event {Event}",
                         input.Event);
@@ -108,9 +88,7 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
             }
 
             return result;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Logger?.LogError(ex, "Async hook execution failed");
             return HookResult.NonBlockingError(error: ex.Message);
         }
@@ -120,23 +98,19 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
         BashCommandHook hook,
         string command,
         HookInput input,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var shell = hook.Shell ?? DefaultShell;
         var (fileName, argumentList) = GetShellCommand(shell, command);
 
-        var envVars = new Dictionary<string, string>
-        {
+        var envVars = new Dictionary<string, string> {
             ["HOOK_EVENT"] = input.Event.ToEventName(),
             ["HOOK_TOOL_NAME"] = input.ToolName ?? "",
             ["HOOK_TOOL_USE_ID"] = input.ToolUseId ?? "",
             ["HOOK_SESSION_ID"] = input.SessionId ?? ""
         };
 
-        try
-        {
-            var options = new ProcessOptions
-            {
+        try {
+            var options = new ProcessOptions {
                 FileName = fileName,
                 ArgumentList = argumentList,
                 SkipArgumentValidation = true,
@@ -152,15 +126,12 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
                 result.ExitCode,
                 command,
                 isAsync: false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
         }
     }
 
-    private static (string FileName, IReadOnlyList<string> ArgumentList) GetShellCommand(string shell, string command)
-    {
+    private static (string FileName, IReadOnlyList<string> ArgumentList) GetShellCommand(string shell, string command) {
         var kind = SystemActuatorKind.FromId(shell) ?? SystemActuatorKind.Bash;
         if (kind == SystemActuatorKind.PowerShell)
             return ("pwsh", new[] { "-Command", command });

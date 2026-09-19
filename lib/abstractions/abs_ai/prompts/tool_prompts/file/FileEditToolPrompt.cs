@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// 文件编辑工具提示词
 /// </summary>
 [ToolPrompt(ToolName = FileToolName.FileEdit, Category = ToolPromptCategory.File)]
-public static class FileEditToolPrompt
-{
+public static class FileEditToolPrompt {
     public static string GetDescription() => $"""
         对文件执行精确的字符串替换。
 

@@ -1,19 +1,16 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class TimeoutLockTests : IDisposable
-{
+public sealed class TimeoutLockTests : IDisposable {
     private readonly TimeoutLock _lock;
 
-    public TimeoutLockTests()
-    {
+    public TimeoutLockTests() {
         _lock = new TimeoutLock("TestLock", TimeSpan.FromSeconds(1));
     }
 
     public void Dispose() => _lock.DisposeSafe();
 
     [Fact]
-    public async Task AcquireAsync_ReleasedByDisposal_ReleasesLock()
-    {
+    public async Task AcquireAsync_ReleasedByDisposal_ReleasesLock() {
         var releaser = await _lock.AcquireAsync(CancellationToken.None).ConfigureAwait(true);
         releaser.Dispose();
 
@@ -22,19 +19,16 @@ public sealed class TimeoutLockTests : IDisposable
     }
 
     [Fact]
-    public async Task AcquireAsync_Timeout_ThrowsTimeoutException()
-    {
+    public async Task AcquireAsync_Timeout_ThrowsTimeoutException() {
         using var releaser = await _lock.AcquireAsync(CancellationToken.None).ConfigureAwait(true);
 
-        await Assert.ThrowsAsync<TimeoutException>(async () =>
-        {
+        await Assert.ThrowsAsync<TimeoutException>(async () => {
             using var _ = await _lock.AcquireAsync(CancellationToken.None, TimeSpan.FromMilliseconds(10)).ConfigureAwait(true);
         }).ConfigureAwait(true);
     }
 
     [Fact]
-    public void AcquireSync_ReleasedByDisposal_ReleasesLock()
-    {
+    public void AcquireSync_ReleasedByDisposal_ReleasesLock() {
         var releaser = _lock.Acquire();
         releaser.Dispose();
 
@@ -43,22 +37,19 @@ public sealed class TimeoutLockTests : IDisposable
     }
 
     [Fact]
-    public void AcquireSync_Timeout_ThrowsTimeoutException()
-    {
+    public void AcquireSync_Timeout_ThrowsTimeoutException() {
         using var releaser = _lock.Acquire();
 
         Assert.Throws<TimeoutException>(() => _lock.Acquire(TimeSpan.FromMilliseconds(10)));
     }
 
     [Fact]
-    public void Constructor_NullLockName_Throws()
-    {
+    public void Constructor_NullLockName_Throws() {
         Assert.Throws<ArgumentNullException>(() => new TimeoutLock(null!));
     }
 
     [Fact]
-    public void Acquire_AfterDispose_ThrowsObjectDisposedException()
-    {
+    public void Acquire_AfterDispose_ThrowsObjectDisposedException() {
         var l = new TimeoutLock("DisposedLock", TimeSpan.FromSeconds(1));
         l.Dispose();
 
@@ -66,25 +57,21 @@ public sealed class TimeoutLockTests : IDisposable
     }
 
     [Fact]
-    public async Task AcquireAsync_AfterDispose_ThrowsObjectDisposedException()
-    {
+    public async Task AcquireAsync_AfterDispose_ThrowsObjectDisposedException() {
         var l = new TimeoutLock("DisposedLockAsync", TimeSpan.FromSeconds(1));
         l.Dispose();
 
-        await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-        {
+        await Assert.ThrowsAsync<ObjectDisposedException>(async () => {
             using var _ = await l.AcquireAsync(CancellationToken.None).ConfigureAwait(true);
         }).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task AcquireAsync_LogsMessages_WhenLoggerProvided()
-    {
+    public async Task AcquireAsync_LogsMessages_WhenLoggerProvided() {
         var messages = new List<string>();
         using var l = new TimeoutLock("LoggedLock", TimeSpan.FromSeconds(5), messages.Add);
 
-        using (await l.AcquireAsync(CancellationToken.None).ConfigureAwait(true))
-        {
+        using (await l.AcquireAsync(CancellationToken.None).ConfigureAwait(true)) {
         }
 
         Assert.Contains(messages, m => m.Contains("Acquiring"));

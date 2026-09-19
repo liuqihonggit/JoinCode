@@ -8,8 +8,7 @@ namespace JoinCode.Abstractions.Entity;
 public sealed record PluginUnloadContract(
     bool IsValid,
     string? Reason,
-    IReadOnlyList<string> Violations)
-{
+    IReadOnlyList<string> Violations) {
     /// <summary>契约通过 — 无违规项</summary>
     public static readonly PluginUnloadContract Valid = new(true, null, []);
 
@@ -24,13 +23,11 @@ public sealed record PluginUnloadContract(
 /// <para>用于方案C PluginContext 包装 LoadFromPlugin 返回的 Action</para>
 /// <para>方案B 阶段先定义类型,方案C 阶段开始强制使用</para>
 /// </summary>
-public readonly struct NonEmptyUndo
-{
+public readonly struct NonEmptyUndo {
     private readonly Action _undo;
 
     /// <summary>构造非空撤销委托 — undo 为 null 抛 ArgumentNullException</summary>
-    public NonEmptyUndo(Action undo)
-    {
+    public NonEmptyUndo(Action undo) {
         ArgumentNullException.ThrowIfNull(undo);
         _undo = undo;
     }

@@ -1,14 +1,11 @@
 namespace JoinCode.Host.Tests.Adapters;
 
-public class AgentStreamChunkAdapterTests
-{
+public class AgentStreamChunkAdapterTests {
     private const string TestAgentId = "agent-test-001";
 
     [Fact]
-    public void ContentChunk_ShouldMapToContentEvent()
-    {
-        var chunk = new AgentStreamChunk
-        {
+    public void ContentChunk_ShouldMapToContentEvent() {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.Content,
             Content = "hello world",
             AgentId = TestAgentId
@@ -22,10 +19,8 @@ public class AgentStreamChunkAdapterTests
     }
 
     [Fact]
-    public void ThinkingStartChunk_ShouldMapToThinkingEvent()
-    {
-        var chunk = new AgentStreamChunk
-        {
+    public void ThinkingStartChunk_ShouldMapToThinkingEvent() {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.ThinkingStart,
             ThinkingContent = "Let me think...",
             AgentId = TestAgentId
@@ -39,10 +34,8 @@ public class AgentStreamChunkAdapterTests
     }
 
     [Fact]
-    public void ThinkingChunk_ShouldMapToThinkingEvent()
-    {
-        var chunk = new AgentStreamChunk
-        {
+    public void ThinkingChunk_ShouldMapToThinkingEvent() {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.Thinking,
             ThinkingContent = "analyzing...",
             AgentId = TestAgentId
@@ -56,10 +49,8 @@ public class AgentStreamChunkAdapterTests
     }
 
     [Fact]
-    public void ThinkingEndChunk_ShouldReturnNull()
-    {
-        var chunk = new AgentStreamChunk
-        {
+    public void ThinkingEndChunk_ShouldReturnNull() {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.ThinkingEnd,
             AgentId = TestAgentId
         };
@@ -70,10 +61,8 @@ public class AgentStreamChunkAdapterTests
     }
 
     [Fact]
-    public void ToolCallStartChunk_ShouldMapToToolCallStartEvent()
-    {
-        var chunk = new AgentStreamChunk
-        {
+    public void ToolCallStartChunk_ShouldMapToToolCallStartEvent() {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.ToolCallStart,
             ToolName = "FileRead",
             ToolCallId = "call_123",
@@ -91,11 +80,9 @@ public class AgentStreamChunkAdapterTests
     }
 
     [Fact]
-    public void ToolCallEndChunk_ShouldMapToToolCallEndEvent()
-    {
+    public void ToolCallEndChunk_ShouldMapToToolCallEndEvent() {
         var hunks = new StructuredPatchHunk[] { new() { OldStart = 1, OldLines = 1, NewStart = 1, NewLines = 1 } };
-        var chunk = new AgentStreamChunk
-        {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.ToolCallEnd,
             ToolName = "FileEdit",
             ToolCallId = "call_456",
@@ -117,10 +104,8 @@ public class AgentStreamChunkAdapterTests
     }
 
     [Fact]
-    public void ToolProgressChunk_ShouldMapToToolProgressEvent()
-    {
-        var chunk = new AgentStreamChunk
-        {
+    public void ToolProgressChunk_ShouldMapToToolProgressEvent() {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.ToolProgress,
             ToolName = "WebSearch",
             ToolCallId = "call_789",
@@ -140,10 +125,8 @@ public class AgentStreamChunkAdapterTests
     }
 
     [Fact]
-    public void LoopDetectedChunk_ShouldMapToLoopDetectedEvent()
-    {
-        var chunk = new AgentStreamChunk
-        {
+    public void LoopDetectedChunk_ShouldMapToLoopDetectedEvent() {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.LoopDetected,
             LoopTriggerCount = 3,
             LoopStartIndex = 5,
@@ -161,10 +144,8 @@ public class AgentStreamChunkAdapterTests
     }
 
     [Fact]
-    public void TimingSummaryChunk_ShouldMapToTimingSummaryEvent()
-    {
-        var chunk = new AgentStreamChunk
-        {
+    public void TimingSummaryChunk_ShouldMapToTimingSummaryEvent() {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.TimingSummary,
             Content = "Total: 1.5s",
             AgentId = TestAgentId
@@ -178,11 +159,9 @@ public class AgentStreamChunkAdapterTests
     }
 
     [Fact]
-    public void CompleteChunk_ShouldMapToCompleteEvent()
-    {
+    public void CompleteChunk_ShouldMapToCompleteEvent() {
         var usage = new TokenUsage(100, 200);
-        var chunk = new AgentStreamChunk
-        {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Usage = usage,
             ModelId = "gpt-4o",
@@ -198,10 +177,8 @@ public class AgentStreamChunkAdapterTests
     }
 
     [Fact]
-    public void ErrorChunk_ShouldReturnNull()
-    {
-        var chunk = new AgentStreamChunk
-        {
+    public void ErrorChunk_ShouldReturnNull() {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.Error,
             Content = "Something went wrong",
             AgentId = TestAgentId
@@ -213,10 +190,8 @@ public class AgentStreamChunkAdapterTests
     }
 
     [Fact]
-    public void ThinkingChunk_WithNullThinkingContent_ShouldFallbackToContent()
-    {
-        var chunk = new AgentStreamChunk
-        {
+    public void ThinkingChunk_WithNullThinkingContent_ShouldFallbackToContent() {
+        var chunk = new AgentStreamChunk {
             Type = AgentStreamChunkType.Thinking,
             Content = "fallback thinking",
             AgentId = TestAgentId

@@ -3,15 +3,13 @@ namespace JoinCode.Dream.DependencyInjection;
 /// <summary>
 /// Dream DI 注册
 /// </summary>
-public static partial class ServiceRegistration
-{
+public static partial class ServiceRegistration {
     /// <summary>
     /// 添加做梦系统服务（内存存储）
     /// </summary>
     public static IServiceCollection AddDreamServices(
         this IServiceCollection services,
-        Action<AutoDreamConfig>? configureOptions = null)
-    {
+        Action<AutoDreamConfig>? configureOptions = null) {
         var config = new AutoDreamConfig();
         configureOptions?.Invoke(config);
         services.AddSingleton(config);
@@ -24,8 +22,7 @@ public static partial class ServiceRegistration
     /// </summary>
     public static IServiceCollection AddDreamServicesWithPersistence(
         this IServiceCollection services,
-        Action<AutoDreamConfig>? configureOptions = null)
-    {
+        Action<AutoDreamConfig>? configureOptions = null) {
         var config = new AutoDreamConfig();
         configureOptions?.Invoke(config);
         services.AddSingleton(config);
@@ -36,8 +33,7 @@ public static partial class ServiceRegistration
     /// <summary>
     /// 初始化做梦系统
     /// </summary>
-    public static IServiceProvider InitializeDreamSystem(this IServiceProvider serviceProvider)
-    {
+    public static IServiceProvider InitializeDreamSystem(this IServiceProvider serviceProvider) {
         return serviceProvider;
     }
 
@@ -45,10 +41,8 @@ public static partial class ServiceRegistration
     /// 初始化做梦系统（持久化存储）
     /// </summary>
     public static async Task<IServiceProvider> InitializeDreamSystemWithPersistenceAsync(
-        this IServiceProvider serviceProvider)
-    {
-        if (serviceProvider.GetService<IDreamTaskRegistry>() is PersistentDreamTaskRegistry registry)
-        {
+        this IServiceProvider serviceProvider) {
+        if (serviceProvider.GetService<IDreamTaskRegistry>() is PersistentDreamTaskRegistry registry) {
             await registry.LoadActiveTasksAsync().ConfigureAwait(false);
         }
 
@@ -58,10 +52,8 @@ public static partial class ServiceRegistration
     /// <summary>
     /// 添加 Dream 插件服务
     /// </summary>
-    public static IServiceCollection AddDreamPluginServices(this IServiceCollection services)
-    {
-        services.AddSingleton<AutoDreamConfig>(sp =>
-        {
+    public static IServiceCollection AddDreamPluginServices(this IServiceCollection services) {
+        services.AddSingleton<AutoDreamConfig>(sp => {
             var config = AutoDreamConfigBuilder.Create()
                 .WithMinSessions(2)
                 .Build();

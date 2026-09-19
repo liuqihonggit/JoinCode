@@ -6,8 +6,7 @@ namespace Tools.Shell;
 /// 仅在用户未显式指定超时时生效
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellSearchTimeoutMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellSearchTimeoutMiddleware : ServiceEntity, IShellMiddleware {
     private static readonly FrozenSet<string> SearchCommands = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
         "rg", "grep", "egrep", "fgrep", "ag", "ack",
@@ -19,16 +18,13 @@ public sealed partial class ShellSearchTimeoutMiddleware : ServiceEntity, IShell
     /// 构造搜索命令超时中间件
     /// </summary>
     /// <param name="config">Shell 执行配置</param>
-    public ShellSearchTimeoutMiddleware(ShellExecutionConfig config)
-    {
+    public ShellSearchTimeoutMiddleware(ShellExecutionConfig config) {
         _config = config;
     }
 
     /// <inheritdoc />
-    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
-        if (IsSearchCommand(context.Command) && context.Timeout is null or > 30_000)
-        {
+    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
+        if (IsSearchCommand(context.Command) && context.Timeout is null or > 30_000) {
             var searchTimeoutMs = _config.SearchCommandTimeoutSeconds * 1000;
             context.OverrideTimeout = searchTimeoutMs;
         }
@@ -36,24 +32,20 @@ public sealed partial class ShellSearchTimeoutMiddleware : ServiceEntity, IShell
         return next(context, ct);
     }
 
-    private static bool IsSearchCommand(string command)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-        {
+    private static bool IsSearchCommand(string command) {
+        if (string.IsNullOrWhiteSpace(command)) {
             return false;
         }
 
         var spaceIdx = command.IndexOf(' ');
         var cmdName = spaceIdx >= 0 ? command[..spaceIdx] : command;
 
-        if (SearchCommands.Contains(cmdName))
-        {
+        if (SearchCommands.Contains(cmdName)) {
             return true;
         }
 
         var slashIdx = cmdName.LastIndexOf('/');
-        if (slashIdx >= 0 && slashIdx < cmdName.Length - 1)
-        {
+        if (slashIdx >= 0 && slashIdx < cmdName.Length - 1) {
             var basename = cmdName[(slashIdx + 1)..];
             return SearchCommands.Contains(basename);
         }

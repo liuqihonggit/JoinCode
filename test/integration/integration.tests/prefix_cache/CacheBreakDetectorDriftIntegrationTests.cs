@@ -1,12 +1,10 @@
 namespace Integration.Tests.PrefixCache.Unit;
 
-public sealed class CacheBreakDetectorDriftIntegrationTests
-{
+public sealed class CacheBreakDetectorDriftIntegrationTests {
     private readonly CacheBreakDetector _detector = new();
 
     [Fact]
-    public void CheckCacheBreak_ToolAppend_CacheHit_NoBreak_WithDriftReport()
-    {
+    public void CheckCacheBreak_ToolAppend_CacheHit_NoBreak_WithDriftReport() {
         var toolsBefore = new List<ToolSpec> { new("read", "Read files") };
         var toolsAfter = new List<ToolSpec>
         {
@@ -29,8 +27,7 @@ public sealed class CacheBreakDetectorDriftIntegrationTests
     }
 
     [Fact]
-    public void CheckCacheBreak_ToolEdit_ReportsBreak_WithDriftReport()
-    {
+    public void CheckCacheBreak_ToolEdit_ReportsBreak_WithDriftReport() {
         var toolsBefore = new List<ToolSpec> { new("read", "Read files v1") };
         var toolsAfter = new List<ToolSpec> { new("read", "Read files v2") };
 
@@ -50,8 +47,7 @@ public sealed class CacheBreakDetectorDriftIntegrationTests
     }
 
     [Fact]
-    public void CheckCacheBreak_ToolRemove_ReportsBreak_WithDriftReport()
-    {
+    public void CheckCacheBreak_ToolRemove_ReportsBreak_WithDriftReport() {
         var toolsBefore = new List<ToolSpec>
         {
             new("read", "Read files"),
@@ -74,8 +70,7 @@ public sealed class CacheBreakDetectorDriftIntegrationTests
     }
 
     [Fact]
-    public void CheckCacheBreak_ToolReorder_NoBreak_NoDriftReport()
-    {
+    public void CheckCacheBreak_ToolReorder_NoBreak_NoDriftReport() {
         var toolsAb = new List<ToolSpec>
         {
             new("alpha", "Alpha tool"),
@@ -100,8 +95,7 @@ public sealed class CacheBreakDetectorDriftIntegrationTests
     }
 
     [Fact]
-    public void CheckCacheBreak_NoToolChange_NoDriftReport()
-    {
+    public void CheckCacheBreak_NoToolChange_NoDriftReport() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix = new ImmutablePrefix("System", tools, []);
 
@@ -115,8 +109,7 @@ public sealed class CacheBreakDetectorDriftIntegrationTests
     }
 
     [Fact]
-    public void CheckCacheBreak_SystemPromptChange_NoDriftReport()
-    {
+    public void CheckCacheBreak_SystemPromptChange_NoDriftReport() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix1 = new ImmutablePrefix("System v1", tools, []);
         var prefix2 = new ImmutablePrefix("System v2", tools, []);

@@ -10,8 +10,7 @@ namespace JoinCode.Guard.Security.PowerShell;
 ///    git 子命令执行新创建的恶意 hooks。
 /// 对齐 TS: src/tools/PowerShellTool/gitSafety.ts
 /// </summary>
-public static partial class PsGitSafety
-{
+public static partial class PsGitSafety {
     /// <summary>
     /// Git 内部路径前缀（bare-repo 攻击向量）— FrozenSet 精确匹配 O(1) + 前缀匹配 O(n)
     /// </summary>
@@ -22,16 +21,14 @@ public static partial class PsGitSafety
     /// 判断参数（原始 PS 参数文本）是否解析为 cwd 中的 git-internal 路径。
     /// 覆盖 bare-repo 路径（hooks/, refs/）和标准仓库路径（.git/hooks/, .git/config）。
     /// </summary>
-    public static bool IsGitInternalPathPS(string arg, string cwd)
-    {
+    public static bool IsGitInternalPathPS(string arg, string cwd) {
         if (string.IsNullOrEmpty(arg)) return false;
 
         var n = ResolveCwdReentry(NormalizeGitPathArg(arg), cwd);
         if (MatchesGitInternalPrefix(n)) return true;
 
         // 安全检查: 前导 ../ 或绝对路径，解析回 cwd 内部
-        if (n.StartsWith("../") || n.StartsWith("/") || (n.Length >= 2 && n[1] == ':'))
-        {
+        if (n.StartsWith("../") || n.StartsWith("/") || (n.Length >= 2 && n[1] == ':')) {
             var rel = ResolveEscapingPathToCwdRelative(n, cwd);
             if (rel != null && MatchesGitInternalPrefix(rel)) return true;
         }
@@ -44,15 +41,13 @@ public static partial class PsGitSafety
     /// 与 IsGitInternalPathPS 不同，不匹配 bare-repo 风格的根级 hooks/, refs/ 等
     /// — 这些是常见的项目目录名。
     /// </summary>
-    public static bool IsDotGitPathPS(string arg, string cwd)
-    {
+    public static bool IsDotGitPathPS(string arg, string cwd) {
         if (string.IsNullOrEmpty(arg)) return false;
 
         var n = ResolveCwdReentry(NormalizeGitPathArg(arg), cwd);
         if (MatchesDotGitPrefix(n)) return true;
 
-        if (n.StartsWith("../") || n.StartsWith("/") || (n.Length >= 2 && n[1] == ':'))
-        {
+        if (n.StartsWith("../") || n.StartsWith("/") || (n.Length >= 2 && n[1] == ':')) {
             var rel = ResolveEscapingPathToCwdRelative(n, cwd);
             if (rel != null && MatchesDotGitPrefix(rel)) return true;
         }
@@ -66,14 +61,12 @@ public static partial class PsGitSafety
     /// 驱动器相对前缀），然后 NTFS 逐组件尾随剥离（空格始终; 点仅在非 ./.. 时），
     /// 然后 posix.normalize（解析 .., ., //），最后小写。
     /// </summary>
-    internal static string NormalizeGitPathArg(string arg)
-    {
+    internal static string NormalizeGitPathArg(string arg) {
         var s = arg;
 
         // 规范化参数前缀: 短划线字符和正斜杠（PS 5.1）
         // /Path:hooks/pre-commit → 提取冒号绑定值
-        if (s.Length > 0 && (IsDashChar(s[0]) || s[0] == '/'))
-        {
+        if (s.Length > 0 && (IsDashChar(s[0]) || s[0] == '/')) {
             var c = s.IndexOf(':', 1);
             if (c > 0) s = s[(c + 1)..];
         }
@@ -86,16 +79,14 @@ public static partial class PsGitSafety
 
         // PS provider 限定路径: FileSystem::hooks/pre-commit → hooks/pre-commit
         var fsIdx = s.IndexOf("FileSystem::", StringComparison.OrdinalIgnoreCase);
-        if (fsIdx >= 0)
-        {
+        if (fsIdx >= 0) {
             s = s[(fsIdx + "FileSystem::".Length)..];
         }
 
         // 驱动器相对 C:foo（冒号后无分隔符）是 cwd 相对路径
         // C:\foo（有分隔符）是绝对路径，不应匹配
         if (s.Length >= 2 && char.IsLetter(s[0]) && s[1] == ':' &&
-            s.Length > 2 && s[2] != '/' && s[2] != '\\')
-        {
+            s.Length > 2 && s[2] != '/' && s[2] != '\\') {
             s = s[2..];
         }
 
@@ -103,18 +94,15 @@ public static partial class PsGitSafety
 
         // Win32 CreateFileW 逐组件: 迭代剥离尾随空格，然后尾随点
         var components = s.Split('/');
-        for (var i = 0; i < components.Length; i++)
-        {
+        for (var i = 0; i < components.Length; i++) {
             var c = components[i];
             if (string.IsNullOrEmpty(c)) continue;
 
             string prev;
-            do
-            {
+            do {
                 prev = c;
                 c = c.TrimEnd(' ');
-                if (c == "." || c == "..")
-                {
+                if (c == "." || c == "..") {
                     c = prev.TrimEnd(' '); // 保留 . 和 .. 不剥离点
                     break;
                 }
@@ -137,8 +125,7 @@ public static partial class PsGitSafety
     /// 如果规范化路径以 ../&lt;cwd-basename&gt;/ 开头，它通过父目录重新进入 cwd —
     /// 解析为 cwd 相对形式。
     /// </summary>
-    private static string ResolveCwdReentry(string normalized, string cwd)
-    {
+    private static string ResolveCwdReentry(string normalized, string cwd) {
         if (!normalized.StartsWith("../")) return normalized;
 
         var cwdBase = Path.GetFileName(cwd)?.ToLowerInvariant();
@@ -146,8 +133,7 @@ public static partial class PsGitSafety
 
         var prefix = $"../{cwdBase}/";
         var s = normalized;
-        while (s.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
+        while (s.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
             s = s[prefix.Length..];
         }
 
@@ -161,10 +147,8 @@ public static partial class PsGitSafety
     /// 如果是，剥离 cwd 前缀返回 cwd 相对路径用于前缀匹配。
     /// 如果落在 cwd 外部，返回 null（真正外部路径 — 由 path-validation 处理）。
     /// </summary>
-    private static string? ResolveEscapingPathToCwdRelative(string n, string cwd)
-    {
-        try
-        {
+    private static string? ResolveEscapingPathToCwdRelative(string n, string cwd) {
+        try {
             var abs = Path.GetFullPath(Path.Combine(cwd, n.Replace('/', '\\')));
             var cwdWithSep = cwd.EndsWith('\\') ? cwd : cwd + '\\';
 
@@ -173,21 +157,17 @@ public static partial class PsGitSafety
 
             var relative = abs[cwdWithSep.Length..].Replace('\\', '/').ToLowerInvariant();
             return relative;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
 
-    private static bool MatchesGitInternalPrefix(string n)
-    {
+    private static bool MatchesGitInternalPrefix(string n) {
         if (n == "head" || SecurityPatterns.MatchesVcsInternalPath(n)) return true;
         if (n.StartsWith(".git/") || GitShortNameRegex().IsMatch(n)) return true;
 
         if (GitInternalPrefixes.Contains(n)) return true;
-        foreach (var p in GitInternalPrefixes)
-        {
+        foreach (var p in GitInternalPrefixes) {
             if (p == "head") continue;
             if (n.StartsWith(p + "/")) return true;
         }
@@ -195,8 +175,7 @@ public static partial class PsGitSafety
         return false;
     }
 
-    private static bool MatchesDotGitPrefix(string n)
-    {
+    private static bool MatchesDotGitPrefix(string n) {
         // VcsInternal 分类包含 .git/.git/**/.svn/.hg 模式
         return SecurityPatterns.MatchesVcsInternalPath(n);
     }
@@ -204,8 +183,7 @@ public static partial class PsGitSafety
     /// <summary>
     /// 判断路径段是否为版本控制内部路径 — 使用 SensitiveFilePattern.VcsInternal 分类
     /// </summary>
-    public static bool IsVcsInternalPath(string n)
-    {
+    public static bool IsVcsInternalPath(string n) {
         return SecurityPatterns.MatchesVcsInternalPath(n);
     }
 
@@ -215,11 +193,9 @@ public static partial class PsGitSafety
         c == '\u2015' || // horizontal bar ―
         c == '-';
 
-    private static string StripSurroundingQuotes(string s)
-    {
+    private static string StripSurroundingQuotes(string s) {
         if (s.Length >= 2 &&
-            ((s[0] == '"' && s[^1] == '"') || (s[0] == '\'' && s[^1] == '\'')))
-        {
+            ((s[0] == '"' && s[^1] == '"') || (s[0] == '\'' && s[^1] == '\''))) {
             return s[1..^1];
         }
         return s;
@@ -228,20 +204,15 @@ public static partial class PsGitSafety
     /// <summary>
     /// 简化的 posix.normalize: 解析 .., ., 重复 //
     /// </summary>
-    private static string PosixNormalize(string path)
-    {
+    private static string PosixNormalize(string path) {
         var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
         var stack = new List<string>();
 
-        foreach (var part in parts)
-        {
+        foreach (var part in parts) {
             if (part == ".") continue;
-            if (part == "..")
-            {
+            if (part == "..") {
                 if (stack.Count > 0) stack.RemoveAt(stack.Count - 1);
-            }
-            else
-            {
+            } else {
                 stack.Add(part);
             }
         }

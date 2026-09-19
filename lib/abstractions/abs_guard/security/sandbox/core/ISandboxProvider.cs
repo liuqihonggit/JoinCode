@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Security.Sandbox;
 
-public interface ISandboxProvider : IAsyncDisposable
-{
+public interface ISandboxProvider : IAsyncDisposable {
     SandboxType SandboxType { get; }
     bool IsAvailable { get; }
     SandboxCapabilities Capabilities { get; }

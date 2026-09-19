@@ -1,12 +1,10 @@
 namespace Llm.Tests.Adapters.CacheProtocol;
 
-public sealed class AddCacheBreakpointsTests
-{
+public sealed class AddCacheBreakpointsTests {
     private readonly AnthropicCacheProtocol _protocol = new();
 
     [Fact]
-    public void AddCacheBreakpoints_PlacesOnLastStaticSystemBlock()
-    {
+    public void AddCacheBreakpoints_PlacesOnLastStaticSystemBlock() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
         {
             new() { Text = "Static prefix", IsStatic = true },
@@ -22,8 +20,7 @@ public sealed class AddCacheBreakpointsTests
     }
 
     [Fact]
-    public void AddCacheBreakpoints_PlacesOnLastTool()
-    {
+    public void AddCacheBreakpoints_PlacesOnLastTool() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
         {
             new() { Text = "System", IsStatic = true }
@@ -42,8 +39,7 @@ public sealed class AddCacheBreakpointsTests
     }
 
     [Fact]
-    public void AddCacheBreakpoints_PlacesOnLastToolResult()
-    {
+    public void AddCacheBreakpoints_PlacesOnLastToolResult() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
         {
             new() { Text = "System", IsStatic = true }
@@ -70,8 +66,7 @@ public sealed class AddCacheBreakpointsTests
     }
 
     [Fact]
-    public void AddCacheBreakpoints_WithMcpTools_AllScopesAreOrg()
-    {
+    public void AddCacheBreakpoints_WithMcpTools_AllScopesAreOrg() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
         {
             new() { Text = "System", IsStatic = true }
@@ -86,8 +81,7 @@ public sealed class AddCacheBreakpointsTests
     }
 
     [Fact]
-    public void AddCacheBreakpoints_WithoutMcpTools_ScopesAreNull()
-    {
+    public void AddCacheBreakpoints_WithoutMcpTools_ScopesAreNull() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
         {
             new() { Text = "System", IsStatic = true }
@@ -102,8 +96,7 @@ public sealed class AddCacheBreakpointsTests
     }
 
     [Fact]
-    public void AddCacheBreakpoints_EmptySystemBlocks_NoSystemCacheControl()
-    {
+    public void AddCacheBreakpoints_EmptySystemBlocks_NoSystemCacheControl() {
         var systemBlocks = new List<AnthropicSystemContentBlock>();
         var tools = new List<AnthropicToolDefinition> { new() { Name = "read" } };
         var messages = new List<AnthropicMessage>();
@@ -114,8 +107,7 @@ public sealed class AddCacheBreakpointsTests
     }
 
     [Fact]
-    public void AddCacheBreakpoints_EmptyTools_NoToolCacheControl()
-    {
+    public void AddCacheBreakpoints_EmptyTools_NoToolCacheControl() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
         {
             new() { Text = "System", IsStatic = true }
@@ -129,8 +121,7 @@ public sealed class AddCacheBreakpointsTests
     }
 
     [Fact]
-    public void AddCacheBreakpoints_MultipleMessagesWithToolResults_LastResultGetsCacheControl()
-    {
+    public void AddCacheBreakpoints_MultipleMessagesWithToolResults_LastResultGetsCacheControl() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
         {
             new() { Text = "System", IsStatic = true }

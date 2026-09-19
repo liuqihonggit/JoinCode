@@ -8,8 +8,7 @@ namespace JoinCode.Guard.Security.PowerShell;
 /// 反转逻辑：不在白名单中的类型字面量 → 需要询问权限。
 /// 来源: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_language_modes
 /// </summary>
-public static class ClmAllowedTypes
-{
+public static class ClmAllowedTypes {
     /// <summary>
     /// CLM 允许的类型白名单（全部小写存储，匹配时需规范化）
     /// 安全移除: adsi/adsisearcher (AD网络绑定), wmi/wmiclass/wmisearcher (WMI远程查询), cimsession (CIM远程连接)
@@ -90,23 +89,20 @@ public static class ClmAllowedTypes
     /// 数组类型的允许类型也是允许的（如 [string[]]），规范化时去除 [] 后缀。
     /// 泛型参数保守处理：只检查外层类型（如 List[int] → 检查 list）。
     /// </summary>
-    public static string NormalizeTypeName(string typeName)
-    {
+    public static string NormalizeTypeName(string typeName) {
         if (string.IsNullOrEmpty(typeName)) return string.Empty;
 
         var name = typeName.ToLowerInvariant().Trim();
 
         // 去除数组后缀: "String[]" → "string"
-        if (name.EndsWith("[]", StringComparison.Ordinal))
-        {
+        if (name.EndsWith("[]", StringComparison.Ordinal)) {
             name = name[..^2];
         }
 
         // 去除泛型参数: "List[int]" → "list"
         var genericStart = name.IndexOf('[');
         var genericEnd = name.LastIndexOf(']');
-        if (genericStart >= 0 && genericEnd > genericStart)
-        {
+        if (genericStart >= 0 && genericEnd > genericStart) {
             name = name[..genericStart];
         }
 
@@ -117,8 +113,7 @@ public static class ClmAllowedTypes
     /// 判断类型名称（来自 AST）是否在微软 CLM 白名单中。
     /// 不在白名单中的类型触发权限询问 — 它们访问 CLM 阻止的系统 API。
     /// </summary>
-    public static bool IsClmAllowedType(string typeName)
-    {
+    public static bool IsClmAllowedType(string typeName) {
         if (string.IsNullOrEmpty(typeName)) return false;
         return AllowedTypes.Contains(NormalizeTypeName(typeName));
     }

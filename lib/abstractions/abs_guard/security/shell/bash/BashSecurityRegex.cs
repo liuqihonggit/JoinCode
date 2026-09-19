@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
-public static partial class BashSecurityRegex
-{
+public static partial class BashSecurityRegex {
     [GeneratedRegex(@"^\d+(\.\d+)?[smhd]?$")]
     public static partial Regex DurationRegex();
 

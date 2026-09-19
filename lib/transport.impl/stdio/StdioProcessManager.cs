@@ -4,8 +4,7 @@ namespace JoinCode.Transport;
 /// 管理CLI进程的stdin/stdout通信
 /// 实现真实的双向对话
 /// </summary>
-public sealed partial class StdioProcessManager : IAsyncDisposable
-{
+public sealed partial class StdioProcessManager : IAsyncDisposable {
     private System.Diagnostics.Process? _process;
     private StreamWriter? _stdinWriter;
     private StreamReader? _stdoutReader;
@@ -25,8 +24,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     /// </summary>
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
-    public StdioProcessManager(ILogger<StdioProcessManager>? logger = null, IClockService? clock = null)
-    {
+    public StdioProcessManager(ILogger<StdioProcessManager>? logger = null, IClockService? clock = null) {
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
     }
@@ -39,16 +37,14 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     /// <summary>
     /// 启动CLI进程
     /// </summary>
-    public async Task StartAsync(StdioProcessConfig config, CancellationToken ct = default)
-    {
+    public async Task StartAsync(StdioProcessConfig config, CancellationToken ct = default) {
         var argsDisplay = config.ArgumentList is { Count: > 0 }
             ? string.Join(' ', config.ArgumentList)
             : config.Arguments;
         _logger?.LogInformation("[StdioManager] 启动进程: {Path} {Args}", config.ExecutablePath, argsDisplay);
 
         var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
-        var startInfo = builder.BuildInteractive(new InteractiveProcessOptions
-        {
+        var startInfo = builder.BuildInteractive(new InteractiveProcessOptions {
             FileName = config.ExecutablePath,
             ArgumentList = config.ArgumentList ?? [],
             Arguments = config.Arguments,
@@ -75,8 +71,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     /// <summary>
     /// 向进程发送消息
     /// </summary>
-    public async Task SendAsync(string message, CancellationToken ct = default)
-    {
+    public async Task SendAsync(string message, CancellationToken ct = default) {
         if (_stdinWriter == null)
             throw new InvalidOperationException("[TRN010] 进程未启动");
 
@@ -92,18 +87,15 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     public async Task<string> WaitForOutputAsync(
         Func<string, bool> predicate,
         TimeSpan? timeout = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(predicate);
         timeout ??= TimeSpan.FromSeconds(30);
         var startTime = _clock.GetUtcNow();
 
-        while (_clock.GetUtcNow() - startTime < timeout)
-        {
+        while (_clock.GetUtcNow() - startTime < timeout) {
             ct.ThrowIfCancellationRequested();
 
-            if (await _outputChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(false))
-            {
+            if (await _outputChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(false)) {
                 return await _outputChannel.GetAllAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
             }
 
@@ -143,18 +135,15 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     public async Task<string> WaitForErrorAsync(
         Func<string, bool> predicate,
         TimeSpan? timeout = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(predicate);
         timeout ??= TimeSpan.FromSeconds(30);
         var startTime = _clock.GetUtcNow();
 
-        while (_clock.GetUtcNow() - startTime < timeout)
-        {
+        while (_clock.GetUtcNow() - startTime < timeout) {
             ct.ThrowIfCancellationRequested();
 
-            if (await _errorChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(false))
-            {
+            if (await _errorChannel.TryPredicateAsync(predicate, ct).ConfigureAwait(false)) {
                 return await _errorChannel.GetAllAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
             }
 
@@ -167,38 +156,30 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     /// <summary>
     /// 停止进程
     /// </summary>
-    public async Task StopAsync()
-    {
+    public async Task StopAsync() {
         _logger?.LogInformation("[StdioManager] 停止进程");
 
         _readCts?.Cancel();
 
         _stdinWriter?.Close();
 
-        if (_process != null && !_process.HasExited)
-        {
-            try
-            {
+        if (_process != null && !_process.HasExited) {
+            try {
                 _process.Kill(entireProcessTree: true);
                 await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 System.Diagnostics.Debug.WriteLine($"停止进程时Kill失败: {ex.Message}");
             }
         }
 
-        try
-        {
+        try {
             var stdoutTask = _stdoutReadTask;
             var stderrTask = _stderrReadTask;
             if (stdoutTask != null)
                 await stdoutTask.ConfigureAwait(false);
             if (stderrTask != null)
                 await stderrTask.ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             System.Diagnostics.Debug.WriteLine($"等待读取任务退出时异常: {ex.Message}");
         }
 
@@ -210,14 +191,11 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
         _logger?.LogInformation("[StdioManager] 进程已停止");
     }
 
-    private async Task ReadStdoutAsync(CancellationToken ct)
-    {
+    private async Task ReadStdoutAsync(CancellationToken ct) {
         if (_stdoutReader == null) return;
 
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
+        try {
+            while (!ct.IsCancellationRequested) {
                 var line = await _stdoutReader.ReadLineAsync()
                     .WaitAsync(TimeSpan.FromSeconds(30), ct)
                     .ConfigureAwait(false);
@@ -226,26 +204,18 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
                 await _outputChannel.AddAsync(line, ct).ConfigureAwait(false);
                 _logger?.LogTrace("[StdioManager] stdout: {Line}", line.Length > 200 ? line[..200] + "..." : line);
             }
-        }
-        catch (OperationCanceledException) { }
-        catch (TimeoutException)
-        {
+        } catch (OperationCanceledException) { } catch (TimeoutException) {
             _logger?.LogDebug("[StdioManager] stdout 读取超时，退出读取循环");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[StdioManager] 读取stdout时出错");
         }
     }
 
-    private async Task ReadStderrAsync(CancellationToken ct)
-    {
+    private async Task ReadStderrAsync(CancellationToken ct) {
         if (_stderrReader == null) return;
 
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
+        try {
+            while (!ct.IsCancellationRequested) {
                 var line = await _stderrReader.ReadLineAsync()
                     .WaitAsync(TimeSpan.FromSeconds(30), ct)
                     .ConfigureAwait(false);
@@ -254,14 +224,9 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
                 await _errorChannel.AddAsync(line, ct).ConfigureAwait(false);
                 _logger?.LogTrace("[StdioManager] stderr: {Line}", line);
             }
-        }
-        catch (OperationCanceledException) { }
-        catch (TimeoutException ex)
-        {
+        } catch (OperationCanceledException) { } catch (TimeoutException ex) {
             System.Diagnostics.Debug.WriteLine($"stderr读取超时，视为管道关闭: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[StdioManager] 读取stderr时出错");
         }
     }
@@ -269,8 +234,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     /// <summary>
     /// 异步释放资源，停止进程
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         return new ValueTask(StopAsync());
     }
@@ -279,8 +243,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
 /// <summary>
 /// STDIO进程配置
 /// </summary>
-public sealed record StdioProcessConfig
-{
+public sealed record StdioProcessConfig {
     /// <summary>可执行文件路径</summary>
     public required string ExecutablePath { get; init; }
     /// <summary>命令行参数字符串</summary>

@@ -3,12 +3,10 @@ namespace McpToolDispatch.Tests.Execution;
 /// <summary>
 /// ToolHypergraphScorer 单元测试 — 验证融合评分算法、链路推荐、共享评分更新
 /// </summary>
-public sealed class ToolHypergraphScorerTest
-{
+public sealed class ToolHypergraphScorerTest {
     private ToolHypergraphScorer _scorer = null!;
 
-    public ToolHypergraphScorerTest()
-    {
+    public ToolHypergraphScorerTest() {
         _scorer = new ToolHypergraphScorer();
     }
 
@@ -16,10 +14,8 @@ public sealed class ToolHypergraphScorerTest
 
     private static ToolHyperedge CreateEdge(
         string id, string[] toolNames, double weight = 0.5,
-        string[]? chainOrder = null, int sharedScore = 0)
-    {
-        return new ToolHyperedge
-        {
+        string[]? chainOrder = null, int sharedScore = 0) {
+        return new ToolHyperedge {
             Id = id,
             ToolNames = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, toolNames),
             Weight = weight,
@@ -31,15 +27,13 @@ public sealed class ToolHypergraphScorerTest
     // === CalculateFinalScore ===
 
     [Fact]
-    public void CalculateFinalScore_NoEdges_ReturnsIndependentScore()
-    {
+    public void CalculateFinalScore_NoEdges_ReturnsIndependentScore() {
         var result = _scorer.CalculateFinalScore("unknown_tool", 42);
         result.Should().Be(42);
     }
 
     [Fact]
-    public void CalculateFinalScore_WithEdge_FusesScores()
-    {
+    public void CalculateFinalScore_WithEdge_FusesScores() {
         // 手动构建超图: tool_a 属于 edge1，权重 0.6，共享评分 80
         var edge = CreateEdge("e1", ["tool_a"], weight: 0.6, sharedScore: 80);
         _scorer.ReloadHyperedges([edge]);
@@ -50,8 +44,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void CalculateFinalScore_MultipleEdges_CapsTotalWeightAt09()
-    {
+    public void CalculateFinalScore_MultipleEdges_CapsTotalWeightAt09() {
         var edge1 = CreateEdge("e1", ["tool_a"], weight: 0.5, sharedScore: 100);
         var edge2 = CreateEdge("e2", ["tool_a"], weight: 0.5, sharedScore: 100);
         _scorer.ReloadHyperedges([edge1, edge2]);
@@ -65,8 +58,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void CalculateFinalScore_NegativeIndependentScore_WithPositiveSharedScore()
-    {
+    public void CalculateFinalScore_NegativeIndependentScore_WithPositiveSharedScore() {
         var edge = CreateEdge("e1", ["tool_a"], weight: 0.4, sharedScore: 50);
         _scorer.ReloadHyperedges([edge]);
 
@@ -76,8 +68,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void CalculateFinalScore_ClampsToScoreRange()
-    {
+    public void CalculateFinalScore_ClampsToScoreRange() {
         var edge = CreateEdge("e1", ["tool_a"], weight: 0.9, sharedScore: 200);
         _scorer.ReloadHyperedges([edge]);
 
@@ -87,8 +78,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void CalculateFinalScore_ClampsToNegative100()
-    {
+    public void CalculateFinalScore_ClampsToNegative100() {
         var edge = CreateEdge("e1", ["tool_a"], weight: 0.9, sharedScore: -200);
         _scorer.ReloadHyperedges([edge]);
 
@@ -100,15 +90,13 @@ public sealed class ToolHypergraphScorerTest
     // === GetChainRecommendations ===
 
     [Fact]
-    public void GetChainRecommendations_NoEdges_ReturnsNull()
-    {
+    public void GetChainRecommendations_NoEdges_ReturnsNull() {
         var result = _scorer.GetChainRecommendations("unknown_tool");
         result.Should().BeNull();
     }
 
     [Fact]
-    public void GetChainRecommendations_EdgeWithoutChainOrder_ReturnsNull()
-    {
+    public void GetChainRecommendations_EdgeWithoutChainOrder_ReturnsNull() {
         var edge = CreateEdge("e1", ["tool_a", "tool_b"], chainOrder: null);
         _scorer.ReloadHyperedges([edge]);
 
@@ -117,8 +105,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void GetChainRecommendations_ToolInChain_ReturnsSubsequentTools()
-    {
+    public void GetChainRecommendations_ToolInChain_ReturnsSubsequentTools() {
         var edge = CreateEdge("e1", ["read", "edit", "write"], chainOrder: ["read", "edit", "write"]);
         _scorer.ReloadHyperedges([edge]);
 
@@ -128,8 +115,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void GetChainRecommendations_LastToolInChain_ReturnsNull()
-    {
+    public void GetChainRecommendations_LastToolInChain_ReturnsNull() {
         var edge = CreateEdge("e1", ["read", "edit", "write"], chainOrder: ["read", "edit", "write"]);
         _scorer.ReloadHyperedges([edge]);
 
@@ -138,8 +124,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void GetChainRecommendations_MiddleToolInChain_ReturnsRemainingTools()
-    {
+    public void GetChainRecommendations_MiddleToolInChain_ReturnsRemainingTools() {
         var edge = CreateEdge("e1", ["read", "edit", "write"], chainOrder: ["read", "edit", "write"]);
         _scorer.ReloadHyperedges([edge]);
 
@@ -148,8 +133,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void GetChainRecommendations_CaseInsensitiveLookup_MatchesByToolName()
-    {
+    public void GetChainRecommendations_CaseInsensitiveLookup_MatchesByToolName() {
         // ToolToEdges 使用 ToFrozenDictionary() 后不保留 OrdinalIgnoreCase 比较器
         // 因此查找时需要使用与 ToolNames 中相同的大小写
         var edge = CreateEdge("e1", ["Read", "Edit"], chainOrder: ["Read", "Edit"]);
@@ -164,13 +148,11 @@ public sealed class ToolHypergraphScorerTest
     // === UpdateSharedScores ===
 
     [Fact]
-    public void UpdateSharedScores_UpdatesEdgeSharedScore()
-    {
+    public void UpdateSharedScores_UpdatesEdgeSharedScore() {
         var edge = CreateEdge("e1", ["tool_a", "tool_b"], sharedScore: 0);
         _scorer.ReloadHyperedges([edge]);
 
-        var healthRecords = new Dictionary<string, ToolHealthRecord>
-        {
+        var healthRecords = new Dictionary<string, ToolHealthRecord> {
             ["tool_a"] = new() { ToolName = "tool_a", Score = 40 },
             ["tool_b"] = new() { ToolName = "tool_b", Score = 60 }
         };
@@ -184,13 +166,11 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void UpdateSharedScores_PartialHealthRecords_UsesAvailableRecords()
-    {
+    public void UpdateSharedScores_PartialHealthRecords_UsesAvailableRecords() {
         var edge = CreateEdge("e1", ["tool_a", "tool_b", "tool_c"], sharedScore: 0);
         _scorer.ReloadHyperedges([edge]);
 
-        var healthRecords = new Dictionary<string, ToolHealthRecord>
-        {
+        var healthRecords = new Dictionary<string, ToolHealthRecord> {
             ["tool_a"] = new() { ToolName = "tool_a", Score = 30 },
             ["tool_c"] = new() { ToolName = "tool_c", Score = 90 }
             // tool_b 没有健康记录
@@ -204,8 +184,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void UpdateSharedScores_NoHealthRecords_SetsSharedScoreToZero()
-    {
+    public void UpdateSharedScores_NoHealthRecords_SetsSharedScoreToZero() {
         var edge = CreateEdge("e1", ["tool_a"], sharedScore: 99);
         _scorer.ReloadHyperedges([edge]);
 
@@ -218,8 +197,7 @@ public sealed class ToolHypergraphScorerTest
     // === ReloadHyperedges ===
 
     [Fact]
-    public void ReloadHyperedges_ReplacesExistingGraph()
-    {
+    public void ReloadHyperedges_ReplacesExistingGraph() {
         var edge1 = CreateEdge("e1", ["tool_a"], weight: 0.3, sharedScore: 10);
         _scorer.ReloadHyperedges([edge1]);
 
@@ -237,15 +215,13 @@ public sealed class ToolHypergraphScorerTest
     // === GetEdges ===
 
     [Fact]
-    public void GetEdges_NoEdges_ReturnsEmptyList()
-    {
+    public void GetEdges_NoEdges_ReturnsEmptyList() {
         var edges = _scorer.GetEdges("unknown_tool");
         edges.Should().BeEmpty();
     }
 
     [Fact]
-    public void GetEdges_ToolInMultipleEdges_ReturnsAllEdges()
-    {
+    public void GetEdges_ToolInMultipleEdges_ReturnsAllEdges() {
         var edge1 = CreateEdge("e1", ["shared_tool", "a"]);
         var edge2 = CreateEdge("e2", ["shared_tool", "b"]);
         _scorer.ReloadHyperedges([edge1, edge2]);
@@ -257,8 +233,7 @@ public sealed class ToolHypergraphScorerTest
     // === 预设超图集成测试 ===
 
     [Fact]
-    public void CalculateFinalScore_WithPresets_FileReadHasEdges()
-    {
+    public void CalculateFinalScore_WithPresets_FileReadHasEdges() {
         // 使用默认预设
         _scorer = new ToolHypergraphScorer();
 
@@ -271,8 +246,7 @@ public sealed class ToolHypergraphScorerTest
     // === LoadCustomHyperedges ===
 
     [Fact]
-    public void LoadCustomHyperedges_MergesWithPresets()
-    {
+    public void LoadCustomHyperedges_MergesWithPresets() {
         var custom = new List<JoinCode.Abstractions.Configuration.Settings.HyperedgeSettings>
         {
             new()
@@ -297,8 +271,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void LoadCustomHyperedges_OverridesPresetById()
-    {
+    public void LoadCustomHyperedges_OverridesPresetById() {
         var custom = new List<JoinCode.Abstractions.Configuration.Settings.HyperedgeSettings>
         {
             new()
@@ -322,8 +295,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void LoadCustomHyperedges_EmptyList_DoesNothing()
-    {
+    public void LoadCustomHyperedges_EmptyList_DoesNothing() {
         var scoreBefore = _scorer.CalculateFinalScore("Read", 50);
         _scorer.LoadCustomHyperedges([]);
         var scoreAfter = _scorer.CalculateFinalScore("Read", 50);
@@ -331,8 +303,7 @@ public sealed class ToolHypergraphScorerTest
     }
 
     [Fact]
-    public void LoadCustomHyperedges_Null_DoesNothing()
-    {
+    public void LoadCustomHyperedges_Null_DoesNothing() {
         var scoreBefore = _scorer.CalculateFinalScore("Read", 50);
         _scorer.LoadCustomHyperedges(null!);
         var scoreAfter = _scorer.CalculateFinalScore("Read", 50);

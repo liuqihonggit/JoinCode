@@ -5,12 +5,10 @@ namespace JoinCode.Gui.Tests.Converters;
 /// 转换器直接驱动 XAML 绑定的颜色/透明度/高亮，错误的转换会导致界面显示异常。
 /// </summary>
 [Collection("GuiUiSequential")]
-public sealed class UiConvertersTests
-{
+public sealed class UiConvertersTests {
     private static readonly CultureInfo C = CultureInfo.InvariantCulture;
 
-    private static ISolidColorBrush AsBrush(object? result)
-    {
+    private static ISolidColorBrush AsBrush(object? result) {
         result.Should().BeAssignableTo<ISolidColorBrush>();
         return (ISolidColorBrush)result!;
     }
@@ -18,8 +16,7 @@ public sealed class UiConvertersTests
     // ── BoolToRoleBrushConverter ──
 
     [AvaloniaFact]
-    public void BoolToRoleBrush_True_ReturnsRoleUserBrush()
-    {
+    public void BoolToRoleBrush_True_ReturnsRoleUserBrush() {
         var conv = new BoolToRoleBrushConverter();
         var scheme = GuiPalette.Current;
 
@@ -29,8 +26,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void BoolToRoleBrush_False_ReturnsRoleAssistantBrush()
-    {
+    public void BoolToRoleBrush_False_ReturnsRoleAssistantBrush() {
         var conv = new BoolToRoleBrushConverter();
         var scheme = GuiPalette.Current;
 
@@ -40,8 +36,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void BoolToRoleBrush_NonBool_ReturnsRoleAssistantBrush()
-    {
+    public void BoolToRoleBrush_NonBool_ReturnsRoleAssistantBrush() {
         var conv = new BoolToRoleBrushConverter();
         var scheme = GuiPalette.Current;
 
@@ -51,8 +46,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void BoolToRoleBrush_ConvertBack_Throws()
-    {
+    public void BoolToRoleBrush_ConvertBack_Throws() {
         var conv = new BoolToRoleBrushConverter();
 
         var act = () => conv.ConvertBack(null, typeof(bool), null, C);
@@ -63,8 +57,7 @@ public sealed class UiConvertersTests
     // ── StatusToBrushConverter ──
 
     [AvaloniaFact]
-    public void StatusToBrush_Busy_ReturnsBusyTextBrush()
-    {
+    public void StatusToBrush_Busy_ReturnsBusyTextBrush() {
         var conv = new StatusToBrushConverter();
         var scheme = GuiPalette.Current;
 
@@ -74,8 +67,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void StatusToBrush_Error_ReturnsErrorTextBrush()
-    {
+    public void StatusToBrush_Error_ReturnsErrorTextBrush() {
         var conv = new StatusToBrushConverter();
         var scheme = GuiPalette.Current;
 
@@ -85,8 +77,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void StatusToBrush_Ready_ReturnsSuccessTextBrush()
-    {
+    public void StatusToBrush_Ready_ReturnsSuccessTextBrush() {
         var conv = new StatusToBrushConverter();
         var scheme = GuiPalette.Current;
 
@@ -96,8 +87,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void StatusToBrush_UnknownValue_ReturnsSuccessTextBrush()
-    {
+    public void StatusToBrush_UnknownValue_ReturnsSuccessTextBrush() {
         var conv = new StatusToBrushConverter();
         var scheme = GuiPalette.Current;
 
@@ -107,8 +97,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void StatusToBrush_ConvertBack_Throws()
-    {
+    public void StatusToBrush_ConvertBack_Throws() {
         var conv = new StatusToBrushConverter();
 
         var act = () => conv.ConvertBack(null, typeof(StatusKind), null, C);
@@ -119,8 +108,7 @@ public sealed class UiConvertersTests
     // ── BoolToWarnBrushConverter ──
 
     [AvaloniaFact]
-    public void BoolToWarnBrush_True_ReturnsErrorTextBrush()
-    {
+    public void BoolToWarnBrush_True_ReturnsErrorTextBrush() {
         var conv = new BoolToWarnBrushConverter();
         var scheme = GuiPalette.Current;
 
@@ -130,8 +118,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void BoolToWarnBrush_False_ReturnsMutedTextBrush()
-    {
+    public void BoolToWarnBrush_False_ReturnsMutedTextBrush() {
         var conv = new BoolToWarnBrushConverter();
         var scheme = GuiPalette.Current;
 
@@ -141,8 +128,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void BoolToWarnBrush_ConvertBack_Throws()
-    {
+    public void BoolToWarnBrush_ConvertBack_Throws() {
         var conv = new BoolToWarnBrushConverter();
 
         var act = () => conv.ConvertBack(null, typeof(bool), null, C);
@@ -153,8 +139,7 @@ public sealed class UiConvertersTests
     // ── BoolToThinkingOpacityConverter ──
 
     [AvaloniaFact]
-    public void BoolToThinkingOpacity_True_Returns082()
-    {
+    public void BoolToThinkingOpacity_True_Returns082() {
         var conv = new BoolToThinkingOpacityConverter();
 
         var result = conv.Convert(true, typeof(double), null, C);
@@ -163,8 +148,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void BoolToThinkingOpacity_False_Returns1()
-    {
+    public void BoolToThinkingOpacity_False_Returns1() {
         var conv = new BoolToThinkingOpacityConverter();
 
         var result = conv.Convert(false, typeof(double), null, C);
@@ -173,8 +157,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void BoolToThinkingOpacity_ConvertBack_Throws()
-    {
+    public void BoolToThinkingOpacity_ConvertBack_Throws() {
         var conv = new BoolToThinkingOpacityConverter();
 
         var act = () => conv.ConvertBack(null, typeof(bool), null, C);
@@ -185,8 +168,7 @@ public sealed class UiConvertersTests
     // ── BoolToSessionHighlightConverter ──
 
     [AvaloniaFact]
-    public void BoolToSessionHighlight_True_ReturnsSessionHighlightBrush()
-    {
+    public void BoolToSessionHighlight_True_ReturnsSessionHighlightBrush() {
         var conv = new BoolToSessionHighlightConverter();
         var scheme = GuiPalette.Current;
 
@@ -196,8 +178,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void BoolToSessionHighlight_False_ReturnsTransparent()
-    {
+    public void BoolToSessionHighlight_False_ReturnsTransparent() {
         var conv = new BoolToSessionHighlightConverter();
 
         var brush = AsBrush(conv.Convert(false, typeof(IBrush), null, C));
@@ -206,8 +187,7 @@ public sealed class UiConvertersTests
     }
 
     [AvaloniaFact]
-    public void BoolToSessionHighlight_ConvertBack_Throws()
-    {
+    public void BoolToSessionHighlight_ConvertBack_Throws() {
         var conv = new BoolToSessionHighlightConverter();
 
         var act = () => conv.ConvertBack(null, typeof(bool), null, C);

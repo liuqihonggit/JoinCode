@@ -1,17 +1,14 @@
 namespace Core.Tests.Plugins;
 
-public sealed class SessionTrajectoryTests
-{
-    private static SessionEventLog BuildLog(params string[] types)
-    {
+public sealed class SessionTrajectoryTests {
+    private static SessionEventLog BuildLog(params string[] types) {
         var log = new SessionEventLog(() => 1000);
         foreach (var t in types) log.Append(t);
         return log;
     }
 
     [Fact]
-    public void FullTrajectory_ReturnsAllEventsInOrder()
-    {
+    public void FullTrajectory_ReturnsAllEventsInOrder() {
         var log = BuildLog("user/message", "tool/call", "tool/result");
         var traj = new SessionTrajectory(log);
         Assert.Equal(3, traj.FullTrajectory.Count);
@@ -20,8 +17,7 @@ public sealed class SessionTrajectoryTests
     }
 
     [Fact]
-    public void GroupByType_GroupsCorrectly()
-    {
+    public void GroupByType_GroupsCorrectly() {
         var log = BuildLog("user/message", "tool/call", "tool/call", "tool/result");
         var traj = new SessionTrajectory(log);
         var groups = traj.GroupByType();
@@ -32,8 +28,7 @@ public sealed class SessionTrajectoryTests
     }
 
     [Fact]
-    public void OfType_FiltersByType()
-    {
+    public void OfType_FiltersByType() {
         var log = BuildLog("a", "b", "a", "c", "a");
         var traj = new SessionTrajectory(log);
         var aEvents = traj.OfType("a");
@@ -42,24 +37,21 @@ public sealed class SessionTrajectoryTests
     }
 
     [Fact]
-    public void OfType_NonExistent_ReturnsEmpty()
-    {
+    public void OfType_NonExistent_ReturnsEmpty() {
         var log = BuildLog("a", "b");
         var traj = new SessionTrajectory(log);
         Assert.Empty(traj.OfType("z"));
     }
 
     [Fact]
-    public void TotalCount_ReturnsLogCount()
-    {
+    public void TotalCount_ReturnsLogCount() {
         var log = BuildLog("a", "b", "c");
         var traj = new SessionTrajectory(log);
         Assert.Equal(3, traj.TotalCount);
     }
 
     [Fact]
-    public void ReplayUntil_ReturnsEventsUpToSeq()
-    {
+    public void ReplayUntil_ReturnsEventsUpToSeq() {
         var log = BuildLog("a", "b", "c", "d");
         var replayed = SessionReplay.ReplayUntil(log, 2);
         Assert.Equal(2, replayed.Count);
@@ -68,8 +60,7 @@ public sealed class SessionTrajectoryTests
     }
 
     [Fact]
-    public void ReplayAfter_ReturnsEventsAfterSeq()
-    {
+    public void ReplayAfter_ReturnsEventsAfterSeq() {
         var log = BuildLog("a", "b", "c", "d");
         var replayed = SessionReplay.ReplayAfter(log, 2);
         Assert.Equal(2, replayed.Count);
@@ -78,8 +69,7 @@ public sealed class SessionTrajectoryTests
     }
 
     [Fact]
-    public void Fork_CopiesPrefixToNewLog()
-    {
+    public void Fork_CopiesPrefixToNewLog() {
         var log = BuildLog("a", "b", "c", "d");
         var forked = SessionReplay.Fork(log, atSeq: 2, clock: () => 2000);
         Assert.Equal(2, forked.Count);
@@ -88,8 +78,7 @@ public sealed class SessionTrajectoryTests
     }
 
     [Fact]
-    public void Fork_NewLogHasIndependentSeq()
-    {
+    public void Fork_NewLogHasIndependentSeq() {
         var log = BuildLog("a", "b", "c");
         var forked = SessionReplay.Fork(log, atSeq: 3);
         Assert.Equal(1, forked.Events[0].Seq);
@@ -98,16 +87,14 @@ public sealed class SessionTrajectoryTests
     }
 
     [Fact]
-    public void Fork_AtSeq0_ReturnsEmpty()
-    {
+    public void Fork_AtSeq0_ReturnsEmpty() {
         var log = BuildLog("a", "b");
         var forked = SessionReplay.Fork(log, atSeq: 0);
         Assert.Equal(0, forked.Count);
     }
 
     [Fact]
-    public void Fork_PreservesEventData()
-    {
+    public void Fork_PreservesEventData() {
         var log = new SessionEventLog(() => 1000);
         log.Append("tool/call", data: "payload", surfaceOp: SurfaceOp.Append());
         log.Append("tool/result");
@@ -117,8 +104,7 @@ public sealed class SessionTrajectoryTests
     }
 
     [Fact]
-    public void ForkAndContinue_CanAppendNewEvents()
-    {
+    public void ForkAndContinue_CanAppendNewEvents() {
         var log = BuildLog("a", "b", "c");
         var forked = SessionReplay.ForkAndContinue(log, atSeq: 2);
         forked.Append("d");
@@ -127,8 +113,7 @@ public sealed class SessionTrajectoryTests
     }
 
     [Fact]
-    public void Fork_IndependentFromSource()
-    {
+    public void Fork_IndependentFromSource() {
         var log = BuildLog("a", "b");
         var forked = SessionReplay.Fork(log, atSeq: 2);
         log.Append("c");
@@ -137,8 +122,7 @@ public sealed class SessionTrajectoryTests
     }
 
     [Fact]
-    public void Trajectory_NullLog_Throws()
-    {
+    public void Trajectory_NullLog_Throws() {
         Assert.Throws<ArgumentNullException>(() => new SessionTrajectory(null!));
     }
 }

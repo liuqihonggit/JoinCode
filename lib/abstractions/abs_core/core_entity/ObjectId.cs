@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Entity;
 /// DisplayName: 可描述名称，人类可读，日志和UI展示用
 /// Empty: 未分配标记，等同 default(ObjectId)，Type=None, SequenceId=0
 /// </summary>
-public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
-{
+public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId> {
     private static long _globalSequence;
 
     /// <summary>未分配标记 — Type=None, SequenceId=0, UniqueId="", DisplayName=""</summary>
@@ -25,8 +24,7 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     /// <summary>
     /// 新建 ObjectId — 自动分配原子自增 SequenceId + 生成 GUID UniqueId
     /// </summary>
-    public ObjectId(ObjectType type, string? displayName = null)
-    {
+    public ObjectId(ObjectType type, string? displayName = null) {
         Type = type;
         SequenceId = Interlocked.Increment(ref _globalSequence);
         UniqueId = GenerateUniqueId(type);
@@ -36,8 +34,7 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     /// <summary>
     /// 反持久化 — 保留 UniqueId，重新分配 SequenceId
     /// </summary>
-    public ObjectId(ObjectType type, string uniqueId, string? displayName = null)
-    {
+    public ObjectId(ObjectType type, string uniqueId, string? displayName = null) {
         ArgumentNullException.ThrowIfNull(uniqueId);
         Type = type;
         SequenceId = Interlocked.Increment(ref _globalSequence);
@@ -53,8 +50,7 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
 
     public bool Equals(ObjectId other) => Type == other.Type && SequenceId == other.SequenceId;
 
-    public int CompareTo(ObjectId other)
-    {
+    public int CompareTo(ObjectId other) {
         var typeCompare = Type.CompareTo(other.Type);
         return typeCompare != 0 ? typeCompare : SequenceId.CompareTo(other.SequenceId);
     }
@@ -69,8 +65,7 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     /// <summary>
     /// 从持久化字符串解析 — 格式: "Agent:1:agent-abc123" 或 "Agent:1"
     /// </summary>
-    public static ObjectId Parse(string s)
-    {
+    public static ObjectId Parse(string s) {
         ArgumentNullException.ThrowIfNull(s);
         var segments = s.Split(':');
 
@@ -88,8 +83,7 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
         return new ObjectId(type, uniqueId);
     }
 
-    public static bool TryParse(string s, out ObjectId result)
-    {
+    public static bool TryParse(string s, out ObjectId result) {
         result = default;
         if (string.IsNullOrEmpty(s)) return false;
 
@@ -109,8 +103,7 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId>
     /// </summary>
     internal static void ResetSequence() => Interlocked.Exchange(ref _globalSequence, 0);
 
-    private static string GenerateUniqueId(ObjectType type)
-    {
+    private static string GenerateUniqueId(ObjectType type) {
         var prefix = type.ToValue();
         var guid = Guid.NewGuid().ToString("N")[..8];
         return $"{prefix}-{guid}";

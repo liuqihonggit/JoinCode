@@ -1,28 +1,20 @@
 
 namespace Clock.Tests.Unit.Hosting;
 
-public sealed class ServiceHostTests
-{
-    private static IWorkflowService CreateService(string name, bool throwOnStart = false, bool throwOnStop = false)
-    {
+public sealed class ServiceHostTests {
+    private static IWorkflowService CreateService(string name, bool throwOnStart = false, bool throwOnStop = false) {
         var service = new Mock<IWorkflowService>();
         service.Setup(s => s.ServiceName).Returns(name);
         service.Setup(s => s.Status).Returns(ServiceStatus.Stopped);
-        if (throwOnStart)
-        {
+        if (throwOnStart) {
             service.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("start fail"));
-        }
-        else
-        {
+        } else {
             service.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         }
 
-        if (throwOnStop)
-        {
+        if (throwOnStop) {
             service.Setup(s => s.StopAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("stop fail"));
-        }
-        else
-        {
+        } else {
             service.Setup(s => s.StopAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         }
 
@@ -30,16 +22,14 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public void RegisterService_Null_Throws()
-    {
+    public void RegisterService_Null_Throws() {
         var host = new ServiceHost();
 
         Assert.Throws<ArgumentNullException>(() => host.RegisterService(null!));
     }
 
     [Fact]
-    public void RegisterService_Duplicate_Throws()
-    {
+    public void RegisterService_Duplicate_Throws() {
         var host = new ServiceHost();
         var service = CreateService("svc");
 
@@ -49,8 +39,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public void RegisterService_AddsToStatuses()
-    {
+    public void RegisterService_AddsToStatuses() {
         var host = new ServiceHost();
         var service = CreateService("svc");
 
@@ -60,8 +49,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task StartAsync_StartsAllServices()
-    {
+    public async Task StartAsync_StartsAllServices() {
         await using var host = new ServiceHost();
         var service1 = CreateService("svc1");
         var service2 = CreateService("svc2");
@@ -77,8 +65,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task StartAsync_WhenAlreadyRunning_Returns()
-    {
+    public async Task StartAsync_WhenAlreadyRunning_Returns() {
         await using var host = new ServiceHost();
         var service = CreateService("svc");
         host.RegisterService(service);
@@ -90,8 +77,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task StartAsync_WhenServiceThrows_MarksFailedAndThrows()
-    {
+    public async Task StartAsync_WhenServiceThrows_MarksFailedAndThrows() {
         await using var host = new ServiceHost();
         var service = CreateService("svc", throwOnStart: true);
         host.RegisterService(service);
@@ -102,8 +88,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task StopAsync_StopsAllServices()
-    {
+    public async Task StopAsync_StopsAllServices() {
         var host = new ServiceHost();
         var service = CreateService("svc");
         host.RegisterService(service);
@@ -116,8 +101,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task StopAsync_WhenNotRunning_Returns()
-    {
+    public async Task StopAsync_WhenNotRunning_Returns() {
         var host = new ServiceHost();
 
         await host.StopAsync().ConfigureAwait(true);
@@ -126,8 +110,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task StopAsync_WhenServiceThrows_LogsAndContinues()
-    {
+    public async Task StopAsync_WhenServiceThrows_LogsAndContinues() {
         var host = new ServiceHost();
         var service = CreateService("svc", throwOnStop: true);
         host.RegisterService(service);
@@ -139,8 +122,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task StartServiceAsync_ByName_ReturnsTrue()
-    {
+    public async Task StartServiceAsync_ByName_ReturnsTrue() {
         await using var host = new ServiceHost();
         var service = CreateService("svc");
         host.RegisterService(service);
@@ -152,8 +134,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task StartServiceAsync_ByName_NotFound_ReturnsFalse()
-    {
+    public async Task StartServiceAsync_ByName_NotFound_ReturnsFalse() {
         var host = new ServiceHost();
 
         var result = await host.StartServiceAsync("missing").ConfigureAwait(true);
@@ -162,8 +143,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task StopServiceAsync_ByName_ReturnsTrue()
-    {
+    public async Task StopServiceAsync_ByName_ReturnsTrue() {
         await using var host = new ServiceHost();
         var service = CreateService("svc");
         host.RegisterService(service);
@@ -176,8 +156,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task StopServiceAsync_ByName_NotFound_ReturnsFalse()
-    {
+    public async Task StopServiceAsync_ByName_NotFound_ReturnsFalse() {
         var host = new ServiceHost();
 
         var result = await host.StopServiceAsync("missing").ConfigureAwait(true);
@@ -186,16 +165,14 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public void GetServiceStatus_Unknown_ReturnsNull()
-    {
+    public void GetServiceStatus_Unknown_ReturnsNull() {
         var host = new ServiceHost();
 
         Assert.Null(host.GetServiceStatus("missing"));
     }
 
     [Fact]
-    public void GetAllServiceStatuses_ReturnsAll()
-    {
+    public void GetAllServiceStatuses_ReturnsAll() {
         var host = new ServiceHost();
         host.RegisterService(CreateService("svc1"));
         host.RegisterService(CreateService("svc2"));
@@ -208,8 +185,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task ServiceStatusChanged_RaisedOnStartAndStop()
-    {
+    public async Task ServiceStatusChanged_RaisedOnStartAndStop() {
         await using var host = new ServiceHost();
         var service = CreateService("svc");
         host.RegisterService(service);
@@ -225,8 +201,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task ServiceStatusChanged_RaisedOnFailure()
-    {
+    public async Task ServiceStatusChanged_RaisedOnFailure() {
         await using var host = new ServiceHost();
         var service = CreateService("svc", throwOnStart: true);
         host.RegisterService(service);
@@ -234,12 +209,9 @@ public sealed class ServiceHostTests
         var eventArgs = (ServiceEventArgs?)null;
         host.ServiceStatusChanged += (_, e) => eventArgs = e;
 
-        try
-        {
+        try {
             await host.StartAsync().ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             System.Diagnostics.Trace.WriteLine($"[ServiceHostTests] Expected start failure: {ex.Message}");
         }
 
@@ -250,8 +222,7 @@ public sealed class ServiceHostTests
     }
 
     [Fact]
-    public async Task DisposeAsync_StopsServices()
-    {
+    public async Task DisposeAsync_StopsServices() {
         var host = new ServiceHost();
         var service = CreateService("svc");
         host.RegisterService(service);

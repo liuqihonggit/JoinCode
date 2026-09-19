@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security;
 /// 工具操作类型枚举 — 替代散布在权限系统中的硬编码字符串
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 OperationTypeEnumConstants + OperationTypeExtensions
 /// </summary>
-public enum OperationType
-{
+public enum OperationType {
     /// <summary>读取操作</summary>
     [EnumValue("read")] Read = 0,
 

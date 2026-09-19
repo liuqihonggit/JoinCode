@@ -5,8 +5,7 @@ namespace Core.Scheduling.Runtime;
 /// 任务运行时 — 管理运行时任务的创建、依赖、调度、持久化与恢复,基于 DAG 检测循环依赖
 /// </summary>
 [Register(typeof(ITaskRuntime), ServiceLifetime.Singleton)]
-public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposable
-{
+public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposable {
     private readonly ConcurrentDictionary<string, RuntimeTask> _tasks = new();
     private readonly ConcurrentDag<string> _dag = new();
     private readonly ILogger<TaskRuntime>? _logger;
@@ -24,11 +23,9 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     public TaskRuntime(
         TaskRuntimeDeps? deps = null,
         ILogger<TaskRuntime>? logger = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _deps = deps ?? new TaskRuntimeDeps();
-        if (string.IsNullOrEmpty(_deps.PersistenceDirectory))
-        {
+        if (string.IsNullOrEmpty(_deps.PersistenceDirectory)) {
             _deps = _deps with { PersistenceDirectory = AppDataConstants.Paths.RuntimeTasksDirectory };
         }
         _logger = logger;
@@ -37,13 +34,11 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<RuntimeTask?>> CreateTaskAsync(RuntimeTaskInput input, CancellationToken cancellationToken = default)
-    {
+    public Task<OperationResult<RuntimeTask?>> CreateTaskAsync(RuntimeTaskInput input, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(input);
 
         var taskId = GenerateTaskId();
-        var task = new RuntimeTask
-        {
+        var task = new RuntimeTask {
             Id = taskId,
             Description = input.Description,
             Priority = input.Priority,
@@ -56,18 +51,14 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
             MaxRetries = input.MaxRetries
         };
 
-        if (input.Dependencies is { Count: > 0 })
-        {
+        if (input.Dependencies is { Count: > 0 }) {
             _dag.AddNode(new DagNode<string> { Id = taskId, Payload = taskId });
-            foreach (var depId in input.Dependencies)
-            {
+            foreach (var depId in input.Dependencies) {
                 if (!_dag.Nodes.ContainsKey(depId))
                     _dag.AddNode(new DagNode<string> { Id = depId, Payload = depId });
                 _dag.AddEdge(new DagEdge { FromId = depId, ToId = taskId, Label = "DEPENDS_ON" });
             }
-        }
-        else
-        {
+        } else {
             _dag.AddNode(new DagNode<string> { Id = taskId, Payload = taskId });
         }
 
@@ -79,12 +70,10 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<RuntimeTask?>> UpdateTaskAsync(string taskId, RuntimeTaskUpdate update, CancellationToken cancellationToken = default)
-    {
+    public Task<OperationResult<RuntimeTask?>> UpdateTaskAsync(string taskId, RuntimeTaskUpdate update, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(update);
 
-        if (!_tasks.TryGetValue(taskId, out var task))
-        {
+        if (!_tasks.TryGetValue(taskId, out var task)) {
             return Task.FromResult(OperationResult<RuntimeTask?>.Fail(L.T(StringKey.RuntimeTaskNotExist, taskId)));
         }
 
@@ -95,13 +84,11 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         if (update.Result is not null) task.Result = update.Result;
         if (update.ErrorMessage is not null) task.ErrorMessage = update.ErrorMessage;
 
-        if (update.Status == TaskExecutionStatus.Running && task.StartedAt is null)
-        {
+        if (update.Status == TaskExecutionStatus.Running && task.StartedAt is null) {
             task.StartedAt = _clock.GetUtcNow();
         }
 
-        if (update.Status.GetValueOrDefault().IsTerminal() && task.CompletedAt is null)
-        {
+        if (update.Status.GetValueOrDefault().IsTerminal() && task.CompletedAt is null) {
             task.CompletedAt = _clock.GetUtcNow();
         }
 
@@ -111,34 +98,28 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     }
 
     /// <inheritdoc/>
-    public Task<RuntimeTaskListResult> ListTasksAsync(RuntimeTaskQuery query, CancellationToken cancellationToken = default)
-    {
+    public Task<RuntimeTaskListResult> ListTasksAsync(RuntimeTaskQuery query, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(query);
 
         var filtered = _tasks.Values.AsEnumerable();
 
-        if (query.Status is not null)
-        {
+        if (query.Status is not null) {
             filtered = filtered.Where(t => t.Status == query.Status);
         }
 
-        if (query.GoalId is not null)
-        {
+        if (query.GoalId is not null) {
             filtered = filtered.Where(t => t.GoalId == query.GoalId);
         }
 
-        if (query.AgentId is not null)
-        {
+        if (query.AgentId is not null) {
             filtered = filtered.Where(t => t.AgentId == query.AgentId);
         }
 
-        if (query.Priority is not null)
-        {
+        if (query.Priority is not null) {
             filtered = filtered.Where(t => t.Priority == query.Priority);
         }
 
-        if (!query.IncludeCompleted)
-        {
+        if (!query.IncludeCompleted) {
             filtered = filtered.Where(t => t.Status != TaskExecutionStatus.Completed);
         }
 
@@ -154,10 +135,8 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<RuntimeTask?>> GetTaskAsync(string taskId, CancellationToken cancellationToken = default)
-    {
-        if (!_tasks.TryGetValue(taskId, out var task))
-        {
+    public Task<OperationResult<RuntimeTask?>> GetTaskAsync(string taskId, CancellationToken cancellationToken = default) {
+        if (!_tasks.TryGetValue(taskId, out var task)) {
             return Task.FromResult(OperationResult<RuntimeTask?>.Fail(L.T(StringKey.RuntimeTaskNotExist, taskId)));
         }
 
@@ -165,20 +144,16 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<RuntimeTask?>> SetDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default)
-    {
-        if (!_tasks.ContainsKey(taskId))
-        {
+    public async Task<OperationResult<RuntimeTask?>> SetDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default) {
+        if (!_tasks.ContainsKey(taskId)) {
             return OperationResult<RuntimeTask?>.Fail(L.T(StringKey.RuntimeTaskNotExist, taskId));
         }
 
-        if (!_tasks.ContainsKey(dependsOnTaskId))
-        {
+        if (!_tasks.ContainsKey(dependsOnTaskId)) {
             return OperationResult<RuntimeTask?>.Fail(L.T(StringKey.DepTaskNotExist, dependsOnTaskId));
         }
 
-        if (await _dag.WouldCreateCycleAsync(dependsOnTaskId, taskId, cancellationToken).ConfigureAwait(false))
-        {
+        if (await _dag.WouldCreateCycleAsync(dependsOnTaskId, taskId, cancellationToken).ConfigureAwait(false)) {
             return OperationResult<RuntimeTask?>.Fail(L.T(StringKey.CircularDependencyRejected));
         }
 
@@ -188,13 +163,11 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
             await _dag.AddNodeAsync(new DagNode<string> { Id = dependsOnTaskId, Payload = dependsOnTaskId }, cancellationToken).ConfigureAwait(false);
 
         var edgeResult = await _dag.AddEdgeAsync(new DagEdge { FromId = dependsOnTaskId, ToId = taskId, Label = "DEPENDS_ON" }, cancellationToken).ConfigureAwait(false);
-        if (!edgeResult.Success)
-        {
+        if (!edgeResult.Success) {
             return OperationResult<RuntimeTask?>.Fail(L.T(StringKey.DependencyAlreadyExists));
         }
 
-        if (_tasks.TryGetValue(taskId, out var task))
-        {
+        if (_tasks.TryGetValue(taskId, out var task)) {
             task.Dependencies.Add(dependsOnTaskId);
         }
 
@@ -204,21 +177,17 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<RuntimeTask?>> RemoveDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default)
-    {
-        if (!_dag.TryGetEdge(dependsOnTaskId, taskId, out var edgeToRemove))
-        {
+    public async Task<OperationResult<RuntimeTask?>> RemoveDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default) {
+        if (!_dag.TryGetEdge(dependsOnTaskId, taskId, out var edgeToRemove)) {
             return OperationResult<RuntimeTask?>.Fail(L.T(StringKey.DepNotExist, dependsOnTaskId));
         }
 
         var result = await _dag.RemoveEdgeAsync(edgeToRemove.Id, cancellationToken).ConfigureAwait(false);
-        if (!result.Success)
-        {
+        if (!result.Success) {
             return OperationResult<RuntimeTask?>.Fail(result.ErrorMessage ?? "Failed to remove edge");
         }
 
-        if (_tasks.TryGetValue(taskId, out var task))
-        {
+        if (_tasks.TryGetValue(taskId, out var task)) {
             task.Dependencies.Remove(dependsOnTaskId);
         }
 
@@ -226,34 +195,25 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     }
 
     /// <inheritdoc/>
-    public Task<bool> CanExecuteTaskAsync(string taskId, CancellationToken cancellationToken = default)
-    {
-        if (!_tasks.TryGetValue(taskId, out var task))
-        {
+    public Task<bool> CanExecuteTaskAsync(string taskId, CancellationToken cancellationToken = default) {
+        if (!_tasks.TryGetValue(taskId, out var task)) {
             return Task.FromResult(false);
         }
 
-        if (task.Status != TaskExecutionStatus.Pending && task.Status != TaskExecutionStatus.Ready)
-        {
+        if (task.Status != TaskExecutionStatus.Pending && task.Status != TaskExecutionStatus.Ready) {
             return Task.FromResult(false);
         }
 
-        if (task.Dependencies is not { Count: > 0 })
-        {
+        if (task.Dependencies is not { Count: > 0 }) {
             return Task.FromResult(true);
         }
 
-        foreach (var depId in task.Dependencies)
-        {
-            if (_tasks.TryGetValue(depId, out var depTask))
-            {
-                if (depTask.Status != TaskExecutionStatus.Completed)
-                {
+        foreach (var depId in task.Dependencies) {
+            if (_tasks.TryGetValue(depId, out var depTask)) {
+                if (depTask.Status != TaskExecutionStatus.Completed) {
                     return Task.FromResult(false);
                 }
-            }
-            else
-            {
+            } else {
                 return Task.FromResult(false);
             }
         }
@@ -262,8 +222,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<RuntimeTask>> DequeueReadyTasksAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<IReadOnlyList<RuntimeTask>> DequeueReadyTasksAsync(CancellationToken cancellationToken = default) {
         var completedIds = new HashSet<string>(
             _tasks.Values
                 .Where(t => t.Status == TaskExecutionStatus.Completed)
@@ -271,17 +230,14 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
 
         var ready = new List<RuntimeTask>();
 
-        foreach (var task in _tasks.Values.Where(t => t.Status == TaskExecutionStatus.Pending || t.Status == TaskExecutionStatus.Ready))
-        {
-            if (task.IsLightweight)
-            {
+        foreach (var task in _tasks.Values.Where(t => t.Status == TaskExecutionStatus.Pending || t.Status == TaskExecutionStatus.Ready)) {
+            if (task.IsLightweight) {
                 ready.Add(task);
                 continue;
             }
 
             var allDepsMet = task.Dependencies.All(depId => completedIds.Contains(depId));
-            if (allDepsMet)
-            {
+            if (allDepsMet) {
                 ready.Add(task);
             }
         }
@@ -295,20 +251,16 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     }
 
     /// <inheritdoc/>
-    public async Task PersistAsync(CancellationToken cancellationToken = default)
-    {
-        if (_deps.FileOperationService is null || _deps.PersistenceDirectory is null)
-        {
+    public async Task PersistAsync(CancellationToken cancellationToken = default) {
+        if (_deps.FileOperationService is null || _deps.PersistenceDirectory is null) {
             return;
         }
         await _persistActor.PersistAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    internal async Task PersistCoreAsync(CancellationToken cancellationToken)
-    {
+    internal async Task PersistCoreAsync(CancellationToken cancellationToken) {
         var persistenceDir = _deps.PersistenceDirectory!;
-        if (!_deps.FileOperationService!.DirectoryExists(persistenceDir))
-        {
+        if (!_deps.FileOperationService!.DirectoryExists(persistenceDir)) {
             _deps.FileOperationService.CreateDirectory(persistenceDir);
         }
 
@@ -317,17 +269,12 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         var json = RelaxedJsonSerializer.Serialize(durableTasks, SchedulingTasksJsonContext.Default);
 
         var tempPath = filePath + ".tmp";
-        try
-        {
+        try {
             await _deps.FileOperationService.WriteFileAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
             await _deps.FileOperationService.MoveFileAsync(tempPath, filePath, overwrite: true, cancellationToken).ConfigureAwait(false);
-        }
-        catch
-        {
-            if (_deps.FileOperationService.FileExists(tempPath))
-            {
-                try { await _deps.FileOperationService.DeleteFileAsync(tempPath, cancellationToken).ConfigureAwait(false); }
-                catch (Exception cleanupEx) { _logger?.LogWarning(cleanupEx, "清理临时文件失败: {TempPath}", tempPath); }
+        } catch {
+            if (_deps.FileOperationService.FileExists(tempPath)) {
+                try { await _deps.FileOperationService.DeleteFileAsync(tempPath, cancellationToken).ConfigureAwait(false); } catch (Exception cleanupEx) { _logger?.LogWarning(cleanupEx, "清理临时文件失败: {TempPath}", tempPath); }
             }
             throw;
         }
@@ -336,75 +283,59 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId = null, CancellationToken cancellationToken = default)
-    {
-        if (_deps.FileOperationService is null || _deps.PersistenceDirectory is null)
-        {
+    public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId = null, CancellationToken cancellationToken = default) {
+        if (_deps.FileOperationService is null || _deps.PersistenceDirectory is null) {
             return Array.Empty<RuntimeTask>();
         }
         return await _persistActor.RecoverTasksAsync(goalId, cancellationToken).ConfigureAwait(false);
     }
 
-    internal async Task<IReadOnlyList<RuntimeTask>> RecoverTasksCoreAsync(string? goalId, CancellationToken cancellationToken)
-    {
+    internal async Task<IReadOnlyList<RuntimeTask>> RecoverTasksCoreAsync(string? goalId, CancellationToken cancellationToken) {
         var filePath = Path.Combine(_deps.PersistenceDirectory!, "runtime-tasks.json");
-        if (!_deps.FileOperationService!.FileExists(filePath))
-        {
+        if (!_deps.FileOperationService!.FileExists(filePath)) {
             return Array.Empty<RuntimeTask>();
         }
 
         var readResult = await _deps.FileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!readResult.Success)
-        {
+        if (!readResult.Success) {
             _logger?.LogWarning(L.T(StringKey.RecoverTasksCorruptFileLog), filePath, readResult.ErrorMessage ?? "读取失败");
             return Array.Empty<RuntimeTask>();
         }
 
         List<RuntimeTask>? tasks;
-        try
-        {
+        try {
             tasks = RelaxedJsonSerializer.Deserialize(readResult.Content, SchedulingTasksJsonContext.Default.ListRuntimeTask);
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             _logger?.LogWarning(ex, L.T(StringKey.RecoverTasksCorruptFileLog), filePath, ex.Message);
             await QuarantineCorruptFileAsync(filePath, cancellationToken).ConfigureAwait(false);
             return Array.Empty<RuntimeTask>();
         }
 
-        if (tasks is null || tasks.Count == 0)
-        {
+        if (tasks is null || tasks.Count == 0) {
             return Array.Empty<RuntimeTask>();
         }
 
         var recovered = new List<RuntimeTask>();
-        foreach (var task in tasks)
-        {
-            if (goalId is not null && task.GoalId != goalId)
-            {
+        foreach (var task in tasks) {
+            if (goalId is not null && task.GoalId != goalId) {
                 continue;
             }
 
-            if (task.Status == TaskExecutionStatus.Running)
-            {
+            if (task.Status == TaskExecutionStatus.Running) {
                 task.Status = TaskExecutionStatus.Pending;
                 task.ErrorMessage = L.T(StringKey.CrashRecoveryMsg);
             }
 
             _tasks[task.Id] = task;
 
-            if (task.Dependencies is { Count: > 0 })
-            {
+            if (task.Dependencies is { Count: > 0 }) {
                 _dag.AddNode(new DagNode<string> { Id = task.Id, Payload = task.Id });
-                foreach (var depId in task.Dependencies)
-                {
+                foreach (var depId in task.Dependencies) {
                     if (!_dag.Nodes.ContainsKey(depId))
                         _dag.AddNode(new DagNode<string> { Id = depId, Payload = depId });
                     _dag.TryAddEdge(new DagEdge { FromId = depId, ToId = task.Id, Label = "DEPENDS_ON" });
                 }
-            }
-            else
-            {
+            } else {
                 _dag.AddNode(new DagNode<string> { Id = task.Id, Payload = task.Id });
             }
 
@@ -418,24 +349,19 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     /// <summary>
     /// 隔离损坏的持久化文件 — 移动到带时间戳的 .corrupt 后缀，避免反复报错且保留证据
     /// </summary>
-    private async Task QuarantineCorruptFileAsync(string filePath, CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task QuarantineCorruptFileAsync(string filePath, CancellationToken cancellationToken) {
+        try {
             var corruptPath = $"{filePath}.{DateTime.Now:yyyyMMddHHmmss}.corrupt";
             await _deps.FileOperationService!.MoveFileAsync(filePath, corruptPath, overwrite: false, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
             _logger?.LogWarning(L.T(StringKey.RecoverTasksCorruptFileLog), corruptPath, "已隔离损坏文件");
-        }
-        catch (Exception moveEx)
-        {
+        } catch (Exception moveEx) {
             _logger?.LogWarning(moveEx, "隔离损坏任务文件失败: {FilePath}", filePath);
         }
     }
 
     /// <inheritdoc/>
-    public void Clear()
-    {
+    public void Clear() {
         _tasks.Clear();
         _dag.Clear();
         Volatile.Write(ref _taskCounter, 0);
@@ -448,8 +374,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     /// <param name="ct">取消令牌</param>
     /// <returns>智能体任务执行结果</returns>
     /// <exception cref="InvalidOperationException">未注册 RemoteAgentTaskExecutor 时抛出</exception>
-    public Task<AgentTaskResult> ExecuteRemoteAgentTaskAsync(RemoteAgentTaskDefinition definition, CancellationToken ct = default)
-    {
+    public Task<AgentTaskResult> ExecuteRemoteAgentTaskAsync(RemoteAgentTaskDefinition definition, CancellationToken ct = default) {
         if (_deps.RemoteAgentTaskExecutor == null)
             throw new InvalidOperationException(L.T(StringKey.RemoteAgentTaskExecutorNotRegistered));
         return _deps.RemoteAgentTaskExecutor.ExecuteRemoteAsync(definition, ct);
@@ -462,8 +387,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     /// <param name="ct">取消令牌</param>
     /// <returns>工作流执行结果</returns>
     /// <exception cref="InvalidOperationException">未注册 WorkflowTaskExecutor 时抛出</exception>
-    public Task<WorkflowResult> ExecuteWorkflowTaskAsync(WorkflowDefinition definition, CancellationToken ct = default)
-    {
+    public Task<WorkflowResult> ExecuteWorkflowTaskAsync(WorkflowDefinition definition, CancellationToken ct = default) {
         if (_deps.WorkflowTaskExecutor == null)
             throw new InvalidOperationException(L.T(StringKey.WorkflowTaskExecutorNotRegistered));
         return _deps.WorkflowTaskExecutor.ExecuteWorkflowAsync(definition, ct);
@@ -476,8 +400,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     /// <param name="ct">取消令牌</param>
     /// <returns>监控会话 ID</returns>
     /// <exception cref="InvalidOperationException">未注册 MonitorMcpTaskExecutor 时抛出</exception>
-    public Task<string> StartMcpMonitoringAsync(McpMonitorConfig config, CancellationToken ct = default)
-    {
+    public Task<string> StartMcpMonitoringAsync(McpMonitorConfig config, CancellationToken ct = default) {
         if (_deps.MonitorMcpTaskExecutor == null)
             throw new InvalidOperationException("[SCH002] MonitorMcpTaskExecutor 未注册");
         return _deps.MonitorMcpTaskExecutor.StartMonitoringAsync(config, ct);
@@ -490,8 +413,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     /// <param name="ct">取消令牌</param>
     /// <returns>智能体任务执行结果</returns>
     /// <exception cref="InvalidOperationException">未注册 LocalShellTaskExecutor 时抛出</exception>
-    public Task<AgentTaskResult> ExecuteLocalShellTaskAsync(LocalShellTaskDefinition definition, CancellationToken ct = default)
-    {
+    public Task<AgentTaskResult> ExecuteLocalShellTaskAsync(LocalShellTaskDefinition definition, CancellationToken ct = default) {
         if (_deps.LocalShellTaskExecutor == null)
             throw new InvalidOperationException("[SCH003] LocalShellTaskExecutor 未注册");
         return definition.UsePowerShell
@@ -506,22 +428,19 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     /// <param name="ct">取消令牌</param>
     /// <returns>智能体任务执行结果</returns>
     /// <exception cref="InvalidOperationException">未注册 InProcessTeammateTaskExecutor 时抛出</exception>
-    public Task<AgentTaskResult> ExecuteInProcessTeammateAsync(InProcessTeammateDefinition definition, CancellationToken ct = default)
-    {
+    public Task<AgentTaskResult> ExecuteInProcessTeammateAsync(InProcessTeammateDefinition definition, CancellationToken ct = default) {
         if (_deps.InProcessTeammateTaskExecutor == null)
             throw new InvalidOperationException("[SCH004] InProcessTeammateTaskExecutor 未注册");
         return _deps.InProcessTeammateTaskExecutor.ExecuteTeammateAsync(definition, ct);
     }
 
-    private string GenerateTaskId()
-    {
+    private string GenerateTaskId() {
         var counter = Interlocked.Increment(ref _taskCounter);
         return $"rtask_{counter:D4}";
     }
 
     /// <summary>异步释放资源 — 释放内部 DAG 并异步释放持久化 Actor。</summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         _dag.Dispose();
         await _persistActor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);

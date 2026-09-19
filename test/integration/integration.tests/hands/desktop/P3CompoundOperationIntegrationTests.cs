@@ -8,11 +8,9 @@ namespace Integration.Tests;
 [Trait("Category", "Integration")]
 [Trait("Category", "Desktop")]
 [Collection("DesktopIntegration")]
-public sealed class P3CompoundOperationIntegrationTests
-{
+public sealed class P3CompoundOperationIntegrationTests {
     /// <summary>启动记事本并获取精确窗口句柄</summary>
-    private static async Task<(System.Diagnostics.Process Process, IntPtr Hwnd, RECT Rect)> StartNotepadAsync(Win32WindowManagementService windows)
-    {
+    private static async Task<(System.Diagnostics.Process Process, IntPtr Hwnd, RECT Rect)> StartNotepadAsync(Win32WindowManagementService windows) {
         var notepad = System.Diagnostics.Process.Start("notepad.exe");
         await Task.Delay(2500);
         notepad.Refresh();
@@ -30,11 +28,9 @@ public sealed class P3CompoundOperationIntegrationTests
 
     /// <summary>右键菜单链：记事本编辑区右键 → 等待菜单弹出 → 截图验证 → Escape 关闭</summary>
     [Fact]
-    public async Task RightClickMenu_Notepad_PopupAppears_ThenEscape()
-    {
+    public async Task RightClickMenu_Notepad_PopupAppears_ThenEscape() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
-        if (!env.IsInteractive)
-        {
+        if (!env.IsInteractive) {
             env.Diagnostic.Should().Contain("非交互式桌面环境");
             return;
         }
@@ -45,8 +41,7 @@ public sealed class P3CompoundOperationIntegrationTests
         var handler = new CompoundOperationToolHandlers(input);
 
         var (notepad, hwnd, rect) = await StartNotepadAsync(windows);
-        try
-        {
+        try {
             var centerX = rect.Left + rect.Width / 2;
             var centerY = rect.Top + rect.Height * 2 / 3;
 
@@ -71,11 +66,8 @@ public sealed class P3CompoundOperationIntegrationTests
             await Task.Delay(500);
 
             User32NativeMethods.GetForegroundWindow().Should().Be(hwnd, "关闭菜单后焦点应回到记事本");
-        }
-        finally
-        {
-            if (notepad is { HasExited: false })
-            {
+        } finally {
+            if (notepad is { HasExited: false }) {
                 notepad.Kill();
                 notepad.WaitForExit(3000);
             }
@@ -84,11 +76,9 @@ public sealed class P3CompoundOperationIntegrationTests
 
     /// <summary>多步点击：在记事本编辑区点击多个位置，验证焦点保持</summary>
     [Fact]
-    public async Task MultiClick_Notepad_FocusPreserved()
-    {
+    public async Task MultiClick_Notepad_FocusPreserved() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
-        if (!env.IsInteractive)
-        {
+        if (!env.IsInteractive) {
             var nonInteractiveHandler = new CompoundOperationToolHandlers(new Win32DesktopInputService(new NoOpDesktopSafetyChecker()));
             var nonInteractiveResult = await nonInteractiveHandler.MultiClickAsync("100,100;200,200;300,300", 300);
             nonInteractiveResult.IsError.Should().BeTrue("非交互式环境应返回错误");
@@ -102,8 +92,7 @@ public sealed class P3CompoundOperationIntegrationTests
         var handler = new CompoundOperationToolHandlers(input);
 
         var (notepad, hwnd, rect) = await StartNotepadAsync(windows);
-        try
-        {
+        try {
             var p1 = $"{rect.Left + rect.Width / 3},{rect.Top + rect.Height * 2 / 3}";
             var p2 = $"{rect.Left + rect.Width / 2},{rect.Top + rect.Height * 2 / 3}";
             var p3 = $"{rect.Left + rect.Width * 2 / 3},{rect.Top + rect.Height * 2 / 3}";
@@ -123,11 +112,8 @@ public sealed class P3CompoundOperationIntegrationTests
 
             var screenshot = await capture.CaptureWindowAsync(hwnd);
             screenshot.Should().StartWith("iVBORw0KGgo");
-        }
-        finally
-        {
-            if (notepad is { HasExited: false })
-            {
+        } finally {
+            if (notepad is { HasExited: false }) {
                 notepad.Kill();
                 notepad.WaitForExit(3000);
             }
@@ -136,11 +122,9 @@ public sealed class P3CompoundOperationIntegrationTests
 
     /// <summary>拖拽悬停：在记事本内拖拽选中文本，验证不崩溃且焦点保持</summary>
     [Fact]
-    public async Task DragWithHover_Notepad_NoCrash()
-    {
+    public async Task DragWithHover_Notepad_NoCrash() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
-        if (!env.IsInteractive)
-        {
+        if (!env.IsInteractive) {
             env.Diagnostic.Should().Contain("非交互式桌面环境");
             return;
         }
@@ -151,8 +135,7 @@ public sealed class P3CompoundOperationIntegrationTests
         var handler = new CompoundOperationToolHandlers(input);
 
         var (notepad, hwnd, rect) = await StartNotepadAsync(windows);
-        try
-        {
+        try {
             var typeOp = await input.TypeTextAsync("Drag this text to select");
             typeOp.Succeeded.Should().BeTrue();
             await Task.Delay(500);
@@ -174,11 +157,8 @@ public sealed class P3CompoundOperationIntegrationTests
             copyOp.Succeeded.Should().BeTrue("Ctrl+C 复制应成功");
             await Task.Delay(300);
             User32NativeMethods.GetForegroundWindow().Should().Be(hwnd, "复制后焦点应仍在记事本");
-        }
-        finally
-        {
-            if (notepad is { HasExited: false })
-            {
+        } finally {
+            if (notepad is { HasExited: false }) {
                 notepad.Kill();
                 notepad.WaitForExit(3000);
             }

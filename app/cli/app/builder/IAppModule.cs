@@ -3,8 +3,7 @@ namespace JoinCode.App.Builder;
 /// <summary>
 /// 应用模块接口 — 每个模块负责一组相关的服务注册和启动后初始化
 /// </summary>
-public interface IAppModule
-{
+public interface IAppModule {
     /// <summary>
     /// 注册服务到 DI 容器 — 在 Host 构建阶段调用
     /// </summary>

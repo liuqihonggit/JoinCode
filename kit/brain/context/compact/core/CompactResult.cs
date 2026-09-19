@@ -4,8 +4,7 @@ namespace Core.Context.Compact;
 /// <summary>
 /// 压缩触发方式枚举
 /// </summary>
-public enum CompactTrigger
-{
+public enum CompactTrigger {
     /// <summary>手动触发</summary>
     [EnumValue("manual")] Manual,
     /// <summary>自动触发</summary>
@@ -17,8 +16,7 @@ public enum CompactTrigger
 /// <summary>
 /// 压缩级别枚举
 /// </summary>
-public enum CompactLevel
-{
+public enum CompactLevel {
     /// <summary>未压缩</summary>
     [EnumValue("none")] None,
     /// <summary>微压缩</summary>
@@ -38,8 +36,7 @@ public enum CompactLevel
 /// <summary>
 /// 压缩结果
 /// </summary>
-public sealed class CompactResult
-{
+public sealed class CompactResult {
     /// <summary>是否已压缩</summary>
     public required bool Compacted { get; init; }
     /// <summary>压缩级别</summary>

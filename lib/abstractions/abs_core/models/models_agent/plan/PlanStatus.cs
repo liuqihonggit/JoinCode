@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Plan;
 /// <summary>
 /// 计划状态
 /// </summary>
-public enum PlanStatus
-{
+public enum PlanStatus {
     /// <summary>
     /// 草稿 - 计划正在编辑中
     /// </summary>
@@ -39,8 +38,7 @@ public enum PlanStatus
 /// <summary>
 /// 计划步骤状态
 /// </summary>
-public enum PlanStepStatus
-{
+public enum PlanStepStatus {
     /// <summary>
     /// 待审批
     /// </summary>

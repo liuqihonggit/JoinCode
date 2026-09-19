@@ -1,10 +1,8 @@
 
 namespace Core.Tests.Services;
 
-public class PluginManagerTests
-{
-    private ServiceProvider CreateServiceProvider()
-    {
+public class PluginManagerTests {
+    private ServiceProvider CreateServiceProvider() {
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole());
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
@@ -13,8 +11,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void Constructor_ShouldInitializeEmptyPluginManager()
-    {
+    public void Constructor_ShouldInitializeEmptyPluginManager() {
         var serviceProvider = CreateServiceProvider();
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
@@ -23,8 +20,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public async Task UnloadPluginAsync_WhenPluginNotLoaded_ShouldReturnAlreadyUnloaded()
-    {
+    public async Task UnloadPluginAsync_WhenPluginNotLoaded_ShouldReturnAlreadyUnloaded() {
         var serviceProvider = CreateServiceProvider();
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
@@ -35,8 +31,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public async Task UnloadAllPluginsAsync_WhenNoPluginsLoaded_ShouldReturnEmptyList()
-    {
+    public async Task UnloadAllPluginsAsync_WhenNoPluginsLoaded_ShouldReturnEmptyList() {
         var serviceProvider = CreateServiceProvider();
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
@@ -46,8 +41,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public async Task Dispose_ShouldNotThrow_WhenNoPluginsLoaded()
-    {
+    public async Task Dispose_ShouldNotThrow_WhenNoPluginsLoaded() {
         var serviceProvider = CreateServiceProvider();
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
@@ -57,8 +51,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void PluginUnloadOptions_Default_ShouldHaveCorrectValues()
-    {
+    public void PluginUnloadOptions_Default_ShouldHaveCorrectValues() {
         var options = PluginUnloadOptions.Default;
 
         Assert.Equal(TimeSpan.FromSeconds(5), options.CooperativeTimeout);
@@ -66,10 +59,8 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void PluginUnloadOptions_CanBeCustomized()
-    {
-        var options = new PluginUnloadOptions
-        {
+    public void PluginUnloadOptions_CanBeCustomized() {
+        var options = new PluginUnloadOptions {
             CooperativeTimeout = TimeSpan.FromSeconds(10),
             ForceAlcUnloadOnTimeout = false
         };
@@ -79,8 +70,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void PluginUnloadResult_Success_ShouldHaveCorrectProperties()
-    {
+    public void PluginUnloadResult_Success_ShouldHaveCorrectProperties() {
         var elapsed = TimeSpan.FromMilliseconds(100);
         var result = PluginUnloadResult.Success("test-plugin", elapsed);
 
@@ -92,8 +82,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void PluginUnloadResult_CooperativeTimeout_ShouldHaveCorrectProperties()
-    {
+    public void PluginUnloadResult_CooperativeTimeout_ShouldHaveCorrectProperties() {
         var elapsed = TimeSpan.FromSeconds(5);
         var result = PluginUnloadResult.CooperativeTimeout("test-plugin", elapsed);
 
@@ -105,8 +94,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void PluginUnloadResult_AlcUnloadFailed_ShouldHaveCorrectProperties()
-    {
+    public void PluginUnloadResult_AlcUnloadFailed_ShouldHaveCorrectProperties() {
         var elapsed = TimeSpan.FromMilliseconds(500);
         var errorMessage = "ALC unload failed";
         var result = PluginUnloadResult.AlcUnloadFailed("test-plugin", elapsed, errorMessage);
@@ -119,8 +107,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void PluginUnloadResult_AlreadyUnloaded_ShouldHaveCorrectProperties()
-    {
+    public void PluginUnloadResult_AlreadyUnloaded_ShouldHaveCorrectProperties() {
         var result = PluginUnloadResult.AlreadyUnloaded("test-plugin");
 
         Assert.Equal(PluginUnloadStatus.AlreadyUnloaded, result.Status);
@@ -130,8 +117,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void IsWorkflowPluginLoaded_WhenNotLoaded_ShouldReturnFalse()
-    {
+    public void IsWorkflowPluginLoaded_WhenNotLoaded_ShouldReturnFalse() {
         var serviceProvider = CreateServiceProvider();
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
@@ -139,8 +125,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void IsExternalPluginLoaded_WhenNotLoaded_ShouldReturnFalse()
-    {
+    public void IsExternalPluginLoaded_WhenNotLoaded_ShouldReturnFalse() {
         var serviceProvider = CreateServiceProvider();
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
@@ -148,8 +133,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void GetWorkflowPlugin_WhenNotLoaded_ShouldReturnNull()
-    {
+    public void GetWorkflowPlugin_WhenNotLoaded_ShouldReturnNull() {
         var serviceProvider = CreateServiceProvider();
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
@@ -157,8 +141,7 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void GetExternalPlugin_WhenNotLoaded_ShouldReturnNull()
-    {
+    public void GetExternalPlugin_WhenNotLoaded_ShouldReturnNull() {
         var serviceProvider = CreateServiceProvider();
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 

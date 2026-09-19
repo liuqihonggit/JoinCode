@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// 桥初始化共享状态 — 对齐 TS 端 initEnvLessBridgeCore 中的闭包变量
 /// 提取为类以便在多个方法间共享可变状态
 /// </summary>
-public sealed class BridgeInitState
-{
+public sealed class BridgeInitState {
     /// <summary>刷新闸门 — 对齐 TS 端 flushGate，批量发送消息</summary>
     public required BridgeFlushGate<string> FlushGate { get; init; }
     /// <summary>已发布 UUID 去重集合 — 对齐 TS 端 recentPostedUUIDs</summary>
@@ -54,8 +53,7 @@ public sealed class BridgeInitState
 /// <summary>
 /// v1 重连可变状态 — 替代 ref 参数，因为 async 方法不支持 ref
 /// </summary>
-internal sealed class V1ReconnectState
-{
+internal sealed class V1ReconnectState {
     /// <summary>环境 ID</summary>
     public string EnvironmentId;
     /// <summary>环境密钥</summary>
@@ -71,8 +69,7 @@ internal sealed class V1ReconnectState
     /// <param name="environmentId">环境 ID</param>
     /// <param name="environmentSecret">环境密钥</param>
     /// <param name="sessionId">会话 ID</param>
-    public V1ReconnectState(string environmentId, string environmentSecret, string sessionId)
-    {
+    public V1ReconnectState(string environmentId, string environmentSecret, string sessionId) {
         EnvironmentId = environmentId;
         EnvironmentSecret = environmentSecret;
         SessionId = sessionId;

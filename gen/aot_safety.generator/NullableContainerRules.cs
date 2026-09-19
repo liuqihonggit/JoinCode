@@ -1,12 +1,10 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     /// <summary>
     /// 可空容器规则（JCC11002）：可空容器字段/属性建议改为非空初始化。
     /// 例如 List of T 问号字段建议改为 List of T 等于 new，避免 null 检查。
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class NullableContainerRules : DiagnosticAnalyzer
-    {
+    public sealed class NullableContainerRules : DiagnosticAnalyzer {
         private static readonly DiagnosticDescriptor RuleNullableContainer = new(
             "JCC11002",
             "可空容器: 可空容器字段/属性建议改为非空初始化",
@@ -33,16 +31,14 @@ namespace AotSafety.Generator
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
             ImmutableArray.Create(RuleNullableContainer);
 
-        public override void Initialize(AnalysisContext context)
-        {
+        public override void Initialize(AnalysisContext context) {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterSyntaxNodeAction(AnalyzeFieldDeclaration, SyntaxKind.FieldDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzePropertyDeclaration, SyntaxKind.PropertyDeclaration);
         }
 
-        private static void AnalyzeFieldDeclaration(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeFieldDeclaration(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
             var fieldDecl = (FieldDeclarationSyntax)ctx.Node;
             if (fieldDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.ConstKeyword))) return;
@@ -52,16 +48,14 @@ namespace AotSafety.Generator
             var typeDecl = fieldDecl.Parent as TypeDeclarationSyntax;
             if (ShouldSkipType(typeDecl)) return;
 
-            foreach (var declarator in fieldDecl.Declaration.Variables)
-            {
+            foreach (var declarator in fieldDecl.Declaration.Variables) {
                 var typeName = type.ToString();
                 var fieldName = declarator.Identifier.ValueText;
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleNullableContainer, declarator.GetLocation(), typeName, fieldName, baseTypeName));
             }
         }
 
-        private static void AnalyzePropertyDeclaration(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzePropertyDeclaration(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
             var propDecl = (PropertyDeclarationSyntax)ctx.Node;
             if (!IsAutoProperty(propDecl)) return;
@@ -77,8 +71,7 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleNullableContainer, propDecl.Identifier.GetLocation(), typeName, propName, baseTypeName));
         }
 
-        private static bool IsNullableContainerType(TypeSyntax typeSyntax, out string baseTypeName)
-        {
+        private static bool IsNullableContainerType(TypeSyntax typeSyntax, out string baseTypeName) {
             baseTypeName = string.Empty;
             if (typeSyntax is not NullableTypeSyntax nullable) return false;
             var name = ExtractTypeName(nullable.ElementType);
@@ -87,8 +80,7 @@ namespace AotSafety.Generator
             return true;
         }
 
-        private static bool ShouldSkipType(TypeDeclarationSyntax? typeDecl)
-        {
+        private static bool ShouldSkipType(TypeDeclarationSyntax? typeDecl) {
             if (typeDecl is null) return true;
             var kind = typeDecl.Kind();
             return kind == SyntaxKind.InterfaceDeclaration
@@ -96,10 +88,8 @@ namespace AotSafety.Generator
                 || kind == SyntaxKind.RecordStructDeclaration;
         }
 
-        private static string? ExtractTypeName(TypeSyntax typeSyntax)
-        {
-            return typeSyntax switch
-            {
+        private static string? ExtractTypeName(TypeSyntax typeSyntax) {
+            return typeSyntax switch {
                 GenericNameSyntax generic => generic.Identifier.ValueText,
                 IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
                 QualifiedNameSyntax qualified => ExtractTypeName(qualified.Right),
@@ -108,11 +98,9 @@ namespace AotSafety.Generator
             };
         }
 
-        private static bool IsAutoProperty(PropertyDeclarationSyntax propDecl)
-        {
+        private static bool IsAutoProperty(PropertyDeclarationSyntax propDecl) {
             if (propDecl.AccessorList is null) return false;
-            foreach (var accessor in propDecl.AccessorList.Accessors)
-            {
+            foreach (var accessor in propDecl.AccessorList.Accessors) {
                 if (accessor.Body is not null || accessor.ExpressionBody is not null)
                     return false;
             }

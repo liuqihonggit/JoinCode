@@ -4,8 +4,7 @@ namespace IO.Services.Update;
 /// 更新源工厂 — 根据 UpdateSourceType 创建对应的 IUpdateSource 实现
 /// > ADR: 0064
 /// </summary>
-public static class UpdateSourceFactory
-{
+public static class UpdateSourceFactory {
     /// <summary>
     /// 创建更新源
     /// </summary>
@@ -18,8 +17,7 @@ public static class UpdateSourceFactory
         UpdateSourceConfig config,
         HttpClient httpClient,
         IFileSystem fs,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(fs);
@@ -27,8 +25,7 @@ public static class UpdateSourceFactory
         var sourceType = config.GetSourceType();
         var manifestUrl = config.GetManifestUrl();
 
-        return sourceType switch
-        {
+        return sourceType switch {
             UpdateSourceType.Static => new StaticFileUpdateSource(
                 httpClient,
                 manifestUrl,

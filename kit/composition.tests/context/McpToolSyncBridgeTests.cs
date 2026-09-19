@@ -1,13 +1,11 @@
 namespace Core.Tests.Context;
 
-public sealed partial class McpToolSyncBridgeTests
-{
+public sealed partial class McpToolSyncBridgeTests {
     private readonly Mock<IToolRegistry> _toolRegistry;
     private readonly Mock<IChatContextManager> _contextManager;
     [Inject] private readonly ILogger<McpToolSyncBridge> _logger;
 
-    public McpToolSyncBridgeTests()
-    {
+    public McpToolSyncBridgeTests() {
         _toolRegistry = new Mock<IToolRegistry>();
         _contextManager = new Mock<IChatContextManager>();
         _logger = NullLogger<McpToolSyncBridge>.Instance;
@@ -17,8 +15,7 @@ public sealed partial class McpToolSyncBridgeTests
         new(_toolRegistry.Object, _contextManager.Object, _logger);
 
     [Fact]
-    public async Task OnToolsListChangedAsync_UpdatesToolSpecs()
-    {
+    public async Task OnToolsListChangedAsync_UpdatesToolSpecs() {
         var toolInfos = new List<ToolInfo>
         {
             new() { Name = "read_file", Description = "Read a file" },
@@ -42,8 +39,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnToolsListChangedAsync_EmptyTools_StillUpdates()
-    {
+    public async Task OnToolsListChangedAsync_EmptyTools_StillUpdates() {
         _toolRegistry.Setup(r => r.GetAllToolInfosAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
@@ -59,8 +55,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnToolsListChangedAsync_RegistryException_DoesNotThrow()
-    {
+    public async Task OnToolsListChangedAsync_RegistryException_DoesNotThrow() {
         _toolRegistry.Setup(r => r.GetAllToolInfosAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("registry error"));
 
@@ -70,8 +65,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnToolsListChangedAsync_ContextManagerException_DoesNotThrow()
-    {
+    public async Task OnToolsListChangedAsync_ContextManagerException_DoesNotThrow() {
         _toolRegistry.Setup(r => r.GetAllToolInfosAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([new ToolInfo { Name = "tool_a", Description = "desc" }]);
 
@@ -84,8 +78,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnToolsListChangedAsync_TransformsToolInfoToToolSpec()
-    {
+    public async Task OnToolsListChangedAsync_TransformsToolInfoToToolSpec() {
         var toolInfos = new List<ToolInfo>
         {
             new() { Name = "search", Description = "Search code" }
@@ -108,8 +101,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnResourcesListChangedAsync_Success_AddsSystemMessage()
-    {
+    public async Task OnResourcesListChangedAsync_Success_AddsSystemMessage() {
         var syncResult = OperationResult<IReadOnlyList<string>>.Ok(
             new List<string> { "resource1", "resource2" }.AsReadOnly());
 
@@ -125,8 +117,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnResourcesListChangedAsync_FailedResult_DoesNotAddMessage()
-    {
+    public async Task OnResourcesListChangedAsync_FailedResult_DoesNotAddMessage() {
         var syncResult = OperationResult<IReadOnlyList<string>>.Fail("sync failed");
 
         var sut = CreateSut();
@@ -137,8 +128,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnResourcesListChangedAsync_EmptyData_DoesNotAddMessage()
-    {
+    public async Task OnResourcesListChangedAsync_EmptyData_DoesNotAddMessage() {
         var syncResult = OperationResult<IReadOnlyList<string>>.Ok(
             new List<string>().AsReadOnly());
 
@@ -150,8 +140,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnResourcesListChangedAsync_Exception_DoesNotThrow()
-    {
+    public async Task OnResourcesListChangedAsync_Exception_DoesNotThrow() {
         var syncResult = OperationResult<IReadOnlyList<string>>.Ok(
             new List<string> { "res1" }.AsReadOnly());
 
@@ -164,8 +153,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnPromptsListChangedAsync_Success_AddsSystemMessage()
-    {
+    public async Task OnPromptsListChangedAsync_Success_AddsSystemMessage() {
         var syncResult = OperationResult<IReadOnlyList<string>>.Ok(
             new List<string> { "prompt1", "prompt2" }.AsReadOnly());
 
@@ -180,8 +168,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnPromptsListChangedAsync_FailedResult_DoesNotAddMessage()
-    {
+    public async Task OnPromptsListChangedAsync_FailedResult_DoesNotAddMessage() {
         var syncResult = OperationResult<IReadOnlyList<string>>.Fail("sync failed");
 
         var sut = CreateSut();
@@ -192,8 +179,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnPromptsListChangedAsync_EmptyData_DoesNotAddMessage()
-    {
+    public async Task OnPromptsListChangedAsync_EmptyData_DoesNotAddMessage() {
         var syncResult = OperationResult<IReadOnlyList<string>>.Ok(
             new List<string>().AsReadOnly());
 
@@ -205,8 +191,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnPromptsListChangedAsync_Exception_DoesNotThrow()
-    {
+    public async Task OnPromptsListChangedAsync_Exception_DoesNotThrow() {
         var syncResult = OperationResult<IReadOnlyList<string>>.Ok(
             new List<string> { "prompt1" }.AsReadOnly());
 
@@ -219,17 +204,13 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnToolsListChangedAsync_WithSchema_SerializesToJson()
-    {
-        var toolInfo = new ToolInfo
-        {
+    public async Task OnToolsListChangedAsync_WithSchema_SerializesToJson() {
+        var toolInfo = new ToolInfo {
             Name = "search",
             Description = "Search",
-            InputSchema = new ToolSchema
-            {
+            InputSchema = new ToolSchema {
                 Type = "object",
-                Properties = new Dictionary<string, ToolSchemaProperty>
-                {
+                Properties = new Dictionary<string, ToolSchemaProperty> {
                     ["query"] = new ToolSchemaProperty { Type = "string", Description = "search query" }
                 },
                 Required = new List<string> { "query" }
@@ -254,8 +235,7 @@ public sealed partial class McpToolSyncBridgeTests
     }
 
     [Fact]
-    public async Task OnToolsListChangedAsync_DefaultSchema_SerializesEmptyObject()
-    {
+    public async Task OnToolsListChangedAsync_DefaultSchema_SerializesEmptyObject() {
         var toolInfo = new ToolInfo { Name = "tool", Description = "desc" };
 
         _toolRegistry.Setup(r => r.GetAllToolInfosAsync(It.IsAny<CancellationToken>()))

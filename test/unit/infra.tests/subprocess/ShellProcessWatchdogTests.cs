@@ -2,11 +2,9 @@ using Infrastructure.Shell;
 
 namespace Infra.Tests.Subprocess;
 
-public sealed class ShellProcessWatchdogTests
-{
+public sealed class ShellProcessWatchdogTests {
     [Fact]
-    public async Task NotifySystemResumed_DeadProcess_TriggersCallback()
-    {
+    public async Task NotifySystemResumed_DeadProcess_TriggersCallback() {
         await using var watchdog = new ShellProcessWatchdog();
         var tcs = new TaskCompletionSource<int>();
 
@@ -18,8 +16,7 @@ public sealed class ShellProcessWatchdogTests
     }
 
     [Fact]
-    public async Task Unregister_PreventsCallback()
-    {
+    public async Task Unregister_PreventsCallback() {
         await using var watchdog = new ShellProcessWatchdog();
         var triggered = false;
 

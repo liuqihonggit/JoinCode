@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 斜杠命令元数据 — 命令清单的单条记录，供 GUI 命令面板等消费方使用。
 /// 由源码生成器从 [ChatCommand] 特性自动提取，无需手动维护。
 /// </summary>
-public sealed record SlashCommandMetadata
-{
+public sealed record SlashCommandMetadata {
     /// <summary>命令名（如 "/clear"）</summary>
     public required string Name { get; init; }
 
@@ -32,8 +31,7 @@ public sealed record SlashCommandMetadata
 /// 斜杠命令目录接口 — 由源码生成器生成的 GeneratedSlashCommandCatalog 实现，
 /// 通过 DI 注入。GUI Hosting 层从此接口获取命令清单，不直接引用 CLI。
 /// </summary>
-public interface ISlashCommandCatalog
-{
+public interface ISlashCommandCatalog {
     /// <summary>按 Category 预分组的命令字典（编译时生成,O(1) 查找）;消费方按分类取列表无需每次 GroupBy。</summary>
     IReadOnlyDictionary<string, IReadOnlyList<SlashCommandMetadata>> ByCategory { get; }
 }

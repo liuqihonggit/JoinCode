@@ -1,28 +1,24 @@
 #pragma warning disable JCC9001, JCC9002
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class CallGraphTests : IDisposable
-{
+public sealed class CallGraphTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly CallGraph _callGraph;
     private bool _disposed;
 
-    public CallGraphTests()
-    {
+    public CallGraphTests() {
         _store = new InMemoryIndexStore();
         _callGraph = new CallGraph(_store);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _store.DisposeSafe();
     }
 
     [Fact]
-    public async Task GetCallersAsync_ReturnsCallersOfSymbol()
-    {
+    public async Task GetCallersAsync_ReturnsCallersOfSymbol() {
         InsertCallEdge("Process", "Validate", "svc.cs", 10, CallKind.Direct);
         InsertCallEdge("Handle", "Validate", "handler.cs", 20, CallKind.Direct);
 
@@ -34,8 +30,7 @@ public sealed class CallGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetCalleesAsync_ReturnsCalleesOfSymbol()
-    {
+    public async Task GetCalleesAsync_ReturnsCalleesOfSymbol() {
         InsertCallEdge("Process", "Validate", "svc.cs", 10, CallKind.Direct);
         InsertCallEdge("Process", "Save", "svc.cs", 15, CallKind.Direct);
 
@@ -47,8 +42,7 @@ public sealed class CallGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetCallChainAsync_DirectChain_ReturnsPath()
-    {
+    public async Task GetCallChainAsync_DirectChain_ReturnsPath() {
         InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
         InsertCallEdge("B", "C", "b.cs", 1, CallKind.Direct);
 
@@ -62,8 +56,7 @@ public sealed class CallGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetCallChainAsync_NoPath_ReturnsEmpty()
-    {
+    public async Task GetCallChainAsync_NoPath_ReturnsEmpty() {
         InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
         InsertCallEdge("C", "D", "c.cs", 1, CallKind.Direct);
 
@@ -73,8 +66,7 @@ public sealed class CallGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetImpactScopeAsync_ReturnsAllAffectedSymbols()
-    {
+    public async Task GetImpactScopeAsync_ReturnsAllAffectedSymbols() {
         InsertCallEdge("Process", "Validate", "svc.cs", 10, CallKind.Direct);
         InsertCallEdge("Handle", "Process", "handler.cs", 5, CallKind.Direct);
         InsertCallEdge("Run", "Handle", "main.cs", 1, CallKind.Direct);
@@ -87,15 +79,13 @@ public sealed class CallGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetCallersAsync_NoCallers_ReturnsEmpty()
-    {
+    public async Task GetCallersAsync_NoCallers_ReturnsEmpty() {
         var callers = await _callGraph.GetCallersAsync("NonExistent", CancellationToken.None).ConfigureAwait(true);
         Assert.Empty(callers);
     }
 
     [Fact]
-    public async Task InvalidateCacheForFile_ThenQuery_ReturnsUpdatedResults()
-    {
+    public async Task InvalidateCacheForFile_ThenQuery_ReturnsUpdatedResults() {
         InsertCallEdge("A", "B", "old.cs", 1, CallKind.Direct);
 
         var callersBefore = await _callGraph.GetCallersAsync("B", CancellationToken.None).ConfigureAwait(true);
@@ -114,8 +104,7 @@ public sealed class CallGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task InvalidateCacheForFile_MultipleFiles_UpdatesBoth()
-    {
+    public async Task InvalidateCacheForFile_MultipleFiles_UpdatesBoth() {
         InsertCallEdge("A", "B", "file1.cs", 1, CallKind.Direct);
         InsertCallEdge("C", "D", "file2.cs", 1, CallKind.Direct);
 
@@ -139,8 +128,7 @@ public sealed class CallGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetCallChainAsync_WithCycle_ReturnsEmpty()
-    {
+    public async Task GetCallChainAsync_WithCycle_ReturnsEmpty() {
         InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
         InsertCallEdge("B", "C", "b.cs", 1, CallKind.Direct);
         InsertCallEdge("C", "A", "c.cs", 1, CallKind.Direct);
@@ -150,10 +138,8 @@ public sealed class CallGraphTests : IDisposable
         Assert.Empty(chain);
     }
 
-    private void InsertCallEdge(string caller, string callee, string file, int line, CallKind kind)
-    {
-        var edge = new CallEdge
-        {
+    private void InsertCallEdge(string caller, string callee, string file, int line, CallKind kind) {
+        var edge = new CallEdge {
             CallerSymbol = caller,
             CalleeSymbol = callee,
             CallSiteFilePath = file,
@@ -166,24 +152,19 @@ public sealed class CallGraphTests : IDisposable
         AddToBucket(_store.CallsByFile, file, edge);
     }
 
-    private void DeleteCallEdgesForFile(string filePath)
-    {
+    private void DeleteCallEdgesForFile(string filePath) {
         _store.CallEdges.RemoveAll(e => e.CallSiteFilePath == filePath);
-        foreach (var kv in _store.CallsByCaller)
-        {
+        foreach (var kv in _store.CallsByCaller) {
             kv.Value.RemoveAll(e => e.CallSiteFilePath == filePath);
         }
-        foreach (var kv in _store.CallsByCallee)
-        {
+        foreach (var kv in _store.CallsByCallee) {
             kv.Value.RemoveAll(e => e.CallSiteFilePath == filePath);
         }
         _store.CallsByFile.Remove(filePath);
     }
 
-    private static void AddToBucket<TKey>(Dictionary<TKey, List<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull
-    {
-        if (!dict.TryGetValue(key, out var list))
-        {
+    private static void AddToBucket<TKey>(Dictionary<TKey, List<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull {
+        if (!dict.TryGetValue(key, out var list)) {
             list = new List<CallEdge>();
             dict[key] = list;
         }

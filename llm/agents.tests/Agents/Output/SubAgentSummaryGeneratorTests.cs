@@ -1,13 +1,11 @@
 namespace Core.Agents;
 
 
-public sealed class SubAgentSummaryGeneratorTests
-{
+public sealed class SubAgentSummaryGeneratorTests {
     private static string GenerateText(int tokens) => new('x', tokens * 4);
 
     [Fact]
-    public async Task ClientNull_ReturnsSkipped()
-    {
+    public async Task ClientNull_ReturnsSkipped() {
         var sut = new SubAgentSummaryGenerator(client: null, config: new SubAgentSummaryConfig { Auto = true });
 
         var result = await sut.TrySummarizeAsync("agent-1", GenerateText(100), 50);
@@ -17,8 +15,7 @@ public sealed class SubAgentSummaryGeneratorTests
     }
 
     [Fact]
-    public async Task AutoDisabled_ReturnsSkipped()
-    {
+    public async Task AutoDisabled_ReturnsSkipped() {
         var clientMock = new Mock<ISubAgentSummaryClient>();
         var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = false });
 
@@ -29,8 +26,7 @@ public sealed class SubAgentSummaryGeneratorTests
     }
 
     [Fact]
-    public async Task OutputWithinBudget_ReturnsNotNeeded()
-    {
+    public async Task OutputWithinBudget_ReturnsNotNeeded() {
         var clientMock = new Mock<ISubAgentSummaryClient>();
         var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true });
 
@@ -41,8 +37,7 @@ public sealed class SubAgentSummaryGeneratorTests
     }
 
     [Fact]
-    public async Task LlmReturnsValidSummary_ReturnsSuccess()
-    {
+    public async Task LlmReturnsValidSummary_ReturnsSuccess() {
         var clientMock = new Mock<ISubAgentSummaryClient>();
         clientMock
             .Setup(c => c.SummarizeAsync(It.IsAny<string>(), "agent-1", 50, It.IsAny<CancellationToken>()))
@@ -58,8 +53,7 @@ public sealed class SubAgentSummaryGeneratorTests
     }
 
     [Fact]
-    public async Task LlmReturnsNull_ReturnsFailed()
-    {
+    public async Task LlmReturnsNull_ReturnsFailed() {
         var clientMock = new Mock<ISubAgentSummaryClient>();
         clientMock
             .Setup(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -74,8 +68,7 @@ public sealed class SubAgentSummaryGeneratorTests
     }
 
     [Fact]
-    public async Task LlmReturnsOversizedSummary_ReturnsFailed()
-    {
+    public async Task LlmReturnsOversizedSummary_ReturnsFailed() {
         var clientMock = new Mock<ISubAgentSummaryClient>();
         clientMock
             .Setup(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -89,8 +82,7 @@ public sealed class SubAgentSummaryGeneratorTests
     }
 
     [Fact]
-    public async Task LlmThrowsThenSucceeds_ReturnsSuccess()
-    {
+    public async Task LlmThrowsThenSucceeds_ReturnsSuccess() {
         var clientMock = new Mock<ISubAgentSummaryClient>();
         clientMock
             .SetupSequence(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -106,8 +98,7 @@ public sealed class SubAgentSummaryGeneratorTests
     }
 
     [Fact]
-    public async Task LlmThrowsAllRetries_ReturnsFailed()
-    {
+    public async Task LlmThrowsAllRetries_ReturnsFailed() {
         var clientMock = new Mock<ISubAgentSummaryClient>();
         clientMock
             .Setup(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -122,8 +113,7 @@ public sealed class SubAgentSummaryGeneratorTests
     }
 
     [Fact]
-    public async Task CancellationToken_PropagatesToClient()
-    {
+    public async Task CancellationToken_PropagatesToClient() {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 

@@ -15,8 +15,7 @@ public sealed record BackgroundAgentInfo(
 /// <summary>
 /// 后台代理行 VM — 管理面板单行（状态/耗时/统计/终止按钮可见性）
 /// </summary>
-public sealed class BackgroundAgentItemVm
-{
+public sealed class BackgroundAgentItemVm {
     private static readonly FrozenSet<string> RunningStates = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "running", "pending", "paused");
 
     /// <summary>子代理 ID</summary>
@@ -43,8 +42,7 @@ public sealed class BackgroundAgentItemVm
     public string StatsText { get; }
 
     /// <summary>初始化 BackgroundAgentItemVm 实例</summary>
-    public BackgroundAgentItemVm(BackgroundAgentInfo info)
-    {
+    public BackgroundAgentItemVm(BackgroundAgentInfo info) {
         AgentId = info.AgentId;
         Name = info.Name;
         Description = info.Description;
@@ -75,8 +73,7 @@ public sealed class BackgroundAgentItemVm
 /// IAgentService.GetRunningAgentsAsync / StopAgentAsync（fork 由其内部归并）。
 /// 直接读引擎权威列表，天然覆盖 fork 跨回合生命周期。
 /// </summary>
-public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject
-{
+public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
     private readonly Func<CancellationToken, Task<IReadOnlyList<BackgroundAgentInfo>>> _fetcher;
     private readonly Func<string, CancellationToken, Task<bool>> _stopper;
 
@@ -92,18 +89,15 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject
     /// <summary>初始化 BackgroundAgentsPanelViewModel 实例</summary>
     public BackgroundAgentsPanelViewModel(
         Func<CancellationToken, Task<IReadOnlyList<BackgroundAgentInfo>>> fetcher,
-        Func<string, CancellationToken, Task<bool>> stopper)
-    {
+        Func<string, CancellationToken, Task<bool>> stopper) {
         _fetcher = fetcher ?? throw new ArgumentNullException(nameof(fetcher));
         _stopper = stopper ?? throw new ArgumentNullException(nameof(stopper));
     }
 
     /// <summary>pill 点击：关闭时打开并刷新；已打开时仅收起（不重复拉取）</summary>
     [RelayCommand]
-    public async Task ToggleAndRefreshAsync()
-    {
-        if (IsOpen)
-        {
+    public async Task ToggleAndRefreshAsync() {
+        if (IsOpen) {
             IsOpen = false;
             return;
         }
@@ -113,16 +107,14 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject
 
     /// <summary>拉取引擎运行列表并重建行集合</summary>
     [RelayCommand]
-    public async Task RefreshAsync()
-    {
+    public async Task RefreshAsync() {
         var snapshot = await _fetcher(CancellationToken.None);
         ApplySnapshot(snapshot);
     }
 
     /// <summary>终止后台代理 — 成功后立即刷新剔除该行；引擎拒绝则保留等待下次刷新</summary>
     [RelayCommand]
-    public async Task StopAsync(string? agentId)
-    {
+    public async Task StopAsync(string? agentId) {
         if (string.IsNullOrEmpty(agentId))
             return;
         var stopped = await _stopper(agentId, CancellationToken.None);
@@ -134,8 +126,7 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject
     public event Action<int>? SnapshotApplied;
 
     /// <summary>用快照重建行集合（刷新与测试共用入口）</summary>
-    public void ApplySnapshot(IReadOnlyList<BackgroundAgentInfo> snapshot)
-    {
+    public void ApplySnapshot(IReadOnlyList<BackgroundAgentInfo> snapshot) {
         Items.Clear();
         foreach (var info in snapshot)
             Items.Add(new BackgroundAgentItemVm(info));

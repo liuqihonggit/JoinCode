@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Tools;
 /// <summary>
 /// 工具干预类型 — 用户可强制禁用/降权/重定向工具
 /// </summary>
-public enum InterventionType
-{
+public enum InterventionType {
     [EnumValue("blacklist")] Blacklist,
     [EnumValue("downgrade")] Downgrade,
     [EnumValue("redirect")] Redirect,
@@ -13,8 +12,7 @@ public enum InterventionType
 /// <summary>
 /// 工具干预规则 — 用户对工具的强制干预配置
 /// </summary>
-public sealed record InterventionRule
-{
+public sealed record InterventionRule {
     public required InterventionType Type { get; init; }
     public required string Reason { get; init; }
     public DateTime? Expiry { get; init; }

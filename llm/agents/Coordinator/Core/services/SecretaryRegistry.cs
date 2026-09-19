@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// 队长秘书注册表 — 管理队长与秘书的映射关系，确保每队长仅 spawn 一次秘书
 /// </summary>
-internal sealed class SecretaryRegistry
-{
+internal sealed class SecretaryRegistry {
     private readonly ConcurrentDictionary<string, string> _secretaries = new(StringComparer.Ordinal);
     private readonly Func<string, SubAgentOptions, CancellationToken, Task<IAgent>> _spawnFunc;
     private readonly ILogger? _logger;
@@ -14,8 +13,7 @@ internal sealed class SecretaryRegistry
     /// </summary>
     /// <param name="spawnFunc">spawn 子 Agent 的委托，签名为 (task, options, ct) → IAgent</param>
     /// <param name="logger">可选日志记录器</param>
-    public SecretaryRegistry(Func<string, SubAgentOptions, CancellationToken, Task<IAgent>> spawnFunc, ILogger? logger)
-    {
+    public SecretaryRegistry(Func<string, SubAgentOptions, CancellationToken, Task<IAgent>> spawnFunc, ILogger? logger) {
         _spawnFunc = spawnFunc;
         _logger = logger;
     }
@@ -28,12 +26,10 @@ internal sealed class SecretaryRegistry
     /// <param name="ownerId">队长标识（goalId 或 agentId）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>秘书的 agentId</returns>
-    public async Task<string> EnsureSecretaryAsync(string ownerId, CancellationToken cancellationToken = default)
-    {
+    public async Task<string> EnsureSecretaryAsync(string ownerId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
 
-        if (_secretaries.TryGetValue(ownerId, out var existingSecretaryId))
-        {
+        if (_secretaries.TryGetValue(ownerId, out var existingSecretaryId)) {
             return existingSecretaryId;
         }
 
@@ -46,8 +42,7 @@ internal sealed class SecretaryRegistry
             收到队长的指令后执行，完成后通过邮箱回复结果。不主动发起任务，只响应队长指令。
             """;
 
-        var secretaryOptions = new SubAgentOptions
-        {
+        var secretaryOptions = new SubAgentOptions {
             Role = AgentRole.Executor,
             Variant = ExecutorVariant.Teammate,
             DisplayName = "秘书",

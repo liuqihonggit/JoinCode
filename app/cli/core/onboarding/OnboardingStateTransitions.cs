@@ -5,8 +5,7 @@ namespace JoinCode.Cli;
 /// <para>原 OnboardingFlowController 分散赋值 _currentStep,现统一提取为转换表</para>
 /// <para>线性流程: Welcome→ApiKey→Security→TerminalSetup→Complete,支持前进和后退</para>
 /// </summary>
-public static class OnboardingStateTransitions
-{
+public static class OnboardingStateTransitions {
     /// <summary>
     /// 状态转换位掩码表 — 索引为 (int)OnboardingStep，值为目标状态位掩码。
     /// 替代 FrozenDictionary&lt;OnboardingStep, FrozenSet&lt;OnboardingStep&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
@@ -23,10 +22,8 @@ public static class OnboardingStateTransitions
     /// <summary>
     /// 是否可从 current 转换到 target — 自-环合法
     /// </summary>
-    public static bool CanTransitionTo(OnboardingStep current, OnboardingStep target)
-    {
-        if (current == target)
-        {
+    public static bool CanTransitionTo(OnboardingStep current, OnboardingStep target) {
+        if (current == target) {
             return true;
         }
 

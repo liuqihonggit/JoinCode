@@ -4,16 +4,14 @@ namespace Services.Api;
 /// API 速率限制追踪器，维护最新的速率限制快照
 /// </summary>
 [Register(typeof(IRateLimitTracker), ServiceLifetime.Singleton)]
-public sealed partial class RateLimitTracker : ServiceEntity, IRateLimitTracker
-{
+public sealed partial class RateLimitTracker : ServiceEntity, IRateLimitTracker {
     private volatile RateLimitSnapshot? _snapshot;
 
     /// <summary>
     /// 更新当前速率限制快照
     /// </summary>
     /// <param name="snapshot">新的速率限制快照</param>
-    public void Update(RateLimitSnapshot snapshot)
-    {
+    public void Update(RateLimitSnapshot snapshot) {
         ArgumentNullException.ThrowIfNull(snapshot);
         _snapshot = snapshot;
     }

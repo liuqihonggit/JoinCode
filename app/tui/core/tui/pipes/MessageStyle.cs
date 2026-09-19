@@ -4,8 +4,7 @@ namespace JoinCode.Tui.Pipes;
 /// 消息渲染样式 — 驱动 Terminal.Gui 颜色和字体属性。
 /// 所有颜色为 RGB 十六进制字符串（如 "#58a6ff"），由渲染层映射到 Terminal.Gui Color。
 /// </summary>
-public sealed record MessageStyle
-{
+public sealed record MessageStyle {
     /// <summary>前景色 RGB（如 "#58a6ff"）。null 表示使用默认前景色。</summary>
     public string? Foreground { get; init; }
 

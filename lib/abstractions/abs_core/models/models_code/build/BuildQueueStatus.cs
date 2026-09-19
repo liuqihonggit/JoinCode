@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Build;
 /// <summary>
 /// 编译队列状态
 /// </summary>
-public sealed record BuildQueueStatus
-{
+public sealed record BuildQueueStatus {
     /// <summary>
     /// 排队中数量
     /// </summary>

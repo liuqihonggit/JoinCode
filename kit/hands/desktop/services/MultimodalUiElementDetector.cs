@@ -5,13 +5,11 @@ namespace JoinCode.Hands.Desktop;
 /// 通过 IQueryService 调用支持 vision 的 LLM，解析 JSON 响应返回 UiElement
 /// </summary>
 [Register(typeof(IUiElementDetector), ServiceLifetime.Singleton)]
-public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElementDetector
-{
+public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElementDetector {
     private readonly IQueryService _queryService;
     private readonly ILogger<MultimodalUiElementDetector>? _logger;
 
-    private static readonly ChatOptions VisionChatOptions = new()
-    {
+    private static readonly ChatOptions VisionChatOptions = new() {
         Temperature = 0.3f,
         MaxTokens = 8000
     };
@@ -19,8 +17,7 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
     /// <summary>构造多模态 UI 元素检测器实例。</summary>
     /// <param name="queryService">LLM 查询服务，用于调用支持 vision 的模型识别 UI 元素。</param>
     /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
-    public MultimodalUiElementDetector(IQueryService queryService, ILogger<MultimodalUiElementDetector>? logger = null)
-    {
+    public MultimodalUiElementDetector(IQueryService queryService, ILogger<MultimodalUiElementDetector>? logger = null) {
         _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
         _logger = logger;
     }
@@ -31,15 +28,13 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
     /// <param name="base64Png">base64 编码的 PNG 截图</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>UI 元素列表（含类型/坐标/状态/语义描述）</returns>
-    public async Task<UiElementDetectionResult> DetectAsync(string base64Png, CancellationToken cancellationToken = default)
-    {
+    public async Task<UiElementDetectionResult> DetectAsync(string base64Png, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(base64Png);
         cancellationToken.ThrowIfCancellationRequested();
 
         var messages = new MessageList();
         messages.AddSystemMessage(DetectSystemPrompt);
-        messages.Add(new ApiMessage(MessageRole.User, "请识别这张截图中所有的 UI 元素，以 JSON 格式返回。")
-        {
+        messages.Add(new ApiMessage(MessageRole.User, "请识别这张截图中所有的 UI 元素，以 JSON 格式返回。") {
             ContentBlocks = [new ToolContent { Type = ToolContentType.Image, Data = base64Png, MimeType = "image/png" }]
         });
 
@@ -57,16 +52,14 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
     /// <param name="description">语义描述（自然语言）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>匹配度最高的元素，未找到返回 null</returns>
-    public async Task<UiElement?> FindByDescriptionAsync(string base64Png, string description, CancellationToken cancellationToken = default)
-    {
+    public async Task<UiElement?> FindByDescriptionAsync(string base64Png, string description, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(base64Png);
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
         cancellationToken.ThrowIfCancellationRequested();
 
         var messages = new MessageList();
         messages.AddSystemMessage(FindSystemPrompt);
-        messages.Add(new ApiMessage(MessageRole.User, $"在截图中查找符合以下描述的 UI 元素：{description}")
-        {
+        messages.Add(new ApiMessage(MessageRole.User, $"在截图中查找符合以下描述的 UI 元素：{description}") {
             ContentBlocks = [new ToolContent { Type = ToolContentType.Image, Data = base64Png, MimeType = "image/png" }]
         });
 
@@ -80,14 +73,12 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
     /// <summary>
     /// 解析检测响应 JSON → UiElementDetectionResult
     /// </summary>
-    internal static UiElementDetectionResult ParseDetectionResult(string responseText)
-    {
+    internal static UiElementDetectionResult ParseDetectionResult(string responseText) {
         var json = ExtractJson(responseText);
         if (string.IsNullOrEmpty(json))
             return new UiElementDetectionResult([], 0, 0);
 
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -98,17 +89,14 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
                 return new UiElementDetectionResult([], imageWidth, imageHeight);
 
             var elements = new List<UiElement>();
-            foreach (var el in elementsProp.EnumerateArray())
-            {
+            foreach (var el in elementsProp.EnumerateArray()) {
                 var element = ParseUiElement(el);
                 if (element is not null)
                     elements.Add(element);
             }
 
             return new UiElementDetectionResult(elements, imageWidth, imageHeight);
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             return new UiElementDetectionResult([], 0, 0);
         }
     }
@@ -116,14 +104,12 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
     /// <summary>
     /// 解析查找响应 JSON → 单个 UiElement
     /// </summary>
-    internal static UiElement? ParseFindResult(string responseText)
-    {
+    internal static UiElement? ParseFindResult(string responseText) {
         var json = ExtractJson(responseText);
         if (string.IsNullOrEmpty(json))
             return null;
 
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -134,9 +120,7 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
                 return ParseUiElement(elProp);
 
             return null;
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             return null;
         }
     }
@@ -144,8 +128,7 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
     /// <summary>
     /// 解析单个 UI 元素 JSON 对象 → UiElement record
     /// </summary>
-    internal static UiElement? ParseUiElement(JsonElement el)
-    {
+    internal static UiElement? ParseUiElement(JsonElement el) {
         if (el.ValueKind != JsonValueKind.Object)
             return null;
 
@@ -171,8 +154,7 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
     /// <summary>
     /// 字符串 → UiElementType 枚举（容错映射，未知返回 Unknown）
     /// </summary>
-    internal static UiElementType ParseElementType(string? type) => (type ?? string.Empty).ToLowerInvariant() switch
-    {
+    internal static UiElementType ParseElementType(string? type) => (type ?? string.Empty).ToLowerInvariant() switch {
         "button" or "btn" => UiElementType.Button,
         "textbox" or "text_box" or "input" or "textinput" => UiElementType.TextBox,
         "menu" => UiElementType.Menu,
@@ -195,8 +177,7 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
     /// <summary>
     /// 字符串 → ElementState 枚举（容错映射，未知返回 Normal）
     /// </summary>
-    internal static ElementState ParseElementState(string? state) => (state ?? string.Empty).ToLowerInvariant() switch
-    {
+    internal static ElementState ParseElementState(string? state) => (state ?? string.Empty).ToLowerInvariant() switch {
         "normal" or "default" or "enabled" => ElementState.Normal,
         "disabled" or "disable" or "grayed" => ElementState.Disabled,
         "selected" or "checked" => ElementState.Selected,

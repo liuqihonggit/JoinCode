@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 鼠标动作类型 — 对应 Win32 SendInput 的 MOUSEEVENTF_* 标志
 /// </summary>
-public enum MouseAction
-{
+public enum MouseAction {
     /// <summary>移动光标（不按下）</summary>
     [EnumValue("move")] Move,
 

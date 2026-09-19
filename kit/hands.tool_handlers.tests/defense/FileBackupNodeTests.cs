@@ -1,12 +1,10 @@
 namespace Core.Tests;
 
-public class FileBackupNodeTests
-{
+public class FileBackupNodeTests {
     private readonly IFileSystem _fs = TestFileSystem.Current;
 
     [Fact]
-    public async Task BackupAsync_NullService_SkipsSilently()
-    {
+    public async Task BackupAsync_NullService_SkipsSilently() {
         var node = new FileBackupNode(_fs);
         var filePath = CreateFile("test content");
 
@@ -14,8 +12,7 @@ public class FileBackupNodeTests
     }
 
     [Fact]
-    public async Task BackupAsync_FileNotExists_SkipsSilently()
-    {
+    public async Task BackupAsync_FileNotExists_SkipsSilently() {
         var history = new Mock<IFileHistoryService>();
         var node = new FileBackupNode(_fs, history.Object);
 
@@ -25,8 +22,7 @@ public class FileBackupNodeTests
     }
 
     [Fact]
-    public async Task BackupAsync_FileExists_CallsBackup()
-    {
+    public async Task BackupAsync_FileExists_CallsBackup() {
         var history = new Mock<IFileHistoryService>();
         history.Setup(h => h.BackupBeforeWriteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                .Returns(Task.FromResult<string?>(null))
@@ -39,8 +35,7 @@ public class FileBackupNodeTests
         history.Verify();
     }
 
-    private string CreateFile(string content)
-    {
+    private string CreateFile(string content) {
         var path = Path.Combine(Path.GetTempPath(), $"backup_test_{Guid.NewGuid():N}.txt");
         _fs.WriteAllText(path, content);
         return path;

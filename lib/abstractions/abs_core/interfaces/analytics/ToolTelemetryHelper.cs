@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 工具遥测辅助类 — 统一工具 Handler/Middleware 的遥测记录模式
 /// 消除各 Handler 中重复的 RecordXxxMetrics 私有方法
 /// </summary>
-public static class ToolTelemetryHelper
-{
+public static class ToolTelemetryHelper {
     /// <summary>
     /// 记录工具操作计数 — 统一 pattern: metricName + tags
     /// </summary>

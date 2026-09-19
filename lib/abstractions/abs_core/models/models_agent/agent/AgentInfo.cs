@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// <summary>
 /// 跨进程 Agent 注册信息 — 用于本机 agent 发现
 /// </summary>
-public sealed class AgentRegistryInfo
-{
+public sealed class AgentRegistryInfo {
     /// <summary>Agent 唯一标识</summary>
     public required string AgentId { get; init; }
 

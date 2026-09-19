@@ -1,11 +1,9 @@
 namespace Core.Tests.Context;
 
 
-public class DiagnosticLogRecorderTests
-{
+public class DiagnosticLogRecorderTests {
     [Fact]
-    public async Task InvokeAsync_RecordsTurnStartAndEnd()
-    {
+    public async Task InvokeAsync_RecordsTurnStartAndEnd() {
         var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
@@ -22,8 +20,7 @@ public class DiagnosticLogRecorderTests
     }
 
     [Fact]
-    public async Task InvokeAsync_RecordsToolStartAndEnd()
-    {
+    public async Task InvokeAsync_RecordsToolStartAndEnd() {
         var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
@@ -43,8 +40,7 @@ public class DiagnosticLogRecorderTests
     }
 
     [Fact]
-    public async Task InvokeAsync_RecordsToolErrorAsAnomaly()
-    {
+    public async Task InvokeAsync_RecordsToolErrorAsAnomaly() {
         var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
@@ -63,8 +59,7 @@ public class DiagnosticLogRecorderTests
     }
 
     [Fact]
-    public async Task InvokeAsync_RecordsLoopDetectedAsAnomaly()
-    {
+    public async Task InvokeAsync_RecordsLoopDetectedAsAnomaly() {
         var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
@@ -82,8 +77,7 @@ public class DiagnosticLogRecorderTests
     }
 
     [Fact]
-    public async Task InvokeAsync_LoopDetected_ContainsRepeatedPattern()
-    {
+    public async Task InvokeAsync_LoopDetected_ContainsRepeatedPattern() {
         var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
@@ -100,8 +94,7 @@ public class DiagnosticLogRecorderTests
     }
 
     [Fact]
-    public async Task InvokeAsync_EveryEntry_ContainsTraceField()
-    {
+    public async Task InvokeAsync_EveryEntry_ContainsTraceField() {
         var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
@@ -120,8 +113,7 @@ public class DiagnosticLogRecorderTests
     }
 
     [Fact]
-    public async Task InvokeAsync_LoopDetected_ContainsTriggerCountAndStartIndex()
-    {
+    public async Task InvokeAsync_LoopDetected_ContainsTriggerCountAndStartIndex() {
         var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
@@ -139,8 +131,7 @@ public class DiagnosticLogRecorderTests
     }
 
     [Fact]
-    public async Task InvokeAsync_RecordsApiCompleteWithUsage()
-    {
+    public async Task InvokeAsync_RecordsApiCompleteWithUsage() {
         var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
@@ -158,8 +149,7 @@ public class DiagnosticLogRecorderTests
     }
 
     [Fact]
-    public async Task InvokeAsync_PassesThroughAllEvents()
-    {
+    public async Task InvokeAsync_PassesThroughAllEvents() {
         var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
@@ -173,8 +163,7 @@ public class DiagnosticLogRecorderTests
         };
 
         var output = new List<ChatStreamEvent>();
-        await foreach (var evt in recorder.InvokeAsync(context, (_, _) => EventsAsync(events), CancellationToken.None))
-        {
+        await foreach (var evt in recorder.InvokeAsync(context, (_, _) => EventsAsync(events), CancellationToken.None)) {
             output.Add(evt);
         }
 
@@ -187,8 +176,7 @@ public class DiagnosticLogRecorderTests
     }
 
     [Fact]
-    public async Task InvokeAsync_CreatesDiagDirectory()
-    {
+    public async Task InvokeAsync_CreatesDiagDirectory() {
         var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
@@ -199,31 +187,25 @@ public class DiagnosticLogRecorderTests
         Assert.True(true);
     }
 
-    private static DiagnosticLogRecorder CreateRecorder(IFileSystem fs)
-    {
+    private static DiagnosticLogRecorder CreateRecorder(IFileSystem fs) {
         return new DiagnosticLogRecorder(fs, NullLogger<DiagnosticLogRecorder>.Instance);
     }
 
-    private static ChatMiddlewareContext CreateContext()
-    {
-        return new ChatMiddlewareContext
-        {
+    private static ChatMiddlewareContext CreateContext() {
+        return new ChatMiddlewareContext {
             Message = "test message",
             ToolUseContext = new ToolUseContext(),
         };
     }
 
-    private static async IAsyncEnumerable<ChatStreamEvent> EventsAsync(IReadOnlyList<ChatStreamEvent> events)
-    {
-        foreach (var evt in events)
-        {
+    private static async IAsyncEnumerable<ChatStreamEvent> EventsAsync(IReadOnlyList<ChatStreamEvent> events) {
+        foreach (var evt in events) {
             yield return evt;
             await Task.Yield();
         }
     }
 
-    private static async Task<string> ReadLogContentAsync(IFileSystem fs)
-    {
+    private static async Task<string> ReadLogContentAsync(IFileSystem fs) {
         var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
 
         if (!fs.DirectoryExists(sessionsDir))
@@ -231,13 +213,10 @@ public class DiagnosticLogRecorderTests
 
         var files = fs.GetFiles(sessionsDir, "*.json", SearchOption.AllDirectories);
         var sb = new StringBuilder();
-        foreach (var file in files)
-        {
-            try
-            {
+        foreach (var file in files) {
+            try {
                 sb.Append(await fs.ReadAllTextAsync(file, CancellationToken.None));
-            }
-            catch (FileNotFoundException) { Assert.Fail("不应到达此处"); }
+            } catch (FileNotFoundException) { Assert.Fail("不应到达此处"); }
         }
         return sb.ToString();
     }

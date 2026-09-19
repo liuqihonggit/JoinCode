@@ -3,11 +3,9 @@ namespace Core.Utils;
 /// <summary>
 /// PriorityMailbox 单元测试 — 验证优先级消费顺序、FIFO、背压、Dispose、异常容错。
 /// </summary>
-public class PriorityMailboxTest
-{
+public class PriorityMailboxTest {
     [Fact]
-    public async Task HighPriority_ProcessedBeforeLowPriority()
-    {
+    public async Task HighPriority_ProcessedBeforeLowPriority() {
         await using var actor = new PriorityTestActor(startConsuming: false);
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
@@ -24,8 +22,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task NormalPriority_ProcessedBeforeLowPriority()
-    {
+    public async Task NormalPriority_ProcessedBeforeLowPriority() {
         await using var actor = new PriorityTestActor(startConsuming: false);
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
@@ -42,8 +39,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task HighPriority_ProcessedBeforeNormalPriority()
-    {
+    public async Task HighPriority_ProcessedBeforeNormalPriority() {
         await using var actor = new PriorityTestActor(startConsuming: false);
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
@@ -60,14 +56,12 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task SamePriority_FifoOrder()
-    {
+    public async Task SamePriority_FifoOrder() {
         await using var actor = new PriorityTestActor(startConsuming: false);
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
 
-        for (var i = 1; i <= 5; i++)
-        {
+        for (var i = 1; i <= 5; i++) {
             await actor.SendAsync(i, MessagePriority.Normal);
         }
 
@@ -79,8 +73,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task MixedPriority_HighAlwaysFirst()
-    {
+    public async Task MixedPriority_HighAlwaysFirst() {
         await using var actor = new PriorityTestActor(startConsuming: false);
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
@@ -103,8 +96,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task MailboxCount_ReflectsTotalAcrossChannels()
-    {
+    public async Task MailboxCount_ReflectsTotalAcrossChannels() {
         var bp = new ActorBackpressure(Capacity: 10);
         await using var actor = new PriorityTestActor(bp, bp, bp);
 
@@ -117,8 +109,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task Dispose_ThrowsObjectDisposedException_OnSend()
-    {
+    public async Task Dispose_ThrowsObjectDisposedException_OnSend() {
         var actor = new PriorityTestActor();
         await actor.DisposeAsync();
 
@@ -127,8 +118,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task ConsumerError_DoesNotStopConsumer()
-    {
+    public async Task ConsumerError_DoesNotStopConsumer() {
         await using var actor = new ErrorTestActor();
         var tcs1 = new TaskCompletionSource<int>();
         var tcs2 = new TaskCompletionSource<int>();
@@ -141,8 +131,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task TrySend_ReturnsTrue_WhenChannelHasSpace()
-    {
+    public async Task TrySend_ReturnsTrue_WhenChannelHasSpace() {
         var bp = new ActorBackpressure(Capacity: 10);
         await using var actor = new PriorityTestActor(bp, bp, bp);
 
@@ -153,8 +142,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task TrySend_ReturnsFalse_WhenBoundedChannelFull()
-    {
+    public async Task TrySend_ReturnsFalse_WhenBoundedChannelFull() {
         var bp = new ActorBackpressure(Capacity: 1, FullMode: BoundedChannelFullMode.Wait);
         await using var actor = new PriorityTestActor(bp, bp, bp);
         var gateTcs = new TaskCompletionSource();
@@ -171,8 +159,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task IndependentBackpressure_PerPriorityChannel()
-    {
+    public async Task IndependentBackpressure_PerPriorityChannel() {
         var highBp = new ActorBackpressure(Capacity: 2, HighWatermark: 1, CriticalWatermark: 2);
         await using var actor = new PriorityTestActor(highBackpressure: highBp);
         var gateTcs = new TaskCompletionSource();
@@ -190,8 +177,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task PriorityWatermarkReached_EventFires()
-    {
+    public async Task PriorityWatermarkReached_EventFires() {
         var highBp = new ActorBackpressure(Capacity: 10, HighWatermark: 2, CriticalWatermark: 8);
         await using var actor = new PriorityTestActor(highBackpressure: highBp);
         var gateTcs = new TaskCompletionSource();
@@ -200,8 +186,7 @@ public class PriorityMailboxTest
         var events = new List<PriorityBackpressureEventArgs>();
         actor.PriorityWatermarkReached += (_, e) => events.Add(e);
 
-        for (var i = 0; i < 4; i++)
-        {
+        for (var i = 0; i < 4; i++) {
             await actor.SendAsync(i, MessagePriority.High);
         }
 
@@ -214,8 +199,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task SendTimeout_ThrowsTimeoutException_WhenChannelFull()
-    {
+    public async Task SendTimeout_ThrowsTimeoutException_WhenChannelFull() {
         var highBp = new ActorBackpressure(
             Capacity: 1,
             FullMode: BoundedChannelFullMode.Wait,
@@ -237,8 +221,7 @@ public class PriorityMailboxTest
     }
 
     [Fact]
-    public async Task ConcurrentProducers_ThreadSafe()
-    {
+    public async Task ConcurrentProducers_ThreadSafe() {
         await using var actor = new PriorityTestActor();
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
@@ -247,12 +230,9 @@ public class PriorityMailboxTest
         const int messagesPerProducer = 25;
 
         var producers = Enumerable.Range(0, producerCount).Select(pid =>
-            Task.Run(async () =>
-            {
-                for (var i = 0; i < messagesPerProducer; i++)
-                {
-                    var priority = (i % 3) switch
-                    {
+            Task.Run(async () => {
+                for (var i = 0; i < messagesPerProducer; i++) {
+                    var priority = (i % 3) switch {
                         0 => MessagePriority.High,
                         1 => MessagePriority.Normal,
                         _ => MessagePriority.Low
@@ -274,11 +254,9 @@ public class PriorityMailboxTest
         actor.ProcessedOrder.ToHashSet().Should().BeEquivalentTo(expectedSet);
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
-    {
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout) {
         var deadline = DateTimeOffset.UtcNow + timeout;
-        while (!condition())
-        {
+        while (!condition()) {
             if (DateTimeOffset.UtcNow > deadline)
                 throw new TimeoutException($"等待条件超时({timeout.TotalSeconds:F0}s)");
             await Task.Delay(10);
@@ -289,13 +267,11 @@ public class PriorityMailboxTest
 /// <summary>
 /// 优先级测试用 Actor — 命令为 int,处理顺序记录在 ProcessedOrder。
 /// </summary>
-internal sealed class PriorityTestActor : PriorityMailbox<int>
-{
+internal sealed class PriorityTestActor : PriorityMailbox<int> {
     public readonly List<int> ProcessedOrder = new();
     private TaskCompletionSource _gate = CreateCompletedGate();
 
-    private static TaskCompletionSource CreateCompletedGate()
-    {
+    private static TaskCompletionSource CreateCompletedGate() {
         var tcs = new TaskCompletionSource();
         tcs.SetResult();
         return tcs;
@@ -306,8 +282,7 @@ internal sealed class PriorityTestActor : PriorityMailbox<int>
         ActorBackpressure? normalBackpressure = null,
         ActorBackpressure? lowBackpressure = null,
         bool startConsuming = true)
-        : base(highBackpressure, normalBackpressure, lowBackpressure, startConsuming)
-    {
+        : base(highBackpressure, normalBackpressure, lowBackpressure, startConsuming) {
     }
 
     public void StartConsumer() => StartConsuming();
@@ -318,8 +293,7 @@ internal sealed class PriorityTestActor : PriorityMailbox<int>
 
     public new bool TrySend(int command, MessagePriority priority) => base.TrySend(command, priority);
 
-    protected override async ValueTask HandleAsync(int command, MessagePriority priority, CancellationToken ct)
-    {
+    protected override async ValueTask HandleAsync(int command, MessagePriority priority, CancellationToken ct) {
         await _gate.Task.WaitAsync(ct);
         ProcessedOrder.Add(command);
     }
@@ -328,25 +302,22 @@ internal sealed class PriorityTestActor : PriorityMailbox<int>
 /// <summary>
 /// 异常容错测试用 Actor — ThrowCommand 抛异常,NormalCommand 正常处理。
 /// </summary>
-internal sealed class ErrorTestActor : PriorityMailbox<ErrorTestActor.ICommand>
-{
+internal sealed class ErrorTestActor : PriorityMailbox<ErrorTestActor.ICommand> {
     internal interface ICommand;
     internal sealed record ThrowCommand(TaskCompletionSource<int> Tcs) : ICommand;
     internal sealed record NormalCommand(TaskCompletionSource<int> Tcs) : ICommand;
 
     private int _value;
 
-    protected override async ValueTask HandleAsync(ICommand command, MessagePriority priority, CancellationToken ct)
-    {
-        switch (command)
-        {
+    protected override async ValueTask HandleAsync(ICommand command, MessagePriority priority, CancellationToken ct) {
+        switch (command) {
             case ThrowCommand(var tcs):
-                tcs.TrySetResult(0);
-                throw new InvalidOperationException("测试异常");
+            tcs.TrySetResult(0);
+            throw new InvalidOperationException("测试异常");
             case NormalCommand(var tcs):
-                _value++;
-                tcs.TrySetResult(_value);
-                return;
+            _value++;
+            tcs.TrySetResult(_value);
+            return;
         }
     }
 

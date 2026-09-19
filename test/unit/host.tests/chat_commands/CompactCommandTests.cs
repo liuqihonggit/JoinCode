@@ -1,45 +1,38 @@
 namespace Host.Tests.ChatCommands;
 
-public sealed class CompactCommandTests
-{
+public sealed class CompactCommandTests {
     [Fact]
-    public void Name_Should_Be_compact()
-    {
+    public void Name_Should_Be_compact() {
         var cmd = new CompactCommand();
         cmd.Name.Should().Be("compact");
     }
 
     [Fact]
-    public void Description_Should_Contain_压缩()
-    {
+    public void Description_Should_Contain_压缩() {
         var cmd = new CompactCommand();
         cmd.Description.Should().Contain("压缩");
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new CompactCommand();
         cmd.Usage.Should().StartWith("/compact");
     }
 
     [Fact]
-    public void Aliases_Should_Contain_comp()
-    {
+    public void Aliases_Should_Contain_comp() {
         var cmd = new CompactCommand();
         cmd.Aliases.Should().Contain("comp");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new CompactCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public async Task Execute_Should_Return_Continue()
-    {
+    public async Task Execute_Should_Return_Continue() {
         var cmd = new CompactCommand();
         var chatService = new Mock<IChatService>();
         chatService.Setup(cs => cs.GetMessageListAsync(It.IsAny<CancellationToken>()))
@@ -48,13 +41,12 @@ public sealed class CompactCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = chatService.Object,
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -64,8 +56,7 @@ public sealed class CompactCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithMessageList_Should_Return_Continue()
-    {
+    public async Task Execute_WithMessageList_Should_Return_Continue() {
         var cmd = new CompactCommand();
         var chatService = new Mock<IChatService>();
         chatService.Setup(cs => cs.GetMessageListAsync(It.IsAny<CancellationToken>()))
@@ -80,13 +71,12 @@ public sealed class CompactCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = chatService.Object,
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -96,8 +86,7 @@ public sealed class CompactCommandTests
     }
 
     [Fact]
-    public void CalculateOriginalMetrics_WithMultipleMessages_ShouldReturnCorrectCount()
-    {
+    public void CalculateOriginalMetrics_WithMultipleMessages_ShouldReturnCorrectCount() {
         var history = new List<ApiMessageRecord>
         {
             new() { Role = "user", Content = "Hello" },
@@ -114,8 +103,7 @@ public sealed class CompactCommandTests
     }
 
     [Fact]
-    public void CalculateOriginalMetrics_WithEmptyHistory_ShouldReturnZero()
-    {
+    public void CalculateOriginalMetrics_WithEmptyHistory_ShouldReturnZero() {
         var history = new List<ApiMessageRecord>();
 
         var (count, estimatedTokens) = CompactCommand.CalculateOriginalMetrics(history);
@@ -125,8 +113,7 @@ public sealed class CompactCommandTests
     }
 
     [Fact]
-    public void CalculateOriginalMetrics_WithLongContent_ShouldEstimateTokensRoughlyCorrect()
-    {
+    public void CalculateOriginalMetrics_WithLongContent_ShouldEstimateTokensRoughlyCorrect() {
         var history = new List<ApiMessageRecord>
         {
             new() { Role = "user", Content = new string('a', 4000) },
@@ -139,8 +126,7 @@ public sealed class CompactCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithEmptyHistory_ShouldShowZeroTokensSaved()
-    {
+    public async Task Execute_WithEmptyHistory_ShouldShowZeroTokensSaved() {
         var cmd = new CompactCommand();
         var chatService = new Mock<IChatService>();
         chatService.Setup(cs => cs.GetMessageListAsync(It.IsAny<CancellationToken>()))
@@ -149,13 +135,12 @@ public sealed class CompactCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = chatService.Object,
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

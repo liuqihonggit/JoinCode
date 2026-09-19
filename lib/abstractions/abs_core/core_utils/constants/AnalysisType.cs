@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 代码分析类型枚举
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 AnalysisTypeEnumConstants + AnalysisTypeExtensions
 /// </summary>
-public enum AnalysisType
-{
+public enum AnalysisType {
     /// <summary>Bug检测</summary>
     [EnumValue("bugs")] Bugs = 0,
 

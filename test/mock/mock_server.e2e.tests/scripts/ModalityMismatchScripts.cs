@@ -4,14 +4,12 @@ namespace MockServer.E2E.Tests.Scripts;
 /// 模态不匹配拦截 E2E 测试脚本 — 验证完整链路：
 /// 媒介意图检测 → 注入标准报错文本 → ModelSearch 查找模型 → Agent 子代理 → 结果返回
 /// </summary>
-public static class ModalityMismatchScripts
-{
+public static class ModalityMismatchScripts {
     /// <summary>
     /// 图片生成意图 — gpt-4o 不支持 GenerateImage
     /// MockServer 模拟 LLM 收到报错后调用 ModelSearch 查找支持图片生成的模型
     /// </summary>
-    public static ConversationScript ImageGenerationMismatch => new()
-    {
+    public static ConversationScript ImageGenerationMismatch => new() {
         Name = "模态不匹配-图片生成意图",
         Turns =
         [
@@ -45,8 +43,7 @@ public static class ModalityMismatchScripts
     /// <summary>
     /// 视频识别意图 — gpt-4o 不支持 ReadVideo
     /// </summary>
-    public static ConversationScript VideoRecognitionMismatch => new()
-    {
+    public static ConversationScript VideoRecognitionMismatch => new() {
         Name = "模态不匹配-视频识别意图",
         Turns =
         [
@@ -81,8 +78,7 @@ public static class ModalityMismatchScripts
     /// 图片识别意图 — gpt-4o（纯文本配置）不支持 ReadImage
     /// MockServer 模拟 LLM 收到报错后调用 ModelSearch 查找支持图片识别的模型
     /// </summary>
-    public static ConversationScript ImageRecognitionMismatch => new()
-    {
+    public static ConversationScript ImageRecognitionMismatch => new() {
         Name = "模态不匹配-图片识别意图",
         Turns =
         [
@@ -118,8 +114,7 @@ public static class ModalityMismatchScripts
     /// MockServer 先返回 ModelSearch 工具调用，FollowUpText 返回 Agent 工具调用
     /// ExtraTextResponses 提供子代理的 LLM 调用和最终跟进
     /// </summary>
-    public static ConversationScript ModalityMismatchWithAgentSpawn => new()
-    {
+    public static ConversationScript ModalityMismatchWithAgentSpawn => new() {
         Name = "模态不匹配-完整ModelSearch到Agent子代理链路",
         Turns =
         [
@@ -186,8 +181,7 @@ public static class ModalityMismatchScripts
     /// 识图完整链路 — ModelSearch(map[readImage]) → Agent 子代理(识图模型) → 看图片内容
     /// 纯文本模型收到识图任务 → 预检不匹配 → LLM 调用 ModelSearch 找识图模型 → Agent 子代理执行识图
     /// </summary>
-    public static ConversationScript ImageRecognitionWithAgentSpawn => new()
-    {
+    public static ConversationScript ImageRecognitionWithAgentSpawn => new() {
         Name = "模态不匹配-识图完整ModelSearch到Agent子代理链路",
         Turns =
         [
@@ -253,8 +247,7 @@ public static class ModalityMismatchScripts
     /// <summary>
     /// 纯文本消息不应触发模态不匹配 — 验证无注入提示时正常对话
     /// </summary>
-    public static ConversationScript NoMismatchForTextOnly => new()
-    {
+    public static ConversationScript NoMismatchForTextOnly => new() {
         Name = "纯文本消息-不触发模态不匹配",
         Turns =
         [

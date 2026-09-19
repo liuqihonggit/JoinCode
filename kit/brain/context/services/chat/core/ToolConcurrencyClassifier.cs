@@ -7,8 +7,7 @@ namespace Core.Context;
 /// - 不在集合中的工具默认非并发安全
 /// - Bash/PowerShell 特殊处理：只读命令并发安全，写命令不安全
 /// </summary>
-public interface IToolConcurrencyClassifier
-{
+public interface IToolConcurrencyClassifier {
     /// <summary>
     /// 判断工具调用是否并发安全
     /// </summary>
@@ -24,8 +23,7 @@ public interface IToolConcurrencyClassifier
 /// 静态分类由源码生成器生成 SafeToolNames（通过 DI 注入），动态分类（Bash 只读判断）由委托注入
 /// </summary>
 [Register(typeof(IToolConcurrencyClassifier), ServiceLifetime.Singleton)]
-public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConcurrencyClassifier
-{
+public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConcurrencyClassifier {
     private readonly FrozenSet<string> _safeToolNames;
     private readonly Func<string, bool>? _isCommandReadOnly;
     private readonly ILogger<ToolConcurrencyClassifier>? _logger;
@@ -39,16 +37,14 @@ public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConc
     public ToolConcurrencyClassifier(
         FrozenSet<string>? safeToolNames = null,
         Func<string, bool>? isCommandReadOnly = null,
-        ILogger<ToolConcurrencyClassifier>? logger = null)
-    {
+        ILogger<ToolConcurrencyClassifier>? logger = null) {
         _safeToolNames = safeToolNames ?? FrozenSet<string>.Empty;
         _isCommandReadOnly = isCommandReadOnly;
         _logger = logger;
     }
 
     /// <inheritdoc/>
-    public Task<bool> IsConcurrencySafeAsync(string toolName, Dictionary<string, JsonElement>? arguments, CancellationToken ct = default)
-    {
+    public Task<bool> IsConcurrencySafeAsync(string toolName, Dictionary<string, JsonElement>? arguments, CancellationToken ct = default) {
         if (_safeToolNames.Contains(toolName))
             return Task.FromResult(true);
 
@@ -61,8 +57,7 @@ public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConc
     /// <summary>
     /// 判断是否为 Bash 类工具 — 对齐 TS BashTool
     /// </summary>
-    private static bool IsBashLikeTool(string toolName)
-    {
+    private static bool IsBashLikeTool(string toolName) {
         return string.Equals(toolName, ShellToolNameEnumConstants.Bash, StringComparison.OrdinalIgnoreCase)
             || string.Equals(toolName, ShellToolNameEnumConstants.Powershell, StringComparison.OrdinalIgnoreCase)
             || string.Equals(toolName, ShellToolNameEnumConstants.PowershellScript, StringComparison.OrdinalIgnoreCase);
@@ -71,8 +66,7 @@ public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConc
     /// <summary>
     /// 判断 Bash 命令是否只读 — 对齐 TS BashTool.isConcurrencySafe(input) { return this.isReadOnly?.(input) ?? false }
     /// </summary>
-    private bool IsBashReadOnly(Dictionary<string, JsonElement>? arguments)
-    {
+    private bool IsBashReadOnly(Dictionary<string, JsonElement>? arguments) {
         if (_isCommandReadOnly is null)
             return false;
 
@@ -80,12 +74,9 @@ public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConc
             return false;
 
         var command = cmdEl.GetString()!;
-        try
-        {
+        try {
             return _isCommandReadOnly(command);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ToolConcurrencyClassifier] Bash 只读检测失败，默认非并发安全");
             return false;
         }

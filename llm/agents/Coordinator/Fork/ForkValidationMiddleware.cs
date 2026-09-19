@@ -4,15 +4,13 @@ namespace Core.Agents.Coordinator;
 /// Fork 验证中间件 — 递归防护和深度限制检查
 /// </summary>
 [Register(typeof(IForkMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ForkValidationMiddleware : ServiceEntity, IForkMiddleware
-{
+public sealed partial class ForkValidationMiddleware : ServiceEntity, IForkMiddleware {
 
     /// <summary>
     /// 初始化 Fork 验证中间件
     /// </summary>
     /// <param name="logger">日志记录器</param>
-    public ForkValidationMiddleware(ILogger<ForkValidationMiddleware>? logger = null)
-    {
+    public ForkValidationMiddleware(ILogger<ForkValidationMiddleware>? logger = null) {
         _logger = logger;
     }
     private readonly ILogger<ForkValidationMiddleware>? _logger;
@@ -28,11 +26,9 @@ public sealed partial class ForkValidationMiddleware : ServiceEntity, IForkMiddl
     /// <param name="next">下一中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct) {
         // 递归防护: 检查是否已在 fork 子代理上下文中
-        if (context.Options.ParentMessageList is not null && ForkMessageBuilder.IsInForkChild(context.Options.ParentMessageList))
-        {
+        if (context.Options.ParentMessageList is not null && ForkMessageBuilder.IsInForkChild(context.Options.ParentMessageList)) {
             _logger?.LogWarning("Fork rejected: already in fork child context for parent {ParentSessionId}",
                 context.Options.ParentSessionId);
 
@@ -47,8 +43,7 @@ public sealed partial class ForkValidationMiddleware : ServiceEntity, IForkMiddl
         }
 
         // 深度限制检查（ForkDepth 由 Manager 在管道执行前预计算）
-        if (context.ForkDepth >= context.Options.MaxForkDepth)
-        {
+        if (context.ForkDepth >= context.Options.MaxForkDepth) {
             _logger?.LogWarning("Fork depth limit reached: {Depth} >= {MaxDepth} for parent {ParentSessionId}",
                 context.ForkDepth, context.Options.MaxForkDepth, context.Options.ParentSessionId);
 

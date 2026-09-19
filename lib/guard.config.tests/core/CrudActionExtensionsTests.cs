@@ -5,61 +5,51 @@ namespace Host.Tests.ChatCommands;
 /// 覆盖:ToValue / FromValue / IsDefined / CrudActionEnumConstants 常量值 / 大小写不敏感
 /// 9 个枚举值 (List/Ls/Create/New/Read/Update/Delete/Rm/Remove) + 别名映射测试
 /// </summary>
-public sealed class CrudActionExtensionsTests
-{
+public sealed class CrudActionExtensionsTests {
     // ===== ToValue 测试 =====
 
     [Fact]
-    public void ToValue_List_Should_Return_list()
-    {
+    public void ToValue_List_Should_Return_list() {
         CrudAction.List.ToValue().Should().Be("list");
     }
 
     [Fact]
-    public void ToValue_Ls_Should_Return_ls()
-    {
+    public void ToValue_Ls_Should_Return_ls() {
         CrudAction.Ls.ToValue().Should().Be("ls");
     }
 
     [Fact]
-    public void ToValue_Create_Should_Return_create()
-    {
+    public void ToValue_Create_Should_Return_create() {
         CrudAction.Create.ToValue().Should().Be("create");
     }
 
     [Fact]
-    public void ToValue_New_Should_Return_new()
-    {
+    public void ToValue_New_Should_Return_new() {
         CrudAction.New.ToValue().Should().Be("new");
     }
 
     [Fact]
-    public void ToValue_Read_Should_Return_read()
-    {
+    public void ToValue_Read_Should_Return_read() {
         CrudAction.Read.ToValue().Should().Be("read");
     }
 
     [Fact]
-    public void ToValue_Update_Should_Return_update()
-    {
+    public void ToValue_Update_Should_Return_update() {
         CrudAction.Update.ToValue().Should().Be("update");
     }
 
     [Fact]
-    public void ToValue_Delete_Should_Return_delete()
-    {
+    public void ToValue_Delete_Should_Return_delete() {
         CrudAction.Delete.ToValue().Should().Be("delete");
     }
 
     [Fact]
-    public void ToValue_Rm_Should_Return_rm()
-    {
+    public void ToValue_Rm_Should_Return_rm() {
         CrudAction.Rm.ToValue().Should().Be("rm");
     }
 
     [Fact]
-    public void ToValue_Remove_Should_Return_remove()
-    {
+    public void ToValue_Remove_Should_Return_remove() {
         CrudAction.Remove.ToValue().Should().Be("remove");
     }
 
@@ -75,14 +65,12 @@ public sealed class CrudActionExtensionsTests
     [InlineData("delete", CrudAction.Delete)]
     [InlineData("rm", CrudAction.Rm)]
     [InlineData("remove", CrudAction.Remove)]
-    public void FromValue_ValidString_Should_Return_CorrectEnum(string input, CrudAction expected)
-    {
+    public void FromValue_ValidString_Should_Return_CorrectEnum(string input, CrudAction expected) {
         CrudActionExtensions.FromValue(input).Should().Be(expected);
     }
 
     [Fact]
-    public void FromValue_Should_Be_CaseInsensitive()
-    {
+    public void FromValue_Should_Be_CaseInsensitive() {
         CrudActionExtensions.FromValue("LIST").Should().Be(CrudAction.List);
         CrudActionExtensions.FromValue("Ls").Should().Be(CrudAction.Ls);
         CrudActionExtensions.FromValue("CREATE").Should().Be(CrudAction.Create);
@@ -93,20 +81,17 @@ public sealed class CrudActionExtensionsTests
     }
 
     [Fact]
-    public void FromValue_InvalidString_Should_Return_Null()
-    {
+    public void FromValue_InvalidString_Should_Return_Null() {
         CrudActionExtensions.FromValue("invalid").Should().BeNull();
     }
 
     [Fact]
-    public void FromValue_EmptyString_Should_Return_Null()
-    {
+    public void FromValue_EmptyString_Should_Return_Null() {
         CrudActionExtensions.FromValue("").Should().BeNull();
     }
 
     [Fact]
-    public void FromValue_Null_Should_Return_Null()
-    {
+    public void FromValue_Null_Should_Return_Null() {
         CrudActionExtensions.FromValue(null).Should().BeNull();
     }
 
@@ -121,16 +106,14 @@ public sealed class CrudActionExtensionsTests
     [InlineData(CrudAction.Update, true)]
     [InlineData(CrudAction.Delete, true)]
     [InlineData(CrudAction.Rm, true)]
-    public void IsDefined_AllValidValues_Should_Return_True(CrudAction value, bool expected)
-    {
+    public void IsDefined_AllValidValues_Should_Return_True(CrudAction value, bool expected) {
         CrudActionExtensions.IsDefined(value).Should().Be(expected);
     }
 
     // ===== CrudActionEnumConstants 测试 =====
 
     [Fact]
-    public void Constants_Should_Match_EnumValues()
-    {
+    public void Constants_Should_Match_EnumValues() {
         CrudActionEnumConstants.List.Should().Be("list");
         CrudActionEnumConstants.Ls.Should().Be("ls");
         CrudActionEnumConstants.Create.Should().Be("create");
@@ -152,8 +135,7 @@ public sealed class CrudActionExtensionsTests
     [InlineData(CrudAction.Update)]
     [InlineData(CrudAction.Delete)]
     [InlineData(CrudAction.Rm)]
-    public void ToValue_FromValue_RoundTrip_Should_Be_Consistent(CrudAction value)
-    {
+    public void ToValue_FromValue_RoundTrip_Should_Be_Consistent(CrudAction value) {
         var str = value.ToValue();
         CrudActionExtensions.FromValue(str).Should().Be(value);
     }

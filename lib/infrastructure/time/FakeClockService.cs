@@ -4,16 +4,14 @@ namespace Infrastructure.Time;
 /// 假时钟服务 — 支持手动推进时间，用于调试和 E2E 测试
 /// JCC_CLOCK_MODE=Fake 时激活
 /// </summary>
-public sealed class FakeClockService : IClockService
-{
+public sealed class FakeClockService : IClockService {
     private readonly FakeTimeProvider _timeProvider;
 
     /// <summary>
     /// 构造假时钟服务
     /// </summary>
     /// <param name="initialTime">初始时间；null 时使用当前 UTC 时间</param>
-    public FakeClockService(DateTimeOffset? initialTime = null)
-    {
+    public FakeClockService(DateTimeOffset? initialTime = null) {
         _timeProvider = new FakeTimeProvider(initialTime ?? DateTimeOffset.UtcNow);
     }
 

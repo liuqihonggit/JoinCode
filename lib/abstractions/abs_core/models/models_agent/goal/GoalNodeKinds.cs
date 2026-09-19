@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Goal;
 /// <summary>
 /// 图节点类型
 /// </summary>
-public enum GoalNodeKind
-{
+public enum GoalNodeKind {
     /// <summary>AI Agent 节点 — 调用 LLM</summary>
     [EnumValue("agent")] Agent,
     /// <summary>函数节点 — 调用代码逻辑</summary>
@@ -16,8 +15,7 @@ public enum GoalNodeKind
 /// <summary>
 /// 图节点执行状态
 /// </summary>
-public enum GoalNodeStatus
-{
+public enum GoalNodeStatus {
     /// <summary>待执行</summary>
     [EnumValue("pending")] Pending,
     /// <summary>执行中</summary>
@@ -33,8 +31,7 @@ public enum GoalNodeStatus
 /// <summary>
 /// 条件路由匹配模式
 /// </summary>
-public enum RouteMatchMode
-{
+public enum RouteMatchMode {
     /// <summary>只匹配非空 Label ∈ Routes，空 Label 不匹配（默认）</summary>
     [EnumValue("conditional_only")] ConditionalOnly,
     /// <summary>只走空 Label 边（默认分支/fallback）</summary>

@@ -4,14 +4,12 @@ namespace Core.Query;
 /// Token 预算中间件 — 每次 LLM 调用后消耗 Token 预算
 /// </summary>
 [Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class TokenBudgetMiddleware : ServiceEntity, IQueryMiddleware
-{
+public sealed partial class TokenBudgetMiddleware : ServiceEntity, IQueryMiddleware {
     /// <summary>
     /// 构造函数 — 注入 Token 预算管理器（可选）
     /// </summary>
     /// <param name="tokenBudgetManager">Token 预算管理器</param>
-    public TokenBudgetMiddleware(ITokenBudgetManager? tokenBudgetManager = null)
-    {
+    public TokenBudgetMiddleware(ITokenBudgetManager? tokenBudgetManager = null) {
         _tokenBudgetManager = tokenBudgetManager;
     }
     private readonly ITokenBudgetManager? _tokenBudgetManager;
@@ -29,22 +27,18 @@ public sealed partial class TokenBudgetMiddleware : ServiceEntity, IQueryMiddlew
     /// <param name="next">下一委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct)
-    {
-        if (_tokenBudgetManager is not null)
-        {
+    public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct) {
+        if (_tokenBudgetManager is not null) {
             context.AfterLlmCallHooks.Add(ConsumeTokensAsync);
         }
 
         return next(context, ct);
     }
 
-    private async Task ConsumeTokensAsync(QueryMiddlewareContext context, CancellationToken ct)
-    {
+    private async Task ConsumeTokensAsync(QueryMiddlewareContext context, CancellationToken ct) {
         var tokenBudgetManager = _tokenBudgetManager ?? throw new InvalidOperationException("TokenBudgetManager not available.");
         var totalTokens = context.InputTokens + context.OutputTokens;
-        if (totalTokens > 0)
-        {
+        if (totalTokens > 0) {
             await tokenBudgetManager.ConsumeTokensAsync(totalTokens, "LLM调用", context.ToolName, ct).ConfigureAwait(false);
         }
     }

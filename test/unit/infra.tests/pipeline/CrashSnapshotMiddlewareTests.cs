@@ -1,11 +1,9 @@
 namespace Infrastructure.Pipeline.Tests;
 
 
-public sealed class CrashSnapshotMiddlewareTests
-{
+public sealed class CrashSnapshotMiddlewareTests {
     [Fact]
-    public async Task InvokeAsync_NoException_DoesNotRecordSnapshot()
-    {
+    public async Task InvokeAsync_NoException_DoesNotRecordSnapshot() {
         var store = new CrashSnapshotStore();
         var middleware = new CrashSnapshotMiddleware<TestCtx>(store, "TestPipe");
         var pipeline = new MiddlewarePipeline<TestCtx>([middleware, new OkMiddleware()]);
@@ -16,8 +14,7 @@ public sealed class CrashSnapshotMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_Exception_RecordsSnapshotAndRethrows()
-    {
+    public async Task InvokeAsync_Exception_RecordsSnapshotAndRethrows() {
         var store = new CrashSnapshotStore();
         var middleware = new CrashSnapshotMiddleware<TestCtx>(store, "CrashPipe");
         var pipeline = new MiddlewarePipeline<TestCtx>([middleware, new ThrowMiddleware()]);
@@ -33,8 +30,7 @@ public sealed class CrashSnapshotMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_OperationCanceledException_DoesNotRecordSnapshot()
-    {
+    public async Task InvokeAsync_OperationCanceledException_DoesNotRecordSnapshot() {
         var store = new CrashSnapshotStore();
         var middleware = new CrashSnapshotMiddleware<TestCtx>(store, "CancelPipe");
         var pipeline = new MiddlewarePipeline<TestCtx>([middleware, new CancelMiddleware()]);
@@ -46,8 +42,7 @@ public sealed class CrashSnapshotMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_ContextExtractor_PopulatesExecutionContext()
-    {
+    public async Task InvokeAsync_ContextExtractor_PopulatesExecutionContext() {
         var store = new CrashSnapshotStore();
         var middleware = new CrashSnapshotMiddleware<TestCtx>(store, "CtxPipe",
             ctx => new CrashExecutionContext { ToolName = "MyTool", TurnIndex = ctx.Turn });
@@ -63,8 +58,7 @@ public sealed class CrashSnapshotMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_NoContextExtractor_DefaultsToPipelineName()
-    {
+    public async Task InvokeAsync_NoContextExtractor_DefaultsToPipelineName() {
         var store = new CrashSnapshotStore();
         var middleware = new CrashSnapshotMiddleware<TestCtx>(store, "DefaultCtxPipe");
         var pipeline = new MiddlewarePipeline<TestCtx>([middleware, new ThrowMiddleware()]);
@@ -77,8 +71,7 @@ public sealed class CrashSnapshotMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_WorkflowException_ExtractsErrorCode()
-    {
+    public async Task InvokeAsync_WorkflowException_ExtractsErrorCode() {
         var store = new CrashSnapshotStore();
         var middleware = new CrashSnapshotMiddleware<TestCtx>(store, "WfPipe");
         var pipeline = new MiddlewarePipeline<TestCtx>([middleware, new WfThrowMiddleware()]);
@@ -92,8 +85,7 @@ public sealed class CrashSnapshotMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_ContinueError_Swallowed_NoSnapshotRecorded()
-    {
+    public async Task InvokeAsync_ContinueError_Swallowed_NoSnapshotRecorded() {
         var store = new CrashSnapshotStore();
         var crashMw = new CrashSnapshotMiddleware<TestCtx>(store, "ContinuePipe");
         var throwContinue = new ContinueThrowMiddleware();
@@ -108,8 +100,7 @@ public sealed class CrashSnapshotMiddlewareTests
     }
 
     [Fact]
-    public void OnError_Returns_Propagate()
-    {
+    public void OnError_Returns_Propagate() {
         var store = new CrashSnapshotStore();
         var middleware = new CrashSnapshotMiddleware<TestCtx>(store, "PropPipe");
 
@@ -117,56 +108,48 @@ public sealed class CrashSnapshotMiddlewareTests
     }
 
     [Fact]
-    public void Constructor_NullStore_Throws()
-    {
+    public void Constructor_NullStore_Throws() {
         var act = () => new CrashSnapshotMiddleware<TestCtx>(null!, "Pipe");
 
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void Constructor_EmptyPipelineName_Throws()
-    {
+    public void Constructor_EmptyPipelineName_Throws() {
         var act = () => new CrashSnapshotMiddleware<TestCtx>(new CrashSnapshotStore(), "");
 
         act.Should().Throw<ArgumentException>();
     }
 
-    private sealed class TestCtx
-    {
+    private sealed class TestCtx {
         public int Turn { get; set; }
     }
 
-    private sealed class OkMiddleware : IMiddleware<TestCtx>
-    {
+    private sealed class OkMiddleware : IMiddleware<TestCtx> {
         public ErrorBehavior OnError => ErrorBehavior.Continue;
         public Task InvokeAsync(TestCtx context, MiddlewareDelegate<TestCtx> next, CancellationToken ct)
             => next(context, ct);
     }
 
-    private sealed class ThrowMiddleware : IMiddleware<TestCtx>
-    {
+    private sealed class ThrowMiddleware : IMiddleware<TestCtx> {
         public ErrorBehavior OnError => ErrorBehavior.Propagate;
         public Task InvokeAsync(TestCtx context, MiddlewareDelegate<TestCtx> next, CancellationToken ct)
             => throw new InvalidOperationException("boom");
     }
 
-    private sealed class CancelMiddleware : IMiddleware<TestCtx>
-    {
+    private sealed class CancelMiddleware : IMiddleware<TestCtx> {
         public ErrorBehavior OnError => ErrorBehavior.Propagate;
         public Task InvokeAsync(TestCtx context, MiddlewareDelegate<TestCtx> next, CancellationToken ct)
             => throw new OperationCanceledException(ct);
     }
 
-    private sealed class WfThrowMiddleware : IMiddleware<TestCtx>
-    {
+    private sealed class WfThrowMiddleware : IMiddleware<TestCtx> {
         public ErrorBehavior OnError => ErrorBehavior.Propagate;
         public Task InvokeAsync(TestCtx context, MiddlewareDelegate<TestCtx> next, CancellationToken ct)
             => throw new WorkflowException("wf error", ErrorCode.WorkflowExecution.ToValue());
     }
 
-    private sealed class ContinueThrowMiddleware : IMiddleware<TestCtx>
-    {
+    private sealed class ContinueThrowMiddleware : IMiddleware<TestCtx> {
         public ErrorBehavior OnError => ErrorBehavior.Continue;
         public Task InvokeAsync(TestCtx context, MiddlewareDelegate<TestCtx> next, CancellationToken ct)
             => throw new InvalidOperationException("continue boom");

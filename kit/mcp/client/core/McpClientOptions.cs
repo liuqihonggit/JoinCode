@@ -4,8 +4,7 @@ namespace McpClient;
 /// <summary>
 /// MCP 客户端选项 — 描述客户端名称、协议版本、超时与重试等可配置参数。
 /// </summary>
-public class McpClientOptions
-{
+public class McpClientOptions {
     /// <summary>客户端名称,发送至服务器作为 ClientInfo.Name。</summary>
     public string ClientName { get; init; } = "JoinCode.McpClient";
 
@@ -28,8 +27,7 @@ public class McpClientOptions
 /// <summary>
 /// MCP 客户端选项构建器 — 提供链式 API 构造 McpClientOptions 实例。
 /// </summary>
-public sealed class McpClientOptionsBuilder
-{
+public sealed class McpClientOptionsBuilder {
     private string _clientName = "JoinCode.McpClient";
     private string _clientVersion = "1.0.0";
     private string _protocolVersion = McpProtocolVersion.Current;
@@ -79,8 +77,7 @@ public sealed class McpClientOptionsBuilder
 
     /// <summary>构建 McpClientOptions 实例。</summary>
     /// <returns>填充完毕的 McpClientOptions 实例。</returns>
-    public McpClientOptions Build() => new()
-    {
+    public McpClientOptions Build() => new() {
         ClientName = _clientName,
         ClientVersion = _clientVersion,
         ProtocolVersion = _protocolVersion,
@@ -93,8 +90,7 @@ public sealed class McpClientOptionsBuilder
 /// <summary>
 /// MCP 服务器连接配置构建器 — 提供链式 API 构造 McpServerConnectionConfig 实例。
 /// </summary>
-public sealed class McpServerConnectionConfigBuilder
-{
+public sealed class McpServerConnectionConfigBuilder {
     private string _name = string.Empty;
     private string _endpoint = string.Empty;
     private McpClientTransportType _transportType = McpClientTransportType.Stdio;
@@ -139,8 +135,7 @@ public sealed class McpServerConnectionConfigBuilder
     /// <summary>通过子构建器配置认证。</summary>
     /// <param name="configure">配置 McpAuthConfigBuilder 的委托。</param>
     /// <returns>当前构建器实例,用于链式调用。</returns>
-    public McpServerConnectionConfigBuilder WithAuth(Action<McpAuthConfigBuilder> configure)
-    {
+    public McpServerConnectionConfigBuilder WithAuth(Action<McpAuthConfigBuilder> configure) {
         var builder = new McpAuthConfigBuilder();
         configure(builder);
         _auth = builder.Build();
@@ -192,8 +187,7 @@ public sealed class McpServerConnectionConfigBuilder
 
     /// <summary>构建 McpServerConnectionConfig 实例。</summary>
     /// <returns>填充完毕的 McpServerConnectionConfig 实例。</returns>
-    public McpServerConnectionConfig Build() => new()
-    {
+    public McpServerConnectionConfig Build() => new() {
         Name = _name,
         Endpoint = _endpoint,
         TransportType = _transportType,
@@ -207,8 +201,7 @@ public sealed class McpServerConnectionConfigBuilder
 /// <summary>
 /// MCP 认证配置构建器 — 提供链式 API 构造 McpAuthConfig 实例,支持 None/ApiKey/Bearer/Basic/OAuth2 多种认证类型。
 /// </summary>
-public sealed class McpAuthConfigBuilder
-{
+public sealed class McpAuthConfigBuilder {
     private McpAuthType _type = McpAuthType.None;
     private string? _apiKey;
     private string? _bearerToken;
@@ -258,8 +251,7 @@ public sealed class McpAuthConfigBuilder
 
     /// <summary>构建 McpAuthConfig 实例。</summary>
     /// <returns>填充完毕的 McpAuthConfig 实例。</returns>
-    public McpAuthConfig Build() => new()
-    {
+    public McpAuthConfig Build() => new() {
         Type = _type,
         ApiKey = _apiKey,
         BearerToken = _bearerToken,

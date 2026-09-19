@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// Tracks file read state for write-before-read validation.
 /// Mirrors TS FileStateCache - ensures files are read before being written/edited.
 /// </summary>
-public interface IFileStateCache
-{
+public interface IFileStateCache {
     /// <summary>
     /// Record that a file has been read at the given timestamp.
     /// </summary>
@@ -55,8 +54,7 @@ public interface IFileStateCache
 /// <summary>
 /// Represents the state of a file that has been read.
 /// </summary>
-public sealed record FileReadState
-{
+public sealed record FileReadState {
     public required string Content { get; init; }
     public required long TimestampMs { get; init; }
     public int? Offset { get; init; }

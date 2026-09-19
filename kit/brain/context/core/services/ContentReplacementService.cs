@@ -4,8 +4,7 @@ namespace Core.Context;
 /// 内容替换服务接口，对齐 TS 工具结果预算与持久化机制，
 /// 在超长工具结果上做磁盘持久化并返回占位替换字符串
 /// </summary>
-public interface IContentReplacementService
-{
+public interface IContentReplacementService {
     /// <summary>
     /// 对齐 TS maybePersistLargeToolResult — 纯函数，不修改任何 state
     /// 仅检查内容大小和工具阈值，超限时持久化到磁盘并返回替换字符串
@@ -87,8 +86,7 @@ public interface IContentReplacementService
 /// 内容替换服务实现，对齐 TS 工具结果预算与持久化机制
 /// </summary>
 [Register(typeof(IContentReplacementService), ServiceLifetime.Singleton)]
-public sealed partial class ContentReplacementService : ServiceEntity, IContentReplacementService
-{
+public sealed partial class ContentReplacementService : ServiceEntity, IContentReplacementService {
     private readonly IToolResultFileService _fileService;
     private readonly ILogger<ContentReplacementService>? _logger;
     private readonly bool _enabled;
@@ -101,8 +99,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
     public ContentReplacementService(
         IToolResultFileService fileService,
         IOptions<Configuration.QueryEngineConfig>? configOptions = null,
-        ILogger<ContentReplacementService>? logger = null)
-    {
+        ILogger<ContentReplacementService>? logger = null) {
         _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
         _logger = logger;
 
@@ -124,12 +121,10 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         string toolName,
         string toolUseId,
         string content,
-        string sessionId)
-    {
+        string sessionId) {
         // 对齐 TS isToolResultContentEmpty — 空结果替换为标记文本
         // inc-4586: 空 tool_result 在 prompt 尾部会导致某些模型发出停止序列
-        if (string.IsNullOrWhiteSpace(content))
-        {
+        if (string.IsNullOrWhiteSpace(content)) {
             return string.Format(ContentReplacementConstants.NoOutputTemplate, toolName);
         }
 
@@ -140,8 +135,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         if (threshold < 0)
             return null;
 
-        if (content.Length <= threshold)
-        {
+        if (content.Length <= threshold) {
             return null;
         }
 
@@ -151,12 +145,9 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
 
         // 对齐 TS: 持久化失败时返回 null（保留原始内容）
         PersistedToolResult? persisted = null;
-        try
-        {
+        try {
             persisted = _fileService.PersistToolResult(sessionId, toolUseId, content);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to persist tool result: Tool={ToolName}, Id={ToolUseId}", toolName, toolUseId);
             return null;
         }
@@ -188,16 +179,14 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         ContentReplacementState state,
         string sessionId,
         HashSet<string>? neverPersistTools = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         neverPersistTools ??= [];
 
         // 对齐 TS skipToolNames — 自动添加 Infinity 工具（如 Read）
         // TS: query.ts L391 过滤 maxResultSizeChars: Infinity 的工具
         // 注意: 不修改调用者传入的集合，创建新集合
         var effectiveNeverPersist = new HashSet<string>(neverPersistTools, StringComparer.Ordinal);
-        foreach (var name in ContentReplacementConstants.GetNeverPersistToolNames())
-        {
+        foreach (var name in ContentReplacementConstants.GetNeverPersistToolNames()) {
             effectiveNeverPersist.Add(name);
         }
 
@@ -216,19 +205,15 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         var budget = _maxToolResultsPerMessageChars;
         var toPersistAll = new List<(string ToolCallId, string Content)>();
 
-        foreach (var group in groups)
-        {
+        foreach (var group in groups) {
             ProcessGroup(group, state, effectiveNeverPersist, toolNameMap, budget, replacementMap, toPersistAll);
         }
 
         // 4. 并发持久化 — 对齐 TS: await Promise.all(toPersist.map(async c => ...))
-        if (toPersistAll.Count > 0)
-        {
+        if (toPersistAll.Count > 0) {
             var persistResults = await Task.WhenAll(
-                toPersistAll.Select(async c =>
-                {
-                    try
-                    {
+                toPersistAll.Select(async c => {
+                    try {
                         var persisted = await _fileService.PersistToolResultAsync(sessionId, c.ToolCallId, c.Content, cancellationToken).ConfigureAwait(false);
                         var replacement = ContentReplacementConstants.BuildPersistedOutputMessage(persisted);
 
@@ -241,9 +226,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
                             c.ToolCallId, c.Content.Length, persisted.Filepath);
 
                         return (Success: true, ToolCallId: c.ToolCallId, Replacement: replacement);
-                    }
-                    catch (Exception ex)
-                    {
+                    } catch (Exception ex) {
                         // 对齐 TS: 持久化失败时跳过，保留原始内容
                         _logger?.LogWarning(ex, "Failed to budget-persist tool result: Id={ToolUseId}", c.ToolCallId);
                         state.SeenIds.TryAdd(c.ToolCallId, 0); // 标记为 seen 但不替换
@@ -251,12 +234,9 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
                     }
                 })).ConfigureAwait(false);
 
-            foreach (var r in persistResults)
-            {
-                if (r.Success && r.Replacement is not null)
-                {
-                    newlyReplaced.Add(new ContentReplacementRecord
-                    {
+            foreach (var r in persistResults) {
+                if (r.Success && r.Replacement is not null) {
+                    newlyReplaced.Add(new ContentReplacementRecord {
                         Kind = ContentReplacementRecordKind.ToolResult,
                         ToolUseId = r.ToolCallId,
                         Replacement = r.Replacement,
@@ -266,8 +246,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         }
 
         // 4. 无替换时返回原始消息
-        if (replacementMap.Count == 0)
-        {
+        if (replacementMap.Count == 0) {
             // 仍需 re-apply 已有的 replacements
             var needsReapply = messages.Any(m =>
                 m.Role == MessageRole.Tool &&
@@ -280,19 +259,13 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
 
         // 5. 替换消息内容
         var result = new List<ApiMessage>(messages.Count);
-        foreach (var msg in messages)
-        {
+        foreach (var msg in messages) {
             var toolCallId = msg.ExtractToolCallId();
-            if (msg.Role == MessageRole.Tool && toolCallId is not null && replacementMap.TryGetValue(toolCallId, out var replacement))
-            {
+            if (msg.Role == MessageRole.Tool && toolCallId is not null && replacementMap.TryGetValue(toolCallId, out var replacement)) {
                 result.Add(new ApiMessage(MessageRole.Tool, replacement, msg.Metadata));
-            }
-            else if (msg.Role == MessageRole.Tool && toolCallId is not null && state.Replacements.TryGetValue(toolCallId, out var existingReplacement))
-            {
+            } else if (msg.Role == MessageRole.Tool && toolCallId is not null && state.Replacements.TryGetValue(toolCallId, out var existingReplacement)) {
                 result.Add(new ApiMessage(MessageRole.Tool, existingReplacement, msg.Metadata));
-            }
-            else
-            {
+            } else {
                 result.Add(msg);
             }
         }
@@ -306,8 +279,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
     /// seenAsstIds: 同一 assistant ID 的片段不创建新边界（abort/parallel-tools 场景）
     /// </summary>
     private static List<List<(int Index, string ToolCallId, string Content, string ToolName)>> CollectCandidatesByMessage(
-        IReadOnlyList<ApiMessage> messages)
-    {
+        IReadOnlyList<ApiMessage> messages) {
         var groups = new List<List<(int Index, string ToolCallId, string Content, string ToolName)>>();
         var current = new List<(int Index, string ToolCallId, string Content, string ToolName)>();
 
@@ -316,19 +288,15 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         // normalizeMessagesForAPI 会合并同 ID 片段，预算也必须视为同一组
         var seenAsstIds = new HashSet<string>(StringComparer.Ordinal);
 
-        for (var i = 0; i < messages.Count; i++)
-        {
+        for (var i = 0; i < messages.Count; i++) {
             var msg = messages[i];
 
-            if (msg.Role == MessageRole.Assistant)
-            {
+            if (msg.Role == MessageRole.Assistant) {
                 // 提取 assistant 消息 ID（从 ToolCalls[0].Id 或生成基于索引的 ID）
                 var asstId = ExtractAssistantMessageId(msg, i);
-                if (!seenAsstIds.Contains(asstId))
-                {
+                if (!seenAsstIds.Contains(asstId)) {
                     // 新的 assistant 消息 → 刷新组
-                    if (current.Count > 0)
-                    {
+                    if (current.Count > 0) {
                         groups.Add(current);
                         current = new();
                     }
@@ -338,11 +306,9 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
                 continue;
             }
 
-            if (msg.Role == MessageRole.Tool)
-            {
+            if (msg.Role == MessageRole.Tool) {
                 var toolCallId = msg.ExtractToolCallId();
-                if (toolCallId is not null && !string.IsNullOrEmpty(msg.Content))
-                {
+                if (toolCallId is not null && !string.IsNullOrEmpty(msg.Content)) {
                     // 对齐 TS isContentAlreadyCompacted — 已被 persisted-output 替换的内容不再作为 candidate
                     if (IsContentAlreadyCompacted(msg.Content))
                         continue;
@@ -370,10 +336,8 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
     /// 提取 assistant 消息的唯一标识 — 对齐 TS message.message.id
     /// 优先使用 ToolCalls[0].Id，否则使用索引作为后备
     /// </summary>
-    private static string ExtractAssistantMessageId(ApiMessage msg, int fallbackIndex)
-    {
-        foreach (var (id, _) in msg.ExtractToolCalls())
-        {
+    private static string ExtractAssistantMessageId(ApiMessage msg, int fallbackIndex) {
+        foreach (var (id, _) in msg.ExtractToolCalls()) {
             if (!string.IsNullOrEmpty(id))
                 return $"asst:{id}";
         }
@@ -393,36 +357,28 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         Dictionary<string, string>? toolNameMap,
         int budget,
         Dictionary<string, string> replacementMap,
-        List<(string ToolCallId, string Content)> toPersistAll)
-    {
+        List<(string ToolCallId, string Content)> toPersistAll) {
         // 三分区: mustReapply / frozen / fresh — 对齐 TS partitionByPriorDecision
         var mustReapply = new List<(string ToolCallId, string Replacement)>();
         var frozenSize = 0;
         var fresh = new List<(string ToolCallId, string Content, string ToolName, int Size)>();
 
-        foreach (var c in candidates)
-        {
-            if (state.Replacements.TryGetValue(c.ToolCallId, out var replacement))
-            {
+        foreach (var c in candidates) {
+            if (state.Replacements.TryGetValue(c.ToolCallId, out var replacement)) {
                 // mustReapply: 之前已被替换，必须重新应用相同字符串
                 mustReapply.Add((c.ToolCallId, replacement));
                 replacementMap[c.ToolCallId] = replacement;
                 frozenSize += replacement.Length;
-            }
-            else if (state.SeenIds.ContainsKey(c.ToolCallId))
-            {
+            } else if (state.SeenIds.ContainsKey(c.ToolCallId)) {
                 // frozen: 之前已见但未替换，不可触碰
                 frozenSize += c.Content.Length;
-            }
-            else
-            {
+            } else {
                 // fresh: 首次出现，可做决策
                 fresh.Add((c.ToolCallId, c.Content, c.ToolName, c.Content.Length));
             }
         }
 
-        if (fresh.Count == 0)
-        {
+        if (fresh.Count == 0) {
             // 对齐 TS: mustReapply/frozen 的 ID 已在 seenIds 中，重新添加是幂等操作
             foreach (var c in candidates)
                 state.SeenIds.TryAdd(c.ToolCallId, 0);
@@ -431,14 +387,12 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
 
         // 过滤 neverPersistTools — 对齐 TS skipToolNames
         var eligible = new List<(string ToolCallId, string Content, string ToolName, int Size)>();
-        foreach (var f in fresh)
-        {
+        foreach (var f in fresh) {
             var effectiveToolName = f.ToolName;
             if (toolNameMap is not null && toolNameMap.TryGetValue(f.ToolCallId, out var mappedName))
                 effectiveToolName = mappedName;
 
-            if (neverPersistTools.Contains(effectiveToolName))
-            {
+            if (neverPersistTools.Contains(effectiveToolName)) {
                 // 跳过的工具立即标记为 seen（frozen），不计入 freshSize
                 state.SeenIds.TryAdd(f.ToolCallId, 0);
                 continue;
@@ -450,8 +404,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         var freshSize = eligible.Sum(f => f.Size);
 
         // 检查是否需要持久化 — 对齐 TS: frozenSize + freshSize > limit
-        if (frozenSize + freshSize <= budget)
-        {
+        if (frozenSize + freshSize <= budget) {
             // 未超预算，所有 eligible 标记为 seen（frozen）
             foreach (var f in eligible)
                 state.SeenIds.TryAdd(f.ToolCallId, 0);
@@ -463,8 +416,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         var remaining = frozenSize + freshSize;
         var toPersist = new List<(string ToolCallId, string Content)>();
 
-        foreach (var f in sorted)
-        {
+        foreach (var f in sorted) {
             if (remaining <= budget) break;
             toPersist.Add((f.ToolCallId, f.Content));
             // 对齐 TS: 减去全量大小，不加预览大小
@@ -477,8 +429,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         // 非选中 = 所有 candidates 中不在 toPersist 中的
         var selectedIds = new HashSet<string>(
             toPersist.Select(p => p.ToolCallId), StringComparer.Ordinal);
-        foreach (var c in candidates)
-        {
+        foreach (var c in candidates) {
             if (!selectedIds.Contains(c.ToolCallId))
                 state.SeenIds.TryAdd(c.ToolCallId, 0);
         }
@@ -494,16 +445,13 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
     /// tool_use 总在 tool_result 之前，所以到预算检查时名称已知
     /// 使用 ApiMessageExtensions.ExtractToolCalls 统一提取
     /// </summary>
-    private static Dictionary<string, string> BuildToolNameMap(IReadOnlyList<ApiMessage> messages)
-    {
+    private static Dictionary<string, string> BuildToolNameMap(IReadOnlyList<ApiMessage> messages) {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var msg in messages)
-        {
+        foreach (var msg in messages) {
             if (msg.Role != MessageRole.Assistant)
                 continue;
 
-            foreach (var (id, name) in msg.ExtractToolCalls())
-            {
+            foreach (var (id, name) in msg.ExtractToolCalls()) {
                 map[id] = name;
             }
         }
@@ -515,11 +463,9 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
     /// </summary>
     /// <param name="records">替换记录列表</param>
     /// <returns>重建后的状态</returns>
-    public ContentReplacementState ReconstructState(IReadOnlyList<ContentReplacementRecord> records)
-    {
+    public ContentReplacementState ReconstructState(IReadOnlyList<ContentReplacementRecord> records) {
         var state = new ContentReplacementState();
-        foreach (var record in records)
-        {
+        foreach (var record in records) {
             // 对齐 TS: 仅处理 kind=ToolResult 的记录
             if (record.Kind != ContentReplacementRecordKind.ToolResult)
                 continue;
@@ -540,15 +486,13 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
     public ContentReplacementState ReconstructState(
         IReadOnlyList<ApiMessage> messages,
         IReadOnlyList<ContentReplacementRecord> records,
-        IReadOnlyDictionary<string, string>? inheritedReplacements = null)
-    {
+        IReadOnlyDictionary<string, string>? inheritedReplacements = null) {
         var state = new ContentReplacementState();
 
         // 1. 从消息历史提取所有 candidate IDs — 对齐 TS collectCandidatesByMessage
         var candidateIds = new HashSet<string>(StringComparer.Ordinal);
         var groups = CollectCandidatesByMessage(messages);
-        foreach (var group in groups)
-        {
+        foreach (var group in groups) {
             foreach (var c in group)
                 candidateIds.Add(c.ToolCallId);
         }
@@ -559,22 +503,17 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
 
         // 3. 从 records 恢复 replacements（仅当 kind=ToolResult 且 toolUseId 在 candidateIds 中）
         // 对齐 TS: r.kind === 'tool-result' && candidateIds.has(r.toolUseId)
-        foreach (var record in records)
-        {
+        foreach (var record in records) {
             if (record.Kind == ContentReplacementRecordKind.ToolResult &&
-                candidateIds.Contains(record.ToolUseId))
-            {
+                candidateIds.Contains(record.ToolUseId)) {
                 state.Replacements[record.ToolUseId] = record.Replacement;
             }
         }
 
         // 4. 从 inheritedReplacements 继承（仅当 id 在 candidateIds 中且没有已有 replacement）
-        if (inheritedReplacements is not null)
-        {
-            foreach (var kvp in inheritedReplacements)
-            {
-                if (candidateIds.Contains(kvp.Key) && !state.Replacements.ContainsKey(kvp.Key))
-                {
+        if (inheritedReplacements is not null) {
+            foreach (var kvp in inheritedReplacements) {
+                if (candidateIds.Contains(kvp.Key) && !state.Replacements.ContainsKey(kvp.Key)) {
                     state.Replacements[kvp.Key] = kvp.Value;
                 }
             }
@@ -594,15 +533,13 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
     /// <returns>功能开关关闭返回 null；否则返回新建或重建的状态</returns>
     public ContentReplacementState? ProvisionContentReplacementState(
         IReadOnlyList<ApiMessage>? initialMessages = null,
-        IReadOnlyList<ContentReplacementRecord>? initialContentReplacements = null)
-    {
+        IReadOnlyList<ContentReplacementRecord>? initialContentReplacements = null) {
         // 对齐 TS getFeatureValue_CACHED_MAY_BE_STALE('tengu_hawthorn_steeple', false)
         // C# 通过 ContentReplacementConfig.Enabled 配置，默认启用
         if (!_enabled)
             return null;
 
-        if (initialMessages is not null && initialMessages.Count > 0)
-        {
+        if (initialMessages is not null && initialMessages.Count > 0) {
             return ReconstructState(
                 initialMessages,
                 initialContentReplacements ?? []);
@@ -623,8 +560,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
     public ContentReplacementState? ReconstructForSubagentResume(
         ContentReplacementState? parentState,
         IReadOnlyList<ApiMessage> resumedMessages,
-        IReadOnlyList<ContentReplacementRecord> sidechainRecords)
-    {
+        IReadOnlyList<ContentReplacementRecord> sidechainRecords) {
         if (parentState is null)
             return null;
 
@@ -642,8 +578,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
     /// 使用 StartsWith 而非 Contains — 对齐 TS 注释:
     /// "avoids false-positives when the tag appears anywhere else in the content"
     /// </summary>
-    private static bool IsContentAlreadyCompacted(string content)
-    {
+    private static bool IsContentAlreadyCompacted(string content) {
         // 检测 <persisted-output> 标签 — MaybePersistLargeToolResult 的替换产物
         // TS: content.startsWith("<persisted-output>") — 只在开头匹配
         if (content.StartsWith(ContentReplacementConstants.PersistedOutputOpen, StringComparison.Ordinal))

@@ -3,11 +3,9 @@ namespace JoinCode.Gui.Tests.SlashCommands;
 /// <summary>
 /// CompletionTriggerRegistry 单元测试 — 验证触发符注册表按字符索引返回正确 Provider。
 /// </summary>
-public class CompletionTriggerRegistryTests
-{
+public class CompletionTriggerRegistryTests {
     [Fact]
-    public void TryGet_AtSign_ReturnsAgentProvider()
-    {
+    public void TryGet_AtSign_ReturnsAgentProvider() {
         var provider = CompletionTriggerRegistry.TryGet('@');
         provider.Should().NotBeNull();
         provider!.TriggerChar.Should().Be('@');
@@ -16,8 +14,7 @@ public class CompletionTriggerRegistryTests
     }
 
     [Fact]
-    public void TryGet_HashSign_ReturnsFileProvider()
-    {
+    public void TryGet_HashSign_ReturnsFileProvider() {
         var provider = CompletionTriggerRegistry.TryGet('#');
         provider.Should().NotBeNull();
         provider!.TriggerChar.Should().Be('#');
@@ -26,8 +23,7 @@ public class CompletionTriggerRegistryTests
     }
 
     [Fact]
-    public void TryGet_Slash_ReturnsCommandProvider()
-    {
+    public void TryGet_Slash_ReturnsCommandProvider() {
         var provider = CompletionTriggerRegistry.TryGet('/');
         provider.Should().NotBeNull();
         provider!.TriggerChar.Should().Be('/');
@@ -36,29 +32,25 @@ public class CompletionTriggerRegistryTests
     }
 
     [Fact]
-    public void TryGet_UnknownChar_ReturnsNull()
-    {
+    public void TryGet_UnknownChar_ReturnsNull() {
         var provider = CompletionTriggerRegistry.TryGet('$');
         provider.Should().BeNull();
     }
 
     [Fact]
-    public void All_ReturnsThreeProviders()
-    {
+    public void All_ReturnsThreeProviders() {
         CompletionTriggerRegistry.All.Should().HaveCount(3);
     }
 
     [Fact]
-    public void AgentProvider_GetCandidates_WithSubAgents_ReturnsFilteredItems()
-    {
+    public void AgentProvider_GetCandidates_WithSubAgents_ReturnsFilteredItems() {
         var provider = CompletionTriggerRegistry.TryGet('@')!;
         var agents = new List<SubAgentSummary>
         {
             new("executor:code", "代码代理", "executor:code"),
             new("coordinator", "协调代理", "coordinator")
         };
-        var context = new CompletionContext
-        {
+        var context = new CompletionContext {
             Session = null!,
             AvailableSubAgentsCache = agents
         };
@@ -68,8 +60,7 @@ public class CompletionTriggerRegistryTests
     }
 
     [Fact]
-    public void FileProvider_GetCandidates_ReturnsCurrentDirEntries()
-    {
+    public void FileProvider_GetCandidates_ReturnsCurrentDirEntries() {
         var provider = CompletionTriggerRegistry.TryGet('#')!;
         var context = new CompletionContext { Session = null! };
         var result = provider.GetCandidates("", context);
@@ -77,12 +68,10 @@ public class CompletionTriggerRegistryTests
     }
 
     [Fact]
-    public void CommandProvider_GetCandidates_WithCache_ReturnsFilteredRanked()
-    {
+    public void CommandProvider_GetCandidates_WithCache_ReturnsFilteredRanked() {
         var provider = CompletionTriggerRegistry.TryGet('/')!;
         var cache = SlashCommandItem.BuiltInCommands;
-        var context = new CompletionContext
-        {
+        var context = new CompletionContext {
             Session = null!,
             SlashCommandCache = cache
         };

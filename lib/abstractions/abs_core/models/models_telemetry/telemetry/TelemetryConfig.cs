@@ -2,21 +2,17 @@ namespace JoinCode.Abstractions.Models.Telemetry;
 
 
 [Register(typeof(TelemetryConfig), ServiceLifetime.Singleton)]
-public sealed class TelemetryConfig
-{
-    public static TelemetryConfig FromEnvironment()
-    {
+public sealed class TelemetryConfig {
+    public static TelemetryConfig FromEnvironment() {
         var exportFormatStr = Environment.GetEnvironmentVariable("JCC_TELEMETRY_EXPORT");
-        var exportFormat = exportFormatStr switch
-        {
+        var exportFormat = exportFormatStr switch {
             "Console" => TelemetryExportFormat.Console,
             "Otlp" => TelemetryExportFormat.Otlp,
             "Prometheus" => TelemetryExportFormat.Prometheus,
             _ => TelemetryExportFormat.None
         };
 
-        return new TelemetryConfig(skipInit: true)
-        {
+        return new TelemetryConfig(skipInit: true) {
             ExportFormat = exportFormat,
             TracingEnabled = Environment.GetEnvironmentVariable("JCC_TELEMETRY_ENABLED") is "false"
                 ? false
@@ -30,8 +26,7 @@ public sealed class TelemetryConfig
     /// <summary>
     /// DI 构造函数 — 从环境变量初始化
     /// </summary>
-    public TelemetryConfig()
-    {
+    public TelemetryConfig() {
         var config = FromEnvironment();
         ExportFormat = config.ExportFormat;
         TracingEnabled = config.TracingEnabled;

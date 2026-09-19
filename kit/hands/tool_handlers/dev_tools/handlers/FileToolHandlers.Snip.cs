@@ -1,17 +1,14 @@
 namespace Tools.Handlers;
 
-public partial class FileToolHandlers
-{
+public partial class FileToolHandlers {
     /// <summary>截取文件指定行范围（snip read）</summary>
     [McpTool(FileToolNameEnumConstants.FileSnipLines, "Read a range of lines from the file (snip read)", "file", ConcurrencySafe = true)]
     public async Task<ToolResult> FileSnipLinesAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,
         [McpToolParameter("Start line number (0-based)", Required = false, DefaultValue = "0")] int start_line = 0,
         [McpToolParameter("Line count limit", Required = false, DefaultValue = "100")] int line_count = 100,
-        CancellationToken cancellationToken = default)
-    {
-        if (_ctx.SnipLogic == null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_ctx.SnipLogic == null) {
             var notInitDiag = BuildFileChunkingServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
         }
@@ -20,8 +17,7 @@ public partial class FileToolHandlers
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRange(start_line, 0, int.MaxValue, "start_line"),
             ValidationHelper.ValidateRange(line_count, 1, int.MaxValue, "line_count"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var validationDiag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
@@ -29,22 +25,15 @@ public partial class FileToolHandlers
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         string content;
-        try
-        {
+        try {
             content = await _ctx.SnipLogic.SnipLinesAsync(file_path, start_line, line_count, cancellationToken).ConfigureAwait(false);
-        }
-        catch (FileNotFoundException)
-        {
+        } catch (FileNotFoundException) {
             RecordFileMetrics(FileOperationType.SnipLines, FileOperationResult.Failed);
             var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(file_path, _fs);
             return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             RecordFileMetrics(FileOperationType.SnipLines, FileOperationResult.Failed);
             _logger?.LogError(ex, "SnipLines 调用抛出异常: {FilePath}", file_path);
             var exDiagnostic = ToolDiagnostic.Create("SnipLinesFailed",
@@ -71,10 +60,8 @@ public partial class FileToolHandlers
     public async Task<ToolResult> FileSnipPreviewAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,
         [McpToolParameter("Max preview lines", Required = false, DefaultValue = "20")] int max_preview_lines = 20,
-        CancellationToken cancellationToken = default)
-    {
-        if (_ctx.SnipLogic == null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_ctx.SnipLogic == null) {
             var notInitDiag = BuildFileChunkingServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
         }
@@ -82,8 +69,7 @@ public partial class FileToolHandlers
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateRange(max_preview_lines, 1, int.MaxValue, "max_preview_lines"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var validationDiag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
@@ -91,22 +77,15 @@ public partial class FileToolHandlers
         file_path = await ResolveSandboxPathAsync(file_path, cancellationToken).ConfigureAwait(false);
 
         SnipPreview preview;
-        try
-        {
+        try {
             preview = await _ctx.SnipLogic.GetPreviewAsync(file_path, max_preview_lines, cancellationToken).ConfigureAwait(false);
-        }
-        catch (FileNotFoundException)
-        {
+        } catch (FileNotFoundException) {
             RecordFileMetrics(FileOperationType.SnipPreview, FileOperationResult.Failed);
             var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(file_path, _fs);
             return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             RecordFileMetrics(FileOperationType.SnipPreview, FileOperationResult.Failed);
             _logger?.LogError(ex, "SnipPreview 调用抛出异常: {FilePath}", file_path);
             var exDiagnostic = ToolDiagnostic.Create("SnipPreviewFailed",

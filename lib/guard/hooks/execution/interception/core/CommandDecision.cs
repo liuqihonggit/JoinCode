@@ -13,8 +13,7 @@ namespace Core.Hooks.Execution.Interception;
 /// </list>
 /// </para>
 /// </summary>
-public abstract record CommandDecision
-{
+public abstract record CommandDecision {
     /// <summary>
     /// 放行 — 继续评估下一个守卫,命令不变
     /// </summary>

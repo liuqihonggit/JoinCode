@@ -5,10 +5,8 @@ namespace Bridge.Tests;
 /// BridgeServer.executeCommand/setSelection 单元测试 — P0-B TDD
 /// 验证 executeCommand 调用 ShellService，setSelection 调用 IdeService
 /// </summary>
-public sealed class BridgeServerHandleTests
-{
-    private static Mock<IFileOperationService> CreateFileOpMock()
-    {
+public sealed class BridgeServerHandleTests {
+    private static Mock<IFileOperationService> CreateFileOpMock() {
         var mock = new Mock<IFileOperationService>();
         mock.Setup(f => f.FileExists(It.IsAny<string>())).Returns(false);
         return mock;
@@ -16,8 +14,7 @@ public sealed class BridgeServerHandleTests
 
     private static BridgeServer CreateServer(
         ISystemActuatorRegistry? actuatorRegistry = null,
-        IIdeIntegrationService? ideService = null)
-    {
+        IIdeIntegrationService? ideService = null) {
         return new BridgeServer(
             CreateFileOpMock().Object,
             port: 0,
@@ -26,44 +23,37 @@ public sealed class BridgeServerHandleTests
             ideService: ideService);
     }
 
-    private static BridgeServerMessage CreateExecuteCommandMessage(string command)
-    {
+    private static BridgeServerMessage CreateExecuteCommandMessage(string command) {
         var json = $$"""{"command":"{{command}}"}""";
-        return new BridgeServerMessage
-        {
+        return new BridgeServerMessage {
             Type = "executeCommand",
             Data = JsonDocument.Parse(json).RootElement
         };
     }
 
-    private static BridgeServerMessage CreateSetSelectionMessage(string file, int startLine, int startCol, int endLine, int endCol)
-    {
+    private static BridgeServerMessage CreateSetSelectionMessage(string file, int startLine, int startCol, int endLine, int endCol) {
         var json = $$"""{"file":"{{file}}","startLine":{{startLine}},"startCol":{{startCol}},"endLine":{{endLine}},"endCol":{{endCol}}}""";
-        return new BridgeServerMessage
-        {
+        return new BridgeServerMessage {
             Type = "setSelection",
             Data = JsonDocument.Parse(json).RootElement
         };
     }
 
-    private static BridgeCommandExecutedData ParseCommandExecuted(BridgeServerMessage response)
-    {
+    private static BridgeCommandExecutedData ParseCommandExecuted(BridgeServerMessage response) {
         response.Type.Should().Be("commandExecuted");
         response.Data.Should().NotBeNull();
         return response.Data!.Value.Deserialize<BridgeCommandExecutedData>(BridgeJsonContext.Default.BridgeCommandExecutedData)
             ?? throw new InvalidOperationException("[UTU001] 反序列化失败");
     }
 
-    private static BridgeSelectionSetData ParseSelectionSet(BridgeServerMessage response)
-    {
+    private static BridgeSelectionSetData ParseSelectionSet(BridgeServerMessage response) {
         response.Type.Should().Be("selectionSet");
         response.Data.Should().NotBeNull();
         return response.Data!.Value.Deserialize<BridgeSelectionSetData>(BridgeJsonContext.Default.BridgeSelectionSetData)
             ?? throw new InvalidOperationException("[UTU002] 反序列化失败");
     }
 
-    private static Mock<ISystemActuatorRegistry> CreateRegistryMock(Mock<ISystemActuator> actuatorMock)
-    {
+    private static Mock<ISystemActuatorRegistry> CreateRegistryMock(Mock<ISystemActuator> actuatorMock) {
         var registryMock = new Mock<ISystemActuatorRegistry>();
         registryMock.Setup(r => r.Get(It.IsAny<SystemActuatorKind>())).Returns(actuatorMock.Object);
         return registryMock;
@@ -74,8 +64,7 @@ public sealed class BridgeServerHandleTests
     // ============================================================
 
     [Fact]
-    public async Task BuildExecuteCommandResponseAsync_WithShellService_ShouldCallExecuteAndReturnSuccess()
-    {
+    public async Task BuildExecuteCommandResponseAsync_WithShellService_ShouldCallExecuteAndReturnSuccess() {
         // Arrange
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(s => s.ExecuteAsync(
@@ -84,8 +73,7 @@ public sealed class BridgeServerHandleTests
                 It.IsAny<string?>(),
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SystemActuatorExecutionResult
-            {
+            .ReturnsAsync(new SystemActuatorExecutionResult {
                 Stdout = "hello",
                 Stderr = "",
                 ExitCode = 0
@@ -112,8 +100,7 @@ public sealed class BridgeServerHandleTests
     }
 
     [Fact]
-    public async Task BuildExecuteCommandResponseAsync_WithoutShellService_ShouldReturnNotSupported()
-    {
+    public async Task BuildExecuteCommandResponseAsync_WithoutShellService_ShouldReturnNotSupported() {
         // Arrange
         var server = CreateServer(actuatorRegistry: null);
         var message = CreateExecuteCommandMessage("echo hello");
@@ -129,8 +116,7 @@ public sealed class BridgeServerHandleTests
     }
 
     [Fact]
-    public async Task BuildExecuteCommandResponseAsync_EmptyCommand_ShouldReturnFailureWithErrorMessage()
-    {
+    public async Task BuildExecuteCommandResponseAsync_EmptyCommand_ShouldReturnFailureWithErrorMessage() {
         // Arrange
         var shellMock = new Mock<ISystemActuator>();
         var server = CreateServer(actuatorRegistry: CreateRegistryMock(shellMock).Object);
@@ -152,8 +138,7 @@ public sealed class BridgeServerHandleTests
     }
 
     [Fact]
-    public async Task BuildExecuteCommandResponseAsync_WhenShellThrows_ShouldReturnExceptionMessage()
-    {
+    public async Task BuildExecuteCommandResponseAsync_WhenShellThrows_ShouldReturnExceptionMessage() {
         // Arrange
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(s => s.ExecuteAsync(
@@ -180,8 +165,7 @@ public sealed class BridgeServerHandleTests
     // ============================================================
 
     [Fact]
-    public async Task BuildSetSelectionResponseAsync_WithIdeService_ShouldCallSetSelection()
-    {
+    public async Task BuildSetSelectionResponseAsync_WithIdeService_ShouldCallSetSelection() {
         // Arrange
         var ideMock = new Mock<IIdeIntegrationService>();
         ideMock.Setup(i => i.SetSelectionAsync(
@@ -212,8 +196,7 @@ public sealed class BridgeServerHandleTests
     }
 
     [Fact]
-    public async Task BuildSetSelectionResponseAsync_WithoutIdeService_ShouldReturnFailure()
-    {
+    public async Task BuildSetSelectionResponseAsync_WithoutIdeService_ShouldReturnFailure() {
         // Arrange
         var server = CreateServer(ideService: null);
         var message = CreateSetSelectionMessage("test.cs", startLine: 5, startCol: 1, endLine: 5, endCol: 10);
@@ -229,8 +212,7 @@ public sealed class BridgeServerHandleTests
     }
 
     [Fact]
-    public async Task BuildSetSelectionResponseAsync_WhenIdeReturnsFalse_ShouldReturnFailureWithMessage()
-    {
+    public async Task BuildSetSelectionResponseAsync_WhenIdeReturnsFalse_ShouldReturnFailureWithMessage() {
         // Arrange: IdeService 未连接 IDE，SetSelectionAsync 返回 false
         var ideMock = new Mock<IIdeIntegrationService>();
         ideMock.Setup(i => i.SetSelectionAsync(

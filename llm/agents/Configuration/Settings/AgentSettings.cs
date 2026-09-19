@@ -4,8 +4,7 @@ namespace Core.Agents.Configuration.Settings;
 /// <summary>
 /// Agent 配置设置
 /// </summary>
-public class AgentSettings
-{
+public class AgentSettings {
     /// <summary>
     /// Agent 超时时间（秒）
     /// </summary>

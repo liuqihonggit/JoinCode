@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Goal;
 /// <summary>
 /// 任务分解分析结果
 /// </summary>
-public sealed class DecompositionResult
-{
+public sealed class DecompositionResult {
     public bool IsDecomposable { get; init; }
     public string Reason { get; init; } = string.Empty;
     public IReadOnlyList<SubTaskDefinition> SubTasks { get; init; } = [];
@@ -28,8 +27,7 @@ public sealed class DecompositionResult
 /// <summary>
 /// 子任务定义 — LLM 输出的分解结果
 /// </summary>
-public sealed class SubTaskDefinition
-{
+public sealed class SubTaskDefinition {
     public string Id { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;

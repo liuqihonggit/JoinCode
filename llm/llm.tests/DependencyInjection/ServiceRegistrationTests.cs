@@ -1,16 +1,13 @@
 namespace Llm.Tests.DependencyInjection;
 
 
-public class ServiceRegistrationTests
-{
-    public ServiceRegistrationTests()
-    {
+public class ServiceRegistrationTests {
+    public ServiceRegistrationTests() {
         Environment.SetEnvironmentVariable("JCC_RESILIENCE_ENABLED", "0");
     }
 
     [Fact]
-    public void AddLlmServices_RegistersQueryService()
-    {
+    public void AddLlmServices_RegistersQueryService() {
         var services = new ServiceCollection();
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
 
@@ -22,8 +19,7 @@ public class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddLlmServicesWithCustomQuery_RegistersCustomService()
-    {
+    public void AddLlmServicesWithCustomQuery_RegistersCustomService() {
         var services = new ServiceCollection();
         var custom = new Mock<IQueryService>().Object;
 
@@ -34,8 +30,7 @@ public class ServiceRegistrationTests
     }
 
     [Fact]
-    public void CreateEmptyKernel_ReturnsChatClientWithEmptyQueryService()
-    {
+    public void CreateEmptyKernel_ReturnsChatClientWithEmptyQueryService() {
         var kernel = ServiceRegistration.CreateEmptyKernel();
 
         kernel.Should().NotBeNull();
@@ -43,8 +38,7 @@ public class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddPipeQueryService_RegistersPipeQueryService()
-    {
+    public void AddPipeQueryService_RegistersPipeQueryService() {
         var services = new ServiceCollection();
         var pipeConfig = new PipeTransportConfig { PipeName = "test-pipe" };
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test" };
@@ -57,8 +51,7 @@ public class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddKernelWithPlugins_WithPipeEndpoint_RegistersPipeQueryService()
-    {
+    public void AddKernelWithPlugins_WithPipeEndpoint_RegistersPipeQueryService() {
         var services = new ServiceCollection();
         var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
         var pipeConfig = new PipeTransportConfig { PipeName = "pipe" };
@@ -70,8 +63,7 @@ public class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddKernelWithPlugins_WithoutPipeEndpoint_RegistersStandardQueryService()
-    {
+    public void AddKernelWithPlugins_WithoutPipeEndpoint_RegistersStandardQueryService() {
         var services = new ServiceCollection();
         var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
 
@@ -82,8 +74,7 @@ public class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddKernelWithDynamicPlugins_DoesNotThrow()
-    {
+    public void AddKernelWithDynamicPlugins_DoesNotThrow() {
         var services = new ServiceCollection();
         var providerConfig = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test", ModelId = "gpt-4o" };
 

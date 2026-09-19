@@ -4,10 +4,8 @@ namespace JoinCode.Gui.Tests.ViewModels;
 /// ChatTurnProcessor 单元测试 — 从 MainViewModel 抽取的回合组装器契约。
 /// 覆盖：占位创建/流式缓冲/思考空泡移除/工具卡片顺序/token 聚合/子代理组卡片路由。
 /// </summary>
-public class ChatTurnProcessorTests
-{
-    private static (ChatTurnProcessor P, ObservableCollection<ChatUiMessage> M) Create()
-    {
+public class ChatTurnProcessorTests {
+    private static (ChatTurnProcessor P, ObservableCollection<ChatUiMessage> M) Create() {
         var messages = new ObservableCollection<ChatUiMessage>();
         var processor = new ChatTurnProcessor(messages);
         processor.BeginTurn();
@@ -15,16 +13,14 @@ public class ChatTurnProcessorTests
     }
 
     [Fact]
-    public void BeginTurn_ShouldAddStreamingAssistantPlaceholder()
-    {
+    public void BeginTurn_ShouldAddStreamingAssistantPlaceholder() {
         var (p, m) = Create();
         m.Should().ContainSingle(x => x.IsStreaming && x.Role == MessageRole.Assistant);
         p.AssistantPlaceholder.Should().BeSameAs(m[0]);
     }
 
     [Fact]
-    public void Process_Content_StreamingOff_ShouldFillOnCompleteTurn()
-    {
+    public void Process_Content_StreamingOff_ShouldFillOnCompleteTurn() {
         var (p, _) = Create();
         p.Process(ChatStreamEvent.Text("你好"), streamingEnabled: false);
         p.Process(new ChatStreamEvent { Type = ChatStreamEventType.Content, Content = "世界" }, false);
@@ -36,8 +32,7 @@ public class ChatTurnProcessorTests
     }
 
     [Fact]
-    public void Process_Thinking_EmptyAfterTurn_ShouldRemoveBubble()
-    {
+    public void Process_Thinking_EmptyAfterTurn_ShouldRemoveBubble() {
         var (p, m) = Create();
         p.Process(new ChatStreamEvent { Type = ChatStreamEventType.Thinking, ThinkingContent = "  " }, true);
         m.Should().Contain(mv => mv.Kind == ChatUiMessageKind.Thinking);
@@ -47,8 +42,7 @@ public class ChatTurnProcessorTests
     }
 
     [Fact]
-    public void Process_ToolLifecycle_ShouldOrderCardsBeforeAssistant()
-    {
+    public void Process_ToolLifecycle_ShouldOrderCardsBeforeAssistant() {
         var (p, m) = Create();
         p.Process(ChatStreamEvent.ToolStart("bash", "c1", "ls"), true);
         p.Process(ChatStreamEvent.ToolEnd("bash", "ok", "c1", isError: false), true);
@@ -65,8 +59,7 @@ public class ChatTurnProcessorTests
     }
 
     [Fact]
-    public void Process_CompleteEvents_ShouldAccumulateTotalTokens()
-    {
+    public void Process_CompleteEvents_ShouldAccumulateTotalTokens() {
         var (p, _) = Create();
         p.Process(ChatStreamEvent.Done(new TokenUsage(100, 50)), true);
         p.Process(ChatStreamEvent.Done(new TokenUsage(10, 5)), true);
@@ -74,8 +67,7 @@ public class ChatTurnProcessorTests
     }
 
     [Fact]
-    public void Process_SubAgentEvents_ShouldRouteToSingleGroupCard_NotMainText()
-    {
+    public void Process_SubAgentEvents_ShouldRouteToSingleGroupCard_NotMainText() {
         var (p, m) = Create();
         p.Process(ChatStreamEvent.AgentStarted("a1", "explore", "调研", "executor"), true);
         p.Process(new ChatStreamEvent { Type = ChatStreamEventType.Content, Content = "子代理正文", AgentId = "a1" }, true);

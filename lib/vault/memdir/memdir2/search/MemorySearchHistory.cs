@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// 搜索历史条目模型
 /// 记录一次记忆搜索的查询与结果摘要
 /// </summary>
-public sealed record SearchHistoryEntry
-{
+public sealed record SearchHistoryEntry {
     /// <summary>
     /// 搜索查询内容
     /// </summary>
@@ -36,8 +35,7 @@ public sealed record SearchHistoryEntry
 /// 过往上下文片段模型
 /// 描述从历史对话记忆中检索到的相关上下文
 /// </summary>
-public sealed record PastContextSection
-{
+public sealed record PastContextSection {
     /// <summary>
     /// 构建的提示文本
     /// </summary>
@@ -67,8 +65,7 @@ public sealed record PastContextSection
 /// 记忆搜索历史服务接口
 /// 管理搜索历史记录，并支持从历史对话记忆中检索相关上下文
 /// </summary>
-public interface IMemorySearchHistoryService : IDisposable
-{
+public interface IMemorySearchHistoryService : IDisposable {
     /// <summary>
     /// 记录一次搜索
     /// </summary>
@@ -121,8 +118,7 @@ public interface IMemorySearchHistoryService : IDisposable
 /// 检索相关的过往对话记忆，构建上下文提示
 /// </summary>
 [Register(typeof(IMemorySearchHistoryService), ServiceLifetime.Singleton)]
-public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemorySearchHistoryService, IDisposable
-{
+public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemorySearchHistoryService, IDisposable {
     private const int MaxHistorySize = 100;
 
     private readonly MemoryStore _memoryStore;
@@ -143,8 +139,7 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
     public MemorySearchHistoryService(
         MemoryStore memoryStore,
         ILogger<MemorySearchHistoryService>? logger = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _memoryStore = memoryStore ?? throw new ArgumentNullException(nameof(memoryStore));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -155,14 +150,12 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
         string query,
         int resultCount,
         ImmutableList<string>? topMemoryIds = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(query);
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var entry = new SearchHistoryEntry
-        {
+        var entry = new SearchHistoryEntry {
             Query = query,
             ResultCount = resultCount,
             TopMemoryIds = topMemoryIds ?? ImmutableList<string>.Empty,
@@ -172,12 +165,10 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
         // 无锁 CAS 循环 — 原子更新不可变快照
         ImmutableList<SearchHistoryEntry> original;
         ImmutableList<SearchHistoryEntry> updated;
-        do
-        {
+        do {
             original = Volatile.Read(ref _searchHistory);
             updated = original.Insert(0, entry);
-            if (updated.Count > MaxHistorySize)
-            {
+            if (updated.Count > MaxHistorySize) {
                 updated = updated.RemoveAt(updated.Count - 1);
             }
         } while (Interlocked.CompareExchange(ref _searchHistory, updated, original) != original);
@@ -194,8 +185,7 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
     public Task<IReadOnlyList<MemoryEntry>> SearchPastConversationsAsync(
         string query,
         int maxResults = 10,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(query);
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -208,10 +198,8 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var combinedResults = new List<MemoryEntry>();
 
-        foreach (var memory in feedbackResults.Concat(userResults))
-        {
-            if (seenIds.Add(memory.Id))
-            {
+        foreach (var memory in feedbackResults.Concat(userResults)) {
+            if (seenIds.Add(memory.Id)) {
                 combinedResults.Add(memory);
             }
         }
@@ -234,8 +222,7 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
     public async Task<PastContextSection> BuildSearchingPastContextSectionAsync(
         string currentQuery,
         int maxMemories = 5,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(currentQuery);
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -244,10 +231,8 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
         var pastMemories = await SearchPastConversationsAsync(
             currentQuery, maxMemories, cancellationToken).ConfigureAwait(false);
 
-        if (pastMemories.Count == 0)
-        {
-            return new PastContextSection
-            {
+        if (pastMemories.Count == 0) {
+            return new PastContextSection {
                 PromptText = string.Empty,
                 ReferencedMemoryCount = 0
             };
@@ -262,15 +247,13 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
 
         var referencedIds = new List<string>();
 
-        for (var i = 0; i < pastMemories.Count; i++)
-        {
+        for (var i = 0; i < pastMemories.Count; i++) {
             var memory = pastMemories[i];
             referencedIds.Add(memory.Id);
 
             var typeLabel = memory.Type.GetName();
             var ageDays = (_clock.GetUtcNow() - memory.CreatedAt).Days;
-            var ageLabel = ageDays switch
-            {
+            var ageLabel = ageDays switch {
                 0 => L.T(StringKey.VaultTodayTime),
                 1 => L.T(StringKey.VaultYesterdayTime),
                 < 7 => L.T(StringKey.VaultDaysAgoTime, ageDays),
@@ -281,8 +264,7 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
             sb.AppendLine($"### {i + 1}. [{typeLabel}] {memory.Title ?? L.T(StringKey.VaultNoTitleDefault)} ({ageLabel})");
             sb.AppendLine(memory.Content);
 
-            if (!memory.Tags.IsEmpty)
-            {
+            if (!memory.Tags.IsEmpty) {
                 sb.AppendLine(L.T(StringKey.VaultLabelTagsInline, string.Join(", ", memory.Tags)));
             }
 
@@ -295,19 +277,16 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
             .Take(3)
             .ToList();
 
-        if (relatedSearches.Count > 0)
-        {
+        if (relatedSearches.Count > 0) {
             sb.AppendLine(L.T(StringKey.VaultRelatedSearchHeader));
-            foreach (var search in relatedSearches)
-            {
+            foreach (var search in relatedSearches) {
                 var timeStr = search.SearchedAt.ToString("yyyy-MM-dd HH:mm");
                 sb.AppendLine(L.T(StringKey.VaultRelatedSearchResult, timeStr, search.Query, search.ResultCount));
             }
             sb.AppendLine();
         }
 
-        var section = new PastContextSection
-        {
+        var section = new PastContextSection {
             PromptText = sb.ToString(),
             ReferencedMemoryCount = pastMemories.Count,
             ReferencedMemoryIds = referencedIds.ToImmutableList()
@@ -322,21 +301,18 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<SearchHistoryEntry> GetRecentSearches(int limit = 20)
-    {
+    public IReadOnlyList<SearchHistoryEntry> GetRecentSearches(int limit = 20) {
         return Volatile.Read(ref _searchHistory).Take(limit).ToImmutableList();
     }
 
     /// <summary>
     /// 判断两个查询是否相关（基于关键词重叠度）
     /// </summary>
-    private static bool IsQueryRelated(string query1, string query2)
-    {
+    private static bool IsQueryRelated(string query1, string query2) {
         var words1 = QueryWordHelper.ExtractWords(query1, minLength: 2);
         var words2 = QueryWordHelper.ExtractWords(query2, minLength: 2);
 
-        if (words1.Count == 0 || words2.Count == 0)
-        {
+        if (words1.Count == 0 || words2.Count == 0) {
             return false;
         }
 

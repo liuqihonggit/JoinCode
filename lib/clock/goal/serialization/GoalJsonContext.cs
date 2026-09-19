@@ -18,8 +18,7 @@ public partial class GoalJsonContext : JsonSerializerContext;
 /// <summary>
 /// 评估器返回的 JSON 格式
 /// </summary>
-public sealed class GoalEvaluationJson
-{
+public sealed class GoalEvaluationJson {
     /// <summary>目标是否已完成</summary>
     [JsonPropertyName("completed")]
     public bool Completed { get; set; }
@@ -32,8 +31,7 @@ public sealed class GoalEvaluationJson
 /// <summary>
 /// 负向评价节点输出的 JSON 格式
 /// </summary>
-public sealed class NegReviewOutputJson
-{
+public sealed class NegReviewOutputJson {
     /// <summary>负评数量</summary>
     [JsonPropertyName("negativeReviewCount")]
     public int NegativeReviewCount { get; set; }
@@ -58,8 +56,7 @@ public sealed class NegReviewOutputJson
 /// <summary>
 /// 负向评价条目
 /// </summary>
-public sealed class NegReviewItemJson
-{
+public sealed class NegReviewItemJson {
     /// <summary>负评类别</summary>
     [JsonPropertyName("category")]
     public string Category { get; set; } = string.Empty;
@@ -76,8 +73,7 @@ public sealed class NegReviewItemJson
 /// <summary>
 /// 修复负评节点输出的 JSON 格式
 /// </summary>
-public sealed class FixNegOutputJson
-{
+public sealed class FixNegOutputJson {
     /// <summary>路由决策</summary>
     [JsonPropertyName("route")]
     public string Route { get; set; } = "NEG_STOP";
@@ -98,8 +94,7 @@ public sealed class FixNegOutputJson
 /// <summary>
 /// 任务分解分析 LLM 输出的 JSON 格式
 /// </summary>
-public sealed class DecompositionAnalysisJson
-{
+public sealed class DecompositionAnalysisJson {
     /// <summary>是否可分解</summary>
     [JsonPropertyName("isDecomposable")]
     public bool IsDecomposable { get; set; }
@@ -128,8 +123,7 @@ public sealed class DecompositionAnalysisJson
 /// <summary>
 /// 子任务定义 JSON — LLM 输出
 /// </summary>
-public sealed class SubTaskDefinitionJson
-{
+public sealed class SubTaskDefinitionJson {
     /// <summary>子任务 ID</summary>
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
@@ -162,8 +156,7 @@ public sealed class SubTaskDefinitionJson
 /// <summary>
 /// 评分分析 LLM 输出的 JSON 格式
 /// </summary>
-public sealed class GradingAnalysisJson
-{
+public sealed class GradingAnalysisJson {
     /// <summary>评分原因</summary>
     [JsonPropertyName("reason")]
     public string Reason { get; set; } = string.Empty;
@@ -176,8 +169,7 @@ public sealed class GradingAnalysisJson
 /// <summary>
 /// 评分维度 JSON — LLM 输出
 /// </summary>
-public sealed class GradingCriterionJson
-{
+public sealed class GradingCriterionJson {
     /// <summary>维度名称</summary>
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;

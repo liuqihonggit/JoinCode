@@ -1,15 +1,13 @@
 namespace JoinCode.Abstractions.Security.Scanning;
 
-public enum SecretType
-{
+public enum SecretType {
     [EnumValue("sensitiveFile")] SensitiveFile,
     [EnumValue("apiKey")] ApiKey,
     [EnumValue("privateKey")] PrivateKey,
     [EnumValue("credential")] Credential
 }
 
-public sealed record SecretFinding
-{
+public sealed record SecretFinding {
     public required string FilePath { get; init; }
     public int? LineNumber { get; init; }
     public required string MatchedPattern { get; init; }
@@ -17,8 +15,7 @@ public sealed record SecretFinding
     public required SecretType Type { get; init; }
 }
 
-public sealed record ScanResult
-{
+public sealed record ScanResult {
     public required bool IsBlocked { get; init; }
     public required IReadOnlyList<SecretFinding> Findings { get; init; }
 
@@ -27,8 +24,7 @@ public sealed record ScanResult
     public static ScanResult Blocked(IReadOnlyList<SecretFinding> findings) =>
         new() { IsBlocked = true, Findings = findings };
 
-    public string FormatReport()
-    {
+    public string FormatReport() {
         if (!IsBlocked || Findings.Count == 0)
             return string.Empty;
 
@@ -36,8 +32,7 @@ public sealed record ScanResult
         sb.AppendLine("🚫 安全拦截: 检测到敏感内容，提交已被阻止！");
         sb.AppendLine();
 
-        foreach (var finding in Findings)
-        {
+        foreach (var finding in Findings) {
             sb.AppendLine($"  [{finding.Type}] {finding.FilePath}");
             if (finding.LineNumber.HasValue)
                 sb.AppendLine($"    行号: {finding.LineNumber}");

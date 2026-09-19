@@ -4,8 +4,7 @@ namespace Guard.Security.Tests;
 /// CommandDangerClassifier 单元测试 — 验证新4级分级: Safe/LightValidation/Execution/Dangerous
 /// 绿灯ask(LightValidation)=可撤回, 红灯ask(Execution)=不可撤回, Dangerous=直接拒绝
 /// </summary>
-public class CommandDangerClassifierTests
-{
+public class CommandDangerClassifierTests {
     private readonly CommandDangerClassifier _classifier = new();
 
     #region Dangerous 级测试 — 直接拒绝不提示
@@ -23,8 +22,7 @@ public class CommandDangerClassifierTests
     [InlineData("git -c core.sshCommand=rm fetch")]
     [InlineData("git --exec-path=/tmp/malicious log")]
     [InlineData("git --config-env=core.sshCommand=SSH log")]
-    public void Dangerous_Commands_Should_Return_Dangerous(string command)
-    {
+    public void Dangerous_Commands_Should_Return_Dangerous(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.Dangerous);
@@ -37,8 +35,7 @@ public class CommandDangerClassifierTests
     [InlineData("format c:")]
     [InlineData("mkfs.ext4 /dev/sda1")]
     [InlineData("dd if=/dev/zero of=/dev/sda")]
-    public void IsDangerous_Should_Return_True(string command)
-    {
+    public void IsDangerous_Should_Return_True(string command) {
         _classifier.IsDangerous(command).Should().BeTrue();
     }
 
@@ -78,8 +75,7 @@ public class CommandDangerClassifierTests
     [InlineData("git push -f")]
     [InlineData("git stash drop")]
     [InlineData("git tag -d v1.0")]
-    public void Execution_Commands_Should_Return_Execution(string command)
-    {
+    public void Execution_Commands_Should_Return_Execution(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.Execution);
@@ -98,8 +94,7 @@ public class CommandDangerClassifierTests
     [InlineData("git merge feature")]
     [InlineData("git stash")]
     [InlineData("git tag v1.0")]
-    public void LightValidation_Commands_Should_Return_LightValidation(string command)
-    {
+    public void LightValidation_Commands_Should_Return_LightValidation(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.LightValidation);
@@ -116,8 +111,7 @@ public class CommandDangerClassifierTests
     [InlineData("./unknown_script.sh")]
     [InlineData("my_custom_tool")]
     [InlineData("foo bar baz")]
-    public void Unknown_Commands_Should_Return_Unknown(string command)
-    {
+    public void Unknown_Commands_Should_Return_Unknown(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.Unknown);
@@ -143,8 +137,7 @@ public class CommandDangerClassifierTests
     [InlineData("echo hello")]
     [InlineData("pwd")]
     [InlineData("whoami")]
-    public void Safe_Commands_Should_Return_Safe(string command)
-    {
+    public void Safe_Commands_Should_Return_Safe(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.Safe);
@@ -172,8 +165,7 @@ public class CommandDangerClassifierTests
     [InlineData("ls", CommandDangerLevel.Safe)]
     [InlineData("cat", CommandDangerLevel.Safe)]
     [InlineData("unknowncmd", CommandDangerLevel.Unknown)]
-    public void GetCommandLevel_Should_Return_Correct_Level(string commandName, CommandDangerLevel expectedLevel)
-    {
+    public void GetCommandLevel_Should_Return_Correct_Level(string commandName, CommandDangerLevel expectedLevel) {
         _classifier.GetCommandLevel(commandName).Should().Be(expectedLevel);
     }
 
@@ -182,15 +174,13 @@ public class CommandDangerClassifierTests
     #region 边界测试
 
     [Fact]
-    public void Empty_Command_Should_Return_Safe()
-    {
+    public void Empty_Command_Should_Return_Safe() {
         _classifier.Classify("").Level.Should().Be(CommandDangerLevel.Safe);
         _classifier.Classify("   ").Level.Should().Be(CommandDangerLevel.Safe);
     }
 
     [Fact]
-    public void SafeResult_Should_Have_Correct_Properties()
-    {
+    public void SafeResult_Should_Have_Correct_Properties() {
         DangerClassificationResult.SafeResult.Level.Should().Be(CommandDangerLevel.Safe);
         DangerClassificationResult.SafeResult.RequiresIntervention.Should().BeFalse();
         DangerClassificationResult.SafeResult.IsDangerous.Should().BeFalse();
@@ -206,8 +196,7 @@ public class CommandDangerClassifierTests
     [InlineData("rm /root", CommandDangerLevel.Dangerous)]
     [InlineData("rm /etc/passwd", CommandDangerLevel.Execution)]
     [InlineData("rm /home/user/file", CommandDangerLevel.Execution)]
-    public void Dangerous_Paths_Should_Escalate_Level(string command, CommandDangerLevel expectedMinLevel)
-    {
+    public void Dangerous_Paths_Should_Escalate_Level(string command, CommandDangerLevel expectedMinLevel) {
         var result = _classifier.Classify(command);
 
         ((int)result.Level).Should().BeGreaterThanOrEqualTo((int)expectedMinLevel);
@@ -224,8 +213,7 @@ public class CommandDangerClassifierTests
     [InlineData("robocopy src dst /purge")]
     [InlineData("robocopy src dst /MIR /R:0 /W:0")]
     [InlineData("robocopy src dst /PURGE /E")]
-    public void Robocopy_Mirror_Purge_Should_Return_Dangerous(string command)
-    {
+    public void Robocopy_Mirror_Purge_Should_Return_Dangerous(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.Dangerous);
@@ -236,8 +224,7 @@ public class CommandDangerClassifierTests
     [InlineData("robocopy src dst /E")]
     [InlineData("robocopy src dst /COPY:DAT")]
     [InlineData("robocopy src dst")]
-    public void Robocopy_Normal_Copy_Should_Return_Execution(string command)
-    {
+    public void Robocopy_Normal_Copy_Should_Return_Execution(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.Execution);
@@ -254,8 +241,7 @@ public class CommandDangerClassifierTests
     [InlineData("Remove-Item \\\\?\\D:\\path\\nul")]
     [InlineData("Remove-Item -Force \\\\?\\D:\\path\\nul")]
     [InlineData("Remove-Item \\\\?\\C:\\temp")]
-    public void LongPath_Prefix_With_Delete_Should_Return_Dangerous(string command)
-    {
+    public void LongPath_Prefix_With_Delete_Should_Return_Dangerous(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.Dangerous);
@@ -265,8 +251,7 @@ public class CommandDangerClassifierTests
     [Theory]
     [InlineData("robocopy src \\\\?\\D:\\path /E")]
     [InlineData("copy file \\\\?\\D:\\dest")]
-    public void LongPath_Prefix_Alone_Should_Return_AtLeast_Execution(string command)
-    {
+    public void LongPath_Prefix_Alone_Should_Return_AtLeast_Execution(string command) {
         var result = _classifier.Classify(command);
 
         ((int)result.Level).Should().BeGreaterThanOrEqualTo((int)CommandDangerLevel.Execution);
@@ -284,8 +269,7 @@ public class CommandDangerClassifierTests
     [InlineData("git diff | perl")]
     [InlineData("git log | ruby")]
     [InlineData("git show | node")]
-    public void Git_PipeToInterpreter_Should_Return_Execution(string command)
-    {
+    public void Git_PipeToInterpreter_Should_Return_Execution(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.Execution);
@@ -297,8 +281,7 @@ public class CommandDangerClassifierTests
     [InlineData("git diff | grep pattern")]
     [InlineData("git log | cat")]
     [InlineData("git log | sort")]
-    public void Git_PipeToSafeCommand_Should_Return_LightValidation(string command)
-    {
+    public void Git_PipeToSafeCommand_Should_Return_LightValidation(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.LightValidation);
@@ -308,8 +291,7 @@ public class CommandDangerClassifierTests
     [Theory]
     [InlineData("git diff > file.txt")]
     [InlineData("git log >> output.txt")]
-    public void Git_Redirect_Should_Return_LightValidation(string command)
-    {
+    public void Git_Redirect_Should_Return_LightValidation(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.LightValidation);
@@ -324,8 +306,7 @@ public class CommandDangerClassifierTests
     [InlineData("[黄灯ask] 未知命令需确认", CommandDangerLevel.Unknown)]
     [InlineData("[绿灯ask] git commit 可撤回", CommandDangerLevel.LightValidation)]
     [InlineData("[红灯ask] rm file.txt 不可撤回", CommandDangerLevel.Execution)]
-    public void ParseLevelFromPrompt_Should_Parse_LevelTag(string prompt, CommandDangerLevel expected)
-    {
+    public void ParseLevelFromPrompt_Should_Parse_LevelTag(string prompt, CommandDangerLevel expected) {
         DangerLevelPromptParser.ParseLevelFromPrompt(prompt).Should().Be(expected);
     }
 
@@ -333,14 +314,12 @@ public class CommandDangerClassifierTests
     [InlineData("")]
     [InlineData("无标签的提示")]
     [InlineData("[未知] 旧格式标签")]
-    public void ParseLevelFromPrompt_Should_Return_Null_When_No_Tag(string prompt)
-    {
+    public void ParseLevelFromPrompt_Should_Return_Null_When_No_Tag(string prompt) {
         DangerLevelPromptParser.ParseLevelFromPrompt(prompt).Should().BeNull();
     }
 
     [Fact]
-    public void ParseLevelFromPrompt_Null_Should_Return_Null()
-    {
+    public void ParseLevelFromPrompt_Null_Should_Return_Null() {
         DangerLevelPromptParser.ParseLevelFromPrompt(null).Should().BeNull();
     }
 
@@ -355,8 +334,7 @@ public class CommandDangerClassifierTests
     [InlineData("echo \"git reset --hard\"")]
     [InlineData("echo \"chmod 777\"")]
     [InlineData("printf \"%s\" \"rm -rf /\"")]
-    public void QuotedDangerousSubstring_ShouldNotTriggerCombination(string command)
-    {
+    public void QuotedDangerousSubstring_ShouldNotTriggerCombination(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().Be(CommandDangerLevel.Safe,
@@ -370,8 +348,7 @@ public class CommandDangerClassifierTests
     [InlineData("dd of=/dev/sda")]
     [InlineData("git reset --hard")]
     [InlineData("chmod 777 /tmp")]
-    public void RealDangerousCommand_ShouldStillTrigger(string command)
-    {
+    public void RealDangerousCommand_ShouldStillTrigger(string command) {
         var result = _classifier.Classify(command);
 
         result.Level.Should().NotBe(CommandDangerLevel.Safe,

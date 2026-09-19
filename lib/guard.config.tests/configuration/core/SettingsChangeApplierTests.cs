@@ -1,8 +1,7 @@
 #pragma warning disable JCC3010, JCC3011, JCC3012
 namespace Guard.Tests.Configuration;
 
-public sealed class SettingsChangeApplierTests
-{
+public sealed class SettingsChangeApplierTests {
     private readonly Mock<IConfigChangeNotifier> _mockNotifier = new();
     private readonly Mock<IFileSystem> _mockFs = new();
     private readonly Mock<IExecutionSettingsProvider> _mockExecutionSettings = new();
@@ -12,8 +11,7 @@ public sealed class SettingsChangeApplierTests
     /// ApplySettingsChangeAsync 应更新 EffortLevel
     /// </summary>
     [Fact]
-    public async Task ApplySettingsChangeAsync_UpdatesEffortLevel()
-    {
+    public async Task ApplySettingsChangeAsync_UpdatesEffortLevel() {
         // Arrange
         _mockExecutionSettings.SetupGet(x => x.EffortLevel).Returns(EffortLevel.Medium);
 
@@ -31,8 +29,7 @@ public sealed class SettingsChangeApplierTests
     /// ApplySettingsChangeAsync 应刷新 Hook 配置缓存
     /// </summary>
     [Fact]
-    public async Task ApplySettingsChangeAsync_InvalidatesHookCache()
-    {
+    public async Task ApplySettingsChangeAsync_InvalidatesHookCache() {
         // Arrange
         _mockHookConfig
             .Setup(x => x.InvalidateCacheAsync(It.IsAny<CancellationToken>()))
@@ -51,8 +48,7 @@ public sealed class SettingsChangeApplierTests
     /// ConfigChanged 事件触发时应调用 ApplySettingsChangeAsync
     /// </summary>
     [Fact]
-    public async Task ConfigChanged_TriggersApplySettingsChange()
-    {
+    public async Task ConfigChanged_TriggersApplySettingsChange() {
         // Arrange — 用 TCS 替代 Task.Delay，在 InvalidateCacheAsync 回调中发信号
         var tcs = new TaskCompletionSource<bool>();
 
@@ -62,8 +58,7 @@ public sealed class SettingsChangeApplierTests
             .Returns(Task.CompletedTask);
 
         var applier = CreateApplier();
-        var eventArgs = new ConfigChangeEventArgs
-        {
+        var eventArgs = new ConfigChangeEventArgs {
             FilePath = "settings.json",
             ChangeType = "Changed",
             Timestamp = DateTimeOffset.UtcNow
@@ -83,16 +78,14 @@ public sealed class SettingsChangeApplierTests
     /// Dispose 后不再响应 ConfigChanged 事件
     /// </summary>
     [Fact]
-    public async Task Dispose_StopsRespondingToConfigChanged()
-    {
+    public async Task Dispose_StopsRespondingToConfigChanged() {
         // Arrange
         var applier = CreateApplier();
 
         // Act
         await applier.DisposeAsync().ConfigureAwait(true);
 
-        var eventArgs = new ConfigChangeEventArgs
-        {
+        var eventArgs = new ConfigChangeEventArgs {
             FilePath = "settings.json",
             ChangeType = "Changed",
             Timestamp = DateTimeOffset.UtcNow
@@ -109,8 +102,7 @@ public sealed class SettingsChangeApplierTests
     /// 多次 Dispose 不应抛异常
     /// </summary>
     [Fact]
-    public async Task Dispose_MultipleTimes_NoException()
-    {
+    public async Task Dispose_MultipleTimes_NoException() {
         var applier = CreateApplier();
         await applier.DisposeAsync().ConfigureAwait(true);
         await applier.DisposeAsync().ConfigureAwait(true); // 第二次不应抛异常
@@ -120,8 +112,7 @@ public sealed class SettingsChangeApplierTests
     /// ConfigLoader 抛异常时 ApplySettingsChangeAsync 不应传播异常
     /// </summary>
     [Fact]
-    public async Task ApplySettingsChangeAsync_ConfigLoaderThrows_DoesNotPropagate()
-    {
+    public async Task ApplySettingsChangeAsync_ConfigLoaderThrows_DoesNotPropagate() {
         // Arrange — 不提供可选服务，ConfigLoader.LoadSettingsJsonAsync 可能抛异常
         var pipeline = new MiddlewarePipeline<SettingsContext>(
         [
@@ -137,8 +128,7 @@ public sealed class SettingsChangeApplierTests
         await applier.DisposeAsync().ConfigureAwait(true);
     }
 
-    private SettingsChangeApplier CreateApplier()
-    {
+    private SettingsChangeApplier CreateApplier() {
         var pipeline = new MiddlewarePipeline<SettingsContext>(
         [
             new SettingsReloadMiddleware(),

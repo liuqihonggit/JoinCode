@@ -4,8 +4,7 @@ namespace JoinCode.Cli;
 /// Vim 引擎 — CLI 简化版存根，提供基本模式切换但无完整 Vim 键绑定
 /// </summary>
 [Register(typeof(IVimEngine), ServiceLifetime.Singleton)]
-public sealed partial class VimEngine : ServiceEntity, IVimEngine
-{
+public sealed partial class VimEngine : ServiceEntity, IVimEngine {
     /// <summary>当前 Vim 模式</summary>
     public VimMode CurrentMode { get; private set; }
     /// <summary>是否启用 Vim 引擎</summary>
@@ -39,8 +38,7 @@ public sealed partial class VimEngine : ServiceEntity, IVimEngine
     /// <summary>切换到指定 Vim 模式，并触发 ModeChanged 事件</summary>
     /// <param name="mode">目标模式</param>
     /// <returns>切换前的旧模式</returns>
-    public VimMode SwitchToMode(VimMode mode)
-    {
+    public VimMode SwitchToMode(VimMode mode) {
         var oldMode = CurrentMode;
         CurrentMode = mode;
         ModeChanged?.Invoke(this, mode);
@@ -52,28 +50,23 @@ public sealed partial class VimEngine : ServiceEntity, IVimEngine
     /// <param name="input">输入缓冲区</param>
     /// <param name="cursorPosition">光标位置（引用传递）</param>
     /// <returns>按键处理结果</returns>
-    public VimKeyResult ProcessKey(ConsoleKeyInfo keyInfo, StringBuilder input, ref int cursorPosition)
-    {
+    public VimKeyResult ProcessKey(ConsoleKeyInfo keyInfo, StringBuilder input, ref int cursorPosition) {
         if (!IsEnabled) return VimKeyResult.NotHandled;
 
-        if (keyInfo.Key == ConsoleKey.Escape)
-        {
-            if (CurrentMode != VimMode.Normal)
-            {
+        if (keyInfo.Key == ConsoleKey.Escape) {
+            if (CurrentMode != VimMode.Normal) {
                 SwitchToMode(VimMode.Normal);
                 return VimKeyResult.Handled;
             }
             return VimKeyResult.Cancelled;
         }
 
-        if (CurrentMode == VimMode.Normal && keyInfo.KeyChar == 'i')
-        {
+        if (CurrentMode == VimMode.Normal && keyInfo.KeyChar == 'i') {
             SwitchToMode(VimMode.Insert);
             return VimKeyResult.Handled;
         }
 
-        if (CurrentMode == VimMode.Insert && keyInfo.Key == ConsoleKey.Enter)
-        {
+        if (CurrentMode == VimMode.Insert && keyInfo.Key == ConsoleKey.Enter) {
             return VimKeyResult.Submit(input.ToString());
         }
 

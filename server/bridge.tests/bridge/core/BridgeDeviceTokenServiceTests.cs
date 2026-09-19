@@ -5,15 +5,13 @@ namespace Bridge.Tests;
 /// BridgeDeviceTokenService 单元测试 — 对齐 TS 端 trustedDevice.ts
 /// 测试令牌获取优先级、缓存、清除、注册
 /// </summary>
-public sealed class BridgeDeviceTokenServiceTests : IDisposable
-{
+public sealed class BridgeDeviceTokenServiceTests : IDisposable {
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private readonly string _authPath = "/test/auth.json";
     private readonly string? _originalEnvToken;
     private bool _disposed;
 
-    public BridgeDeviceTokenServiceTests()
-    {
+    public BridgeDeviceTokenServiceTests() {
         _fs.CreateDirectory("/test/");
 
         // 保存原始环境变量
@@ -21,15 +19,13 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
         Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), null);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), _originalEnvToken);
     }
 
-    private BridgeDeviceTokenService CreateSut(HttpResponseMessage? enrollResponse = null)
-    {
+    private BridgeDeviceTokenService CreateSut(HttpResponseMessage? enrollResponse = null) {
         var handler = new MockHttpMessageHandler(enrollResponse);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.example.com") };
         return new BridgeDeviceTokenService(httpClient, _fs, logger: null, authFilePath: _authPath);
@@ -41,32 +37,26 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     #region GetTrustedDeviceTokenAsync
 
     [Fact]
-    public async Task GetToken_ReturnsNull_WhenNoSource()
-    {
+    public async Task GetToken_ReturnsNull_WhenNoSource() {
         var sut = CreateSut();
         var result = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
         result.Should().BeNull();
     }
 
     [Fact]
-    public async Task GetToken_ReturnsEnvVar_WhenSet()
-    {
+    public async Task GetToken_ReturnsEnvVar_WhenSet() {
         Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), "env-token-123");
-        try
-        {
+        try {
             var sut = CreateSut();
             var result = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
             result.Should().Be("env-token-123");
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), null);
         }
     }
 
     [Fact]
-    public async Task GetToken_ReturnsCachedValue_WhenAlreadyCached()
-    {
+    public async Task GetToken_ReturnsCachedValue_WhenAlreadyCached() {
         Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), "cached-token");
         var sut = CreateSut();
         var first = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
@@ -78,25 +68,20 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetToken_EnvVarTakesPrecedenceOverStorage()
-    {
+    public async Task GetToken_EnvVarTakesPrecedenceOverStorage() {
         WriteAuthJson("""{"device_token": "storage-token", "api_key": "key123"}""");
         Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), "env-override");
-        try
-        {
+        try {
             var sut = CreateSut();
             var result = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
             result.Should().Be("env-override");
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), null);
         }
     }
 
     [Fact]
-    public async Task GetToken_ReadsFromStorage_WhenNoCacheAndNoEnvVar()
-    {
+    public async Task GetToken_ReadsFromStorage_WhenNoCacheAndNoEnvVar() {
         WriteAuthJson("""{"device_token": "storage-token-xyz", "api_key": "key123"}""");
         var sut = CreateSut();
         var result = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
@@ -108,8 +93,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     #region ClearCache
 
     [Fact]
-    public async Task ClearCache_ForcesReReadFromEnvVar()
-    {
+    public async Task ClearCache_ForcesReReadFromEnvVar() {
         Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), "first-token");
         var sut = CreateSut();
         var first = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
@@ -135,8 +119,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     #region ClearTokenAsync
 
     [Fact]
-    public async Task ClearToken_ClearsCacheAndDeletesFromStorage()
-    {
+    public async Task ClearToken_ClearsCacheAndDeletesFromStorage() {
         WriteAuthJson("""{"device_token": "old-token", "api_key": "key123"}""");
         var sut = CreateSut();
 
@@ -162,10 +145,8 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     #region EnrollTrustedDeviceAsync
 
     [Fact]
-    public async Task Enroll_SetsCacheAndPersistsToken()
-    {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
+    public async Task Enroll_SetsCacheAndPersistsToken() {
+        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
             Content = new StringContent("""{"device_token": "enrolled-token-abc", "device_id": "dev-001"}""")
         };
         var sut = CreateSut(response);
@@ -182,8 +163,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Enroll_DoesNotThrow_OnFailure()
-    {
+    public async Task Enroll_DoesNotThrow_OnFailure() {
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
         var sut = CreateSut(response);
 
@@ -192,8 +172,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Enroll_DoesNotThrow_OnNetworkError()
-    {
+    public async Task Enroll_DoesNotThrow_OnNetworkError() {
         var handler = new MockFailingHttpMessageHandler();
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.example.com") };
         var sut = new BridgeDeviceTokenService(httpClient, TestFileSystem.Current, logger: null, authFilePath: _authPath);
@@ -203,12 +182,10 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Enroll_SendsBearerToken()
-    {
+    public async Task Enroll_SendsBearerToken() {
         HttpRequestMessage? capturedRequest = null;
         var handler = new MockCapturingHttpMessageHandler(
-            new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-            {
+            new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
                 Content = new StringContent("""{"device_token": "tok", "device_id": "d1"}""")
             },
             req => capturedRequest = req);
@@ -224,12 +201,10 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Enroll_SendsDisplayNameInRequestBody()
-    {
+    public async Task Enroll_SendsDisplayNameInRequestBody() {
         string? requestBody = null;
         var handler = new MockCapturingHttpMessageHandler(
-            new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-            {
+            new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
                 Content = new StringContent("""{"device_token": "tok", "device_id": "d1"}""")
             },
             async req => requestBody = await req.Content!.ReadAsStringAsync().ConfigureAwait(true));
@@ -243,11 +218,9 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Enroll_PreservesExistingAuthJsonFields()
-    {
+    public async Task Enroll_PreservesExistingAuthJsonFields() {
         WriteAuthJson("""{"api_key": "existing-key", "org_id": "org-123"}""");
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
+        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
             Content = new StringContent("""{"device_token": "new-tok", "device_id": "d1"}""")
         };
         var sut = CreateSut(response);
@@ -265,16 +238,14 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     #region Best-effort behavior
 
     [Fact]
-    public async Task GetToken_DoesNotThrow_WhenAuthJsonMissing()
-    {
+    public async Task GetToken_DoesNotThrow_WhenAuthJsonMissing() {
         var sut = CreateSut();
         var result = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
         result.Should().BeNull();
     }
 
     [Fact]
-    public async Task ClearToken_DoesNotThrow_WhenAuthJsonMissing()
-    {
+    public async Task ClearToken_DoesNotThrow_WhenAuthJsonMissing() {
         var sut = CreateSut();
         var act = async () => await sut.ClearTokenAsync().ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
@@ -284,29 +255,25 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
 
     #region Mock Helpers
 
-    private sealed class MockHttpMessageHandler : HttpMessageHandler
-    {
+    private sealed class MockHttpMessageHandler : HttpMessageHandler {
         private readonly HttpResponseMessage? _response;
 
         public MockHttpMessageHandler(HttpResponseMessage? response = null) => _response = response;
 
         protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
-        {
+            HttpRequestMessage request, CancellationToken cancellationToken) {
             return Task.FromResult(_response
                 ?? new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent("{}") });
         }
     }
 
-    private sealed class MockFailingHttpMessageHandler : HttpMessageHandler
-    {
+    private sealed class MockFailingHttpMessageHandler : HttpMessageHandler {
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
             => throw new HttpRequestException("Connection refused");
     }
 
-    private sealed class MockCapturingHttpMessageHandler : HttpMessageHandler
-    {
+    private sealed class MockCapturingHttpMessageHandler : HttpMessageHandler {
         private readonly HttpResponseMessage _response;
         private readonly Action<HttpRequestMessage>? _captureRequest;
         private readonly Func<HttpRequestMessage, Task>? _captureRequestAsync;
@@ -314,16 +281,14 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
         public MockCapturingHttpMessageHandler(
             HttpResponseMessage response,
             Action<HttpRequestMessage>? captureRequest = null,
-            Func<HttpRequestMessage, Task>? captureRequestAsync = null)
-        {
+            Func<HttpRequestMessage, Task>? captureRequestAsync = null) {
             _response = response;
             _captureRequest = captureRequest;
             _captureRequestAsync = captureRequestAsync;
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
-        {
+            HttpRequestMessage request, CancellationToken cancellationToken) {
             _captureRequest?.Invoke(request);
             if (_captureRequestAsync is not null)
                 await _captureRequestAsync(request).ConfigureAwait(true);

@@ -3,10 +3,8 @@ namespace Vision.Tests.ToolHandlers;
 /// <summary>
 /// ImageMetaphorToolHandlers 单元测试 — 验证 M2 的 2 个 MCP 工具
 /// </summary>
-public sealed class ImageMetaphorToolHandlersTests
-{
-    private static Mock<IQueryService> CreateQueryServiceMock(string responseContent)
-    {
+public sealed class ImageMetaphorToolHandlersTests {
+    private static Mock<IQueryService> CreateQueryServiceMock(string responseContent) {
         var mock = new Mock<IQueryService>();
         mock
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
@@ -15,8 +13,7 @@ public sealed class ImageMetaphorToolHandlersTests
     }
 
     [Fact]
-    public async Task ImageDescribe_ValidResponse_ShouldReturnFormattedText()
-    {
+    public async Task ImageDescribe_ValidResponse_ShouldReturnFormattedText() {
         var llmResponse = """
             {"summary": "一个厨房场景", "labels": [{"label": "冰箱", "description": "白色双门冰箱", "suggested_attributes": ["品牌", "颜色"]}]}
             """;
@@ -35,8 +32,7 @@ public sealed class ImageMetaphorToolHandlersTests
     }
 
     [Fact]
-    public async Task ImageDescribe_EmptyBase64_ShouldReturnError()
-    {
+    public async Task ImageDescribe_EmptyBase64_ShouldReturnError() {
         var mock = new Mock<IQueryService>();
         var handlers = new ImageMetaphorToolHandlers(mock.Object);
 
@@ -47,8 +43,7 @@ public sealed class ImageMetaphorToolHandlersTests
     }
 
     [Fact]
-    public async Task ImageDescribe_EmptyResponse_ShouldReturnError()
-    {
+    public async Task ImageDescribe_EmptyResponse_ShouldReturnError() {
         var mock = CreateQueryServiceMock("");
         var handlers = new ImageMetaphorToolHandlers(mock.Object);
 
@@ -59,8 +54,7 @@ public sealed class ImageMetaphorToolHandlersTests
     }
 
     [Fact]
-    public async Task ImageDescribe_UnparseableResponse_ShouldReturnRawText()
-    {
+    public async Task ImageDescribe_UnparseableResponse_ShouldReturnRawText() {
         var mock = CreateQueryServiceMock("这不是JSON，只是普通文本响应");
         var handlers = new ImageMetaphorToolHandlers(mock.Object);
 
@@ -71,8 +65,7 @@ public sealed class ImageMetaphorToolHandlersTests
     }
 
     [Fact]
-    public async Task ImageDescribe_JsonCodeBlock_ShouldParseCorrectly()
-    {
+    public async Task ImageDescribe_JsonCodeBlock_ShouldParseCorrectly() {
         var llmResponse = """
             ```json
             {"summary": "办公室", "labels": [{"label": "电脑", "description": "笔记本电脑", "suggested_attributes": ["型号", "状态"]}]}
@@ -90,8 +83,7 @@ public sealed class ImageMetaphorToolHandlersTests
     }
 
     [Fact]
-    public async Task ImageDrillDown_ValidResponse_ShouldReturnFormattedText()
-    {
+    public async Task ImageDrillDown_ValidResponse_ShouldReturnFormattedText() {
         var llmResponse = """
             {"label": "冰箱", "attributes": [{"name": "品牌", "value": "海尔", "confidence": 0.9}], "suggested_next": ["冰箱门把手"], "has_more": true}
             """;
@@ -110,8 +102,7 @@ public sealed class ImageMetaphorToolHandlersTests
     }
 
     [Fact]
-    public async Task ImageDrillDown_MaxDepthReached_ShouldStopExpansion()
-    {
+    public async Task ImageDrillDown_MaxDepthReached_ShouldStopExpansion() {
         var mock = new Mock<IQueryService>();
         var handlers = new ImageMetaphorToolHandlers(mock.Object);
 
@@ -123,8 +114,7 @@ public sealed class ImageMetaphorToolHandlersTests
     }
 
     [Fact]
-    public async Task ImageDrillDown_EmptyBase64_ShouldReturnError()
-    {
+    public async Task ImageDrillDown_EmptyBase64_ShouldReturnError() {
         var mock = new Mock<IQueryService>();
         var handlers = new ImageMetaphorToolHandlers(mock.Object);
 
@@ -135,8 +125,7 @@ public sealed class ImageMetaphorToolHandlersTests
     }
 
     [Fact]
-    public async Task ImageDrillDown_EmptyLabel_ShouldReturnError()
-    {
+    public async Task ImageDrillDown_EmptyLabel_ShouldReturnError() {
         var mock = new Mock<IQueryService>();
         var handlers = new ImageMetaphorToolHandlers(mock.Object);
 
@@ -147,8 +136,7 @@ public sealed class ImageMetaphorToolHandlersTests
     }
 
     [Fact]
-    public async Task ImageDrillDown_EmptyResponse_ShouldReturnError()
-    {
+    public async Task ImageDrillDown_EmptyResponse_ShouldReturnError() {
         var mock = CreateQueryServiceMock("");
         var handlers = new ImageMetaphorToolHandlers(mock.Object);
 
@@ -159,8 +147,7 @@ public sealed class ImageMetaphorToolHandlersTests
     }
 
     [Fact]
-    public async Task ImageDrillDown_HasMoreFalse_ShouldShowNoMoreMessage()
-    {
+    public async Task ImageDrillDown_HasMoreFalse_ShouldShowNoMoreMessage() {
         var llmResponse = """
             {"label": "桌子", "attributes": [{"name": "材质", "value": "木质", "confidence": 0.8}], "suggested_next": [], "has_more": false}
             """;

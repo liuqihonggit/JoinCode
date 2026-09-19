@@ -4,8 +4,7 @@ namespace Core.Security.Sandbox.Ipc;
 /// <summary>
 /// 沙箱 IPC 客户端 — 通过 stdin/stdout 与沙箱卫星进程进行 JSON 行协议通信,转发执行请求并等待响应
 /// </summary>
-public sealed class SandboxIpcClient : IAsyncDisposable
-{
+public sealed class SandboxIpcClient : IAsyncDisposable {
     private readonly IProcessService _processService;
     private readonly IFileSystem _fs;
     private readonly ILogger<SandboxIpcClient>? _logger;
@@ -24,8 +23,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     /// <summary>
     /// 初始化沙箱 IPC 客户端实例
     /// </summary>
-    public SandboxIpcClient(IProcessService processService, IFileSystem fs, ILogger<SandboxIpcClient>? logger = null, Func<int, Task>? onSatelliteStarted = null)
-    {
+    public SandboxIpcClient(IProcessService processService, IFileSystem fs, ILogger<SandboxIpcClient>? logger = null, Func<int, Task>? onSatelliteStarted = null) {
         _processService = processService;
         _fs = fs;
         _logger = logger;
@@ -45,20 +43,16 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     /// <summary>
     /// 启动沙箱卫星进程并建立读写循环
     /// </summary>
-    public async Task StartAsync(string? satelliteExePath = null, CancellationToken ct = default)
-    {
-        using (await _startLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_startLock.Name}' 等待超时"))
-        {
-            if (_process is not null && !_process.HasExited)
-            {
+    public async Task StartAsync(string? satelliteExePath = null, CancellationToken ct = default) {
+        using (await _startLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_startLock.Name}' 等待超时")) {
+            if (_process is not null && !_process.HasExited) {
                 return;
             }
 
             var exePath = satelliteExePath ?? DiscoverSatelliteExe();
 
             _readCts = new CancellationTokenSource();
-            _process = await _processService.StartInteractiveAsync(new InteractiveProcessOptions
-            {
+            _process = await _processService.StartInteractiveAsync(new InteractiveProcessOptions {
                 FileName = exePath,
                 Arguments = "",
             }, ct).ConfigureAwait(false);
@@ -69,14 +63,10 @@ public sealed class SandboxIpcClient : IAsyncDisposable
             _writeCts = new CancellationTokenSource();
             _writeConsumerTask = WriteLoopAsync(_writeCts.Token);
 
-            if (_onSatelliteStarted is not null)
-            {
-                try
-                {
+            if (_onSatelliteStarted is not null) {
+                try {
                     await _onSatelliteStarted(_process.Id).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "[SandboxIpcClient] 卫星进程 PID 回调执行失败, Pid: {Pid}", _process.Id);
                 }
             }
@@ -88,15 +78,13 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     /// <summary>
     /// 通过 IPC 向卫星进程发送执行请求并等待响应
     /// </summary>
-    public async Task<SandboxExecuteResponse> ExecuteAsync(SandboxExecuteRequest request, CancellationToken ct = default)
-    {
+    public async Task<SandboxExecuteResponse> ExecuteAsync(SandboxExecuteRequest request, CancellationToken ct = default) {
         EnsureRunning();
 
         var requestId = Interlocked.Increment(ref _requestCounter).ToString();
         var requestJson = JsonSerializer.Serialize(request, SandboxIpcJsonContext.Default.SandboxExecuteRequest);
 
-        var ipcRequest = new SandboxIpcRequest
-        {
+        var ipcRequest = new SandboxIpcRequest {
             Type = "execute",
             RequestId = requestId,
             Payload = requestJson
@@ -104,8 +92,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
 
         var response = await SendRequestAsync(ipcRequest, ct).ConfigureAwait(false);
 
-        if (!response.Success)
-        {
+        if (!response.Success) {
             throw new InvalidOperationException($"Sandbox execute failed: {response.Error}");
         }
 
@@ -116,21 +103,18 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     /// <summary>
     /// 向卫星进程发送 ping 请求以检测连通性
     /// </summary>
-    public async Task PingAsync(CancellationToken ct = default)
-    {
+    public async Task PingAsync(CancellationToken ct = default) {
         EnsureRunning();
 
         var requestId = Interlocked.Increment(ref _requestCounter).ToString();
-        var request = new SandboxIpcRequest
-        {
+        var request = new SandboxIpcRequest {
             Type = "ping",
             RequestId = requestId
         };
 
         var response = await SendRequestAsync(request, ct).ConfigureAwait(false);
 
-        if (!response.Success || response.Type != "pong")
-        {
+        if (!response.Success || response.Type != "pong") {
             throw new InvalidOperationException($"Ping failed: {response.Error}");
         }
     }
@@ -138,78 +122,60 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     /// <summary>
     /// 向卫星进程发送 shutdown 请求并关闭读写通道与进程
     /// </summary>
-    public async Task ShutdownAsync(CancellationToken ct = default)
-    {
-        if (_process is null || _process.HasExited)
-        {
+    public async Task ShutdownAsync(CancellationToken ct = default) {
+        if (_process is null || _process.HasExited) {
             return;
         }
 
         var requestId = Interlocked.Increment(ref _requestCounter).ToString();
-        var request = new SandboxIpcRequest
-        {
+        var request = new SandboxIpcRequest {
             Type = "shutdown",
             RequestId = requestId
         };
 
-        try
-        {
+        try {
             await SendRequestAsync(request, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "[SandboxIpcClient] shutdown 请求发送异常，忽略");
         }
 
         _writeCts?.Cancel();
         _writeChannel?.Writer.TryComplete();
 
-        if (_writeConsumerTask != null)
-        {
-            try
-            {
+        if (_writeConsumerTask != null) {
+            try {
                 await _writeConsumerTask.ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogDebug(ex, "[SandboxIpcClient] 等待写消费者完成时出错");
             }
         }
 
         _readCts?.Cancel();
 
-        if (_process is not null && !_process.HasExited)
-        {
+        if (_process is not null && !_process.HasExited) {
             _process.Kill();
         }
     }
 
-    private async Task<SandboxIpcResponse> SendRequestAsync(SandboxIpcRequest request, CancellationToken ct)
-    {
+    private async Task<SandboxIpcResponse> SendRequestAsync(SandboxIpcRequest request, CancellationToken ct) {
         var tcs = new TaskCompletionSource<SandboxIpcResponse>();
         _pendingRequests[request.RequestId] = tcs;
 
-        try
-        {
+        try {
             var json = JsonSerializer.Serialize(request, SandboxIpcJsonContext.Default.SandboxIpcRequest);
 
             await _writeChannel!.Writer.WriteAsync(json + "\n", ct).ConfigureAwait(false);
-        
+
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(60));
 
-            try
-            {
+            try {
                 return await tcs.Task.WaitAsync(timeoutCts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 throw new TimeoutException("[GRD002] IPC 请求超时 (60s)，卫星进程未响应");
             }
-        }
-        finally
-        {
+        } finally {
             _pendingRequests.TryRemove(request.RequestId, out _);
         }
     }
@@ -217,88 +183,63 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     /// <summary>
     /// 写消费者循环 — 单消费者从 Channel 串行写 stdin,消除持锁 await IO 死锁风险(P9)
     /// </summary>
-    private async Task WriteLoopAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task WriteLoopAsync(CancellationToken cancellationToken) {
+        try {
             if (_writeChannel is null) return;
-            await foreach (var json in _writeChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-            {
+            await foreach (var json in _writeChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false)) {
                 if (_process is null || _process.HasExited) break;
                 await _process.StandardInput.WriteAsync(json.AsMemory(), cancellationToken).ConfigureAwait(false);
                 await _process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
-        }
-        catch (OperationCanceledException) { }
-        catch (ChannelClosedException) { _logger?.LogDebug("[SandboxIpcClient] 写通道已关闭"); }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (ChannelClosedException) { _logger?.LogDebug("[SandboxIpcClient] 写通道已关闭"); } catch (Exception ex) {
             _logger?.LogError(ex, "[SandboxIpcClient] 写循环异常");
         }
     }
 
-    private async Task ReadLoopAsync(CancellationToken ct)
-    {
-        try
-        {
-            while (!ct.IsCancellationRequested && _process is not null && !_process.HasExited)
-            {
+    private async Task ReadLoopAsync(CancellationToken ct) {
+        try {
+            while (!ct.IsCancellationRequested && _process is not null && !_process.HasExited) {
                 var line = await _process.StandardOutput.ReadLineAsync(ct).ConfigureAwait(false);
-                if (line is null)
-                {
+                if (line is null) {
                     break;
                 }
 
-                if (string.IsNullOrWhiteSpace(line))
-                {
+                if (string.IsNullOrWhiteSpace(line)) {
                     continue;
                 }
 
-                try
-                {
+                try {
                     var response = RelaxedJsonSerializer.Deserialize(line, SandboxIpcJsonContext.Default.SandboxIpcResponse);
-                    if (response is not null && _pendingRequests.TryRemove(response.RequestId, out var tcs))
-                    {
+                    if (response is not null && _pendingRequests.TryRemove(response.RequestId, out var tcs)) {
                         tcs.SetResult(response);
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "[SandboxIpcClient] 解析响应失败: {Line}", line);
                 }
             }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[SandboxIpcClient] 读取循环异常");
         }
     }
 
-    private void EnsureRunning()
-    {
-        if (_process is null || _process.HasExited)
-        {
+    private void EnsureRunning() {
+        if (_process is null || _process.HasExited) {
             throw new InvalidOperationException("[GRD003] 卫星进程未运行，请先调用 StartAsync");
         }
     }
 
-    private string DiscoverSatelliteExe()
-    {
+    private string DiscoverSatelliteExe() {
         var currentDir = AppContext.BaseDirectory;
         var exeName = OperatingSystem.IsWindows() ? "jcc-sandbox.exe" : "jcc-sandbox";
 
         var path = Path.Combine(currentDir, exeName);
-        if (_fs.FileExists(path))
-        {
+        if (_fs.FileExists(path)) {
             return path;
         }
 
         path = Path.Combine(currentDir, "tools", exeName);
-        if (_fs.FileExists(path))
-        {
+        if (_fs.FileExists(path)) {
             return path;
         }
 
@@ -308,12 +249,10 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     /// <summary>
     /// 异步释放客户端,关闭卫星进程并释放所有资源
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         return new ValueTask(ShutdownAsync().ContinueWith(
-            static (_, state) =>
-            {
+            static (_, state) => {
                 var self = (SandboxIpcClient)state!;
                 self._startLock.Dispose();
                 self._readCts?.Dispose();

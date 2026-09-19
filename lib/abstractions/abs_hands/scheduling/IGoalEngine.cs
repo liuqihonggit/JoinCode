@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces.Scheduling;
 /// <summary>
 /// 目标引擎接口 — 模型可通过 MCP 工具查询和更新目标状态
 /// </summary>
-public interface IGoalEngine
-{
+public interface IGoalEngine {
     /// <summary>启动目标</summary>
     Task<GoalState> StartAsync(
         string objective,

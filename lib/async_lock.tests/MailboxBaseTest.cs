@@ -3,11 +3,9 @@ namespace Core.Utils;
 /// <summary>
 /// MailboxBase 单元测试 — 验证双工、背压、水位线、tell 异步、注册/注销、广播。
 /// </summary>
-public class MailboxBaseTest
-{
+public class MailboxBaseTest {
     [Fact]
-    public async Task RegisterAndTell_MessageDeliveredToAgent()
-    {
+    public async Task RegisterAndTell_MessageDeliveredToAgent() {
         await using var mailbox = new TestMailbox();
         await mailbox.RegisterAgentAsync("agent-1");
         await WaitForRegistrationAsync(mailbox, "agent-1");
@@ -18,8 +16,7 @@ public class MailboxBaseTest
     }
 
     [Fact]
-    public async Task TellAsync_DoesNotBlock_FireAndForget()
-    {
+    public async Task TellAsync_DoesNotBlock_FireAndForget() {
         await using var mailbox = new TestMailbox(
             agentBp: new ActorBackpressure(Capacity: 2, FullMode: BoundedChannelFullMode.Wait, SendTimeout: TimeSpan.FromSeconds(5)));
         await mailbox.RegisterAgentAsync("agent-1");
@@ -32,8 +29,7 @@ public class MailboxBaseTest
     }
 
     [Fact]
-    public async Task Broadcast_AllAgentsReceiveMessage()
-    {
+    public async Task Broadcast_AllAgentsReceiveMessage() {
         await using var mailbox = new TestMailbox();
         await mailbox.RegisterAgentAsync("agent-1");
         await mailbox.RegisterAgentAsync("agent-2");
@@ -51,8 +47,7 @@ public class MailboxBaseTest
     }
 
     [Fact]
-    public async Task Broadcast_ExcludesSender()
-    {
+    public async Task Broadcast_ExcludesSender() {
         await using var mailbox = new TestMailbox();
         await mailbox.RegisterAgentAsync("sender");
         await mailbox.RegisterAgentAsync("receiver");
@@ -68,8 +63,7 @@ public class MailboxBaseTest
     }
 
     [Fact]
-    public async Task UnregisterAgent_ChannelCompletes()
-    {
+    public async Task UnregisterAgent_ChannelCompletes() {
         await using var mailbox = new TestMailbox();
         await mailbox.RegisterAgentAsync("agent-1");
         await mailbox.UnregisterAgentAsync("agent-1");
@@ -79,8 +73,7 @@ public class MailboxBaseTest
     }
 
     [Fact]
-    public async Task Watermark_TriggersEvent_WhenHighWatermarkReached()
-    {
+    public async Task Watermark_TriggersEvent_WhenHighWatermarkReached() {
         var agentBp = new ActorBackpressure(
             Capacity: 4,
             FullMode: BoundedChannelFullMode.Wait,
@@ -93,10 +86,8 @@ public class MailboxBaseTest
 
         var watermarkEvents = new List<MailboxEvt<string>>();
         var cts = new CancellationTokenSource();
-        var consumeTask = Task.Run(async () =>
-        {
-            await foreach (var evt in mailbox.OutputAsync(cts.Token))
-            {
+        var consumeTask = Task.Run(async () => {
+            await foreach (var evt in mailbox.OutputAsync(cts.Token)) {
                 if (evt is WatermarkReachedEvt<string> w)
                     watermarkEvents.Add(w);
             }
@@ -116,8 +107,7 @@ public class MailboxBaseTest
     }
 
     [Fact]
-    public async Task GetRegisteredAgents_ReturnsAllRegistered()
-    {
+    public async Task GetRegisteredAgents_ReturnsAllRegistered() {
         await using var mailbox = new TestMailbox();
         await mailbox.RegisterAgentAsync("a");
         await mailbox.RegisterAgentAsync("b");
@@ -130,8 +120,7 @@ public class MailboxBaseTest
     }
 
     [Fact]
-    public async Task GetSessionId_ReturnsRegisteredSession()
-    {
+    public async Task GetSessionId_ReturnsRegisteredSession() {
         await using var mailbox = new TestMailbox();
         await mailbox.RegisterAgentAsync("agent-1", "session-123");
         await WaitForRegistrationAsync(mailbox, "agent-1");
@@ -141,16 +130,14 @@ public class MailboxBaseTest
     }
 
     [Fact]
-    public async Task ReceiveAsync_UnregisteredAgent_ReturnsEmpty()
-    {
+    public async Task ReceiveAsync_UnregisteredAgent_ReturnsEmpty() {
         await using var mailbox = new TestMailbox();
         var count = await mailbox.ReceiveAsync("nonexistent").CountAsync();
         count.Should().Be(0);
     }
 
     [Fact]
-    public async Task IsAgentHighWatermark_TrueWhenAboveThreshold()
-    {
+    public async Task IsAgentHighWatermark_TrueWhenAboveThreshold() {
         var agentBp = new ActorBackpressure(Capacity: 10, HighWatermark: 8, CriticalWatermark: 9);
         await using var mailbox = new TestMailbox(agentBp: agentBp);
         await mailbox.RegisterAgentAsync("agent-1");
@@ -162,26 +149,22 @@ public class MailboxBaseTest
         mailbox.IsAgentHighWatermark("agent-1").Should().BeTrue();
     }
 
-    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan timeout)
-    {
+    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan timeout) {
         var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
+        while (DateTime.UtcNow < deadline) {
             if (predicate()) return;
             await Task.Delay(50);
         }
         throw new TimeoutException($"Condition not met within {timeout.TotalSeconds}s");
     }
 
-    private static async Task WaitForRegistrationAsync(TestMailbox mailbox, string agentId)
-    {
+    private static async Task WaitForRegistrationAsync(TestMailbox mailbox, string agentId) {
         await WaitUntilAsync(() => mailbox.GetRegisteredAgents().Contains(agentId), TimeSpan.FromSeconds(5));
     }
 }
 
 /// <summary>测试用邮箱 — string 消息类型，默认实现本地投递。</summary>
-internal sealed class TestMailbox : MailboxBase<string>
-{
+internal sealed class TestMailbox : MailboxBase<string> {
     public TestMailbox(ActorBackpressure? cmdBp = null, ActorBackpressure? agentBp = null)
         : base(cmdBp, agentBp, 64) { }
 }

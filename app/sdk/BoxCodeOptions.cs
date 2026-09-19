@@ -3,8 +3,7 @@ namespace JoinCode.Sdk;
 /// <summary>
 /// JoinCode SDK 配置选项 — 外部宿主通过 AddJoinCode 扩展方法注入。
 /// </summary>
-public sealed class JoinCodeOptions
-{
+public sealed class JoinCodeOptions {
     /// <summary>LLM 供应商类型，默认 OpenAi。</summary>
     public VendorKind Vendor { get; set; } = VendorKind.OpenAi;
 

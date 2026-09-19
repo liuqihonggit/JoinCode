@@ -1,10 +1,8 @@
 namespace Host.Tests.Adapters;
 
-public sealed class SessionControllerTests
-{
+public sealed class SessionControllerTests {
     [Fact]
-    public async Task StreamResponseAsync_Success_ReturnsSuccessResult()
-    {
+    public async Task StreamResponseAsync_Success_ReturnsSuccessResult() {
         var events = new List<ChatStreamEvent>
         {
             ChatStreamEvent.Text("Hello "),
@@ -24,8 +22,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public async Task StreamResponseAsync_ToolEvents_DispatchedToConsumer()
-    {
+    public async Task StreamResponseAsync_ToolEvents_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>
         {
             ChatStreamEvent.ToolStart("read_file", "call1", "{\"path\":\"test.cs\"}"),
@@ -48,8 +45,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public async Task StreamResponseAsync_Thinking_DispatchedToConsumer()
-    {
+    public async Task StreamResponseAsync_Thinking_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>
         {
             ChatStreamEvent.Thinking("let me think..."),
@@ -70,8 +66,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public async Task StreamResponseAsync_Timeout_ReturnsTimeoutResult()
-    {
+    public async Task StreamResponseAsync_Timeout_ReturnsTimeoutResult() {
         var chatService = CreateMockChatService(
             _ => new OperationCanceledException());
         var consumer = new RecordingEventConsumer();
@@ -84,8 +79,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public async Task StreamResponseAsync_Error_ReturnsErrorResult()
-    {
+    public async Task StreamResponseAsync_Error_ReturnsErrorResult() {
         var chatService = CreateMockChatService(
             _ => throw new InvalidOperationException("API error"));
         var consumer = new RecordingEventConsumer();
@@ -99,8 +93,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public async Task StreamResponseAsync_LoopDetected_DispatchedToConsumer()
-    {
+    public async Task StreamResponseAsync_LoopDetected_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>
         {
             ChatStreamEvent.LoopDetected(3, 0, "repeated pattern"),
@@ -119,8 +112,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public async Task StreamResponseAsync_ToolProgress_DispatchedToConsumer()
-    {
+    public async Task StreamResponseAsync_ToolProgress_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>
         {
             ChatStreamEvent.ToolProgress("web_search", "query_update", "searching..."),
@@ -140,8 +132,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public async Task StreamResponseAsync_TimingSummary_DispatchedToConsumer()
-    {
+    public async Task StreamResponseAsync_TimingSummary_DispatchedToConsumer() {
         var events = new List<ChatStreamEvent>
         {
             ChatStreamEvent.TimingSummary("TTFT: 1.2s, Total: 3.5s"),
@@ -160,8 +151,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public async Task StreamResponseAsync_Done_StoresThinkingContent()
-    {
+    public async Task StreamResponseAsync_Done_StoresThinkingContent() {
         var thinkingStore = new Mock<IThinkingStore>();
         thinkingStore.Setup(s => s.StoreAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -187,8 +177,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public async Task StreamResponseAsync_EmptyEvents_ReturnsSuccessWithEmptyResponse()
-    {
+    public async Task StreamResponseAsync_EmptyEvents_ReturnsSuccessWithEmptyResponse() {
         var events = new List<ChatStreamEvent>
         {
             ChatStreamEvent.Done()
@@ -205,8 +194,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public void Stop_SetsIsRunningFalse()
-    {
+    public void Stop_SetsIsRunningFalse() {
         var chatService = CreateMockChatService(Array.Empty<ChatStreamEvent>());
         var consumer = new RecordingEventConsumer();
         var turnDiffService = new TurnDiffService();
@@ -218,8 +206,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public async Task StreamResponseAsync_MainAgentPath_CallsSaveContext()
-    {
+    public async Task StreamResponseAsync_MainAgentPath_CallsSaveContext() {
         var queryEngine = CreateMockQueryEngine();
         var agent = new AgentBase(
             task: string.Empty,
@@ -249,8 +236,7 @@ public sealed class SessionControllerTests
     }
 
     [Fact]
-    public async Task StreamResponseAsync_MainAgentPath_CallsPreprocessor()
-    {
+    public async Task StreamResponseAsync_MainAgentPath_CallsPreprocessor() {
         var queryEngine = CreateMockQueryEngine();
         var agent = new AgentBase(
             task: string.Empty,
@@ -282,8 +268,7 @@ public sealed class SessionControllerTests
             "主代理路径应在执行前调用 UpdateFileContext 更新文件上下文");
     }
 
-    private static IQueryEngine CreateMockQueryEngine()
-    {
+    private static IQueryEngine CreateMockQueryEngine() {
         var mock = new Mock<IQueryEngine>();
         var chunks = new QueryStreamChunk[]
         {
@@ -299,25 +284,21 @@ public sealed class SessionControllerTests
 
     private static async IAsyncEnumerable<QueryStreamChunk> EmitChunksAsync(
         IReadOnlyList<QueryStreamChunk> chunks,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        foreach (var chunk in chunks)
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        foreach (var chunk in chunks) {
             ct.ThrowIfCancellationRequested();
             yield return chunk;
         }
     }
 
-    private static IChatService CreateMockChatService(IReadOnlyList<ChatStreamEvent> events)
-    {
+    private static IChatService CreateMockChatService(IReadOnlyList<ChatStreamEvent> events) {
         var mock = new Mock<IChatService>();
         mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns((string input, CancellationToken ct) => EmitEventsAsync(events, ct));
         return mock.Object;
     }
 
-    private static IChatService CreateMockChatService(Func<string, Exception> throwFunc, int delayMs = 0)
-    {
+    private static IChatService CreateMockChatService(Func<string, Exception> throwFunc, int delayMs = 0) {
         var mock = new Mock<IChatService>();
         mock.Setup(s => s.StreamWithEventsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns((string input, CancellationToken ct) => ThrowEventsAsync(throwFunc, input, delayMs, ct));
@@ -326,10 +307,8 @@ public sealed class SessionControllerTests
 
     private static async IAsyncEnumerable<ChatStreamEvent> EmitEventsAsync(
         IReadOnlyList<ChatStreamEvent> events,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        foreach (var evt in events)
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        foreach (var evt in events) {
             ct.ThrowIfCancellationRequested();
             yield return evt;
         }
@@ -339,10 +318,8 @@ public sealed class SessionControllerTests
         Func<string, Exception> throwFunc,
         string input,
         int delayMs,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        if (delayMs > 0)
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        if (delayMs > 0) {
             await Task.Delay(delayMs, ct).ConfigureAwait(true);
         }
         throw throwFunc(input);
@@ -351,8 +328,7 @@ public sealed class SessionControllerTests
 #pragma warning restore CS0162
     }
 
-    private sealed class RecordingEventConsumer : IEventConsumer
-    {
+    private sealed class RecordingEventConsumer : IEventConsumer {
         public List<string> TextEvents { get; } = [];
         public List<string> ThinkingEvents { get; } = [];
         public List<(string toolName, string? toolCallId, string? arguments)> ToolStarts { get; } = [];

@@ -17,8 +17,7 @@ public sealed record AgentServiceDependencies(
 /// Agent 服务实现 — 负责子代理的生成、执行、消息路由、进度跟踪与生命周期管理
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService), ServiceLifetime.Singleton)]
-public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable
-{
+public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable {
 
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider _definitionProvider;
@@ -58,8 +57,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? notificationQueue = null,
         ILogger<AgentServiceImpl>? logger = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _lifecycleManager = lifecycleManager ?? throw new ArgumentNullException(nameof(lifecycleManager));
         _definitionProvider = definitionProvider ?? throw new ArgumentNullException(nameof(definitionProvider));
         _roleRegistry = roleRegistry ?? throw new ArgumentNullException(nameof(roleRegistry));
@@ -88,10 +86,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <summary>
     /// 共享初始化流程 — 通过中间件管道执行: Definition → Prompt → Context → Hook → Mcp → Metadata → Transcript
     /// </summary>
-    private async Task<SubAgentInitResult> InitializeSubAgentAsync(JoinCode.Abstractions.Interfaces.AgentSpawnOptions options, CancellationToken cancellationToken)
-    {
-        var context = new UnifiedSpawnContext
-        {
+    private async Task<SubAgentInitResult> InitializeSubAgentAsync(JoinCode.Abstractions.Interfaces.AgentSpawnOptions options, CancellationToken cancellationToken) {
+        var context = new UnifiedSpawnContext {
             Task = options.Description,
             SpawnOptions = options,
             CancellationToken = cancellationToken,
@@ -114,8 +110,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <param name="options">代理生成选项</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>代理信息，包含 ID、角色、状态等</returns>
-    public async Task<JoinCode.Abstractions.Interfaces.AgentInfo> SpawnAgentAsync(JoinCode.Abstractions.Interfaces.AgentSpawnOptions options, CancellationToken cancellationToken = default)
-    {
+    public async Task<JoinCode.Abstractions.Interfaces.AgentInfo> SpawnAgentAsync(JoinCode.Abstractions.Interfaces.AgentSpawnOptions options, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(options);
 
         var init = await InitializeSubAgentAsync(options, cancellationToken).ConfigureAwait(false);
@@ -124,8 +119,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _completionSources[init.SubAgent.ObjectId.UniqueId] = tcs;
         _agentStartTimer.Record(init.SubAgent.ObjectId.UniqueId, _clock.GetUtcNow());
         _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
-        if (init.SubAgent is AgentBase baseAgent)
-        {
+        if (init.SubAgent is AgentBase baseAgent) {
             if (_inputForwardQueue is not null)
                 baseAgent.InputForwardQueue = _inputForwardQueue;
             if (_outputChannelManager is not null)
@@ -135,8 +129,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         var runInBackground = options.RunInBackground || (init.Definition?.IsBackground ?? false);
 
-        if (runInBackground)
-        {
+        if (runInBackground) {
             var backgroundCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _backgroundCts[init.SubAgent.ObjectId.UniqueId] = backgroundCts;
 
@@ -147,16 +140,13 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             return MapToAgentInfo(init.SubAgent);
         }
 
-        try
-        {
+        try {
             var lifecycleResult = await _lifecycleManager.ExecuteAsync(init.SubAgent, cancellationToken).ConfigureAwait(false);
             var agentResult = MapToResult(lifecycleResult);
             tcs.SetResult(agentResult);
             FireAgentCompleted(init.SubAgent, agentResult);
             return MapToAgentInfo(init.SubAgent, lifecycleResult);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _completionSources.TryRemove(init.SubAgent.ObjectId.UniqueId, out var failedTcs);
             failedTcs?.TrySetException(ex);
             throw;
@@ -170,16 +160,14 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>代理输出流的异步枚举</returns>
     public async IAsyncEnumerable<AgentStreamChunk> RunAgentStreamAsync(
-        AgentSpawnOptions options, [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
+        AgentSpawnOptions options, [EnumeratorCancellation] CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(options);
 
         var init = await InitializeSubAgentAsync(options, cancellationToken).ConfigureAwait(false);
 
         _agentStartTimer.Record(init.SubAgent.ObjectId.UniqueId, _clock.GetUtcNow());
         _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
-        if (init.SubAgent is AgentBase streamBaseAgent)
-        {
+        if (init.SubAgent is AgentBase streamBaseAgent) {
             if (_inputForwardQueue is not null)
                 streamBaseAgent.InputForwardQueue = _inputForwardQueue;
             if (_outputChannelManager is not null)
@@ -193,24 +181,17 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         var succeeded = true;
         string? errorMessage = null;
 
-        await foreach (var chunk in init.SubAgent.ExecuteStreamAsync(cancellationToken).ConfigureAwait(false))
-        {
+        await foreach (var chunk in init.SubAgent.ExecuteStreamAsync(cancellationToken).ConfigureAwait(false)) {
             // 收集内容用于最终结果
-            if (chunk.Type == AgentStreamChunkType.Content && chunk.Content is not null)
-            {
+            if (chunk.Type == AgentStreamChunkType.Content && chunk.Content is not null) {
                 responseBuilder.Append(chunk.Content);
-            }
-            else if (chunk.Type == AgentStreamChunkType.Complete)
-            {
+            } else if (chunk.Type == AgentStreamChunkType.Complete) {
                 executionTimeMs = chunk.ExecutionTimeMs;
                 // Complete 块的 Content 是最终输出，追加到响应
-                if (chunk.Content is not null)
-                {
+                if (chunk.Content is not null) {
                     responseBuilder.Append(chunk.Content);
                 }
-            }
-            else if (chunk.Type == AgentStreamChunkType.Error)
-            {
+            } else if (chunk.Type == AgentStreamChunkType.Error) {
                 succeeded = false;
                 errorMessage = chunk.Content;
             }
@@ -219,16 +200,14 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         }
 
         // 设置完成源
-        var agentResult = new JoinCode.Abstractions.Interfaces.AgentResult
-        {
+        var agentResult = new JoinCode.Abstractions.Interfaces.AgentResult {
             AgentId = init.SubAgent.ObjectId.UniqueId,
             Success = succeeded,
             Output = succeeded ? responseBuilder.ToString() : string.Empty,
             Error = errorMessage
         };
 
-        if (_completionSources.TryRemove(init.SubAgent.ObjectId.UniqueId, out var tcs))
-        {
+        if (_completionSources.TryRemove(init.SubAgent.ObjectId.UniqueId, out var tcs)) {
             tcs.SetResult(agentResult);
         }
 
@@ -241,21 +220,17 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <param name="agentId">代理唯一标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>代理执行结果</returns>
-    public async Task<JoinCode.Abstractions.Interfaces.AgentResult> WaitForAgentAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public async Task<JoinCode.Abstractions.Interfaces.AgentResult> WaitForAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
-        if (_completionSources.TryGetValue(agentId, out var tcs))
-        {
+        if (_completionSources.TryGetValue(agentId, out var tcs)) {
             return await tcs.Task.ConfigureAwait(false);
         }
 
         var result = await _lifecycleManager.GetResultAsync(agentId, cancellationToken).ConfigureAwait(false);
 
-        if (result is null)
-        {
-            return new JoinCode.Abstractions.Interfaces.AgentResult
-            {
+        if (result is null) {
+            return new JoinCode.Abstractions.Interfaces.AgentResult {
                 AgentId = agentId,
                 Success = false,
                 Output = string.Empty,
@@ -272,8 +247,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <param name="agentId">代理唯一标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>代理信息；代理不存在时返回 null</returns>
-    public async Task<JoinCode.Abstractions.Interfaces.AgentInfo?> GetAgentAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public async Task<JoinCode.Abstractions.Interfaces.AgentInfo?> GetAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
         var subAgent = await _lifecycleManager.GetAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
@@ -287,12 +261,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <param name="agentId">代理唯一标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>是否成功取消</returns>
-    public async Task<bool> StopAgentAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> StopAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
-        if (_backgroundCts.TryRemove(agentId, out var backgroundCts))
-        {
+        if (_backgroundCts.TryRemove(agentId, out var backgroundCts)) {
             await backgroundCts.CancelAsync().ConfigureAwait(false);
             backgroundCts.Dispose();
         }
@@ -306,21 +278,16 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// 终止子代理时清理 worktree — 修复原先遗漏导致 worktree 静默残留（磁盘泄漏）。
     /// worktree 中有未提交变更时保留并记录 reason，无变更时移除。对齐 ForkExecutionMiddleware 的清理策略。
     /// </summary>
-    private async Task CleanupWorktreeIfNeededAsync(string agentId, CancellationToken cancellationToken)
-    {
+    private async Task CleanupWorktreeIfNeededAsync(string agentId, CancellationToken cancellationToken) {
         if (_worktreeManager is null) return;
 
-        try
-        {
+        try {
             var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(agentId, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (cleanupDetail.Kept)
-            {
+            if (cleanupDetail.Kept) {
                 _logger?.LogInformation("Agent {AgentId} worktree kept: {Path} (reason: {Reason})",
                     agentId, cleanupDetail.WorktreePath, cleanupDetail.Reason);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Agent {AgentId} worktree cleanup failed", agentId);
         }
     }
@@ -335,8 +302,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// 按名称查找运行中子代理的 ID — O(1) 字典查找
     /// 匹配键: DisplayName → Name → Description → Id（均精确匹配，大小写不敏感）
     /// </summary>
-    public Task<string?> FindAgentIdByNameAsync(string name, CancellationToken cancellationToken = default)
-    {
+    public Task<string?> FindAgentIdByNameAsync(string name, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         return Task.FromResult(_agentNameIndex.Find(name));
     }
@@ -345,8 +311,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// 获取指定子代理的 worktree 隔离目录 — 供 GUI 右键直达资源管理器；
     /// 未启用 worktree 隔离或代理不存在返回 null
     /// </summary>
-    public async Task<string?> GetAgentWorktreePathAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public async Task<string?> GetAgentWorktreePathAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         var agent = await _lifecycleManager.GetAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
         // WorktreePath 存于 AgentBase.Options（IAgent 接口不暴露），需向下转型
@@ -356,8 +321,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <summary>
     /// 注册子代理名称索引 — Spawn 时调用，建立 name→agentId 的多键映射
     /// </summary>
-    private void RegisterAgentNameIndex(IAgent subAgent)
-    {
+    private void RegisterAgentNameIndex(IAgent subAgent) {
         if (subAgent is not AgentBase baseAgent) return;
         _agentNameIndex.Register(subAgent.ObjectId.UniqueId, baseAgent.Name, baseAgent.Task, baseAgent.Options.DisplayName);
         _outputChannelManager?.Register(subAgent.ObjectId.UniqueId, baseAgent.Options.DisplayName ?? baseAgent.Name);
@@ -366,8 +330,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <summary>
     /// 注销子代理名称索引 — 完成时调用，仅移除属于该 agentId 的键（同名子代理不误删）
     /// </summary>
-    private void UnregisterAgentNameIndex(IAgent subAgent)
-    {
+    private void UnregisterAgentNameIndex(IAgent subAgent) {
         if (subAgent is not AgentBase baseAgent) return;
         _agentNameIndex.Unregister(subAgent.ObjectId.UniqueId, baseAgent.Name, baseAgent.Task, baseAgent.Options.DisplayName);
         _outputChannelManager?.Unregister(subAgent.ObjectId.UniqueId);
@@ -379,8 +342,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <param name="agentId">代理唯一标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>代理进度；代理不存在时返回 null</returns>
-    public Task<JoinCode.Abstractions.Interfaces.AgentProgress?> GetAgentProgressAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public Task<JoinCode.Abstractions.Interfaces.AgentProgress?> GetAgentProgressAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
         if (_progressTrackers.TryGetValue(agentId, out var tracker))
@@ -394,12 +356,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>代理类型信息列表</returns>
-    public Task<List<JoinCode.Abstractions.Interfaces.AgentTypeInfo>> GetAvailableAgentTypesAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<List<JoinCode.Abstractions.Interfaces.AgentTypeInfo>> GetAvailableAgentTypesAsync(CancellationToken cancellationToken = default) {
         var profiles = _roleRegistry.GetAllProfiles();
 
-        var result = profiles.Select(p => new JoinCode.Abstractions.Interfaces.AgentTypeInfo
-        {
+        var result = profiles.Select(p => new JoinCode.Abstractions.Interfaces.AgentTypeInfo {
             Name = p.DisplayId,
             Description = p.Description ?? p.WhenToUse,
             AvailableTools = p.AllowedTools?.ToList()
@@ -414,8 +374,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <param name="options">代理恢复选项</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>恢复后代理的信息</returns>
-    public async Task<JoinCode.Abstractions.Interfaces.AgentInfo> ResumeAgentAsync(JoinCode.Abstractions.Interfaces.AgentResumeOptions options, CancellationToken cancellationToken = default)
-    {
+    public async Task<JoinCode.Abstractions.Interfaces.AgentInfo> ResumeAgentAsync(JoinCode.Abstractions.Interfaces.AgentResumeOptions options, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(options);
 
         if (_transcriptService is null)
@@ -437,8 +396,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             ? _roleRegistry.GetProfile(metadata.Role, metadata.Variant)
             : null;
 
-        var subOptions = new SubAgentOptions
-        {
+        var subOptions = new SubAgentOptions {
             Role = metadata.Role,
             Variant = metadata.Variant,
             AdditionalInstructions = options.NewPrompt,
@@ -457,8 +415,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         var subAgent = await _lifecycleManager.SpawnSubAgentAsync(description, subOptions, cancellationToken).ConfigureAwait(false);
 
         var concreteAgent = (AgentBase)subAgent;
-        if (concreteAgent.Context is not null)
-        {
+        if (concreteAgent.Context is not null) {
             concreteAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
             concreteAgent.Context.SessionId = sessionId;
         }
@@ -470,8 +427,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _completionSources[subAgent.ObjectId.UniqueId] = tcs;
         _agentStartTimer.Record(subAgent.ObjectId.UniqueId, _clock.GetUtcNow());
 
-        if (options.RunInBackground)
-        {
+        if (options.RunInBackground) {
             var backgroundCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _backgroundCts[subAgent.ObjectId.UniqueId] = backgroundCts;
 
@@ -499,19 +455,16 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <param name="message">消息内容</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>是否发送成功</returns>
-    public async Task<bool> SendMessageToAgentAsync(string agentId, string message, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> SendMessageToAgentAsync(string agentId, string message, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
 
-        if (_messageBroker is null)
-        {
+        if (_messageBroker is null) {
             _logger?.LogWarning("[AgentServiceImpl] IMailbox 未注册，无法发送消息");
             return false;
         }
 
-        var agentMessage = new CoordinatorAgentMessage
-        {
+        var agentMessage = new CoordinatorAgentMessage {
             FromAgentId = "parent",
             ToAgentId = agentId,
             MessageType = "user_message",
@@ -520,8 +473,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         var sent = await _messageBroker.SendAsync(agentId, agentMessage, cancellationToken).ConfigureAwait(false);
 
-        if (sent)
-        {
+        if (sent) {
             _logger?.LogInformation("[AgentServiceImpl] 消息已发送给代理 {AgentId}", agentId);
             await AppendTranscriptEntryAsync(agentId, "user", $"[MESSAGE] {message}", cancellationToken).ConfigureAwait(false);
         }
@@ -533,13 +485,11 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// 将用户输入转发给运行中的子代理 — 用户在子代理运行期间追加的输入
     /// 消息入 IAgentInputForwardQueue，由子代理每轮 LLM 调用前主动 TryDrain 消费
     /// </summary>
-    public async Task<bool> ForwardUserInputToAgentAsync(string agentId, string userInput, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> ForwardUserInputToAgentAsync(string agentId, string userInput, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(userInput);
 
-        if (_inputForwardQueue is null)
-        {
+        if (_inputForwardQueue is null) {
             _logger?.LogWarning("[AgentServiceImpl] IAgentInputForwardQueue 未注册，无法转发用户输入");
             return false;
         }
@@ -556,19 +506,16 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// 向运行中的代理发送结构化消息 — 对齐 TS SendMessageTool 结构化消息路由
     /// 将结构化消息数据包装为 AgentMessage，通过 AgentMessageBroker 路由
     /// </summary>
-    public async Task<bool> SendStructuredMessageAsync(string agentId, StructuredMessageData structuredData, string rawMessage, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> SendStructuredMessageAsync(string agentId, StructuredMessageData structuredData, string rawMessage, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
-        if (_messageBroker is null)
-        {
+        if (_messageBroker is null) {
             _logger?.LogWarning("[AgentServiceImpl] IMailbox 未注册，无法发送结构化消息");
             return false;
         }
 
         var messageType = structuredData.Type.ToValue();
-        var agentMessage = new CoordinatorAgentMessage
-        {
+        var agentMessage = new CoordinatorAgentMessage {
             FromAgentId = "parent",
             ToAgentId = agentId,
             MessageType = messageType,
@@ -580,8 +527,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         var sent = await _messageBroker.SendAsync(agentId, agentMessage, cancellationToken).ConfigureAwait(false);
 
-        if (sent)
-        {
+        if (sent) {
             _logger?.LogInformation("[AgentServiceImpl] 结构化消息({Type})已发送给代理 {AgentId}", messageType, agentId);
             await AppendTranscriptEntryAsync(agentId, "user", $"[{messageType.ToUpperInvariant()}] {rawMessage}", cancellationToken).ConfigureAwait(false);
         }
@@ -595,22 +541,18 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <param name="agentId">代理唯一标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>代理消息信息集合</returns>
-    public async Task<IEnumerable<JoinCode.Abstractions.Interfaces.AgentMessageInfo>> GetAgentMessagesAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public async Task<IEnumerable<JoinCode.Abstractions.Interfaces.AgentMessageInfo>> GetAgentMessagesAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
-        if (_messageBroker is null)
-        {
+        if (_messageBroker is null) {
             _logger?.LogWarning("[AgentServiceImpl] IMailbox 未注册，无法获取消息");
             return [];
         }
 
         var messages = new List<JoinCode.Abstractions.Interfaces.AgentMessageInfo>();
 
-        await foreach (var msg in _messageBroker.ReceiveAsync(agentId, cancellationToken).ConfigureAwait(false))
-        {
-            messages.Add(new JoinCode.Abstractions.Interfaces.AgentMessageInfo
-            {
+        await foreach (var msg in _messageBroker.ReceiveAsync(agentId, cancellationToken).ConfigureAwait(false)) {
+            messages.Add(new JoinCode.Abstractions.Interfaces.AgentMessageInfo {
                 FromAgentId = msg.FromAgentId,
                 MessageType = msg.MessageType,
                 Content = msg.Content,
@@ -621,48 +563,36 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         return messages;
     }
 
-    private void StartWorkerPermissionResponseRouting(string agentId)
-    {
+    private void StartWorkerPermissionResponseRouting(string agentId) {
         if (_messageBroker is null || _permissionCallbackService is null) return;
 
-        try
-        {
-            _ = Task.Run(async () =>
-            {
-                await foreach (var message in _messageBroker.ReceiveAsync(agentId).ConfigureAwait(false))
-                {
-                    if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue())
-                    {
+        try {
+            _ = Task.Run(async () => {
+                await foreach (var message in _messageBroker.ReceiveAsync(agentId).ConfigureAwait(false)) {
+                    if (message.MessageType == SwarmPermissionMessageType.PermissionResponse.ToValue()) {
                         await _permissionCallbackService.ProcessIncomingResponseMessageAsync(message).ConfigureAwait(false);
                     }
                 }
             }).ConfigureAwait(false);
 
             _logger?.LogDebug("[AgentServiceImpl] Worker 权限响应路由已启动: AgentId={AgentId}", agentId);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[AgentServiceImpl] 启动 Worker 权限响应路由失败: AgentId={AgentId}", agentId);
         }
     }
 
-    private async Task RunBackgroundAgentAsync(IAgent subAgent, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult> tcs, CancellationToken cancellationToken)
-    {
+    private async Task RunBackgroundAgentAsync(IAgent subAgent, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult> tcs, CancellationToken cancellationToken) {
         var concreteAgent = (AgentBase)subAgent;
         using var scope = concreteAgent.Context?.EnterScopeWithCwd(concreteAgent.Options.WorktreePath);
-        try
-        {
+        try {
             var result = await _lifecycleManager.ExecuteAsync(subAgent, cancellationToken).ConfigureAwait(false);
 
             var agentResult = MapToResult(result);
             tcs.SetResult(agentResult);
 
             FireAgentCompleted(subAgent, agentResult);
-        }
-        catch (OperationCanceledException)
-        {
-            var agentResult = new JoinCode.Abstractions.Interfaces.AgentResult
-            {
+        } catch (OperationCanceledException) {
+            var agentResult = new JoinCode.Abstractions.Interfaces.AgentResult {
                 AgentId = subAgent.ObjectId.UniqueId,
                 Success = false,
                 Output = string.Empty,
@@ -671,11 +601,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             tcs.SetResult(agentResult);
 
             FireAgentCompleted(subAgent, agentResult);
-        }
-        catch (Exception ex)
-        {
-            var agentResult = new JoinCode.Abstractions.Interfaces.AgentResult
-            {
+        } catch (Exception ex) {
+            var agentResult = new JoinCode.Abstractions.Interfaces.AgentResult {
                 AgentId = subAgent.ObjectId.UniqueId,
                 Success = false,
                 Output = string.Empty,
@@ -684,25 +611,20 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             tcs.SetResult(agentResult);
 
             FireAgentCompleted(subAgent, agentResult);
-        }
-        finally
-        {
+        } finally {
             _backgroundCts.TryRemove(subAgent.ObjectId.UniqueId, out var cts);
             cts?.Dispose();
         }
     }
 
-    private void FireAgentCompleted(IAgent subAgent, JoinCode.Abstractions.Interfaces.AgentResult result)
-    {
-        try
-        {
+    private void FireAgentCompleted(IAgent subAgent, JoinCode.Abstractions.Interfaces.AgentResult result) {
+        try {
             var concreteAgent = (AgentBase)subAgent;
             _inputForwardQueue?.Unregister(subAgent.ObjectId.UniqueId);
             UnregisterAgentNameIndex(subAgent);
             var status = result.Success ? AgentStatus.Completed : AgentStatus.Failed;
 
-            if (_progressTrackers.TryGetValue(subAgent.ObjectId.UniqueId, out var tracker))
-            {
+            if (_progressTrackers.TryGetValue(subAgent.ObjectId.UniqueId, out var tracker)) {
                 if (concreteAgent.Context is not null)
                     tracker.RecordTokenUsage(concreteAgent.Context.TokenUsage.TotalTokens);
             }
@@ -712,8 +634,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             var toolUseCount = _progressTrackers.TryGetValue(subAgent.ObjectId.UniqueId, out var t) ? t.ToolUseCount : (int?)null;
             var tokenCount = concreteAgent.Context?.TokenUsage.TotalTokens;
 
-            AgentCompleted?.Invoke(this, new JoinCode.Abstractions.Interfaces.AgentCompletedEventArgs
-            {
+            AgentCompleted?.Invoke(this, new JoinCode.Abstractions.Interfaces.AgentCompletedEventArgs {
                 AgentId = subAgent.ObjectId.UniqueId,
                 Status = status,
                 Description = subAgent.Task,
@@ -729,8 +650,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 TokenCount = tokenCount
             });
 
-            var notification = new JoinCode.Abstractions.Interfaces.AgentTaskNotification
-            {
+            var notification = new JoinCode.Abstractions.Interfaces.AgentTaskNotification {
                 TaskId = subAgent.ObjectId.UniqueId,
                 Status = status.ToValue(),
                 Description = subAgent.Task,
@@ -749,28 +669,21 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             _notificationQueue?.Enqueue(concreteAgent.Context?.ParentAgentId, notification.ToXml());
 
             CancellationToken persistToken;
-            try
-            {
+            try {
                 persistToken = _disposeCts.IsCancellationRequested ? CancellationToken.None : _disposeCts.Token;
-            }
-            catch (ObjectDisposedException)
-            {
+            } catch (ObjectDisposedException) {
                 persistToken = CancellationToken.None;
             }
             _ = PersistCompletionAsync(subAgent, result, status, persistToken).WaitAsync(TimeSpan.FromSeconds(10), persistToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[AgentServiceImpl] 触发AgentCompleted事件失败: {AgentId}", subAgent.ObjectId.UniqueId);
         }
     }
 
-    private async Task PersistCompletionAsync(IAgent subAgent, JoinCode.Abstractions.Interfaces.AgentResult result, AgentStatus status, CancellationToken cancellationToken)
-    {
+    private async Task PersistCompletionAsync(IAgent subAgent, JoinCode.Abstractions.Interfaces.AgentResult result, AgentStatus status, CancellationToken cancellationToken) {
         if (_transcriptService is null) return;
 
-        try
-        {
+        try {
             var concreteAgent = (AgentBase)subAgent;
             var role = result.Success ? "assistant" : "error";
             var content = result.Success ? result.Output : $"ERROR: {result.Error}";
@@ -778,8 +691,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
             var durationMs = _agentStartTimer.TryRemoveDurationMs(subAgent.ObjectId.UniqueId, _clock.GetUtcNow());
 
-            await _transcriptService.SaveMetadataAsync(SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId, new JoinCode.Abstractions.Interfaces.AgentMetadata
-            {
+            await _transcriptService.SaveMetadataAsync(SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId, new JoinCode.Abstractions.Interfaces.AgentMetadata {
                 AgentId = subAgent.ObjectId.UniqueId,
                 AgentType = concreteAgent.Options.Variant?.ToValue() ?? concreteAgent.Options.Role.ToValue(),
                 Description = subAgent.Task,
@@ -790,36 +702,26 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 ErrorMessage = result.Success ? null : result.Error,
                 DurationMs = durationMs
             }, cancellationToken).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogWarning(ex, "[AgentServiceImpl] 持久化代理完成记录失败: {AgentId}", subAgent.ObjectId.UniqueId);
         }
     }
 
-    private async Task CleanupMcpServersIfNeededAsync(string agentId, CancellationToken cancellationToken)
-    {
+    private async Task CleanupMcpServersIfNeededAsync(string agentId, CancellationToken cancellationToken) {
         if (_mcpServerManager is null) return;
 
-        try
-        {
+        try {
             await _mcpServerManager.CleanupAgentMcpServersAsync(agentId, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[AgentServiceImpl] Agent {AgentId} MCP 服务器清理失败", agentId);
         }
     }
 
-    private async Task AppendTranscriptEntryAsync(string agentId, string role, string content, CancellationToken cancellationToken = default)
-    {
+    private async Task AppendTranscriptEntryAsync(string agentId, string role, string content, CancellationToken cancellationToken = default) {
         if (_transcriptService is null) return;
 
-        try
-        {
-            await _transcriptService.AppendEntryAsync(SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId, agentId, new TranscriptEntry
-            {
+        try {
+            await _transcriptService.AppendEntryAsync(SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId, agentId, new TranscriptEntry {
                 SessionId = SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId,
                 Role = role,
                 Content = content,
@@ -827,18 +729,14 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 AgentId = agentId,
                 IsSidechain = true
             }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[AgentServiceImpl] 写入代理Transcript失败: {AgentId}", agentId);
         }
     }
 
-    private static JoinCode.Abstractions.Interfaces.AgentInfo MapToAgentInfo(IAgent subAgent, SubAgentResult? result = null)
-    {
+    private static JoinCode.Abstractions.Interfaces.AgentInfo MapToAgentInfo(IAgent subAgent, SubAgentResult? result = null) {
         var concreteAgent = (AgentBase)subAgent;
-        return new JoinCode.Abstractions.Interfaces.AgentInfo
-        {
+        return new JoinCode.Abstractions.Interfaces.AgentInfo {
             Id = subAgent.ObjectId.UniqueId,
             Description = subAgent.Task,
             Role = concreteAgent.Options.Role,
@@ -850,10 +748,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         };
     }
 
-    private static JoinCode.Abstractions.Interfaces.AgentResult MapToResult(SubAgentResult result)
-    {
-        return new JoinCode.Abstractions.Interfaces.AgentResult
-        {
+    private static JoinCode.Abstractions.Interfaces.AgentResult MapToResult(SubAgentResult result) {
+        return new JoinCode.Abstractions.Interfaces.AgentResult {
             AgentId = result.AgentId,
             Success = result.IsSuccess,
             Output = result.Output,
@@ -862,37 +758,27 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     }
 
     /// <summary>异步释放资源 — 取消活动任务、清理 worktree、释放服务锁与依赖句柄</summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _disposeCts.CancelAndDisposeSafe(_logger);
 
-        if (_worktreeManager is not null)
-        {
-            try
-            {
+        if (_worktreeManager is not null) {
+            try {
                 var sessions = await _worktreeManager.GetAllWorktreeSessionsAsync(CancellationToken.None).ConfigureAwait(false);
-                foreach (var agentId in sessions.Keys)
-                {
-                    try
-                    {
+                foreach (var agentId in sessions.Keys) {
+                    try {
                         await _worktreeManager.CleanupWorktreeAsync(agentId, cancellationToken: CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
+                    } catch (Exception ex) {
                         _logger?.LogDebug(ex, "OnDispose 清理 worktree {AgentId} 失败", agentId);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogDebug(ex, "OnDispose 获取 worktree sessions 失败");
             }
         }
 
-        foreach (var kvp in _backgroundCts)
-        {
+        foreach (var kvp in _backgroundCts) {
             kvp.Value.Cancel();
             kvp.Value.Dispose();
         }

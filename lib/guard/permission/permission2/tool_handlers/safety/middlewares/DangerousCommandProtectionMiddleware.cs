@@ -10,8 +10,7 @@ namespace Core.Permission;
 /// 同时支持 IDeleteOperationDetector 检测非 Shell 工具的删除操作（如 file_delete）
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity, IPermissionMiddleware
-{
+public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity, IPermissionMiddleware {
     private readonly ICommandDangerClassifier? _dangerClassifier;
     private readonly FrozenDictionary<CommandRisk, ICommandRiskHandler> _riskHandlers;
     private readonly IReadOnlyList<IDeleteOperationDetector> _deleteDetectors;
@@ -33,8 +32,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         ICommandDangerClassifier? dangerClassifier = null,
         IRealPathResolver? realPathResolver = null,
         ICommandExecutionAuditor? auditor = null,
-        ILogger<DangerousCommandProtectionMiddleware>? logger = null)
-    {
+        ILogger<DangerousCommandProtectionMiddleware>? logger = null) {
         _dangerClassifier = dangerClassifier;
         _riskHandlers = (riskHandlers ?? []).ToFrozenDictionary(h => h.RiskType);
         _deleteDetectors = (deleteDetectors ?? []).ToList();
@@ -44,12 +42,10 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     }
 
     /// <inheritdoc />
-    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         // Bypass 模式：仍需拦截 Dangerous 级（黑灯），其余放行
         // 安全红线: rm -rf /、mkfs、format c: 等整盘/系统级不可逆操作即使在 Bypass 下也必须拒绝
-        if (context.CurrentMode == PermissionMode.Bypass)
-        {
+        if (context.CurrentMode == PermissionMode.Bypass) {
             if (TryRejectDangerousInBypass(context))
                 return Task.CompletedTask;
             return next(context, ct);
@@ -57,8 +53,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
 
         // 1. 检查非 Shell 工具的删除操作（如 file_delete）
         var deleteInfo = DetectDeleteOperation(context);
-        if (deleteInfo is not null)
-        {
+        if (deleteInfo is not null) {
             HandleDeleteOperation(context, deleteInfo);
             return Task.CompletedTask;
         }
@@ -68,11 +63,9 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
             context.IsWriteOperation(context.ToolName) &&
             context.Arguments != null &&
             context.Arguments.TryGetValue("path", out var pathEl) &&
-            pathEl.ValueKind == JsonValueKind.String)
-        {
+            pathEl.ValueKind == JsonValueKind.String) {
             var path = pathEl.GetString()!;
-            if (PermissionCheckContext.IsSensitivePath(path, context.Config.SensitivePathPatterns))
-            {
+            if (PermissionCheckContext.IsSensitivePath(path, context.Config.SensitivePathPatterns)) {
                 context.Result = ToolPermissionCheckResult.PendingConfirmation(
                     $"工具 '{context.ToolName}' 尝试写入敏感路径 '{path}'，是否批准？");
                 return Task.CompletedTask;
@@ -94,8 +87,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         // 保留名清理场景降级 — robocopy /MIR/PURGE + 目标含保留名文件 → Dangerous 降级为 Execution（ADR 0012）
         // 保留名文件（nul/con/prn 等）只能用 robocopy /MIR 绕过 Win32 路径解析删除，属合法清理场景
         if (dangerResult is { Level: CommandDangerLevel.Dangerous } dr &&
-            RobocopyMirrorGuard.IsRobocopyMirrorRetainedNameCleanup(command))
-        {
+            RobocopyMirrorGuard.IsRobocopyMirrorRetainedNameCleanup(command)) {
             dangerResult = new DangerClassificationResult(
                 CommandDangerLevel.Execution,
                 dr.RiskType,
@@ -107,12 +99,10 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
 
         // 路径大小写守卫 — 删除命令的路径大小写与文件系统不一致时拦截(防御 Windows 大小写不敏感误删)
         if (_realPathResolver is not null &&
-            (riskContext.Risks.Contains(CommandRisk.FileDeletion) || riskContext.Risks.Contains(CommandRisk.DirectoryDeletion)))
-        {
+            (riskContext.Risks.Contains(CommandRisk.FileDeletion) || riskContext.Risks.Contains(CommandRisk.DirectoryDeletion))) {
             var shellCmd = riskContext.ShellCommand ?? ShellCommand.Parse(command);
             var guardResult = _caseGuard.Check(shellCmd, _realPathResolver);
-            if (guardResult.Blocked)
-            {
+            if (guardResult.Blocked) {
                 context.Result = ToolPermissionCheckResult.Rejected(guardResult.Reason!);
                 return Task.CompletedTask;
             }
@@ -133,8 +123,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// 仅检查 Shell 工具的 Dangerous 级命令，非 Shell 工具的删除操作在 Bypass 下放行
     /// </summary>
     /// <returns>true 表示已拒绝（应短路返回），false 表示放行（应调用 next）</returns>
-    private bool TryRejectDangerousInBypass(PermissionCheckContext context)
-    {
+    private bool TryRejectDangerousInBypass(PermissionCheckContext context) {
         if (!context.IsShellOperation(context.ToolName))
             return false;
 
@@ -146,11 +135,9 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         var command = cmdEl.GetString()!;
 
         // 优先使用统一危险分类器
-        if (_dangerClassifier is not null)
-        {
+        if (_dangerClassifier is not null) {
             var result = _dangerClassifier.Classify(command);
-            if (result.Level == CommandDangerLevel.Dangerous)
-            {
+            if (result.Level == CommandDangerLevel.Dangerous) {
                 context.Result = ToolPermissionCheckResult.Rejected("此操作被禁止");
                 return true;
             }
@@ -158,8 +145,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         }
 
         // 回退：无分类器时用配置模式检测
-        if (PermissionCheckContext.IsDangerousCommand(command, _dangerousCommandPatterns))
-        {
+        if (PermissionCheckContext.IsDangerousCommand(command, _dangerousCommandPatterns)) {
             context.Result = ToolPermissionCheckResult.Rejected("此操作被禁止");
             return true;
         }
@@ -170,10 +156,8 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// <summary>
     /// 检测非 Shell 工具的删除操作
     /// </summary>
-    private DeleteOperationInfo? DetectDeleteOperation(PermissionCheckContext context)
-    {
-        for (var i = 0; i < _deleteDetectors.Count; i++)
-        {
+    private DeleteOperationInfo? DetectDeleteOperation(PermissionCheckContext context) {
+        for (var i = 0; i < _deleteDetectors.Count; i++) {
             var info = _deleteDetectors[i].Detect(context.ToolName, context.Arguments);
             if (info is not null)
                 return info;
@@ -185,65 +169,56 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// <summary>
     /// 处理删除操作 — 复用 FileDeletionRiskHandler 的消息构建逻辑
     /// </summary>
-    private void HandleDeleteOperation(PermissionCheckContext context, DeleteOperationInfo deleteInfo)
-    {
+    private void HandleDeleteOperation(PermissionCheckContext context, DeleteOperationInfo deleteInfo) {
         var handler = _riskHandlers.GetValueOrDefault(CommandRisk.FileDeletion);
-        var riskContext = new CommandRiskContext
-        {
+        var riskContext = new CommandRiskContext {
             ToolName = context.ToolName,
             Risks = [CommandRisk.FileDeletion],
             Details = deleteInfo.SourceDescription
         };
 
         // 补充路径信息
-        if (deleteInfo.TargetPath is not null)
-        {
-            riskContext = riskContext with
-            {
+        if (deleteInfo.TargetPath is not null) {
+            riskContext = riskContext with {
                 ShellCommand = ShellCommand.Parse($"rm {deleteInfo.TargetPath}")
             };
         }
 
-        switch (context.CurrentMode)
-        {
+        switch (context.CurrentMode) {
             case PermissionMode.Auto:
-                var rejection = handler is not null
-                    ? handler.BuildRejectionMessage(riskContext)
-                    : $"文件删除操作已被阻止（{deleteInfo.SourceDescription}）。请使用 Shell 工具将文件移动到 .xxx/ 目录";
-                context.Result = ToolPermissionCheckResult.Rejected(rejection);
-                break;
+            var rejection = handler is not null
+                ? handler.BuildRejectionMessage(riskContext)
+                : $"文件删除操作已被阻止（{deleteInfo.SourceDescription}）。请使用 Shell 工具将文件移动到 .xxx/ 目录";
+            context.Result = ToolPermissionCheckResult.Rejected(rejection);
+            break;
 
             case PermissionMode.Ask:
-                var confirmation = handler is not null
-                    ? handler.BuildConfirmationMessage(riskContext)
-                    : $"工具 '{context.ToolName}' 请求删除文件（{deleteInfo.SourceDescription}）。建议移动到 .xxx/ 目录。是否允许删除？";
-                context.Result = ToolPermissionCheckResult.PendingConfirmation(confirmation);
-                break;
+            var confirmation = handler is not null
+                ? handler.BuildConfirmationMessage(riskContext)
+                : $"工具 '{context.ToolName}' 请求删除文件（{deleteInfo.SourceDescription}）。建议移动到 .xxx/ 目录。是否允许删除？";
+            context.Result = ToolPermissionCheckResult.PendingConfirmation(confirmation);
+            break;
 
             case PermissionMode.Plan:
-                context.Result = ToolPermissionCheckResult.Rejected(
-                    $"Plan 模式下禁止文件删除操作（{deleteInfo.SourceDescription}）。请使用 Shell 工具将文件移动到 .xxx/ 目录");
-                break;
+            context.Result = ToolPermissionCheckResult.Rejected(
+                $"Plan 模式下禁止文件删除操作（{deleteInfo.SourceDescription}）。请使用 Shell 工具将文件移动到 .xxx/ 目录");
+            break;
 
             default:
-                break;
+            break;
         }
     }
 
     /// <summary>
     /// 检测 Shell 命令的风险 — 优先使用 ICommandDangerClassifier（统一分级），回退到 IDestructiveCommandDetector
     /// </summary>
-    private (CommandRiskContext? Context, DangerClassificationResult? DangerResult) DetectRisks(string toolName, string command)
-    {
+    private (CommandRiskContext? Context, DangerClassificationResult? DangerResult) DetectRisks(string toolName, string command) {
         // 优先使用统一危险分类器
-        if (_dangerClassifier is not null)
-        {
+        if (_dangerClassifier is not null) {
             var dangerResult = _dangerClassifier.Classify(command);
-            if (dangerResult.RequiresIntervention)
-            {
+            if (dangerResult.RequiresIntervention) {
                 var shellCommand = ShellCommand.Parse(command);
-                var riskContext = new CommandRiskContext
-                {
+                var riskContext = new CommandRiskContext {
                     ToolName = toolName,
                     ShellCommand = shellCommand,
                     Risks = [dangerResult.RiskType],
@@ -255,10 +230,8 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         }
 
         // 降级检测 — 无检测器时使用配置中的危险命令模式
-        if (PermissionCheckContext.IsDangerousCommand(command, _dangerousCommandPatterns))
-        {
-            var riskContext = new CommandRiskContext
-            {
+        if (PermissionCheckContext.IsDangerousCommand(command, _dangerousCommandPatterns)) {
+            var riskContext = new CommandRiskContext {
                 ToolName = toolName,
                 Risks = [CommandRisk.DataModification],
                 Details = "配置模式检测到危险命令"
@@ -281,8 +254,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// Execution（红灯ask/不可撤回）: Auto拒绝/Ask确认/Plan拒绝
     /// LightValidation（绿灯ask/可撤回）: Auto拒绝/Ask确认/Plan放行(只读性质)
     /// </summary>
-    private void HandleRisks(PermissionCheckContext context, CommandRiskContext riskContext, DangerClassificationResult? dangerResult)
-    {
+    private void HandleRisks(PermissionCheckContext context, CommandRiskContext riskContext, DangerClassificationResult? dangerResult) {
         // 按优先级选择最关键的风险
         var primaryRisk = SelectPrimaryRisk(riskContext.Risks);
         var handler = primaryRisk is not null ? _riskHandlers.GetValueOrDefault(primaryRisk.Value) : null;
@@ -291,71 +263,66 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         var level = dangerResult?.Level ?? DangerousCommandCatalog.InferLevel(primaryRisk ?? CommandRisk.None);
 
         // Dangerous 级 — 任何模式下都直接拒绝不提示
-        if (level == CommandDangerLevel.Dangerous)
-        {
+        if (level == CommandDangerLevel.Dangerous) {
             context.Result = ToolPermissionCheckResult.Rejected("此操作被禁止");
             return;
         }
 
-        switch (context.CurrentMode)
-        {
+        switch (context.CurrentMode) {
             case PermissionMode.Auto:
-                var rejection = handler is not null
-                    ? handler.BuildRejectionMessage(riskContext)
-                    : $"危险操作已被阻止（{riskContext.Details}）。如确需执行请切换到 Ask 模式确认";
-                context.Result = ToolPermissionCheckResult.Rejected(rejection);
-                break;
+            var rejection = handler is not null
+                ? handler.BuildRejectionMessage(riskContext)
+                : $"危险操作已被阻止（{riskContext.Details}）。如确需执行请切换到 Ask 模式确认";
+            context.Result = ToolPermissionCheckResult.Rejected(rejection);
+            break;
 
             case PermissionMode.Ask:
-                // Unknown（黄灯ask/未知）/ LightValidation（绿灯ask/可撤回）/ Execution（红灯ask/不可撤回）都需确认
-                // 颜色区分由 IPermissionConfirmationHandler 根据 DangerLevel 实现
-                var levelTag = level switch
-                {
-                    CommandDangerLevel.Unknown => "[黄灯ask]",
-                    CommandDangerLevel.LightValidation => "[绿灯ask]",
-                    _ => "[红灯ask]"
-                };
-                var confirmation = handler is not null
-                    ? $"{levelTag} {handler.BuildConfirmationMessage(riskContext)}"
-                    : $"{levelTag} 工具 '{context.ToolName}' 请求执行操作（{riskContext.Details}）。是否批准？";
-                context.Result = ToolPermissionCheckResult.PendingConfirmation(confirmation);
-                break;
+            // Unknown（黄灯ask/未知）/ LightValidation（绿灯ask/可撤回）/ Execution（红灯ask/不可撤回）都需确认
+            // 颜色区分由 IPermissionConfirmationHandler 根据 DangerLevel 实现
+            var levelTag = level switch {
+                CommandDangerLevel.Unknown => "[黄灯ask]",
+                CommandDangerLevel.LightValidation => "[绿灯ask]",
+                _ => "[红灯ask]"
+            };
+            var confirmation = handler is not null
+                ? $"{levelTag} {handler.BuildConfirmationMessage(riskContext)}"
+                : $"{levelTag} 工具 '{context.ToolName}' 请求执行操作（{riskContext.Details}）。是否批准？";
+            context.Result = ToolPermissionCheckResult.PendingConfirmation(confirmation);
+            break;
 
             case PermissionMode.Plan:
-                if (level == CommandDangerLevel.LightValidation)
-                {
-                    // LightValidation 在 Plan 模式下放行（可撤回操作，类似只读）
-                    return;
-                }
-                context.Result = ToolPermissionCheckResult.Rejected(
-                    $"Plan 模式下禁止不可撤回操作（{riskContext.Details}）");
-                break;
+            if (level == CommandDangerLevel.LightValidation) {
+                // LightValidation 在 Plan 模式下放行（可撤回操作，类似只读）
+                return;
+            }
+            context.Result = ToolPermissionCheckResult.Rejected(
+                $"Plan 模式下禁止不可撤回操作（{riskContext.Details}）");
+            break;
 
             case PermissionMode.Unattended:
-                // 无人值守模式：红灯/绿灯/黄灯自动执行+审计日志，黑灯已拒绝（ADR 0012）
-                // 不弹确认，AI 持续推进长任务
-                _logger?.LogInformation(
-                    "无人值守模式自动执行: {Level} {Tool} ({Details})",
-                    level, context.ToolName, riskContext.Details);
-                _auditor?.Record(new CommandExecutionAuditEntry(
-                    DateTimeOffset.UtcNow,
-                    riskContext.ShellCommand?.ToString() ?? "",
-                    level,
-                    context.CurrentMode,
-                    "AutoExecuted",
-                    riskContext.Details));
-                break;
+            // 无人值守模式：红灯/绿灯/黄灯自动执行+审计日志，黑灯已拒绝（ADR 0012）
+            // 不弹确认，AI 持续推进长任务
+            _logger?.LogInformation(
+                "无人值守模式自动执行: {Level} {Tool} ({Details})",
+                level, context.ToolName, riskContext.Details);
+            _auditor?.Record(new CommandExecutionAuditEntry(
+                DateTimeOffset.UtcNow,
+                riskContext.ShellCommand?.ToString() ?? "",
+                level,
+                context.CurrentMode,
+                "AutoExecuted",
+                riskContext.Details));
+            break;
 
             default:
-                break;
+            break;
         }
     }
 
     /// <summary>
     /// 选择最高优先级的风险
     /// </summary>
-    private static CommandRisk? SelectPrimaryRisk(IReadOnlyList<CommandRisk> risks)
-    {
+    private static CommandRisk? SelectPrimaryRisk(IReadOnlyList<CommandRisk> risks) {
         // 优先级从高到低
         var priority = new[]
         {
@@ -370,8 +337,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
             CommandRisk.PathEscape
         };
 
-        foreach (var risk in priority)
-        {
+        foreach (var risk in priority) {
             if (risks.Contains(risk))
                 return risk;
         }

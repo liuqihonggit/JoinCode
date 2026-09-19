@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Agent执行上下文 - 跟踪Agent的执行状态和元数据
 /// </summary>
-public sealed class AgentExecutionContext
-{
+public sealed class AgentExecutionContext {
     /// <summary>
     /// Agent ID
     /// </summary>
@@ -50,8 +49,7 @@ public sealed class AgentExecutionContext
 /// <summary>
 /// Agent 执行结果 — 归纳原 IsSuccess(bool?)+IsCancelled(bool)
 /// </summary>
-public enum AgentOutcome
-{
+public enum AgentOutcome {
     /// <summary>未完成 — 原 IsSuccess=null, IsCancelled=false</summary>
     [EnumValue("pending")] Pending,
 
@@ -68,8 +66,7 @@ public enum AgentOutcome
 /// <summary>
 /// 执行模式
 /// </summary>
-public enum ExecutionMode
-{
+public enum ExecutionMode {
     /// <summary>
     /// 单Agent执行
     /// </summary>

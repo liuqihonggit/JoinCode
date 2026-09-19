@@ -3,8 +3,7 @@ namespace McpToolRegistry;
 /// <summary>
 /// LLM 工具注册表事件接口 - 用于通知工具变更事件
 /// </summary>
-public interface ILlmToolRegistryEvents
-{
+public interface ILlmToolRegistryEvents {
     /// <summary>
     /// 工具已注册事件
     /// </summary>
@@ -24,8 +23,7 @@ public interface ILlmToolRegistryEvents
 /// <summary>
 /// 工具注册事件参数
 /// </summary>
-public sealed class ToolRegisteredEventArgs : EventArgs
-{
+public sealed class ToolRegisteredEventArgs : EventArgs {
     /// <summary>工具名称</summary>
     public required string ToolName { get; init; }
 
@@ -39,8 +37,7 @@ public sealed class ToolRegisteredEventArgs : EventArgs
 /// <summary>
 /// 工具注销事件参数
 /// </summary>
-public sealed class ToolUnregisteredEventArgs : EventArgs
-{
+public sealed class ToolUnregisteredEventArgs : EventArgs {
     /// <summary>工具名称</summary>
     public required string ToolName { get; init; }
 

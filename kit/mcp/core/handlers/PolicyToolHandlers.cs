@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// 策略工具处理器 — 提供远程策略检查与规则列表查询能力
 /// </summary>
 [McpToolDispatch(ToolCategory.Policy, Optional = true)]
-public sealed partial class PolicyToolHandlers
-{
+public sealed partial class PolicyToolHandlers {
     private readonly IRemotePolicyService _policyService;
     private readonly ILogger<PolicyToolHandlers>? _logger;
 
@@ -16,8 +15,7 @@ public sealed partial class PolicyToolHandlers
     /// </summary>
     /// <param name="policyService">远程策略服务</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public PolicyToolHandlers(IRemotePolicyService policyService, ILogger<PolicyToolHandlers>? logger = null)
-    {
+    public PolicyToolHandlers(IRemotePolicyService policyService, ILogger<PolicyToolHandlers>? logger = null) {
         _policyService = policyService ?? throw new ArgumentNullException(nameof(policyService));
         _logger = logger;
     }
@@ -29,15 +27,12 @@ public sealed partial class PolicyToolHandlers
     public async Task<ToolResult> PolicyCheckAsync(
         [McpToolParameter("Action name")] string action,
         [McpToolParameter("Context information (JSON object, optional)", Required = false)] Dictionary<string, string>? context = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(action))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(action)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ActionCannotBeEmpty)).Build();
         }
 
-        return await ToolResultBuilder.SafeExecuteAsync(async () =>
-        {
+        return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var result = await _policyService.EvaluateAsync(action, context, cancellationToken).ConfigureAwait(false);
 
             var response = new StringBuilder(256);
@@ -46,18 +41,15 @@ public sealed partial class PolicyToolHandlers
             response.AppendLine(L.T(StringKey.LabelRuleId, result.RuleId));
             response.AppendLine(L.T(StringKey.LabelPolicyAction, result.Action));
 
-            if (!string.IsNullOrEmpty(result.Reason))
-            {
+            if (!string.IsNullOrEmpty(result.Reason)) {
                 response.AppendLine(L.T(StringKey.LabelReason, result.Reason));
             }
 
-            if (result.RemainingLimit.HasValue)
-            {
+            if (result.RemainingLimit.HasValue) {
                 response.AppendLine(L.T(StringKey.LabelRemainingLimit, result.RemainingLimit.Value));
             }
 
-            if (result.RetryAfter.HasValue)
-            {
+            if (result.RetryAfter.HasValue) {
                 response.AppendLine(L.T(StringKey.LabelRetryAfter, result.RetryAfter.Value.ToString("hh\\:mm\\:ss")));
             }
 
@@ -72,33 +64,25 @@ public sealed partial class PolicyToolHandlers
     /// </summary>
     [McpTool(InteractionToolNameEnumConstants.PolicyList, "List all active policy rules", "policy")]
     public async Task<ToolResult> PolicyListAsync(
-        CancellationToken cancellationToken = default)
-    {
-        return await ToolResultBuilder.SafeExecuteAsync(async () =>
-        {
+        CancellationToken cancellationToken = default) {
+        return await ToolResultBuilder.SafeExecuteAsync(async () => {
             var rules = await _policyService.GetActiveRulesAsync(cancellationToken).ConfigureAwait(false);
 
             var response = new StringBuilder(512);
             response.AppendLine(L.T(StringKey.ActivePolicyRules, rules.Count));
 
-            if (rules.Count == 0)
-            {
+            if (rules.Count == 0) {
                 response.AppendLine(L.T(StringKey.NoActivePolicyRules));
-            }
-            else
-            {
-                foreach (var rule in rules)
-                {
+            } else {
+                foreach (var rule in rules) {
                     var statusIcon = rule.Enabled ? "✓" : "✗";
                     response.AppendLine($"  {statusIcon} [{rule.Priority}] {rule.Name} ({rule.Type}) -> {rule.Action}");
 
-                    if (rule.Limit.HasValue)
-                    {
+                    if (rule.Limit.HasValue) {
                         response.AppendLine($"     {L.T(StringKey.LabelLimit, rule.Limit.Value)}");
                     }
 
-                    if (rule.CostLimit.HasValue)
-                    {
+                    if (rule.CostLimit.HasValue) {
                         response.AppendLine($"     {L.T(StringKey.LabelCostLimit, rule.CostLimit.Value)}");
                     }
                 }

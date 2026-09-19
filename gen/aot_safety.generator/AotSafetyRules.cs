@@ -1,8 +1,6 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class AotSafetyRules : DiagnosticAnalyzer
-    {
+    public sealed class AotSafetyRules : DiagnosticAnalyzer {
         private static readonly DiagnosticDescriptor RuleDictionaryObjectNullable = new(
             "JCC1001",
             "AOT incompatible: Dictionary<string, object?> is unsafe under NativeAOT",
@@ -117,8 +115,7 @@ namespace AotSafety.Generator
                 RuleDynamicKeyword, RuleUsingInCsFile, RuleTooManyParameters, RuleSwitchOnString,
                 RuleReflectionEmit, RuleAssemblyLoad, RuleTypeGetType, RuleActivatorCreateInstance, RuleMethodInfoInvoke);
 
-        public override void Initialize(AnalysisContext context)
-        {
+        public override void Initialize(AnalysisContext context) {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterSyntaxNodeAction(AnalyzeNode,
@@ -134,41 +131,37 @@ namespace AotSafety.Generator
             context.RegisterSyntaxNodeAction(AnalyzeReflectionApi, SyntaxKind.InvocationExpression);
         }
 
-        private static void AnalyzeNode(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeNode(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
-            switch (ctx.Node)
-            {
+            switch (ctx.Node) {
                 case PropertyDeclarationSyntax prop:
-                    CheckTypeSymbol(ctx, prop.Type, prop.Identifier.GetLocation());
-                    break;
+                CheckTypeSymbol(ctx, prop.Type, prop.Identifier.GetLocation());
+                break;
                 case FieldDeclarationSyntax field:
-                    foreach (var v in field.Declaration.Variables)
-                        CheckTypeSymbol(ctx, field.Declaration.Type, v.Identifier.GetLocation());
-                    break;
+                foreach (var v in field.Declaration.Variables)
+                    CheckTypeSymbol(ctx, field.Declaration.Type, v.Identifier.GetLocation());
+                break;
                 case ParameterSyntax param:
-                    CheckTypeSymbol(ctx, param.Type, param.Identifier.GetLocation());
-                    break;
+                CheckTypeSymbol(ctx, param.Type, param.Identifier.GetLocation());
+                break;
                 case VariableDeclarationSyntax varDecl:
-                    foreach (var v in varDecl.Variables)
-                        CheckTypeSymbol(ctx, varDecl.Type, v.Identifier.GetLocation());
-                    break;
+                foreach (var v in varDecl.Variables)
+                    CheckTypeSymbol(ctx, varDecl.Type, v.Identifier.GetLocation());
+                break;
                 case ObjectCreationExpressionSyntax obj:
-                    CheckTypeSymbol(ctx, obj.Type, obj.Type.GetLocation());
-                    break;
+                CheckTypeSymbol(ctx, obj.Type, obj.Type.GetLocation());
+                break;
             }
         }
 
-        private static void CheckTypeSymbol(SyntaxNodeAnalysisContext ctx, TypeSyntax? typeSyntax, Location location)
-        {
+        private static void CheckTypeSymbol(SyntaxNodeAnalysisContext ctx, TypeSyntax? typeSyntax, Location location) {
             if (typeSyntax is null) return;
 
             var symbol = ctx.SemanticModel.GetTypeInfo(typeSyntax).Type as INamedTypeSymbol;
             if (symbol is null) return;
 
-            if (IsDictionaryStringObject(symbol))
-            {
+            if (IsDictionaryStringObject(symbol)) {
                 var isNullable = symbol.TypeArguments.Length >= 2 &&
                     symbol.TypeArguments[1].IsReferenceType;
 
@@ -177,15 +170,13 @@ namespace AotSafety.Generator
                 ctx.ReportDiagnostic(Diagnostic.Create(rule, location, displayStr));
             }
 
-            if (symbol.BaseType is not null && IsDictionaryStringObject(symbol.BaseType))
-            {
+            if (symbol.BaseType is not null && IsDictionaryStringObject(symbol.BaseType)) {
                 var displayStr = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleInheritsDictionaryObject, location, displayStr));
             }
         }
 
-        private static bool IsDictionaryStringObject(INamedTypeSymbol type)
-        {
+        private static bool IsDictionaryStringObject(INamedTypeSymbol type) {
             if (!type.IsGenericType) return false;
 
             var def = type.ConstructedFrom;
@@ -205,8 +196,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// JCC1004: 禁止使用 dynamic 关键字
         /// </summary>
-        private static void AnalyzeDynamicKeyword(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeDynamicKeyword(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not IdentifierNameSyntax identifier) return;
@@ -230,20 +220,17 @@ namespace AotSafety.Generator
                 parent is PointerTypeSyntax ||
                 parent is FunctionPointerParameterSyntax ||
                 parent is DeclarationPatternSyntax ||
-                parent is RecursivePatternSyntax)
-            {
+                parent is RecursivePatternSyntax) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleDynamicKeyword, identifier.GetLocation()));
                 return;
             }
 
-            if (parent is MethodDeclarationSyntax methodDecl && methodDecl.ReturnType == identifier)
-            {
+            if (parent is MethodDeclarationSyntax methodDecl && methodDecl.ReturnType == identifier) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleDynamicKeyword, identifier.GetLocation()));
                 return;
             }
 
-            if (parent is VariableDeclarationSyntax varDecl && varDecl.Type == identifier)
-            {
+            if (parent is VariableDeclarationSyntax varDecl && varDecl.Type == identifier) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleDynamicKeyword, identifier.GetLocation()));
             }
         }
@@ -251,8 +238,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// JCC1005: 禁止在.cs文件内写using语句
         /// </summary>
-        private static void AnalyzeUsingInCsFile(SyntaxNodeAnalysisContext ctx, bool isRoslynProject)
-        {
+        private static void AnalyzeUsingInCsFile(SyntaxNodeAnalysisContext ctx, bool isRoslynProject) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not UsingDirectiveSyntax usingDirective) return;
@@ -278,8 +264,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// 注册 JCC1005 分析，缓存 Roslyn 项目检测结果（解决方案无关）
         /// </summary>
-        private static void RegisterUsingInCsFileAnalysis(CompilationStartAnalysisContext context)
-        {
+        private static void RegisterUsingInCsFileAnalysis(CompilationStartAnalysisContext context) {
             var isRoslynProject = IsRoslynProject(context.Compilation);
             context.RegisterSyntaxNodeAction(
                 ctx => AnalyzeUsingInCsFile(ctx, isRoslynProject),
@@ -291,13 +276,11 @@ namespace AotSafety.Generator
         /// 解决方案无关：不依赖项目名称，任何引用了 Roslyn 的项目都豁免 JCC1005。
         /// 用 Span 加速字符串匹配（0-GC）。
         /// </summary>
-        private static bool IsRoslynProject(Compilation compilation)
-        {
+        private static bool IsRoslynProject(Compilation compilation) {
             const string target = "Microsoft.CodeAnalysis.CSharp";
             var targetSpan = target.AsSpan();
 
-            foreach (var reference in compilation.References)
-            {
+            foreach (var reference in compilation.References) {
                 if (reference is not PortableExecutableReference peRef) continue;
                 var display = peRef.Display;
                 if (display is null) continue;
@@ -310,8 +293,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// JCC1006: 方法参数超过8个应封装为类
         /// </summary>
-        private static void AnalyzeTooManyParameters(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeTooManyParameters(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not MethodDeclarationSyntax methodDecl) return;
@@ -337,8 +319,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// JCC1010: switch 判断字符串应推荐枚举+特性描述
         /// </summary>
-        private static void AnalyzeSwitchOnString(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeSwitchOnString(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not SwitchStatementSyntax switchStmt) return;
@@ -356,8 +337,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// JCC1007/1013-1016: 检测 AOT 不兼容的反射 API 调用
         /// </summary>
-        private static void AnalyzeReflectionApi(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeReflectionApi(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not InvocationExpressionSyntax invocation) return;
@@ -374,8 +354,7 @@ namespace AotSafety.Generator
             var fullName = $"{containingNamespace}.{typeName}.{methodName}";
 
             // JCC1007: System.Reflection.Emit.* — Error
-            if (containingNamespace.StartsWith("System.Reflection.Emit", StringComparison.Ordinal))
-            {
+            if (containingNamespace.StartsWith("System.Reflection.Emit", StringComparison.Ordinal)) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleReflectionEmit, invocation.GetLocation(), fullName));
                 return;
             }
@@ -384,30 +363,26 @@ namespace AotSafety.Generator
             if (typeName == "Assembly" && containingNamespace == "System.Reflection" &&
                 (methodName == "Load" || methodName == "LoadFrom" || methodName == "LoadFile" ||
                  methodName == "LoadWithPartialName" || methodName == "ReflectionOnlyLoad" ||
-                 methodName == "ReflectionOnlyLoadFrom"))
-            {
+                 methodName == "ReflectionOnlyLoadFrom")) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleAssemblyLoad, invocation.GetLocation(), fullName));
                 return;
             }
 
             // JCC1014: Type.GetType(string) — Warning
-            if (typeName == "Type" && containingNamespace == "System" && methodName == "GetType")
-            {
+            if (typeName == "Type" && containingNamespace == "System" && methodName == "GetType") {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleTypeGetType, invocation.GetLocation(), methodName));
                 return;
             }
 
             // JCC1015: Activator.CreateInstance(Type) — Warning
             if (typeName == "Activator" && containingNamespace == "System" &&
-                (methodName == "CreateInstance" || methodName == "CreateInstanceFrom"))
-            {
+                (methodName == "CreateInstance" || methodName == "CreateInstanceFrom")) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleActivatorCreateInstance, invocation.GetLocation(), fullName));
                 return;
             }
 
             // JCC1016: MethodInfo.Invoke — Warning
-            if (typeName == "MethodInfo" && containingNamespace == "System.Reflection" && methodName == "Invoke")
-            {
+            if (typeName == "MethodInfo" && containingNamespace == "System.Reflection" && methodName == "Invoke") {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleMethodInfoInvoke, invocation.GetLocation(), typeName));
             }
         }

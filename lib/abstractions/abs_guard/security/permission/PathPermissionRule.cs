@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security;
 /// 路径权限规则 — 对齐 TS PermissionRule
 /// 描述一条路径级的权限规则，如 "Read(/path/to/dir/**)" 或 "Edit(/secrets/**)"
 /// </summary>
-public sealed record PathPermissionRule
-{
+public sealed record PathPermissionRule {
     /// <summary>
     /// 规则适用的工具类型 — 对齐 TS toolType: "read" | "edit"
     /// </summary>
@@ -31,8 +30,7 @@ public sealed record PathPermissionRule
 /// <summary>
 /// 路径权限工具类型 — 对齐 TS toolType
 /// </summary>
-public enum PathPermissionToolType
-{
+public enum PathPermissionToolType {
     /// <summary>读取操作</summary>
     [EnumValue("read")] Read,
 
@@ -44,8 +42,7 @@ public enum PathPermissionToolType
 /// 权限规则来源 — 统一 lib 层和 Host 层的规则来源枚举
 /// 合并自: PermissionRuleSource (FlagSettings, PolicySettings, Command)
 /// </summary>
-public enum PathPermissionRuleSource
-{
+public enum PathPermissionRuleSource {
     /// <summary>用户设置</summary>
     [EnumValue("userSettings")] UserSettings,
 

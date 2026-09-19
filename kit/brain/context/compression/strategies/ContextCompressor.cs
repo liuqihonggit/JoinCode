@@ -5,8 +5,7 @@ namespace Core.Context.Compression;
 /// 上下文压缩器基础实现
 /// </summary>
 [Register(typeof(IContextCompressor), JoinCode.Abstractions.Attributes.ServiceLifetime.Transient)]
-public sealed partial class ContextCompressor : ServiceEntity, IContextCompressor
-{
+public sealed partial class ContextCompressor : ServiceEntity, IContextCompressor {
     private readonly ICompressionStrategyFactory _strategyFactory;
     private readonly CompressionOptions _defaultOptions;
 
@@ -17,8 +16,7 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
     /// <param name="defaultOptions">默认压缩选项，为 null 时使用默认配置</param>
     public ContextCompressor(
         ICompressionStrategyFactory strategyFactory,
-        CompressionOptions? defaultOptions = null)
-    {
+        CompressionOptions? defaultOptions = null) {
         _strategyFactory = strategyFactory ?? throw new ArgumentNullException(nameof(strategyFactory));
         _defaultOptions = defaultOptions ?? CompressionOptions.Default;
     }
@@ -35,21 +33,17 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
         string content,
         ContentType contentType,
         CompressionOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var stopwatch = Stopwatch.StartNew();
         var effectiveOptions = options ?? _defaultOptions;
 
-        try
-        {
-            if (!CanCompress(content, contentType))
-            {
+        try {
+            if (!CanCompress(content, contentType)) {
                 return CreateNoCompressionResult(content, contentType, stopwatch.ElapsedMilliseconds);
             }
 
             var strategy = _strategyFactory.GetStrategy(content, contentType);
-            if (strategy == null)
-            {
+            if (strategy == null) {
                 return CreateErrorResult(
                     content,
                     contentType,
@@ -66,8 +60,7 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
 
             stopwatch.Stop();
 
-            return new CompressionResult
-            {
+            return new CompressionResult {
                 ContentId = Guid.NewGuid().ToString("N"),
                 CompressedContent = compressedContent,
                 OriginalLength = content.Length,
@@ -76,29 +69,22 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
                 StrategyName = strategy.Name,
                 IsSuccess = true,
                 ProcessingTimeMs = stopwatch.ElapsedMilliseconds,
-                Metadata = new Dictionary<string, JsonElement>
-                {
+                Metadata = new Dictionary<string, JsonElement> {
                     ["TargetRatio"] = JsonSerializer.SerializeToElement(effectiveOptions.TargetCompressionRatio, ContextDefaultJsonContext.Default.Double),
                     ["ActualRatio"] = JsonSerializer.SerializeToElement((double)compressedContent.Length / content.Length, ContextDefaultJsonContext.Default.Double),
                     ["StrategyPriority"] = JsonSerializer.SerializeToElement(strategy.Priority, ContextDefaultJsonContext.Default.Int32)
                 }
             };
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
             throw;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             stopwatch.Stop();
             return CreateErrorResult(
                 content,
                 contentType,
                 "Compression timed out",
                 stopwatch.ElapsedMilliseconds);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             stopwatch.Stop();
             return CreateErrorResult(
                 content,
@@ -118,8 +104,7 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
     public async Task<IReadOnlyList<CompressionResult>> CompressBatchAsync(
         IEnumerable<ContentItem> contents,
         CompressionOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var contentList = contents.ToList();
         var effectiveOptions = options ?? _defaultOptions;
 
@@ -137,8 +122,7 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
     /// <param name="content">内容</param>
     /// <param name="contentType">内容类型</param>
     /// <returns>是否可压缩</returns>
-    public bool CanCompress(string content, ContentType contentType)
-    {
+    public bool CanCompress(string content, ContentType contentType) {
         if (string.IsNullOrWhiteSpace(content))
             return false;
 
@@ -158,8 +142,7 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
     public double GetCompressionRatio(
         string content,
         ContentType contentType,
-        CompressionOptions? options = null)
-    {
+        CompressionOptions? options = null) {
         var effectiveOptions = options ?? _defaultOptions;
         var strategy = _strategyFactory.GetStrategy(content, contentType);
 
@@ -169,10 +152,8 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
     private CompressionResult CreateNoCompressionResult(
         string content,
         ContentType contentType,
-        long processingTimeMs)
-    {
-        return new CompressionResult
-        {
+        long processingTimeMs) {
+        return new CompressionResult {
             ContentId = Guid.NewGuid().ToString("N"),
             CompressedContent = content,
             OriginalLength = content.Length,
@@ -181,8 +162,7 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
             StrategyName = "None",
             IsSuccess = true,
             ProcessingTimeMs = processingTimeMs,
-            Metadata = new Dictionary<string, JsonElement>
-            {
+            Metadata = new Dictionary<string, JsonElement> {
                 ["Reason"] = JsonSerializer.SerializeToElement("Content does not meet compression criteria", ContextDefaultJsonContext.Default.String)
             }
         };
@@ -192,10 +172,8 @@ public sealed partial class ContextCompressor : ServiceEntity, IContextCompresso
         string content,
         ContentType contentType,
         string errorMessage,
-        long processingTimeMs)
-    {
-        return new CompressionResult
-        {
+        long processingTimeMs) {
+        return new CompressionResult {
             ContentId = Guid.NewGuid().ToString("N"),
             CompressedContent = content,
             OriginalLength = content.Length,

@@ -1,31 +1,27 @@
 
 namespace Core.Tests.Memdir;
 
-public class MemoryManagementServiceAddMemoryTests : IDisposable
-{
+public class MemoryManagementServiceAddMemoryTests : IDisposable {
     private readonly string _tempStoragePath;
     private readonly MemoryStore _store;
     private readonly Mock<IFileOperationService> _fileOperationServiceMock;
     private readonly MemoryManagementService _sut;
     private bool _disposed;
 
-    public MemoryManagementServiceAddMemoryTests()
-    {
+    public MemoryManagementServiceAddMemoryTests() {
         _tempStoragePath = "/test/memdir/add-memory-test.json";
         _fileOperationServiceMock = new Mock<IFileOperationService>();
         _store = new MemoryStore(Options.Create(new MemdirOptions { StoragePath = _tempStoragePath }), _fileOperationServiceMock.Object, NullLogger<MemoryStore>.Instance);
         _sut = new MemoryManagementService(_store, logger: NullLogger<MemoryManagementService>.Instance);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
     }
 
     [Fact]
-    public async Task AddMemoryAsync_ShouldPersistToStore()
-    {
+    public async Task AddMemoryAsync_ShouldPersistToStore() {
         var content = "test memory from AddMemoryAsync";
 
         var memoryId = await _sut.AddMemoryAsync(content).ConfigureAwait(true);
@@ -38,8 +34,7 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AddMemoryAsync_WithTypeAndTags_ShouldPersistCorrectly()
-    {
+    public async Task AddMemoryAsync_WithTypeAndTags_ShouldPersistCorrectly() {
         var content = "typed memory with tags";
         var tags = new List<string> { "test", "unit" };
 
@@ -56,8 +51,7 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AddMemoryAsync_WithTitleAndSource_ShouldPersistCorrectly()
-    {
+    public async Task AddMemoryAsync_WithTitleAndSource_ShouldPersistCorrectly() {
         var content = "memory with metadata";
         var title = "Test Title";
         var source = "unit-test";
@@ -74,16 +68,14 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AddMemoryAsync_WithEmptyContent_ShouldThrow()
-    {
+    public async Task AddMemoryAsync_WithEmptyContent_ShouldThrow() {
         var act = async () => await _sut.AddMemoryAsync("").ConfigureAwait(true);
 
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ArchiveMemoryAsync_Existing_ShouldArchiveInStore()
-    {
+    public async Task ArchiveMemoryAsync_Existing_ShouldArchiveInStore() {
         var memoryId = await _sut.AddMemoryAsync("Memory to archive via service").ConfigureAwait(true);
 
         var result = await _sut.ArchiveMemoryAsync(memoryId).ConfigureAwait(true);
@@ -94,8 +86,7 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable
     }
 
     [Fact]
-    public async Task RestoreMemoryAsync_Archived_ShouldRestoreInStore()
-    {
+    public async Task RestoreMemoryAsync_Archived_ShouldRestoreInStore() {
         var memoryId = await _sut.AddMemoryAsync("Memory to restore via service").ConfigureAwait(true);
         await _sut.ArchiveMemoryAsync(memoryId).ConfigureAwait(true);
 
@@ -108,15 +99,13 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable
     }
 
     [Fact]
-    public async Task ArchiveMemoryAsync_NonExistent_ShouldReturnFalse()
-    {
+    public async Task ArchiveMemoryAsync_NonExistent_ShouldReturnFalse() {
         var result = await _sut.ArchiveMemoryAsync("nonexistent_id").ConfigureAwait(true);
         result.Should().BeFalse();
     }
 
     [Fact]
-    public async Task RestoreMemoryAsync_NonExistent_ShouldReturnFalse()
-    {
+    public async Task RestoreMemoryAsync_NonExistent_ShouldReturnFalse() {
         var result = await _sut.RestoreMemoryAsync("nonexistent_id").ConfigureAwait(true);
         result.Should().BeFalse();
     }

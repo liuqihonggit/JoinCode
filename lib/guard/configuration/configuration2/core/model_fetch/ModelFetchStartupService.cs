@@ -4,8 +4,7 @@ namespace Core.Configuration.ModelFetch;
 /// 模型拉取启动服务 — 编排"拉取 → 合并 → 写回"流程
 /// 在 EngineSessionFactory 中非阻塞并行调用，失败不影响启动
 /// </summary>
-public sealed class ModelFetchStartupService
-{
+public sealed class ModelFetchStartupService {
     private readonly IModelListFetcher _fetcher;
     private readonly SettingsJsonModelWriter _writer;
     private readonly ISettingsChangeApplier? _settingsChangeApplier;
@@ -22,8 +21,7 @@ public sealed class ModelFetchStartupService
         IModelListFetcher fetcher,
         SettingsJsonModelWriter writer,
         ISettingsChangeApplier? settingsChangeApplier = null,
-        ILogger<ModelFetchStartupService>? logger = null)
-    {
+        ILogger<ModelFetchStartupService>? logger = null) {
         _fetcher = fetcher;
         _writer = writer;
         _settingsChangeApplier = settingsChangeApplier;
@@ -39,25 +37,21 @@ public sealed class ModelFetchStartupService
     /// </summary>
     public async Task ExecuteAsync(
         SettingsJson settings,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (!settings.AutoFetchModels) return;
         if (settings.Vendor is null || settings.Vendor.Count == 0) return;
 
-        try
-        {
+        try {
             _logger?.LogInformation("[ModelFetchStartupService] 开始拉取模型列表");
 
             var remoteModels = await _fetcher.FetchAllAsync(settings.Vendor, cancellationToken).ConfigureAwait(false);
-            if (remoteModels.Count == 0)
-            {
+            if (remoteModels.Count == 0) {
                 _logger?.LogInformation("[ModelFetchStartupService] 未拉取到任何模型，跳过更新");
                 return;
             }
 
             var updates = new Dictionary<string, List<ModelItemConfig>>(StringComparer.OrdinalIgnoreCase);
-            foreach (var (profile, remoteIds) in remoteModels)
-            {
+            foreach (var (profile, remoteIds) in remoteModels) {
                 if (!settings.Vendor.TryGetValue(profile, out var profileSettings)) continue;
                 var merged = ModelListMerger.Merge(profileSettings.Models, remoteIds);
                 updates[profile] = merged;
@@ -67,9 +61,7 @@ public sealed class ModelFetchStartupService
                 await WriteWithRetryAsync(settings, updates, cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("[ModelFetchStartupService] 模型列表拉取完成，更新了 {Count} 个供应商", updates.Count);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ModelFetchStartupService] 模型列表拉取失败，不影响启动");
         }
     }
@@ -81,21 +73,15 @@ public sealed class ModelFetchStartupService
     private async Task WriteWithRetryAsync(
         SettingsJson settings,
         IReadOnlyDictionary<string, List<ModelItemConfig>> updates,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var delays = new[] { 500, 1000, 1500 };
-        for (var attempt = 0; ; attempt++)
-        {
-            try
-            {
+        for (var attempt = 0; ; attempt++) {
+            try {
                 await _writer.WriteAsync(settings, updates, cancellationToken).ConfigureAwait(false);
                 await RefreshInMemoryConfigAsync(cancellationToken).ConfigureAwait(false);
                 return;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                if (attempt >= delays.Length)
-                {
+            } catch (UnauthorizedAccessException ex) {
+                if (attempt >= delays.Length) {
                     var path = SettingsLoader.GetUserSettingsPath();
                     _logger?.LogWarning(ex, "[ModelFetchStartupService] settings.json 写入仍被拒（HResult={HResult}），跳过本次更新 | 路径: {Path} | 不影响启动", ex.HResult, path);
                     return;
@@ -110,16 +96,12 @@ public sealed class ModelFetchStartupService
     /// 刷新内存配置 — MarkInternalWrite 抑制了文件监听事件，需显式触发 SettingsChangeApplier 重载
     /// 否则 ModelConfigLoader 内存缓存不更新，导致模态校验误报
     /// </summary>
-    private async Task RefreshInMemoryConfigAsync(CancellationToken cancellationToken)
-    {
+    private async Task RefreshInMemoryConfigAsync(CancellationToken cancellationToken) {
         if (_settingsChangeApplier is null) return;
-        try
-        {
+        try {
             await _settingsChangeApplier.ApplySettingsChangeAsync(cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation("[ModelFetchStartupService] 内存配置已刷新");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ModelFetchStartupService] 内存配置刷新失败，不影响启动");
         }
     }

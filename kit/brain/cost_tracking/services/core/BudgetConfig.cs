@@ -4,8 +4,7 @@ namespace Core.CostTracking;
 /// <summary>
 /// 预算配置类
 /// </summary>
-public sealed class BudgetConfig
-{
+public sealed class BudgetConfig {
     /// <summary>
     /// 每日预算限额 (USD)
     /// </summary>
@@ -40,39 +39,31 @@ public sealed class BudgetConfig
     /// 验证配置有效性
     /// </summary>
     /// <returns>验证结果，如果有效返回空字符串，否则返回错误信息</returns>
-    public string? Validate()
-    {
-        if (DailyLimit < 0)
-        {
+    public string? Validate() {
+        if (DailyLimit < 0) {
             return "每日预算限额不能为负数";
         }
 
-        if (MonthlyLimit < 0)
-        {
+        if (MonthlyLimit < 0) {
             return "每月预算限额不能为负数";
         }
 
-        if (TotalLimit < 0)
-        {
+        if (TotalLimit < 0) {
             return "总预算限额不能为负数";
         }
 
-        if (AlertThresholds == null || AlertThresholds.Count == 0)
-        {
+        if (AlertThresholds == null || AlertThresholds.Count == 0) {
             return "告警阈值列表不能为空";
         }
 
-        foreach (var threshold in AlertThresholds)
-        {
-            if (threshold < 0 || threshold > 1)
-            {
+        foreach (var threshold in AlertThresholds) {
+            if (threshold < 0 || threshold > 1) {
                 return $"告警阈值必须在 0.0 到 1.0 之间，当前值: {threshold}";
             }
         }
 
         var sortedThresholds = AlertThresholds.OrderBy(t => t).ToList();
-        if (!AlertThresholds.SequenceEqual(sortedThresholds))
-        {
+        if (!AlertThresholds.SequenceEqual(sortedThresholds)) {
             return "告警阈值应该按升序排列";
         }
 
@@ -83,11 +74,9 @@ public sealed class BudgetConfig
     /// 验证配置有效性，无效时抛出异常
     /// </summary>
     /// <exception cref="InvalidOperationException">配置无效时抛出</exception>
-    public void ValidateOrThrow()
-    {
+    public void ValidateOrThrow() {
         var error = Validate();
-        if (error != null)
-        {
+        if (error != null) {
             throw new InvalidOperationException($"[BRN009] 预算配置无效: {error}");
         }
     }
@@ -95,8 +84,7 @@ public sealed class BudgetConfig
     /// <summary>
     /// 获取默认预算配置
     /// </summary>
-    public static BudgetConfig Default => new()
-    {
+    public static BudgetConfig Default => new() {
         DailyLimit = 10.0m,
         MonthlyLimit = WorkflowConstants.Budget.DefaultMonthlyLimit,
         TotalLimit = WorkflowConstants.Budget.DefaultTotalLimit,
@@ -108,16 +96,14 @@ public sealed class BudgetConfig
 /// <summary>
 /// 预算配置构建器 - 支持链式配置
 /// </summary>
-public sealed class BudgetConfigBuilder
-{
+public sealed class BudgetConfigBuilder {
     private decimal _dailyLimit;
     private decimal _monthlyLimit;
     private decimal _totalLimit;
     private List<double> _alertThresholds = [0.5, 0.8, 1.0];
     private bool _enabled = true;
 
-    private BudgetConfigBuilder()
-    {
+    private BudgetConfigBuilder() {
     }
 
     /// <summary>
@@ -136,8 +122,7 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 设置每日预算限额
     /// </summary>
-    public BudgetConfigBuilder WithDailyLimit(decimal limit)
-    {
+    public BudgetConfigBuilder WithDailyLimit(decimal limit) {
         _dailyLimit = limit;
         return this;
     }
@@ -145,8 +130,7 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 设置每月预算限额
     /// </summary>
-    public BudgetConfigBuilder WithMonthlyLimit(decimal limit)
-    {
+    public BudgetConfigBuilder WithMonthlyLimit(decimal limit) {
         _monthlyLimit = limit;
         return this;
     }
@@ -154,8 +138,7 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 设置总预算限额
     /// </summary>
-    public BudgetConfigBuilder WithTotalLimit(decimal limit)
-    {
+    public BudgetConfigBuilder WithTotalLimit(decimal limit) {
         _totalLimit = limit;
         return this;
     }
@@ -163,8 +146,7 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 同时设置所有预算限额
     /// </summary>
-    public BudgetConfigBuilder WithLimits(decimal daily, decimal monthly, decimal total)
-    {
+    public BudgetConfigBuilder WithLimits(decimal daily, decimal monthly, decimal total) {
         _dailyLimit = daily;
         _monthlyLimit = monthly;
         _totalLimit = total;
@@ -174,8 +156,7 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 设置告警阈值列表
     /// </summary>
-    public BudgetConfigBuilder WithAlertThresholds(params double[] thresholds)
-    {
+    public BudgetConfigBuilder WithAlertThresholds(params double[] thresholds) {
         _alertThresholds = thresholds.ToList();
         return this;
     }
@@ -183,8 +164,7 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 添加告警阈值
     /// </summary>
-    public BudgetConfigBuilder AddAlertThreshold(double threshold)
-    {
+    public BudgetConfigBuilder AddAlertThreshold(double threshold) {
         _alertThresholds.Add(threshold);
         return this;
     }
@@ -192,8 +172,7 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 启用预算管理
     /// </summary>
-    public BudgetConfigBuilder Enable()
-    {
+    public BudgetConfigBuilder Enable() {
         _enabled = true;
         return this;
     }
@@ -201,8 +180,7 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 禁用预算管理
     /// </summary>
-    public BudgetConfigBuilder Disable()
-    {
+    public BudgetConfigBuilder Disable() {
         _enabled = false;
         return this;
     }
@@ -210,8 +188,7 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 设置是否启用预算管理
     /// </summary>
-    public BudgetConfigBuilder WithEnabled(bool enabled)
-    {
+    public BudgetConfigBuilder WithEnabled(bool enabled) {
         _enabled = enabled;
         return this;
     }
@@ -219,8 +196,7 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 使用宽松预算（开发环境）
     /// </summary>
-    public BudgetConfigBuilder UseDevelopmentBudget()
-    {
+    public BudgetConfigBuilder UseDevelopmentBudget() {
         _dailyLimit = 50.0m;
         _monthlyLimit = 500.0m;
         _totalLimit = 5000.0m;
@@ -231,8 +207,7 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 使用严格预算（生产环境）
     /// </summary>
-    public BudgetConfigBuilder UseProductionBudget()
-    {
+    public BudgetConfigBuilder UseProductionBudget() {
         _dailyLimit = 5.0m;
         _monthlyLimit = 50.0m;
         _totalLimit = 500.0m;
@@ -244,10 +219,8 @@ public sealed class BudgetConfigBuilder
     /// 构建预算配置
     /// </summary>
     /// <exception cref="InvalidOperationException">配置无效时抛出</exception>
-    public BudgetConfig Build()
-    {
-        var config = new BudgetConfig
-        {
+    public BudgetConfig Build() {
+        var config = new BudgetConfig {
             DailyLimit = _dailyLimit,
             MonthlyLimit = _monthlyLimit,
             TotalLimit = _totalLimit,
@@ -262,10 +235,8 @@ public sealed class BudgetConfigBuilder
     /// <summary>
     /// 尝试构建预算配置，返回验证错误信息
     /// </summary>
-    public (BudgetConfig? Config, string? Error) TryBuild()
-    {
-        var config = new BudgetConfig
-        {
+    public (BudgetConfig? Config, string? Error) TryBuild() {
+        var config = new BudgetConfig {
             DailyLimit = _dailyLimit,
             MonthlyLimit = _monthlyLimit,
             TotalLimit = _totalLimit,

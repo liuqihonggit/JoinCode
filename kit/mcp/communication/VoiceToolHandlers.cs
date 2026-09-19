@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// 语音工具处理器 — 提供语音录制、停止、转写、状态查询功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Voice, Optional = true)]
-public sealed partial class VoiceToolHandlers
-{
+public sealed partial class VoiceToolHandlers {
     private readonly IVoiceService _voiceService;
     private readonly ILogger<VoiceToolHandlers>? _logger;
 
@@ -16,8 +15,7 @@ public sealed partial class VoiceToolHandlers
     /// </summary>
     /// <param name="voiceService">语音服务实例</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public VoiceToolHandlers(IVoiceService voiceService, ILogger<VoiceToolHandlers>? logger = null)
-    {
+    public VoiceToolHandlers(IVoiceService voiceService, ILogger<VoiceToolHandlers>? logger = null) {
         _voiceService = voiceService ?? throw new ArgumentNullException(nameof(voiceService));
         _logger = logger;
     }
@@ -35,19 +33,15 @@ public sealed partial class VoiceToolHandlers
     /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameEnumConstants.VoiceStartRecording, "Start voice recording", "voice")]
     public async Task<ToolResult> VoiceStartRecordingAsync(
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (IsCliSingleCallMode)
-            {
+        CancellationToken cancellationToken = default) {
+        try {
+            if (IsCliSingleCallMode) {
                 return ToolResultBuilder.Error()
                     .WithText("语音录制需要在交互式会话中使用（jcc chat），CLI 单次调用（jcc mcp_call）模式下录制状态不跨进程持久化")
                     .Build();
             }
 
-            if (_voiceService.IsRecording)
-            {
+            if (_voiceService.IsRecording) {
                 return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.VoiceAlreadyRecording))
                     .Build();
@@ -60,9 +54,7 @@ public sealed partial class VoiceToolHandlers
             return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.VoiceRecordingStarted))
                 .Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.VoiceStartRecordingFailedLog));
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.VoiceStartRecordingFailed, ex.Message))
@@ -77,12 +69,9 @@ public sealed partial class VoiceToolHandlers
     /// <returns>包含录制结果的工具执行结果</returns>
     [McpTool(SystemToolNameEnumConstants.VoiceStopRecording, "Stop voice recording and return result", "voice")]
     public async Task<ToolResult> VoiceStopRecordingAsync(
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (!_voiceService.IsRecording)
-            {
+        CancellationToken cancellationToken = default) {
+        try {
+            if (!_voiceService.IsRecording) {
                 return ToolResultBuilder.Success()
                     .WithText(L.T(StringKey.VoiceNotRecording))
                     .Build();
@@ -95,26 +84,21 @@ public sealed partial class VoiceToolHandlers
             response.AppendLine(L.T(StringKey.VoiceLabelDuration, result.Duration.ToString(@"hh\:mm\:ss")));
             response.AppendLine(L.T(StringKey.VoiceLabelAudioSize, result.AudioData.Length.ToString()));
 
-            if (!string.IsNullOrEmpty(result.Transcription))
-            {
+            if (!string.IsNullOrEmpty(result.Transcription)) {
                 response.AppendLine(L.T(StringKey.VoiceLabelTranscription, result.Transcription));
             }
 
-            if (!string.IsNullOrEmpty(result.AudioFilePath))
-            {
+            if (!string.IsNullOrEmpty(result.AudioFilePath)) {
                 response.AppendLine(L.T(StringKey.VoiceLabelAudioFile, result.AudioFilePath));
             }
 
-            if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-            {
+            if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage)) {
                 response.AppendLine(L.T(StringKey.VoiceLabelError, result.ErrorMessage));
                 return ToolResultBuilder.Error().WithText(response.ToString()).Build();
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.VoiceStopRecordingFailedLog));
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.VoiceStopRecordingFailed, ex.Message))
@@ -133,32 +117,26 @@ public sealed partial class VoiceToolHandlers
     public async Task<ToolResult> VoiceTranscribeAsync(
         [McpToolParameter("Audio file path")] string file_path,
         [McpToolParameter("Language code (optional, e.g. zh/en)", Required = false)] string? language = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(file_path))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(file_path)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.VoiceFilePathCannotBeEmpty)).Build();
         }
 
-        try
-        {
+        try {
             var transcription = await _voiceService.TranscribeFileAsync(file_path, language, cancellationToken).ConfigureAwait(false);
 
             var response = new StringBuilder(256);
             response.AppendLine(L.T(StringKey.VoiceTranscriptionCompleted));
             response.AppendLine(L.T(StringKey.VoiceLabelFile, file_path));
 
-            if (!string.IsNullOrEmpty(language))
-            {
+            if (!string.IsNullOrEmpty(language)) {
                 response.AppendLine(L.T(StringKey.VoiceLabelLanguage, language));
             }
 
             response.AppendLine(L.T(StringKey.VoiceLabelTranscription, transcription));
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.VoiceTranscriptionFailedLog, file_path));
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.VoiceTranscriptionFailed, ex.Message))
@@ -173,8 +151,7 @@ public sealed partial class VoiceToolHandlers
     /// <returns>包含语音服务状态的工具执行结果</returns>
     [McpTool(SystemToolNameEnumConstants.VoiceStatus, "Get voice service status", "voice")]
     public Task<ToolResult> VoiceStatusAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var response = new StringBuilder(128);
         response.AppendLine(L.T(StringKey.VoiceServiceStatus));
         response.AppendLine(L.T(StringKey.VoiceLabelState, _voiceService.State.ToString()));

@@ -3,17 +3,14 @@ namespace McpToolDispatch.Tests.Execution;
 /// <summary>
 /// ToolHealthMonitor 单元测试 — 验证评分增减、提示词阈值、时间衰减、重置、黑名单、降权
 /// </summary>
-public sealed class ToolHealthMonitorTest : IAsyncLifetime
-{
+public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     private InMemoryFileSystem _fs = null!;
     private ToolHealthMonitor _monitor = null!;
     private ToolHealthMonitor _monitorWithBlacklist = null!;
 
-    public Task InitializeAsync()
-    {
+    public Task InitializeAsync() {
         _fs = new InMemoryFileSystem();
-        _monitor = new ToolHealthMonitor(_fs, config: new ToolScoreConfig
-        {
+        _monitor = new ToolHealthMonitor(_fs, config: new ToolScoreConfig {
             SuccessDelta = 1,
             FailDelta = -5,
             WarningThreshold = 3,
@@ -28,8 +25,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    public Task DisposeAsync()
-    {
+    public Task DisposeAsync() {
         _monitor.DisposeSafe();
         _monitorWithBlacklist.DisposeSafe();
         return Task.CompletedTask;
@@ -38,16 +34,14 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === RecordSuccessAsync ===
 
     [Fact]
-    public async Task RecordSuccessAsync_IncrementsScoreBySuccessDelta()
-    {
+    public async Task RecordSuccessAsync_IncrementsScoreBySuccessDelta() {
         var record = await _monitor.RecordSuccessAsync("tool_a");
         record.Score.Should().Be(1);
         record.SuccessCount.Should().Be(1);
     }
 
     [Fact]
-    public async Task RecordSuccessAsync_MultipleSuccesses_ScoreAccumulates()
-    {
+    public async Task RecordSuccessAsync_MultipleSuccesses_ScoreAccumulates() {
         await _monitor.RecordSuccessAsync("tool_a");
         await _monitor.RecordSuccessAsync("tool_a");
         await _monitor.RecordSuccessAsync("tool_a");
@@ -58,8 +52,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RecordSuccessAsync_ResetsConsecutiveFailures()
-    {
+    public async Task RecordSuccessAsync_ResetsConsecutiveFailures() {
         await _monitor.RecordFailureAsync("tool_a", "err");
         await _monitor.RecordFailureAsync("tool_a", "err");
 
@@ -68,16 +61,14 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RecordSuccessAsync_ClearsLastErrorMessage()
-    {
+    public async Task RecordSuccessAsync_ClearsLastErrorMessage() {
         await _monitor.RecordFailureAsync("tool_a", "some error");
         var record = await _monitor.RecordSuccessAsync("tool_a");
         record.LastErrorMessage.Should().BeNull();
     }
 
     [Fact]
-    public async Task RecordSuccessAsync_ScoreClampedToMax()
-    {
+    public async Task RecordSuccessAsync_ScoreClampedToMax() {
         for (var i = 0; i < 150; i++)
             await _monitor.RecordSuccessAsync("tool_a");
 
@@ -88,8 +79,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === RecordFailureAsync ===
 
     [Fact]
-    public async Task RecordFailureAsync_DecrementsScoreByFailDelta()
-    {
+    public async Task RecordFailureAsync_DecrementsScoreByFailDelta() {
         var record = await _monitor.RecordFailureAsync("tool_a", "timeout");
         record.Score.Should().Be(-5);
         record.FailCount.Should().Be(1);
@@ -98,8 +88,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RecordFailureAsync_MultipleFailures_ScoreAccumulates()
-    {
+    public async Task RecordFailureAsync_MultipleFailures_ScoreAccumulates() {
         await _monitor.RecordFailureAsync("tool_a", "err1");
         await _monitor.RecordFailureAsync("tool_a", "err2");
 
@@ -110,8 +99,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RecordFailureAsync_ScoreClampedToMin()
-    {
+    public async Task RecordFailureAsync_ScoreClampedToMin() {
         for (var i = 0; i < 30; i++)
             await _monitor.RecordFailureAsync("tool_a", "err");
 
@@ -122,8 +110,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === 提示词阈值 ===
 
     [Fact]
-    public async Task RecordFailureAsync_ConsecutiveFailuresReachesThreshold_StaysEnabled()
-    {
+    public async Task RecordFailureAsync_ConsecutiveFailuresReachesThreshold_StaysEnabled() {
         await _monitor.RecordFailureAsync("tool_a", "err1");
         await _monitor.RecordFailureAsync("tool_a", "err2");
         (await _monitor.GetRecordAsync("tool_a"))!.IsEnabled.Should().BeTrue();
@@ -134,8 +121,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RecordFailureAsync_SuccessBetweenFailures_ResetsConsecutiveCount()
-    {
+    public async Task RecordFailureAsync_SuccessBetweenFailures_ResetsConsecutiveCount() {
         await _monitor.RecordFailureAsync("tool_a", "err1");
         await _monitor.RecordFailureAsync("tool_a", "err2");
         await _monitor.RecordSuccessAsync("tool_a");
@@ -149,8 +135,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === 评分恢复 ===
 
     [Fact]
-    public async Task RecordSuccessAsync_ScoreRecoversAfterFailures()
-    {
+    public async Task RecordSuccessAsync_ScoreRecoversAfterFailures() {
         await _monitor.RecordFailureAsync("tool_a", "err1");
         await _monitor.RecordFailureAsync("tool_a", "err2");
         await _monitor.RecordFailureAsync("tool_a", "err3");
@@ -167,8 +152,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === ResetToolAsync ===
 
     [Fact]
-    public async Task ResetToolAsync_ResetsScoreAndConsecutiveFailures()
-    {
+    public async Task ResetToolAsync_ResetsScoreAndConsecutiveFailures() {
         await _monitor.RecordFailureAsync("tool_a", "err1");
         await _monitor.RecordFailureAsync("tool_a", "err2");
         await _monitor.RecordFailureAsync("tool_a", "err3");
@@ -183,8 +167,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ResetToolAsync_NonExistentTool_DoesNotThrow()
-    {
+    public async Task ResetToolAsync_NonExistentTool_DoesNotThrow() {
         var act = async () => await _monitor.ResetToolAsync("nonexistent");
         await act.Should().NotThrowAsync();
     }
@@ -192,8 +175,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === GetRecordAsync ===
 
     [Fact]
-    public async Task GetRecordAsync_NonExistentTool_ReturnsNull()
-    {
+    public async Task GetRecordAsync_NonExistentTool_ReturnsNull() {
         var record = await _monitor.GetRecordAsync("nonexistent");
         record.Should().BeNull();
     }
@@ -201,8 +183,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === GetAllRecordsAsync ===
 
     [Fact]
-    public async Task GetAllRecordsAsync_ReturnsAllRecords()
-    {
+    public async Task GetAllRecordsAsync_ReturnsAllRecords() {
         await _monitor.RecordSuccessAsync("tool_a");
         await _monitor.RecordFailureAsync("tool_b", "err");
 
@@ -215,23 +196,21 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === 持久化 ===
 
     [Fact]
-    public async Task RecordSuccessAsync_PersistsToDisk()
-    {
+    public async Task RecordSuccessAsync_PersistsToDisk() {
         await _monitor.RecordSuccessAsync("tool_a");
         _monitor.DisposeSafe();
 
-        using var monitor2 =  new ToolHealthMonitor(_fs, config: new ToolScoreConfig());
+        using var monitor2 = new ToolHealthMonitor(_fs, config: new ToolScoreConfig());
         var record = await monitor2.GetRecordAsync("tool_a");
         record.Should().NotBeNull();
         record!.Score.Should().Be(1);
-    
+
     }
 
     // === SuccessRate ===
 
     [Fact]
-    public async Task SuccessRate_MixedResults_CalculatesCorrectly()
-    {
+    public async Task SuccessRate_MixedResults_CalculatesCorrectly() {
         await _monitor.RecordSuccessAsync("tool_a");
         await _monitor.RecordSuccessAsync("tool_a");
         await _monitor.RecordFailureAsync("tool_a", "err");
@@ -241,8 +220,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SuccessRate_OnlySuccess_ReturnsOne()
-    {
+    public async Task SuccessRate_OnlySuccess_ReturnsOne() {
         await _monitor.RecordSuccessAsync("tool_a");
         var record = await _monitor.GetRecordAsync("tool_a");
         record!.SuccessRate.Should().Be(1.0);
@@ -251,49 +229,42 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === 黑名单 ===
 
     [Fact]
-    public void IsBlacklisted_BlacklistedTool_ReturnsTrue()
-    {
+    public void IsBlacklisted_BlacklistedTool_ReturnsTrue() {
         _monitorWithBlacklist.IsBlacklisted("blacklisted_tool").Should().BeTrue();
     }
 
     [Fact]
-    public void IsBlacklisted_NormalTool_ReturnsFalse()
-    {
+    public void IsBlacklisted_NormalTool_ReturnsFalse() {
         _monitorWithBlacklist.IsBlacklisted("normal_tool").Should().BeFalse();
     }
 
     // === 降权 ===
 
     [Fact]
-    public void GetPenalty_PenalizedTool_ReturnsPenalty()
-    {
+    public void GetPenalty_PenalizedTool_ReturnsPenalty() {
         _monitorWithBlacklist.GetPenalty("penalized_tool").Should().Be(-20);
     }
 
     [Fact]
-    public void GetPenalty_NormalTool_ReturnsZero()
-    {
+    public void GetPenalty_NormalTool_ReturnsZero() {
         _monitorWithBlacklist.GetPenalty("normal_tool").Should().Be(0);
     }
 
     // === 有效评分 ===
 
     [Fact]
-    public async Task GetEffectiveScore_WithPenalty_ReturnsAdjustedScore()
-    {
+    public async Task GetEffectiveScore_WithPenalty_ReturnsAdjustedScore() {
         await _monitorWithBlacklist.RecordSuccessAsync("penalized_tool");
         _monitorWithBlacklist.GetEffectiveScore("penalized_tool").Should().Be(-19);
     }
 
     [Fact]
-    public void GetEffectiveScore_BlacklistedTool_ReturnsMinScore()
-    {
+    public void GetEffectiveScore_BlacklistedTool_ReturnsMinScore() {
         _monitorWithBlacklist.GetEffectiveScore("blacklisted_tool").Should().Be(-100);
     }
 
     [Fact]
-    public async Task GetEffectiveScore_NormalTool_ReturnsBaseScore()
-    {
+    public async Task GetEffectiveScore_NormalTool_ReturnsBaseScore() {
         await _monitorWithBlacklist.RecordSuccessAsync("normal_tool");
         _monitorWithBlacklist.GetEffectiveScore("normal_tool").Should().Be(1);
     }
@@ -301,8 +272,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === 通配符黑名单 ===
 
     [Fact]
-    public void IsBlacklisted_WildcardPattern_MatchesToolName()
-    {
+    public void IsBlacklisted_WildcardPattern_MatchesToolName() {
         var fs = new InMemoryFileSystem();
         using var monitor = new ToolHealthMonitor(fs,
             blacklist: new HashSet<string>(["shell_*"], StringComparer.OrdinalIgnoreCase));
@@ -313,8 +283,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     }
 
     [Fact]
-    public void IsBlacklisted_WildcardPrefixAndSuffix_MatchesToolName()
-    {
+    public void IsBlacklisted_WildcardPrefixAndSuffix_MatchesToolName() {
         var fs = new InMemoryFileSystem();
         using var monitor = new ToolHealthMonitor(fs,
             blacklist: new HashSet<string>(["*_background_*"], StringComparer.OrdinalIgnoreCase));
@@ -327,8 +296,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     // === 通配符降权 ===
 
     [Fact]
-    public void GetPenalty_WildcardPattern_MatchesToolName()
-    {
+    public void GetPenalty_WildcardPattern_MatchesToolName() {
         var fs = new InMemoryFileSystem();
         using var monitor = new ToolHealthMonitor(fs,
             penalties: new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["shell_*"] = -30 });

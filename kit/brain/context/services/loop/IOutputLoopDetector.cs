@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 输出循环检测器接口 — 检测累积输出文本是否存在重复模式循环
 /// </summary>
-public interface IOutputLoopDetector
-{
+public interface IOutputLoopDetector {
     /// <summary>
     /// 检测累积文本尾部是否存在重复模式循环，返回检测结果。
     /// </summary>

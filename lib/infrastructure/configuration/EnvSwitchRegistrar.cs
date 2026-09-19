@@ -3,8 +3,7 @@ namespace Infrastructure.Configuration;
 /// <summary>
 /// 环境变量切换注册器 — 根据环境变量值在 DI 容器中注册不同实现，并写入 DI Trace 日志
 /// </summary>
-public static class EnvSwitchRegistrar
-{
+public static class EnvSwitchRegistrar {
     /// <summary>
     /// 根据环境变量值注册 TService 的不同实现（含默认工厂）
     /// </summary>
@@ -21,16 +20,12 @@ public static class EnvSwitchRegistrar
         string altMode,
         Func<IServiceProvider, TService> altFactory,
         Func<IServiceProvider, TService> defaultFactory)
-        where TService : class
-    {
+        where TService : class {
         var mode = EnvHelper.Get(envVar);
         var serviceName = typeof(TService).Name;
-        if (string.Equals(mode, altMode, StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.Equals(mode, altMode, StringComparison.OrdinalIgnoreCase)) {
             services.AddSingleton<TService>(sp => TraceFactory(altFactory, serviceName, altMode, sp));
-        }
-        else
-        {
+        } else {
             services.AddSingleton<TService>(sp => TraceFactory(defaultFactory, serviceName, "Default", sp));
         }
 
@@ -51,12 +46,10 @@ public static class EnvSwitchRegistrar
         JccEnvVar envVar,
         string altMode,
         Func<IServiceProvider, TService> altFactory)
-        where TService : class
-    {
+        where TService : class {
         var mode = EnvHelper.Get(envVar);
         var serviceName = typeof(TService).Name;
-        if (string.Equals(mode, altMode, StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.Equals(mode, altMode, StringComparison.OrdinalIgnoreCase)) {
             services.AddSingleton<TService>(sp => TraceFactory(altFactory, serviceName, altMode, sp));
         }
 
@@ -76,8 +69,7 @@ public static class EnvSwitchRegistrar
         Func<IServiceProvider, TService> factory,
         string serviceName,
         string mode,
-        IServiceProvider sp) where TService : class
-    {
+        IServiceProvider sp) where TService : class {
         JoinCode.Abstractions.Utils.Diagnostics.Diag.WriteDiTrace($"[DI] + {serviceName} ({mode})");
         var svc = factory(sp);
         JoinCode.Abstractions.Utils.Diagnostics.Diag.WriteDiTrace($"[DI] - {serviceName} ({mode})");

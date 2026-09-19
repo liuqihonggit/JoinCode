@@ -3,8 +3,7 @@ namespace Core.Agents;
 /// <summary>
 /// 队友初始化上下文 - 包含队友加入团队时的初始化信息
 /// </summary>
-public sealed class TeammateInitContext
-{
+public sealed class TeammateInitContext {
     /// <summary>团队唯一标识</summary>
     public required string TeamId { get; init; }
     /// <summary>团队名称</summary>
@@ -30,10 +29,8 @@ public sealed class TeammateInitContext
     /// 将上下文转换为环境变量字典，供子进程注入团队信息
     /// </summary>
     /// <returns>包含团队相关环境变量的字典</returns>
-    public Dictionary<string, string> ToEnvironmentVariables()
-    {
-        var env = new Dictionary<string, string>
-        {
+    public Dictionary<string, string> ToEnvironmentVariables() {
+        var env = new Dictionary<string, string> {
             [JccEnvVar.TeamId.ToValue()] = TeamId,
             [JccEnvVar.TeamName.ToValue()] = TeamName,
             [JccEnvVar.TeammateId.ToValue()] = AgentId
@@ -58,8 +55,7 @@ public sealed class TeammateInitContext
     /// 构建可读的上下文摘要文本，用于向队友展示团队信息
     /// </summary>
     /// <returns>包含团队、角色、成员、允许路径等信息的摘要字符串</returns>
-    public string BuildContextSummary()
-    {
+    public string BuildContextSummary() {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"你是团队 \"{TeamName}\" 的成员。");
         sb.AppendLine($"团队ID: {TeamId}");
@@ -77,16 +73,13 @@ public sealed class TeammateInitContext
         if (!string.IsNullOrEmpty(LeadAgentId))
             sb.AppendLine($"Leader ID: {LeadAgentId}");
 
-        if (OtherMembers.Count > 0)
-        {
+        if (OtherMembers.Count > 0) {
             sb.AppendLine($"其他成员: {string.Join(", ", OtherMembers)}");
         }
 
-        if (AllowedPaths.Count > 0)
-        {
+        if (AllowedPaths.Count > 0) {
             sb.AppendLine("允许路径:");
-            foreach (var path in AllowedPaths)
-            {
+            foreach (var path in AllowedPaths) {
                 sb.AppendLine($"  {path.Path} ({path.AccessLevel})");
             }
         }
@@ -98,8 +91,7 @@ public sealed class TeammateInitContext
 /// <summary>
 /// 队友初始化服务接口 - 构建队友加入团队时的初始化上下文并注册钩子
 /// </summary>
-public interface ITeammateInitService
-{
+public interface ITeammateInitService {
     /// <summary>
     /// 构建队友初始化上下文
     /// </summary>

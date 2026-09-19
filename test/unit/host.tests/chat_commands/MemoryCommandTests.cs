@@ -5,39 +5,33 @@ namespace Host.Tests.ChatCommands;
 /// 覆盖:edit/open/add/search/db/stats/health/cleanup + 未知子命令 + 大小写不敏感 + 默认(无参)
 /// 验证目标:Step 2 重构后,所有 case 标签能被正确识别
 /// </summary>
-public sealed class MemoryCommandTests
-{
+public sealed class MemoryCommandTests {
     [Fact]
-    public void Name_Should_Be_memory()
-    {
+    public void Name_Should_Be_memory() {
         var cmd = new MemoryCommand();
         cmd.Name.Should().Be("memory");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new MemoryCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new MemoryCommand();
         cmd.Usage.Should().StartWith("/memory");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new MemoryCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public void Aliases_Should_Contain_mem()
-    {
+    public void Aliases_Should_Contain_mem() {
         var cmd = new MemoryCommand();
         cmd.Aliases.Should().Contain("mem");
     }
@@ -45,8 +39,7 @@ public sealed class MemoryCommandTests
     // ===== MemorySubCommand 枚举路由取值范围测试 =====
 
     [Fact]
-    public async Task Execute_WithEmptyArgs_Should_Return_Continue()
-    {
+    public async Task Execute_WithEmptyArgs_Should_Return_Continue() {
         // 无参数 → 走默认 ListMemoryFilesAsync(打印文件列表)
         var cmd = new MemoryCommand();
         var context = CreateContext("");
@@ -66,8 +59,7 @@ public sealed class MemoryCommandTests
     [InlineData("stats")]
     [InlineData("health")]
     [InlineData("cleanup")]
-    public async Task Execute_WithValidSubCommand_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithValidSubCommand_Should_Return_Continue(string subCommand) {
         // 8 个 MemorySubCommand 值 — 编辑/打开/添加/搜索/数据库/统计/健康/清理
         var cmd = new MemoryCommand();
         var context = CreateContext(subCommand);
@@ -79,8 +71,7 @@ public sealed class MemoryCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithUnknownSubcommand_Should_NotThrow()
-    {
+    public async Task Execute_WithUnknownSubcommand_Should_NotThrow() {
         // 未知子命令走 default 分支,打印可用操作列表
         var cmd = new MemoryCommand();
         var context = CreateContext("unknown-action");
@@ -99,8 +90,7 @@ public sealed class MemoryCommandTests
     [InlineData("STATS")]
     [InlineData("HEALTH")]
     [InlineData("CLEANUP")]
-    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand)
-    {
+    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand) {
         // 验证小写化路由(toLowerInvariant 后枚举匹配)
         var cmd = new MemoryCommand();
         var context = CreateContext(subCommand);
@@ -113,8 +103,7 @@ public sealed class MemoryCommandTests
     // ===== 服务相关子命令测试(需 mock IMemoryManagementService) =====
 
     [Fact]
-    public async Task Execute_WithAdd_Should_NotThrow_When_Service_Null()
-    {
+    public async Task Execute_WithAdd_Should_NotThrow_When_Service_Null() {
         // 当服务不可用时,应优雅降级(打印"服务不可用"),不抛 NRE
         var cmd = new MemoryCommand();
         var context = CreateContext("add 测试内容");
@@ -125,8 +114,7 @@ public sealed class MemoryCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithSearch_Should_NotThrow_When_Service_Null()
-    {
+    public async Task Execute_WithSearch_Should_NotThrow_When_Service_Null() {
         var cmd = new MemoryCommand();
         var context = CreateContext("search 关键词");
 
@@ -136,8 +124,7 @@ public sealed class MemoryCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithDb_Should_NotThrow_When_Service_Null()
-    {
+    public async Task Execute_WithDb_Should_NotThrow_When_Service_Null() {
         var cmd = new MemoryCommand();
         var context = CreateContext("db");
 
@@ -147,8 +134,7 @@ public sealed class MemoryCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithStats_Should_NotThrow_When_Service_Null()
-    {
+    public async Task Execute_WithStats_Should_NotThrow_When_Service_Null() {
         var cmd = new MemoryCommand();
         var context = CreateContext("stats");
 
@@ -158,8 +144,7 @@ public sealed class MemoryCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithHealth_Should_NotThrow_When_Service_Null()
-    {
+    public async Task Execute_WithHealth_Should_NotThrow_When_Service_Null() {
         var cmd = new MemoryCommand();
         var context = CreateContext("health");
 
@@ -169,8 +154,7 @@ public sealed class MemoryCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithCleanup_Should_NotThrow_When_Service_Null()
-    {
+    public async Task Execute_WithCleanup_Should_NotThrow_When_Service_Null() {
         var cmd = new MemoryCommand();
         var context = CreateContext("cleanup");
 
@@ -179,19 +163,16 @@ public sealed class MemoryCommandTests
         result.ShouldContinue.Should().BeTrue();
     }
 
-    private static ChatCommandContext CreateContext(string arguments)
-    {
-        return new ChatCommandContext
-        {
+    private static ChatCommandContext CreateContext(string arguments) {
+        return new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 // MemoryManagementService 故意保持 null,验证 null 服务兜底
-            FileSystem = TestFileSystem.Current,
+                FileSystem = TestFileSystem.Current,
             }),
         };
     }

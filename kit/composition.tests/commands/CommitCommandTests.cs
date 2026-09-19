@@ -4,14 +4,11 @@ namespace Composition.Tests.Commands;
 /// /commit 命令单元测试 — 覆盖两阶段渐进式披露(首次返回说明不执行,二次确认执行)
 /// <para>静态状态隔离:每个测试用唯一 SessionId(Guid),避免 ReadConfirmedSessions 静态字典跨测试污染</para>
 /// </summary>
-public sealed class CommitCommandTests
-{
-    private static CommandServices CreateCommandServices(IGitCommandRunner gitRunner)
-    {
+public sealed class CommitCommandTests {
+    private static CommandServices CreateCommandServices(IGitCommandRunner gitRunner) {
         var services = new ServiceCollection();
         services.AddSingleton(gitRunner);
-        return new CommandServices
-        {
+        return new CommandServices {
             ChatService = Mock.Of<IChatService>(),
             CodeService = Mock.Of<ICodeService>(),
             PlanService = Mock.Of<IPlanService>(),
@@ -20,8 +17,7 @@ public sealed class CommitCommandTests
         };
     }
 
-    private static Mock<IGitCommandRunner> CreateMockGitRunner(string statusOutput = "")
-    {
+    private static Mock<IGitCommandRunner> CreateMockGitRunner(string statusOutput = "") {
         var mock = new Mock<IGitCommandRunner>();
         mock.Setup(r => r.ExecuteAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GitCommandResult { Success = true, Output = statusOutput, ExitCode = 0 });
@@ -29,27 +25,23 @@ public sealed class CommitCommandTests
     }
 
     [Fact]
-    public void Name_Should_Be_commit()
-    {
+    public void Name_Should_Be_commit() {
         var cmd = new CommitCommand();
         cmd.Name.Should().Be("commit");
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new CommitCommand();
         cmd.Usage.Should().StartWith("/commit");
     }
 
     [Fact]
-    public async Task Execute_FirstCall_WithSessionId_ShouldReturnContinue_WithoutExecutingGit()
-    {
+    public async Task Execute_FirstCall_WithSessionId_ShouldReturnContinue_WithoutExecutingGit() {
         var sessionId = $"test-first-{Guid.NewGuid():N}";
         var gitRunner = CreateMockGitRunner();
         var cmd = new CommitCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = "",
             SessionId = sessionId,
             CancellationToken = CancellationToken.None,
@@ -66,15 +58,13 @@ public sealed class CommitCommandTests
     }
 
     [Fact]
-    public async Task Execute_SecondCall_WithSessionId_ShouldExecuteGit()
-    {
+    public async Task Execute_SecondCall_WithSessionId_ShouldExecuteGit() {
         var sessionId = $"test-second-{Guid.NewGuid():N}";
         var gitRunner = CreateMockGitRunner();
         var cmd = new CommitCommand();
         var services = new CommandServiceProvider(CreateCommandServices(gitRunner.Object));
 
-        var context1 = new ChatCommandContext
-        {
+        var context1 = new ChatCommandContext {
             Arguments = "",
             SessionId = sessionId,
             CancellationToken = CancellationToken.None,
@@ -82,8 +72,7 @@ public sealed class CommitCommandTests
         };
         await cmd.ExecuteAsync(context1).ConfigureAwait(true);
 
-        var context2 = new ChatCommandContext
-        {
+        var context2 = new ChatCommandContext {
             Arguments = "",
             SessionId = sessionId,
             CancellationToken = CancellationToken.None,
@@ -99,12 +88,10 @@ public sealed class CommitCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithoutSessionId_ShouldSkipDisclosure_AndExecuteGit()
-    {
+    public async Task Execute_WithoutSessionId_ShouldSkipDisclosure_AndExecuteGit() {
         var gitRunner = CreateMockGitRunner();
         var cmd = new CommitCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = "",
             SessionId = "",
             CancellationToken = CancellationToken.None,
@@ -121,15 +108,13 @@ public sealed class CommitCommandTests
     }
 
     [Fact]
-    public async Task Execute_SecondCall_WithinWindow_ShouldExecuteGit()
-    {
+    public async Task Execute_SecondCall_WithinWindow_ShouldExecuteGit() {
         var sessionId = $"test-window-{Guid.NewGuid():N}";
         var gitRunner = CreateMockGitRunner();
         var cmd = new CommitCommand();
         var services = new CommandServiceProvider(CreateCommandServices(gitRunner.Object));
 
-        var context1 = new ChatCommandContext
-        {
+        var context1 = new ChatCommandContext {
             Arguments = "",
             SessionId = sessionId,
             CancellationToken = CancellationToken.None,
@@ -137,8 +122,7 @@ public sealed class CommitCommandTests
         };
         await cmd.ExecuteAsync(context1).ConfigureAwait(true);
 
-        var context2 = new ChatCommandContext
-        {
+        var context2 = new ChatCommandContext {
             Arguments = "",
             SessionId = sessionId,
             CancellationToken = CancellationToken.None,

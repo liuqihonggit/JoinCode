@@ -7,46 +7,39 @@ namespace Host.Tests.ChatCommands;
 /// 验证目标:Step 3.5 重构后,所有 case 标签能被正确识别
 /// 注意:WorktreeService null 时 ExecuteAsync 直接返回,case 不会触发,需用 Mock 触发 case
 /// </summary>
-public sealed class WorktreeCommandTests
-{
+public sealed class WorktreeCommandTests {
     [Fact]
-    public void Name_Should_Be_worktree()
-    {
+    public void Name_Should_Be_worktree() {
         var cmd = new WorktreeCommand();
         cmd.Name.Should().Be("worktree");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new WorktreeCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new WorktreeCommand();
         cmd.Usage.Should().StartWith("/worktree");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new WorktreeCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public void Aliases_Should_Be_Empty()
-    {
+    public void Aliases_Should_Be_Empty() {
         var cmd = new WorktreeCommand();
         cmd.Aliases.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Execute_WhenServiceIsNull_Should_Return_Continue()
-    {
+    public async Task Execute_WhenServiceIsNull_Should_Return_Continue() {
         // WorktreeService null 时,直接 return Continue,不会进入 switch
         // 这是为了避免在没有 WorktreeService 的环境下崩溃
         var cmd = new WorktreeCommand();
@@ -59,8 +52,7 @@ public sealed class WorktreeCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithListSubcommand_Should_Return_Continue()
-    {
+    public async Task Execute_WithListSubcommand_Should_Return_Continue() {
         // CrudActionEnumConstants.List("list") → ListWorktreesAsync → 应正常返回
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
@@ -73,8 +65,7 @@ public sealed class WorktreeCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithLsAlias_Should_Return_Continue()
-    {
+    public async Task Execute_WithLsAlias_Should_Return_Continue() {
         // CrudActionEnumConstants.Ls("ls") → ListWorktreesAsync (走 List 相同分支)
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
@@ -86,8 +77,7 @@ public sealed class WorktreeCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithCreateSubcommand_Should_Return_Continue()
-    {
+    public async Task Execute_WithCreateSubcommand_Should_Return_Continue() {
         // CrudActionEnumConstants.Create("create") → CreateWorktreeAsync
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
@@ -99,8 +89,7 @@ public sealed class WorktreeCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithDeleteSubcommand_Should_Return_Continue()
-    {
+    public async Task Execute_WithDeleteSubcommand_Should_Return_Continue() {
         // CrudActionEnumConstants.Delete("delete") → RemoveWorktreeAsync
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
@@ -112,8 +101,7 @@ public sealed class WorktreeCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithRmAlias_Should_Return_Continue()
-    {
+    public async Task Execute_WithRmAlias_Should_Return_Continue() {
         // CrudActionEnumConstants.Rm("rm") → RemoveWorktreeAsync (走 Delete 相同分支)
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
@@ -125,8 +113,7 @@ public sealed class WorktreeCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithCleanupSubcommand_Should_Return_Continue()
-    {
+    public async Task Execute_WithCleanupSubcommand_Should_Return_Continue() {
         // cleanup/clean 保留字符串(不属于 CrudAction 范围,Step 3.5 决策)
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
@@ -138,8 +125,7 @@ public sealed class WorktreeCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithStatusSubcommand_Should_Return_Continue()
-    {
+    public async Task Execute_WithStatusSubcommand_Should_Return_Continue() {
         // status 保留字符串(不属于 CrudAction 范围,Step 3.5 决策)
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
@@ -151,8 +137,7 @@ public sealed class WorktreeCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithUnknownSubcommand_Should_NotThrow()
-    {
+    public async Task Execute_WithUnknownSubcommand_Should_NotThrow() {
         // default 分支应被触发,输出"未知子命令"消息
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
@@ -169,8 +154,7 @@ public sealed class WorktreeCommandTests
     [InlineData("CREATE")]
     [InlineData("DELETE")]
     [InlineData("RM")]
-    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand)
-    {
+    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand) {
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
         var context = CreateContext(subCommand, worktreeService);
@@ -180,25 +164,21 @@ public sealed class WorktreeCommandTests
         result.ShouldContinue.Should().BeTrue();
     }
 
-    private static ChatCommandContext CreateContext(string arguments, IAgentWorktreeService? worktreeService)
-    {
-        return new ChatCommandContext
-        {
+    private static ChatCommandContext CreateContext(string arguments, IAgentWorktreeService? worktreeService) {
+        return new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 WorktreeService = worktreeService,
-            FileSystem = TestFileSystem.Current,
+                FileSystem = TestFileSystem.Current,
             }),
         };
     }
 
-    private static IAgentWorktreeService CreateMockWorktreeService()
-    {
+    private static IAgentWorktreeService CreateMockWorktreeService() {
         var mock = new Mock<IAgentWorktreeService>();
 
         // ListWorktreesAsync 返回空列表

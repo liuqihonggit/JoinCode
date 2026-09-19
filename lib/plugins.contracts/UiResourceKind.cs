@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// UI 资源类型 — 插件持有的界面资源分类
 /// </summary>
-public enum UiResourceKind
-{
+public enum UiResourceKind {
     /// <summary>
     /// 图标资源
     /// </summary>

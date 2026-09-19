@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Shell;
 
-public sealed record ShellBackgroundTaskInfo
-{
+public sealed record ShellBackgroundTaskInfo {
     public required string TaskId { get; init; }
     public required string Command { get; init; }
     public required TaskExecutionStatus Status { get; init; }

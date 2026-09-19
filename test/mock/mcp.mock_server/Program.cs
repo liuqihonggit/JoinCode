@@ -5,19 +5,16 @@ namespace Mcp.MockServer;
 /// MCP MockServer 入口 — 通过 HTTP (Streamable HTTP) 接收 JSON-RPC 请求
 /// 对齐 MCP 协议: jcc 通过 mcp_connect transport_type=http 连接此服务器
 /// </summary>
-public sealed class Program
-{
+public sealed class Program {
     private static readonly ManualResetEventSlim ShutdownEvent = new(false);
 
-    public static async Task Main(string[] args)
-    {
+    public static async Task Main(string[] args) {
         var configPath = ParseArgument(args, "--config") ?? "mockserver.json";
         var portArg = ParseArgument(args, "--port");
         var config = McpMockServerConfig.LoadFromFileOrDefault(configPath);
 
         var port = int.TryParse(portArg, out var p) ? p : config.Port;
-        if (port == 0)
-        {
+        if (port == 0) {
             port = GetAvailablePort();
         }
 
@@ -35,15 +32,13 @@ public sealed class Program
         var app = builder.Build();
 
         // GET / — 健康检查
-        app.MapGet("/", async (HttpContext ctx) =>
-        {
+        app.MapGet("/", async (HttpContext ctx) => {
             ctx.Response.ContentType = "application/json";
             await ctx.Response.WriteAsync("{\"status\":\"ok\"}");
         });
 
         // GET /shutdown — 关闭服务器
-        app.MapGet("/shutdown", async (HttpContext ctx) =>
-        {
+        app.MapGet("/shutdown", async (HttpContext ctx) => {
             Console.WriteLine($"[Mcp.MockServer] Shutdown requested from {ctx.Connection.RemoteIpAddress}");
             ctx.Response.ContentType = "application/json";
             await ctx.Response.WriteAsync("{\"status\":\"shutting_down\"}");
@@ -52,19 +47,15 @@ public sealed class Program
 
         // POST /mcp — MCP JSON-RPC 端点（Streamable HTTP）
         // 客户端通过 HTTP POST 发送 JSON-RPC 请求，服务器返回 JSON-RPC 响应
-        app.MapPost("/mcp", async (HttpContext ctx) =>
-        {
+        app.MapPost("/mcp", async (HttpContext ctx) => {
             using var bodyReader = new StreamReader(ctx.Request.Body);
             var requestBody = await bodyReader.ReadToEndAsync();
             Console.Error.WriteLine($"[Mcp.MockServer] <- {requestBody}");
 
             string responseJson;
-            try
-            {
+            try {
                 responseJson = engine.HandleRequest(requestBody) ?? "";
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Console.Error.WriteLine($"[Mcp.MockServer] EXCEPTION: {ex}");
                 ctx.Response.StatusCode = 500;
                 ctx.Response.ContentType = "application/json";
@@ -74,8 +65,7 @@ public sealed class Program
             }
 
             // 通知（无 id）不返回响应体，返回 202 Accepted
-            if (string.IsNullOrEmpty(responseJson))
-            {
+            if (string.IsNullOrEmpty(responseJson)) {
                 ctx.Response.StatusCode = 202;
                 return;
             }
@@ -88,16 +78,14 @@ public sealed class Program
         });
 
         // POST / — 兼容不带 /mcp 路径的请求
-        app.MapPost("/", async (HttpContext ctx) =>
-        {
+        app.MapPost("/", async (HttpContext ctx) => {
             using var bodyReader = new StreamReader(ctx.Request.Body);
             var requestBody = await bodyReader.ReadToEndAsync();
             Console.Error.WriteLine($"[Mcp.MockServer] <- {requestBody}");
 
             var responseJson = engine.HandleRequest(requestBody);
 
-            if (responseJson is null)
-            {
+            if (responseJson is null) {
                 ctx.Response.StatusCode = 202;
                 return;
             }
@@ -120,8 +108,7 @@ public sealed class Program
         Console.WriteLine($"[Mcp.MockServer] Stopped. RequestCount={engine.RequestCount}, ToolCallCount={engine.ToolCallCount}");
     }
 
-    private static int GetAvailablePort()
-    {
+    private static int GetAvailablePort() {
         using var tcpListener = new TcpListener(IPAddress.Loopback, 0);
         tcpListener.Start();
         var port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;

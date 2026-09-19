@@ -4,8 +4,7 @@ namespace Services.Build;
 /// 编译队列条目存储 — 成对管理 <see cref="BuildQueueEntry"/> 与其等待句柄，
 /// 保证同一 BuildId 在两个字典中的生命周期一致（同时添加、同时移除）。
 /// </summary>
-internal sealed class BuildQueueEntryStore
-{
+internal sealed class BuildQueueEntryStore {
     private readonly ConcurrentDictionary<string, BuildQueueEntry> _entries = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<BuildQueueResult>> _waitHandles = new();
 
@@ -22,8 +21,7 @@ internal sealed class BuildQueueEntryStore
     /// <summary>
     /// 成对添加条目与等待句柄。同 BuildId 重复添加会覆盖。
     /// </summary>
-    public void Add(string buildId, BuildQueueEntry entry, TaskCompletionSource<BuildQueueResult> tcs)
-    {
+    public void Add(string buildId, BuildQueueEntry entry, TaskCompletionSource<BuildQueueResult> tcs) {
         _entries[buildId] = entry;
         _waitHandles[buildId] = tcs;
     }
@@ -49,8 +47,7 @@ internal sealed class BuildQueueEntryStore
     /// <summary>
     /// 取消所有未完成的等待句柄 — 用于 Dispose 时通知等待者。
     /// </summary>
-    public void CancelAll()
-    {
+    public void CancelAll() {
         foreach (var tcs in _waitHandles.Values)
             tcs.TrySetCanceled();
     }

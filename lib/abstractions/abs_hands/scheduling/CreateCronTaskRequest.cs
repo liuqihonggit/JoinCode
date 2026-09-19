@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Scheduling;
 /// <summary>
 /// 创建 Cron 任务的参数
 /// </summary>
-public sealed record CreateCronTaskRequest
-{
+public sealed record CreateCronTaskRequest {
     /// <summary>
     /// Cron 表达式
     /// </summary>

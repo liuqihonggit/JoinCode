@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Configuration;
 /// <summary>
 /// 插件配置
 /// </summary>
-public sealed class PluginConfig
-{
+public sealed class PluginConfig {
     /// <summary>
     /// 外部插件目录路径（相对于应用程序根目录或绝对路径）
     /// </summary>

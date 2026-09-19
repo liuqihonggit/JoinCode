@@ -5,16 +5,14 @@ namespace Core.Context;
 /// 对齐 TS REPL.tsx: provisionContentReplacementState(initialMessages, initialContentReplacements)
 /// </summary>
 [Register(typeof(IChatInitMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ContextLoadMiddleware : ServiceEntity, IChatInitMiddleware
-{
+public sealed partial class ContextLoadMiddleware : ServiceEntity, IChatInitMiddleware {
 
     /// <summary>
     /// 初始化 <see cref="ContextLoadMiddleware"/> 实例
     /// </summary>
     /// <param name="contentReplacer">聊天内容替换器，用于初始化内容替换状态</param>
     /// <param name="logger">可选的日志记录器</param>
-    public ContextLoadMiddleware(IChatContentReplacer contentReplacer, ILogger<ContextLoadMiddleware>? logger = null)
-    {
+    public ContextLoadMiddleware(IChatContentReplacer contentReplacer, ILogger<ContextLoadMiddleware>? logger = null) {
         _contentReplacer = contentReplacer;
         _logger = logger;
     }
@@ -28,8 +26,7 @@ public sealed partial class ContextLoadMiddleware : ServiceEntity, IChatInitMidd
     /// <summary>
     /// 加载聊天上下文并初始化内容替换状态
     /// </summary>
-    public async Task InvokeAsync(ChatInitContext context, MiddlewareDelegate<ChatInitContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(ChatInitContext context, MiddlewareDelegate<ChatInitContext> next, CancellationToken ct) {
         await context.ContextManager.LoadContextAsync(ct).ConfigureAwait(false);
 
         // 设置 SessionId — 供后续中间件使用
@@ -37,8 +34,7 @@ public sealed partial class ContextLoadMiddleware : ServiceEntity, IChatInitMidd
 
         // 初始化内容替换状态 — 功能开关关闭时返回 null，query 会跳过整个预算执行
         // 有历史消息时走重建路径，保证恢复会话时 prompt cache 一致性
-        if (context.ToolUseContext.ContentReplacementState is null)
-        {
+        if (context.ToolUseContext.ContentReplacementState is null) {
             var initialMessages = await context.ContextManager.GetMessageListAsync(ct).ConfigureAwait(false);
             context.ToolUseContext.ContentReplacementState = _contentReplacer.ProvisionState(initialMessages.ToList());
         }

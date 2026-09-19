@@ -8,8 +8,7 @@ namespace JoinCode.Cli.Output;
 /// <para>2. 调用方用 .ToRustStyleString() 渲染为 Rust 风格位置指示错误</para>
 /// <para>3. 禁止新建独立错误格式化器 — ToRustStyleString 是统一渲染入口</para>
 /// </summary>
-public static class CliErrorCatalog
-{
+public static class CliErrorCatalog {
     // ── 认证类 (AUTH_) ──
 
     /// <summary>API Key 缺失</summary>

@@ -4,8 +4,7 @@ namespace Core.Utils;
 /// 代理工具限制器 — 按权限模式(Auto/Plan/Ask)提供允许/拒绝工具集合,支持配置覆盖
 /// </summary>
 [Register(typeof(IAgentToolRestrictions), ServiceLifetime.Singleton)]
-public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRestrictions
-{
+public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRestrictions {
     private readonly FrozenSet<string> _autoAllowed;
     private readonly FrozenSet<string> _planAllowed;
     private readonly FrozenSet<string> _askAllowed;
@@ -18,8 +17,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
     /// </summary>
     public AgentToolRestrictions(
         IOptions<PermissionConfig>? configOptions = null,
-        ITelemetryService? telemetryService = null)
-    {
+        ITelemetryService? telemetryService = null) {
         _telemetryService = telemetryService;
         var overrides = configOptions?.Value?.ToolOverrides;
         _autoAllowed = MergeWithOverrides(ToolSecuritySets.AutoAllowedTools, overrides, PermissionMode.Auto.ToValue(), allow: true);
@@ -33,10 +31,8 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
     private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
-    public IReadOnlySet<string> GetAllowedTools(PermissionMode mode)
-    {
-        return mode switch
-        {
+    public IReadOnlySet<string> GetAllowedTools(PermissionMode mode) {
+        return mode switch {
             PermissionMode.Auto => _autoAllowed,
             PermissionMode.Plan => _planAllowed,
             PermissionMode.Ask => _askAllowed,
@@ -46,10 +42,8 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
     }
 
     /// <inheritdoc />
-    public IReadOnlySet<string> GetDeniedTools(PermissionMode mode)
-    {
-        return mode switch
-        {
+    public IReadOnlySet<string> GetDeniedTools(PermissionMode mode) {
+        return mode switch {
             PermissionMode.Auto => _autoDenied,
             PermissionMode.Plan => _planDenied,
             PermissionMode.Ask => _askDenied,
@@ -59,23 +53,19 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
     }
 
     /// <inheritdoc />
-    public bool IsToolAllowedForMode(string toolName, PermissionMode mode)
-    {
-        if (mode == PermissionMode.Bypass)
-        {
+    public bool IsToolAllowedForMode(string toolName, PermissionMode mode) {
+        if (mode == PermissionMode.Bypass) {
             RecordPermissionCheckMetrics(toolName, mode, true);
             return true;
         }
 
         var denied = GetDeniedTools(mode);
-        if (denied.Contains(toolName))
-        {
+        if (denied.Contains(toolName)) {
             RecordPermissionCheckMetrics(toolName, mode, false);
             return false;
         }
 
-        if (denied.Contains("*"))
-        {
+        if (denied.Contains("*")) {
             RecordPermissionCheckMetrics(toolName, mode, false);
             return false;
         }
@@ -91,8 +81,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
         FrozenSet<string> defaults,
         Dictionary<string, ToolOverrideEntry>? overrides,
         string modeKey,
-        bool allow)
-    {
+        bool allow) {
         if (overrides is null || !overrides.TryGetValue(modeKey, out var entry))
             return defaults;
 

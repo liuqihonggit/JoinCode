@@ -5,24 +5,20 @@ public class ChatServiceTestsCollection { }
 
 [Collection("ChatServiceTests")]
 [Trait("Category", "Integration")]
-public class ChatServiceTests : IAsyncLifetime
-{
+public class ChatServiceTests : IAsyncLifetime {
     private static IFileSystem RealFs => new PhysicalFileSystem();
     private PipeOpenAIMockServer? _mockServer;
     private string _pipeName = string.Empty;
     private ServiceProvider? _serviceProvider;
 
-    public ChatServiceTests()
-    {
+    public ChatServiceTests() {
     }
 
-    public async Task InitializeAsync()
-    {
+    public async Task InitializeAsync() {
         _pipeName = $"JoinCode_Test_{Guid.NewGuid():N}";
 
         var options = new MockServerOptions(_pipeName);
-        var loggerFactory = LoggerFactory.Create(builder =>
-        {
+        var loggerFactory = LoggerFactory.Create(builder => {
             builder.AddConsole();
             builder.SetMinimumLevel(LogLevel.Debug);
         });
@@ -31,41 +27,33 @@ public class ChatServiceTests : IAsyncLifetime
         await _mockServer.StartAsync().ConfigureAwait(true);
     }
 
-    public async Task DisposeAsync()
-    {
-        if (_serviceProvider != null)
-        {
+    public async Task DisposeAsync() {
+        if (_serviceProvider != null) {
             await _serviceProvider.DisposeAsync();
             _serviceProvider = null;
             await Task.Delay(200);
         }
 
-        if (_mockServer != null)
-        {
+        if (_mockServer != null) {
             await _mockServer.StopAsync(CancellationToken.None);
             await _mockServer.DisposeAsync();
         }
     }
 
-    private async Task<ServiceProvider> CreateServiceProviderAsync()
-    {
-        if (_serviceProvider != null)
-        {
+    private async Task<ServiceProvider> CreateServiceProviderAsync() {
+        if (_serviceProvider != null) {
             _serviceProvider.Dispose();
             _serviceProvider = null;
             await Task.Delay(100).ConfigureAwait(true);
         }
 
-        var config = new WorkflowConfig
-        {
-            Provider = new ProviderConfig
-            {
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig {
                 Vendor = "openai",
                 ApiKey = MockServerOptions.DefaultApiKey,
                 ModelId = MockServerOptions.DefaultModel
             },
-            PipeEndpoint = new PipeTransportConfig
-            {
+            PipeEndpoint = new PipeTransportConfig {
                 PipeName = _pipeName
             }
         };
@@ -82,15 +70,13 @@ public class ChatServiceTests : IAsyncLifetime
         return _serviceProvider;
     }
 
-    private async Task<IChatService> CreateChatServiceAsync()
-    {
+    private async Task<IChatService> CreateChatServiceAsync() {
         var serviceProvider = await CreateServiceProviderAsync().ConfigureAwait(true);
         return serviceProvider.GetRequiredService<IChatService>();
     }
 
     [Fact]
-    public async Task SendApiMessageAsync_ShouldAddMessageToHistory()
-    {
+    public async Task SendApiMessageAsync_ShouldAddMessageToHistory() {
         var service = await CreateChatServiceAsync().ConfigureAwait(true);
         var testMessage = "Hello, test message";
 
@@ -103,8 +89,7 @@ public class ChatServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ClearMessageList_ShouldEmptyHistoryAndAddSystemPrompt()
-    {
+    public async Task ClearMessageList_ShouldEmptyHistoryAndAddSystemPrompt() {
         var service = await CreateChatServiceAsync().ConfigureAwait(true);
 
         await service.ClearHistoryAsync().ConfigureAwait(true);
@@ -116,8 +101,7 @@ public class ChatServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SetSystemPrompt_ShouldUpdateSystemPrompt()
-    {
+    public async Task SetSystemPrompt_ShouldUpdateSystemPrompt() {
         var service = await CreateChatServiceAsync().ConfigureAwait(true);
         var newSystemPrompt = "You are a test assistant.";
 
@@ -130,8 +114,7 @@ public class ChatServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task LoadState_ShouldRestoreInMemoryState()
-    {
+    public async Task LoadState_ShouldRestoreInMemoryState() {
         var service = await CreateChatServiceAsync().ConfigureAwait(true);
         var testMessage = "Test message for persistence";
         var newSystemPrompt = "Test system prompt";
@@ -146,8 +129,7 @@ public class ChatServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SaveState_ShouldPersistInMemory()
-    {
+    public async Task SaveState_ShouldPersistInMemory() {
         var service = await CreateChatServiceAsync().ConfigureAwait(true);
         var testMessage = "Test message to trigger save";
 

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 系统提醒管理器接口 — 管理对话中的动态提醒
 /// </summary>
-public interface ISystemReminderManager
-{
+public interface ISystemReminderManager {
     /// <summary>
     /// 异步添加提醒
     /// </summary>

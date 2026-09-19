@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// REPL 工具处理器 — 提供 REPL 交互式代码执行功能（支持 csharp/powershell/python）
 /// </summary>
 [McpToolDispatch(ToolCategory.Repl, Optional = true)]
-public partial class ReplToolHandlers : LongRunningGroup
-{
+public partial class ReplToolHandlers : LongRunningGroup {
     private readonly ILogger<ReplToolHandlers>? _logger;
     private readonly IReplService? _replService;
 
@@ -16,8 +15,7 @@ public partial class ReplToolHandlers : LongRunningGroup
     /// </summary>
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="replService">REPL 服务（可选）</param>
-    public ReplToolHandlers(ILogger<ReplToolHandlers>? logger = null, IReplService? replService = null)
-    {
+    public ReplToolHandlers(ILogger<ReplToolHandlers>? logger = null, IReplService? replService = null) {
         _logger = logger;
         _replService = replService;
     }
@@ -37,12 +35,9 @@ public partial class ReplToolHandlers : LongRunningGroup
         [McpToolParameter("Code to execute (optional, shows REPL status if not provided)", Required = false)] string? code = null,
         [McpToolParameter("Timeout in seconds (optional, default: 30)", Required = false)] int? timeout_seconds = 30,
         [McpToolParameter("Action: execute/enable/disable/status (default: execute)", Required = false)] string action = "execute",
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (_replService == null)
-            {
+        CancellationToken cancellationToken = default) {
+        try {
+            if (_replService == null) {
                 return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.ReplServiceNotEnabled))
                     .Build();
@@ -54,36 +49,32 @@ public partial class ReplToolHandlers : LongRunningGroup
 
             var replLanguage = ReplLanguageExtensions.FromValue(language) ?? ReplLanguage.CSharp;
 
-            switch (replAction.Value)
-            {
+            switch (replAction.Value) {
                 case ReplAction.Enable:
-                    _replService.EnableReplMode();
-                    return ToolResultBuilder.Success()
-                        .WithText(L.T(StringKey.ReplModeEnabled))
-                        .Build();
+                _replService.EnableReplMode();
+                return ToolResultBuilder.Success()
+                    .WithText(L.T(StringKey.ReplModeEnabled))
+                    .Build();
 
                 case ReplAction.Disable:
-                    _replService.DisableReplMode();
-                    return ToolResultBuilder.Success()
-                        .WithText(L.T(StringKey.ReplModeDisabled))
-                        .Build();
+                _replService.DisableReplMode();
+                return ToolResultBuilder.Success()
+                    .WithText(L.T(StringKey.ReplModeDisabled))
+                    .Build();
 
                 case ReplAction.Status:
-                    var statusResponse = new System.Text.StringBuilder();
-                    statusResponse.AppendLine(L.T(StringKey.ReplLabelMode, _replService.IsReplModeEnabled ? L.T(StringKey.ReplEnabled) : L.T(StringKey.ReplDisabled)));
-                    if (_replService.IsReplModeEnabled)
-                    {
-                        statusResponse.AppendLine(L.T(StringKey.ReplLabelHiddenTools));
-                        foreach (var tool in _replService.GetHiddenTools())
-                        {
-                            statusResponse.AppendLine($"  - {tool}");
-                        }
+                var statusResponse = new System.Text.StringBuilder();
+                statusResponse.AppendLine(L.T(StringKey.ReplLabelMode, _replService.IsReplModeEnabled ? L.T(StringKey.ReplEnabled) : L.T(StringKey.ReplDisabled)));
+                if (_replService.IsReplModeEnabled) {
+                    statusResponse.AppendLine(L.T(StringKey.ReplLabelHiddenTools));
+                    foreach (var tool in _replService.GetHiddenTools()) {
+                        statusResponse.AppendLine($"  - {tool}");
                     }
-                    return ToolResultBuilder.Success().WithText(statusResponse.ToString()).Build();
+                }
+                return ToolResultBuilder.Success().WithText(statusResponse.ToString()).Build();
             }
 
-            if (string.IsNullOrEmpty(code))
-            {
+            if (string.IsNullOrEmpty(code)) {
                 var infoResponse = new System.Text.StringBuilder();
                 infoResponse.AppendLine(L.T(StringKey.ReplLabelLanguage, replLanguage.ToValue()));
                 infoResponse.AppendLine(L.T(StringKey.ReplLabelMode, _replService.IsReplModeEnabled ? L.T(StringKey.ReplEnabled) : L.T(StringKey.ReplDisabled)));
@@ -99,14 +90,12 @@ public partial class ReplToolHandlers : LongRunningGroup
             response.AppendLine(L.T(StringKey.TerminalLabelExecutionTime, result.ExecutionTime.TotalMilliseconds.ToString("F0")));
             response.AppendLine();
 
-            if (!string.IsNullOrEmpty(result.Output))
-            {
+            if (!string.IsNullOrEmpty(result.Output)) {
                 response.AppendLine(L.T(StringKey.TerminalLabelOutput));
                 response.AppendLine(result.Output);
             }
 
-            if (!string.IsNullOrEmpty(result.Error))
-            {
+            if (!string.IsNullOrEmpty(result.Error)) {
                 response.AppendLine(L.T(StringKey.TerminalLabelError));
                 response.AppendLine(result.Error);
             }
@@ -114,10 +103,7 @@ public partial class ReplToolHandlers : LongRunningGroup
             return result.Success
                 ? ToolResultBuilder.Success().WithText(response.ToString()).Build()
                 : ToolResultBuilder.Error().WithText(response.ToString()).Build();
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.ReplExecutionFailedLog));
             return ToolExceptionDiagnosticHelper.BuildErrorResult("repl", ex, _logger);
         }

@@ -8,72 +8,54 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.Tag, Description = "为当前会话添加或管理标签", Usage = "/tag [add|remove|list] [tag_name]", Category = ChatCommandCategory.System, ArgumentHint = "[add|remove|list] [tag]")]
 [ChatCommandArg("action", Type = "string", Description = "标签操作", Enum = new[] { "add", "remove", "list" })]
 [ChatCommandArg("tag_name", Type = "string", Description = "标签名称")]
-public sealed class TagCommand : ChatCommandBase
-{
+public sealed class TagCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /tag 命令 — 根据子操作分发添加、移除、列出标签
     /// </summary>
     /// <param name="context">命令执行上下文，包含参数、会话 ID 等</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context);
         var tagService = context.GetCommandServices().SessionTagService;
 
-        if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase)) {
             return ListTagsAsync(context, tagService);
         }
 
-        if (tagService is null)
-        {
-            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
+        if (tagService is null) {
+            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 TerminalHelper.WriteLine("会话标签服务未初始化");
             }
             return Task.FromResult(ChatCommandResult.Continue());
         }
 
-        if (args.StartsWith("add", StringComparison.OrdinalIgnoreCase))
-        {
+        if (args.StartsWith("add", StringComparison.OrdinalIgnoreCase)) {
             var tagName = args["add".Length..].Trim();
-            if (string.IsNullOrEmpty(tagName))
-            {
+            if (string.IsNullOrEmpty(tagName)) {
                 TerminalHelper.WriteLine("用法: /tag add <tag_name>");
                 return Task.FromResult(ChatCommandResult.Continue());
             }
 
             var added = tagService.AddTag(context.SessionId, tagName);
-            if (added)
-            {
+            if (added) {
                 TerminalHelper.WriteLine($"已添加标签: {tagName}");
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine($"标签已存在: {tagName}");
             }
-        }
-        else if (args.StartsWith("remove", StringComparison.OrdinalIgnoreCase))
-        {
+        } else if (args.StartsWith("remove", StringComparison.OrdinalIgnoreCase)) {
             var tagName = args["remove".Length..].Trim();
-            if (string.IsNullOrEmpty(tagName))
-            {
+            if (string.IsNullOrEmpty(tagName)) {
                 TerminalHelper.WriteLine("用法: /tag remove <tag_name>");
                 return Task.FromResult(ChatCommandResult.Continue());
             }
 
             var removed = tagService.RemoveTag(context.SessionId, tagName);
-            if (removed)
-            {
+            if (removed) {
                 TerminalHelper.WriteLine($"已移除标签: {tagName}");
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine($"标签不存在: {tagName}");
             }
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"未知操作: {args}");
             TerminalHelper.WriteLine("支持: add, remove, list");
         }
@@ -81,25 +63,19 @@ public sealed class TagCommand : ChatCommandBase
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    private static Task<ChatCommandResult> ListTagsAsync(ChatCommandContext context, ISessionTagService? tagService)
-    {
+    private static Task<ChatCommandResult> ListTagsAsync(ChatCommandContext context, ISessionTagService? tagService) {
         TerminalHelper.WriteLine("会话标签:");
 
-        if (tagService is null)
-        {
+        if (tagService is null) {
             TerminalHelper.WriteLine("  会话标签服务未初始化");
             return Task.FromResult(ChatCommandResult.Continue());
         }
 
         var tags = tagService.GetTags(context.SessionId);
-        if (!tags.Any())
-        {
+        if (!tags.Any()) {
             TerminalHelper.WriteLine("  (暂无标签)");
-        }
-        else
-        {
-            foreach (var tag in tags)
-            {
+        } else {
+            foreach (var tag in tags) {
                 TerminalHelper.WriteLine($"  #{tag}");
             }
         }

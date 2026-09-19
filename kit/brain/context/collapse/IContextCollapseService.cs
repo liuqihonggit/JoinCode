@@ -4,8 +4,7 @@ namespace Core.Context.Collapse;
 /// <summary>
 /// 上下文折叠服务接口
 /// </summary>
-public interface IContextCollapseService
-{
+public interface IContextCollapseService {
     /// <summary>
     /// 折叠指定内容中的可折叠段
     /// </summary>

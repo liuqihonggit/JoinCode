@@ -5,12 +5,9 @@ namespace Core.Tests.Scheduling.Cron;
 /// CronScheduler checkpoint 行为测试 — 验证定时任务触发后 MarkTasksFiredAsync 被调用，
 /// 且即使 Check 主体抛异常，已触发的 recurring 任务仍会被标记（finally 块防御）。
 /// </summary>
-public sealed class CronSchedulerCheckpointTests
-{
-    private static CronTask MakeRecurringTask(string id, string cron = "*/1 * * * *")
-    {
-        return new CronTask
-        {
+public sealed class CronSchedulerCheckpointTests {
+    private static CronTask MakeRecurringTask(string id, string cron = "*/1 * * * *") {
+        return new CronTask {
             Id = id,
             CronExpression = cron,
             Prompt = "test-prompt",
@@ -21,8 +18,7 @@ public sealed class CronSchedulerCheckpointTests
     }
 
     [Fact]
-    public async Task Checkpoint_RecurringTaskFired_ShouldCallMarkTasksFiredAsync()
-    {
+    public async Task Checkpoint_RecurringTaskFired_ShouldCallMarkTasksFiredAsync() {
         var task = MakeRecurringTask("t1");
         var store = new Mock<ICronTaskStore>();
         store.Setup(s => s.GetAllTasksAsync(It.IsAny<CancellationToken>()))
@@ -34,8 +30,7 @@ public sealed class CronSchedulerCheckpointTests
              .Returns(Task.CompletedTask);
 
         var fired = false;
-        var options = new CronSchedulerOptions
-        {
+        var options = new CronSchedulerOptions {
             OnFire = _ => { fired = true; return Task.CompletedTask; },
             CheckIntervalMs = 50
         };
@@ -49,8 +44,7 @@ public sealed class CronSchedulerCheckpointTests
         await scheduler.StartAsync();
 
         var deadline = DateTime.UtcNow.AddSeconds(2);
-        while (!markCalled && DateTime.UtcNow < deadline)
-        {
+        while (!markCalled && DateTime.UtcNow < deadline) {
             await Task.Delay(20);
         }
 
@@ -61,18 +55,15 @@ public sealed class CronSchedulerCheckpointTests
     }
 
     [Fact]
-    public async Task Checkpoint_CheckThrows_StillMarksFiredTasks()
-    {
+    public async Task Checkpoint_CheckThrows_StillMarksFiredTasks() {
         var task = MakeRecurringTask("t2");
         var store = new Mock<ICronTaskStore>();
 
         var getAllCallCount = 0;
         store.Setup(s => s.GetAllTasksAsync(It.IsAny<CancellationToken>()))
-             .Returns(() =>
-             {
+             .Returns(() => {
                  getAllCallCount++;
-                 if (getAllCallCount == 1)
-                 {
+                 if (getAllCallCount == 1) {
                      return Task.FromResult<IReadOnlyList<CronTask>>(new List<CronTask> { task });
                  }
                  throw new InvalidOperationException("simulated check failure");
@@ -83,8 +74,7 @@ public sealed class CronSchedulerCheckpointTests
              .Callback(() => markCalled = true)
              .Returns(Task.CompletedTask);
 
-        var options = new CronSchedulerOptions
-        {
+        var options = new CronSchedulerOptions {
             OnFire = _ => Task.CompletedTask,
             CheckIntervalMs = 30
         };
@@ -98,8 +88,7 @@ public sealed class CronSchedulerCheckpointTests
         await scheduler.StartAsync();
 
         var deadline = DateTime.UtcNow.AddSeconds(3);
-        while (getAllCallCount < 2 && DateTime.UtcNow < deadline)
-        {
+        while (getAllCallCount < 2 && DateTime.UtcNow < deadline) {
             await Task.Delay(20);
         }
 

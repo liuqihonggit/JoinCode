@@ -5,8 +5,7 @@ namespace Core.Security.Sandbox.Providers;
 /// 进程沙箱提供者 — 基于 Windows JobObject 或 Linux 进程组实现进程级隔离沙箱
 /// </summary>
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
-public sealed partial class ProcessSandboxProvider : SandboxProviderBase
-{
+public sealed partial class ProcessSandboxProvider : SandboxProviderBase {
     private readonly IProcessService _processService;
     private readonly ConcurrentDictionary<string, WindowsJobObjectSandbox> _jobObjects = new();
 
@@ -29,48 +28,37 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
         ILogger<ProcessSandboxProvider>? logger = null,
         IClockService? clock = null,
         ITelemetryService? telemetryService = null)
-        : base(fs, logger, clock ?? SystemClockService.Instance, telemetryService)
-    {
+        : base(fs, logger, clock ?? SystemClockService.Instance, telemetryService) {
         _processService = processService;
     }
 
     /// <summary>
     /// 当前平台是否支持进程沙箱 — Windows 始终可用，Linux 需检测 cgroup 支持
     /// </summary>
-    public override bool IsAvailable
-    {
-        get
-        {
-            if (OperatingSystem.IsWindows())
-            {
+    public override bool IsAvailable {
+        get {
+            if (OperatingSystem.IsWindows()) {
                 return true;
             }
-            if (OperatingSystem.IsLinux())
-            {
+            if (OperatingSystem.IsLinux()) {
                 return CheckLinuxSandboxSupport();
             }
             return false;
         }
     }
 
-    private protected override async Task OnCreateAsync(SandboxInfo info, SandboxOptions options, CancellationToken ct)
-    {
-        if (OperatingSystem.IsWindows())
-        {
+    private protected override async Task OnCreateAsync(SandboxInfo info, SandboxOptions options, CancellationToken ct) {
+        if (OperatingSystem.IsWindows()) {
             CreateWindowsJobObject(info, options);
-        }
-        else if (OperatingSystem.IsLinux())
-        {
+        } else if (OperatingSystem.IsLinux()) {
             Logger?.LogInformation("[Sandbox:Process] Linux 进程组沙箱就绪 - Id: {Id}, 路径: {Root}", info.SandboxId, info.RootPath);
         }
 
         await base.OnCreateAsync(info, options, ct).ConfigureAwait(false);
     }
 
-    private protected override async Task OnDestroyAsync(SandboxInfo info, CancellationToken ct)
-    {
-        if (OperatingSystem.IsWindows() && _jobObjects.TryRemove(info.SandboxId, out var jobObject))
-        {
+    private protected override async Task OnDestroyAsync(SandboxInfo info, CancellationToken ct) {
+        if (OperatingSystem.IsWindows() && _jobObjects.TryRemove(info.SandboxId, out var jobObject)) {
             jobObject.TerminateAllProcesses();
             jobObject.Dispose();
             Logger?.LogInformation("[Sandbox:Process] JobObject 已销毁 - Id: {Id}", info.SandboxId);
@@ -87,22 +75,18 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
         string command,
         string? workingDirectory = null,
         int timeoutMs = 30000,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var info = GetSandboxInfo(sandboxId)
             ?? throw new InvalidOperationException($"[GRD015] 沙箱 '{sandboxId}' 不存在");
 
         var env = new Dictionary<string, string>();
-        if (info.RestrictFileSystem)
-        {
+        if (info.RestrictFileSystem) {
             env["JCC_SANDBOX_ROOT"] = info.RootPath;
         }
-        if (info.RestrictNetwork)
-        {
+        if (info.RestrictNetwork) {
             env["JCC_SANDBOX_NO_NETWORK"] = "1";
         }
-        if (info.AllowedPaths is not null)
-        {
+        if (info.AllowedPaths is not null) {
             env["JCC_SANDBOX_ALLOWED_PATHS"] = string.Join(Path.PathSeparator, info.AllowedPaths);
         }
 
@@ -110,8 +94,7 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
             ? ResolvePath(workingDirectory, sandboxId)
             : info.RootPath;
 
-        var options = new ProcessOptions
-        {
+        var options = new ProcessOptions {
             FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
             ArgumentList = [OperatingSystem.IsWindows() ? "/c" : "-c", command],
             WorkingDirectory = effectiveWorkingDir,
@@ -122,8 +105,7 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
 
         var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);
 
-        return new ProviderExecutionResult
-        {
+        return new ProviderExecutionResult {
             StandardOutput = result.StandardOutput,
             StandardError = result.StandardError,
             ExitCode = result.ExitCode,
@@ -132,8 +114,7 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
         };
     }
 
-    private void CreateWindowsJobObject(SandboxInfo info, SandboxOptions options)
-    {
+    private void CreateWindowsJobObject(SandboxInfo info, SandboxOptions options) {
         var jobObject = new WindowsJobObjectSandbox(Logger);
         long? memoryLimit = options.MemoryLimitMb > 0 ? options.MemoryLimitMb * 1024L * 1024L : null;
         int? cpuLimit = options.CpuLimitPercent > 0 ? options.CpuLimitPercent : null;
@@ -145,16 +126,12 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
             info.SandboxId, options.MemoryLimitMb, options.CpuLimitPercent);
     }
 
-    private bool CheckLinuxSandboxSupport()
-    {
-        try
-        {
+    private bool CheckLinuxSandboxSupport() {
+        try {
             if (!Fs.FileExists("/proc/self/status")) return false;
             if (!Fs.DirectoryExists("/sys/fs/cgroup")) return false;
             return true;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
@@ -167,18 +144,15 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
     /// <summary>
     /// 尝试将外部进程分配到指定沙箱的 JobObject — 仅 Windows 平台有效
     /// </summary>
-    public bool TryAssignProcessToJobObject(string sandboxId, int processId)
-    {
-        if (_jobObjects.TryGetValue(sandboxId, out var jobObject))
-        {
+    public bool TryAssignProcessToJobObject(string sandboxId, int processId) {
+        if (_jobObjects.TryGetValue(sandboxId, out var jobObject)) {
             return jobObject.AssignProcess(processId);
         }
         return false;
     }
 
     /// <inheritdoc />
-    public override Task<ProviderExecutionResult?> ExecuteAsync(string sandboxId, string command, string? workingDirectory, int timeoutMs, CancellationToken ct)
-    {
+    public override Task<ProviderExecutionResult?> ExecuteAsync(string sandboxId, string command, string? workingDirectory, int timeoutMs, CancellationToken ct) {
         return ExecuteInSandboxAsync(sandboxId, command, workingDirectory, timeoutMs, ct)
             .ContinueWith(t => (ProviderExecutionResult?)t.Result, ct);
     }

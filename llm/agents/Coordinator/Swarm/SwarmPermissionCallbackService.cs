@@ -4,8 +4,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Swarm 权限请求数据 — Worker 向 Leader 发起的工具权限请求
 /// </summary>
-public sealed partial class SwarmPermissionRequestData
-{
+public sealed partial class SwarmPermissionRequestData {
     /// <summary>
     /// 请求唯一标识
     /// </summary>
@@ -31,8 +30,7 @@ public sealed partial class SwarmPermissionRequestData
 /// <summary>
 /// Swarm 权限响应数据 — Leader 对 Worker 权限请求的回复
 /// </summary>
-public sealed partial class SwarmPermissionResponseData
-{
+public sealed partial class SwarmPermissionResponseData {
     /// <summary>
     /// 对应请求的唯一标识
     /// </summary>
@@ -58,8 +56,7 @@ public sealed partial class SwarmPermissionResponseData
 /// <summary>
 /// Swarm 权限更新数据 — 单个工具的权限变更条目
 /// </summary>
-public sealed partial class SwarmPermissionUpdateData
-{
+public sealed partial class SwarmPermissionUpdateData {
     /// <summary>
     /// 工具名称
     /// </summary>
@@ -72,8 +69,7 @@ public sealed partial class SwarmPermissionUpdateData
 
 /// <summary>Swarm 权限回调服务 — 管理权限请求的回调注册与触发，处理权限决策结果的通知分发</summary>
 [Register(typeof(ISwarmPermissionCallbacks), ServiceLifetime.Singleton)]
-public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwarmPermissionCallbacks
-{
+public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwarmPermissionCallbacks {
     private readonly IMailbox _messageBroker;
     private readonly ILogger<SwarmPermissionCallbackService>? _logger;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
@@ -89,8 +85,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
     public SwarmPermissionCallbackService(
         IMailbox messageBroker,
         ILogger<SwarmPermissionCallbackService>? logger = null,
-        ISubAgentContextAccessor? subAgentContextAccessor = null)
-    {
+        ISubAgentContextAccessor? subAgentContextAccessor = null) {
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));
         _logger = logger;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
@@ -112,10 +107,8 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
         string toolUseId,
         Dictionary<string, JsonElement> input,
         string description,
-        List<PermissionUpdate>? suggestions)
-    {
-        var request = new SwarmPermissionRequest
-        {
+        List<PermissionUpdate>? suggestions) {
+        var request = new SwarmPermissionRequest {
             Id = Guid.NewGuid().ToString("N"),
             ToolName = toolName,
             ToolUseId = toolUseId,
@@ -139,13 +132,11 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
     /// <returns>表示异步操作的任务</returns>
     public async Task SendPermissionRequestViaMailboxAsync(
         SwarmPermissionRequest request,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var workerAgentId = _subAgentContextAccessor.Current?.AgentId ?? "unknown";
         var leaderAgentId = _subAgentContextAccessor.Current?.ParentAgentId ?? "coordinator";
 
-        var data = new SwarmPermissionRequestData
-        {
+        var data = new SwarmPermissionRequestData {
             RequestId = request.Id,
             ToolName = request.ToolName,
             ToolUseId = request.ToolUseId,
@@ -155,8 +146,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
 
         var content = JsonSerializer.Serialize(data, AgentsJsonContext.Default.SwarmPermissionRequestData);
 
-        var message = new CoordinatorAgentMessage
-        {
+        var message = new CoordinatorAgentMessage {
             FromAgentId = workerAgentId,
             ToAgentId = leaderAgentId,
             MessageType = SwarmPermissionMessageType.PermissionRequest.ToValue(),
@@ -174,8 +164,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
     /// 注册权限回调，等待 Leader 响应
     /// </summary>
     /// <param name="callback">权限回调</param>
-    public void RegisterPermissionCallback(SwarmPermissionCallback callback)
-    {
+    public void RegisterPermissionCallback(SwarmPermissionCallback callback) {
         _pendingCallbacks[callback.RequestId] = callback;
 
         _logger?.LogDebug("注册权限回调: RequestId={RequestId}", callback.RequestId);
@@ -195,10 +184,8 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
         bool allowed,
         Dictionary<string, JsonElement>? updatedInput,
         List<PermissionUpdate>? permissionUpdates,
-        string? feedback)
-    {
-        if (!_pendingCallbacks.TryRemove(requestId, out var callback))
-        {
+        string? feedback) {
+        if (!_pendingCallbacks.TryRemove(requestId, out var callback)) {
             _logger?.LogWarning("未找到权限回调: RequestId={RequestId}", requestId);
             return;
         }
@@ -209,12 +196,9 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
             "处理权限响应: RequestId={RequestId}, Allowed={Allowed}",
             requestId, allowed);
 
-        if (allowed)
-        {
+        if (allowed) {
             await callback.OnAllow(updatedInput, permissionUpdates, feedback).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await callback.OnReject(feedback).ConfigureAwait(false);
         }
     }
@@ -224,8 +208,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
     /// </summary>
     /// <param name="requestId">请求唯一标识</param>
     /// <returns>待处理权限请求，不存在则返回 null</returns>
-    public SwarmPermissionRequest? GetPendingRequest(string requestId)
-    {
+    public SwarmPermissionRequest? GetPendingRequest(string requestId) {
         return _pendingRequests.GetValueOrDefault(requestId);
     }
 
@@ -235,21 +218,17 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
     /// <param name="message">收到的协调器消息</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task ProcessIncomingResponseMessageAsync(CoordinatorAgentMessage message, CancellationToken ct = default)
-    {
-        if (message.MessageType != SwarmPermissionMessageType.PermissionResponse.ToValue())
-        {
+    public async Task ProcessIncomingResponseMessageAsync(CoordinatorAgentMessage message, CancellationToken ct = default) {
+        if (message.MessageType != SwarmPermissionMessageType.PermissionResponse.ToValue()) {
             return;
         }
 
-        try
-        {
+        try {
             var data = RelaxedJsonSerializer.Deserialize(
                 message.Content,
                 AgentsJsonContext.Default.SwarmPermissionResponseData);
 
-            if (data == null)
-            {
+            if (data == null) {
                 _logger?.LogWarning("无法反序列化权限响应: From={FromId}", message.FromAgentId);
                 return;
             }
@@ -265,9 +244,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
                 data.UpdatedInput,
                 permissionUpdates,
                 data.Feedback).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "处理权限响应消息失败: From={FromId}", message.FromAgentId);
         }
     }
@@ -277,4 +254,3 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
     /// </summary>
     public int PendingRequestCount => _pendingRequests.Count;
 }
-

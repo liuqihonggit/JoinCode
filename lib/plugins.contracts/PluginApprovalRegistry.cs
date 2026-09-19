@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 审批请求 ID — 自增铸造，格式 approval-&lt;n&gt;
 /// <para>对齐 DSH ApprovalRequestId：mintApprovalRequestId 自增计数器</para>
 /// </summary>
-public readonly struct ApprovalRequestId : IEquatable<ApprovalRequestId>
-{
+public readonly struct ApprovalRequestId : IEquatable<ApprovalRequestId> {
     private readonly int _value;
 
     /// <summary>构造</summary>
@@ -36,8 +35,7 @@ public readonly struct ApprovalRequestId : IEquatable<ApprovalRequestId>
 /// <summary>
 /// 审批状态
 /// </summary>
-public enum ApprovalState
-{
+public enum ApprovalState {
     /// <summary>待审批</summary>
     [EnumValue("pending")] Pending,
 
@@ -53,8 +51,7 @@ public enum ApprovalState
 /// <para>首个回答者获胜：TryResolve 原子 CAS，仅 Pending→target 成功</para>
 /// <para>用于动态插件运行时(#8)的激活前置审批</para>
 /// </summary>
-public sealed class PluginApprovalRequest
-{
+public sealed class PluginApprovalRequest {
     private int _state = (int)ApprovalState.Pending;
 
     /// <summary>请求 ID</summary>
@@ -78,8 +75,7 @@ public sealed class PluginApprovalRequest
     /// <summary>拒绝反馈（拒绝后设置）</summary>
     public string? Feedback { get; private set; }
 
-    internal PluginApprovalRequest(ApprovalRequestId requestId, string pluginId, string? reason, DateTimeOffset createdAt)
-    {
+    internal PluginApprovalRequest(ApprovalRequestId requestId, string pluginId, string? reason, DateTimeOffset createdAt) {
         RequestId = requestId;
         PluginId = pluginId;
         Reason = reason;
@@ -89,8 +85,7 @@ public sealed class PluginApprovalRequest
     /// <summary>
     /// 首个回答者获胜：原子 CAS，仅 Pending→target 成功
     /// </summary>
-    internal bool TryResolve(ApprovalState target)
-    {
+    internal bool TryResolve(ApprovalState target) {
         return Interlocked.CompareExchange(ref _state, (int)target, (int)ApprovalState.Pending)
             == (int)ApprovalState.Pending;
     }
@@ -106,8 +101,7 @@ public sealed class PluginApprovalRequest
 /// <para>线程安全：ConcurrentDictionary + Interlocked</para>
 /// <para>时钟可注入：Func&lt;DateTimeOffset&gt;? clock = null，测试可控、生产用 UtcNow</para>
 /// </summary>
-public sealed class PluginApprovalRegistry
-{
+public sealed class PluginApprovalRegistry {
     private int _counter;
     private readonly ConcurrentDictionary<ApprovalRequestId, PluginApprovalRequest> _requests = new();
     private readonly Func<DateTimeOffset>? _clock;
@@ -119,8 +113,7 @@ public sealed class PluginApprovalRegistry
     public ApprovalRequestId MintId() => new(Interlocked.Increment(ref _counter));
 
     /// <summary>创建待审批请求</summary>
-    public PluginApprovalRequest ArmRequest(string pluginId, string? reason = null)
-    {
+    public PluginApprovalRequest ArmRequest(string pluginId, string? reason = null) {
         var id = MintId();
         var now = _clock?.Invoke() ?? DateTimeOffset.UtcNow;
         var req = new PluginApprovalRequest(id, pluginId, reason, now);
@@ -138,10 +131,8 @@ public sealed class PluginApprovalRegistry
     public bool DisarmRequest(ApprovalRequestId id) => _requests.TryRemove(id, out _);
 
     /// <summary>查找某插件的待审批请求</summary>
-    public PluginApprovalRequest? PendingRequestFor(string pluginId)
-    {
-        foreach (var req in _requests.Values)
-        {
+    public PluginApprovalRequest? PendingRequestFor(string pluginId) {
+        foreach (var req in _requests.Values) {
             if (req.PluginId == pluginId && req.State == ApprovalState.Pending)
                 return req;
         }
@@ -149,8 +140,7 @@ public sealed class PluginApprovalRegistry
     }
 
     /// <summary>批准 — 首个回答者获胜，已处理返回 false</summary>
-    public bool Approve(ApprovalRequestId id, bool approveFutureVersions = false)
-    {
+    public bool Approve(ApprovalRequestId id, bool approveFutureVersions = false) {
         if (!_requests.TryGetValue(id, out var req)) return false;
         if (!req.TryResolve(ApprovalState.Approved)) return false;
         req.MarkApproved(approveFutureVersions);
@@ -158,8 +148,7 @@ public sealed class PluginApprovalRegistry
     }
 
     /// <summary>拒绝 — 首个回答者获胜，已处理返回 false</summary>
-    public bool Decline(ApprovalRequestId id, string? feedback = null)
-    {
+    public bool Decline(ApprovalRequestId id, string? feedback = null) {
         if (!_requests.TryGetValue(id, out var req)) return false;
         if (!req.TryResolve(ApprovalState.Declined)) return false;
         req.MarkDeclined(feedback);

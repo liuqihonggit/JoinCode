@@ -24,8 +24,7 @@ internal sealed record GhResolvedCommand(string ToolName, string Group, string? 
 /// <para>ADR: 0090 — 扁平元动词 <c>jcc gh &lt;group&gt; &lt;action&gt; [positional...] [--opt value] [--json]</c>，
 /// 工具名按约定拼接 <c>gh_{group}_{action}</c>，位置参数按 schema required 顺序绑定。</para>
 /// </summary>
-internal static class GhCommandResolver
-{
+internal static class GhCommandResolver {
     /// <summary>gh 分组清单 — 与 <c>gh_*</c> 工具前缀一一对应，用于用法提示。</summary>
     private static readonly string[] KnownGroups = ["pr", "issue", "repo", "release", "run", "branch", "api"];
 
@@ -34,14 +33,12 @@ internal static class GhCommandResolver
     /// </summary>
     /// <param name="args">完整命令行参数，首个元素必须是 <c>gh</c>。</param>
     /// <returns>解析成功返回结果；失败返回 null 并填充 <paramref name="error"/>。</returns>
-    internal static GhResolvedCommand? Resolve(string[] args, out string? error)
-    {
+    internal static GhResolvedCommand? Resolve(string[] args, out string? error) {
         error = null;
 
         // args[0] == "gh"，从 args[1] 开始取分组
         var group = NextPositional(args, 1);
-        if (group is null)
-        {
+        if (group is null) {
             error = MissingGroupError();
             return null;
         }
@@ -54,8 +51,7 @@ internal static class GhCommandResolver
             return new GhResolvedCommand("gh_api", "api", null, CollectTail(args, 2, json), json);
 
         var action = NextPositional(args, 2);
-        if (action is null)
-        {
+        if (action is null) {
             error = MissingActionError(group);
             return null;
         }
@@ -67,13 +63,10 @@ internal static class GhCommandResolver
     /// <summary>
     /// 从指定下标开始取下一个位置参数（跳过 <c>--option</c> 及其值）。
     /// </summary>
-    private static string? NextPositional(string[] args, int startIndex)
-    {
-        for (var i = startIndex; i < args.Length; i++)
-        {
+    private static string? NextPositional(string[] args, int startIndex) {
+        for (var i = startIndex; i < args.Length; i++) {
             var token = args[i];
-            if (token.StartsWith("--"))
-            {
+            if (token.StartsWith("--")) {
                 // --key=value 自带值，不吞下一个 token
                 if (!token.Contains('=') && i + 1 < args.Length && !args[i + 1].StartsWith("--"))
                     i++;
@@ -87,11 +80,9 @@ internal static class GhCommandResolver
     /// <summary>
     /// 收集待绑定的剩余参数（跳过分组、动作与 <c>--json</c>）。
     /// </summary>
-    private static string[] CollectTail(string[] args, int startIndex, bool jsonStripped)
-    {
+    private static string[] CollectTail(string[] args, int startIndex, bool jsonStripped) {
         var tail = new List<string>(args.Length - startIndex);
-        for (var i = startIndex; i < args.Length; i++)
-        {
+        for (var i = startIndex; i < args.Length; i++) {
             if (jsonStripped && args[i] == CliArgCliOptionConstants.JsonLongName)
                 continue;
             tail.Add(args[i]);
@@ -104,8 +95,7 @@ internal static class GhCommandResolver
         => $"{CliErrorCatalog.ArgParseError("缺少 gh 分组").ToRustStyleString("gh")}\n{Usage}";
 
     /// <summary>缺少动作时的 Rust 风格报错 + 该分组用法。</summary>
-    private static string MissingActionError(string group)
-    {
+    private static string MissingActionError(string group) {
         var known = string.Join(" | ", KnownGroups);
         var hint = Array.IndexOf(KnownGroups, group.ToLowerInvariant()) >= 0
             ? $"用法: jcc gh {group} <action> [参数]（用 jcc mcp_list --category github 查看全部 gh_* 工具）"
@@ -141,23 +131,19 @@ internal static class GhCommandResolver
 /// 从 <c>ToolSchema</c> 抽取 gh 参数元信息 — 纯函数，便于单元测试。
 /// <para>位置参数槽位 = schema required 数组（按声明顺序），这是"人类直觉上的位置参数"。</para>
 /// </summary>
-internal static class GhParamSchemaParser
-{
+internal static class GhParamSchemaParser {
     /// <summary>
     /// 抽取参数列表：必填参数保持 required 声明顺序在前，其余按 properties 顺序在后。
     /// </summary>
-    internal static List<GhParam> Parse(ToolSchema schema)
-    {
+    internal static List<GhParam> Parse(ToolSchema schema) {
         var result = new List<GhParam>(schema.Properties.Count);
         var requiredSet = new HashSet<string>(schema.Required, StringComparer.Ordinal);
-        foreach (var required in schema.Required)
-        {
+        foreach (var required in schema.Required) {
             var isBoolean = schema.Properties.TryGetValue(required, out var prop)
                 && string.Equals(prop.Type, "boolean", StringComparison.OrdinalIgnoreCase);
             result.Add(new GhParam(required, IsRequired: true, IsBoolean: isBoolean));
         }
-        foreach (var (name, prop) in schema.Properties)
-        {
+        foreach (var (name, prop) in schema.Properties) {
             if (requiredSet.Contains(name))
                 continue;
             result.Add(new GhParam(name, IsRequired: false,
@@ -171,8 +157,7 @@ internal static class GhParamSchemaParser
 /// gh 参数绑定器 — 把剩余参数按 <see cref="GhParam"/> 绑定为 <c>参数名 → 字符串值</c>。
 /// <para>支持三种形式：位置参数、<c>--key=value</c>、<c>--key value</c>；布尔参数支持无值 flag。</para>
 /// </summary>
-internal static class GhArgsBinder
-{
+internal static class GhArgsBinder {
     /// <summary>
     /// 执行绑定。
     /// </summary>
@@ -182,8 +167,7 @@ internal static class GhArgsBinder
     /// <param name="error">失败时的 Rust 风格报错。</param>
     /// <returns>成功返回参数字典；失败返回 null。</returns>
     internal static Dictionary<string, string>? Bind(
-        string[] tail, IReadOnlyList<GhParam> parameters, string toolName, out string? error)
-    {
+        string[] tail, IReadOnlyList<GhParam> parameters, string toolName, out string? error) {
         error = null;
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         var byName = new Dictionary<string, GhParam>(StringComparer.Ordinal);
@@ -193,19 +177,15 @@ internal static class GhArgsBinder
         var slots = parameters.Where(p => p.IsRequired).ToList();
         var slotIndex = 0;
 
-        for (var i = 0; i < tail.Length; i++)
-        {
+        for (var i = 0; i < tail.Length; i++) {
             var token = tail[i];
-            if (!token.StartsWith("--"))
-            {
-                if (slotIndex >= slots.Count)
-                {
+            if (!token.StartsWith("--")) {
+                if (slotIndex >= slots.Count) {
                     error = TooManyPositionalError(toolName, token, parameters);
                     return null;
                 }
                 var slot = slots[slotIndex++];
-                if (result.ContainsKey(slot.Name))
-                {
+                if (result.ContainsKey(slot.Name)) {
                     error = DuplicateParamError(slot.Name);
                     return null;
                 }
@@ -216,34 +196,29 @@ internal static class GhArgsBinder
             var key = token[2..];
             string? inlineValue = null;
             var eqIdx = key.IndexOf('=');
-            if (eqIdx > 0)
-            {
+            if (eqIdx > 0) {
                 inlineValue = key[(eqIdx + 1)..];
                 key = key[..eqIdx];
             }
 
             // 宽容策略: 真实 gh CLI 用连字符（--max-lines），工具 schema 用下划线（max_lines）
-            if (!byName.TryGetValue(key, out var param) && !byName.TryGetValue(key.Replace('-', '_'), out param))
-            {
+            if (!byName.TryGetValue(key, out var param) && !byName.TryGetValue(key.Replace('-', '_'), out param)) {
                 error = UnknownOptionError(key, parameters);
                 return null;
             }
             key = param.Name;
 
-            if (inlineValue is not null)
-            {
+            if (inlineValue is not null) {
                 result[key] = inlineValue;
                 continue;
             }
 
-            if (param.IsBoolean)
-            {
+            if (param.IsBoolean) {
                 result[key] = "true";
                 continue;
             }
 
-            if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--"))
-            {
+            if (i + 1 >= tail.Length || tail[i + 1].StartsWith("--")) {
                 error = $"{CliErrorCatalog.ArgMissingRequired($"--{key} 的值").ToRustStyleString(token)}\n提示: 用法 --{key} <值> 或 --{key}=<值>";
                 return null;
             }
@@ -253,8 +228,7 @@ internal static class GhArgsBinder
         }
 
         var missing = slots.FirstOrDefault(s => !result.ContainsKey(s.Name));
-        if (missing is not null)
-        {
+        if (missing is not null) {
             error = MissingPositionalError(toolName, missing.Name, slots);
             return null;
         }
@@ -262,8 +236,7 @@ internal static class GhArgsBinder
         return result;
     }
 
-    private static string TooManyPositionalError(string toolName, string token, IReadOnlyList<GhParam> parameters)
-    {
+    private static string TooManyPositionalError(string toolName, string token, IReadOnlyList<GhParam> parameters) {
         var names = string.Join(", ", parameters.Select(p => p.Name));
         return $"{CliErrorCatalog.ArgParseError($"多余的位置参数: {token}").ToRustStyleString(token)}\n"
              + $"{toolName} 接受的参数: {names}\n提示: 非位置参数请用 --参数名 值 的形式";
@@ -272,14 +245,12 @@ internal static class GhArgsBinder
     private static string DuplicateParamError(string name)
         => CliErrorCatalog.ArgParseError($"参数重复指定: {name}（位置参数与 --{name} 只能二选一）").ToRustStyleString($"--{name}");
 
-    private static string UnknownOptionError(string key, IReadOnlyList<GhParam> parameters)
-    {
+    private static string UnknownOptionError(string key, IReadOnlyList<GhParam> parameters) {
         var names = string.Join(", ", parameters.Select(p => $"--{p.Name}"));
         return $"{CliErrorCatalog.ArgUnknownOption($"--{key}").ToRustStyleString($"--{key}")}\n可用选项: {names}";
     }
 
-    private static string MissingPositionalError(string toolName, string missingName, IReadOnlyList<GhParam> slots)
-    {
+    private static string MissingPositionalError(string toolName, string missingName, IReadOnlyList<GhParam> slots) {
         var positionalHint = string.Join(' ', slots.Select(s => $"<{s.Name}>"));
         return $"{CliErrorCatalog.ArgMissingRequired(missingName).ToRustStyleString(toolName)}\n用法: {positionalHint}（示例见 jcc gh --help）";
     }

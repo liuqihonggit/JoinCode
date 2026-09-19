@@ -1,8 +1,7 @@
 namespace Core.Bridge;
 
 
-public static partial class BridgeRemoteCore
-{
+public static partial class BridgeRemoteCore {
     #region initBridgeCore (v1 env-based) — 管道化
 
     /// <summary>
@@ -24,14 +23,12 @@ public static partial class BridgeRemoteCore
         IReplBridgeTransportFactory transportFactory,
         MiddlewarePipeline<V1BridgeInitContext> pipeline,
         ILogger? logger = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(parameters);
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(pipeline);
 
-        var context = new V1BridgeInitContext
-        {
+        var context = new V1BridgeInitContext {
             Parameters = parameters,
             HttpClient = httpClient,
             FileSystem = fs,
@@ -39,13 +36,9 @@ public static partial class BridgeRemoteCore
             Logger = logger,
         };
 
-        try
-        {
+        try {
             await pipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             logger?.LogError(ex, "Bridge v1: 初始化失败");
             context.Fail(ex.Message);
         }

@@ -4,8 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// Workflow 执行快照 — 用于断点续跑持久化
 /// </summary>
-public sealed partial class WorkflowSnapshot
-{
+public sealed partial class WorkflowSnapshot {
     /// <summary>Workflow 唯一标识</summary>
     public required string WorkflowId { get; init; }
 

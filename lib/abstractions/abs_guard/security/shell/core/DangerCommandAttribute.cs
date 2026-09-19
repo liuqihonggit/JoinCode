@@ -9,8 +9,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 源码生成器扫描所有带此特性的字段,生成 FrozenDictionary&lt;string, CommandEntry&gt;。
 /// </remarks>
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
-public sealed class DangerCommandAttribute : Attribute
-{
+public sealed class DangerCommandAttribute : Attribute {
     /// <summary>
     /// 风险类型(消息构建辅助信息)
     /// </summary>
@@ -32,8 +31,7 @@ public sealed class DangerCommandAttribute : Attribute
     /// <param name="risk">风险类型</param>
     /// <param name="level">危险等级</param>
     /// <param name="description">命令描述</param>
-    public DangerCommandAttribute(CommandRisk risk, CommandDangerLevel level, string description)
-    {
+    public DangerCommandAttribute(CommandRisk risk, CommandDangerLevel level, string description) {
         Risk = risk;
         Level = level;
         Description = description ?? throw new ArgumentNullException(nameof(description));

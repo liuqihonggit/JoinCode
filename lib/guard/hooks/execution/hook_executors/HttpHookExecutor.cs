@@ -6,8 +6,7 @@ namespace Core.Hooks.Execution;
 /// 发送 HTTP POST 请求到外部服务
 /// </summary>
 [Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
-public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
-{
+public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook> {
     private readonly IHttpClientFactory? _httpClientFactory;
     private readonly IClockService _clock;
 
@@ -21,8 +20,7 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
         IHttpClientFactory? httpClientFactory = null,
         ILogger<HttpHookExecutor>? logger = null,
         IClockService? clock = null)
-        : base(logger)
-    {
+        : base(logger) {
         _httpClientFactory = httpClientFactory;
         _clock = clock ?? SystemClockService.Instance;
     }
@@ -34,13 +32,11 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
     public override async Task<HookResult> ExecuteTypedAsync(
         HttpHook hook,
         HookInput input,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         LogExecutionStart(hook, input);
         var stopwatch = Stopwatch.StartNew();
 
-        try
-        {
+        try {
             var context = CreateContext(hook, input);
 
             var result = await ExecuteWithTimeoutAsync(
@@ -51,17 +47,11 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
 
             LogExecutionComplete(hook, result, stopwatch.Elapsed);
             return result;
-        }
-        catch (HookTimeoutException)
-        {
+        } catch (HookTimeoutException) {
             throw;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Logger?.LogError(ex, "Failed to execute HTTP hook");
             return HookResult.NonBlockingError(
                 error: ex.Message,
@@ -72,11 +62,9 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
     private async Task<HookResult> ExecuteHttpRequestAsync(
         HttpHook hook,
         HookInput input,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         // IHttpClientFactory 未注册时返回非阻塞错误
-        if (_httpClientFactory is null)
-        {
+        if (_httpClientFactory is null) {
             return HookResult.NonBlockingError("IHttpClientFactory 未注册，HTTP 钩子执行器不可用");
         }
 
@@ -92,18 +80,15 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
         request.Headers.Add("X-Hook-Session-Id", input.SessionId ?? "");
 
         // 添加自定义请求头（支持环境变量插值）
-        if (hook.Headers != null)
-        {
-            foreach (var header in hook.Headers)
-            {
+        if (hook.Headers != null) {
+            foreach (var header in hook.Headers) {
                 var value = InterpolateEnvVars(header.Value, hook.AllowedEnvVars);
                 request.Headers.TryAddWithoutValidation(header.Key, value);
             }
         }
 
         // 构建请求体
-        var payload = new HookHttpPayload
-        {
+        var payload = new HookHttpPayload {
             Event = input.Event.ToEventName(),
             EventName = input.EventName,
             ToolName = input.ToolName,
@@ -126,20 +111,14 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
         return ParseHttpResponse(response, responseBody, hook.Url);
     }
 
-    private HookResult ParseHttpResponse(HttpResponseMessage response, string body, string url)
-    {
+    private HookResult ParseHttpResponse(HttpResponseMessage response, string body, string url) {
         // HTTP 200-299 - 成功
-        if (response.IsSuccessStatusCode)
-        {
+        if (response.IsSuccessStatusCode) {
             // 尝试解析 JSON 响应
-            if (!string.IsNullOrEmpty(body) && body.Trim().StartsWith('{'))
-            {
-                try
-                {
+            if (!string.IsNullOrEmpty(body) && body.Trim().StartsWith('{')) {
+                try {
                     return ParseJsonResponse(body);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     Logger?.LogWarning(ex, "Failed to parse HTTP hook JSON response");
                 }
             }
@@ -148,8 +127,7 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
         }
 
         // HTTP 403 - 阻塞
-        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-        {
+        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden) {
             return HookResult.Blocking(
                 error: body ?? "Blocked by external service",
                 command: url,
@@ -162,11 +140,9 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
             message: $"External service returned {response.StatusCode}");
     }
 
-    private HookResult ParseJsonResponse(string json)
-    {
+    private HookResult ParseJsonResponse(string json) {
         var hookDecision = LlmJsonHelper.Deserialize(json, HooksJsonContext.Default.HookDecision, out var repairHint);
-        if (hookDecision is null)
-        {
+        if (hookDecision is null) {
             if (!string.IsNullOrEmpty(repairHint))
                 Logger?.LogWarning("外部 Hook JSON 反序列化失败/已宽容修复: {Detail}", repairHint);
             return new HookResult { Outcome = HookOutcome.Success };
@@ -176,8 +152,7 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
         var preventContinuation = false;
         string? message = null;
 
-        if (hookDecision.Decision?.ToLowerInvariant() == PermissionBehaviorEnumConstants.Block)
-        {
+        if (hookDecision.Decision?.ToLowerInvariant() == PermissionBehaviorEnumConstants.Block) {
             outcome = HookOutcome.Blocking;
             preventContinuation = true;
         }
@@ -187,30 +162,25 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
         if (hookDecision.Continue.HasValue)
             preventContinuation = !hookDecision.Continue.Value;
 
-        return new HookResult
-        {
+        return new HookResult {
             Outcome = outcome,
             Message = message,
             PreventContinuation = preventContinuation
         };
     }
 
-    private string InterpolateEnvVars(string value, IReadOnlyList<string>? allowedEnvVars)
-    {
-        if (string.IsNullOrEmpty(value) || allowedEnvVars == null || !allowedEnvVars.Any())
-        {
+    private string InterpolateEnvVars(string value, IReadOnlyList<string>? allowedEnvVars) {
+        if (string.IsNullOrEmpty(value) || allowedEnvVars == null || !allowedEnvVars.Any()) {
             return value;
         }
 
         var result = new StringBuilder(value);
 
-        foreach (var varName in allowedEnvVars)
-        {
+        foreach (var varName in allowedEnvVars) {
             var placeholder = $"${{{varName}}}";
             var envValue = Environment.GetEnvironmentVariable(varName);
 
-            if (envValue != null)
-            {
+            if (envValue != null) {
                 result.Replace(placeholder, envValue);
             }
         }
@@ -222,8 +192,7 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
 /// <summary>
 /// HTTP 钩子请求体
 /// </summary>
-public sealed record HookHttpPayload
-{
+public sealed record HookHttpPayload {
     /// <summary>钩子事件标识</summary>
     public required string Event { get; init; }
     /// <summary>钩子事件名称</summary>

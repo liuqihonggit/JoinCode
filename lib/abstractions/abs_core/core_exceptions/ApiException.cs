@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Exceptions;
 /// <summary>
 /// API 异常
 /// </summary>
-public class ApiException : WorkflowException
-{
+public class ApiException : WorkflowException {
     /// <summary>
     /// HTTP 状态码
     /// </summary>
@@ -36,8 +35,7 @@ public class ApiException : WorkflowException
         string? responseContent = null,
         string? errorCode = null,
         ExceptionContext? context = null)
-        : base(message, errorCode ?? global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiGeneral.ToValue(), ErrorCategory.Api, context)
-    {
+        : base(message, errorCode ?? global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiGeneral.ToValue(), ErrorCategory.Api, context) {
         StatusCode = statusCode;
         Endpoint = endpoint;
         ResponseContent = responseContent;
@@ -54,8 +52,7 @@ public class ApiException : WorkflowException
         string? responseContent = null,
         string? errorCode = null,
         ExceptionContext? context = null)
-        : base(message, innerException, errorCode ?? global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiGeneral.ToValue(), ErrorCategory.Api, context)
-    {
+        : base(message, innerException, errorCode ?? global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiGeneral.ToValue(), ErrorCategory.Api, context) {
         StatusCode = statusCode;
         Endpoint = endpoint;
         ResponseContent = responseContent;
@@ -64,8 +61,7 @@ public class ApiException : WorkflowException
     /// <summary>
     /// 创建连接异常
     /// </summary>
-    public static ApiException Connection(string endpoint, Exception? innerException = null)
-    {
+    public static ApiException Connection(string endpoint, Exception? innerException = null) {
         return new ApiException(
             $"无法连接到 API 端点: {endpoint}",
             innerException,
@@ -76,8 +72,7 @@ public class ApiException : WorkflowException
     /// <summary>
     /// 创建超时异常
     /// </summary>
-    public static ApiException Timeout(string endpoint, TimeSpan? timeout = null)
-    {
+    public static ApiException Timeout(string endpoint, TimeSpan? timeout = null) {
         var timeoutMsg = timeout.HasValue ? $" (超时: {timeout.Value.TotalSeconds}s)" : string.Empty;
         return new ApiException(
             $"API 请求超时{timeoutMsg}: {endpoint}",
@@ -88,8 +83,7 @@ public class ApiException : WorkflowException
     /// <summary>
     /// 创建限流异常
     /// </summary>
-    public static ApiException RateLimit(string endpoint, TimeSpan? retryAfter = null)
-    {
+    public static ApiException RateLimit(string endpoint, TimeSpan? retryAfter = null) {
         var retryMsg = retryAfter.HasValue ? $" 请在 {retryAfter.Value.TotalSeconds}s 后重试" : string.Empty;
         var ex = new ApiException(
             $"API 请求被限流: {endpoint}.{retryMsg}",
@@ -102,8 +96,7 @@ public class ApiException : WorkflowException
     /// <summary>
     /// 创建认证异常
     /// </summary>
-    public static ApiException Authentication(string endpoint, string reason)
-    {
+    public static ApiException Authentication(string endpoint, string reason) {
         return new ApiException(
             $"API 认证失败: {reason}",
             statusCode: 401,
@@ -114,8 +107,7 @@ public class ApiException : WorkflowException
     /// <summary>
     /// 创建响应错误异常
     /// </summary>
-    public static ApiException ResponseError(string endpoint, int statusCode, string responseContent)
-    {
+    public static ApiException ResponseError(string endpoint, int statusCode, string responseContent) {
         return new ApiException(
             $"API 返回错误响应 (HTTP {statusCode})",
             statusCode: statusCode,

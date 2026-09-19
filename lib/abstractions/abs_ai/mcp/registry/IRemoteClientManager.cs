@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Mcp.Registry;
 
-public interface IRemoteClientManager : IAsyncDisposable
-{
+public interface IRemoteClientManager : IAsyncDisposable {
     event EventHandler<ToolsListChangedEventArgs>? ToolsListChanged;
     event EventHandler<ResourcesListChangedEventArgs>? ResourcesListChanged;
     event EventHandler<PromptsListChangedEventArgs>? PromptsListChanged;

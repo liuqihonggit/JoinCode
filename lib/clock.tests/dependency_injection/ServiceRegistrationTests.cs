@@ -1,10 +1,8 @@
 namespace Clock.Tests.Unit.DependencyInjection;
 
-public sealed class ServiceRegistrationTests
-{
+public sealed class ServiceRegistrationTests {
     [Fact]
-    public void AddClockServices_RegistersGoalServices()
-    {
+    public void AddClockServices_RegistersGoalServices() {
         var services = new ServiceCollection();
 
         services.AddClockServices();
@@ -15,8 +13,7 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddGoalServices_RegistersRequiredServicesAsSingletons()
-    {
+    public void AddGoalServices_RegistersRequiredServicesAsSingletons() {
         var services = new ServiceCollection();
 
         services.AddGoalServices();
@@ -38,8 +35,7 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddClockServices_ReturnsSameServiceCollection_ForChaining()
-    {
+    public void AddClockServices_ReturnsSameServiceCollection_ForChaining() {
         var services = new ServiceCollection();
 
         var result = services.AddClockServices();
@@ -48,8 +44,7 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddGoalServices_ReturnsSameServiceCollection_ForChaining()
-    {
+    public void AddGoalServices_ReturnsSameServiceCollection_ForChaining() {
         var services = new ServiceCollection();
 
         var result = services.AddGoalServices();

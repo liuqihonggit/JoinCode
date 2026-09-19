@@ -1,14 +1,12 @@
 namespace Guard.Tests.Permission.Utils;
 
-public sealed class ToolFilterPolicyTests
-{
+public sealed class ToolFilterPolicyTests {
     private readonly ToolFilterPolicy _sut = new();
 
     private static readonly FrozenSet<string> EmptySet = FrozenSet<string>.Empty;
 
     [Fact]
-    public void Check_BypassMode_ShouldAlwaysAllow()
-    {
+    public void Check_BypassMode_ShouldAlwaysAllow() {
         var context = new ToolFilterContext(
             "any_tool",
             PermissionMode.Bypass,
@@ -23,8 +21,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_ToolInAllAgentDisallowed_ShouldDeny_Layer1()
-    {
+    public void Check_ToolInAllAgentDisallowed_ShouldDeny_Layer1() {
         var disallowed = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "dangerous_tool");
 
         var context = new ToolFilterContext(
@@ -42,8 +39,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_WildcardInAllAgentDisallowed_ShouldDeny_Layer1()
-    {
+    public void Check_WildcardInAllAgentDisallowed_ShouldDeny_Layer1() {
         var disallowed = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "*");
 
         var context = new ToolFilterContext(
@@ -61,8 +57,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_ToolNotInAllowedWhitelist_ShouldDeny_Layer2()
-    {
+    public void Check_ToolNotInAllowedWhitelist_ShouldDeny_Layer2() {
         var allowed = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "tool_a", "tool_b");
 
         var context = new ToolFilterContext(
@@ -80,8 +75,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_ToolInAllowedWhitelist_ShouldAllow()
-    {
+    public void Check_ToolInAllowedWhitelist_ShouldAllow() {
         var allowed = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "tool_a", "tool_b");
 
         var context = new ToolFilterContext(
@@ -97,8 +91,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_EmptyAllowedWhitelist_ShouldNotRestrict()
-    {
+    public void Check_EmptyAllowedWhitelist_ShouldNotRestrict() {
         var context = new ToolFilterContext(
             "any_tool",
             PermissionMode.Auto,
@@ -112,8 +105,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_NullAllowedWhitelist_ShouldNotRestrict()
-    {
+    public void Check_NullAllowedWhitelist_ShouldNotRestrict() {
         var context = new ToolFilterContext(
             "any_tool",
             PermissionMode.Auto,
@@ -127,8 +119,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_ToolInAgentDisallowed_ShouldDeny_Layer3()
-    {
+    public void Check_ToolInAgentDisallowed_ShouldDeny_Layer3() {
         var agentDenied = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "forbidden_tool");
 
         var context = new ToolFilterContext(
@@ -146,8 +137,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_Layer1_ShouldTakePrecedenceOverLayer3()
-    {
+    public void Check_Layer1_ShouldTakePrecedenceOverLayer3() {
         var allDisallowed = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "recursive_tool");
         var agentDenied = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "recursive_tool");
 
@@ -165,8 +155,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_Layer1_ShouldTakePrecedenceOverLayer2()
-    {
+    public void Check_Layer1_ShouldTakePrecedenceOverLayer2() {
         var allDisallowed = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "dangerous");
         var allowed = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "dangerous", "safe");
 
@@ -184,8 +173,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_Layer2_ShouldTakePrecedenceOverLayer3()
-    {
+    public void Check_Layer2_ShouldTakePrecedenceOverLayer3() {
         var allowed = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "tool_a");
         var agentDenied = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "tool_b");
 
@@ -203,8 +191,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_AllLayersPass_ShouldAllow()
-    {
+    public void Check_AllLayersPass_ShouldAllow() {
         var allDisallowed = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "bad_tool");
         var allowed = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "good_tool", "another_good");
         var agentDenied = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "bad_tool");
@@ -223,8 +210,7 @@ public sealed class ToolFilterPolicyTests
     }
 
     [Fact]
-    public void Check_CaseInsensitive_ShouldMatch()
-    {
+    public void Check_CaseInsensitive_ShouldMatch() {
         var disallowed = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "Dangerous_Tool");
 
         var context = new ToolFilterContext(

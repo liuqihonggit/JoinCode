@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterUserEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterUserEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === ListPeersToolHandlers ===
         defaultEntries[StringKey.ListPeersDesc] = "List connected peer sessions";
         defaultEntries[StringKey.ListPeersFilterDesc] = "Filter type: all/connected (default: all)";

@@ -1,8 +1,7 @@
 namespace JoinCode.Abstractions.Brain.Context.Hierarchy;
 
 [JsonConverter(typeof(JsonStringEnumConverter<ContextLayerType>))]
-public enum ContextLayerType
-{
+public enum ContextLayerType {
     [EnumValue("detailed")] Detailed = 0,
 
     Summary = 1,

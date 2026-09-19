@@ -5,16 +5,14 @@ namespace McpClient.Mcpb;
 /// 缓存命中时跳过
 /// </summary>
 [Register(typeof(IMcpbMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddleware
-{
+public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddleware {
 
     /// <summary>
     /// 初始化 MCPB 解压中间件
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public McpbExtractionMiddleware(IFileSystem fs, ILogger<McpbExtractionMiddleware>? logger = null)
-    {
+    public McpbExtractionMiddleware(IFileSystem fs, ILogger<McpbExtractionMiddleware>? logger = null) {
         _fs = fs;
         _logger = logger;
     }
@@ -32,10 +30,8 @@ public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddl
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)
-    {
-        if (context.IsCacheHit)
-        {
+    public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct) {
+        if (context.IsCacheHit) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -45,8 +41,7 @@ public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddl
 
         _logger?.LogInformation("解压 MCPB: {Path} -> {ExtractPath}", mcpbPath, extractPath);
 
-        if (_fs.DirectoryExists(extractPath))
-        {
+        if (_fs.DirectoryExists(extractPath)) {
             try { _fs.DeleteDirectory(extractPath, true); } catch (Exception ex) { _logger?.LogDebug(ex, "MCPB 解压后清理目录失败: {Path}", extractPath); }
         }
 
@@ -56,29 +51,24 @@ public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddl
         using var archive = new System.IO.Compression.ZipArchive(archiveStream, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: false);
         long totalExtractedSize = 0;
 
-        foreach (var entry in archive.Entries)
-        {
+        foreach (var entry in archive.Entries) {
             ct.ThrowIfCancellationRequested();
 
             var destinationPath = Path.GetFullPath(Path.Combine(extractPath, entry.FullName));
-            if (!destinationPath.StartsWith(extractPath, StringComparison.OrdinalIgnoreCase))
-            {
+            if (!destinationPath.StartsWith(extractPath, StringComparison.OrdinalIgnoreCase)) {
                 throw new InvalidOperationException($"[MCP022] 路径遍历检测: {entry.FullName}");
             }
 
-            if (entry.Length > MaxFileSizeBytes)
-            {
+            if (entry.Length > MaxFileSizeBytes) {
                 throw new InvalidOperationException($"[MCP023] 文件过大: {entry.FullName} ({entry.Length} bytes)");
             }
 
             var entryDir = Path.GetDirectoryName(destinationPath);
-            if (!string.IsNullOrEmpty(entryDir) && !_fs.DirectoryExists(entryDir))
-            {
+            if (!string.IsNullOrEmpty(entryDir) && !_fs.DirectoryExists(entryDir)) {
                 _fs.CreateDirectory(entryDir);
             }
 
-            if (string.IsNullOrEmpty(entry.Name))
-            {
+            if (string.IsNullOrEmpty(entry.Name)) {
                 continue;
             }
 
@@ -88,8 +78,7 @@ public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddl
 
             totalExtractedSize += _fs.GetFileLength(destinationPath);
 
-            if (totalExtractedSize > MaxTotalSizeBytes)
-            {
+            if (totalExtractedSize > MaxTotalSizeBytes) {
                 throw new InvalidOperationException("[MCP016] 解压总大小超过限制");
             }
         }

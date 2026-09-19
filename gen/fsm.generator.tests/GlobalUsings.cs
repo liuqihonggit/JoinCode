@@ -1,3 +1,4 @@
+global using FluentAssertions;
 global using Fsm.Generator;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;
@@ -9,5 +10,4 @@ global using System.IO;
 global using System.Linq;
 global using System.Reflection;
 global using System.Text;
-global using FluentAssertions;
 global using Xunit;

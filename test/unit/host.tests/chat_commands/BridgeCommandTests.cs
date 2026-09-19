@@ -4,25 +4,21 @@ namespace Host.Tests.ChatCommands;
 /// BridgeCommand 取值范围测试 — 验证 BridgeAction 枚举字面量正确路由
 /// 覆盖:qr/sessions/status/connect/disconnect + 大小写不敏感 + 默认 status
 /// </summary>
-public sealed class BridgeCommandTests
-{
+public sealed class BridgeCommandTests {
     [Fact]
-    public void Name_Should_Be_bridge()
-    {
+    public void Name_Should_Be_bridge() {
         var cmd = new BridgeCommand();
         cmd.Name.Should().Be("bridge");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new BridgeCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Contain_All_BridgeActions()
-    {
+    public void Usage_Should_Contain_All_BridgeActions() {
         var cmd = new BridgeCommand();
         cmd.Usage.Should().Contain("qr");
         cmd.Usage.Should().Contain("sessions");
@@ -32,26 +28,22 @@ public sealed class BridgeCommandTests
     }
 
     [Fact]
-    public void Aliases_Should_Contain_rc()
-    {
+    public void Aliases_Should_Contain_rc() {
         var cmd = new BridgeCommand();
         cmd.Aliases.Should().Contain("rc");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new BridgeCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public async Task Execute_WithEmptyArgs_Should_Default_To_Status()
-    {
+    public async Task Execute_WithEmptyArgs_Should_Default_To_Status() {
         // 空 args → 默认 "status" → BridgeActionEnumConstants.Status 分支
         var cmd = new BridgeCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
             Services = new CommandServiceProvider(CreateServices()),
@@ -68,12 +60,10 @@ public sealed class BridgeCommandTests
     [InlineData("status")]
     [InlineData("connect")]
     [InlineData("disconnect")]
-    public async Task Execute_WithBridgeActionSubcommand_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithBridgeActionSubcommand_Should_Return_Continue(string subCommand) {
         // BridgeActionEnumConstants.Qr/Sessions/Status/Connect/Disconnect 枚举路由取值范围测试
         var cmd = new BridgeCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
             Services = new CommandServiceProvider(CreateServices()),
@@ -90,11 +80,9 @@ public sealed class BridgeCommandTests
     [InlineData("Status")]
     [InlineData("CONNECT")]
     [InlineData("Disconnect")]
-    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand)
-    {
+    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand) {
         var cmd = new BridgeCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
             Services = new CommandServiceProvider(CreateServices()),
@@ -106,11 +94,9 @@ public sealed class BridgeCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithUnknownSubcommand_Should_NotThrow()
-    {
+    public async Task Execute_WithUnknownSubcommand_Should_NotThrow() {
         var cmd = new BridgeCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = "unknown-action",
             CancellationToken = CancellationToken.None,
             Services = new CommandServiceProvider(CreateServices()),
@@ -129,14 +115,12 @@ public sealed class BridgeCommandTests
     [InlineData("status", BridgeAction.Status)]
     [InlineData("connect", BridgeAction.Connect)]
     [InlineData("disconnect", BridgeAction.Disconnect)]
-    public void BridgeAction_FromValue_ValidString_Should_Resolve_Correctly(string input, BridgeAction expected)
-    {
+    public void BridgeAction_FromValue_ValidString_Should_Resolve_Correctly(string input, BridgeAction expected) {
         BridgeActionExtensions.FromValue(input).Should().Be(expected);
     }
 
     [Fact]
-    public void BridgeActionEnumConstants_Values_Should_Match_Route()
-    {
+    public void BridgeActionEnumConstants_Values_Should_Match_Route() {
         // 验证枚举常量值与原硬编码字符串完全一致(行为不变)
         BridgeActionEnumConstants.Qr.Should().Be("qr");
         BridgeActionEnumConstants.Sessions.Should().Be("sessions");
@@ -145,14 +129,12 @@ public sealed class BridgeCommandTests
         BridgeActionEnumConstants.Disconnect.Should().Be("disconnect");
     }
 
-    private static CommandServices CreateServices()
-    {
-        return new CommandServices
-        {
+    private static CommandServices CreateServices() {
+        return new CommandServices {
             ChatService = Mock.Of<IChatService>(),
             CodeService = Mock.Of<ICodeService>(),
             PlanService = Mock.Of<IPlanService>(),
-        FileSystem = TestFileSystem.Current,
+            FileSystem = TestFileSystem.Current,
         };
     }
 }

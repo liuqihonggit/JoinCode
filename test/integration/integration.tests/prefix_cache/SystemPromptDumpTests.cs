@@ -1,13 +1,10 @@
 namespace Integration.Tests.PrefixCache.Unit;
 
-public sealed class SystemPromptDumpTests
-{
+public sealed class SystemPromptDumpTests {
     [Fact]
-    public void Dump_AllSections_ToFile()
-    {
+    public void Dump_AllSections_ToFile() {
         var fs = new IO.FileSystem.InMemoryFileSystem();
-        var options = new SystemPromptProviderOptions
-        {
+        var options = new SystemPromptProviderOptions {
             EnabledTools = ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "Task"],
             ModelId = "deepseek-v4-flash",
             ModelName = "DeepSeek V4 Flash",
@@ -44,8 +41,7 @@ public sealed class SystemPromptDumpTests
         sb.AppendLine();
         sb.AppendLine("| # | Name | CacheBreak | Content Length |");
         sb.AppendLine("|---|------|------------|---------------|");
-        for (var i = 0; i < sections.Count; i++)
-        {
+        for (var i = 0; i < sections.Count; i++) {
             var s = sections[i];
             var content = s.Compute();
             sb.AppendLine($"| {i + 1} | {s.Name} | {(s.CacheBreak ? "Dynamic" : "Cached")} | {content?.Length ?? 0} |");

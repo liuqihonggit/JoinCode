@@ -6,8 +6,7 @@ namespace JoinCode.CodeIndex;
 /// 注册仓库时自动启动 watcher，注销时自动停止
 /// </summary>
 [Register(typeof(FileWatcherIntegrationRegistry), ServiceLifetime.Singleton)]
-public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
-{
+public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable {
     private readonly ICodeIndexerRegistry _registry;
     private readonly IFileSystem _fs;
     private readonly Dictionary<string, FileWatcherIntegration> _watchers = new(StringComparer.Ordinal);
@@ -21,8 +20,7 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
     /// <param name="registry">代码索引注册表</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志器（可选）</param>
-    public FileWatcherIntegrationRegistry(ICodeIndexerRegistry registry, IFileSystem fs, ILogger<FileWatcherIntegrationRegistry>? logger = null)
-    {
+    public FileWatcherIntegrationRegistry(ICodeIndexerRegistry registry, IFileSystem fs, ILogger<FileWatcherIntegrationRegistry>? logger = null) {
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(fs);
         _registry = registry;
@@ -33,43 +31,34 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
         _registry.RepoUnregistered += OnRepoUnregistered;
     }
 
-    private void OnRepoRegistered(object? sender, RepoRegisteredEventArgs e)
-    {
+    private void OnRepoRegistered(object? sender, RepoRegisteredEventArgs e) {
         if (_disposed != 0) return;
 
         var watcher = new FileWatcherIntegration(e.Indexer, e.WorkspaceRoot, _fs, onError: null);
 
-        using (_lock.EnterWriteScope())
-        {
+        using (_lock.EnterWriteScope()) {
             _watchers[e.RepoId] = watcher;
         }
 
         _ = watcher.StartAsync(CancellationToken.None);
     }
 
-    private void OnRepoUnregistered(object? sender, RepoUnregisteredEventArgs e)
-    {
+    private void OnRepoUnregistered(object? sender, RepoUnregisteredEventArgs e) {
         if (_disposed != 0) return;
 
         FileWatcherIntegration? watcher;
 
-        using (_lock.EnterWriteScope())
-        {
+        using (_lock.EnterWriteScope()) {
             _watchers.Remove(e.RepoId, out watcher);
         }
 
-        if (watcher is not null)
-        {
+        if (watcher is not null) {
             var capturedWatcher = watcher;
-            _ = Task.Run(async () =>
-            {
-                try
-                {
+            _ = Task.Run(async () => {
+                try {
                     await using var w = capturedWatcher;
                     await w.StopAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "FileWatcherIntegrationRegistry: 停止 watcher 失败");
                 }
             });
@@ -79,8 +68,7 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
     /// <summary>
     /// 获取指定仓库的 watcher 是否正在运行
     /// </summary>
-    public bool IsWatching(string repoId)
-    {
+    public bool IsWatching(string repoId) {
         if (_disposed != 0) return false;
 
         using var scope = _lock.EnterReadScope();
@@ -90,23 +78,18 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
     /// <summary>
     /// 获取所有正在监听的仓库 ID（遍历器，不分配新集合）
     /// </summary>
-    public IEnumerable<string> GetWatchingRepoIds()
-    {
+    public IEnumerable<string> GetWatchingRepoIds() {
         if (_disposed != 0) return [];
 
         using var scope = _lock.EnterReadScope();
         return _watchers.Keys.ToList();
     }
 
-    private async Task StopAndDisposeWatcherAsync(FileWatcherIntegration watcher)
-    {
-        try
-        {
+    private async Task StopAndDisposeWatcherAsync(FileWatcherIntegration watcher) {
+        try {
             await watcher.StopAsync(CancellationToken.None).ConfigureAwait(false);
             await watcher.DisposeAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "FileWatcherIntegrationRegistry: 停止 watcher 失败");
         }
     }
@@ -115,16 +98,14 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
     /// 异步释放资源 — 解除事件订阅、停止并释放所有 watcher、释放锁
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
 
         _registry.RepoRegistered -= OnRepoRegistered;
         _registry.RepoUnregistered -= OnRepoUnregistered;
 
         List<FileWatcherIntegration> watchers;
-        using (_lock.EnterWriteScope())
-        {
+        using (_lock.EnterWriteScope()) {
             watchers = [.. _watchers.Values];
             _watchers.Clear();
         }
@@ -132,17 +113,12 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
         return new ValueTask(DisposeWatchersAsync(watchers));
     }
 
-    private async Task DisposeWatchersAsync(List<FileWatcherIntegration> watchers)
-    {
-        foreach (var watcher in watchers)
-        {
-            try
-            {
+    private async Task DisposeWatchersAsync(List<FileWatcherIntegration> watchers) {
+        foreach (var watcher in watchers) {
+            try {
                 await watcher.StopAsync(CancellationToken.None).ConfigureAwait(false);
                 await watcher.DisposeAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "FileWatcherIntegrationRegistry: 释放 watcher 失败");
             }
         }

@@ -5,8 +5,7 @@ namespace Core.Ssh;
 /// <summary>
 /// SSH 端口转发实现 — 通过启动 ssh 子进程建立本地或远程端口转发
 /// </summary>
-public sealed class SshForwardedPort : ISshForwardedPort
-{
+public sealed class SshForwardedPort : ISshForwardedPort {
     private readonly string _sessionId;
     private readonly SshSessionConfig _config;
     private readonly ILogger? _logger;
@@ -39,8 +38,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
         string remoteEndpoint,
         string sessionId,
         SshSessionConfig config,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         ForwardId = Guid.NewGuid().ToString("N")[..12];
         ForwardType = forwardType;
         LocalEndpoint = localEndpoint;
@@ -55,8 +53,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步启动操作的任务</returns>
-    public Task StartAsync(CancellationToken ct = default)
-    {
+    public Task StartAsync(CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         var args = new List<string>
@@ -80,8 +77,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
             }),
         };
 
-        if (_config.AuthMethod == SshAuthMethod.PrivateKey && _config.PrivateKey != null)
-        {
+        if (_config.AuthMethod == SshAuthMethod.PrivateKey && _config.PrivateKey != null) {
             var keyFile = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 AppDataConstants.AppDataFolder, "ssh", $"key_{_sessionId}");
@@ -89,8 +85,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
             args.Add(keyFile);
         }
 
-        args.Add(ForwardType switch
-        {
+        args.Add(ForwardType switch {
             SshForwardType.Local => "-L",
             SshForwardType.Remote => "-R",
             _ => throw new ArgumentOutOfRangeException(nameof(ForwardType))
@@ -103,8 +98,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
         args.Add($"{_config.Username}@{_config.Host}");
 
         var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
-        var startInfo = builder.Build(new ProcessOptions
-        {
+        var startInfo = builder.Build(new ProcessOptions {
             FileName = "ssh",
             ArgumentList = args,
             RedirectStandardOutput = false,
@@ -125,17 +119,13 @@ public sealed class SshForwardedPort : ISshForwardedPort
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步停止操作的任务</returns>
-    public Task StopAsync(CancellationToken ct = default)
-    {
+    public Task StopAsync(CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
-        if (_forwardProcess != null && !_forwardProcess.HasExited)
-        {
-            try
-            {
+        if (_forwardProcess != null && !_forwardProcess.HasExited) {
+            try {
                 _forwardProcess.Kill();
-            }
-            catch (InvalidOperationException ex) { _logger?.LogWarning(ex, "SshForwardedPort: 终止端口转发进程失败"); }
+            } catch (InvalidOperationException ex) { _logger?.LogWarning(ex, "SshForwardedPort: 终止端口转发进程失败"); }
         }
 
         IsForwarding = false;
@@ -147,10 +137,8 @@ public sealed class SshForwardedPort : ISshForwardedPort
     /// 异步释放资源 — 停止转发并销毁底层 ssh 子进程
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
-        {
+    public ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
             return ValueTask.CompletedTask;
         }
 

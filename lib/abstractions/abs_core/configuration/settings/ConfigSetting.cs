@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Configuration.Settings;
 /// 配置设置元数据。
 /// 对齐 TS: supportedSettings.ts SettingConfig
 /// </summary>
-public sealed class ConfigSetting
-{
+public sealed class ConfigSetting {
     public required string Type { get; init; } // "boolean" | "string"
     public required string Description { get; init; }
     public required string Source { get; init; } // "global" | "settings"
@@ -50,8 +49,7 @@ public sealed class ConfigSetting
 /// <summary>
 /// 模型选项
 /// </summary>
-public sealed class ModelOption
-{
+public sealed class ModelOption {
     public string? Value { get; init; }
     public required string Description { get; init; }
     public string? DescriptionForModel { get; init; }

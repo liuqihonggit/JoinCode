@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// Cron 调度工具名称枚举
 /// </summary>
-public enum CronToolName
-{
+public enum CronToolName {
     [EnumValue("cron_create")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     CronCreate,

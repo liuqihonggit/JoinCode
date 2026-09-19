@@ -9,19 +9,15 @@ namespace Guard.Tests.Configuration;
 /// - API Key 环境变量从 settings.json 的 apiKeyEnvVar 字段读取
 /// - 模型列表从 ModelConfigLoader 读取（数据从 settings.json vendor.models 流入）
 /// </summary>
-public class DeepSeekProviderDefinitionTests : IDisposable
-{
+public class DeepSeekProviderDefinitionTests : IDisposable {
     private readonly ModelConfigLoader _modelConfigLoader;
     private readonly IProviderDefinition _definition;
     private bool _disposed;
 
-    public DeepSeekProviderDefinitionTests()
-    {
+    public DeepSeekProviderDefinitionTests() {
         _modelConfigLoader = new ModelConfigLoader();
-        _modelConfigLoader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["deepseek"] = new ModelProviderConfig
-            {
+        _modelConfigLoader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase) {
+            ["deepseek"] = new ModelProviderConfig {
                 DefaultModelId = "deepseek-chat",
                 DefaultFastModelId = "deepseek-chat",
                 Models =
@@ -51,8 +47,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
         _definition = new OpenAiCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         GC.SuppressFinalize(this);
@@ -61,50 +56,42 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     #region ProviderDefinition 属性验证
 
     [Fact]
-    public void DeepSeek_Kind_ShouldBeDeepSeek()
-    {
+    public void DeepSeek_Kind_ShouldBeDeepSeek() {
         _definition.Vendor.Should().Be(VendorKind.DeepSeek);
     }
 
     [Fact]
-    public void DeepSeek_ProviderName_ShouldBeDeepSeek()
-    {
+    public void DeepSeek_ProviderName_ShouldBeDeepSeek() {
         _definition.ProviderName.Should().Be("deepseek");
     }
 
     [Fact]
-    public void DeepSeek_DisplayName_ShouldBeDeepSeek()
-    {
+    public void DeepSeek_DisplayName_ShouldBeDeepSeek() {
         _definition.DisplayName.Should().Be("deepseek");
     }
 
     [Fact]
-    public void DeepSeek_DefaultModelId_ShouldBeDeepSeekChat()
-    {
+    public void DeepSeek_DefaultModelId_ShouldBeDeepSeekChat() {
         _definition.DefaultModelId.Should().Be("deepseek-chat");
     }
 
     [Fact]
-    public void DeepSeek_DefaultFastModelId_ShouldBeDeepSeekChat()
-    {
+    public void DeepSeek_DefaultFastModelId_ShouldBeDeepSeekChat() {
         _definition.DefaultFastModelId.Should().Be("deepseek-chat");
     }
 
     [Fact]
-    public void DeepSeek_DefaultEndpoint_ShouldBeNull()
-    {
+    public void DeepSeek_DefaultEndpoint_ShouldBeNull() {
         _definition.DefaultEndpoint.Should().BeNull("新架构下端点从配置读取，不硬编码");
     }
 
     [Fact]
-    public void DeepSeek_ApiKeyEnvironmentVariable_ShouldBeDeepSeekApiKey()
-    {
+    public void DeepSeek_ApiKeyEnvironmentVariable_ShouldBeDeepSeekApiKey() {
         _definition.ApiKeyEnvironmentVariable.Should().Be("DEEPSEEK_API_KEY");
     }
 
     [Fact]
-    public void DeepSeek_AvailableModels_ShouldNotBeEmpty()
-    {
+    public void DeepSeek_AvailableModels_ShouldNotBeEmpty() {
         _definition.AvailableModels.Should().NotBeEmpty();
     }
 
@@ -113,8 +100,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     #region URL 构建验证
 
     [Fact]
-    public void DeepSeek_GetBaseUrl_WithEndpoint_ShouldUseConfiguredEndpoint()
-    {
+    public void DeepSeek_GetBaseUrl_WithEndpoint_ShouldUseConfiguredEndpoint() {
         var config = new ProviderConfig { Endpoint = "https://api.deepseek.com" };
 
         var baseUrl = _definition.GetBaseUrl(config);
@@ -124,8 +110,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void DeepSeek_GetBaseUrl_WithCustomEndpoint_ShouldUseCustomEndpoint()
-    {
+    public void DeepSeek_GetBaseUrl_WithCustomEndpoint_ShouldUseCustomEndpoint() {
         var config = new ProviderConfig { Endpoint = "https://custom.deepseek.example.com" };
 
         var baseUrl = _definition.GetBaseUrl(config);
@@ -134,8 +119,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void DeepSeek_GetBaseUrl_WithCustomEndpointTrailingSlash_ShouldNotDoubleSlash()
-    {
+    public void DeepSeek_GetBaseUrl_WithCustomEndpointTrailingSlash_ShouldNotDoubleSlash() {
         var config = new ProviderConfig { Endpoint = "https://custom.deepseek.example.com/" };
 
         var baseUrl = _definition.GetBaseUrl(config);
@@ -144,8 +128,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void DeepSeek_GetChatEndpoint_ShouldReturnChatCompletionsRelativePath()
-    {
+    public void DeepSeek_GetChatEndpoint_ShouldReturnChatCompletionsRelativePath() {
         var config = new ProviderConfig { Endpoint = "https://api.deepseek.com" };
 
         var chatEndpoint = _definition.GetChatEndpoint(config);
@@ -154,8 +137,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void DeepSeek_GetChatEndpoint_WithEndpointContainingChatCompletions_ShouldReturnEmpty()
-    {
+    public void DeepSeek_GetChatEndpoint_WithEndpointContainingChatCompletions_ShouldReturnEmpty() {
         var config = new ProviderConfig { Endpoint = "https://api.deepseek.com/chat/completions" };
 
         var chatEndpoint = _definition.GetChatEndpoint(config);
@@ -164,8 +146,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void DeepSeek_FullUrl_Composition_ShouldBeDeepSeekApiChatCompletions()
-    {
+    public void DeepSeek_FullUrl_Composition_ShouldBeDeepSeekApiChatCompletions() {
         var config = new ProviderConfig { Endpoint = "https://api.deepseek.com" };
 
         var baseUrl = _definition.GetBaseUrl(config);
@@ -177,10 +158,8 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void DeepSeek_GetChatEndpoint_ResponsesProtocol_ReturnsResponsesPath()
-    {
-        var config = new ProviderConfig
-        {
+    public void DeepSeek_GetChatEndpoint_ResponsesProtocol_ReturnsResponsesPath() {
+        var config = new ProviderConfig {
             Endpoint = "https://api.deepseek.com",
             Protocol = "responses"
         };
@@ -191,10 +170,8 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void DeepSeek_FullUrl_ResponsesProtocol_ComposesResponsesEndpoint()
-    {
-        var config = new ProviderConfig
-        {
+    public void DeepSeek_FullUrl_ResponsesProtocol_ComposesResponsesEndpoint() {
+        var config = new ProviderConfig {
             Endpoint = "https://api.deepseek.com",
             Protocol = "responses"
         };
@@ -212,8 +189,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     #region HttpClient 配置验证
 
     [Fact]
-    public void DeepSeek_ConfigureHttpClient_ShouldAddBearerTokenAuthorizationHeader()
-    {
+    public void DeepSeek_ConfigureHttpClient_ShouldAddBearerTokenAuthorizationHeader() {
         var config = new ProviderConfig { ApiKey = "sk-deepseek-test-key" };
         using var client = new HttpClient();
 
@@ -224,8 +200,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void DeepSeek_ConfigureHttpClient_WithEmptyApiKey_ShouldNotAddAuthorizationHeader()
-    {
+    public void DeepSeek_ConfigureHttpClient_WithEmptyApiKey_ShouldNotAddAuthorizationHeader() {
         var config = new ProviderConfig { ApiKey = "" };
         using var client = new HttpClient();
 
@@ -239,39 +214,31 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     #region API Key 解析验证
 
     [Fact]
-    public void DeepSeek_ResolveApiKeyFromEnv_WithDeepSeekApiKey_ShouldReturnIt()
-    {
+    public void DeepSeek_ResolveApiKeyFromEnv_WithDeepSeekApiKey_ShouldReturnIt() {
         var oldValue = Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
-        try
-        {
+        try {
             Environment.SetEnvironmentVariable("DEEPSEEK_API_KEY", "sk-from-deepseek-env");
 
             var apiKey = _definition.ResolveApiKeyFromEnv();
 
             apiKey.Should().Be("sk-from-deepseek-env");
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("DEEPSEEK_API_KEY", oldValue);
         }
     }
 
     [Fact]
-    public void DeepSeek_ResolveApiKeyFromEnv_WithoutEnvVar_ShouldReturnNull()
-    {
+    public void DeepSeek_ResolveApiKeyFromEnv_WithoutEnvVar_ShouldReturnNull() {
         var oldValue = Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
         var oldOpenAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        try
-        {
+        try {
             Environment.SetEnvironmentVariable("DEEPSEEK_API_KEY", null);
             Environment.SetEnvironmentVariable("OPENAI_API_KEY", null);
 
             var apiKey = _definition.ResolveApiKeyFromEnv();
 
             apiKey.Should().BeNull();
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("DEEPSEEK_API_KEY", oldValue);
             Environment.SetEnvironmentVariable("OPENAI_API_KEY", oldOpenAiKey);
         }
@@ -282,8 +249,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     #region 配置有效性验证
 
     [Fact]
-    public void DeepSeek_IsValid_WithApiKey_ShouldReturnTrue()
-    {
+    public void DeepSeek_IsValid_WithApiKey_ShouldReturnTrue() {
         var config = new ProviderConfig { ApiKey = "sk-test" };
 
         var isValid = _definition.IsValid(config);
@@ -292,8 +258,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void DeepSeek_IsValid_WithEmptyApiKey_ShouldReturnFalse()
-    {
+    public void DeepSeek_IsValid_WithEmptyApiKey_ShouldReturnFalse() {
         var config = new ProviderConfig { ApiKey = "" };
 
         var isValid = _definition.IsValid(config);
@@ -306,16 +271,14 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     #region 模型别名验证
 
     [Fact]
-    public void DeepSeek_ResolveAlias_KnownAlias_ShouldNotReturnNull()
-    {
+    public void DeepSeek_ResolveAlias_KnownAlias_ShouldNotReturnNull() {
         var resolved = _definition.ResolveAlias("chat");
 
         resolved.Should().NotBeNull();
     }
 
     [Fact]
-    public void DeepSeek_ResolveAlias_UnknownInput_ShouldReturnNull()
-    {
+    public void DeepSeek_ResolveAlias_UnknownInput_ShouldReturnNull() {
         var resolved = _definition.ResolveAlias("unknown-model");
 
         resolved.Should().BeNull();
@@ -326,8 +289,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     #region Registry 注册验证
 
     [Fact]
-    public void OpenAiCompatibleProviderDefinition_CanBeConstructedForDeepSeek()
-    {
+    public void OpenAiCompatibleProviderDefinition_CanBeConstructedForDeepSeek() {
         var definition = new OpenAiCompatibleProviderDefinition(_modelConfigLoader, "deepseek", "DEEPSEEK_API_KEY");
 
         definition.Should().NotBeNull();
@@ -336,8 +298,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     }
 
     [Fact]
-    public void AnthropicProviderDefinition_CanBeConstructedForAnthropic()
-    {
+    public void AnthropicProviderDefinition_CanBeConstructedForAnthropic() {
         var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "anthropic", "ANTHROPIC_API_KEY");
 
         definition.Should().NotBeNull();

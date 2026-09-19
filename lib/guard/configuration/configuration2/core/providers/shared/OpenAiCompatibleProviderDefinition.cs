@@ -5,8 +5,7 @@ namespace Core.Configuration.Providers;
 /// OpenAI 兼容协议供应商 — 通用实现，所有配置从 ProfileSettings 读取
 /// 覆盖 openai/deepseek/agnes/sensenova 等所有 OpenAI 兼容供应商
 /// </summary>
-public sealed class OpenAiCompatibleProviderDefinition : IProviderDefinition
-{
+public sealed class OpenAiCompatibleProviderDefinition : IProviderDefinition {
     private readonly IModelConfigLoader _modelConfigLoader;
     private readonly string _providerName;
     private readonly string? _apiKeyEnvVar;
@@ -14,8 +13,7 @@ public sealed class OpenAiCompatibleProviderDefinition : IProviderDefinition
     /// <summary>
     /// 构造 OpenAI 兼容供应商定义
     /// </summary>
-    public OpenAiCompatibleProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName, string? apiKeyEnvVar = null)
-    {
+    public OpenAiCompatibleProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName, string? apiKeyEnvVar = null) {
         _modelConfigLoader = modelConfigLoader;
         _providerName = providerName;
         _apiKeyEnvVar = apiKeyEnvVar;
@@ -53,8 +51,7 @@ public sealed class OpenAiCompatibleProviderDefinition : IProviderDefinition
         => !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : "https://api.openai.com/v1/";
 
     /// <inheritdoc />
-    public string GetChatEndpoint(ProviderConfig config)
-    {
+    public string GetChatEndpoint(ProviderConfig config) {
         if (config.ProtocolKind == ProtocolKind.OpenAiResponses)
             return "responses";
         if (!string.IsNullOrEmpty(config.Endpoint) && config.Endpoint.TrimEnd('/').EndsWith("chat/completions", StringComparison.OrdinalIgnoreCase))
@@ -63,17 +60,14 @@ public sealed class OpenAiCompatibleProviderDefinition : IProviderDefinition
     }
 
     /// <inheritdoc />
-    public void ConfigureHttpClient(HttpClient client, ProviderConfig config)
-    {
+    public void ConfigureHttpClient(HttpClient client, ProviderConfig config) {
         if (!string.IsNullOrEmpty(config.ApiKey))
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
     }
 
     /// <inheritdoc />
-    public string? ResolveApiKeyFromEnv()
-    {
-        if (_apiKeyEnvVar is not null)
-        {
+    public string? ResolveApiKeyFromEnv() {
+        if (_apiKeyEnvVar is not null) {
             var key = Environment.GetEnvironmentVariable(_apiKeyEnvVar);
             if (!string.IsNullOrEmpty(key)) return key;
         }

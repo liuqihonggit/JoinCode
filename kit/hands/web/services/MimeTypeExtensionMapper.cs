@@ -4,21 +4,18 @@ namespace Services.Web;
 /// MIME类型到文件扩展名映射 — 对齐TS版 mcpOutputStorage.ts 的 extensionForMimeType
 /// 覆盖PDF、Office全家桶、音视频、图片、压缩包等常见类型，未知回退.bin
 /// </summary>
-internal static class MimeTypeExtensionMapper
-{
+internal static class MimeTypeExtensionMapper {
     /// <summary>
     /// 根据MIME类型获取文件扩展名（不含点号）
     /// </summary>
     /// <param name="mimeType">MIME 类型字符串，可包含 charset 参数。</param>
     /// <returns>对应的文件扩展名（不含点号），未知类型返回 "bin"。</returns>
-    public static string GetExtension(string? mimeType)
-    {
+    public static string GetExtension(string? mimeType) {
         if (string.IsNullOrEmpty(mimeType)) return "bin";
 
         var mt = GetMimeType(mimeType);
 
-        return mt switch
-        {
+        return mt switch {
             "application/pdf" => "pdf",
             "application/json" => "json",
             "text/csv" => "csv",
@@ -45,8 +42,7 @@ internal static class MimeTypeExtensionMapper
         };
     }
 
-    private static string GetMimeType(string mimeType)
-    {
+    private static string GetMimeType(string mimeType) {
         var separatorIndex = mimeType.IndexOf(';');
         var mime = separatorIndex >= 0 ? mimeType[..separatorIndex] : mimeType;
         return mime.Trim().ToLowerInvariant();

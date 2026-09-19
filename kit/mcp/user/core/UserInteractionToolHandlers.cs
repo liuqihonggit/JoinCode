@@ -7,8 +7,7 @@ namespace McpToolDispatch;
 /// 用户交互工具处理器 — 向用户提出多选问题以收集信息、澄清歧义或做出决策
 /// </summary>
 [McpToolDispatch(ToolCategory.Interaction)]
-public class UserInteractionToolHandlers
-{
+public class UserInteractionToolHandlers {
     private readonly IInteractiveService _interactiveService;
     private readonly ILogger<UserInteractionToolHandlers>? _logger;
 
@@ -17,8 +16,7 @@ public class UserInteractionToolHandlers
     /// </summary>
     /// <param name="interactiveService">交互式服务实例</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public UserInteractionToolHandlers(IInteractiveService interactiveService, ILogger<UserInteractionToolHandlers>? logger = null)
-    {
+    public UserInteractionToolHandlers(IInteractiveService interactiveService, ILogger<UserInteractionToolHandlers>? logger = null) {
         _interactiveService = interactiveService ?? throw new ArgumentNullException(nameof(interactiveService));
         _logger = logger;
     }
@@ -32,21 +30,17 @@ public class UserInteractionToolHandlers
     [McpTool(InteractionToolNameEnumConstants.AskUserQuestion, "Ask the user multiple choice questions to gather information, clarify ambiguity, or make decisions", "interaction")]
     public async Task<ToolResult> AskUserQuestionAsync(
         [McpToolParameter("Questions to ask the user (JSON array, 1-4 questions). Each: {question, header, options:[{label,description,preview?}], multiSelect?}")] string questions,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(questions))
             return ToolResultBuilder.Error().WithText("questions cannot be empty").Build();
 
         List<QuestionItem> questionItems;
-        try
-        {
+        try {
             questionItems = LlmJsonHelper.DeserializeValue(questions, QuestionItemListContext.Default.ListQuestionItem, out var repairHint, _logger)
                 ?? new List<QuestionItem>();
             if (!string.IsNullOrEmpty(repairHint))
                 _logger?.LogInformation("[AskUserQuestion] questions JSON 已修复: {RepairHint}", repairHint);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("ask_user_question", ex, _logger, "questions", questions ?? "(null)");
         }
 
@@ -77,11 +71,9 @@ public class UserInteractionToolHandlers
             .Build();
     }
 
-    private static string? ValidateQuestions(List<QuestionItem> questions)
-    {
+    private static string? ValidateQuestions(List<QuestionItem> questions) {
         var questionTexts = new HashSet<string>();
-        foreach (var q in questions)
-        {
+        foreach (var q in questions) {
             if (string.IsNullOrWhiteSpace(q.Question))
                 return "Question text cannot be empty";
 
@@ -101,8 +93,7 @@ public class UserInteractionToolHandlers
                 return $"Question '{q.Question}' must have at most 4 options";
 
             var labels = new HashSet<string>();
-            foreach (var opt in q.Options)
-            {
+            foreach (var opt in q.Options) {
                 if (string.IsNullOrWhiteSpace(opt.Label))
                     return $"Option label cannot be empty in question: {q.Question}";
 
@@ -114,4 +105,3 @@ public class UserInteractionToolHandlers
         return null;
     }
 }
-

@@ -4,8 +4,7 @@ namespace Core.Planning;
 /// 可持久化的 Plan 状态包装 — 用于跨进程（MCP 工具调用）共享活跃 plan 状态
 /// 序列化到 ~/.jcc/plans/.active_plan_state.json
 /// </summary>
-public sealed class PersistablePlanState
-{
+public sealed class PersistablePlanState {
     /// <summary>当前活跃计划ID</summary>
     public string? CurrentPlanId { get; set; }
 

@@ -12,8 +12,7 @@ public delegate HostContextSnapshot ContextSnapshotProvider();
 /// <para>故障转移：主机掉线时，从机用缓存的快照重建主机服务（<see cref="HostElectionService"/> 心跳超时触发）。</para>
 /// <para>完整上下文：路由表 + 未投递消息 + 编译队列状态（<see cref="HostContextSnapshot"/>）。</para>
 /// </summary>
-public sealed class HostContextSyncService : IAsyncDisposable
-{
+public sealed class HostContextSyncService : IAsyncDisposable {
     private readonly ITransportTopology _transport;
     private readonly HostElectionService _election;
     private readonly ContextSnapshotProvider? _snapshotProvider;
@@ -36,8 +35,7 @@ public sealed class HostContextSyncService : IAsyncDisposable
         HostElectionService election,
         ContextSnapshotProvider? snapshotProvider = null,
         ILogger? logger = null,
-        TimeSpan? syncInterval = null)
-    {
+        TimeSpan? syncInterval = null) {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _election = election ?? throw new ArgumentNullException(nameof(election));
         _snapshotProvider = snapshotProvider;
@@ -50,8 +48,7 @@ public sealed class HostContextSyncService : IAsyncDisposable
     /// 启动上下文同步 — 主机定期广播，从机接收更新。
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    public void Start(CancellationToken ct = default)
-    {
+    public void Start(CancellationToken ct = default) {
         ThrowIfDisposed();
         if (_syncTask is not null) return;
         _syncTask = Task.Run(() => SyncLoopAsync(ct), ct);
@@ -60,26 +57,19 @@ public sealed class HostContextSyncService : IAsyncDisposable
     /// <summary>
     /// 同步循环 — 主机广播快照，从机接收快照。
     /// </summary>
-    private async Task SyncLoopAsync(CancellationToken ct)
-    {
-        try
-        {
+    private async Task SyncLoopAsync(CancellationToken ct) {
+        try {
             var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct);
             var token = linkedCts.Token;
 
-            while (!token.IsCancellationRequested)
-            {
+            while (!token.IsCancellationRequested) {
                 await Task.Delay(_syncInterval, token).ConfigureAwait(false);
 
-                if (_transport.Role == ProcessRole.Host && _snapshotProvider is not null)
-                {
+                if (_transport.Role == ProcessRole.Host && _snapshotProvider is not null) {
                     await BroadcastSnapshotAsync(token).ConfigureAwait(false);
                 }
             }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogError(ex, "HostContextSync: sync loop error");
         }
     }
@@ -87,19 +77,15 @@ public sealed class HostContextSyncService : IAsyncDisposable
     /// <summary>
     /// 主机广播上下文快照 — 序列化为字节，通过传输层广播。
     /// </summary>
-    private async Task BroadcastSnapshotAsync(CancellationToken ct)
-    {
-        try
-        {
+    private async Task BroadcastSnapshotAsync(CancellationToken ct) {
+        try {
             var snapshot = _snapshotProvider!();
             var json = SerializeSnapshot(snapshot);
             var bytes = Encoding.UTF8.GetBytes(json);
             await _transport.BroadcastAsync(bytes, ct).ConfigureAwait(false);
             _logger?.LogDebug("HostContextSync: broadcast snapshot (routing={Routing}, pending={Pending})",
                 snapshot.RoutingTable.Count, snapshot.BuildQueue.PendingCount);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "HostContextSync: broadcast failed");
         }
     }
@@ -109,10 +95,8 @@ public sealed class HostContextSyncService : IAsyncDisposable
     /// </summary>
     /// <param name="frame">传输帧</param>
     /// <returns>是否成功解析并更新</returns>
-    public bool TryHandleSnapshotFrame(TransportFrame frame)
-    {
-        try
-        {
+    public bool TryHandleSnapshotFrame(TransportFrame frame) {
+        try {
             var json = Encoding.UTF8.GetString(frame.Data.Span);
             var snapshot = DeserializeSnapshot(json);
             if (snapshot is null) return false;
@@ -121,9 +105,7 @@ public sealed class HostContextSyncService : IAsyncDisposable
             _logger?.LogDebug("HostContextSync: received snapshot from {Source} (routing={Routing})",
                 frame.SourceProcessId, snapshot.RoutingTable.Count);
             return true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "HostContextSync: failed to parse snapshot from {Source}", frame.SourceProcessId);
             return false;
         }
@@ -132,16 +114,14 @@ public sealed class HostContextSyncService : IAsyncDisposable
     /// <summary>
     /// 序列化上下文快照为 JSON — 手动拼接避免 AOT 反射。
     /// </summary>
-    private static string SerializeSnapshot(HostContextSnapshot snapshot)
-    {
+    private static string SerializeSnapshot(HostContextSnapshot snapshot) {
         var sb = new StringBuilder();
         sb.Append('{');
         sb.Append("\"timestamp\":\"").Append(snapshot.Timestamp.ToString("O")).Append("\",");
         sb.Append("\"hostPid\":\"").Append(snapshot.HostProcessId).Append("\",");
         sb.Append("\"routing\":{");
         var first = true;
-        foreach (var kvp in snapshot.RoutingTable)
-        {
+        foreach (var kvp in snapshot.RoutingTable) {
             if (!first) sb.Append(',');
             first = false;
             sb.Append('"').Append(kvp.Key).Append("\":\"").Append(kvp.Value).Append('"');
@@ -157,36 +137,29 @@ public sealed class HostContextSyncService : IAsyncDisposable
     /// <summary>
     /// 反序列化上下文快照 — 简单 JSON 解析（容错）。
     /// </summary>
-    private static HostContextSnapshot? DeserializeSnapshot(string json)
-    {
+    private static HostContextSnapshot? DeserializeSnapshot(string json) {
         if (string.IsNullOrWhiteSpace(json)) return null;
-        try
-        {
+        try {
             var timestamp = ExtractJsonField(json, "timestamp") ?? DateTimeOffset.UtcNow.ToString("O");
             var hostPid = ExtractJsonField(json, "hostPid") ?? "unknown";
 
-            return new HostContextSnapshot
-            {
+            return new HostContextSnapshot {
                 Timestamp = DateTimeOffset.TryParse(timestamp, out var ts) ? ts : DateTimeOffset.UtcNow,
                 HostProcessId = hostPid,
                 RoutingTable = new Dictionary<string, string>(),
                 PendingMessages = new Dictionary<string, IReadOnlyList<ReadOnlyMemory<byte>>>(),
-                BuildQueue = new BuildQueueState
-                {
+                BuildQueue = new BuildQueueState {
                     PendingCount = 0,
                     RunningCount = 0,
                     PendingTasks = Array.Empty<string>()
                 }
             };
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
 
-    private static string? ExtractJsonField(string json, string fieldName)
-    {
+    private static string? ExtractJsonField(string json, string fieldName) {
         var key = "\"" + fieldName + "\":\"";
         var start = json.IndexOf(key, StringComparison.Ordinal);
         if (start < 0) return null;
@@ -196,8 +169,7 @@ public sealed class HostContextSyncService : IAsyncDisposable
         return json[start..end];
     }
 
-    private void ThrowIfDisposed()
-    {
+    private void ThrowIfDisposed() {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(nameof(HostContextSyncService));
     }
@@ -205,8 +177,7 @@ public sealed class HostContextSyncService : IAsyncDisposable
     /// <summary>
     /// 释放同步服务。
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         if (_syncTask is not null) await _syncTask.ConfigureAwait(false);

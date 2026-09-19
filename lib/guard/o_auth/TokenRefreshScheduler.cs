@@ -5,8 +5,7 @@ namespace Services.OAuth;
 /// Token 刷新调度器接口
 /// 在 Token 过期前自动刷新
 /// </summary>
-public interface ITokenRefreshScheduler
-{
+public interface ITokenRefreshScheduler {
     /// <summary>
     /// 开始监控 Token
     /// </summary>
@@ -31,8 +30,7 @@ public interface ITokenRefreshScheduler
 /// <summary>
 /// Token 刷新事件参数
 /// </summary>
-public sealed partial class TokenRefreshEventArgs : EventArgs
-{
+public sealed partial class TokenRefreshEventArgs : EventArgs {
     /// <summary>
     /// OAuth 提供商
     /// </summary>
@@ -53,8 +51,7 @@ public sealed partial class TokenRefreshEventArgs : EventArgs
 /// Token 刷新调度器实现
 /// </summary>
 [Register(typeof(ITokenRefreshScheduler), ServiceLifetime.Singleton)]
-public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefreshScheduler, IDisposable
-{
+public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefreshScheduler, IDisposable {
     private readonly ILogger<TokenRefreshScheduler>? _logger;
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, TokenMonitor> _monitors = new();
@@ -72,16 +69,14 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
     /// <param name="logger">日志记录器</param>
     /// <param name="refreshBuffer">刷新缓冲时间,在 Token 过期前提前刷新,默认 5 分钟</param>
     /// <param name="clock">时钟服务,用于测试时间控制</param>
-    public TokenRefreshScheduler(ILogger<TokenRefreshScheduler>? logger = null, TimeSpan? refreshBuffer = null, IClockService? clock = null)
-    {
+    public TokenRefreshScheduler(ILogger<TokenRefreshScheduler>? logger = null, TimeSpan? refreshBuffer = null, IClockService? clock = null) {
         _logger = logger;
         _refreshBuffer = refreshBuffer ?? TimeSpan.FromMinutes(5);
         _clock = clock ?? SystemClockService.Instance;
     }
 
     /// <inheritdoc />
-    public Task StartMonitoringAsync(string provider, OAuthToken token, CancellationToken cancellationToken = default)
-    {
+    public Task StartMonitoringAsync(string provider, OAuthToken token, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(provider);
         ArgumentNullException.ThrowIfNull(token);
 
@@ -92,8 +87,7 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
         var refreshTime = token.ExpiresAt - _refreshBuffer;
         var delay = refreshTime - _clock.GetUtcNowOffset();
 
-        if (delay <= TimeSpan.Zero)
-        {
+        if (delay <= TimeSpan.Zero) {
             // Token 即将过期或已过期，立即触发刷新
             _logger?.LogWarning("Token for {Provider} is about to expire or already expired, triggering immediate refresh", provider);
             TriggerRefresh(provider, token);
@@ -103,13 +97,11 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
         // 创建定时器
         var timer = new System.Timers.Timer(delay.TotalMilliseconds);
         timer.AutoReset = false;
-        timer.Elapsed += (sender, e) =>
-        {
+        timer.Elapsed += (sender, e) => {
             TriggerRefresh(provider, token);
         };
 
-        var monitor = new TokenMonitor
-        {
+        var monitor = new TokenMonitor {
             Provider = provider,
             Timer = timer,
             Token = token
@@ -126,10 +118,8 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
     }
 
     /// <inheritdoc />
-    public Task StopMonitoringAsync(string provider, CancellationToken cancellationToken = default)
-    {
-        if (_monitors.TryRemove(provider, out var monitor))
-        {
+    public Task StopMonitoringAsync(string provider, CancellationToken cancellationToken = default) {
+        if (_monitors.TryRemove(provider, out var monitor)) {
             monitor.Timer.Stop();
             monitor.Timer.Dispose();
             _logger?.LogInformation("Stopped monitoring token for {Provider}", provider);
@@ -141,12 +131,10 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
     /// <summary>
     /// 触发刷新
     /// </summary>
-    private void TriggerRefresh(string provider, OAuthToken token)
-    {
+    private void TriggerRefresh(string provider, OAuthToken token) {
         _logger?.LogInformation("Token refresh triggered for {Provider}", provider);
 
-        TokenRefreshRequired?.Invoke(this, new TokenRefreshEventArgs
-        {
+        TokenRefreshRequired?.Invoke(this, new TokenRefreshEventArgs {
             Provider = provider,
             CurrentToken = token,
             RefreshToken = token.RefreshToken
@@ -157,27 +145,24 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
     }
 
     /// <inheritdoc />
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
 
-        foreach (var monitor in _monitors.Values)
-        {
+        foreach (var monitor in _monitors.Values) {
             monitor.Timer.Stop();
             monitor.Timer.Dispose();
         }
 
         _monitors.Clear();
-            base.Dispose();
+        base.Dispose();
     }
 }
 
 /// <summary>
 /// Token 监控信息
 /// </summary>
-internal sealed class TokenMonitor
-{
+internal sealed class TokenMonitor {
     public required string Provider { get; init; }
     public required System.Timers.Timer Timer { get; init; }
     public required OAuthToken Token { get; init; }

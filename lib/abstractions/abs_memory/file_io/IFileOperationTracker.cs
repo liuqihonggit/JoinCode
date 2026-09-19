@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 文件操作记录
 /// </summary>
-public sealed class FileOperationEntry
-{
+public sealed class FileOperationEntry {
     public required string FilePath { get; init; }
     public required FileOperationType OperationType { get; init; }
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
@@ -14,8 +13,7 @@ public sealed class FileOperationEntry
 /// <summary>
 /// 文件操作追踪器接口 - 记录会话中的文件读写编辑操作
 /// </summary>
-public interface IFileOperationTracker
-{
+public interface IFileOperationTracker {
     /// <summary>
     /// 记录文件操作
     /// </summary>

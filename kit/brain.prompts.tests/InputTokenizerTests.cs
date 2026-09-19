@@ -1,10 +1,8 @@
 namespace Core.Tests.Prompts;
 
-public class InputTokenizerTests
-{
+public class InputTokenizerTests {
     [Fact]
-    public void Tokenize_EmptyInput_ReturnsEmpty()
-    {
+    public void Tokenize_EmptyInput_ReturnsEmpty() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "睡觉" };
         InputTokenizer.Tokenize("", dict).Should().BeEmpty();
         InputTokenizer.Tokenize("   ", dict).Should().BeEmpty();
@@ -12,8 +10,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_EmptyDictionary_ReturnsCoarseSegments()
-    {
+    public void Tokenize_EmptyDictionary_ReturnsCoarseSegments() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var tokens = InputTokenizer.Tokenize("帮我写一份周报", dict);
 
@@ -21,8 +18,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_ChineseWithPunctuation_SplitsByPunctuation()
-    {
+    public void Tokenize_ChineseWithPunctuation_SplitsByPunctuation() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "写一", "分析" };
         var tokens = InputTokenizer.Tokenize("帮我写一份周报，然后分析数据", dict);
 
@@ -31,8 +27,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_FmmMatchesLongestFirst()
-    {
+    public void Tokenize_FmmMatchesLongestFirst() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "批量", "批量替换" };
         var tokens = InputTokenizer.Tokenize("批量替换命名空间", dict);
 
@@ -41,8 +36,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_SingleCharFallback()
-    {
+    public void Tokenize_SingleCharFallback() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "睡觉" };
         var tokens = InputTokenizer.Tokenize("我睡觉了", dict);
 
@@ -52,8 +46,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_MixedChineseEnglish()
-    {
+    public void Tokenize_MixedChineseEnglish() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "chrome", "浏览器" };
         var tokens = InputTokenizer.Tokenize("打开chrome浏览器", dict);
 
@@ -62,8 +55,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_EnglishWithSpaces()
-    {
+    public void Tokenize_EnglishWithSpaces() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "keep", "going" };
         var tokens = InputTokenizer.Tokenize("keep going please", dict);
 
@@ -72,8 +64,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_MultiplePunctuationSeparators()
-    {
+    public void Tokenize_MultiplePunctuationSeparators() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "死锁", "GC" };
         var tokens = InputTokenizer.Tokenize("GC压力！导致死锁？", dict);
 
@@ -82,8 +73,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_KeywordAtSentenceEnd()
-    {
+    public void Tokenize_KeywordAtSentenceEnd() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "睡觉" };
         var tokens = InputTokenizer.Tokenize("我先睡觉", dict);
 
@@ -91,8 +81,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_NoMatchInDictionary_SingleChars()
-    {
+    public void Tokenize_NoMatchInDictionary_SingleChars() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "xyz" };
         var tokens = InputTokenizer.Tokenize("你好世界", dict);
 
@@ -100,8 +89,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_MultiWordKeyword_ContainsMatch()
-    {
+    public void Tokenize_MultiWordKeyword_ContainsMatch() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Task.WhenAll", "flaky test" };
         var tokens = InputTokenizer.Tokenize("改用Task.WhenAll并行", dict);
 
@@ -109,8 +97,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_MultiWordKeyword_SpaceSeparated()
-    {
+    public void Tokenize_MultiWordKeyword_SpaceSeparated() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "flaky test" };
         var tokens = InputTokenizer.Tokenize("遇到flaky test怎么办", dict);
 
@@ -118,8 +105,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_RealWorld_FactInquiry()
-    {
+    public void Tokenize_RealWorld_FactInquiry() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "写一", "做一", "分析", "总结", "规划", "方案", "生成", "周报", "报告", "文档" };
         var tokens = InputTokenizer.Tokenize("帮我写一份周报", dict);
 
@@ -127,8 +113,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_RealWorld_UserDelegation()
-    {
+    public void Tokenize_RealWorld_UserDelegation() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "睡觉", "离开", "走了", "看着办", "晚安" };
         var tokens = InputTokenizer.Tokenize("我睡觉去了，后面看着办", dict);
 
@@ -137,8 +122,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_RealWorld_PerformanceAudit()
-    {
+    public void Tokenize_RealWorld_PerformanceAudit() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GC压力", "性能优化", "Span", "Task.WhenAll", "AsParallel" };
         var tokens = InputTokenizer.Tokenize("这里GC压力很大，改用Task.WhenAll并行", dict);
 
@@ -147,8 +131,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_SubstringFalsePositive_Avoided()
-    {
+    public void Tokenize_SubstringFalsePositive_Avoided() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "归纳" };
         var tokens = InputTokenizer.Tokenize("归纳整理这些问题", dict);
 
@@ -156,8 +139,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_SubstringNotInDict_NotMatched()
-    {
+    public void Tokenize_SubstringNotInDict_NotMatched() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "睡觉" };
         var tokens = InputTokenizer.Tokenize("了解这个问题", dict);
 
@@ -165,8 +147,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_EnglishWordNotInDict_KeptWhole()
-    {
+    public void Tokenize_EnglishWordNotInDict_KeptWhole() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "优化" };
         var tokens = InputTokenizer.Tokenize("performance优化", dict);
 
@@ -175,8 +156,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_NumberKeptWhole()
-    {
+    public void Tokenize_NumberKeptWhole() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "分钟后" };
         var tokens = InputTokenizer.Tokenize("3分钟后执行", dict);
 
@@ -184,8 +164,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_ConsecutiveEnglishWords()
-    {
+    public void Tokenize_ConsecutiveEnglishWords() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "auto" };
         var tokens = InputTokenizer.Tokenize("auto merge PR", dict);
 
@@ -195,8 +174,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_RepeatedCalls_SameDictionary_ReturnsConsistentResult()
-    {
+    public void Tokenize_RepeatedCalls_SameDictionary_ReturnsConsistentResult() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "写一", "分析", "总结", "规划" };
         var input = "帮我写一份周报，然后分析数据";
 
@@ -209,8 +187,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_DifferentDictionaries_CacheIsolation()
-    {
+    public void Tokenize_DifferentDictionaries_CacheIsolation() {
         var dict1 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "分析" };
         var dict2 = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "睡觉" };
 
@@ -224,8 +201,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_MultiWordKeyword_CacheHit_PreservesAcAutomaton()
-    {
+    public void Tokenize_MultiWordKeyword_CacheHit_PreservesAcAutomaton() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "flaky test", "keep going", "go hard" };
         var input = "遇到flaky test怎么办，需要keep going，go hard";
 
@@ -239,8 +215,7 @@ public class InputTokenizerTests
     }
 
     [Fact]
-    public void Tokenize_MixedDict_RepeatedCalls_MultiWordAndFmmBothCorrect()
-    {
+    public void Tokenize_MixedDict_RepeatedCalls_MultiWordAndFmmBothCorrect() {
         var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         { "GC压力", "Task.WhenAll", "死锁", "flaky test", "性能优化", "Span" };
         var input = "这里GC压力很大，改用Task.WhenAll并行，避免死锁和flaky test";

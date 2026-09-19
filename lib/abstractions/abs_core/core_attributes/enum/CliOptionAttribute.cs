@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Attributes;
 /// 构造函数参数: longName → <see cref="LongName"/>, shortName → <see cref="ShortName"/>, description → <see cref="Description"/>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
-public sealed class CliOptionAttribute : Attribute
-{
+public sealed class CliOptionAttribute : Attribute {
     /// <summary>长参数名（如 "--help"）</summary>
     public string LongName { get; }
 
@@ -59,8 +58,7 @@ public sealed class CliOptionAttribute : Attribute
     /// </summary>
     public string? EnvVar { get; init; }
 
-    public CliOptionAttribute(string longName, string shortName, string description)
-    {
+    public CliOptionAttribute(string longName, string shortName, string description) {
         LongName = longName ?? throw new ArgumentNullException(nameof(longName));
         ShortName = shortName ?? string.Empty;
         Description = description ?? throw new ArgumentNullException(nameof(description));

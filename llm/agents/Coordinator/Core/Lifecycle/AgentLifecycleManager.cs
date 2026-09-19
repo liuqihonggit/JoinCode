@@ -5,8 +5,7 @@ namespace Core.Agents.Coordinator;
 /// Agent 生命周期管理器 - 负责 Agent 的生成、状态管理和资源释放
 /// </summary>
 [Register(typeof(IAgentLifecycleManager), ServiceLifetime.Singleton)]
-public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecycleManager
-{
+public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecycleManager {
     private readonly IQueryEngine _queryEngine;
     private readonly ILogger? _logger;
     private readonly AgentStateMachine _stateMachine;
@@ -38,8 +37,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
         AgentStateMachine stateMachine,
         ILogger? logger = null,
         SubAgentLivenessOptions? livenessOptions = null,
-        SubAgentPool? agentPool = null)
-    {
+        SubAgentPool? agentPool = null) {
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));
         _logger = logger;
         _stateMachine = stateMachine;
@@ -52,11 +50,9 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 生成子Agent
     /// </summary>
-    public Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default, string? parentSessionId = null)
-    {
+    public Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default, string? parentSessionId = null) {
         string? customUniqueId = null;
-        if (!string.IsNullOrEmpty(parentSessionId))
-        {
+        if (!string.IsNullOrEmpty(parentSessionId)) {
             var counter = Interlocked.Increment(ref _agentCounter);
             customUniqueId = $"{parentSessionId}-sub-{counter:D2}";
         }
@@ -87,8 +83,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 批量生成子Agent
     /// </summary>
-    public async Task<IReadOnlyList<IAgent>> SpawnSubAgentsAsync(IEnumerable<string> tasks, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<IAgent>> SpawnSubAgentsAsync(IEnumerable<string> tasks, SubAgentOptions? options = null, CancellationToken cancellationToken = default) {
         var taskList = tasks.ToList();
         var spawnTasks = taskList
             .Select(task => SpawnSubAgentAsync(task, options, cancellationToken))
@@ -101,15 +96,12 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 执行单个Agent
     /// </summary>
-    public async Task<SubAgentResult> ExecuteAsync(IAgent agent, CancellationToken cancellationToken = default)
-    {
-        if (!await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Running, "开始执行", cancellationToken))
-        {
+    public async Task<SubAgentResult> ExecuteAsync(IAgent agent, CancellationToken cancellationToken = default) {
+        if (!await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Running, "开始执行", cancellationToken)) {
             return CreateErrorResult(agent.ObjectId.UniqueId, "Agent状态不允许执行");
         }
 
-        try
-        {
+        try {
             _logger?.LogInformation("[AgentLifecycleManager] 开始执行Agent {AgentId}", agent.ObjectId.UniqueId);
 
             var timeoutSeconds = _livenessOptions?.AgentTimeoutSeconds ?? 0;
@@ -129,20 +121,14 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
                 agent.ObjectId.UniqueId, finalState);
 
             return result;
-        }
-        catch (TimeoutException ex)
-        {
+        } catch (TimeoutException ex) {
             _logger?.LogWarning("[AgentLifecycleManager] Agent {AgentId} 执行超时: {Message}", agent.ObjectId.UniqueId, ex.Message);
             await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Cancelled, ex.Message, cancellationToken).ConfigureAwait(false);
             return CreateErrorResult(agent.ObjectId.UniqueId, ex.Message);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Cancelled, "任务被取消", cancellationToken).ConfigureAwait(false);
             return CreateErrorResult(agent.ObjectId.UniqueId, "任务被取消");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[AgentLifecycleManager] Agent {AgentId} 执行失败", agent.ObjectId.UniqueId);
             await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Failed, ex.Message, cancellationToken).ConfigureAwait(false);
             return CreateErrorResult(agent.ObjectId.UniqueId, ex.Message);
@@ -152,8 +138,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 带超时的子代理执行 — L1 预防层（ADR 0106）
     /// </summary>
-    private async Task<SubAgentResult> ExecuteWithTimeoutAsync(IAgent agent, int timeoutSeconds, CancellationToken ct)
-    {
+    private async Task<SubAgentResult> ExecuteWithTimeoutAsync(IAgent agent, int timeoutSeconds, CancellationToken ct) {
         return await TimeoutHelper.WithTimeoutAsync(
             token => agent.ExecuteAsync(token),
             TimeSpan.FromSeconds(timeoutSeconds),
@@ -163,10 +148,8 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 暂停Agent
     /// </summary>
-    public async Task<bool> PauseAgentAsync(string agentId, CancellationToken ct = default)
-    {
-        if (_subAgents.TryGetValue(agentId, out var agent))
-        {
+    public async Task<bool> PauseAgentAsync(string agentId, CancellationToken ct = default) {
+        if (_subAgents.TryGetValue(agentId, out var agent)) {
             agent.Pause();
             return await _stateMachine.TryTransitionAsync(agentId, TaskExecutionStatus.Paused, "用户暂停", ct).ConfigureAwait(false);
         }
@@ -176,10 +159,8 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 恢复Agent
     /// </summary>
-    public async Task<bool> ResumeAgentAsync(string agentId, CancellationToken ct = default)
-    {
-        if (_subAgents.TryGetValue(agentId, out var agent))
-        {
+    public async Task<bool> ResumeAgentAsync(string agentId, CancellationToken ct = default) {
+        if (_subAgents.TryGetValue(agentId, out var agent)) {
             agent.Resume();
             return await _stateMachine.TryTransitionAsync(agentId, TaskExecutionStatus.Running, "用户恢复", ct).ConfigureAwait(false);
         }
@@ -189,10 +170,8 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 取消Agent
     /// </summary>
-    public async Task<bool> CancelAgentAsync(string agentId, CancellationToken ct = default)
-    {
-        if (_subAgents.TryGetValue(agentId, out var agent))
-        {
+    public async Task<bool> CancelAgentAsync(string agentId, CancellationToken ct = default) {
+        if (_subAgents.TryGetValue(agentId, out var agent)) {
             agent.Cancel();
             return await _stateMachine.TryTransitionAsync(agentId, TaskExecutionStatus.Cancelled, "用户取消", ct).ConfigureAwait(false);
         }
@@ -202,10 +181,8 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 取消所有Agent
     /// </summary>
-    public async Task CancelAllAsync(CancellationToken ct = default)
-    {
-        foreach (var agent in _subAgents.Values)
-        {
+    public async Task CancelAllAsync(CancellationToken ct = default) {
+        foreach (var agent in _subAgents.Values) {
             agent.Cancel();
         }
 
@@ -218,16 +195,13 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 重试失败的Agent
     /// </summary>
-    public async Task<SubAgentResult?> RetryAsync(string agentId, CancellationToken cancellationToken = default)
-    {
-        if (!_subAgents.TryGetValue(agentId, out var agent))
-        {
+    public async Task<SubAgentResult?> RetryAsync(string agentId, CancellationToken cancellationToken = default) {
+        if (!_subAgents.TryGetValue(agentId, out var agent)) {
             return null;
         }
 
         var state = _stateMachine.GetState(agentId);
-        if (state != TaskExecutionStatus.Failed && state != TaskExecutionStatus.Completed)
-        {
+        if (state != TaskExecutionStatus.Failed && state != TaskExecutionStatus.Completed) {
             _logger?.LogWarning("[AgentLifecycleManager] Agent {AgentId} 状态 {State} 不允许重试", agentId, state);
             return null;
         }
@@ -241,20 +215,15 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 释放Agent资源 — 如果有代理池且 agent 已完成，回池而非 Dispose（ADR 0106 L3 抢塞）
     /// </summary>
-    public Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default)
-    {
-        if (_subAgents.TryRemove(agentId, out var agent))
-        {
+    public Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default) {
+        if (_subAgents.TryRemove(agentId, out var agent)) {
             // L3 抢塞：已完成/失败的 agent 回池等待复用，否则直接 Dispose
-            if (_agentPool is not null && agent.Status is TaskExecutionStatus.Completed or TaskExecutionStatus.Failed)
-            {
+            if (_agentPool is not null && agent.Status is TaskExecutionStatus.Completed or TaskExecutionStatus.Failed) {
                 if (_agentPool.Return(agent))
                     _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池等待复用", agentId);
                 else
                     _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池失败（池满/禁用），已 Dispose", agentId);
-            }
-            else
-            {
+            } else {
                 _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 状态 {State}，直接 Dispose", agentId, agent.Status);
                 agent.Dispose();
             }
@@ -267,32 +236,28 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 获取Agent
     /// </summary>
-    public Task<IAgent?> GetAgentAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public Task<IAgent?> GetAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         return Task.FromResult<IAgent?>(_subAgents.GetValueOrDefault(agentId));
     }
 
     /// <summary>
     /// 获取所有Agent
     /// </summary>
-    public Task<IReadOnlyCollection<IAgent>> GetAllAgentsAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<IReadOnlyCollection<IAgent>> GetAllAgentsAsync(CancellationToken cancellationToken = default) {
         return Task.FromResult<IReadOnlyCollection<IAgent>>(_subAgents.Values.Cast<IAgent>().ToList());
     }
 
     /// <summary>
     /// 获取Agent结果
     /// </summary>
-    public Task<SubAgentResult?> GetResultAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public Task<SubAgentResult?> GetResultAsync(string agentId, CancellationToken cancellationToken = default) {
         return Task.FromResult(_results.GetValueOrDefault(agentId));
     }
 
     /// <summary>
     /// 获取所有结果
     /// </summary>
-    public Task<IReadOnlyDictionary<string, SubAgentResult>> GetAllResultsAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<IReadOnlyDictionary<string, SubAgentResult>> GetAllResultsAsync(CancellationToken cancellationToken = default) {
         return Task.FromResult<IReadOnlyDictionary<string, SubAgentResult>>(
             _results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
     }
@@ -300,28 +265,24 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 等待所有Agent完成
     /// </summary>
-    public async Task WaitAllAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task WaitAllAsync(CancellationToken cancellationToken = default) {
         await _stateMachine.WaitAllFinalAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 获取Agent状态报告
     /// </summary>
-    public Task<AgentStateReport> GetStateReportAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<AgentStateReport> GetStateReportAsync(CancellationToken cancellationToken = default) {
         return Task.FromResult(_stateMachine.GetReport());
     }
 
     /// <summary>
     /// 获取正在运行的Agent列表
     /// </summary>
-    public Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default) {
         var result = _subAgents.Values
             .Where(a => a.State == TaskExecutionStatus.Running)
-            .Select(a => new RunningAgentInfo
-            {
+            .Select(a => new RunningAgentInfo {
                 Id = a.ObjectId.UniqueId,
                 Description = a.Task,
                 Role = a.Options.Role,
@@ -333,16 +294,13 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
         return Task.FromResult<IEnumerable<RunningAgentInfo>>(result);
     }
 
-    private string GenerateAgentId()
-    {
+    private string GenerateAgentId() {
         var counter = Interlocked.Increment(ref _agentCounter);
         return $"agent-{counter:D4}-{Guid.NewGuid().ToString("N")[..8]}";
     }
 
-    private static SubAgentResult CreateErrorResult(string agentId, string error)
-    {
-        return new SubAgentResult
-        {
+    private static SubAgentResult CreateErrorResult(string agentId, string error) {
+        return new SubAgentResult {
             AgentId = agentId,
             IsSuccess = false,
             Output = string.Empty,

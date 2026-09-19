@@ -1,8 +1,7 @@
 namespace JoinCode.Pipe;
 
 /// <summary>Bridge 连接协商结果 — 描述协议版本与能力集协商的最终结论</summary>
-public sealed class BridgeNegotiationResult
-{
+public sealed class BridgeNegotiationResult {
     /// <summary>是否协商成功（被接受）</summary>
     public bool IsAccepted { get; init; }
     /// <summary>协商一致的协议版本；协商失败时为空字符串</summary>
@@ -15,8 +14,7 @@ public sealed class BridgeNegotiationResult
 
 /// <summary>Bridge 连接协商器 — 校验协议版本并计算双方共同支持的能力集，单例服务</summary>
 [Register(typeof(BridgeConnectionNegotiator), ServiceLifetime.Singleton)]
-public sealed partial class BridgeConnectionNegotiator : ServiceEntity
-{
+public sealed partial class BridgeConnectionNegotiator : ServiceEntity {
     private static readonly FrozenSet<string> SupportedVersions = new HashSet<string>(StringComparer.Ordinal)
     {
         "1.0", "1.1", "2.0"
@@ -41,14 +39,11 @@ public sealed partial class BridgeConnectionNegotiator : ServiceEntity
     public Task<BridgeNegotiationResult> NegotiateAsync(
         string protocolVersion,
         IEnumerable<string>? capabilities = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(protocolVersion);
 
-        if (!SupportedVersions.Contains(protocolVersion))
-        {
-            return Task.FromResult(new BridgeNegotiationResult
-            {
+        if (!SupportedVersions.Contains(protocolVersion)) {
+            return Task.FromResult(new BridgeNegotiationResult {
                 IsAccepted = false,
                 RejectionReason = $"Unsupported protocol version: {protocolVersion}. Supported: {string.Join(", ", SupportedVersions.OrderBy(v => v, VersionComparer))}"
             });
@@ -60,32 +55,26 @@ public sealed partial class BridgeConnectionNegotiator : ServiceEntity
             .Where(c => SupportedCapabilities.Contains(c))
             .ToList();
 
-        if (commonCapabilities.Count == 0)
-        {
-            return Task.FromResult(new BridgeNegotiationResult
-            {
+        if (commonCapabilities.Count == 0) {
+            return Task.FromResult(new BridgeNegotiationResult {
                 IsAccepted = false,
                 RejectionReason = "No common capabilities found between client and server"
             });
         }
 
-        return Task.FromResult(new BridgeNegotiationResult
-        {
+        return Task.FromResult(new BridgeNegotiationResult {
             IsAccepted = true,
             AgreedVersion = protocolVersion,
             CommonCapabilities = commonCapabilities
         });
     }
 
-    private sealed class VersionComparerComparer : IComparer<string>
-    {
-        public int Compare(string? x, string? y)
-        {
+    private sealed class VersionComparerComparer : IComparer<string> {
+        public int Compare(string? x, string? y) {
             if (x is null) return y is null ? 0 : -1;
             if (y is null) return 1;
 
-            if (Version.TryParse(x, out var vx) && Version.TryParse(y, out var vy))
-            {
+            if (Version.TryParse(x, out var vx) && Version.TryParse(y, out var vy)) {
                 return vx.CompareTo(vy);
             }
 

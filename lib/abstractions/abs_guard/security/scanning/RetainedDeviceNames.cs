@@ -16,8 +16,7 @@ namespace JoinCode.Abstractions.Security.Scanning;
 /// </list>
 /// </para>
 /// </summary>
-public static partial class RetainedDeviceNames
-{
+public static partial class RetainedDeviceNames {
     /// <summary>
     /// 正则交替模式 — 供 GeneratedRegex 字面量对齐参考(源生成器不支持 const 嵌入)
     /// <para>消费方在 GeneratedRegex 中使用此模式时,必须与此常量保持一致</para>
@@ -30,11 +29,9 @@ public static partial class RetainedDeviceNames
     /// </summary>
     public static readonly FrozenSet<string> Names = BuildNames();
 
-    private static FrozenSet<string> BuildNames()
-    {
+    private static FrozenSet<string> BuildNames() {
         var names = new List<string>(22) { "nul", "con", "prn", "aux" };
-        for (var i = 1; i <= 9; i++)
-        {
+        for (var i = 1; i <= 9; i++) {
             names.Add($"com{i}");
             names.Add($"lpt{i}");
         }
@@ -46,8 +43,7 @@ public static partial class RetainedDeviceNames
     /// </summary>
     /// <param name="name">待检查的名称</param>
     /// <returns>true 表示是保留设备名</returns>
-    public static bool IsMatch(string? name)
-    {
+    public static bool IsMatch(string? name) {
         if (string.IsNullOrWhiteSpace(name))
             return false;
         return Names.Contains(name);
@@ -59,12 +55,10 @@ public static partial class RetainedDeviceNames
     /// </summary>
     /// <param name="path">待检查的路径</param>
     /// <returns>true 表示路径含保留设备名组件</returns>
-    public static bool FindInPath(string? path)
-    {
+    public static bool FindInPath(string? path) {
         if (string.IsNullOrWhiteSpace(path))
             return false;
-        foreach (var segment in path.Split('/', '\\'))
-        {
+        foreach (var segment in path.Split('/', '\\')) {
             var name = segment.AsSpan();
             var dotIndex = name.IndexOf('.');
             if (dotIndex >= 0)
@@ -82,12 +76,10 @@ public static partial class RetainedDeviceNames
     /// </summary>
     /// <param name="path">待检查的路径</param>
     /// <returns>true 表示路径含保留设备名</returns>
-    public static bool FindInPathOrExtension(string? path)
-    {
+    public static bool FindInPathOrExtension(string? path) {
         if (string.IsNullOrWhiteSpace(path))
             return false;
-        foreach (var part in path.Split('/', '\\', '.'))
-        {
+        foreach (var part in path.Split('/', '\\', '.')) {
             if (IsMatch(part))
                 return true;
         }
@@ -100,8 +92,7 @@ public static partial class RetainedDeviceNames
     /// </summary>
     /// <param name="command">完整命令字符串</param>
     /// <returns>匹配到的设备名(如 "nul"),未匹配返回 null</returns>
-    public static string? FindAfterRedirect(string? command)
-    {
+    public static string? FindAfterRedirect(string? command) {
         if (string.IsNullOrWhiteSpace(command))
             return null;
         var device = RedirectDeviceRegex().Match(command).Groups["device"].Value;

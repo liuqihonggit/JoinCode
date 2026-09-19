@@ -4,8 +4,7 @@ namespace Core.Utils;
 /// 持久化存储接口 — 横切关注点,可替换实现(文件/Redis/数据库)。
 /// </summary>
 /// <typeparam name="TCommand">命令类型</typeparam>
-public interface IPersistentStore<TCommand>
-{
+public interface IPersistentStore<TCommand> {
     /// <summary>持久化命令 — 发送前调用,崩溃后可恢复</summary>
     ValueTask PersistAsync(string actorId, TCommand command, CancellationToken ct);
 
@@ -19,20 +18,16 @@ public interface IPersistentStore<TCommand>
 /// <summary>
 /// 内存持久化存储 — 测试用,不真正持久化(进程崩溃后丢失)。
 /// </summary>
-public sealed class InMemoryPersistentStore<TCommand> : IPersistentStore<TCommand>
-{
+public sealed class InMemoryPersistentStore<TCommand> : IPersistentStore<TCommand> {
     private readonly ConcurrentQueue<TCommand> _pending = new();
 
-    public ValueTask PersistAsync(string actorId, TCommand command, CancellationToken ct)
-    {
+    public ValueTask PersistAsync(string actorId, TCommand command, CancellationToken ct) {
         _pending.Enqueue(command);
         return ValueTask.CompletedTask;
     }
 
-    public async IAsyncEnumerable<TCommand> LoadPendingAsync(string actorId, [EnumeratorCancellation] CancellationToken ct)
-    {
-        while (_pending.TryDequeue(out var cmd))
-        {
+    public async IAsyncEnumerable<TCommand> LoadPendingAsync(string actorId, [EnumeratorCancellation] CancellationToken ct) {
+        while (_pending.TryDequeue(out var cmd)) {
             yield return cmd;
             await Task.Yield();
         }
@@ -50,8 +45,7 @@ public sealed class InMemoryPersistentStore<TCommand> : IPersistentStore<TComman
 /// </summary>
 /// <typeparam name="TCommand">命令类型</typeparam>
 /// <typeparam name="TOut">输出消息类型</typeparam>
-public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable
-{
+public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable {
     private readonly ActorBase<TCommand, TOut> _actor;
     private readonly IPersistentStore<TCommand> _store;
     private readonly string _actorId;
@@ -70,8 +64,7 @@ public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable
     /// <param name="actor">底层 Actor</param>
     /// <param name="store">持久化存储</param>
     /// <param name="actorId">Actor 唯一标识(用于存储分区)</param>
-    public PersistentMailbox(ActorBase<TCommand, TOut> actor, IPersistentStore<TCommand> store, string actorId)
-    {
+    public PersistentMailbox(ActorBase<TCommand, TOut> actor, IPersistentStore<TCommand> store, string actorId) {
         _actor = actor;
         _store = store;
         _actorId = actorId;
@@ -80,8 +73,7 @@ public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable
     /// <summary>
     /// 持久化发送 — 先持久化再入队,崩溃时可恢复。
     /// </summary>
-    public async ValueTask PersistentSendAsync(TCommand cmd, CancellationToken ct = default)
-    {
+    public async ValueTask PersistentSendAsync(TCommand cmd, CancellationToken ct = default) {
         ThrowIfDisposed();
         await _store.PersistAsync(_actorId, cmd, ct).ConfigureAwait(false);
         Interlocked.Increment(ref _pendingCount);
@@ -91,8 +83,7 @@ public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable
     /// <summary>
     /// 确认命令已处理 — 从存储移除,减少 PendingCount。
     /// </summary>
-    public async ValueTask AckAsync(TCommand cmd, CancellationToken ct = default)
-    {
+    public async ValueTask AckAsync(TCommand cmd, CancellationToken ct = default) {
         ThrowIfDisposed();
         await _store.AckAsync(_actorId, cmd, ct).ConfigureAwait(false);
         Interlocked.Decrement(ref _pendingCount);
@@ -101,28 +92,23 @@ public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable
     /// <summary>
     /// 崩溃恢复 — 启动时重放未处理消息。
     /// </summary>
-    public async Task RecoverAsync(CancellationToken ct = default)
-    {
+    public async Task RecoverAsync(CancellationToken ct = default) {
         ThrowIfDisposed();
-        await foreach (var cmd in _store.LoadPendingAsync(_actorId, ct).ConfigureAwait(false))
-        {
+        await foreach (var cmd in _store.LoadPendingAsync(_actorId, ct).ConfigureAwait(false)) {
             await _actor.SendAsync(cmd, ct).ConfigureAwait(false);
         }
     }
 
-    public IAsyncEnumerable<TOut> OutputAsync(CancellationToken cancellationToken = default)
-    {
+    public IAsyncEnumerable<TOut> OutputAsync(CancellationToken cancellationToken = default) {
         return _actor.OutputAsync(cancellationToken);
     }
 
-    private void ThrowIfDisposed()
-    {
+    private void ThrowIfDisposed() {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(nameof(PersistentMailbox<TCommand, TOut>));
     }
 
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         return _actor.DisposeAsync();
     }

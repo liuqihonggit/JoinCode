@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public interface ICodeIndexer
-{
+public interface ICodeIndexer {
     Task<BuildIndexResult> BuildIndexAsync(CodeIndexOptions options, CancellationToken ct, IProgress<IndexProgress>? progress = null);
     Task UpdateFileAsync(string filePath, CancellationToken ct);
     Task RemoveFileAsync(string filePath, CancellationToken ct);

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 任务输出类型枚举
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 TaskOutputTypeEnumConstants + TaskOutputTypeExtensions
 /// </summary>
-public enum TaskOutputType
-{
+public enum TaskOutputType {
     /// <summary>标准输出</summary>
     [EnumValue("stdout")] Stdout = 0,
 

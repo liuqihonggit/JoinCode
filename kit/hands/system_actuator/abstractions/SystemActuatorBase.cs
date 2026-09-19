@@ -5,8 +5,7 @@ namespace Services.SystemActuator;
 /// 含：静态能力缓存 + 命令构建 + 执行编排 + 环境变量 + 工具方法
 /// 子类只需重写命令构建 + 能力检测，无需改基类
 /// </summary>
-public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
-{
+public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator {
     private static readonly ConcurrentDictionary<SystemActuatorKind, SystemActuatorCapability> _capabilityCache = new();
 
     /// <summary>
@@ -93,8 +92,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
         ShellExecutionConfig? config = null,
         string? toolUseId = null,
         string? spanId = null)
-        : base(ObjectType.Executor, kind.Id, toolUseId, spanId, GetCachedCapability(kind).DisplayName)
-    {
+        : base(ObjectType.Executor, kind.Id, toolUseId, spanId, GetCachedCapability(kind).DisplayName) {
         _kind = kind;
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
@@ -109,8 +107,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// <summary>
     /// 从静态缓存获取能力描述 — 未缓存时抛异常
     /// </summary>
-    private static SystemActuatorCapability GetCachedCapability(SystemActuatorKind kind)
-    {
+    private static SystemActuatorCapability GetCachedCapability(SystemActuatorKind kind) {
         if (_capabilityCache.TryGetValue(kind, out var cap)) return cap;
         throw new InvalidOperationException(
             $"SystemActuatorCapability not initialized for {kind.Id}. Call SystemActuatorRegistry.Initialize() first.");
@@ -119,16 +116,14 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// <summary>
     /// 注册能力描述到静态缓存 — 由 SystemActuatorRegistry.Initialize 调用
     /// </summary>
-    internal static void RegisterCapability(SystemActuatorCapability capability)
-    {
+    internal static void RegisterCapability(SystemActuatorCapability capability) {
         _capabilityCache[capability.Kind] = capability;
     }
 
     /// <summary>
     /// 重置缓存 — 仅用于测试
     /// </summary>
-    internal static void ResetCapabilityCache()
-    {
+    internal static void ResetCapabilityCache() {
         _capabilityCache.Clear();
     }
 
@@ -145,8 +140,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
 
     /// <inheritdoc />
     public Task<IReadOnlyDictionary<string, string>> GetEnvironmentOverridesAsync(
-        string command, CancellationToken cancellationToken = default)
-    {
+        string command, CancellationToken cancellationToken = default) {
         var env = CreateBaseEnvironment();
         AppendExtraEnvironmentVariables(env, command);
         Logger?.LogDebug("{Kind}: injected {Count} environment overrides", Kind, env.Count);
@@ -163,15 +157,13 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
         int? timeout = null,
         string? workingDirectory = null,
         bool disableSandbox = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(command))
             return SystemActuatorExecutionResult.FailureResult("Command cannot be empty");
 
         var cwd = ResolveWorkingDirectory(workingDirectory, disableSandbox);
 
-        if (!_fs.DirectoryExists(cwd))
-        {
+        if (!_fs.DirectoryExists(cwd)) {
             _logger?.LogWarning("工作目录不存在: {Cwd}，回退到项目根目录", cwd);
             cwd = _fs.GetCurrentDirectory();
             if (!_fs.DirectoryExists(cwd))
@@ -181,8 +173,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
         _logger?.LogInformation("Executing {Kind} command: {Command}", Kind, command);
 
         await using var sleepScope = await PreventSleepScope.CreateAsync(_preventSleepService).ConfigureAwait(false);
-        try
-        {
+        try {
             var useSandbox = !disableSandbox && _sandboxManager is not null && _sandboxManager.IsInSandbox;
             var sandboxTmpDir = useSandbox
                 ? (_sandboxManager ?? throw new InvalidOperationException("SandboxManager not available.")).CurrentSandbox?.RootPath
@@ -199,10 +190,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
                 Kind, result.ExitCode, result.Stdout?.Length ?? 0, result.Stderr?.Length ?? 0);
 
             return result;
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, "{Kind} execution failed: {Command}", Kind, command);
             return SystemActuatorExecutionResult.FailureResult(ex.Message);
         }
@@ -215,15 +203,13 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
         string? workingDirectory = null,
         bool shouldAutoBackground = true,
         bool disableSandbox = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(command))
             throw new ArgumentException("Command cannot be empty", nameof(command));
 
         var cwd = ResolveWorkingDirectory(workingDirectory, disableSandbox);
 
-        if (!_fs.DirectoryExists(cwd))
-        {
+        if (!_fs.DirectoryExists(cwd)) {
             _logger?.LogWarning("工作目录不存在: {Cwd}，回退到项目根目录", cwd);
             cwd = _fs.GetCurrentDirectory();
             if (!_fs.DirectoryExists(cwd))
@@ -256,8 +242,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// 优先级: 显式 workingDirectory > SubAgentContext.CwdOverride > 进程级 cwd
     /// </summary>
     internal static string ResolveWorkingDirectoryCore(
-        string? workingDirectory, IFileSystem fs, ISandboxManager? sandboxManager, bool disableSandbox)
-    {
+        string? workingDirectory, IFileSystem fs, ISandboxManager? sandboxManager, bool disableSandbox) {
         var cwd = string.IsNullOrEmpty(workingDirectory)
             ? SubAgentContext.GetEffectiveCwd(fs.GetCurrentDirectory())
             : Path.GetFullPath(workingDirectory);
@@ -272,10 +257,8 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
 
     #region 环境变量
 
-    private static Dictionary<string, string> CreateBaseEnvironment()
-    {
-        return new Dictionary<string, string>(StringComparer.Ordinal)
-        {
+    private static Dictionary<string, string> CreateBaseEnvironment() {
+        return new Dictionary<string, string>(StringComparer.Ordinal) {
             ["CLAUDECODE"] = "1",
             ["GIT_EDITOR"] = "true",
             ["EDITOR"] = "true",
@@ -300,12 +283,9 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// <summary>
     /// 在 PATH 中查找可执行文件
     /// </summary>
-    protected string? FindExecutable(string executable, bool excludeCurrentDir = true)
-    {
-        try
-        {
-            var psi = SharedBuilder.Build(new ProcessOptions
-            {
+    protected string? FindExecutable(string executable, bool excludeCurrentDir = true) {
+        try {
+            var psi = SharedBuilder.Build(new ProcessOptions {
                 FileName = "where.exe",
                 ArgumentList = [executable],
                 RedirectStandardError = false,
@@ -326,8 +306,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
 
             var cwd = _fs.GetCurrentDirectory().ToLowerInvariant();
 
-            foreach (var candidate in paths)
-            {
+            foreach (var candidate in paths) {
                 var normalized = Path.GetFullPath(candidate.Trim()).ToLowerInvariant();
                 var dir = Path.GetDirectoryName(normalized)!;
                 if (!dir.Equals(cwd, StringComparison.OrdinalIgnoreCase) &&
@@ -336,9 +315,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
             }
 
             return null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -346,8 +323,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// <summary>
     /// 从环境变量解析路径
     /// </summary>
-    protected string? ResolveFromEnvVar(string envVarName)
-    {
+    protected string? ResolveFromEnvVar(string envVarName) {
         var envPath = Environment.GetEnvironmentVariable(envVarName);
         if (!string.IsNullOrEmpty(envPath) && _fs.FileExists(envPath))
             return envPath;
@@ -357,8 +333,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// <summary>
     /// 在常见路径中查找文件
     /// </summary>
-    protected string? FindInCommonPaths(params string[] paths)
-    {
+    protected string? FindInCommonPaths(params string[] paths) {
         foreach (var p in paths)
             if (_fs.FileExists(p)) return p;
         return null;
@@ -368,8 +343,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// 从候选路径解析执行器路径
     /// </summary>
     protected string ResolveShellPathFromCandidates(
-        string envVarName, string pathExecutable, string[] commonPaths, string fallback, bool excludeCurrentDir = true)
-    {
+        string envVarName, string pathExecutable, string[] commonPaths, string fallback, bool excludeCurrentDir = true) {
         var envPath = ResolveFromEnvVar(envVarName);
         if (envPath is not null) return envPath;
 
@@ -386,12 +360,9 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// <summary>
     /// 执行命令行并返回输出
     /// </summary>
-    protected string? ExecuteShellCommand(string fileName, IReadOnlyList<string> args, int timeoutMs = 5000)
-    {
-        try
-        {
-            var psi = SharedBuilder.Build(new ProcessOptions
-            {
+    protected string? ExecuteShellCommand(string fileName, IReadOnlyList<string> args, int timeoutMs = 5000) {
+        try {
+            var psi = SharedBuilder.Build(new ProcessOptions {
                 FileName = fileName,
                 ArgumentList = args,
                 RedirectStandardError = false,
@@ -404,9 +375,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
             process.WaitForExit(timeoutMs);
 
             return process.ExitCode == 0 ? output : null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -428,8 +397,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// 回收判定 — 执行器是服务组件，放宽条件：非 Disposed 且超过 5 分钟无活动即可回收
     /// 避免每次 Registry.Get() 创建的执行器实例在 SessionScope 中无限堆积
     /// </summary>
-    public override bool CanReclaim()
-    {
+    public override bool CanReclaim() {
         return LifecycleState != EntityLifecycle.Disposed
             && DateTime.UtcNow - LastActivityAt > SystemActuatorReclaimTimeout;
     }

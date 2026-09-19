@@ -1,10 +1,8 @@
 namespace Core.Context;
 
-public sealed class ConfigChangeStartMiddlewareTest
-{
+public sealed class ConfigChangeStartMiddlewareTest {
     [Fact]
-    public async Task InvokeAsync_WithNotifier_StartsMonitoringWithWorkingDirectoryFromFileSystem()
-    {
+    public async Task InvokeAsync_WithNotifier_StartsMonitoringWithWorkingDirectoryFromFileSystem() {
         var notifierMock = new Mock<IConfigChangeNotifier>();
         var fsMock = new Mock<IFileSystem>();
         fsMock.Setup(f => f.GetCurrentDirectory()).Returns("test-working-dir");
@@ -16,8 +14,7 @@ public sealed class ConfigChangeStartMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_WithNullNotifier_CallsNextWithoutThrowing()
-    {
+    public async Task InvokeAsync_WithNullNotifier_CallsNextWithoutThrowing() {
         var fsMock = new Mock<IFileSystem>();
         var middleware = CreateMiddleware(fsMock.Object, configChangeNotifier: null);
         var nextCalled = false;
@@ -31,8 +28,7 @@ public sealed class ConfigChangeStartMiddlewareTest
     }
 
     [Fact]
-    public void Constructor_DoesNotAcceptSystemReminderManager_RemovedDependency()
-    {
+    public void Constructor_DoesNotAcceptSystemReminderManager_RemovedDependency() {
         var constructors = typeof(ConfigChangeStartMiddleware).GetConstructors();
         var hasReminderParameter = constructors
             .SelectMany(c => c.GetParameters())
@@ -42,8 +38,7 @@ public sealed class ConfigChangeStartMiddlewareTest
     }
 
     [Fact]
-    public async Task OnConfigChanged_WithApplier_CallsApplySettingsChangeAsync()
-    {
+    public async Task OnConfigChanged_WithApplier_CallsApplySettingsChangeAsync() {
         var notifierMock = new Mock<IConfigChangeNotifier>();
         var applierMock = new Mock<ISettingsChangeApplier>();
         applierMock.Setup(a => a.ApplySettingsChangeAsync(It.IsAny<CancellationToken>()))
@@ -59,8 +54,7 @@ public sealed class ConfigChangeStartMiddlewareTest
     }
 
     [Fact]
-    public async Task OnConfigChanged_WithApplier_DoesNotCallSystemReminderManagerAddReminder()
-    {
+    public async Task OnConfigChanged_WithApplier_DoesNotCallSystemReminderManagerAddReminder() {
         var notifierMock = new Mock<IConfigChangeNotifier>();
         var reminderMock = new Mock<ISystemReminderManager>();
         var applierMock = new Mock<ISettingsChangeApplier>();
@@ -78,8 +72,7 @@ public sealed class ConfigChangeStartMiddlewareTest
     }
 
     [Fact]
-    public async Task OnConfigChanged_WithNullApplier_DoesNotThrow()
-    {
+    public async Task OnConfigChanged_WithNullApplier_DoesNotThrow() {
         var notifierMock = new Mock<IConfigChangeNotifier>();
         var middleware = CreateMiddleware(
             configChangeNotifier: notifierMock.Object,
@@ -92,8 +85,7 @@ public sealed class ConfigChangeStartMiddlewareTest
     }
 
     [Fact]
-    public async Task OnConfigChanged_AfterDispose_DoesNotCallApplySettingsChangeAsync()
-    {
+    public async Task OnConfigChanged_AfterDispose_DoesNotCallApplySettingsChangeAsync() {
         var notifierMock = new Mock<IConfigChangeNotifier>();
         var applierMock = new Mock<ISettingsChangeApplier>();
         applierMock.Setup(a => a.ApplySettingsChangeAsync(It.IsAny<CancellationToken>()))
@@ -110,8 +102,7 @@ public sealed class ConfigChangeStartMiddlewareTest
     }
 
     [Fact]
-    public async Task DisposeAsync_UnsubscribesAndStopsMonitoring()
-    {
+    public async Task DisposeAsync_UnsubscribesAndStopsMonitoring() {
         var notifierMock = new Mock<IConfigChangeNotifier>();
         var applierMock = new Mock<ISettingsChangeApplier>();
         applierMock.Setup(a => a.ApplySettingsChangeAsync(It.IsAny<CancellationToken>()))
@@ -132,8 +123,7 @@ public sealed class ConfigChangeStartMiddlewareTest
         IFileSystem? fs = null,
         IConfigChangeNotifier? configChangeNotifier = null,
         ISettingsChangeApplier? settingsChangeApplier = null,
-        ILogger<ConfigChangeStartMiddleware>? logger = null)
-    {
+        ILogger<ConfigChangeStartMiddleware>? logger = null) {
         return new ConfigChangeStartMiddleware(
             fs: fs ?? new Mock<IFileSystem>().Object,
             configChangeNotifier: configChangeNotifier,
@@ -141,14 +131,12 @@ public sealed class ConfigChangeStartMiddlewareTest
             logger: logger);
     }
 
-    private static ChatInitContext CreateContext() => new()
-    {
+    private static ChatInitContext CreateContext() => new() {
         ToolUseContext = new ToolUseContext(),
         ContextManager = new Mock<IChatContextManager>().Object
     };
 
-    private static ConfigChangeEventArgs CreateEventArgs() => new()
-    {
+    private static ConfigChangeEventArgs CreateEventArgs() => new() {
         FilePath = "settings.json",
         ChangeType = "Changed",
         Timestamp = DateTimeOffset.Now

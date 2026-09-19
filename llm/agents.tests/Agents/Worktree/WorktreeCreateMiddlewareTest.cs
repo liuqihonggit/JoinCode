@@ -5,15 +5,13 @@ namespace JoinCode.Agents.Tests.Worktree;
 /// <para>bug 背景：当上游中间件未填充 BranchName 时，git worktree add 使用空分支名报错。</para>
 /// <para>修复：InvokeAsync 中 branchName/worktreePath 为空时自动生成并写回 context。</para>
 /// </summary>
-public class WorktreeCreateMiddlewareTest
-{
+public class WorktreeCreateMiddlewareTest {
     /// <summary>
     /// 创建中间件实例与 mock，捕获传给 ExecuteGitCommandAsync 的 git 参数。
     /// 默认 Mock：HasLocalBranchAsync 返回 false，ExecuteGitCommandAsync 返回成功。
     /// 返回 opsMock 供调用方按场景重新配置。
     /// </summary>
-    private static (WorktreeCreateMiddleware middleware, Mock<IWorktreePipelineOperations> opsMock, List<string> capturedArgs) CreateMiddleware()
-    {
+    private static (WorktreeCreateMiddleware middleware, Mock<IWorktreePipelineOperations> opsMock, List<string> capturedArgs) CreateMiddleware() {
         var capturedArgs = new List<string>();
         var opsMock = new Mock<IWorktreePipelineOperations>();
         opsMock
@@ -38,8 +36,7 @@ public class WorktreeCreateMiddlewareTest
     /// 构造测试上下文，BranchName/WorktreePath 默认为空字符串（模拟上游未填充的场景）。
     /// </summary>
     private static WorktreeCreateContext CreateContext(string agentId, string gitRoot, string branchName = "", string worktreePath = "", WorktreeOptions? options = null)
-        => new()
-        {
+        => new() {
             AgentId = agentId,
             GitRoot = gitRoot,
             BranchName = branchName,
@@ -55,8 +52,7 @@ public class WorktreeCreateMiddlewareTest
     // === bug 修复核心场景 ===
 
     [Fact]
-    public async Task InvokeAsync_EmptyBranchName_AutoGeneratesFromAgentId()
-    {
+    public async Task InvokeAsync_EmptyBranchName_AutoGeneratesFromAgentId() {
         var (middleware, _, capturedArgs) = CreateMiddleware();
         var context = CreateContext("test-agent", "/repo");
 
@@ -71,8 +67,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_NonEmptyBranchName_ShouldNotOverwrite()
-    {
+    public async Task InvokeAsync_NonEmptyBranchName_ShouldNotOverwrite() {
         var (middleware, _, capturedArgs) = CreateMiddleware();
         var context = CreateContext("test-agent", "/repo", branchName: "feature-x");
 
@@ -86,8 +81,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_EmptyWorktreePath_AutoGeneratesFromGitRootAndAgentId()
-    {
+    public async Task InvokeAsync_EmptyWorktreePath_AutoGeneratesFromGitRootAndAgentId() {
         var (middleware, _, capturedArgs) = CreateMiddleware();
         var context = CreateContext("test-agent", "/repo");
 
@@ -101,8 +95,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_NonEmptyWorktreePath_ShouldNotOverwrite()
-    {
+    public async Task InvokeAsync_NonEmptyWorktreePath_ShouldNotOverwrite() {
         var (middleware, _, capturedArgs) = CreateMiddleware();
         var customPath = "/custom/worktree/path";
         var context = CreateContext("test-agent", "/repo", worktreePath: customPath);
@@ -116,8 +109,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_BothEmpty_AutoGeneratesBoth()
-    {
+    public async Task InvokeAsync_BothEmpty_AutoGeneratesBoth() {
         var (middleware, _, capturedArgs) = CreateMiddleware();
         var context = CreateContext("my-agent", "/project");
 
@@ -133,8 +125,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_BothProvided_ShouldNotOverwriteEither()
-    {
+    public async Task InvokeAsync_BothProvided_ShouldNotOverwriteEither() {
         var (middleware, _, capturedArgs) = CreateMiddleware();
         var context = CreateContext("my-agent", "/project", branchName: "dev-branch", worktreePath: "/custom/wt");
 
@@ -149,8 +140,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_EmptyBranchName_GitCommandUsesGeneratedBranchNotEmpty()
-    {
+    public async Task InvokeAsync_EmptyBranchName_GitCommandUsesGeneratedBranchNotEmpty() {
         var (middleware, _, capturedArgs) = CreateMiddleware();
         var context = CreateContext("agent-42", "/repo");
 
@@ -164,8 +154,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_EmptyBranchNameWithSlashes_FlattensToPlusInGeneratedBranch()
-    {
+    public async Task InvokeAsync_EmptyBranchNameWithSlashes_FlattensToPlusInGeneratedBranch() {
         var (middleware, _, capturedArgs) = CreateMiddleware();
         var context = CreateContext("user/feature", "/repo");
 
@@ -181,8 +170,7 @@ public class WorktreeCreateMiddlewareTest
     // === 分支覆盖场景 ===
 
     [Fact]
-    public async Task InvokeAsync_GitCreateFails_ShouldFailContextButBranchNameStillGenerated()
-    {
+    public async Task InvokeAsync_GitCreateFails_ShouldFailContextButBranchNameStillGenerated() {
         var (middleware, opsMock, capturedArgs) = CreateMiddleware();
         opsMock
             .Setup(x => x.ExecuteGitCommandAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -199,8 +187,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_HasLocalBranchTrue_UsesLocalBranchCommandFormat()
-    {
+    public async Task InvokeAsync_HasLocalBranchTrue_UsesLocalBranchCommandFormat() {
         var (middleware, opsMock, capturedArgs) = CreateMiddleware();
         opsMock
             .Setup(x => x.HasLocalBranchAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -218,8 +205,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_WithSparsePaths_AppliesSparseCheckoutAndSucceeds()
-    {
+    public async Task InvokeAsync_WithSparsePaths_AppliesSparseCheckoutAndSucceeds() {
         var (middleware, opsMock, capturedArgs) = CreateMiddleware();
         opsMock
             .Setup(x => x.ApplySparseCheckoutAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
@@ -237,8 +223,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_SparseCheckoutFails_RollsBackAndFails()
-    {
+    public async Task InvokeAsync_SparseCheckoutFails_RollsBackAndFails() {
         var (middleware, opsMock, capturedArgs) = CreateMiddleware();
         opsMock
             .Setup(x => x.ApplySparseCheckoutAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
@@ -257,8 +242,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_CheckoutHeadFails_RollsBackAndFails()
-    {
+    public async Task InvokeAsync_CheckoutHeadFails_RollsBackAndFails() {
         var (middleware, opsMock, capturedArgs) = CreateMiddleware();
         opsMock
             .Setup(x => x.ApplySparseCheckoutAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
@@ -284,8 +268,7 @@ public class WorktreeCreateMiddlewareTest
     }
 
     [Fact]
-    public async Task InvokeAsync_WithBaseBranch_UsesBaseRefInCommand()
-    {
+    public async Task InvokeAsync_WithBaseBranch_UsesBaseRefInCommand() {
         var (middleware, _, capturedArgs) = CreateMiddleware();
         var context = CreateContext("test-agent", "/repo");
         context.BaseBranch = "main";

@@ -5,8 +5,7 @@ namespace JoinCode.CliCommands;
 /// <para>ADR: 0070 — 独立于 ISearchService，直接用 MemoryMappedFile 零拷贝读取大文件，
 /// PLINQ 链式组织并行搜索，Regex.IsMatch(ReadOnlySpan&lt;char&gt;) 零分配匹配。</para>
 /// </summary>
-internal static class RgEngine
-{
+internal static class RgEngine {
     private const long MmapThresholdBytes = 64 * 1024;
     private const int MaxContentLineLength = 500;
     private const int BinaryDetectionBufferSize = 8192;
@@ -16,8 +15,7 @@ internal static class RgEngine
     /// <summary>
     /// 执行搜索。PLINQ 链式：收集文件 → 并行搜索 → 过滤 → 排序 → 分页。
     /// </summary>
-    public static RgOutcome Search(RgQuery q, CancellationToken ct)
-    {
+    public static RgOutcome Search(RgQuery q, CancellationToken ct) {
         ct.ThrowIfCancellationRequested();
 
         var (regex, compileError) = CompileRegex(q);
@@ -28,8 +26,7 @@ internal static class RgEngine
         if (files.Count == 0)
             return RgOutcome.Empty();
 
-        var parallelOpts = new ParallelOptions
-        {
+        var parallelOpts = new ParallelOptions {
             CancellationToken = ct,
             MaxDegreeOfParallelism = Environment.ProcessorCount,
         };
@@ -52,8 +49,7 @@ internal static class RgEngine
     /// <summary>
     /// 编译正则。smart-case: 模式含大写则区分大小写，否则忽略。
     /// </summary>
-    private static (Regex? Regex, string? Error) CompileRegex(RgQuery q)
-    {
+    private static (Regex? Regex, string? Error) CompileRegex(RgQuery q) {
         return SearchRegexCompiler.Compile(
             q.Pattern, q.CaseInsensitive, q.Multiline, q.FixedStrings, q.WordRegexp, q.SmartCase);
     }
@@ -61,16 +57,13 @@ internal static class RgEngine
     /// <summary>
     /// 收集搜索文件。遵守 .gitignore（除非 NoIgnore）、排除 VCS、二进制扩展名。
     /// </summary>
-    private static IReadOnlyList<string> CollectFiles(RgQuery q, CancellationToken ct)
-    {
+    private static IReadOnlyList<string> CollectFiles(RgQuery q, CancellationToken ct) {
         var allFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var path in q.Paths)
-        {
+        foreach (var path in q.Paths) {
             ct.ThrowIfCancellationRequested();
 
-            if (File.Exists(path))
-            {
+            if (File.Exists(path)) {
                 allFiles.Add(Path.GetFullPath(path));
                 continue;
             }
@@ -85,17 +78,14 @@ internal static class RgEngine
         return allFiles.ToList();
     }
 
-    private static IEnumerable<string> EnumerateFiles(string root, RgQuery q, CancellationToken ct)
-    {
-        var enumeration = Directory.EnumerateFiles(root, "*", new EnumerationOptions
-        {
+    private static IEnumerable<string> EnumerateFiles(string root, RgQuery q, CancellationToken ct) {
+        var enumeration = Directory.EnumerateFiles(root, "*", new EnumerationOptions {
             RecurseSubdirectories = true,
             IgnoreInaccessible = true,
             AttributesToSkip = q.Hidden ? 0 : FileAttributes.Hidden,
         });
 
-        foreach (var file in enumeration)
-        {
+        foreach (var file in enumeration) {
             ct.ThrowIfCancellationRequested();
 
             var rel = Path.GetRelativePath(root, file).Replace('\\', '/');
@@ -119,19 +109,14 @@ internal static class RgEngine
         }
     }
 
-    private static bool IsGitIgnored(string root, string rel)
-    {
-        var matcher = GitignoreCache.GetOrAdd(root, static r =>
-        {
+    private static bool IsGitIgnored(string root, string rel) {
+        var matcher = GitignoreCache.GetOrAdd(root, static r => {
             var gitignorePath = Path.Combine(r, ".gitignore");
             if (!File.Exists(gitignorePath))
                 return null;
-            try
-            {
+            try {
                 return GitignoreMatcher.Parse(File.ReadAllText(gitignorePath));
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Diag.WriteLine($"[RgEngine.IsGitIgnored] 读取 .gitignore 失败: {ex.Message}");
                 return null;
             }
@@ -140,35 +125,28 @@ internal static class RgEngine
         return matcher is not null && matcher.IsIgnored(rel);
     }
 
-    private static bool MatchesGlob(string rel, IReadOnlyList<string>? globs)
-    {
+    private static bool MatchesGlob(string rel, IReadOnlyList<string>? globs) {
         if (globs is null || globs.Count == 0)
             return true;
 
-        foreach (var glob in globs)
-        {
+        foreach (var glob in globs) {
             var normalizedGlob = glob.Replace('\\', '/');
-            if (normalizedGlob.StartsWith('!'))
-            {
+            if (normalizedGlob.StartsWith('!')) {
                 var exclude = normalizedGlob[1..];
                 if (SimpleGlobMatch(rel, exclude))
                     return false;
-            }
-            else if (!SimpleGlobMatch(rel, normalizedGlob))
-            {
+            } else if (!SimpleGlobMatch(rel, normalizedGlob)) {
                 return false;
             }
         }
         return true;
     }
 
-    private static bool SimpleGlobMatch(string path, string pattern)
-    {
+    private static bool SimpleGlobMatch(string path, string pattern) {
         if (pattern == "**/*" || pattern == "*")
             return true;
 
-        if (pattern.Contains("**/"))
-        {
+        if (pattern.Contains("**/")) {
             var suffix = pattern["**/".Length..];
             return path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) ||
                    path.Contains($"/{suffix}", StringComparison.OrdinalIgnoreCase);
@@ -181,21 +159,16 @@ internal static class RgEngine
     /// 搜索单个文件。大文件用 mmap 零拷贝，小文件用 ReadAllBytes。
     /// 用 ReadOnlySpan&lt;char&gt; 遍历行，Regex.IsMatch(span) 零分配匹配。
     /// </summary>
-    private static RgFileResult? SearchFile(string path, Regex regex, RgQuery q, CancellationToken ct)
-    {
-        try
-        {
+    private static RgFileResult? SearchFile(string path, Regex regex, RgQuery q, CancellationToken ct) {
+        try {
             var fileInfo = new FileInfo(path);
             if (fileInfo.Length == 0)
                 return null;
 
             string content;
-            if (fileInfo.Length >= MmapThresholdBytes)
-            {
+            if (fileInfo.Length >= MmapThresholdBytes) {
                 content = ReadViaMmap(path);
-            }
-            else
-            {
+            } else {
                 content = File.ReadAllText(path);
             }
 
@@ -203,13 +176,9 @@ internal static class RgEngine
                 return null;
 
             return SearchContent(path, content, regex, q, ct);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -217,17 +186,14 @@ internal static class RgEngine
     /// <summary>
     /// mmap 零拷贝读取文件内容。用 MappedFileReader 封装，using 释放句柄。
     /// </summary>
-    private static string ReadViaMmap(string path)
-    {
+    private static string ReadViaMmap(string path) {
         using var reader = new MappedFileReader(path);
         return reader.ReadToEnd();
     }
 
-    private static bool ContainsNullByte(string content)
-    {
+    private static bool ContainsNullByte(string content) {
         var sampleLen = Math.Min(content.Length, BinaryDetectionBufferSize);
-        for (var i = 0; i < sampleLen; i++)
-        {
+        for (var i = 0; i < sampleLen; i++) {
             if (content[i] == '\0')
                 return true;
         }
@@ -237,30 +203,23 @@ internal static class RgEngine
     /// <summary>
     /// 搜索文件内容。Span 零分配遍历行，Regex.IsMatch(span) 匹配。
     /// </summary>
-    private static RgFileResult? SearchContent(string path, string content, Regex regex, RgQuery q, CancellationToken ct)
-    {
+    private static RgFileResult? SearchContent(string path, string content, Regex regex, RgQuery q, CancellationToken ct) {
         var contentSpan = content.AsSpan();
         var lineRanges = LineSpanIndexer.BuildLineRanges(contentSpan, ct);
 
         var matchedLines = new List<int>();
-        if (q.Multiline)
-        {
+        if (q.Multiline) {
             var seen = new HashSet<int>();
             var matches = regex.Matches(content);
-            foreach (Match m in matches)
-            {
-                if (m.Success)
-                {
+            foreach (Match m in matches) {
+                if (m.Success) {
                     var lineIdx = LineSpanIndexer.FindLineIndex(lineRanges, m.Index);
                     if (lineIdx >= 0 && seen.Add(lineIdx))
                         matchedLines.Add(lineIdx);
                 }
             }
-        }
-        else
-        {
-            for (var i = 0; i < lineRanges.Count; i++)
-            {
+        } else {
+            for (var i = 0; i < lineRanges.Count; i++) {
                 var (s, l) = lineRanges[i];
                 if (l == 0)
                     continue;
@@ -280,13 +239,11 @@ internal static class RgEngine
 
         var contentLines = new List<string>();
         var context = q.Context ?? 0;
-        foreach (var index in matchedLines)
-        {
+        foreach (var index in matchedLines) {
             var start = Math.Max(0, index - (q.Before ?? context));
             var end = Math.Min(lineRanges.Count, index + (q.After ?? context) + 1);
 
-            for (var current = start; current < end; current++)
-            {
+            for (var current = start; current < end; current++) {
                 var (ls, ll) = lineRanges[current];
                 var lineSpan = contentSpan.Slice(ls, ll);
                 string lineContent;
@@ -296,17 +253,12 @@ internal static class RgEngine
                     lineContent = lineSpan.ToString();
 
                 string formatted;
-                if (q.OnlyMatching)
-                {
+                if (q.OnlyMatching) {
                     var match = regex.Match(lineContent);
                     formatted = match.Success ? match.Value : lineContent;
-                }
-                else if (q.Replace is not null)
-                {
+                } else if (q.Replace is not null) {
                     formatted = regex.Replace(lineContent, q.Replace);
-                }
-                else
-                {
+                } else {
                     formatted = lineContent;
                 }
 
@@ -318,14 +270,12 @@ internal static class RgEngine
         return new RgFileResult(path, matchedLines.Count, contentLines);
     }
 
-    private static List<RgFileResult> ApplySort(ConcurrentBag<RgFileResult> results, string? sort)
-    {
+    private static List<RgFileResult> ApplySort(ConcurrentBag<RgFileResult> results, string? sort) {
         var list = results.ToList();
         if (string.IsNullOrEmpty(sort))
             return list;
 
-        return sort switch
-        {
+        return sort switch {
             "path" => list.OrderBy(r => r.FilePath, StringComparer.Ordinal).ToList(),
             "modified" => list.OrderBy(r => File.GetLastWriteTime(r.FilePath)).ToList(),
             "accessed" => list.OrderBy(r => File.GetLastAccessTime(r.FilePath)).ToList(),
@@ -336,8 +286,7 @@ internal static class RgEngine
     }
 
     private static (List<RgFileResult> Items, int? AppliedLimit, int? AppliedOffset) ApplyPaging(
-        List<RgFileResult> items, int? headLimit, int? offset)
-    {
+        List<RgFileResult> items, int? headLimit, int? offset) {
         var offsetValue = offset ?? 0;
         var result = items.Skip(offsetValue).ToList();
 
@@ -387,8 +336,7 @@ internal sealed record RgOutcome(
     int? AppliedLimit,
     int? AppliedOffset,
     bool Success,
-    string? Error)
-{
+    string? Error) {
     public static RgOutcome Ok(IReadOnlyList<RgFileResult> results, int? limit, int? offset)
         => new(results, results.Sum(r => r.MatchCount), limit, offset, true, null);
 

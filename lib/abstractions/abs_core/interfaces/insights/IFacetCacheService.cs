@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// Facet 缓存服务 — 对齐 TS insights.ts loadCachedFacets + saveFacets
 /// 缓存路径: ~/.jcc/usage-data/facets/{sessionId}.json
 /// </summary>
-public interface IFacetCacheService
-{
+public interface IFacetCacheService {
     /// <summary>从缓存加载 SessionFacets，不存在返回 null</summary>
     Task<SessionFacets?> LoadAsync(string sessionId, CancellationToken cancellationToken = default);
 

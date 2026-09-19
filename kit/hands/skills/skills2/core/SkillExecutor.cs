@@ -4,8 +4,7 @@ namespace Core.Skills;
 /// <summary>
 /// 技能执行器
 /// </summary>
-public sealed partial class SkillExecutor
-{
+public sealed partial class SkillExecutor {
     private readonly IQueryEngine _queryEngine;
     private readonly IToolExecutionGateway _toolExecutionGateway;
     private readonly ILogger<SkillExecutor>? _logger;
@@ -15,8 +14,7 @@ public sealed partial class SkillExecutor
     /// <summary>
     /// 初始化技能执行器
     /// </summary>
-    public SkillExecutor(IQueryEngine queryEngine, IToolExecutionGateway toolExecutionGateway, ILogger<SkillExecutor>? logger = null, IVariableResolver? variableResolver = null)
-    {
+    public SkillExecutor(IQueryEngine queryEngine, IToolExecutionGateway toolExecutionGateway, ILogger<SkillExecutor>? logger = null, IVariableResolver? variableResolver = null) {
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));
         _toolExecutionGateway = toolExecutionGateway ?? throw new ArgumentNullException(nameof(toolExecutionGateway));
         _logger = logger;
@@ -30,18 +28,15 @@ public sealed partial class SkillExecutor
     public async Task<SkillExecutionResult> ExecuteAsync(
         SkillDefinition skill,
         Dictionary<string, JsonElement> parameters,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var stopwatch = Stopwatch.StartNew();
         var stepResults = new List<StepResult>();
 
         _logger?.LogInformation(L.T(StringKey.SkillExecutorStartExecution), skill.Name);
 
         var validationError = ValidateParameters(skill, parameters);
-        if (validationError != null)
-        {
-            return new SkillExecutionResult
-            {
+        if (validationError != null) {
+            return new SkillExecutionResult {
                 SkillName = skill.Name,
                 IsSuccess = false,
                 Output = string.Empty,
@@ -51,47 +46,39 @@ public sealed partial class SkillExecutor
             };
         }
 
-        foreach (var param in parameters)
-        {
+        foreach (var param in parameters) {
             _variables[param.Key] = param.Value;
             _variables[$"{{{{{param.Key}}}}}"] = param.Value;
         }
 
-        try
-        {
+        try {
             var currentStepId = skill.Steps.FirstOrDefault()?.Id;
             var executedSteps = new HashSet<string>();
             var stepIndex = skill.BuildStepIndex();
 
-            while (currentStepId != null && !cancellationToken.IsCancellationRequested)
-            {
-                if (executedSteps.Contains(currentStepId))
-                {
+            while (currentStepId != null && !cancellationToken.IsCancellationRequested) {
+                if (executedSteps.Contains(currentStepId)) {
                     break;
                 }
 
                 executedSteps.Add(currentStepId);
                 var step = stepIndex.TryGetValue(currentStepId, out var s) ? s : null;
 
-                if (step == null)
-                {
+                if (step == null) {
                     break;
                 }
 
                 var stepResult = await ExecuteStepAsync(step, cancellationToken).ConfigureAwait(false);
                 stepResults.Add(stepResult);
 
-                if (!stepResult.IsSuccess)
-                {
-                    if (step.OnError != null)
-                    {
+                if (!stepResult.IsSuccess) {
+                    if (step.OnError != null) {
                         currentStepId = step.OnError;
                         continue;
                     }
 
                     stopwatch.Stop();
-                    return new SkillExecutionResult
-                    {
+                    return new SkillExecutionResult {
                         SkillName = skill.Name,
                         IsSuccess = false,
                         Output = string.Join("\n", stepResults.Where(r => r.Output != null).Select(r => r.Output)),
@@ -112,22 +99,18 @@ public sealed partial class SkillExecutor
 
             _logger?.LogInformation(L.T(StringKey.SkillExecutorExecutionComplete), skill.Name);
 
-            return new SkillExecutionResult
-            {
+            return new SkillExecutionResult {
                 SkillName = skill.Name,
                 IsSuccess = true,
                 Output = finalOutput,
                 StepResults = stepResults,
                 ExecutionTime = stopwatch.Elapsed
             };
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             stopwatch.Stop();
             _logger?.LogWarning(L.T(StringKey.SkillExecutorExecutionCancelled), skill.Name);
 
-            return new SkillExecutionResult
-            {
+            return new SkillExecutionResult {
                 SkillName = skill.Name,
                 IsSuccess = false,
                 Output = string.Empty,
@@ -135,14 +118,11 @@ public sealed partial class SkillExecutor
                 StepResults = stepResults,
                 ExecutionTime = stopwatch.Elapsed
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             stopwatch.Stop();
             _logger?.LogError(ex, L.T(StringKey.SkillExecutorExecutionFailed), skill.Name);
 
-            return new SkillExecutionResult
-            {
+            return new SkillExecutionResult {
                 SkillName = skill.Name,
                 IsSuccess = false,
                 Output = string.Empty,
@@ -156,53 +136,46 @@ public sealed partial class SkillExecutor
     /// <summary>
     /// 执行单个步骤
     /// </summary>
-    private async Task<StepResult> ExecuteStepAsync(SkillStep step, CancellationToken cancellationToken)
-    {
+    private async Task<StepResult> ExecuteStepAsync(SkillStep step, CancellationToken cancellationToken) {
         var stepStopwatch = Stopwatch.StartNew();
         _logger?.LogInformation("[SkillExecutor] 执行步骤: {StepId} ({StepType})", step.Id, step.Type);
 
-        try
-        {
+        try {
             string? output = null;
 
-            switch (step.Type)
-            {
+            switch (step.Type) {
                 case SkillStepType.Tool:
-                    output = await ExecuteToolStepAsync(step, cancellationToken).ConfigureAwait(false);
-                    break;
+                output = await ExecuteToolStepAsync(step, cancellationToken).ConfigureAwait(false);
+                break;
 
                 case SkillStepType.Prompt:
-                    output = await ExecutePromptStepAsync(step, cancellationToken).ConfigureAwait(false);
-                    break;
+                output = await ExecutePromptStepAsync(step, cancellationToken).ConfigureAwait(false);
+                break;
 
                 case SkillStepType.Loop:
-                    output = await ExecuteLoopStepAsync(step, cancellationToken).ConfigureAwait(false);
-                    break;
+                output = await ExecuteLoopStepAsync(step, cancellationToken).ConfigureAwait(false);
+                break;
 
                 case SkillStepType.Condition:
-                    output = await ExecuteConditionStepAsync(step, cancellationToken).ConfigureAwait(false);
-                    break;
+                output = await ExecuteConditionStepAsync(step, cancellationToken).ConfigureAwait(false);
+                break;
 
                 default:
-                    throw new NotSupportedException(L.T(StringKey.SkillExecutorUnsupportedStepType, step.Type.ToValue()));
+                throw new NotSupportedException(L.T(StringKey.SkillExecutorUnsupportedStepType, step.Type.ToValue()));
             }
 
             stepStopwatch.Stop();
 
-            return new StepResult
-            {
+            return new StepResult {
                 StepId = step.Id,
                 IsSuccess = true,
                 Output = output,
                 ExecutionTime = stepStopwatch.Elapsed
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             stepStopwatch.Stop();
 
-            return new StepResult
-            {
+            return new StepResult {
                 StepId = step.Id,
                 IsSuccess = false,
                 Error = ex.Message,
@@ -214,36 +187,28 @@ public sealed partial class SkillExecutor
     /// <summary>
     /// 执行工具步骤
     /// </summary>
-    private async Task<string> ExecuteToolStepAsync(SkillStep step, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(step.Tool))
-        {
+    private async Task<string> ExecuteToolStepAsync(SkillStep step, CancellationToken cancellationToken) {
+        if (string.IsNullOrEmpty(step.Tool)) {
             throw new InvalidOperationException(ContractsErrorMessages.ToolStepMustSpecifyTool);
         }
 
         var toolName = step.Tool;
         _logger?.LogInformation("[SkillExecutor] 调用工具: {Tool}", toolName);
 
-        try
-        {
+        try {
             var arguments = ParseToolArguments(step);
 
             var result = await _toolExecutionGateway.ExecuteAsync(toolName, arguments, cancellationToken).ConfigureAwait(false);
 
-            if (result.IsError)
-            {
+            if (result.IsError) {
                 var errorContent = ExtractTextFromResult(result);
                 throw new InvalidOperationException(L.T(StringKey.SkillExecutorToolExecutionFailed, toolName, errorContent));
             }
 
             return ExtractTextFromResult(result);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex) when (ex is not InvalidOperationException)
-        {
+        } catch (Exception ex) when (ex is not InvalidOperationException) {
             _logger?.LogError(ex, "[SkillExecutor] 工具 {Tool} 执行失败", toolName);
             throw new InvalidOperationException(L.T(StringKey.SkillExecutorToolExecutionFailed, toolName, ex.Message), ex);
         }
@@ -252,12 +217,10 @@ public sealed partial class SkillExecutor
     /// <summary>
     /// 解析工具参数
     /// </summary>
-    private Dictionary<string, JsonElement> ParseToolArguments(SkillStep step)
-    {
+    private Dictionary<string, JsonElement> ParseToolArguments(SkillStep step) {
         var arguments = new Dictionary<string, JsonElement>();
 
-        if (!string.IsNullOrEmpty(step.Prompt))
-        {
+        if (!string.IsNullOrEmpty(step.Prompt)) {
             var processedPrompt = ReplaceVariables(step.Prompt);
 
             var parsed = JsonArgumentParser.Parse(processedPrompt);
@@ -274,10 +237,8 @@ public sealed partial class SkillExecutor
     /// <summary>
     /// 从工具调用结果中提取文本内容
     /// </summary>
-    private static string ExtractTextFromResult(ToolResult result)
-    {
-        if (result.Content == null || result.Content.Count == 0)
-        {
+    private static string ExtractTextFromResult(ToolResult result) {
+        if (result.Content == null || result.Content.Count == 0) {
             return string.Empty;
         }
 
@@ -292,10 +253,8 @@ public sealed partial class SkillExecutor
     /// <summary>
     /// 执行提示步骤
     /// </summary>
-    private async Task<string> ExecutePromptStepAsync(SkillStep step, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(step.Prompt))
-        {
+    private async Task<string> ExecutePromptStepAsync(SkillStep step, CancellationToken cancellationToken) {
+        if (string.IsNullOrEmpty(step.Prompt)) {
             throw new InvalidOperationException(ContractsErrorMessages.PromptStepMustSpecifyPrompt);
         }
 
@@ -306,10 +265,8 @@ public sealed partial class SkillExecutor
 
         var responseBuilder = new System.Text.StringBuilder();
 
-        await foreach (var chunk in _queryEngine.QueryAsync(prompt, chatHistory, cancellationToken))
-        {
-            if (chunk.Type == AgentStreamChunkType.Content)
-            {
+        await foreach (var chunk in _queryEngine.QueryAsync(prompt, chatHistory, cancellationToken)) {
+            if (chunk.Type == AgentStreamChunkType.Content) {
                 responseBuilder.Append(chunk.Content);
             }
         }
@@ -320,10 +277,8 @@ public sealed partial class SkillExecutor
     /// <summary>
     /// 执行循环步骤
     /// </summary>
-    private async Task<string> ExecuteLoopStepAsync(SkillStep step, CancellationToken cancellationToken)
-    {
-        if (step.Loop == null)
-        {
+    private async Task<string> ExecuteLoopStepAsync(SkillStep step, CancellationToken cancellationToken) {
+        if (step.Loop == null) {
             throw new InvalidOperationException(ContractsErrorMessages.LoopStepMustSpecifyLoopConfig);
         }
 
@@ -331,15 +286,13 @@ public sealed partial class SkillExecutor
         var iteration = 0;
         var maxIterations = step.Loop.Count ?? 10;
 
-        while (iteration < maxIterations && !cancellationToken.IsCancellationRequested)
-        {
+        while (iteration < maxIterations && !cancellationToken.IsCancellationRequested) {
             iteration++;
             _logger?.LogInformation("[SkillExecutor] 循环迭代 {Iteration}/{Max}", iteration, maxIterations);
 
             _variables["{{iteration}}"] = JsonSerializer.SerializeToElement(iteration, SkillsJsonContext.Default.Int32);
 
-            var loopStep = new SkillStep
-            {
+            var loopStep = new SkillStep {
                 Id = $"{step.Id}_iteration_{iteration}",
                 Type = SkillStepType.Prompt,
                 Prompt = step.Prompt,
@@ -348,17 +301,14 @@ public sealed partial class SkillExecutor
 
             var result = await ExecuteStepAsync(loopStep, cancellationToken).ConfigureAwait(false);
 
-            if (result.IsSuccess && result.Output != null)
-            {
+            if (result.IsSuccess && result.Output != null) {
                 results.Add(result.Output);
             }
 
-            if (step.Loop.Condition != null)
-            {
+            if (step.Loop.Condition != null) {
                 var condition = ReplaceVariables(step.Loop.Condition);
                 if (condition.Equals("false", StringComparison.OrdinalIgnoreCase) ||
-                    condition.Equals("0", StringComparison.OrdinalIgnoreCase))
-                {
+                    condition.Equals("0", StringComparison.OrdinalIgnoreCase)) {
                     break;
                 }
             }
@@ -370,10 +320,8 @@ public sealed partial class SkillExecutor
     /// <summary>
     /// 执行条件步骤
     /// </summary>
-    private async Task<string> ExecuteConditionStepAsync(SkillStep step, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(step.Condition))
-        {
+    private async Task<string> ExecuteConditionStepAsync(SkillStep step, CancellationToken cancellationToken) {
+        if (string.IsNullOrEmpty(step.Condition)) {
             throw new InvalidOperationException(ContractsErrorMessages.ConditionStepMustSpecifyCondition);
         }
 
@@ -389,16 +337,14 @@ public sealed partial class SkillExecutor
     /// </summary>
     /// <param name="input">输入字符串</param>
     /// <returns>替换后的字符串</returns>
-    private string ReplaceVariables(string input)
-    {
+    private string ReplaceVariables(string input) {
         return _variableResolver.Resolve(input, _variables, throwOnMissing: false);
     }
 
     /// <summary>
     /// 验证参数
     /// </summary>
-    private string? ValidateParameters(SkillDefinition skill, Dictionary<string, JsonElement> parameters)
-    {
+    private string? ValidateParameters(SkillDefinition skill, Dictionary<string, JsonElement> parameters) {
         return skill.Parameters
             .Where(param => param.Value.Required && !parameters.ContainsKey(param.Key))
             .Select(param => L.T(StringKey.SkillExecutorMissingRequiredParam, param.Key))

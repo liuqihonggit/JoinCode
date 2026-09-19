@@ -1,8 +1,7 @@
 namespace Infra.Tests.Cache;
 
 
-public sealed class PasteStoreTests
-{
+public sealed class PasteStoreTests {
     private readonly TestInMemFs _fs = new();
 
     private static readonly string PasteCacheDir = AppDataConstants.Paths.PasteCacheDirectory;
@@ -11,8 +10,7 @@ public sealed class PasteStoreTests
         => new(_fs, NullLogger<PasteStore>.Instance);
 
     [Fact]
-    public void HashPastedText_ShouldReturn16CharHex()
-    {
+    public void HashPastedText_ShouldReturn16CharHex() {
         var sut = CreateSut();
         var hash = sut.HashPastedText("hello world");
 
@@ -21,8 +19,7 @@ public sealed class PasteStoreTests
     }
 
     [Fact]
-    public void HashPastedText_SameContent_ShouldReturnSameHash()
-    {
+    public void HashPastedText_SameContent_ShouldReturnSameHash() {
         var sut = CreateSut();
         var hash1 = sut.HashPastedText("test content");
         var hash2 = sut.HashPastedText("test content");
@@ -31,8 +28,7 @@ public sealed class PasteStoreTests
     }
 
     [Fact]
-    public void HashPastedText_DifferentContent_ShouldReturnDifferentHash()
-    {
+    public void HashPastedText_DifferentContent_ShouldReturnDifferentHash() {
         var sut = CreateSut();
         var hash1 = sut.HashPastedText("content A");
         var hash2 = sut.HashPastedText("content B");
@@ -41,8 +37,7 @@ public sealed class PasteStoreTests
     }
 
     [Fact]
-    public void StorePastedText_ShouldWriteFileToDisk()
-    {
+    public void StorePastedText_ShouldWriteFileToDisk() {
         var sut = CreateSut();
         var hash = sut.HashPastedText("stored content");
         sut.StorePastedText(hash, "stored content");
@@ -53,8 +48,7 @@ public sealed class PasteStoreTests
     }
 
     [Fact]
-    public void RetrievePastedText_ShouldReturnContent()
-    {
+    public void RetrievePastedText_ShouldReturnContent() {
         var sut = CreateSut();
         var hash = sut.HashPastedText("retrieved content");
         sut.StorePastedText(hash, "retrieved content");
@@ -64,16 +58,14 @@ public sealed class PasteStoreTests
     }
 
     [Fact]
-    public void RetrievePastedText_WithNonExistentHash_ShouldReturnNull()
-    {
+    public void RetrievePastedText_WithNonExistentHash_ShouldReturnNull() {
         var sut = CreateSut();
         var result = sut.RetrievePastedText("nonexistent0000");
         result.Should().BeNull();
     }
 
     [Fact]
-    public void StorePastedText_SameHash_ShouldOverwriteSafely()
-    {
+    public void StorePastedText_SameHash_ShouldOverwriteSafely() {
         var sut = CreateSut();
         var hash = sut.HashPastedText("original");
         sut.StorePastedText(hash, "original");

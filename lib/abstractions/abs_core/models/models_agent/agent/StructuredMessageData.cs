@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// <summary>
 /// 结构化消息解析结果 — 对齐 TS SendMessageTool 的 discriminatedUnion 输入
 /// </summary>
-public sealed class StructuredMessageData
-{
+public sealed class StructuredMessageData {
     /// <summary>
     /// 消息类型
     /// </summary>
@@ -43,10 +42,8 @@ public sealed class StructuredMessageData
     /// <summary>
     /// 生成自动分类器输入文本 — 对齐 TS toAutoClassifierInput
     /// </summary>
-    public string ToAutoClassifierInput(string recipient)
-    {
-        return Type switch
-        {
+    public string ToAutoClassifierInput(string recipient) {
+        return Type switch {
             TeammateMessageType.ShutdownRequest => $"shutdown_request to {recipient}",
             TeammateMessageType.ShutdownApproved => $"shutdown_response approved {RequestId}",
             TeammateMessageType.ShutdownRejected => $"shutdown_response rejected {RequestId}",

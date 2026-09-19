@@ -5,8 +5,7 @@ namespace Infrastructure.Network.Downloader.Planning;
 /// <para>闭区间 [Start, End],字节长度 = End - Start + 1</para>
 /// <para>Downloaded 字段在断点续传时记录已下载字节数,Resume 从 Start+Downloaded 继续</para>
 /// </summary>
-public sealed class DownloadChunk
-{
+public sealed class DownloadChunk {
     /// <summary>分片序号(从 0 开始,合并时按此顺序拼接)</summary>
     public int Index { get; set; }
 

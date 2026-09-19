@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public sealed record ApiRequest
-{
+public sealed record ApiRequest {
     public required HttpMethod Method { get; init; }
 
     public required string Path { get; init; }
@@ -16,36 +15,31 @@ public sealed record ApiRequest
 
     public bool SkipRetry { get; init; }
 
-    public static ApiRequest Get(string path, Dictionary<string, string>? queryParams = null) => new()
-    {
+    public static ApiRequest Get(string path, Dictionary<string, string>? queryParams = null) => new() {
         Method = HttpMethod.Get,
         Path = path,
         QueryParams = queryParams
     };
 
-    public static ApiRequest Post(string path, string? body = null) => new()
-    {
+    public static ApiRequest Post(string path, string? body = null) => new() {
         Method = HttpMethod.Post,
         Path = path,
         Body = body
     };
 
-    public static ApiRequest Put(string path, string? body = null) => new()
-    {
+    public static ApiRequest Put(string path, string? body = null) => new() {
         Method = HttpMethod.Put,
         Path = path,
         Body = body
     };
 
-    public static ApiRequest Patch(string path, string? body = null) => new()
-    {
+    public static ApiRequest Patch(string path, string? body = null) => new() {
         Method = HttpMethod.Patch,
         Path = path,
         Body = body
     };
 
-    public static ApiRequest Delete(string path) => new()
-    {
+    public static ApiRequest Delete(string path) => new() {
         Method = HttpMethod.Delete,
         Path = path
     };
@@ -54,8 +48,7 @@ public sealed record ApiRequest
 /// <summary>
 /// API 响应结果
 /// </summary>
-public sealed record ApiResponse<T>
-{
+public sealed record ApiResponse<T> {
     /// <summary>
     /// 是否成功
     /// </summary>
@@ -89,8 +82,7 @@ public sealed record ApiResponse<T>
     /// <summary>
     /// 创建成功响应
     /// </summary>
-    public static ApiResponse<T> SuccessResult(T data, int statusCode, Dictionary<string, List<string>>? headers = null, string? rawContent = null) => new()
-    {
+    public static ApiResponse<T> SuccessResult(T data, int statusCode, Dictionary<string, List<string>>? headers = null, string? rawContent = null) => new() {
         Success = true,
         Data = data,
         StatusCode = statusCode,
@@ -101,8 +93,7 @@ public sealed record ApiResponse<T>
     /// <summary>
     /// 创建失败响应
     /// </summary>
-    public static ApiResponse<T> Failure(int statusCode, string errorMessage, Dictionary<string, List<string>>? headers = null, string? rawContent = null) => new()
-    {
+    public static ApiResponse<T> Failure(int statusCode, string errorMessage, Dictionary<string, List<string>>? headers = null, string? rawContent = null) => new() {
         Success = false,
         StatusCode = statusCode,
         ErrorMessage = errorMessage,
@@ -111,8 +102,7 @@ public sealed record ApiResponse<T>
     };
 }
 
-public interface IApiClient
-{
+public interface IApiClient {
     Task<HttpResponseMessage> SendAsync(ApiRequest request, CancellationToken cancellationToken = default);
 
     Task<ApiResponse<T>> RequestAsync<T>(ApiRequest request, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default);

@@ -3,8 +3,7 @@ namespace Core.Prompts.Testing;
 /// <summary>
 /// 提示词测试上下文
 /// </summary>
-public sealed class PromptTestContext
-{
+public sealed class PromptTestContext {
     /// <summary>
     /// 获取测试配置。
     /// </summary>
@@ -14,8 +13,7 @@ public sealed class PromptTestContext
     /// 初始化 <see cref="PromptTestContext"/> 的新实例。
     /// </summary>
     /// <param name="config">测试配置，为 null 时使用默认配置。</param>
-    public PromptTestContext(PromptTestConfig? config = null)
-    {
+    public PromptTestContext(PromptTestConfig? config = null) {
         Config = config ?? new PromptTestConfig();
     }
 }
@@ -23,8 +21,7 @@ public sealed class PromptTestContext
 /// <summary>
 /// 提示词测试配置
 /// </summary>
-public sealed record PromptTestConfig
-{
+public sealed record PromptTestConfig {
     /// <summary>
     /// 获取或设置是否启用简洁模式。
     /// </summary>

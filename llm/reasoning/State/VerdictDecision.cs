@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.State;
 /// <summary>
 /// 裁决决定
 /// </summary>
-public enum VerdictDecision
-{
+public enum VerdictDecision {
     /// <summary>接受 — 裁决采纳该命题</summary>
     [EnumValue("accept")] Accept,
     /// <summary>驳回 — 裁决否决该命题</summary>

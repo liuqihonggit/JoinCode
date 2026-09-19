@@ -4,18 +4,15 @@ namespace Dream.Tests;
 /// <summary>
 /// 做梦任务注册表测试
 /// </summary>
-public sealed class DreamTaskRegistryTests
-{
+public sealed class DreamTaskRegistryTests {
     private readonly InMemoryDreamTaskRegistry _registry;
 
-    public DreamTaskRegistryTests()
-    {
+    public DreamTaskRegistryTests() {
         _registry = new InMemoryDreamTaskRegistry();
     }
 
     [Fact]
-    public async Task RegisterDreamTask_ShouldReturnValidTaskId()
-    {
+    public async Task RegisterDreamTask_ShouldReturnValidTaskId() {
         // Arrange
         var request = CreateRegistrationRequest();
 
@@ -29,8 +26,7 @@ public sealed class DreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task RegisterDreamTask_ShouldStoreTask()
-    {
+    public async Task RegisterDreamTask_ShouldStoreTask() {
         // Arrange
         var request = CreateRegistrationRequest();
 
@@ -46,8 +42,7 @@ public sealed class DreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task GetTaskState_NonExistentTask_ShouldReturnNull()
-    {
+    public async Task GetTaskState_NonExistentTask_ShouldReturnNull() {
         // Act
         var task = await _registry.GetTaskStateAsync("nonexistent").ConfigureAwait(true);
 
@@ -56,8 +51,7 @@ public sealed class DreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task AddDreamTurn_ShouldUpdateTask()
-    {
+    public async Task AddDreamTurn_ShouldUpdateTask() {
         // Arrange
         var taskId = await _registry.RegisterDreamTaskAsync(CreateRegistrationRequest()).ConfigureAwait(true);
         var turn = new DreamTurn { Text = "test turn", ToolUseCount = 1 };
@@ -74,8 +68,7 @@ public sealed class DreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task AddDreamTurn_NonExistentTask_ShouldNotThrow()
-    {
+    public async Task AddDreamTurn_NonExistentTask_ShouldNotThrow() {
         // Arrange
         var turn = new DreamTurn { Text = "test", ToolUseCount = 0 };
 
@@ -86,8 +79,7 @@ public sealed class DreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task CompleteDreamTask_ShouldUpdateStatus()
-    {
+    public async Task CompleteDreamTask_ShouldUpdateStatus() {
         // Arrange
         var taskId = await _registry.RegisterDreamTaskAsync(CreateRegistrationRequest()).ConfigureAwait(true);
 
@@ -103,8 +95,7 @@ public sealed class DreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task FailDreamTask_ShouldUpdateStatus()
-    {
+    public async Task FailDreamTask_ShouldUpdateStatus() {
         // Arrange
         var taskId = await _registry.RegisterDreamTaskAsync(CreateRegistrationRequest()).ConfigureAwait(true);
 
@@ -119,8 +110,7 @@ public sealed class DreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task KillDreamTask_ShouldCancelAndUpdateStatus()
-    {
+    public async Task KillDreamTask_ShouldCancelAndUpdateStatus() {
         // Arrange
         var cts = new CancellationTokenSource();
         var request = new DreamTaskRegistrationRequest(
@@ -140,8 +130,7 @@ public sealed class DreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task KillDreamTask_AlreadyTerminal_ShouldNotThrow()
-    {
+    public async Task KillDreamTask_AlreadyTerminal_ShouldNotThrow() {
         // Arrange
         var taskId = await _registry.RegisterDreamTaskAsync(CreateRegistrationRequest()).ConfigureAwait(true);
         await _registry.CompleteDreamTaskAsync(taskId).ConfigureAwait(true);
@@ -153,8 +142,7 @@ public sealed class DreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task GetAllTasks_ShouldReturnAllRegisteredTasks()
-    {
+    public async Task GetAllTasks_ShouldReturnAllRegisteredTasks() {
         // Arrange
         var request1 = CreateRegistrationRequest();
         var request2 = CreateRegistrationRequest();
@@ -171,8 +159,7 @@ public sealed class DreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task GetAllTasks_ShouldReturnSnapshot()
-    {
+    public async Task GetAllTasks_ShouldReturnSnapshot() {
         // Arrange
         await _registry.RegisterDreamTaskAsync(CreateRegistrationRequest()).ConfigureAwait(true);
         var allTasks = await _registry.GetAllTasksAsync().ConfigureAwait(true);

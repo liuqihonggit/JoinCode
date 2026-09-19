@@ -4,8 +4,7 @@ namespace Core.Tests.Hooks;
 /// <summary>
 /// HookOrchestrator 集成测试
 /// </summary>
-public class HookOrchestratorTests
-{
+public class HookOrchestratorTests {
     private readonly HookOrchestrator _orchestrator;
     private readonly Mock<IHookConfigurationManager> _configManagerMock;
     private readonly Mock<ISessionHookManagerInternal> _sessionManagerMock;
@@ -13,8 +12,7 @@ public class HookOrchestratorTests
     private readonly Mock<IAsyncHookRegistry> _asyncRegistryMock;
     private readonly Mock<IHookConditionEvaluator> _conditionEvaluatorMock;
 
-    public HookOrchestratorTests()
-    {
+    public HookOrchestratorTests() {
         _configManagerMock = new Mock<IHookConfigurationManager>();
         _sessionManagerMock = new Mock<ISessionHookManagerInternal>();
         _broadcasterMock = new Mock<IHookEventBroadcaster>();
@@ -50,14 +48,12 @@ public class HookOrchestratorTests
     }
 
     [Fact]
-    public async Task ExecuteHooksAsync_NoHooks_ShouldReturnEmpty()
-    {
+    public async Task ExecuteHooksAsync_NoHooks_ShouldReturnEmpty() {
         _configManagerMock
             .Setup(m => m.GetHooksForEventAsync(It.IsAny<HookEvent>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<SourcedHookConfig>());
 
-        var input = new HookInput
-        {
+        var input = new HookInput {
             Event = HookEvent.PreToolUse,
             ToolName = ShellToolNameEnumConstants.Bash,
             Payload = new Dictionary<string, JsonElement>()
@@ -69,14 +65,11 @@ public class HookOrchestratorTests
     }
 
     [Fact]
-    public async Task ExecuteHooksAsync_WithFunctionHook_ShouldExecuteAndReturnResult()
-    {
+    public async Task ExecuteHooksAsync_WithFunctionHook_ShouldExecuteAndReturnResult() {
         var hookExecuted = false;
-        var functionHook = new FunctionHook
-        {
+        var functionHook = new FunctionHook {
             Id = "test-hook",
-            Callback = (input, ct) =>
-            {
+            Callback = (input, ct) => {
                 hookExecuted = true;
                 return Task.FromResult(HookResult.Success());
             }
@@ -86,8 +79,7 @@ public class HookOrchestratorTests
             .Setup(m => m.GetSessionFunctionHooksAsync(It.IsAny<string>(), It.IsAny<HookEvent?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<FunctionHook> { functionHook });
 
-        var input = new HookInput
-        {
+        var input = new HookInput {
             Event = HookEvent.PreToolUse,
             ToolName = ShellToolNameEnumConstants.Bash,
             SessionId = "test-session",
@@ -102,26 +94,21 @@ public class HookOrchestratorTests
     }
 
     [Fact]
-    public async Task ExecuteHooksAsync_WithBlockingResult_ShouldStopExecution()
-    {
+    public async Task ExecuteHooksAsync_WithBlockingResult_ShouldStopExecution() {
         var firstHookExecuted = false;
         var secondHookExecuted = false;
 
-        var hook1 = new FunctionHook
-        {
+        var hook1 = new FunctionHook {
             Id = "hook-1",
-            Callback = (input, ct) =>
-            {
+            Callback = (input, ct) => {
                 firstHookExecuted = true;
                 return Task.FromResult(HookResult.Blocking("error", "cmd"));
             }
         };
 
-        var hook2 = new FunctionHook
-        {
+        var hook2 = new FunctionHook {
             Id = "hook-2",
-            Callback = (input, ct) =>
-            {
+            Callback = (input, ct) => {
                 secondHookExecuted = true;
                 return Task.FromResult(HookResult.Success());
             }
@@ -131,8 +118,7 @@ public class HookOrchestratorTests
             .Setup(m => m.GetSessionFunctionHooksAsync(It.IsAny<string>(), It.IsAny<HookEvent?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<FunctionHook> { hook1, hook2 });
 
-        var input = new HookInput
-        {
+        var input = new HookInput {
             Event = HookEvent.PreToolUse,
             ToolName = ShellToolNameEnumConstants.Bash,
             SessionId = "test-session",
@@ -148,19 +134,16 @@ public class HookOrchestratorTests
     }
 
     [Fact]
-    public async Task ExecuteHooksAsync_WithConditionNotMet_ShouldSkipHook()
-    {
+    public async Task ExecuteHooksAsync_WithConditionNotMet_ShouldSkipHook() {
         _conditionEvaluatorMock
             .Setup(e => e.EvaluateAsync(It.IsAny<string?>(), It.IsAny<HookInput>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         var hookExecuted = false;
-        var functionHook = new FunctionHook
-        {
+        var functionHook = new FunctionHook {
             Id = "test-hook",
             If = "Bash(git *)",
-            Callback = (input, ct) =>
-            {
+            Callback = (input, ct) => {
                 hookExecuted = true;
                 return Task.FromResult(HookResult.Success());
             }
@@ -170,8 +153,7 @@ public class HookOrchestratorTests
             .Setup(m => m.GetSessionFunctionHooksAsync(It.IsAny<string>(), It.IsAny<HookEvent?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<FunctionHook> { functionHook });
 
-        var input = new HookInput
-        {
+        var input = new HookInput {
             Event = HookEvent.PreToolUse,
             ToolName = ShellToolNameEnumConstants.Bash,
             SessionId = "test-session",
@@ -185,15 +167,12 @@ public class HookOrchestratorTests
     }
 
     [Fact]
-    public async Task ExecuteHooksAsync_WithOnceHook_ShouldRemoveAfterExecution()
-    {
+    public async Task ExecuteHooksAsync_WithOnceHook_ShouldRemoveAfterExecution() {
         var hookExecuted = false;
-        var functionHook = new FunctionHook
-        {
+        var functionHook = new FunctionHook {
             Id = "once-hook",
             Once = true,
-            Callback = (input, ct) =>
-            {
+            Callback = (input, ct) => {
                 hookExecuted = true;
                 return Task.FromResult(HookResult.Success());
             }
@@ -207,8 +186,7 @@ public class HookOrchestratorTests
             .Setup(m => m.RemoveFunctionHookAsync(It.IsAny<string>(), It.IsAny<HookEvent>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var input = new HookInput
-        {
+        var input = new HookInput {
             Event = HookEvent.PreToolUse,
             ToolName = ShellToolNameEnumConstants.Bash,
             SessionId = "test-session",
@@ -224,8 +202,7 @@ public class HookOrchestratorTests
     }
 
     [Fact]
-    public async Task ExecuteHooksAsync_SimplifiedOverload_ShouldWork()
-    {
+    public async Task ExecuteHooksAsync_SimplifiedOverload_ShouldWork() {
         _configManagerMock
             .Setup(m => m.GetHooksForEventAsync(It.IsAny<HookEvent>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<SourcedHookConfig>());

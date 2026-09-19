@@ -1,10 +1,8 @@
 namespace Mcp.Tests;
 
-public sealed class TransportFallbackMetricsTests
-{
+public sealed class TransportFallbackMetricsTests {
     [Fact]
-    public void RecordConnection_IncrementsAttemptsAndSuccesses()
-    {
+    public void RecordConnection_IncrementsAttemptsAndSuccesses() {
         var metrics = new TransportFallbackMetrics(3);
         metrics.RecordConnection(0);
         var snapshot = metrics.GetSnapshot();
@@ -13,8 +11,7 @@ public sealed class TransportFallbackMetricsTests
     }
 
     [Fact]
-    public void RecordFailure_IncrementsAttemptsAndFailures()
-    {
+    public void RecordFailure_IncrementsAttemptsAndFailures() {
         var metrics = new TransportFallbackMetrics(3);
         metrics.RecordFailure(1);
         var snapshot = metrics.GetSnapshot();
@@ -23,8 +20,7 @@ public sealed class TransportFallbackMetricsTests
     }
 
     [Fact]
-    public void RecordFallback_IncrementsTotalFallbacks()
-    {
+    public void RecordFallback_IncrementsTotalFallbacks() {
         var metrics = new TransportFallbackMetrics(3);
         metrics.RecordFallback(0, 1, 500);
         metrics.RecordFallback(1, 2, 300);
@@ -34,8 +30,7 @@ public sealed class TransportFallbackMetricsTests
     }
 
     [Fact]
-    public void GetSnapshot_ContainsCorrectTransportCount()
-    {
+    public void GetSnapshot_ContainsCorrectTransportCount() {
         var metrics = new TransportFallbackMetrics(4);
         var snapshot = metrics.GetSnapshot();
         snapshot.ConnectionAttempts.Length.Should().Be(4);
@@ -44,16 +39,14 @@ public sealed class TransportFallbackMetricsTests
     }
 
     [Fact]
-    public void InvalidIndex_Throws()
-    {
+    public void InvalidIndex_Throws() {
         var metrics = new TransportFallbackMetrics(2);
         Assert.Throws<ArgumentOutOfRangeException>(() => metrics.RecordConnection(2));
         Assert.Throws<ArgumentOutOfRangeException>(() => metrics.RecordFailure(-1));
     }
 
     [Fact]
-    public void ZeroTransportCount_Throws()
-    {
+    public void ZeroTransportCount_Throws() {
         Assert.Throws<ArgumentOutOfRangeException>(() => new TransportFallbackMetrics(0));
     }
 }

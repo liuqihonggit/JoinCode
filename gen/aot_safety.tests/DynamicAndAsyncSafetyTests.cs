@@ -1,12 +1,9 @@
 namespace AotSafety.Tests;
 
-public class DynamicAndAsyncSafetyAnalyzerTests
-{
+public class DynamicAndAsyncSafetyAnalyzerTests {
     [Fact]
-    public async Task DynamicKeyword_InVariableDeclaration_ReportsJCC1004()
-    {
-        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier>
-        {
+    public async Task DynamicKeyword_InVariableDeclaration_ReportsJCC1004() {
+        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -27,10 +24,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task DynamicKeyword_InParameter_ReportsJCC1004()
-    {
-        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier>
-        {
+    public async Task DynamicKeyword_InParameter_ReportsJCC1004() {
+        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -50,10 +45,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task VarKeyword_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier>
-        {
+    public async Task VarKeyword_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -70,10 +63,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task AsyncVoid_Method_ReportsJCC3005()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task AsyncVoid_Method_ReportsJCC3005() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Threading.Tasks;
@@ -97,10 +88,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task AsyncTask_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task AsyncTask_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Threading.Tasks;
@@ -118,10 +107,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task AsyncVoid_UiEventHandler_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task AsyncVoid_UiEventHandler_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Threading.Tasks;
@@ -139,10 +126,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task TaskResult_ReportsJCC3006()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task TaskResult_ReportsJCC3006() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Threading.Tasks;
@@ -167,10 +152,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task TaskWait_ReportsJCC3006()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task TaskWait_ReportsJCC3006() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Threading.Tasks;
@@ -195,10 +178,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task NonTaskResult_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task NonTaskResult_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -220,10 +201,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task TooManyParameters_ReportsJCC1006()
-    {
-        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier>
-        {
+    public async Task TooManyParameters_ReportsJCC1006() {
+        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -241,10 +220,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task ThreeOrFewerParameters_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier>
-        {
+    public async Task ThreeOrFewerParameters_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -258,10 +235,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task ParallelForEach_ReportsJCC6009()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task ParallelForEach_ReportsJCC6009() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -286,10 +261,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task NonParallelForEach_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task NonParallelForEach_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -309,10 +282,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task UsingInCsFile_ReportsJCC1005()
-    {
-        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier>
-        {
+    public async Task UsingInCsFile_ReportsJCC1005() {
+        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestState =
             {
@@ -336,10 +307,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task UsingInGlobalUsings_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier>
-        {
+    public async Task UsingInGlobalUsings_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestState =
             {
@@ -357,10 +326,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task SequentialAwaitInLoop_ReportsJCC3007()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task SequentialAwaitInLoop_ReportsJCC3007() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -388,10 +355,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task AwaitOutsideLoop_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task AwaitOutsideLoop_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Threading.Tasks;
@@ -409,10 +374,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task AwaitWithResultInLoop_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task AwaitWithResultInLoop_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -438,10 +401,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task AwaitWithoutConfigureAwaitInLib_ReportsJCC3008()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task AwaitWithoutConfigureAwaitInLib_ReportsJCC3008() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestState =
             {
@@ -469,10 +430,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task AwaitWithConfigureAwaitFalse_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier>
-        {
+    public async Task AwaitWithConfigureAwaitFalse_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestState =
             {
@@ -500,10 +459,8 @@ public class DynamicAndAsyncSafetyAnalyzerTests
     }
 
     [Fact]
-    public async Task AwaitWithoutConfigureAwaitInHost_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier>
-        {
+    public async Task AwaitWithoutConfigureAwaitInHost_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<AotSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestState =
             {

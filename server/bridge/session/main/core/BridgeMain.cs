@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// Bridge 独立进程编排器 — 对齐 TS 端 bridgeMain.ts
 /// 核心职责: 参数解析 → OAuth认证 → 环境注册 → 工作轮询 → 子进程管理 → 优雅关闭
 /// </summary>
-public sealed partial class BridgeMain : ServiceEntity
-{
+public sealed partial class BridgeMain : ServiceEntity {
     internal static readonly FrozenSet<string> ValidPermissionModes = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase, "default", "plan", "auto-accept", "bubble");
 
@@ -93,8 +92,7 @@ public sealed partial class BridgeMain : ServiceEntity
         IClockService? clock = null,
         INetworkConnectivityService? networkService = null,
         TimeSpan? giveUpThreshold = null)
-        : base(nameof(BridgeMain))
-    {
+        : base(nameof(BridgeMain)) {
         _deps = deps ?? throw new ArgumentNullException(nameof(deps));
         _logger = logger;
         _fs = deps.FileSystem;
@@ -119,12 +117,10 @@ public sealed partial class BridgeMain : ServiceEntity
     /// 验证 HTTPS URL — RunAsync/RunHeadlessAsync 共享
     /// </summary>
     /// <returns>null 表示通过，否则返回错误消息</returns>
-    internal static string? ValidateHttpsUrl(string baseUrl)
-    {
+    internal static string? ValidateHttpsUrl(string baseUrl) {
         if (!baseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
             !baseUrl.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase) &&
-            !baseUrl.StartsWith("http://127.0.0.1", StringComparison.OrdinalIgnoreCase))
-        {
+            !baseUrl.StartsWith("http://127.0.0.1", StringComparison.OrdinalIgnoreCase)) {
             return "Bridge requires HTTPS (or localhost).";
         }
         return null;
@@ -134,8 +130,7 @@ public sealed partial class BridgeMain : ServiceEntity
     /// 验证访问令牌 — RunAsync/RunHeadlessAsync 共享
     /// </summary>
     /// <returns>访问令牌；null 表示无可用令牌</returns>
-    internal string? GetValidAccessToken()
-    {
+    internal string? GetValidAccessToken() {
         return _deps.GetAccessToken();
     }
 
@@ -157,21 +152,17 @@ public sealed partial class BridgeMain : ServiceEntity
     /// 启动 Bridge 主循环 — 对齐 TS 端 bridgeMain()
     /// 流程: 参数验证 → OAuth → 环境注册 → 进入 runBridgeLoop
     /// </summary>
-    public async Task<BridgeMainResult> RunAsync(BridgeMainArgs args, CancellationToken ct = default)
-    {
+    public async Task<BridgeMainResult> RunAsync(BridgeMainArgs args, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(args);
 
-        if (_runPipeline is not null)
-        {
-            var ctx = new BridgeRunContext
-            {
+        if (_runPipeline is not null) {
+            var ctx = new BridgeRunContext {
                 Args = args,
                 CancellationToken = ct,
             };
             await _runPipeline.ExecuteAsync(ctx, ct).ConfigureAwait(false);
 
-            if (ctx.EarlyResult is not null)
-            {
+            if (ctx.EarlyResult is not null) {
                 return ctx.EarlyResult;
             }
 

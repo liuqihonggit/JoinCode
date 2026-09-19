@@ -1,12 +1,10 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class CSharpDependencyExtractorTests
-{
+public sealed class CSharpDependencyExtractorTests {
     private readonly CSharpSymbolExtractor _symbolExtractor = new();
 
     [Fact]
-    public void ExtractDependencies_ClassInheritance_ReturnsInheritsEdge()
-    {
+    public void ExtractDependencies_ClassInheritance_ReturnsInheritsEdge() {
         var source = """
             public class Animal { }
             public class Dog : Animal { }
@@ -20,8 +18,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_InterfaceImplementation_ReturnsImplementsEdge()
-    {
+    public void ExtractDependencies_InterfaceImplementation_ReturnsImplementsEdge() {
         var source = """
             public interface IRepository { }
             public class SqlRepository : IRepository { }
@@ -35,8 +32,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_FieldType_ReturnsUsesEdge()
-    {
+    public void ExtractDependencies_FieldType_ReturnsUsesEdge() {
         var source = """
             public class Logger { }
             public class Service
@@ -53,8 +49,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_MethodParameterType_ReturnsUsesEdge()
-    {
+    public void ExtractDependencies_MethodParameterType_ReturnsUsesEdge() {
         var source = """
             public class Request { }
             public class Handler
@@ -71,8 +66,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_MethodReturnType_ReturnsUsesEdge()
-    {
+    public void ExtractDependencies_MethodReturnType_ReturnsUsesEdge() {
         var source = """
             public class Result { }
             public class Service
@@ -89,8 +83,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_UsingDirective_ReturnsImportsEdge()
-    {
+    public void ExtractDependencies_UsingDirective_ReturnsImportsEdge() {
         var source = """
             using System.Collections.Generic;
             public class Service { }
@@ -104,8 +97,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_NoDependencies_ReturnsEmptyList()
-    {
+    public void ExtractDependencies_NoDependencies_ReturnsEmptyList() {
         var source = """
             public class Standalone { }
             """;
@@ -118,8 +110,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_GenericTypeArgument_ExtractsInnerType()
-    {
+    public void ExtractDependencies_GenericTypeArgument_ExtractsInnerType() {
         var source = """
             public class Repository { }
             public class Service
@@ -136,8 +127,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_GenericBaseClass_ExtractsTypeArgs()
-    {
+    public void ExtractDependencies_GenericBaseClass_ExtractsTypeArgs() {
         var source = """
             public class Entity { }
             public class RepositoryBase<T> { }
@@ -152,8 +142,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_GenericConstraint_ExtractsConstraintType()
-    {
+    public void ExtractDependencies_GenericConstraint_ExtractsConstraintType() {
         var source = """
             public interface IEntity { }
             public class Repository<T> where T : IEntity { }
@@ -167,8 +156,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_Attribute_ExtractsAttributeType()
-    {
+    public void ExtractDependencies_Attribute_ExtractsAttributeType() {
         var source = """
             public class CustomAttribute : System.Attribute { }
             [Custom]
@@ -183,8 +171,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_NestedType_ReturnsContainsEdge()
-    {
+    public void ExtractDependencies_NestedType_ReturnsContainsEdge() {
         var source = """
             public class Outer
             {
@@ -200,8 +187,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_BclTypeNotIncluded_FiltersList()
-    {
+    public void ExtractDependencies_BclTypeNotIncluded_FiltersList() {
         var source = """
             public class Service
             {
@@ -218,8 +204,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_LowercaseCustomType_Extracted()
-    {
+    public void ExtractDependencies_LowercaseCustomType_Extracted() {
         var source = """
             public class myService
             {
@@ -238,8 +223,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_NestedGenericConstraint_ExtractsAllTypes()
-    {
+    public void ExtractDependencies_NestedGenericConstraint_ExtractsAllTypes() {
         var source = """
             public interface IValidator { }
             public interface IHandler { }
@@ -255,8 +239,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_NestedGenericArguments_ExtractsAllTypes()
-    {
+    public void ExtractDependencies_NestedGenericArguments_ExtractsAllTypes() {
         var source = """
             public class Repository { }
             public class Service
@@ -273,8 +256,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_FullAttributeName_StripsSuffix()
-    {
+    public void ExtractDependencies_FullAttributeName_StripsSuffix() {
         var source = """
             public class CustomAttribute { }
             [CustomAttribute]
@@ -289,8 +271,7 @@ public sealed class CSharpDependencyExtractorTests
     }
 
     [Fact]
-    public void ExtractDependencies_MethodAttribute_ExtractsType()
-    {
+    public void ExtractDependencies_MethodAttribute_ExtractsType() {
         var source = """
             public class TestAttribute { }
             public class Service

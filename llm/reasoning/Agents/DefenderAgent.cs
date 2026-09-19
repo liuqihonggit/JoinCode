@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Agents;
 /// <summary>
 /// 辩方Agent — 质疑证据，寻找反驳
 /// </summary>
-public sealed class DefenderAgent : ReasoningAgent
-{
+public sealed class DefenderAgent : ReasoningAgent {
     /// <summary>
     /// 系统提示词 — 指示辩方Agent 质疑控方证据可靠性并寻找反驳证据，输出 JSON 格式
     /// </summary>
@@ -29,8 +28,7 @@ public sealed class DefenderAgent : ReasoningAgent
     /// <param name="context">推理上下文，提供可见数据项、证据与 DAG 边</param>
     /// <param name="ct">取消令牌，用于中断异步操作</param>
     /// <returns>辩方 Agent 动作结果，包含质疑、反驳证据与令牌用量</returns>
-    public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
-    {
+    public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct) {
         var action = new AgentAction { AgentRole = Role, ActionType = "质疑证据" };
         var doubtThreshold = context.Options.DefenderDoubtThreshold;
 
@@ -40,8 +38,7 @@ public sealed class DefenderAgent : ReasoningAgent
 
         var visibleEvidence = context.GetVisibleEvidenceForRole(Role);
 
-        foreach (var item in targets)
-        {
+        foreach (var item in targets) {
             action.AffectedClaimIds.Add(item.Id);
 
             var supportingEdgeIds = context.Dag.Edges.Values
@@ -52,40 +49,32 @@ public sealed class DefenderAgent : ReasoningAgent
             var supportingEvidence = visibleEvidence
                 .Count(e => e.SubmittedBy == AgentRole.Prosecutor && supportingEdgeIds.Contains(e.Id));
 
-            if (supportingEvidence < doubtThreshold)
-            {
+            if (supportingEvidence < doubtThreshold) {
                 action.Doubts.Add($"证据链不完整: {item.Content} (控方证据数:{supportingEvidence}, 阈值:{doubtThreshold})");
                 action.ActionType = "质疑";
             }
         }
 
-        if (targets.Count > 0)
-        {
+        if (targets.Count > 0) {
             var itemsText = string.Join("\n", targets.Select((x, i) => $"{i + 1}. [{x.State}] {x.Content}"));
             var userPrompt = $"请审查以下项目，提出反驳证据和质疑：\n{itemsText}";
 
             userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct);
 
             var (llmResponse, usage, promptTokens) = await CallLlmAsync(userPrompt, temperature: context.Options.DefenderTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
-            if (llmResponse is not null)
-            {
+            if (llmResponse is not null) {
                 var (counterEvidence, doubts) = ParseCounterEvidenceFromLlmResponse(llmResponse);
-                foreach (var e in counterEvidence)
-                {
+                foreach (var e in counterEvidence) {
                     action.CounterEvidence.Add(e);
                 }
-                foreach (var d in doubts)
-                {
+                foreach (var d in doubts) {
                     action.Doubts.Add(d);
                 }
             }
 
-            if (usage is not null)
-            {
+            if (usage is not null) {
                 action.TokensUsed = usage.TotalTokens + promptTokens;
-            }
-            else
-            {
+            } else {
                 action.TokensUsed = promptTokens;
             }
 
@@ -96,24 +85,19 @@ public sealed class DefenderAgent : ReasoningAgent
         return action;
     }
 
-    private (List<EvidenceRecord> CounterEvidence, List<string> Doubts) ParseCounterEvidenceFromLlmResponse(string content)
-    {
+    private (List<EvidenceRecord> CounterEvidence, List<string> Doubts) ParseCounterEvidenceFromLlmResponse(string content) {
         var counterEvidence = new List<EvidenceRecord>();
         var doubts = new List<string>();
 
-        try
-        {
+        try {
             var json = ExtractJsonObject(content, _logger);
             if (json is null) return (counterEvidence, doubts);
 
             using var doc = JsonDocument.Parse(json);
 
-            if (doc.RootElement.TryGetProperty("counterEvidence", out var ceArray))
-            {
-                foreach (var item in ceArray.EnumerateArray())
-                {
-                    counterEvidence.Add(new EvidenceRecord
-                    {
+            if (doc.RootElement.TryGetProperty("counterEvidence", out var ceArray)) {
+                foreach (var item in ceArray.EnumerateArray()) {
+                    counterEvidence.Add(new EvidenceRecord {
                         Content = item.TryGetProperty("content", out var c) ? c.GetString() ?? string.Empty : string.Empty,
                         Source = item.TryGetProperty("source", out var s) ? s.GetString() : "LLM生成",
                         TrustLevel = item.TryGetProperty("trustLevel", out var t) ? ParseTrustLevel(t.GetString()) : TrustLevel.Moderate,
@@ -124,17 +108,13 @@ public sealed class DefenderAgent : ReasoningAgent
                 }
             }
 
-            if (doc.RootElement.TryGetProperty("doubts", out var dArray))
-            {
-                foreach (var item in dArray.EnumerateArray())
-                {
+            if (doc.RootElement.TryGetProperty("doubts", out var dArray)) {
+                foreach (var item in dArray.EnumerateArray()) {
                     var doubt = item.GetString();
                     if (doubt is not null) doubts.Add(doubt);
                 }
             }
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             _logger.LogWarning(ex, "[辩方] 解析LLM反驳JSON失败");
         }
 

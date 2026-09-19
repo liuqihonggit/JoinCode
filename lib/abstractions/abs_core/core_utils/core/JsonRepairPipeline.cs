@@ -4,14 +4,12 @@ namespace JoinCode.Abstractions.Utils;
 /// JSON 修复管道 — 从 ToolCallRepairService 提取的单一职责小类
 /// <para>职责: 多阶段 JSON 字符串修复(BOM/分号/引号/换行/逗号/key/value/转义/浮点/十六进制/截断)</para>
 /// </summary>
-internal static class JsonRepairPipeline
-{
+internal static class JsonRepairPipeline {
     /// <summary>
     /// 修复 LLM 生成的非法 JSON — 多阶段管道修复
     /// <para>阶段: BOM剥离→分号剥离→外层引号剥离→快速解析→逐项修复→截断修复→shell剥引号修复</para>
     /// </summary>
-    public static ToolCallRepairResult RepairJson(string? rawJson)
-    {
+    public static ToolCallRepairResult RepairJson(string? rawJson) {
         if (string.IsNullOrWhiteSpace(rawJson))
             return new ToolCallRepairResult { Success = true, RepairedJson = "{}" };
 
@@ -35,8 +33,7 @@ internal static class JsonRepairPipeline
         repaired = FixHexAndLeadingZeroNumbers(repaired, hints);
 
         if (TryParseJson(repaired, out _))
-            return new ToolCallRepairResult
-            {
+            return new ToolCallRepairResult {
                 Success = true,
                 RepairedJson = repaired,
                 RepairHint = hints.Count > 0 ? string.Join("; ", hints) : null
@@ -45,8 +42,7 @@ internal static class JsonRepairPipeline
         repaired = RepairTruncatedJson(repaired, hints);
 
         if (TryParseJson(repaired, out _))
-            return new ToolCallRepairResult
-            {
+            return new ToolCallRepairResult {
                 Success = true,
                 RepairedJson = repaired,
                 RepairHint = hints.Count > 0 ? string.Join("; ", hints) : null
@@ -54,15 +50,13 @@ internal static class JsonRepairPipeline
 
         var shellStripped = RepairShellStrippedSingleKey(json, hints);
         if (shellStripped is not null && TryParseJson(shellStripped, out _))
-            return new ToolCallRepairResult
-            {
+            return new ToolCallRepairResult {
                 Success = true,
                 RepairedJson = shellStripped,
                 RepairHint = hints.Count > 0 ? string.Join("; ", hints) : null
             };
 
-        return new ToolCallRepairResult
-        {
+        return new ToolCallRepairResult {
             Success = false,
             RepairedJson = repaired,
             RepairHint = $"JSON repair failed. Original: {TruncateForHint(rawJson)}"
@@ -75,8 +69,7 @@ internal static class JsonRepairPipeline
     /// <para>策略: 第一个 : 前为 key,最后一个 } 前为 value,整体加引号</para>
     /// <para>返回 null 表示不适用(多键对象或已有引号)</para>
     /// </summary>
-    private static string? RepairShellStrippedSingleKey(string json, List<string> hints)
-    {
+    private static string? RepairShellStrippedSingleKey(string json, List<string> hints) {
         if (json.Length < 4 || json[0] != '{' || json[^1] != '}')
             return null;
         if (!json.Contains(':') || json.Contains('"'))
@@ -98,8 +91,7 @@ internal static class JsonRepairPipeline
         sb.Append('"');
         sb.Append(keySpan);
         sb.Append("\":\"");
-        for (int i = 0; i < valueSpan.Length; i++)
-        {
+        for (int i = 0; i < valueSpan.Length; i++) {
             if (valueSpan[i] == '\\')
                 sb.Append("\\\\");
             else if (valueSpan[i] == '"')
@@ -113,15 +105,11 @@ internal static class JsonRepairPipeline
         return string.Concat("{", sb.ToString(), "}");
     }
 
-    private static bool TryParseJson(string json, out JsonDocument? doc)
-    {
-        try
-        {
+    private static bool TryParseJson(string json, out JsonDocument? doc) {
+        try {
             doc = JsonDocument.Parse(json);
             return true;
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             doc = null;
             return false;
         }
@@ -130,8 +118,7 @@ internal static class JsonRepairPipeline
     /// <summary>
     /// 剥离 UTF-8/UTF-16 BOM 头
     /// </summary>
-    private static string StripBom(string input)
-    {
+    private static string StripBom(string input) {
         var span = input.AsSpan();
         while (span.Length > 0 && (span[0] == '\uFEFF' || span[0] == '\uFFFE' || span[0] == '\u0000'))
             span = span[1..];
@@ -139,20 +126,16 @@ internal static class JsonRepairPipeline
         return span.ToString();
     }
 
-    private static string RemoveTrailingCommas(string json, List<string> hints)
-    {
+    private static string RemoveTrailingCommas(string json, List<string> hints) {
         bool changed = false;
         var result = new StringBuilder(json.Length);
         int i = 0;
 
-        while (i < json.Length)
-        {
-            if (json[i] == '"')
-            {
+        while (i < json.Length) {
+            if (json[i] == '"') {
                 int start = i;
                 i++;
-                while (i < json.Length)
-                {
+                while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
                     if (json[i] == '"') { i++; break; }
                     i++;
@@ -161,13 +144,11 @@ internal static class JsonRepairPipeline
                 continue;
             }
 
-            if (json[i] == ',')
-            {
+            if (json[i] == ',') {
                 int j = i + 1;
                 while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
 
-                if (j < json.Length && (json[j] == '}' || json[j] == ']'))
-                {
+                if (j < json.Length && (json[j] == '}' || json[j] == ']')) {
                     changed = true;
                     i++;
                     continue;
@@ -184,20 +165,16 @@ internal static class JsonRepairPipeline
         return result.ToString();
     }
 
-    private static string FixUnquotedKeys(string json, List<string> hints)
-    {
+    private static string FixUnquotedKeys(string json, List<string> hints) {
         bool changed = false;
         var result = new StringBuilder(json.Length);
         int i = 0;
 
-        while (i < json.Length)
-        {
-            if (json[i] == '"')
-            {
+        while (i < json.Length) {
+            if (json[i] == '"') {
                 int start = i;
                 i++;
-                while (i < json.Length)
-                {
+                while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
                     if (json[i] == '"') { i++; break; }
                     i++;
@@ -206,27 +183,23 @@ internal static class JsonRepairPipeline
                 continue;
             }
 
-            if (json[i] == '{' || json[i] == ',')
-            {
+            if (json[i] == '{' || json[i] == ',') {
                 result.Append(json[i]);
                 i++;
                 while (i < json.Length && char.IsWhiteSpace(json[i])) { result.Append(json[i]); i++; }
 
-                if (i < json.Length && json[i] == '"')
-                {
+                if (i < json.Length && json[i] == '"') {
                     continue;
                 }
 
-                if (i < json.Length && (char.IsLetter(json[i]) || json[i] == '_'))
-                {
+                if (i < json.Length && (char.IsLetter(json[i]) || json[i] == '_')) {
                     int keyStart = i;
                     while (i < json.Length && (char.IsLetterOrDigit(json[i]) || json[i] == '_')) i++;
 
                     int j = i;
                     while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
 
-                    if (j < json.Length && json[j] == ':')
-                    {
+                    if (j < json.Length && json[j] == ':') {
                         result.Append('"');
                         result.Append(json.AsSpan(keyStart, i - keyStart));
                         result.Append('"');
@@ -253,19 +226,16 @@ internal static class JsonRepairPipeline
     /// <para>跳过数字、true/false/null、嵌套对象{}和数组[]、已加引号的字符串</para>
     /// <para>字符级遍历，正确跳过字符串内的冒号，不会误处理字符串内的 :value, 模式</para>
     /// </summary>
-    private static string FixUnquotedValues(string json, List<string> hints)
-    {
+    private static string FixUnquotedValues(string json, List<string> hints) {
         bool changed = false;
         var result = new StringBuilder(json.Length);
         int i = 0;
 
         // 将 json[start..end] 加双引号后追加到 result,裸反斜杠转义为 \\ (JSON 合法)
-        static void AppendQuotedValue(StringBuilder sb, string s, int start, int end)
-        {
+        static void AppendQuotedValue(StringBuilder sb, string s, int start, int end) {
             sb.Append('"');
             var span = s.AsSpan(start, end - start);
-            for (int k = 0; k < span.Length; k++)
-            {
+            for (int k = 0; k < span.Length; k++) {
                 if (span[k] == '\\')
                     sb.Append("\\\\");
                 else
@@ -274,14 +244,11 @@ internal static class JsonRepairPipeline
             sb.Append('"');
         }
 
-        while (i < json.Length)
-        {
-            if (json[i] == '"')
-            {
+        while (i < json.Length) {
+            if (json[i] == '"') {
                 int start = i;
                 i++;
-                while (i < json.Length)
-                {
+                while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
                     if (json[i] == '"') { i++; break; }
                     i++;
@@ -290,8 +257,7 @@ internal static class JsonRepairPipeline
                 continue;
             }
 
-            if (json[i] == '\'')
-            {
+            if (json[i] == '\'') {
                 int start = i;
                 i++;
                 while (i < json.Length && json[i] != '\'') i++;
@@ -300,8 +266,7 @@ internal static class JsonRepairPipeline
                 continue;
             }
 
-            if (json[i] == ':')
-            {
+            if (json[i] == ':') {
                 result.Append(json[i]);
                 i++;
 
@@ -319,12 +284,10 @@ internal static class JsonRepairPipeline
                 while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ']' && !char.IsWhiteSpace(json[i]))
                     i++;
 
-                if (i > valueStart)
-                {
+                if (i > valueStart) {
                     int j = i;
                     while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
-                    if (j < json.Length && (json[j] == ',' || json[j] == '}' || json[j] == ']'))
-                    {
+                    if (j < json.Length && (json[j] == ',' || json[j] == '}' || json[j] == ']')) {
                         AppendQuotedValue(result, json, valueStart, i);
                         changed = true;
                         continue;
@@ -341,8 +304,7 @@ internal static class JsonRepairPipeline
                 int valueEnd = i;
                 while (valueEnd > valueStart && char.IsWhiteSpace(json[valueEnd - 1])) valueEnd--;
 
-                if (valueEnd > valueStart)
-                {
+                if (valueEnd > valueStart) {
                     AppendQuotedValue(result, json, valueStart, valueEnd);
                     // 尾部空白在引号外原样输出
                     for (int k = valueEnd; k < i; k++)
@@ -369,26 +331,21 @@ internal static class JsonRepairPipeline
     /// <summary>
     /// 检查字符串指定位置是否匹配某个字面量（true/false/null），且后面是单词边界
     /// </summary>
-    private static bool IsLiteralAt(string s, int index, string literal)
-    {
+    private static bool IsLiteralAt(string s, int index, string literal) {
         if (index + literal.Length > s.Length) return false;
-        for (int k = 0; k < literal.Length; k++)
-        {
+        for (int k = 0; k < literal.Length; k++) {
             if (char.ToLowerInvariant(s[index + k]) != literal[k]) return false;
         }
-        if (index + literal.Length < s.Length)
-        {
+        if (index + literal.Length < s.Length) {
             var next = s[index + literal.Length];
             if (char.IsLetterOrDigit(next) || next == '_') return false;
         }
         return true;
     }
 
-    private static string StripTrailingSemicolon(string json)
-    {
+    private static string StripTrailingSemicolon(string json) {
         var trimmed = json.AsSpan().Trim();
-        if (trimmed.Length > 0 && trimmed[trimmed.Length - 1] == ';')
-        {
+        if (trimmed.Length > 0 && trimmed[trimmed.Length - 1] == ';') {
             var end = json.Length;
             while (end > 0 && char.IsWhiteSpace(json[end - 1])) end--;
             if (end > 0 && json[end - 1] == ';')
@@ -403,15 +360,13 @@ internal static class JsonRepairPipeline
     /// <para>如 '"{"key":"value"}"' → '{"key":"value"}'</para>
     /// <para>幂等：如果去除后不是合法 JSON 开头，保留原始引号</para>
     /// </summary>
-    private static string StripOuterQuotes(string json)
-    {
+    private static string StripOuterQuotes(string json) {
         if (json.Length < 2)
             return json;
 
         var first = json[0];
         var last = json[^1];
-        if ((first == '"' && last == '"') || (first == '\'' && last == '\''))
-        {
+        if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
             var inner = json[1..^1];
             if (inner.Length > 0 && (inner[0] == '{' || inner[0] == '['))
                 return inner;
@@ -426,8 +381,7 @@ internal static class JsonRepairPipeline
     /// <para>实际换行符在 JSON 字符串值中是非法的，必须替换为 \n 转义序列</para>
     /// <para>幂等：已转义的 \\n 不受影响（它是两个字符 \ 和 n，不是裸换行符）</para>
     /// </summary>
-    private static string FixRawNewlines(string json, List<string> hints)
-    {
+    private static string FixRawNewlines(string json, List<string> hints) {
         if (!json.Contains('\r') && !json.Contains('\n') && !json.Contains('\t'))
             return json;
 
@@ -436,20 +390,16 @@ internal static class JsonRepairPipeline
         return repaired;
     }
 
-    private static string FixSingleQuotedStrings(string json, List<string> hints)
-    {
+    private static string FixSingleQuotedStrings(string json, List<string> hints) {
         bool changed = false;
         var result = new StringBuilder(json.Length);
         int i = 0;
 
-        while (i < json.Length)
-        {
-            if (json[i] == '"')
-            {
+        while (i < json.Length) {
+            if (json[i] == '"') {
                 int start = i;
                 i++;
-                while (i < json.Length)
-                {
+                while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
                     if (json[i] == '"') { i++; break; }
                     i++;
@@ -458,14 +408,12 @@ internal static class JsonRepairPipeline
                 continue;
             }
 
-            if (json[i] == '\'')
-            {
+            if (json[i] == '\'') {
                 int contentStart = i + 1;
                 int contentEnd = contentStart;
                 while (contentEnd < json.Length && json[contentEnd] != '\'') contentEnd++;
 
-                if (contentEnd < json.Length)
-                {
+                if (contentEnd < json.Length) {
                     result.Append('"');
                     result.Append(json.AsSpan(contentStart, contentEnd - contentStart));
                     result.Append('"');
@@ -495,25 +443,19 @@ internal static class JsonRepairPipeline
     /// 2. 裸控制字符（0x00-0x1F）→ 对应 \n \t \r 等转义序列
     /// 3. 无效反斜杠转义（如 \p \w \R）→ 双写反斜杠（\\p \\w \\R），处理 Windows 路径
     /// </summary>
-    private static string FixEscapeSequences(string json, List<string> hints)
-    {
+    private static string FixEscapeSequences(string json, List<string> hints) {
         bool changed = false;
         var result = new StringBuilder(json.Length);
         int i = 0;
 
-        while (i < json.Length)
-        {
-            if (json[i] == '"')
-            {
+        while (i < json.Length) {
+            if (json[i] == '"') {
                 int start = i;
                 i++;
-                while (i < json.Length)
-                {
-                    if (json[i] == '\\' && i + 1 < json.Length)
-                    {
+                while (i < json.Length) {
+                    if (json[i] == '\\' && i + 1 < json.Length) {
                         var next = json[i + 1];
-                        if (next == '\'')
-                        {
+                        if (next == '\'') {
                             result.Append(json.AsSpan(start, i - start));
                             result.Append('\'');
                             changed = true;
@@ -522,8 +464,7 @@ internal static class JsonRepairPipeline
                             continue;
                         }
 
-                        if (next is not ('"' or '\\' or '/' or 'b' or 'f' or 'n' or 'r' or 't' or 'u'))
-                        {
+                        if (next is not ('"' or '\\' or '/' or 'b' or 'f' or 'n' or 'r' or 't' or 'u')) {
                             result.Append(json.AsSpan(start, i - start));
                             result.Append("\\\\");
                             changed = true;
@@ -538,11 +479,9 @@ internal static class JsonRepairPipeline
 
                     if (json[i] == '"') { i++; break; }
 
-                    if (json[i] < 0x20)
-                    {
+                    if (json[i] < 0x20) {
                         result.Append(json.AsSpan(start, i - start));
-                        result.Append(json[i] switch
-                        {
+                        result.Append(json[i] switch {
                             '\n' => "\\n",
                             '\r' => "\\r",
                             '\t' => "\\t",
@@ -579,21 +518,17 @@ internal static class JsonRepairPipeline
     /// 策略：将裸字面量转为字符串（如 Infinity → "Infinity"），
     /// 由 JsonLenientCoercer 在类型转换层进一步处理。
     /// </summary>
-    private static string FixNamedFloatingPointLiterals(string json, List<string> hints)
-    {
+    private static string FixNamedFloatingPointLiterals(string json, List<string> hints) {
         bool changed = false;
         var literals = new List<string>();
         var result = new StringBuilder(json.Length);
         int i = 0;
 
-        while (i < json.Length)
-        {
-            if (json[i] == '"')
-            {
+        while (i < json.Length) {
+            if (json[i] == '"') {
                 int start = i;
                 i++;
-                while (i < json.Length)
-                {
+                while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
                     if (json[i] == '"') { i++; break; }
                     i++;
@@ -602,13 +537,11 @@ internal static class JsonRepairPipeline
                 continue;
             }
 
-            if (i + 7 < json.Length && json.AsSpan(i, 8) is "Infinity")
-            {
+            if (i + 7 < json.Length && json.AsSpan(i, 8) is "Infinity") {
                 var before = i > 0 ? json[i - 1] : '\0';
                 var afterIdx = i + 8;
                 var after = afterIdx < json.Length ? json[afterIdx] : '\0';
-                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after))
-                {
+                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after)) {
                     result.Append("\"Infinity\"");
                     changed = true;
                     literals.Add("Infinity");
@@ -617,13 +550,11 @@ internal static class JsonRepairPipeline
                 }
             }
 
-            if (i + 8 < json.Length && json.AsSpan(i, 9) is "-Infinity")
-            {
+            if (i + 8 < json.Length && json.AsSpan(i, 9) is "-Infinity") {
                 var before = i > 0 ? json[i - 1] : '\0';
                 var afterIdx = i + 9;
                 var after = afterIdx < json.Length ? json[afterIdx] : '\0';
-                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after))
-                {
+                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after)) {
                     result.Append("\"-Infinity\"");
                     changed = true;
                     literals.Add("-Infinity");
@@ -632,13 +563,11 @@ internal static class JsonRepairPipeline
                 }
             }
 
-            if (i + 2 < json.Length && json.AsSpan(i, 3) is "NaN")
-            {
+            if (i + 2 < json.Length && json.AsSpan(i, 3) is "NaN") {
                 var before = i > 0 ? json[i - 1] : '\0';
                 var afterIdx = i + 3;
                 var after = afterIdx < json.Length ? json[afterIdx] : '\0';
-                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after))
-                {
+                if (!IsAlphaNumeric(before) && !IsAlphaNumeric(after)) {
                     result.Append("\"NaN\"");
                     changed = true;
                     literals.Add("NaN");
@@ -660,20 +589,16 @@ internal static class JsonRepairPipeline
     private static bool IsAlphaNumeric(char c) =>
         c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_';
 
-    private static string FixHexAndLeadingZeroNumbers(string json, List<string> hints)
-    {
+    private static string FixHexAndLeadingZeroNumbers(string json, List<string> hints) {
         bool changed = false;
         var result = new StringBuilder(json.Length);
         int i = 0;
 
-        while (i < json.Length)
-        {
-            if (json[i] == '"')
-            {
+        while (i < json.Length) {
+            if (json[i] == '"') {
                 int start = i;
                 i++;
-                while (i < json.Length)
-                {
+                while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
                     if (json[i] == '"') { i++; break; }
                     i++;
@@ -684,16 +609,14 @@ internal static class JsonRepairPipeline
 
             // 十六进制：0x / 0X 后跟十六进制数字（仅在数字 token 起点触发，避免 206 中的 0x 误匹配）
             if (json[i] == '0' && i + 1 < json.Length && (json[i + 1] == 'x' || json[i + 1] == 'X')
-                && (i == 0 || !IsAlphaNumeric(json[i - 1])))
-            {
+                && (i == 0 || !IsAlphaNumeric(json[i - 1]))) {
                 int j = i + 2;
                 int hexStart = j;
                 while (j < json.Length && IsHexDigit(json[j])) j++;
 
                 if (j > hexStart
                     && ulong.TryParse(json.AsSpan(hexStart, j - hexStart), NumberStyles.HexNumber,
-                        CultureInfo.InvariantCulture, out var hexVal))
-                {
+                        CultureInfo.InvariantCulture, out var hexVal)) {
                     result.Append(hexVal.ToString(CultureInfo.InvariantCulture));
                     changed = true;
                     i = j;
@@ -704,8 +627,7 @@ internal static class JsonRepairPipeline
             // 前导零整数：0 紧跟数字（如 0123）→ 去前导零（保留至少一位）
             // 仅在数字 token 起点触发（前一个字符非字母数字），避免 206 中的 06 被误判为前导零
             if (json[i] == '0' && i + 1 < json.Length && json[i + 1] is >= '0' and <= '9'
-                && (i == 0 || !IsAlphaNumeric(json[i - 1])))
-            {
+                && (i == 0 || !IsAlphaNumeric(json[i - 1]))) {
                 int j = i + 1;
                 while (j < json.Length && json[j] is >= '0' and <= '9') j++;
 
@@ -728,64 +650,54 @@ internal static class JsonRepairPipeline
         return result.ToString();
     }
 
-    private static bool IsHexDigit(char c)
-    {
+    private static bool IsHexDigit(char c) {
         return c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
     }
 
-    private static string TruncateForHint(string text, int maxLength = 200)
-    {
+    private static string TruncateForHint(string text, int maxLength = 200) {
         if (text.Length <= maxLength) return text;
         return $"{text[..(maxLength / 2)]}...{text[^(maxLength / 2)..]}";
     }
 
-    private static string RepairTruncatedJson(string json, List<string> hints)
-    {
+    private static string RepairTruncatedJson(string json, List<string> hints) {
         var sb = new StringBuilder(json.Length + 16);
         var stack = new Stack<char>();
         var inString = false;
         var escape = false;
 
-        for (var i = 0; i < json.Length; i++)
-        {
+        for (var i = 0; i < json.Length; i++) {
             var c = json[i];
 
-            if (escape)
-            {
+            if (escape) {
                 sb.Append(c);
                 escape = false;
                 continue;
             }
 
-            if (c == '\\' && inString)
-            {
+            if (c == '\\' && inString) {
                 sb.Append(c);
                 escape = true;
                 continue;
             }
 
-            if (c == '"')
-            {
+            if (c == '"') {
                 inString = !inString;
                 sb.Append(c);
                 continue;
             }
 
-            if (inString)
-            {
+            if (inString) {
                 sb.Append(c);
                 continue;
             }
 
-            if (c is '{' or '[')
-            {
+            if (c is '{' or '[') {
                 stack.Push(c);
                 sb.Append(c);
                 continue;
             }
 
-            if (c is '}' or ']')
-            {
+            if (c is '}' or ']') {
                 if (stack.Count > 0)
                     stack.Pop();
                 sb.Append(c);
@@ -797,14 +709,12 @@ internal static class JsonRepairPipeline
 
         var modified = inString || stack.Count > 0 || sb.Length != json.Length;
 
-        if (inString)
-        {
+        if (inString) {
             sb.Append('"');
             hints.Add("closed truncated string");
         }
 
-        while (stack.Count > 0)
-        {
+        while (stack.Count > 0) {
             var opener = stack.Pop();
             var closer = opener == '{' ? '}' : ']';
 

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Plan;
 /// <summary>
 /// 空操作计划检测器 — 检测 LLM 输出的"无需修改"类计划
 /// </summary>
-public static class NoOpPlanDetector
-{
+public static class NoOpPlanDetector {
     private static readonly string[] NoOpPhrases =
     [
         "no changes needed",
@@ -42,18 +41,15 @@ public static class NoOpPlanDetector
         "运行", "测试", "构建", "修复", "实现", "重构",
     ];
 
-    public static bool IsNoOpPlan(string plan)
-    {
+    public static bool IsNoOpPlan(string plan) {
         if (string.IsNullOrWhiteSpace(plan)) return false;
 
         var lower = plan.ToLowerInvariant().Trim();
 
         if (ContainsActionTerm(lower)) return false;
 
-        foreach (var phrase in NoOpPhrases)
-        {
-            if (lower.Contains(phrase))
-            {
+        foreach (var phrase in NoOpPhrases) {
+            if (lower.Contains(phrase)) {
                 var negationEn = $"not {phrase}";
                 var negationZh = $"不是{phrase}";
                 if (!lower.Contains(negationEn) && !lower.Contains(negationZh))
@@ -64,11 +60,9 @@ public static class NoOpPlanDetector
         return false;
     }
 
-    private static bool ContainsActionTerm(string lower)
-    {
+    private static bool ContainsActionTerm(string lower) {
         var padded = $" {lower} ";
-        foreach (var term in ActionTerms)
-        {
+        foreach (var term in ActionTerms) {
             if (padded.Contains(term)) return true;
         }
         return false;

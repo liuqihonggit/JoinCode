@@ -1,11 +1,9 @@
 namespace Core.Goal.Tests;
 
 
-public sealed class ClusterExpandIntegrationTests
-{
+public sealed class ClusterExpandIntegrationTests {
     [Fact]
-    public async Task ClusterExpand_Should_DynamicallyAddWorkerNodes()
-    {
+    public async Task ClusterExpand_Should_DynamicallyAddWorkerNodes() {
         var services = new ServiceCollection();
         var analyzer = new Mock<IDecomposabilityAnalyzer>();
         analyzer.Setup(a => a.AnalyzeAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
@@ -33,8 +31,7 @@ public sealed class ClusterExpandIntegrationTests
     }
 
     [Fact]
-    public async Task ClusterExpand_NotDecomposable_Should_RouteToFallback()
-    {
+    public async Task ClusterExpand_NotDecomposable_Should_RouteToFallback() {
         var services = new ServiceCollection();
         var analyzer = new Mock<IDecomposabilityAnalyzer>();
         analyzer.Setup(a => a.AnalyzeAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
@@ -53,8 +50,7 @@ public sealed class ClusterExpandIntegrationTests
     }
 
     [Fact]
-    public async Task ClusterExpand_ValidationFails_Should_RouteToFallback()
-    {
+    public async Task ClusterExpand_ValidationFails_Should_RouteToFallback() {
         var services = new ServiceCollection();
         var analyzer = new Mock<IDecomposabilityAnalyzer>();
 
@@ -78,8 +74,7 @@ public sealed class ClusterExpandIntegrationTests
     }
 
     [Fact]
-    public async Task ClusterExpand_ApprovalBlocked_Should_RouteToFallback()
-    {
+    public async Task ClusterExpand_ApprovalBlocked_Should_RouteToFallback() {
         var services = new ServiceCollection();
         var analyzer = new Mock<IDecomposabilityAnalyzer>();
         analyzer.Setup(a => a.AnalyzeAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
@@ -101,8 +96,7 @@ public sealed class ClusterExpandIntegrationTests
     }
 
     [Fact]
-    public async Task ClusterExpand_WithDependencies_Should_CreateCorrectEdges()
-    {
+    public async Task ClusterExpand_WithDependencies_Should_CreateCorrectEdges() {
         var services = new ServiceCollection();
         var analyzer = new Mock<IDecomposabilityAnalyzer>();
         analyzer.Setup(a => a.AnalyzeAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
@@ -139,8 +133,7 @@ public sealed class ClusterExpandIntegrationTests
     private static GoalGraphEngine CreateEngine(
         Mock<IChatClient>? kernel = null,
         Mock<IGoalEvaluator>? evaluator = null,
-        IServiceProvider? serviceProvider = null)
-    {
+        IServiceProvider? serviceProvider = null) {
         var mockKernel = kernel ?? CreateKernelMock();
         var mockEvaluator = evaluator ?? new Mock<IGoalEvaluator>();
         var heartbeat = new Mock<IGoalHeartbeat>();
@@ -156,22 +149,19 @@ public sealed class ClusterExpandIntegrationTests
             heartbeat: heartbeat.Object);
     }
 
-    private static Mock<IChatClient> CreateKernelMock()
-    {
+    private static Mock<IChatClient> CreateKernelMock() {
         var kernel = new Mock<IChatClient>();
         var plugins = new Mock<IToolCollection>();
         kernel.SetupGet(k => k.Plugins).Returns(plugins.Object);
         return kernel;
     }
 
-    private sealed class NoOpClusterPlanApprovalHook : IClusterPlanApprovalHookManager
-    {
+    private sealed class NoOpClusterPlanApprovalHook : IClusterPlanApprovalHookManager {
         public Task<ClusterPlanApprovalHookResult> OnClusterPlanApprovalAsync(ClusterPlanApprovalHookContext context, CancellationToken ct = default)
             => Task.FromResult(ClusterPlanApprovalHookResult.Proceed());
     }
 
-    private sealed class BlockingClusterPlanApprovalHook : IClusterPlanApprovalHookManager
-    {
+    private sealed class BlockingClusterPlanApprovalHook : IClusterPlanApprovalHookManager {
         public Task<ClusterPlanApprovalHookResult> OnClusterPlanApprovalAsync(ClusterPlanApprovalHookContext context, CancellationToken ct = default)
             => Task.FromResult(ClusterPlanApprovalHookResult.Block("审批被阻止"));
     }

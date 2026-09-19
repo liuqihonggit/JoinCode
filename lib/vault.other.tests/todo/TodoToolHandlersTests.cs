@@ -1,15 +1,13 @@
 
 namespace Core.Tests.Todo;
 
-public sealed class TodoToolHandlersTests
-{
+public sealed class TodoToolHandlersTests {
     private readonly Mock<ITodoService> _todoServiceMock = new();
 
     private TodoToolHandlers CreateSut() => new(_todoServiceMock.Object);
 
     [Fact]
-    public async Task TodoWriteAsync_EmptyList_ReturnsSuccess()
-    {
+    public async Task TodoWriteAsync_EmptyList_ReturnsSuccess() {
         var sut = CreateSut();
         _todoServiceMock.Setup(s => s.WriteTodosAsync(It.IsAny<List<TodoItemInput>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TodoServiceResult(true, 0, 0, 0, new List<TodoItem>()));
@@ -21,8 +19,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoWriteAsync_NullInput_TreatsAsEmpty()
-    {
+    public async Task TodoWriteAsync_NullInput_TreatsAsEmpty() {
         var sut = CreateSut();
         _todoServiceMock.Setup(s => s.WriteTodosAsync(It.IsAny<List<TodoItemInput>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TodoServiceResult(true, 0, 0, 0, new List<TodoItem>()));
@@ -33,8 +30,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoWriteAsync_EmptyContent_ReturnsError()
-    {
+    public async Task TodoWriteAsync_EmptyContent_ReturnsError() {
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
@@ -51,8 +47,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoWriteAsync_InvalidStatus_ReturnsError()
-    {
+    public async Task TodoWriteAsync_InvalidStatus_ReturnsError() {
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
@@ -70,8 +65,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoWriteAsync_InvalidPriority_ReturnsError()
-    {
+    public async Task TodoWriteAsync_InvalidPriority_ReturnsError() {
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
@@ -89,8 +83,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoWriteAsync_ValidTodo_CallsServiceAndReturnsSuccess()
-    {
+    public async Task TodoWriteAsync_ValidTodo_CallsServiceAndReturnsSuccess() {
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
@@ -110,8 +103,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoWriteAsync_ServiceFailure_ReturnsError()
-    {
+    public async Task TodoWriteAsync_ServiceFailure_ReturnsError() {
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
@@ -129,8 +121,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoWriteAsync_AllDone_ClearsAndAddsVerificationNudge()
-    {
+    public async Task TodoWriteAsync_AllDone_ClearsAndAddsVerificationNudge() {
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
@@ -148,8 +139,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoWriteAsync_AllDone_LessThanThree_NoNudge()
-    {
+    public async Task TodoWriteAsync_AllDone_LessThanThree_NoNudge() {
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
@@ -163,8 +153,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoWriteAsync_AllDone_ContainsVerify_NoNudge()
-    {
+    public async Task TodoWriteAsync_AllDone_ContainsVerify_NoNudge() {
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
@@ -179,8 +168,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoListAsync_InvalidStatusFilter_ReturnsError()
-    {
+    public async Task TodoListAsync_InvalidStatusFilter_ReturnsError() {
         var sut = CreateSut();
 
         var result = await sut.TodoListAsync(status: "unknown").ConfigureAwait(true);
@@ -192,8 +180,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoListAsync_InvalidPriorityFilter_ReturnsError()
-    {
+    public async Task TodoListAsync_InvalidPriorityFilter_ReturnsError() {
         var sut = CreateSut();
 
         var result = await sut.TodoListAsync(priority: "unknown").ConfigureAwait(true);
@@ -205,8 +192,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoListAsync_ServiceFailure_ReturnsError()
-    {
+    public async Task TodoListAsync_ServiceFailure_ReturnsError() {
         var sut = CreateSut();
         _todoServiceMock.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TodoListResult(false, new List<TodoItem>(), "fail"));
@@ -220,8 +206,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoListAsync_EmptyResult_IncludesNoItemsMessage()
-    {
+    public async Task TodoListAsync_EmptyResult_IncludesNoItemsMessage() {
         var sut = CreateSut();
         _todoServiceMock.Setup(s => s.ListTodosAsync(null, null, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TodoListResult(true, new List<TodoItem>()));
@@ -234,8 +219,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoListAsync_WithResult_IncludesFormattedSummary()
-    {
+    public async Task TodoListAsync_WithResult_IncludesFormattedSummary() {
         var sut = CreateSut();
         var items = new List<TodoItem>
         {
@@ -256,8 +240,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoUpdateAsync_EmptyId_ReturnsError()
-    {
+    public async Task TodoUpdateAsync_EmptyId_ReturnsError() {
         var sut = CreateSut();
 
         var result = await sut.TodoUpdateAsync("   ").ConfigureAwait(true);
@@ -269,8 +252,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoUpdateAsync_InvalidStatus_ReturnsError()
-    {
+    public async Task TodoUpdateAsync_InvalidStatus_ReturnsError() {
         var sut = CreateSut();
 
         var result = await sut.TodoUpdateAsync("id", status: "unknown").ConfigureAwait(true);
@@ -283,8 +265,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoUpdateAsync_InvalidPriority_ReturnsError()
-    {
+    public async Task TodoUpdateAsync_InvalidPriority_ReturnsError() {
         var sut = CreateSut();
 
         var result = await sut.TodoUpdateAsync("id", priority: "unknown").ConfigureAwait(true);
@@ -297,8 +278,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoUpdateAsync_ServiceFailure_ReturnsError()
-    {
+    public async Task TodoUpdateAsync_ServiceFailure_ReturnsError() {
         var sut = CreateSut();
         _todoServiceMock.Setup(s => s.UpdateTodoAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<TodoItem?>.Fail("not found"));
@@ -313,8 +293,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public async Task TodoUpdateAsync_Success_IncludesSummary()
-    {
+    public async Task TodoUpdateAsync_Success_IncludesSummary() {
         var sut = CreateSut();
         var updated = new TodoItem("id", "New content", TodoStatusEnumConstants.Completed, TodoPriorityEnumConstants.Medium, ActiveForm: "Doing new");
         _todoServiceMock.Setup(s => s.UpdateTodoAsync("id", "New content", null, null, It.IsAny<CancellationToken>()))
@@ -330,8 +309,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public void BuildEmptyContentDiagnostic_ReturnsCorrectReasonAndDetails()
-    {
+    public void BuildEmptyContentDiagnostic_ReturnsCorrectReasonAndDetails() {
         var diagnostic = TodoToolHandlers.BuildEmptyContentDiagnostic(2);
 
         diagnostic.Reason.Should().Be("EmptyContent");
@@ -342,8 +320,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public void BuildInvalidStatusDiagnostic_PartialMatch_SuggestsCandidate()
-    {
+    public void BuildInvalidStatusDiagnostic_PartialMatch_SuggestsCandidate() {
         var diagnostic = TodoToolHandlers.BuildInvalidStatusDiagnostic("comp");
 
         diagnostic.Reason.Should().Be("InvalidStatus");
@@ -352,8 +329,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public void BuildInvalidStatusDiagnostic_NoMatch_HasNoCandidate()
-    {
+    public void BuildInvalidStatusDiagnostic_NoMatch_HasNoCandidate() {
         var diagnostic = TodoToolHandlers.BuildInvalidStatusDiagnostic("blocked");
 
         diagnostic.Details.Should().NotContain(d => d.Key == "candidate");
@@ -361,8 +337,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public void BuildInvalidPriorityDiagnostic_PartialMatch_SuggestsCandidate()
-    {
+    public void BuildInvalidPriorityDiagnostic_PartialMatch_SuggestsCandidate() {
         var diagnostic = TodoToolHandlers.BuildInvalidPriorityDiagnostic("hi");
 
         diagnostic.Reason.Should().Be("InvalidPriority");
@@ -370,8 +345,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public void BuildInvalidStatusDiagnostic_WithItemIndex_IncludesIndexInDetails()
-    {
+    public void BuildInvalidStatusDiagnostic_WithItemIndex_IncludesIndexInDetails() {
         var diagnostic = TodoToolHandlers.BuildInvalidStatusDiagnostic("bad", itemIndex: 3);
 
         diagnostic.Details.Should().Contain(d => d.Key == "itemIndex" && d.Value == "3");
@@ -379,8 +353,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public void BuildInvalidStatusFilterDiagnostic_ReturnsFilterReason()
-    {
+    public void BuildInvalidStatusFilterDiagnostic_ReturnsFilterReason() {
         var diagnostic = TodoToolHandlers.BuildInvalidStatusFilterDiagnostic("done");
 
         diagnostic.Reason.Should().Be("InvalidStatusFilter");
@@ -388,8 +361,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public void BuildInvalidPriorityFilterDiagnostic_ReturnsFilterReason()
-    {
+    public void BuildInvalidPriorityFilterDiagnostic_ReturnsFilterReason() {
         var diagnostic = TodoToolHandlers.BuildInvalidPriorityFilterDiagnostic("urgent");
 
         diagnostic.Reason.Should().Be("InvalidPriorityFilter");
@@ -397,8 +369,7 @@ public sealed class TodoToolHandlersTests
     }
 
     [Fact]
-    public void BuildEmptyTodoIdDiagnostic_ReturnsCorrectReason()
-    {
+    public void BuildEmptyTodoIdDiagnostic_ReturnsCorrectReason() {
         var diagnostic = TodoToolHandlers.BuildEmptyTodoIdDiagnostic();
 
         diagnostic.Reason.Should().Be("EmptyTodoId");

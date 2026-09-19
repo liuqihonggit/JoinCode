@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Localization;
 
-public static partial class StringKey
-{
+public static partial class StringKey {
     // === VoiceToolHandlers ===
     public const string VoiceAlreadyRecording = "VoiceAlreadyRecording";
     public const string VoiceRecordingStarted = "VoiceRecordingStarted";

@@ -6,8 +6,7 @@ namespace Core.Utils;
 /// <typeparam name="TKey">键类型</typeparam>
 /// <typeparam name="TValue">值类型</typeparam>
 /// <typeparam name="TCategory">分类类型</typeparam>
-public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : notnull
-{
+public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : notnull {
     private readonly CachedRegistry<TKey, TValue> _registry;
     private readonly Dictionary<TKey, TCategory> _categories;
     private readonly Func<TValue, bool>? _isEnabled;
@@ -29,8 +28,7 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     public CategorizedRegistry(
         TCategory defaultCategory,
         Func<TValue, bool>? isEnabled = null,
-        IEqualityComparer<TKey>? comparer = null)
-    {
+        IEqualityComparer<TKey>? comparer = null) {
         _registry = new CachedRegistry<TKey, TValue>(comparer);
         _categories = new Dictionary<TKey, TCategory>(comparer ?? EqualityComparer<TKey>.Default);
         _isEnabled = isEnabled;
@@ -43,8 +41,7 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     /// <param name="key">键</param>
     /// <param name="value">值</param>
     /// <param name="isCanonical">是否为规范名，默认 true</param>
-    public void Register(TKey key, TValue value, bool isCanonical = true)
-    {
+    public void Register(TKey key, TValue value, bool isCanonical = true) {
         _registry.Register(key, value, isCanonical);
         _cachedEntriesValid = false;
     }
@@ -54,8 +51,7 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     /// </summary>
     /// <param name="alias">别名键</param>
     /// <param name="value">值</param>
-    public void RegisterAlias(TKey alias, TValue value)
-    {
+    public void RegisterAlias(TKey alias, TValue value) {
         _registry.RegisterAlias(alias, value);
         _cachedEntriesValid = false;
     }
@@ -65,8 +61,7 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     /// </summary>
     /// <param name="key">键</param>
     /// <param name="category">分类</param>
-    public void SetCategory(TKey key, TCategory category)
-    {
+    public void SetCategory(TKey key, TCategory category) {
         _categories[key] = category;
         _cachedEntriesValid = false;
     }
@@ -76,8 +71,7 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     /// </summary>
     /// <param name="key">键</param>
     /// <returns>是否成功移除</returns>
-    public bool Unregister(TKey key)
-    {
+    public bool Unregister(TKey key) {
         var removed = _registry.Unregister(key);
         if (removed) _cachedEntriesValid = false;
         return removed;
@@ -89,13 +83,11 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     /// <param name="key">键</param>
     /// <param name="value">获取到的值</param>
     /// <returns>是否找到且启用</returns>
-    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
-    {
+    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value) {
         if (!_registry.TryGetValue(key, out value))
             return false;
 
-        if (_isEnabled is not null && !_isEnabled(value))
-        {
+        if (_isEnabled is not null && !_isEnabled(value)) {
             value = default;
             return false;
         }
@@ -108,8 +100,7 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     /// </summary>
     /// <param name="key">键</param>
     /// <returns>是否包含且启用</returns>
-    public bool ContainsKey(TKey key)
-    {
+    public bool ContainsKey(TKey key) {
         if (!_registry.TryGetValue(key, out var value))
             return false;
 
@@ -125,10 +116,8 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     /// <summary>
     /// 遍历器 — 返回 IEnumerable，脏标记缓存数组，仅在变更时重建
     /// </summary>
-    public IEnumerable<CategorizedEntry<TKey, TValue, TCategory>> GetCategorizedEntries()
-    {
-        if (!_cachedEntriesValid)
-        {
+    public IEnumerable<CategorizedEntry<TKey, TValue, TCategory>> GetCategorizedEntries() {
+        if (!_cachedEntriesValid) {
             _cachedEntries = _registry.GetCanonicalEntries()
                 .Select(kvp => new CategorizedEntry<TKey, TValue, TCategory>(
                     kvp.Key,

@@ -1,23 +1,19 @@
 namespace Core.Configuration.Tests;
 
-public sealed class SimpleModeServiceTests
-{
+public sealed class SimpleModeServiceTests {
     private readonly SimpleModeService _service;
 
-    public SimpleModeServiceTests()
-    {
+    public SimpleModeServiceTests() {
         _service = new SimpleModeService();
     }
 
     [Fact]
-    public void Initial_State_Should_Not_Be_SimpleMode()
-    {
+    public void Initial_State_Should_Not_Be_SimpleMode() {
         Assert.False(_service.IsSimpleMode);
     }
 
     [Fact]
-    public void Initial_Config_Should_Be_Default()
-    {
+    public void Initial_Config_Should_Be_Default() {
         var config = _service.GetCurrentConfig();
 
         Assert.True(config.UseSimplePrompts);
@@ -29,16 +25,14 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void Enable_Should_Set_IsSimpleMode()
-    {
+    public void Enable_Should_Set_IsSimpleMode() {
         _service.Enable();
 
         Assert.True(_service.IsSimpleMode);
     }
 
     [Fact]
-    public void Enable_Should_Raise_Event()
-    {
+    public void Enable_Should_Raise_Event() {
         SimpleModeChangedEventArgs? eventArgs = null;
         _service.SimpleModeChanged += (_, e) => eventArgs = e;
 
@@ -50,8 +44,7 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void Enable_Idempotent_Should_Not_Raise_Duplicate_Events()
-    {
+    public void Enable_Idempotent_Should_Not_Raise_Duplicate_Events() {
         var eventCount = 0;
         _service.SimpleModeChanged += (_, _) => eventCount++;
 
@@ -62,8 +55,7 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void Disable_Should_Clear_IsSimpleMode()
-    {
+    public void Disable_Should_Clear_IsSimpleMode() {
         _service.Enable();
         _service.Disable();
 
@@ -71,8 +63,7 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void Disable_Should_Raise_Event()
-    {
+    public void Disable_Should_Raise_Event() {
         _service.Enable();
         SimpleModeChangedEventArgs? eventArgs = null;
         _service.SimpleModeChanged += (_, e) => eventArgs = e;
@@ -84,8 +75,7 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void Disable_When_Not_Active_Should_Not_Raise_Event()
-    {
+    public void Disable_When_Not_Active_Should_Not_Raise_Event() {
         var eventCount = 0;
         _service.SimpleModeChanged += (_, _) => eventCount++;
 
@@ -95,8 +85,7 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void Toggle_Should_Switch_State()
-    {
+    public void Toggle_Should_Switch_State() {
         Assert.False(_service.IsSimpleMode);
 
         _service.Toggle();
@@ -107,8 +96,7 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void Toggle_Should_Return_New_State()
-    {
+    public void Toggle_Should_Return_New_State() {
         var result = _service.Toggle();
         Assert.True(result);
 
@@ -117,10 +105,8 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void UpdateConfig_Should_Update_Config()
-    {
-        var newConfig = new SimpleModeConfig
-        {
+    public void UpdateConfig_Should_Update_Config() {
+        var newConfig = new SimpleModeConfig {
             UseSimplePrompts = false,
             ReduceToolSet = false,
             MinimalUI = false,
@@ -141,8 +127,7 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void UpdateConfig_Should_Raise_Event()
-    {
+    public void UpdateConfig_Should_Raise_Event() {
         SimpleModeChangedEventArgs? eventArgs = null;
         _service.SimpleModeChanged += (_, e) => eventArgs = e;
 
@@ -154,14 +139,12 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void UpdateConfig_Should_Throw_On_Null()
-    {
+    public void UpdateConfig_Should_Throw_On_Null() {
         Assert.Throws<ArgumentNullException>(() => _service.UpdateConfig(null!));
     }
 
     [Fact]
-    public void Enable_Should_Also_Enable_BriefMode()
-    {
+    public void Enable_Should_Also_Enable_BriefMode() {
         var briefModeService = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new SimpleModeService(briefModeService: briefModeService);
 
@@ -171,8 +154,7 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void Disable_Should_Also_Disable_BriefMode()
-    {
+    public void Disable_Should_Also_Disable_BriefMode() {
         var briefModeService = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new SimpleModeService(briefModeService: briefModeService);
 
@@ -183,8 +165,7 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void Without_BriefModeService_Enable_Should_Not_Throw()
-    {
+    public void Without_BriefModeService_Enable_Should_Not_Throw() {
         var service = new SimpleModeService(briefModeService: null);
 
         var exception = Record.Exception(() => service.Enable());
@@ -193,8 +174,7 @@ public sealed class SimpleModeServiceTests
     }
 
     [Fact]
-    public void SimpleModeConfig_Default_Should_Have_Expected_Values()
-    {
+    public void SimpleModeConfig_Default_Should_Have_Expected_Values() {
         var config = SimpleModeConfig.Default;
 
         Assert.True(config.UseSimplePrompts);

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// REPL 操作类型枚举
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 ReplActionEnumConstants + ReplActionExtensions
 /// </summary>
-public enum ReplAction
-{
+public enum ReplAction {
     /// <summary>执行代码</summary>
     [EnumValue("execute")] Execute = 0,
 

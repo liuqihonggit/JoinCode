@@ -1,18 +1,15 @@
 namespace Llm.Tests.Adapters;
 
-public sealed class ChatClientTests
-{
+public sealed class ChatClientTests {
     [Fact]
-    public void Constructor_NullService_ThrowsArgumentNullException()
-    {
+    public void Constructor_NullService_ThrowsArgumentNullException() {
         var act = () => new ChatClient(null!);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("chatCompletionService");
     }
 
     [Fact]
-    public void Constructor_ExposesCompletionService()
-    {
+    public void Constructor_ExposesCompletionService() {
         var queryService = new Mock<IQueryService>().Object;
         var client = new ChatClient(queryService);
 
@@ -20,16 +17,14 @@ public sealed class ChatClientTests
     }
 
     [Fact]
-    public void Plugins_ReturnsEmptyCollectionByDefault()
-    {
+    public void Plugins_ReturnsEmptyCollectionByDefault() {
         var client = new ChatClient(new Mock<IQueryService>().Object);
 
         client.Plugins.PluginNames.Should().BeEmpty();
     }
 
     [Fact]
-    public void ToolCollection_Add_Get_Remove()
-    {
+    public void ToolCollection_Add_Get_Remove() {
         var collection = new ToolCollection();
         var group = new ToolGroup("test", []);
 
@@ -45,8 +40,7 @@ public sealed class ChatClientTests
     }
 
     [Fact]
-    public void ToolCollection_Add_OverwritesExistingGroup()
-    {
+    public void ToolCollection_Add_OverwritesExistingGroup() {
         var collection = new ToolCollection();
         var first = new ToolGroup("test", []);
         var second = new ToolGroup("test", []);
@@ -58,8 +52,7 @@ public sealed class ChatClientTests
     }
 
     [Fact]
-    public void ToolCollection_PluginNames_IsCaseInsensitive()
-    {
+    public void ToolCollection_PluginNames_IsCaseInsensitive() {
         var collection = new ToolCollection();
         collection.Add(new ToolGroup("Test", []));
 
@@ -68,8 +61,7 @@ public sealed class ChatClientTests
     }
 
     [Fact]
-    public void ToolGroup_StoresNameAndFunctions()
-    {
+    public void ToolGroup_StoresNameAndFunctions() {
         var functions = new List<IToolDef>
         {
             new ToolDef("read", "Reads a file")
@@ -83,8 +75,7 @@ public sealed class ChatClientTests
     }
 
     [Fact]
-    public void ToolDef_StoresProperties()
-    {
+    public void ToolDef_StoresProperties() {
         var parameters = new List<IToolParam>
         {
             new ToolParam("path", "file path", typeof(string), true)
@@ -99,8 +90,7 @@ public sealed class ChatClientTests
     }
 
     [Fact]
-    public void ToolDef_DefaultParameters_Empty()
-    {
+    public void ToolDef_DefaultParameters_Empty() {
         var def = new ToolDef("read", "Reads a file");
 
         def.Parameters.Should().NotBeNull();
@@ -108,8 +98,7 @@ public sealed class ChatClientTests
     }
 
     [Fact]
-    public void ToolParam_StoresProperties()
-    {
+    public void ToolParam_StoresProperties() {
         var param = new ToolParam("count", "number of items", typeof(int), true);
 
         param.Name.Should().Be("count");
@@ -119,8 +108,7 @@ public sealed class ChatClientTests
     }
 
     [Fact]
-    public void ToolParam_DefaultValues_AreExpected()
-    {
+    public void ToolParam_DefaultValues_AreExpected() {
         var param = new ToolParam("x");
 
         param.Description.Should().BeEmpty();

@@ -1,8 +1,7 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
 [Register(typeof(CodeIndexOptions), ServiceLifetime.Singleton)]
-public sealed record CodeIndexOptions
-{
+public sealed record CodeIndexOptions {
     public string WorkspaceRoot { get; init; } = Environment.CurrentDirectory;
     public bool EnableL1 { get; init; } = true;
     public bool EnableL2 { get; init; } = true;

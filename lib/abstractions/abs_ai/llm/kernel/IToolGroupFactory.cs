@@ -1,6 +1,5 @@
 namespace JoinCode.Abstractions.LLM;
 
-public interface IToolGroupFactory
-{
+public interface IToolGroupFactory {
     IToolGroup CreateFromObject(object instance, string pluginName);
 }

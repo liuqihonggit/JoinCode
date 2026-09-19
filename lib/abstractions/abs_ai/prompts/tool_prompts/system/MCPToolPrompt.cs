@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// MCP工具提示词
 /// </summary>
 [ToolPrompt(ToolName = McpToolName.MCP, Category = ToolPromptCategory.System)]
-public static class MCPToolPrompt
-{
+public static class MCPToolPrompt {
     public static string GetDescription() => """
         与MCP（Model Context Protocol）服务器交互。
 

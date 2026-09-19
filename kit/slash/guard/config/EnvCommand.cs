@@ -8,30 +8,25 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Env, Description = "显示环境变量", Usage = "/env [filter]", Category = ChatCommandCategory.Config, ArgumentHint = "[filter]")]
 [ChatCommandArg("filter", Type = "string", Description = "环境变量名过滤关键词")]
-public sealed class EnvCommand : ChatCommandBase
-{
+public sealed class EnvCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /env 命令 — 显示环境变量列表
     /// 支持按名称或值过滤,超长值自动截断显示
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var filter = ChatCommandBase.GetNormalizedArgs(context);
         var allVars = Environment.GetEnvironmentVariables();
 
         IEnumerable<System.Collections.DictionaryEntry> filtered;
 
-        if (string.IsNullOrEmpty(filter))
-        {
+        if (string.IsNullOrEmpty(filter)) {
             TerminalHelper.WriteLine($"{TerminalColors.Primary}环境变量 ({allVars.Count}){AnsiStyleEnumConstants.Reset}");
             TerminalHelper.NewLine();
             filtered = allVars.Cast<System.Collections.DictionaryEntry>()
                 .OrderBy(e => e.Key.ToString(), StringComparer.OrdinalIgnoreCase);
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"{TerminalColors.Primary}环境变量 (过滤: \"{filter}\"){AnsiStyleEnumConstants.Reset}");
             TerminalHelper.NewLine();
             filtered = allVars.Cast<System.Collections.DictionaryEntry>()
@@ -41,8 +36,7 @@ public sealed class EnvCommand : ChatCommandBase
         }
 
         var shown = 0;
-        foreach (var entry in filtered)
-        {
+        foreach (var entry in filtered) {
             var name = entry.Key.ToString() ?? "";
             var value = entry.Value?.ToString() ?? "";
             if (value.Length > 120)
@@ -52,12 +46,9 @@ public sealed class EnvCommand : ChatCommandBase
             shown++;
         }
 
-        if (shown == 0)
-        {
+        if (shown == 0) {
             TerminalHelper.WriteLine($"  {TerminalColors.Muted}没有匹配的环境变量{AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine($"{TerminalColors.Muted}共 {shown} 个环境变量{AnsiStyleEnumConstants.Reset}");
         }

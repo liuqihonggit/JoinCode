@@ -3,8 +3,7 @@ namespace Tools.Handlers;
 /// <summary>
 /// ApplyPatch 操作结果,记录成功/失败统计、修改详情与已修改文件路径。
 /// </summary>
-public sealed record ApplyPatchResult
-{
+public sealed record ApplyPatchResult {
     /// <summary>
     /// 是否整体成功。
     /// </summary>
@@ -46,8 +45,7 @@ public sealed record ApplyPatchResult
     /// <param name="dryRun">是否 dry-run 模式。</param>
     /// <param name="modifiedPaths">被修改的文件路径列表,默认为空。</param>
     /// <returns>表示成功应用的 ApplyPatchResult 实例。</returns>
-    public static ApplyPatchResult SuccessResult(int filesModified, List<string> details, bool dryRun, List<string>? modifiedPaths = null) => new()
-    {
+    public static ApplyPatchResult SuccessResult(int filesModified, List<string> details, bool dryRun, List<string>? modifiedPaths = null) => new() {
         Success = true,
         DryRun = dryRun,
         FilesModified = dryRun ? 0 : filesModified,
@@ -63,8 +61,7 @@ public sealed record ApplyPatchResult
     /// <param name="errorMessage">错误消息。</param>
     /// <param name="details">处理详情列表,默认为空。</param>
     /// <returns>表示失败应用的 ApplyPatchResult 实例。</returns>
-    public static ApplyPatchResult FailureResult(string errorMessage, List<string>? details = null) => new()
-    {
+    public static ApplyPatchResult FailureResult(string errorMessage, List<string>? details = null) => new() {
         Success = false,
         DryRun = false,
         FilesModified = 0,
@@ -84,8 +81,7 @@ public sealed record ApplyPatchResult
     /// <param name="dryRun">是否 dry-run 模式。</param>
     /// <param name="modifiedPaths">被修改的文件路径列表,默认为空。</param>
     /// <returns>表示部分应用的 ApplyPatchResult 实例。</returns>
-    public static ApplyPatchResult PartialResult(int filesModified, int filesFailed, List<string> details, bool dryRun, List<string>? modifiedPaths = null) => new()
-    {
+    public static ApplyPatchResult PartialResult(int filesModified, int filesFailed, List<string> details, bool dryRun, List<string>? modifiedPaths = null) => new() {
         Success = false,
         DryRun = dryRun,
         FilesModified = dryRun ? 0 : filesModified,

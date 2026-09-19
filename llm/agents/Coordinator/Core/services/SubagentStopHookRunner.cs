@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// SubagentStop Hook 执行器 — 在 Agent 释放前触发停止 Hook 与自动 rebase
 /// </summary>
-internal sealed class SubagentStopHookRunner
-{
+internal sealed class SubagentStopHookRunner {
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly ISubagentStopHookManager? _subagentStopHookManager;
     private readonly IAutoRebaseService? _autoRebaseService;
@@ -21,8 +20,7 @@ internal sealed class SubagentStopHookRunner
         ISubAgentContextAccessor? subAgentContextAccessor,
         ISubagentStopHookManager? subagentStopHookManager,
         IAutoRebaseService? autoRebaseService,
-        ILogger? logger)
-    {
+        ILogger? logger) {
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _subagentStopHookManager = subagentStopHookManager;
         _autoRebaseService = autoRebaseService;
@@ -34,16 +32,13 @@ internal sealed class SubagentStopHookRunner
     /// </summary>
     /// <param name="agentId">目标 Agent 标识</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task OnSubagentStopHookAsync(string agentId, CancellationToken cancellationToken)
-    {
-        if (_subagentStopHookManager is not null)
-        {
+    public async Task OnSubagentStopHookAsync(string agentId, CancellationToken cancellationToken) {
+        if (_subagentStopHookManager is not null) {
             var subAgentContext = _subAgentContextAccessor.Current;
             var agentType = subAgentContext?.Role.ToValue() ?? "executor";
             var sessionId = subAgentContext?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
-            var context = new SubagentStopHookContext
-            {
+            var context = new SubagentStopHookContext {
                 SessionId = sessionId,
                 AgentId = agentId,
                 AgentType = agentType,
@@ -51,8 +46,7 @@ internal sealed class SubagentStopHookRunner
             };
 
             var result = await _subagentStopHookManager.OnSubagentStopAsync(context, cancellationToken).ConfigureAwait(false);
-            if (!result.ShouldProceed)
-            {
+            if (!result.ShouldProceed) {
                 _logger?.LogWarning("[AgentCoordinator] SubagentStop Hook 阻塞了 Agent {AgentId} 的释放: {Message}",
                     agentId, result.Message);
             }
@@ -64,8 +58,7 @@ internal sealed class SubagentStopHookRunner
     /// <summary>
     /// SubagentStop 时自动 rebase 同步主干 — 取代软通知模式（ADR T5.1）
     /// </summary>
-    private async Task TryAutoRebaseAsync(string agentId, CancellationToken cancellationToken)
-    {
+    private async Task TryAutoRebaseAsync(string agentId, CancellationToken cancellationToken) {
         if (_autoRebaseService is null)
             return;
 
@@ -73,10 +66,8 @@ internal sealed class SubagentStopHookRunner
         if (string.IsNullOrWhiteSpace(worktreePath))
             return;
 
-        try
-        {
-            var request = new AutoRebaseRequest
-            {
+        try {
+            var request = new AutoRebaseRequest {
                 WorktreePath = worktreePath,
                 AgentId = agentId,
             };
@@ -89,9 +80,7 @@ internal sealed class SubagentStopHookRunner
                 _logger?.LogDebug("[AgentCoordinator] AutoRebase 跳过(无新提交) for {AgentId}", agentId);
             else
                 _logger?.LogInformation("[AgentCoordinator] AutoRebase 成功 for {AgentId}", agentId);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[AgentCoordinator] AutoRebase 异常 for {AgentId}", agentId);
         }
     }

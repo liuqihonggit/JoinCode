@@ -1,10 +1,8 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class IncrementalParsingTests
-{
+public sealed class IncrementalParsingTests {
     [Fact]
-    public void ExtractAll_Incremental_ProducesSameSymbolsAsFullParse()
-    {
+    public void ExtractAll_Incremental_ProducesSameSymbolsAsFullParse() {
         var extractor = new CSharpSymbolExtractor();
 
         var source1 = """
@@ -36,8 +34,7 @@ public sealed class IncrementalParsingTests
     }
 
     [Fact]
-    public void ExtractAll_MultipleFiles_MaintainsSeparateCaches()
-    {
+    public void ExtractAll_MultipleFiles_MaintainsSeparateCaches() {
         var extractor = new CSharpSymbolExtractor();
 
         var sourceA = "public class ClassA { }";
@@ -53,8 +50,7 @@ public sealed class IncrementalParsingTests
     }
 
     [Fact]
-    public void ExtractAll_SecondParseOfSameFile_UsesIncrementalParsing()
-    {
+    public void ExtractAll_SecondParseOfSameFile_UsesIncrementalParsing() {
         var extractor = new CSharpSymbolExtractor();
 
         var source1 = "public class Service { public void M1() { } }";
@@ -68,8 +64,7 @@ public sealed class IncrementalParsingTests
     }
 
     [Fact]
-    public void ExtractAll_DeleteFromMiddle_UpdatesCorrectly()
-    {
+    public void ExtractAll_DeleteFromMiddle_UpdatesCorrectly() {
         var extractor = new CSharpSymbolExtractor();
 
         var source1 = """
@@ -99,8 +94,7 @@ public sealed class IncrementalParsingTests
     }
 
     [Fact]
-    public void ExtractAll_ComplexEdit_MaintainsCorrectCallGraph()
-    {
+    public void ExtractAll_ComplexEdit_MaintainsCorrectCallGraph() {
         var extractor = new CSharpSymbolExtractor();
 
         var source1 = """
@@ -137,8 +131,7 @@ public sealed class IncrementalParsingTests
     }
 
     [Fact]
-    public void ExtractAll_DependencyChanges_TrackedCorrectly()
-    {
+    public void ExtractAll_DependencyChanges_TrackedCorrectly() {
         var extractor = new CSharpSymbolExtractor();
 
         var source1 = """

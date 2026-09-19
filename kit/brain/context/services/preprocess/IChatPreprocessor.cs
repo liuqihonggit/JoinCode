@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 预处理器接口 — 关键词/同义词注入、上下文准备、清理
 /// </summary>
-public interface IChatPreprocessor
-{
+public interface IChatPreprocessor {
     /// <summary>
     /// 分析消息并注入关键词/同义词
     /// </summary>

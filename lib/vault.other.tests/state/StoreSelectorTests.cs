@@ -4,18 +4,15 @@ namespace Core.Tests.State;
 /// <summary>
 /// StoreSelector&lt;TState, TSelected&gt; 单元测试 — 验证派生状态订阅、去重和释放
 /// </summary>
-public sealed class StoreSelectorTests : IDisposable
-{
+public sealed class StoreSelectorTests : IDisposable {
     private readonly Store<int> _store;
     private bool _disposed;
 
-    public StoreSelectorTests()
-    {
+    public StoreSelectorTests() {
         _store = new Store<int>(0);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
 
@@ -23,16 +20,14 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_InitializesCurrentValue()
-    {
+    public void Constructor_InitializesCurrentValue() {
         using var selector = new StoreSelector<int, int>(_store, x => x * 2);
 
         selector.CurrentValue.Should().Be(0);
     }
 
     [Fact]
-    public void CurrentValue_AfterStateChange_UpdatesValue()
-    {
+    public void CurrentValue_AfterStateChange_UpdatesValue() {
         using var selector = new StoreSelector<int, int>(_store, x => x * 2);
 
         _store.SetState(x => x + 3);
@@ -41,8 +36,7 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void Subscribe_ImmediatelyEmitsCurrentValue()
-    {
+    public void Subscribe_ImmediatelyEmitsCurrentValue() {
         var selector = new StoreSelector<int, int>(_store, x => x + 10);
         var received = new List<int>();
 
@@ -52,8 +46,7 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void Subscribe_StateChange_EmitsNewValue()
-    {
+    public void Subscribe_StateChange_EmitsNewValue() {
         var selector = new StoreSelector<int, int>(_store, x => x + 10);
         var received = new List<int>();
 
@@ -65,8 +58,7 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void Subscribe_DuplicateValue_DoesNotEmit()
-    {
+    public void Subscribe_DuplicateValue_DoesNotEmit() {
         var selector = new StoreSelector<int, int>(_store, x => x % 2);
         var received = new List<int>();
 
@@ -77,8 +69,7 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void Subscribe_MultipleSubscribers_AllReceiveUpdates()
-    {
+    public void Subscribe_MultipleSubscribers_AllReceiveUpdates() {
         var selector = new StoreSelector<int, int>(_store, x => x * 2);
         var received1 = new List<int>();
         var received2 = new List<int>();
@@ -95,8 +86,7 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void Subscribe_AfterDispose_ThrowsObjectDisposedException()
-    {
+    public void Subscribe_AfterDispose_ThrowsObjectDisposedException() {
         var selector = new StoreSelector<int, int>(_store, x => x * 2);
         selector.Dispose();
 
@@ -106,8 +96,7 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void Dispose_SubscriptionDoesNotReceiveFurtherUpdates()
-    {
+    public void Dispose_SubscriptionDoesNotReceiveFurtherUpdates() {
         var selector = new StoreSelector<int, int>(_store, x => x * 2);
         var received = new List<int>();
 
@@ -120,8 +109,7 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void SubscriptionDispose_StopsReceivingUpdates()
-    {
+    public void SubscriptionDispose_StopsReceivingUpdates() {
         using var selector = new StoreSelector<int, int>(_store, x => x * 2);
         var received = new List<int>();
 
@@ -134,32 +122,27 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_NullStore_ThrowsArgumentNullException()
-    {
+    public void Constructor_NullStore_ThrowsArgumentNullException() {
         Action act = () => new StoreSelector<int, int>(null!, x => x);
 
         act.Should().Throw<ArgumentNullException>().Which.ParamName.Should().Be("store");
     }
 
     [Fact]
-    public void Constructor_NullSelector_ThrowsArgumentNullException()
-    {
+    public void Constructor_NullSelector_ThrowsArgumentNullException() {
         Action act = () => new StoreSelector<int, int>(_store, null!);
 
         act.Should().Throw<ArgumentNullException>().Which.ParamName.Should().Be("selector");
     }
 
     [Fact]
-    public void Subscribe_HandlerThrows_DoesNotBreakOtherSubscribers()
-    {
+    public void Subscribe_HandlerThrows_DoesNotBreakOtherSubscribers() {
         var selector = new StoreSelector<int, int>(_store, x => x * 2);
         var received = new List<int>();
 
         using var sub1 = selector.Subscribe(received.Add);
-        using var sub2 = selector.Subscribe(value =>
-        {
-            if (value != 0)
-            {
+        using var sub2 = selector.Subscribe(value => {
+            if (value != 0) {
                 throw new InvalidOperationException("boom");
             }
         });
@@ -170,8 +153,7 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void SelectorProperty_ReturnsSelectorFunction()
-    {
+    public void SelectorProperty_ReturnsSelectorFunction() {
         Func<int, int> selectorFunc = x => x + 1;
         using var selector = new StoreSelector<int, int>(_store, selectorFunc);
 
@@ -179,8 +161,7 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void CurrentValue_WithCustomComparer_UsesComparer()
-    {
+    public void CurrentValue_WithCustomComparer_UsesComparer() {
         using var selector = new StoreSelector<int, string>(_store, x => x.ToString(), StringComparer.OrdinalIgnoreCase);
 
         _store.SetState(x => x + 1);
@@ -189,8 +170,7 @@ public sealed class StoreSelectorTests : IDisposable
     }
 
     [Fact]
-    public void Subscribe_DifferentReferenceButEqualByComparer_DoesNotEmit()
-    {
+    public void Subscribe_DifferentReferenceButEqualByComparer_DoesNotEmit() {
         var selector = new StoreSelector<int, string>(_store, x => (x % 2).ToString(), StringComparer.OrdinalIgnoreCase);
         var received = new List<string>();
 

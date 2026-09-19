@@ -5,8 +5,7 @@ namespace Fsm.Generator.Tests;
 /// <para>验证生成器正确生成: 排序数组 + 每事件独立 event + FsmDispatchEvent + 守卫/动作关联</para>
 /// <para>ADR 0041</para>
 /// </summary>
-public class FsmGeneratorTests
-{
+public class FsmGeneratorTests {
     private const string SimpleMachineSource = """
         using JoinCode.Abstractions.Attributes;
 
@@ -24,8 +23,7 @@ public class FsmGeneratorTests
         """;
 
     [Fact]
-    public void SimpleTransition_GeneratesSortedKeysArray()
-    {
+    public void SimpleTransition_GeneratesSortedKeysArray() {
         var code = TestHelper.RunGenerator(SimpleMachineSource).GeneratedCode;
         code.Should().Contain("_fsmSortedKeys");
         code.Should().Contain("FsmBuildSortedKeys");
@@ -34,8 +32,7 @@ public class FsmGeneratorTests
     }
 
     [Fact]
-    public void SimpleTransition_GeneratesRulesArray()
-    {
+    public void SimpleTransition_GeneratesRulesArray() {
         var code = TestHelper.RunGenerator(SimpleMachineSource).GeneratedCode;
         code.Should().Contain("_fsmRules");
         code.Should().Contain("FsmBuildRules");
@@ -44,16 +41,14 @@ public class FsmGeneratorTests
     }
 
     [Fact]
-    public void GeneratesEventForEachEventEnumValue()
-    {
+    public void GeneratesEventForEachEventEnumValue() {
         var code = TestHelper.RunGenerator(SimpleMachineSource).GeneratedCode;
         code.Should().Contain("event EventHandler<TransitionResult<TestState, TestEvent>>? OnStart;");
         code.Should().Contain("event EventHandler<TransitionResult<TestState, TestEvent>>? OnComplete;");
     }
 
     [Fact]
-    public void FsmDispatchEvent_SwitchCoversAllEvents()
-    {
+    public void FsmDispatchEvent_SwitchCoversAllEvents() {
         var code = TestHelper.RunGenerator(SimpleMachineSource).GeneratedCode;
         code.Should().Contain("switch (e.Event)");
         code.Should().Contain("case TestEvent.Start: OnStart?.Invoke(this, e); break;");
@@ -61,8 +56,7 @@ public class FsmGeneratorTests
     }
 
     [Fact]
-    public void Transitions_AreSortedByFromThenEvent()
-    {
+    public void Transitions_AreSortedByFromThenEvent() {
         var unsortedSource = """
             using JoinCode.Abstractions.Attributes;
 
@@ -91,8 +85,7 @@ public class FsmGeneratorTests
     }
 
     [Fact]
-    public void GuardMethod_IsReferencedInRule()
-    {
+    public void GuardMethod_IsReferencedInRule() {
         var source = """
             using JoinCode.Abstractions.Attributes;
             using JoinCode.Abstractions.Utils.State;
@@ -116,8 +109,7 @@ public class FsmGeneratorTests
     }
 
     [Fact]
-    public void TransitionActionMethod_IsReferencedInRule()
-    {
+    public void TransitionActionMethod_IsReferencedInRule() {
         var source = """
             using JoinCode.Abstractions.Attributes;
             using JoinCode.Abstractions.Utils.State;
@@ -141,8 +133,7 @@ public class FsmGeneratorTests
     }
 
     [Fact]
-    public void GuardAndAction_BothReferencedInRule()
-    {
+    public void GuardAndAction_BothReferencedInRule() {
         var source = """
             using JoinCode.Abstractions.Attributes;
             using JoinCode.Abstractions.Utils.State;
@@ -168,8 +159,7 @@ public class FsmGeneratorTests
     }
 
     [Fact]
-    public void NoTransitions_GeneratesEmptyArrays()
-    {
+    public void NoTransitions_GeneratesEmptyArrays() {
         var source = """
             using JoinCode.Abstractions.Attributes;
 
@@ -190,29 +180,25 @@ public class FsmGeneratorTests
     }
 
     [Fact]
-    public void GeneratedFile_HasCorrectHintName()
-    {
+    public void GeneratedFile_HasCorrectHintName() {
         var file = TestHelper.RunGeneratorAndGetFile(SimpleMachineSource, "TestApp.TestMachine.Fsm.g.cs");
         file.Should().NotBeNull("生成器应输出 TestApp.TestMachine.Fsm.g.cs");
     }
 
     [Fact]
-    public void GeneratedCode_HasNullableEnable()
-    {
+    public void GeneratedCode_HasNullableEnable() {
         var code = TestHelper.RunGenerator(SimpleMachineSource).GeneratedCode;
         code.Should().Contain("#nullable enable");
     }
 
     [Fact]
-    public void GeneratedCode_HasNamespace()
-    {
+    public void GeneratedCode_HasNamespace() {
         var code = TestHelper.RunGenerator(SimpleMachineSource).GeneratedCode;
         code.Should().Contain("namespace TestApp;");
     }
 
     [Fact]
-    public void GeneratedCode_HasPartialClass()
-    {
+    public void GeneratedCode_HasPartialClass() {
         var code = TestHelper.RunGenerator(SimpleMachineSource).GeneratedCode;
         code.Should().Contain("partial class TestMachine");
     }

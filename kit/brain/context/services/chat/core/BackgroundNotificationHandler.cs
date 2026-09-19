@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 后台通知处理器接口 — 检查并注入后台代理通知
 /// </summary>
-public interface IBackgroundNotificationHandler
-{
+public interface IBackgroundNotificationHandler {
     /// <summary>
     /// 处理待处理的后台通知，将通知内容注入到对话历史中
     /// </summary>
@@ -16,8 +15,7 @@ public interface IBackgroundNotificationHandler
 /// 后台通知处理器 — 从通知队列获取后台代理完成的通知并注入对话历史
 /// </summary>
 [Register(typeof(IBackgroundNotificationHandler), ServiceLifetime.Singleton)]
-public sealed partial class BackgroundNotificationHandler : ServiceEntity, IBackgroundNotificationHandler
-{
+public sealed partial class BackgroundNotificationHandler : ServiceEntity, IBackgroundNotificationHandler {
     private readonly IAgentNotificationQueue? _notificationQueue;
     private readonly IChatContextManager _contextManager;
     private readonly ILogger<BackgroundNotificationHandler>? _logger;
@@ -31,16 +29,14 @@ public sealed partial class BackgroundNotificationHandler : ServiceEntity, IBack
     public BackgroundNotificationHandler(
         IChatContextManager contextManager,
         IAgentNotificationQueue? notificationQueue = null,
-        ILogger<BackgroundNotificationHandler>? logger = null)
-    {
+        ILogger<BackgroundNotificationHandler>? logger = null) {
         _contextManager = contextManager;
         _notificationQueue = notificationQueue;
         _logger = logger;
     }
 
     /// <inheritdoc/>
-    public async Task<int> ProcessPendingNotificationsAsync(CancellationToken ct)
-    {
+    public async Task<int> ProcessPendingNotificationsAsync(CancellationToken ct) {
         if (_notificationQueue is null || !_notificationQueue.HasPendingNotifications)
             return 0;
 
@@ -48,8 +44,7 @@ public sealed partial class BackgroundNotificationHandler : ServiceEntity, IBack
         if (pendingNotifications.Count == 0)
             return 0;
 
-        foreach (var notification in pendingNotifications)
-        {
+        foreach (var notification in pendingNotifications) {
             var isShellNotification = notification.Xml.Contains("<task-notification>", StringComparison.OrdinalIgnoreCase);
             var wrappedContent = isShellNotification
                 ? notification.Xml

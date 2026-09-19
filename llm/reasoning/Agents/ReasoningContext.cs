@@ -4,8 +4,7 @@ namespace JoinCode.Reasoning.Agents;
 /// 推理上下文 — 每轮推理传递给 Agent 的只读快照
 /// 注意：Dag 引用是内部信任边界，Agent 不应通过此引用修改引擎状态
 /// </summary>
-public sealed class ReasoningContext
-{
+public sealed class ReasoningContext {
     /// <summary>
     /// 当前推理轮次可见的全部数据项
     /// </summary>
@@ -34,8 +33,7 @@ public sealed class ReasoningContext
     /// <summary>
     /// 获取当前角色的视锥上下文（LLM友好输入）
     /// </summary>
-    public string GetConeContextForRole(AgentRole role)
-    {
+    public string GetConeContextForRole(AgentRole role) {
         var cone = ConeOrchestrator?.GetRole(role);
         return cone?.GetConeContext() ?? string.Empty;
     }
@@ -43,8 +41,7 @@ public sealed class ReasoningContext
     /// <summary>
     /// 获取角色可见的数据项 — 基于视锥过滤，未裁决项始终可见
     /// </summary>
-    public IEnumerable<DataItem> GetVisibleItemsForRole(AgentRole role)
-    {
+    public IEnumerable<DataItem> GetVisibleItemsForRole(AgentRole role) {
         if (ConeOrchestrator is null) return AllItems;
 
         var cone = ConeOrchestrator.GetRole(role);
@@ -60,8 +57,7 @@ public sealed class ReasoningContext
     /// <summary>
     /// 获取角色可见的证据 — 基于视锥过滤
     /// </summary>
-    public IEnumerable<EvidenceRecord> GetVisibleEvidenceForRole(AgentRole role)
-    {
+    public IEnumerable<EvidenceRecord> GetVisibleEvidenceForRole(AgentRole role) {
         if (ConeOrchestrator is null) return AllEvidence;
 
         var cone = ConeOrchestrator.GetRole(role);
@@ -73,8 +69,7 @@ public sealed class ReasoningContext
             .Where(e => visibleSourceIds.Contains(e.Id));
     }
 
-    private static HashSet<string> GetVisibleSourceIds(RoleCone cone)
-    {
+    private static HashSet<string> GetVisibleSourceIds(RoleCone cone) {
         return cone.ActiveFragmentIds
             .Where(id => cone.AllFragments.ContainsKey(id))
             .Select(id => cone.AllFragments[id].SourceItemId)

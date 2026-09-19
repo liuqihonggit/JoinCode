@@ -4,8 +4,7 @@ namespace Core.Summary;
 /// <summary>
 /// 离开摘要配置选项
 /// </summary>
-public sealed class AwaySummaryOptions
-{
+public sealed class AwaySummaryOptions {
     /// <summary>
     /// 获取或设置事件最大保留时长；超过此时长的事件将被丢弃。默认 24 小时。
     /// </summary>

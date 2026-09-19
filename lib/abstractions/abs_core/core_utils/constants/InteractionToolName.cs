@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 用户交互/权限/认证/配置/分析工具名称枚举
 /// </summary>
-public enum InteractionToolName
-{
+public enum InteractionToolName {
     [EnumValue("confirm_action")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     ConfirmAction,

@@ -4,32 +4,27 @@ namespace McpClient.Transports;
 /// Step-Up 认证检测器 — 对齐 TS wrapFetchWithStepUpDetection
 /// 检测 403 + WWW-Authenticate: insufficient_scope 响应，通知 AuthProvider
 /// </summary>
-public static class StepUpDetector
-{
+public static class StepUpDetector {
     /// <summary>
     /// 检测 HTTP 响应中的 Step-Up 认证需求 — 对齐 TS wrapFetchWithStepUpDetection
     /// </summary>
     /// <param name="response">HTTP 响应</param>
     /// <param name="authProvider">认证提供者（可选）</param>
     /// <returns>检测到的 Step-Up scope，未检测到返回 null</returns>
-    public static string? DetectStepUp(HttpResponseMessage response, IMcpAuthProvider? authProvider)
-    {
+    public static string? DetectStepUp(HttpResponseMessage response, IMcpAuthProvider? authProvider) {
         ArgumentNullException.ThrowIfNull(response);
 
-        if (response.StatusCode != System.Net.HttpStatusCode.Forbidden)
-        {
+        if (response.StatusCode != System.Net.HttpStatusCode.Forbidden) {
             return null;
         }
 
         var wwwAuth = response.Headers.WwwAuthenticate;
-        if (wwwAuth.Count == 0)
-        {
+        if (wwwAuth.Count == 0) {
             return null;
         }
 
         // 对齐 TS: 检查 WWW-Authenticate 头是否包含 insufficient_scope
-        foreach (var headerValue in wwwAuth)
-        {
+        foreach (var headerValue in wwwAuth) {
             var scheme = headerValue.Scheme;
             var parameter = headerValue.Parameter;
             if (parameter is null) continue;
@@ -40,8 +35,7 @@ public static class StepUpDetector
 
             // 对齐 TS: scope=(?:"([^"]+)"|([^\s,]+)) — 同时匹配引号值和非引号值
             var scope = ExtractScopeFromWwwAuthenticate(parameter);
-            if (scope is not null && authProvider is not null)
-            {
+            if (scope is not null && authProvider is not null) {
                 authProvider.MarkStepUpPending(scope);
             }
 
@@ -54,8 +48,7 @@ public static class StepUpDetector
     /// <summary>
     /// 从 WWW-Authenticate 参数中提取 scope — 对齐 TS scope=(?:"([^"]+)"|([^\s,]+))
     /// </summary>
-    internal static string? ExtractScopeFromWwwAuthenticate(string wwwAuthParameter)
-    {
+    internal static string? ExtractScopeFromWwwAuthenticate(string wwwAuthParameter) {
         // 匹配 scope="value" 或 scope=value
         var span = wwwAuthParameter.AsSpan();
         var scopeIndex = span.IndexOf("scope=", StringComparison.OrdinalIgnoreCase);
@@ -69,8 +62,7 @@ public static class StepUpDetector
         if (valueSpan.Length == 0) return null;
 
         // 引号值: scope="value"
-        if (valueSpan[0] == '"')
-        {
+        if (valueSpan[0] == '"') {
             var endQuote = valueSpan[1..].IndexOf('"');
             if (endQuote < 0) return null;
             return valueSpan[1..(endQuote + 1)].ToString();

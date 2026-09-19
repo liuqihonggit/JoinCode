@@ -5,8 +5,7 @@ namespace Core.Prompts.Templates.Memory;
 /// 上下文压缩提示词模板 — 生成对话摘要以在保留关键上下文的同时压缩历史消息。
 /// </summary>
 [PromptTemplate(Name = "compact", Category = PromptTemplateCategory.Memory, Description = "上下文压缩提示词模板，生成对话摘要", HasParameters = true)]
-public static class CompactPromptTemplate
-{
+public static class CompactPromptTemplate {
     private static string NoToolsPreamble = $@"
 重要：仅用文本回复。不要调用任何工具。
 
@@ -324,12 +323,10 @@ public static class CompactPromptTemplate
     /// </summary>
     /// <param name="customInstructions">自定义压缩说明，追加到提示词末尾；为空时不追加。</param>
     /// <returns>组装完成的压缩提示词。</returns>
-    public static string GetCompactPrompt(string? customInstructions = null)
-    {
+    public static string GetCompactPrompt(string? customInstructions = null) {
         var prompt = NoToolsPreamble + BaseCompactPrompt.Replace("{{DETAILED_ANALYSIS}}", DetailedAnalysisInstructionBase);
 
-        if (!string.IsNullOrWhiteSpace(customInstructions))
-        {
+        if (!string.IsNullOrWhiteSpace(customInstructions)) {
             prompt += $"\n\n额外说明：\n{customInstructions}";
         }
 
@@ -345,8 +342,7 @@ public static class CompactPromptTemplate
     /// <returns>组装完成的部分压缩提示词。</returns>
     public static string GetPartialCompactPrompt(
         string? customInstructions = null,
-        CompactDirection direction = CompactDirection.From)
-    {
+        CompactDirection direction = CompactDirection.From) {
         var template = direction == CompactDirection.UpTo
             ? PartialCompactUpToPrompt
             : PartialCompactPrompt;
@@ -357,8 +353,7 @@ public static class CompactPromptTemplate
 
         var prompt = NoToolsPreamble + template.Replace("{{DETAILED_ANALYSIS}}", analysisInstruction);
 
-        if (!string.IsNullOrWhiteSpace(customInstructions))
-        {
+        if (!string.IsNullOrWhiteSpace(customInstructions)) {
             prompt += $"\n\n额外说明：\n{customInstructions}";
         }
 
@@ -375,14 +370,12 @@ public static class CompactPromptTemplate
     /// </summary>
     /// <param name="summary">模型返回的原始摘要文本，包含 &lt;analysis&gt; 与 &lt;summary&gt; 标签。</param>
     /// <returns>清理并格式化后的摘要文本。</returns>
-    public static string FormatCompactSummary(string summary)
-    {
+    public static string FormatCompactSummary(string summary) {
         var formattedSummary = AnalysisTagRegex.Replace(summary, "");
 
         var summaryMatch = SummaryTagRegex.Match(formattedSummary);
 
-        if (summaryMatch.Success)
-        {
+        if (summaryMatch.Success) {
             var content = summaryMatch.Groups[1].Value;
             formattedSummary = SummaryTagRegex.Replace(
                 formattedSummary,
@@ -408,33 +401,28 @@ public static class CompactPromptTemplate
         bool suppressFollowUpQuestions = false,
         string? transcriptPath = null,
         bool recentMessagesPreserved = false,
-        bool isAutonomousMode = false)
-    {
+        bool isAutonomousMode = false) {
         var formattedSummary = FormatCompactSummary(summary);
 
         var baseSummary = $@"此会话正在从之前耗尽上下文的对话中继续。下面的摘要涵盖了对话的早期部分。
 
 {formattedSummary}";
 
-        if (!string.IsNullOrEmpty(transcriptPath))
-        {
+        if (!string.IsNullOrEmpty(transcriptPath)) {
             baseSummary += $"\n\n如果你需要压缩前的具体细节（如确切的代码片段、错误消息或你生成的内容），请阅读完整记录：{transcriptPath}";
         }
 
-        if (recentMessagesPreserved)
-        {
+        if (recentMessagesPreserved) {
             baseSummary += "\n\n最近的消息被逐字保留。";
         }
 
-        if (suppressFollowUpQuestions)
-        {
+        if (suppressFollowUpQuestions) {
             var continuation = $@"{baseSummary}
 从它停止的地方继续对话，不要再向用户询问任何问题。
 直接恢复 - 不要确认摘要，不要回顾正在发生的事情，不要用 ""I'll continue"" 或类似的话作为开场白。
 像中断从未发生一样继续最后一个任务。";
 
-            if (isAutonomousMode)
-            {
+            if (isAutonomousMode) {
                 continuation += @"
 
 你正在自主/主动模式下运行。这不是首次唤醒 - 你在压缩之前就已经在自主工作了。继续你的工作循环：根据上面的摘要从你停止的地方继续。不要向用户问候或询问该做什么。";

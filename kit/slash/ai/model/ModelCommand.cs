@@ -6,37 +6,31 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Model, Description = "切换或查看模型", Usage = "/model [model-id|default|info]", Category = ChatCommandCategory.Model, ArgumentHint = "[model-id|default|info]")]
 [ChatCommandArg("model_id", Type = "string", Description = "模型 ID、default 或 info")]
-public sealed class ModelCommand : ChatCommandBase
-{
+public sealed class ModelCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /model 命令 — 根据参数分派到模型选择器、模型信息展示、默认模型切换或直接切换模型
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>表示命令执行完成的任务,结果为继续会话</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args))
-        {
+        if (string.IsNullOrEmpty(args)) {
             return ShowModelPickerAsync(context);
         }
 
-        if (args.Equals("info", StringComparison.OrdinalIgnoreCase) || args == "?")
-        {
+        if (args.Equals("info", StringComparison.OrdinalIgnoreCase) || args == "?") {
             return ShowModelInfoAsync(context);
         }
 
-        if (args.Equals("default", StringComparison.OrdinalIgnoreCase))
-        {
+        if (args.Equals("default", StringComparison.OrdinalIgnoreCase)) {
             return SwitchToDefaultModelAsync(context);
         }
 
         return SwitchToModelAsync(context, args);
     }
 
-    private async Task<ChatCommandResult> ShowModelPickerAsync(ChatCommandContext context)
-    {
+    private async Task<ChatCommandResult> ShowModelPickerAsync(ChatCommandContext context) {
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
         var currentModelId = fastModeService?.PrimaryModelId ?? "unknown";
         var provider = GetCurrentProvider(context);
@@ -48,11 +42,9 @@ public sealed class ModelCommand : ChatCommandBase
         var isFastModeActive = fastModeService?.IsFastModeActive ?? false;
 
         // 非交互模式或测试环境回退到文本列表模式
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             TerminalHelper.WriteLine($"=== 模型列表 ({providerName}) ===");
-            for (var i = 0; i < models.Length; i++)
-            {
+            for (var i = 0; i < models.Length; i++) {
                 var marker = models[i].Id.Equals(currentModelId, StringComparison.OrdinalIgnoreCase) ? " *" : "";
                 TerminalHelper.WriteLine($"  {i + 1}. {models[i].DisplayName}{marker}");
             }
@@ -64,18 +56,15 @@ public sealed class ModelCommand : ChatCommandBase
         var picker = new ModelPicker();
         var selectedIndex = 0;
 
-        for (var i = 0; i < models.Length; i++)
-        {
-            if (models[i].Id.Equals(currentModelId, StringComparison.OrdinalIgnoreCase))
-            {
+        for (var i = 0; i < models.Length; i++) {
+            if (models[i].Id.Equals(currentModelId, StringComparison.OrdinalIgnoreCase)) {
                 selectedIndex = i;
                 break;
             }
         }
 
         // 计算渲染行数（模型行 + effort行 + fast mode行 + 快捷键行 + 标题行）
-        int GetRenderLineCount()
-        {
+        int GetRenderLineCount() {
             var count = models.Length + 2; // 标题 + 快捷键
             if (effortLevel != EffortLevel.Auto) count++;
             if (isFastModeActive) count++;
@@ -84,60 +73,54 @@ public sealed class ModelCommand : ChatCommandBase
 
         var cmdServices = context.GetCommandServices();
 
-        while (!context.CancellationToken.IsCancellationRequested)
-        {
+        while (!context.CancellationToken.IsCancellationRequested) {
             var output = picker.Render(models, selectedIndex, currentModelId, providerName, effortLevel, isFastModeActive);
             TerminalHelper.WriteRaw(output);
 
             // 非交互模式或测试环境回退：保持当前模型
-            if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
+            if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 TerminalHelper.NewLine();
                 return ChatCommandResult.Continue();
-            }
-            else
-            {
+            } else {
                 var key = TerminalHelper.ReadKey(intercept: true);
 
                 TerminalHelper.WriteRaw(AnsiEscape.CursorUp(GetRenderLineCount()));
                 TerminalHelper.WriteRaw("\r");
                 TerminalHelper.WriteRaw(AnsiControlEnumConstants.ClearScreenFromCursor);
 
-                switch (key.Key)
-                {
+                switch (key.Key) {
                     case ConsoleKey.UpArrow:
-                        if (selectedIndex > 0) selectedIndex--;
-                        break;
+                    if (selectedIndex > 0) selectedIndex--;
+                    break;
                     case ConsoleKey.DownArrow:
-                        if (selectedIndex < models.Length - 1) selectedIndex++;
-                        break;
+                    if (selectedIndex < models.Length - 1) selectedIndex++;
+                    break;
                     case ConsoleKey.LeftArrow:
-                        // ← 切换 effort 等级 — 对齐 TS effort cycling
-                        effortLevel = ModelPicker.CycleEffort(effortLevel == EffortLevel.Auto ? EffortLevel.Medium : effortLevel, forward: false);
-                        if (cmdServices.ExecutionSettingsProvider is not null)
-                            cmdServices.ExecutionSettingsProvider.EffortLevel = effortLevel;
-                        break;
+                    // ← 切换 effort 等级 — 对齐 TS effort cycling
+                    effortLevel = ModelPicker.CycleEffort(effortLevel == EffortLevel.Auto ? EffortLevel.Medium : effortLevel, forward: false);
+                    if (cmdServices.ExecutionSettingsProvider is not null)
+                        cmdServices.ExecutionSettingsProvider.EffortLevel = effortLevel;
+                    break;
                     case ConsoleKey.RightArrow:
-                        // → 切换 effort 等级 — 对齐 TS effort cycling
-                        effortLevel = ModelPicker.CycleEffort(effortLevel == EffortLevel.Auto ? EffortLevel.Medium : effortLevel, forward: true);
-                        if (cmdServices.ExecutionSettingsProvider is not null)
-                            cmdServices.ExecutionSettingsProvider.EffortLevel = effortLevel;
-                        break;
+                    // → 切换 effort 等级 — 对齐 TS effort cycling
+                    effortLevel = ModelPicker.CycleEffort(effortLevel == EffortLevel.Auto ? EffortLevel.Medium : effortLevel, forward: true);
+                    if (cmdServices.ExecutionSettingsProvider is not null)
+                        cmdServices.ExecutionSettingsProvider.EffortLevel = effortLevel;
+                    break;
                     case ConsoleKey.Enter:
-                        await ApplyModelSwitchAsync(context, models[selectedIndex].Id).ConfigureAwait(false);
-                        TerminalHelper.WriteLine($"{TerminalColors.Primary}已切换模型: {models[selectedIndex].DisplayName}{AnsiStyleEnumConstants.Reset}");
-                        if (effortLevel != EffortLevel.Auto)
-                        {
-                            TerminalHelper.WriteLine($"  Effort: {effortLevel.ToValue()}");
-                            // 持久化 Picker 中调节的 effort — 对齐 TS resolvePickerEffortPersistence
-                            var pickerConfigService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
-                            if (pickerConfigService is not null)
-                                await pickerConfigService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effortLevel.ToValue(), context.CancellationToken).ConfigureAwait(false);
-                        }
-                        return ChatCommandResult.Continue();
+                    await ApplyModelSwitchAsync(context, models[selectedIndex].Id).ConfigureAwait(false);
+                    TerminalHelper.WriteLine($"{TerminalColors.Primary}已切换模型: {models[selectedIndex].DisplayName}{AnsiStyleEnumConstants.Reset}");
+                    if (effortLevel != EffortLevel.Auto) {
+                        TerminalHelper.WriteLine($"  Effort: {effortLevel.ToValue()}");
+                        // 持久化 Picker 中调节的 effort — 对齐 TS resolvePickerEffortPersistence
+                        var pickerConfigService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
+                        if (pickerConfigService is not null)
+                            await pickerConfigService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effortLevel.ToValue(), context.CancellationToken).ConfigureAwait(false);
+                    }
+                    return ChatCommandResult.Continue();
                     case ConsoleKey.Escape:
-                        TerminalHelper.WriteLine($"{TerminalColors.Muted}已取消{AnsiStyleEnumConstants.Reset}");
-                        return ChatCommandResult.Continue();
+                    TerminalHelper.WriteLine($"{TerminalColors.Muted}已取消{AnsiStyleEnumConstants.Reset}");
+                    return ChatCommandResult.Continue();
                 }
             }
         }
@@ -145,8 +128,7 @@ public sealed class ModelCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private Task<ChatCommandResult> ShowModelInfoAsync(ChatCommandContext context)
-    {
+    private Task<ChatCommandResult> ShowModelInfoAsync(ChatCommandContext context) {
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
         var executionSettings = context.GetCommandServices().ExecutionSettingsProvider;
         var provider = GetCurrentProvider(context);
@@ -166,8 +148,7 @@ public sealed class ModelCommand : ChatCommandBase
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    private async Task<ChatCommandResult> SwitchToDefaultModelAsync(ChatCommandContext context)
-    {
+    private async Task<ChatCommandResult> SwitchToDefaultModelAsync(ChatCommandContext context) {
         var provider = GetCurrentProvider(context);
         var defaultModel = ResolveModelCatalog(context).GetDefaultModelForProvider(provider);
         await ApplyModelSwitchAsync(context, defaultModel).ConfigureAwait(false);
@@ -176,8 +157,7 @@ public sealed class ModelCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private async Task<ChatCommandResult> SwitchToModelAsync(ChatCommandContext context, string modelArg)
-    {
+    private async Task<ChatCommandResult> SwitchToModelAsync(ChatCommandContext context, string modelArg) {
         var provider = GetCurrentProvider(context);
         var resolvedModelId = ResolveModelId(context, modelArg, provider);
 
@@ -187,8 +167,7 @@ public sealed class ModelCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static string ResolveModelId(ChatCommandContext context, string input, string provider)
-    {
+    private static string ResolveModelId(ChatCommandContext context, string input, string provider) {
         var alias = ResolveModelCatalog(context).ResolveAlias(input, provider);
         if (alias is not null)
             return alias;
@@ -196,29 +175,23 @@ public sealed class ModelCommand : ChatCommandBase
         return input;
     }
 
-    private static IModelCatalog ResolveModelCatalog(ChatCommandContext context)
-    {
+    private static IModelCatalog ResolveModelCatalog(ChatCommandContext context) {
         return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog))
             ?? throw new InvalidOperationException("[APP003] 模型目录服务未初始化");
     }
 
-    private static string GetCurrentProvider(ChatCommandContext context)
-    {
+    private static string GetCurrentProvider(ChatCommandContext context) {
         return context.GetCommandServices().WorkflowConfig?.Provider?.Vendor
             ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
             ?? VendorKind.OpenAi.ToValue();
     }
 
-    private static async Task ApplyModelSwitchAsync(ChatCommandContext context, string modelId)
-    {
+    private static async Task ApplyModelSwitchAsync(ChatCommandContext context, string modelId) {
         // 1. 更新内存中的模型
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
-        if (fastModeService is not null)
-        {
+        if (fastModeService is not null) {
             fastModeService.SetPrimaryModel(modelId);
-        }
-        else
-        {
+        } else {
             var envVar = JccEnvVar.ModelId.ToValue();
             Environment.SetEnvironmentVariable(envVar, modelId);
         }
@@ -226,17 +199,14 @@ public sealed class ModelCommand : ChatCommandBase
         // 2. 持久化到 settings.json — 对齐 TS userSettings
         // 键 "model" 与 SettingsJson 生成器 jsonName 一致（"modelId" 会落 UpdateSettingByKey 默认分支不生效）
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
-        if (configService is not null)
-        {
+        if (configService is not null) {
             await configService.SetAsync("model", modelId, context.CancellationToken).ConfigureAwait(false);
         }
 
         // 3. Fast Mode 自动关闭检查 — 对齐 TS handleFastModeAutoOff
-        if (fastModeService is not null && fastModeService.IsFastModeActive)
-        {
+        if (fastModeService is not null && fastModeService.IsFastModeActive) {
             var provider = GetCurrentProvider(context);
-            if (!ResolveModelCatalog(context).SupportsFastMode(modelId, provider))
-            {
+            if (!ResolveModelCatalog(context).SupportsFastMode(modelId, provider)) {
                 fastModeService.Deactivate();
                 TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {modelId} 不支持快速模式，已自动关闭{AnsiStyleEnumConstants.Reset}");
             }
@@ -244,14 +214,11 @@ public sealed class ModelCommand : ChatCommandBase
 
         // 4. Effort 自动降级检查 — 对齐 TS effortAutoDowngrade
         var settingsProvider = context.GetCommandServices().ExecutionSettingsProvider;
-        if (settingsProvider is not null)
-        {
+        if (settingsProvider is not null) {
             var currentEffort = settingsProvider.EffortLevel;
-            if (currentEffort == EffortLevel.Max)
-            {
+            if (currentEffort == EffortLevel.Max) {
                 var provider = GetCurrentProvider(context);
-                if (!ResolveModelCatalog(context).SupportsMaxEffort(modelId, provider))
-                {
+                if (!ResolveModelCatalog(context).SupportsMaxEffort(modelId, provider)) {
                     settingsProvider.EffortLevel = EffortLevel.High;
                     TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {modelId} 不支持 max effort，已降级为 high{AnsiStyleEnumConstants.Reset}");
                 }
@@ -259,14 +226,12 @@ public sealed class ModelCommand : ChatCommandBase
         }
 
         // 5. 记录模型选择历史 — 追加到 current.modelHistory 头部（去重），最多20条
-        if (configService is not null)
-        {
+        if (configService is not null) {
             await RecordModelHistoryAsync(configService, modelId, context.CancellationToken).ConfigureAwait(false);
         }
     }
 
-    private static async Task RecordModelHistoryAsync(IConfigurationService configService, string modelId, CancellationToken ct)
-    {
+    private static async Task RecordModelHistoryAsync(IConfigurationService configService, string modelId, CancellationToken ct) {
         var existing = await configService.GetAsync("modelHistory", ct).ConfigureAwait(false);
         var history = string.IsNullOrEmpty(existing) ? [] : existing.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         history.Remove(modelId);

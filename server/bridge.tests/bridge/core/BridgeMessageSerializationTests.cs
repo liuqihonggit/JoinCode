@@ -5,13 +5,10 @@ namespace Bridge.Tests;
 /// BridgeMessageSerialization 单元测试
 /// 测试各类 BridgeMessage 的 JSON 序列化与反序列化
 /// </summary>
-public sealed class BridgeMessageSerializationTests
-{
+public sealed class BridgeMessageSerializationTests {
     [Fact]
-    public void ToJson_InitializeRequest_ReturnsExpectedType()
-    {
-        var message = new InitializeRequest
-        {
+    public void ToJson_InitializeRequest_ReturnsExpectedType() {
+        var message = new InitializeRequest {
             Id = "init-1",
             ClientInfo = new ClientInfo { Name = "test", Version = "1.0" },
             Capabilities = new ClientCapabilities()
@@ -24,10 +21,8 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void ToJson_And_FromJson_InitializeRequest_RoundTrip()
-    {
-        var message = new InitializeRequest
-        {
+    public void ToJson_And_FromJson_InitializeRequest_RoundTrip() {
+        var message = new InitializeRequest {
             Id = "init-1",
             ProtocolVersion = "1.0",
             ClientInfo = new ClientInfo { Name = "test", Version = "1.0" },
@@ -42,14 +37,11 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void ToJson_ControlRequest_ContainsCommandAndParams()
-    {
-        var parameters = new Dictionary<string, JsonElement>
-        {
+    public void ToJson_ControlRequest_ContainsCommandAndParams() {
+        var parameters = new Dictionary<string, JsonElement> {
             ["action"] = JsonSerializer.SerializeToElement("ping")
         };
-        var message = new ControlRequest
-        {
+        var message = new ControlRequest {
             Id = "ctrl-1",
             Command = "ping",
             Params = parameters
@@ -62,8 +54,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_ControlRequest_PreservesCommand()
-    {
+    public void FromJson_ControlRequest_PreservesCommand() {
         var json = "{\"type\":\"control_request\",\"id\":\"ctrl-1\",\"command\":\"getStatus\",\"params\":{}}";
 
         var deserialized = BridgeMessageSerialization.FromJson(json);
@@ -74,8 +65,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_ToolsListRequest_DeserializesCorrectly()
-    {
+    public void FromJson_ToolsListRequest_DeserializesCorrectly() {
         var json = "{\"type\":\"tools/list\",\"id\":\"tl-1\"}";
 
         var deserialized = BridgeMessageSerialization.FromJson(json);
@@ -84,10 +74,8 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void ToJson_ToolsListResponse_ContainsToolsArray()
-    {
-        var message = new ToolsListResponse
-        {
+    public void ToJson_ToolsListResponse_ContainsToolsArray() {
+        var message = new ToolsListResponse {
             Id = "tlr-1",
             Tools =
             [
@@ -102,8 +90,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_ToolsCallRequest_PreservesToolName()
-    {
+    public void FromJson_ToolsCallRequest_PreservesToolName() {
         var json = "{\"type\":\"tools/call\",\"id\":\"tc-1\",\"tool_name\":\"tool-a\",\"arguments\":{}}";
 
         var deserialized = BridgeMessageSerialization.FromJson(json);
@@ -113,10 +100,8 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void ToJson_ToolsCallResponse_ContainsSuccess()
-    {
-        var message = new ToolsCallResponse
-        {
+    public void ToJson_ToolsCallResponse_ContainsSuccess() {
+        var message = new ToolsCallResponse {
             Id = "tcr-1",
             ToolCallId = "tc-1",
             Success = true
@@ -129,8 +114,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_SkillExecuteRequest_PreservesSkillName()
-    {
+    public void FromJson_SkillExecuteRequest_PreservesSkillName() {
         var json = "{\"type\":\"skill/execute\",\"id\":\"se-1\",\"skill_name\":\"skill-a\",\"parameters\":{}}";
 
         var deserialized = BridgeMessageSerialization.FromJson(json);
@@ -140,10 +124,8 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void ToJson_SkillExecuteResponse_ContainsError()
-    {
-        var message = new SkillExecuteResponse
-        {
+    public void ToJson_SkillExecuteResponse_ContainsError() {
+        var message = new SkillExecuteResponse {
             Id = "ser-1",
             Success = false,
             Error = "failed"
@@ -156,8 +138,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_ControlResponse_PreservesSuccessAndRequestId()
-    {
+    public void FromJson_ControlResponse_PreservesSuccessAndRequestId() {
         var json = "{\"type\":\"control_response\",\"id\":\"cr-1\",\"request_id\":\"ctrl-1\",\"success\":true}";
 
         var deserialized = BridgeMessageSerialization.FromJson(json);
@@ -168,8 +149,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void ToJson_PingMessage_ReturnsExpectedType()
-    {
+    public void ToJson_PingMessage_ReturnsExpectedType() {
         var message = new PingMessage { Id = "ping-1" };
 
         var json = message.ToJson();
@@ -178,8 +158,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_PongMessage_ReturnsPong()
-    {
+    public void FromJson_PongMessage_ReturnsPong() {
         var json = "{\"type\":\"pong\",\"id\":\"pong-1\"}";
 
         var deserialized = BridgeMessageSerialization.FromJson(json);
@@ -188,10 +167,8 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void ToJson_ErrorMessage_ContainsCodeAndMessage()
-    {
-        var message = new ErrorMessage
-        {
+    public void ToJson_ErrorMessage_ContainsCodeAndMessage() {
+        var message = new ErrorMessage {
             Id = "err-1",
             Code = -32600,
             Message = "Invalid request"
@@ -204,8 +181,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_NotificationMessage_PreservesLevelAndMessage()
-    {
+    public void FromJson_NotificationMessage_PreservesLevelAndMessage() {
         var json = "{\"type\":\"notification\",\"id\":\"n-1\",\"level\":\"warn\",\"message\":\"hello\"}";
 
         var deserialized = BridgeMessageSerialization.FromJson(json);
@@ -216,8 +192,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_EchoMessage_PreservesOriginalMessageId()
-    {
+    public void FromJson_EchoMessage_PreservesOriginalMessageId() {
         var json = "{\"type\":\"echo\",\"id\":\"e-1\",\"original_message_id\":\"orig-1\"}";
 
         var deserialized = BridgeMessageSerialization.FromJson(json);
@@ -227,8 +202,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_UnknownType_ReturnsNull()
-    {
+    public void FromJson_UnknownType_ReturnsNull() {
         var json = "{\"type\":\"unknown_type\",\"id\":\"x-1\"}";
 
         var deserialized = BridgeMessageSerialization.FromJson(json);
@@ -237,8 +211,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_MissingType_ReturnsNull()
-    {
+    public void FromJson_MissingType_ReturnsNull() {
         var json = "{\"id\":\"x-1\"}";
 
         var deserialized = BridgeMessageSerialization.FromJson(json);
@@ -247,8 +220,7 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_NonObject_ReturnsNull()
-    {
+    public void FromJson_NonObject_ReturnsNull() {
         var json = "\"not an object\"";
 
         var deserialized = BridgeMessageSerialization.FromJson(json);
@@ -257,16 +229,14 @@ public sealed class BridgeMessageSerializationTests
     }
 
     [Fact]
-    public void FromJson_Null_ReturnsNull()
-    {
+    public void FromJson_Null_ReturnsNull() {
         var deserialized = BridgeMessageSerialization.FromJson("null");
 
         deserialized.Should().BeNull();
     }
 
     [Fact]
-    public void ToJson_UnknownMessageType_ThrowsInvalidOperationException()
-    {
+    public void ToJson_UnknownMessageType_ThrowsInvalidOperationException() {
         var message = new TestBridgeMessage();
 
         var act = () => message.ToJson();
@@ -274,8 +244,7 @@ public sealed class BridgeMessageSerializationTests
         act.Should().Throw<InvalidOperationException>().WithMessage("*Unknown message type*");
     }
 
-    private sealed class TestBridgeMessage : BridgeMessage
-    {
+    private sealed class TestBridgeMessage : BridgeMessage {
         public override string Type => "test/unknown";
     }
 }

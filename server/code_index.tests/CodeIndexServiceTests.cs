@@ -1,19 +1,16 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class CodeIndexServiceTests : IDisposable
-{
+public sealed class CodeIndexServiceTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
     private bool _disposed;
 
-    public CodeIndexServiceTests()
-    {
+    public CodeIndexServiceTests() {
         _store = new InMemoryIndexStore();
         _indexer = new CodeIndexer(_store, TestFileSystem.Current);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _indexer.DisposeSafe();
@@ -21,31 +18,26 @@ public sealed class CodeIndexServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task StartAsync_BuildsIndexAndStartsWatcher()
-    {
+    public async Task StartAsync_BuildsIndexAndStartsWatcher() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task StopAsync_StopsWatcher()
-    {
+    public async Task StopAsync_StopsWatcher() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task StartAsync_WithoutWatcher_StillBuildsIndex()
-    {
+    public async Task StartAsync_WithoutWatcher_StillBuildsIndex() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public void Dispose_CalledTwice_DoesNotThrow()
-    {
+    public void Dispose_CalledTwice_DoesNotThrow() {
     }
 
     [Fact]
-    public async Task StartAsync_EmptyWorkspace_NoFilesIndexed()
-    {
+    public async Task StartAsync_EmptyWorkspace_NoFilesIndexed() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 }

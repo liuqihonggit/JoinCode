@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM;
 
-public enum ToolChoice
-{
+public enum ToolChoice {
     [EnumValue("none")]
     None,
     [EnumValue("auto_invoke")]

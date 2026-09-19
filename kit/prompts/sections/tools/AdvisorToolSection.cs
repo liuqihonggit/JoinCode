@@ -4,8 +4,7 @@ namespace Core.Prompts.Sections;
 /// Advisor 工具提示词部分
 /// </summary>
 [PromptSection(Name = "advisor_tool", Order = 35)]
-public static class AdvisorToolSection
-{
+public static class AdvisorToolSection {
     /// <summary>
     /// Advisor 工具指令
     /// </summary>
@@ -33,8 +32,7 @@ public static class AdvisorToolSection
     /// <summary>
     /// 创建 Advisor 工具提示词部分
     /// </summary>
-    public static SystemPromptSection Create()
-    {
+    public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("advisor_tool", () => AdvisorToolInstructions);
     }
 }

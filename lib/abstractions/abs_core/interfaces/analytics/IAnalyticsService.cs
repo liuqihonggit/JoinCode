@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface IAnalyticsService
-{
+public interface IAnalyticsService {
     void TrackEvent(AnalyticsEventType type, string name, Dictionary<string, JsonElement>? data = null, string? agentName = null);
     void TrackToolCall(string toolName, bool success, double durationMs, Dictionary<string, JsonElement>? data = null, string? agentName = null);
     void TrackToolError(string toolName, string errorMessage, Dictionary<string, JsonElement>? data = null, string? agentName = null);

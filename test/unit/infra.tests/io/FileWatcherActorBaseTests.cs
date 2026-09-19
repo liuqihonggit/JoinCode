@@ -3,11 +3,9 @@ namespace Infra.IO.Tests;
 /// <summary>
 /// FileWatcherActorBase 单元测试 — 验证事件→命令转换、防回声、自定义命令扩展。
 /// </summary>
-public class FileWatcherActorBaseTests
-{
+public class FileWatcherActorBaseTests {
     [Fact]
-    public async Task StartWatcher_FileChanged_HandleFileChangedAsyncInvoked()
-    {
+    public async Task StartWatcher_FileChanged_HandleFileChangedAsyncInvoked() {
         var fs = new InMemoryFileSystem();
         var dir = "/test";
         fs.CreateDirectory(dir);
@@ -23,8 +21,7 @@ public class FileWatcherActorBaseTests
     }
 
     [Fact]
-    public async Task MarkInternalWrite_FileChanged_Filtered()
-    {
+    public async Task MarkInternalWrite_FileChanged_Filtered() {
         var fs = new InMemoryFileSystem();
         var dir = "/test";
         fs.CreateDirectory(dir);
@@ -41,8 +38,7 @@ public class FileWatcherActorBaseTests
     }
 
     [Fact]
-    public async Task CustomCommand_HandleCustomCommandAsyncInvoked()
-    {
+    public async Task CustomCommand_HandleCustomCommandAsyncInvoked() {
         var fs = new InMemoryFileSystem();
         await using var actor = new TestFileWatcherActor(fs);
         await actor.SendAsync(new TestCustomCmd("test-data"));
@@ -54,8 +50,7 @@ public class FileWatcherActorBaseTests
     }
 
     [Fact]
-    public async Task StopWatcher_NoMoreEvents()
-    {
+    public async Task StopWatcher_NoMoreEvents() {
         var fs = new InMemoryFileSystem();
         var dir = "/test";
         fs.CreateDirectory(dir);
@@ -72,19 +67,16 @@ public class FileWatcherActorBaseTests
         changes.Any(c => c.FilePath.EndsWith("c.txt")).Should().BeFalse();
     }
 
-    private static async Task WaitForActorReadyAsync(TestFileWatcherActor actor)
-    {
+    private static async Task WaitForActorReadyAsync(TestFileWatcherActor actor) {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         await actor.SendAsync(new ReadyCmd(tcs)).ConfigureAwait(true);
         await tcs.Task.ConfigureAwait(true);
     }
 
-    private static async Task<bool> WaitForAsync(Func<bool> condition, TimeSpan timeout, TimeSpan? interval = null)
-    {
+    private static async Task<bool> WaitForAsync(Func<bool> condition, TimeSpan timeout, TimeSpan? interval = null) {
         var intervalMs = (int)(interval ?? TimeSpan.FromMilliseconds(50)).TotalMilliseconds;
         var deadline = DateTimeOffset.UtcNow + timeout;
-        while (DateTimeOffset.UtcNow < deadline)
-        {
+        while (DateTimeOffset.UtcNow < deadline) {
             if (condition())
                 return true;
             await Task.Delay(intervalMs).ConfigureAwait(true);
@@ -92,29 +84,25 @@ public class FileWatcherActorBaseTests
         return condition();
     }
 
-    private sealed class TestFileWatcherActor : FileWatcherActorBase
-    {
+    private sealed class TestFileWatcherActor : FileWatcherActorBase {
         private readonly List<FileChangedCmd> _changes = new();
         private readonly List<string> _customCommands = new();
 
         public TestFileWatcherActor(IFileSystem fs) : base(fs, 100) { }
 
-        protected override ValueTask HandleFileChangedAsync(string filePath, WatcherChangeTypes kind, DateTimeOffset timestamp, CancellationToken ct)
-        {
+        protected override ValueTask HandleFileChangedAsync(string filePath, WatcherChangeTypes kind, DateTimeOffset timestamp, CancellationToken ct) {
             lock (_changes) _changes.Add(new FileChangedCmd(filePath, kind, timestamp));
             return ValueTask.CompletedTask;
         }
 
-        protected override ValueTask HandleCustomCommandAsync(FileWatcherCommand cmd, CancellationToken ct)
-        {
-            switch (cmd)
-            {
+        protected override ValueTask HandleCustomCommandAsync(FileWatcherCommand cmd, CancellationToken ct) {
+            switch (cmd) {
                 case ReadyCmd r:
-                    r.Tcs.TrySetResult();
-                    break;
+                r.Tcs.TrySetResult();
+                break;
                 case TestCustomCmd c:
-                    lock (_customCommands) _customCommands.Add(c.Data);
-                    break;
+                lock (_customCommands) _customCommands.Add(c.Data);
+                break;
             }
             return ValueTask.CompletedTask;
         }

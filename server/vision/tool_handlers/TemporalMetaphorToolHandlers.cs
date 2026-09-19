@@ -6,8 +6,7 @@ namespace JoinCode.Vision.ToolHandlers;
 /// 纵深防御链：L1模型原生→L2请求用户下推→L3抽帧（本工具实现L3帧分析）
 /// </summary>
 [McpToolDispatch(ToolCategory.Vision)]
-public class TemporalMetaphorToolHandlers
-{
+public class TemporalMetaphorToolHandlers {
     private readonly IQueryService _queryService;
     private readonly ILogger<TemporalMetaphorToolHandlers>? _logger;
 
@@ -16,8 +15,7 @@ public class TemporalMetaphorToolHandlers
 
     /// <param name="queryService">LLM 查询服务 — 发送多帧到多模态模型获取时序分析</param>
     /// <param name="logger">可选日志器</param>
-    public TemporalMetaphorToolHandlers(IQueryService queryService, ILogger<TemporalMetaphorToolHandlers>? logger = null)
-    {
+    public TemporalMetaphorToolHandlers(IQueryService queryService, ILogger<TemporalMetaphorToolHandlers>? logger = null) {
         _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
         _logger = logger;
     }
@@ -27,18 +25,14 @@ public class TemporalMetaphorToolHandlers
     public async Task<ToolResult> TemporalAggregateAsync(
         [McpToolParameter("帧图片base64数组的JSON，如[\"base64_1\",\"base64_2\"]", Required = true)] string framesJson,
         [McpToolParameter("分析提示词（可选），如\"描述物体的运动轨迹\"", Required = false)] string? analysisPrompt = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(framesJson))
             return ToolResultBuilder.Error().WithText("[VIS300] framesJson 不能为空").Build();
 
         List<string>? frames;
-        try
-        {
+        try {
             frames = RelaxedJsonSerializer.Deserialize(framesJson, VisionJsonContext.Default.ListString);
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             return ToolResultBuilder.Error().WithText("[VIS301] framesJson 解析失败或为空").Build();
         }
         if (frames is null || frames.Count == 0)
@@ -48,15 +42,13 @@ public class TemporalMetaphorToolHandlers
 
         var prompt = string.IsNullOrWhiteSpace(analysisPrompt) ? "请分析这些帧的时序演变，描述变化过程。" : analysisPrompt;
         var contentBlocks = new List<ToolContent>(frames.Count);
-        for (var i = 0; i < frames.Count; i++)
-        {
+        for (var i = 0; i < frames.Count; i++) {
             contentBlocks.Add(new ToolContent { Type = ToolContentType.Image, Data = frames[i], MimeType = "image/png" });
         }
 
         var messages = new MessageList();
         messages.AddSystemMessage(TemporalSystemPrompt);
-        messages.Add(new ApiMessage(MessageRole.User, $"共 {frames.Count} 帧。{prompt}")
-        {
+        messages.Add(new ApiMessage(MessageRole.User, $"共 {frames.Count} 帧。{prompt}") {
             ContentBlocks = contentBlocks
         });
 
@@ -74,18 +66,14 @@ public class TemporalMetaphorToolHandlers
     public async Task<ToolResult> TemporalStableContourAsync(
         [McpToolParameter("帧图片base64数组的JSON", Required = true)] string framesJson,
         [McpToolParameter("帧差阈值(0-255)，差异<阈值视为稳定，默认30", Required = false)] int threshold = 30,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(framesJson))
             return ToolResultBuilder.Error().WithText("[VIS310] framesJson 不能为空").Build();
 
         List<string>? frames;
-        try
-        {
+        try {
             frames = RelaxedJsonSerializer.Deserialize(framesJson, VisionJsonContext.Default.ListString);
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             return ToolResultBuilder.Error().WithText("[VIS311] framesJson 解析失败").Build();
         }
         if (frames is null || frames.Count < 2)
@@ -95,39 +83,30 @@ public class TemporalMetaphorToolHandlers
         if (threshold < 0 || threshold > 255)
             return ToolResultBuilder.Error().WithText("[VIS313] threshold 必须在 0-255 范围内").Build();
 
-        try
-        {
+        try {
             var maskBase64 = await ComputeStableMaskAsync(frames, threshold, ct).ConfigureAwait(false);
 
             return ToolResultBuilder.Success()
                 .WithText($"稳定轮廓提取完成: {frames.Count} 帧, 阈值={threshold}")
                 .WithImage(maskBase64, "image/png")
                 .Build();
-        }
-        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS314]", StringComparison.Ordinal) || ex.Message.StartsWith("[VIS315]", StringComparison.Ordinal))
-        {
+        } catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS314]", StringComparison.Ordinal) || ex.Message.StartsWith("[VIS315]", StringComparison.Ordinal)) {
             return ToolResultBuilder.Error().WithText(ex.Message).Build();
         }
     }
 
     /// <summary>计算稳定区域掩码 — 帧差粗筛，稳定像素=白色，不稳定=黑色</summary>
     /// <exception cref="ArgumentException">帧尺寸不一致([VIS314])或帧base64无效([VIS315])时抛出</exception>
-    private static async Task<string> ComputeStableMaskAsync(List<string> frameBase64List, int threshold, CancellationToken ct)
-    {
+    private static async Task<string> ComputeStableMaskAsync(List<string> frameBase64List, int threshold, CancellationToken ct) {
         var frames = new List<Image<Rgb24>>(frameBase64List.Count);
-        try
-        {
-            foreach (var base64 in frameBase64List)
-            {
+        try {
+            foreach (var base64 in frameBase64List) {
                 if (!VisionBase64.TryDecode(base64, out var bytes, out var decodeError))
                     throw new ArgumentException($"[VIS315] 帧 base64 无效: {decodeError}");
                 Image<Rgb24> frame;
-                try
-                {
+                try {
                     frame = Image.Load<Rgb24>(bytes);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
+                } catch (Exception ex) when (ex is not OperationCanceledException) {
                     throw new ArgumentException("[VIS315] 帧图片解码失败，请检查 base64 是否为有效图片");
                 }
                 frames.Add(frame);
@@ -135,26 +114,21 @@ public class TemporalMetaphorToolHandlers
 
             var width = frames[0].Width;
             var height = frames[0].Height;
-            for (var i = 1; i < frames.Count; i++)
-            {
+            for (var i = 1; i < frames.Count; i++) {
                 if (frames[i].Width != width || frames[i].Height != height)
                     throw new ArgumentException($"[VIS314] 帧尺寸不一致: 帧0={width}x{height}, 帧{i}={frames[i].Width}x{frames[i].Height}，所有帧必须同尺寸");
             }
 
             using var mask = new Image<L8>(width, height, new L8(0));
 
-            for (var y = 0; y < height; y++)
-            {
-                for (var x = 0; x < width; x++)
-                {
+            for (var y = 0; y < height; y++) {
+                for (var x = 0; x < width; x++) {
                     var p0 = frames[0][x, y];
                     var isStable = true;
-                    for (var i = 1; i < frames.Count; i++)
-                    {
+                    for (var i = 1; i < frames.Count; i++) {
                         var pi = frames[i][x, y];
                         var diff = Math.Max(Math.Max(Math.Abs(p0.R - pi.R), Math.Abs(p0.G - pi.G)), Math.Abs(p0.B - pi.B));
-                        if (diff > threshold)
-                        {
+                        if (diff > threshold) {
                             isStable = false;
                             break;
                         }
@@ -166,9 +140,7 @@ public class TemporalMetaphorToolHandlers
             using var ms = new MemoryStream();
             await mask.SaveAsync(ms, PngFormat.Instance, ct).ConfigureAwait(false);
             return Convert.ToBase64String(ms.ToArray());
-        }
-        finally
-        {
+        } finally {
             foreach (var frame in frames)
                 frame.Dispose();
         }

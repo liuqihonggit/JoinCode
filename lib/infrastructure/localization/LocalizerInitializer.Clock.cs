@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterClockEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterClockEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === GoalEngine ===
         defaultEntries[StringKey.GoalEngineAlreadyRunning] = "There is already a goal running, please pause or clear it first";
         defaultEntries[StringKey.GoalEngineBudgetUnlimited] = "Unlimited";

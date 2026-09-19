@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// QR 码数据 - 用于终端扫码连接 Bridge 会话
 /// </summary>
-public sealed partial class BridgeQRCodeData
-{
+public sealed partial class BridgeQRCodeData {
     /// <summary>会话 ID</summary>
     [JsonPropertyName("sessionId")]
     public required string SessionId { get; init; }
@@ -26,8 +25,7 @@ public sealed partial class BridgeQRCodeData
 /// <summary>
 /// 会话显示信息 - 用于终端展示活跃会话列表
 /// </summary>
-public sealed partial class BridgeSessionDisplay
-{
+public sealed partial class BridgeSessionDisplay {
     /// <summary>会话 ID</summary>
     [JsonPropertyName("sessionId")]
     public required string SessionId { get; init; }
@@ -50,8 +48,7 @@ public sealed partial class BridgeSessionDisplay
 /// 注意: 不得依赖 BridgeServer,否则会形成 DI 循环依赖 (BridgeServer → BridgeServerSession → BridgeUIService → BridgeServer)
 /// </summary>
 [Register(typeof(BridgeUIService), ServiceLifetime.Singleton)]
-public sealed partial class BridgeUIService : ServiceEntity
-{
+public sealed partial class BridgeUIService : ServiceEntity {
     private readonly ILogger<BridgeUIService>? _logger;
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, BridgeSessionDisplay> _activeSessions;
@@ -63,8 +60,7 @@ public sealed partial class BridgeUIService : ServiceEntity
     /// <param name="clock">时钟服务（可选，默认使用系统时钟）</param>
     public BridgeUIService(
         ILogger<BridgeUIService>? logger = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _activeSessions = new ConcurrentDictionary<string, BridgeSessionDisplay>();
@@ -82,16 +78,14 @@ public sealed partial class BridgeUIService : ServiceEntity
         string sessionId,
         string endpoint,
         int ttlMs = WorkflowConstants.Bridge.DefaultQRTokenTtlMs,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(sessionId);
         ArgumentNullException.ThrowIfNull(endpoint);
 
         var token = GenerateAuthToken();
         var expiresAt = _clock.GetUtcNowOffset().AddMilliseconds(ttlMs).ToUnixTimeMilliseconds();
 
-        var qrData = new BridgeQRCodeData
-        {
+        var qrData = new BridgeQRCodeData {
             SessionId = sessionId,
             Endpoint = endpoint,
             Token = token,
@@ -110,8 +104,7 @@ public sealed partial class BridgeUIService : ServiceEntity
     /// </summary>
     /// <param name="qrData">QR 码数据</param>
     /// <returns>终端展示字符串</returns>
-    public string FormatAsTerminalQR(BridgeQRCodeData qrData)
-    {
+    public string FormatAsTerminalQR(BridgeQRCodeData qrData) {
         ArgumentNullException.ThrowIfNull(qrData);
 
         var expiresTime = DateTimeOffset.FromUnixTimeMilliseconds(qrData.ExpiresAt)
@@ -133,8 +126,7 @@ public sealed partial class BridgeUIService : ServiceEntity
         sb.AppendLine("│       Bridge QR Code        │");
         sb.AppendLine("│  ┌───────────────────────┐  │");
 
-        foreach (var line in qrLines)
-        {
+        foreach (var line in qrLines) {
             sb.AppendLine($"│  │ {line,-23} │  │");
         }
 
@@ -152,22 +144,18 @@ public sealed partial class BridgeUIService : ServiceEntity
     /// 使用 ▀ █ ▄ 字符实现每两个模块行合并为一行输出，提高终端密度
     /// 对齐 TS 端 qrcode 库的 type: 'utf8', small: true 渲染模式
     /// </summary>
-    private static List<string> RenderUtf8BlockQR(QRCodeData qrCodeData)
-    {
+    private static List<string> RenderUtf8BlockQR(QRCodeData qrCodeData) {
         var moduleCount = qrCodeData.ModuleMatrix.Count;
         var lines = new List<string>();
 
         // 每两行模块合并为一行输出字符（上黑下白=▀，全黑=█，上白下黑=▄，全白=空格）
-        for (var row = 0; row < moduleCount; row += 2)
-        {
+        for (var row = 0; row < moduleCount; row += 2) {
             var sb = new StringBuilder(moduleCount);
-            for (var col = 0; col < moduleCount; col++)
-            {
+            for (var col = 0; col < moduleCount; col++) {
                 var topDark = qrCodeData.ModuleMatrix[row][col];
                 var bottomDark = row + 1 < moduleCount && qrCodeData.ModuleMatrix[row + 1][col];
 
-                sb.Append((topDark, bottomDark) switch
-                {
+                sb.Append((topDark, bottomDark) switch {
                     (true, true) => '█',
                     (true, false) => '▀',
                     (false, true) => '▄',
@@ -186,8 +174,7 @@ public sealed partial class BridgeUIService : ServiceEntity
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>活跃会话显示列表</returns>
-    public Task<IReadOnlyList<BridgeSessionDisplay>> GetActiveSessionList(CancellationToken ct = default)
-    {
+    public Task<IReadOnlyList<BridgeSessionDisplay>> GetActiveSessionList(CancellationToken ct = default) {
         var sessions = _activeSessions.Values
             .OrderByDescending(s => s.ConnectedAt)
             .ToList();
@@ -201,8 +188,7 @@ public sealed partial class BridgeUIService : ServiceEntity
     /// 注册会话到活跃列表
     /// </summary>
     /// <param name="session">会话显示信息</param>
-    public void RegisterSession(BridgeSessionDisplay session)
-    {
+    public void RegisterSession(BridgeSessionDisplay session) {
         ArgumentNullException.ThrowIfNull(session);
 
         _activeSessions[session.SessionId] = session;
@@ -213,10 +199,8 @@ public sealed partial class BridgeUIService : ServiceEntity
     /// 从活跃列表移除会话
     /// </summary>
     /// <param name="sessionId">会话 ID</param>
-    public void UnregisterSession(string sessionId)
-    {
-        if (_activeSessions.TryRemove(sessionId, out _))
-        {
+    public void UnregisterSession(string sessionId) {
+        if (_activeSessions.TryRemove(sessionId, out _)) {
             _logger?.LogDebug("[BridgeUIService] 移除会话: {SessionId}", sessionId);
         }
     }
@@ -224,8 +208,7 @@ public sealed partial class BridgeUIService : ServiceEntity
     /// <summary>
     /// 生成认证令牌 - 使用加密安全的随机字节
     /// </summary>
-    private static string GenerateAuthToken()
-    {
+    private static string GenerateAuthToken() {
         return RandomNumberGenerator.GetHexString(32, lowercase: false);
     }
 }

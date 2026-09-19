@@ -8,16 +8,14 @@ namespace JoinCode.Abstractions.Collections;
 /// <typeparam name="TKey">键类型</typeparam>
 /// <typeparam name="TValue">值类型</typeparam>
 public sealed class DictionaryView<TKey, TValue>
-    where TKey : notnull
-{
+    where TKey : notnull {
     private readonly IReadOnlyDictionary<TKey, TValue> _source;
 
     /// <summary>
     /// 创建字典只读视图
     /// </summary>
     /// <param name="source">被封装的字典（ConcurrentDictionary/Dictionary/FrozenDictionary 均可）</param>
-    public DictionaryView(IReadOnlyDictionary<TKey, TValue> source)
-    {
+    public DictionaryView(IReadOnlyDictionary<TKey, TValue> source) {
         ArgumentNullException.ThrowIfNull(source);
         _source = source;
     }

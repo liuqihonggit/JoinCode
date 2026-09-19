@@ -3,10 +3,8 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// VisionToolHandlers 单元测试 — 验证 detect_ui_elements / find_element 工具逻辑
 /// </summary>
-public sealed class VisionToolHandlersTests
-{
-    private static Mock<IUiElementDetector> CreateDetectorMock()
-    {
+public sealed class VisionToolHandlersTests {
+    private static Mock<IUiElementDetector> CreateDetectorMock() {
         var mock = new Mock<IUiElementDetector>();
         mock
             .Setup(d => d.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -19,8 +17,7 @@ public sealed class VisionToolHandlersTests
         return mock;
     }
 
-    private static Mock<IScreenCaptureService> CreateCaptureMock(string base64 = "fakeBase64Png")
-    {
+    private static Mock<IScreenCaptureService> CreateCaptureMock(string base64 = "fakeBase64Png") {
         var mock = new Mock<IScreenCaptureService>();
         mock
             .Setup(c => c.CaptureFullScreenAsync(It.IsAny<CancellationToken>()))
@@ -29,8 +26,7 @@ public sealed class VisionToolHandlersTests
     }
 
     [Fact]
-    public async Task DetectUiElements_WithProvidedScreenshot_ReturnsFormattedElements()
-    {
+    public async Task DetectUiElements_WithProvidedScreenshot_ReturnsFormattedElements() {
         var detectorMock = CreateDetectorMock();
         var captureMock = CreateCaptureMock();
         var handler = new VisionToolHandlers(detectorMock.Object, captureMock.Object);
@@ -51,8 +47,7 @@ public sealed class VisionToolHandlersTests
     }
 
     [Fact]
-    public async Task DetectUiElements_WithoutScreenshot_CapturesScreenFirst()
-    {
+    public async Task DetectUiElements_WithoutScreenshot_CapturesScreenFirst() {
         var detectorMock = CreateDetectorMock();
         var captureMock = CreateCaptureMock("autoCapturedBase64");
         var handler = new VisionToolHandlers(detectorMock.Object, captureMock.Object);
@@ -65,8 +60,7 @@ public sealed class VisionToolHandlersTests
     }
 
     [Fact]
-    public async Task DetectUiElements_CaptureFails_ReturnsError()
-    {
+    public async Task DetectUiElements_CaptureFails_ReturnsError() {
         var detectorMock = new Mock<IUiElementDetector>();
         var captureMock = new Mock<IScreenCaptureService>();
         captureMock
@@ -82,8 +76,7 @@ public sealed class VisionToolHandlersTests
     }
 
     [Fact]
-    public async Task FindElement_Found_ReturnsCoordinates()
-    {
+    public async Task FindElement_Found_ReturnsCoordinates() {
         var detectorMock = new Mock<IUiElementDetector>();
         detectorMock
             .Setup(d => d.FindByDescriptionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -104,8 +97,7 @@ public sealed class VisionToolHandlersTests
     }
 
     [Fact]
-    public async Task FindElement_NotFound_ReturnsNotFoundMessage()
-    {
+    public async Task FindElement_NotFound_ReturnsNotFoundMessage() {
         var detectorMock = new Mock<IUiElementDetector>();
         detectorMock
             .Setup(d => d.FindByDescriptionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -121,8 +113,7 @@ public sealed class VisionToolHandlersTests
     }
 
     [Fact]
-    public async Task FindElement_WithoutScreenshot_CapturesScreenFirst()
-    {
+    public async Task FindElement_WithoutScreenshot_CapturesScreenFirst() {
         var detectorMock = new Mock<IUiElementDetector>();
         detectorMock
             .Setup(d => d.FindByDescriptionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -137,8 +128,7 @@ public sealed class VisionToolHandlersTests
     }
 
     [Fact]
-    public async Task FindElement_CaptureFails_ReturnsError()
-    {
+    public async Task FindElement_CaptureFails_ReturnsError() {
         var detectorMock = new Mock<IUiElementDetector>();
         var captureMock = new Mock<IScreenCaptureService>();
         captureMock
@@ -154,8 +144,7 @@ public sealed class VisionToolHandlersTests
 
     /// <summary>LLM 调用超时（OperationCanceledException）时应返回友好错误，而非异常传播卡死</summary>
     [Fact]
-    public async Task DetectUiElements_LlmTimeout_ReturnsFriendlyError()
-    {
+    public async Task DetectUiElements_LlmTimeout_ReturnsFriendlyError() {
         var detectorMock = new Mock<IUiElementDetector>();
         detectorMock
             .Setup(d => d.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -171,8 +160,7 @@ public sealed class VisionToolHandlersTests
 
     /// <summary>LLM 调用超时时 find_element 应返回友好错误，而非异常传播卡死</summary>
     [Fact]
-    public async Task FindElement_LlmTimeout_ReturnsFriendlyError()
-    {
+    public async Task FindElement_LlmTimeout_ReturnsFriendlyError() {
         var detectorMock = new Mock<IUiElementDetector>();
         detectorMock
             .Setup(d => d.FindByDescriptionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -188,8 +176,7 @@ public sealed class VisionToolHandlersTests
 
     /// <summary>LLM 返回空结果（0x0 尺寸）时应返回友好错误提示检查 API Key，而非误导性的空成功</summary>
     [Fact]
-    public async Task DetectUiElements_LlmReturnsEmpty_ReturnsFriendlyError()
-    {
+    public async Task DetectUiElements_LlmReturnsEmpty_ReturnsFriendlyError() {
         var detectorMock = new Mock<IUiElementDetector>();
         detectorMock
             .Setup(d => d.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))

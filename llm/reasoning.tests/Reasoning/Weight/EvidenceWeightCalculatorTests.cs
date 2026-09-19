@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Weight;
 
-public sealed class EvidenceWeightCalculatorTests
-{
+public sealed class EvidenceWeightCalculatorTests {
     [Fact]
-    public void CalculateWeight_ShouldReturnTotalBetween0And1()
-    {
+    public void CalculateWeight_ShouldReturnTotalBetween0And1() {
         var calculator = new EvidenceWeightCalculator();
         var evidence = CreateEvidence();
 
@@ -14,8 +12,7 @@ public sealed class EvidenceWeightCalculatorTests
     }
 
     [Fact]
-    public void CalculateWeight_ShouldHaveHigherScoreForDirectEvidence()
-    {
+    public void CalculateWeight_ShouldHaveHigherScoreForDirectEvidence() {
         var calculator = new EvidenceWeightCalculator();
         var direct = CreateEvidence(trustLevel: TrustLevel.DirectEvidence, category: EvidenceCategory.Physical);
         var hearsay = CreateEvidence(trustLevel: TrustLevel.Hearsay, category: EvidenceCategory.Circumstantial);
@@ -27,8 +24,7 @@ public sealed class EvidenceWeightCalculatorTests
     }
 
     [Fact]
-    public void CalculateWeight_SourceCredibility_ShouldScoreGovernmentHigher()
-    {
+    public void CalculateWeight_SourceCredibility_ShouldScoreGovernmentHigher() {
         var calculator = new EvidenceWeightCalculator();
         var gov = CreateEvidence(source: "政府机构");
         var anon = CreateEvidence(source: "匿名来源");
@@ -40,8 +36,7 @@ public sealed class EvidenceWeightCalculatorTests
     }
 
     [Fact]
-    public void CalculateWeight_VerificationStatus_ShouldScoreVerifiedHigher()
-    {
+    public void CalculateWeight_VerificationStatus_ShouldScoreVerifiedHigher() {
         var calculator = new EvidenceWeightCalculator();
         var verified = CreateEvidence(isUrlVerified: true, sourceUrl: "https://example.com");
         var unverified = CreateEvidence(isUrlVerified: false, sourceUrl: "https://example.com");
@@ -53,8 +48,7 @@ public sealed class EvidenceWeightCalculatorTests
     }
 
     [Fact]
-    public void CalculateWeight_Corroboration_ShouldScoreHigherWithMoreSources()
-    {
+    public void CalculateWeight_Corroboration_ShouldScoreHigherWithMoreSources() {
         var calculator = new EvidenceWeightCalculator();
         var evidence = CreateEvidence();
 
@@ -65,8 +59,7 @@ public sealed class EvidenceWeightCalculatorTests
     }
 
     [Fact]
-    public void CalculateWeight_Timeliness_ShouldDecayWithAge()
-    {
+    public void CalculateWeight_Timeliness_ShouldDecayWithAge() {
         var calculator = new EvidenceWeightCalculator();
         var recent = CreateEvidence(createdAt: DateTime.UtcNow);
         var old = CreateEvidence(createdAt: DateTime.UtcNow.AddDays(-400));
@@ -78,8 +71,7 @@ public sealed class EvidenceWeightCalculatorTests
     }
 
     [Fact]
-    public void CalculateTotalWeight_ShouldReturnWeightedSum()
-    {
+    public void CalculateTotalWeight_ShouldReturnWeightedSum() {
         var calculator = new EvidenceWeightCalculator();
         var evidences = new[]
         {
@@ -99,10 +91,8 @@ public sealed class EvidenceWeightCalculatorTests
         string? sourceUrl = null,
         bool isUrlVerified = false,
         double weight = 1.0,
-        DateTime? createdAt = null)
-    {
-        return new EvidenceRecord
-        {
+        DateTime? createdAt = null) {
+        return new EvidenceRecord {
             Content = "测试证据",
             Category = category,
             TrustLevel = trustLevel,

@@ -5,8 +5,7 @@ namespace McpToolDispatch;
 /// <para>场景: CI workflow 拆分/重命名后 check 名变更, 分支保护规则需同步更新, 否则 auto-merge BLOCKED</para>
 /// <para>ADR: 0073 — 直调 GitHub REST API, 不经 gh CLI/PowerShell</para>
 /// </summary>
-public partial class GitHubToolHandlers
-{
+public partial class GitHubToolHandlers {
     /// <summary>
     /// 同步分支保护规则 — 从 PR 的 CI checks 提取 check 名，更新分支保护的 required_status_checks（避免 CI 拆分后 auto-merge BLOCKED）
     /// </summary>
@@ -16,8 +15,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("分支名(默认 main)", Required = false)] string? branch = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -49,22 +47,17 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 获取 PR 的 head SHA
     /// </summary>
-    private async Task<string?> GetPrHeadShaAsync(string owner, string repo, string number, CancellationToken ct)
-    {
+    private async Task<string?> GetPrHeadShaAsync(string owner, string repo, string number, CancellationToken ct) {
         if (_apiClient is null) return null;
         var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/pulls/{number}", ct: ct).ConfigureAwait(false);
-        if (!prResult.Success)
-        {
+        if (!prResult.Success) {
             _logger?.LogDebug("获取 PR 失败: {Error}", prResult.Error);
             return null;
         }
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(prResult.Body);
             return doc.RootElement.GetProperty("head").GetProperty("sha").GetString();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "解析 PR head sha 失败");
             return null;
         }
@@ -73,33 +66,27 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 获取 commit 的所有 check-runs 名称(去重, 保序)
     /// </summary>
-    private async Task<List<string>?> GetCheckNamesAsync(string owner, string repo, string sha, CancellationToken ct)
-    {
+    private async Task<List<string>?> GetCheckNamesAsync(string owner, string repo, string sha, CancellationToken ct) {
         if (_apiClient is null) return null;
         var checksResult = await _apiClient.SendAsync(
             HttpMethod.Get,
             $"repos/{owner}/{repo}/commits/{sha}/check-runs",
             ct: ct).ConfigureAwait(false);
-        if (!checksResult.Success)
-        {
+        if (!checksResult.Success) {
             _logger?.LogDebug("获取 check-runs 失败: {Error}", checksResult.Error);
             return null;
         }
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(checksResult.Body);
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var names = new List<string>();
-            foreach (var run in doc.RootElement.GetProperty("check_runs").EnumerateArray())
-            {
+            foreach (var run in doc.RootElement.GetProperty("check_runs").EnumerateArray()) {
                 var name = run.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
                 if (!string.IsNullOrEmpty(name) && seen.Add(name))
                     names.Add(name);
             }
             return names;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "解析 check-runs 失败");
             return null;
         }
@@ -109,39 +96,32 @@ public partial class GitHubToolHandlers
     /// 获取当前分支保护的 required_status_checks — 返回 (strict, contexts), contexts=null 表示无保护规则
     /// </summary>
     private async Task<(bool strict, List<string>? contexts)> GetCurrentRequiredStatusChecksAsync(
-        string owner, string repo, string branch, CancellationToken ct)
-    {
+        string owner, string repo, string branch, CancellationToken ct) {
         if (_apiClient is null) return (true, null);
         var result = await _apiClient.SendAsync(
             HttpMethod.Get,
             $"repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks",
             ct: ct).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             if (result.StatusCode == 404) return (true, null);
             _logger?.LogDebug("获取 required_status_checks 失败: {Error}", result.Error);
             return (true, null);
         }
 
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(result.Body);
             var strict = doc.RootElement.TryGetProperty("strict", out var strictEl) && strictEl.GetBoolean();
             var contexts = new List<string>();
-            if (doc.RootElement.TryGetProperty("contexts", out var contextsEl))
-            {
-                foreach (var ctx in contextsEl.EnumerateArray())
-                {
+            if (doc.RootElement.TryGetProperty("contexts", out var contextsEl)) {
+                foreach (var ctx in contextsEl.EnumerateArray()) {
                     var ctxName = ctx.GetString();
                     if (!string.IsNullOrEmpty(ctxName))
                         contexts.Add(ctxName);
                 }
             }
             return (strict, contexts);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "解析 required_status_checks 失败, 使用默认值");
             return (true, new List<string>());
         }
@@ -150,11 +130,9 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 构造 required_status_checks PUT body — AOT 友好(Utf8JsonWriter 流式写, 无 JsonNode.Add)
     /// </summary>
-    private static string BuildRequiredStatusChecksBody(bool strict, IReadOnlyList<string> contexts)
-    {
+    private static string BuildRequiredStatusChecksBody(bool strict, IReadOnlyList<string> contexts) {
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
-        {
+        using (var writer = new Utf8JsonWriter(stream)) {
             writer.WriteStartObject();
             writer.WriteBoolean("strict", strict);
             writer.WritePropertyName("contexts");
@@ -173,8 +151,7 @@ public partial class GitHubToolHandlers
     /// </summary>
     private static string BuildSyncSummary(
         string owner, string repo, string branch,
-        IReadOnlyList<string> oldContexts, IReadOnlyList<string> newContexts)
-    {
+        IReadOnlyList<string> oldContexts, IReadOnlyList<string> newContexts) {
         var sb = new StringBuilder(512);
         sb.AppendLine($"分支保护规则已同步: {owner}/{repo} 分支 '{branch}'");
         sb.AppendLine();
@@ -188,14 +165,12 @@ public partial class GitHubToolHandlers
         var removed = oldContexts.Except(newContexts, StringComparer.Ordinal).ToList();
         sb.AppendLine();
         sb.Append($"变更: +{added.Count} 新增, -{removed.Count} 移除");
-        if (added.Count > 0)
-        {
+        if (added.Count > 0) {
             sb.AppendLine();
             sb.Append("新增: ");
             sb.Append(string.Join(", ", added));
         }
-        if (removed.Count > 0)
-        {
+        if (removed.Count > 0) {
             sb.AppendLine();
             sb.Append("移除: ");
             sb.Append(string.Join(", ", removed));

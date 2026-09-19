@@ -4,8 +4,7 @@ namespace IO.Services;
 /// REPL 服务实现 — 支持 C#/PowerShell/Python 代码执行，管理 REPL 模式开关和可用语言探测
 /// </summary>
 [Register(typeof(IReplService), ServiceLifetime.Singleton)]
-public sealed partial class ReplService : ServiceEntity, IReplService
-{
+public sealed partial class ReplService : ServiceEntity, IReplService {
     private volatile bool _replModeEnabled;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
@@ -35,8 +34,7 @@ public sealed partial class ReplService : ServiceEntity, IReplService
     /// <param name="processService">进程服务抽象</param>
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
-    public ReplService(IFileSystem fs, IProcessService processService, ILogger<ReplService>? logger = null, IClockService? clock = null)
-    {
+    public ReplService(IFileSystem fs, IProcessService processService, ILogger<ReplService>? logger = null, IClockService? clock = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
         _replModeEnabled = IsEnvTruthy(JccEnvVar.ReplMode.ToValue());
@@ -49,26 +47,21 @@ public sealed partial class ReplService : ServiceEntity, IReplService
     public bool IsReplModeEnabled => _replModeEnabled;
 
     /// <inheritdoc/>
-    public void EnableReplMode()
-    {
+    public void EnableReplMode() {
         _replModeEnabled = true;
         _logger?.LogInformation("REPL 模式已启用");
     }
 
     /// <inheritdoc/>
-    public void DisableReplMode()
-    {
+    public void DisableReplMode() {
         _replModeEnabled = false;
         _logger?.LogInformation("REPL 模式已禁用");
     }
 
     /// <inheritdoc/>
-    public async Task<ReplResult> ExecuteAsync(string code, string language = "csharp", int timeoutSeconds = 30, CancellationToken ct = default)
-    {
-        if (ct.IsCancellationRequested)
-        {
-            return new ReplResult
-            {
+    public async Task<ReplResult> ExecuteAsync(string code, string language = "csharp", int timeoutSeconds = 30, CancellationToken ct = default) {
+        if (ct.IsCancellationRequested) {
+            return new ReplResult {
                 Success = false,
                 Output = string.Empty,
                 Language = language,
@@ -77,10 +70,8 @@ public sealed partial class ReplService : ServiceEntity, IReplService
             };
         }
 
-        if (string.IsNullOrWhiteSpace(code))
-        {
-            return new ReplResult
-            {
+        if (string.IsNullOrWhiteSpace(code)) {
+            return new ReplResult {
                 Success = false,
                 Output = string.Empty,
                 Language = language,
@@ -91,15 +82,12 @@ public sealed partial class ReplService : ServiceEntity, IReplService
 
         var startTime = _clock.GetUtcNow();
 
-        try
-        {
-            var result = language.ToLowerInvariant() switch
-            {
+        try {
+            var result = language.ToLowerInvariant() switch {
                 "csharp" or "c#" => await ExecuteCSharpAsync(code, timeoutSeconds, ct).ConfigureAwait(false),
                 "powershell" or "ps1" => await ExecutePowerShellAsync(code, timeoutSeconds, ct).ConfigureAwait(false),
                 "python" or "py" => await ExecutePythonAsync(code, timeoutSeconds, ct).ConfigureAwait(false),
-                _ => new ReplResult
-                {
+                _ => new ReplResult {
                     Success = false,
                     Output = string.Empty,
                     Language = language,
@@ -109,22 +97,16 @@ public sealed partial class ReplService : ServiceEntity, IReplService
             };
 
             return result;
-        }
-        catch (OperationCanceledException)
-        {
-            return new ReplResult
-            {
+        } catch (OperationCanceledException) {
+            return new ReplResult {
                 Success = false,
                 Output = string.Empty,
                 Language = language,
                 ExecutionTime = _clock.GetUtcNow() - startTime,
                 Error = "执行被取消"
             };
-        }
-        catch (Exception ex)
-        {
-            return new ReplResult
-            {
+        } catch (Exception ex) {
+            return new ReplResult {
                 Success = false,
                 Output = string.Empty,
                 Language = language,
@@ -140,17 +122,14 @@ public sealed partial class ReplService : ServiceEntity, IReplService
     /// <inheritdoc/>
     public IReadOnlyList<ReplLanguageInfo> GetAvailableLanguages() => _availableLanguages.Value;
 
-    private IReadOnlyList<ReplLanguageInfo> DetectAvailableLanguages()
-    {
+    private IReadOnlyList<ReplLanguageInfo> DetectAvailableLanguages() {
         var result = new List<ReplLanguageInfo>(s_languageDefinitions.Length);
 
-        foreach (var def in s_languageDefinitions)
-        {
+        foreach (var def in s_languageDefinitions) {
             var executable = ResolveExecutable(def.Executable, def.Language);
             var isAvailable = executable != null;
 
-            result.Add(new ReplLanguageInfo
-            {
+            result.Add(new ReplLanguageInfo {
                 Language = def.Language,
                 DisplayName = def.DisplayName,
                 Executable = executable ?? def.Executable,
@@ -162,15 +141,12 @@ public sealed partial class ReplService : ServiceEntity, IReplService
         return result.AsReadOnly();
     }
 
-    private string? ResolveExecutable(string primaryName, string language)
-    {
+    private string? ResolveExecutable(string primaryName, string language) {
         var candidates = GetCandidateExecutables(primaryName, language);
 
-        foreach (var candidate in candidates)
-        {
+        foreach (var candidate in candidates) {
             var fullPath = _processService.FindExecutableAsync(candidate).GetAwaiter().GetResult();
-            if (fullPath != null)
-            {
+            if (fullPath != null) {
                 return fullPath;
             }
         }
@@ -178,20 +154,16 @@ public sealed partial class ReplService : ServiceEntity, IReplService
         return null;
     }
 
-    private static string[] GetCandidateExecutables(string primaryName, string language)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return language switch
-            {
+    private static string[] GetCandidateExecutables(string primaryName, string language) {
+        if (OperatingSystem.IsWindows()) {
+            return language switch {
                 "powershell" => ["pwsh", "powershell"],
                 "python" => ["python", "python3", "py"],
                 _ => [primaryName]
             };
         }
 
-        return language switch
-        {
+        return language switch {
             "powershell" => ["pwsh"],
             "python" => ["python3", "python"],
             _ => [primaryName]
@@ -209,13 +181,10 @@ public sealed partial class ReplService : ServiceEntity, IReplService
 
     private async Task<ReplResult> ExecuteScriptLanguageAsync(
         string language, string exeName, string extension, Func<string, IReadOnlyList<string>> buildArgs,
-        string installHint, string resolveKey, string code, int timeoutSeconds, CancellationToken ct)
-    {
+        string installHint, string resolveKey, string code, int timeoutSeconds, CancellationToken ct) {
         var executable = ResolveExecutable(exeName, resolveKey);
-        if (executable == null)
-        {
-            return new ReplResult
-            {
+        if (executable == null) {
+            return new ReplResult {
                 Success = false,
                 Output = string.Empty,
                 Language = language,
@@ -227,31 +196,24 @@ public sealed partial class ReplService : ServiceEntity, IReplService
         using var scriptFileScope = TempFileScope.Create(_fs, "jcc_repl_", extension);
         var scriptFile = scriptFileScope.Path;
 
-        try
-        {
+        try {
             await _fs.WriteAllTextAsync(scriptFile, code, ct).ConfigureAwait(false);
 
-            var result = await _processService.ExecuteAsync(new ProcessOptions
-            {
+            var result = await _processService.ExecuteAsync(new ProcessOptions {
                 FileName = executable,
                 ArgumentList = buildArgs(scriptFile),
                 TimeoutMs = timeoutSeconds * 1000
             }, ct).ConfigureAwait(false);
 
-            return new ReplResult
-            {
+            return new ReplResult {
                 Success = result.Success,
                 Output = result.StandardOutput,
                 Language = language,
                 ExecutionTime = result.ExecutionTime,
                 Error = result.Success ? null : result.StandardError
             };
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
-            return new ReplResult
-            {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
+            return new ReplResult {
                 Success = false,
                 Output = string.Empty,
                 Language = language,
@@ -261,8 +223,7 @@ public sealed partial class ReplService : ServiceEntity, IReplService
         }
     }
 
-    private static bool IsEnvTruthy(string name)
-    {
+    private static bool IsEnvTruthy(string name) {
         var value = Environment.GetEnvironmentVariable(name);
         return !string.IsNullOrEmpty(value) && value is not "0" and not "false";
     }

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Goal;
 /// <summary>
 /// Goal Graph 节点 Payload — 携带执行所需的所有信息
 /// </summary>
-public sealed class GoalNodePayload
-{
+public sealed class GoalNodePayload {
     public required GoalNodeKind Kind { get; init; }
     public required string Name { get; init; }
     public string? AgentId { get; set; }

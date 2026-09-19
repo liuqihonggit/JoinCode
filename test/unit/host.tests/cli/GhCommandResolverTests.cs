@@ -4,12 +4,10 @@ namespace Host.Tests.Cli;
 /// jcc gh 子命令解析与参数绑定测试 — 纯函数红绿循环，无需建 Host。
 /// <para>ADR: 0090 — 扁平元动词 gh &lt;group&gt; &lt;action&gt;，位置参数按 schema required 顺序绑定。</para>
 /// </summary>
-public sealed class GhCommandResolverTests
-{
+public sealed class GhCommandResolverTests {
     /// <summary>jcc gh pr view 123 → gh_pr_view，位置参数 123</summary>
     [Fact]
-    public void Resolve_PrView_ShouldMapToolNameAndTail()
-    {
+    public void Resolve_PrView_ShouldMapToolNameAndTail() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "view", "123" }, out var error);
 
         error.Should().BeNull();
@@ -23,8 +21,7 @@ public sealed class GhCommandResolverTests
 
     /// <summary>jcc gh api &lt;path&gt; 是单级命令 → gh_api，无 action</summary>
     [Fact]
-    public void Resolve_Api_ShouldMapToGhApiWithoutAction()
-    {
+    public void Resolve_Api_ShouldMapToGhApiWithoutAction() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "api", "repos/o/r/issues" }, out var error);
 
         error.Should().BeNull();
@@ -35,8 +32,7 @@ public sealed class GhCommandResolverTests
 
     /// <summary>--json 可在任意位置出现，且不进入待绑定参数</summary>
     [Fact]
-    public void Resolve_JsonFlag_ShouldBeStrippedFromTail()
-    {
+    public void Resolve_JsonFlag_ShouldBeStrippedFromTail() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr", "list", "--json", "--limit", "3" }, out var error);
 
         error.Should().BeNull();
@@ -46,8 +42,7 @@ public sealed class GhCommandResolverTests
 
     /// <summary>只有 jcc gh 时缺少分组，应报错并给出用法</summary>
     [Fact]
-    public void Resolve_MissingGroup_ShouldReturnUsageError()
-    {
+    public void Resolve_MissingGroup_ShouldReturnUsageError() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh" }, out var error);
 
         resolved.Should().BeNull();
@@ -57,8 +52,7 @@ public sealed class GhCommandResolverTests
 
     /// <summary>jcc gh pr 缺少 action，应提示该分组用法</summary>
     [Fact]
-    public void Resolve_MissingAction_ShouldReturnActionHint()
-    {
+    public void Resolve_MissingAction_ShouldReturnActionHint() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "pr" }, out var error);
 
         resolved.Should().BeNull();
@@ -67,8 +61,7 @@ public sealed class GhCommandResolverTests
 
     /// <summary>未知分组应列出可用分组</summary>
     [Fact]
-    public void Resolve_UnknownGroup_ShouldListKnownGroups()
-    {
+    public void Resolve_UnknownGroup_ShouldListKnownGroups() {
         var resolved = GhCommandResolver.Resolve(new[] { "gh", "bogus", "view" }, out var error);
 
         resolved.Should().NotBeNull();
@@ -78,8 +71,7 @@ public sealed class GhCommandResolverTests
 
     /// <summary>位置参数按 required 声明顺序绑定（issue_number, body）</summary>
     [Fact]
-    public void Bind_Positionals_ShouldFillRequiredInOrder()
-    {
+    public void Bind_Positionals_ShouldFillRequiredInOrder() {
         var parameters = new List<GhParam>
         {
             new("issue_number", IsRequired: true, IsBoolean: false),
@@ -96,8 +88,7 @@ public sealed class GhCommandResolverTests
 
     /// <summary>布尔参数支持无值 flag 形式（--log → true）</summary>
     [Fact]
-    public void Bind_BooleanFlag_ShouldSetTrueWithoutValue()
-    {
+    public void Bind_BooleanFlag_ShouldSetTrueWithoutValue() {
         var parameters = new List<GhParam>
         {
             new("run_id", IsRequired: true, IsBoolean: false),
@@ -116,8 +107,7 @@ public sealed class GhCommandResolverTests
     [Theory]
     [InlineData("--limit", "3")]
     [InlineData("--limit=3", null)]
-    public void Bind_OptionForms_ShouldBothWork(string first, string? second)
-    {
+    public void Bind_OptionForms_ShouldBothWork(string first, string? second) {
         var parameters = new List<GhParam> { new("limit", IsRequired: false, IsBoolean: false) };
         var tail = second is null ? new[] { first } : new[] { first, second };
 
@@ -129,8 +119,7 @@ public sealed class GhCommandResolverTests
 
     /// <summary>位置参数多于 required 槽位时，应报错并列出接受的参数</summary>
     [Fact]
-    public void Bind_TooManyPositional_ShouldReportAcceptedParams()
-    {
+    public void Bind_TooManyPositional_ShouldReportAcceptedParams() {
         var parameters = new List<GhParam>
         {
             new("pr_number", IsRequired: true, IsBoolean: false),
@@ -146,8 +135,7 @@ public sealed class GhCommandResolverTests
 
     /// <summary>缺少必填位置参数时，应给出正确用法</summary>
     [Fact]
-    public void Bind_MissingRequired_ShouldReportUsage()
-    {
+    public void Bind_MissingRequired_ShouldReportUsage() {
         var parameters = new List<GhParam> { new("pr_number", IsRequired: true, IsBoolean: false) };
 
         var bound = GhArgsBinder.Bind([], parameters, "gh_pr_checks", out var error);
@@ -158,8 +146,7 @@ public sealed class GhCommandResolverTests
 
     /// <summary>未知选项应报错并列出可用选项</summary>
     [Fact]
-    public void Bind_UnknownOption_ShouldReportAvailableOptions()
-    {
+    public void Bind_UnknownOption_ShouldReportAvailableOptions() {
         var parameters = new List<GhParam> { new("limit", IsRequired: false, IsBoolean: false) };
 
         var bound = GhArgsBinder.Bind(new[] { "--bogus", "1" }, parameters, "gh_pr_list", out var error);
@@ -171,8 +158,7 @@ public sealed class GhCommandResolverTests
 
     /// <summary>非布尔选项缺值时，应提示正确写法</summary>
     [Fact]
-    public void Bind_OptionMissingValue_ShouldReportHint()
-    {
+    public void Bind_OptionMissingValue_ShouldReportHint() {
         var parameters = new List<GhParam> { new("limit", IsRequired: false, IsBoolean: false) };
 
         var bound = GhArgsBinder.Bind(new[] { "--limit" }, parameters, "gh_pr_list", out var error);
@@ -183,12 +169,9 @@ public sealed class GhCommandResolverTests
 
     /// <summary>必填参数保持 required 声明顺序，布尔类型从 schema type 推断</summary>
     [Fact]
-    public void ParseSchema_ShouldKeepRequiredOrderAndBooleanType()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void ParseSchema_ShouldKeepRequiredOrderAndBooleanType() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["repo"] = new ToolSchemaProperty { Type = "string" },
                 ["pr_number"] = new ToolSchemaProperty { Type = "string" },
                 ["delete_branch"] = new ToolSchemaProperty { Type = "boolean" },

@@ -7,8 +7,7 @@ namespace Core.Security.DangerClassification;
 /// 字段值为命令名(如 "ls"),特性参数指定风险类型/危险等级/描述。
 /// 命名约定:字段名用 PascalCase,连字符去除(Get-Content → GetContent)。
 /// </remarks>
-public static class DangerCommandDefinitions
-{
+public static class DangerCommandDefinitions {
     // === Safe（白灯 / 自动通过）— 常见只读命令 ===
     /// <summary>列目录 — 只读</summary>
     [DangerCommand(CommandRisk.None, CommandDangerLevel.Safe, "列目录 — 只读")] public const string Ls = "ls";

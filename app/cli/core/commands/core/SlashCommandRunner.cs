@@ -6,8 +6,7 @@ namespace JoinCode.Cli.Commands;
 /// <param name="Handled">命令是否被识别并执行（false = 未知命令）。</param>
 /// <param name="ShouldContinue">false 表示命令要求退出程序（如 /exit）。</param>
 /// <param name="Output">命令输出文本（Console.Out 捕获），可能为空串。</param>
-public sealed record SlashCommandResult(bool Handled, bool ShouldContinue, string Output)
-{
+public sealed record SlashCommandResult(bool Handled, bool ShouldContinue, string Output) {
     /// <summary>未知命令的快捷构造。</summary>
     public static SlashCommandResult Unknown(string commandName) =>
         new(Handled: false, ShouldContinue: true,
@@ -21,8 +20,7 @@ public sealed record SlashCommandResult(bool Handled, bool ShouldContinue, strin
 /// 线程安全：静态无状态；RunAsync 内部串行重定向 Console.Out，调用方需自行保证不并发执行命令
 /// （与 TUI/GUI 的单命令队列语义一致）。
 /// </summary>
-public static class SlashCommandRunner
-{
+public static class SlashCommandRunner {
     /// <summary>
     /// 执行斜杠命令。
     /// </summary>
@@ -42,11 +40,9 @@ public static class SlashCommandRunner
         Func<string, string?>? prompt = null,
         Func<string, string?>? readPassword = null,
         Action? onExitRequested = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var commandRegistry = services.GetService<ChatCommandRegistry>();
-        if (commandRegistry is null)
-        {
+        if (commandRegistry is null) {
             // DI 未注册命令注册表时（如测试/精简宿主），用本程序集生成的全量清单兜底
             commandRegistry = new ChatCommandRegistry();
             GeneratedCommandRegistration.RegisterAllChatCommands(commandRegistry);
@@ -64,14 +60,10 @@ public static class SlashCommandRunner
 
         // 路由 — 先查斜杠命令，再查 MCP 工具
         CmdDescriptor? descriptor = null;
-        if (cmdMap is not null)
-        {
-            try
-            {
+        if (cmdMap is not null) {
+            try {
                 descriptor = await cmdMap.ResolveAsync(commandName, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 return new SlashCommandResult(true, true, $"命令路由失败: {ex.Message}");
             }
         }
@@ -80,8 +72,7 @@ public static class SlashCommandRunner
         if (command is null)
             return SlashCommandResult.Unknown(commandName);
 
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = parseResult.Arguments,
             CancellationToken = cancellationToken,
             Services = BuildCommandServiceProvider(services, commandRegistry, toolRegistry),
@@ -96,18 +87,13 @@ public static class SlashCommandRunner
         var originalOut = System.Console.Out;
         using var commandWriter = new System.IO.StringWriter(commandOutput);
         var shouldContinue = true;
-        try
-        {
+        try {
             System.Console.SetOut(commandWriter);
             var result = await command.ExecuteAsync(context).ConfigureAwait(false);
             shouldContinue = result.ShouldContinue;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return new SlashCommandResult(true, true, $"命令执行失败: {ex.Message}");
-        }
-        finally
-        {
+        } finally {
             System.Console.SetOut(originalOut);
             commandWriter.Flush();
         }
@@ -125,8 +111,7 @@ public static class SlashCommandRunner
     private static IServiceProvider BuildCommandServiceProvider(
         IServiceProvider services,
         ChatCommandRegistry commandRegistry,
-        IToolRegistry? toolRegistry)
-    {
+        IToolRegistry? toolRegistry) {
         var chatService = services.GetService<IChatService>()
             ?? throw new InvalidOperationException("引擎未就绪：DI 中缺少 IChatService，无法执行斜杠命令");
         var codeService = services.GetService<ICodeService>()
@@ -136,8 +121,7 @@ public static class SlashCommandRunner
         var fs = services.GetService<IFileSystem>()
             ?? IO.FileSystem.FileSystemFactory.Create();
 
-        var commandServices = new CommandServices
-        {
+        var commandServices = new CommandServices {
             ChatService = chatService,
             CodeService = codeService,
             PlanService = planService,

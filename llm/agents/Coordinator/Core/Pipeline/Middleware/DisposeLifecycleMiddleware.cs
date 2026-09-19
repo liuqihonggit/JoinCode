@@ -4,16 +4,14 @@ namespace Core.Agents.Coordinator;
 /// 生命周期释放中间件 — 在 Agent 释放管道中调用生命周期管理器释放 Agent 资源
 /// </summary>
 [Register(typeof(IAgentDisposeMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class DisposeLifecycleMiddleware : ServiceEntity, IAgentDisposeMiddleware
-{
+public sealed partial class DisposeLifecycleMiddleware : ServiceEntity, IAgentDisposeMiddleware {
 
     /// <summary>
     /// 构造生命周期释放中间件实例
     /// </summary>
     /// <param name="lifecycleManager">Agent 生命周期管理器</param>
     /// <param name="logger">日志记录器</param>
-    public DisposeLifecycleMiddleware(IAgentLifecycleManager lifecycleManager, ILogger<DisposeLifecycleMiddleware> logger)
-    {
+    public DisposeLifecycleMiddleware(IAgentLifecycleManager lifecycleManager, ILogger<DisposeLifecycleMiddleware> logger) {
         _lifecycleManager = lifecycleManager;
         _logger = logger;
     }
@@ -26,8 +24,7 @@ public sealed partial class DisposeLifecycleMiddleware : ServiceEntity, IAgentDi
     /// <param name="ctx">Agent 释放上下文</param>
     /// <param name="next">管道下一步委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(AgentDisposeContext ctx, MiddlewareDelegate<AgentDisposeContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(AgentDisposeContext ctx, MiddlewareDelegate<AgentDisposeContext> next, CancellationToken ct) {
         await _lifecycleManager.DisposeAgentAsync(ctx.AgentId, ctx.CancellationToken).ConfigureAwait(false);
         ctx.LifecycleDisposed = true;
 

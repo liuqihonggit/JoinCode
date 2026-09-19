@@ -4,10 +4,8 @@ namespace Tui.Tests.Views;
 /// AskUserDialogView 单元测试 — 验证 T2 ask_user_question 对话框渲染/提交/取消行为。
 /// 回归背景：TUI DI 不含 CliModule，AskUserQuestion 工具此前走 Core Mock，用户从未被提问。
 /// </summary>
-public class AskUserDialogViewTests
-{
-    private static readonly QuestionItem SampleQuestion = new()
-    {
+public class AskUserDialogViewTests {
+    private static readonly QuestionItem SampleQuestion = new() {
         Header = "方案选择",
         Question = "使用哪种实现?",
         Options =
@@ -20,15 +18,13 @@ public class AskUserDialogViewTests
     };
 
     [Fact]
-    public void Initial_Invisible()
-    {
+    public void Initial_Invisible() {
         var dialog = new AskUserDialogView();
         Assert.False(dialog.TerminalView.Visible);
     }
 
     [Fact]
-    public async Task ShowAsync_RendersHeaderQuestionAndOptions()
-    {
+    public async Task ShowAsync_RendersHeaderQuestionAndOptions() {
         var dialog = new AskUserDialogView();
         using var cts = new CancellationTokenSource();
         var task = dialog.ShowAsync(SampleQuestion, cts.Token);
@@ -44,8 +40,7 @@ public class AskUserDialogViewTests
     }
 
     [Fact]
-    public async Task Submit_SingleSelectValidIndex_CompletesWithAnswer()
-    {
+    public async Task Submit_SingleSelectValidIndex_CompletesWithAnswer() {
         var dialog = new AskUserDialogView();
         using var cts = new CancellationTokenSource();
         var task = dialog.ShowAsync(SampleQuestion, cts.Token);
@@ -60,8 +55,7 @@ public class AskUserDialogViewTests
     }
 
     [Fact]
-    public async Task Submit_Zero_Cancels()
-    {
+    public async Task Submit_Zero_Cancels() {
         var dialog = new AskUserDialogView();
         using var cts = new CancellationTokenSource();
         var task = dialog.ShowAsync(SampleQuestion, cts.Token);
@@ -75,8 +69,7 @@ public class AskUserDialogViewTests
     }
 
     [Fact]
-    public void Submit_InvalidIndex_KeepsDialogOpenForRetry()
-    {
+    public void Submit_InvalidIndex_KeepsDialogOpenForRetry() {
         // 无效输入不关窗 — 对齐 CLI 重试提示语义
         var dialog = new AskUserDialogView();
         using var cts = new CancellationTokenSource();
@@ -91,8 +84,7 @@ public class AskUserDialogViewTests
     }
 
     [Fact]
-    public async Task Submit_FreeInputWithoutOptions_CompletesWithText()
-    {
+    public async Task Submit_FreeInputWithoutOptions_CompletesWithText() {
         var dialog = new AskUserDialogView();
         using var cts = new CancellationTokenSource();
         var freeQuestion = new QuestionItem { Header = "补充", Question = "还有什么要求?", Options = [], MultiSelect = false };
@@ -106,16 +98,14 @@ public class AskUserDialogViewTests
         Assert.Equal("尽量简洁", result.Answer);
     }
 
-    private static void SetInput(AskUserDialogView dialog, string text)
-    {
+    private static void SetInput(AskUserDialogView dialog, string text) {
         var field = typeof(AskUserDialogView)
             .GetField("_inputField", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(dialog) as TextField;
         field!.Text = text;
     }
 
-    private static void InvokeSubmit(AskUserDialogView dialog)
-    {
+    private static void InvokeSubmit(AskUserDialogView dialog) {
         var method = typeof(AskUserDialogView).GetMethod(
             "OnSubmit", BindingFlags.Instance | BindingFlags.NonPublic)!;
         method.Invoke(dialog, [dialog, EventArgs.Empty]);

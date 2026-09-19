@@ -1,18 +1,15 @@
 namespace Infra.Tests.Process;
 
 [Trait("Category", "Integration")]
-public sealed class GitCommandRunnerTests
-{
+public sealed class GitCommandRunnerTests {
     private readonly GitCommandRunner _runner = new(new PhysicalProcessService(new ProcessStartInfoBuilder(new ProcessEncodingProvider())), null);
     private readonly PhysicalFileSystem _fs = new();
 
     [Fact(Timeout = 15000)]
-    public async Task DetectMergeConflictAsync_WithConflict_ReturnsConflictFiles()
-    {
+    public async Task DetectMergeConflictAsync_WithConflict_ReturnsConflictFiles() {
         var tmp = Path.Combine(Path.GetTempPath(), $"git-conflict-test-{Guid.NewGuid():N}");
         _fs.CreateDirectory(tmp);
-        try
-        {
+        try {
             await InitRepoAsync(tmp);
 
             await _runner.ExecuteAsync("branch feature", tmp);
@@ -33,21 +30,16 @@ public sealed class GitCommandRunnerTests
 
             var status = await _runner.ExecuteAsync("status --porcelain", tmp);
             status.Output.Should().BeEmpty();
-        }
-        finally
-        {
-            try { if (_fs.DirectoryExists(tmp)) _fs.DeleteDirectory(tmp, true); }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"清理临时目录失败: {ex.Message}"); }
+        } finally {
+            try { if (_fs.DirectoryExists(tmp)) _fs.DeleteDirectory(tmp, true); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"清理临时目录失败: {ex.Message}"); }
         }
     }
 
     [Fact(Timeout = 15000)]
-    public async Task DetectMergeConflictAsync_NoConflict_ReturnsNoConflict()
-    {
+    public async Task DetectMergeConflictAsync_NoConflict_ReturnsNoConflict() {
         var tmp = Path.Combine(Path.GetTempPath(), $"git-noconflict-test-{Guid.NewGuid():N}");
         _fs.CreateDirectory(tmp);
-        try
-        {
+        try {
             await InitRepoAsync(tmp);
 
             await _runner.ExecuteAsync("branch feature", tmp);
@@ -65,21 +57,16 @@ public sealed class GitCommandRunnerTests
             result.HasConflict.Should().BeFalse();
             result.ConflictFiles.Should().BeEmpty();
             result.MergedTreeOid.Should().NotBeEmpty();
-        }
-        finally
-        {
-            try { if (_fs.DirectoryExists(tmp)) _fs.DeleteDirectory(tmp, true); }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"清理临时目录失败: {ex.Message}"); }
+        } finally {
+            try { if (_fs.DirectoryExists(tmp)) _fs.DeleteDirectory(tmp, true); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"清理临时目录失败: {ex.Message}"); }
         }
     }
 
     [Fact(Timeout = 15000)]
-    public async Task DetectStaleConflictMarkersAsync_WithMarkers_ReturnsFiles()
-    {
+    public async Task DetectStaleConflictMarkersAsync_WithMarkers_ReturnsFiles() {
         var tmp = Path.Combine(Path.GetTempPath(), $"git-stale-test-{Guid.NewGuid():N}");
         _fs.CreateDirectory(tmp);
-        try
-        {
+        try {
             await InitRepoAsync(tmp);
 
             var conflictContent = "line1\n<<<<<<< HEAD\nmain\n=======\nfeature\n>>>>>>> branch\nline3";
@@ -93,21 +80,16 @@ public sealed class GitCommandRunnerTests
             result.HasStaleMarkers.Should().BeTrue();
             result.Files.Should().Contain("conflict.txt");
             result.Files.Should().NotContain("clean.txt");
-        }
-        finally
-        {
-            try { if (_fs.DirectoryExists(tmp)) _fs.DeleteDirectory(tmp, true); }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"清理临时目录失败: {ex.Message}"); }
+        } finally {
+            try { if (_fs.DirectoryExists(tmp)) _fs.DeleteDirectory(tmp, true); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"清理临时目录失败: {ex.Message}"); }
         }
     }
 
     [Fact(Timeout = 15000)]
-    public async Task DetectStaleConflictMarkersAsync_NoMarkers_ReturnsEmpty()
-    {
+    public async Task DetectStaleConflictMarkersAsync_NoMarkers_ReturnsEmpty() {
         var tmp = Path.Combine(Path.GetTempPath(), $"git-clean-test-{Guid.NewGuid():N}");
         _fs.CreateDirectory(tmp);
-        try
-        {
+        try {
             await InitRepoAsync(tmp);
 
             await _fs.WriteAllTextAsync(Path.Combine(tmp, "clean.txt"), "no markers here");
@@ -118,16 +100,12 @@ public sealed class GitCommandRunnerTests
 
             result.HasStaleMarkers.Should().BeFalse();
             result.Files.Should().BeEmpty();
-        }
-        finally
-        {
-            try { if (_fs.DirectoryExists(tmp)) _fs.DeleteDirectory(tmp, true); }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"清理临时目录失败: {ex.Message}"); }
+        } finally {
+            try { if (_fs.DirectoryExists(tmp)) _fs.DeleteDirectory(tmp, true); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"清理临时目录失败: {ex.Message}"); }
         }
     }
 
-    private async Task InitRepoAsync(string dir)
-    {
+    private async Task InitRepoAsync(string dir) {
         await _runner.ExecuteAsync("init", dir);
         await _runner.ExecuteAsync("config user.email test@test.com", dir);
         await _runner.ExecuteAsync("config user.name test", dir);

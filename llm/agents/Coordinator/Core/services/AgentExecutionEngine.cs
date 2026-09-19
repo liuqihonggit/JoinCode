@@ -5,8 +5,7 @@ namespace Core.Agents.Coordinator;
 /// Agent 执行引擎 - 负责执行策略（并行/串行）
 /// </summary>
 [Register(typeof(IAgentExecutionEngine), ServiceLifetime.Singleton)]
-public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutionEngine
-{
+public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutionEngine {
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly ILogger? _logger;
 
@@ -15,8 +14,7 @@ public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutio
     /// </summary>
     /// <param name="lifecycleManager">Agent 生命周期管理器，用于执行单个 Agent</param>
     /// <param name="logger">可选日志记录器</param>
-    public AgentExecutionEngine(IAgentLifecycleManager lifecycleManager, ILogger? logger = null)
-    {
+    public AgentExecutionEngine(IAgentLifecycleManager lifecycleManager, ILogger? logger = null) {
         _lifecycleManager = lifecycleManager ?? throw new ArgumentNullException(nameof(lifecycleManager));
         _logger = logger;
     }
@@ -28,8 +26,7 @@ public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutio
         IEnumerable<IAgent> agents,
         ParallelOptions? options = null,
         ClusterExecutionOptions? clusterOptions = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         options ??= new ParallelOptions { MaxDegreeOfParallelism = CpuParallelism.GetDegree() };
         var maxConcurrency = clusterOptions?.MaxConcurrency ?? options.MaxDegreeOfParallelism;
 
@@ -37,16 +34,12 @@ public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutio
         var semaphore = new SemaphoreSlim(Math.Max(1, maxConcurrency), Math.Max(1, maxConcurrency));
 
         var tasks = agentList
-            .Select(async agent =>
-            {
+            .Select(async agent => {
                 await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                try
-                {
+                try {
                     var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
                     return (AgentId: agent.ObjectId.UniqueId, Result: result);
-                }
-                finally
-                {
+                } finally {
                     semaphore.Release();
                 }
             })
@@ -66,24 +59,20 @@ public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutio
     /// </summary>
     public async Task<IReadOnlyList<SubAgentResult>> ExecuteSequentialAsync(
         IEnumerable<IAgent> agents,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var results = new List<SubAgentResult>();
         string? previousResult = null;
 
-        foreach (var agent in agents)
-        {
+        foreach (var agent in agents) {
             // 添加上下文
-            if (previousResult != null)
-            {
+            if (previousResult != null) {
                 ((AgentBase)agent).AddContext($"上一个任务的结果: {previousResult}");
             }
 
             var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
             results.Add(result);
 
-            if (!result.IsSuccess)
-            {
+            if (!result.IsSuccess) {
                 _logger?.LogWarning("[AgentExecutionEngine] Agent {AgentId} 执行失败，停止序列执行", agent.ObjectId.UniqueId);
                 break;
             }

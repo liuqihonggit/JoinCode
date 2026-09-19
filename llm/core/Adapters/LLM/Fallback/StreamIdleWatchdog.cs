@@ -12,8 +12,7 @@ namespace Api.LLM.Fallback;
 /// 4. 流结束后检查 watchdog.WasIdleAborted
 /// 5. 使用 using 确保资源释放
 /// </remarks>
-public sealed class StreamIdleWatchdog : IDisposable
-{
+public sealed class StreamIdleWatchdog : IDisposable {
     private readonly int _idleTimeoutMs;
     private readonly CancellationTokenSource _watchdogCts;
     private readonly CancellationTokenRegistration _originalRegistration;
@@ -43,12 +42,10 @@ public sealed class StreamIdleWatchdog : IDisposable
     /// <param name="idleTimeoutMs">空闲超时毫秒数（默认 90000 = 90s）</param>
     /// <param name="originalToken">调用方的原始取消令牌</param>
     /// <param name="enabled">是否启用看门狗（禁用时 CombinedToken = originalToken）</param>
-    public StreamIdleWatchdog(int idleTimeoutMs, CancellationToken originalToken, bool enabled = true)
-    {
+    public StreamIdleWatchdog(int idleTimeoutMs, CancellationToken originalToken, bool enabled = true) {
         _idleTimeoutMs = idleTimeoutMs;
 
-        if (!enabled || originalToken.IsCancellationRequested)
-        {
+        if (!enabled || originalToken.IsCancellationRequested) {
             CombinedToken = originalToken;
             _watchdogCts = CancellationTokenSource.CreateLinkedTokenSource(originalToken);
             return;
@@ -57,14 +54,12 @@ public sealed class StreamIdleWatchdog : IDisposable
         _watchdogCts = CancellationTokenSource.CreateLinkedTokenSource(originalToken);
         CombinedToken = _watchdogCts.Token;
 
-        _originalRegistration = originalToken.Register(static state =>
-        {
+        _originalRegistration = originalToken.Register(static state => {
             var self = (StreamIdleWatchdog)state!;
             self.ClearTimer();
         }, this);
 
-        _timer = new Timer(static state =>
-        {
+        _timer = new Timer(static state => {
             var self = (StreamIdleWatchdog)state!;
             self.OnIdleTimeout();
         }, this, idleTimeoutMs, Timeout.Infinite);
@@ -73,8 +68,7 @@ public sealed class StreamIdleWatchdog : IDisposable
     /// <summary>
     /// 重置空闲计时器 — 每个 chunk 到达时调用
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         if (_disposed || _aborted) return;
 
         ReceivedAnyChunk = true;
@@ -85,8 +79,7 @@ public sealed class StreamIdleWatchdog : IDisposable
     /// <summary>
     /// 看门狗超时触发 — 中止流
     /// </summary>
-    private void OnIdleTimeout()
-    {
+    private void OnIdleTimeout() {
         if (_disposed || _aborted) return;
 
         _aborted = true;
@@ -94,34 +87,25 @@ public sealed class StreamIdleWatchdog : IDisposable
         CancelWatchdogCts();
     }
 
-    private void CancelWatchdogCts()
-    {
-        try
-        {
+    private void CancelWatchdogCts() {
+        try {
             if (!_watchdogCts.IsCancellationRequested)
                 _watchdogCts.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
+        } catch (ObjectDisposedException) {
             System.Diagnostics.Debug.WriteLine("StreamIdleWatchdog: CTS already disposed during cancel");
         }
     }
 
-    private void ClearTimer()
-    {
-        try
-        {
+    private void ClearTimer() {
+        try {
             _timer?.Dispose();
             _timer = null;
-        }
-        catch (ObjectDisposedException)
-        {
+        } catch (ObjectDisposedException) {
             System.Diagnostics.Debug.WriteLine("StreamIdleWatchdog: Timer already disposed during clear");
         }
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
 

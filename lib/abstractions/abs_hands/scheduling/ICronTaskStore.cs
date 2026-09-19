@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Scheduling;
 /// <summary>
 /// Cron 任务定义
 /// </summary>
-public sealed record CronTask
-{
+public sealed record CronTask {
     /// <summary>
     /// 任务唯一标识符
     /// </summary>
@@ -53,8 +52,7 @@ public sealed record CronTask
     /// <summary>
     /// 检查任务是否已过期
     /// </summary>
-    public bool IsExpired(long nowMs, long maxAgeMs)
-    {
+    public bool IsExpired(long nowMs, long maxAgeMs) {
         if (maxAgeMs == 0 || IsPermanent) return false;
         return IsRecurring && (nowMs - CreatedAt) >= maxAgeMs;
     }
@@ -63,8 +61,7 @@ public sealed record CronTask
 /// <summary>
 /// Cron 任务存储接口
 /// </summary>
-public interface ICronTaskStore : IStore
-{
+public interface ICronTaskStore : IStore {
     /// <summary>
     /// 获取所有任务
     /// </summary>

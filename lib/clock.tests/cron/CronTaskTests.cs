@@ -1,13 +1,10 @@
 
 namespace Core.Tests.Scheduling.Cron;
 
-public class CronTaskTests
-{
+public class CronTaskTests {
     [Fact]
-    public void IsExpired_PermanentTask_ReturnsFalse()
-    {
-        var task = new CronTask
-        {
+    public void IsExpired_PermanentTask_ReturnsFalse() {
+        var task = new CronTask {
             Id = "test123",
             CronExpression = "0 9 * * *",
             Prompt = "Test",
@@ -20,10 +17,8 @@ public class CronTaskTests
     }
 
     [Fact]
-    public void IsExpired_NonRecurringTask_ReturnsFalse()
-    {
-        var task = new CronTask
-        {
+    public void IsExpired_NonRecurringTask_ReturnsFalse() {
+        var task = new CronTask {
             Id = "test123",
             CronExpression = "0 9 * * *",
             Prompt = "Test",
@@ -36,11 +31,9 @@ public class CronTaskTests
     }
 
     [Fact]
-    public void IsExpired_RecurringTaskWithinAgeLimit_ReturnsFalse()
-    {
+    public void IsExpired_RecurringTaskWithinAgeLimit_ReturnsFalse() {
         var createdAt = DateTimeOffset.UtcNow.AddDays(-6).ToUnixTimeMilliseconds();
-        var task = new CronTask
-        {
+        var task = new CronTask {
             Id = "test123",
             CronExpression = "0 9 * * *",
             Prompt = "Test",
@@ -54,11 +47,9 @@ public class CronTaskTests
     }
 
     [Fact]
-    public void IsExpired_RecurringTaskBeyondAgeLimit_ReturnsTrue()
-    {
+    public void IsExpired_RecurringTaskBeyondAgeLimit_ReturnsTrue() {
         var createdAt = DateTimeOffset.UtcNow.AddDays(-8).ToUnixTimeMilliseconds();
-        var task = new CronTask
-        {
+        var task = new CronTask {
             Id = "test123",
             CronExpression = "0 9 * * *",
             Prompt = "Test",
@@ -72,11 +63,9 @@ public class CronTaskTests
     }
 
     [Fact]
-    public void IsExpired_ZeroMaxAge_ReturnsFalse()
-    {
+    public void IsExpired_ZeroMaxAge_ReturnsFalse() {
         var createdAt = DateTimeOffset.UtcNow.AddYears(-1).ToUnixTimeMilliseconds();
-        var task = new CronTask
-        {
+        var task = new CronTask {
             Id = "test123",
             CronExpression = "0 9 * * *",
             Prompt = "Test",

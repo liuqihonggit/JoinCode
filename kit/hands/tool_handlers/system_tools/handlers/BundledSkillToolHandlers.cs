@@ -5,8 +5,7 @@ namespace Tools.Handlers;
 /// 内置技能工具处理器 - 提供常用代码操作技能
 /// </summary>
 [McpToolDispatch(ToolCategory.Skill)]
-public partial class BundledSkillToolHandlers
-{
+public partial class BundledSkillToolHandlers {
     private readonly ISystemActuatorRegistry _actuatorRegistry;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
@@ -26,8 +25,7 @@ public partial class BundledSkillToolHandlers
         IFileOperationService fileOperationService,
         IFileSystem fs,
         WriteDefenseService? writeDefense = null,
-        ILogger<BundledSkillToolHandlers>? logger = null)
-    {
+        ILogger<BundledSkillToolHandlers>? logger = null) {
         _actuatorRegistry = actuatorRegistry ?? throw new ArgumentNullException(nameof(actuatorRegistry));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -44,17 +42,14 @@ public partial class BundledSkillToolHandlers
     public async Task<ToolResult> SkillSimplifyAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Simplification type (all/readability/performance/complexity)", Required = false, DefaultValue = "all")] string? simplify_type = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(file_path))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(file_path)) {
             var diag = BuildEmptyFilePathDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var readResult = await _fileOperationService.ReadFileAsync(file_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!readResult.Success)
-        {
+        if (!readResult.Success) {
             var diag = BuildFileReadFailedDiagnostic(file_path);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -71,17 +66,13 @@ public partial class BundledSkillToolHandlers
         // 基于文件类型提供简化建议
         var suggestions = AnalyzeCodeForSimplification(content, extension, CodeSimplifyTypeExtensions.FromValue(simplify_type) ?? CodeSimplifyType.All);
 
-        if (suggestions.Count == 0)
-        {
+        if (suggestions.Count == 0) {
             response.AppendLine($"{StatusSymbol.Tick.ToValue()} Code already looks clean! No obvious simplification opportunities found.");
-        }
-        else
-        {
+        } else {
             response.AppendLine($"Found {suggestions.Count} simplification suggestions:");
             response.AppendLine();
 
-            for (int i = 0; i < suggestions.Count; i++)
-            {
+            for (int i = 0; i < suggestions.Count; i++) {
                 var (category, line, suggestion) = suggestions[i];
                 response.AppendLine($"{i + 1}. [{category}] Line {line}");
                 response.AppendLine($"   {suggestion}");
@@ -104,10 +95,8 @@ public partial class BundledSkillToolHandlers
         [McpToolParameter("Project path or file path")] string path,
         [McpToolParameter("Verification type (syntax/build/test/all)", Required = false, DefaultValue = "all")] string? verify_type = null,
         [McpToolParameter("Test filter (optional)", Required = false)] string? test_filter = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(path)) {
             var diag = BuildEmptyPathDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -121,11 +110,9 @@ public partial class BundledSkillToolHandlers
         var isProject = _fs.DirectoryExists(path);
         var isFile = _fileOperationService.FileExists(path);
 
-        if (!isProject)
-        {
+        if (!isProject) {
             var fileResult = await _fileOperationService.ReadFileAsync(path, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!fileResult.Success)
-            {
+            if (!fileResult.Success) {
                 var diag = BuildPathNotExistDiagnostic(path);
                 return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
@@ -134,20 +121,17 @@ public partial class BundledSkillToolHandlers
 
         var results = new List<(string Check, bool Passed, string Message)>();
 
-        if (type is CodeVerifyType.All or CodeVerifyType.Syntax)
-        {
+        if (type is CodeVerifyType.All or CodeVerifyType.Syntax) {
             var syntaxResult = await CheckSyntaxAsync(path, cancellationToken).ConfigureAwait(false);
             results.Add(("Syntax check", syntaxResult.Success, syntaxResult.Message));
         }
 
-        if (type is CodeVerifyType.All or CodeVerifyType.Build && isProject)
-        {
+        if (type is CodeVerifyType.All or CodeVerifyType.Build && isProject) {
             var buildResult = await CheckBuildAsync(path, cancellationToken).ConfigureAwait(false);
             results.Add(("Build check", buildResult.Success, buildResult.Message));
         }
 
-        if (type is CodeVerifyType.All or CodeVerifyType.Test && isProject)
-        {
+        if (type is CodeVerifyType.All or CodeVerifyType.Test && isProject) {
             var testResult = await RunTestsAsync(path, test_filter, cancellationToken).ConfigureAwait(false);
             results.Add(("Test run", testResult.Success, testResult.Message));
         }
@@ -159,14 +143,12 @@ public partial class BundledSkillToolHandlers
         response.AppendLine($"Check results: {passed}/{results.Count} passed");
         response.AppendLine();
 
-        foreach (var (check, passedCheck, message) in results)
-        {
+        foreach (var (check, passedCheck, message) in results) {
             var icon = passedCheck ? StatusSymbol.Tick.ToValue() : StatusSymbol.Cross.ToValue();
             response.AppendLine($"{icon} {check}: {message}");
         }
 
-        if (failed > 0)
-        {
+        if (failed > 0) {
             var diag = BuildVerificationFailedDiagnostic(failed);
             return ToolResultBuilder.Error().WithText(response.ToString()).WithDiagnostic(diag).Build();
         }
@@ -186,20 +168,16 @@ public partial class BundledSkillToolHandlers
         [McpToolParameter("Project path or file path")] string path,
         [McpToolParameter("Error message or problem description")] string? error_message = null,
         [McpToolParameter("Diagnostic type (error/performance/memory/all)", Required = false, DefaultValue = "error")] string? debug_type = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(path)) {
             var diag = BuildEmptyPathDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var isDirectory = _fs.DirectoryExists(path);
-        if (!isDirectory)
-        {
+        if (!isDirectory) {
             var fileResult = await _fileOperationService.ReadFileAsync(path, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!fileResult.Success)
-            {
+            if (!fileResult.Success) {
                 var diag = BuildPathNotExistDiagnostic(path);
                 return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
@@ -210,8 +188,7 @@ public partial class BundledSkillToolHandlers
         response.AppendLine($"Path: {path}");
         response.AppendLine();
 
-        if (!string.IsNullOrEmpty(error_message))
-        {
+        if (!string.IsNullOrEmpty(error_message)) {
             response.AppendLine("Error message:");
             response.AppendLine("```");
             response.AppendLine(error_message);
@@ -222,8 +199,7 @@ public partial class BundledSkillToolHandlers
         var type = CodeDebugTypeExtensions.FromValue(debug_type) ?? CodeDebugType.Error;
 
         // 分析错误信息
-        if (!string.IsNullOrEmpty(error_message))
-        {
+        if (!string.IsNullOrEmpty(error_message)) {
             var analysis = AnalyzeError(error_message);
             response.AppendLine($"{ObjectSymbol.Search.ToValue()} Error analysis:");
             response.AppendLine(analysis);
@@ -236,14 +212,10 @@ public partial class BundledSkillToolHandlers
         var searchPath = isDirectory ? path : Path.GetDirectoryName(path)!;
         var suggestions = await GetDebugSuggestionsAsync(searchPath, type, error_message, cancellationToken).ConfigureAwait(false);
 
-        if (suggestions.Count == 0)
-        {
+        if (suggestions.Count == 0) {
             response.AppendLine("- No obvious issues detected");
-        }
-        else
-        {
-            foreach (var suggestion in suggestions)
-            {
+        } else {
+            foreach (var suggestion in suggestions) {
                 response.AppendLine($"- {suggestion}");
             }
         }
@@ -272,10 +244,8 @@ public partial class BundledSkillToolHandlers
         [McpToolParameter("Search content (for search/replace)", Required = false)] string? search = null,
         [McpToolParameter("Replace content (for replace)", Required = false)] string? replace = null,
         [McpToolParameter("Recursively search subdirectories", Required = false, DefaultValue = "true")] bool? recursive = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(pattern))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(pattern)) {
             var diag = BuildEmptyPatternDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -292,24 +262,19 @@ public partial class BundledSkillToolHandlers
         response.AppendLine($"Found {files.Count} matching files");
         response.AppendLine();
 
-        if (files.Count == 0)
-        {
+        if (files.Count == 0) {
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
 
         var results = new List<(string File, bool Success, string Message)>();
 
-        var tasks = files.Select(async file =>
-        {
+        var tasks = files.Select(async file => {
             cancellationToken.ThrowIfCancellationRequested();
 
-            try
-            {
+            try {
                 var result = await ExecuteBatchOperationAsync(file, operation, search, replace, cancellationToken).ConfigureAwait(false);
                 return (file, result.Success, result.Message);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
                 return (file, false, $"[{ex.GetType().Name}] {ex.Message}");
             }
         });
@@ -322,16 +287,13 @@ public partial class BundledSkillToolHandlers
         response.AppendLine();
 
         // 显示失败项
-        if (failed > 0)
-        {
+        if (failed > 0) {
             response.AppendLine($"{StatusSymbol.Cross.ToValue()} Failed items:");
-            foreach (var (file, _, message) in results.Where(r => !r.Success).Take(10))
-            {
+            foreach (var (file, _, message) in results.Where(r => !r.Success).Take(10)) {
                 response.AppendLine($"  - {file}: {message}");
             }
 
-            if (failed > 10)
-            {
+            if (failed > 10) {
                 response.AppendLine($"  ... and {failed - 10} more failed items");
             }
 
@@ -339,16 +301,13 @@ public partial class BundledSkillToolHandlers
         }
 
         // 显示成功项摘要
-        if (succeeded > 0)
-        {
+        if (succeeded > 0) {
             response.AppendLine($"{StatusSymbol.Tick.ToValue()} Successful items summary:");
-            foreach (var (file, _, message) in results.Where(r => r.Success).Take(5))
-            {
+            foreach (var (file, _, message) in results.Where(r => r.Success).Take(5)) {
                 response.AppendLine($"  - {file}: {message}");
             }
 
-            if (succeeded > 5)
-            {
+            if (succeeded > 5) {
                 response.AppendLine($"  ... and {succeeded - 5} more successful items");
             }
         }
@@ -368,28 +327,24 @@ public partial class BundledSkillToolHandlers
         [McpToolParameter("Current approach or problem description")] string current_approach,
         [McpToolParameter("Error message or obstacle encountered", Required = false)] string? obstacle = null,
         [McpToolParameter("Goal or expected result", Required = false)] string? goal = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var response = new System.Text.StringBuilder();
         response.AppendLine($"{StatusSymbol.Cross.ToValue()} Stuck Help");
         response.AppendLine();
 
-        if (!string.IsNullOrEmpty(current_approach))
-        {
+        if (!string.IsNullOrEmpty(current_approach)) {
             response.AppendLine("Current approach:");
             response.AppendLine(current_approach);
             response.AppendLine();
         }
 
-        if (!string.IsNullOrEmpty(obstacle))
-        {
+        if (!string.IsNullOrEmpty(obstacle)) {
             response.AppendLine("Obstacle encountered:");
             response.AppendLine(obstacle);
             response.AppendLine();
         }
 
-        if (!string.IsNullOrEmpty(goal))
-        {
+        if (!string.IsNullOrEmpty(goal)) {
             response.AppendLine("Goal:");
             response.AppendLine(goal);
             response.AppendLine();
@@ -401,8 +356,7 @@ public partial class BundledSkillToolHandlers
         // 提供通用的替代方案建议
         var suggestions = GetStuckSuggestions(current_approach, obstacle);
 
-        for (int i = 0; i < suggestions.Count; i++)
-        {
+        for (int i = 0; i < suggestions.Count; i++) {
             response.AppendLine($"{i + 1}. {suggestions[i].Title}");
             response.AppendLine($"   {suggestions[i].Description}");
             response.AppendLine();
@@ -459,50 +413,40 @@ public partial class BundledSkillToolHandlers
             formattedMessage: "pattern cannot be empty",
             details: [new DiagnosticDetail("field", "pattern")]);
 
-    private IReadOnlyList<(string Category, int Line, string Suggestion)> AnalyzeCodeForSimplification(string content, string extension, CodeSimplifyType type)
-    {
+    private IReadOnlyList<(string Category, int Line, string Suggestion)> AnalyzeCodeForSimplification(string content, string extension, CodeSimplifyType type) {
         var suggestions = new List<(string Category, int Line, string Suggestion)>();
         var lines = content.Split('\n');
 
-        for (int i = 0; i < lines.Length; i++)
-        {
+        for (int i = 0; i < lines.Length; i++) {
             var line = lines[i];
             var lineNum = i + 1;
 
             // 通用简化建议
-            if (type is CodeSimplifyType.All or CodeSimplifyType.Readability)
-            {
+            if (type is CodeSimplifyType.All or CodeSimplifyType.Readability) {
                 // 检测过长的行
-                if (line.Length > WorkflowConstants.Limits.LineLengthMax)
-                {
+                if (line.Length > WorkflowConstants.Limits.LineLengthMax) {
                     suggestions.Add(("Readability", lineNum, "Line too long, consider splitting into multiple lines or extracting variables"));
                 }
 
                 // 检测复杂条件
-                if (line.Count(c => c == '&' || c == '|') > 2)
-                {
+                if (line.Count(c => c == '&' || c == '|') > 2) {
                     suggestions.Add(("Readability", lineNum, "Complex condition, consider extracting to boolean variable or method"));
                 }
             }
 
-            if (type is CodeSimplifyType.All or CodeSimplifyType.Complexity)
-            {
+            if (type is CodeSimplifyType.All or CodeSimplifyType.Complexity) {
                 // 检测嵌套层级（简单检测缩进）
                 var indent = line.TakeWhile(char.IsWhiteSpace).Count();
-                if (indent > 16)
-                {
+                if (indent > 16) {
                     suggestions.Add(("Complexity", lineNum, "Deep nesting, consider early returns or extracting methods"));
                 }
             }
 
             // C# 特定建议
-            if (extension == ".cs")
-            {
-                if (type is CodeSimplifyType.All or CodeSimplifyType.Performance)
-                {
+            if (extension == ".cs") {
+                if (type is CodeSimplifyType.All or CodeSimplifyType.Performance) {
                     // 检测 string concatenation in loop
-                    if (line.Contains("for") && line.Contains("+") && line.Contains("\""))
-                    {
+                    if (line.Contains("for") && line.Contains("+") && line.Contains("\"")) {
                         suggestions.Add(("Performance", lineNum, "String concatenation in loop, consider using StringBuilder"));
                     }
                 }
@@ -512,12 +456,10 @@ public partial class BundledSkillToolHandlers
         return suggestions.Take(20).ToList();
     }
 
-    private async Task<(bool Success, string Message)> CheckSyntaxAsync(string path, CancellationToken cancellationToken)
-    {
+    private async Task<(bool Success, string Message)> CheckSyntaxAsync(string path, CancellationToken cancellationToken) {
         var extension = Path.GetExtension(path).ToLowerInvariant();
 
-        return extension switch
-        {
+        return extension switch {
             ".cs" => await CheckCSharpSyntaxAsync(path, cancellationToken).ConfigureAwait(false),
             ".py" => await CheckPythonSyntaxAsync(path, cancellationToken).ConfigureAwait(false),
             ".js" or ".ts" => await CheckJavaScriptSyntaxAsync(path, cancellationToken).ConfigureAwait(false),
@@ -525,10 +467,8 @@ public partial class BundledSkillToolHandlers
         };
     }
 
-    private async Task<(bool Success, string Message)> CheckCSharpSyntaxAsync(string path, CancellationToken cancellationToken)
-    {
-        if (_fs.DirectoryExists(path))
-        {
+    private async Task<(bool Success, string Message)> CheckCSharpSyntaxAsync(string path, CancellationToken cancellationToken) {
+        if (_fs.DirectoryExists(path)) {
             // 检查项目
             var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
                 "dotnet build --verbosity quiet --no-restore",
@@ -536,16 +476,13 @@ public partial class BundledSkillToolHandlers
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
             return (result.Success, result.Success ? "Syntax check passed" : result.Stderr ?? "Build failed");
-        }
-        else
-        {
+        } else {
             // 检查单个文件
             return (true, "Single file syntax check requires full project context");
         }
     }
 
-    private async Task<(bool Success, string Message)> CheckPythonSyntaxAsync(string path, CancellationToken cancellationToken)
-    {
+    private async Task<(bool Success, string Message)> CheckPythonSyntaxAsync(string path, CancellationToken cancellationToken) {
         var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
             $"python -m py_compile \"{path}\"",
             cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -553,8 +490,7 @@ public partial class BundledSkillToolHandlers
         return (result.Success, result.Success ? "Syntax check passed" : result.Stderr ?? "Syntax error");
     }
 
-    private async Task<(bool Success, string Message)> CheckJavaScriptSyntaxAsync(string path, CancellationToken cancellationToken)
-    {
+    private async Task<(bool Success, string Message)> CheckJavaScriptSyntaxAsync(string path, CancellationToken cancellationToken) {
         // 尝试使用 node 检查语法
         var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
             $"node --check \"{path}\"",
@@ -563,8 +499,7 @@ public partial class BundledSkillToolHandlers
         return (result.Success, result.Success ? "Syntax check passed" : result.Stderr ?? "Syntax error");
     }
 
-    private async Task<(bool Success, string Message)> CheckBuildAsync(string path, CancellationToken cancellationToken)
-    {
+    private async Task<(bool Success, string Message)> CheckBuildAsync(string path, CancellationToken cancellationToken) {
         var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
             "dotnet build --verbosity quiet",
             workingDirectory: path,
@@ -573,8 +508,7 @@ public partial class BundledSkillToolHandlers
         return (result.Success, result.Success ? "Build succeeded" : "Build failed");
     }
 
-    private async Task<(bool Success, string Message)> RunTestsAsync(string path, string? filter, CancellationToken cancellationToken)
-    {
+    private async Task<(bool Success, string Message)> RunTestsAsync(string path, string? filter, CancellationToken cancellationToken) {
         var filterArg = !string.IsNullOrEmpty(filter) ? $" --filter \"{filter}\"" : "";
         var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
             $"dotnet test --verbosity quiet{filterArg}",
@@ -584,37 +518,27 @@ public partial class BundledSkillToolHandlers
         return (result.Success, result.Success ? "Tests passed" : "Tests failed");
     }
 
-    private string AnalyzeError(string errorMessage)
-    {
+    private string AnalyzeError(string errorMessage) {
         var analysis = new System.Text.StringBuilder();
 
         // 常见错误模式识别
-        if (errorMessage.Contains("NullReferenceException") || errorMessage.Contains("null reference"))
-        {
+        if (errorMessage.Contains("NullReferenceException") || errorMessage.Contains("null reference")) {
             analysis.AppendLine("- Null reference exception detected");
             analysis.AppendLine("  Possible cause: object used before initialization");
             analysis.AppendLine("  Suggestion: add null checks or use null-coalescing operator");
-        }
-        else if (errorMessage.Contains("IndexOutOfRange") || errorMessage.Contains("索引超出范围"))
-        {
+        } else if (errorMessage.Contains("IndexOutOfRange") || errorMessage.Contains("索引超出范围")) {
             analysis.AppendLine("- Index out of range detected");
             analysis.AppendLine("  Possible cause: array/list index exceeded bounds");
             analysis.AppendLine("  Suggestion: check index bounds, use Count/Length for validation");
-        }
-        else if (errorMessage.Contains("FileNotFound") || errorMessage.Contains("找不到文件"))
-        {
+        } else if (errorMessage.Contains("FileNotFound") || errorMessage.Contains("找不到文件")) {
             analysis.AppendLine("- File not found detected");
             analysis.AppendLine("  Possible cause: incorrect file path or file does not exist");
             analysis.AppendLine("  Suggestion: verify file path, check working directory");
-        }
-        else if (errorMessage.Contains("timeout") || errorMessage.Contains("超时"))
-        {
+        } else if (errorMessage.Contains("timeout") || errorMessage.Contains("超时")) {
             analysis.AppendLine("- Timeout detected");
             analysis.AppendLine("  Possible cause: operation took too long or deadlock");
             analysis.AppendLine("  Suggestion: check async operations, optimize performance, increase timeout");
-        }
-        else
-        {
+        } else {
             analysis.AppendLine("- Unrecognized error type");
             analysis.AppendLine("  Suggestion: review full stack trace, search error message");
         }
@@ -622,33 +546,27 @@ public partial class BundledSkillToolHandlers
         return analysis.ToString();
     }
 
-    private async Task<IReadOnlyList<string>> GetDebugSuggestionsAsync(string path, CodeDebugType type, string? errorMessage, CancellationToken cancellationToken)
-    {
+    private async Task<IReadOnlyList<string>> GetDebugSuggestionsAsync(string path, CodeDebugType type, string? errorMessage, CancellationToken cancellationToken) {
         var suggestions = new List<string>();
 
         // 检查日志文件
         var logFiles = _fs.GetFiles(path, "*.log", SearchOption.AllDirectories).Take(5).ToList();
-        if (logFiles.Any())
-        {
+        if (logFiles.Any()) {
             suggestions.Add($"Found {logFiles.Count} log files, review for detailed error information");
         }
 
         // 检查配置文件
-        if (type is CodeDebugType.All or CodeDebugType.Error)
-        {
+        if (type is CodeDebugType.All or CodeDebugType.Error) {
             var configFiles = new[] { WorkflowConstants.FileExtensions.AppSettings, WorkflowConstants.FileExtensions.WebConfig, WorkflowConstants.FileExtensions.Env };
             var missingConfigs = new List<string>();
-            foreach (var configFile in configFiles)
-            {
+            foreach (var configFile in configFiles) {
                 var configPath = Path.Combine(path, configFile);
                 var configResult = await _fileOperationService.ReadFileAsync(configPath, cancellationToken: cancellationToken).ConfigureAwait(false);
-                if (!configResult.Success)
-                {
+                if (!configResult.Success) {
                     missingConfigs.Add(configFile);
                 }
             }
-            if (missingConfigs.Count > 0)
-            {
+            if (missingConfigs.Count > 0) {
                 suggestions.Add("Check if configuration files exist and are configured correctly");
             }
         }
@@ -656,49 +574,40 @@ public partial class BundledSkillToolHandlers
         // 检查依赖
         var nodeModulesResult = await _fileOperationService.ListDirectoryAsync(Path.Combine(path, "node_modules"), cancellationToken: cancellationToken).ConfigureAwait(false);
         var packageJsonResult = await _fileOperationService.ReadFileAsync(Path.Combine(path, "package.json"), cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (nodeModulesResult.Success || packageJsonResult.Success)
-        {
+        if (nodeModulesResult.Success || packageJsonResult.Success) {
             suggestions.Add("Node.js project: try 'npm install' to ensure dependencies are complete");
         }
 
         var packagesConfigResult = await _fileOperationService.ReadFileAsync(Path.Combine(path, "packages.config"), cancellationToken: cancellationToken).ConfigureAwait(false);
         var csprojFiles = _fs.GetFiles(path, "*.csproj", SearchOption.TopDirectoryOnly);
-        if (packagesConfigResult.Success || csprojFiles.Length > 0)
-        {
+        if (packagesConfigResult.Success || csprojFiles.Length > 0) {
             suggestions.Add(".NET project: try 'dotnet restore' to restore NuGet packages");
         }
 
         return suggestions;
     }
 
-    private IReadOnlyList<string> FindFiles(string pattern, bool recursive)
-    {
-        try
-        {
+    private IReadOnlyList<string> FindFiles(string pattern, bool recursive) {
+        try {
             var directory = _fs.GetCurrentDirectory();
             var searchOption = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
 
             // 处理 **/ 前缀（递归所有子目录）
-            if (pattern.StartsWith("**/"))
-            {
+            if (pattern.StartsWith("**/")) {
                 pattern = pattern[3..];
                 searchOption = SearchOption.AllDirectories;
             }
 
             return _fs.GetFiles(directory, pattern, searchOption).ToList();
-        }
-        catch
-        {
+        } catch {
             return new List<string>();
         }
     }
 
     private async Task<(bool Success, string Message)> ExecuteBatchOperationAsync(
-        string file, string operation, string? search, string? replace, CancellationToken cancellationToken)
-    {
+        string file, string operation, string? search, string? replace, CancellationToken cancellationToken) {
         var op = BatchOperationTypeExtensions.FromValue(operation) ?? throw new ArgumentException($"Unsupported operation: {operation}");
-        return op switch
-        {
+        return op switch {
             BatchOperationType.Count => (true, "File counted"),
             BatchOperationType.Search => await SearchInFileAsync(file, search, cancellationToken).ConfigureAwait(false),
             BatchOperationType.Replace => await ReplaceInFileAsync(file, search, replace, cancellationToken).ConfigureAwait(false),
@@ -707,16 +616,13 @@ public partial class BundledSkillToolHandlers
         };
     }
 
-    private async Task<(bool Success, string Message)> SearchInFileAsync(string file, string? search, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(search))
-        {
+    private async Task<(bool Success, string Message)> SearchInFileAsync(string file, string? search, CancellationToken cancellationToken) {
+        if (string.IsNullOrEmpty(search)) {
             return (false, "search parameter cannot be empty");
         }
 
         var readResult = await _fileOperationService.ReadFileAsync(file, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!readResult.Success)
-        {
+        if (!readResult.Success) {
             return (false, $"Cannot read file: {file}");
         }
 
@@ -726,18 +632,15 @@ public partial class BundledSkillToolHandlers
         return (true, $"Found {count} matches");
     }
 
-    private async Task<(bool Success, string Message)> ReplaceInFileAsync(string file, string? search, string? replace, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(search))
-        {
+    private async Task<(bool Success, string Message)> ReplaceInFileAsync(string file, string? search, string? replace, CancellationToken cancellationToken) {
+        if (string.IsNullOrEmpty(search)) {
             return (false, "search parameter cannot be empty");
         }
 
         // 写入防御：UNC 路径拒绝 + 写前备份
         if (PathGuardNode.IsUncPath(file))
             return (false, "Cannot edit UNC path files, this may lead to credential leakage");
-        if (_writeDefense is not null)
-        {
+        if (_writeDefense is not null) {
             var defense = _writeDefense.Begin(file, replace, FileOperationType.Edit, "editing")
                 .Then(_writeDefense.CheckTeamMemSecrets)
                 .Then(_writeDefense.BackupBeforeWriteAsync);
@@ -753,26 +656,22 @@ public partial class BundledSkillToolHandlers
             replaceAll: true,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        if (!editResult.Success)
-        {
+        if (!editResult.Success) {
             return (false, editResult.ErrorMessage ?? "Replace failed");
         }
 
-        if (editResult.ReplaceCount == 0)
-        {
+        if (editResult.ReplaceCount == 0) {
             return (true, "No content to replace");
         }
 
         return (true, $"Replaced {editResult.ReplaceCount} occurrences");
     }
 
-    private async Task<(bool Success, string Message)> DeleteFileAsync(string file, CancellationToken cancellationToken)
-    {
+    private async Task<(bool Success, string Message)> DeleteFileAsync(string file, CancellationToken cancellationToken) {
         // 写入防御：UNC 路径拒绝 + 删除前备份
         if (PathGuardNode.IsUncPath(file))
             return (false, "Cannot delete UNC path files, this may lead to credential leakage");
-        if (_writeDefense is not null)
-        {
+        if (_writeDefense is not null) {
             var defense = _writeDefense.Begin(file, null, FileOperationType.Delete, "deleting")
                 .Then(_writeDefense.BackupBeforeWriteAsync);
             var (_, rejection) = await defense.ExecuteAsync(cancellationToken).ConfigureAwait(false);
@@ -786,8 +685,7 @@ public partial class BundledSkillToolHandlers
             : (false, $"Failed to delete file: {file}");
     }
 
-    private IReadOnlyList<(string Title, string Description)> GetStuckSuggestions(string? approach, string? obstacle)
-    {
+    private IReadOnlyList<(string Title, string Description)> GetStuckSuggestions(string? approach, string? obstacle) {
         var suggestions = new List<(string Title, string Description)>
         {
             ("Try a different approach", "If current approach doesn't work, consider alternative algorithms or techniques"),
@@ -802,26 +700,22 @@ public partial class BundledSkillToolHandlers
         // 根据障碍添加特定建议（优先插入到头部）
         var prioritySuggestions = new List<(string Title, string Desc)>();
         if (obstacle?.Contains("permission", StringComparison.OrdinalIgnoreCase) == true ||
-            obstacle?.Contains("权限", StringComparison.OrdinalIgnoreCase) == true)
-        {
+            obstacle?.Contains("权限", StringComparison.OrdinalIgnoreCase) == true) {
             prioritySuggestions.Add(("Check permissions", "Confirm current user has sufficient permissions"));
         }
 
         if (obstacle?.Contains("network", StringComparison.OrdinalIgnoreCase) == true ||
-            obstacle?.Contains("网络", StringComparison.OrdinalIgnoreCase) == true)
-        {
+            obstacle?.Contains("网络", StringComparison.OrdinalIgnoreCase) == true) {
             prioritySuggestions.Add(("Check network", "Verify network connection, try proxy or VPN"));
         }
 
         if (obstacle?.Contains("memory", StringComparison.OrdinalIgnoreCase) == true ||
-            obstacle?.Contains("内存", StringComparison.OrdinalIgnoreCase) == true)
-        {
+            obstacle?.Contains("内存", StringComparison.OrdinalIgnoreCase) == true) {
             prioritySuggestions.Add(("Optimize memory usage", "Check for memory leaks, consider batch processing for large data"));
         }
 
         // 优先建议在前，基础建议在后
-        if (prioritySuggestions.Count > 0)
-        {
+        if (prioritySuggestions.Count > 0) {
             suggestions = prioritySuggestions.Concat(suggestions).ToList();
         }
 

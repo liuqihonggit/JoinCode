@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public interface ILanguagePlugin
-{
+public interface ILanguagePlugin {
     string LanguageId { get; }
     IReadOnlyList<string> FileExtensions { get; }
     ExtractionResult ExtractAll(string sourceCode, string filePath);

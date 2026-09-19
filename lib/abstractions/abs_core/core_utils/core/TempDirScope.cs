@@ -8,16 +8,14 @@ namespace JoinCode.Abstractions.Utils;
 /// 详见 ADR-0093、AGENTS.md「代码风格规范」。
 /// </para>
 /// </summary>
-public sealed class TempDirScope : IAsyncDisposable
-{
+public sealed class TempDirScope : IAsyncDisposable {
     /// <summary>临时目录路径。</summary>
     public string Path { get; }
 
     private readonly IFileSystem _fs;
     private bool _disposed;
 
-    private TempDirScope(string path, IFileSystem fs)
-    {
+    private TempDirScope(string path, IFileSystem fs) {
         Path = path;
         _fs = fs;
     }
@@ -27,8 +25,7 @@ public sealed class TempDirScope : IAsyncDisposable
     /// </summary>
     /// <param name="fs">文件系统抽象（生产 PhysicalFileSystem / 测试 InMemoryFileSystem）。</param>
     /// <param name="prefix">目录名前缀，默认 "jcctmp_"。</param>
-    public static TempDirScope Create(IFileSystem fs, string? prefix = null)
-    {
+    public static TempDirScope Create(IFileSystem fs, string? prefix = null) {
         ArgumentNullException.ThrowIfNull(fs);
         var prefixStr = prefix ?? "jcctmp_";
         var path = fs.CombinePath(System.IO.Path.GetTempPath(), prefixStr + Guid.NewGuid().ToString("N"));
@@ -39,12 +36,10 @@ public sealed class TempDirScope : IAsyncDisposable
     /// <summary>
     /// 递归删除临时目录。幂等，清理失败不抛（best effort，记 Debug 日志）。
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
-        try { if (_fs.DirectoryExists(Path)) _fs.DeleteDirectory(Path, recursive: true); }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[TempDirScope] 清理临时目录失败: {Path} - {ex.Message}"); }
+        try { if (_fs.DirectoryExists(Path)) _fs.DeleteDirectory(Path, recursive: true); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[TempDirScope] 清理临时目录失败: {Path} - {ex.Message}"); }
         return ValueTask.CompletedTask;
     }
 }

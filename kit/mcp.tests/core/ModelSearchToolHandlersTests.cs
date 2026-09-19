@@ -1,10 +1,8 @@
 namespace Mcp.Tests;
 
-public sealed class ModelSearchToolHandlersTests
-{
+public sealed class ModelSearchToolHandlersTests {
     [Fact]
-    public async Task SearchModelsAsync_EmptyQuery_ReturnsError()
-    {
+    public async Task SearchModelsAsync_EmptyQuery_ReturnsError() {
         var handler = new ModelSearchToolHandlers(new FakeModelConfigLoader());
         var result = await handler.SearchModelsAsync("");
         result.IsError.Should().BeTrue();
@@ -12,16 +10,14 @@ public sealed class ModelSearchToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchModelsAsync_WhitespaceQuery_ReturnsError()
-    {
+    public async Task SearchModelsAsync_WhitespaceQuery_ReturnsError() {
         var handler = new ModelSearchToolHandlers(new FakeModelConfigLoader());
         var result = await handler.SearchModelsAsync("   ");
         result.IsError.Should().BeTrue();
     }
 
     [Fact]
-    public async Task SearchModelsAsync_ListGroups_ReturnsFunctionalities()
-    {
+    public async Task SearchModelsAsync_ListGroups_ReturnsFunctionalities() {
         var loader = new FakeModelConfigLoader();
         loader.AddModel("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ReadImage);
         loader.AddModel("openai", "dall-e-3", "DALL-E 3", ModelModalityKind.GenerateImage);
@@ -36,8 +32,7 @@ public sealed class ModelSearchToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchModelsAsync_MapByModality_ReturnsModels()
-    {
+    public async Task SearchModelsAsync_MapByModality_ReturnsModels() {
         var loader = new FakeModelConfigLoader();
         loader.AddModel("openai", "dall-e-3", "DALL-E 3", ModelModalityKind.GenerateImage);
         var handler = new ModelSearchToolHandlers(loader);
@@ -50,8 +45,7 @@ public sealed class ModelSearchToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchModelsAsync_MapByModalityAndVendor_FiltersVendor()
-    {
+    public async Task SearchModelsAsync_MapByModalityAndVendor_FiltersVendor() {
         var loader = new FakeModelConfigLoader();
         loader.AddModel("openai", "gpt-4o", "GPT-4o", ModelModalityKind.ReadImage);
         loader.AddModel("anthropic", "claude-3", "Claude 3", ModelModalityKind.ReadImage);
@@ -66,8 +60,7 @@ public sealed class ModelSearchToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchModelsAsync_NoModels_ListGroups_ReturnsEmptyMessage()
-    {
+    public async Task SearchModelsAsync_NoModels_ListGroups_ReturnsEmptyMessage() {
         var handler = new ModelSearchToolHandlers(new FakeModelConfigLoader());
         var result = await handler.SearchModelsAsync("list_groups");
 
@@ -76,8 +69,7 @@ public sealed class ModelSearchToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchModelsAsync_KeywordSearch_MatchesModelId()
-    {
+    public async Task SearchModelsAsync_KeywordSearch_MatchesModelId() {
         var loader = new FakeModelConfigLoader();
         loader.AddModel("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text);
         loader.AddModel("openai", "dall-e-3", "DALL-E 3", ModelModalityKind.GenerateImage);
@@ -89,19 +81,15 @@ public sealed class ModelSearchToolHandlersTests
         result.GetFirstText().Should().Contain("dall-e-3");
     }
 
-    private sealed class FakeModelConfigLoader : IModelConfigLoader
-    {
+    private sealed class FakeModelConfigLoader : IModelConfigLoader {
         public ModelConfigRoot Config { get; } = new();
 
-        public void AddModel(string vendor, string modelId, string displayName, ModelModalityKind modalities)
-        {
-            if (!Config.Providers.TryGetValue(vendor, out var provider))
-            {
+        public void AddModel(string vendor, string modelId, string displayName, ModelModalityKind modalities) {
+            if (!Config.Providers.TryGetValue(vendor, out var provider)) {
                 provider = new ModelProviderConfig();
                 Config.Providers[vendor] = provider;
             }
-            provider.Models.Add(new ModelItemConfig
-            {
+            provider.Models.Add(new ModelItemConfig {
                 Id = modelId,
                 DisplayName = displayName,
                 Capabilities = new ModelCapabilitiesConfig { Modalities = modalities }

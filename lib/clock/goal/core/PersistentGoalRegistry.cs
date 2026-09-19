@@ -6,8 +6,7 @@ namespace Core.Goal;
 /// 对齐 PersistentDreamTaskRegistry 模式：内存缓存 + 持久化 + 启动恢复。
 /// </summary>
 [Register(typeof(IGoalRegistry), ServiceLifetime.Singleton)]
-public sealed partial class PersistentGoalRegistry : IGoalRegistry
-{
+public sealed partial class PersistentGoalRegistry : IGoalRegistry {
     private readonly Dictionary<string, GoalEngine> _engines = new();
     private readonly IServiceProvider _serviceProvider;
     private readonly IGoalStateStore? _stateStore = null;
@@ -25,16 +24,14 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
     public PersistentGoalRegistry(
         IServiceProvider serviceProvider,
         IGoalStateStore? stateStore = null,
-        ILogger<PersistentGoalRegistry>? logger = null)
-    {
+        ILogger<PersistentGoalRegistry>? logger = null) {
         _serviceProvider = serviceProvider;
         _stateStore = stateStore;
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public void SetSessionId(string sessionId)
-    {
+    public void SetSessionId(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         _sessionId = sessionId;
     }
@@ -43,8 +40,7 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
     public IGoalEngine? CurrentEngine => _currentGoalId is not null && _engines.TryGetValue(_currentGoalId, out var e) ? e : null;
 
     /// <inheritdoc />
-    public async Task<GoalState> StartAsync(string objective, List<string>? constraints = null, int? tokenBudget = null, CancellationToken cancellationToken = default)
-    {
+    public async Task<GoalState> StartAsync(string objective, List<string>? constraints = null, int? tokenBudget = null, CancellationToken cancellationToken = default) {
         var engine = CreateEngine();
         if (_sessionId is not null)
             engine.SetSessionId(_sessionId);
@@ -54,51 +50,45 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
 
         _engines[state.GoalId] = engine;
         _currentGoalId = state.GoalId;
-    
+
 
         _logger?.LogInformation("[PersistentGoalRegistry] 启动目标: {GoalId}", state.GoalId);
         return state;
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<GoalState>> ListActiveGoalsAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<GoalState>> ListActiveGoalsAsync(CancellationToken cancellationToken = default) {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _engines.Values
             .Where(e => e.CurrentState is not null)
             .Select(e => e.CurrentState!)
             .ToList();
-    
+
     }
 
     /// <inheritdoc />
-    public IGoalEngine? GetEngine(string goalId)
-    {
+    public IGoalEngine? GetEngine(string goalId) {
         return _engines.TryGetValue(goalId, out var e) ? e : null;
     }
 
     /// <inheritdoc />
-    public bool SetCurrent(string goalId)
-    {
+    public bool SetCurrent(string goalId) {
         if (!_engines.ContainsKey(goalId)) return false;
         _currentGoalId = goalId;
         return true;
     }
 
     /// <inheritdoc />
-    public async Task RehydrateAllAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task RehydrateAllAsync(CancellationToken cancellationToken = default) {
         if (_stateStore is null || _sessionId is null) return;
-        try
-        {
+        try {
             var activeGoals = await _stateStore.GetActiveGoalsAsync(_sessionId, cancellationToken).ConfigureAwait(false);
             if (activeGoals.Count == 0) return;
 
             using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-            foreach (var state in activeGoals)
-            {
+            foreach (var state in activeGoals) {
                 if (_engines.ContainsKey(state.GoalId)) continue;
                 var engine = CreateEngine();
                 engine.SetSessionId(_sessionId);
@@ -106,47 +96,40 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
                 _engines[state.GoalId] = engine;
             }
             _currentGoalId ??= activeGoals[0].GoalId;
-        
+
             _logger?.LogInformation("[PersistentGoalRegistry] 恢复 {Count} 个活跃目标", activeGoals.Count);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[PersistentGoalRegistry] 恢复目标失败");
         }
     }
 
     /// <inheritdoc />
-    public async Task PauseAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task PauseAsync(CancellationToken cancellationToken = default) {
         if (CurrentEngine is { } engine)
             await engine.PauseAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task ResumeAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task ResumeAsync(CancellationToken cancellationToken = default) {
         if (CurrentEngine is { } engine)
             await engine.ResumeAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task ClearAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task ClearAsync(CancellationToken cancellationToken = default) {
         if (CurrentEngine is not { } engine) return;
         await engine.ClearAsync(cancellationToken).ConfigureAwait(false);
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (_currentGoalId is not null)
-        {
+        if (_currentGoalId is not null) {
             _engines.Remove(_currentGoalId);
             _currentGoalId = _engines.Keys.FirstOrDefault();
         }
-    
+
     }
 
-    private GoalEngine CreateEngine()
-    {
+    private GoalEngine CreateEngine() {
         var kernel = _serviceProvider.GetRequiredService<IChatClient>();
         var evaluator = _serviceProvider.GetRequiredService<IGoalEvaluator>();
         var heartbeat = _serviceProvider.GetRequiredService<IGoalHeartbeat>();

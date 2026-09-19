@@ -3,18 +3,15 @@ namespace Core.Bridge.Models;
 /// <summary>
 /// BridgeMessage 序列化扩展 — 使用 BridgeJsonContext 实现 AOT 兼容序列化
 /// </summary>
-public static class BridgeMessageSerialization
-{
+public static class BridgeMessageSerialization {
     /// <summary>
     /// 将 BridgeMessage 序列化为 JSON 字符串 — 按消息运行时类型分派到 BridgeJsonContext 对应的 JsonTypeInfo
     /// </summary>
     /// <param name="message">待序列化的 Bridge 消息</param>
     /// <returns>JSON 字符串</returns>
     /// <exception cref="InvalidOperationException">遇到未知消息类型时抛出</exception>
-    public static string ToJson(this BridgeMessage message)
-    {
-        return message switch
-        {
+    public static string ToJson(this BridgeMessage message) {
+        return message switch {
             InitializeRequest r => JsonSerializer.Serialize(r, BridgeJsonContext.Default.InitializeRequest),
             InitializeResponse r => JsonSerializer.Serialize(r, BridgeJsonContext.Default.InitializeResponse),
             ToolsListRequest r => JsonSerializer.Serialize(r, BridgeJsonContext.Default.ToolsListRequest),
@@ -39,8 +36,7 @@ public static class BridgeMessageSerialization
     /// </summary>
     /// <param name="json">JSON 字符串</param>
     /// <returns>反序列化的 Bridge 消息；type 字段缺失或未知时返回 null</returns>
-    public static BridgeMessage? FromJson(string json)
-    {
+    public static BridgeMessage? FromJson(string json) {
         var node = JsonNode.Parse(json);
         if (node is not JsonObject obj)
             return null;
@@ -49,8 +45,7 @@ public static class BridgeMessageSerialization
             return null;
 
         var type = typeNode?.GetValue<string>();
-        return type switch
-        {
+        return type switch {
             "initialize" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.InitializeRequest),
             "initialize_response" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.InitializeResponse),
             "tools/list" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.ToolsListRequest),

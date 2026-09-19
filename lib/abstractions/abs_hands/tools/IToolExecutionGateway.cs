@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Tools;
 /// 实现者: PermissionAwareToolExecutor（11 件中间件管道: 参数修复→校验→权限→执行）
 /// 用途: 消除 IToolRegistry.ExecuteToolAsync 的散落调用点，统一收敛到权限管道
 /// </summary>
-public interface IToolExecutionGateway
-{
+public interface IToolExecutionGateway {
     /// <summary>
     /// 通过权限管道执行工具调用 — 对齐 PermissionAwareToolExecutor.ExecuteAsync
     /// </summary>

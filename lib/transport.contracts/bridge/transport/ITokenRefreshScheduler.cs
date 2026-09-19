@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// Token 刷新调度器接口 — 按 sessionId 管理定时刷新
 /// </summary>
-public interface ITokenRefreshScheduler : IAsyncDisposable
-{
+public interface ITokenRefreshScheduler : IAsyncDisposable {
     /// <summary>
     /// 基于 JWT exp 声明调度刷新
     /// </summary>

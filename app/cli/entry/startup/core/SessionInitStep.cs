@@ -4,11 +4,9 @@ namespace JoinCode.Entry;
 /// 会话初始化中间件 — 创建 CliSession 并初始化
 /// </summary>
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
-internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<StartupContext>
-{
+internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<StartupContext> {
 
-    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var host = context.Host;
 
         host.Services.GetRequiredService<IPlanModeManager>().CleanupOldPlanFiles();
@@ -18,14 +16,10 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
 
         // 迁移旧扁平 .json 到每会话子目录(幂等,失败不阻塞启动)
         var transcriptSvc = host.Services.GetService<ITranscriptService>();
-        if (transcriptSvc is not null)
-        {
-            try
-            {
+        if (transcriptSvc is not null) {
+            try {
                 await transcriptSvc.MigrateLegacyAsync(ct).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
                 Diag.WriteLine($"[STEP] SessionInit: transcript migration failed: {ex.Message}");
             }
         }
@@ -70,13 +64,10 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         await StartCodeIndexServiceAsync(host.Services, ct);
 
         // 显式激活子代理卡死防护纵深防御体系（ADR 0106）— 协调器注册为 Singleton 但无消费方注入，DI 懒创建导致 Start() 永不调用
-        try
-        {
+        try {
             host.Services.GetService<Core.Agents.Coordinator.Liveness.SubAgentStallDefenseCoordinator>();
             Diag.WriteLine("[STEP] SubAgentStallDefenseCoordinator 激活成功");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Diag.WriteLine($"[STEP] SubAgentStallDefenseCoordinator 激活失败: {ex.GetType().FullName}: {ex.Message}");
             Diag.WriteLine($"[STEP] StackTrace:\n{ex.StackTrace}");
         }
@@ -92,8 +83,7 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         await next(context, ct);
     }
 
-    private static async Task StartCronGoalBridgeAsync(IServiceProvider services, IGoalEngine? goalEngine, ICronTaskStore? cronTaskStore, CancellationToken ct)
-    {
+    private static async Task StartCronGoalBridgeAsync(IServiceProvider services, IGoalEngine? goalEngine, ICronTaskStore? cronTaskStore, CancellationToken ct) {
         if (goalEngine is null || cronTaskStore is null) return;
         var logger = services.GetService<ILogger<CronGoalBridge>>();
         var agentDefProvider = services.GetService<IAgentDefinitionProvider>();
@@ -107,32 +97,24 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
     /// 性能计时: 输出 [STEP] CodeIndex build done, elapsed=Xms 到 stderr,供 E2E 解析
     /// 跳过条件: 工作目录在 bin/obj/.git/.x 下时不构造 AST(避免并行测试 SQLite 锁竞争 + 这些目录本就无源码)
     /// </summary>
-    private static async Task StartCodeIndexServiceAsync(IServiceProvider services, CancellationToken ct)
-    {
+    private static async Task StartCodeIndexServiceAsync(IServiceProvider services, CancellationToken ct) {
         var codeIndexService = services.GetService<global::Services.CodeIndex.CodeIndexService>();
-        if (codeIndexService is null)
-        {
+        if (codeIndexService is null) {
             return;
         }
 
         // 检测工作目录是否在 bin/obj/.git/.x 下 — 这些目录无源码,跳过 AST 构造
         // 避免并行 E2E 测试时多个 jcc.exe 同时初始化同一 SQLite 数据库导致锁竞争
         var workingDir = Environment.CurrentDirectory;
-        if (IsInExcludedDirectory(workingDir))
-        {
+        if (IsInExcludedDirectory(workingDir)) {
             return;
         }
 
-        try
-        {
+        try {
             await codeIndexService.StartAsync(ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 可剥离: AST 构造失败不阻塞 jcc 启动,仅记录错误
             var logger = services.GetService<ILogger<SessionInitStep>>();
             logger?.LogError(ex, "CodeIndexService.StartAsync failed");
@@ -143,17 +125,13 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
     /// 检测路径是否在 bin/obj/.git/.x 目录下(按路径段匹配)
     /// 用于跳过 AST 构造: 这些目录无源码,且并行测试时多个 jcc.exe 同时初始化 SQLite 会导致锁竞争
     /// </summary>
-    private static bool IsInExcludedDirectory(string path)
-    {
+    private static bool IsInExcludedDirectory(string path) {
         if (string.IsNullOrEmpty(path)) return false;
         var excluded = new[] { "bin", "obj", ".git", ".x" };
         var parts = path.Split(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
-        foreach (var part in parts)
-        {
-            foreach (var ex in excluded)
-            {
-                if (string.Equals(part, ex, StringComparison.OrdinalIgnoreCase))
-                {
+        foreach (var part in parts) {
+            foreach (var ex in excluded) {
+                if (string.Equals(part, ex, StringComparison.OrdinalIgnoreCase)) {
                     return true;
                 }
             }

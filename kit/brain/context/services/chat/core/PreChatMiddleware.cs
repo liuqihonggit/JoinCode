@@ -6,8 +6,7 @@ namespace Core.Context;
 /// 遥测已统一到管道 onPreExecute/onPostExecute 回调
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
-{
+public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware {
 
     /// <summary>
     /// 初始化预处理中间件
@@ -18,8 +17,7 @@ public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
     /// <param name="optionsFactory">聊天选项工厂</param>
     /// <param name="emptyResponseTracker">空响应追踪器</param>
     /// <param name="logger">可选日志记录器</param>
-    public PreChatMiddleware(IChatContextManager contextManager, IChatPreprocessor preprocessor, IChatFileContextService fileContextService, IChatOptionsFactory optionsFactory, IEmptyResponseTracker emptyResponseTracker, ILogger<PreChatMiddleware>? logger = null)
-    {
+    public PreChatMiddleware(IChatContextManager contextManager, IChatPreprocessor preprocessor, IChatFileContextService fileContextService, IChatOptionsFactory optionsFactory, IEmptyResponseTracker emptyResponseTracker, ILogger<PreChatMiddleware>? logger = null) {
         _contextManager = contextManager;
         _preprocessor = preprocessor;
         _fileContextService = fileContextService;
@@ -41,8 +39,7 @@ public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
+        [EnumeratorCancellation] CancellationToken ct) {
         _logger?.LogInformation("正在发送聊天消息");
 
         _emptyResponseTracker.Reset();
@@ -62,18 +59,15 @@ public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
 
         context.Timing.StopPreprocess();
 
-        if (!string.IsNullOrEmpty(preprocessResult.PromptInjectionInfo))
-        {
+        if (!string.IsNullOrEmpty(preprocessResult.PromptInjectionInfo)) {
             yield return ChatStreamEvent.Text(preprocessResult.PromptInjectionInfo + "\n\n");
         }
 
-        if (!string.IsNullOrEmpty(context.ModalityMismatchInjection))
-        {
+        if (!string.IsNullOrEmpty(context.ModalityMismatchInjection)) {
             yield return ChatStreamEvent.Text(context.ModalityMismatchInjection + "\n");
         }
 
-        await foreach (var evt in next(context, ct).ConfigureAwait(false))
-        {
+        await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             yield return evt;
         }
     }

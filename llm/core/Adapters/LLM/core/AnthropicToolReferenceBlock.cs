@@ -1,7 +1,6 @@
 namespace Api.LLM;
 
-internal sealed class AnthropicToolReferenceBlock
-{
+internal sealed class AnthropicToolReferenceBlock {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "tool_reference";
 

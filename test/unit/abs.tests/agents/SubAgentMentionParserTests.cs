@@ -4,11 +4,9 @@ namespace JoinCode.Abs.Tests.Agents;
 /// @提及语法解析器公共化后的契约测试（自 JoinCode.Entry 内部类迁入，
 /// CLI ReplLoopStep 与 GUI 消息路由共用同一实现）。
 /// </summary>
-public class SubAgentMentionParserTests
-{
+public class SubAgentMentionParserTests {
     [Fact]
-    public void Parse_ValidMention_ShouldSplitNameAndMessage()
-    {
+    public void Parse_ValidMention_ShouldSplitNameAndMessage() {
         var parsed = SubAgentMentionParser.Parse("@explore 帮我查一下README");
 
         parsed.Should().NotBeNull();
@@ -24,14 +22,12 @@ public class SubAgentMentionParserTests
     [InlineData("@explore")]
     [InlineData("@   消息")]
     [InlineData("@explore   ")]
-    public void Parse_InvalidInputs_ShouldReturnNull(string? input)
-    {
+    public void Parse_InvalidInputs_ShouldReturnNull(string? input) {
         SubAgentMentionParser.Parse(input!).Should().BeNull();
     }
 
     [Fact]
-    public void FindAgent_Priority_DisplayName_ThenDescription_ThenIdPrefix()
-    {
+    public void FindAgent_Priority_DisplayName_ThenDescription_ThenIdPrefix() {
         var agents = new[]
         {
             new RunningAgentInfo { Id = "agent-ccc", Description = "通用任务" },

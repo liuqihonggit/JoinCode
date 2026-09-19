@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 加一个共同属性只改此处，不需要改所有子类
 /// SessionId 为空表示自身即会话根（如 Session 实体），否则为所属会话的 ObjectId
 /// </summary>
-public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity
-{
+public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity {
     public ObjectId ObjectId { get; }
     /// <summary>所属会话 ObjectId — 空表示自身即会话根，所有 Entity 不跨会话</summary>
     public ObjectId SessionId { get; }
@@ -45,8 +44,7 @@ public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity
 
     private bool _disposed;
 
-    protected Entity(ObjectType type, ObjectId sessionId = default, string? displayName = null, bool registerToSessionRouter = true, string? customUniqueId = null)
-    {
+    protected Entity(ObjectType type, ObjectId sessionId = default, string? displayName = null, bool registerToSessionRouter = true, string? customUniqueId = null) {
         ObjectId = customUniqueId is not null
             ? new ObjectId(type, customUniqueId, displayName)
             : new ObjectId(type, displayName);
@@ -64,8 +62,7 @@ public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity
     /// 任务完成不释放，持久化完消息后才 Dispose
     /// <para>子类覆写时先释放自己的资源，再调 base.Dispose() 完成生命周期注销</para>
     /// </summary>
-    public virtual void Dispose()
-    {
+    public virtual void Dispose() {
         if (_disposed) return;
         _disposed = true;
         LifecycleState = EntityLifecycle.Disposed;
@@ -79,8 +76,7 @@ public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity
     /// 异步释放 — 默认委托给 Dispose()，需要真正异步清理的子类覆写此方法
     /// <para>子类覆写时先 await 异步释放自己的资源，再调 await base.DisposeAsync() 完成生命周期注销</para>
     /// </summary>
-    public virtual ValueTask DisposeAsync()
-    {
+    public virtual ValueTask DisposeAsync() {
         Dispose();
         return ValueTask.CompletedTask;
     }
@@ -89,19 +85,16 @@ public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity
     /// 回收判定 — 默认: LifecycleState==Persisted 且 CompletedAt!=null
     /// 子类可覆写增加额外条件（如 Agent 检查 Status!=Running）
     /// </summary>
-    public virtual bool CanReclaim()
-    {
+    public virtual bool CanReclaim() {
         return LifecycleState == EntityLifecycle.Persisted && CompletedAt.HasValue;
     }
 
     /// <summary>
     /// 标记已持久化 — 持久化服务确认数据全部写入后调用
     /// </summary>
-    public void MarkPersisted()
-    {
+    public void MarkPersisted() {
         IsPersisted = true;
-        if (LifecycleState == EntityLifecycle.Completed)
-        {
+        if (LifecycleState == EntityLifecycle.Completed) {
             LifecycleState = EntityLifecycle.Persisted;
         }
     }
@@ -109,8 +102,7 @@ public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity
     /// <summary>
     /// 刷新最后活跃时刻 — 每次 Entity 有操作时调用
     /// </summary>
-    public void Touch()
-    {
+    public void Touch() {
         LastActivityAt = DateTime.UtcNow;
     }
 

@@ -3,8 +3,7 @@ namespace McpToolRegistry;
 /// <summary>
 /// 工具缓存键生成策略
 /// </summary>
-public static class ToolCacheKeys
-{
+public static class ToolCacheKeys {
     /// <summary>
     /// 生成单个工具的缓存键
     /// </summary>
@@ -25,8 +24,7 @@ public static class ToolCacheKeys
 /// 工具缓存管理器 - 负责工具信息的缓存策略和失效机制
 /// </summary>
 [Register(typeof(ToolCacheManager), ServiceLifetime.Singleton)]
-public sealed partial class ToolCacheManager : ServiceEntity
-{
+public sealed partial class ToolCacheManager : ServiceEntity {
     private readonly IMemoryCache _cache;
     private readonly WorkflowConfig _config;
 
@@ -35,8 +33,7 @@ public sealed partial class ToolCacheManager : ServiceEntity
     /// </summary>
     /// <param name="cache">内存缓存实例</param>
     /// <param name="config">工作流配置，提供缓存过期时间等参数</param>
-    public ToolCacheManager(IMemoryCache cache, WorkflowConfig config)
-    {
+    public ToolCacheManager(IMemoryCache cache, WorkflowConfig config) {
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _config = config ?? throw new ArgumentNullException(nameof(config));
     }
@@ -47,18 +44,15 @@ public sealed partial class ToolCacheManager : ServiceEntity
     /// <param name="toolName">工具名称</param>
     /// <param name="factory">缓存未命中时的工厂方法</param>
     /// <returns>工具信息，如果工厂返回null则返回null</returns>
-    public ToolInfo? GetToolInfo(string toolName, Func<ToolInfo?> factory)
-    {
+    public ToolInfo? GetToolInfo(string toolName, Func<ToolInfo?> factory) {
         var cacheKey = ToolCacheKeys.ForTool(toolName);
 
-        if (_cache.TryGetValue(cacheKey, out ToolInfo? cachedTool) && cachedTool != null)
-        {
+        if (_cache.TryGetValue(cacheKey, out ToolInfo? cachedTool) && cachedTool != null) {
             return cachedTool;
         }
 
         var toolInfo = factory();
-        if (toolInfo == null)
-        {
+        if (toolInfo == null) {
             return null;
         }
 
@@ -73,10 +67,8 @@ public sealed partial class ToolCacheManager : ServiceEntity
     /// </summary>
     /// <param name="factory">缓存未命中时的工厂方法</param>
     /// <returns>工具信息列表</returns>
-    public IEnumerable<ToolInfo> GetAllToolInfos(Func<IEnumerable<ToolInfo>> factory)
-    {
-        if (_cache.TryGetValue(ToolCacheKeys.AllTools, out List<ToolInfo>? cachedTools) && cachedTools != null)
-        {
+    public IEnumerable<ToolInfo> GetAllToolInfos(Func<IEnumerable<ToolInfo>> factory) {
+        if (_cache.TryGetValue(ToolCacheKeys.AllTools, out List<ToolInfo>? cachedTools) && cachedTools != null) {
             return cachedTools;
         }
 
@@ -91,8 +83,7 @@ public sealed partial class ToolCacheManager : ServiceEntity
     /// 使指定工具的缓存失效
     /// </summary>
     /// <param name="toolName">工具名称</param>
-    public void InvalidateToolCache(string toolName)
-    {
+    public void InvalidateToolCache(string toolName) {
         _cache.Remove(ToolCacheKeys.ForTool(toolName));
         _cache.Remove(ToolCacheKeys.AllTools);
     }
@@ -100,14 +91,10 @@ public sealed partial class ToolCacheManager : ServiceEntity
     /// <summary>
     /// 使所有工具缓存失效
     /// </summary>
-    public void InvalidateAllCache()
-    {
-        if (_cache is MemoryCache memoryCache)
-        {
+    public void InvalidateAllCache() {
+        if (_cache is MemoryCache memoryCache) {
             memoryCache.Clear();
-        }
-        else
-        {
+        } else {
             _cache.Remove(ToolCacheKeys.AllTools);
         }
     }
@@ -117,15 +104,13 @@ public sealed partial class ToolCacheManager : ServiceEntity
     /// </summary>
     /// <param name="clientId">客户端ID</param>
     /// <param name="toolNameProvider">提供所有工具名称的委托</param>
-    public void InvalidateClientTools(string clientId, Func<IEnumerable<string>> toolNameProvider)
-    {
+    public void InvalidateClientTools(string clientId, Func<IEnumerable<string>> toolNameProvider) {
         var prefix = ToolCacheKeys.ForClientPrefix(clientId);
         var clientToolNames = toolNameProvider()
             .Where(name => name.StartsWith(prefix))
             .ToList();
 
-        foreach (var toolName in clientToolNames)
-        {
+        foreach (var toolName in clientToolNames) {
             InvalidateToolCache(toolName);
         }
     }

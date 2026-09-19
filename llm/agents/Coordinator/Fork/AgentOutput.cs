@@ -4,8 +4,7 @@ namespace Core.Agents.Coordinator;
 /// Agent 输出值对象 — 可变运行时累计，记录执行过程中的消耗与产出
 /// 包含已用 Token、完成轮数、执行输出文本、错误消息、路由列表
 /// </summary>
-public sealed class AgentOutput
-{
+public sealed class AgentOutput {
     /// <summary>已使用 Token 数</summary>
     public int TokensUsed { get; set; }
 

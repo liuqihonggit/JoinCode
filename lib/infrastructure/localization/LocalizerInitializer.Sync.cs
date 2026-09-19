@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterSyncEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterSyncEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === CodeIndexToolHandlers ===
         defaultEntries[StringKey.QueryCannotBeEmpty] = "query cannot be empty";
         defaultEntries[StringKey.NoMatchingSymbols] = "No matching symbols found for '{0}'";

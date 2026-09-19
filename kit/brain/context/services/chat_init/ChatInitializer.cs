@@ -6,8 +6,7 @@ namespace Core.Context;
 /// 提取自 ChatService.InitializeCoreAsync + OnConfigChanged
 /// </summary>
 [Register(typeof(IChatInitializer), ServiceLifetime.Singleton)]
-public sealed partial class ChatInitializer : ServiceEntity, IChatInitializer
-{
+public sealed partial class ChatInitializer : ServiceEntity, IChatInitializer {
     private readonly MiddlewarePipeline<ChatInitContext> _pipeline;
     private readonly IChatContextManager _contextManager;
     private readonly ILogger<ChatInitializer>? _logger;
@@ -19,8 +18,7 @@ public sealed partial class ChatInitializer : ServiceEntity, IChatInitializer
     public ChatInitializer(
         MiddlewarePipeline<ChatInitContext> pipeline,
         IChatContextManager contextManager,
-        ILogger<ChatInitializer>? logger = null)
-    {
+        ILogger<ChatInitializer>? logger = null) {
         _pipeline = pipeline;
         _contextManager = contextManager;
         _logger = logger;
@@ -29,10 +27,8 @@ public sealed partial class ChatInitializer : ServiceEntity, IChatInitializer
     /// <summary>
     /// 执行完整的会话初始化流程 — 通过中间件管道执行
     /// </summary>
-    public async Task InitializeAsync(ToolUseContext toolUseContext, CancellationToken cancellationToken = default)
-    {
-        var context = new ChatInitContext
-        {
+    public async Task InitializeAsync(ToolUseContext toolUseContext, CancellationToken cancellationToken = default) {
+        var context = new ChatInitContext {
             ToolUseContext = toolUseContext,
             ContextManager = _contextManager,
         };
@@ -45,10 +41,8 @@ public sealed partial class ChatInitializer : ServiceEntity, IChatInitializer
     /// <summary>
     /// 保存当前会话成本到持久化存储
     /// </summary>
-    public async Task SaveCurrentCostsAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
-        if (_sessionCostPersistence is not null)
-        {
+    public async Task SaveCurrentCostsAsync(string sessionId, CancellationToken cancellationToken = default) {
+        if (_sessionCostPersistence is not null) {
             await _sessionCostPersistence.SaveCurrentSessionCostsAsync(sessionId, cancellationToken).ConfigureAwait(false);
         }
     }

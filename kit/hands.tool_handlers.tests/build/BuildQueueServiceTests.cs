@@ -3,11 +3,9 @@ namespace Hands.Tests.Build;
 /// <summary>
 /// BuildQueueService 单元测试
 /// </summary>
-public class BuildQueueServiceTests
-{
+public class BuildQueueServiceTests {
     [Fact]
-    public async Task SubmitAsync_ReturnsBuildId()
-    {
+    public async Task SubmitAsync_ReturnsBuildId() {
         var sut = CreateSut();
         var request = CreateRequest();
 
@@ -18,8 +16,7 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public async Task SubmitAsync_EntryExists()
-    {
+    public async Task SubmitAsync_EntryExists() {
         var sut = CreateSut();
         var request = CreateRequest();
 
@@ -31,8 +28,7 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public async Task WaitAsync_ReturnsResult_WhenBuildCompletes()
-    {
+    public async Task WaitAsync_ReturnsResult_WhenBuildCompletes() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -51,8 +47,7 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public async Task WaitAsync_ReturnsFailedResult_WhenBuildFails()
-    {
+    public async Task WaitAsync_ReturnsFailedResult_WhenBuildFails() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -69,8 +64,7 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public async Task CancelAsync_BuildingBuild_ReturnsTrue()
-    {
+    public async Task CancelAsync_BuildingBuild_ReturnsTrue() {
         var buildTcs = new TaskCompletionSource<SystemActuatorExecutionResult>();
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
@@ -96,8 +90,7 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public async Task CancelAsync_NonExistentBuild_ReturnsFalse()
-    {
+    public async Task CancelAsync_NonExistentBuild_ReturnsFalse() {
         var sut = CreateSut();
 
         var cancelled = await sut.CancelAsync("b-9999", CancellationToken.None).ConfigureAwait(true);
@@ -106,8 +99,7 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public async Task GetStatus_ReflectsCompletedBuilds()
-    {
+    public async Task GetStatus_ReflectsCompletedBuilds() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -123,8 +115,7 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public async Task SubmitAsync_BufferHit_ReturnsCompletedResult()
-    {
+    public async Task SubmitAsync_BufferHit_ReturnsCompletedResult() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -142,8 +133,7 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public async Task BuildsAreSerialized_OneAtATime()
-    {
+    public async Task BuildsAreSerialized_OneAtATime() {
         var buildOrder = new List<string>();
         var tcs1 = new TaskCompletionSource<SystemActuatorExecutionResult>();
         var tcs2 = new TaskCompletionSource<SystemActuatorExecutionResult>();
@@ -152,18 +142,14 @@ public class BuildQueueServiceTests
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .Returns(async () =>
-            {
+            .Returns(async () => {
                 callCount++;
-                if (callCount == 1)
-                {
+                if (callCount == 1) {
                     buildOrder.Add("start1");
                     var result = await tcs1.Task.ConfigureAwait(true);
                     buildOrder.Add("end1");
                     return result;
-                }
-                else
-                {
+                } else {
                     buildOrder.Add("start2");
                     var result = await tcs2.Task.ConfigureAwait(true);
                     buildOrder.Add("end2");
@@ -191,8 +177,7 @@ public class BuildQueueServiceTests
     /// 验证队列 checkpoint 推进 — 多个 build 全部完成后，队列应无 pending 项
     /// </summary>
     [Fact]
-    public async Task Checkpoint_AllBuildsComplete_QueueShouldBeEmpty()
-    {
+    public async Task Checkpoint_AllBuildsComplete_QueueShouldBeEmpty() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -219,8 +204,7 @@ public class BuildQueueServiceTests
     /// </summary>
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task CrossProcessLock_BuildWaits_WhenLockHeldByOtherProcess()
-    {
+    public async Task CrossProcessLock_BuildWaits_WhenLockHeldByOtherProcess() {
         // 使用唯一的锁文件路径，避免与其他测试冲突
         var lockPath = Path.Combine(Path.GetTempPath(), $"JoinCode.Build.CrossProc.{Guid.NewGuid():N}.lock");
         var fs = new PhysicalFileSystem();
@@ -229,14 +213,12 @@ public class BuildQueueServiceTests
         var holdingStream = fs.CreateStream(
             lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
 
-        try
-        {
+        try {
             var shellMock = new Mock<ISystemActuator>();
             var buildStarted = new TaskCompletionSource<bool>();
             shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                     It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-                .Returns(async () =>
-                {
+                .Returns(async () => {
                     buildStarted.TrySetResult(true);
                     return SystemActuatorExecutionResult.SuccessResult("Build ok", "");
                 });
@@ -262,16 +244,11 @@ public class BuildQueueServiceTests
             var result = await sut.WaitAsync(buildId, CancellationToken.None).ConfigureAwait(true);
             result.ExitCode.Should().Be(0);
             result.Output.Should().Be("Build ok");
-        }
-        finally
-        {
+        } finally {
             // 清理锁文件（如果还存在）
-            try
-            {
+            try {
                 if (fs.FileExists(lockPath)) fs.DeleteFile(lockPath);
-            }
-            catch (IOException ex)
-            {
+            } catch (IOException ex) {
                 // 清理失败不影响测试结果
                 System.Diagnostics.Debug.WriteLine($"Failed to clean up lock file {lockPath}: {ex.Message}");
             }
@@ -279,16 +256,14 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public void BuildBufferKey_IncludesWorkingDirectory()
-    {
+    public void BuildBufferKey_IncludesWorkingDirectory() {
         var key1 = BuildResultBuffer.BuildBufferKey("dotnet build", Path.GetTempPath());
         var key2 = BuildResultBuffer.BuildBufferKey("dotnet build", Path.GetFullPath(Path.Combine(Path.GetTempPath(), "..")));
         key1.Should().NotBe(key2);
     }
 
     [Fact]
-    public async Task ClearCacheAsync_ClearsResultBuffer()
-    {
+    public async Task ClearCacheAsync_ClearsResultBuffer() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -307,8 +282,7 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public async Task GetOutputRange_ReturnsSpecifiedLines()
-    {
+    public async Task GetOutputRange_ReturnsSpecifiedLines() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -324,8 +298,7 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public async Task GetOutputRange_EndLineZero_ReturnsToEnd()
-    {
+    public async Task GetOutputRange_EndLineZero_ReturnsToEnd() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -341,16 +314,14 @@ public class BuildQueueServiceTests
     }
 
     [Fact]
-    public void TruncateOutput_Under15Lines_ReturnsFullOutput()
-    {
+    public void TruncateOutput_Under15Lines_ReturnsFullOutput() {
         var output = string.Join("\n", Enumerable.Range(1, 10).Select(i => $"line{i}"));
         var result = ShellBuildInterceptMiddleware.TruncateOutput(output, "b-0001");
         result.Should().Be(output);
     }
 
     [Fact]
-    public void TruncateOutput_Over15Lines_ReturnsTailWithHint()
-    {
+    public void TruncateOutput_Over15Lines_ReturnsTailWithHint() {
         var output = string.Join("\n", Enumerable.Range(1, 30).Select(i => $"line{i}"));
         var result = ShellBuildInterceptMiddleware.TruncateOutput(output, "b-0001");
         result.Should().Contain("truncated");
@@ -362,8 +333,7 @@ public class BuildQueueServiceTests
     private static BuildQueueService CreateSut(
         ISystemActuator? actuator = null,
         IPreventSleepService? preventSleepService = null,
-        ILogger<BuildQueueService>? logger = null)
-    {
+        ILogger<BuildQueueService>? logger = null) {
         // 每个测试实例使用唯一的锁文件路径，避免并行测试互相阻塞
         var uniqueLockPath = Path.Combine(Path.GetTempPath(), $"JoinCode.Build.{Guid.NewGuid():N}.lock");
         var actuatorMock = actuator ?? Mock.Of<ISystemActuator>();
@@ -377,10 +347,8 @@ public class BuildQueueServiceTests
             crossProcessLockPath: uniqueLockPath);
     }
 
-    private static BuildRequest CreateRequest(string? command = null, string? agentId = null)
-    {
-        return new BuildRequest
-        {
+    private static BuildRequest CreateRequest(string? command = null, string? agentId = null) {
+        return new BuildRequest {
             Command = command ?? "dotnet build JoinCode.slnx -c Release",
             AgentId = agentId ?? "test-agent",
         };

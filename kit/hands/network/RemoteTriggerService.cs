@@ -2,8 +2,7 @@ namespace IO.Services;
 
 /// <summary>远程触发器服务 — 通过 HTTP 调用 JCC API 端点，执行触发器的列表、获取、创建、更新与运行操作。</summary>
 [Register(typeof(IRemoteTriggerService), ServiceLifetime.Singleton)]
-public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTriggerService
-{
+public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTriggerService {
     private readonly HttpClient _httpClient;
     private readonly IConfigurationService? _configService;
     private readonly ILogger<RemoteTriggerService>? _logger;
@@ -12,8 +11,7 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
     /// <param name="httpClient">用于发送 HTTP 请求的客户端。</param>
     /// <param name="configService">可选的配置服务，用于读取 API 端点与认证令牌。</param>
     /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
-    public RemoteTriggerService(HttpClient httpClient, IConfigurationService? configService = null, ILogger<RemoteTriggerService>? logger = null)
-    {
+    public RemoteTriggerService(HttpClient httpClient, IConfigurationService? configService = null, ILogger<RemoteTriggerService>? logger = null) {
         _httpClient = httpClient;
         _configService = configService;
         _logger = logger;
@@ -25,11 +23,9 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
     /// <param name="body">请求体 JSON，创建与更新动作时使用。</param>
     /// <param name="ct">可取消令牌。</param>
     /// <returns>包含状态码与响应体的触发器结果。</returns>
-    public async Task<TriggerResult> ExecuteAsync(TriggerAction action, string? triggerId = null, string? body = null, CancellationToken ct = default)
-    {
+    public async Task<TriggerResult> ExecuteAsync(TriggerAction action, string? triggerId = null, string? body = null, CancellationToken ct = default) {
         var baseUrl = await GetApiBaseUrlAsync(ct).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(baseUrl))
-        {
+        if (string.IsNullOrEmpty(baseUrl)) {
             return new TriggerResult { Status = 401, Json = """{"error":"未配置 JCC API 端点，请设置 JCC_ENDPOINT 环境变量"}""" };
         }
 
@@ -37,40 +33,32 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
         var request = new HttpRequestMessage(method, url);
 
         var token = await GetAuthTokenAsync(ct).ConfigureAwait(false);
-        if (!string.IsNullOrEmpty(token))
-        {
+        if (!string.IsNullOrEmpty(token)) {
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
 
         request.Headers.Add("anthropic-version", "2024-01-01");
         request.Headers.Add("anthropic-beta", "tengu-surreal-dali-2025-04-01");
 
-        if (body != null && (method == HttpMethod.Post || method == HttpMethod.Put))
-        {
+        if (body != null && (method == HttpMethod.Post || method == HttpMethod.Put)) {
             request.Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
         }
 
-        try
-        {
+        try {
             using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromSeconds(20));
 
             var response = await _httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
             var responseBody = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
 
             return new TriggerResult { Status = (int)response.StatusCode, Json = responseBody };
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, "远程触发器 API 调用失败");
             return new TriggerResult { Status = 500, Json = $"{{\"error\":\"{ex.Message}\"}}" };
         }
     }
 
-    private static (HttpMethod Method, string Url) BuildRequest(TriggerAction action, string baseUrl, string? triggerId)
-    {
-        return action switch
-        {
+    private static (HttpMethod Method, string Url) BuildRequest(TriggerAction action, string baseUrl, string? triggerId) {
+        return action switch {
             TriggerAction.List => (HttpMethod.Get, $"{baseUrl}/v1/code/triggers"),
             TriggerAction.Get => (HttpMethod.Get, $"{baseUrl}/v1/code/triggers/{triggerId}"),
             TriggerAction.Create => (HttpMethod.Post, $"{baseUrl}/v1/code/triggers"),
@@ -80,33 +68,25 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
         };
     }
 
-    private async Task<string?> GetApiBaseUrlAsync(CancellationToken ct)
-    {
+    private async Task<string?> GetApiBaseUrlAsync(CancellationToken ct) {
         var envEndpoint = Environment.GetEnvironmentVariable(JccEnvVar.Endpoint.ToValue());
         if (!string.IsNullOrEmpty(envEndpoint)) return envEndpoint.TrimEnd('/');
 
-        if (_configService != null)
-        {
-            try
-            {
+        if (_configService != null) {
+            try {
                 var saved = await _configService.GetAsync("api.endpoint", ct).ConfigureAwait(false);
                 if (!string.IsNullOrEmpty(saved)) return saved.TrimEnd('/');
-            }
-            catch (Exception ex) { _logger?.LogWarning(ex, "RemoteTriggerService: 从配置获取端点失败"); }
+            } catch (Exception ex) { _logger?.LogWarning(ex, "RemoteTriggerService: 从配置获取端点失败"); }
         }
 
         return null;
     }
 
-    private async Task<string?> GetAuthTokenAsync(CancellationToken ct)
-    {
-        if (_configService != null)
-        {
-            try
-            {
+    private async Task<string?> GetAuthTokenAsync(CancellationToken ct) {
+        if (_configService != null) {
+            try {
                 return await _configService.GetAsync("api.key", ct).ConfigureAwait(false);
-            }
-            catch (Exception ex) { _logger?.LogWarning(ex, "RemoteTriggerService: 从配置获取认证令牌失败"); }
+            } catch (Exception ex) { _logger?.LogWarning(ex, "RemoteTriggerService: 从配置获取认证令牌失败"); }
         }
 
         return null;

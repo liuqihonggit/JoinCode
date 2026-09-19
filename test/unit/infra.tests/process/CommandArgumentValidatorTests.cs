@@ -1,8 +1,7 @@
 namespace Infra.Tests.Process;
 
 [Trait("Category", "Unit")]
-public sealed class CommandArgumentValidatorTests
-{
+public sealed class CommandArgumentValidatorTests {
     [Theory]
     [InlineData("&")]
     [InlineData("|")]
@@ -15,8 +14,7 @@ public sealed class CommandArgumentValidatorTests
     [InlineData(">")]
     [InlineData("\n")]
     [InlineData("\r")]
-    public void ValidateString_WithDangerousChar_Throws(string dangerousStr)
-    {
+    public void ValidateString_WithDangerousChar_Throws(string dangerousStr) {
         var arg = "prefix" + dangerousStr + "suffix";
 
         var act = () => CommandArgumentValidator.ValidateString(arg);
@@ -26,40 +24,35 @@ public sealed class CommandArgumentValidatorTests
     }
 
     [Fact]
-    public void ValidateString_WithSafeArgument_DoesNotThrow()
-    {
+    public void ValidateString_WithSafeArgument_DoesNotThrow() {
         var act = () => CommandArgumentValidator.ValidateString("--flag value");
 
         act.Should().NotThrow();
     }
 
     [Fact]
-    public void ValidateString_WithFilePath_DoesNotThrow()
-    {
+    public void ValidateString_WithFilePath_DoesNotThrow() {
         var act = () => CommandArgumentValidator.ValidateString(@"C:\Users\test\file.txt");
 
         act.Should().NotThrow();
     }
 
     [Fact]
-    public void ValidateString_WithUnixPath_DoesNotThrow()
-    {
+    public void ValidateString_WithUnixPath_DoesNotThrow() {
         var act = () => CommandArgumentValidator.ValidateString("/home/user/file.txt");
 
         act.Should().NotThrow();
     }
 
     [Fact]
-    public void ValidateString_WithEmpty_DoesNotThrow()
-    {
+    public void ValidateString_WithEmpty_DoesNotThrow() {
         var act = () => CommandArgumentValidator.ValidateString("");
 
         act.Should().NotThrow();
     }
 
     [Fact]
-    public void ValidateList_WithDangerousChar_Throws()
-    {
+    public void ValidateList_WithDangerousChar_Throws() {
         var args = new[] { "--flag", "foo & bar" };
 
         var act = () => CommandArgumentValidator.ValidateList(args);
@@ -69,8 +62,7 @@ public sealed class CommandArgumentValidatorTests
     }
 
     [Fact]
-    public void ValidateList_WithSafeArgs_DoesNotThrow()
-    {
+    public void ValidateList_WithSafeArgs_DoesNotThrow() {
         var args = new[] { "--flag", "value", @"C:\path\file.txt" };
 
         var act = () => CommandArgumentValidator.ValidateList(args);
@@ -79,16 +71,14 @@ public sealed class CommandArgumentValidatorTests
     }
 
     [Fact]
-    public void ValidateList_WithNull_DoesNotThrow()
-    {
+    public void ValidateList_WithNull_DoesNotThrow() {
         var act = () => CommandArgumentValidator.ValidateList(null);
 
         act.Should().NotThrow();
     }
 
     [Fact]
-    public void ValidateList_WithEmpty_DoesNotThrow()
-    {
+    public void ValidateList_WithEmpty_DoesNotThrow() {
         var act = () => CommandArgumentValidator.ValidateList(Array.Empty<string>());
 
         act.Should().NotThrow();
@@ -104,14 +94,12 @@ public sealed class CommandArgumentValidatorTests
     [InlineData(")")]
     [InlineData("<")]
     [InlineData(">")]
-    public void DangerousChars_ContainsAllExpected(string ch)
-    {
+    public void DangerousChars_ContainsAllExpected(string ch) {
         CommandArgumentValidator.DangerousChars.Should().Contain(ch[0]);
     }
 
     [Fact]
-    public void DangerousChars_DoesNotContainSafeChars()
-    {
+    public void DangerousChars_DoesNotContainSafeChars() {
         CommandArgumentValidator.DangerousChars.Should().NotContain(' ');
         CommandArgumentValidator.DangerousChars.Should().NotContain('-');
         CommandArgumentValidator.DangerousChars.Should().NotContain('/');

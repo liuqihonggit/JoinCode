@@ -1,21 +1,18 @@
 namespace Hands.Tests.Integration;
 
-public sealed class UpgradeServiceTests
-{
+public sealed class UpgradeServiceTests {
     private readonly FakeHttpMessageHandler _handler;
     private readonly HttpClient _httpClient;
     private readonly UpgradeService _service;
 
-    public UpgradeServiceTests()
-    {
+    public UpgradeServiceTests() {
         _handler = new FakeHttpMessageHandler();
         _httpClient = new HttpClient(_handler);
         _service = new UpgradeService(_httpClient, TestFileSystem.Current);
     }
 
     [Fact]
-    public void GetCurrentVersion_ReturnsAssemblyVersion()
-    {
+    public void GetCurrentVersion_ReturnsAssemblyVersion() {
         var version = _service.GetCurrentVersion();
 
         version.Should().NotBeNull();
@@ -23,10 +20,8 @@ public sealed class UpgradeServiceTests
     }
 
     [Fact]
-    public async Task GetLatestVersionAsync_ParsesVersionFromTagName()
-    {
-        _handler.SetResponse(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
+    public async Task GetLatestVersionAsync_ParsesVersionFromTagName() {
+        _handler.SetResponse(_ => new HttpResponseMessage(HttpStatusCode.OK) {
             Content = new StringContent("""{"tag_name":"v1.2.3"}""")
         });
 
@@ -36,10 +31,8 @@ public sealed class UpgradeServiceTests
     }
 
     [Fact]
-    public async Task GetLatestVersionAsync_WithoutPrefix_ParsesVersion()
-    {
-        _handler.SetResponse(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
+    public async Task GetLatestVersionAsync_WithoutPrefix_ParsesVersion() {
+        _handler.SetResponse(_ => new HttpResponseMessage(HttpStatusCode.OK) {
             Content = new StringContent("""{"tag_name":"2.0.0"}""")
         });
 
@@ -49,10 +42,8 @@ public sealed class UpgradeServiceTests
     }
 
     [Fact]
-    public async Task GetLatestVersionAsync_InvalidVersion_ReturnsNull()
-    {
-        _handler.SetResponse(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
+    public async Task GetLatestVersionAsync_InvalidVersion_ReturnsNull() {
+        _handler.SetResponse(_ => new HttpResponseMessage(HttpStatusCode.OK) {
             Content = new StringContent("""{"tag_name":"not-a-version"}""")
         });
 
@@ -62,8 +53,7 @@ public sealed class UpgradeServiceTests
     }
 
     [Fact]
-    public async Task GetLatestVersionAsync_HttpError_ReturnsNull()
-    {
+    public async Task GetLatestVersionAsync_HttpError_ReturnsNull() {
         _handler.SetResponse(_ => throw new HttpRequestException("network"));
 
         var version = await _service.GetLatestVersionAsync().ConfigureAwait(true);
@@ -72,14 +62,11 @@ public sealed class UpgradeServiceTests
     }
 
     [Fact]
-    public async Task GetLatestVersionAsync_CachesResult()
-    {
+    public async Task GetLatestVersionAsync_CachesResult() {
         var callCount = 0;
-        _handler.SetResponse(_ =>
-        {
+        _handler.SetResponse(_ => {
             callCount++;
-            return new HttpResponseMessage(HttpStatusCode.OK)
-            {
+            return new HttpResponseMessage(HttpStatusCode.OK) {
                 Content = new StringContent("""{"tag_name":"v1.0.0"}""")
             };
         });
@@ -92,10 +79,8 @@ public sealed class UpgradeServiceTests
     }
 
     [Fact]
-    public async Task IsUpdateAvailableAsync_LatestGreaterThanCurrent_ReturnsTrue()
-    {
-        _handler.SetResponse(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
+    public async Task IsUpdateAvailableAsync_LatestGreaterThanCurrent_ReturnsTrue() {
+        _handler.SetResponse(_ => new HttpResponseMessage(HttpStatusCode.OK) {
             Content = new StringContent("""{"tag_name":"v999.0.0"}""")
         });
 
@@ -105,8 +90,7 @@ public sealed class UpgradeServiceTests
     }
 
     [Fact]
-    public async Task IsUpdateAvailableAsync_LatestNull_ReturnsFalse()
-    {
+    public async Task IsUpdateAvailableAsync_LatestNull_ReturnsFalse() {
         _handler.SetResponse(_ => throw new HttpRequestException("network"));
 
         var result = await _service.IsUpdateAvailableAsync().ConfigureAwait(true);
@@ -114,17 +98,14 @@ public sealed class UpgradeServiceTests
         result.Should().BeFalse();
     }
 
-    private sealed class FakeHttpMessageHandler : HttpMessageHandler
-    {
+    private sealed class FakeHttpMessageHandler : HttpMessageHandler {
         private Func<HttpRequestMessage, HttpResponseMessage>? _responseFactory;
 
-        public void SetResponse(Func<HttpRequestMessage, HttpResponseMessage> factory)
-        {
+        public void SetResponse(Func<HttpRequestMessage, HttpResponseMessage> factory) {
             _responseFactory = factory;
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
             var response = _responseFactory?.Invoke(request)
                 ?? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") };
             return Task.FromResult(response);

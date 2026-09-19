@@ -5,10 +5,8 @@ namespace Core.Tests.Scheduling;
 /// ToolPortingPlanRunner 单元测试类
 /// 测试计划运行器的各种功能，包括 RunAsync 方法、GenerateAssignmentPlan 和导出功能
 /// </summary>
-public class ToolPortingPlanRunnerTests
-{
-    private ParallelExecutionEngine CreateSimulatedExecutionEngine()
-    {
+public class ToolPortingPlanRunnerTests {
+    private ParallelExecutionEngine CreateSimulatedExecutionEngine() {
         return new ParallelExecutionEngine(simulationMode: true, NullLogger<ParallelExecutionEngine>.Instance);
     }
 
@@ -18,8 +16,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试 GenerateAssignmentPlan 应返回有效的任务分配计划
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_ShouldReturnValidPlan()
-    {
+    public void GenerateAssignmentPlan_ShouldReturnValidPlan() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
@@ -34,8 +31,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试 GenerateAssignmentPlan 应正确计算第一波任务数量
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_ShouldCalculateFirstWaveCount()
-    {
+    public void GenerateAssignmentPlan_ShouldCalculateFirstWaveCount() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
@@ -48,8 +44,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试 GenerateAssignmentPlan 应正确计算第二波任务数量
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_ShouldCalculateSecondWaveCount()
-    {
+    public void GenerateAssignmentPlan_ShouldCalculateSecondWaveCount() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
@@ -62,8 +57,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试 GenerateAssignmentPlan 应正确计算所需 Agent 总数
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_ShouldCalculateTotalAgentsRequired()
-    {
+    public void GenerateAssignmentPlan_ShouldCalculateTotalAgentsRequired() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
@@ -76,8 +70,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试 GenerateAssignmentPlan 应包含执行顺序信息
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_ShouldContainExecutionOrder()
-    {
+    public void GenerateAssignmentPlan_ShouldContainExecutionOrder() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
@@ -90,8 +83,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试任务分配应包含完整的任务信息
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_AssignmentsShouldContainCompleteInfo()
-    {
+    public void GenerateAssignmentPlan_AssignmentsShouldContainCompleteInfo() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
@@ -109,15 +101,13 @@ public class ToolPortingPlanRunnerTests
     /// 测试第一波任务的依赖列表应为空
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_FirstWaveTasksShouldHaveNoDependencies()
-    {
+    public void GenerateAssignmentPlan_FirstWaveTasksShouldHaveNoDependencies() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
         var firstWaveAssignments = plan.Assignments.Where(a => a.IsFirstWave);
 
-        foreach (var assignment in firstWaveAssignments)
-        {
+        foreach (var assignment in firstWaveAssignments) {
             assignment.Dependencies.Should().BeEmpty();
         }
     }
@@ -126,15 +116,13 @@ public class ToolPortingPlanRunnerTests
     /// 测试第二波任务应包含依赖信息
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_SecondWaveTasksShouldHaveDependencies()
-    {
+    public void GenerateAssignmentPlan_SecondWaveTasksShouldHaveDependencies() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
         var secondWaveAssignments = plan.Assignments.Where(a => !a.IsFirstWave);
 
-        foreach (var assignment in secondWaveAssignments)
-        {
+        foreach (var assignment in secondWaveAssignments) {
             assignment.Dependencies.Should().NotBeEmpty();
         }
     }
@@ -147,8 +135,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试 ExportPlanToJson 应返回有效的 JSON 字符串
     /// </summary>
     [Fact]
-    public void ExportPlanToJson_ShouldReturnValidJson()
-    {
+    public void ExportPlanToJson_ShouldReturnValidJson() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var json = runner.ExportPlanToJson();
@@ -163,8 +150,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试导出的 JSON 应包含计划的关键字段
     /// </summary>
     [Fact]
-    public void ExportPlanToJson_ShouldContainKeyFields()
-    {
+    public void ExportPlanToJson_ShouldContainKeyFields() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var json = runner.ExportPlanToJson();
@@ -181,8 +167,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试导出的 JSON 应使用 camelCase 命名策略
     /// </summary>
     [Fact]
-    public void ExportPlanToJson_ShouldUseCamelCaseNaming()
-    {
+    public void ExportPlanToJson_ShouldUseCamelCaseNaming() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var json = runner.ExportPlanToJson();
@@ -195,8 +180,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试导出的 JSON 应格式化为缩进形式
     /// </summary>
     [Fact]
-    public void ExportPlanToJson_ShouldBeIndented()
-    {
+    public void ExportPlanToJson_ShouldBeIndented() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var json = runner.ExportPlanToJson();
@@ -209,14 +193,12 @@ public class ToolPortingPlanRunnerTests
     /// 测试导出的 JSON 可以被反序列化
     /// </summary>
     [Fact]
-    public void ExportPlanToJson_ShouldBeDeserializable()
-    {
+    public void ExportPlanToJson_ShouldBeDeserializable() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var json = runner.ExportPlanToJson();
 
-        var options = new JsonSerializerOptions
-        {
+        var options = new JsonSerializerOptions {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
@@ -235,8 +217,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试 ExportPlanToMarkdown 应返回有效的 Markdown 字符串
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldReturnValidMarkdown()
-    {
+    public void ExportPlanToMarkdown_ShouldReturnValidMarkdown() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
@@ -249,8 +230,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试导出的 Markdown 应包含概览部分
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainOverviewSection()
-    {
+    public void ExportPlanToMarkdown_ShouldContainOverviewSection() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
@@ -268,8 +248,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试导出的 Markdown 应包含第一波任务部分
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainFirstWaveSection()
-    {
+    public void ExportPlanToMarkdown_ShouldContainFirstWaveSection() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
@@ -282,8 +261,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试导出的 Markdown 应包含第二波任务部分
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainSecondWaveSection()
-    {
+    public void ExportPlanToMarkdown_ShouldContainSecondWaveSection() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
@@ -296,8 +274,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试导出的 Markdown 应包含执行顺序部分
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainExecutionOrderSection()
-    {
+    public void ExportPlanToMarkdown_ShouldContainExecutionOrderSection() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
@@ -309,8 +286,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试导出的 Markdown 应包含依赖关系图部分
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainDependencyGraphSection()
-    {
+    public void ExportPlanToMarkdown_ShouldContainDependencyGraphSection() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
@@ -323,8 +299,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试导出的 Markdown 应包含优先级图标
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainPriorityIcons()
-    {
+    public void ExportPlanToMarkdown_ShouldContainPriorityIcons() {
         var executionEngine = CreateSimulatedExecutionEngine();
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
@@ -340,8 +315,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试 PlanOptions 默认值
     /// </summary>
     [Fact]
-    public void PlanOptions_DefaultValues_ShouldBeCorrect()
-    {
+    public void PlanOptions_DefaultValues_ShouldBeCorrect() {
         var options = new PlanOptions();
 
         options.SimulatedMode.Should().BeTrue();
@@ -352,10 +326,8 @@ public class ToolPortingPlanRunnerTests
     /// 测试 PlanOptions 属性设置
     /// </summary>
     [Fact]
-    public void PlanOptions_SetProperties_ShouldWorkCorrectly()
-    {
-        var options = new PlanOptions
-        {
+    public void PlanOptions_SetProperties_ShouldWorkCorrectly() {
+        var options = new PlanOptions {
             SimulatedMode = false,
             DebugLog = false
         };
@@ -372,10 +344,8 @@ public class ToolPortingPlanRunnerTests
     /// 测试 PlanExecutionResult 属性设置
     /// </summary>
     [Fact]
-    public void PlanExecutionResult_SetProperties_ShouldWorkCorrectly()
-    {
-        var report = new ExecutionReport
-        {
+    public void PlanExecutionResult_SetProperties_ShouldWorkCorrectly() {
+        var report = new ExecutionReport {
             TotalTasks = 10,
             CompletedTasks = new List<ScheduledTask>(),
             FailedTasks = new List<ScheduledTask>(),
@@ -385,8 +355,7 @@ public class ToolPortingPlanRunnerTests
             TaskDetails = new List<TaskExecutionDetail>()
         };
 
-        var result = new ToolPortingExecutionResult
-        {
+        var result = new ToolPortingExecutionResult {
             Success = true,
             Report = report,
             ExecutionLog = "测试日志内容"
@@ -405,8 +374,7 @@ public class ToolPortingPlanRunnerTests
     /// 测试 TaskAssignmentPlan 属性
     /// </summary>
     [Fact]
-    public void TaskAssignmentPlan_Properties_ShouldWorkCorrectly()
-    {
+    public void TaskAssignmentPlan_Properties_ShouldWorkCorrectly() {
         var assignments = new List<TaskAgentAssignment>
         {
             new()
@@ -432,8 +400,7 @@ public class ToolPortingPlanRunnerTests
             }
         };
 
-        var plan = new TaskAssignmentPlan
-        {
+        var plan = new TaskAssignmentPlan {
             TotalTasks = 1,
             FirstWaveCount = 1,
             SecondWaveCount = 0,
@@ -458,10 +425,8 @@ public class ToolPortingPlanRunnerTests
     /// 测试 TaskAgentAssignment 属性
     /// </summary>
     [Fact]
-    public void TaskAgentAssignment_Properties_ShouldWorkCorrectly()
-    {
-        var assignment = new TaskAgentAssignment
-        {
+    public void TaskAgentAssignment_Properties_ShouldWorkCorrectly() {
+        var assignment = new TaskAgentAssignment {
             TaskId = "task-001",
             TaskName = "Agent 调度核心框架",
             Description = "调度器接口、状态管理、生命周期管理、内存快照",
@@ -490,10 +455,8 @@ public class ToolPortingPlanRunnerTests
     /// 测试 ExecutionPhase 属性
     /// </summary>
     [Fact]
-    public void ExecutionPhase_Properties_ShouldWorkCorrectly()
-    {
-        var phase = new ExecutionPhase
-        {
+    public void ExecutionPhase_Properties_ShouldWorkCorrectly() {
+        var phase = new ExecutionPhase {
             PhaseNumber = 1,
             Description = "第一波：9个独立任务并行启动",
             TaskNames = new List<string> { "Task-01", "Task-02", "Task-03" }

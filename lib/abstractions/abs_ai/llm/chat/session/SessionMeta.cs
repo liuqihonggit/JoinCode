@@ -1,13 +1,11 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public interface ISessionMetaStore : IStore
-{
+public interface ISessionMetaStore : IStore {
     Task<SessionMeta?> LoadAsync(string sessionId, CancellationToken cancellationToken = default);
     Task SaveAsync(string sessionId, SessionMeta meta, CancellationToken cancellationToken = default);
 }
 
-public sealed class SessionMeta
-{
+public sealed class SessionMeta {
     public long CacheHitTokens { get; init; }
     public long CacheMissTokens { get; init; }
     public int LastPromptTokens { get; init; }
@@ -22,17 +20,14 @@ public sealed class SessionMeta
     public long UpdatedAtUtcTicks { get; init; }
 }
 
-public static class SessionMetaSerializer
-{
-    public static string Serialize(SessionMeta meta)
-    {
+public static class SessionMetaSerializer {
+    public static string Serialize(SessionMeta meta) {
         ArgumentNullException.ThrowIfNull(meta);
 
         return RelaxedJsonSerializer.Serialize(meta, SessionMetaJsonContext.Default);
     }
 
-    public static SessionMeta Deserialize(string json)
-    {
+    public static SessionMeta Deserialize(string json) {
         ArgumentException.ThrowIfNullOrEmpty(json);
 
         return RelaxedJsonSerializer.Deserialize(json, SessionMetaJsonContext.Default.SessionMeta)

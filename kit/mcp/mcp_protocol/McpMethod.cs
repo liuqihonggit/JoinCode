@@ -3,8 +3,7 @@ namespace McpProtocol;
 /// <summary>
 /// MCP 协议方法名枚举 — 替代 switch-case 中的硬编码字符串
 /// </summary>
-public enum McpMethod
-{
+public enum McpMethod {
     // 请求方法
 
     /// <summary>初始化握手请求 — 客户端与服务器交换能力与协议版本。</summary>

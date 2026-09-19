@@ -1,13 +1,11 @@
 namespace Core.Tests.Agents.Coordinator;
 
-public class AgentWorktreeManagerTests : IAsyncLifetime
-{
+public class AgentWorktreeManagerTests : IAsyncLifetime {
     private readonly Mock<IAgentWorktreeService> _worktreeServiceMock;
     private readonly Mock<IHookOrchestrator> _hookOrchestratorMock;
     private readonly AgentWorktreeManager _manager;
 
-    public AgentWorktreeManagerTests()
-    {
+    public AgentWorktreeManagerTests() {
         _worktreeServiceMock = new Mock<IAgentWorktreeService>();
         _hookOrchestratorMock = new Mock<IHookOrchestrator>();
 
@@ -19,8 +17,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateWorktreeAsync_ShouldReturnTrue_WhenServiceSucceeds()
-    {
+    public async Task CreateWorktreeAsync_ShouldReturnTrue_WhenServiceSucceeds() {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
 
@@ -34,8 +31,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateWorktreeAsync_ShouldReturnFalse_WhenServiceFails()
-    {
+    public async Task CreateWorktreeAsync_ShouldReturnFalse_WhenServiceFails() {
         var agentId = "test-agent-1";
 
         _worktreeServiceMock.Setup(x => x.CreateAgentWorktreeAsync(agentId, null, null, default))
@@ -47,8 +43,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateWorktreeAsync_ShouldFireWorktreeCreatedEvent()
-    {
+    public async Task CreateWorktreeAsync_ShouldFireWorktreeCreatedEvent() {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
         WorktreeEventArgs? firedArgs = null;
@@ -66,8 +61,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateWorktreeAsync_ShouldReturnFalse_WhenIsolationDisabled()
-    {
+    public async Task CreateWorktreeAsync_ShouldReturnFalse_WhenIsolationDisabled() {
         var manager = new AgentWorktreeManager(
             worktreeService: _worktreeServiceMock.Object,
             enableWorktreeIsolation: false);
@@ -78,8 +72,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldRemoveUnchangedWorktree()
-    {
+    public async Task CleanupWorktreeAsync_ShouldRemoveUnchangedWorktree() {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
 
@@ -100,8 +93,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldKeepWorktreeWithChanges()
-    {
+    public async Task CleanupWorktreeAsync_ShouldKeepWorktreeWithChanges() {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
 
@@ -121,8 +113,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldKeepWorktreeWithUncommittedChanges()
-    {
+    public async Task CleanupWorktreeAsync_ShouldKeepWorktreeWithUncommittedChanges() {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
 
@@ -141,8 +132,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldKeepHookBasedWorktree()
-    {
+    public async Task CleanupWorktreeAsync_ShouldKeepHookBasedWorktree() {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId, hookBased: true);
 
@@ -159,8 +149,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldRemoveWorktree_WhenNoChanges()
-    {
+    public async Task CleanupWorktreeAsync_ShouldRemoveWorktree_WhenNoChanges() {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
 
@@ -180,8 +169,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldReturnNotIsolated_WhenNoWorktreeService()
-    {
+    public async Task CleanupWorktreeAsync_ShouldReturnNotIsolated_WhenNoWorktreeService() {
         var manager = new AgentWorktreeManager(
             worktreeService: null,
             enableWorktreeIsolation: true);
@@ -192,16 +180,14 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldReturnNoSession_WhenNoSessionExists()
-    {
+    public async Task CleanupWorktreeAsync_ShouldReturnNoSession_WhenNoSessionExists() {
         var result = await _manager.CleanupWorktreeAsync("nonexistent-agent").ConfigureAwait(true);
 
         result.Should().Be(WorktreeCleanupDetail.NoSession);
     }
 
     [Fact]
-    public async Task ForceRemoveWorktreeAsync_ShouldFireWorktreeCleanedEvent()
-    {
+    public async Task ForceRemoveWorktreeAsync_ShouldFireWorktreeCleanedEvent() {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
         WorktreeEventArgs? cleanedArgs = null;
@@ -220,8 +206,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetWorktreeSessionAsync_ShouldReturnSession_AfterCreate()
-    {
+    public async Task GetWorktreeSessionAsync_ShouldReturnSession_AfterCreate() {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
 
@@ -236,16 +221,14 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetWorktreeSessionAsync_ShouldReturnNull_WhenNotCreated()
-    {
+    public async Task GetWorktreeSessionAsync_ShouldReturnNull_WhenNotCreated() {
         var result = await _manager.GetWorktreeSessionAsync("nonexistent").ConfigureAwait(true);
 
         result.Should().BeNull();
     }
 
     [Fact]
-    public void IsWorktreeIsolationEnabled_ShouldReflectConstructorParameter()
-    {
+    public void IsWorktreeIsolationEnabled_ShouldReflectConstructorParameter() {
         var enabled = new AgentWorktreeManager(_worktreeServiceMock.Object, enableWorktreeIsolation: true);
         var disabled = new AgentWorktreeManager(_worktreeServiceMock.Object, enableWorktreeIsolation: false);
 
@@ -254,8 +237,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateWorktreeAsync_ShouldTriggerWorktreeCreateHook()
-    {
+    public async Task CreateWorktreeAsync_ShouldTriggerWorktreeCreateHook() {
         var agentId = "test-agent-hook";
         var session = CreateSession(agentId);
 
@@ -281,8 +263,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ForceRemoveWorktreeAsync_ShouldTriggerWorktreeRemoveHook()
-    {
+    public async Task ForceRemoveWorktreeAsync_ShouldTriggerWorktreeRemoveHook() {
         var agentId = "test-agent-hook-remove";
         var session = CreateSession(agentId);
 
@@ -310,8 +291,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task FullWorkflow_CreateAndCleanupUnchanged_ShouldRemoveWorktree()
-    {
+    public async Task FullWorkflow_CreateAndCleanupUnchanged_ShouldRemoveWorktree() {
         var agentId = "workflow-agent";
         var session = CreateSession(agentId);
 
@@ -335,8 +315,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task FullWorkflow_CreateAndCleanupWithChanges_ShouldKeepWorktree()
-    {
+    public async Task FullWorkflow_CreateAndCleanupWithChanges_ShouldKeepWorktree() {
         var agentId = "workflow-agent-changes";
         var session = CreateSession(agentId);
 
@@ -355,10 +334,8 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
         cleanup.Reason.Should().Be("has_changes");
     }
 
-    private static AgentWorktreeSession CreateSession(string agentId, bool hookBased = false)
-    {
-        return new AgentWorktreeSession
-        {
+    private static AgentWorktreeSession CreateSession(string agentId, bool hookBased = false) {
+        return new AgentWorktreeSession {
             AgentId = agentId,
             OriginalCwd = "/home/user/project",
             WorktreePath = $"/home/user/project/.jccode/worktrees/{agentId}",
@@ -372,8 +349,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
         };
     }
 
-    private sealed class NullLogger : ILogger
-    {
+    private sealed class NullLogger : ILogger {
         public static NullLogger Instance { get; } = new();
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
@@ -381,10 +357,8 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) { }
     }
 
-    private static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(IEnumerable<T> source)
-    {
-        foreach (var item in source)
-        {
+    private static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(IEnumerable<T> source) {
+        foreach (var item in source) {
             await Task.Yield();
             yield return item;
         }
@@ -392,8 +366,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public Task DisposeAsync()
-    {
+    public Task DisposeAsync() {
         _manager.DisposeSafe();
         return Task.CompletedTask;
     }

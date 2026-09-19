@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 搜索服务接口，提供 Glob 和 Grep 搜索功能
 /// </summary>
-public interface ISearchService
-{
+public interface ISearchService {
     /// <summary>
     /// Glob 搜索 - 根据文件模式查找文件
     /// </summary>

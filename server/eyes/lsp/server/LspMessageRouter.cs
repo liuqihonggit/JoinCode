@@ -4,8 +4,7 @@ namespace Services.Lsp;
 /// LSP 消息路由 — 封装请求ID生成、待响应请求管理、通知/请求处理器分发
 /// 从 LspClient 提取,纯消息路由无进程IO依赖,通过 sendJsonAsync 回调发送响应
 /// </summary>
-internal sealed class LspMessageRouter
-{
+internal sealed class LspMessageRouter {
     private int _requestId;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonNode?>> _pendingRequests = new();
     private readonly Dictionary<string, LspMethodHandler> _handlers = new(StringComparer.Ordinal);
@@ -14,26 +13,22 @@ internal sealed class LspMessageRouter
     public event EventHandler<(string Method, JsonNode? Params)>? NotificationReceived;
 
     /// <summary>注册通知处理程序</summary>
-    public void OnNotification(string method, Func<JsonNode?, CancellationToken, ValueTask> handler)
-    {
+    public void OnNotification(string method, Func<JsonNode?, CancellationToken, ValueTask> handler) {
         _handlers[method] = new LspMethodHandler(Notification: handler);
     }
 
     /// <summary>注册请求处理程序（服务器向客户端发起的请求）</summary>
-    public void OnRequest(string method, Func<string, JsonNode?, CancellationToken, ValueTask<JsonNode?>> handler)
-    {
+    public void OnRequest(string method, Func<string, JsonNode?, CancellationToken, ValueTask<JsonNode?>> handler) {
         _handlers[method] = new LspMethodHandler(Request: handler);
     }
 
     /// <summary>创建 JSON-RPC 请求 — 生成ID + 注册 pending + 序列化</summary>
-    public (string Id, TaskCompletionSource<JsonNode?> Tcs, string Json) CreateRequest(string method, JsonNode? @params)
-    {
+    public (string Id, TaskCompletionSource<JsonNode?> Tcs, string Json) CreateRequest(string method, JsonNode? @params) {
         var id = Interlocked.Increment(ref _requestId).ToString();
         var tcs = new TaskCompletionSource<JsonNode?>();
         _pendingRequests[id] = tcs;
 
-        var request = new LspJsonRpcRequest
-        {
+        var request = new LspJsonRpcRequest {
             Id = id,
             Method = method,
             Params = @params
@@ -56,36 +51,26 @@ internal sealed class LspMessageRouter
     /// <param name="cancellationToken">取消令牌</param>
     /// <param name="sendJsonAsync">发送 JSON 字符串的回调（用于发送响应）</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public async Task ProcessMessageAsync(string json, CancellationToken cancellationToken, Func<string, CancellationToken, Task> sendJsonAsync, ILogger? logger = null)
-    {
-        try
-        {
+    public async Task ProcessMessageAsync(string json, CancellationToken cancellationToken, Func<string, CancellationToken, Task> sendJsonAsync, ILogger? logger = null) {
+        try {
             var node = JsonNode.Parse(json);
             if (node is not JsonObject obj)
                 return;
 
-            if (obj.TryGetPropertyValue("id", out var idNode) && idNode is not null)
-            {
-                if (obj.TryGetPropertyValue("method", out var methodNode) && methodNode is not null)
-                {
+            if (obj.TryGetPropertyValue("id", out var idNode) && idNode is not null) {
+                if (obj.TryGetPropertyValue("method", out var methodNode) && methodNode is not null) {
                     var id = idNode.GetValue<string>();
                     var method = methodNode.GetValue<string>();
                     var @params = obj.TryGetPropertyValue("params", out var p) ? p : null;
 
-                    if (_handlers.TryGetValue(method, out var entry) && entry.Request is not null)
-                    {
-                        try
-                        {
+                    if (_handlers.TryGetValue(method, out var entry) && entry.Request is not null) {
+                        try {
                             var result = await entry.Request(id, @params, cancellationToken).ConfigureAwait(false);
                             await SendResponseAsync(id, result, null, cancellationToken, sendJsonAsync).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
+                        } catch (Exception ex) {
                             await SendResponseAsync(id, null, new LspJsonRpcError { Code = -32603, Message = ex.Message }, cancellationToken, sendJsonAsync).ConfigureAwait(false);
                         }
-                    }
-                    else
-                    {
+                    } else {
                         await SendResponseAsync(id, null, new LspJsonRpcError { Code = -32601, Message = $"Method not found: {method}" }, cancellationToken, sendJsonAsync).ConfigureAwait(false);
                     }
                     return;
@@ -94,57 +79,41 @@ internal sealed class LspMessageRouter
                 {
                     var id = idNode.GetValue<string>();
 
-                    if (_pendingRequests.TryGetValue(id, out var tcs))
-                    {
-                        if (obj.TryGetPropertyValue("result", out var resultNode))
-                        {
+                    if (_pendingRequests.TryGetValue(id, out var tcs)) {
+                        if (obj.TryGetPropertyValue("result", out var resultNode)) {
                             tcs.TrySetResult(resultNode);
-                        }
-                        else if (obj.TryGetPropertyValue("error", out var errorNode))
-                        {
+                        } else if (obj.TryGetPropertyValue("error", out var errorNode)) {
                             tcs.TrySetException(new InvalidOperationException($"LSP错误: {errorNode?.ToJsonString()}"));
-                        }
-                        else
-                        {
+                        } else {
                             tcs.TrySetResult(null);
                         }
 
                         _pendingRequests.TryRemove(id, out _);
                     }
                 }
-            }
-            else if (obj.TryGetPropertyValue("method", out var notifMethodNode) && notifMethodNode is not null)
-            {
+            } else if (obj.TryGetPropertyValue("method", out var notifMethodNode) && notifMethodNode is not null) {
                 var method = notifMethodNode.GetValue<string>();
                 var @params = obj.TryGetPropertyValue("params", out var p) ? p : null;
 
                 NotificationReceived?.Invoke(this, (method, @params));
 
-                if (_handlers.TryGetValue(method, out var entry) && entry.Notification is not null)
-                {
+                if (_handlers.TryGetValue(method, out var entry) && entry.Notification is not null) {
                     await entry.Notification(@params, cancellationToken).ConfigureAwait(false);
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogError(ex, "处理LSP消息失败: {Json}", json[..Math.Min(200, json.Length)]);
         }
     }
 
-    private static async Task SendResponseAsync(string id, JsonNode? result, LspJsonRpcError? error, CancellationToken cancellationToken, Func<string, CancellationToken, Task> sendJsonAsync)
-    {
-        var response = new Dictionary<string, JsonElement>
-        {
+    private static async Task SendResponseAsync(string id, JsonNode? result, LspJsonRpcError? error, CancellationToken cancellationToken, Func<string, CancellationToken, Task> sendJsonAsync) {
+        var response = new Dictionary<string, JsonElement> {
             ["jsonrpc"] = JsonElementHelper.FromString("2.0"),
             ["id"] = JsonElementHelper.FromString(id)
         };
-        if (error != null)
-        {
+        if (error != null) {
             response["error"] = JsonElementHelper.FromObject(error, LspJsonContext.Default.LspJsonRpcError);
-        }
-        else
-        {
+        } else {
             response["result"] = result is null
                 ? JsonElementHelper.NullElement()
                 : JsonNodeToElement(result);
@@ -154,8 +123,7 @@ internal sealed class LspMessageRouter
         await sendJsonAsync(json, cancellationToken).ConfigureAwait(false);
     }
 
-    private static JsonElement JsonNodeToElement(JsonNode node)
-    {
+    private static JsonElement JsonNodeToElement(JsonNode node) {
         using var doc = JsonDocument.Parse(node.ToJsonString());
         return doc.RootElement.Clone();
     }

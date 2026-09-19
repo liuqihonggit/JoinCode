@@ -5,8 +5,7 @@ namespace State;
 /// 对齐 TS 版 ConfigTool 中 context.setAppState({ [appStateKey]: finalValue }) 的热更新机制
 /// </summary>
 [Register(typeof(AppStateSettingSyncService), ServiceLifetime.Singleton)]
-public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposable
-{
+public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposable {
     private readonly IConfigurationService _configurationService;
     private readonly IStore<AppState> _store;
     private readonly ILogger<AppStateSettingSyncService>? _logger;
@@ -16,8 +15,7 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
     /// AppStateKey 到 AppState 字段的映射
     /// 对齐 TS 版 ConfigTool supportedSettings 中的 appStateKey 定义
     /// </summary>
-    private static readonly Dictionary<string, Func<AppState, string?, AppState>> s_appStateKeyMappers = new()
-    {
+    private static readonly Dictionary<string, Func<AppState, string?, AppState>> s_appStateKeyMappers = new() {
         ["DebugLog"] = (state, value) => state with { Config = state.Config with { DebugLog = value == "true" } },
         ["ThinkingEnabled"] = (state, value) => state with { Config = state.Config with { ThinkingEnabled = value == "true" } },
         ["MainLoopModel"] = (state, value) => state with { Session = state.Session with { CurrentModel = value } },
@@ -32,8 +30,7 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
     public AppStateSettingSyncService(
         IConfigurationService configurationService,
         IStore<AppState> store,
-        ILogger<AppStateSettingSyncService>? logger = null)
-    {
+        ILogger<AppStateSettingSyncService>? logger = null) {
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _logger = logger;
@@ -41,19 +38,16 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
         _configurationService.SettingChanged += OnSettingChanged;
     }
 
-    private void OnSettingChanged(object? sender, SettingChangeEventArgs e)
-    {
+    private void OnSettingChanged(object? sender, SettingChangeEventArgs e) {
         if (string.IsNullOrEmpty(e.AppStateKey))
             return;
 
-        if (!s_appStateKeyMappers.TryGetValue(e.AppStateKey, out var mapper))
-        {
+        if (!s_appStateKeyMappers.TryGetValue(e.AppStateKey, out var mapper)) {
             _logger?.LogDebug("未识别的 AppStateKey: {AppStateKey}，跳过同步", e.AppStateKey);
             return;
         }
 
-        _store.SetState(state =>
-        {
+        _store.SetState(state => {
             var newState = mapper(state, e.NewValue);
             if (ReferenceEquals(newState, state))
                 return state;
@@ -66,12 +60,11 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
     /// <summary>
     /// 取消订阅配置变更事件。
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
 
         _configurationService.SettingChanged -= OnSettingChanged;
-            base.Dispose();
+        base.Dispose();
     }
 }

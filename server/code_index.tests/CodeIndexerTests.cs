@@ -1,21 +1,18 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class CodeIndexerTests : IDisposable
-{
+public sealed class CodeIndexerTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
     private readonly IFileSystem _fs;
     private bool _disposed;
 
-    public CodeIndexerTests()
-    {
+    public CodeIndexerTests() {
         _store = new InMemoryIndexStore();
         _fs = new IO.FileSystem.InMemoryFileSystem();
         _indexer = new CodeIndexer(_store, _fs);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _indexer.DisposeSafe();
@@ -23,88 +20,74 @@ public sealed class CodeIndexerTests : IDisposable
     }
 
     [Fact]
-    public async Task BuildIndexAsync_EmptyDirectory_CompletesWithZeroFiles()
-    {
+    public async Task BuildIndexAsync_EmptyDirectory_CompletesWithZeroFiles() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_SingleCsFile_IndexesSymbols()
-    {
+    public async Task BuildIndexAsync_SingleCsFile_IndexesSymbols() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_MultipleCsFiles_IndexesAll()
-    {
+    public async Task BuildIndexAsync_MultipleCsFiles_IndexesAll() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_ExcludesBinObjDirectories()
-    {
+    public async Task BuildIndexAsync_ExcludesBinObjDirectories() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_SecondRun_SkipsUnchangedFiles()
-    {
+    public async Task BuildIndexAsync_SecondRun_SkipsUnchangedFiles() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_SecondRun_ReindexesModifiedFiles()
-    {
+    public async Task BuildIndexAsync_SecondRun_ReindexesModifiedFiles() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_RemovesDeletedFilesFromIndex()
-    {
+    public async Task BuildIndexAsync_RemovesDeletedFilesFromIndex() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_ProgressCallback_ReportsProgress()
-    {
+    public async Task BuildIndexAsync_ProgressCallback_ReportsProgress() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task UpdateFileAsync_DelegatesToIncrementalUpdater()
-    {
+    public async Task UpdateFileAsync_DelegatesToIncrementalUpdater() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task RemoveFileAsync_DelegatesToSymbolIndex()
-    {
+    public async Task RemoveFileAsync_DelegatesToSymbolIndex() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task Searcher_ReturnsSymbolSearcher()
-    {
+    public async Task Searcher_ReturnsSymbolSearcher() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task CallGraph_ReturnsCallGraphInstance()
-    {
+    public async Task CallGraph_ReturnsCallGraphInstance() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task DependencyGraph_ReturnsDependencyGraphInstance()
-    {
+    public async Task DependencyGraph_ReturnsDependencyGraphInstance() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     // ============ SearchComprehensiveAsync (rg+AST 综合检索) ============
 
     [Fact]
-    public async Task SearchComprehensiveAsync_ReturnsMatchedSymbolsAndCallers()
-    {
+    public async Task SearchComprehensiveAsync_ReturnsMatchedSymbolsAndCallers() {
         InsertSymbol(CreateSymbol("ProcessOrder", "App.Services.ProcessOrder", SymbolKind.Method, "svc.cs"));
         InsertSymbol(CreateSymbol("SaveOrder", "App.Services.SaveOrder", SymbolKind.Method, "svc.cs"));
 
@@ -119,8 +102,7 @@ public sealed class CodeIndexerTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchComprehensiveAsync_ReturnsCallees()
-    {
+    public async Task SearchComprehensiveAsync_ReturnsCallees() {
         InsertSymbol(CreateSymbol("ProcessOrder", "App.Services.ProcessOrder", SymbolKind.Method, "svc.cs"));
         InsertCallEdge("ProcessOrder", "ValidateInput", "svc.cs", 10, CallKind.Direct);
         InsertCallEdge("ProcessOrder", "SaveData", "svc.cs", 15, CallKind.Direct);
@@ -134,8 +116,7 @@ public sealed class CodeIndexerTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchComprehensiveAsync_NoMatches_ReturnsEmpty()
-    {
+    public async Task SearchComprehensiveAsync_NoMatches_ReturnsEmpty() {
         InsertSymbol(CreateSymbol("Foo", "App.Foo", SymbolKind.Method, "a.cs"));
 
         var result = await _indexer.SearchComprehensiveAsync("NonExistent", 1000, CancellationToken.None).ConfigureAwait(true);
@@ -147,11 +128,9 @@ public sealed class CodeIndexerTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchComprehensiveAsync_RespectsTokenBudget()
-    {
+    public async Task SearchComprehensiveAsync_RespectsTokenBudget() {
         // 插入多个匹配符号,超过小 token 预算
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             InsertSymbol(CreateSymbol($"Process{i}", $"App.Services.Process{i}", SymbolKind.Method, $"f{i}.cs"));
         }
 
@@ -162,8 +141,7 @@ public sealed class CodeIndexerTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchComprehensiveAsync_NullPattern_Throws()
-    {
+    public async Task SearchComprehensiveAsync_NullPattern_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _indexer.SearchComprehensiveAsync(null!, 1000, CancellationToken.None)).ConfigureAwait(true);
     }
@@ -175,11 +153,9 @@ public sealed class CodeIndexerTests : IDisposable
     /// 但 TotalMatchedCount 暴露真实总数 150,LLM 可据此判断是否被候选上限截断
     /// </summary>
     [Fact]
-    public async Task SearchComprehensiveAsync_Exceeds100CandidateLimit_ExposesTotalCount()
-    {
+    public async Task SearchComprehensiveAsync_Exceeds100CandidateLimit_ExposesTotalCount() {
         // 插入 150 个匹配 "Foo" 的符号
-        for (var i = 0; i < 150; i++)
-        {
+        for (var i = 0; i < 150; i++) {
             InsertSymbol(CreateSymbol($"Foo{i}", $"App.Ns.Foo{i}", SymbolKind.Method, $"f{i}.cs"));
         }
 
@@ -198,8 +174,7 @@ public sealed class CodeIndexerTests : IDisposable
     /// 而非同名符号定义 — 对重命名操作,LLM 可直接用 References 定位所有需要更新的调用点
     /// </summary>
     [Fact]
-    public async Task SearchComprehensiveAsync_References_ReturnsCallSites_NotSameNameDefinitions()
-    {
+    public async Task SearchComprehensiveAsync_References_ReturnsCallSites_NotSameNameDefinitions() {
         // 插入目标符号 BuildIndex
         InsertSymbol(CreateSymbol("BuildIndex", "App.BuildIndex", SymbolKind.Method, "core.cs"));
 
@@ -228,11 +203,9 @@ public sealed class CodeIndexerTests : IDisposable
     /// 且 TruncatedCount 应反映被截断的条目数
     /// </summary>
     [Fact]
-    public async Task SearchComprehensiveAsync_TruncationPriority_MatchedFirst()
-    {
+    public async Task SearchComprehensiveAsync_TruncationPriority_MatchedFirst() {
         // 插入多个匹配符号 + 引用 + 调用方/被调用方
-        for (var i = 0; i < 10; i++)
-        {
+        for (var i = 0; i < 10; i++) {
             InsertSymbol(CreateSymbol($"Match{i}", $"App.Match{i}", SymbolKind.Method, $"m{i}.cs"));
             InsertSymbol(CreateSymbol($"Match{i}", $"Other.Match{i}", SymbolKind.Method, $"o{i}.cs"));
             InsertCallEdge($"Caller{i}", $"Match{i}", $"c{i}.cs", 5, CallKind.Direct);
@@ -252,8 +225,7 @@ public sealed class CodeIndexerTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchComprehensiveAsync_IncludeAstFalse_SkipsReferencesAndCallGraph()
-    {
+    public async Task SearchComprehensiveAsync_IncludeAstFalse_SkipsReferencesAndCallGraph() {
         InsertSymbol(CreateSymbol("ProcessOrder", "App.Services.ProcessOrder", SymbolKind.Method, "svc.cs"));
         InsertCallEdge("HandleRequest", "ProcessOrder", "handler.cs", 10, CallKind.Direct);
         InsertCallEdge("ProcessOrder", "ValidateInput", "svc.cs", 15, CallKind.Direct);
@@ -269,10 +241,8 @@ public sealed class CodeIndexerTests : IDisposable
 
     // ============ 测试辅助方法 ============
 
-    private static SymbolInfo CreateSymbol(string name, string fqn, SymbolKind kind, string file)
-    {
-        return new SymbolInfo
-        {
+    private static SymbolInfo CreateSymbol(string name, string fqn, SymbolKind kind, string file) {
+        return new SymbolInfo {
             Name = name,
             FullyQualifiedName = fqn,
             Kind = kind,
@@ -284,18 +254,15 @@ public sealed class CodeIndexerTests : IDisposable
         };
     }
 
-    private void InsertSymbol(SymbolInfo symbol)
-    {
+    private void InsertSymbol(SymbolInfo symbol) {
         _store.SymbolsByFqn[symbol.FullyQualifiedName] = symbol;
         AddToBucket(_store.SymbolsByName, symbol.Name, symbol);
         AddToBucket(_store.SymbolsByFile, symbol.FilePath, symbol);
         AddToBucket(_store.SymbolsByKind, symbol.Kind, symbol);
     }
 
-    private void InsertCallEdge(string caller, string callee, string file, int line, CallKind kind)
-    {
-        var edge = new CallEdge
-        {
+    private void InsertCallEdge(string caller, string callee, string file, int line, CallKind kind) {
+        var edge = new CallEdge {
             CallerSymbol = caller,
             CalleeSymbol = callee,
             CallSiteFilePath = file,
@@ -308,10 +275,8 @@ public sealed class CodeIndexerTests : IDisposable
         AddToBucket(_store.CallsByFile, file, edge);
     }
 
-    private static void AddToBucket<TKey, TValue>(Dictionary<TKey, List<TValue>> dict, TKey key, TValue value) where TKey : notnull
-    {
-        if (!dict.TryGetValue(key, out var list))
-        {
+    private static void AddToBucket<TKey, TValue>(Dictionary<TKey, List<TValue>> dict, TKey key, TValue value) where TKey : notnull {
+        if (!dict.TryGetValue(key, out var list)) {
             list = new List<TValue>();
             dict[key] = list;
         }

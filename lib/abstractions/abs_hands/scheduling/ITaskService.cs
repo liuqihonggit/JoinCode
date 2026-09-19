@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 任务服务接口 — 任务的数据管理层（CRUD、依赖关系、状态查询）
 /// 关系: IAgentLifecycleManager (07-agents) 是任务的运行时协调层（并行/批量执行），后者依赖前者
 /// </summary>
-public interface ITaskService : IDisposable
-{
+public interface ITaskService : IDisposable {
     /// <summary>
     /// 创建任务
     /// </summary>

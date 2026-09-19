@@ -6,16 +6,14 @@ namespace McpToolRegistry;
 /// 零侵入：所有经过管道的异常自动被记录，无需修改任何组件
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class CrashSnapshotMiddleware : ServiceEntity, IToolExecutionMiddleware
-{
+public sealed partial class CrashSnapshotMiddleware : ServiceEntity, IToolExecutionMiddleware {
     private readonly ICrashSnapshotStore _store;
 
     /// <summary>
     /// 构造函数 — 注入崩溃快照存储
     /// </summary>
     /// <param name="store">崩溃快照存储实例，用于持久化工具执行失败快照</param>
-    public CrashSnapshotMiddleware(ICrashSnapshotStore store)
-    {
+    public CrashSnapshotMiddleware(ICrashSnapshotStore store) {
         _store = store;
     }
 
@@ -31,19 +29,16 @@ public sealed partial class CrashSnapshotMiddleware : ServiceEntity, IToolExecut
     /// <param name="next">下一层中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct) {
         await next(context, ct).ConfigureAwait(false);
 
-        if (context.Result is { IsError: true })
-        {
+        if (context.Result is { IsError: true }) {
             var errorMsg = context.Result.GetFirstText();
             var snapshot = new CrashSnapshot(
                 "ToolPipeline",
                 CrashSeverity.Error,
                 new InvalidOperationException(errorMsg ?? "工具执行失败"),
-                new CrashExecutionContext
-                {
+                new CrashExecutionContext {
                     ToolName = context.ToolName,
                     OperationName = "ToolPipeline",
                 });

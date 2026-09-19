@@ -3,11 +3,9 @@ namespace Hands.Tests.Build;
 /// <summary>
 /// BuildQueueRouter 单元测试 — 验证多 Worker 并行编译、提交/等待/取消/查询。
 /// </summary>
-public class BuildQueueRouterTests
-{
+public class BuildQueueRouterTests {
     [Fact]
-    public async Task SubmitAsync_ReturnsBuildId()
-    {
+    public async Task SubmitAsync_ReturnsBuildId() {
         var sut = CreateSut();
         var request = CreateRequest();
 
@@ -18,8 +16,7 @@ public class BuildQueueRouterTests
     }
 
     [Fact]
-    public async Task WaitAsync_ReturnsResult_WhenBuildCompletes()
-    {
+    public async Task WaitAsync_ReturnsResult_WhenBuildCompletes() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -38,8 +35,7 @@ public class BuildQueueRouterTests
     }
 
     [Fact]
-    public async Task WaitAsync_ReturnsFailedResult_WhenBuildFails()
-    {
+    public async Task WaitAsync_ReturnsFailedResult_WhenBuildFails() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -56,14 +52,12 @@ public class BuildQueueRouterTests
     }
 
     [Fact]
-    public async Task MultipleBuilds_ParallelExecution_WithMultipleWorkers()
-    {
+    public async Task MultipleBuilds_ParallelExecution_WithMultipleWorkers() {
         var buildDelay = TimeSpan.FromMilliseconds(200);
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .Returns(async (string _, int? _, string? _, bool _, CancellationToken ct) =>
-            {
+            .Returns(async (string _, int? _, string? _, bool _, CancellationToken ct) => {
                 await Task.Delay(buildDelay, ct).ConfigureAwait(true);
                 return SystemActuatorExecutionResult.SuccessResult("ok", "");
             });
@@ -72,14 +66,12 @@ public class BuildQueueRouterTests
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var buildIds = new List<string>();
-        for (var i = 0; i < 3; i++)
-        {
+        for (var i = 0; i < 3; i++) {
             var id = await sut.SubmitAsync(CreateRequest($"build {i}"), CancellationToken.None).ConfigureAwait(true);
             buildIds.Add(id);
         }
 
-        foreach (var id in buildIds)
-        {
+        foreach (var id in buildIds) {
             var result = await sut.WaitAsync(id, CancellationToken.None).ConfigureAwait(true);
             result.ExitCode.Should().Be(0);
         }
@@ -90,8 +82,7 @@ public class BuildQueueRouterTests
     }
 
     [Fact]
-    public async Task CancelAsync_BuildingBuild_ReturnsTrue()
-    {
+    public async Task CancelAsync_BuildingBuild_ReturnsTrue() {
         var buildTcs = new TaskCompletionSource<SystemActuatorExecutionResult>();
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
@@ -114,8 +105,7 @@ public class BuildQueueRouterTests
     }
 
     [Fact]
-    public async Task CancelAsync_NonExistentBuild_ReturnsFalse()
-    {
+    public async Task CancelAsync_NonExistentBuild_ReturnsFalse() {
         var sut = CreateSut();
 
         var cancelled = await sut.CancelAsync("nonexistent", CancellationToken.None).ConfigureAwait(true);
@@ -124,8 +114,7 @@ public class BuildQueueRouterTests
     }
 
     [Fact]
-    public async Task GetBuild_ReturnsEntry()
-    {
+    public async Task GetBuild_ReturnsEntry() {
         var sut = CreateSut();
         var buildId = await sut.SubmitAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(true);
 
@@ -136,8 +125,7 @@ public class BuildQueueRouterTests
     }
 
     [Fact]
-    public async Task GetStatus_ReturnsCorrectStatus()
-    {
+    public async Task GetStatus_ReturnsCorrectStatus() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -156,8 +144,7 @@ public class BuildQueueRouterTests
     }
 
     [Fact]
-    public async Task GetOutputRange_ReturnsSpecifiedLines()
-    {
+    public async Task GetOutputRange_ReturnsSpecifiedLines() {
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -173,8 +160,7 @@ public class BuildQueueRouterTests
     }
 
     [Fact]
-    public async Task DisposeAsync_DisposesResources()
-    {
+    public async Task DisposeAsync_DisposesResources() {
         var sut = CreateSut();
         await sut.SubmitAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(true);
 
@@ -188,8 +174,7 @@ public class BuildQueueRouterTests
         ISystemActuator? actuator = null,
         int workerCount = 2,
         IPreventSleepService? preventSleepService = null,
-        ILogger<BuildQueueRouter>? logger = null)
-    {
+        ILogger<BuildQueueRouter>? logger = null) {
         var actuatorMock = actuator ?? Mock.Of<ISystemActuator>();
         var registryMock = new Mock<ISystemActuatorRegistry>();
         registryMock.Setup(r => r.Get(It.IsAny<SystemActuatorKind>())).Returns(actuatorMock);
@@ -200,10 +185,8 @@ public class BuildQueueRouterTests
             logger: logger);
     }
 
-    private static BuildRequest CreateRequest(string? command = null, string? agentId = null)
-    {
-        return new BuildRequest
-        {
+    private static BuildRequest CreateRequest(string? command = null, string? agentId = null) {
+        return new BuildRequest {
             Command = command ?? "dotnet build JoinCode.slnx -c Release",
             AgentId = agentId ?? "test-agent",
         };

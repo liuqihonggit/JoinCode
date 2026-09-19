@@ -20,8 +20,7 @@ public sealed record GetPlanHistoryCmd(
 /// 计划模式管理器实现
 /// </summary>
 [Register(typeof(IPlanModeManager), ServiceLifetime.Singleton)]
-public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
-{
+public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable {
     private readonly ConcurrentDictionary<string, PlanState> _plans = new();
     private readonly List<PlanState> _planHistory = new();
     private readonly PlanHistoryActor _actor;
@@ -39,22 +38,19 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     private readonly SessionPlanState _fallbackState = new();
     private const string PlanStateKey = "plan_state";
 
-    private SessionPlanState CurrentSessionState()
-    {
+    private SessionPlanState CurrentSessionState() {
         var sessionId = SessionContext.Current;
         if (sessionId is null) return _fallbackState;
         var scope = SessionRouter.GetOrCreateScope(sessionId.Value);
         var state = scope.Cache.Get<SessionPlanState>(PlanStateKey);
-        if (state is null)
-        {
+        if (state is null) {
             state = new SessionPlanState();
             scope.Cache.Set(PlanStateKey, state);
         }
         return state;
     }
 
-    private sealed class SessionPlanState
-    {
+    private sealed class SessionPlanState {
         public string? CurrentSessionSlug { get; set; }
         public PermissionMode? PrePlanMode { get; set; }
         public int StrippedRuleCount { get; set; }
@@ -79,8 +75,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// <param name="mailboxService">队友邮箱服务（可选，用于 teammate 审批流程）</param>
     /// <param name="subAgentContextAccessor">子 Agent 上下文访问器（可选）</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public PlanModeManager(IFileSystem fs, IClockService clock, ITelemetryService? telemetryService = null, IToolPermissionManager? permissionManager = null, ITeammateMailboxService? mailboxService = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<PlanModeManager>? logger = null)
-    {
+    public PlanModeManager(IFileSystem fs, IClockService clock, ITelemetryService? telemetryService = null, IToolPermissionManager? permissionManager = null, ITeammateMailboxService? mailboxService = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<PlanModeManager>? logger = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
 
@@ -101,8 +96,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// <summary>
     /// 当前计划ID
     /// </summary>
-    public string? CurrentPlanId
-    {
+    public string? CurrentPlanId {
         get => CurrentSessionState().CurrentPlanId;
         private set => CurrentSessionState().CurrentPlanId = value;
     }
@@ -137,26 +131,22 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     public async Task<PlanOperationResult> EnterPlanModeAsync(
         string? description = null,
         List<PlanStepInput>? initialSteps = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 跨进程持久化: 从文件恢复活跃 plan 状态
         await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
 
         // 对齐 TS: 禁止在 Agent 上下文中进入计划模式
-        if (_subAgentContextAccessor.Current != null)
-        {
+        if (_subAgentContextAccessor.Current != null) {
             return new PlanOperationResult(false, null, $"{PlanToolNameEnumConstants.EnterPlanMode} tool cannot be used in agent contexts");
         }
 
         // 如果已经在计划模式，先退出当前计划
-        if (IsInPlanMode && CurrentPlanId != null)
-        {
+        if (IsInPlanMode && CurrentPlanId != null) {
             await ExitPlanModeAsync(false, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         var planId = GeneratePlanId();
-        var steps = initialSteps?.Select((input, index) => new PlanStep
-        {
+        var steps = initialSteps?.Select((input, index) => new PlanStep {
             Index = index,
             Description = input.Description,
             ToolName = input.ToolName,
@@ -171,8 +161,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         sessionState.CurrentSessionSlug ??= PlanSlugGenerator.GetOrCreateSlug(
             $"session_{flowId}_{_clock.GetUtcNow():yyyyMMddHHmmss}", _fs, _logger);
 
-        var plan = new PlanState
-        {
+        var plan = new PlanState {
             PlanId = planId,
             Description = description,
             Status = PlanStatus.Draft,
@@ -194,14 +183,12 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
 
         // 对齐 TS: 保存当前权限模式并切换到 Plan 模式
-        if (_permissionManager != null)
-        {
+        if (_permissionManager != null) {
             CurrentSessionState().PrePlanMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
             await _permissionManager.SetPermissionModeAsync(PermissionMode.Plan, cancellationToken).ConfigureAwait(false);
 
             // 对齐 TS: 从 Auto 模式进入 Plan 时剥离危险权限规则
-            if (CurrentSessionState().PrePlanMode == PermissionMode.Auto)
-            {
+            if (CurrentSessionState().PrePlanMode == PermissionMode.Auto) {
                 CurrentSessionState().StrippedRuleCount = await _permissionManager.StripDangerousRulesAsync(cancellationToken).ConfigureAwait(false);
             }
         }
@@ -216,14 +203,12 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     public async Task<PlanOperationResult> ExitPlanModeAsync(
         bool executeRemainingSteps = false,
         AllowedPrompt[]? allowedPrompts = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 跨进程持久化: 从文件恢复活跃 plan 状态
         await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
 
         // 对齐 TS validateInput: 非plan模式拒绝调用 ExitPlanMode
-        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
-        {
+        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan)) {
             // 对齐 TS 遥测: 记录在非plan模式下调用ExitPlanMode
             _telemetryService?.RecordCount("plan.exit_called_outside_plan", description: $"{PlanToolNameEnumConstants.ExitPlanMode} called outside plan mode");
             return new PlanOperationResult(false, null, "Not currently in plan mode. Enter plan mode first before exiting.");
@@ -231,11 +216,9 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         // 对齐 TS validateInput: 检查当前权限模式必须是 Plan
         // 跨进程持久化场景: MCP 工具调用是独立进程，权限模式不保持，跳过检查
-        if (_permissionManager != null && !TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (_permissionManager != null && !TestEnvironmentDetector.IsNonInteractive) {
             var currentMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
-            if (currentMode != PermissionMode.Plan)
-            {
+            if (currentMode != PermissionMode.Plan) {
                 return new PlanOperationResult(false, null, "Current permission mode is not plan. Cannot exit plan mode.");
             }
         }
@@ -245,14 +228,12 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         // 只有 planModeRequired 的 teammate 才走审批，自愿进入 PlanMode 的 teammate 直接本地退出
         var agentContext = _subAgentContextAccessor.Current;
         var isPlanModeRequired = agentContext?.TeammateMeta?.PlanModeRequired == true;
-        if (agentContext != null && _mailboxService != null && isPlanModeRequired)
-        {
+        if (agentContext != null && _mailboxService != null && isPlanModeRequired) {
             var planContent = PlanFileStore.FormatPlanAsMarkdown(plan);
             var requestId = $"plan_approval_{agentContext.AgentId}_{_clock.GetUtcNow():yyyyMMddHHmmss}";
 
             // 构建审批请求消息 — 对齐 TS PlanApprovalRequestMessageSchema
-            var requestMessage = new PlanApprovalRequestMessage
-            {
+            var requestMessage = new PlanApprovalRequestMessage {
                 From = agentContext.AgentId,
                 Timestamp = _clock.GetUtcNow().ToString("o"),
                 PlanFilePath = plan.PlanFilePath ?? "",
@@ -264,11 +245,9 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
             var tcs = new TaskCompletionSource<PlanApprovalResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
             _pendingApprovals[requestId] = tcs;
 
-            try
-            {
+            try {
                 // 发送审批请求
-                await _mailboxService.SendAsync(new MailboxSendRequest
-                {
+                await _mailboxService.SendAsync(new MailboxSendRequest {
                     FromAgentId = agentContext.AgentId,
                     ToAgentId = "team-lead",
                     MessageType = TeammateMessageTypeEnumConstants.PlanApprovalRequest,
@@ -279,14 +258,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
                 RecordPlanMetrics("exit_approval_requested", true);
 
                 // 对齐 TS: 返回 awaitingLeaderApproval 状态，告知 teammate 等待审批
-                return new PlanOperationResult(true, plan, "Plan approval request sent to team lead. Awaiting approval before proceeding.")
-                {
+                return new PlanOperationResult(true, plan, "Plan approval request sent to team lead. Awaiting approval before proceeding.") {
                     AwaitingLeaderApproval = true,
                     ApprovalRequestId = requestId
                 };
-            }
-            catch
-            {
+            } catch {
                 // 发送失败时清理等待
                 _pendingApprovals.TryRemove(requestId, out _);
                 throw;
@@ -294,8 +270,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         }
 
         // 如果需要，执行剩余步骤
-        if (executeRemainingSteps)
-        {
+        if (executeRemainingSteps) {
             await ExecuteApprovedStepsAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -322,19 +297,16 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         // 对齐 TS: 恢复进入 Plan 模式前的权限模式
         var sessionState = CurrentSessionState();
-        if (_permissionManager != null && sessionState.PrePlanMode.HasValue)
-        {
+        if (_permissionManager != null && sessionState.PrePlanMode.HasValue) {
             var restoreMode = sessionState.PrePlanMode.Value;
 
             // 对齐 TS Auto模式断路器: 如果之前是 Auto 模式，检查是否仍可恢复
             // TS 版 isAutoModeGateEnabled: 如果断路器触发，回退到 Default 而非 Auto
-            if (restoreMode == PermissionMode.Auto)
-            {
+            if (restoreMode == PermissionMode.Auto) {
                 // 检查 auto mode gate 是否仍然开启
                 // 如果用户在 plan 模式期间手动关闭了 auto mode，则回退到 Default
                 var autoModeEnabled = await IsAutoModeGateEnabledAsync(cancellationToken).ConfigureAwait(false);
-                if (!autoModeEnabled)
-                {
+                if (!autoModeEnabled) {
                     restoreMode = PermissionMode.Auto;
                     _logger?.LogWarning("计划模式期间 auto mode gate 被禁用，回退到 Auto 模式");
                 }
@@ -344,8 +316,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
             sessionState.PrePlanMode = null;
 
             // 对齐 TS: 恢复之前剥离的危险权限规则
-            if (sessionState.StrippedRuleCount > 0)
-            {
+            if (sessionState.StrippedRuleCount > 0) {
                 await _permissionManager.RestoreDangerousRulesAsync(sessionState.StrippedRuleCount, cancellationToken).ConfigureAwait(false);
                 sessionState.StrippedRuleCount = 0;
             }
@@ -353,8 +324,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         // 对齐 TS allowedPrompts: 退出plan后注册语义级Bash权限
         // 允许LLM在退出plan时请求特定Bash命令的自动批准（如"run tests"、"install dependencies"）
-        if (allowedPrompts != null && allowedPrompts.Length > 0 && _permissionManager != null)
-        {
+        if (allowedPrompts != null && allowedPrompts.Length > 0 && _permissionManager != null) {
             await Task.WhenAll(allowedPrompts.Select(ap =>
                 _permissionManager.AddAllowedPromptAsync(ap.Prompt, cancellationToken))).ConfigureAwait(false);
         }
@@ -370,13 +340,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// <summary>
     /// 获取当前计划状态
     /// </summary>
-    public async Task<PlanState?> GetPlanStatusAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<PlanState?> GetPlanStatusAsync(CancellationToken cancellationToken = default) {
         // 跨进程持久化: 从文件恢复活跃 plan 状态
         await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
 
-        if (CurrentPlanId == null)
-        {
+        if (CurrentPlanId == null) {
             return null;
         }
 
@@ -391,18 +359,15 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         string description,
         string? toolName = null,
         Dictionary<string, JsonElement>? parameters = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 跨进程持久化: 从文件恢复活跃 plan 状态
         await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
 
-        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
-        {
+        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan)) {
             return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
-        var step = new PlanStep
-        {
+        var step = new PlanStep {
             Index = plan.Steps.Count,
             Description = description,
             ToolName = toolName,
@@ -424,24 +389,20 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// </summary>
     public async Task<PlanOperationResult> ApproveStepAsync(
         int stepIndex,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 跨进程持久化: 从文件恢复活跃 plan 状态
         await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
 
-        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
-        {
+        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan)) {
             return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
-        if (stepIndex < 0 || stepIndex >= plan.Steps.Count)
-        {
+        if (stepIndex < 0 || stepIndex >= plan.Steps.Count) {
             return new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效");
         }
 
         var step = plan.Steps[stepIndex];
-        if (step.Status != PlanStepStatus.Pending && step.Status != PlanStepStatus.Rejected)
-        {
+        if (step.Status != PlanStepStatus.Pending && step.Status != PlanStepStatus.Rejected) {
             return new PlanOperationResult(false, plan, $"步骤 {stepIndex} 状态为 {step.Status}，无法批准");
         }
 
@@ -461,24 +422,20 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     public async Task<PlanOperationResult> RejectStepAsync(
         int stepIndex,
         string? reason = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 跨进程持久化: 从文件恢复活跃 plan 状态
         await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
 
-        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
-        {
+        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan)) {
             return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
-        if (stepIndex < 0 || stepIndex >= plan.Steps.Count)
-        {
+        if (stepIndex < 0 || stepIndex >= plan.Steps.Count) {
             return new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效");
         }
 
         var step = plan.Steps[stepIndex];
-        if (step.Status == PlanStepStatus.Completed || step.Status == PlanStepStatus.Executing)
-        {
+        if (step.Status == PlanStepStatus.Completed || step.Status == PlanStepStatus.Executing) {
             return new PlanOperationResult(false, plan, $"步骤 {stepIndex} 已在执行或完成，无法拒绝");
         }
 
@@ -495,30 +452,25 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// <summary>
     /// 执行已批准的步骤
     /// </summary>
-    public async Task<PlanOperationResult> ExecuteApprovedStepsAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<PlanOperationResult> ExecuteApprovedStepsAsync(CancellationToken cancellationToken = default) {
         // 跨进程持久化: 从文件恢复活跃 plan 状态
         await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
 
-        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
-        {
+        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan)) {
             return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
         plan.Status = PlanStatus.Executing;
         var results = new List<string>();
 
-        for (int i = plan.CurrentStepIndex; i < plan.Steps.Count; i++)
-        {
+        for (int i = plan.CurrentStepIndex; i < plan.Steps.Count; i++) {
             var step = plan.Steps[i];
 
-            if (step.Status == PlanStepStatus.Approved)
-            {
+            if (step.Status == PlanStepStatus.Approved) {
                 step.Status = PlanStepStatus.Executing;
                 var startTime = _clock.GetUtcNow();
 
-                try
-                {
+                try {
                     // 模拟执行步骤（实际实现中这里会调用相应的工具）
                     var result = ExecuteStep(step);
 
@@ -528,9 +480,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
                     step.ExecutionTimeMs = (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds;
 
                     results.Add($"步骤 {i}: 成功 - {result}");
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     step.Status = PlanStepStatus.Failed;
                     step.ExecutionResult = $"错误: {ex.Message}";
                     results.Add($"步骤 {i}: 失败 - {ex.Message}");
@@ -543,9 +493,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
                     return new PlanOperationResult(false, plan, $"步骤 {i} 执行失败", string.Join("\n", results));
                 }
-            }
-            else if (step.Status == PlanStepStatus.Pending)
-            {
+            } else if (step.Status == PlanStepStatus.Pending) {
                 // 遇到未批准的步骤，停止执行
                 break;
             }
@@ -554,8 +502,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         }
 
         // 检查是否所有步骤都已完成
-        if (plan.Steps.All(s => s.IsCompleted || s.Status == PlanStepStatus.Rejected || s.Status == PlanStepStatus.Skipped))
-        {
+        if (plan.Steps.All(s => s.IsCompleted || s.Status == PlanStepStatus.Rejected || s.Status == PlanStepStatus.Skipped)) {
             plan.Status = PlanStatus.Completed;
             plan.CompletedAt = _clock.GetUtcNow();
         }
@@ -576,43 +523,35 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         string? newDescription = null,
         string? newToolName = null,
         Dictionary<string, JsonElement>? newParameters = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 跨进程持久化: 从文件恢复活跃 plan 状态
         await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
 
-        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
-        {
+        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan)) {
             return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
-        if (stepIndex < 0 || stepIndex >= plan.Steps.Count)
-        {
+        if (stepIndex < 0 || stepIndex >= plan.Steps.Count) {
             return new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效");
         }
 
         var step = plan.Steps[stepIndex];
-        if (step.Status == PlanStepStatus.Completed || step.Status == PlanStepStatus.Executing)
-        {
+        if (step.Status == PlanStepStatus.Completed || step.Status == PlanStepStatus.Executing) {
             return new PlanOperationResult(false, plan, $"步骤 {stepIndex} 已在执行或完成，无法修改");
         }
 
-        if (newDescription != null)
-        {
+        if (newDescription != null) {
             step.Description = newDescription;
         }
-        if (newToolName != null)
-        {
+        if (newToolName != null) {
             step.ToolName = newToolName;
         }
-        if (newParameters != null)
-        {
+        if (newParameters != null) {
             step.Parameters = newParameters;
         }
 
         // 如果步骤已被拒绝，重置为待审批状态
-        if (step.Status == PlanStepStatus.Rejected)
-        {
+        if (step.Status == PlanStepStatus.Rejected) {
             step.Status = PlanStepStatus.Pending;
             step.RejectionReason = null;
         }
@@ -630,38 +569,32 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// </summary>
     public async Task<PlanOperationResult> RemoveStepAsync(
         int stepIndex,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 跨进程持久化: 从文件恢复活跃 plan 状态
         await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
 
-        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
-        {
+        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan)) {
             return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
-        if (stepIndex < 0 || stepIndex >= plan.Steps.Count)
-        {
+        if (stepIndex < 0 || stepIndex >= plan.Steps.Count) {
             return new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效");
         }
 
         var step = plan.Steps[stepIndex];
-        if (step.Status == PlanStepStatus.Completed || step.Status == PlanStepStatus.Executing)
-        {
+        if (step.Status == PlanStepStatus.Completed || step.Status == PlanStepStatus.Executing) {
             return new PlanOperationResult(false, plan, $"步骤 {stepIndex} 已在执行或完成，无法删除");
         }
 
         plan.Steps.RemoveAt(stepIndex);
 
         // 重新索引
-        for (int i = 0; i < plan.Steps.Count; i++)
-        {
+        for (int i = 0; i < plan.Steps.Count; i++) {
             plan.Steps[i] = plan.Steps[i] with { Index = i };
         }
 
         // 调整当前步骤索引
-        if (plan.CurrentStepIndex > stepIndex)
-        {
+        if (plan.CurrentStepIndex > stepIndex) {
             plan.CurrentStepIndex--;
         }
 
@@ -678,29 +611,24 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// </summary>
     public async Task<PlanOperationResult> ReorderStepsAsync(
         List<int> newOrder,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // 跨进程持久化: 从文件恢复活跃 plan 状态
         await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
 
-        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
-        {
+        if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan)) {
             return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
-        if (newOrder.Count != plan.Steps.Count)
-        {
+        if (newOrder.Count != plan.Steps.Count) {
             return new PlanOperationResult(false, plan, "新顺序列表长度与步骤数不匹配");
         }
 
         // 检查是否有步骤正在执行或已完成
-        if (plan.Steps.Any(s => s.Status == PlanStepStatus.Executing || s.Status == PlanStepStatus.Completed))
-        {
+        if (plan.Steps.Any(s => s.Status == PlanStepStatus.Executing || s.Status == PlanStepStatus.Completed)) {
             return new PlanOperationResult(false, plan, "有步骤正在执行或已完成，无法重新排序");
         }
 
-        var reorderedSteps = newOrder.Select((oldIndex, newIndex) =>
-        {
+        var reorderedSteps = newOrder.Select((oldIndex, newIndex) => {
             var step = plan.Steps[oldIndex];
             return step with { Index = newIndex };
         }).ToList();
@@ -721,22 +649,19 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// </summary>
     public async Task<List<PlanState>> GetPlanHistoryAsync(
         int limit = 10,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<List<PlanState>>();
         await _actor.SendAsync(new GetPlanHistoryCmd(limit, reply), cancellationToken).ConfigureAwait(false);
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await _actor.DisposeAsync().ConfigureAwait(false);
     }
 
-    private string GeneratePlanId()
-    {
+    private string GeneratePlanId() {
         var counter = Interlocked.Increment(ref _planCounter);
         return $"plan_{counter:D4}_{_clock.GetUtcNow():yyyyMMddHHmmss}";
     }
@@ -745,8 +670,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// 对齐 TS isAutoModeGateEnabled: 检查 auto mode gate 是否仍然开启
     /// 默认返回 true，可通过环境变量 JCC_AUTO_MODE_GATE_ENABLED 控制
     /// </summary>
-    private Task<bool> IsAutoModeGateEnabledAsync(CancellationToken cancellationToken = default)
-    {
+    private Task<bool> IsAutoModeGateEnabledAsync(CancellationToken cancellationToken = default) {
         // 检查环境变量或配置，默认 auto mode gate 是开启的
         var envValue = Environment.GetEnvironmentVariable(JccEnvVar.AutoModeGateEnabled.ToValue());
         var enabled = !string.Equals(envValue, "false", StringComparison.OrdinalIgnoreCase) &&
@@ -757,12 +681,10 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     private void RecordPlanMetrics(string operation, bool isSuccess)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "plan.mode.count", operation, isSuccess, "Plan mode operation count");
 
-    private string ExecuteStep(PlanStep step)
-    {
+    private string ExecuteStep(PlanStep step) {
         // 实际实现中，这里会根据 ToolName 和 Parameters 调用相应的工具
         // 目前返回模拟结果
-        if (!string.IsNullOrEmpty(step.ToolName))
-        {
+        if (!string.IsNullOrEmpty(step.ToolName)) {
             return $"执行工具 {step.ToolName} 成功";
         }
         return "步骤执行成功";
@@ -772,17 +694,13 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// 从磁盘读取 plan 文件内容 — 对齐 TS getPlan()
     /// LLM 可能通过 FileWriteTool 修改了 plan 文件，读取最新内容
     /// </summary>
-    private async Task<string?> ReadPlanFileContentAsync(string? planFilePath, CancellationToken cancellationToken)
-    {
+    private async Task<string?> ReadPlanFileContentAsync(string? planFilePath, CancellationToken cancellationToken) {
         if (string.IsNullOrEmpty(planFilePath) || !_fs.FileExists(planFilePath))
             return null;
 
-        try
-        {
+        try {
             return await _fs.ReadAllTextAsync(planFilePath, cancellationToken).ConfigureAwait(false);
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -797,19 +715,16 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// <summary>
     /// 对齐 TS clearPlanSlug(): 清除当前 session 的 slug 缓存
     /// </summary>
-    public void ClearPlanSlug()
-    {
+    public void ClearPlanSlug() {
         CurrentSessionState().CurrentSessionSlug = null;
     }
 
     /// <summary>
     /// 从文件加载活跃 plan 状态 — 跨进程恢复 _plans 字典和 CurrentPlanId
     /// </summary>
-    private async Task LoadActivePlanStateFromFileAsync(CancellationToken cancellationToken)
-    {
+    private async Task LoadActivePlanStateFromFileAsync(CancellationToken cancellationToken) {
         var state = await _fileStore.LoadActivePlanStateAsync(cancellationToken).ConfigureAwait(false);
-        if (state?.Plan is not null && state.CurrentPlanId is not null)
-        {
+        if (state?.Plan is not null && state.CurrentPlanId is not null) {
             _plans[state.CurrentPlanId] = state.Plan;
             var sessionState = CurrentSessionState();
             sessionState.CurrentPlanId = state.CurrentPlanId;
@@ -821,8 +736,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// <summary>
     /// 保存活跃 plan 状态到文件 — 供下一个进程读取
     /// </summary>
-    private async Task SaveActivePlanStateToFileAsync(CancellationToken cancellationToken)
-    {
+    private async Task SaveActivePlanStateToFileAsync(CancellationToken cancellationToken) {
         var planId = CurrentPlanId;
         if (planId is null || !_plans.TryGetValue(planId, out var plan)) return;
 
@@ -839,45 +753,37 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// 处理审批响应 — 对齐 TS handlePlanApprovalResponse
     /// Leader 审批后，teammate 的 mailbox poller 调用此方法恢复权限模式
     /// </summary>
-    public async Task HandlePlanApprovalResponseAsync(PlanApprovalResponseMessage response, CancellationToken cancellationToken = default)
-    {
+    public async Task HandlePlanApprovalResponseAsync(PlanApprovalResponseMessage response, CancellationToken cancellationToken = default) {
         // 查找匹配的等待请求
-        if (!_pendingApprovals.TryRemove(response.RequestId, out var tcs))
-        {
+        if (!_pendingApprovals.TryRemove(response.RequestId, out var tcs)) {
             _telemetryService?.RecordCount("plan.approval.orphan_response", [], "count", "Plan approval response without pending request");
             return;
         }
 
         // 安全校验 — 对齐 TS: 仅接受来自 team-lead 的审批响应
-        if (!string.Equals(response.From, "team-lead", StringComparison.OrdinalIgnoreCase))
-        {
+        if (!string.Equals(response.From, "team-lead", StringComparison.OrdinalIgnoreCase)) {
             tcs.TrySetException(new InvalidOperationException($"Plan approval response from unauthorized source: {response.From}"));
             return;
         }
 
-        if (response.Approved)
-        {
+        if (response.Approved) {
             // 恢复权限模式 — 对齐 TS applyPermissionUpdate
-            if (_permissionManager is not null && !string.IsNullOrEmpty(response.PermissionMode))
-            {
+            if (_permissionManager is not null && !string.IsNullOrEmpty(response.PermissionMode)) {
                 var mode = PermissionModeExtensions.FromValue(response.PermissionMode);
-                if (mode is not null)
-                {
+                if (mode is not null) {
                     await _permissionManager.SetPermissionModeAsync(mode.Value, cancellationToken).ConfigureAwait(false);
                 }
             }
 
             // 恢复之前剥离的危险权限规则
-            if (_permissionManager is not null && CurrentSessionState().StrippedRuleCount > 0)
-            {
+            if (_permissionManager is not null && CurrentSessionState().StrippedRuleCount > 0) {
                 await _permissionManager.RestoreDangerousRulesAsync(CurrentSessionState().StrippedRuleCount, cancellationToken).ConfigureAwait(false);
                 CurrentSessionState().StrippedRuleCount = 0;
             }
 
             // 退出 PlanMode
             var currentPlan = _plans.Values.FirstOrDefault(p => p.IsInPlanMode);
-            if (currentPlan is not null)
-            {
+            if (currentPlan is not null) {
                 currentPlan.IsInPlanMode = false;
                 currentPlan.LastUpdatedAt = _clock.GetUtcNow();
                 CurrentSessionState().HasExitedPlanMode = true;
@@ -887,9 +793,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
             }
 
             RecordPlanMetrics("exit_approval_approved", true);
-        }
-        else
-        {
+        } else {
             RecordPlanMetrics("exit_approval_rejected", true);
         }
 
@@ -901,13 +805,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// 计划历史 Actor — 串行化 _planHistory 访问，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
-    private sealed class PlanHistoryActor : ActorBase<PlanModeCommand, Unit>
-    {
+    private sealed class PlanHistoryActor : ActorBase<PlanModeCommand, Unit> {
         private readonly PlanModeManager _owner;
         private readonly ILogger<PlanModeManager>? _logger;
 
-        public PlanHistoryActor(PlanModeManager owner, ILogger<PlanModeManager>? logger) : base()
-        {
+        public PlanHistoryActor(PlanModeManager owner, ILogger<PlanModeManager>? logger) : base() {
             _owner = owner;
             _logger = logger;
         }
@@ -920,27 +822,20 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override ValueTask HandleAsync(PlanModeCommand cmd, CancellationToken ct)
-        {
-            try
-            {
-                switch (cmd)
-                {
+        protected override ValueTask HandleAsync(PlanModeCommand cmd, CancellationToken ct) {
+            try {
+                switch (cmd) {
                     case ExitPlanModeCmd(var plan, var reply):
-                        _owner._planHistory.Add(plan);
-                        reply.SetResult();
-                        break;
+                    _owner._planHistory.Add(plan);
+                    reply.SetResult();
+                    break;
                     case GetPlanHistoryCmd(var limit, var reply):
-                        reply.SetResult(_owner._planHistory.AsEnumerable().Reverse().Take(limit).ToList());
-                        break;
+                    reply.SetResult(_owner._planHistory.AsEnumerable().Reverse().Take(limit).ToList());
+                    break;
                 }
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex)
-            {
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) {
                 _logger?.LogWarning(ex, "PlanHistoryActor 命令处理异常");
-                switch (cmd)
-                {
+                switch (cmd) {
                     case ExitPlanModeCmd(_, var reply): reply.SetException(ex); break;
                     case GetPlanHistoryCmd(_, var reply): reply.SetException(ex); break;
                 }

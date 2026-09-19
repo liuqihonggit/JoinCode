@@ -5,8 +5,7 @@ namespace Tools.Handlers;
 /// 文件编辑工具注入此 node 在编辑前校验内容合法性与权限。
 /// </summary>
 [Register(typeof(FormatValidatorNode), ServiceLifetime.Singleton)]
-public sealed class FormatValidatorNode
-{
+public sealed class FormatValidatorNode {
     private readonly IFileSystem _fs;
     private readonly ISubAgentContextAccessor? _subAgentContextAccessor;
     private readonly ILogger<FormatValidatorNode>? _logger;
@@ -20,8 +19,7 @@ public sealed class FormatValidatorNode
     public FormatValidatorNode(
         IFileSystem fs,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        ILogger<FormatValidatorNode>? logger = null)
-    {
+        ILogger<FormatValidatorNode>? logger = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _subAgentContextAccessor = subAgentContextAccessor;
         _logger = logger;
@@ -39,8 +37,7 @@ public sealed class FormatValidatorNode
     /// <param name="ct">取消令牌</param>
     /// <returns>null 表示校验通过，错误消息表示校验失败</returns>
     public async ValueTask<string?> ValidateSettingsEditAsync(
-        string filePath, string oldString, string newString, bool replaceAll, CancellationToken ct)
-    {
+        string filePath, string oldString, string newString, bool replaceAll, CancellationToken ct) {
         if (!SettingsEditValidator.IsJccSettingsPath(filePath) || !_fs.FileExists(filePath))
             return null;
 
@@ -60,8 +57,7 @@ public sealed class FormatValidatorNode
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>null 表示允许编辑，错误消息表示权限拒绝</returns>
-    public string? ValidateKeywordSectionsEdit(string filePath)
-    {
+    public string? ValidateKeywordSectionsEdit(string filePath) {
         if (!PathGuardNode.IsKeywordSectionsPath(filePath) || !_fs.FileExists(filePath))
             return null;
 
@@ -77,8 +73,7 @@ public sealed class FormatValidatorNode
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>null 表示允许编辑，错误消息表示路径拒绝</returns>
-    public string? ValidateDoctorAgentEdit(string filePath)
-    {
+    public string? ValidateDoctorAgentEdit(string filePath) {
         var agentType = _subAgentContextAccessor?.Current?.Variant?.ToValue() ?? _subAgentContextAccessor?.Current?.Role.ToValue();
         if (agentType is null || !agentType.Equals("doctor", StringComparison.OrdinalIgnoreCase))
             return null;
@@ -89,8 +84,7 @@ public sealed class FormatValidatorNode
     }
 
     /// <summary>替换字符串中第一个匹配项（用于预模拟编辑）。对齐 TS: file.replace。</summary>
-    private static string ReplaceFirst(string text, string search, string replace)
-    {
+    private static string ReplaceFirst(string text, string search, string replace) {
         var index = text.IndexOf(search, StringComparison.Ordinal);
         if (index < 0) return text;
         return string.Concat(text.AsSpan(0, index), replace, text.AsSpan(index + search.Length));

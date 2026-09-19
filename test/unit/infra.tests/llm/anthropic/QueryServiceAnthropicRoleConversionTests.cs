@@ -5,13 +5,10 @@ namespace Infra.Tests.LLM;
 /// AnthropicQueryService.ConvertToAnthropicMessages Anthropic 角色转换测试
 /// 验证 System CacheBreak 正确映射为 IsStatic，消息角色保持不变
 /// </summary>
-public sealed class QueryServiceAnthropicRoleConversionTests
-{
+public sealed class QueryServiceAnthropicRoleConversionTests {
     [Fact]
-    public void SystemMessage_WithCacheBreak_SetsIsStaticFalse()
-    {
-        var metadata = new Dictionary<string, JsonElement>
-        {
+    public void SystemMessage_WithCacheBreak_SetsIsStaticFalse() {
+        var metadata = new Dictionary<string, JsonElement> {
             ["CacheBreak"] = JsonElementHelper.FromBoolean(true)
         };
         var messages = new MessageList
@@ -28,8 +25,7 @@ public sealed class QueryServiceAnthropicRoleConversionTests
     }
 
     [Fact]
-    public void SystemMessage_WithoutCacheBreak_SetsIsStaticTrue()
-    {
+    public void SystemMessage_WithoutCacheBreak_SetsIsStaticTrue() {
         var messages = new MessageList
         {
             new ChatApiMessage(ChatMessageRole.System, "静态系统提示词")
@@ -42,10 +38,8 @@ public sealed class QueryServiceAnthropicRoleConversionTests
     }
 
     [Fact]
-    public void SystemMessage_WithCacheBreakFalse_SetsIsStaticTrue()
-    {
-        var metadata = new Dictionary<string, JsonElement>
-        {
+    public void SystemMessage_WithCacheBreakFalse_SetsIsStaticTrue() {
+        var metadata = new Dictionary<string, JsonElement> {
             ["CacheBreak"] = JsonElementHelper.FromBoolean(false)
         };
         var messages = new MessageList
@@ -60,8 +54,7 @@ public sealed class QueryServiceAnthropicRoleConversionTests
     }
 
     [Fact]
-    public void UserMessage_ConvertedToAnthropicUserMessage()
-    {
+    public void UserMessage_ConvertedToAnthropicUserMessage() {
         var messages = new MessageList
         {
             new ChatApiMessage(ChatMessageRole.User, "用户输入")
@@ -75,8 +68,7 @@ public sealed class QueryServiceAnthropicRoleConversionTests
     }
 
     [Fact]
-    public void AssistantMessage_WithToolCalls_ConvertedToToolUseBlocks()
-    {
+    public void AssistantMessage_WithToolCalls_ConvertedToToolUseBlocks() {
         var toolCalls = new List<OpenAIToolCall>
         {
             new OpenAIToolCall
@@ -90,8 +82,7 @@ public sealed class QueryServiceAnthropicRoleConversionTests
                 }
             }
         };
-        var metadata = new Dictionary<string, JsonElement>
-        {
+        var metadata = new Dictionary<string, JsonElement> {
             ["ToolCalls"] = JsonElementHelper.FromObject(toolCalls, NativeJsonContext.Default.ListOpenAIToolCall)
         };
         var messages = new MessageList
@@ -107,8 +98,7 @@ public sealed class QueryServiceAnthropicRoleConversionTests
     }
 
     [Fact]
-    public void ThreePartMessages_StaticDynamicUser_CorrectStructure()
-    {
+    public void ThreePartMessages_StaticDynamicUser_CorrectStructure() {
         var staticMsg = new ChatApiMessage(ChatMessageRole.System, "静态前缀");
         var dynamicMsg = new ChatApiMessage(
             ChatMessageRole.System,

@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class DeferredToolInfo
-{
+public sealed class DeferredToolInfo {
     public string Name { get; }
     public string? Description { get; }
     public string? InputSchemaJson { get; }
@@ -17,8 +16,7 @@ public sealed class DeferredToolInfo
     /// </summary>
     public string? GroupName { get; }
 
-    public DeferredToolInfo(string name, string? description = null, string? inputSchemaJson = null, bool isMcp = false, string? category = null, string? groupName = null)
-    {
+    public DeferredToolInfo(string name, string? description = null, string? inputSchemaJson = null, bool isMcp = false, string? category = null, string? groupName = null) {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         Description = description;
         InputSchemaJson = inputSchemaJson;

@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 干预级别状态机 — 按触发次数分类干预策略
 /// </summary>
-public enum InterventionLevel
-{
+public enum InterventionLevel {
     /// <summary>无干预 — 透传事件流</summary>
     [EnumValue("none")] None,
 
@@ -25,8 +24,7 @@ public enum InterventionLevel
 /// Level 3(第CompactThreshold次+/重连失败): 上下文压缩，无人值守
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMiddleware
-{
+public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMiddleware {
     private readonly IChatClient _kernel;
     private readonly IChatContextManager _contextManager;
     private readonly IChatStreamChunkProcessor _chunkProcessor;
@@ -50,8 +48,7 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
         IChatStreamChunkProcessor chunkProcessor,
         ITaskProgressTracker? progressTracker = null,
         IOptions<LoopInterventionOptions>? options = null,
-        ILogger<LoopInterventionMiddleware>? logger = null)
-    {
+        ILogger<LoopInterventionMiddleware>? logger = null) {
         _kernel = kernel;
         _contextManager = contextManager;
         _chunkProcessor = chunkProcessor;
@@ -70,17 +67,14 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
+        [EnumeratorCancellation] CancellationToken ct) {
         var hasLoopDetected = false;
         var loopTriggerCount = 0;
         var hasProgressed = false;
         var effectiveTriggerCount = 0;
 
-        await foreach (var evt in next(context, ct).ConfigureAwait(false))
-        {
-            if (evt.Type == ChatStreamEventType.LoopDetected)
-            {
+        await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
+            if (evt.Type == ChatStreamEventType.LoopDetected) {
                 hasLoopDetected = true;
                 loopTriggerCount = evt.LoopTriggerCount;
                 context.LoopTriggerCount = loopTriggerCount;
@@ -109,8 +103,7 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
         if (!hasLoopDetected || effectiveTriggerCount < _options.HardTruncateThreshold)
             yield break;
 
-        if (effectiveTriggerCount >= _options.CompactThreshold)
-        {
+        if (effectiveTriggerCount >= _options.CompactThreshold) {
             await foreach (var evt in CompactAsync(ct).ConfigureAwait(false))
                 yield return evt;
             yield break;
@@ -120,16 +113,14 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
 
         var retrySucceeded = false;
 
-        for (var attempt = 0; attempt < _options.MaxRetryAttempts; attempt++)
-        {
+        for (var attempt = 0; attempt < _options.MaxRetryAttempts; attempt++) {
             var isLastAttempt = attempt == _options.MaxRetryAttempts - 1;
             var temperature = isLastAttempt ? _options.SecondChanceTemperature : _options.RetryTemperature;
 
             var rewindResult = await _contextManager.RewindLastTurnAsync(ct).ConfigureAwait(false);
             _logger?.LogInformation("[LoopInterventionMiddleware] 撤回完成：移除{Count}条消息", rewindResult.RemovedCount);
 
-            if (_options.InsertRewindAuditMark && rewindResult.Success)
-            {
+            if (_options.InsertRewindAuditMark && rewindResult.Success) {
                 var auditMark = $"[系统撤回: 原因=循环检测, 移除消息数={rewindResult.RemovedCount}]";
                 await _contextManager.AddSystemMessageAsync(auditMark, ct).ConfigureAwait(false);
                 _logger?.LogInformation("[LoopInterventionMiddleware] 已插入撤回审计标记");
@@ -143,14 +134,11 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
             var iterState = _chunkProcessor.CreateIterationState();
 
             await foreach (var chunk in chatCompletionService.GetStreamEventContentsAsync(
-                historySnapshot, retrySettings, _kernel, ct).ConfigureAwait(false))
-            {
+                historySnapshot, retrySettings, _kernel, ct).ConfigureAwait(false)) {
                 var result = _chunkProcessor.ProcessChunk(chunk, iterState);
 
-                foreach (var evt in result.Events)
-                {
-                    if (evt.Type == ChatStreamEventType.LoopDetected)
-                    {
+                foreach (var evt in result.Events) {
+                    if (evt.Type == ChatStreamEventType.LoopDetected) {
                         retryHasLoop = true;
                         _logger?.LogWarning("[LoopInterventionMiddleware] 重连后仍然检测到循环，第{N}次重试失败(温度={T})", attempt + 1, temperature);
                         yield return ChatStreamEvent.Text("\n\n⚠️ 重连后仍检测到循环输出。");
@@ -170,16 +158,13 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
             if (iterState.StreamModelId is not null)
                 context.FinalModelId = iterState.StreamModelId;
 
-            if (!retryHasLoop)
-            {
+            if (!retryHasLoop) {
                 _logger?.LogInformation("[LoopInterventionMiddleware] 重连成功，循环已打破(温度={T})", temperature);
                 retrySucceeded = true;
 
-                if (iterState.ToolCallName is null)
-                {
+                if (iterState.ToolCallName is null) {
                     var aiResponse = iterState.FullResponse.ToString();
-                    if (!string.IsNullOrEmpty(aiResponse))
-                    {
+                    if (!string.IsNullOrEmpty(aiResponse)) {
                         await _contextManager.AddAssistantMessageAsync(aiResponse, ct).ConfigureAwait(false);
                     }
                 }
@@ -188,8 +173,7 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
             }
         }
 
-        if (!retrySucceeded)
-        {
+        if (!retrySucceeded) {
             _logger?.LogWarning("[LoopInterventionMiddleware] 重连{Max}次后仍然循环，进入Level 3上下文压缩", _options.MaxRetryAttempts);
             yield return ChatStreamEvent.Text(_options.CompactPrompt);
 
@@ -199,32 +183,26 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
     }
 
     private async IAsyncEnumerable<ChatStreamEvent> CompactAsync(
-        [EnumeratorCancellation] CancellationToken ct)
-    {
+        [EnumeratorCancellation] CancellationToken ct) {
         string? lastUserMessage = null;
 
-        if (_options.PreserveLastUserMessageOnReset)
-        {
+        if (_options.PreserveLastUserMessageOnReset) {
             lastUserMessage = await ExtractLastUserMessageAsync(ct).ConfigureAwait(false);
         }
 
         var compactResult = await _contextManager.FoldIfNeededAsync(
             _options.CompactFoldDecision, cancellationToken: ct).ConfigureAwait(false);
 
-        if (compactResult.Folded)
-        {
+        if (compactResult.Folded) {
             _logger?.LogInformation("[LoopInterventionMiddleware] 上下文压缩完成，原始{Orig}条，保留头{Head}+尾{Tail}条",
                 compactResult.OriginalMessageCount, compactResult.HeadMessageCount, compactResult.TailMessageCount);
             yield return ChatStreamEvent.Text(_options.CompactSuccessPrompt);
-        }
-        else
-        {
+        } else {
             _logger?.LogWarning("[LoopInterventionMiddleware] 上下文压缩失败，强制撤回到起点");
 
             await _contextManager.RewindToStartAsync(ct).ConfigureAwait(false);
 
-            if (lastUserMessage is not null)
-            {
+            if (lastUserMessage is not null) {
                 await _contextManager.AddSystemMessageAsync(
                     "对话因循环检测已重置，以下是用户最近的需求描述：", ct).ConfigureAwait(false);
                 await _contextManager.AddUserMessageAsync(lastUserMessage, cancellationToken: ct).ConfigureAwait(false);
@@ -236,31 +214,23 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
         }
     }
 
-    private async Task<string?> ExtractLastUserMessageAsync(CancellationToken ct)
-    {
-        try
-        {
+    private async Task<string?> ExtractLastUserMessageAsync(CancellationToken ct) {
+        try {
             var messages = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
-            for (var i = messages.Count - 1; i >= 0; i--)
-            {
-                if (messages[i].Role == MessageRole.User && !string.IsNullOrEmpty(messages[i].Content))
-                {
+            for (var i = messages.Count - 1; i >= 0; i--) {
+                if (messages[i].Role == MessageRole.User && !string.IsNullOrEmpty(messages[i].Content)) {
                     return messages[i].Content;
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[LoopInterventionMiddleware] 提取最近用户消息失败");
         }
 
         return null;
     }
 
-    private ChatOptions CreateRetrySettings(ChatOptions? original, float temperature)
-    {
-        return new ChatOptions
-        {
+    private ChatOptions CreateRetrySettings(ChatOptions? original, float temperature) {
+        return new ChatOptions {
             Temperature = temperature,
             MaxTokens = original?.MaxTokens,
             TopP = original?.TopP,
@@ -277,13 +247,11 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
         };
     }
 
-    private async Task<bool> CheckTaskProgressAsync(ChatMiddlewareContext context, CancellationToken ct)
-    {
+    private async Task<bool> CheckTaskProgressAsync(ChatMiddlewareContext context, CancellationToken ct) {
         if (_progressTracker is null)
             return false;
 
-        try
-        {
+        try {
             var hasProgressed = await _progressTracker.HasProgressedSinceLastSnapshotAsync(ct).ConfigureAwait(false);
             var currentCount = await _progressTracker.GetCompletedTodoCountAsync(ct).ConfigureAwait(false);
 
@@ -294,16 +262,13 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
             await _progressTracker.SnapshotCurrentProgressAsync(ct).ConfigureAwait(false);
 
             return hasProgressed;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[LoopInterventionMiddleware] 检查任务进度失败，假定无推进");
             return false;
         }
     }
 
-    private int AdjustTriggerCountForProgress(int loopTriggerCount)
-    {
+    private int AdjustTriggerCountForProgress(int loopTriggerCount) {
         return Math.Max(1, loopTriggerCount - _options.ProgressDiscount);
     }
 
@@ -311,8 +276,7 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
     /// 按有效触发次数分类干预级别 — 状态机决策核心
     /// </summary>
     /// <returns>(干预级别, 注入提示词, 是否中断事件流)</returns>
-    private (InterventionLevel Level, string Prompt, bool ShouldBreak) ClassifyIntervention(int effectiveTriggerCount)
-    {
+    private (InterventionLevel Level, string Prompt, bool ShouldBreak) ClassifyIntervention(int effectiveTriggerCount) {
         if (effectiveTriggerCount >= _options.CompactThreshold)
             return (InterventionLevel.Compact, _options.HardTruncatePrompt, true);
 

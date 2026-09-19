@@ -1,20 +1,17 @@
 namespace Core.Tests.Agents.Coordinator;
 
-public sealed class MailboxHubTests
-{
+public sealed class MailboxHubTests {
     private readonly Mock<IMailbox> _inProcessMock = new();
     private readonly Mock<ITeammateMailboxService> _fileMailboxMock = new();
 
-    private static AgentMsg CreateMessage(string from = "sender", string to = "agent1") => new()
-    {
+    private static AgentMsg CreateMessage(string from = "sender", string to = "agent1") => new() {
         FromAgentId = from,
         ToAgentId = to,
         MessageType = "text",
         Content = "hello",
     };
 
-    private static MailboxMessage CreateMailboxMessage() => new()
-    {
+    private static MailboxMessage CreateMailboxMessage() => new() {
         MessageId = "msg1",
         FromAgentId = "sender",
         ToAgentId = "agent1",
@@ -24,8 +21,7 @@ public sealed class MailboxHubTests
     };
 
     [Fact]
-    public async Task SendAsync_InProcess_DelegatesToInProcessMailbox()
-    {
+    public async Task SendAsync_InProcess_DelegatesToInProcessMailbox() {
         _inProcessMock.Setup(m => m.SendAsync("agent1", It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
@@ -40,8 +36,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task SendAsync_File_DelegatesToFileMailbox()
-    {
+    public async Task SendAsync_File_DelegatesToFileMailbox() {
         _inProcessMock.Setup(m => m.GetSessionId("agent1")).Returns("session1");
         _fileMailboxMock.Setup(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateMailboxMessage());
@@ -56,8 +51,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task SendAsync_File_NoFileMailbox_ReturnsFalse()
-    {
+    public async Task SendAsync_File_NoFileMailbox_ReturnsFalse() {
         var hub = new MailboxHub(_inProcessMock.Object, null);
         var message = CreateMessage();
 
@@ -67,8 +61,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task SendAsync_File_NoSessionId_ReturnsFalse()
-    {
+    public async Task SendAsync_File_NoSessionId_ReturnsFalse() {
         _inProcessMock.Setup(m => m.GetSessionId("agent1")).Returns((string?)null);
 
         var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
@@ -81,8 +74,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task BroadcastAsync_InProcess_DelegatesToInProcessMailbox()
-    {
+    public async Task BroadcastAsync_InProcess_DelegatesToInProcessMailbox() {
         var message = CreateMessage();
         _inProcessMock.Setup(m => m.BroadcastAsync(message, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -95,8 +87,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public void RegisterAgent_DelegatesToInProcessMailbox()
-    {
+    public void RegisterAgent_DelegatesToInProcessMailbox() {
         var hub = new MailboxHub(_inProcessMock.Object);
 
         hub.RegisterAgent("agent1", "session1");
@@ -105,8 +96,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public void UnregisterAgent_DelegatesToInProcessMailbox()
-    {
+    public void UnregisterAgent_DelegatesToInProcessMailbox() {
         var hub = new MailboxHub(_inProcessMock.Object);
 
         hub.UnregisterAgent("agent1");
@@ -115,16 +105,14 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public void Constructor_NullInProcess_Throws()
-    {
+    public void Constructor_NullInProcess_Throws() {
         var act = () => new MailboxHub(null!);
 
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void RegisterChannel_InProcess_Throws()
-    {
+    public void RegisterChannel_InProcess_Throws() {
         var hub = new MailboxHub(_inProcessMock.Object);
         var act = () => hub.RegisterChannel(MailboxKind.InProcess, new InProcessMailbox());
 
@@ -132,8 +120,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public void RegisterChannel_File_Throws()
-    {
+    public void RegisterChannel_File_Throws() {
         var hub = new MailboxHub(_inProcessMock.Object);
         var act = () => hub.RegisterChannel(MailboxKind.File, new InProcessMailbox());
 
@@ -141,8 +128,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task RegisterChannel_NamedPipe_ThenSendAsync_RoutesToExtraChannel()
-    {
+    public async Task RegisterChannel_NamedPipe_ThenSendAsync_RoutesToExtraChannel() {
         await using var namedPipeMailbox = new InProcessMailbox();
         await namedPipeMailbox.RegisterAgentAsync("agent1");
         var hub = new MailboxHub(_inProcessMock.Object);
@@ -155,8 +141,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task SendAsync_UnregisteredNamedPipe_ReturnsFalse()
-    {
+    public async Task SendAsync_UnregisteredNamedPipe_ReturnsFalse() {
         var hub = new MailboxHub(_inProcessMock.Object);
         var message = CreateMessage();
 
@@ -166,8 +151,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task IsChannelAvailable_ReturnsCorrectAvailability()
-    {
+    public async Task IsChannelAvailable_ReturnsCorrectAvailability() {
         var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
 
         hub.IsChannelAvailable(MailboxKind.InProcess).Should().BeTrue();
@@ -181,8 +165,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task SendAsync_AutoRoute_DefaultsToInProcess()
-    {
+    public async Task SendAsync_AutoRoute_DefaultsToInProcess() {
         _inProcessMock.Setup(m => m.SendAsync("agent1", It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
@@ -196,8 +179,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task SendAsync_AutoRoute_RoutesToRegisteredKind()
-    {
+    public async Task SendAsync_AutoRoute_RoutesToRegisteredKind() {
         await using var namedPipeMailbox = new InProcessMailbox();
         await namedPipeMailbox.RegisterAgentAsync("agent1");
         var hub = new MailboxHub(_inProcessMock.Object);
@@ -212,8 +194,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task BroadcastAsync_CrossChannel_BroadcastsToAllChannels()
-    {
+    public async Task BroadcastAsync_CrossChannel_BroadcastsToAllChannels() {
         _inProcessMock.Setup(m => m.BroadcastAsync(It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         _inProcessMock.Setup(m => m.GetRegisteredAgents()).Returns([]);
@@ -234,8 +215,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task RegisterAgentAsync_WithKind_StoresChannelPreference()
-    {
+    public async Task RegisterAgentAsync_WithKind_StoresChannelPreference() {
         await using var namedPipeMailbox = new InProcessMailbox();
         var hub = new MailboxHub(_inProcessMock.Object);
         hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
@@ -246,8 +226,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task RegisterAgentAsync_InProcess_StoresChannelPreference()
-    {
+    public async Task RegisterAgentAsync_InProcess_StoresChannelPreference() {
         var hub = new MailboxHub(_inProcessMock.Object);
 
         await hub.RegisterAgentAsync("agent1", MailboxKind.InProcess, "session1");
@@ -257,8 +236,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task UnregisterAgentAsync_RemovesChannelPreference()
-    {
+    public async Task UnregisterAgentAsync_RemovesChannelPreference() {
         var hub = new MailboxHub(_inProcessMock.Object);
 
         await hub.RegisterAgentAsync("agent1", MailboxKind.InProcess);
@@ -269,8 +247,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task ReceiveAsync_FromNamedPipeChannel_ReturnsMessages()
-    {
+    public async Task ReceiveAsync_FromNamedPipeChannel_ReturnsMessages() {
         await using var namedPipeMailbox = new InProcessMailbox();
         await namedPipeMailbox.RegisterAgentAsync("agent1");
         var hub = new MailboxHub(_inProcessMock.Object);
@@ -282,8 +259,7 @@ public sealed class MailboxHubTests
         await Task.Delay(100);
 
         var received = new List<CoordinatorMessage>();
-        await foreach (var msg in hub.ReceiveAsync("agent1", CancellationToken.None))
-        {
+        await foreach (var msg in hub.ReceiveAsync("agent1", CancellationToken.None)) {
             received.Add(msg);
             break;
         }
@@ -293,8 +269,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task BroadcastAsync_HiddenVisibility_DoesNotDeliver()
-    {
+    public async Task BroadcastAsync_HiddenVisibility_DoesNotDeliver() {
         var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
         var message = CreateMessage();
 
@@ -305,8 +280,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task BroadcastAsync_PrivateVisibility_OnlySendsToToAgentId()
-    {
+    public async Task BroadcastAsync_PrivateVisibility_OnlySendsToToAgentId() {
         var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
         var message = CreateMessage(to: "target_agent");
 
@@ -320,8 +294,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task BroadcastAsync_AdminOnlyVisibility_OnlySendsToAdmins()
-    {
+    public async Task BroadcastAsync_AdminOnlyVisibility_OnlySendsToAdmins() {
         var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
 
         await hub.RegisterAgentAsync("admin1", MailboxKind.InProcess, role: ChatRoomRole.Admin);
@@ -340,8 +313,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task BroadcastAsync_PublicVisibility_BroadcastsToAll()
-    {
+    public async Task BroadcastAsync_PublicVisibility_BroadcastsToAll() {
         var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
         var message = CreateMessage();
 
@@ -351,8 +323,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task BroadcastAsync_SystemVisibility_BroadcastsToAll()
-    {
+    public async Task BroadcastAsync_SystemVisibility_BroadcastsToAll() {
         var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
         var message = CreateMessage();
 
@@ -362,8 +333,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public async Task RegisterAgentAsync_WithRole_StoresRoleForVisibilityFiltering()
-    {
+    public async Task RegisterAgentAsync_WithRole_StoresRoleForVisibilityFiltering() {
         var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
 
         await hub.RegisterAgentAsync("agent1", MailboxKind.InProcess, role: ChatRoomRole.Admin);
@@ -372,8 +342,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public void GetAgentRole_UnregisteredAgent_ReturnsDefaultMember()
-    {
+    public void GetAgentRole_UnregisteredAgent_ReturnsDefaultMember() {
         var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
 
         hub.GetAgentRole("unknown").Should().Be(ChatRoomRole.Member);

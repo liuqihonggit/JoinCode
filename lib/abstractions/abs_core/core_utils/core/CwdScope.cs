@@ -8,14 +8,12 @@ namespace JoinCode.Abstractions.Utils;
 /// 详见 ADR-0093、AGENTS.md「代码风格规范」。
 /// </para>
 /// </summary>
-public sealed class CwdScope : IDisposable
-{
+public sealed class CwdScope : IDisposable {
     private readonly IFileSystem _fs;
     private readonly string _original;
     private bool _disposed;
 
-    private CwdScope(IFileSystem fs, string original)
-    {
+    private CwdScope(IFileSystem fs, string original) {
         _fs = fs;
         _original = original;
     }
@@ -25,8 +23,7 @@ public sealed class CwdScope : IDisposable
     /// </summary>
     /// <param name="fs">文件系统抽象。</param>
     /// <param name="newCwd">新工作目录路径。</param>
-    public static CwdScope Enter(IFileSystem fs, string newCwd)
-    {
+    public static CwdScope Enter(IFileSystem fs, string newCwd) {
         ArgumentNullException.ThrowIfNull(fs);
         var original = fs.GetCurrentDirectory();
         fs.SetCurrentDirectory(newCwd);
@@ -36,11 +33,9 @@ public sealed class CwdScope : IDisposable
     /// <summary>
     /// 恢复到原工作目录。幂等，恢复失败不抛（best effort，记 Debug 日志）。
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        try { _fs.SetCurrentDirectory(_original); }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[CwdScope] 恢复工作目录失败: {_original} - {ex.Message}"); }
+        try { _fs.SetCurrentDirectory(_original); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[CwdScope] 恢复工作目录失败: {_original} - {ex.Message}"); }
     }
 }

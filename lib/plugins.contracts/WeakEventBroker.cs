@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>订阅者死亡自动回收,ConditionalWeakTable 以事件源为键,源回收后条目自动消失</para>
 /// <para>AOT 兼容:不用反射,用 Action&lt;TTarget, TArgs&gt; 委托(target 作为参数传入,不捕获 target)</para>
 /// </summary>
-public static class WeakEventBroker<TArgs>
-{
+public static class WeakEventBroker<TArgs> {
     private static readonly ConditionalWeakTable<object, List<WeakHandler<TArgs>>> _table = new();
 
     /// <summary>
@@ -15,8 +14,7 @@ public static class WeakEventBroker<TArgs>
     /// <param name="source">事件源(ConditionalWeakTable 键,源回收后条目自动消失)</param>
     /// <param name="target">订阅者(弱引用目标,死亡后自动回收)</param>
     /// <param name="handler">回调(target 作为参数传入,不捕获 target)</param>
-    public static void Subscribe<TTarget>(object source, TTarget target, Action<TTarget, TArgs> handler) where TTarget : class
-    {
+    public static void Subscribe<TTarget>(object source, TTarget target, Action<TTarget, TArgs> handler) where TTarget : class {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(handler);
@@ -27,30 +25,23 @@ public static class WeakEventBroker<TArgs>
     /// <summary>
     /// 触发事件 — 遍历订阅者,弱引用 target 死亡则移除
     /// </summary>
-    public static void Dispatch(object source, TArgs args)
-    {
+    public static void Dispatch(object source, TArgs args) {
         if (!_table.TryGetValue(source, out var list)) return;
         var survivors = new List<WeakHandler<TArgs>>(list.Count);
-        foreach (var handler in list)
-        {
+        foreach (var handler in list) {
             if (InvokeSafe(handler, args))
                 survivors.Add(handler);
         }
-        if (survivors.Count != list.Count)
-        {
+        if (survivors.Count != list.Count) {
             list.Clear();
             list.AddRange(survivors);
         }
     }
 
-    private static bool InvokeSafe(WeakHandler<TArgs> handler, TArgs args)
-    {
-        try
-        {
+    private static bool InvokeSafe(WeakHandler<TArgs> handler, TArgs args) {
+        try {
             return handler.Invoke(args);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Console.WriteLine($"[WeakEventBroker] 订阅者异常: {ex.Message}");
             return true;
         }
@@ -61,27 +52,22 @@ public static class WeakEventBroker<TArgs>
         => _table.TryGetValue(source, out var list) ? list.Count : 0;
 }
 
-internal abstract class WeakHandler<TArgs>
-{
+internal abstract class WeakHandler<TArgs> {
     /// <summary>调用处理器,返回 false 表示 target 已死亡</summary>
     public abstract bool Invoke(TArgs args);
 }
 
-internal sealed class WeakHandler<TTarget, TArgs> : WeakHandler<TArgs> where TTarget : class
-{
+internal sealed class WeakHandler<TTarget, TArgs> : WeakHandler<TArgs> where TTarget : class {
     private readonly WeakReference<TTarget> _targetRef;
     private readonly Action<TTarget, TArgs> _callback;
 
-    public WeakHandler(TTarget target, Action<TTarget, TArgs> callback)
-    {
+    public WeakHandler(TTarget target, Action<TTarget, TArgs> callback) {
         _targetRef = new WeakReference<TTarget>(target);
         _callback = callback;
     }
 
-    public override bool Invoke(TArgs args)
-    {
-        if (_targetRef.TryGetTarget(out var target))
-        {
+    public override bool Invoke(TArgs args) {
+        if (_targetRef.TryGetTarget(out var target)) {
             _callback(target, args);
             return true;
         }

@@ -3,8 +3,7 @@ namespace JoinCode.Tui.Pipes;
 /// <summary>
 /// Agent 运行状态 — 驱动子代理卡片状态图标颜色。
 /// </summary>
-public enum AgentState
-{
+public enum AgentState {
     /// <summary>运行中（绿色 ●）</summary>
     [EnumValue("running")] Running,
     /// <summary>等待中（黄色 ●）</summary>

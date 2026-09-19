@@ -6,8 +6,7 @@ namespace Infrastructure.Network.Downloader.Coordinator;
 /// <para>PLINQ 并发:chunks.AsParallel().WithDegreeOfParallelism(maxThreads),符合项目规范(禁 Parallel.For)</para>
 /// <para>断点续传:Pause 持久化 .meta.json,Resume 读取并跳过已完成分片</para>
 /// </summary>
-internal sealed class DownloadSession : IDownloadSession
-{
+internal sealed class DownloadSession : IDownloadSession {
     private readonly DownloadStateMachine _stateMachine = new();
     private readonly HttpClient _httpClient;
     private readonly IFileSystem _fs;
@@ -38,8 +37,7 @@ internal sealed class DownloadSession : IDownloadSession
         string filePath,
         DownloadOptions? options = null,
         IProgress<DownloadProgress>? progress = null,
-        TimeProvider? clock = null)
-    {
+        TimeProvider? clock = null) {
         _httpClient = httpClient;
         _fs = fs;
         _url = url;
@@ -55,8 +53,7 @@ internal sealed class DownloadSession : IDownloadSession
     }
 
     /// <summary>启动下载(由 RangeDownloader.StartDownload 调用)</summary>
-    internal Task<DownloadResult> StartAsync(CancellationToken externalCt = default)
-    {
+    internal Task<DownloadResult> StartAsync(CancellationToken externalCt = default) {
         var startResult = _stateMachine.TryStart();
         if (!startResult.Success)
             return Task.FromResult(FailureResult(startResult.Error));
@@ -67,17 +64,14 @@ internal sealed class DownloadSession : IDownloadSession
     }
 
     /// <inheritdoc />
-    public async Task PauseAsync(CancellationToken ct = default)
-    {
+    public async Task PauseAsync(CancellationToken ct = default) {
         var pauseResult = _stateMachine.TryPause();
         if (!pauseResult.Success)
             throw new InvalidOperationException(pauseResult.Error);
 
         _cts?.Cancel();
-        if (_downloadTask is not null)
-        {
-            try { await _downloadTask.ConfigureAwait(false); }
-            catch (OperationCanceledException) { }
+        if (_downloadTask is not null) {
+            try { await _downloadTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
         }
 
         if (_chunks.Count > 0)
@@ -85,8 +79,7 @@ internal sealed class DownloadSession : IDownloadSession
     }
 
     /// <inheritdoc />
-    public Task ResumeAsync(CancellationToken ct = default)
-    {
+    public Task ResumeAsync(CancellationToken ct = default) {
         var resumeResult = _stateMachine.TryResume();
         if (!resumeResult.Success)
             throw new InvalidOperationException(resumeResult.Error);
@@ -97,8 +90,7 @@ internal sealed class DownloadSession : IDownloadSession
     }
 
     /// <inheritdoc />
-    public async Task CancelAsync(CancellationToken ct = default)
-    {
+    public async Task CancelAsync(CancellationToken ct = default) {
         var cancelResult = _stateMachine.TryCancel();
         if (!cancelResult.Success)
             throw new InvalidOperationException(cancelResult.Error);
@@ -108,25 +100,20 @@ internal sealed class DownloadSession : IDownloadSession
     }
 
     /// <inheritdoc />
-    public async Task<DownloadResult> WaitForCompletionAsync(CancellationToken ct = default)
-    {
+    public async Task<DownloadResult> WaitForCompletionAsync(CancellationToken ct = default) {
         if (_downloadTask is null)
             return FailureResult("下载未启动");
 
-        try
-        {
+        try {
             return await _downloadTask.WaitAsync(ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             return new DownloadResult(false, _filePath, _totalLength, GetDownloadedBytes(),
                 _clock.GetUtcNow() - _startTime, _stateMachine.State, "已取消");
         }
     }
 
     /// <inheritdoc />
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         _cts?.Cancel();
         _cts?.Dispose();
         return ValueTask.CompletedTask;
@@ -134,11 +121,9 @@ internal sealed class DownloadSession : IDownloadSession
 
     // === 核心下载逻辑 ===
 
-    private async Task<DownloadResult> RunDownloadAsync()
-    {
+    private async Task<DownloadResult> RunDownloadAsync() {
         var ct = _cts?.Token ?? CancellationToken.None;
-        try
-        {
+        try {
             var probeResult = await _probe.ProbeAsync(_url, ct).ConfigureAwait(false);
             _probeResult = probeResult;
             _totalLength = probeResult.ContentLength ?? 0;
@@ -153,23 +138,18 @@ internal sealed class DownloadSession : IDownloadSession
             var results = await DownloadChunksParallelAsync(pendingChunks, ct).ConfigureAwait(false);
 
             var failed = results.FirstOrDefault(r => !r.Success);
-            if (failed is not null)
-            {
+            if (failed is not null) {
                 _stateMachine.TryFail();
                 return FailureResult(failed.ErrorMessage);
             }
 
             return await MergeAndCompleteAsync(ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             if (_stateMachine.State == DownloadState.Paused)
                 return new DownloadResult(false, _filePath, _totalLength, GetDownloadedBytes(),
                     _clock.GetUtcNow() - _startTime, DownloadState.Paused, "已暂停");
             return FailureResult("已取消");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _stateMachine.TryFail();
             return FailureResult(ex.Message);
         }
@@ -181,33 +161,25 @@ internal sealed class DownloadSession : IDownloadSession
     /// <para>SemaphoreSlim.WaitAsync 限制并发度=MaxThreads,不阻塞线程</para>
     /// </summary>
     private async Task<ChunkDownloadResult[]> DownloadChunksParallelAsync(
-        List<DownloadChunk> chunks, CancellationToken ct)
-    {
+        List<DownloadChunk> chunks, CancellationToken ct) {
         using var semaphore = new SemaphoreSlim(_options.MaxThreads, _options.MaxThreads);
-        var tasks = chunks.Select(async chunk =>
-        {
+        var tasks = chunks.Select(async chunk => {
             await semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
+            try {
                 return await _chunkDownloader
                     .DownloadAsync(_url, chunk, GetPartPath(chunk.Index), ct)
                     .ConfigureAwait(false);
-            }
-            finally
-            {
+            } finally {
                 semaphore.Release();
             }
         });
         return await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
-    private bool LoadOrPlanChunks(RangeSupportResult probe)
-    {
-        if (_options.Resume)
-        {
+    private bool LoadOrPlanChunks(RangeSupportResult probe) {
+        if (_options.Resume) {
             var existing = _metadataStore.TryLoad(_filePath);
-            if (existing is not null && MetadataStore.Matches(existing, _url, probe.ETag, probe.LastModified))
-            {
+            if (existing is not null && MetadataStore.Matches(existing, _url, probe.ETag, probe.LastModified)) {
                 _chunks = existing.Chunks;
                 return true;
             }
@@ -221,8 +193,7 @@ internal sealed class DownloadSession : IDownloadSession
         return true;
     }
 
-    private async Task<DownloadResult> MergeAndCompleteAsync(CancellationToken ct)
-    {
+    private async Task<DownloadResult> MergeAndCompleteAsync(CancellationToken ct) {
         var mergeResult = _stateMachine.TryEnterMerging();
         if (!mergeResult.Success)
             return FailureResult(mergeResult.Error);
@@ -236,8 +207,7 @@ internal sealed class DownloadSession : IDownloadSession
         using var destStream = _fs.CreateStream(_filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         await using var dest = destStream.ConfigureAwait(false);
 
-        foreach (var partPath in partPaths)
-        {
+        foreach (var partPath in partPaths) {
             using var partStream = _fs.OpenRead(partPath);
             await partStream.CopyToAsync(destStream, ct).ConfigureAwait(false);
         }
@@ -259,8 +229,7 @@ internal sealed class DownloadSession : IDownloadSession
     private long GetDownloadedBytes() => _chunks.Sum(c => c.Downloaded);
 
     private DownloadMetadata BuildMetadata() =>
-        new()
-        {
+        new() {
             Url = _url,
             TotalLength = _totalLength,
             ETag = _probeResult?.ETag,
@@ -268,12 +237,10 @@ internal sealed class DownloadSession : IDownloadSession
             Chunks = _chunks
         };
 
-    private void CleanupTempFiles()
-    {
+    private void CleanupTempFiles() {
         _metadataStore.Delete(_filePath);
         if (_chunks.Count == 0) return;
-        foreach (var chunk in _chunks)
-        {
+        foreach (var chunk in _chunks) {
             var partPath = GetPartPath(chunk.Index);
             if (_fs.FileExists(partPath)) _fs.DeleteFile(partPath);
         }

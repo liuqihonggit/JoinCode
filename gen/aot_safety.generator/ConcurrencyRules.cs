@@ -1,8 +1,6 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class ConcurrencyRules : DiagnosticAnalyzer
-    {
+    public sealed class ConcurrencyRules : DiagnosticAnalyzer {
         private static readonly DiagnosticDescriptor RuleFireAndForgetNoCancellationToken = new(
             "JCC3001",
             "即发即忘: 异步调用缺少 CancellationToken 保护",
@@ -94,8 +92,7 @@ namespace AotSafety.Generator
                 RuleSemaphoreSlimNotDisposed, RuleConcurrentDictSemaphoreSlimNotDisposed,
                 RuleThreadSleep);
 
-        public override void Initialize(AnalysisContext context)
-        {
+        public override void Initialize(AnalysisContext context) {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterSyntaxNodeAction(AnalyzeFireAndForget, SyntaxKind.ExpressionStatement);
@@ -108,8 +105,7 @@ namespace AotSafety.Generator
             context.RegisterSyntaxNodeAction(AnalyzeThreadSleep, SyntaxKind.InvocationExpression);
         }
 
-        private static void AnalyzeFireAndForget(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeFireAndForget(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var exprStatement = (ExpressionStatementSyntax)ctx.Node;
@@ -124,8 +120,7 @@ namespace AotSafety.Generator
 
             var rightExpr = assignment.Right;
 
-            if (rightExpr is InvocationExpressionSyntax invocation)
-            {
+            if (rightExpr is InvocationExpressionSyntax invocation) {
                 var symbol = ctx.SemanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
                 if (symbol is null) return;
 
@@ -135,19 +130,15 @@ namespace AotSafety.Generator
                 var typeName = containingType.Name;
                 var methodName = symbol.Name;
 
-                if (typeName == "Task" && methodName == "Run")
-                {
-                    if (!HasCancellationTokenArgument(ctx, invocation, symbol))
-                    {
+                if (typeName == "Task" && methodName == "Run") {
+                    if (!HasCancellationTokenArgument(ctx, invocation, symbol)) {
                         ctx.ReportDiagnostic(Diagnostic.Create(RuleTaskRunNoCancellationToken, invocation.GetLocation()));
                     }
                     return;
                 }
 
-                if (IsAsyncMethod(symbol))
-                {
-                    if (!HasCancellationTokenArgument(ctx, invocation, symbol))
-                    {
+                if (IsAsyncMethod(symbol)) {
+                    if (!HasCancellationTokenArgument(ctx, invocation, symbol)) {
                         var displayStr = $"{typeName}.{methodName}";
                         ctx.ReportDiagnostic(Diagnostic.Create(RuleFireAndForgetNoCancellationToken, invocation.GetLocation(), displayStr));
                     }
@@ -156,33 +147,28 @@ namespace AotSafety.Generator
             }
 
             var innerInvocation = FindInnermostInvocation(rightExpr);
-            if (innerInvocation is not null)
-            {
+            if (innerInvocation is not null) {
                 var symbol = ctx.SemanticModel.GetSymbolInfo(innerInvocation).Symbol as IMethodSymbol;
                 if (symbol is null) return;
 
                 var containingType = symbol.ContainingType;
                 if (containingType is null) return;
 
-                if (containingType.Name == "Task" && symbol.Name == "Run")
-                {
-                    if (!HasCancellationTokenArgument(ctx, innerInvocation, symbol))
-                    {
+                if (containingType.Name == "Task" && symbol.Name == "Run") {
+                    if (!HasCancellationTokenArgument(ctx, innerInvocation, symbol)) {
                         ctx.ReportDiagnostic(Diagnostic.Create(RuleTaskRunNoCancellationToken, innerInvocation.GetLocation()));
                     }
                     return;
                 }
 
-                if (IsAsyncMethod(symbol) && !HasCancellationTokenArgument(ctx, innerInvocation, symbol))
-                {
+                if (IsAsyncMethod(symbol) && !HasCancellationTokenArgument(ctx, innerInvocation, symbol)) {
                     var displayStr = $"{containingType.Name}.{symbol.Name}";
                     ctx.ReportDiagnostic(Diagnostic.Create(RuleFireAndForgetNoCancellationToken, innerInvocation.GetLocation(), displayStr));
                 }
             }
         }
 
-        private static bool IsAsyncMethod(IMethodSymbol method)
-        {
+        private static bool IsAsyncMethod(IMethodSymbol method) {
             var returnType = method.ReturnType;
             if (returnType is null) return false;
 
@@ -191,10 +177,8 @@ namespace AotSafety.Generator
                    typeName.StartsWith("ValueTask", StringComparison.Ordinal);
         }
 
-        private static bool HasCancellationTokenArgument(SyntaxNodeAnalysisContext ctx, InvocationExpressionSyntax invocation, IMethodSymbol method)
-        {
-            var hasCancellationTokenParam = method.Parameters.Any(p =>
-            {
+        private static bool HasCancellationTokenArgument(SyntaxNodeAnalysisContext ctx, InvocationExpressionSyntax invocation, IMethodSymbol method) {
+            var hasCancellationTokenParam = method.Parameters.Any(p => {
                 var paramType = p.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                 return paramType == "CancellationToken";
             });
@@ -202,11 +186,9 @@ namespace AotSafety.Generator
             if (!hasCancellationTokenParam) return true;
 
             var arguments = invocation.ArgumentList.Arguments;
-            foreach (var arg in arguments)
-            {
+            foreach (var arg in arguments) {
                 var argType = ctx.SemanticModel.GetTypeInfo(arg.Expression).Type;
-                if (argType is not null)
-                {
+                if (argType is not null) {
                     var argTypeName = argType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                     if (argTypeName == "CancellationToken")
                         return true;
@@ -216,14 +198,10 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static InvocationExpressionSyntax? FindInnermostInvocation(ExpressionSyntax expr)
-        {
-            if (expr is InvocationExpressionSyntax inv)
-            {
-                if (inv.Expression is MemberAccessExpressionSyntax memberAccess)
-                {
-                    if (memberAccess.Expression is InvocationExpressionSyntax innerInv)
-                    {
+        private static InvocationExpressionSyntax? FindInnermostInvocation(ExpressionSyntax expr) {
+            if (expr is InvocationExpressionSyntax inv) {
+                if (inv.Expression is MemberAccessExpressionSyntax memberAccess) {
+                    if (memberAccess.Expression is InvocationExpressionSyntax innerInv) {
                         return FindInnermostInvocation(innerInv) ?? innerInv;
                     }
                 }
@@ -232,8 +210,7 @@ namespace AotSafety.Generator
             return null;
         }
 
-        private static void AnalyzeLockInAsyncMethod(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeLockInAsyncMethod(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var lockStatement = (LockStatementSyntax)ctx.Node;
@@ -247,8 +224,7 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleLockInAsyncMethod, lockStatement.GetLocation(), methodName));
         }
 
-        private static void AnalyzeSemaphoreSlimWaitNoTimeout(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeSemaphoreSlimWaitNoTimeout(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var invocation = (InvocationExpressionSyntax)ctx.Node;
@@ -267,20 +243,17 @@ namespace AotSafety.Generator
 
             if (symbol.Parameters.Length == 0) return;
 
-            var hasTimeoutOrCancellationParam = symbol.Parameters.Any(p =>
-            {
+            var hasTimeoutOrCancellationParam = symbol.Parameters.Any(p => {
                 var paramTypeName = p.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                 return paramTypeName == "int" || paramTypeName == "TimeSpan" || paramTypeName == "CancellationToken";
             });
 
-            if (!hasTimeoutOrCancellationParam)
-            {
+            if (!hasTimeoutOrCancellationParam) {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleSemaphoreSlimWaitNoTimeout, invocation.GetLocation()));
             }
         }
 
-        private static void AnalyzeLockWithGetAwaiter(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeLockWithGetAwaiter(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var lockStatement = (LockStatementSyntax)ctx.Node;
@@ -289,8 +262,7 @@ namespace AotSafety.Generator
                 .OfType<InvocationExpressionSyntax>()
                 .Where(inv => IsGetAwaiterGetResultPattern(inv, ctx.SemanticModel));
 
-            foreach (var invocation in getAwaiterInvocations)
-            {
+            foreach (var invocation in getAwaiterInvocations) {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var exprText = invocation.Expression.ToString();
@@ -298,8 +270,7 @@ namespace AotSafety.Generator
             }
         }
 
-        private static bool IsGetAwaiterGetResultPattern(InvocationExpressionSyntax invocation, SemanticModel semanticModel)
-        {
+        private static bool IsGetAwaiterGetResultPattern(InvocationExpressionSyntax invocation, SemanticModel semanticModel) {
             if (invocation.Expression is not MemberAccessExpressionSyntax outerAccess) return false;
             if (outerAccess.Name.Identifier.ValueText != "GetResult") return false;
 
@@ -310,8 +281,7 @@ namespace AotSafety.Generator
             return true;
         }
 
-        private static void AnalyzeLockAndSemaphoreSlimOnSameState(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeLockAndSemaphoreSlimOnSameState(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var lockStatement = (LockStatementSyntax)ctx.Node;
@@ -335,8 +305,7 @@ namespace AotSafety.Generator
 
             if (semaphoreFields.Count == 0) return;
 
-            foreach (var semField in semaphoreFields)
-            {
+            foreach (var semField in semaphoreFields) {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var semFieldName = semField.Declaration.Variables.FirstOrDefault()?.Identifier.ValueText;
@@ -351,16 +320,14 @@ namespace AotSafety.Generator
             }
         }
 
-        private static bool IsThisMemberAccess(ExpressionSyntax expression)
-        {
+        private static bool IsThisMemberAccess(ExpressionSyntax expression) {
             if (expression is MemberAccessExpressionSyntax memberAccess &&
                 memberAccess.Expression is ThisExpressionSyntax)
                 return true;
             return false;
         }
 
-        private static string? GetIdentifierName(ExpressionSyntax expression)
-        {
+        private static string? GetIdentifierName(ExpressionSyntax expression) {
             if (expression is IdentifierNameSyntax identifier)
                 return identifier.Identifier.ValueText;
             if (expression is MemberAccessExpressionSyntax memberAccess)
@@ -368,18 +335,15 @@ namespace AotSafety.Generator
             return null;
         }
 
-        private static bool IsSemaphoreSlimField(FieldDeclarationSyntax fieldDecl, SemanticModel semanticModel)
-        {
+        private static bool IsSemaphoreSlimField(FieldDeclarationSyntax fieldDecl, SemanticModel semanticModel) {
             var typeInfo = semanticModel.GetTypeInfo(fieldDecl.Declaration.Type);
             return typeInfo.Type?.Name == "SemaphoreSlim";
         }
 
-        private static void AnalyzeSemaphoreSlimNotDisposed(CompilationStartAnalysisContext context)
-        {
+        private static void AnalyzeSemaphoreSlimNotDisposed(CompilationStartAnalysisContext context) {
             var semaphoreSlimFields = new ConcurrentDictionary<IFieldSymbol, Location>(SymbolEqualityComparer.Default);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var fieldDecl = (FieldDeclarationSyntax)ctx.Node;
@@ -388,8 +352,7 @@ namespace AotSafety.Generator
                 if (fieldType is null) return;
                 if (fieldType.Name != "SemaphoreSlim") return;
 
-                foreach (var variable in fieldDecl.Declaration.Variables)
-                {
+                foreach (var variable in fieldDecl.Declaration.Variables) {
                     var symbol = ctx.SemanticModel.GetDeclaredSymbol(variable, ctx.CancellationToken) as IFieldSymbol;
                     if (symbol is null) continue;
 
@@ -399,12 +362,10 @@ namespace AotSafety.Generator
                 }
             }, SyntaxKind.FieldDeclaration);
 
-            context.RegisterCompilationEndAction(ctx =>
-            {
+            context.RegisterCompilationEndAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
-                foreach (var kvp in semaphoreSlimFields)
-                {
+                foreach (var kvp in semaphoreSlimFields) {
                     if (ctx.CancellationToken.IsCancellationRequested) return;
 
                     var field = kvp.Key;
@@ -423,20 +384,17 @@ namespace AotSafety.Generator
                                             IsFieldDisposedInMethod(containingType, field.Name, "DisposeAsync") ||
                                             IsFieldDisposedInMethod(containingType, field.Name, "OnDispose");
 
-                    if (!disposedInDispose)
-                    {
+                    if (!disposedInDispose) {
                         ctx.ReportDiagnostic(Diagnostic.Create(RuleSemaphoreSlimNotDisposed, location, field.Name));
                     }
                 }
             });
         }
 
-        private static void AnalyzeConcurrentDictSemaphoreSlimNotDisposed(CompilationStartAnalysisContext context)
-        {
+        private static void AnalyzeConcurrentDictSemaphoreSlimNotDisposed(CompilationStartAnalysisContext context) {
             var concurrentDictFields = new ConcurrentDictionary<IFieldSymbol, Location>(SymbolEqualityComparer.Default);
 
-            context.RegisterSyntaxNodeAction(ctx =>
-            {
+            context.RegisterSyntaxNodeAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 var fieldDecl = (FieldDeclarationSyntax)ctx.Node;
@@ -449,8 +407,7 @@ namespace AotSafety.Generator
                 if (fieldType.TypeArguments.Length != 2) return;
                 if (fieldType.TypeArguments[1].Name != "SemaphoreSlim") return;
 
-                foreach (var variable in fieldDecl.Declaration.Variables)
-                {
+                foreach (var variable in fieldDecl.Declaration.Variables) {
                     var symbol = ctx.SemanticModel.GetDeclaredSymbol(variable, ctx.CancellationToken) as IFieldSymbol;
                     if (symbol is null) continue;
 
@@ -460,12 +417,10 @@ namespace AotSafety.Generator
                 }
             }, SyntaxKind.FieldDeclaration);
 
-            context.RegisterCompilationEndAction(ctx =>
-            {
+            context.RegisterCompilationEndAction(ctx => {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
-                foreach (var kvp in concurrentDictFields)
-                {
+                foreach (var kvp in concurrentDictFields) {
                     if (ctx.CancellationToken.IsCancellationRequested) return;
 
                     var field = kvp.Key;
@@ -484,18 +439,15 @@ namespace AotSafety.Generator
                                             HasForEachDisposeInMethod(containingType, field.Name, "DisposeAsync") ||
                                             HasForEachDisposeInMethod(containingType, field.Name, "OnDispose");
 
-                    if (!hasForEachDispose)
-                    {
+                    if (!hasForEachDispose) {
                         ctx.ReportDiagnostic(Diagnostic.Create(RuleConcurrentDictSemaphoreSlimNotDisposed, location, field.Name));
                     }
                 }
             });
         }
 
-        private static bool IsFieldDisposedInMethod(INamedTypeSymbol type, string fieldName, string methodName)
-        {
-            foreach (var refDecl in type.DeclaringSyntaxReferences)
-            {
+        private static bool IsFieldDisposedInMethod(INamedTypeSymbol type, string fieldName, string methodName) {
+            foreach (var refDecl in type.DeclaringSyntaxReferences) {
                 var syntax = refDecl.GetSyntax();
                 if (syntax is not TypeDeclarationSyntax typeDecl) continue;
 
@@ -503,18 +455,14 @@ namespace AotSafety.Generator
                     .OfType<MethodDeclarationSyntax>()
                     .Where(m => m.Identifier.ValueText == methodName);
 
-                foreach (var method in disposeMethods)
-                {
+                foreach (var method in disposeMethods) {
                     var hasFieldReference = false;
 
-                    if (method.Body is not null)
-                    {
+                    if (method.Body is not null) {
                         hasFieldReference = method.Body.DescendantNodes()
                             .OfType<IdentifierNameSyntax>()
                             .Any(id => id.Identifier.ValueText == fieldName);
-                    }
-                    else if (method.ExpressionBody is not null)
-                    {
+                    } else if (method.ExpressionBody is not null) {
                         hasFieldReference = method.ExpressionBody.Expression.DescendantNodesAndSelf()
                             .OfType<IdentifierNameSyntax>()
                             .Any(id => id.Identifier.ValueText == fieldName);
@@ -527,13 +475,11 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool HasForEachDisposeInMethod(INamedTypeSymbol type, string fieldName, string methodName)
-        {
+        private static bool HasForEachDisposeInMethod(INamedTypeSymbol type, string fieldName, string methodName) {
             return IsFieldDisposedInMethod(type, fieldName, methodName);
         }
 
-        private static void AnalyzeThreadSleep(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeThreadSleep(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var invocation = (InvocationExpressionSyntax)ctx.Node;

@@ -4,16 +4,14 @@ namespace JoinCode.Abstractions.Attributes;
 /// 标记 Settings 类 — 源码生成器据此自动生成拷贝构造函数、Merge 方法、GetSettingByKey、UpdateSettingByKey
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public sealed class SettingsMergeAttribute : Attribute
-{
+public sealed class SettingsMergeAttribute : Attribute {
 }
 
 /// <summary>
 /// 标记 Settings 属性的合并策略 — 源码生成器据此决定 Merge 行为
 /// </summary>
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
-public sealed class SettingsPropertyAttribute : Attribute
-{
+public sealed class SettingsPropertyAttribute : Attribute {
     /// <summary>
     /// 合并策略
     /// </summary>
@@ -50,8 +48,7 @@ public sealed class SettingsPropertyAttribute : Attribute
 /// <summary>
 /// Settings 属性合并策略
 /// </summary>
-public enum SettingsMergeStrategy
-{
+public enum SettingsMergeStrategy {
     /// <summary>
     /// 简单值覆盖: override ?? base（适用于 string?、bool?、int? 等 nullable 值类型）
     /// </summary>

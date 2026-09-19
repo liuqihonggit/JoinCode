@@ -5,8 +5,7 @@ namespace Infrastructure.HotSpot;
 /// 编译校验和合并通过回调注入（实际接入时绑定 BuildQueueService + WorktreeMergeService）
 /// </summary>
 [Register(typeof(IMergeQueueService), ServiceLifetime.Singleton)]
-public sealed class MergeQueueService : IMergeQueueService
-{
+public sealed class MergeQueueService : IMergeQueueService {
     private readonly ConcurrentQueue<MergeQueueItem> _queue = new();
     private readonly Func<string, CancellationToken, Task<bool>> _compileValidator;
     private readonly Func<string, CancellationToken, Task<bool>> _mergeExecutor;
@@ -18,15 +17,13 @@ public sealed class MergeQueueService : IMergeQueueService
     /// <param name="mergeExecutor">合并执行回调,接收分支名与取消令牌,返回是否成功</param>
     public MergeQueueService(
         Func<string, CancellationToken, Task<bool>> compileValidator,
-        Func<string, CancellationToken, Task<bool>> mergeExecutor)
-    {
+        Func<string, CancellationToken, Task<bool>> mergeExecutor) {
         _compileValidator = compileValidator ?? throw new ArgumentNullException(nameof(compileValidator));
         _mergeExecutor = mergeExecutor ?? throw new ArgumentNullException(nameof(mergeExecutor));
     }
 
     /// <inheritdoc/>
-    public Task EnqueueAsync(MergeQueueItem item, CancellationToken cancellationToken = default)
-    {
+    public Task EnqueueAsync(MergeQueueItem item, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(item);
         cancellationToken.ThrowIfCancellationRequested();
         _queue.Enqueue(item);
@@ -34,8 +31,7 @@ public sealed class MergeQueueService : IMergeQueueService
     }
 
     /// <inheritdoc/>
-    public async Task<MergeResult> ProcessNextAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<MergeResult> ProcessNextAsync(CancellationToken cancellationToken = default) {
         if (!_queue.TryDequeue(out var item))
             return MergeResult.Empty();
 

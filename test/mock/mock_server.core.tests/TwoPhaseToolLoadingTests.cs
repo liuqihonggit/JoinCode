@@ -11,11 +11,9 @@ namespace MockServer.Core.Tests;
 ///
 /// 目标: 首次请求不含 304 个工具的完整 schema,只含分组列表
 /// </summary>
-public sealed class TwoPhaseToolLoadingTests
-{
+public sealed class TwoPhaseToolLoadingTests {
     [Fact]
-    public void BuildToolDescriptionRequest_WithToolCalls_ReturnsRequestedTools()
-    {
+    public void BuildToolDescriptionRequest_WithToolCalls_ReturnsRequestedTools() {
         var turns = new List<ScriptedTurn>
         {
             new() { TextResponse = "I will read a file.", ToolCalls = [new ToolCallConfig { ToolName = "read", Arguments = "{}" }] }
@@ -31,8 +29,7 @@ public sealed class TwoPhaseToolLoadingTests
     }
 
     [Fact]
-    public void BuildToolDescriptionRequest_NoToolCalls_ReturnsNull()
-    {
+    public void BuildToolDescriptionRequest_NoToolCalls_ReturnsNull() {
         var turns = new List<ScriptedTurn>
         {
             new() { TextResponse = "Hello!" }
@@ -46,8 +43,7 @@ public sealed class TwoPhaseToolLoadingTests
     }
 
     [Fact]
-    public void BuildToolDescriptionRequest_MultipleToolCalls_ReturnsAllDistinctTools()
-    {
+    public void BuildToolDescriptionRequest_MultipleToolCalls_ReturnsAllDistinctTools() {
         var turns = new List<ScriptedTurn>
         {
             new()
@@ -73,8 +69,7 @@ public sealed class TwoPhaseToolLoadingTests
     }
 
     [Fact]
-    public void BuildToolDescriptionRequest_DefaultImplementation_ReturnsNull()
-    {
+    public void BuildToolDescriptionRequest_DefaultImplementation_ReturnsNull() {
         IResponseStrategy strategy = new DefaultStrategy();
 
         var result = strategy.BuildToolDescriptionRequest(JsonDocument.Parse("""{"tool_groups":[]}""").RootElement.Clone());
@@ -82,8 +77,7 @@ public sealed class TwoPhaseToolLoadingTests
         result.Should().BeNull();
     }
 
-    private sealed class TestableStrategy : ScriptedResponseStrategyBase
-    {
+    private sealed class TestableStrategy : ScriptedResponseStrategyBase {
         public TestableStrategy(List<ScriptedTurn>? turns) : base(turns, "default") { }
 
         public override string BuildResponse(JsonElement request, CacheStats cacheStats) => "{}";
@@ -94,8 +88,7 @@ public sealed class TwoPhaseToolLoadingTests
         public override string BuildStreamThinkingResponse(string id) => "";
     }
 
-    private sealed class DefaultStrategy : IResponseStrategy
-    {
+    private sealed class DefaultStrategy : IResponseStrategy {
         public string BuildResponse(JsonElement request, CacheStats cacheStats) => "{}";
         public bool SupportsStreaming => true;
         public string BuildStreamChunk(string id, string content, bool isLast) => "";

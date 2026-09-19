@@ -1,11 +1,9 @@
 
 namespace Core.Tests.Telemetry;
 
-public sealed class TelemetryConfigTests
-{
+public sealed class TelemetryConfigTests {
     [Fact]
-    public void Constructor_SetsDefaults()
-    {
+    public void Constructor_SetsDefaults() {
         var config = new TelemetryConfig();
 
         Assert.Equal("JoinCode", config.ServiceName);
@@ -20,10 +18,8 @@ public sealed class TelemetryConfigTests
     }
 
     [Fact]
-    public void Constructor_WithCustomValues()
-    {
-        var config = new TelemetryConfig
-        {
+    public void Constructor_WithCustomValues() {
+        var config = new TelemetryConfig {
             ServiceName = "MyService",
             ServiceVersion = "2.0.0",
             TracingEnabled = false,
@@ -47,8 +43,7 @@ public sealed class TelemetryConfigTests
     }
 
     [Fact]
-    public void ExportFormat_AllValues()
-    {
+    public void ExportFormat_AllValues() {
         var values = Enum.GetValues<TelemetryExportFormat>();
         Assert.Equal(4, values.Length);
         Assert.Contains(TelemetryExportFormat.None, values);
@@ -58,15 +53,13 @@ public sealed class TelemetryConfigTests
     }
 
     [Fact]
-    public void SpanKind_AllValues()
-    {
+    public void SpanKind_AllValues() {
         var values = Enum.GetValues<TelemetrySpanKind>();
         Assert.Equal(5, values.Length);
     }
 
     [Fact]
-    public void StatusCode_AllValues()
-    {
+    public void StatusCode_AllValues() {
         var values = Enum.GetValues<TelemetryStatusCode>();
         Assert.Equal(3, values.Length);
     }

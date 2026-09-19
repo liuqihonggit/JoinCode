@@ -4,8 +4,7 @@ namespace Infrastructure.Network.Downloader.StateMachine;
 /// 下载操作枚举 — 状态机可响应的操作类型,驱动 TryTransition 统一入口
 /// <para>枚举是唯一数据源,禁止消费方硬编码操作字符串</para>
 /// </summary>
-public enum DownloadOperation
-{
+public enum DownloadOperation {
     /// <summary>启动:Idle → Downloading</summary>
     [EnumValue("start")] Start,
 

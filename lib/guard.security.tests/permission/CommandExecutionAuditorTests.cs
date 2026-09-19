@@ -3,14 +3,12 @@ namespace Guard.Security.Tests;
 /// <summary>
 /// CommandExecutionAuditor 审计日志测试 — 验证 JSONL 写入和结构化记录
 /// </summary>
-public class CommandExecutionAuditorTests
-{
+public class CommandExecutionAuditorTests {
     private static CommandExecutionAuditor CreateAuditor(InMemoryFileSystem fs, string dir = ".audit-test")
         => new(fs, dir, NullLogger<CommandExecutionAuditor>.Instance);
 
     [Fact]
-    public void Record_Creates_Audit_Directory_And_File()
-    {
+    public void Record_Creates_Audit_Directory_And_File() {
         var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
 
@@ -26,8 +24,7 @@ public class CommandExecutionAuditorTests
     }
 
     [Fact]
-    public void Record_Writes_Valid_JSONL()
-    {
+    public void Record_Writes_Valid_JSONL() {
         var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
 
@@ -48,8 +45,7 @@ public class CommandExecutionAuditorTests
     }
 
     [Fact]
-    public void Record_Appends_Multiple_Entries_To_Same_File()
-    {
+    public void Record_Appends_Multiple_Entries_To_Same_File() {
         var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
         var timestamp = DateTimeOffset.Parse("2026-09-13T12:00:00Z");
@@ -63,8 +59,7 @@ public class CommandExecutionAuditorTests
     }
 
     [Fact]
-    public void Record_With_FilesChanged_Serializes_Changes()
-    {
+    public void Record_With_FilesChanged_Serializes_Changes() {
         var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
 
@@ -94,8 +89,7 @@ public class CommandExecutionAuditorTests
     }
 
     [Fact]
-    public void Record_Does_Not_Throw_On_FileSystem_Error()
-    {
+    public void Record_Does_Not_Throw_On_FileSystem_Error() {
         var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs, "/nonexistent/path/that/should/not/exist");
 

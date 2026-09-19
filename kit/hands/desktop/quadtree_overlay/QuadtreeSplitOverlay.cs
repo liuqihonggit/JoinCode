@@ -5,8 +5,7 @@ namespace JoinCode.Hands.Desktop.QuadtreeOverlay;
 /// 从屏幕边界开始递归四等分,逐层展开,区块半透明填充 + 微细线条 + 颜色从外到内淡化
 /// 后台线程独占消息循环,工具线程通过 Close() 发送 WM_CLOSE 通知关闭
 /// </summary>
-internal sealed class QuadtreeSplitOverlay : IDisposable
-{
+internal sealed class QuadtreeSplitOverlay : IDisposable {
     private IntPtr _hwnd;
     private string _className = string.Empty;
     private GCHandle _wndProcPin;
@@ -27,10 +26,8 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
     /// <param name="frameMs">帧间隔(毫秒)</param>
     /// <param name="baseColor">基础颜色 COLORREF</param>
     /// <param name="highlightRect">高亮格子(可选,鼠标指向识别时用)</param>
-    public void Run(int screenW, int screenH, int maxDepth, int durationMs, int frameMs, uint baseColor, QuadtreeRect? highlightRect = null)
-    {
-        _state = new SplitState
-        {
+    public void Run(int screenW, int screenH, int maxDepth, int durationMs, int frameMs, uint baseColor, QuadtreeRect? highlightRect = null) {
+        _state = new SplitState {
             ScreenW = screenW,
             ScreenH = screenH,
             MaxDepth = maxDepth,
@@ -50,8 +47,7 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
         var wndProc = new PulseNativeMethods.WndProcDelegate(WndProc);
         _wndProcPin = GCHandle.Alloc(wndProc);
 
-        var wc = new WNDCLASSEX
-        {
+        var wc = new WNDCLASSEX {
             cbSize = Marshal.SizeOf<WNDCLASSEX>(),
             lpfnWndProc = wndProc,
             hInstance = hInstance,
@@ -70,8 +66,7 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
             0, 0, screenW, screenH,
             IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
 
-        if (_hwnd == IntPtr.Zero)
-        {
+        if (_hwnd == IntPtr.Zero) {
             PulseNativeMethods.UnregisterClass(_className, hInstance);
             return;
         }
@@ -80,8 +75,7 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
         PulseNativeMethods.ShowWindow(_hwnd, PulseNativeMethods.SW_SHOWNOACTIVATE);
         PulseNativeMethods.SetTimer(_hwnd, (IntPtr)1, (uint)frameMs, IntPtr.Zero);
 
-        while (PulseNativeMethods.GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
-        {
+        while (PulseNativeMethods.GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0) {
             PulseNativeMethods.TranslateMessage(ref msg);
             PulseNativeMethods.DispatchMessage(ref msg);
         }
@@ -91,42 +85,37 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
     }
 
     /// <summary>请求关闭窗口(从其他线程调用)</summary>
-    public void Close()
-    {
+    public void Close() {
         if (_hwnd != IntPtr.Zero)
             PulseNativeMethods.PostMessage(_hwnd, PulseNativeMethods.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
     }
 
-    private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
-    {
-        switch (msg)
-        {
+    private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam) {
+        switch (msg) {
             case PulseNativeMethods.WM_TIMER:
-                HandleTimer(hwnd);
-                return IntPtr.Zero;
+            HandleTimer(hwnd);
+            return IntPtr.Zero;
 
             case PulseNativeMethods.WM_PAINT:
-                HandlePaint(hwnd);
-                return IntPtr.Zero;
+            HandlePaint(hwnd);
+            return IntPtr.Zero;
 
             case PulseNativeMethods.WM_CLOSE:
-                PulseNativeMethods.DestroyWindow(hwnd);
-                return IntPtr.Zero;
+            PulseNativeMethods.DestroyWindow(hwnd);
+            return IntPtr.Zero;
 
             case PulseNativeMethods.WM_DESTROY:
-                PulseNativeMethods.PostQuitMessage(0);
-                return IntPtr.Zero;
+            PulseNativeMethods.PostQuitMessage(0);
+            return IntPtr.Zero;
 
             default:
-                return PulseNativeMethods.DefWindowProc(hwnd, msg, wParam, lParam);
+            return PulseNativeMethods.DefWindowProc(hwnd, msg, wParam, lParam);
         }
     }
 
-    private void HandleTimer(IntPtr hwnd)
-    {
+    private void HandleTimer(IntPtr hwnd) {
         var elapsed = Environment.TickCount64 - _state.StartTicks;
-        if (elapsed >= _state.DurationMs)
-        {
+        if (elapsed >= _state.DurationMs) {
             PulseNativeMethods.PostMessage(hwnd, PulseNativeMethods.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
             return;
         }
@@ -138,46 +127,38 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
         PulseNativeMethods.InvalidateRect(hwnd, IntPtr.Zero, true);
     }
 
-    private void HandlePaint(IntPtr hwnd)
-    {
+    private void HandlePaint(IntPtr hwnd) {
         var ps = new PulseOverlay.PAINTSTRUCT();
         var hdc = PulseNativeMethods.BeginPaint(hwnd, ref ps);
         if (hdc == IntPtr.Zero)
             return;
 
-        try
-        {
+        try {
             var rect = new PulseOverlay.RECT { Left = 0, Top = 0, Right = _state.ScreenW, Bottom = _state.ScreenH };
 
             var hKeyBrush = PulseNativeMethods.CreateSolidBrush((uint)PulseNativeMethods.COLORREF_TRANSPARENT_KEY);
             PulseNativeMethods.FillRect(hdc, ref rect, hKeyBrush);
             PulseNativeMethods.DeleteObject(hKeyBrush);
 
-            for (var d = 0; d <= _state.CurrentDepth; d++)
-            {
+            for (var d = 0; d <= _state.CurrentDepth; d++) {
                 DrawLayer(hdc, _state.Layers[d], d, _state.HighlightRect);
             }
 
-            if (_state.CurrentDepth < _state.MaxDepth && _state.LayerProgress > 0.3)
-            {
+            if (_state.CurrentDepth < _state.MaxDepth && _state.LayerProgress > 0.3) {
                 var splitProgress = (_state.LayerProgress - 0.3) / 0.7;
                 DrawSplitLines(hdc, _state.Layers[_state.CurrentDepth], splitProgress);
             }
 
             if (_state.HighlightRect.HasValue && _state.CurrentDepth >= _state.MaxDepth)
                 DrawHighlight(hdc, _state.HighlightRect.Value);
-        }
-        finally
-        {
+        } finally {
             PulseNativeMethods.EndPaint(hwnd, ref ps);
         }
     }
 
     /// <summary>绘制一层:鼠标格子橙色半透明填充,其他格子淡灰色</summary>
-    private static void DrawLayer(IntPtr hdc, List<QuadtreeRect> rects, int depth, QuadtreeRect? highlightRect)
-    {
-        for (var i = 0; i < rects.Count; i++)
-        {
+    private static void DrawLayer(IntPtr hdc, List<QuadtreeRect> rects, int depth, QuadtreeRect? highlightRect) {
+        for (var i = 0; i < rects.Count; i++) {
             var r = rects[i];
             var isHighlight = highlightRect.HasValue && r == highlightRect.Value;
             var fill = isHighlight ? HighlightFill : NormalFill;
@@ -188,8 +169,7 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
     }
 
     /// <summary>绘制单个格子:半透明填充 + 边框线条</summary>
-    private static void DrawSingleRect(IntPtr hdc, QuadtreeRect r, uint fillColor, uint lineColor, int penWidth)
-    {
+    private static void DrawSingleRect(IntPtr hdc, QuadtreeRect r, uint fillColor, uint lineColor, int penWidth) {
         var hBrush = PulseNativeMethods.CreateSolidBrush(fillColor);
         var fillRect = new PulseOverlay.RECT { Left = r.X, Top = r.Y, Right = r.X + r.Width, Bottom = r.Y + r.Height };
         PulseNativeMethods.FillRect(hdc, ref fillRect, hBrush);
@@ -206,13 +186,11 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
     }
 
     /// <summary>绘制分裂分割线 — 从每个父框中心向外延伸,淡灰色</summary>
-    private static void DrawSplitLines(IntPtr hdc, List<QuadtreeRect> parents, double progress)
-    {
+    private static void DrawSplitLines(IntPtr hdc, List<QuadtreeRect> parents, double progress) {
         var hPen = PulseNativeMethods.CreatePen(NativeConstants.PS_SOLID, 1, NormalLine);
         using var penScope = new GdiSelectScope(hdc, hPen);
 
-        foreach (var p in parents)
-        {
+        foreach (var p in parents) {
             var cx = p.X + p.Width / 2;
             var cy = p.Y + p.Height / 2;
             var halfW = (int)(p.Width / 2 * progress);
@@ -228,8 +206,7 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
     }
 
     /// <summary>高亮特定格子(鼠标指向识别时用)</summary>
-    private static void DrawHighlight(IntPtr hdc, QuadtreeRect r)
-    {
+    private static void DrawHighlight(IntPtr hdc, QuadtreeRect r) {
         var hPen = PulseNativeMethods.CreatePen(NativeConstants.PS_SOLID, 5, HighlightLine);
         var nullBrush = PulseNativeMethods.GetStockObject(NullBrush);
         using var penScope = new GdiSelectScope(hdc, hPen);
@@ -241,16 +218,14 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
     }
 
     /// <summary>释放覆盖层资源，若窗口仍存在则请求关闭。</summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed)
             return;
         _disposed = true;
         Close();
     }
 
-    private sealed class SplitState
-    {
+    private sealed class SplitState {
         public int ScreenW;
         public int ScreenH;
         public int MaxDepth;

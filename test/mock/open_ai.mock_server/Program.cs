@@ -1,15 +1,11 @@
 namespace OpenAI.MockServer;
 
-public sealed class Program
-{
+public sealed class Program {
     private static readonly ManualResetEventSlim ShutdownEvent = new(false);
 
-    public static async Task Main(string[] args)
-    {
-        try
-        {
-            void LogMain(string msg)
-            {
+    public static async Task Main(string[] args) {
+        try {
+            void LogMain(string msg) {
                 Console.WriteLine(msg);
                 System.Diagnostics.Trace.WriteLine(msg);
             }
@@ -30,8 +26,7 @@ public sealed class Program
                 TokenEstimator.EstimateFromMessages);
 
             await using var server = new KestrelMockServer(strategy, cacheSimulator, port, serverName: "OpenAI");
-            server.ShutdownRequested += () =>
-            {
+            server.ShutdownRequested += () => {
                 LogMain("[OpenAI.MockServer] Shutdown requested");
                 ShutdownEvent.Set();
             };
@@ -43,9 +38,7 @@ public sealed class Program
 
             LogMain("[OpenAI.MockServer] ShutdownEvent released, stopping...");
             await server.StopAsync().ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Console.WriteLine($"[OpenAI.MockServer] FATAL: {ex}");
             Environment.ExitCode = 1;
         }

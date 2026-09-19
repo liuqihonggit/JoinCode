@@ -13,8 +13,7 @@ namespace JoinCode.ChatCommands;
     Aliases = ["ask"],
     ArgumentHint = "[需求描述]")]
 [ChatCommandArg("description", Type = "string", Description = "需求描述文本,作为澄清循环的初始输入")]
-public sealed class AskClarifyCommand : ChatCommandBase
-{
+public sealed class AskClarifyCommand : ChatCommandBase {
     /// <summary>
     /// 需求已明确的标记 — LLM 输出此标记时退出澄清循环
     /// </summary>
@@ -26,27 +25,19 @@ public sealed class AskClarifyCommand : ChatCommandBase
     private static readonly FrozenSet<string> ExitCommands = FrozenSet.Create("/end", "/done", "/exit", "/quit");
 
     /// <inheritdoc/>
-    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var chatService = context.GetCommandServices().ChatService;
 
         var bufferedOut = TerminalHelper.Out;
         var realStdout = new StreamWriter(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };
         TerminalHelper.SetOut(realStdout);
 
-        try
-        {
+        try {
             await RunClarifyLoopAsync(chatService, context.Arguments, context.CancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
             HandleError("需求澄清", ex);
-        }
-        finally
-        {
+        } finally {
             TerminalHelper.SetOut(bufferedOut);
         }
 
@@ -56,8 +47,7 @@ public sealed class AskClarifyCommand : ChatCommandBase
     /// <summary>
     /// 澄清子循环 — 发送消息、消费事件、检查退出条件
     /// </summary>
-    private static async Task RunClarifyLoopAsync(IChatService chatService, string initialArgs, CancellationToken ct)
-    {
+    private static async Task RunClarifyLoopAsync(IChatService chatService, string initialArgs, CancellationToken ct) {
         TerminalHelper.WriteLine();
         TerminalHelper.WriteLine($"{TerminalColors.Accent}{AnsiStyleEnumConstants.Bold}╔══ 需求澄清模式 ══╗{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine($"{TerminalColors.Accent}║ AI 会多轮提问帮你明确需求  ║{AnsiStyleEnumConstants.Reset}");
@@ -68,14 +58,11 @@ public sealed class AskClarifyCommand : ChatCommandBase
         var isFirstRound = true;
         var currentInput = initialArgs.Trim();
 
-        while (!ct.IsCancellationRequested)
-        {
-            if (string.IsNullOrEmpty(currentInput))
-            {
+        while (!ct.IsCancellationRequested) {
+            if (string.IsNullOrEmpty(currentInput)) {
                 TerminalHelper.WriteRaw($"{AnsiStyleEnumConstants.Dim}请描述你的需求(或输入 /end 退出): {AnsiStyleEnumConstants.Reset}");
                 currentInput = TerminalHelper.ReadLine().Trim();
-                if (string.IsNullOrEmpty(currentInput) || IsExitCommand(currentInput))
-                {
+                if (string.IsNullOrEmpty(currentInput) || IsExitCommand(currentInput)) {
                     TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Dim}已退出澄清模式。{AnsiStyleEnumConstants.Reset}");
                     return;
                 }
@@ -92,25 +79,20 @@ public sealed class AskClarifyCommand : ChatCommandBase
             var responseBuilder = new StringBuilder();
             var clarifyDone = false;
 
-            await foreach (var evt in chatService.StreamWithEventsAsync(message, ct).ConfigureAwait(false))
-            {
+            await foreach (var evt in chatService.StreamWithEventsAsync(message, ct).ConfigureAwait(false)) {
                 evt.Switch(
-                    onText: content =>
-                    {
-                        if (content.Length > 0)
-                        {
+                    onText: content => {
+                        if (content.Length > 0) {
                             responseBuilder.Append(content);
                             TerminalHelper.WriteRaw(content);
                         }
                     },
                     onThinking: _ => { },
-                    onToolStart: (toolName, _, _) =>
-                    {
+                    onToolStart: (toolName, _, _) => {
                         TerminalHelper.WriteLine();
                         TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Dim}  [工具] {toolName}{AnsiStyleEnumConstants.Reset}");
                     },
-                    onToolEnd: (toolName, resultText, _, isToolError, _) =>
-                    {
+                    onToolEnd: (toolName, resultText, _, isToolError, _) => {
                         if (isToolError)
                             TerminalHelper.WriteLine($"  {TerminalColors.Error}工具错误: {Truncate(resultText, 200)}{AnsiStyleEnumConstants.Reset}");
                     },
@@ -123,8 +105,7 @@ public sealed class AskClarifyCommand : ChatCommandBase
             var response = responseBuilder.ToString();
             TerminalHelper.NewLine();
 
-            if (response.Contains(ClarifyDoneMarker, StringComparison.OrdinalIgnoreCase))
-            {
+            if (response.Contains(ClarifyDoneMarker, StringComparison.OrdinalIgnoreCase)) {
                 clarifyDone = true;
                 TerminalHelper.WriteLine();
                 TerminalHelper.WriteLine($"{TerminalColors.Accent}{AnsiStyleEnumConstants.Bold}✓ 需求澄清完成{AnsiStyleEnumConstants.Reset}");
@@ -147,8 +128,7 @@ public sealed class AskClarifyCommand : ChatCommandBase
     /// <summary>
     /// 判断是否为退出命令
     /// </summary>
-    internal static bool IsExitCommand(string input)
-    {
+    internal static bool IsExitCommand(string input) {
         var trimmed = input.Trim().ToLowerInvariant();
         return ExitCommands.Contains(trimmed);
     }
@@ -156,8 +136,7 @@ public sealed class AskClarifyCommand : ChatCommandBase
     /// <summary>
     /// 截断文本用于显示
     /// </summary>
-    private static string Truncate(string? text, int maxLength)
-    {
+    private static string Truncate(string? text, int maxLength) {
         if (string.IsNullOrEmpty(text)) return string.Empty;
         return text.Length <= maxLength ? text : string.Concat(text.AsSpan(0, maxLength), "...");
     }
@@ -166,8 +145,7 @@ public sealed class AskClarifyCommand : ChatCommandBase
 /// <summary>
 /// 需求澄清提示词 — 硬编码在命令内,不进入 PromptSection 体系
 /// </summary>
-internal static class AskClarifyPrompts
-{
+internal static class AskClarifyPrompts {
     /// <summary>
     /// 澄清模式系统提示词 — 作为第一条消息前缀发送给 LLM
     /// </summary>

@@ -5,17 +5,14 @@ namespace JoinCode.Vision.Quadtree;
 /// 纯计算,无 GDI 依赖。配合 show_desktop_overlay 实现桌面实际叠加显示
 /// </summary>
 [Register(typeof(IQuadtreeDesktopOverlayMapper), ServiceLifetime.Singleton)]
-public sealed class QuadtreeDesktopOverlayMapper : IQuadtreeDesktopOverlayMapper
-{
+public sealed class QuadtreeDesktopOverlayMapper : IQuadtreeDesktopOverlayMapper {
     /// <summary>
     /// 把网格中所有可见格子(alpha≠-1)转换为屏幕坐标矩形
     /// </summary>
-    public IReadOnlyList<QuadtreeDesktopRect> MapToScreen(QuadtreeGrid grid, int originScreenX, int originScreenY)
-    {
+    public IReadOnlyList<QuadtreeDesktopRect> MapToScreen(QuadtreeGrid grid, int originScreenX, int originScreenY) {
         ArgumentNullException.ThrowIfNull(grid);
         var result = new List<QuadtreeDesktopRect>(grid.Cells.Count);
-        foreach (var cell in grid.Cells)
-        {
+        foreach (var cell in grid.Cells) {
             if (cell.Alpha < 0) continue;
             result.Add(new QuadtreeDesktopRect(
                 cell.Code,

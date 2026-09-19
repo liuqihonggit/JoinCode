@@ -4,14 +4,12 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// Bash 工具权限检查器实现 — 组合安全验证、路径约束与只读约束,对齐 TS bashPermissions.ts
 /// </summary>
 [Register(typeof(IBashPermissionChecker), ServiceLifetime.Singleton)]
-public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissionChecker
-{
+public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissionChecker {
 
     /// <summary>
     /// 构造 Bash 权限检查器
     /// </summary>
-    public BashPermissionChecker(IBashSecurityValidator securityValidator, IPathConstraintValidator pathConstraintValidator, IReadOnlyCommandDetector readOnlyDetector)
-    {
+    public BashPermissionChecker(IBashSecurityValidator securityValidator, IPathConstraintValidator pathConstraintValidator, IReadOnlyCommandDetector readOnlyDetector) {
         _securityValidator = securityValidator;
         _pathConstraintValidator = pathConstraintValidator;
         _readOnlyDetector = readOnlyDetector;
@@ -44,18 +42,15 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
     /// <inheritdoc />
     public BashPermissionResult CheckPermission(
         string command,
-        string workingDirectory)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-        {
+        string workingDirectory) {
+        if (string.IsNullOrWhiteSpace(command)) {
             return new BashPermissionResult(PermissionBehavior.Passthrough);
         }
 
         var trimmed = command.Trim();
 
         var securityResult = _securityValidator.Validate(trimmed);
-        if (!securityResult.IsSafe)
-        {
+        if (!securityResult.IsSafe) {
             return new BashPermissionResult(
                 PermissionBehavior.Ask,
                 Message: securityResult.Message ?? $"Security check failed: {securityResult.CheckId}",
@@ -63,8 +58,7 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
         }
 
         var subcommands = SplitSubcommands(trimmed);
-        if (subcommands.Count > MaxSubcommandsForSecurityCheck)
-        {
+        if (subcommands.Count > MaxSubcommandsForSecurityCheck) {
             return new BashPermissionResult(
                 PermissionBehavior.Ask,
                 Message: $"Command has too many subcommands ({subcommands.Count} > {MaxSubcommandsForSecurityCheck})");
@@ -73,34 +67,29 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
         var cdCount = subcommands.Count(sc => IsCdCommand(sc));
         var compoundCommandHasCd = cdCount > 0;
 
-        if (cdCount > 1)
-        {
+        if (cdCount > 1) {
             return new BashPermissionResult(
                 PermissionBehavior.Ask,
                 Message: "Multiple cd commands in compound command require manual approval");
         }
 
-        if (compoundCommandHasCd && ContainsGitCommand(subcommands))
-        {
+        if (compoundCommandHasCd && ContainsGitCommand(subcommands)) {
             return new BashPermissionResult(
                 PermissionBehavior.Ask,
                 Message: "cd + git compound command requires manual approval");
         }
 
-        foreach (var subcommand in subcommands)
-        {
+        foreach (var subcommand in subcommands) {
             var pathResult = _pathConstraintValidator.CheckPathConstraints(
                 subcommand, workingDirectory, compoundCommandHasCd);
-            if (pathResult.Behavior == PermissionBehavior.Deny)
-            {
+            if (pathResult.Behavior == PermissionBehavior.Deny) {
                 return new BashPermissionResult(
                     PermissionBehavior.Deny,
                     Message: pathResult.Message,
                     SuggestedRule: null);
             }
 
-            if (pathResult.Behavior == PermissionBehavior.Ask)
-            {
+            if (pathResult.Behavior == PermissionBehavior.Ask) {
                 return new BashPermissionResult(
                     PermissionBehavior.Ask,
                     Message: pathResult.Message,
@@ -109,8 +98,7 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
 
             var readOnlyResult = _readOnlyDetector.CheckReadOnlyConstraints(
                 subcommand, compoundCommandHasCd);
-            if (readOnlyResult.Behavior == PermissionBehavior.Ask)
-            {
+            if (readOnlyResult.Behavior == PermissionBehavior.Ask) {
                 return new BashPermissionResult(
                     PermissionBehavior.Ask,
                     Message: readOnlyResult.Message,
@@ -120,8 +108,7 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
 
         var overallReadOnly = _readOnlyDetector.CheckReadOnlyConstraints(
             trimmed, compoundCommandHasCd);
-        if (overallReadOnly.Behavior == PermissionBehavior.Allow)
-        {
+        if (overallReadOnly.Behavior == PermissionBehavior.Allow) {
             return new BashPermissionResult(PermissionBehavior.Allow);
         }
 
@@ -133,41 +120,34 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
 
     #region 辅助方法
 
-    private static List<string> SplitSubcommands(string command)
-    {
+    private static List<string> SplitSubcommands(string command) {
         var result = new List<string>();
         var current = new StringBuilder();
         var inSingleQuote = false;
         var inDoubleQuote = false;
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
 
-            if (c == '\'' && !inDoubleQuote)
-            {
+            if (c == '\'' && !inDoubleQuote) {
                 inSingleQuote = !inSingleQuote;
                 current.Append(c);
                 continue;
             }
 
-            if (c == '"' && !inSingleQuote)
-            {
+            if (c == '"' && !inSingleQuote) {
                 inDoubleQuote = !inDoubleQuote;
                 current.Append(c);
                 continue;
             }
 
-            if (inSingleQuote || inDoubleQuote)
-            {
+            if (inSingleQuote || inDoubleQuote) {
                 current.Append(c);
                 continue;
             }
 
-            if (c == ';')
-            {
-                if (current.Length > 0)
-                {
+            if (c == ';') {
+                if (current.Length > 0) {
                     result.Add(current.ToString().Trim());
                     current.Clear();
                 }
@@ -175,22 +155,8 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
                 continue;
             }
 
-            if (c == '&' && i + 1 < command.Length && command[i + 1] == '&')
-            {
-                if (current.Length > 0)
-                {
-                    result.Add(current.ToString().Trim());
-                    current.Clear();
-                }
-
-                i++;
-                continue;
-            }
-
-            if (c == '|' && i + 1 < command.Length && command[i + 1] == '|')
-            {
-                if (current.Length > 0)
-                {
+            if (c == '&' && i + 1 < command.Length && command[i + 1] == '&') {
+                if (current.Length > 0) {
                     result.Add(current.ToString().Trim());
                     current.Clear();
                 }
@@ -199,10 +165,18 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
                 continue;
             }
 
-            if (c == '|')
-            {
-                if (current.Length > 0)
-                {
+            if (c == '|' && i + 1 < command.Length && command[i + 1] == '|') {
+                if (current.Length > 0) {
+                    result.Add(current.ToString().Trim());
+                    current.Clear();
+                }
+
+                i++;
+                continue;
+            }
+
+            if (c == '|') {
+                if (current.Length > 0) {
                     result.Add(current.ToString().Trim());
                     current.Clear();
                 }
@@ -213,11 +187,9 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
             current.Append(c);
         }
 
-        if (current.Length > 0)
-        {
+        if (current.Length > 0) {
             var last = current.ToString().Trim();
-            if (last.Length > 0)
-            {
+            if (last.Length > 0) {
                 result.Add(last);
             }
         }
@@ -225,8 +197,7 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
         return result;
     }
 
-    private static bool IsCdCommand(string command)
-    {
+    private static bool IsCdCommand(string command) {
         var stripped = BashSafeWrapperStripper.StripSafeWrappersString(command, SafeEnvVars);
         var spaceIdx = stripped.IndexOf(' ');
         var cmdName = spaceIdx >= 0 ? stripped[..spaceIdx] : stripped;
@@ -234,8 +205,7 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
     }
 
     private static bool ContainsGitCommand(List<string> subcommands) =>
-        subcommands.Any(sc =>
-        {
+        subcommands.Any(sc => {
             var stripped = BashSafeWrapperStripper.StripSafeWrappersString(sc, SafeEnvVars);
             return stripped.StartsWith("git ", StringComparison.OrdinalIgnoreCase)
                 || stripped.Equals("git", StringComparison.OrdinalIgnoreCase);
@@ -243,22 +213,18 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
 
     private static string GenerateSuggestedRule(
         string command,
-        PathConstraintResult? pathResult = null)
-    {
+        PathConstraintResult? pathResult = null) {
         var stripped = BashSafeWrapperStripper.StripSafeWrappersString(command, SafeEnvVars);
         var spaceIdx = stripped.IndexOf(' ');
         var cmdName = spaceIdx >= 0 ? stripped[..spaceIdx] : stripped;
 
-        if (BareShellPrefixes.Contains(cmdName))
-        {
+        if (BareShellPrefixes.Contains(cmdName)) {
             return command;
         }
 
-        if (pathResult is not null && pathResult.OperationType is not null)
-        {
+        if (pathResult is not null && pathResult.OperationType is not null) {
             var prefix = GetSimpleCommandPrefix(stripped);
-            if (prefix is not null)
-            {
+            if (prefix is not null) {
                 return $"{prefix}:*";
             }
         }
@@ -266,33 +232,27 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
         return command;
     }
 
-    private static string? GetSimpleCommandPrefix(string command)
-    {
+    private static string? GetSimpleCommandPrefix(string command) {
         var tokens = new List<string>();
         var current = new StringBuilder();
         var inQuotes = false;
         var quoteChar = '\0';
 
-        foreach (var c in command)
-        {
-            if ((c == '"' || c == '\'') && !inQuotes)
-            {
+        foreach (var c in command) {
+            if ((c == '"' || c == '\'') && !inQuotes) {
                 inQuotes = true;
                 quoteChar = c;
                 continue;
             }
 
-            if (c == quoteChar && inQuotes)
-            {
+            if (c == quoteChar && inQuotes) {
                 inQuotes = false;
                 quoteChar = '\0';
                 continue;
             }
 
-            if (char.IsWhiteSpace(c) && !inQuotes)
-            {
-                if (current.Length > 0)
-                {
+            if (char.IsWhiteSpace(c) && !inQuotes) {
+                if (current.Length > 0) {
                     tokens.Add(current.ToString());
                     current.Clear();
                 }
@@ -303,8 +263,7 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
             current.Append(c);
         }
 
-        if (current.Length > 0)
-        {
+        if (current.Length > 0) {
             tokens.Add(current.ToString());
         }
 
@@ -314,16 +273,14 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
 
         if (BareShellPrefixes.Contains(cmdName)) return null;
 
-        if (tokens.Count > 1 && LooksLikeSubcommand(tokens[1]))
-        {
+        if (tokens.Count > 1 && LooksLikeSubcommand(tokens[1])) {
             return $"{cmdName} {tokens[1]}";
         }
 
         return cmdName;
     }
 
-    private static bool LooksLikeSubcommand(string token)
-    {
+    private static bool LooksLikeSubcommand(string token) {
         if (string.IsNullOrEmpty(token)) return false;
         if (token.StartsWith('-')) return false;
 

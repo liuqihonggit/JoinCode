@@ -9,8 +9,7 @@ namespace Core.Utils;
 /// <para>连接管理：<see cref="ConcurrentDictionary{TKey, TValue}"/> 缓存到各 peer 的客户端连接，首次发送时建立。</para>
 /// <para>广播：遍历所有已连接 peer，逐个点对点发送。</para>
 /// </summary>
-public sealed class MeshTransport : ITransportTopology
-{
+public sealed class MeshTransport : ITransportTopology {
     private readonly string _basePipeName;
     private readonly ILogger? _logger;
     private readonly ConcurrentDictionary<string, MeshPeerConnection> _peerConnections;
@@ -30,14 +29,12 @@ public sealed class MeshTransport : ITransportTopology
     public MeshTransport(
         string basePipeName = "jcc-mesh",
         ILogger? logger = null,
-        string? processId = null)
-    {
+        string? processId = null) {
         _basePipeName = basePipeName;
         _logger = logger;
         _processId = processId ?? Environment.ProcessId.ToString();
         _peerConnections = new ConcurrentDictionary<string, MeshPeerConnection>();
-        _receiveChannel = Channel.CreateUnbounded<TransportFrame>(new UnboundedChannelOptions
-        {
+        _receiveChannel = Channel.CreateUnbounded<TransportFrame>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false
         });
@@ -70,8 +67,7 @@ public sealed class MeshTransport : ITransportTopology
     public string GetPeerPipeName(string peerPid) => $"{_basePipeName}-{peerPid}";
 
     /// <inheritdoc/>
-    public async ValueTask StartAsync(CancellationToken ct = default)
-    {
+    public async ValueTask StartAsync(CancellationToken ct = default) {
         ThrowIfDisposed();
         Interlocked.Exchange(ref _started, 1);
         _logger?.LogInformation("MeshTransport: started on pipe {Pipe} (pid={Pid})", MyPipeName, ProcessId);
@@ -79,11 +75,9 @@ public sealed class MeshTransport : ITransportTopology
     }
 
     /// <inheritdoc/>
-    public async ValueTask SendAsync(string targetProcessId, ReadOnlyMemory<byte> data, CancellationToken ct = default)
-    {
+    public async ValueTask SendAsync(string targetProcessId, ReadOnlyMemory<byte> data, CancellationToken ct = default) {
         ThrowIfDisposed();
-        if (targetProcessId == ProcessId)
-        {
+        if (targetProcessId == ProcessId) {
             _receiveChannel.Writer.TryWrite(new TransportFrame(ProcessId, data));
             return;
         }
@@ -96,13 +90,11 @@ public sealed class MeshTransport : ITransportTopology
     }
 
     /// <inheritdoc/>
-    public async ValueTask BroadcastAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default)
-    {
+    public async ValueTask BroadcastAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default) {
         ThrowIfDisposed();
         var envelope = BinaryProtocol.Encode(MessageType.Broadcast, ProcessId, null, data);
 
-        foreach (var kvp in _peerConnections)
-        {
+        foreach (var kvp in _peerConnections) {
             await kvp.Value.WriteAsync(envelope, ct).ConfigureAwait(false);
         }
     }
@@ -121,8 +113,7 @@ public sealed class MeshTransport : ITransportTopology
     /// <param name="peerPid">目标进程标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>是否成功连接</returns>
-    public async ValueTask<bool> AddPeerAsync(string peerPid, CancellationToken ct = default)
-    {
+    public async ValueTask<bool> AddPeerAsync(string peerPid, CancellationToken ct = default) {
         ThrowIfDisposed();
         if (peerPid == ProcessId) return true;
         var conn = await GetOrCreatePeerConnectionAsync(peerPid, ct).ConfigureAwait(false);
@@ -132,25 +123,19 @@ public sealed class MeshTransport : ITransportTopology
     /// <summary>
     /// 获取或创建到目标进程的连接 — 连接缓存复用。
     /// </summary>
-    private async ValueTask<MeshPeerConnection?> GetOrCreatePeerConnectionAsync(string peerPid, CancellationToken ct)
-    {
-        if (_peerConnections.TryGetValue(peerPid, out var existing) && existing.IsConnected)
-        {
+    private async ValueTask<MeshPeerConnection?> GetOrCreatePeerConnectionAsync(string peerPid, CancellationToken ct) {
+        if (_peerConnections.TryGetValue(peerPid, out var existing) && existing.IsConnected) {
             return existing;
         }
 
         var pipeName = GetPeerPipeName(peerPid);
         var client = NamedPipeFactory.CreateClient(pipeName);
 
-        try
-        {
+        try {
             using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             connectCts.CancelAfter(TimeSpan.FromSeconds(5));
             await client.ConnectAsync(connectCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex) when (ex is IOException or TimeoutException)
-        {
+        } catch (OperationCanceledException) { return null; } catch (Exception ex) when (ex is IOException or TimeoutException) {
             _logger?.LogDebug("MeshTransport: failed to connect to peer {Peer} on {Pipe}", peerPid, pipeName);
             await client.DisposeAsync().ConfigureAwait(false);
             return null;
@@ -172,58 +157,44 @@ public sealed class MeshTransport : ITransportTopology
     /// <summary>
     /// 接受连接循环 — 已提取到 PipeAcceptLoop.RunAsync,此处保留 HandlePeerConnectionAsync 处理单个连接。
     /// </summary>
-    private async Task HandlePeerConnectionAsync(NamedPipeServerStream server, CancellationToken ct)
-    {
+    private async Task HandlePeerConnectionAsync(NamedPipeServerStream server, CancellationToken ct) {
         string? peerPid = null;
-        try
-        {
+        try {
             var firstMsg = await BinaryProtocol.ReadAsync(server, ct).ConfigureAwait(false);
             TransportDiagnostics.Log("MESH", () => $"recv handshake: type={firstMsg.Type}, payload={Encoding.UTF8.GetString(firstMsg.Payload.Span)}");
-            if (firstMsg.Type == MessageType.Control)
-            {
+            if (firstMsg.Type == MessageType.Control) {
                 var text = Encoding.UTF8.GetString(firstMsg.Payload.Span);
-                if (text.StartsWith("PEER:", StringComparison.Ordinal))
-                {
+                if (text.StartsWith("PEER:", StringComparison.Ordinal)) {
                     peerPid = text["PEER:".Length..].Trim();
                 }
             }
 
-            if (peerPid is not null)
-            {
+            if (peerPid is not null) {
                 TransportDiagnostics.Log("MESH", () => $"peer {peerPid} connected, entering read loop");
                 _logger?.LogDebug("MeshTransport: peer {Peer} connected", peerPid);
             }
 
-            await foreach (var msg in BinaryProtocol.ReadStreamAsync(server, ct).ConfigureAwait(false))
-            {
+            await foreach (var msg in BinaryProtocol.ReadStreamAsync(server, ct).ConfigureAwait(false)) {
                 TransportDiagnostics.Log("MESH", () => $"recv msg: type={msg.Type}, source={msg.SourcePid}, len={msg.Payload.Length}");
-                if (msg.Type is MessageType.Data or MessageType.Broadcast)
-                {
+                if (msg.Type is MessageType.Data or MessageType.Broadcast) {
                     _receiveChannel.Writer.TryWrite(new TransportFrame(msg.SourcePid, msg.Payload));
                 }
             }
-        }
-        catch (OperationCanceledException) { TransportDiagnostics.Log("MESH", () => $"HandlePeerConnection cancelled, peer={peerPid}"); }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { TransportDiagnostics.Log("MESH", () => $"HandlePeerConnection cancelled, peer={peerPid}"); } catch (Exception ex) {
             TransportDiagnostics.Log("MESH", () => $"HandlePeerConnection error: {ex.GetType().Name}: {ex.Message}, peer={peerPid}");
             _logger?.LogError(ex, "MeshTransport: peer connection error for {Peer}", peerPid);
-        }
-        finally
-        {
+        } finally {
             await server.DisposeAsync().ConfigureAwait(false);
         }
     }
 
-    private void ThrowIfDisposed()
-    {
+    private void ThrowIfDisposed() {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(nameof(MeshTransport));
     }
 
     /// <inheritdoc/>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
@@ -236,10 +207,8 @@ public sealed class MeshTransport : ITransportTopology
         Cleanup(conns, _cts);
     }
 
-    private static void Cleanup(IAsyncDisposable[] conns, CancellationTokenSource cts)
-    {
-        foreach (var conn in conns)
-        {
+    private static void Cleanup(IAsyncDisposable[] conns, CancellationTokenSource cts) {
+        foreach (var conn in conns) {
             conn.DisposeAsync().AsTask().Wait();
         }
         cts.Dispose();
@@ -247,8 +216,7 @@ public sealed class MeshTransport : ITransportTopology
 }
 
 /// <summary>网状拓扑 peer 连接 — 封装到单个 peer 的客户端连接，用 Channel 串行化写入（无锁 Actor 模型）。</summary>
-internal sealed class MeshPeerConnection : IAsyncDisposable
-{
+internal sealed class MeshPeerConnection : IAsyncDisposable {
     private readonly NamedPipeClientStream _stream;
     private readonly ILogger? _logger;
     private readonly Channel<ReadOnlyMemory<byte>> _writeQueue;
@@ -259,51 +227,40 @@ internal sealed class MeshPeerConnection : IAsyncDisposable
 
     public bool IsConnected => Volatile.Read(ref _disposed) == 0 && _stream.IsConnected;
 
-    public MeshPeerConnection(string peerPid, NamedPipeClientStream stream, ILogger? logger)
-    {
+    public MeshPeerConnection(string peerPid, NamedPipeClientStream stream, ILogger? logger) {
         PeerProcessId = peerPid;
         _stream = stream;
         _logger = logger;
-        _writeQueue = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
-        {
+        _writeQueue = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false
         });
         _writeLoop = Task.Run(WriteLoopAsync);
     }
 
-    public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct)
-    {
+    public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct) {
         if (Volatile.Read(ref _disposed) != 0) return ValueTask.CompletedTask;
         return _writeQueue.Writer.WriteAsync(data, ct);
     }
 
-    private async Task WriteLoopAsync()
-    {
-        try
-        {
-            await foreach (var data in _writeQueue.Reader.ReadAllAsync().ConfigureAwait(false))
-            {
+    private async Task WriteLoopAsync() {
+        try {
+            await foreach (var data in _writeQueue.Reader.ReadAllAsync().ConfigureAwait(false)) {
                 if (Volatile.Read(ref _disposed) != 0) return;
                 TransportDiagnostics.Log("MESH-WRITE", () => $"consume: peer={PeerProcessId}, len={data.Length}");
-                try
-                {
+                try {
                     await _stream.WriteAsync(data).ConfigureAwait(false);
                     await _stream.FlushAsync().ConfigureAwait(false);
                     TransportDiagnostics.Log("MESH-WRITE", () => $"write ok: peer={PeerProcessId}");
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
+                } catch (Exception ex) when (ex is not OperationCanceledException) {
                     TransportDiagnostics.Log("MESH-WRITE", () => $"write fail: peer={PeerProcessId}, {ex.GetType().Name}: {ex.Message}");
                     _logger?.LogWarning(ex, "MeshPeerConnection: write failed for peer {Pid}", PeerProcessId);
                 }
             }
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _writeQueue.Writer.TryComplete();
         await _writeLoop.ConfigureAwait(false);

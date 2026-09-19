@@ -5,8 +5,7 @@ namespace Core.Utils;
 /// AOT-safe test environment detection utility.
 /// Replaces AppDomain.CurrentDomain.GetAssemblies() which is not NativeAOT-compatible.
 /// </summary>
-public static class TestEnvironmentDetector
-{
+public static class TestEnvironmentDetector {
     private static readonly Lazy<bool> _cachedResult = new(Detect);
 
     /// <summary>
@@ -28,8 +27,7 @@ public static class TestEnvironmentDetector
     /// </summary>
     public static bool IsNonInteractive => System.Console.IsInputRedirected || IsTestEnvironment || ForceNonInteractive;
 
-    private static bool Detect()
-    {
+    private static bool Detect() {
         // 1. Environment variable: DOTNET_ENVIRONMENT=Development (standard .NET convention)
         if (Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") is "Development")
             return true;
@@ -46,8 +44,7 @@ public static class TestEnvironmentDetector
 
         // 4. Command line args contain test-related keywords
         var args = Environment.GetCommandLineArgs();
-        foreach (var arg in args)
-        {
+        foreach (var arg in args) {
             if (arg.Contains("xunit", StringComparison.OrdinalIgnoreCase) ||
                 arg.Contains("testhost", StringComparison.OrdinalIgnoreCase))
                 return true;

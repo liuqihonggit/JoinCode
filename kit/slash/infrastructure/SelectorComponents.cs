@@ -5,8 +5,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// 交互式选择器 — CLI 简化版，使用数字选择替代 TUI 上下键
 /// </summary>
-public sealed class Selector<T>
-{
+public sealed class Selector<T> {
     private readonly string _title;
     private readonly (T Item, string DisplayText, string SearchKey)[] _items;
 
@@ -15,8 +14,7 @@ public sealed class Selector<T>
     /// </summary>
     /// <param name="title">选择器标题</param>
     /// <param name="items">项元组数组，每项包含原始对象、显示文本、搜索键</param>
-    public Selector(string title, (T Item, string DisplayText, string SearchKey)[] items)
-    {
+    public Selector(string title, (T Item, string DisplayText, string SearchKey)[] items) {
         _title = title;
         _items = items;
     }
@@ -29,8 +27,7 @@ public sealed class Selector<T>
     /// <param name="displaySelector">将项转换为显示文本的委托</param>
     /// <param name="searchSelector">将项转换为搜索键的可选委托，缺省时使用显示文本</param>
     /// <param name="enableSearch">是否启用搜索功能（保留参数，CLI 简化版未实现）</param>
-    public Selector(string title, T[] items, Func<T, string> displaySelector, Func<T, string>? searchSelector = null, bool enableSearch = false)
-    {
+    public Selector(string title, T[] items, Func<T, string> displaySelector, Func<T, string>? searchSelector = null, bool enableSearch = false) {
         _title = title;
         _items = items.Select(i => (i, displaySelector(i), searchSelector?.Invoke(i) ?? displaySelector(i))).ToArray();
     }
@@ -40,44 +37,36 @@ public sealed class Selector<T>
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>选择结果，包含选中项或取消标志</returns>
-    public async Task<SelectorResult<T>> ShowAsync(CancellationToken ct = default)
-    {
+    public async Task<SelectorResult<T>> ShowAsync(CancellationToken ct = default) {
         await Task.CompletedTask.ConfigureAwait(false);
 
         TerminalHelper.WriteLineReal();
         TerminalHelper.WriteLineReal($"{AnsiStyleEnumConstants.Bold}{_title}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLineReal();
 
-        for (var i = 0; i < _items.Length; i++)
-        {
+        for (var i = 0; i < _items.Length; i++) {
             TerminalHelper.WriteLineReal($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} {_items[i].DisplayText}");
         }
 
         TerminalHelper.WriteLineReal();
         TerminalHelper.WriteRawReal($"请输入选择 (1-{_items.Length}, Esc 取消): ");
 
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             return new SelectorResult<T> { Cancelled = true };
         }
 
-        try
-        {
+        try {
             var input = TerminalHelper.ReadLine();
-            if (string.IsNullOrWhiteSpace(input))
-            {
+            if (string.IsNullOrWhiteSpace(input)) {
                 return new SelectorResult<T> { Cancelled = true };
             }
 
-            if (int.TryParse(input.Trim(), out var index) && index >= 1 && index <= _items.Length)
-            {
+            if (int.TryParse(input.Trim(), out var index) && index >= 1 && index <= _items.Length) {
                 return new SelectorResult<T> { Selected = _items[index - 1].Item, Cancelled = false };
             }
 
             return new SelectorResult<T> { Cancelled = true };
-        }
-        catch
-        {
+        } catch {
             return new SelectorResult<T> { Cancelled = true };
         }
     }
@@ -86,8 +75,7 @@ public sealed class Selector<T>
 /// <summary>
 /// 选择器结果
 /// </summary>
-public sealed class SelectorResult<T>
-{
+public sealed class SelectorResult<T> {
     /// <summary>
     /// 选中的项，取消时为默认值
     /// </summary>

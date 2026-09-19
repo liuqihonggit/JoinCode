@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Localization;
 
-public static partial class StringKey
-{
+public static partial class StringKey {
     // === VerifyPlanExecutionToolHandlers ===
     public const string VerifyPlanDefaultPrompt = "VerifyPlanDefaultPrompt";
     public const string VerifyPlanTitle = "VerifyPlanTitle";

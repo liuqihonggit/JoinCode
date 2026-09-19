@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.LLM.Chat;
 /// 用于冷恢复剪裁：会话空闲超过 TTL 时服务端缓存已过期，此时改写前缀零额外 miss 成本。
 /// 对齐 Reasonix Go 版 DefaultCacheTTL（config/cache_policy.go）。
 /// </summary>
-public static class CacheTtlResolver
-{
+public static class CacheTtlResolver {
     /// <summary>
     /// DashScope Session 缓存官方 TTL 5 分钟。
     /// </summary>
@@ -30,16 +29,14 @@ public static class CacheTtlResolver
     /// </summary>
     /// <param name="baseUrl">provider 的 base_url，可为 null 或空串。</param>
     /// <returns>缓存 TTL 时长。</returns>
-    public static TimeSpan DefaultCacheTtl(string? baseUrl)
-    {
-        switch (DetectCacheVendor(baseUrl))
-        {
+    public static TimeSpan DefaultCacheTtl(string? baseUrl) {
+        switch (DetectCacheVendor(baseUrl)) {
             case "dashscope":
-                return DashScopeTtl;
+            return DashScopeTtl;
             case "anthropic":
-                return AnthropicTtl;
+            return AnthropicTtl;
             default:
-                return DeepSeekDefaultTtl;
+            return DeepSeekDefaultTtl;
         }
     }
 
@@ -49,35 +46,30 @@ public static class CacheTtlResolver
     /// </summary>
     /// <param name="baseUrl">provider 的 base_url。</param>
     /// <returns>vendor 标识："dashscope"/"anthropic"/"deepseek"/空串。</returns>
-    public static string DetectCacheVendor(string? baseUrl)
-    {
+    public static string DetectCacheVendor(string? baseUrl) {
         var host = OfficialProviderHost(baseUrl);
-        switch (true)
-        {
+        switch (true) {
             case true when host == "dashscope.aliyuncs.com" || host.EndsWith(".dashscope.aliyuncs.com", StringComparison.Ordinal) || host.EndsWith(".maas.aliyuncs.com", StringComparison.Ordinal):
-                return "dashscope";
+            return "dashscope";
             case true when host == "api.deepseek.com" || host.EndsWith(".deepseek.com", StringComparison.Ordinal):
-                return "deepseek";
+            return "deepseek";
             case true when host == "api.anthropic.com" || host.EndsWith(".anthropic.com", StringComparison.Ordinal):
-                return "anthropic";
+            return "anthropic";
             default:
-                return string.Empty;
+            return string.Empty;
         }
     }
 
     /// <summary>
     /// 从 base_url 提取官方 provider host（小写），格式非法或缺失时返回空串。
     /// </summary>
-    private static string OfficialProviderHost(string? baseUrl)
-    {
-        if (string.IsNullOrWhiteSpace(baseUrl))
-        {
+    private static string OfficialProviderHost(string? baseUrl) {
+        if (string.IsNullOrWhiteSpace(baseUrl)) {
             return string.Empty;
         }
 
         var trimmed = baseUrl.Trim();
-        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) || uri.Host.Length == 0)
-        {
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) || uri.Host.Length == 0) {
             return string.Empty;
         }
 

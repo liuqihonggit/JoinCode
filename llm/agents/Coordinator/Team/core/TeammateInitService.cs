@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator;
 
 /// <summary>队友初始化服务 — 负责新队友的创建、会话挂钩注册与初始消息分发</summary>
 [Register(typeof(ITeammateInitService), ServiceLifetime.Singleton)]
-public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitService
-{
+public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitService {
     private readonly ITeamManager _teamManager;
     private readonly ISessionHookManager? _sessionHookManager;
     private readonly IMailbox? _messageBroker;
@@ -24,8 +23,7 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
         ISessionHookManager? sessionHookManager = null,
         IMailbox? messageBroker = null,
         ILogger? logger = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _teamManager = teamManager ?? throw new ArgumentNullException(nameof(teamManager));
         _sessionHookManager = sessionHookManager;
         _messageBroker = messageBroker;
@@ -40,14 +38,12 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
     /// <param name="agentId">智能体标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>初始化上下文，团队不存在则返回 null</returns>
-    public async Task<TeammateInitContext?> BuildInitContextAsync(string teamId, string agentId, CancellationToken cancellationToken = default)
-    {
+    public async Task<TeammateInitContext?> BuildInitContextAsync(string teamId, string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
         var team = await _teamManager.GetTeamAsync(teamId, cancellationToken).ConfigureAwait(false);
-        if (team is null)
-        {
+        if (team is null) {
             _logger?.LogWarning("[TeammateInitService] 团队不存在: {TeamId}", teamId);
             return null;
         }
@@ -56,8 +52,7 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
         var otherMembers = members.Where(m => m != agentId).ToList();
         var allowedPaths = await _teamManager.GetTeamAllowedPathsAsync(teamId, cancellationToken).ConfigureAwait(false);
 
-        return new TeammateInitContext
-        {
+        return new TeammateInitContext {
             TeamId = teamId,
             TeamName = team.TeamName,
             AgentId = agentId,
@@ -77,14 +72,12 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
     /// <param name="sessionId">会话标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InitializeTeammateHooksAsync(string teamId, string agentId, string sessionId, CancellationToken cancellationToken = default)
-    {
+    public async Task InitializeTeammateHooksAsync(string teamId, string agentId, string sessionId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        if (_sessionHookManager is null)
-        {
+        if (_sessionHookManager is null) {
             _logger?.LogDebug("[TeammateInitService] ISessionHookManager 未注册，跳过钩子初始化");
             return;
         }
@@ -93,8 +86,7 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
             sessionId,
             HookEvent.Stop,
             matcher: null,
-            callback: async (input, ct) =>
-            {
+            callback: async (input, ct) => {
                 return await HandleStopHookAsync(teamId, agentId, input, ct).ConfigureAwait(false);
             },
             errorMessage: "Teammate Stop Hook 执行失败",
@@ -107,20 +99,16 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
     }
 
     private async Task<HookResult> HandleStopHookAsync(
-        string teamId, string agentId, HookInput input, CancellationToken ct)
-    {
-        if (_messageBroker is null)
-        {
+        string teamId, string agentId, HookInput input, CancellationToken ct) {
+        if (_messageBroker is null) {
             return HookResult.Success();
         }
 
-        try
-        {
+        try {
             var team = await _teamManager.GetTeamAsync(teamId, ct).ConfigureAwait(false);
             var teamName = team?.TeamName ?? teamId;
 
-            var idleNotification = new TeammateIdleNotification
-            {
+            var idleNotification = new TeammateIdleNotification {
                 AgentId = agentId,
                 TeamName = teamName,
                 TeamId = teamId,
@@ -131,8 +119,7 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
                 idleNotification,
                 TeammateInitJsonContext.Default.TeammateIdleNotification);
 
-            var message = new CoordinatorAgentMessage
-            {
+            var message = new CoordinatorAgentMessage {
                 FromAgentId = agentId,
                 ToAgentId = "coordinator",
                 MessageType = JoinCode.Abstractions.Models.Agent.TeammateMessageType.IdleNotification.ToString(),
@@ -142,13 +129,10 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
             await _messageBroker.SendAsync(agentId, message, ct).ConfigureAwait(false);
 
             _logger?.LogDebug("[TeammateInitService] Teammate {AgentId} Stop Hook 触发空闲通知", agentId);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "[TeammateInitService] Teammate {AgentId} Stop Hook 执行异常", agentId);
         }
 
         return HookResult.Success();
     }
 }
-

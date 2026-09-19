@@ -1,20 +1,17 @@
 namespace Tools.Handlers;
 
-public partial class FileToolHandlers
-{
+public partial class FileToolHandlers {
     /// <summary>写入文件到本地文件系统，经过统一写入防御链</summary>
     [McpTool(FileToolNameEnumConstants.FileWrite, "Write a file to the local filesystem", "file")]
     public async Task<ToolResult> FileWriteAsync(
         [McpToolParameter("The absolute path to the file to write (must be absolute, not relative)")] string file_path,
         [McpToolParameter("The content to write to the file")] string content,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // ── 参数校验 ──
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateStringLength(file_path, 4096, "file_path"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var validationDiag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
@@ -35,19 +32,14 @@ public partial class FileToolHandlers
 
         // ── 执行写入 ──
         FileWriteResult result;
-        try
-        {
+        try {
             result = await _fileOperationService.WriteFileAsync(
                 file_path,
                 content,
                 cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             RecordFileMetrics(FileOperationType.Write, FileOperationResult.Failed);
             _logger?.LogError(ex, "FileWrite 调用抛出异常: {FilePath}", file_path);
             var exDiagnostic = ToolDiagnostic.Create("WriteFailed",
@@ -57,8 +49,7 @@ public partial class FileToolHandlers
             return ToolResultBuilder.Error().WithText(exDiagnostic.FormattedMessage).WithDiagnostic(exDiagnostic).Build();
         }
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             RecordFileMetrics(FileOperationType.Write, FileOperationResult.Failed);
             var builder = ToolResultBuilder.Error().WithText(result.ErrorMessage ?? "Failed to write file");
             if (result.Diagnostic is not null)
@@ -73,8 +64,7 @@ public partial class FileToolHandlers
 
         // 附加 structuredPatch 到 ToolResult — 对齐 TS FileWriteTool 返回 structuredPatch
         var toolResult = ToolResultBuilder.Success().WithText(response).Build();
-        if (result.StructuredPatch.Any())
-        {
+        if (result.StructuredPatch.Any()) {
             toolResult.StructuredPatch = result.StructuredPatch.ToArray();
         }
 

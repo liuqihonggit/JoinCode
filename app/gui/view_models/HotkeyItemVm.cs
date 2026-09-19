@@ -1,8 +1,7 @@
 namespace JoinCode.Gui.ViewModels;
 
 /// <summary>快捷键项 VM — 快捷键面板中每行一个可配置快捷键（需求3）</summary>
-public sealed class HotkeyItemVm : INotifyPropertyChanged
-{
+public sealed class HotkeyItemVm : INotifyPropertyChanged {
     /// <summary>属性变更事件</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -15,23 +14,20 @@ public sealed class HotkeyItemVm : INotifyPropertyChanged
 
     private string _gesture;
     /// <summary>当前键位（如"Ctrl+Enter"）</summary>
-    public string Gesture
-    {
+    public string Gesture {
         get => _gesture;
         set { if (_gesture != value) { _gesture = value; Raise(nameof(Gesture)); } }
     }
 
     private bool _isRecording;
     /// <summary>是否正在录制键位</summary>
-    public bool IsRecording
-    {
+    public bool IsRecording {
         get => _isRecording;
         set { if (_isRecording != value) { _isRecording = value; Raise(nameof(IsRecording)); } }
     }
 
     /// <summary>初始化 HotkeyItemVm 实例</summary>
-    public HotkeyItemVm(string actionLabel, string actionKey, string gesture)
-    {
+    public HotkeyItemVm(string actionLabel, string actionKey, string gesture) {
         ActionLabel = actionLabel;
         ActionKey = actionKey;
         _gesture = gesture;

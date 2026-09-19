@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.LLM.Execution;
 /// 回归背景：SchemaValidationMiddleware / ChatToolOrchestrator 把错误包在 &lt;tool_use_error&gt; 标签里，
 /// 直接显示让用户看到 XML 标签，且 200 字符截断常切断关键错误信息。
 /// </summary>
-public static class ToolErrorFormatter
-{
+public static class ToolErrorFormatter {
     private const string StartTag = "<tool_use_error>";
     private const string EndTag = "</tool_use_error>";
 
@@ -18,8 +17,7 @@ public static class ToolErrorFormatter
     /// <param name="resultText">工具结果原始文本。</param>
     /// <param name="isError">是否为错误结果。</param>
     /// <returns>友好的错误消息，或原文。</returns>
-    public static string ExtractMessage(string? resultText, bool isError)
-    {
+    public static string ExtractMessage(string? resultText, bool isError) {
         if (string.IsNullOrEmpty(resultText))
             return string.Empty;
 

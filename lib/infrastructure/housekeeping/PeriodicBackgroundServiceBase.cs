@@ -4,8 +4,7 @@ namespace Infrastructure;
 /// 周期性后台服务基类 — 封装 IHostedService + IAsyncDisposable 的通用模板
 /// 子类只需提供 InitialDelay、Interval、ExecuteAsync 三个抽象成员
 /// </summary>
-public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisposable
-{
+public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisposable {
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
@@ -29,8 +28,7 @@ public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisp
     /// </summary>
     /// <param name="cancellationToken">启动取消令牌</param>
     /// <returns>表示启动完成的任务</returns>
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
+    public Task StartAsync(CancellationToken cancellationToken) {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _loopTask = RunLoopAsync(_cts.Token);
         Logger?.LogDebug("{ServiceName}已启动，{Delay}后执行首次操作", ServiceName, InitialDelay);
@@ -42,18 +40,13 @@ public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisp
     /// </summary>
     /// <param name="cancellationToken">停止取消令牌</param>
     /// <returns>表示停止完成的任务</returns>
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
+    public async Task StopAsync(CancellationToken cancellationToken) {
         _cts?.Cancel();
 
-        if (_loopTask is not null)
-        {
-            try
-            {
+        if (_loopTask is not null) {
+            try {
                 await _loopTask.ConfigureAwait(true);
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
             }
         }
 
@@ -64,33 +57,25 @@ public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisp
     /// 释放资源,取消并释放取消令牌
     /// </summary>
     /// <returns>表示释放完成的任务</returns>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = null;
         return ValueTask.CompletedTask;
     }
 
-    private async Task RunLoopAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task RunLoopAsync(CancellationToken cancellationToken) {
+        try {
             await Task.Delay(InitialDelay, Clock.TimeProvider, cancellationToken).ConfigureAwait(false);
 
             await ExecuteAsync(cancellationToken).ConfigureAwait(false);
 
-            while (!cancellationToken.IsCancellationRequested)
-            {
+            while (!cancellationToken.IsCancellationRequested) {
                 await Task.Delay(Interval, Clock.TimeProvider, cancellationToken).ConfigureAwait(false);
                 await ExecuteAsync(cancellationToken).ConfigureAwait(false);
             }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-        }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+        } catch (Exception ex) {
             Logger?.LogDebug(ex, "{ServiceName}循环异常退出", ServiceName);
         }
     }

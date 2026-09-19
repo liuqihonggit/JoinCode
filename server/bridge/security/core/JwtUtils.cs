@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// Bridge JWT 认证服务 - HMAC-SHA256 签名，NativeAOT 兼容
 /// </summary>
 [Register(typeof(BridgeJwtService), ServiceLifetime.Singleton)]
-public sealed partial class BridgeJwtService : ServiceEntity
-{
+public sealed partial class BridgeJwtService : ServiceEntity {
     private readonly byte[] _secretKey;
     private readonly ILogger? _logger;
     private readonly TimeProvider _timeProvider;
@@ -26,8 +25,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// <param name="config">Bridge 配置（提供密钥），为空则随机生成</param>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="timeProvider">可选时间提供者</param>
-    public BridgeJwtService(BridgeConfig? config = null, ILogger? logger = null, TimeProvider? timeProvider = null)
-    {
+    public BridgeJwtService(BridgeConfig? config = null, ILogger? logger = null, TimeProvider? timeProvider = null) {
         var secretKey = string.IsNullOrEmpty(config?.JwtSecretKey)
             ? Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))
             : config.JwtSecretKey;
@@ -44,8 +42,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// <param name="clientId">客户端标识</param>
     /// <param name="expirationSeconds">过期时间（秒），默认 3600</param>
     /// <returns>签名的 JWT Token 字符串</returns>
-    public string GenerateToken(string clientId, int expirationSeconds = DefaultExpirationSeconds)
-    {
+    public string GenerateToken(string clientId, int expirationSeconds = DefaultExpirationSeconds) {
         ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
 
         if (expirationSeconds <= 0)
@@ -53,8 +50,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
 
         var now = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
 
-        var payload = new BridgeJwtPayload
-        {
+        var payload = new BridgeJwtPayload {
             Sub = clientId,
             Iat = now,
             Exp = now + expirationSeconds,
@@ -85,20 +81,17 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// </summary>
     /// <param name="token">JWT Token 字符串</param>
     /// <returns>验证结果</returns>
-    public BridgeJwtValidationResult ValidateToken(string token)
-    {
+    public BridgeJwtValidationResult ValidateToken(string token) {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
 
         var parts = token.Split('.');
-        if (parts.Length != 3)
-        {
+        if (parts.Length != 3) {
             _logger?.LogWarning("[BridgeJwt] Token 格式无效，段数: {Count}", parts.Length);
             return BridgeJwtValidationResult.Fail("Invalid token format: expected 3 segments");
         }
 
         // 撤销检查
-        if (_revokedTokens.ContainsKey(token))
-        {
+        if (_revokedTokens.ContainsKey(token)) {
             _logger?.LogWarning("[BridgeJwt] Token 已被撤销");
             return BridgeJwtValidationResult.Fail("Token has been revoked");
         }
@@ -113,8 +106,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
         var expectedSignature = ComputeHmacSha256(signingInputBytes);
         var actualSignature = Base64UrlDecode(signatureSegment);
 
-        if (!CryptographicOperations.FixedTimeEquals(expectedSignature, actualSignature))
-        {
+        if (!CryptographicOperations.FixedTimeEquals(expectedSignature, actualSignature)) {
             _logger?.LogWarning("[BridgeJwt] Token 签名验证失败");
             return BridgeJwtValidationResult.Fail("Invalid signature");
         }
@@ -122,21 +114,18 @@ public sealed partial class BridgeJwtService : ServiceEntity
         var payloadJson = Encoding.UTF8.GetString(Base64UrlDecode(payloadSegment));
         var payload = RelaxedJsonSerializer.Deserialize(payloadJson, BridgeJwtJsonContext.Default.BridgeJwtPayload);
 
-        if (payload is null)
-        {
+        if (payload is null) {
             _logger?.LogWarning("[BridgeJwt] Token payload 反序列化失败");
             return BridgeJwtValidationResult.Fail("Invalid payload");
         }
 
         var now = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
-        if (payload.Exp <= now)
-        {
+        if (payload.Exp <= now) {
             _logger?.LogDebug("[BridgeJwt] Token 已过期，exp: {Exp}, now: {Now}", payload.Exp, now);
             return BridgeJwtValidationResult.Fail("Token expired", payload);
         }
 
-        if (payload.Iss != Issuer)
-        {
+        if (payload.Iss != Issuer) {
             _logger?.LogWarning("[BridgeJwt] Token 签发者不匹配: {Issuer}", payload.Iss);
             return BridgeJwtValidationResult.Fail("Invalid issuer", payload);
         }
@@ -150,15 +139,12 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// <param name="token">当前 Token</param>
     /// <param name="expirationSeconds">新 Token 过期时间（秒），默认 3600</param>
     /// <returns>刷新结果</returns>
-    public BridgeJwtRefreshResult RefreshToken(string token, int expirationSeconds = DefaultExpirationSeconds)
-    {
+    public BridgeJwtRefreshResult RefreshToken(string token, int expirationSeconds = DefaultExpirationSeconds) {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
 
         var validationResult = ValidateToken(token);
-        if (!validationResult.IsValid)
-        {
-            return new BridgeJwtRefreshResult
-            {
+        if (!validationResult.IsValid) {
+            return new BridgeJwtRefreshResult {
                 Success = false,
                 Error = validationResult.Error,
                 NewToken = null
@@ -169,11 +155,9 @@ public sealed partial class BridgeJwtService : ServiceEntity
         var now = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
         var remainingSeconds = payload.Exp - now;
 
-        if (remainingSeconds > RefreshWindowSeconds)
-        {
+        if (remainingSeconds > RefreshWindowSeconds) {
             _logger?.LogDebug("[BridgeJwt] Token 未进入刷新窗口，剩余: {Remaining}s", remainingSeconds);
-            return new BridgeJwtRefreshResult
-            {
+            return new BridgeJwtRefreshResult {
                 Success = true,
                 NewToken = token,
                 Error = null
@@ -187,8 +171,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
             payload.Sub,
             remainingSeconds);
 
-        return new BridgeJwtRefreshResult
-        {
+        return new BridgeJwtRefreshResult {
             Success = true,
             NewToken = newToken,
             Error = null
@@ -199,10 +182,8 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// 撤销 Token（使其立即失效）
     /// </summary>
     /// <param name="token">要撤销的 JWT Token</param>
-    public void RevokeToken(string token)
-    {
-        if (!string.IsNullOrEmpty(token))
-        {
+    public void RevokeToken(string token) {
+        if (!string.IsNullOrEmpty(token)) {
             _revokedTokens[token] = token;
             _logger?.LogDebug("[BridgeJwt] Token 已撤销");
         }
@@ -213,8 +194,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// </summary>
     /// <param name="token">JWT Token 字符串</param>
     /// <returns>已撤销返回 true，否则 false</returns>
-    public bool IsTokenRevoked(string token)
-    {
+    public bool IsTokenRevoked(string token) {
         return !string.IsNullOrEmpty(token) && _revokedTokens.ContainsKey(token);
     }
 
@@ -222,24 +202,19 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// 清理已过期的撤销记录（定期调用以防止内存泄漏）
     /// </summary>
     /// <returns>已清理的过期撤销记录数</returns>
-    public int CleanupExpiredRevocations()
-    {
+    public int CleanupExpiredRevocations() {
         var expiredTokens = new List<string>();
-        foreach (var kvp in _revokedTokens)
-        {
+        foreach (var kvp in _revokedTokens) {
             var claims = GetClaims(kvp.Key);
-            if (claims is not null)
-            {
+            if (claims is not null) {
                 var now = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
-                if (claims.Exp <= now)
-                {
+                if (claims.Exp <= now) {
                     expiredTokens.Add(kvp.Key);
                 }
             }
         }
 
-        foreach (var token in expiredTokens)
-        {
+        foreach (var token in expiredTokens) {
             _revokedTokens.TryRemove(token, out _);
         }
 
@@ -251,8 +226,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// </summary>
     /// <param name="token">JWT Token 字符串</param>
     /// <returns>true 表示已过期</returns>
-    public bool IsTokenExpired(string token)
-    {
+    public bool IsTokenExpired(string token) {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
 
         var claims = GetClaims(token);
@@ -268,21 +242,17 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// </summary>
     /// <param name="token">JWT Token 字符串</param>
     /// <returns>Payload，解析失败返回 null</returns>
-    public BridgeJwtPayload? GetClaims(string token)
-    {
+    public BridgeJwtPayload? GetClaims(string token) {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
 
         var parts = token.Split('.');
         if (parts.Length != 3)
             return null;
 
-        try
-        {
+        try {
             var payloadJson = Encoding.UTF8.GetString(Base64UrlDecode(parts[1]));
             return RelaxedJsonSerializer.Deserialize(payloadJson, BridgeJwtJsonContext.Default.BridgeJwtPayload);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[BridgeJwt] 解析 Token claims 失败");
             return null;
         }
@@ -291,8 +261,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// <summary>
     /// 计算 HMAC-SHA256 签名
     /// </summary>
-    private byte[] ComputeHmacSha256(byte[] data)
-    {
+    private byte[] ComputeHmacSha256(byte[] data) {
         using var hmac = new HMACSHA256(_secretKey);
         return hmac.ComputeHash(data);
     }
@@ -300,8 +269,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// <summary>
     /// Base64Url 编码（无填充）
     /// </summary>
-    private static string Base64UrlEncode(byte[] data)
-    {
+    private static string Base64UrlEncode(byte[] data) {
         return Convert.ToBase64String(data)
             .TrimEnd('=')
             .Replace('+', '-')
@@ -311,8 +279,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// <summary>
     /// Base64Url 解码
     /// </summary>
-    private static byte[] Base64UrlDecode(string base64Url)
-    {
+    private static byte[] Base64UrlDecode(string base64Url) {
         var padded = base64Url
             .Replace('-', '+')
             .Replace('_', '/');
@@ -328,8 +295,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
 /// <summary>
 /// JWT Payload 模型
 /// </summary>
-public sealed class BridgeJwtPayload
-{
+public sealed class BridgeJwtPayload {
     /// <summary>主题（客户端标识）</summary>
     [JsonPropertyName("sub")]
     public required string Sub { get; init; }
@@ -350,8 +316,7 @@ public sealed class BridgeJwtPayload
 /// <summary>
 /// Token 验证结果
 /// </summary>
-public sealed class BridgeJwtValidationResult
-{
+public sealed class BridgeJwtValidationResult {
     /// <summary>是否验证通过</summary>
     public bool IsValid { get; init; }
     /// <summary>错误信息，验证失败时填充</summary>
@@ -364,8 +329,7 @@ public sealed class BridgeJwtValidationResult
     /// </summary>
     /// <param name="payload">Payload</param>
     /// <returns>成功结果</returns>
-    internal static BridgeJwtValidationResult Ok(BridgeJwtPayload payload) => new()
-    {
+    internal static BridgeJwtValidationResult Ok(BridgeJwtPayload payload) => new() {
         IsValid = true,
         Payload = payload
     };
@@ -376,8 +340,7 @@ public sealed class BridgeJwtValidationResult
     /// <param name="error">错误信息</param>
     /// <param name="payload">可选 Payload</param>
     /// <returns>失败结果</returns>
-    internal static BridgeJwtValidationResult Fail(string error, BridgeJwtPayload? payload = null) => new()
-    {
+    internal static BridgeJwtValidationResult Fail(string error, BridgeJwtPayload? payload = null) => new() {
         IsValid = false,
         Error = error,
         Payload = payload
@@ -387,8 +350,7 @@ public sealed class BridgeJwtValidationResult
 /// <summary>
 /// Token 刷新结果
 /// </summary>
-public sealed class BridgeJwtRefreshResult
-{
+public sealed class BridgeJwtRefreshResult {
     /// <summary>刷新是否成功</summary>
     public bool Success { get; init; }
     /// <summary>新 Token，成功时填充</summary>
@@ -396,4 +358,3 @@ public sealed class BridgeJwtRefreshResult
     /// <summary>错误信息，失败时填充</summary>
     public string? Error { get; init; }
 }
-

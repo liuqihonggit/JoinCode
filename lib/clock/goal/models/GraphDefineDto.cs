@@ -4,8 +4,7 @@ namespace Core.Goal;
 /// <summary>
 /// Graph 定义节点 DTO — goal_graph_define 工具的节点参数
 /// </summary>
-public sealed class GraphDefineNode
-{
+public sealed class GraphDefineNode {
     /// <summary>节点 ID</summary>
     [JsonPropertyName("id")] public string? Id { get; set; }
     /// <summary>节点类型</summary>
@@ -23,8 +22,7 @@ public sealed class GraphDefineNode
 /// <summary>
 /// Graph 定义边 DTO — goal_graph_define 工具的边参数
 /// </summary>
-public sealed class GraphDefineEdge
-{
+public sealed class GraphDefineEdge {
     /// <summary>边 ID</summary>
     [JsonPropertyName("id")] public string? Id { get; set; }
     /// <summary>起始节点 ID</summary>

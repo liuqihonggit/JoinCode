@@ -6,8 +6,7 @@ namespace Core.Agents.ToolHandlers;
 /// 团队工具处理器 - 提供团队管理功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Team)]
-public class TeamToolHandlers
-{
+public class TeamToolHandlers {
     private readonly ITeamManager _teamManager;
     private readonly ITelemetryService? _telemetryService;
 
@@ -16,8 +15,7 @@ public class TeamToolHandlers
     /// </summary>
     /// <param name="teamManager">团队管理器</param>
     /// <param name="telemetryService">遥测服务（可选）</param>
-    public TeamToolHandlers(ITeamManager teamManager, ITelemetryService? telemetryService = null)
-    {
+    public TeamToolHandlers(ITeamManager teamManager, ITelemetryService? telemetryService = null) {
         _teamManager = teamManager ?? throw new ArgumentNullException(nameof(teamManager));
         _telemetryService = telemetryService;
     }
@@ -30,12 +28,10 @@ public class TeamToolHandlers
         [McpToolParameter("Team name")] string team_name,
         [McpToolParameter("Team description (optional)", Required = false)] string? description = null,
         [McpToolParameter("Initial member list (optional)", Required = false)] List<string>? initial_members = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TeamCreateCommand(team_name, description, initial_members);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationDiagnostic("team_create", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -46,8 +42,7 @@ public class TeamToolHandlers
             command.InitialMembers,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             RecordTeamMetrics("create", "failed");
             var errorMessage = result.ErrorMessage ?? L.T(StringKey.TeamCreateFailed);
             var diag = BuildOperationFailedDiagnostic("team_create", errorMessage);
@@ -65,20 +60,17 @@ public class TeamToolHandlers
     [McpTool(TeamToolNameEnumConstants.TeamDelete, "Delete a team", "team")]
     public async Task<ToolResult> TeamDeleteAsync(
         [McpToolParameter("Team ID")] string team_id,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TeamDeleteCommand(team_id);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationDiagnostic("team_delete", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _teamManager.DeleteTeamAsync(command.TeamId, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorMessage = result.ErrorMessage ?? L.T(StringKey.TeamDeleteFailed);
             var diag = BuildOperationFailedDiagnostic("team_delete", errorMessage);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
@@ -94,20 +86,17 @@ public class TeamToolHandlers
     [McpTool(TeamToolNameEnumConstants.TeamGet, "Get team information", "team")]
     public async Task<ToolResult> TeamGetAsync(
         [McpToolParameter("Team ID")] string team_id,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TeamGetCommand(team_id);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationDiagnostic("team_get", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var team = await _teamManager.GetTeamAsync(command.TeamId, cancellationToken).ConfigureAwait(false);
 
-        if (team == null)
-        {
+        if (team == null) {
             var diag = BuildTeamNotFoundDiagnostic(command.TeamId);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -121,22 +110,17 @@ public class TeamToolHandlers
     /// </summary>
     [McpTool(TeamToolNameEnumConstants.TeamList, "List all teams", "team")]
     public async Task<ToolResult> TeamListAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var teams = await _teamManager.ListTeamsAsync(cancellationToken).ConfigureAwait(false);
 
         var response = new System.Text.StringBuilder();
         response.AppendLine(L.T(StringKey.TeamListCount, teams.Count));
         response.AppendLine();
 
-        if (teams.Count == 0)
-        {
+        if (teams.Count == 0) {
             response.AppendLine(L.T(StringKey.NoTeams));
-        }
-        else
-        {
-            foreach (var team in teams)
-            {
+        } else {
+            foreach (var team in teams) {
                 response.AppendLine(FormatTeamSummary(team));
             }
         }
@@ -151,12 +135,10 @@ public class TeamToolHandlers
     public async Task<ToolResult> TeamAddMemberAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Agent ID")] string agent_id,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TeamAddMemberCommand(team_id, agent_id);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationDiagnostic("team_add_member", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -166,8 +148,7 @@ public class TeamToolHandlers
             command.AgentId,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorMessage = result.ErrorMessage ?? L.T(StringKey.AddMemberFailed);
             var diag = BuildOperationFailedDiagnostic("team_add_member", errorMessage);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
@@ -184,12 +165,10 @@ public class TeamToolHandlers
     public async Task<ToolResult> TeamRemoveMemberAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Agent ID")] string agent_id,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TeamRemoveMemberCommand(team_id, agent_id);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationDiagnostic("team_remove_member", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -199,8 +178,7 @@ public class TeamToolHandlers
             command.AgentId,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorMessage = result.ErrorMessage ?? L.T(StringKey.RemoveMemberFailed);
             var diag = BuildOperationFailedDiagnostic("team_remove_member", errorMessage);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
@@ -219,12 +197,10 @@ public class TeamToolHandlers
         [McpToolParameter("Sender ID")] string sender_id,
         [McpToolParameter("Message content")] string content,
         [McpToolParameter("Message type (optional)", Required = false)] string? message_type = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TeamSendMessageCommand(team_id, sender_id, content, message_type);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationDiagnostic("team_send_message", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -236,8 +212,7 @@ public class TeamToolHandlers
             command.MessageType,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             RecordTeamMetrics("send_message", "failed");
             var errorMessage = result.ErrorMessage ?? L.T(StringKey.SendMessageFailed);
             var diag = BuildOperationFailedDiagnostic("team_send_message", errorMessage);
@@ -258,12 +233,10 @@ public class TeamToolHandlers
         [McpToolParameter("Sender ID")] string sender_id,
         [McpToolParameter("Message content")] string content,
         [McpToolParameter("Message type (optional)", Required = false)] string? message_type = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TeamSendDirectMessageCommand(target_agent_id, sender_id, content, message_type);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationDiagnostic("team_send_direct_message", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -275,8 +248,7 @@ public class TeamToolHandlers
             command.MessageType,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorMessage = result.ErrorMessage ?? L.T(StringKey.DirectMessageFailed);
             var diag = BuildOperationFailedDiagnostic("team_send_direct_message", errorMessage);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
@@ -295,12 +267,10 @@ public class TeamToolHandlers
         [McpToolParameter("Sender ID")] string sender_id,
         [McpToolParameter("Message content")] string content,
         [McpToolParameter("Message type (optional)", Required = false)] string? message_type = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TeamBroadcastMessageCommand(team_id, sender_id, content, message_type);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationDiagnostic("team_broadcast", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -312,8 +282,7 @@ public class TeamToolHandlers
             command.MessageType,
             cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorMessage = result.ErrorMessage ?? L.T(StringKey.BroadcastFailed);
             var diag = BuildOperationFailedDiagnostic("team_broadcast", errorMessage);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
@@ -330,12 +299,10 @@ public class TeamToolHandlers
     public async Task<ToolResult> TeamGetMessagesAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Message count limit (optional, default 50)", Required = false)] int? limit = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new TeamGetMessagesCommand(team_id, limit);
         var validationError = ValidateCommand(command);
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationDiagnostic("team_get_messages", validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -350,14 +317,10 @@ public class TeamToolHandlers
         response.AppendLine(L.T(StringKey.MessageCount, messages.Count));
         response.AppendLine();
 
-        if (messages.Count == 0)
-        {
+        if (messages.Count == 0) {
             response.AppendLine(L.T(StringKey.NoMessages));
-        }
-        else
-        {
-            foreach (var message in messages.OrderBy(m => m.Timestamp))
-            {
+        } else {
+            foreach (var message in messages.OrderBy(m => m.Timestamp)) {
                 response.AppendLine($"[{message.Timestamp:HH:mm:ss}] {message.SenderId}: {message.Content}");
             }
         }
@@ -373,8 +336,7 @@ public class TeamToolHandlers
     /// <param name="toolName">工具名称</param>
     /// <param name="validationError">校验错误消息</param>
     /// <returns>结构化工具诊断</returns>
-    internal static ToolDiagnostic BuildValidationDiagnostic(string toolName, string validationError)
-    {
+    internal static ToolDiagnostic BuildValidationDiagnostic(string toolName, string validationError) {
         return ToolDiagnostic.Create(
             reason: $"Validation failed for {toolName}",
             formattedMessage: validationError,
@@ -395,8 +357,7 @@ public class TeamToolHandlers
     /// <param name="toolName">工具名称</param>
     /// <param name="errorMessage">错误消息</param>
     /// <returns>结构化工具诊断</returns>
-    internal static ToolDiagnostic BuildOperationFailedDiagnostic(string toolName, string errorMessage)
-    {
+    internal static ToolDiagnostic BuildOperationFailedDiagnostic(string toolName, string errorMessage) {
         return ToolDiagnostic.Create(
             reason: $"{toolName} operation failed",
             formattedMessage: errorMessage,
@@ -416,8 +377,7 @@ public class TeamToolHandlers
     /// </summary>
     /// <param name="teamId">团队 ID</param>
     /// <returns>结构化工具诊断</returns>
-    internal static ToolDiagnostic BuildTeamNotFoundDiagnostic(string teamId)
-    {
+    internal static ToolDiagnostic BuildTeamNotFoundDiagnostic(string teamId) {
         var message = L.T(StringKey.TeamNotFound, teamId);
         return ToolDiagnostic.Create(
             reason: "Team not found",
@@ -440,10 +400,8 @@ public class TeamToolHandlers
     private void RecordTeamMetrics(string operation, string result)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "team.handler.count", operation, result, "Team handler count");
 
-    private static string? ValidateCommand<TCommand>(TCommand command)
-    {
-        return command switch
-        {
+    private static string? ValidateCommand<TCommand>(TCommand command) {
+        return command switch {
             TeamCreateCommand cmd => string.IsNullOrWhiteSpace(cmd.TeamName) ? L.T(StringKey.TeamNameCannotBeEmpty) : null,
             TeamDeleteCommand cmd => string.IsNullOrWhiteSpace(cmd.TeamId) ? L.T(StringKey.TeamIdCannotBeEmpty) : null,
             TeamGetCommand cmd => string.IsNullOrWhiteSpace(cmd.TeamId) ? L.T(StringKey.TeamIdCannotBeEmpty) : null,
@@ -465,21 +423,18 @@ public class TeamToolHandlers
         };
     }
 
-    private static string FormatTeamResponse(TeamInfo team, string header)
-    {
+    private static string FormatTeamResponse(TeamInfo team, string header) {
         var response = new System.Text.StringBuilder();
         response.AppendLine($"{header}");
         response.AppendLine($"ID: {team.TeamId}");
         response.AppendLine(L.T(StringKey.LabelTeamName, team.TeamName));
 
-        if (!string.IsNullOrEmpty(team.Description))
-        {
+        if (!string.IsNullOrEmpty(team.Description)) {
             response.AppendLine(L.T(StringKey.LabelTeamDescription, team.Description));
         }
 
         response.AppendLine(L.T(StringKey.LabelMemberCount, team.Members.Count));
-        if (team.Members.Count > 0)
-        {
+        if (team.Members.Count > 0) {
             response.AppendLine(L.T(StringKey.LabelMembers, string.Join(", ", team.Members)));
         }
 
@@ -489,8 +444,7 @@ public class TeamToolHandlers
         return response.ToString();
     }
 
-    private static string FormatTeamSummary(TeamInfo team)
-    {
+    private static string FormatTeamSummary(TeamInfo team) {
         var memberCount = team.Members.Count;
         return L.T(StringKey.TeamSummaryFormat, team.TeamId, team.TeamName, memberCount, team.LastActivityAt.ToString("MM-dd HH:mm"));
     }

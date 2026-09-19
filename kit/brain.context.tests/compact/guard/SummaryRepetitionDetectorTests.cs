@@ -1,11 +1,9 @@
 namespace Brain.Tests.Context.Compact.Guard;
 
 [Trait("Category", "Unit")]
-public class SummaryRepetitionDetectorTests
-{
+public class SummaryRepetitionDetectorTests {
     [Fact]
-    public void Detect_RepeatedParagraphs_ReturnsRepetition()
-    {
+    public void Detect_RepeatedParagraphs_ReturnsRepetition() {
         var paragraph = "The user asked about implementing a new feature.";
         var repeated = string.Join("\n", Enumerable.Repeat(paragraph, 10));
         var result = SummaryRepetitionDetector.Detect(repeated);
@@ -14,8 +12,7 @@ public class SummaryRepetitionDetectorTests
     }
 
     [Fact]
-    public void Detect_NormalSummary_ReturnsClean()
-    {
+    public void Detect_NormalSummary_ReturnsClean() {
         var summary = "The user asked about implementing a new feature.\n" +
                       "The assistant provided a detailed response.\n" +
                       "They discussed multiple approaches and chose the simplest one.\n" +
@@ -27,24 +24,21 @@ public class SummaryRepetitionDetectorTests
     }
 
     [Fact]
-    public void Detect_SingleParagraph_ReturnsClean()
-    {
+    public void Detect_SingleParagraph_ReturnsClean() {
         var result = SummaryRepetitionDetector.Detect("Just one paragraph here.");
 
         result.IsRepetition.Should().BeFalse();
     }
 
     [Fact]
-    public void Detect_EmptyString_ReturnsClean()
-    {
+    public void Detect_EmptyString_ReturnsClean() {
         var result = SummaryRepetitionDetector.Detect("");
 
         result.IsRepetition.Should().BeFalse();
     }
 
     [Fact]
-    public void Detect_SimilarButNotIdentical_ReturnsClean()
-    {
+    public void Detect_SimilarButNotIdentical_ReturnsClean() {
         var summary = "The user asked about feature A.\n" +
                       "The user asked about feature B.\n" +
                       "The user asked about feature C.\n" +
@@ -56,8 +50,7 @@ public class SummaryRepetitionDetectorTests
     }
 
     [Fact]
-    public void Detect_ExactlyThreeParagraphs_ReturnsClean()
-    {
+    public void Detect_ExactlyThreeParagraphs_ReturnsClean() {
         var summary = "First unique paragraph.\n" +
                       "Second unique paragraph.\n" +
                       "Third unique paragraph.";
@@ -68,8 +61,7 @@ public class SummaryRepetitionDetectorTests
     }
 
     [Fact]
-    public void Detect_ThreeParagraphsWithTwoSimilar_ReturnsRepetition()
-    {
+    public void Detect_ThreeParagraphsWithTwoSimilar_ReturnsRepetition() {
         var summary = "The system is running normally.\n" +
                       "The system is running normally.\n" +
                       "A completely different conclusion here.";
@@ -80,8 +72,7 @@ public class SummaryRepetitionDetectorTests
     }
 
     [Fact]
-    public void Detect_ExactlyAtSimilarityThreshold_CountsAsDuplicate()
-    {
+    public void Detect_ExactlyAtSimilarityThreshold_CountsAsDuplicate() {
         var summary = "a b c d\n" +
                       "a b c d e\n" +
                       "x y z w\n" +
@@ -93,8 +84,7 @@ public class SummaryRepetitionDetectorTests
     }
 
     [Fact]
-    public void Detect_ExactlyAtRepetitionRatioThreshold_ReturnsClean()
-    {
+    public void Detect_ExactlyAtRepetitionRatioThreshold_ReturnsClean() {
         var summary = "duplicate paragraph\n" +
                       "duplicate paragraph\n" +
                       "unique paragraph one\n" +
@@ -108,8 +98,7 @@ public class SummaryRepetitionDetectorTests
     }
 
     [Fact]
-    public void Detect_WithCustomOptions_UsesProvidedValues()
-    {
+    public void Detect_WithCustomOptions_UsesProvidedValues() {
         var summary = "a b c d\n" +
                       "a b c d e\n" +
                       "x y z w\n" +

@@ -3,21 +3,17 @@ namespace Core.Skills.BuiltIn;
 /// <summary>
 /// 键绑定管理技能 — 重绑定、解绑、添加组合键到 keybindings.json
 /// </summary>
-public sealed class KeybindingsSkill
-{
+public sealed class KeybindingsSkill {
     /// <summary>
     /// 创建技能定义
     /// </summary>
     /// <returns>键绑定管理技能的技能定义</returns>
-    public static SkillDefinition CreateDefinition()
-    {
-        return new SkillDefinition
-        {
+    public static SkillDefinition CreateDefinition() {
+        return new SkillDefinition {
             Name = "keybindings",
             Description = "管理键盘快捷键 — 重绑定、解绑、添加组合键到 keybindings.json",
             Version = "1.0",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["action"] = new() { Type = "string", Description = "操作类型", Required = true, Validation = new ParameterValidation { EnumValues = new List<string> { "rebind", "unbind", "add", "list", "reset" }.AsReadOnly() } },
                 ["key"] = new() { Type = "string", Description = "键组合（如 ctrl+s、alt+enter、ctrl+k ctrl+t）", Required = false },
                 ["command"] = new() { Type = "string", Description = "绑定的命令（如 chat:externalEditor）", Required = false },

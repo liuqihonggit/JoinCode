@@ -5,13 +5,11 @@ namespace MockServer.Core.Tests;
 /// 思考链回传校验测试 — 模拟真实 DeepSeek Responses 协议行为:
 /// thinking 模式下历史含 assistant 消息但缺失 reasoning item 回传时返回 400。
 /// </summary>
-public sealed class ResponsesThinkingRoundTripTests
-{
+public sealed class ResponsesThinkingRoundTripTests {
     private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement.Clone();
 
     [Fact]
-    public void GetHttpStatusCode_ThinkingModeMissingReasoning_Returns400()
-    {
+    public void GetHttpStatusCode_ThinkingModeMissingReasoning_Returns400() {
         var strategy = new ResponsesResponseStrategy(null, "default", enforceThinkingRoundTrip: true);
         var request = Parse("""
         {
@@ -28,8 +26,7 @@ public sealed class ResponsesThinkingRoundTripTests
     }
 
     [Fact]
-    public void GetHttpStatusCode_ThinkingModeWithReasoningRoundTrip_Returns200()
-    {
+    public void GetHttpStatusCode_ThinkingModeWithReasoningRoundTrip_Returns200() {
         var strategy = new ResponsesResponseStrategy(null, "default", enforceThinkingRoundTrip: true);
         var request = Parse("""
         {
@@ -47,8 +44,7 @@ public sealed class ResponsesThinkingRoundTripTests
     }
 
     [Fact]
-    public void GetHttpStatusCode_NoThinkingMode_Returns200()
-    {
+    public void GetHttpStatusCode_NoThinkingMode_Returns200() {
         var strategy = new ResponsesResponseStrategy(null, "default", enforceThinkingRoundTrip: true);
         var request = Parse("""
         {
@@ -63,8 +59,7 @@ public sealed class ResponsesThinkingRoundTripTests
     }
 
     [Fact]
-    public void GetHttpStatusCode_EnforceDisabled_Returns200EvenIfMissing()
-    {
+    public void GetHttpStatusCode_EnforceDisabled_Returns200EvenIfMissing() {
         var strategy = new ResponsesResponseStrategy(null, "default", enforceThinkingRoundTrip: false);
         var request = Parse("""
         {
@@ -80,8 +75,7 @@ public sealed class ResponsesThinkingRoundTripTests
     }
 
     [Fact]
-    public void BuildResponse_When400_ReturnsDeepSeekThinkingRoundTripError()
-    {
+    public void BuildResponse_When400_ReturnsDeepSeekThinkingRoundTripError() {
         var strategy = new ResponsesResponseStrategy(null, "default", enforceThinkingRoundTrip: true);
         var request = Parse("""
         {

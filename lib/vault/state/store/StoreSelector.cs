@@ -7,8 +7,7 @@ namespace State;
 /// 使用不可变集合 + 轻量级锁确保线程安全，同时兼容值类型（含 tuple）选择结果
 /// </summary>
 public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TSelected>, IDisposable
-    where TState : notnull
-{
+    where TState : notnull {
     private readonly IStore<TState> _store;
     private readonly Func<TState, TSelected> _selector;
     private readonly IEqualityComparer<TSelected> _comparer;
@@ -27,8 +26,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
         IStore<TState> store,
         Func<TState, TSelected> selector,
         IEqualityComparer<TSelected>? comparer = null,
-        ILogger<StoreSelector<TState, TSelected>>? logger = null)
-    {
+        ILogger<StoreSelector<TState, TSelected>>? logger = null) {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _selector = selector ?? throw new ArgumentNullException(nameof(selector));
         _comparer = comparer ?? EqualityComparer<TSelected>.Default;
@@ -43,30 +41,23 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     public Func<TState, TSelected> Selector => _selector;
 
     /// <inheritdoc />
-    public TSelected CurrentValue
-    {
-        get
-        {
-            using (_valueLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_valueLock.Name}' 等待超时"))
-            {
+    public TSelected CurrentValue {
+        get {
+            using (_valueLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_valueLock.Name}' 等待超时")) {
                 return _currentValue;
             }
         }
     }
 
     /// <inheritdoc />
-    public IDisposable Subscribe(Action<TSelected> handler)
-    {
+    public IDisposable Subscribe(Action<TSelected> handler) {
         ThrowIfDisposed();
 
         ImmutableInterlocked.Update(ref _subscribers, s => s.Add(handler));
 
-        try
-        {
+        try {
             handler(CurrentValue);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 订阅者异常不应中断其他订阅者的通知，但需记录日志
             _logger?.LogWarning(ex, "StoreSelector 订阅者抛出异常");
         }
@@ -77,34 +68,26 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     /// <summary>
     /// 处理 Store 状态变更
     /// </summary>
-    private void OnStoreStateChanged(StateChangedEventArgs<TState> args)
-    {
+    private void OnStoreStateChanged(StateChangedEventArgs<TState> args) {
         var newValue = _selector(args.NewState);
         TSelected oldValue;
-        using (_valueLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_valueLock.Name}' 等待超时"))
-        {
+        using (_valueLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_valueLock.Name}' 等待超时")) {
             oldValue = _currentValue;
         }
 
-        if (_comparer.Equals(oldValue, newValue))
-        {
+        if (_comparer.Equals(oldValue, newValue)) {
             return;
         }
 
-        using (_valueLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_valueLock.Name}' 等待超时"))
-        {
+        using (_valueLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_valueLock.Name}' 等待超时")) {
             _currentValue = newValue;
         }
 
         var snapshot = Volatile.Read(ref _subscribers);
-        foreach (var subscriber in snapshot)
-        {
-            try
-            {
+        foreach (var subscriber in snapshot) {
+            try {
                 subscriber(newValue);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 // 订阅者异常不应中断其他订阅者的通知，但需记录日志
                 _logger?.LogWarning(ex, "StoreSelector 订阅者抛出异常");
             }
@@ -114,21 +97,18 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     /// <summary>
     /// 取消订阅
     /// </summary>
-    internal void Unsubscribe(Action<TSelected> handler)
-    {
+    internal void Unsubscribe(Action<TSelected> handler) {
         ImmutableInterlocked.Update(ref _subscribers, s => s.Remove(handler));
     }
 
-    private void ThrowIfDisposed()
-    {
+    private void ThrowIfDisposed() {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, typeof(StoreSelector<TState, TSelected>));
     }
 
     /// <summary>
     /// 释放选择器 — 取消 Store 订阅并清空所有订阅者,确保幂等。
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _storeSubscription?.Dispose();
@@ -139,8 +119,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     /// <summary>
     /// 选择器订阅可释放对象
     /// </summary>
-    private sealed class SelectorSubscriptionDisposable : IDisposable
-    {
+    private sealed class SelectorSubscriptionDisposable : IDisposable {
         private readonly StoreSelector<TState, TSelected> _selector;
         private readonly Action<TSelected> _handler;
         private int _disposed;
@@ -150,8 +129,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
         /// </summary>
         public SelectorSubscriptionDisposable(
             StoreSelector<TState, TSelected> selector,
-            Action<TSelected> handler)
-        {
+            Action<TSelected> handler) {
             _selector = selector;
             _handler = handler;
         }
@@ -159,8 +137,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
         /// <summary>
         /// 释放时取消订阅。
         /// </summary>
-        public void Dispose()
-        {
+        public void Dispose() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _selector.Unsubscribe(_handler);
         }
@@ -170,16 +147,14 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
 /// <summary>
 /// 选择器组合工具
 /// </summary>
-public static class SelectorComposition
-{
+public static class SelectorComposition {
     /// <summary>
     /// 组合两个选择器
     /// </summary>
     public static Func<TState, (T1, T2)> Combine<TState, T1, T2>(
         Func<TState, T1> selector1,
         Func<TState, T2> selector2)
-        where TState : notnull
-    {
+        where TState : notnull {
         return state => (selector1(state), selector2(state));
     }
 
@@ -190,8 +165,7 @@ public static class SelectorComposition
         Func<TState, T1> selector1,
         Func<TState, T2> selector2,
         Func<TState, T3> selector3)
-        where TState : notnull
-    {
+        where TState : notnull {
         return state => (selector1(state), selector2(state), selector3(state));
     }
 
@@ -201,17 +175,14 @@ public static class SelectorComposition
     public static Func<TState, TSelected> Memoized<TState, TSelected>(
         Func<TState, TSelected> selector,
         IEqualityComparer<TState>? stateComparer = null)
-        where TState : notnull
-    {
+        where TState : notnull {
         var comparer = stateComparer ?? EqualityComparer<TState>.Default;
         TState? lastState = default;
         TSelected? lastResult = default;
         var initialized = false;
 
-        return state =>
-        {
-            if (initialized && lastState is not null && comparer.Equals(lastState, state))
-            {
+        return state => {
+            if (initialized && lastState is not null && comparer.Equals(lastState, state)) {
                 return lastResult!;
             }
 
@@ -226,8 +197,7 @@ public static class SelectorComposition
 /// <summary>
 /// 引用相等比较器
 /// </summary>
-public sealed class ReferenceEqualityComparer : IEqualityComparer<object>
-{
+public sealed class ReferenceEqualityComparer : IEqualityComparer<object> {
     /// <summary>
     /// 单例实例。
     /// </summary>

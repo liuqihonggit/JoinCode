@@ -3,8 +3,7 @@ namespace Core.Query.StopHooks;
 /// <summary>
 /// 查询停止 Hook 管理器接口 — 扩展通用 Hook 管理器，负责停止 Hook 的注册与执行
 /// </summary>
-public interface IQueryStopHookManager : IHookManager
-{
+public interface IQueryStopHookManager : IHookManager {
     /// <summary>
     /// 按优先级依次执行停止 Hook，首个要求停止的结果决定返回值
     /// </summary>
@@ -30,8 +29,7 @@ public interface IQueryStopHookManager : IHookManager
 /// <summary>
 /// 查询停止 Hook 接口 — 单个 Hook 的执行契约
 /// </summary>
-public interface IQueryStopHook
-{
+public interface IQueryStopHook {
     /// <summary>
     /// Hook 名称
     /// </summary>
@@ -54,8 +52,7 @@ public interface IQueryStopHook
 /// <summary>
 /// 停止 Hook 上下文
 /// </summary>
-public sealed partial class StopHookContext
-{
+public sealed partial class StopHookContext {
     /// <summary>
     /// 会话 ID
     /// </summary>
@@ -75,8 +72,7 @@ public sealed partial class StopHookContext
 /// <summary>
 /// 停止 Hook 执行结果
 /// </summary>
-public sealed partial class StopHookResult
-{
+public sealed partial class StopHookResult {
     /// <summary>
     /// 是否应停止
     /// </summary>
@@ -111,8 +107,7 @@ public sealed partial class StopHookResult
 /// 查询停止 Hook 管理器实现 — 按优先级排序执行，首个要求停止的 Hook 决定结果
 /// </summary>
 [Register(typeof(IQueryStopHookManager), ServiceLifetime.Singleton)]
-public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHookManager
-{
+public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHookManager {
     private readonly ConcurrentDictionary<string, IQueryStopHook> _hooks;
     private readonly ILogger<QueryStopHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
@@ -122,8 +117,7 @@ public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHook
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="telemetryService">遥测服务</param>
-    public QueryStopHookManager(ILogger<QueryStopHookManager>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public QueryStopHookManager(ILogger<QueryStopHookManager>? logger = null, ITelemetryService? telemetryService = null) {
         _hooks = new ConcurrentDictionary<string, IQueryStopHook>(StringComparer.Ordinal);
         _logger = logger;
         _telemetryService = telemetryService;
@@ -136,35 +130,28 @@ public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHook
     /// <param name="reason">停止原因</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>停止 Hook 执行结果</returns>
-    public async Task<StopHookResult> ExecuteStopHooksAsync(string sessionId, string reason, CancellationToken ct = default)
-    {
+    public async Task<StopHookResult> ExecuteStopHooksAsync(string sessionId, string reason, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(sessionId);
         ArgumentNullException.ThrowIfNull(reason);
 
-        var context = new StopHookContext
-        {
+        var context = new StopHookContext {
             SessionId = sessionId,
             Reason = reason
         };
 
         var sortedHooks = _hooks.Values.OrderBy(h => h.Priority).ToList();
 
-        foreach (var hook in sortedHooks)
-        {
+        foreach (var hook in sortedHooks) {
             ct.ThrowIfCancellationRequested();
 
-            try
-            {
+            try {
                 var result = await hook.OnStopAsync(context, ct).ConfigureAwait(false);
-                if (result.ShouldStop)
-                {
+                if (result.ShouldStop) {
                     _logger?.LogInformation("[QueryStopHookManager] Hook '{HookName}' requested stop: {Message}", hook.Name, result.Message);
                     RecordStopHookMetrics(hook.Name, true);
                     return result;
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "[QueryStopHookManager] Hook '{HookName}' threw exception", hook.Name);
                 RecordStopHookMetrics(hook.Name, false);
             }
@@ -177,8 +164,7 @@ public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHook
     /// 注册停止 Hook — 同名 Hook 会被覆盖
     /// </summary>
     /// <param name="hook">停止 Hook 实例</param>
-    public void RegisterStopHook(IQueryStopHook hook)
-    {
+    public void RegisterStopHook(IQueryStopHook hook) {
         ArgumentNullException.ThrowIfNull(hook);
         _hooks[hook.Name] = hook;
         _logger?.LogDebug("[QueryStopHookManager] Registered stop hook: {HookName} (Priority: {Priority})", hook.Name, hook.Priority);
@@ -188,8 +174,7 @@ public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHook
     /// 注销停止 Hook
     /// </summary>
     /// <param name="hookName">Hook 名称</param>
-    public void UnregisterStopHook(string hookName)
-    {
+    public void UnregisterStopHook(string hookName) {
         ArgumentNullException.ThrowIfNull(hookName);
         _hooks.TryRemove(hookName, out _);
         _logger?.LogDebug("[QueryStopHookManager] Unregistered stop hook: {HookName}", hookName);

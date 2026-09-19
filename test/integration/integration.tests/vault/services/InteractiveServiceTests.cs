@@ -1,20 +1,17 @@
 
 namespace Integration.Tests.Vault.Services;
 
-public class InteractiveServiceTests
-{
+public class InteractiveServiceTests {
     private readonly Mock<ILogger<InteractiveService>> _loggerMock;
     private readonly InteractiveService _interactiveService;
 
-    public InteractiveServiceTests()
-    {
+    public InteractiveServiceTests() {
         _loggerMock = new Mock<ILogger<InteractiveService>>();
         _interactiveService = new InteractiveService(logger: _loggerMock.Object);
     }
 
     [Fact]
-    public async Task AskUserQuestionAsync_ShouldReturnSuccessResult()
-    {
+    public async Task AskUserQuestionAsync_ShouldReturnSuccessResult() {
         // Arrange
         var question = "Test question";
 
@@ -35,8 +32,7 @@ public class InteractiveServiceTests
     }
 
     [Fact]
-    public async Task AskUserQuestionAsync_WithOptions_ShouldLogOptions()
-    {
+    public async Task AskUserQuestionAsync_WithOptions_ShouldLogOptions() {
         // Arrange
         var question = "Test question";
         var options = new List<string> { "Option 1", "Option 2" };
@@ -57,8 +53,7 @@ public class InteractiveServiceTests
     }
 
     [Fact]
-    public void Constructor_WithNullLogger_ShouldNotThrow()
-    {
+    public void Constructor_WithNullLogger_ShouldNotThrow() {
         // Act & Assert
         var exception = Record.Exception(() => new InteractiveService(logger: null));
         Assert.Null(exception);

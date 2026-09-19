@@ -15,8 +15,7 @@ namespace JoinCode.Transport.Bridge;
 /// - stream_event 缓冲: 100ms 延迟合并
 /// - close grace period: 3s 等待优雅关闭
 /// </summary>
-public sealed class V1ReplBridgeTransport : IReplBridgeTransport
-{
+public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
     private const int BatchFlushIntervalMs = 100;
     private const int CloseGraceMs = 3000;
     private const int DefaultBaseReconnectDelayMs = 1000;
@@ -64,8 +63,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     /// <param name="options">v1 传输选项</param>
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
-    public V1ReplBridgeTransport(V1TransportOptions options, ILogger? logger = null, IClockService? clock = null)
-    {
+    public V1ReplBridgeTransport(V1TransportOptions options, ILogger? logger = null, IClockService? clock = null) {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -78,8 +76,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         _uploader = new SerialBatchEventUploader(
             _httpClient,
             options.PostEndpoint,
-            new SerialBatchUploaderOptions
-            {
+            new SerialBatchUploaderOptions {
                 MaxBatchSize = 500,
                 MaxQueueSize = 100_000,
                 BaseDelayMs = 500,
@@ -102,16 +99,13 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     /// </summary>
     /// <param name="message">消息内容</param>
     /// <param name="ct">取消令牌</param>
-    public async Task WriteAsync(string message, CancellationToken ct = default)
-    {
+    public async Task WriteAsync(string message, CancellationToken ct = default) {
         if (_isClosed != 0) return;
 
         // 对齐 TS 端 HybridTransport.write: stream_event 延迟缓冲
-        if (IsStreamEvent(message))
-        {
+        if (IsStreamEvent(message)) {
             _streamEventBuffer.Add(message);
-            if (_streamEventTimer is null)
-            {
+            if (_streamEventTimer is null) {
                 _streamEventTimer = new Timer(
                     _ => FlushStreamEvents(),
                     null,
@@ -123,8 +117,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
 
         // 非 stream_event: 先刷出缓冲的 stream_event（保序），再入队当前消息
         var buffered = TakeStreamEvents();
-        if (buffered.Count > 0)
-        {
+        if (buffered.Count > 0) {
             await _uploader.EnqueueRangeAsync(buffered, ct).ConfigureAwait(false);
         }
         await _uploader.EnqueueAsync(message, ct).ConfigureAwait(false);
@@ -136,19 +129,16 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     /// </summary>
     /// <param name="messages">消息列表</param>
     /// <param name="ct">取消令牌</param>
-    public async Task WriteBatchAsync(IReadOnlyList<string> messages, CancellationToken ct = default)
-    {
+    public async Task WriteBatchAsync(IReadOnlyList<string> messages, CancellationToken ct = default) {
         if (_isClosed != 0) return;
 
         // 先刷出缓冲的 stream_event（保序）
         var buffered = TakeStreamEvents();
-        if (buffered.Count > 0)
-        {
+        if (buffered.Count > 0) {
             await _uploader.EnqueueRangeAsync(buffered, ct).ConfigureAwait(false);
         }
 
-        foreach (var msg in messages)
-        {
+        foreach (var msg in messages) {
             if (_isClosed != 0) break;
             await _uploader.EnqueueAsync(msg, ct).ConfigureAwait(false);
         }
@@ -160,8 +150,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     public bool IsConnectedStatus() => _isConnected != 0;
 
     /// <summary>获取状态标签字符串（closed/connected/reconnecting/disconnected）</summary>
-    public string GetStateLabel()
-    {
+    public string GetStateLabel() {
         if (_isClosed != 0) return "closed";
         if (_isConnected != 0) return "connected";
         if (_reconnectAttempts > 0) return "reconnecting";
@@ -178,8 +167,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     public void SetOnBatchDropped(Action<int, int> callback) => _onBatchDroppedCallback = callback;
 
     /// <summary>启动连接（火并忘，异步建立 WS 连接）</summary>
-    public void Connect()
-    {
+    public void Connect() {
         _ = ConnectAsync();
     }
 
@@ -196,11 +184,9 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     public Task ReportDeliveryAsync(string eventId, string status, CancellationToken ct = default) => Task.CompletedTask;
 
     /// <summary>排空写队列 — 对齐 TS 端 HybridTransport.flush()</summary>
-    public async Task FlushAsync(CancellationToken ct = default)
-    {
+    public async Task FlushAsync(CancellationToken ct = default) {
         var buffered = TakeStreamEvents();
-        if (buffered.Count > 0)
-        {
+        if (buffered.Count > 0) {
             await _uploader.EnqueueRangeAsync(buffered, ct).ConfigureAwait(false);
         }
         await _uploader.FlushAsync(ct).ConfigureAwait(false);
@@ -209,8 +195,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     /// <summary>
     /// 异步释放资源，关闭传输
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         Interlocked.Exchange(ref _isClosed, 1);
         Interlocked.Exchange(ref _isConnected, 0);
@@ -226,32 +211,22 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         await StopWsAndCloseHttpClientAsync().ConfigureAwait(false);
     }
 
-    private async Task FlushAndCloseUploaderAsync(SerialBatchEventUploader uploader)
-    {
-        try
-        {
+    private async Task FlushAndCloseUploaderAsync(SerialBatchEventUploader uploader) {
+        try {
             using var cts = new CancellationTokenSource(CloseGraceMs);
             await uploader.FlushAsync(cts.Token).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[V1Transport] 优雅关闭 flush 超时");
-        }
-        finally
-        {
+        } finally {
             uploader.Close();
             uploader.Dispose();
         }
     }
 
-    private async Task StopWsAndCloseHttpClientAsync()
-    {
-        try
-        {
+    private async Task StopWsAndCloseHttpClientAsync() {
+        try {
             await _wsTransport.StopAsync(_disposeCts.Token).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[V1Transport] Dispose 时 WS stop 失败");
         }
         _httpClient.Dispose();
@@ -261,10 +236,8 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
 
     #region WS 连接与重连
 
-    private async Task ConnectAsync()
-    {
-        try
-        {
+    private async Task ConnectAsync() {
+        try {
             // 刷新 headers — 对齐 TS 端 WebSocketTransport 重连前 refreshHeaders
             RefreshAuthHeaders();
 
@@ -275,9 +248,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
             _lastReconnectAttemptTime = 0;
             _logger?.LogInformation("[V1Transport] WS 连接已建立");
             _onConnectCallback?.Invoke();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[V1Transport] WS 连接失败");
             HandleConnectionError(null);
         }
@@ -287,29 +258,23 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     /// 处理连接错误 — 对齐 TS 端 WebSocketTransport.handleConnectionError
     /// 永久关闭码不重连；否则指数退避重连，10 分钟预算
     /// </summary>
-    private void HandleConnectionError(int? closeCode)
-    {
+    private void HandleConnectionError(int? closeCode) {
         Interlocked.Exchange(ref _isConnected, 0);
 
         // 永久关闭码: 不重连 — 对齐 TS 端 PERMANENT_CLOSE_CODES (1002, 4001, 4003)
-        if (closeCode is 1002 or 4001)
-        {
+        if (closeCode is 1002 or 4001) {
             _logger?.LogError("[V1Transport] 永久关闭码 {CloseCode}，不重连", closeCode);
             _onCloseCallback?.Invoke(closeCode);
             return;
         }
 
         // 4003 (unauthorized): 尝试刷新 headers — 对齐 TS 端 4003 + refreshHeaders 路径
-        if (closeCode == 4003 && _options.RefreshHeaders is not null)
-        {
+        if (closeCode == 4003 && _options.RefreshHeaders is not null) {
             var freshHeader = _options.RefreshHeaders();
-            if (freshHeader != _options.AuthHeader)
-            {
+            if (freshHeader != _options.AuthHeader) {
                 _logger?.LogInformation("[V1Transport] 4003 但 headers 已刷新，将重连");
                 // 继续重连流程
-            }
-            else
-            {
+            } else {
                 _logger?.LogError("[V1Transport] 4003 且 headers 未变化，不重连");
                 _onCloseCallback?.Invoke(closeCode);
                 return;
@@ -319,14 +284,12 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         // 指数退避重连 — 对齐 TS 端 WebSocketTransport autoReconnect
         var now = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();
 
-        if (_reconnectStartTime == 0)
-        {
+        if (_reconnectStartTime == 0) {
             _reconnectStartTime = now;
         }
 
         // 系统休眠检测 — 对齐 TS 端 SLEEP_DETECTION_THRESHOLD_MS
-        if (_lastReconnectAttemptTime > 0 && now - _lastReconnectAttemptTime > SleepDetectionThresholdMs)
-        {
+        if (_lastReconnectAttemptTime > 0 && now - _lastReconnectAttemptTime > SleepDetectionThresholdMs) {
             _logger?.LogInformation("[V1Transport] 检测到系统休眠，重置重连预算");
             _reconnectStartTime = now;
             _reconnectAttempts = 0;
@@ -334,8 +297,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         _lastReconnectAttemptTime = now;
 
         var elapsed = now - _reconnectStartTime;
-        if (elapsed >= DefaultReconnectGiveUpMs)
-        {
+        if (elapsed >= DefaultReconnectGiveUpMs) {
             _logger?.LogError("[V1Transport] 重连预算耗尽（{Elapsed}ms），放弃", elapsed);
             _onCloseCallback?.Invoke(closeCode);
             return;
@@ -361,12 +323,10 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
             Timeout.Infinite);
     }
 
-    private async Task ReconnectAsync()
-    {
+    private async Task ReconnectAsync() {
         if (_isClosed != 0) return;
 
-        try
-        {
+        try {
             // 重连前刷新 headers — 对齐 TS 端
             RefreshAuthHeaders();
 
@@ -376,22 +336,18 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
             Interlocked.Exchange(ref _isConnected, 1);
             _logger?.LogInformation("[V1Transport] WS 重连成功");
             _onConnectCallback?.Invoke();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[V1Transport] 重连失败");
             HandleConnectionError(null);
         }
     }
 
     /// <summary>刷新认证头 — 对齐 TS 端 refreshHeaders 回调</summary>
-    private void RefreshAuthHeaders()
-    {
+    private void RefreshAuthHeaders() {
         if (_options.RefreshHeaders is null) return;
 
         var freshHeader = _options.RefreshHeaders();
-        if (freshHeader is not null)
-        {
+        if (freshHeader is not null) {
             _httpClient.DefaultRequestHeaders.Remove("Authorization");
             _httpClient.DefaultRequestHeaders.Add("Authorization", freshHeader);
         }
@@ -402,8 +358,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     #region stream_event 缓冲
 
     /// <summary>判断是否为 stream_event 类型消息 — 对齐 TS 端 HybridTransport</summary>
-    private static bool IsStreamEvent(string message)
-    {
+    private static bool IsStreamEvent(string message) {
         // TS 端: message.type === 'stream_event'
         // JSON 消息中包含 "type":"stream_event" 即视为流事件
         return message.Contains("\"stream_event\"", StringComparison.Ordinal)
@@ -411,8 +366,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     }
 
     /// <summary>取出并清空 stream_event 缓冲</summary>
-    private List<string> TakeStreamEvents()
-    {
+    private List<string> TakeStreamEvents() {
         _streamEventTimer?.Dispose();
         _streamEventTimer = null;
 
@@ -424,16 +378,14 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     }
 
     /// <summary>stream_event 延迟定时器到期 — 入队缓冲的事件</summary>
-    private void FlushStreamEvents()
-    {
+    private void FlushStreamEvents() {
         _streamEventTimer?.Dispose();
         _streamEventTimer = null;
 
         var buffered = TakeStreamEvents();
         if (buffered.Count == 0) return;
 
-        foreach (var msg in buffered)
-        {
+        foreach (var msg in buffered) {
             _ = _uploader.EnqueueAsync(msg, _disposeCts.Token);
         }
     }
@@ -442,8 +394,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
 
     #region 回调
 
-    private void OnBatchDropped(int batchSize, int failures)
-    {
+    private void OnBatchDropped(int batchSize, int failures) {
         _logger?.LogError(
             "[V1Transport] 批次丢弃（{BatchSize} 条，连续 {Failures} 次失败）— 通知上层",
             batchSize, failures);
@@ -452,13 +403,11 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         _onBatchDroppedCallback?.Invoke(batchSize, failures);
     }
 
-    private void OnWsMessageReceived(object? sender, TransportMessageReceivedEventArgs e)
-    {
+    private void OnWsMessageReceived(object? sender, TransportMessageReceivedEventArgs e) {
         _onDataCallback?.Invoke(e.Message);
     }
 
-    private void OnWsError(object? sender, TransportErrorEventArgs e)
-    {
+    private void OnWsError(object? sender, TransportErrorEventArgs e) {
         _logger?.LogError(e.Exception, "[V1Transport] WS 传输错误: {Message}", e.Message);
         HandleConnectionError(null);
     }

@@ -4,8 +4,7 @@ namespace JoinCode.SandboxSatellite;
 /// <summary>
 /// 沙箱卫星进程宿主 — 通过 stdin/stdout IPC 接收沙箱执行请求，在隔离环境（Windows JobObject / Linux cgroup）中执行命令
 /// </summary>
-public sealed class SandboxSatelliteHost : IAsyncDisposable
-{
+public sealed class SandboxSatelliteHost : IAsyncDisposable {
     private readonly IFileSystem _fs;
     private readonly CancellationTokenSource _cts = new();
     private WindowsJobObjectSandbox? _innerJobObject;
@@ -16,8 +15,7 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
     /// 构造函数 — 注入文件系统抽象
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
-    public SandboxSatelliteHost(IFileSystem fs)
-    {
+    public SandboxSatelliteHost(IFileSystem fs) {
         _fs = fs;
     }
 
@@ -26,45 +24,33 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task RunAsync(CancellationToken ct = default)
-    {
+    public async Task RunAsync(CancellationToken ct = default) {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
         var linkedCt = linkedCts.Token;
 
-        try
-        {
-            while (!linkedCt.IsCancellationRequested)
-            {
+        try {
+            while (!linkedCt.IsCancellationRequested) {
                 var line = await Console.In.ReadLineAsync(linkedCt).ConfigureAwait(false);
-                if (line is null)
-                {
+                if (line is null) {
                     break;
                 }
 
-                if (string.IsNullOrWhiteSpace(line))
-                {
+                if (string.IsNullOrWhiteSpace(line)) {
                     continue;
                 }
 
                 await ProcessRequestAsync(line, linkedCt).ConfigureAwait(false);
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
         }
     }
 
-    private async Task ProcessRequestAsync(string line, CancellationToken ct)
-    {
+    private async Task ProcessRequestAsync(string line, CancellationToken ct) {
         SandboxIpcRequest? request;
-        try
-        {
+        try {
             request = RelaxedJsonSerializer.Deserialize(line, SandboxIpcJsonContext.Default.SandboxIpcRequest);
-        }
-        catch (Exception ex)
-        {
-            await WriteResponseAsync(new SandboxIpcResponse
-            {
+        } catch (Exception ex) {
+            await WriteResponseAsync(new SandboxIpcResponse {
                 Type = "error",
                 RequestId = "",
                 Success = false,
@@ -73,50 +59,41 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
             return;
         }
 
-        if (request is null)
-        {
+        if (request is null) {
             return;
         }
 
-        try
-        {
-            switch (request.Type)
-            {
+        try {
+            switch (request.Type) {
                 case "execute":
-                    await HandleExecuteAsync(request, ct).ConfigureAwait(false);
-                    break;
+                await HandleExecuteAsync(request, ct).ConfigureAwait(false);
+                break;
                 case "ping":
-                    await WriteResponseAsync(new SandboxIpcResponse
-                    {
-                        Type = "pong",
-                        RequestId = request.RequestId,
-                        Success = true
-                    }, ct).ConfigureAwait(false);
-                    break;
+                await WriteResponseAsync(new SandboxIpcResponse {
+                    Type = "pong",
+                    RequestId = request.RequestId,
+                    Success = true
+                }, ct).ConfigureAwait(false);
+                break;
                 case "shutdown":
-                    _cts.Cancel();
-                    await WriteResponseAsync(new SandboxIpcResponse
-                    {
-                        Type = "shutdown_ack",
-                        RequestId = request.RequestId,
-                        Success = true
-                    }, ct).ConfigureAwait(false);
-                    break;
+                _cts.Cancel();
+                await WriteResponseAsync(new SandboxIpcResponse {
+                    Type = "shutdown_ack",
+                    RequestId = request.RequestId,
+                    Success = true
+                }, ct).ConfigureAwait(false);
+                break;
                 default:
-                    await WriteResponseAsync(new SandboxIpcResponse
-                    {
-                        Type = "error",
-                        RequestId = request.RequestId,
-                        Success = false,
-                        Error = $"Unknown request type: {request.Type}"
-                    }, ct).ConfigureAwait(false);
-                    break;
+                await WriteResponseAsync(new SandboxIpcResponse {
+                    Type = "error",
+                    RequestId = request.RequestId,
+                    Success = false,
+                    Error = $"Unknown request type: {request.Type}"
+                }, ct).ConfigureAwait(false);
+                break;
             }
-        }
-        catch (Exception ex)
-        {
-            await WriteResponseAsync(new SandboxIpcResponse
-            {
+        } catch (Exception ex) {
+            await WriteResponseAsync(new SandboxIpcResponse {
                 Type = "error",
                 RequestId = request.RequestId,
                 Success = false,
@@ -125,13 +102,10 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
         }
     }
 
-    private async Task HandleExecuteAsync(SandboxIpcRequest request, CancellationToken ct)
-    {
+    private async Task HandleExecuteAsync(SandboxIpcRequest request, CancellationToken ct) {
         var execRequest = RelaxedJsonSerializer.Deserialize(request.Payload ?? "", SandboxIpcJsonContext.Default.SandboxExecuteRequest);
-        if (execRequest is null)
-        {
-            await WriteResponseAsync(new SandboxIpcResponse
-            {
+        if (execRequest is null) {
+            await WriteResponseAsync(new SandboxIpcResponse {
                 Type = "execute_result",
                 RequestId = request.RequestId,
                 Success = false,
@@ -141,8 +115,7 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
         }
 
         var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
-        var psi = builder.Build(new ProcessOptions
-        {
+        var psi = builder.Build(new ProcessOptions {
             FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
             WorkingDirectory = execRequest.WorkingDirectory ?? _fs.GetCurrentDirectory(),
             ArgumentList = [
@@ -156,10 +129,8 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
         });
 
         using var process = Process.Start(psi);
-        if (process is null)
-        {
-            await WriteResponseAsync(new SandboxIpcResponse
-            {
+        if (process is null) {
+            await WriteResponseAsync(new SandboxIpcResponse {
                 Type = "execute_result",
                 RequestId = request.RequestId,
                 Success = false,
@@ -168,19 +139,14 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
             return;
         }
 
-        if (OperatingSystem.IsWindows())
-        {
+        if (OperatingSystem.IsWindows()) {
             EnsureInnerJobObject();
-            if (_innerJobObject is not null && !_innerJobObject.AssignProcess(process.Id))
-            {
+            if (_innerJobObject is not null && !_innerJobObject.AssignProcess(process.Id)) {
                 Console.Error.WriteLine($"[SandboxSatellite] 将子进程 {process.Id} 加入 JobObject 失败");
             }
-        }
-        else if (OperatingSystem.IsLinux())
-        {
+        } else if (OperatingSystem.IsLinux()) {
             EnsureInnerCgroup();
-            if (_innerCgroup is not null && !_innerCgroup.AssignProcess(process.Id))
-            {
+            if (_innerCgroup is not null && !_innerCgroup.AssignProcess(process.Id)) {
                 Console.Error.WriteLine($"[SandboxSatellite] 将子进程 {process.Id} 加入 cgroup 失败");
             }
         }
@@ -189,16 +155,14 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
         var stderrTask = process.StandardError.ReadToEndAsync(ct);
 
         var completed = process.WaitForExit(execRequest.TimeoutMs);
-        if (!completed)
-        {
+        if (!completed) {
             process.Kill(entireProcessTree: true);
         }
 
         var stdout = await stdoutTask.ConfigureAwait(false);
         var stderr = await stderrTask.ConfigureAwait(false);
 
-        var result = new SandboxExecuteResponse
-        {
+        var result = new SandboxExecuteResponse {
             StandardOutput = stdout,
             StandardError = stderr,
             ExitCode = process.ExitCode,
@@ -207,8 +171,7 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
 
         var resultJson = JsonSerializer.Serialize(result, SandboxIpcJsonContext.Default.SandboxExecuteResponse);
 
-        await WriteResponseAsync(new SandboxIpcResponse
-        {
+        await WriteResponseAsync(new SandboxIpcResponse {
             Type = "execute_result",
             RequestId = request.RequestId,
             Success = true,
@@ -216,17 +179,14 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
         }, ct).ConfigureAwait(false);
     }
 
-    private static async Task WriteResponseAsync(SandboxIpcResponse response, CancellationToken ct)
-    {
+    private static async Task WriteResponseAsync(SandboxIpcResponse response, CancellationToken ct) {
         var json = JsonSerializer.Serialize(response, SandboxIpcJsonContext.Default.SandboxIpcResponse);
         await Console.Out.WriteLineAsync(json.AsMemory(), ct).ConfigureAwait(false);
         await Console.Out.FlushAsync(ct).ConfigureAwait(false);
     }
 
-    private static string EscapeForSingleQuotedShell(string command)
-    {
-        if (command.Length == 0)
-        {
+    private static string EscapeForSingleQuotedShell(string command) {
+        if (command.Length == 0) {
             return "''";
         }
 
@@ -234,48 +194,35 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
         return $"'{escaped}'";
     }
 
-    private void EnsureInnerJobObject()
-    {
-        if (_innerJobObject is not null)
-        {
+    private void EnsureInnerJobObject() {
+        if (_innerJobObject is not null) {
             return;
         }
 
-        try
-        {
+        try {
             _innerJobObject = new WindowsJobObjectSandbox();
             _innerJobObject.CreateJobObject();
             Console.Error.WriteLine("[SandboxSatellite] 内部 JobObject 已创建，子进程将受 KILL_ON_JOB_CLOSE 管理");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Console.Error.WriteLine($"[SandboxSatellite] 创建内部 JobObject 失败: {ex.Message}");
             _innerJobObject = null;
         }
     }
 
-    private void EnsureInnerCgroup()
-    {
-        if (_innerCgroup is not null)
-        {
+    private void EnsureInnerCgroup() {
+        if (_innerCgroup is not null) {
             return;
         }
 
-        try
-        {
+        try {
             _innerCgroup = new LinuxCgroupSandbox();
-            if (!_innerCgroup.CreateCgroup())
-            {
+            if (!_innerCgroup.CreateCgroup()) {
                 Console.Error.WriteLine("[SandboxSatellite] 创建内部 cgroup 失败，子进程不受 cgroup 隔离");
                 _innerCgroup = null;
-            }
-            else
-            {
+            } else {
                 Console.Error.WriteLine("[SandboxSatellite] 内部 cgroup 已创建，子进程将受 cgroup 管理");
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Console.Error.WriteLine($"[SandboxSatellite] 创建内部 cgroup 异常: {ex.Message}");
             _innerCgroup = null;
         }
@@ -285,32 +232,25 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
     /// 异步释放资源 — 取消运行循环、终止并释放内部 JobObject/cgroup
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         _cts.Cancel();
 
-        if (_innerJobObject is not null)
-        {
-            try
-            {
+        if (_innerJobObject is not null) {
+            try {
                 _innerJobObject.TerminateAllProcesses();
                 _innerJobObject.Dispose();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Console.Error.WriteLine($"[SandboxSatellite] 销毁内部 JobObject 异常: {ex.Message}");
             }
 
             _innerJobObject = null;
         }
 
-        if (_innerCgroup is not null)
-        {
+        if (_innerCgroup is not null) {
             var cgroup = _innerCgroup;
             _innerCgroup = null;
-            return new ValueTask(cgroup.DisposeAsync().AsTask().ContinueWith(t =>
-            {
+            return new ValueTask(cgroup.DisposeAsync().AsTask().ContinueWith(t => {
                 if (t.IsFaulted) Console.Error.WriteLine($"[SandboxSatellite] 销毁内部 cgroup 异常: {t.Exception!.Message}");
             }, TaskContinuationOptions.ExecuteSynchronously));
         }

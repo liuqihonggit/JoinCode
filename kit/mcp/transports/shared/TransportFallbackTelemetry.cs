@@ -3,8 +3,7 @@ namespace McpClient.Transports;
 /// <summary>
 /// 传输降级链遥测报告生成器 — 汇总降级链的指标、熔断器状态与配置,生成可读报告
 /// </summary>
-public sealed class TransportFallbackTelemetry
-{
+public sealed class TransportFallbackTelemetry {
     private readonly McpTransportFallbackChain _chain;
     private readonly ILogger? _logger;
 
@@ -13,8 +12,7 @@ public sealed class TransportFallbackTelemetry
     /// </summary>
     /// <param name="chain">传输降级链实例</param>
     /// <param name="logger">日志记录器,可为 null</param>
-    public TransportFallbackTelemetry(McpTransportFallbackChain chain, ILogger? logger = null)
-    {
+    public TransportFallbackTelemetry(McpTransportFallbackChain chain, ILogger? logger = null) {
         _chain = chain ?? throw new ArgumentNullException(nameof(chain));
         _logger = logger;
     }
@@ -23,24 +21,20 @@ public sealed class TransportFallbackTelemetry
     /// 生成降级链遥测报告 — 采集活跃传输、指标快照、熔断器状态与配置
     /// </summary>
     /// <returns>遥测报告对象</returns>
-    public TransportFallbackReport GenerateReport()
-    {
+    public TransportFallbackReport GenerateReport() {
         var metrics = _chain.Metrics.GetSnapshot();
         var circuitStates = new CircuitBreakerReport[_chain.CircuitBreakers.Length];
 
-        for (var i = 0; i < _chain.CircuitBreakers.Length; i++)
-        {
+        for (var i = 0; i < _chain.CircuitBreakers.Length; i++) {
             var cb = _chain.CircuitBreakers[i];
-            circuitStates[i] = new CircuitBreakerReport
-            {
+            circuitStates[i] = new CircuitBreakerReport {
                 State = cb.Phase,
                 ConsecutiveFailures = cb.ConsecutiveFailures,
                 OpenedAt = cb.OpenedAt,
             };
         }
 
-        return new TransportFallbackReport
-        {
+        return new TransportFallbackReport {
             ActiveTransportType = _chain.ActiveTransportType,
             ActiveTransportIndex = _chain.ActiveTransportIndex,
             Metrics = metrics,
@@ -54,8 +48,7 @@ public sealed class TransportFallbackTelemetry
     /// 生成并格式化遥测报告为可读字符串
     /// </summary>
     /// <returns>格式化的遥测报告文本</returns>
-    public string FormatReport()
-    {
+    public string FormatReport() {
         var report = GenerateReport();
         var sb = new StringBuilder();
 
@@ -68,8 +61,7 @@ public sealed class TransportFallbackTelemetry
         sb.AppendLine($"Total Fallbacks: {report.Metrics.TotalFallbacks}");
         sb.AppendLine($"Avg Fallback Duration: {report.Metrics.AverageFallbackDurationMs:F1}ms");
 
-        for (var i = 0; i < report.Metrics.ConnectionAttempts.Length; i++)
-        {
+        for (var i = 0; i < report.Metrics.ConnectionAttempts.Length; i++) {
             sb.AppendLine($"  Transport[{i}]: attempts={report.Metrics.ConnectionAttempts[i]}, " +
                           $"successes={report.Metrics.ConnectionSuccesses[i]}, " +
                           $"failures={report.Metrics.ConnectionFailures[i]}");
@@ -77,8 +69,7 @@ public sealed class TransportFallbackTelemetry
 
         sb.AppendLine();
         sb.AppendLine("--- Circuit Breakers ---");
-        for (var i = 0; i < report.CircuitBreakers.Length; i++)
-        {
+        for (var i = 0; i < report.CircuitBreakers.Length; i++) {
             var cb = report.CircuitBreakers[i];
             sb.AppendLine($"  Transport[{i}]: state={cb.State}, " +
                           $"failures={cb.ConsecutiveFailures}" +
@@ -100,8 +91,7 @@ public sealed class TransportFallbackTelemetry
 /// <summary>
 /// 传输降级链遥测报告 — 包含活跃传输信息、指标快照、熔断器状态与配置
 /// </summary>
-public sealed class TransportFallbackReport
-{
+public sealed class TransportFallbackReport {
     /// <summary>当前活跃传输类型名</summary>
     public required string? ActiveTransportType { get; init; }
     /// <summary>当前活跃传输索引</summary>
@@ -119,8 +109,7 @@ public sealed class TransportFallbackReport
 /// <summary>
 /// 熔断器状态报告 — 描述单个熔断器的当前状态
 /// </summary>
-public sealed class CircuitBreakerReport
-{
+public sealed class CircuitBreakerReport {
     /// <summary>熔断器相位状态</summary>
     public required CircuitBreakerPhase State { get; init; }
     /// <summary>连续失败次数</summary>

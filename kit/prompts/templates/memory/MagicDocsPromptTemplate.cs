@@ -5,13 +5,11 @@ namespace Core.Prompts.Templates.Memory;
 /// MagicDocs 提示词模板 - 用于更新 Magic Doc 文档
 /// </summary>
 [PromptTemplate(Name = "magic_docs", Category = PromptTemplateCategory.Memory, Description = "Magic Doc 文档更新提示词模板", HasParameters = true)]
-public static class MagicDocsPromptTemplate
-{
+public static class MagicDocsPromptTemplate {
     /// <summary>
     /// 获取更新提示词模板
     /// </summary>
-    public static string GetUpdatePromptTemplate(string docPath, string docContents, string docTitle, string? customInstructions = null)
-    {
+    public static string GetUpdatePromptTemplate(string docPath, string docContents, string docTitle, string? customInstructions = null) {
         var customInstructionsSection = !string.IsNullOrWhiteSpace(customInstructions)
             ? $@"
 文档特定的更新说明：
@@ -84,8 +82,7 @@ public static class MagicDocsPromptTemplate
         string docContents,
         string docPath,
         string docTitle,
-        string? instructions = null)
-    {
+        string? instructions = null) {
         return GetUpdatePromptTemplate(docPath, docContents, docTitle, instructions);
     }
 }

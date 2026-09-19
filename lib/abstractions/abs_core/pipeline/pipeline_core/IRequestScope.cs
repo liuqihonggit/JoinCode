@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Pipeline;
 /// 请求级 Scope — 每个聊天请求/工具调用创建独立 Scope
 /// Scoped 服务在 Scope 内单例，Scope 结束时自动释放
 /// </summary>
-public interface IRequestScope : IAsyncDisposable
-{
+public interface IRequestScope : IAsyncDisposable {
     /// <summary>
     /// 从当前 Scope 解析服务 — Scoped 服务在 Scope 内单例
     /// </summary>
@@ -20,8 +19,7 @@ public interface IRequestScope : IAsyncDisposable
 /// <summary>
 /// 请求 Scope 工厂 — 创建请求级 Scope
 /// </summary>
-public interface IRequestScopeFactory
-{
+public interface IRequestScopeFactory {
     /// <summary>
     /// 创建请求级 Scope
     /// </summary>

@@ -1,8 +1,7 @@
 namespace Llm.Tests.Adapters.LLM.QueryServices;
 
 
-public class FallbackProviderDefinitionTests
-{
+public class FallbackProviderDefinitionTests {
     #region Protocol-only constructor
 
     [Theory]
@@ -10,8 +9,7 @@ public class FallbackProviderDefinitionTests
     [InlineData(ProtocolKind.Anthropic, "anthropic")]
     [InlineData(ProtocolKind.Azure, "azure")]
     [InlineData(ProtocolKind.Agnes, "agnes")]
-    public void ProtocolConstructor_ExposesProtocolAndProviderName(ProtocolKind protocol, string expectedName)
-    {
+    public void ProtocolConstructor_ExposesProtocolAndProviderName(ProtocolKind protocol, string expectedName) {
         var definition = new FallbackProviderDefinition(protocol);
 
         definition.Protocol.Should().Be(protocol);
@@ -20,8 +18,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void ProtocolConstructor_OpenAiCompatible_ReturnsDefaultModelIdsFromConfigLoader()
-    {
+    public void ProtocolConstructor_OpenAiCompatible_ReturnsDefaultModelIdsFromConfigLoader() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
 
         definition.DefaultModelId.Should().NotBeNull();
@@ -29,8 +26,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void ProtocolConstructor_UnknownProtocol_FallsBackToOpenAIDefaultModelIds()
-    {
+    public void ProtocolConstructor_UnknownProtocol_FallsBackToOpenAIDefaultModelIds() {
         // 未知 ProtocolKind 回退到 OpenAI 默认值（ProtocolToConfigKey 的 _ => "openai" 分支）
         var loader = Testing.Common.Services.TestModelConfigLoaderFactory.CreateWithDefaultPricing();
         var definition = new FallbackProviderDefinition((ProtocolKind)999, loader);
@@ -40,8 +36,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void ProtocolConstructor_AvailableModels_ReturnsEmptyList()
-    {
+    public void ProtocolConstructor_AvailableModels_ReturnsEmptyList() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         definition.AvailableModels.Should().BeEmpty();
     }
@@ -51,8 +46,7 @@ public class FallbackProviderDefinitionTests
     #region Inner-definition constructor
 
     [Fact]
-    public void InnerConstructor_DelegatesPropertiesToInner()
-    {
+    public void InnerConstructor_DelegatesPropertiesToInner() {
         var inner = new Mock<IProviderDefinition>();
         inner.Setup(d => d.Protocol).Returns(ProtocolKind.OpenAiCompatible);
         inner.Setup(d => d.ProviderName).Returns("custom");
@@ -80,8 +74,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void InnerConstructor_IsValid_DelegatesToInner()
-    {
+    public void InnerConstructor_IsValid_DelegatesToInner() {
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "" };
         var inner = new Mock<IProviderDefinition>();
         inner.Setup(d => d.IsValid(config)).Returns(true);
@@ -92,8 +85,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void InnerConstructor_GetBaseUrl_DelegatesToInner()
-    {
+    public void InnerConstructor_GetBaseUrl_DelegatesToInner() {
         var config = new ProviderConfig { Vendor = "openai" };
         var inner = new Mock<IProviderDefinition>();
         inner.Setup(d => d.GetBaseUrl(config)).Returns("https://inner.example.com/");
@@ -108,8 +100,7 @@ public class FallbackProviderDefinitionTests
     #region GetBaseUrl
 
     [Fact]
-    public void GetBaseUrl_OpenAI_NoEndpoint_ReturnsDefaultOpenAI()
-    {
+    public void GetBaseUrl_OpenAI_NoEndpoint_ReturnsDefaultOpenAI() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig { Vendor = "openai" };
 
@@ -117,8 +108,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetBaseUrl_OpenAI_WithEndpoint_AppendsTrailingSlash()
-    {
+    public void GetBaseUrl_OpenAI_WithEndpoint_AppendsTrailingSlash() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig { Vendor = "openai", Endpoint = "https://proxy.example.com" };
 
@@ -126,8 +116,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetBaseUrl_Anthropic_NoEndpoint_ReturnsDefaultAnthropic()
-    {
+    public void GetBaseUrl_Anthropic_NoEndpoint_ReturnsDefaultAnthropic() {
         var definition = new FallbackProviderDefinition(ProtocolKind.Anthropic);
         var config = new ProviderConfig { Vendor = "anthropic" };
 
@@ -135,8 +124,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetBaseUrl_Anthropic_WithEndpoint_AppendsTrailingSlash()
-    {
+    public void GetBaseUrl_Anthropic_WithEndpoint_AppendsTrailingSlash() {
         var definition = new FallbackProviderDefinition(ProtocolKind.Anthropic);
         var config = new ProviderConfig { Vendor = "anthropic", Endpoint = "https://anthropic.proxy.com" };
 
@@ -144,8 +132,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetBaseUrl_Azure_ReturnsDeploymentUrl()
-    {
+    public void GetBaseUrl_Azure_ReturnsDeploymentUrl() {
         var definition = new FallbackProviderDefinition(ProtocolKind.Azure);
         var config = new ProviderConfig { Vendor = "azure", Endpoint = "https://azure.openai.azure.com", ModelId = "gpt-4o" };
 
@@ -153,8 +140,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetBaseUrl_DeepSeek_ReturnsOpenAIDefault()
-    {
+    public void GetBaseUrl_DeepSeek_ReturnsOpenAIDefault() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig { Vendor = "deepseek" };
 
@@ -166,8 +152,7 @@ public class FallbackProviderDefinitionTests
     #region GetChatEndpoint
 
     [Fact]
-    public void GetChatEndpoint_Anthropic_ReturnsMessagesPath()
-    {
+    public void GetChatEndpoint_Anthropic_ReturnsMessagesPath() {
         var definition = new FallbackProviderDefinition(ProtocolKind.Anthropic);
         var config = new ProviderConfig { Vendor = "anthropic" };
 
@@ -175,8 +160,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetChatEndpoint_Azure_ReturnsCompletionsWithApiVersion()
-    {
+    public void GetChatEndpoint_Azure_ReturnsCompletionsWithApiVersion() {
         var definition = new FallbackProviderDefinition(ProtocolKind.Azure);
         var config = new ProviderConfig { Vendor = "azure", ApiVersion = "2024-06-01" };
 
@@ -184,8 +168,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetChatEndpoint_OpenAI_SimpleEndpoint_ReturnsCompletions()
-    {
+    public void GetChatEndpoint_OpenAI_SimpleEndpoint_ReturnsCompletions() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig { Vendor = "openai" };
 
@@ -193,8 +176,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetChatEndpoint_OpenAI_EndpointAlreadyEndsWithCompletions_ReturnsEmpty()
-    {
+    public void GetChatEndpoint_OpenAI_EndpointAlreadyEndsWithCompletions_ReturnsEmpty() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig { Vendor = "openai", Endpoint = "https://proxy.example.com/chat/completions" };
 
@@ -202,8 +184,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void GetChatEndpoint_OpenAiResponses_ReturnsResponsesPath()
-    {
+    public void GetChatEndpoint_OpenAiResponses_ReturnsResponsesPath() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiResponses);
         var config = new ProviderConfig { Vendor = "deepseek", Protocol = "responses" };
 
@@ -215,8 +196,7 @@ public class FallbackProviderDefinitionTests
     #region ConfigureHttpClient
 
     [Fact]
-    public void ConfigureHttpClient_OpenAI_AddsBearerAuthorization()
-    {
+    public void ConfigureHttpClient_OpenAI_AddsBearerAuthorization() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var client = new HttpClient();
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test" };
@@ -229,8 +209,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void ConfigureHttpClient_OpenAI_EmptyApiKey_DoesNotAddHeader()
-    {
+    public void ConfigureHttpClient_OpenAI_EmptyApiKey_DoesNotAddHeader() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var client = new HttpClient();
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "" };
@@ -241,8 +220,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void ConfigureHttpClient_Anthropic_AddsApiKeyAndVersionHeaders()
-    {
+    public void ConfigureHttpClient_Anthropic_AddsApiKeyAndVersionHeaders() {
         var definition = new FallbackProviderDefinition(ProtocolKind.Anthropic);
         var client = new HttpClient();
         var config = new ProviderConfig { Vendor = "anthropic", ApiKey = "ak-test" };
@@ -255,8 +233,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void ConfigureHttpClient_Azure_AddsApiKeyHeader()
-    {
+    public void ConfigureHttpClient_Azure_AddsApiKeyHeader() {
         var definition = new FallbackProviderDefinition(ProtocolKind.Azure);
         var client = new HttpClient();
         var config = new ProviderConfig { Vendor = "azure", ApiKey = "az-test" };
@@ -267,8 +244,7 @@ public class FallbackProviderDefinitionTests
     }
 
     [Fact]
-    public void ConfigureHttpClient_WithInner_DelegatesToInner()
-    {
+    public void ConfigureHttpClient_WithInner_DelegatesToInner() {
         var inner = new Mock<IProviderDefinition>();
         var definition = new FallbackProviderDefinition(inner.Object);
         var client = new HttpClient();
@@ -284,8 +260,7 @@ public class FallbackProviderDefinitionTests
     #region IsValid
 
     [Fact]
-    public void IsValid_WithoutInner_NonWhiteSpaceApiKey_ReturnsTrue()
-    {
+    public void IsValid_WithoutInner_NonWhiteSpaceApiKey_ReturnsTrue() {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig { Vendor = "openai", ApiKey = "sk-test" };
 
@@ -296,8 +271,7 @@ public class FallbackProviderDefinitionTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
-    public void IsValid_WithoutInner_InvalidApiKey_ReturnsFalse(string? apiKey)
-    {
+    public void IsValid_WithoutInner_InvalidApiKey_ReturnsFalse(string? apiKey) {
         var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiCompatible);
         var config = new ProviderConfig { Vendor = "openai", ApiKey = apiKey! };
 

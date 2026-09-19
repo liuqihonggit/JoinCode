@@ -4,8 +4,7 @@ namespace Services.OAuth;
 /// OAuth 配置选项
 /// 用于 IOptions 模式绑定
 /// </summary>
-public sealed class OAuthOptions
-{
+public sealed class OAuthOptions {
     /// <summary>
     /// 配置节名称
     /// </summary>
@@ -64,8 +63,7 @@ public sealed class OAuthOptions
     /// <summary>
     /// 转换为 OAuthConfig
     /// </summary>
-    public OAuthConfig ToOAuthConfig(string provider) => new()
-    {
+    public OAuthConfig ToOAuthConfig(string provider) => new() {
         Provider = provider,
         ClientId = ClientId,
         ClientSecret = ClientSecret,
@@ -81,8 +79,7 @@ public sealed class OAuthOptions
 /// <summary>
 /// Token 存储位置
 /// </summary>
-public enum TokenStorageLocation
-{
+public enum TokenStorageLocation {
     /// <summary>
     /// 使用 Windows DPAPI 加密存储
     /// </summary>

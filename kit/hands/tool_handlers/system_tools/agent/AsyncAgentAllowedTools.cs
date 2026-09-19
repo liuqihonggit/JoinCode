@@ -6,8 +6,7 @@ namespace Tools.Handlers;
 /// <para>对齐 TS 原版 ASYNC_AGENT_ALLOWED_TOOLS</para>
 /// <para>排除: AskUser/TaskStop/TaskOutput/EnterPlanMode/ExitPlanMode/Agent(递归)/Workflow</para>
 /// </summary>
-public static class AsyncAgentAllowedTools
-{
+public static class AsyncAgentAllowedTools {
     /// <summary>后台 Agent 允许的工具 FrozenSet — O(1) 查找, AOT 友好</summary>
     public static readonly FrozenSet<string> Tools = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,

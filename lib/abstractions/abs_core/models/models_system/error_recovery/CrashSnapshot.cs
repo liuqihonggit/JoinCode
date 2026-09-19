@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.ErrorRecovery;
 
-public sealed class CrashSnapshot
-{
+public sealed class CrashSnapshot {
     public Guid Id { get; } = Guid.NewGuid();
 
     public DateTimeOffset CapturedAt { get; } = DateTimeOffset.UtcNow;
@@ -36,8 +35,7 @@ public sealed class CrashSnapshot
         Exception exception,
         CrashExecutionContext? executionContext = null,
         string? errorCode = null,
-        ErrorCategory? errorCategory = null)
-    {
+        ErrorCategory? errorCategory = null) {
         ArgumentException.ThrowIfNullOrEmpty(fenceName);
         ArgumentNullException.ThrowIfNull(exception);
 
@@ -53,20 +51,17 @@ public sealed class CrashSnapshot
         State = CrashSnapshotState.Captured;
     }
 
-    public CrashSnapshot WithTag(string key, string value)
-    {
+    public CrashSnapshot WithTag(string key, string value) {
         Tags[key] = value;
         return this;
     }
 
-    public CrashSnapshot WithAttachment(string name, string content)
-    {
+    public CrashSnapshot WithAttachment(string name, string content) {
         Attachments[name] = content;
         return this;
     }
 
-    public string ToSummary()
-    {
+    public string ToSummary() {
         var sb = new StringBuilder();
         sb.Append($"[{Severity.ToValue()}] {FenceName}: {ExceptionType}: {ExceptionMessage}");
         if (ErrorCode is not null)
@@ -79,15 +74,13 @@ public sealed class CrashSnapshot
     }
 }
 
-public enum CrashSeverity
-{
+public enum CrashSeverity {
     [EnumValue("WARN")] Warning,
     [EnumValue("ERROR")] Error,
     [EnumValue("FATAL")] Fatal,
 }
 
-public enum CrashSnapshotState
-{
+public enum CrashSnapshotState {
     [EnumValue("captured")]
     Captured,
     [EnumValue("acknowledged")]
@@ -98,29 +91,25 @@ public enum CrashSnapshotState
     Suppressed,
 }
 
-public sealed class CrashExceptionChain
-{
+public sealed class CrashExceptionChain {
     public int Depth { get; }
     public string RootExceptionType { get; }
     public string RootExceptionMessage { get; }
     public ImmutableArray<CrashExceptionFrame> Frames { get; }
 
-    private CrashExceptionChain(int depth, string rootType, string rootMessage, ImmutableArray<CrashExceptionFrame> frames)
-    {
+    private CrashExceptionChain(int depth, string rootType, string rootMessage, ImmutableArray<CrashExceptionFrame> frames) {
         Depth = depth;
         RootExceptionType = rootType;
         RootExceptionMessage = rootMessage;
         Frames = frames;
     }
 
-    public static CrashExceptionChain Build(Exception exception)
-    {
+    public static CrashExceptionChain Build(Exception exception) {
         var frames = ImmutableArray.CreateBuilder<CrashExceptionFrame>();
         var current = exception;
         var depth = 0;
 
-        while (current is not null && depth < 10)
-        {
+        while (current is not null && depth < 10) {
             frames.Add(new CrashExceptionFrame(
                 depth,
                 current.GetType().FullName ?? current.GetType().Name,
@@ -148,8 +137,7 @@ public sealed record CrashExceptionFrame(
     string? StackTrace,
     string? ErrorCode);
 
-public sealed class CrashExecutionContext
-{
+public sealed class CrashExecutionContext {
     public string? OperationName { get; set; }
     public string? ToolName { get; set; }
     public string? ToolGroup { get; set; }
@@ -159,8 +147,7 @@ public sealed class CrashExecutionContext
     public string? ModelId { get; set; }
     public Dictionary<string, string> Extra { get; } = new(StringComparer.Ordinal);
 
-    public CrashExecutionContext With(string key, string value)
-    {
+    public CrashExecutionContext With(string key, string value) {
         Extra[key] = value;
         return this;
     }

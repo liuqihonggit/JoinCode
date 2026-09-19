@@ -7,8 +7,7 @@ namespace Core.Agents.Coordinator;
 /// <para>心跳超时（默认30秒）的 agent 自动过滤</para>
 /// </summary>
 [Register(typeof(IAgentDiscovery), ServiceLifetime.Singleton)]
-public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscovery
-{
+public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscovery {
     private readonly IFileSystem _fs;
     private readonly string _registryPath;
     private readonly string _registryDir;
@@ -26,8 +25,7 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
         IFileSystem fs,
         ILogger<AgentDiscoveryService>? logger = null,
         IClockService? clock = null)
-        : this(fs, GetDefaultRegistryPath(), logger, clock)
-    {
+        : this(fs, GetDefaultRegistryPath(), logger, clock) {
     }
 
     /// <summary>
@@ -37,8 +35,7 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
         IFileSystem fs,
         string registryPath,
         ILogger<AgentDiscoveryService>? logger = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -46,8 +43,7 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
         _registryDir = Path.GetDirectoryName(registryPath) ?? throw new ArgumentException("Invalid registry path", nameof(registryPath));
     }
 
-    private static string GetDefaultRegistryPath()
-    {
+    private static string GetDefaultRegistryPath() {
         var dir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
@@ -58,10 +54,8 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
     /// <summary>
     /// 注册本进程的 agent 到注册表
     /// </summary>
-    public async Task RegisterAsync(AgentRegistryInfo info, CancellationToken cancellationToken = default)
-    {
-        await UpdateRegistryAsync(agents =>
-        {
+    public async Task RegisterAsync(AgentRegistryInfo info, CancellationToken cancellationToken = default) {
+        await UpdateRegistryAsync(agents => {
             agents.RemoveAll(a => a.AgentId == info.AgentId && a.SessionId == info.SessionId);
             agents.Add(info);
         }, cancellationToken).ConfigureAwait(false);
@@ -72,10 +66,8 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
     /// <summary>
     /// 注销指定 agent
     /// </summary>
-    public async Task UnregisterAsync(string agentId, string sessionId, CancellationToken cancellationToken = default)
-    {
-        await UpdateRegistryAsync(agents =>
-        {
+    public async Task UnregisterAsync(string agentId, string sessionId, CancellationToken cancellationToken = default) {
+        await UpdateRegistryAsync(agents => {
             agents.RemoveAll(a => a.AgentId == agentId && a.SessionId == sessionId);
         }, cancellationToken).ConfigureAwait(false);
 
@@ -85,15 +77,11 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
     /// <summary>
     /// 更新心跳时间
     /// </summary>
-    public async Task HeartbeatAsync(string agentId, string sessionId, CancellationToken cancellationToken = default)
-    {
+    public async Task HeartbeatAsync(string agentId, string sessionId, CancellationToken cancellationToken = default) {
         var now = _clock.GetUtcNow();
-        await UpdateRegistryAsync(agents =>
-        {
-            for (var i = 0; i < agents.Count; i++)
-            {
-                if (agents[i].AgentId == agentId && agents[i].SessionId == sessionId)
-                {
+        await UpdateRegistryAsync(agents => {
+            for (var i = 0; i < agents.Count; i++) {
+                if (agents[i].AgentId == agentId && agents[i].SessionId == sessionId) {
                     agents[i].LastHeartbeat = now;
                     break;
                 }
@@ -104,8 +92,7 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
     /// <summary>
     /// 发现所有活跃 agent（心跳未超时）
     /// </summary>
-    public async Task<IReadOnlyList<AgentRegistryInfo>> DiscoverAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<AgentRegistryInfo>> DiscoverAsync(CancellationToken cancellationToken = default) {
         var agents = await ReadRegistryAsync(cancellationToken).ConfigureAwait(false);
         var now = _clock.GetUtcNow();
         return agents.Where(a => now - a.LastHeartbeat < TimeSpan.FromSeconds(30)).ToList();
@@ -114,8 +101,7 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
     /// <summary>
     /// 发现指定会话的所有活跃 agent
     /// </summary>
-    public async Task<IReadOnlyList<AgentRegistryInfo>> DiscoverBySessionAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<AgentRegistryInfo>> DiscoverBySessionAsync(string sessionId, CancellationToken cancellationToken = default) {
         var agents = await DiscoverAsync(cancellationToken).ConfigureAwait(false);
         return agents.Where(a => a.SessionId == sessionId).ToList();
     }
@@ -123,27 +109,21 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
     /// <summary>
     /// 启动心跳循环 — 定期更新心跳时间
     /// </summary>
-    public async Task StartHeartbeatLoopAsync(string agentId, string sessionId, TimeSpan? interval = null, CancellationToken cancellationToken = default)
-    {
+    public async Task StartHeartbeatLoopAsync(string agentId, string sessionId, TimeSpan? interval = null, CancellationToken cancellationToken = default) {
         var heartbeatInterval = interval ?? TimeSpan.FromSeconds(10);
         using var timer = new PeriodicTimer(heartbeatInterval);
 
-        while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
-        {
+        while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false)) {
             if (_disposed) return;
-            try
-            {
+            try {
                 await HeartbeatAsync(agentId, sessionId, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
                 _logger?.LogWarning(ex, "Heartbeat failed for {AgentId}", agentId);
             }
         }
     }
 
-    private async Task UpdateRegistryAsync(Action<List<AgentRegistryInfo>> update, CancellationToken cancellationToken)
-    {
+    private async Task UpdateRegistryAsync(Action<List<AgentRegistryInfo>> update, CancellationToken cancellationToken) {
         var fs = _fs;
         await using var fileLock = await FileMailboxLock.AcquireAsync(_registryPath, TimeSpan.FromSeconds(10), cancellationToken, _logger).ConfigureAwait(false);
 
@@ -152,8 +132,7 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
         await WriteRegistryRawAsync(fs, agents, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<List<AgentRegistryInfo>> ReadRegistryAsync(CancellationToken cancellationToken)
-    {
+    private async Task<List<AgentRegistryInfo>> ReadRegistryAsync(CancellationToken cancellationToken) {
         var fs = _fs;
         if (!fs.FileExists(_registryPath))
             return [];
@@ -162,29 +141,24 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
         return await ReadRegistryRawAsync(fs, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<List<AgentRegistryInfo>> ReadRegistryRawAsync(IFileSystem fs, CancellationToken cancellationToken)
-    {
+    private async Task<List<AgentRegistryInfo>> ReadRegistryRawAsync(IFileSystem fs, CancellationToken cancellationToken) {
         if (!fs.FileExists(_registryPath))
             return [];
 
-        try
-        {
+        try {
             var json = await fs.ReadAllTextAsync(_registryPath, cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(json))
                 return [];
 
             var agents = RelaxedJsonSerializer.Deserialize(json, AgentDiscoveryJsonContext.Default.ListAgentRegistryInfo);
             return agents ?? [];
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "Failed to read agent registry, starting fresh");
             return [];
         }
     }
 
-    private async Task WriteRegistryRawAsync(IFileSystem fs, List<AgentRegistryInfo> agents, CancellationToken cancellationToken)
-    {
+    private async Task WriteRegistryRawAsync(IFileSystem fs, List<AgentRegistryInfo> agents, CancellationToken cancellationToken) {
         if (!fs.DirectoryExists(_registryDir))
             fs.CreateDirectory(_registryDir);
 
@@ -193,10 +167,9 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
     }
 
     /// <summary>释放资源</summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         _disposed = true;
-            base.Dispose();
+        base.Dispose();
     }
 }
 

@@ -6,8 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐 TS: src/commands/clear/clear.ts + conversation.ts + caches.ts
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Clear, Description = "清空聊天历史并释放上下文", Usage = "/clear", Aliases = ["reset", "new", "cls"], Category = ChatCommandCategory.Session)]
-public sealed partial class ClearCommand : ChatCommandBase
-{
+public sealed partial class ClearCommand : ChatCommandBase {
     private readonly ILogger<ClearCommand>? _logger;
 
     /// <summary>命令名称。</summary>
@@ -25,8 +24,7 @@ public sealed partial class ClearCommand : ChatCommandBase
     /// 构造清空命令实例。
     /// </summary>
     /// <param name="logger">可选的日志记录器。</param>
-    public ClearCommand(ILogger<ClearCommand>? logger = null)
-    {
+    public ClearCommand(ILogger<ClearCommand>? logger = null) {
         _logger = logger;
     }
 
@@ -35,27 +33,21 @@ public sealed partial class ClearCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务，承载命令执行结果。</returns>
-    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         // 对齐 TS: clearConversation — 直接清除，无需确认
         // TS 没有 --force 标志，直接执行清除
 
         // 1. 执行 SessionEnd hooks（清除前）
         // 对齐 TS: executeSessionEndHooks('clear', ...)
         var hookManager = GetService<ISessionStartHookManager>(context);
-        if (hookManager is not null)
-        {
-            try
-            {
-                var hookContext = new SessionStartHookContext
-                {
+        if (hookManager is not null) {
+            try {
+                var hookContext = new SessionStartHookContext {
                     SessionId = context.SessionId,
                     Source = "clear"
                 };
                 await hookManager.OnSessionStartAsync(hookContext, context.CancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "SessionEnd hook 执行失败，继续清除");
             }
         }
@@ -73,42 +65,30 @@ public sealed partial class ClearCommand : ChatCommandBase
 
         // 5. 异步清除思考存储
         var thinkingStore = context.GetCommandServices().ThinkingStore;
-        if (thinkingStore is not null)
-        {
-            try
-            {
+        if (thinkingStore is not null) {
+            try {
                 await thinkingStore.ClearAsync(context.SessionId, context.CancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "思考存储清除失败");
             }
         }
 
         // 6. 清除 Hook 配置缓存
         var hookConfigManager = context.GetCommandServices().HookConfigurationManager;
-        if (hookConfigManager is not null)
-        {
-            try
-            {
+        if (hookConfigManager is not null) {
+            try {
                 await hookConfigManager.InvalidateCacheAsync(context.CancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "Hook 配置缓存清除失败");
             }
         }
 
         // 7. 清除文件操作追踪
         var fileOpTracker = context.GetCommandServices().FileOperationTracker;
-        if (fileOpTracker is not null)
-        {
-            try
-            {
+        if (fileOpTracker is not null) {
+            try {
                 fileOpTracker.Clear();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "文件操作追踪清除失败");
             }
         }
@@ -122,8 +102,7 @@ public sealed partial class ClearCommand : ChatCommandBase
     /// 清除会话相关缓存
     /// 对齐 TS: clearSessionCaches — 清除上下文缓存、技能缓存、命令缓存等
     /// </summary>
-    private static void ClearSessionCaches(ChatCommandContext context)
-    {
+    private static void ClearSessionCaches(ChatCommandContext context) {
         // 1. 通用缓存服务（含工具信息缓存等）
         var cacheService = GetService<ICacheService>(context);
         cacheService?.Clear();

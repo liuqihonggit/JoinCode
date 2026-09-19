@@ -7,8 +7,7 @@ namespace Core.Security.Services;
 /// 对齐 TS yoloClassifier.ts 的两阶段架构
 /// </summary>
 [Register(typeof(ILlmAutoModeClassifier), ServiceLifetime.Singleton)]
-public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeClassifier
-{
+public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeClassifier {
     private readonly IAutoModeClassifier _ruleClassifier;
     private readonly IQueryEngine? _queryEngine;
     private readonly ILogger<LlmAutoModeClassifier>? _logger;
@@ -30,8 +29,7 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         IQueryEngine? queryEngine = null,
         ILogger<LlmAutoModeClassifier>? logger = null,
         ITelemetryService? telemetryService = null,
-        double llmThreshold = 0.8)
-    {
+        double llmThreshold = 0.8) {
         _ruleClassifier = ruleClassifier;
         _queryEngine = queryEngine;
         _logger = logger;
@@ -40,19 +38,16 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     }
 
     /// <inheritdoc />
-    public async Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default)
-    {
+    public async Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(request);
 
         var stage1 = await _ruleClassifier.ClassifyAsync(request, ct).ConfigureAwait(false);
 
-        if (!ShouldUseLlm(stage1, request))
-        {
+        if (!ShouldUseLlm(stage1, request)) {
             return stage1;
         }
 
-        if (_queryEngine is null)
-        {
+        if (_queryEngine is null) {
             return stage1;
         }
 
@@ -63,15 +58,12 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     /// <summary>
     /// 判断是否需要 LLM 分类 — 低置信度或复杂命令
     /// </summary>
-    private bool ShouldUseLlm(ClassificationResult stage1, ClassificationRequest request)
-    {
-        if (stage1.Confidence < _llmThreshold)
-        {
+    private bool ShouldUseLlm(ClassificationResult stage1, ClassificationRequest request) {
+        if (stage1.Confidence < _llmThreshold) {
             return true;
         }
 
-        if (IsComplexCommand(request))
-        {
+        if (IsComplexCommand(request)) {
             return true;
         }
 
@@ -81,19 +73,15 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     /// <summary>
     /// 检测复杂命令 — 包含命令分隔符（&amp;&amp;、||、;）或管道链
     /// </summary>
-    private static bool IsComplexCommand(ClassificationRequest request)
-    {
+    private static bool IsComplexCommand(ClassificationRequest request) {
         if (!request.Parameters.TryGetValue("command", out var commandObj) ||
             commandObj.ValueKind != JsonValueKind.String ||
-            commandObj.GetString() is not string command)
-        {
+            commandObj.GetString() is not string command) {
             return false;
         }
 
-        foreach (var sep in CommandSeparators)
-        {
-            if (command.Contains(sep))
-            {
+        foreach (var sep in CommandSeparators) {
+            if (command.Contains(sep)) {
                 return true;
             }
         }
@@ -107,52 +95,43 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     private async Task<ClassificationResult?> ClassifyWithLlmAsync(
         ClassificationRequest request,
         ClassificationResult stage1,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         var command = GetCommandString(request);
-        if (string.IsNullOrEmpty(command))
-        {
+        if (string.IsNullOrEmpty(command)) {
             return null;
         }
 
         var prompt = BuildClassificationPrompt(command, request.ToolName);
 
-        try
-        {
+        try {
             var response = await _queryEngine!.ExecuteQueryAsync(prompt, ct).ConfigureAwait(false);
             var result = ParseLlmResponse(response, stage1);
 
             _logger?.LogDebug("[LlmAutoModeClassifier] LLM 分类: {Classification} -> {Action} ({Reason})",
                 result.Classification, result.Action, result.Reason);
 
-            _telemetryService?.RecordCount("security.llm_classification.count", new()
-            {
+            _telemetryService?.RecordCount("security.llm_classification.count", new() {
                 ["classification"] = result.Classification.ToString(),
                 ["action"] = result.Action.ToString(),
                 ["stage1_classification"] = stage1.Classification.ToString()
             }, description: "LLM security classification count");
 
             return result;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[LlmAutoModeClassifier] LLM 分类失败，回退到 Stage 1 结果");
             _telemetryService?.RecordCount("security.llm_classification.error", description: "LLM classification error count");
             return null;
         }
     }
 
-    private static string GetCommandString(ClassificationRequest request)
-    {
-        if (request.Parameters.TryGetValue("command", out var cmd) && cmd.ValueKind == JsonValueKind.String)
-        {
+    private static string GetCommandString(ClassificationRequest request) {
+        if (request.Parameters.TryGetValue("command", out var cmd) && cmd.ValueKind == JsonValueKind.String) {
             return cmd.GetString() ?? string.Empty;
         }
         return string.Empty;
     }
 
-    private static string BuildClassificationPrompt(string command, string toolName)
-    {
+    private static string BuildClassificationPrompt(string command, string toolName) {
         return "分析以下命令的安全性，返回 JSON 格式结果。\n\n" +
                $"工具: {toolName}\n" +
                $"命令: {command}\n\n" +
@@ -165,16 +144,13 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
                "{\"classification\": \"safe|lowRisk|mediumRisk|highRisk|dangerous\", \"confidence\": 0.0-1.0, \"reason\": \"简短说明\", \"action\": \"autoApprove|requireConfirmation|requireApproval|block\"}";
     }
 
-    private static ClassificationResult ParseLlmResponse(string response, ClassificationResult fallback)
-    {
+    private static ClassificationResult ParseLlmResponse(string response, ClassificationResult fallback) {
         var json = ExtractJson(response);
-        if (string.IsNullOrEmpty(json))
-        {
+        if (string.IsNullOrEmpty(json)) {
             return fallback;
         }
 
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -194,16 +170,13 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
                 ? ParseAction(actionElem.GetString() ?? "requireConfirmation")
                 : GetDefaultAction(classification);
 
-            return new ClassificationResult
-            {
+            return new ClassificationResult {
                 Classification = classification,
                 Confidence = confidence,
                 Reason = reason,
                 Action = action
             };
-        }
-        catch
-        {
+        } catch {
             return fallback;
         }
     }
@@ -212,8 +185,7 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         => LlmJsonHelper.ExtractInlineJson(response);
 
     private static SecurityClassification ParseClassification(string value)
-        => value.ToLowerInvariant() switch
-        {
+        => value.ToLowerInvariant() switch {
             "safe" => SecurityClassification.Safe,
             "lowrisk" => SecurityClassification.LowRisk,
             "mediumrisk" => SecurityClassification.MediumRisk,
@@ -223,8 +195,7 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         };
 
     private static SecurityAction ParseAction(string value)
-        => value.ToLowerInvariant() switch
-        {
+        => value.ToLowerInvariant() switch {
             "autoapprove" => SecurityAction.AutoApprove,
             "requireconfirmation" => SecurityAction.RequireConfirmation,
             "requireapproval" => SecurityAction.RequireApproval,
@@ -233,8 +204,7 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
         };
 
     private static SecurityAction GetDefaultAction(SecurityClassification classification)
-        => classification switch
-        {
+        => classification switch {
             SecurityClassification.Safe => SecurityAction.AutoApprove,
             SecurityClassification.LowRisk => SecurityAction.AutoApprove,
             SecurityClassification.MediumRisk => SecurityAction.RequireConfirmation,
@@ -247,8 +217,7 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
 /// <summary>
 /// LLM 增强的自动模式分类器接口
 /// </summary>
-public interface ILlmAutoModeClassifier
-{
+public interface ILlmAutoModeClassifier {
     /// <summary>分类命令安全性（两阶段：规则 + LLM）</summary>
     Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default);
 }

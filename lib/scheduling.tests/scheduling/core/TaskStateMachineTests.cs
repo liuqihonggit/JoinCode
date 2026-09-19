@@ -1,11 +1,9 @@
 
 namespace Core.Tests.Scheduling;
 
-public class TaskStateMachineTests
-{
+public class TaskStateMachineTests {
     [Fact]
-    public void Constructor_WithDefaultState_ShouldSetPending()
-    {
+    public void Constructor_WithDefaultState_ShouldSetPending() {
         // Arrange & Act
         var stateMachine = new TaskStateMachine();
 
@@ -17,8 +15,7 @@ public class TaskStateMachineTests
     [InlineData(TaskState.Pending)]
     [InlineData(TaskState.Running)]
     [InlineData(TaskState.Completed)]
-    public void Constructor_WithSpecificState_ShouldSetThatState(TaskState initialState)
-    {
+    public void Constructor_WithSpecificState_ShouldSetThatState(TaskState initialState) {
         // Arrange & Act
         var stateMachine = new TaskStateMachine(initialState);
 
@@ -38,8 +35,7 @@ public class TaskStateMachineTests
     [InlineData(TaskState.Running, TaskState.Stopped)]
     [InlineData(TaskState.Paused, TaskState.Running)]
     [InlineData(TaskState.Paused, TaskState.Cancelled)]
-    public void TryTransitionTo_WithValidTransition_ShouldReturnTrue(TaskState fromState, TaskState toState)
-    {
+    public void TryTransitionTo_WithValidTransition_ShouldReturnTrue(TaskState fromState, TaskState toState) {
         // Arrange
         var stateMachine = new TaskStateMachine(fromState);
 
@@ -58,8 +54,7 @@ public class TaskStateMachineTests
     [InlineData(TaskState.Completed, TaskState.Running)]
     [InlineData(TaskState.Failed, TaskState.Pending)]
     [InlineData(TaskState.Cancelled, TaskState.Running)]
-    public void TryTransitionTo_WithInvalidTransition_ShouldReturnFalse(TaskState fromState, TaskState toState)
-    {
+    public void TryTransitionTo_WithInvalidTransition_ShouldReturnFalse(TaskState fromState, TaskState toState) {
         // Arrange
         var stateMachine = new TaskStateMachine(fromState);
 
@@ -72,8 +67,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void TryTransitionTo_SameState_ShouldReturnTrue()
-    {
+    public void TryTransitionTo_SameState_ShouldReturnTrue() {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Running);
 
@@ -86,8 +80,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void ForceTransitionTo_ShouldTransitionWithoutValidation()
-    {
+    public void ForceTransitionTo_ShouldTransitionWithoutValidation() {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Pending);
 
@@ -99,8 +92,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void StateChanged_ShouldTriggerEvent()
-    {
+    public void StateChanged_ShouldTriggerEvent() {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Pending);
         StateChangedEventArgs<TaskState>? capturedArgs = null;
@@ -116,8 +108,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void StateChanged_WhenTransitionFails_ShouldNotTriggerEvent()
-    {
+    public void StateChanged_WhenTransitionFails_ShouldNotTriggerEvent() {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Completed);
         var eventTriggered = false;
@@ -134,8 +125,7 @@ public class TaskStateMachineTests
     [InlineData(TaskState.Pending, TaskState.Running, true)]
     [InlineData(TaskState.Pending, TaskState.Completed, false)]
     [InlineData(TaskState.Running, TaskState.Completed, true)]
-    public void CanTransitionTo_ShouldReturnExpectedResult(TaskState fromState, TaskState toState, bool expected)
-    {
+    public void CanTransitionTo_ShouldReturnExpectedResult(TaskState fromState, TaskState toState, bool expected) {
         // Arrange
         var stateMachine = new TaskStateMachine(fromState);
 
@@ -147,8 +137,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void GetValidNextStates_FromPending_ShouldReturnValidStates()
-    {
+    public void GetValidNextStates_FromPending_ShouldReturnValidStates() {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Pending);
 
@@ -163,8 +152,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void GetValidNextStates_FromCompleted_ShouldReturnEmpty()
-    {
+    public void GetValidNextStates_FromCompleted_ShouldReturnEmpty() {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Completed);
 
@@ -183,8 +171,7 @@ public class TaskStateMachineTests
     [InlineData(TaskState.Pending, false)]
     [InlineData(TaskState.Running, false)]
     [InlineData(TaskState.Paused, false)]
-    public void IsTerminalState_ShouldReturnExpectedResult(TaskState state, bool expected)
-    {
+    public void IsTerminalState_ShouldReturnExpectedResult(TaskState state, bool expected) {
         // Arrange
         var stateMachine = new TaskStateMachine(state);
 
@@ -200,8 +187,7 @@ public class TaskStateMachineTests
     [InlineData(TaskState.WaitingForDependency, true)]
     [InlineData(TaskState.Running, false)]
     [InlineData(TaskState.Completed, false)]
-    public void CanExecute_ShouldReturnExpectedResult(TaskState state, bool expected)
-    {
+    public void CanExecute_ShouldReturnExpectedResult(TaskState state, bool expected) {
         // Arrange
         var stateMachine = new TaskStateMachine(state);
 
@@ -213,8 +199,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void MultipleTransitions_ShouldWorkCorrectly()
-    {
+    public void MultipleTransitions_ShouldWorkCorrectly() {
         // Arrange
         var stateMachine = new TaskStateMachine();
         var states = new List<TaskState>();
@@ -240,8 +225,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void ComplexWorkflow_FromPendingToCompleted()
-    {
+    public void ComplexWorkflow_FromPendingToCompleted() {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Pending);
 
@@ -267,8 +251,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void ComplexWorkflow_FromPendingToFailed()
-    {
+    public void ComplexWorkflow_FromPendingToFailed() {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Pending);
 
@@ -282,8 +265,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void ComplexWorkflow_Cancellation()
-    {
+    public void ComplexWorkflow_Cancellation() {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Pending);
 
@@ -296,8 +278,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void ComplexWorkflow_CancellationFromPaused()
-    {
+    public void ComplexWorkflow_CancellationFromPaused() {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Pending);
         stateMachine.TryTransitionTo(TaskState.Running).Should().BeTrue();
@@ -311,8 +292,7 @@ public class TaskStateMachineTests
     }
 
     [Fact]
-    public void StateChangedEventArgs_ShouldContainCorrectData()
-    {
+    public void StateChangedEventArgs_ShouldContainCorrectData() {
         // Arrange
         var previousState = TaskState.Pending;
         var newState = TaskState.Running;

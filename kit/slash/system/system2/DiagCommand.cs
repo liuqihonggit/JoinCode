@@ -8,18 +8,15 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.Diag, Description = "查看崩溃快照和诊断信息", Usage = "/diag [recent|fence <name>|ack <id>|clear]", Category = ChatCommandCategory.System, IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "诊断操作", Enum = new[] { "recent", "fence", "ack", "detail", "clear" })]
 [ChatCommandArg("name", Type = "string", Description = "fence 围栏名 / ack|detail 快照 ID")]
-public sealed class DiagCommand : ChatCommandBase
-{
+public sealed class DiagCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /diag 命令 — 根据子操作分发最近记录、按围栏查询、确认、详情查询
     /// </summary>
     /// <param name="context">命令执行上下文，包含参数与服务容器</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var store = context.Services.GetService<ICrashSnapshotStore>();
-        if (store is null)
-        {
+        if (store is null) {
             TerminalHelper.WriteLine("CrashSnapshotStore 未初始化 — 诊断功能不可用");
             return Task.FromResult(ChatCommandResult.Continue());
         }
@@ -27,63 +24,47 @@ public sealed class DiagCommand : ChatCommandBase
         var args = GetNormalizedArgs(context);
         var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        if (parts.Length == 0 || parts[0] is "recent" or "")
-        {
+        if (parts.Length == 0 || parts[0] is "recent" or "") {
             ShowRecent(store);
-        }
-        else if (parts[0] is "fence" && parts.Length > 1)
-        {
+        } else if (parts[0] is "fence" && parts.Length > 1) {
             ShowByFence(store, parts[1]);
-        }
-        else if (parts[0] is "ack" && parts.Length > 1)
-        {
+        } else if (parts[0] is "ack" && parts.Length > 1) {
             Acknowledge(store, parts[1]);
-        }
-        else if (parts[0] is "detail" && parts.Length > 1)
-        {
+        } else if (parts[0] is "detail" && parts.Length > 1) {
             ShowDetail(store, parts[1]);
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine("用法: /diag [recent|fence <name>|ack <id>|detail <id>]");
         }
 
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    private static void ShowRecent(ICrashSnapshotStore store)
-    {
+    private static void ShowRecent(ICrashSnapshotStore store) {
         var report = ((CrashSnapshotStore)store).FormatReport(20);
         TerminalHelper.WriteLine(report);
     }
 
-    private static void ShowByFence(ICrashSnapshotStore store, string fenceName)
-    {
+    private static void ShowByFence(ICrashSnapshotStore store, string fenceName) {
         var snapshots = store.GetByFence(fenceName);
-        if (snapshots.Count == 0)
-        {
+        if (snapshots.Count == 0) {
             TerminalHelper.WriteLine($"围栏 '{fenceName}' 无崩溃记录");
             return;
         }
 
         TerminalHelper.WriteLine($"围栏 '{fenceName}' 崩溃记录 ({snapshots.Count} 条):");
-        foreach (var s in snapshots.Take(20))
-        {
+        foreach (var s in snapshots.Take(20)) {
             TerminalHelper.WriteLine($"  [{s.Severity.ToValue()}] {s.ExceptionType}: {s.ExceptionMessage}");
         }
     }
 
-    private static void Acknowledge(ICrashSnapshotStore store, string idText)
-    {
-        if (!Guid.TryParse(idText, out var id))
-        {
+    private static void Acknowledge(ICrashSnapshotStore store, string idText) {
+        if (!Guid.TryParse(idText, out var id)) {
             TerminalHelper.WriteLine($"无效的快照 ID: {idText}");
             return;
         }
 
         var snapshot = store.GetById(id);
-        if (snapshot is null)
-        {
+        if (snapshot is null) {
             TerminalHelper.WriteLine($"快照 {id:N} 不存在");
             return;
         }
@@ -92,17 +73,14 @@ public sealed class DiagCommand : ChatCommandBase
         TerminalHelper.WriteLine($"快照 {id:N} 已确认");
     }
 
-    private static void ShowDetail(ICrashSnapshotStore store, string idText)
-    {
-        if (!Guid.TryParse(idText, out var id))
-        {
+    private static void ShowDetail(ICrashSnapshotStore store, string idText) {
+        if (!Guid.TryParse(idText, out var id)) {
             TerminalHelper.WriteLine($"无效的快照 ID: {idText}");
             return;
         }
 
         var snapshot = store.GetById(id);
-        if (snapshot is null)
-        {
+        if (snapshot is null) {
             TerminalHelper.WriteLine($"快照 {id:N} 不存在");
             return;
         }
@@ -122,11 +100,9 @@ public sealed class DiagCommand : ChatCommandBase
             TerminalHelper.WriteLine($"错误类别: {snapshot.ErrorCategory}");
         TerminalHelper.WriteLine();
 
-        if (snapshot.ExceptionChain.Depth > 1)
-        {
+        if (snapshot.ExceptionChain.Depth > 1) {
             TerminalHelper.WriteLine($"异常链 (深度 {snapshot.ExceptionChain.Depth}):");
-            foreach (var frame in snapshot.ExceptionChain.Frames)
-            {
+            foreach (var frame in snapshot.ExceptionChain.Frames) {
                 var prefix = frame.Depth == 0 ? "→" : "↳";
                 TerminalHelper.WriteLine($"  {prefix} [{frame.Depth}] {frame.ExceptionType}: {frame.Message}");
                 if (frame.ErrorCode is not null)
@@ -135,8 +111,7 @@ public sealed class DiagCommand : ChatCommandBase
             TerminalHelper.WriteLine();
         }
 
-        if (snapshot.StackTrace is not null)
-        {
+        if (snapshot.StackTrace is not null) {
             TerminalHelper.WriteLine("堆栈:");
             var lines = snapshot.StackTrace.Split('\n');
             foreach (var line in lines.Take(15))
@@ -147,8 +122,7 @@ public sealed class DiagCommand : ChatCommandBase
         }
 
         var ctx = snapshot.ExecutionContext;
-        if (ctx.OperationName is not null || ctx.ToolName is not null || ctx.TurnIndex is not null)
-        {
+        if (ctx.OperationName is not null || ctx.ToolName is not null || ctx.TurnIndex is not null) {
             TerminalHelper.WriteLine("执行上下文:");
             if (ctx.OperationName is not null) TerminalHelper.WriteLine($"  操作: {ctx.OperationName}");
             if (ctx.ToolName is not null) TerminalHelper.WriteLine($"  工具: {ctx.ToolName}");
@@ -162,16 +136,14 @@ public sealed class DiagCommand : ChatCommandBase
             TerminalHelper.WriteLine();
         }
 
-        if (snapshot.Tags.Count > 0)
-        {
+        if (snapshot.Tags.Count > 0) {
             TerminalHelper.WriteLine("标签:");
             foreach (var (key, value) in snapshot.Tags)
                 TerminalHelper.WriteLine($"  {key}: {value}");
             TerminalHelper.WriteLine();
         }
 
-        if (snapshot.Attachments.Count > 0)
-        {
+        if (snapshot.Attachments.Count > 0) {
             TerminalHelper.WriteLine("附件:");
             foreach (var (name, content) in snapshot.Attachments)
                 TerminalHelper.WriteLine($"  {name}: {(content.Length > 200 ? content[..200] + "..." : content)}");

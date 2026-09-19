@@ -6,8 +6,7 @@ namespace JoinCode.Llm.Plugins;
 /// <para>卸载时撤销注册,实现可逆效应</para>
 /// </summary>
 [Register(typeof(IWorkflowPlugin), ServiceLifetime.Singleton)]
-public sealed partial class LlmProvidersPlugin : WorkflowPluginBase
-{
+public sealed partial class LlmProvidersPlugin : WorkflowPluginBase {
     public LlmProvidersPlugin() : base("LlmProviders") { }
 
     /// <summary>插件名称</summary>
@@ -24,8 +23,7 @@ public sealed partial class LlmProvidersPlugin : WorkflowPluginBase
         => Task.FromResult(OperationResult.Ok());
 
     /// <summary>初始化插件 — 向 QueryServiceFactory 注册5个供应商</summary>
-    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
-    {
+    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default) {
         var factory = JoinCode.Llm.DependencyInjection.ServiceRegistration.s_factory;
 
         factory.RegisterProvider(ProtocolKind.Anthropic,
@@ -43,8 +41,7 @@ public sealed partial class LlmProvidersPlugin : WorkflowPluginBase
     }
 
     /// <summary>插件特定清理 — 撤销5个供应商注册</summary>
-    protected override void OnUnload()
-    {
+    protected override void OnUnload() {
         var factory = JoinCode.Llm.DependencyInjection.ServiceRegistration.s_factory;
         factory.UnregisterProvider(ProtocolKind.Anthropic);
         factory.UnregisterProvider(ProtocolKind.Azure);

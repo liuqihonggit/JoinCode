@@ -7,8 +7,7 @@ namespace McpToolDispatch;
 /// MCP 资源工具处理器 — 提供远程 MCP 资源、提示模板和客户端列表查询能力
 /// </summary>
 [McpToolDispatch(ToolCategory.McpResource)]
-public class McpResourceToolHandlers
-{
+public class McpResourceToolHandlers {
     private readonly IMcpToolRegistry _toolRegistry;
     private readonly ILogger<McpResourceToolHandlers>? _logger;
 
@@ -17,8 +16,7 @@ public class McpResourceToolHandlers
     /// </summary>
     /// <param name="toolRegistry">MCP 工具注册表</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public McpResourceToolHandlers(IMcpToolRegistry toolRegistry, ILogger<McpResourceToolHandlers>? logger = null)
-    {
+    public McpResourceToolHandlers(IMcpToolRegistry toolRegistry, ILogger<McpResourceToolHandlers>? logger = null) {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _logger = logger;
     }
@@ -29,8 +27,7 @@ public class McpResourceToolHandlers
     [McpTool(McpToolNameEnumConstants.McpRemoteListResources, "List all available MCP remote resources", "mcp")]
     public async Task<ToolResult> McpRemoteListResourcesAsync(
         [McpToolParameter("Remote client ID (optional, list resources for a specific client)", Required = false)] string? client_id = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var response = new System.Text.StringBuilder();
         response.AppendLine($"{ObjectSymbol.DiamondFilled.ToValue()} MCP Resources");
         response.AppendLine();
@@ -38,56 +35,42 @@ public class McpResourceToolHandlers
         // 获取所有远程客户端
         var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken);
 
-        if (clients.Count == 0)
-        {
+        if (clients.Count == 0) {
             response.AppendLine("No connected MCP remote clients");
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
 
-        foreach (var (clientId, client) in clients)
-        {
-            if (!string.IsNullOrEmpty(client_id) && clientId != client_id)
-            {
+        foreach (var (clientId, client) in clients) {
+            if (!string.IsNullOrEmpty(client_id) && clientId != client_id) {
                 continue;
             }
 
             response.AppendLine($"{ObjectSymbol.ArrowRight.ToValue()} Client: {clientId}");
 
-            try
-            {
+            try {
                 var result = await client.ListResourcesAsync(cancellationToken);
 
-                if (!result.Success)
-                {
+                if (!result.Success) {
                     response.AppendLine($"   {StatusSymbol.Cross.ToValue()} Failed to list resources: {result.ErrorMessage}");
-                }
-                else if (result.GetData().Count == 0)
-                {
+                } else if (result.GetData().Count == 0) {
                     response.AppendLine("   No resources available");
-                }
-                else
-                {
-                    foreach (var resource in result.GetData())
-                    {
+                } else {
+                    foreach (var resource in result.GetData()) {
                         response.AppendLine($"   {ObjectSymbol.File.ToValue()} {resource.Name}");
                         response.AppendLine($"      URI: {resource.Uri}");
 
-                        if (!string.IsNullOrEmpty(resource.Description))
-                        {
+                        if (!string.IsNullOrEmpty(resource.Description)) {
                             response.AppendLine($"      Description: {resource.Description}");
                         }
 
-                        if (!string.IsNullOrEmpty(resource.MimeType))
-                        {
+                        if (!string.IsNullOrEmpty(resource.MimeType)) {
                             response.AppendLine($"      MIME Type: {resource.MimeType}");
                         }
 
                         response.AppendLine();
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 response.AppendLine($"   {StatusSymbol.Cross.ToValue()} Failed to list resources: {ex.Message}");
             }
 
@@ -104,26 +87,21 @@ public class McpResourceToolHandlers
     public async Task<ToolResult> McpRemoteReadResourceAsync(
         [McpToolParameter("Resource URI")] string uri,
         [McpToolParameter("Remote client ID (optional)", Required = false)] string? client_id = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(uri))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(uri)) {
             return ToolResultBuilder.Error().WithText("uri cannot be empty").Build();
         }
 
         // 获取所有远程客户端
         var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken);
 
-        if (clients.Count == 0)
-        {
+        if (clients.Count == 0) {
             return ToolResultBuilder.Error().WithText("No connected MCP remote clients").Build();
         }
 
         // 如果指定了客户端ID，优先使用该客户端
-        if (!string.IsNullOrEmpty(client_id))
-        {
-            if (!clients.TryGetValue(client_id, out var specificClient))
-            {
+        if (!string.IsNullOrEmpty(client_id)) {
+            if (!clients.TryGetValue(client_id, out var specificClient)) {
                 return ToolResultBuilder.Error().WithText($"Client not found: {client_id}").Build();
             }
 
@@ -131,13 +109,11 @@ public class McpResourceToolHandlers
         }
 
         // 尝试所有客户端
-        foreach (var (clientId, client) in clients)
-        {
+        foreach (var (clientId, client) in clients) {
             var result = await ReadResourceFromClientAsync(client, uri, clientId, cancellationToken);
 
             // 如果成功，返回结果
-            if (result.IsError != true)
-            {
+            if (result.IsError != true) {
                 return result;
             }
         }
@@ -151,58 +127,44 @@ public class McpResourceToolHandlers
     [McpTool(McpToolNameEnumConstants.McpRemoteListPrompts, "List all available MCP remote prompt templates", "mcp")]
     public async Task<ToolResult> McpRemoteListPromptsAsync(
         [McpToolParameter("Remote client ID (optional)", Required = false)] string? client_id = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var response = new System.Text.StringBuilder();
         response.AppendLine($"{ObjectSymbol.Pencil.ToValue()} MCP Prompt Templates");
         response.AppendLine();
 
         var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken);
 
-        if (clients.Count == 0)
-        {
+        if (clients.Count == 0) {
             response.AppendLine("No connected MCP remote clients");
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
 
-        foreach (var (clientId, client) in clients)
-        {
-            if (!string.IsNullOrEmpty(client_id) && clientId != client_id)
-            {
+        foreach (var (clientId, client) in clients) {
+            if (!string.IsNullOrEmpty(client_id) && clientId != client_id) {
                 continue;
             }
 
             response.AppendLine($"{ObjectSymbol.ArrowRight.ToValue()} Client: {clientId}");
 
-            try
-            {
+            try {
                 // 尝试获取提示模板列表
                 var result = await client.ListPromptsAsync(cancellationToken);
 
-                if (!result.Success)
-                {
+                if (!result.Success) {
                     response.AppendLine($"   {StatusSymbol.Cross.ToValue()} Failed to list prompts: {result.ErrorMessage}");
-                }
-                else if (result.GetData().Count == 0)
-                {
+                } else if (result.GetData().Count == 0) {
                     response.AppendLine("   No prompt templates available");
-                }
-                else
-                {
-                    foreach (var prompt in result.GetData())
-                    {
+                } else {
+                    foreach (var prompt in result.GetData()) {
                         response.AppendLine($"   {ObjectSymbol.Pencil.ToValue()} {prompt.Name}");
 
-                        if (!string.IsNullOrEmpty(prompt.Description))
-                        {
+                        if (!string.IsNullOrEmpty(prompt.Description)) {
                             response.AppendLine($"      Description: {prompt.Description}");
                         }
 
-                        if (prompt.Arguments != null && prompt.Arguments.Count > 0)
-                        {
+                        if (prompt.Arguments != null && prompt.Arguments.Count > 0) {
                             response.AppendLine($"      Arguments:");
-                            response.Append(string.Join(Environment.NewLine, prompt.Arguments.Select(arg =>
-                            {
+                            response.Append(string.Join(Environment.NewLine, prompt.Arguments.Select(arg => {
                                 var required = arg.Required ? "(required)" : "(optional)";
                                 return $"        - {arg.Name} {required}";
                             })));
@@ -212,9 +174,7 @@ public class McpResourceToolHandlers
                         response.AppendLine();
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 response.AppendLine($"   {StatusSymbol.Cross.ToValue()} Failed to list prompts: {ex.Message}");
             }
 
@@ -232,28 +192,23 @@ public class McpResourceToolHandlers
         [McpToolParameter("Prompt template name")] string prompt_name,
         [McpToolParameter("Arguments (JSON format)", Required = false)] string? arguments = null,
         [McpToolParameter("Remote client ID (optional)", Required = false)] string? client_id = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(prompt_name))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(prompt_name)) {
             return ToolResultBuilder.Error().WithText("prompt_name cannot be empty").Build();
         }
 
         // 获取所有远程客户端
         var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken);
 
-        if (clients.Count == 0)
-        {
+        if (clients.Count == 0) {
             return ToolResultBuilder.Error().WithText("No connected MCP remote clients").Build();
         }
 
         // 解析参数
         Dictionary<string, JsonElement>? args = null;
-        if (!string.IsNullOrEmpty(arguments))
-        {
+        if (!string.IsNullOrEmpty(arguments)) {
             args = LlmJsonHelper.Deserialize(arguments, McpToolDispatchJsonContext.Default.DictionaryStringJsonElement, out var repairHint, _logger);
-            if (args is null)
-            {
+            if (args is null) {
                 var detail = string.IsNullOrEmpty(repairHint) ? "" : $" ({repairHint})";
                 return ToolResultBuilder.Error().WithText($"arguments must be valid JSON format{detail}").Build();
             }
@@ -262,10 +217,8 @@ public class McpResourceToolHandlers
         }
 
         // 如果指定了客户端ID，优先使用该客户端
-        if (!string.IsNullOrEmpty(client_id))
-        {
-            if (!clients.TryGetValue(client_id, out var specificClient))
-            {
+        if (!string.IsNullOrEmpty(client_id)) {
+            if (!clients.TryGetValue(client_id, out var specificClient)) {
                 return ToolResultBuilder.Error().WithText($"Client not found: {client_id}").Build();
             }
 
@@ -273,13 +226,11 @@ public class McpResourceToolHandlers
         }
 
         // 尝试所有客户端
-        foreach (var (clientId, client) in clients)
-        {
+        foreach (var (clientId, client) in clients) {
             var result = await GetPromptFromClientAsync(client, prompt_name, args, clientId, cancellationToken);
 
             // 如果成功，返回结果
-            if (result.IsError != true)
-            {
+            if (result.IsError != true) {
                 return result;
             }
         }
@@ -292,31 +243,25 @@ public class McpResourceToolHandlers
     /// </summary>
     [McpTool(McpToolNameEnumConstants.McpListClients, "List all connected MCP remote clients", "mcp")]
     public async Task<ToolResult> McpListClientsAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken);
 
         var response = new System.Text.StringBuilder();
         response.AppendLine($"{ObjectSymbol.ArrowRight.ToValue()} MCP Remote Clients");
         response.AppendLine();
 
-        if (clients.Count == 0)
-        {
+        if (clients.Count == 0) {
             response.AppendLine("No connected MCP remote clients");
-        }
-        else
-        {
+        } else {
             response.AppendLine($"Total {clients.Count} client(s):");
             response.AppendLine();
 
-            foreach (var (clientId, client) in clients)
-            {
+            foreach (var (clientId, client) in clients) {
                 response.AppendLine($"• {clientId}");
                 response.AppendLine($"  Type: {client.GetType().Name}");
                 response.AppendLine($"  Connected: {client.IsConnected}");
 
-                if (client.ServerInfo != null)
-                {
+                if (client.ServerInfo != null) {
                     response.AppendLine($"  Server: {client.ServerInfo.Name} {client.ServerInfo.Version}");
                 }
 
@@ -333,19 +278,15 @@ public class McpResourceToolHandlers
         IMcpClient client,
         string uri,
         string clientId,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
+        CancellationToken cancellationToken) {
+        try {
             var result = await client.ReadResourceAsync(uri, cancellationToken);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 return ToolResultBuilder.Error().WithText($"Failed to read resource: {result.ErrorMessage}").Build();
             }
 
-            if (result.Data == null)
-            {
+            if (result.Data == null) {
                 return ToolResultBuilder.Error().WithText($"Resource content is empty: {uri}").Build();
             }
 
@@ -353,8 +294,7 @@ public class McpResourceToolHandlers
             response.AppendLine($"{ObjectSymbol.File.ToValue()} Resource content: {uri}");
             response.AppendLine($"Source client: {clientId}");
 
-            if (!string.IsNullOrEmpty(result.Data.MimeType))
-            {
+            if (!string.IsNullOrEmpty(result.Data.MimeType)) {
                 response.AppendLine($"MIME Type: {result.Data.MimeType}");
             }
 
@@ -362,21 +302,16 @@ public class McpResourceToolHandlers
             response.AppendLine("---");
             response.AppendLine();
 
-            if (!string.IsNullOrEmpty(result.Data.Text))
-            {
+            if (!string.IsNullOrEmpty(result.Data.Text)) {
                 response.AppendLine(result.Data.Text);
-            }
-            else if (!string.IsNullOrEmpty(result.Data.Blob))
-            {
+            } else if (!string.IsNullOrEmpty(result.Data.Blob)) {
                 response.AppendLine($"[Binary data: {result.Data.Blob.Length} characters]");
             }
 
             response.AppendLine();
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("mcp_read_resource", ex, _logger, "uri", uri);
         }
     }
@@ -386,19 +321,15 @@ public class McpResourceToolHandlers
         string promptName,
         Dictionary<string, JsonElement>? arguments,
         string clientId,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
+        CancellationToken cancellationToken) {
+        try {
             var result = await client.GetPromptAsync(promptName, arguments, cancellationToken);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 return ToolResultBuilder.Error().WithText($"Failed to get prompt: {result.ErrorMessage}").Build();
             }
 
-            if (result.Data == null)
-            {
+            if (result.Data == null) {
                 return ToolResultBuilder.Error().WithText($"Prompt content is empty: {promptName}").Build();
             }
 
@@ -406,8 +337,7 @@ public class McpResourceToolHandlers
             response.AppendLine($"{ObjectSymbol.Pencil.ToValue()} Prompt: {promptName}");
             response.AppendLine($"Source client: {clientId}");
 
-            if (!string.IsNullOrEmpty(result.Data.Description))
-            {
+            if (!string.IsNullOrEmpty(result.Data.Description)) {
                 response.AppendLine($"Description: {result.Data.Description}");
             }
 
@@ -415,10 +345,8 @@ public class McpResourceToolHandlers
             response.AppendLine("Messages:");
             response.AppendLine();
 
-            foreach (var message in result.Data.Messages)
-            {
-                var roleIcon = message.Role switch
-                {
+            foreach (var message in result.Data.Messages) {
+                var roleIcon = message.Role switch {
                     MessageRoleEnumConstants.User => StructureSymbol.Bullet.ToValue(),
                     MessageRoleEnumConstants.Assistant => ObjectSymbol.Agent.ToValue(),
                     MessageRoleEnumConstants.System => ObjectSymbol.Gear.ToValue(),
@@ -427,12 +355,9 @@ public class McpResourceToolHandlers
 
                 response.AppendLine($"{roleIcon} [{message.Role}]");
 
-                if (message.Content.Type == "text" && !string.IsNullOrEmpty(message.Content.Text))
-                {
+                if (message.Content.Type == "text" && !string.IsNullOrEmpty(message.Content.Text)) {
                     response.AppendLine(message.Content.Text);
-                }
-                else
-                {
+                } else {
                     response.AppendLine($"[{message.Content.Type} content]");
                 }
 
@@ -440,9 +365,7 @@ public class McpResourceToolHandlers
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("mcp_get_prompt", ex, _logger, "promptName", promptName, "clientId", clientId);
         }
     }

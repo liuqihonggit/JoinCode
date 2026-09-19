@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 轮询配置 - 控制轮询间隔、退避策略和超时
 /// </summary>
-public sealed partial class PollConfig
-{
+public sealed partial class PollConfig {
     /// <summary>默认轮询间隔（毫秒）</summary>
     public const int DefaultIntervalMs = 100;
 
@@ -46,8 +45,7 @@ public sealed partial class PollConfig
 /// 轮询配置管理器 - 管理动态轮询配置，支持指数退避和抖动
 /// </summary>
 [Register(typeof(PollConfigManager), ServiceLifetime.Singleton)]
-public sealed partial class PollConfigManager : ServiceEntity, IDisposable
-{
+public sealed partial class PollConfigManager : ServiceEntity, IDisposable {
     private readonly ILogger<PollConfigManager>? _logger;
     private readonly AsyncLock _configLock = new();
     private PollConfig _currentConfig;
@@ -61,8 +59,7 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     /// <param name="logger">可选日志记录器</param>
     public PollConfigManager(
         PollConfig? initialConfig = null,
-        ILogger<PollConfigManager>? logger = null)
-    {
+        ILogger<PollConfigManager>? logger = null) {
         _logger = logger;
         _currentConfig = initialConfig ?? new PollConfig();
         _consecutiveErrors = 0;
@@ -73,12 +70,9 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>当前配置快照</returns>
-    public async Task<PollConfig> GetCurrentConfigAsync(CancellationToken ct = default)
-    {
-                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时"))
-        {
-            return new PollConfig
-            {
+    public async Task<PollConfig> GetCurrentConfigAsync(CancellationToken ct = default) {
+        using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时")) {
+            return new PollConfig {
                 IntervalMs = _currentConfig.IntervalMs,
                 MaxIntervalMs = _currentConfig.MaxIntervalMs,
                 BackoffMultiplier = _currentConfig.BackoffMultiplier,
@@ -93,14 +87,11 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     /// </summary>
     /// <param name="newConfig">新配置</param>
     /// <param name="ct">取消令牌</param>
-    public async Task UpdateConfigAsync(PollConfig newConfig, CancellationToken ct = default)
-    {
+    public async Task UpdateConfigAsync(PollConfig newConfig, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(newConfig);
 
-                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时"))
-        {
-            _currentConfig = new PollConfig
-            {
+        using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时")) {
+            _currentConfig = new PollConfig {
                 IntervalMs = newConfig.IntervalMs,
                 MaxIntervalMs = newConfig.MaxIntervalMs,
                 BackoffMultiplier = newConfig.BackoffMultiplier,
@@ -120,16 +111,11 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     /// <param name="hasError">上次轮询是否出错</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>下一次轮询间隔（毫秒）</returns>
-    public async Task<int> CalculateNextIntervalAsync(bool hasError, CancellationToken ct = default)
-    {
-                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时"))
-        {
-            if (hasError)
-            {
+    public async Task<int> CalculateNextIntervalAsync(bool hasError, CancellationToken ct = default) {
+        using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时")) {
+            if (hasError) {
                 _consecutiveErrors++;
-            }
-            else
-            {
+            } else {
                 _consecutiveErrors = 0;
             }
 
@@ -160,10 +146,8 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     /// 重置为默认配置
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    public async Task ResetToDefaultAsync(CancellationToken ct = default)
-    {
-                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时"))
-        {
+    public async Task ResetToDefaultAsync(CancellationToken ct = default) {
+        using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时")) {
             _currentConfig = new PollConfig();
             _consecutiveErrors = 0;
 
@@ -174,8 +158,7 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     /// <summary>
     /// 释放资源 — 释放配置锁
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _configLock.Dispose();

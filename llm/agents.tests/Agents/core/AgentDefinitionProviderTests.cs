@@ -1,10 +1,8 @@
 namespace Sync.Tests.Agents;
 
-public sealed class AgentDefinitionProviderTests
-{
+public sealed class AgentDefinitionProviderTests {
     [Fact]
-    public void GetBuiltInDefinitions_ReturnsNineAgentTypes()
-    {
+    public void GetBuiltInDefinitions_ReturnsNineAgentTypes() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
 
         definitions.Should().HaveCount(9);
@@ -12,8 +10,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public void GetBuiltInDefinitions_CoordinatorAgent_HasSubAgentDisallowedTools()
-    {
+    public void GetBuiltInDefinitions_CoordinatorAgent_HasSubAgentDisallowedTools() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var coordinator = definitions.First(d => d.Role == AgentRole.Coordinator);
 
@@ -25,8 +22,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public void GetBuiltInDefinitions_CodeAgent_UsesToolNamesConstants()
-    {
+    public void GetBuiltInDefinitions_CodeAgent_UsesToolNamesConstants() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var codeAgent = definitions.First(d => d.Variant == ExecutorVariant.Code);
 
@@ -47,8 +43,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public void GetBuiltInDefinitions_SearchAgent_UsesToolNamesConstants()
-    {
+    public void GetBuiltInDefinitions_SearchAgent_UsesToolNamesConstants() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var searchAgent = definitions.First(d => d.Variant == ExecutorVariant.Search);
 
@@ -69,8 +64,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public void GetBuiltInDefinitions_CodeAgent_DisallowedToolsContainsSubAgentTools()
-    {
+    public void GetBuiltInDefinitions_CodeAgent_DisallowedToolsContainsSubAgentTools() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var codeAgent = definitions.First(d => d.Variant == ExecutorVariant.Code);
 
@@ -81,8 +75,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public void GetBuiltInDefinitions_SearchAgent_DisallowedWriteTools()
-    {
+    public void GetBuiltInDefinitions_SearchAgent_DisallowedWriteTools() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var searchAgent = definitions.First(d => d.Variant == ExecutorVariant.Search);
 
@@ -93,8 +86,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public void GetBuiltInDefinitions_ExploreAgent_IsReadOnly()
-    {
+    public void GetBuiltInDefinitions_ExploreAgent_IsReadOnly() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var exploreAgent = definitions.First(d => d.Variant == ExecutorVariant.Explore);
 
@@ -106,8 +98,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public void GetBuiltInDefinitions_PlanAgent_IsReadOnly()
-    {
+    public void GetBuiltInDefinitions_PlanAgent_IsReadOnly() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var planAgent = definitions.First(d => d.Variant == ExecutorVariant.Plan);
 
@@ -119,8 +110,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public void GetBuiltInDefinitions_DoctorAgent_IsBackgroundWithDoctorPermission()
-    {
+    public void GetBuiltInDefinitions_DoctorAgent_IsBackgroundWithDoctorPermission() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var doctorAgent = definitions.First(d => d.Variant == ExecutorVariant.Doctor);
 
@@ -132,8 +122,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public void GetBuiltInDefinitions_AllToolNames_AreValidToolNamesConstants()
-    {
+    public void GetBuiltInDefinitions_AllToolNames_AreValidToolNamesConstants() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var allToolNames = new HashSet<string>(
             definitions
@@ -147,16 +136,14 @@ public sealed class AgentDefinitionProviderTests
 
         var allReferenced = allToolNames.Concat(allDisallowedNames);
 
-        foreach (var toolName in allReferenced)
-        {
+        foreach (var toolName in allReferenced) {
             toolName.Should().NotBeNullOrEmpty($"tool name should not be empty or null");
             toolName.Should().NotContain(" ", $"tool name '{toolName}' should not contain spaces");
         }
     }
 
     [Fact]
-    public void GetBuiltInDefinitions_ToolNamesMatchToolNamesConstants()
-    {
+    public void GetBuiltInDefinitions_ToolNamesMatchToolNamesConstants() {
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var codeAgent = definitions.First(d => d.Variant == ExecutorVariant.Code);
 
@@ -166,8 +153,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public void ParseDefinitionFile_ValidFrontmatter_ParsesCorrectly()
-    {
+    public void ParseDefinitionFile_ValidFrontmatter_ParsesCorrectly() {
         var content = """
             ---
             when_to_use: "Custom agent for testing"
@@ -193,8 +179,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public void ParseDefinitionFile_NoFrontmatter_UsesContentAsPrompt()
-    {
+    public void ParseDefinitionFile_NoFrontmatter_UsesContentAsPrompt() {
         var content = "You are a simple agent without frontmatter.";
 
         var result = AgentDefinitionProvider.ParseDefinitionFile(content, "/agents/simple.md");
@@ -208,8 +193,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public async Task GetAgentDefinitionsAsync_ReturnsBuiltInDefinitions()
-    {
+    public async Task GetAgentDefinitionsAsync_ReturnsBuiltInDefinitions() {
         var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());
 
         var definitions = await provider.GetAgentDefinitionsAsync().ConfigureAwait(true);
@@ -219,8 +203,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public async Task GetAgentDefinitionAsync_ReturnsCorrectAgentByType()
-    {
+    public async Task GetAgentDefinitionAsync_ReturnsCorrectAgentByType() {
         var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());
 
         var codeAgent = await provider.GetAgentDefinitionAsync(AgentRole.Executor, ExecutorVariant.Code).ConfigureAwait(true);
@@ -231,8 +214,7 @@ public sealed class AgentDefinitionProviderTests
     }
 
     [Fact]
-    public async Task GetAgentDefinitionAsync_UnknownType_ReturnsNull()
-    {
+    public async Task GetAgentDefinitionAsync_UnknownType_ReturnsNull() {
         var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());
 
         var result = await provider.GetAgentDefinitionAsync(AgentRole.Executor, (ExecutorVariant)999).ConfigureAwait(true);

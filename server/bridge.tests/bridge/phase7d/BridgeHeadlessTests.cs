@@ -1,34 +1,29 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed partial class BridgeMainTests
-{
+public sealed partial class BridgeMainTests {
     #region BuildSdkUrl / BuildCCRv2SdkUrl — URL 构建测试
 
     [Fact]
-    public void BuildSdkUrl_ProducesWssUrl()
-    {
+    public void BuildSdkUrl_ProducesWssUrl() {
         var url = BridgeWorkSecretDecoder.BuildSdkUrl("https://api.test.com", "session-1");
         Assert.Equal("wss://api.test.com/v1/session_ingress/ws/session-1", url);
     }
 
     [Fact]
-    public void BuildSdkUrl_Localhost_ProducesWsV2Url()
-    {
+    public void BuildSdkUrl_Localhost_ProducesWsV2Url() {
         var url = BridgeWorkSecretDecoder.BuildSdkUrl("http://localhost:8080", "session-2");
         Assert.Equal("ws://localhost:8080/v2/session_ingress/ws/session-2", url);
     }
 
     [Fact]
-    public void BuildCCRv2SdkUrl_ProducesHttpUrl()
-    {
+    public void BuildCCRv2SdkUrl_ProducesHttpUrl() {
         var url = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl("https://api.test.com", "session-3");
         Assert.Equal("https://api.test.com/v1/code/sessions/session-3", url);
     }
 
     [Fact]
-    public void BuildCCRv2SdkUrl_TrailingSlash_Stripped()
-    {
+    public void BuildCCRv2SdkUrl_TrailingSlash_Stripped() {
         var url = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl("https://api.test.com/", "session-4");
         Assert.Equal("https://api.test.com/v1/code/sessions/session-4", url);
     }
@@ -38,16 +33,14 @@ public sealed partial class BridgeMainTests
     #region BridgeHeadlessPermanentError — 永久性错误
 
     [Fact]
-    public void BridgeHeadlessPermanentError_CanBeConstructed()
-    {
+    public void BridgeHeadlessPermanentError_CanBeConstructed() {
         var error = new BridgeHeadlessPermanentError("workspace not trusted");
         Assert.Equal("workspace not trusted", error.Message);
         Assert.IsAssignableFrom<Exception>(error);
     }
 
     [Fact]
-    public void BridgeHeadlessPermanentError_IsNotBridgeFatalError()
-    {
+    public void BridgeHeadlessPermanentError_IsNotBridgeFatalError() {
         var error = new BridgeHeadlessPermanentError("test");
         Assert.IsNotType<BridgeFatalError>(error);
     }
@@ -57,10 +50,8 @@ public sealed partial class BridgeMainTests
     #region BridgeHeadlessOpts — 选项模型
 
     [Fact]
-    public void BridgeHeadlessOpts_RequiredFields()
-    {
-        var opts = new BridgeHeadlessOpts
-        {
+    public void BridgeHeadlessOpts_RequiredFields() {
+        var opts = new BridgeHeadlessOpts {
             Dir = "C:\\workspace",
             SpawnMode = BridgeSpawnMode.SameDir,
             Capacity = 5,
@@ -77,10 +68,8 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeHeadlessOpts_OptionalFields_Defaults()
-    {
-        var opts = new BridgeHeadlessOpts
-        {
+    public void BridgeHeadlessOpts_OptionalFields_Defaults() {
+        var opts = new BridgeHeadlessOpts {
             Dir = "C:\\workspace",
             SpawnMode = BridgeSpawnMode.Worktree,
             Capacity = 3,
@@ -101,10 +90,8 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeHeadlessOpts_AllFields()
-    {
-        var opts = new BridgeHeadlessOpts
-        {
+    public void BridgeHeadlessOpts_AllFields() {
+        var opts = new BridgeHeadlessOpts {
             Dir = "C:\\workspace",
             Name = "test-session",
             SpawnMode = BridgeSpawnMode.SameDir,
@@ -138,8 +125,7 @@ public sealed partial class BridgeMainTests
     #region RunHeadlessAsync — 永久性验证
 
     [Fact]
-    public async Task RunHeadlessAsync_WorkspaceNotTrusted_ThrowsPermanentError()
-    {
+    public async Task RunHeadlessAsync_WorkspaceNotTrusted_ThrowsPermanentError() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 
@@ -151,8 +137,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunHeadlessAsync_NoAccessToken_ThrowsTransientError()
-    {
+    public async Task RunHeadlessAsync_NoAccessToken_ThrowsTransientError() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 
@@ -164,8 +149,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunHeadlessAsync_HttpUrl_ThrowsPermanentError()
-    {
+    public async Task RunHeadlessAsync_HttpUrl_ThrowsPermanentError() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 
@@ -177,8 +161,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunHeadlessAsync_WorktreeMode_NoGitNoHooks_ThrowsPermanentError()
-    {
+    public async Task RunHeadlessAsync_WorktreeMode_NoGitNoHooks_ThrowsPermanentError() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 
@@ -193,8 +176,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunHeadlessAsync_WorktreeMode_HasGitRepo_PassesValidation()
-    {
+    public async Task RunHeadlessAsync_WorktreeMode_HasGitRepo_PassesValidation() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 
@@ -209,8 +191,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunHeadlessAsync_WorktreeMode_HasHooks_PassesValidation()
-    {
+    public async Task RunHeadlessAsync_WorktreeMode_HasHooks_PassesValidation() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 
@@ -225,8 +206,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunHeadlessAsync_LocalhostHttp_PassesHttpsCheck()
-    {
+    public async Task RunHeadlessAsync_LocalhostHttp_PassesHttpsCheck() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 
@@ -238,8 +218,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunHeadlessAsync_NullOpts_ThrowsArgumentNullException()
-    {
+    public async Task RunHeadlessAsync_NullOpts_ThrowsArgumentNullException() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 

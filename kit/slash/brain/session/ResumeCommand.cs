@@ -7,8 +7,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Resume, Description = "恢复之前的会话", Usage = "/resume [session-id]", Aliases = ["continue"], ArgumentHint = "[conversation id or search term]", Category = ChatCommandCategory.Session)]
 [ChatCommandArg("session-id", Type = "string", Description = "会话 ID(UUID 精确匹配)或自定义标题搜索关键词,省略时进入交互式会话列表选择器")]
-public sealed class ResumeCommand : ChatCommandBase
-{
+public sealed class ResumeCommand : ChatCommandBase {
     private readonly IClockService _clock = SystemClockService.Instance;
     /// <summary>命令名称。</summary>
     public override string Name => ChatCommandNameEnumConstants.Resume;
@@ -30,22 +29,17 @@ public sealed class ResumeCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>命令执行结果。</returns>
-    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var fs = context.GetCommandServices().FileSystem;
-        if (!fs.DirectoryExists(SessionsPath))
-        {
+        if (!fs.DirectoryExists(SessionsPath)) {
             DirectoryHelper.EnsureDirectoryExists(fs, SessionsPath);
         }
 
         var args = GetNormalizedArgs(context);
-        if (!string.IsNullOrWhiteSpace(args))
-        {
+        if (!string.IsNullOrWhiteSpace(args)) {
             var searchTerm = args.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? args;
             await ResumeWithArgumentAsync(searchTerm, context);
-        }
-        else
-        {
+        } else {
             await ListSessionsAsync(context, showAllProjects: false);
         }
 
@@ -56,23 +50,17 @@ public sealed class ResumeCommand : ChatCommandBase
     /// 有参数模式：先尝试 UUID 精确匹配，再尝试自定义标题搜索
     /// 对齐 TS: resume.tsx call 函数 — UUID → customTitle → 报错
     /// </summary>
-    private async Task ResumeWithArgumentAsync(string searchTerm, ChatCommandContext context)
-    {
+    private async Task ResumeWithArgumentAsync(string searchTerm, ChatCommandContext context) {
         var transcriptService = ChatCommandBase.GetService<ITranscriptService>(context, typeof(ITranscriptService));
 
         // L3.1: 先尝试 UUID 精确匹配
-        if (transcriptService is not null)
-        {
-            try
-            {
-                if (await transcriptService.TranscriptExistsAsync(searchTerm, context.CancellationToken).ConfigureAwait(false))
-                {
+        if (transcriptService is not null) {
+            try {
+                if (await transcriptService.TranscriptExistsAsync(searchTerm, context.CancellationToken).ConfigureAwait(false)) {
                     await ResumeSessionAsync(searchTerm, context, ResumeEntrypoint.SlashCommandSessionId);
                     return;
                 }
-            }
-            catch (ArgumentException)
-            {
+            } catch (ArgumentException) {
                 TerminalHelper.WriteLine($"[ResumeCommand] '{searchTerm}' 含非法字符，跳过精确匹配");
             }
         }
@@ -81,16 +69,14 @@ public sealed class ResumeCommand : ChatCommandBase
         // 对齐 TS: searchSessionsByCustomTitle — 大小写不敏感匹配
         var titleMatches = await SearchByCustomTitleAsync(searchTerm, context.CancellationToken, transcriptService, context.Services?.GetService<ILogger<ResumeCommand>>()).ConfigureAwait(false);
 
-        if (titleMatches.Count == 0)
-        {
+        if (titleMatches.Count == 0) {
             // 对齐 TS: ResumeResult.sessionNotFound
             TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.HostResumeNotFound), searchTerm)}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostResumeHintList)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
-        if (titleMatches.Count == 1)
-        {
+        if (titleMatches.Count == 1) {
             // 唯一匹配 → 直接恢复
             await ResumeSessionAsync(titleMatches[0].Id, context, ResumeEntrypoint.SlashCommandTitle);
             return;
@@ -99,14 +85,12 @@ public sealed class ResumeCommand : ChatCommandBase
         // 多匹配 → 报错提示
         // 对齐 TS: ResumeResult.multipleMatches
         TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.HostResumeMultipleMatches), searchTerm)}{AnsiStyleEnumConstants.Reset}");
-        foreach (var match in titleMatches.Take(5))
-        {
+        foreach (var match in titleMatches.Take(5)) {
             var title = string.IsNullOrEmpty(match.CustomTitle) ? match.Id[..Math.Min(8, match.Id.Length)] + "..." : match.CustomTitle;
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostResumeMatchItem), title, GetTimeAgo(match.LastModified)));
         }
 
-        if (titleMatches.Count > 5)
-        {
+        if (titleMatches.Count > 5) {
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostResumeMoreMatches), titleMatches.Count - 5));
         }
 
@@ -117,33 +101,26 @@ public sealed class ResumeCommand : ChatCommandBase
     /// 按自定义标题搜索会话
     /// 对齐 TS: sessionStorage.ts searchSessionsByCustomTitle
     /// </summary>
-    private async Task<List<SessionLiteData>> SearchByCustomTitleAsync(string searchTerm, CancellationToken cancellationToken, ITranscriptService? transcriptService, ILogger? logger = null)
-    {
-        if (transcriptService is null)
-        {
+    private async Task<List<SessionLiteData>> SearchByCustomTitleAsync(string searchTerm, CancellationToken cancellationToken, ITranscriptService? transcriptService, ILogger? logger = null) {
+        if (transcriptService is null) {
             return [];
         }
 
         var results = new List<SessionLiteData>();
         var summaries = await transcriptService.ListTranscriptsAsync(limit: 100, cancellationToken).ConfigureAwait(false);
 
-        foreach (var summary in summaries)
-        {
-            try
-            {
+        foreach (var summary in summaries) {
+            try {
                 var title = await transcriptService.GetCustomTitleAsync(summary.SessionId, cancellationToken).ConfigureAwait(false);
-                if (string.IsNullOrEmpty(title))
-                {
+                if (string.IsNullOrEmpty(title)) {
                     continue;
                 }
 
                 // 大小写不敏感匹配：精确匹配优先
                 if (title.Equals(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                    title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
-                {
+                    title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) {
                     var info = await transcriptService.GetSessionInfoAsync(summary.SessionId, cancellationToken).ConfigureAwait(false);
-                    results.Add(new SessionLiteData
-                    {
+                    results.Add(new SessionLiteData {
                         Id = summary.SessionId,
                         ProjectPath = info?.ProjectPath ?? string.Empty,
                         CustomTitle = title,
@@ -152,9 +129,7 @@ public sealed class ResumeCommand : ChatCommandBase
                         FilePath = string.Empty
                     });
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 // 跳过无法解析的会话
                 logger?.LogWarning(ex, "会话标题搜索失败: {SessionId}", summary.SessionId);
             }
@@ -174,8 +149,7 @@ public sealed class ResumeCommand : ChatCommandBase
     /// L3.4: 支持 showAllProjects 切换
     /// L3.3: 使用 Lite 日志快速加载
     /// </summary>
-    private async Task ListSessionsAsync(ChatCommandContext context, bool showAllProjects)
-    {
+    private async Task ListSessionsAsync(ChatCommandContext context, bool showAllProjects) {
         var currentSessionId = context.SessionId;
 
         // L3.3: Lite 日志加载 — 只读取会话 stat 信息，不读内容
@@ -190,16 +164,14 @@ public sealed class ResumeCommand : ChatCommandBase
             .Take(20)
             .ToList();
 
-        if (resumableEntries.Count == 0)
-        {
+        if (resumableEntries.Count == 0) {
             TerminalHelper.WriteLine(L.T(StringKey.HostResumeNoSessions));
             return;
         }
 
         // 构建会话条目（L3.3: Lite 模式，preview 从 customTitle 或 ID 推断）
         var entries = new List<SessionEntry>();
-        foreach (var lite in resumableEntries)
-        {
+        foreach (var lite in resumableEntries) {
             var timeAgo = GetTimeAgo(lite.LastModified);
             var preview = string.IsNullOrEmpty(lite.CustomTitle)
                 ? lite.Id[..Math.Min(8, lite.Id.Length)] + "..."
@@ -209,8 +181,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
         // 交互模式：使用 Selector 组件
         // 对齐 TS: LogSelector — 上下键+搜索+Enter选择+Esc取消
-        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             var projectLabel = showAllProjects ? "（所有项目）" : "（当前仓库）";
             var selector = new Selector<SessionEntry>(
                 string.Format(L.T(StringKey.HostResumeSelectorTitle), projectLabel),
@@ -221,8 +192,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
             var result = await selector.ShowAsync(context.CancellationToken).ConfigureAwait(false);
 
-            if (result.Cancelled || result.Selected is null)
-            {
+            if (result.Cancelled || result.Selected is null) {
                 TerminalHelper.WriteLine(L.T(StringKey.HostResumeCancelled));
                 return;
             }
@@ -234,8 +204,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
         // 非交互模式回退：纯文本列表
         var projectHint = showAllProjects ? " [所有项目]" : "";
-        for (var i = 0; i < entries.Count; i++)
-        {
+        for (var i = 0; i < entries.Count; i++) {
             var entry = entries[i];
             TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} [{entry.SessionId[..Math.Min(8, entry.SessionId.Length)]}...] {entry.TimeAgo}{projectHint}");
             TerminalHelper.WriteLine($"     {entry.Preview}");
@@ -246,45 +215,35 @@ public sealed class ResumeCommand : ChatCommandBase
 
         // 输入重定向时（测试环境）优先使用 context.Prompt，否则直接返回取消
         var input = context.Prompt?.Invoke("选择会话");
-        if (input is null)
-        {
-            if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
+        if (input is null) {
+            if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 TerminalHelper.WriteLine(L.T(StringKey.HostResumeNonInteractiveCancelled));
                 return;
-            }
-            else
-            {
+            } else {
                 input = TerminalHelper.ReadLine();
             }
         }
 
-        if (string.IsNullOrWhiteSpace(input))
-        {
+        if (string.IsNullOrWhiteSpace(input)) {
             TerminalHelper.WriteLine(L.T(StringKey.HostResumeCancelled));
             return;
         }
 
         // L3.4: 全项目切换
-        if (input.Trim().Equals("a", StringComparison.OrdinalIgnoreCase))
-        {
+        if (input.Trim().Equals("a", StringComparison.OrdinalIgnoreCase)) {
             await ListSessionsAsync(context, !showAllProjects);
             return;
         }
 
-        if (input.Trim().Equals("q", StringComparison.OrdinalIgnoreCase))
-        {
+        if (input.Trim().Equals("q", StringComparison.OrdinalIgnoreCase)) {
             TerminalHelper.WriteLine(L.T(StringKey.HostResumeCancelled));
             return;
         }
 
-        if (int.TryParse(input, out var choice) && choice >= 1 && choice <= entries.Count)
-        {
+        if (int.TryParse(input, out var choice) && choice >= 1 && choice <= entries.Count) {
             // L3.5: 从编号选择恢复 → SlashCommandPicker
             await ResumeSessionAsync(entries[choice - 1].SessionId, context, ResumeEntrypoint.SlashCommandPicker);
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostResumeInvalidChoice)}{AnsiStyleEnumConstants.Reset}");
         }
     }
@@ -294,49 +253,39 @@ public sealed class ResumeCommand : ChatCommandBase
     /// 对齐 TS: isLiteLog / getStatOnlyLogsForWorktrees
     /// 统一入口: 通过 ITranscriptService.ListTranscriptsAsync + GetSessionInfoAsync + GetCustomTitleAsync
     /// </summary>
-    private async Task<List<SessionLiteData>> LoadLiteSessionsAsync(bool showAllProjects, ITranscriptService? transcriptService, ILogger? logger = null)
-    {
-        if (transcriptService is null)
-        {
+    private async Task<List<SessionLiteData>> LoadLiteSessionsAsync(bool showAllProjects, ITranscriptService? transcriptService, ILogger? logger = null) {
+        if (transcriptService is null) {
             return [];
         }
 
         var summaries = await transcriptService.ListTranscriptsAsync(limit: 100).ConfigureAwait(false);
         var entries = new List<SessionLiteData>();
 
-        foreach (var summary in summaries)
-        {
-            var lite = new SessionLiteData
-            {
+        foreach (var summary in summaries) {
+            var lite = new SessionLiteData {
                 Id = summary.SessionId,
                 LastModified = summary.LastModifiedAt,
                 FilePath = string.Empty
             };
 
             // 读取 customTitle 和 ProjectPath
-            try
-            {
+            try {
                 lite.CustomTitle = await transcriptService.GetCustomTitleAsync(summary.SessionId).ConfigureAwait(false) ?? string.Empty;
                 var info = await transcriptService.GetSessionInfoAsync(summary.SessionId).ConfigureAwait(false);
-                if (info is not null)
-                {
+                if (info is not null) {
                     lite.ProjectPath = info.ProjectPath;
                     lite.CreatedAt = info.CreatedAt;
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 // 无法解析 → 仅保留 stat 信息
                 logger?.LogWarning(ex, "Lite会话数据解析失败: {SessionId}", summary.SessionId);
             }
 
             // L3.4: 全项目过滤
-            if (!showAllProjects && !string.IsNullOrEmpty(lite.ProjectPath))
-            {
+            if (!showAllProjects && !string.IsNullOrEmpty(lite.ProjectPath)) {
                 var currentCwd = Environment.CurrentDirectory;
                 if (!string.Equals(lite.ProjectPath, currentCwd, StringComparison.OrdinalIgnoreCase) &&
-                    !lite.ProjectPath.StartsWith(currentCwd + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                {
+                    !lite.ProjectPath.StartsWith(currentCwd + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) {
                     continue;
                 }
             }
@@ -357,17 +306,14 @@ public sealed class ResumeCommand : ChatCommandBase
     /// 对齐 TS: call 函数 — UUID 精确匹配 + 直接恢复
     /// L3.5: 添加 ResumeEntrypoint 追踪
     /// </summary>
-    private async Task ResumeSessionAsync(string sessionId, ChatCommandContext context, ResumeEntrypoint entrypoint)
-    {
+    private async Task ResumeSessionAsync(string sessionId, ChatCommandContext context, ResumeEntrypoint entrypoint) {
         var transcriptService = ChatCommandBase.GetService<ITranscriptService>(context, typeof(ITranscriptService));
-        if (transcriptService is null)
-        {
+        if (transcriptService is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}ITranscriptService 不可用，无法恢复会话{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
-        if (!await transcriptService.TranscriptExistsAsync(sessionId, context.CancellationToken).ConfigureAwait(false))
-        {
+        if (!await transcriptService.TranscriptExistsAsync(sessionId, context.CancellationToken).ConfigureAwait(false)) {
             // 对齐 TS: ResumeResult.sessionNotFound
             TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.HostResumeSessionNotFound), sessionId)}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostResumeHintList)}{AnsiStyleEnumConstants.Reset}");
@@ -377,16 +323,14 @@ public sealed class ResumeCommand : ChatCommandBase
         // L3.5: 记录恢复入口
         TerminalHelper.WriteLine($"{TerminalColors.Muted}{string.Format(L.T(StringKey.HostResumeEntrypoint), entrypoint.ToValue())}{AnsiStyleEnumConstants.Reset}");
 
-        try
-        {
+        try {
             var entries = await transcriptService.LoadTranscriptAsync(sessionId, context.CancellationToken).ConfigureAwait(false);
             var messages = entries
                 .Where(e => string.IsNullOrEmpty(e.Type) && (e.Role == "user" || e.Role == "assistant"))
                 .Select(e => new ApiMessageRecord { Role = e.Role, Content = e.Content })
                 .ToList();
 
-            if (messages.Count == 0)
-            {
+            if (messages.Count == 0) {
                 TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostResumeNoMessages)}{AnsiStyleEnumConstants.Reset}");
                 return;
             }
@@ -396,13 +340,11 @@ public sealed class ResumeCommand : ChatCommandBase
             var info = await transcriptService.GetSessionInfoAsync(sessionId, context.CancellationToken).ConfigureAwait(false);
             var projectPath = info?.ProjectPath ?? string.Empty;
             var crossProjectResult = await CheckCrossProjectResumeAsync(projectPath, context, context.Services?.GetService<ILogger<ResumeCommand>>());
-            if (crossProjectResult.IsCrossProject && !crossProjectResult.IsSameRepoWorktree)
-            {
+            if (crossProjectResult.IsCrossProject && !crossProjectResult.IsSameRepoWorktree) {
                 // 不同项目 — 生成命令并复制到剪贴板
                 var command = $"cd {crossProjectResult.ProjectPath} && jcc --resume {sessionId}";
                 var clipboardService = context.GetCommandServices().ClipboardService;
-                if (clipboardService is not null)
-                {
+                if (clipboardService is not null) {
                     await clipboardService.SetTextAsync(command, context.CancellationToken).ConfigureAwait(false);
                 }
 
@@ -412,8 +354,7 @@ public sealed class ResumeCommand : ChatCommandBase
                 TerminalHelper.WriteLine(L.T(StringKey.HostResumeCrossProjectCommandPrompt));
                 TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostResumeCrossProjectCommand), command));
                 TerminalHelper.NewLine();
-                if (clipboardService is not null)
-                {
+                if (clipboardService is not null) {
                     TerminalHelper.WriteLine(L.T(StringKey.HostResumeClipboardCopied));
                 }
                 return;
@@ -430,30 +371,23 @@ public sealed class ResumeCommand : ChatCommandBase
             var recentEntries = entries
                 .Where(e => string.IsNullOrEmpty(e.Type) && (e.Role == "user" || e.Role == "assistant"))
                 .TakeLast(3);
-            foreach (var msg in recentEntries)
-            {
-                var role = msg.Role switch
-                {
+            foreach (var msg in recentEntries) {
+                var role = msg.Role switch {
                     MessageRoleEnumConstants.User => "你",
                     MessageRoleEnumConstants.Assistant => "AI",
                     _ => msg.Role
                 };
 
                 var content = msg.Content;
-                if (content.Length > 80)
-                {
+                if (content.Length > 80) {
                     content = string.Concat(content.AsSpan(0, 77), "...");
                 }
 
                 TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostResumeRecentMessage), role, content));
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             TerminalHelper.WriteLine(L.T(StringKey.HostResumeOperationCancelled));
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             HandleError("恢复会话", ex);
         }
     }
@@ -462,41 +396,33 @@ public sealed class ResumeCommand : ChatCommandBase
     /// 跨项目恢复检查
     /// 对齐 TS: checkCrossProjectResume
     /// </summary>
-    private static async Task<CrossProjectResumeResult> CheckCrossProjectResumeAsync(string projectPath, ChatCommandContext context, ILogger? logger = null)
-    {
+    private static async Task<CrossProjectResumeResult> CheckCrossProjectResumeAsync(string projectPath, ChatCommandContext context, ILogger? logger = null) {
         var currentCwd = Environment.CurrentDirectory;
 
         // 会话无项目路径信息 → 视为同项目
-        if (string.IsNullOrEmpty(projectPath))
-        {
+        if (string.IsNullOrEmpty(projectPath)) {
             return CrossProjectResumeResult.SameProject();
         }
 
         // 同目录 → 直接恢复
-        if (string.Equals(projectPath, currentCwd, StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.Equals(projectPath, currentCwd, StringComparison.OrdinalIgnoreCase)) {
             return CrossProjectResumeResult.SameProject();
         }
 
         // 检查是否是同仓库 worktree
         var worktreeService = context.GetCommandServices().WorktreeService;
-        if (worktreeService is not null)
-        {
-            try
-            {
+        if (worktreeService is not null) {
+            try {
                 var worktreePaths = await worktreeService.ListWorktreesAsync(cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
                 var isSameRepo = worktreePaths.Any(wt =>
                     string.Equals(wt, projectPath, StringComparison.OrdinalIgnoreCase) ||
                     projectPath.StartsWith(wt + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
 
-                if (isSameRepo)
-                {
+                if (isSameRepo) {
                     return CrossProjectResumeResult.SameRepoWorktree(projectPath);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 // Worktree 检测失败 → 视为不同项目
                 logger?.LogWarning(ex, "Worktree检测失败");
             }
@@ -506,8 +432,7 @@ public sealed class ResumeCommand : ChatCommandBase
         return CrossProjectResumeResult.DifferentProject(projectPath);
     }
 
-    private static string GetTimeAgo(DateTime dateTime)
-    {
+    private static string GetTimeAgo(DateTime dateTime) {
         var span = DateTime.Now - dateTime;
 
         if (span.TotalMinutes < 1)
@@ -525,16 +450,13 @@ public sealed class ResumeCommand : ChatCommandBase
     /// <summary>
     /// 保存会话（供其他组件调用）
     /// </summary>
-    public static async Task SaveSessionAsync(string sessionId, List<SessionMessage> messages, IFileSystem fs, CancellationToken cancellationToken = default, IClockService? clock = null)
-    {
+    public static async Task SaveSessionAsync(string sessionId, List<SessionMessage> messages, IFileSystem fs, CancellationToken cancellationToken = default, IClockService? clock = null) {
         var c = clock ?? SystemClockService.Instance;
-        if (!fs.DirectoryExists(SessionsPath))
-        {
+        if (!fs.DirectoryExists(SessionsPath)) {
             DirectoryHelper.EnsureDirectoryExists(fs, SessionsPath);
         }
 
-        var session = new SessionData
-        {
+        var session = new SessionData {
             Id = sessionId,
             ProjectPath = Environment.CurrentDirectory,
             CreatedAt = c.GetUtcNow(),
@@ -552,8 +474,7 @@ public sealed class ResumeCommand : ChatCommandBase
 /// 跨项目恢复检查结果
 /// 对齐 TS: CrossProjectResumeResult
 /// </summary>
-internal sealed record CrossProjectResumeResult
-{
+internal sealed record CrossProjectResumeResult {
     public bool IsCrossProject { get; init; }
     public bool IsSameRepoWorktree { get; init; }
     public string ProjectPath { get; init; } = string.Empty;
@@ -566,8 +487,7 @@ internal sealed record CrossProjectResumeResult
 /// <summary>
 /// 完整会话数据，包含会话元信息与全部消息记录。
 /// </summary>
-public sealed class SessionData
-{
+public sealed class SessionData {
     /// <summary>会话唯一标识。</summary>
     public string Id { get; set; } = string.Empty;
     /// <summary>会话所属项目路径。</summary>
@@ -585,8 +505,7 @@ public sealed class SessionData
 /// 对齐 TS: isLiteLog — messages 为空但 sessionId 存在
 /// 用于快速加载会话列表，选择后按需加载完整数据
 /// </summary>
-public sealed class SessionLiteData
-{
+public sealed class SessionLiteData {
     /// <summary>会话唯一标识。</summary>
     public string Id { get; set; } = string.Empty;
     /// <summary>会话所属项目路径。</summary>
@@ -604,6 +523,5 @@ public sealed class SessionLiteData
 /// <summary>
 /// 会话消息记录，继承自聊天消息基类。
 /// </summary>
-public sealed class SessionMessage : ChatMessage
-{
+public sealed class SessionMessage : ChatMessage {
 }

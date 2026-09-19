@@ -6,15 +6,13 @@ namespace JoinCode.CodeIndex.Ast;
 /// 淘汰策略：达到 maxEntries 后不再缓存新条目（调用方 dispose 新 tree）。
 /// 线程安全：ConcurrentDictionary 保证并发读写安全；同实例并发访问由上层 _parseLock 串行化。
 /// </summary>
-public sealed class TreeCache : IDisposable
-{
+public sealed class TreeCache : IDisposable {
     private readonly int _maxEntries;
     private readonly ConcurrentDictionary<string, CacheEntry> _entries;
     private readonly ILogger? _logger;
     private int _disposed;
 
-    private void Log(string message)
-    {
+    private void Log(string message) {
         _logger?.LogDebug(message);
     }
 
@@ -23,8 +21,7 @@ public sealed class TreeCache : IDisposable
     /// </summary>
     /// <param name="maxEntries">最大缓存条目数</param>
     /// <param name="logger">可选日志记录器</param>
-    public TreeCache(int maxEntries = 1000, ILogger? logger = null)
-    {
+    public TreeCache(int maxEntries = 1000, ILogger? logger = null) {
         if (maxEntries < 1) throw new ArgumentOutOfRangeException(nameof(maxEntries));
         _maxEntries = maxEntries;
         _entries = new ConcurrentDictionary<string, CacheEntry>(StringComparer.OrdinalIgnoreCase);
@@ -40,13 +37,11 @@ public sealed class TreeCache : IDisposable
     /// <param name="filePath">文件路径</param>
     /// <param name="tree">输出解析树</param>
     /// <returns>存在返回 true，否则 false</returns>
-    public bool TryGet(string filePath, out Tree? tree)
-    {
+    public bool TryGet(string filePath, out Tree? tree) {
         ArgumentNullException.ThrowIfNull(filePath);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
-        if (_entries.TryGetValue(filePath, out var entry))
-        {
+        if (_entries.TryGetValue(filePath, out var entry)) {
             tree = entry.Tree;
             return true;
         }
@@ -60,8 +55,7 @@ public sealed class TreeCache : IDisposable
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>源代码文本，不存在返回 null</returns>
-    public string? GetSource(string filePath)
-    {
+    public string? GetSource(string filePath) {
         ArgumentNullException.ThrowIfNull(filePath);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
@@ -72,28 +66,23 @@ public sealed class TreeCache : IDisposable
     /// 添加或更新缓存条目。达到 maxEntries 后新文件不缓存（dispose tree 避免泄漏）。
     /// 更新已存在条目时原子替换并 dispose 旧 Tree。
     /// </summary>
-    public void Add(string filePath, Tree tree, string source)
-    {
+    public void Add(string filePath, Tree tree, string source) {
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(tree);
         ArgumentNullException.ThrowIfNull(source);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         var newEntry = new CacheEntry(tree, source);
-        while (true)
-        {
-            if (_entries.TryGetValue(filePath, out var existing))
-            {
-                if (_entries.TryUpdate(filePath, newEntry, existing))
-                {
+        while (true) {
+            if (_entries.TryGetValue(filePath, out var existing)) {
+                if (_entries.TryUpdate(filePath, newEntry, existing)) {
                     existing.Tree.Dispose();
                     return;
                 }
                 continue;
             }
 
-            if (_entries.Count >= _maxEntries)
-            {
+            if (_entries.Count >= _maxEntries) {
                 tree.Dispose();
                 return;
             }
@@ -107,13 +96,11 @@ public sealed class TreeCache : IDisposable
     /// 移除指定文件路径的缓存条目并释放解析树
     /// </summary>
     /// <param name="filePath">文件路径</param>
-    public void Remove(string filePath)
-    {
+    public void Remove(string filePath) {
         ArgumentNullException.ThrowIfNull(filePath);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
-        if (_entries.TryRemove(filePath, out var entry))
-        {
+        if (_entries.TryRemove(filePath, out var entry)) {
             entry.Tree.Dispose();
         }
     }
@@ -121,12 +108,10 @@ public sealed class TreeCache : IDisposable
     /// <summary>
     /// 清空所有缓存条目并释放全部解析树
     /// </summary>
-    public void Clear()
-    {
+    public void Clear() {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
-        foreach (var entry in _entries.Values)
-        {
+        foreach (var entry in _entries.Values) {
             entry.Tree.Dispose();
         }
 
@@ -136,12 +121,10 @@ public sealed class TreeCache : IDisposable
     /// <summary>
     /// 释放缓存资源 — 清空所有条目并释放全部解析树
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        foreach (var entry in _entries.Values)
-        {
+        foreach (var entry in _entries.Values) {
             entry.Tree.Dispose();
         }
 

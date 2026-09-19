@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 工作流插件接口 - 支持反射加载和生命周期管理
 /// </summary>
-public interface IWorkflowPlugin
-{
+public interface IWorkflowPlugin {
     /// <summary>
     /// 插件名称
     /// </summary>
@@ -41,8 +40,7 @@ public interface IWorkflowPlugin
 /// <summary>
 /// 插件卸载结果
 /// </summary>
-public sealed class PluginUnloadResult
-{
+public sealed class PluginUnloadResult {
     /// <summary>
     /// 卸载状态
     /// </summary>
@@ -68,8 +66,7 @@ public sealed class PluginUnloadResult
     /// </summary>
     public bool IsSuccess => Status == PluginUnloadStatus.Success;
 
-    private PluginUnloadResult(PluginUnloadStatus status, string pluginName, TimeSpan elapsedTime, string? errorMessage = null)
-    {
+    private PluginUnloadResult(PluginUnloadStatus status, string pluginName, TimeSpan elapsedTime, string? errorMessage = null) {
         Status = status;
         PluginName = pluginName;
         ElapsedTime = elapsedTime;
@@ -124,8 +121,7 @@ public sealed class PluginUnloadResult
 /// <summary>
 /// 插件卸载状态
 /// </summary>
-public enum PluginUnloadStatus
-{
+public enum PluginUnloadStatus {
     /// <summary>
     /// 卸载成功
     /// </summary>

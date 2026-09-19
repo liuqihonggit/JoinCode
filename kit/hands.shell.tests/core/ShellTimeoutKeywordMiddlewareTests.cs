@@ -3,13 +3,11 @@ namespace Hands.Tests.Shell;
 /// <summary>
 /// ShellTimeoutKeywordMiddleware 单元测试 — 验证脚本内等待关键字的超时自动调整与冲突报错
 /// </summary>
-public class ShellTimeoutKeywordMiddlewareTests
-{
+public class ShellTimeoutKeywordMiddlewareTests {
     private static ShellExecutionConfig DefaultConfig => new() { TimeoutKeywordBufferSeconds = 30, DefaultTimeoutSeconds = 120 };
 
     [Fact]
-    public async Task NoKeyword_PassesThroughWithoutModification()
-    {
+    public async Task NoKeyword_PassesThroughWithoutModification() {
         var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("echo hello");
 
@@ -22,8 +20,7 @@ public class ShellTimeoutKeywordMiddlewareTests
     }
 
     [Fact]
-    public async Task Keyword_NoUserTimeout_AutoExtendsOverrideTimeout()
-    {
+    public async Task Keyword_NoUserTimeout_AutoExtendsOverrideTimeout() {
         var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 100", timeout: null);
 
@@ -34,8 +31,7 @@ public class ShellTimeoutKeywordMiddlewareTests
     }
 
     [Fact]
-    public async Task Keyword_UserTimeoutSufficient_PassesThrough()
-    {
+    public async Task Keyword_UserTimeoutSufficient_PassesThrough() {
         var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: 120_000);
 
@@ -46,8 +42,7 @@ public class ShellTimeoutKeywordMiddlewareTests
     }
 
     [Fact]
-    public async Task Keyword_UserTimeoutInsufficient_ReturnsErrorToAi()
-    {
+    public async Task Keyword_UserTimeoutInsufficient_ReturnsErrorToAi() {
         var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: 30_000);
 
@@ -59,8 +54,7 @@ public class ShellTimeoutKeywordMiddlewareTests
     }
 
     [Fact]
-    public async Task Keyword_UserTimeoutInsufficient_ErrorContainsWaitAndUserSeconds()
-    {
+    public async Task Keyword_UserTimeoutInsufficient_ErrorContainsWaitAndUserSeconds() {
         var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: 30_000);
 
@@ -73,8 +67,7 @@ public class ShellTimeoutKeywordMiddlewareTests
     }
 
     [Fact]
-    public async Task Keyword_OverrideTimeoutAlreadySet_ExtendsIfInsufficient()
-    {
+    public async Task Keyword_OverrideTimeoutAlreadySet_ExtendsIfInsufficient() {
         var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: null);
         context.OverrideTimeout = 30_000;
@@ -86,8 +79,7 @@ public class ShellTimeoutKeywordMiddlewareTests
     }
 
     [Fact]
-    public async Task Keyword_OverrideTimeoutAlreadySet_PassesIfSufficient()
-    {
+    public async Task Keyword_OverrideTimeoutAlreadySet_PassesIfSufficient() {
         var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: null);
         context.OverrideTimeout = 120_000;
@@ -99,8 +91,7 @@ public class ShellTimeoutKeywordMiddlewareTests
     }
 
     [Fact]
-    public async Task Keyword_UserTimeoutInsufficient_DoesNotCallNext()
-    {
+    public async Task Keyword_UserTimeoutInsufficient_DoesNotCallNext() {
         var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: 30_000);
 
@@ -111,8 +102,7 @@ public class ShellTimeoutKeywordMiddlewareTests
     }
 
     [Fact]
-    public async Task PowerShellStartSleep_NoUserTimeout_AutoExtends()
-    {
+    public async Task PowerShellStartSleep_NoUserTimeout_AutoExtends() {
         var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("Start-Sleep -Seconds 200", timeout: null);
 
@@ -122,8 +112,7 @@ public class ShellTimeoutKeywordMiddlewareTests
     }
 
     [Fact]
-    public async Task CustomBuffer_AppliedToRequiredTimeout()
-    {
+    public async Task CustomBuffer_AppliedToRequiredTimeout() {
         var config = new ShellExecutionConfig { TimeoutKeywordBufferSeconds = 10, DefaultTimeoutSeconds = 120 };
         var sut = new ShellTimeoutKeywordMiddleware(config);
         var context = CreateContext("sleep 200", timeout: null);
@@ -134,8 +123,7 @@ public class ShellTimeoutKeywordMiddlewareTests
     }
 
     [Fact]
-    public void BuildConflictDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildConflictDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellTimeoutKeywordMiddleware.BuildConflictDiagnostic("sleep 60", 60, 30, 90);
 
         diagnostic.Reason.Should().Be("脚本超时关键字冲突");
@@ -147,13 +135,11 @@ public class ShellTimeoutKeywordMiddlewareTests
         diagnostic.Suggestions.Should().ContainSingle();
     }
 
-    private static ShellPipelineContext CreateContext(string command, int? timeout = null)
-    {
+    private static ShellPipelineContext CreateContext(string command, int? timeout = null) {
         var provider = new Mock<ISystemActuator>();
         provider.SetupGet(x => x.Kind).Returns(SystemActuatorKind.Bash);
 
-        return new ShellPipelineContext
-        {
+        return new ShellPipelineContext {
             Command = command,
             Provider = provider.Object,
             Timeout = timeout,

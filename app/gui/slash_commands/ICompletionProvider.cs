@@ -1,8 +1,7 @@
 namespace JoinCode.Gui.SlashCommands;
 
 /// <summary>补全提供者接口 — 每个触发符一个实现，统一注册到 CompletionTriggerRegistry。</summary>
-public interface ICompletionProvider
-{
+public interface ICompletionProvider {
     /// <summary>触发字符（如 '/' '@' '#'）</summary>
     char TriggerChar { get; }
 
@@ -17,8 +16,7 @@ public interface ICompletionProvider
 }
 
 /// <summary>补全上下文 — 传给 Provider 的运行时数据，避免各 Provider 各自持有缓存字段。</summary>
-public sealed class CompletionContext
-{
+public sealed class CompletionContext {
     /// <summary>GUI 与引擎解耦的会话门面（可能为 null，Provider 需容忍）</summary>
     public IJccChatSession? Session { get; init; }
 
@@ -33,12 +31,10 @@ public sealed class CompletionContext
 /// 补全触发符注册表 — 按 TriggerChar 索引，Parser 和 ViewModel 统一查询。
 /// 未来加新符号（如 '$'）只需写 Provider + 在 Build() 加一行，零改 Parser、零改 ViewModel。
 /// </summary>
-public static class CompletionTriggerRegistry
-{
+public static class CompletionTriggerRegistry {
     private static readonly FrozenDictionary<char, ICompletionProvider> _providers = Build();
 
-    private static FrozenDictionary<char, ICompletionProvider> Build()
-    {
+    private static FrozenDictionary<char, ICompletionProvider> Build() {
         var list = new ICompletionProvider[]
         {
             new CommandCompletionProvider(),

@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 四种实现：StaticFile / HttpApi / GitHubMirror / LocalFile（见 <see cref="UpdateSourceType"/>）
 /// > ADR: 0064
 /// </summary>
-public interface IUpdateSource
-{
+public interface IUpdateSource {
     /// <summary>
     /// 更新源类型
     /// </summary>

@@ -1,15 +1,12 @@
 namespace Core.Tests.Agents.Coordinator;
 
-public sealed class SystemNoticeFactoryTests
-{
+public sealed class SystemNoticeFactoryTests {
     private const string TeamId = "team_test";
     private const string ActorId = "bot小明";
 
     [Fact]
-    public void Create_AllKinds_ReturnSystemNoticeMessage()
-    {
-        foreach (var kind in Enum.GetValues<SystemNoticeKind>())
-        {
+    public void Create_AllKinds_ReturnSystemNoticeMessage() {
+        foreach (var kind in Enum.GetValues<SystemNoticeKind>()) {
             var msg = SystemNoticeFactory.Create(kind, TeamId, ActorId);
 
             msg.SenderId.Should().Be("system");
@@ -31,8 +28,7 @@ public sealed class SystemNoticeFactoryTests
     [InlineData(SystemNoticeKind.RoleDemoted, "bot小明 被取消管理员", MessageVisibility.AdminOnly)]
     [InlineData(SystemNoticeKind.MessageRevoked, "bot小明 撤回了一条消息", MessageVisibility.System)]
     public void Create_Kind_ReturnsExpectedContentAndVisibility(
-        SystemNoticeKind kind, string expectedContent, MessageVisibility expectedVisibility)
-    {
+        SystemNoticeKind kind, string expectedContent, MessageVisibility expectedVisibility) {
         var msg = SystemNoticeFactory.Create(kind, TeamId, ActorId);
 
         msg.Content.Should().Be(expectedContent);
@@ -40,8 +36,7 @@ public sealed class SystemNoticeFactoryTests
     }
 
     [Fact]
-    public void Create_HostChanged_IncludesNewHostInContent()
-    {
+    public void Create_HostChanged_IncludesNewHostInContent() {
         var msg = SystemNoticeFactory.Create(SystemNoticeKind.HostChanged, TeamId, "oldHost", "newHost");
 
         msg.Content.Should().Be("主机切换：oldHost → newHost");
@@ -49,16 +44,14 @@ public sealed class SystemNoticeFactoryTests
     }
 
     [Fact]
-    public void Create_HostChanged_WithNullExtra_ShowsUnknown()
-    {
+    public void Create_HostChanged_WithNullExtra_ShowsUnknown() {
         var msg = SystemNoticeFactory.Create(SystemNoticeKind.HostChanged, TeamId, "oldHost", null);
 
         msg.Content.Should().Be("主机切换：oldHost → 未知");
     }
 
     [Fact]
-    public void Create_BuildQueueBusy_IncludesQueuePositionInContent()
-    {
+    public void Create_BuildQueueBusy_IncludesQueuePositionInContent() {
         var msg = SystemNoticeFactory.Create(SystemNoticeKind.BuildQueueBusy, TeamId, "agent1", "3");
 
         msg.Content.Should().Contain("3");
@@ -66,16 +59,14 @@ public sealed class SystemNoticeFactoryTests
     }
 
     [Fact]
-    public void Create_BuildQueueBusy_WithNullExtra_ShowsUnknown()
-    {
+    public void Create_BuildQueueBusy_WithNullExtra_ShowsUnknown() {
         var msg = SystemNoticeFactory.Create(SystemNoticeKind.BuildQueueBusy, TeamId, "agent1", null);
 
         msg.Content.Should().Contain("未知");
     }
 
     [Fact]
-    public void Create_GeneratesUniqueMessageIds()
-    {
+    public void Create_GeneratesUniqueMessageIds() {
         var msg1 = SystemNoticeFactory.Create(SystemNoticeKind.MemberJoined, TeamId, ActorId);
         var msg2 = SystemNoticeFactory.Create(SystemNoticeKind.MemberJoined, TeamId, ActorId);
 
@@ -83,8 +74,7 @@ public sealed class SystemNoticeFactoryTests
     }
 
     [Fact]
-    public void Create_AdminOnlyKinds_AreNotPublicVisibility()
-    {
+    public void Create_AdminOnlyKinds_AreNotPublicVisibility() {
         var adminOnlyKinds = new[]
         {
             SystemNoticeKind.MemberMuted,
@@ -94,8 +84,7 @@ public sealed class SystemNoticeFactoryTests
             SystemNoticeKind.RoleDemoted,
         };
 
-        foreach (var kind in adminOnlyKinds)
-        {
+        foreach (var kind in adminOnlyKinds) {
             var msg = SystemNoticeFactory.Create(kind, TeamId, ActorId);
             msg.Visibility.Should().Be(MessageVisibility.AdminOnly,
                 $"kind {kind} should be AdminOnly so non-admin members cannot see it");
@@ -103,8 +92,7 @@ public sealed class SystemNoticeFactoryTests
     }
 
     [Fact]
-    public void Create_PublicSystemKinds_AreSystemVisibility()
-    {
+    public void Create_PublicSystemKinds_AreSystemVisibility() {
         var systemKinds = new[]
         {
             SystemNoticeKind.MemberJoined,
@@ -114,8 +102,7 @@ public sealed class SystemNoticeFactoryTests
             SystemNoticeKind.MessageRevoked,
         };
 
-        foreach (var kind in systemKinds)
-        {
+        foreach (var kind in systemKinds) {
             var msg = SystemNoticeFactory.Create(kind, TeamId, ActorId);
             msg.Visibility.Should().Be(MessageVisibility.System,
                 $"kind {kind} should be System visibility for all members to see");

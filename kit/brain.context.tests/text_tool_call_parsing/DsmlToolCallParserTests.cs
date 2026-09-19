@@ -1,12 +1,10 @@
 namespace Core.Context;
 
-public sealed class DsmlToolCallParserTests
-{
+public sealed class DsmlToolCallParserTests {
     private static readonly DsmlToolCallParser Sut = new();
 
     [Fact]
-    public void TryParse_ValidSingleInvoke_ReturnsOneToolCall()
-    {
+    public void TryParse_ValidSingleInvoke_ReturnsOneToolCall() {
         var content = """
             <｜DSML｜tool_calls>
             <｜DSML｜invoke name="Bash">
@@ -27,8 +25,7 @@ public sealed class DsmlToolCallParserTests
     }
 
     [Fact]
-    public void TryParse_NoDsmlMarker_ReturnsNull()
-    {
+    public void TryParse_NoDsmlMarker_ReturnsNull() {
         var content = "这是普通文本，没有工具调用".AsSpan();
 
         var result = Sut.TryParse(content);
@@ -37,8 +34,7 @@ public sealed class DsmlToolCallParserTests
     }
 
     [Fact]
-    public void TryParse_MultipleInvokes_ReturnsAllToolCalls()
-    {
+    public void TryParse_MultipleInvokes_ReturnsAllToolCalls() {
         var content = """
             <｜DSML｜tool_calls>
             <｜DSML｜invoke name="Read">
@@ -59,8 +55,7 @@ public sealed class DsmlToolCallParserTests
     }
 
     [Fact]
-    public void TryParse_DsmlWithSurroundingText_ReturnsToolCallAndRemainingText()
-    {
+    public void TryParse_DsmlWithSurroundingText_ReturnsToolCallAndRemainingText() {
         var content = """
             我先看一下目录。
             <｜DSML｜tool_calls>
@@ -82,16 +77,14 @@ public sealed class DsmlToolCallParserTests
     }
 
     [Fact]
-    public void TryParse_EmptyContent_ReturnsNull()
-    {
+    public void TryParse_EmptyContent_ReturnsNull() {
         var result = Sut.TryParse("".AsSpan());
 
         result.Should().BeNull();
     }
 
     [Fact]
-    public void TryParse_InvokeWithoutParameters_ReturnsToolCallWithEmptyArgs()
-    {
+    public void TryParse_InvokeWithoutParameters_ReturnsToolCallWithEmptyArgs() {
         var content = """
             <｜DSML｜tool_calls>
             <｜DSML｜invoke name="ListTools">

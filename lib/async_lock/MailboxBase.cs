@@ -59,8 +59,7 @@ public sealed record AgentUnregisteredEvt<TMessage>(string AgentId) : MailboxEvt
 /// <para>子类重写 <see cref="HandleSendAsync"/>/<see cref="HandleBroadcastAsync"/> 实现跨进程传输（有名管道/文件/网络）。</para>
 /// </summary>
 /// <typeparam name="TMessage">消息类型 — 建议用 sealed class 或 record</typeparam>
-public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, MailboxEvt<TMessage>>
-{
+public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, MailboxEvt<TMessage>> {
     private readonly ConcurrentDictionary<string, AgentMailboxEntry<TMessage>> _agentMailboxes;
     private readonly ActorBackpressure _agentBackpressure;
 
@@ -74,8 +73,7 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
         ActorBackpressure? commandBackpressure = null,
         ActorBackpressure? agentBackpressure = null,
         int? outputCapacity = null)
-        : base(commandBackpressure, outputCapacity)
-    {
+        : base(commandBackpressure, outputCapacity) {
         _agentMailboxes = new ConcurrentDictionary<string, AgentMailboxEntry<TMessage>>();
         _agentBackpressure = agentBackpressure ?? DefaultAgentBackpressure;
     }
@@ -132,10 +130,8 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// <param name="agentId">Agent 标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>消息异步枚举流</returns>
-    public IAsyncEnumerable<TMessage> ReceiveAsync(string agentId, CancellationToken ct = default)
-    {
-        if (_agentMailboxes.TryGetValue(agentId, out var entry))
-        {
+    public IAsyncEnumerable<TMessage> ReceiveAsync(string agentId, CancellationToken ct = default) {
+        if (_agentMailboxes.TryGetValue(agentId, out var entry)) {
             return entry.Channel.Reader.ReadAllAsync(ct);
         }
         return AsyncEnumerable.Empty<TMessage>();
@@ -173,24 +169,22 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// </summary>
     /// <param name="cmd">邮箱命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override async ValueTask HandleAsync(MailboxCmd<TMessage> cmd, CancellationToken ct)
-    {
-        switch (cmd)
-        {
+    protected override async ValueTask HandleAsync(MailboxCmd<TMessage> cmd, CancellationToken ct) {
+        switch (cmd) {
             case SendCmd<TMessage> send:
-                await HandleSendAsync(send.AgentId, send.Message, ct).ConfigureAwait(false);
-                break;
+            await HandleSendAsync(send.AgentId, send.Message, ct).ConfigureAwait(false);
+            break;
             case BroadcastCmd<TMessage> broadcast:
-                await HandleBroadcastAsync(broadcast.Message, broadcast.ExcludeAgentId, ct).ConfigureAwait(false);
-                break;
+            await HandleBroadcastAsync(broadcast.Message, broadcast.ExcludeAgentId, ct).ConfigureAwait(false);
+            break;
             case RegisterAgentCmd<TMessage> register:
-                HandleRegisterAgent(register.AgentId, register.SessionId);
-                break;
+            HandleRegisterAgent(register.AgentId, register.SessionId);
+            break;
             case UnregisterAgentCmd<TMessage> unregister:
-                HandleUnregisterAgent(unregister.AgentId);
-                break;
+            HandleUnregisterAgent(unregister.AgentId);
+            break;
             default:
-                throw new InvalidOperationException($"Unknown mailbox command: {cmd?.GetType().Name}");
+            throw new InvalidOperationException($"Unknown mailbox command: {cmd?.GetType().Name}");
         }
     }
 
@@ -201,8 +195,7 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// <param name="agentId">目标 Agent</param>
     /// <param name="message">消息</param>
     /// <param name="ct">取消令牌</param>
-    protected virtual ValueTask HandleSendAsync(string agentId, TMessage message, CancellationToken ct)
-    {
+    protected virtual ValueTask HandleSendAsync(string agentId, TMessage message, CancellationToken ct) {
         DeliverToAgent(agentId, message);
         return ValueTask.CompletedTask;
     }
@@ -214,12 +207,9 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// <param name="message">消息</param>
     /// <param name="excludeAgentId">排除的 Agent</param>
     /// <param name="ct">取消令牌</param>
-    protected virtual ValueTask HandleBroadcastAsync(TMessage message, string? excludeAgentId, CancellationToken ct)
-    {
-        foreach (var kvp in _agentMailboxes)
-        {
-            if (kvp.Key != excludeAgentId)
-            {
+    protected virtual ValueTask HandleBroadcastAsync(TMessage message, string? excludeAgentId, CancellationToken ct) {
+        foreach (var kvp in _agentMailboxes) {
+            if (kvp.Key != excludeAgentId) {
                 DeliverToAgent(kvp.Key, message);
             }
         }
@@ -232,12 +222,9 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// </summary>
     /// <param name="agentId">目标 Agent</param>
     /// <param name="message">消息</param>
-    protected void DeliverToAgent(string agentId, TMessage message)
-    {
-        if (_agentMailboxes.TryGetValue(agentId, out var entry))
-        {
-            if (entry.Channel.Writer.TryWrite(message))
-            {
+    protected void DeliverToAgent(string agentId, TMessage message) {
+        if (_agentMailboxes.TryGetValue(agentId, out var entry)) {
+            if (entry.Channel.Writer.TryWrite(message)) {
                 CheckAgentWatermark(agentId, entry.Channel);
             }
         }
@@ -247,12 +234,10 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     protected Channel<TMessage>? GetAgentChannel(string agentId)
         => _agentMailboxes.GetValueOrDefault(agentId)?.Channel;
 
-    private void HandleRegisterAgent(string agentId, string? sessionId)
-    {
+    private void HandleRegisterAgent(string agentId, string? sessionId) {
         if (_agentMailboxes.ContainsKey(agentId)) return;
 
-        var channel = Channel.CreateBounded<TMessage>(new BoundedChannelOptions(_agentBackpressure.Capacity)
-        {
+        var channel = Channel.CreateBounded<TMessage>(new BoundedChannelOptions(_agentBackpressure.Capacity) {
             FullMode = _agentBackpressure.FullMode,
             SingleReader = true,
             SingleWriter = false
@@ -263,24 +248,20 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
         TryPublish(new AgentRegisteredEvt<TMessage>(agentId));
     }
 
-    private void HandleUnregisterAgent(string agentId)
-    {
-        if (_agentMailboxes.TryRemove(agentId, out var entry))
-        {
+    private void HandleUnregisterAgent(string agentId) {
+        if (_agentMailboxes.TryRemove(agentId, out var entry)) {
             entry.Channel.Writer.TryComplete();
             TryPublish(new AgentUnregisteredEvt<TMessage>(agentId));
         }
     }
 
-    private void CheckAgentWatermark(string agentId, Channel<TMessage> channel)
-    {
+    private void CheckAgentWatermark(string agentId, Channel<TMessage> channel) {
         if (!channel.Reader.CanCount) return;
         var count = channel.Reader.Count;
         var level = count >= _agentBackpressure.EffectiveCriticalWatermark ? WatermarkLevel.Critical
                    : count >= _agentBackpressure.EffectiveHighWatermark ? WatermarkLevel.High
                    : WatermarkLevel.Normal;
-        if (level != WatermarkLevel.Normal)
-        {
+        if (level != WatermarkLevel.Normal) {
             TryPublish(new WatermarkReachedEvt<TMessage>(agentId, level, count, _agentBackpressure.Capacity));
         }
     }
@@ -288,10 +269,8 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// <summary>
     /// 释放邮箱 — 完成所有 Agent Channel 后释放基类。
     /// </summary>
-    public override ValueTask DisposeAsync()
-    {
-        foreach (var entry in _agentMailboxes.Values)
-        {
+    public override ValueTask DisposeAsync() {
+        foreach (var entry in _agentMailboxes.Values) {
             entry.Channel.Writer.TryComplete();
         }
         _agentMailboxes.Clear();

@@ -7,8 +7,7 @@ namespace Core.Configuration.Providers;
 /// 协议固有:x-api-key 认证 + v1/messages 端点 + anthropic-version 头
 /// 配置大于代码:endpoint 从 settings.json 读取,非 Anthropic 供应商未配端点时抛异常避免静默错发
 /// </summary>
-public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
-{
+public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition {
     private readonly IModelConfigLoader _modelConfigLoader;
     private readonly string _providerName;
     private readonly string? _apiKeyEnvVar;
@@ -22,8 +21,7 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
     /// <summary>
     /// 构造 Anthropic 兼容协议供应商定义
     /// </summary>
-    public AnthropicCompatibleProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName = VendorKindEnumConstants.Anthropic, string? apiKeyEnvVar = null, string? anthropicBeta = null)
-    {
+    public AnthropicCompatibleProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName = VendorKindEnumConstants.Anthropic, string? apiKeyEnvVar = null, string? anthropicBeta = null) {
         _modelConfigLoader = modelConfigLoader;
         _providerName = providerName;
         _apiKeyEnvVar = apiKeyEnvVar;
@@ -33,8 +31,7 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
     /// <summary>
     /// 解析 anthropic-beta 头值 — 用户配置优先,Anthropic 供应商未配置回退默认,其他供应商未配置则不发(安全)
     /// </summary>
-    private string? ResolveAnthropicBeta(string? configured)
-    {
+    private string? ResolveAnthropicBeta(string? configured) {
         if (configured is not null) return configured;
         if (string.Equals(_providerName, VendorKindEnumConstants.Anthropic, StringComparison.OrdinalIgnoreCase))
             return DefaultAnthropicBeta;
@@ -63,8 +60,7 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
     /// <summary>
     /// 获取基础 URL — 优先从配置读取,Anthropic 供应商回退官方,其他供应商未配置时抛异常避免静默错发
     /// </summary>
-    public string GetBaseUrl(ProviderConfig config)
-    {
+    public string GetBaseUrl(ProviderConfig config) {
         if (!string.IsNullOrEmpty(config.Endpoint))
             return config.Endpoint.TrimEnd('/') + "/";
         if (string.Equals(_providerName, VendorKindEnumConstants.Anthropic, StringComparison.OrdinalIgnoreCase))
@@ -82,10 +78,8 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
     /// 配置 HttpClient — Anthropic 协议固有认证头(x-api-key + anthropic-version)
     /// anthropic-beta 头按配置发送:用户配置 > Anthropic 供应商默认 > 其他供应商不发(避免 DeepSeek 等不支持的特性报错)
     /// </summary>
-    public void ConfigureHttpClient(HttpClient client, ProviderConfig config)
-    {
-        if (!string.IsNullOrEmpty(config.ApiKey))
-        {
+    public void ConfigureHttpClient(HttpClient client, ProviderConfig config) {
+        if (!string.IsNullOrEmpty(config.ApiKey)) {
             client.DefaultRequestHeaders.Add("x-api-key", config.ApiKey);
             client.DefaultRequestHeaders.Add("anthropic-version", "2024-10-22");
             if (_anthropicBeta is not null)
@@ -96,8 +90,7 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
     /// <summary>
     /// 从环境变量解析 API Key — 显式指定 envVar 时不回退,未指定时回退到 ANTHROPIC_API_KEY(兼容 Anthropic 默认)
     /// </summary>
-    public string? ResolveApiKeyFromEnv()
-    {
+    public string? ResolveApiKeyFromEnv() {
         if (_apiKeyEnvVar is not null)
             return Environment.GetEnvironmentVariable(_apiKeyEnvVar);
         return Environment.GetEnvironmentVariable(ProviderEnvVar.AnthropicApiKey.ToValue());

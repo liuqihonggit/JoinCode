@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterTaskEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterTaskEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === VerifyPlanExecutionToolHandlers ===
         defaultEntries[StringKey.VerifyPlanDefaultPrompt] = "Verify current plan execution status";
         defaultEntries[StringKey.VerifyPlanTitle] = "Plan Verification";

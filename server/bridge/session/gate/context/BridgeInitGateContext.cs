@@ -4,8 +4,7 @@ namespace Core.Bridge.Gate;
 /// <summary>
 /// Bridge 初始化门控上下文 — 承载 Bridge 启动所需的配置选项、运行时句柄与可变状态
 /// </summary>
-public sealed class BridgeInitGateContext : PipelineContextBase
-{
+public sealed class BridgeInitGateContext : PipelineContextBase {
     /// <summary>Bridge 初始化选项</summary>
     public required BridgeInitOptions Options { get; init; }
     /// <summary>Bridge 是否启用</summary>

@@ -5,8 +5,7 @@ namespace Services.Web;
 /// 对齐TS版 checkDomainBlocklist — 调用 api.anthropic.com 检查域名安全性
 /// </summary>
 [Register(typeof(IDomainBlocklistChecker), ServiceLifetime.Singleton)]
-public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlocklistChecker
-{
+public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlocklistChecker {
     private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(10);
 
     private readonly IApiClient _apiClient;
@@ -22,8 +21,7 @@ public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlock
     public DomainBlocklistChecker(
         IApiClient apiClient,
         IWebFetchCache cache,
-        ILogger<DomainBlocklistChecker>? logger = null)
-    {
+        ILogger<DomainBlocklistChecker>? logger = null) {
         _apiClient = apiClient;
         _cache = cache;
         _logger = logger;
@@ -37,39 +35,33 @@ public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlock
     /// <param name="domain">待检查的域名。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>域名检查结果（Allowed/Blocked/CheckFailed）。</returns>
-    public async Task<DomainCheckResult> CheckAsync(string domain, CancellationToken cancellationToken = default)
-    {
+    public async Task<DomainCheckResult> CheckAsync(string domain, CancellationToken cancellationToken = default) {
         // 对齐 TS 版 getSettings_DEPRECATED().skipWebFetchPreflight
         var skipPreflight = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.SkipWebFetchPreflight);
         if (string.Equals(skipPreflight, "true", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(skipPreflight, "1", StringComparison.OrdinalIgnoreCase))
-        {
+            string.Equals(skipPreflight, "1", StringComparison.OrdinalIgnoreCase)) {
             _logger?.LogDebug("域名预检已跳过(JCC_SKIP_WEB_FETCH_PREFLIGHT): {Domain}", domain);
             return DomainCheckResult.Allowed;
         }
 
         // 缓存命中 = 之前已allowed
-        if (_cache.IsDomainCheckCached(domain))
-        {
+        if (_cache.IsDomainCheckCached(domain)) {
             _logger?.LogDebug("域名预检缓存命中: {Domain} = allowed", domain);
             return DomainCheckResult.Allowed;
         }
 
-        try
-        {
+        try {
             using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, CheckTimeout);
 
             var response = await _apiClient.SendAsync(
                 ApiRequest.Get($"{JccEndpoints.DomainBlocklistApiBase}?domain={Uri.EscapeDataString(domain)}"),
                 cts.Token).ConfigureAwait(false);
 
-            if (response.IsSuccessStatusCode)
-            {
+            if (response.IsSuccessStatusCode) {
                 var content = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
                 // TS版检查 can_fetch === true
                 if (content.Contains("\"can_fetch\":true", StringComparison.OrdinalIgnoreCase) ||
-                    content.Contains("\"can_fetch\": true", StringComparison.OrdinalIgnoreCase))
-                {
+                    content.Contains("\"can_fetch\": true", StringComparison.OrdinalIgnoreCase)) {
                     _cache.CacheDomainCheck(domain);
                     _logger?.LogDebug("域名预检通过: {Domain}", domain);
                     return DomainCheckResult.Allowed;
@@ -81,14 +73,10 @@ public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlock
 
             _logger?.LogWarning("域名预检请求失败: {Domain}, Status={Status}", domain, response.StatusCode);
             return DomainCheckResult.CheckFailed;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             _logger?.LogWarning("域名预检超时: {Domain}", domain);
             return DomainCheckResult.CheckFailed;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "域名预检异常: {Domain}", domain);
             return DomainCheckResult.CheckFailed;
         }

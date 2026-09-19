@@ -6,12 +6,10 @@ namespace Core.Prompts.Templates.Memory;
 /// </summary>
 /// <remarks>消费者: ExtractMemoriesCallback → IForkSubAgentManager.ForkAsync()</remarks>
 [PromptTemplate(Name = "extract_memories", Category = PromptTemplateCategory.Memory, Description = "记忆提取子代理提示词模板", HasParameters = true)]
-public static class ExtractMemoriesSection
-{
+public static class ExtractMemoriesSection {
     private static readonly string[] MemoryTypes = new[] { MessageRoleEnumConstants.User, "feedback", "project", "reference" };
 
-    private static string GetMemoryFrontmatterExample()
-    {
+    private static string GetMemoryFrontmatterExample() {
         var memoryTypes = string.Join(", ", MemoryTypes);
         return string.Join('\n', [
             "```markdown",
@@ -29,8 +27,7 @@ public static class ExtractMemoriesSection
     /// <summary>
     /// 构建记忆提取提示词（仅自动记忆模式）
     /// </summary>
-    public static string BuildExtractAutoOnlyPrompt(int newMessageCount, string existingMemories, bool skipIndex = false)
-    {
+    public static string BuildExtractAutoOnlyPrompt(int newMessageCount, string existingMemories, bool skipIndex = false) {
         var opener = BuildOpener(newMessageCount, existingMemories);
         var howToSave = skipIndex ? BuildHowToSaveWithoutIndex() : BuildHowToSaveWithIndex();
 
@@ -49,8 +46,7 @@ public static class ExtractMemoriesSection
     /// <summary>
     /// 构建记忆提取提示词（组合模式：自动记忆 + 团队记忆）
     /// </summary>
-    public static string BuildExtractCombinedPrompt(int newMessageCount, string existingMemories, bool skipIndex = false)
-    {
+    public static string BuildExtractCombinedPrompt(int newMessageCount, string existingMemories, bool skipIndex = false) {
         var opener = BuildOpener(newMessageCount, existingMemories);
         var howToSave = skipIndex ? BuildHowToSaveCombinedWithoutIndex() : BuildHowToSaveCombinedWithIndex();
 
@@ -71,8 +67,7 @@ public static class ExtractMemoriesSection
     /// <summary>
     /// 构建开场白
     /// </summary>
-    private static string BuildOpener(int newMessageCount, string existingMemories)
-    {
+    private static string BuildOpener(int newMessageCount, string existingMemories) {
         var manifest = string.IsNullOrEmpty(existingMemories)
             ? ""
             : $"""
@@ -97,8 +92,7 @@ public static class ExtractMemoriesSection
     /// <summary>
     /// 构建记忆类型部分（独立模式）
     /// </summary>
-    private static string BuildTypesSectionIndividual()
-    {
+    private static string BuildTypesSectionIndividual() {
         return """
 ## 记忆类型
 
@@ -170,8 +164,7 @@ public static class ExtractMemoriesSection
     /// <summary>
     /// 构建记忆类型部分（组合模式）
     /// </summary>
-    private static string BuildTypesSectionCombined()
-    {
+    private static string BuildTypesSectionCombined() {
         return """
 ## 记忆类型
 
@@ -247,8 +240,7 @@ public static class ExtractMemoriesSection
     /// <summary>
     /// 构建不应保存的内容部分
     /// </summary>
-    private static string BuildWhatNotToSaveSection()
-    {
+    private static string BuildWhatNotToSaveSection() {
         return """
 ## 不应保存在记忆中的内容
 
@@ -265,8 +257,7 @@ public static class ExtractMemoriesSection
     /// <summary>
     /// 构建保存方法（带索引）
     /// </summary>
-    private static string BuildHowToSaveWithIndex()
-    {
+    private static string BuildHowToSaveWithIndex() {
         var before = """
 ## 如何保存记忆
 
@@ -291,8 +282,7 @@ public static class ExtractMemoriesSection
     /// <summary>
     /// 构建保存方法（不带索引）
     /// </summary>
-    private static string BuildHowToSaveWithoutIndex()
-    {
+    private static string BuildHowToSaveWithoutIndex() {
         var before = """
 ## 如何保存记忆
 
@@ -312,8 +302,7 @@ public static class ExtractMemoriesSection
     /// <summary>
     /// 构建组合模式保存方法（带索引）
     /// </summary>
-    private static string BuildHowToSaveCombinedWithIndex()
-    {
+    private static string BuildHowToSaveCombinedWithIndex() {
         var before = """
 ## 如何保存记忆
 
@@ -338,8 +327,7 @@ public static class ExtractMemoriesSection
     /// <summary>
     /// 构建组合模式保存方法（不带索引）
     /// </summary>
-    private static string BuildHowToSaveCombinedWithoutIndex()
-    {
+    private static string BuildHowToSaveCombinedWithoutIndex() {
         var before = """
 ## 如何保存记忆
 

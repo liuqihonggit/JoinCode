@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// 会话活动类型 — 对齐 TS 端 SessionActivity
 /// </summary>
-public enum BridgeSessionActivity
-{
+public enum BridgeSessionActivity {
     /// <summary>空闲</summary>
     [EnumValue("idle")] Idle,
     /// <summary>思考中</summary>
@@ -28,8 +27,7 @@ public enum BridgeSessionActivity
 /// - v1: HybridTransport（WS 读 + HTTP POST 写到 Session-Ingress）
 /// - v2: SSETransport（读）+ CCRClient（写到 CCR v2 /worker/*）
 /// </summary>
-public interface IReplBridgeTransport : IAsyncDisposable
-{
+public interface IReplBridgeTransport : IAsyncDisposable {
     /// <summary>写入单条消息</summary>
     Task WriteAsync(string message, CancellationToken ct = default);
 

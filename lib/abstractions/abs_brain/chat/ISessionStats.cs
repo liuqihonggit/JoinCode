@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 会话统计接口 — 提供会话级别的统计数据操作
 /// </summary>
-public interface ISessionStats
-{
+public interface ISessionStats {
     /// <summary>
     /// 重置所有统计数据
     /// </summary>

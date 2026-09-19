@@ -4,8 +4,7 @@ namespace Infrastructure.Cache;
 /// Git 状态缓存实现 — 对齐 TS: clearResolveGitDirCache
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.Cache.IGitStatusCache), ServiceLifetime.Singleton)]
-public sealed partial class GitStatusCache : ServiceEntity, JoinCode.Abstractions.Interfaces.Cache.IGitStatusCache
-{
+public sealed partial class GitStatusCache : ServiceEntity, JoinCode.Abstractions.Interfaces.Cache.IGitStatusCache {
     private readonly Dictionary<string, string?> _resolveCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>

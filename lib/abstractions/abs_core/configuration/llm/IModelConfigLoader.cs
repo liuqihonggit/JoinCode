@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Configuration.Llm;
 /// <summary>
 /// 模型配置查询服务 — 数据从 SettingsJson.Vendor 流入，不碰文件
 /// </summary>
-public interface IModelConfigLoader
-{
+public interface IModelConfigLoader {
     ModelConfigRoot Config { get; }
     void ApplyProviders(Dictionary<string, ModelProviderConfig> providers);
     ModelProviderConfig? GetProviderConfig(string providerName);

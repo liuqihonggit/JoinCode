@@ -1,8 +1,7 @@
 #pragma warning disable JCC3010, JCC3011, JCC3012
 namespace Core.Configuration.Tests;
 
-public sealed class FastModeServiceTests : IDisposable
-{
+public sealed class FastModeServiceTests : IDisposable {
     private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
     private static readonly string DefaultModelId = Loader.GetDefaultModelId("openai");
     private static readonly string DefaultFastModelId = Loader.GetDefaultFastModelId("openai");
@@ -10,8 +9,7 @@ public sealed class FastModeServiceTests : IDisposable
     private readonly FastModeService _service;
     private bool _disposed;
 
-    public FastModeServiceTests()
-    {
+    public FastModeServiceTests() {
         _service = new FastModeService(
             config: null,
             fastModelId: DefaultFastModelId,
@@ -19,34 +17,29 @@ public sealed class FastModeServiceTests : IDisposable
     }
 
     [Fact]
-    public void Initial_State_Should_Not_Be_Active()
-    {
+    public void Initial_State_Should_Not_Be_Active() {
         Assert.False(_service.IsFastModeActive);
     }
 
     [Fact]
-    public void Initial_PrimaryModel_Should_Be_Set()
-    {
+    public void Initial_PrimaryModel_Should_Be_Set() {
         Assert.Equal(DefaultModelId, _service.PrimaryModelId);
     }
 
     [Fact]
-    public void Initial_FastModel_Should_Be_Set()
-    {
+    public void Initial_FastModel_Should_Be_Set() {
         Assert.Equal(DefaultFastModelId, _service.FastModelId);
     }
 
     [Fact]
-    public void Activate_Should_Set_IsActive()
-    {
+    public void Activate_Should_Set_IsActive() {
         _service.Activate();
 
         Assert.True(_service.IsFastModeActive);
     }
 
     [Fact]
-    public void Activate_Should_Raise_Event()
-    {
+    public void Activate_Should_Raise_Event() {
         FastModeChangedEventArgs? eventArgs = null;
         _service.FastModeChanged += (_, e) => eventArgs = e;
 
@@ -59,8 +52,7 @@ public sealed class FastModeServiceTests : IDisposable
     }
 
     [Fact]
-    public void Deactivate_Should_Clear_IsActive()
-    {
+    public void Deactivate_Should_Clear_IsActive() {
         _service.Activate();
         _service.Deactivate();
 
@@ -68,8 +60,7 @@ public sealed class FastModeServiceTests : IDisposable
     }
 
     [Fact]
-    public void Deactivate_Should_Raise_Event()
-    {
+    public void Deactivate_Should_Raise_Event() {
         _service.Activate();
         FastModeChangedEventArgs? eventArgs = null;
         _service.FastModeChanged += (_, e) => eventArgs = e;
@@ -83,8 +74,7 @@ public sealed class FastModeServiceTests : IDisposable
     }
 
     [Fact]
-    public void Toggle_Should_Switch_State()
-    {
+    public void Toggle_Should_Switch_State() {
         Assert.False(_service.IsFastModeActive);
 
         _service.Toggle();
@@ -95,53 +85,45 @@ public sealed class FastModeServiceTests : IDisposable
     }
 
     [Fact]
-    public void SetFastModel_Should_Update_FastModelId()
-    {
+    public void SetFastModel_Should_Update_FastModelId() {
         _service.SetFastModel("gpt-4.1-nano");
 
         Assert.Equal("gpt-4.1-nano", _service.FastModelId);
     }
 
     [Fact]
-    public void SetPrimaryModel_Should_Update_PrimaryModelId()
-    {
+    public void SetPrimaryModel_Should_Update_PrimaryModelId() {
         _service.SetPrimaryModel("gpt-4.1");
 
         Assert.Equal("gpt-4.1", _service.PrimaryModelId);
     }
 
     [Fact]
-    public void SetFastModel_Should_Reject_Empty()
-    {
+    public void SetFastModel_Should_Reject_Empty() {
         Assert.Throws<ArgumentException>(() => _service.SetFastModel(""));
     }
 
     [Fact]
-    public void SetPrimaryModel_Should_Reject_Empty()
-    {
+    public void SetPrimaryModel_Should_Reject_Empty() {
         Assert.Throws<ArgumentException>(() => _service.SetPrimaryModel(""));
     }
 
     [Fact]
-    public void GetCurrentModelId_Should_Return_Primary_When_Inactive()
-    {
+    public void GetCurrentModelId_Should_Return_Primary_When_Inactive() {
         Assert.Equal(DefaultModelId, _service.GetCurrentModelId());
     }
 
     [Fact]
-    public void GetCurrentModelId_Should_Return_Fast_When_Active()
-    {
+    public void GetCurrentModelId_Should_Return_Fast_When_Active() {
         _service.Activate();
 
         Assert.Equal(DefaultFastModelId, _service.GetCurrentModelId());
     }
 
     [Fact]
-    public async Task Cooldown_Should_Auto_Deactivate()
-    {
+    public async Task Cooldown_Should_Auto_Deactivate() {
         using var deactivatedSignal = new SemaphoreSlim(0, 1);
-        _service.FastModeChanged += (_, e) =>
-        {
+        _service.FastModeChanged += (_, e) => {
             if (!e.IsFastModeActive) deactivatedSignal.Release();
         };
 
@@ -155,8 +137,7 @@ public sealed class FastModeServiceTests : IDisposable
     }
 
     [Fact]
-    public void Activate_Idempotent_Should_Not_Raise_Duplicate_Events()
-    {
+    public void Activate_Idempotent_Should_Not_Raise_Duplicate_Events() {
         var eventCount = 0;
         _service.FastModeChanged += (_, _) => eventCount++;
 
@@ -167,8 +148,7 @@ public sealed class FastModeServiceTests : IDisposable
     }
 
     [Fact]
-    public void Deactivate_When_Not_Active_Should_Not_Raise_Event()
-    {
+    public void Deactivate_When_Not_Active_Should_Not_Raise_Event() {
         var eventCount = 0;
         _service.FastModeChanged += (_, _) => eventCount++;
 
@@ -177,8 +157,7 @@ public sealed class FastModeServiceTests : IDisposable
         Assert.Equal(0, eventCount);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _service.DisposeSafe();

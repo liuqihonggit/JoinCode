@@ -3,11 +3,9 @@ namespace Brain.Tests.Context.Compact;
 /// <summary>
 /// MagicDocDetector 单元测试 — 对齐 TS magicDocs.ts::detectMagicDocHeader
 /// </summary>
-public sealed class MagicDocDetectorTests
-{
+public sealed class MagicDocDetectorTests {
     [Fact]
-    public void Detect_WithValidHeader_ReturnsTitle()
-    {
+    public void Detect_WithValidHeader_ReturnsTitle() {
         var content = "# MAGIC DOC: My Architecture Guide\nSome content here";
 
         var result = MagicDocDetector.Detect(content);
@@ -17,8 +15,7 @@ public sealed class MagicDocDetectorTests
     }
 
     [Fact]
-    public void Detect_WithHeaderAndItalicInstruction_ReturnsBoth()
-    {
+    public void Detect_WithHeaderAndItalicInstruction_ReturnsBoth() {
         var content = "# MAGIC DOC: API Reference\n_Only update API signatures, not examples_\n\n## Endpoints";
 
         var result = MagicDocDetector.Detect(content);
@@ -29,8 +26,7 @@ public sealed class MagicDocDetectorTests
     }
 
     [Fact]
-    public void Detect_WithoutMagicDocHeader_ReturnsNull()
-    {
+    public void Detect_WithoutMagicDocHeader_ReturnsNull() {
         var content = "# Regular Markdown\nThis is just a normal file.";
 
         var result = MagicDocDetector.Detect(content);
@@ -39,24 +35,21 @@ public sealed class MagicDocDetectorTests
     }
 
     [Fact]
-    public void Detect_WithEmptyContent_ReturnsNull()
-    {
+    public void Detect_WithEmptyContent_ReturnsNull() {
         var result = MagicDocDetector.Detect("");
 
         result.Should().BeNull();
     }
 
     [Fact]
-    public void Detect_WithNullContent_ReturnsNull()
-    {
+    public void Detect_WithNullContent_ReturnsNull() {
         var result = MagicDocDetector.Detect(null!);
 
         result.Should().BeNull();
     }
 
     [Fact]
-    public void Detect_CaseInsensitive_ReturnsTitle()
-    {
+    public void Detect_CaseInsensitive_ReturnsTitle() {
         var content = "# magic doc: Lower Case Title\nContent";
 
         var result = MagicDocDetector.Detect(content);
@@ -66,8 +59,7 @@ public sealed class MagicDocDetectorTests
     }
 
     [Fact]
-    public void Detect_WithExtraSpacesInHeader_ReturnsTitle()
-    {
+    public void Detect_WithExtraSpacesInHeader_ReturnsTitle() {
         var content = "#   MAGIC   DOC:   Spaced Title  \nContent";
 
         var result = MagicDocDetector.Detect(content);
@@ -77,8 +69,7 @@ public sealed class MagicDocDetectorTests
     }
 
     [Fact]
-    public void Detect_WithNonItalicInstruction_CloseToHeader_IgnoresInstruction()
-    {
+    public void Detect_WithNonItalicInstruction_CloseToHeader_IgnoresInstruction() {
         var content = "# MAGIC DOC: Title\nNot italic text";
 
         var result = MagicDocDetector.Detect(content);
@@ -88,8 +79,7 @@ public sealed class MagicDocDetectorTests
     }
 
     [Fact]
-    public void Detect_WithItalicInstruction_AtBoundaryFive_IgnoresInstruction()
-    {
+    public void Detect_WithItalicInstruction_AtBoundaryFive_IgnoresInstruction() {
         var content = "# MAGIC DOC: Title\n1234\n_Italic instruction_";
 
         var result = MagicDocDetector.Detect(content);

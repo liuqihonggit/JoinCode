@@ -5,16 +5,14 @@ namespace Bridge.Tests;
 /// BridgeJwtService 单元测试
 /// 测试 HMAC-SHA256 JWT Token 生成、验证、刷新、过期检测和 Claims 解析
 /// </summary>
-public sealed class BridgeJwtServiceTests
-{
+public sealed class BridgeJwtServiceTests {
     private const string TestSecretKey = "test-secret-key-for-bridge-jwt-at-least-32-chars";
 
     private static BridgeJwtService CreateSut(string? secretKey = null, FakeTimeProvider? timeProvider = null) =>
         new(new BridgeConfig { JwtSecretKey = secretKey ?? TestSecretKey }, NullLogger.Instance, timeProvider);
 
     [Fact]
-    public void GenerateToken_ShouldReturnValidToken_WhenValidClientId()
-    {
+    public void GenerateToken_ShouldReturnValidToken_WhenValidClientId() {
         // Arrange
         var sut = CreateSut();
 
@@ -28,8 +26,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void GenerateToken_ShouldThrow_WhenClientIdIsEmpty()
-    {
+    public void GenerateToken_ShouldThrow_WhenClientIdIsEmpty() {
         // Arrange
         var sut = CreateSut();
 
@@ -41,8 +38,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void ValidateToken_ShouldReturnValid_WhenTokenIsValid()
-    {
+    public void ValidateToken_ShouldReturnValid_WhenTokenIsValid() {
         // Arrange
         var sut = CreateSut();
         var token = sut.GenerateToken("client-002");
@@ -59,8 +55,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void ValidateToken_ShouldReturnInvalid_WhenTokenIsTampered()
-    {
+    public void ValidateToken_ShouldReturnInvalid_WhenTokenIsTampered() {
         // Arrange
         var sut = CreateSut();
         var token = sut.GenerateToken("client-003");
@@ -77,8 +72,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void ValidateToken_ShouldReturnInvalid_WhenTokenIsExpired()
-    {
+    public void ValidateToken_ShouldReturnInvalid_WhenTokenIsExpired() {
         // Arrange
         var fakeTime = new FakeTimeProvider();
         var sut = CreateSut(timeProvider: fakeTime);
@@ -98,8 +92,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void ValidateToken_ShouldReturnInvalid_WhenTokenFormatIsWrong()
-    {
+    public void ValidateToken_ShouldReturnInvalid_WhenTokenFormatIsWrong() {
         // Arrange
         var sut = CreateSut();
         var malformedToken = "not.a.valid.jwt.token.format";
@@ -113,8 +106,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void RefreshToken_ShouldReturnNewToken_WhenTokenIsInRefreshWindow()
-    {
+    public void RefreshToken_ShouldReturnNewToken_WhenTokenIsInRefreshWindow() {
         // Arrange
         var sut = CreateSut();
         // 生成一个有效期 299 秒的 token，使其立即进入刷新窗口（剩余 <= 300 秒）
@@ -135,8 +127,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void RefreshToken_ShouldReturnSameToken_WhenTokenIsNotInRefreshWindow()
-    {
+    public void RefreshToken_ShouldReturnSameToken_WhenTokenIsNotInRefreshWindow() {
         // Arrange
         var sut = CreateSut();
         // 默认 3600 秒有效期，远超 300 秒刷新窗口
@@ -152,8 +143,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void IsTokenExpired_ShouldReturnTrue_WhenTokenIsExpired()
-    {
+    public void IsTokenExpired_ShouldReturnTrue_WhenTokenIsExpired() {
         // Arrange
         var fakeTime = new FakeTimeProvider();
         var sut = CreateSut(timeProvider: fakeTime);
@@ -170,8 +160,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void IsTokenExpired_ShouldReturnFalse_WhenTokenIsNotExpired()
-    {
+    public void IsTokenExpired_ShouldReturnFalse_WhenTokenIsNotExpired() {
         // Arrange
         var sut = CreateSut();
         var token = sut.GenerateToken("client-008");
@@ -184,8 +173,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void GetClaims_ShouldReturnPayload_WhenTokenIsValid()
-    {
+    public void GetClaims_ShouldReturnPayload_WhenTokenIsValid() {
         // Arrange
         var sut = CreateSut();
         var token = sut.GenerateToken("client-009");
@@ -202,8 +190,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void GetClaims_ShouldReturnNull_WhenTokenIsInvalid()
-    {
+    public void GetClaims_ShouldReturnNull_WhenTokenIsInvalid() {
         // Arrange
         var sut = CreateSut();
         var invalidToken = "invalid.token.value";
@@ -216,8 +203,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void RevokeToken_ShouldInvalidateToken()
-    {
+    public void RevokeToken_ShouldInvalidateToken() {
         // Arrange
         var sut = CreateSut();
         var token = sut.GenerateToken("client-revoke-001");
@@ -235,8 +221,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void IsTokenRevoked_ShouldReturnTrue_WhenTokenIsRevoked()
-    {
+    public void IsTokenRevoked_ShouldReturnTrue_WhenTokenIsRevoked() {
         // Arrange
         var sut = CreateSut();
         var token = sut.GenerateToken("client-revoke-002");
@@ -249,8 +234,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void IsTokenRevoked_ShouldReturnFalse_WhenTokenIsNotRevoked()
-    {
+    public void IsTokenRevoked_ShouldReturnFalse_WhenTokenIsNotRevoked() {
         // Arrange
         var sut = CreateSut();
         var token = sut.GenerateToken("client-revoke-003");
@@ -260,8 +244,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void RevokeToken_ShouldNotAffectOtherTokens()
-    {
+    public void RevokeToken_ShouldNotAffectOtherTokens() {
         // Arrange
         var sut = CreateSut();
         var token1 = sut.GenerateToken("client-revoke-004a");
@@ -276,8 +259,7 @@ public sealed class BridgeJwtServiceTests
     }
 
     [Fact]
-    public void CleanupExpiredRevocations_ShouldRemoveExpiredRevokedTokens()
-    {
+    public void CleanupExpiredRevocations_ShouldRemoveExpiredRevokedTokens() {
         // Arrange
         var fakeTime = new FakeTimeProvider();
         var sut = CreateSut(timeProvider: fakeTime);

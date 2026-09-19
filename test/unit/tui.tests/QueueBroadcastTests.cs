@@ -6,14 +6,12 @@ namespace Tui.Tests;
 /// 回归背景：主循环曾只直调 queuedCommands.OnQueueChanged，绕过 painter 广播，
 /// 导致状态栏"队列：N"永不更新（B5 死路径）。
 /// </summary>
-public class QueueBroadcastTests
-{
+public class QueueBroadcastTests {
     /// <summary>同步 invoke — 测试中无需 Terminal.Gui MainLoop，直接内联执行</summary>
     private static void SyncInvoke(Action action) => action();
 
     [Fact]
-    public void StatusBarView_OnQueueChanged_ShowsQueueCount()
-    {
+    public void StatusBarView_OnQueueChanged_ShowsQueueCount() {
         var bar = new StatusBarView();
         var cmd = new QueuedCommand("hello", CommandOrigin.User, QueuePriority.Now);
         var snapshot = new QueueSnapshot([cmd], [], []);
@@ -25,8 +23,7 @@ public class QueueBroadcastTests
     }
 
     [Fact]
-    public void NotifyQueueChanged_BroadcastsToAllRegisteredComponents()
-    {
+    public void NotifyQueueChanged_BroadcastsToAllRegisteredComponents() {
         var painter = new TerminalPainter(SyncInvoke);
         var bar = new StatusBarView();
         painter.Register(bar);

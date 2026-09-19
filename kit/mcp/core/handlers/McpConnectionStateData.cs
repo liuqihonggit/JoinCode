@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// 注意：只持久化连接配置（endpoint/transport/auth_name），不持久化敏感凭证（token/password）
 /// 启动时根据配置重新建立连接
 /// </summary>
-public sealed class McpConnectionStateData
-{
+public sealed class McpConnectionStateData {
     /// <summary>MCP 连接配置列表</summary>
     public List<McpConnectionEntry> Connections { get; set; } = [];
 }
@@ -15,8 +14,7 @@ public sealed class McpConnectionStateData
 /// <summary>
 /// 单个 MCP 连接的持久化条目
 /// </summary>
-public sealed class McpConnectionEntry
-{
+public sealed class McpConnectionEntry {
     /// <summary>连接名称（用于后续引用）</summary>
     public string Name { get; set; } = string.Empty;
 

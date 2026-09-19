@@ -4,8 +4,7 @@ namespace JoinCode.Dream;
 /// 提示词构建器 - 构建记忆整合的4阶段提示词
 /// </summary>
 [PromptTemplate(Name = "consolidation", Category = PromptTemplateCategory.Dream, Description = "记忆整合4阶段提示词", HasParameters = true)]
-public static class ConsolidationPrompt
-{
+public static class ConsolidationPrompt {
     /// <summary>记忆入口文件名</summary>
     public const string EntrypointName = "MEMORY.md";
     /// <summary>入口文件最大行数</summary>
@@ -23,8 +22,7 @@ public static class ConsolidationPrompt
     public static string BuildPrompt(
         string memoryRoot,
         string transcriptDir,
-        string? extra = null)
-    {
+        string? extra = null) {
         var prompt = $@"# Dream: Memory Consolidation
 
 You are performing a dream - a reflective pass over your memory files. Synthesize what you've learned recently into durable, well-organized memories so that future sessions can orient quickly.
@@ -76,8 +74,7 @@ Update `{EntrypointName}` so it stays under {MaxEntrypointLines} lines AND under
 
 Return a brief summary of what you consolidated, updated, or pruned. If nothing changed (memories are already tight), say so.";
 
-        if (!string.IsNullOrEmpty(extra))
-        {
+        if (!string.IsNullOrEmpty(extra)) {
             prompt += $"\n\n## Additional context\n\n{extra}";
         }
 
@@ -90,8 +87,7 @@ Return a brief summary of what you consolidated, updated, or pruned. If nothing 
     /// <param name="sessionIds">会话 ID 集合</param>
     /// <param name="toolConstraints">工具约束说明</param>
     /// <returns>额外上下文字符串</returns>
-    public static string BuildExtraContext(IEnumerable<string> sessionIds, string toolConstraints)
-    {
+    public static string BuildExtraContext(IEnumerable<string> sessionIds, string toolConstraints) {
         var sessionList = sessionIds.ToList();
         var sessionsList = sessionList.Count > 0
             ? string.Join("\n", sessionList.Select(id => $"- {id}"))

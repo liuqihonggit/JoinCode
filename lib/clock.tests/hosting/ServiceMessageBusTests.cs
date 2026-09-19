@@ -1,16 +1,13 @@
 
 namespace Clock.Tests.Unit.Hosting;
 
-public sealed class ServiceMessageBusTests
-{
+public sealed class ServiceMessageBusTests {
     [Fact]
-    public async Task PublishAsync_SubscriberReceivesMessage()
-    {
+    public async Task PublishAsync_SubscriberReceivesMessage() {
         using var bus = new ServiceMessageBus();
         ServiceMessage? received = null;
 
-        await bus.SubscribeAsync("test", msg =>
-        {
+        await bus.SubscribeAsync("test", msg => {
             received = msg;
             return Task.CompletedTask;
         }).ConfigureAwait(true);
@@ -25,8 +22,7 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task PublishAsync_MultipleSubscribers_AllReceive()
-    {
+    public async Task PublishAsync_MultipleSubscribers_AllReceive() {
         using var bus = new ServiceMessageBus();
         var count = 0;
 
@@ -39,8 +35,7 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task PublishAsync_DuplicateSubscriber_IsOnlyAddedOnce()
-    {
+    public async Task PublishAsync_DuplicateSubscriber_IsOnlyAddedOnce() {
         using var bus = new ServiceMessageBus();
         var count = 0;
 
@@ -55,8 +50,7 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task PublishAsync_NoSubscriber_DoesNotThrow()
-    {
+    public async Task PublishAsync_NoSubscriber_DoesNotThrow() {
         using var bus = new ServiceMessageBus();
 
         await bus.PublishAsync(ServiceMessage.Create("test", "sender", "payload")).ConfigureAwait(true);
@@ -65,13 +59,11 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task PublishAsync_MessageReceivedEvent_IsRaised()
-    {
+    public async Task PublishAsync_MessageReceivedEvent_IsRaised() {
         using var bus = new ServiceMessageBus();
         ServiceMessage? received = null;
 
-        bus.MessageReceived += msg =>
-        {
+        bus.MessageReceived += msg => {
             received = msg;
             return Task.CompletedTask;
         };
@@ -84,8 +76,7 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task GetMessageHistoryAsync_ReturnsPublishedMessages()
-    {
+    public async Task GetMessageHistoryAsync_ReturnsPublishedMessages() {
         using var bus = new ServiceMessageBus();
 
         await bus.PublishAsync(ServiceMessage.Create("test", "sender", "first")).ConfigureAwait(true);
@@ -99,8 +90,7 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task GetMessageHistoryAsync_WithCountLimit_ReturnsLastN()
-    {
+    public async Task GetMessageHistoryAsync_WithCountLimit_ReturnsLastN() {
         using var bus = new ServiceMessageBus();
 
         await bus.PublishAsync(ServiceMessage.Create("test", "sender", "first")).ConfigureAwait(true);
@@ -115,8 +105,7 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task GetMessageHistoryAsync_NoHistory_ReturnsEmpty()
-    {
+    public async Task GetMessageHistoryAsync_NoHistory_ReturnsEmpty() {
         using var bus = new ServiceMessageBus();
 
         var history = await bus.GetMessageHistoryAsync("test").ConfigureAwait(true);
@@ -125,8 +114,7 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task ClearHistoryAsync_SpecificMessageType_RemovesOnlyThatType()
-    {
+    public async Task ClearHistoryAsync_SpecificMessageType_RemovesOnlyThatType() {
         using var bus = new ServiceMessageBus();
 
         await bus.PublishAsync(ServiceMessage.Create("type1", "sender", "data")).ConfigureAwait(true);
@@ -142,8 +130,7 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task ClearHistoryAsync_All_RemovesAllHistory()
-    {
+    public async Task ClearHistoryAsync_All_RemovesAllHistory() {
         using var bus = new ServiceMessageBus();
 
         await bus.PublishAsync(ServiceMessage.Create("type1", "sender", "data")).ConfigureAwait(true);
@@ -159,8 +146,7 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task SubscribeAsync_Dispose_Unsubscribes()
-    {
+    public async Task SubscribeAsync_Dispose_Unsubscribes() {
         using var bus = new ServiceMessageBus();
         var count = 0;
 
@@ -177,8 +163,7 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task SubscribeAsync_DisposeTwice_DoesNotThrow()
-    {
+    public async Task SubscribeAsync_DisposeTwice_DoesNotThrow() {
         using var bus = new ServiceMessageBus();
 
         var subscription = await bus.SubscribeAsync("test", _ => Task.CompletedTask).ConfigureAwait(true);
@@ -188,8 +173,7 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public void Dispose_ClearsSubscribersAndHistory()
-    {
+    public void Dispose_ClearsSubscribersAndHistory() {
         var bus = new ServiceMessageBus();
 
         bus.Dispose();
@@ -198,12 +182,10 @@ public sealed class ServiceMessageBusTests
     }
 
     [Fact]
-    public async Task PublishAsync_HistoryTrimming_KeepsMaxItems()
-    {
+    public async Task PublishAsync_HistoryTrimming_KeepsMaxItems() {
         using var bus = new ServiceMessageBus(maxHistoryPerChannel: 3);
 
-        for (int i = 0; i < 5; i++)
-        {
+        for (int i = 0; i < 5; i++) {
             await bus.PublishAsync(ServiceMessage.Create("test", "sender", i)).ConfigureAwait(true);
         }
 

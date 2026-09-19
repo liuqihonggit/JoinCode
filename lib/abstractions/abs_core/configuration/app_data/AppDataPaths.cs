@@ -29,8 +29,7 @@ public sealed record AppDataPaths(
     string ToolResultsFolderName,
     string McpFolderName,
     string McpConnectionsFileName,
-    string McpAuthFileName)
-{
+    string McpAuthFileName) {
     /// <summary>
     /// 默认实例 — 从环境变量解析，等价于原 AppDataConstants 的默认行为
     /// </summary>
@@ -39,8 +38,7 @@ public sealed record AppDataPaths(
     /// <summary>
     /// 从环境变量解析所有路径
     /// </summary>
-    public static AppDataPaths FromEnvironment()
-    {
+    public static AppDataPaths FromEnvironment() {
         return new AppDataPaths(
             AppDataFolder: ResolveEnv(JccEnvVar.AppDataFolder, ".jcc"),
             CredentialsFileName: ResolveEnv(JccEnvVar.CredentialsFileName, "credentials.json"),
@@ -75,11 +73,9 @@ public sealed record AppDataPaths(
     public static AppDataPaths CreateForTest(
         string? appDataFolder = null,
         string? settingsFileName = null,
-        string? authFileName = null)
-    {
+        string? authFileName = null) {
         var defaults = Default;
-        return defaults with
-        {
+        return defaults with {
             AppDataFolder = appDataFolder ?? defaults.AppDataFolder,
             SettingsFileName = settingsFileName ?? defaults.SettingsFileName,
             AuthFileName = authFileName ?? defaults.AuthFileName,
@@ -89,10 +85,8 @@ public sealed record AppDataPaths(
     /// <summary>
     /// 获取 .jcc 目录的完整路径 — 统一使用 UserProfile（~/.jcc/）
     /// </summary>
-    public string JccDirectory
-    {
-        get
-        {
+    public string JccDirectory {
+        get {
             if (Path.IsPathRooted(AppDataFolder))
                 return AppDataFolder;
 
@@ -281,8 +275,7 @@ public sealed record AppDataPaths(
     /// <summary>exe级 native DLL 目录: {AppContext.BaseDirectory}/runtime/</summary>
     public string RuntimeDirectory => Path.Combine(AppContext.BaseDirectory, "runtime");
 
-    private static string ResolveEnv(JccEnvVar envVar, string defaultValue)
-    {
+    private static string ResolveEnv(JccEnvVar envVar, string defaultValue) {
         var envValue = Environment.GetEnvironmentVariable(envVar.ToValue());
         return envValue is not null ? envValue : defaultValue;
     }

@@ -1,16 +1,13 @@
 namespace Core.Tests.Plugins;
 
-public sealed class PluginResourceBaseTests
-{
-    private sealed class TestResource : PluginResourceBase
-    {
+public sealed class PluginResourceBaseTests {
+    private sealed class TestResource : PluginResourceBase {
         public TestResource(string ownerPluginName, PluginResourceKind kind, string displayName)
             : base(ownerPluginName, kind, displayName) { }
     }
 
     [Fact]
-    public void AddReference_IncrementsRefCount()
-    {
+    public void AddReference_IncrementsRefCount() {
         using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         resource.ReferenceCount.Should().Be(0);
@@ -22,8 +19,7 @@ public sealed class PluginResourceBaseTests
     }
 
     [Fact]
-    public void AddReference_MultipleConsumers_RefCountCorrect()
-    {
+    public void AddReference_MultipleConsumers_RefCountCorrect() {
         using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         var h1 = resource.AddReference("pluginB");
@@ -38,8 +34,7 @@ public sealed class PluginResourceBaseTests
     }
 
     [Fact]
-    public void ResourceReferenceHandle_DisposeIsIdempotent()
-    {
+    public void ResourceReferenceHandle_DisposeIsIdempotent() {
         using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         var handle = resource.AddReference("pluginB");
 
@@ -49,8 +44,7 @@ public sealed class PluginResourceBaseTests
     }
 
     [Fact]
-    public void EnsureAlive_WhenAlive_DoesNotThrow()
-    {
+    public void EnsureAlive_WhenAlive_DoesNotThrow() {
         using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         var act = () => resource.EnsureAlive();
@@ -58,8 +52,7 @@ public sealed class PluginResourceBaseTests
     }
 
     [Fact]
-    public void EnsureAlive_WhenDead_ThrowsPluginDeadException()
-    {
+    public void EnsureAlive_WhenDead_ThrowsPluginDeadException() {
         using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         resource.MarkDead();
 
@@ -69,8 +62,7 @@ public sealed class PluginResourceBaseTests
     }
 
     [Fact]
-    public void MarkDead_TriggersOnDeathEvent()
-    {
+    public void MarkDead_TriggersOnDeathEvent() {
         using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         var deathCount = 0;
         resource.OnDeath += (_, _) => deathCount++;
@@ -80,8 +72,7 @@ public sealed class PluginResourceBaseTests
     }
 
     [Fact]
-    public void MarkDead_IsIdempotent()
-    {
+    public void MarkDead_IsIdempotent() {
         using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         var deathCount = 0;
         resource.OnDeath += (_, _) => deathCount++;
@@ -92,8 +83,7 @@ public sealed class PluginResourceBaseTests
     }
 
     [Fact]
-    public void Touch_UpdatesLastHeartbeatAt()
-    {
+    public void Touch_UpdatesLastHeartbeatAt() {
         using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         resource.Touch();
@@ -102,8 +92,7 @@ public sealed class PluginResourceBaseTests
     }
 
     [Fact]
-    public void GetConsumers_ReturnsAllConsumerPluginNames()
-    {
+    public void GetConsumers_ReturnsAllConsumerPluginNames() {
         using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         var h1 = resource.AddReference("pluginB");
@@ -118,8 +107,7 @@ public sealed class PluginResourceBaseTests
     }
 
     [Fact]
-    public void Dispose_UnregistersFromObjectIdManager()
-    {
+    public void Dispose_UnregistersFromObjectIdManager() {
         var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         var objectId = resource.ObjectId;
 
@@ -130,8 +118,7 @@ public sealed class PluginResourceBaseTests
     }
 
     [Fact]
-    public void Dispose_MarksDead()
-    {
+    public void Dispose_MarksDead() {
         var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         resource.Dispose();
@@ -139,8 +126,7 @@ public sealed class PluginResourceBaseTests
     }
 
     [Fact]
-    public void OwnerPluginName_AndKind_Preserved()
-    {
+    public void OwnerPluginName_AndKind_Preserved() {
         using var resource = new TestResource("pluginA", PluginResourceKind.Hook, "hookA1");
 
         resource.OwnerPluginName.Should().Be("pluginA");

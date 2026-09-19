@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Clock;
 
-public sealed class SystemClockService : IClockService
-{
+public sealed class SystemClockService : IClockService {
     public static readonly SystemClockService Instance = new();
 
     public TimeProvider TimeProvider => TimeProvider.System;

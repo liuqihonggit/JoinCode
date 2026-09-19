@@ -11,8 +11,7 @@ public sealed record ChainStallResult(
     IReadOnlyList<string> Chain,
     int TotalNodes,
     int ConfirmedNodes,
-    bool IsChainStalled)
-{
+    bool IsChainStalled) {
     /// <summary>未检测到链路卡死的默认结果</summary>
     public static readonly ChainStallResult NotStalled = new([], 0, 0, false);
 }
@@ -24,16 +23,14 @@ public sealed record ChainStallResult(
 /// 链路构建：从叶子节点沿 parentMap 向上回溯，硬上限 100 层防递归爆炸。
 /// </para>
 /// </summary>
-public sealed class SubAgentChainStallDetector
-{
+public sealed class SubAgentChainStallDetector {
     private readonly int _chainStallThreshold;
 
     /// <summary>
     /// 初始化链路卡死检测器
     /// </summary>
     /// <param name="chainStallThreshold">链路卡死节点数阈值，默认 3</param>
-    public SubAgentChainStallDetector(int chainStallThreshold = 3)
-    {
+    public SubAgentChainStallDetector(int chainStallThreshold = 3) {
         ArgumentOutOfRangeException.ThrowIfLessThan(chainStallThreshold, 1);
         _chainStallThreshold = chainStallThreshold;
     }
@@ -48,16 +45,14 @@ public sealed class SubAgentChainStallDetector
     public ChainStallResult CheckChain(
         string rootAgentId,
         IReadOnlyDictionary<string, string> parentMap,
-        IReadOnlySet<string> confirmedAgentIds)
-    {
+        IReadOnlySet<string> confirmedAgentIds) {
         ArgumentNullException.ThrowIfNull(rootAgentId);
         ArgumentNullException.ThrowIfNull(parentMap);
         ArgumentNullException.ThrowIfNull(confirmedAgentIds);
 
         var chain = BuildChain(rootAgentId, parentMap);
         var confirmedCount = 0;
-        foreach (var id in chain)
-        {
+        foreach (var id in chain) {
             if (confirmedAgentIds.Contains(id))
                 confirmedCount++;
         }
@@ -74,14 +69,12 @@ public sealed class SubAgentChainStallDetector
     /// <returns>所有整链卡死的链路结果</returns>
     public IReadOnlyList<ChainStallResult> CheckAllChains(
         IReadOnlySet<string> confirmedAgentIds,
-        IReadOnlyDictionary<string, string> parentMap)
-    {
+        IReadOnlyDictionary<string, string> parentMap) {
         ArgumentNullException.ThrowIfNull(confirmedAgentIds);
         ArgumentNullException.ThrowIfNull(parentMap);
 
         var results = new List<ChainStallResult>();
-        foreach (var agentId in confirmedAgentIds)
-        {
+        foreach (var agentId in confirmedAgentIds) {
             var result = CheckChain(agentId, parentMap, confirmedAgentIds);
             if (result.IsChainStalled)
                 results.Add(result);
@@ -92,12 +85,10 @@ public sealed class SubAgentChainStallDetector
     /// <summary>
     /// 沿 parentMap 向上回溯构建链路 — 硬上限 100 层防递归爆炸
     /// </summary>
-    private static List<string> BuildChain(string agentId, IReadOnlyDictionary<string, string> parentMap)
-    {
+    private static List<string> BuildChain(string agentId, IReadOnlyDictionary<string, string> parentMap) {
         var chain = new List<string> { agentId };
         var current = agentId;
-        for (var i = 0; i < 100; i++)
-        {
+        for (var i = 0; i < 100; i++) {
             if (!parentMap.TryGetValue(current, out var parent)) break;
             if (parent == current) break; // 自环保护
             chain.Add(parent);

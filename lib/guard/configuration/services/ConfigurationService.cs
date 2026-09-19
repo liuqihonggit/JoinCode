@@ -5,8 +5,7 @@ namespace Core.Configuration;
 /// 对齐 TS 版 ConfigTool: 双存储源(global/settings) + appStateKey 热更新同步
 /// </summary>
 [Register(typeof(IConfigurationService), ServiceLifetime.Singleton)]
-public sealed partial class ConfigurationService : ServiceEntity, IConfigurationService
-{
+public sealed partial class ConfigurationService : ServiceEntity, IConfigurationService {
     private readonly ConcurrentDictionary<string, string> _configurations = new();
     private readonly IFileSystem _fs;
     private readonly IRemoteSettingsService? _remoteSettingsService;
@@ -25,8 +24,7 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
     /// <param name="remoteSettingsService">远程设置服务(可选),用于读取与合并远程设置</param>
     /// <param name="configChangeNotifier">配置变更通知器(可选),用于标记内部写以避免回声</param>
     /// <param name="logger">日志记录器(可选)</param>
-    public ConfigurationService(IFileSystem fs, IRemoteSettingsService? remoteSettingsService = null, IConfigChangeNotifier? configChangeNotifier = null, ILogger<ConfigurationService>? logger = null)
-    {
+    public ConfigurationService(IFileSystem fs, IRemoteSettingsService? remoteSettingsService = null, IConfigChangeNotifier? configChangeNotifier = null, ILogger<ConfigurationService>? logger = null) {
         _fs = fs;
         _remoteSettingsService = remoteSettingsService;
         _configChangeNotifier = configChangeNotifier;
@@ -38,39 +36,30 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         => GetAsync(key, SettingSource.UserSettings, cancellationToken);
 
     /// <inheritdoc/>
-    public async Task<string?> GetAsync(string key, SettingSource source, CancellationToken cancellationToken = default)
-    {
+    public async Task<string?> GetAsync(string key, SettingSource source, CancellationToken cancellationToken = default) {
         // 1. 先查内存缓存
         if (_configurations.TryGetValue(key, out var value))
             return value;
 
         // 2. 按存储源分流读取 — 对齐 TS: global → ~/.claude.json, settings → ~/.claude/settings.json
-        try
-        {
+        try {
             string? diskValue = source == SettingSource.GlobalConfig
                 ? await ConfigLoader.LoadSettingFromGlobalConfigAsync(key, _fs, cancellationToken, _logger).ConfigureAwait(false)
                 : await ConfigLoader.LoadSettingFromSettingsJsonAsync(key, _fs, cancellationToken, _logger).ConfigureAwait(false);
 
-            if (diskValue is not null)
-            {
+            if (diskValue is not null) {
                 _configurations[key] = diskValue;
                 return diskValue;
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "从 {Source} 读取设置失败: {Key}", source.ToValue(), key);
         }
 
         // 3. 最后查远程设置（仅 settings 源）
-        if (source == SettingSource.UserSettings && _remoteSettingsService != null)
-        {
-            try
-            {
+        if (source == SettingSource.UserSettings && _remoteSettingsService != null) {
+            try {
                 value = await _remoteSettingsService.GetSettingAsync(key, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "获取远程设置失败: {Key}", key);
             }
         }
@@ -87,33 +76,26 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         => SetAsync(key, value, source, null, cancellationToken);
 
     /// <inheritdoc/>
-    public async Task<bool> SetAsync(string key, string value, SettingSource source, string? appStateKey, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> SetAsync(string key, string value, SettingSource source, string? appStateKey, CancellationToken cancellationToken = default) {
         // 获取旧值用于变更通知
         var oldValue = _configurations.TryGetValue(key, out var existing) ? existing : null;
 
         _configurations[key] = value;
 
         // 按存储源分流持久化 — 对齐 TS: global → saveGlobalConfig, settings → updateSettingsForSource
-        try
-        {
+        try {
             // 对齐 TS markInternalWrite — 写入前标记内部写，防止 FileSystemWatcher 回声
             var targetPath = source == SettingSource.GlobalConfig
                 ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, AppDataConstants.GlobalConfigFileName)
                 : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
             _configChangeNotifier?.MarkInternalWrite(targetPath);
 
-            if (source == SettingSource.GlobalConfig)
-            {
+            if (source == SettingSource.GlobalConfig) {
                 await ConfigLoader.SaveSettingToGlobalConfigAsync(key, value, _fs, cancellationToken, _logger).ConfigureAwait(false);
-            }
-            else
-            {
+            } else {
                 await ConfigLoader.SaveSettingToSettingsJsonAsync(key, value, _fs, cancellationToken, _logger).ConfigureAwait(false);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "持久化设置到 {Source} 失败: {Key}", source.ToValue(), key);
         }
 
@@ -124,22 +106,18 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
     }
 
     /// <inheritdoc/>
-    public async Task<bool> RemoveAsync(string key, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> RemoveAsync(string key, CancellationToken cancellationToken = default) {
         var oldValue = _configurations.TryGetValue(key, out var existing) ? existing : null;
 
         _configurations.TryRemove(key, out _);
 
-        try
-        {
+        try {
             // 对齐 TS markInternalWrite — 写入前标记内部写
             var targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, AppDataConstants.SettingsFileName);
             _configChangeNotifier?.MarkInternalWrite(targetPath);
 
             await ConfigLoader.SaveSettingToSettingsJsonAsync(key, null, _fs, cancellationToken, _logger).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "从 settings.json 删除设置失败: {Key}", key);
         }
 
@@ -150,25 +128,18 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
     }
 
     /// <inheritdoc/>
-    public async Task<Dictionary<string, string>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<Dictionary<string, string>> GetAllAsync(CancellationToken cancellationToken = default) {
         var localConfigurations = new Dictionary<string, string>(_configurations);
 
-        if (_remoteSettingsService != null)
-        {
-            try
-            {
+        if (_remoteSettingsService != null) {
+            try {
                 var merged = await _remoteSettingsService.GetMergedSettingsAsync(localConfigurations, cancellationToken).ConfigureAwait(false);
-                foreach (var kvp in merged)
-                {
-                    if (!localConfigurations.ContainsKey(kvp.Key))
-                    {
+                foreach (var kvp in merged) {
+                    if (!localConfigurations.ContainsKey(kvp.Key)) {
                         localConfigurations[kvp.Key] = kvp.Value;
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "合并远程设置失败");
             }
         }
@@ -176,21 +147,16 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         return localConfigurations;
     }
 
-    private void OnSettingChanged(string key, string? oldValue, string? newValue, SettingSource source = SettingSource.UserSettings, string? appStateKey = null)
-    {
-        try
-        {
-            SettingChanged?.Invoke(this, new SettingChangeEventArgs
-            {
+    private void OnSettingChanged(string key, string? oldValue, string? newValue, SettingSource source = SettingSource.UserSettings, string? appStateKey = null) {
+        try {
+            SettingChanged?.Invoke(this, new SettingChangeEventArgs {
                 Key = key,
                 OldValue = oldValue,
                 NewValue = newValue,
                 Source = source,
                 AppStateKey = appStateKey
             });
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "触发设置变更通知失败: {Key}", key);
         }
     }

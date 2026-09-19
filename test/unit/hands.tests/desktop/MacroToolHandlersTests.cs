@@ -3,12 +3,10 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// MacroToolHandlers 单元测试 — 验证 list_macros 等宏工具逻辑
 /// </summary>
-public sealed class MacroToolHandlersTests
-{
+public sealed class MacroToolHandlersTests {
     /// <summary>空字符串 directory 应回退到默认目录，而非传空路径给 FileSystem 抛异常</summary>
     [Fact]
-    public async Task ListMacros_EmptyDirectory_FallsBackToDefault()
-    {
+    public async Task ListMacros_EmptyDirectory_FallsBackToDefault() {
         var recorderMock = new Mock<IMacroRecorder>();
         var fsMock = new Mock<IFileSystem>();
         fsMock.Setup(f => f.DirectoryExists(It.IsAny<string>())).Returns(true);

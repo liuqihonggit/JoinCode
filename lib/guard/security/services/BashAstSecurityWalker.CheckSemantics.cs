@@ -1,10 +1,8 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
-public sealed partial class BashAstSecurityWalker
-{
+public sealed partial class BashAstSecurityWalker {
     /// <inheritdoc />
-    public BashSemanticCheckResult CheckSemantics(BashSimpleCommandInfo[] commands)
-    {
+    public BashSemanticCheckResult CheckSemantics(BashSimpleCommandInfo[] commands) {
         return BashSemanticChecker.CheckSemantics(
             commands,
             BashSemanticCheckIdMap.Walker,

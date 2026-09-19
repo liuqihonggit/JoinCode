@@ -11,8 +11,7 @@ namespace IO.ProcessService;
 /// </para>
 /// </summary>
 [Register(typeof(IGitHubCommandRunner), ServiceLifetime.Singleton)]
-public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandRunner
-{
+public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandRunner {
     private readonly IProcessService _processService;
     private readonly PrBodyGenerator _prBodyGenerator;
     private readonly ILogger<GitHubCommandRunner>? _logger;
@@ -32,8 +31,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     public GitHubCommandRunner(
         IProcessService processService,
         PrBodyGenerator prBodyGenerator,
-        ILogger<GitHubCommandRunner>? logger = null)
-    {
+        ILogger<GitHubCommandRunner>? logger = null) {
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
         _prBodyGenerator = prBodyGenerator ?? throw new ArgumentNullException(nameof(prBodyGenerator));
         _logger = logger;
@@ -46,15 +44,12 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
         string arguments,
         string? workingDirectory = null,
         int? timeoutMs = null,
-        CancellationToken ct = default)
-    {
-        try
-        {
+        CancellationToken ct = default) {
+        try {
             _logger?.LogDebug("ExecuteAsync start: gh {Arguments}, cwd={WorkingDir}", arguments, workingDirectory);
 
             var effectiveTimeout = timeoutMs ?? (int)_timeout.TotalMilliseconds;
-            var options = new ProcessOptions
-            {
+            var options = new ProcessOptions {
                 FileName = "gh",
                 Arguments = arguments,
                 WorkingDirectory = workingDirectory,
@@ -67,24 +62,18 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
 
             _logger?.LogDebug("ExecuteAsync end: gh {Arguments}, exitCode={ExitCode}, stdoutLen={StdoutLen}", arguments, result.ExitCode, result.StandardOutput.Length);
 
-            return new GitHubCommandResult
-            {
+            return new GitHubCommandResult {
                 Success = result.Success,
                 Output = result.StandardOutput,
                 Error = result.StandardError,
                 ExitCode = result.ExitCode
             };
-        }
-        catch (OperationCanceledException ex)
-        {
+        } catch (OperationCanceledException ex) {
             _logger?.LogDebug("ExecuteAsync CANCELED: gh {Arguments}, {ExceptionType}", arguments, ex.GetType().Name);
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "执行 GitHub 命令失败: gh {Arguments}", arguments);
-            return new GitHubCommandResult
-            {
+            return new GitHubCommandResult {
                 Success = false,
                 Error = ex.Message,
                 ExitCode = -1
@@ -101,13 +90,11 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
         string arguments,
         string? workingDirectory = null,
         int? timeoutMs = null,
-        [EnumeratorCancellation] CancellationToken ct = default)
-    {
+        [EnumeratorCancellation] CancellationToken ct = default) {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs ?? 120_000));
 
-        var options = new InteractiveProcessOptions
-        {
+        var options = new InteractiveProcessOptions {
             FileName = "gh",
             Arguments = arguments,
             WorkingDirectory = workingDirectory,
@@ -116,27 +103,19 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
         };
 
         IInteractiveProcess? process = null;
-        try
-        {
+        try {
             process = await _processService.StartInteractiveAsync(options, cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             _logger?.LogWarning("流式执行 gh 命令超时: gh {Arguments}", arguments);
             yield break;
         }
 
-        try
-        {
-            while (true)
-            {
+        try {
+            while (true) {
                 string? line;
-                try
-                {
+                try {
                     line = await process.StandardOutput.ReadLineAsync(cts.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-                {
+                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                     break;
                 }
 
@@ -144,17 +123,12 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
                 yield return line;
             }
 
-            try
-            {
+            try {
                 await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 _logger?.LogWarning("流式执行 gh 命令等待退出超时: gh {Arguments}", arguments);
             }
-        }
-        finally
-        {
+        } finally {
             if (!process.HasExited) process.Kill();
             await process.DisposeAsync().ConfigureAwait(false);
         }
@@ -170,8 +144,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
         string headBranch,
         string? repo = null,
         bool draft = false,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(title);
         ArgumentNullException.ThrowIfNull(baseBranch);
         ArgumentNullException.ThrowIfNull(headBranch);
@@ -182,8 +155,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
             : body;
 
         // 记录"已用默认值"
-        if (string.IsNullOrWhiteSpace(body))
-        {
+        if (string.IsNullOrWhiteSpace(body)) {
             _logger?.LogInformation("PR body 为空，已自动生成: {Title}", title);
         }
 
@@ -191,23 +163,19 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
         var sb = new StringBuilder();
         sb.Append($"pr create --title \"{EscapeArg(title)}\" --body \"{EscapeArg(finalBody)}\" --base {baseBranch} --head {headBranch}");
 
-        if (draft)
-        {
+        if (draft) {
             sb.Append(" --draft");
         }
 
-        if (!string.IsNullOrWhiteSpace(repo))
-        {
+        if (!string.IsNullOrWhiteSpace(repo)) {
             sb.Append($" --repo {repo}");
         }
 
         // 带重试执行
         var result = await ExecuteWithRetryAsync(sb.ToString(), null, ct).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
-            return new PrCreateResult
-            {
+        if (!result.Success) {
+            return new PrCreateResult {
                 Success = false,
                 Error = result.Error
             };
@@ -218,8 +186,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
         var prUrl = ParsePrUrl(output);
         var prNumber = ParsePrNumber(output);
 
-        return new PrCreateResult
-        {
+        return new PrCreateResult {
             Success = true,
             PrUrl = prUrl,
             PrNumber = prNumber
@@ -233,23 +200,19 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
         string? repo = null,
         string state = "open",
         int limit = 30,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var sb = new StringBuilder();
         sb.Append($"pr list --state {state} --limit {limit}");
 
-        if (!string.IsNullOrWhiteSpace(repo))
-        {
+        if (!string.IsNullOrWhiteSpace(repo)) {
             sb.Append($" --repo {repo}");
         }
 
         // 带重试执行
         var result = await ExecuteWithRetryAsync(sb.ToString(), null, ct).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
-            return new PrListResult
-            {
+        if (!result.Success) {
+            return new PrListResult {
                 Success = false,
                 Error = result.Error
             };
@@ -258,8 +221,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
         // 解析输出
         var items = ParsePrList(result.Output);
 
-        return new PrListResult
-        {
+        return new PrListResult {
             Success = true,
             Items = items
         };
@@ -271,49 +233,38 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     private async Task<GitHubCommandResult> ExecuteWithRetryAsync(
         string arguments,
         string? workingDirectory,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         var retryCount = 0;
         var lastError = string.Empty;
 
-        while (retryCount <= _maxRetries)
-        {
-            try
-            {
+        while (retryCount <= _maxRetries) {
+            try {
                 var result = await ExecuteAsync(arguments, workingDirectory, null, ct).ConfigureAwait(false);
 
-                if (result.Success)
-                {
+                if (result.Success) {
                     return result;
                 }
 
                 lastError = result.Error;
 
                 // 检查是否可重试的错误
-                if (!IsRetryableError(result.Error))
-                {
+                if (!IsRetryableError(result.Error)) {
                     return result;
                 }
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 lastError = "超时";
                 // 超时，可重试
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 lastError = ex.Message;
 
                 // 非网络异常，不重试
-                if (!IsRetryableException(ex))
-                {
+                if (!IsRetryableException(ex)) {
                     throw;
                 }
             }
 
             // 重试逻辑
-            if (retryCount < _maxRetries)
-            {
+            if (retryCount < _maxRetries) {
                 var delay = CalculateBackoff(retryCount);
                 _logger?.LogWarning(
                     "GitHub 命令执行失败（第 {RetryCount} 次），{Delay}ms 后重试: {Error}",
@@ -327,8 +278,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
             retryCount++;
         }
 
-        return new GitHubCommandResult
-        {
+        return new GitHubCommandResult {
             Success = false,
             Error = $"重试 {_maxRetries} 次后仍然失败: {lastError}"
         };
@@ -337,8 +287,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     /// <summary>
     /// 计算指数退避时间
     /// </summary>
-    private TimeSpan CalculateBackoff(int retryCount)
-    {
+    private TimeSpan CalculateBackoff(int retryCount) {
         var delay = TimeSpan.FromSeconds(
             Math.Min(
                 _initialBackoff.TotalSeconds * Math.Pow(2, retryCount),
@@ -352,8 +301,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     /// <summary>
     /// 判断错误是否可重试
     /// </summary>
-    private static bool IsRetryableError(string error)
-    {
+    private static bool IsRetryableError(string error) {
         // 网络相关错误可重试
         var retryablePatterns = new[]
         {
@@ -373,8 +321,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     /// <summary>
     /// 判断异常是否可重试
     /// </summary>
-    private static bool IsRetryableException(Exception ex)
-    {
+    private static bool IsRetryableException(Exception ex) {
         return ex is OperationCanceledException
                || ex is TimeoutException
                || ex is System.Net.Http.HttpRequestException;
@@ -383,16 +330,13 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     /// <summary>
     /// 解析 PR URL
     /// </summary>
-    private static string? ParsePrUrl(string output)
-    {
+    private static string? ParsePrUrl(string output) {
         // gh pr create 输出格式：https://github.com/owner/repo/pull/123
         var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
-        {
+        foreach (var line in lines) {
             var trimmed = line.Trim();
             if (trimmed.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
-                trimmed.Contains("/pull/"))
-            {
+                trimmed.Contains("/pull/")) {
                 return trimmed;
             }
         }
@@ -403,18 +347,15 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     /// <summary>
     /// 解析 PR 编号
     /// </summary>
-    private static string? ParsePrNumber(string output)
-    {
+    private static string? ParsePrNumber(string output) {
         var url = ParsePrUrl(output);
-        if (url is null)
-        {
+        if (url is null) {
             return null;
         }
 
         // 从 URL 中提取 PR 编号
         var lastSlash = url.LastIndexOf('/');
-        if (lastSlash >= 0 && lastSlash < url.Length - 1)
-        {
+        if (lastSlash >= 0 && lastSlash < url.Length - 1) {
             return url.Substring(lastSlash + 1);
         }
 
@@ -424,19 +365,15 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     /// <summary>
     /// 解析 PR 列表
     /// </summary>
-    private static IReadOnlyList<PrListItem> ParsePrList(string output)
-    {
+    private static IReadOnlyList<PrListItem> ParsePrList(string output) {
         var items = new List<PrListItem>();
 
         var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
-        {
+        foreach (var line in lines) {
             // gh pr list 输出格式：123\tTitle\tbranch\tSTATE
             var parts = line.Split('\t');
-            if (parts.Length >= 4)
-            {
-                items.Add(new PrListItem
-                {
+            if (parts.Length >= 4) {
+                items.Add(new PrListItem {
                     Number = parts[0].Trim(),
                     Title = parts[1].Trim(),
                     Branch = parts[2].Trim(),
@@ -452,16 +389,14 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     /// <summary>
     /// 转义命令行参数
     /// </summary>
-    private static string EscapeArg(string arg)
-    {
+    private static string EscapeArg(string arg) {
         return arg.Replace("\"", "\\\"");
     }
 
     /// <summary>
     /// 创建 GitHub CLI 专用环境变量
     /// </summary>
-    private static Dictionary<string, string> CreateGitHubEnvironment() => new()
-    {
+    private static Dictionary<string, string> CreateGitHubEnvironment() => new() {
         ["GH_TERMINAL_PROMPT"] = "0",
         ["GH_FORCE_TTY"] = "100%",
         ["NO_COLOR"] = "1"

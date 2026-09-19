@@ -3,11 +3,9 @@ namespace Hands.Tests.Shell;
 /// <summary>
 /// ShellClassificationMiddleware 单元测试 — 验证命令分类中间件的结构化诊断
 /// </summary>
-public class ShellClassificationMiddlewareTests
-{
+public class ShellClassificationMiddlewareTests {
     [Fact]
-    public void BuildDestructiveCommandDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildDestructiveCommandDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellClassificationMiddleware.BuildDestructiveCommandDiagnostic(
             "rm -rf /", "Recursive delete", ["DataLoss"]);
 
@@ -19,8 +17,7 @@ public class ShellClassificationMiddlewareTests
     }
 
     [Fact]
-    public void BuildPathViolationDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildPathViolationDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellClassificationMiddleware.BuildPathViolationDiagnostic("cat /etc/passwd", "Path outside project");
 
         diagnostic.Reason.Should().Be("路径违规");
@@ -29,8 +26,7 @@ public class ShellClassificationMiddlewareTests
     }
 
     [Fact]
-    public void BuildExcessiveSearchScopeDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildExcessiveSearchScopeDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellClassificationMiddleware.BuildExcessiveSearchScopeDiagnostic("rg pattern /", "Root path");
 
         diagnostic.Reason.Should().Be("搜索范围过大");
@@ -39,8 +35,7 @@ public class ShellClassificationMiddlewareTests
     }
 
     [Fact]
-    public void BuildDestructiveCommandFallbackDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildDestructiveCommandFallbackDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellClassificationMiddleware.BuildDestructiveCommandFallbackDiagnostic(
             "rm -rf /", "Recursive delete warning", "High");
 
@@ -53,11 +48,9 @@ public class ShellClassificationMiddlewareTests
 /// <summary>
 /// ShellOutputMiddleware 单元测试 — 验证输出中间件的结构化诊断
 /// </summary>
-public class ShellOutputMiddlewareTests
-{
+public class ShellOutputMiddlewareTests {
     [Fact]
-    public void BuildNoExecutionResultDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildNoExecutionResultDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellOutputMiddleware.BuildNoExecutionResultDiagnostic();
 
         diagnostic.Reason.Should().Be("无执行结果");
@@ -65,8 +58,7 @@ public class ShellOutputMiddlewareTests
     }
 
     [Fact]
-    public void BuildInterruptedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildInterruptedDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellOutputMiddleware.BuildInterruptedDiagnostic("echo test", -1);
 
         diagnostic.Reason.Should().Be("命令中断");
@@ -75,8 +67,7 @@ public class ShellOutputMiddlewareTests
     }
 
     [Fact]
-    public void BuildCommandFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildCommandFailedDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellOutputMiddleware.BuildCommandFailedDiagnostic("dotnet build", 1);
 
         diagnostic.Reason.Should().Be("命令执行失败");

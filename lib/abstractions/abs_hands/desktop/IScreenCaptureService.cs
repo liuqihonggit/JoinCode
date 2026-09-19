@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 屏幕截图采集服务 — GDI BitBlt 封装，返回 base64 编码的 PNG
 /// </summary>
-public interface IScreenCaptureService
-{
+public interface IScreenCaptureService {
     /// <summary>全屏截图，返回 base64 PNG</summary>
     Task<string> CaptureFullScreenAsync(CancellationToken cancellationToken = default);
 

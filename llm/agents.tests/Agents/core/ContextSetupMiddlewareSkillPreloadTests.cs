@@ -5,15 +5,12 @@ namespace Core.Agents.Tests.Unit.Agents;
 /// ContextSetupMiddleware Skills 预加载测试
 /// 验证 PreloadSkills 字段正确消费: 加载 skill 内容到 InitialMessageList
 /// </summary>
-public sealed class ContextSetupMiddlewareSkillPreloadTests
-{
+public sealed class ContextSetupMiddlewareSkillPreloadTests {
     private static MiddlewareDelegate<UnifiedSpawnContext> NoopNext => (_, _) => Task.CompletedTask;
 
     [Fact]
-    public async Task InvokeAsync_DefinitionHasSkills_LoadsSkillContentToInitialMessageList()
-    {
-        var skill = new SkillDefinition
-        {
+    public async Task InvokeAsync_DefinitionHasSkills_LoadsSkillContentToInitialMessageList() {
+        var skill = new SkillDefinition {
             Name = "commit",
             Description = "Git commit skill",
             Steps = [new SkillStep { Id = "execute", Type = SkillStepType.Prompt, Prompt = "Run git commit with message" }],
@@ -25,19 +22,16 @@ public sealed class ContextSetupMiddlewareSkillPreloadTests
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
         var mw = new ContextSetupMiddleware(contextAccessor.Object, null, skillServiceMock.Object);
 
-        var ctx = new UnifiedSpawnContext
-        {
+        var ctx = new UnifiedSpawnContext {
             Task = "test task",
             IsMainAgent = false,
-            SpawnOptions = new AgentSpawnOptions
-            {
+            SpawnOptions = new AgentSpawnOptions {
                 Description = "test",
                 Prompt = "do something",
                 Role = AgentRole.Executor,
                 Variant = ExecutorVariant.Code,
             },
-            Definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
-            {
+            Definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
                 Role = AgentRole.Executor,
                 Variant = ExecutorVariant.Code,
                 WhenToUse = "code agent",
@@ -54,24 +48,20 @@ public sealed class ContextSetupMiddlewareSkillPreloadTests
     }
 
     [Fact]
-    public async Task InvokeAsync_NoSkillService_InitialMessageListIsNull()
-    {
+    public async Task InvokeAsync_NoSkillService_InitialMessageListIsNull() {
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
         var mw = new ContextSetupMiddleware(contextAccessor.Object);
 
-        var ctx = new UnifiedSpawnContext
-        {
+        var ctx = new UnifiedSpawnContext {
             Task = "test task",
             IsMainAgent = false,
-            SpawnOptions = new AgentSpawnOptions
-            {
+            SpawnOptions = new AgentSpawnOptions {
                 Description = "test",
                 Prompt = "do something",
                 Role = AgentRole.Executor,
                 Variant = ExecutorVariant.Code,
             },
-            Definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
-            {
+            Definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
                 Role = AgentRole.Executor,
                 Variant = ExecutorVariant.Code,
                 WhenToUse = "code agent",
@@ -86,8 +76,7 @@ public sealed class ContextSetupMiddlewareSkillPreloadTests
     }
 
     [Fact]
-    public async Task InvokeAsync_SkillNotFound_InitialMessageListIsEmpty()
-    {
+    public async Task InvokeAsync_SkillNotFound_InitialMessageListIsEmpty() {
         var skillServiceMock = new Mock<ISkillService>();
         skillServiceMock.Setup(x => x.GetSkillAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((SkillDefinition?)null);
@@ -95,19 +84,16 @@ public sealed class ContextSetupMiddlewareSkillPreloadTests
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
         var mw = new ContextSetupMiddleware(contextAccessor.Object, null, skillServiceMock.Object);
 
-        var ctx = new UnifiedSpawnContext
-        {
+        var ctx = new UnifiedSpawnContext {
             Task = "test task",
             IsMainAgent = false,
-            SpawnOptions = new AgentSpawnOptions
-            {
+            SpawnOptions = new AgentSpawnOptions {
                 Description = "test",
                 Prompt = "do something",
                 Role = AgentRole.Executor,
                 Variant = ExecutorVariant.Code,
             },
-            Definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
-            {
+            Definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
                 Role = AgentRole.Executor,
                 Variant = ExecutorVariant.Code,
                 WhenToUse = "code agent",

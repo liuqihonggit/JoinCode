@@ -1,10 +1,8 @@
 namespace Integration.Tests.PrefixCache.Unit;
 
-public sealed class SystemPromptBuilderPartitionTests
-{
+public sealed class SystemPromptBuilderPartitionTests {
     [Fact]
-    public void BuildPartitioned_SeparatesStaticAndDynamic()
-    {
+    public void BuildPartitioned_SeparatesStaticAndDynamic() {
         var builder = new SystemPromptBuilder();
         builder.AddSection(SystemPromptSection.Cached("static_a", () => "Static content A"));
         builder.AddSection(SystemPromptSection.Cached("static_b", () => "Static content B"));
@@ -23,8 +21,7 @@ public sealed class SystemPromptBuilderPartitionTests
     }
 
     [Fact]
-    public void BuildPartitioned_StaticPrefix_StableAcrossCalls()
-    {
+    public void BuildPartitioned_StaticPrefix_StableAcrossCalls() {
         var builder = new SystemPromptBuilder();
         builder.AddSection(SystemPromptSection.Cached("static", () => "Fixed content"));
         builder.AddSection(SystemPromptSection.Dynamic("dynamic", () => $"Time: {DateTimeOffset.UtcNow.Ticks}"));
@@ -37,8 +34,7 @@ public sealed class SystemPromptBuilderPartitionTests
     }
 
     [Fact]
-    public void BuildPartitioned_DynamicSuffix_MayChangeAcrossCalls()
-    {
+    public void BuildPartitioned_DynamicSuffix_MayChangeAcrossCalls() {
         var callCount = 0;
         var builder = new SystemPromptBuilder();
         builder.AddSection(SystemPromptSection.Cached("static", () => "Fixed"));
@@ -52,8 +48,7 @@ public sealed class SystemPromptBuilderPartitionTests
     }
 
     [Fact]
-    public void BuildPartitioned_NoDynamicSections_ReturnsEmptyDynamicSuffix()
-    {
+    public void BuildPartitioned_NoDynamicSections_ReturnsEmptyDynamicSuffix() {
         var builder = new SystemPromptBuilder();
         builder.AddSection(SystemPromptSection.Cached("static", () => "Only static"));
 
@@ -64,8 +59,7 @@ public sealed class SystemPromptBuilderPartitionTests
     }
 
     [Fact]
-    public void BuildPartitioned_NoStaticSections_ReturnsEmptyStaticPrefix()
-    {
+    public void BuildPartitioned_NoStaticSections_ReturnsEmptyStaticPrefix() {
         var builder = new SystemPromptBuilder();
         builder.AddSection(SystemPromptSection.Dynamic("dynamic", () => "Only dynamic"));
 
@@ -76,8 +70,7 @@ public sealed class SystemPromptBuilderPartitionTests
     }
 
     [Fact]
-    public void Build_BackwardCompatible_ReturnsCombinedResult()
-    {
+    public void Build_BackwardCompatible_ReturnsCombinedResult() {
         var builder = new SystemPromptBuilder();
         builder.AddSection(SystemPromptSection.Cached("static", () => "Static part"));
         builder.AddSection(SystemPromptSection.Dynamic("dynamic", () => "Dynamic part"));
@@ -94,8 +87,7 @@ public sealed class SystemPromptBuilderPartitionTests
     }
 
     [Fact]
-    public void BuildPartitioned_SkipsNullSections()
-    {
+    public void BuildPartitioned_SkipsNullSections() {
         var builder = new SystemPromptBuilder();
         builder.AddSection(SystemPromptSection.Cached("static_a", () => "Content A"));
         builder.AddSection(SystemPromptSection.Cached("static_null", new Func<string?>(() => null)));

@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Brain.Context.Hierarchy;
 
-public interface IContextHierarchy : IDisposable
-{
+public interface IContextHierarchy : IDisposable {
     int TokenThreshold { get; set; }
 
     Task AddLayerAsync(IContextLayer layer, CancellationToken ct = default);

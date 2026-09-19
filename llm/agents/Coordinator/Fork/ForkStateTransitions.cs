@@ -5,8 +5,7 @@ namespace Core.Agents.Coordinator;
 /// <para>原 ForkSubAgentManager.ForkEntry 各方法内联直接赋值无校验，现统一提取为转换表</para>
 /// <para>Running 可转 Completed/Failed/Cancelled，Completed 仅可转 Merged，其余为终态</para>
 /// </summary>
-public static class ForkStateTransitions
-{
+public static class ForkStateTransitions {
     /// <summary>
     /// 状态转换位掩码表 — 索引为 (int)ForkState，值为目标状态位掩码。
     /// 替代 FrozenDictionary&lt;ForkState, FrozenSet&lt;ForkState&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
@@ -26,10 +25,8 @@ public static class ForkStateTransitions
     /// <param name="current">当前状态</param>
     /// <param name="target">目标状态</param>
     /// <returns>合法返回 true，非法返回 false</returns>
-    public static bool CanTransitionTo(ForkState current, ForkState target)
-    {
-        if (current == target)
-        {
+    public static bool CanTransitionTo(ForkState current, ForkState target) {
+        if (current == target) {
             return true;
         }
 

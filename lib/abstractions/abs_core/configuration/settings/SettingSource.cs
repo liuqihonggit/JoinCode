@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Configuration.Settings;
 ///
 /// 写入目标: GlobalConfig → ~/.jcc/global.json, 其余 → ~/.jcc/settings.json
 /// </summary>
-public enum SettingSource
-{
+public enum SettingSource {
     /// <summary>
     /// 全局配置: ~/.jcc/global.json — 对齐 TS ~/.claude.json
     /// 存储: 主题、编辑器模式、通知偏好等跨项目全局设置

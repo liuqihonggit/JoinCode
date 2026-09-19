@@ -1,21 +1,18 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class SymbolSearcherTests : IDisposable
-{
+public sealed class SymbolSearcherTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly SymbolIndex _index;
     private readonly SymbolSearcher _searcher;
     private bool _disposed;
 
-    public SymbolSearcherTests()
-    {
+    public SymbolSearcherTests() {
         _store = new InMemoryIndexStore();
         _index = new SymbolIndex(_store, TestFileSystem.Current, new CSharpSymbolExtractor());
         _searcher = new SymbolSearcher(_store);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _index.DisposeSafe();
@@ -23,8 +20,7 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchAsync_ExactMatch_ReturnsCorrectSymbol()
-    {
+    public async Task SearchAsync_ExactMatch_ReturnsCorrectSymbol() {
         InsertSymbol(CreateSymbol("ProcessOrder", "App.Services.ProcessOrder", SymbolKind.Method, "svc.cs"));
 
         var result = await _searcher.SearchAsync("ProcessOrder", CancellationToken.None).ConfigureAwait(true);
@@ -34,8 +30,7 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchAsync_PrefixWildcard_ReturnsMatchingSymbols()
-    {
+    public async Task SearchAsync_PrefixWildcard_ReturnsMatchingSymbols() {
         InsertSymbol(CreateSymbol("ProcessOrder", "App.Services.ProcessOrder", SymbolKind.Method, "svc.cs"));
         InsertSymbol(CreateSymbol("ProcessData", "App.Helpers.ProcessData", SymbolKind.Method, "helper.cs"));
         InsertSymbol(CreateSymbol("SaveOrder", "App.Services.SaveOrder", SymbolKind.Method, "svc.cs"));
@@ -48,8 +43,7 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchByKindAsync_FilterByClass_ReturnsOnlyClasses()
-    {
+    public async Task SearchByKindAsync_FilterByClass_ReturnsOnlyClasses() {
         InsertSymbol(CreateSymbol("UserService", "App.UserService", SymbolKind.Class, "svc.cs"));
         InsertSymbol(CreateSymbol("Process", "App.Process", SymbolKind.Method, "svc.cs"));
 
@@ -60,8 +54,7 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task FindDefinitionAsync_ExactName_ReturnsSymbol()
-    {
+    public async Task FindDefinitionAsync_ExactName_ReturnsSymbol() {
         InsertSymbol(CreateSymbol("Target", "App.Target", SymbolKind.Method, "target.cs"));
 
         var result = await _searcher.FindDefinitionAsync("Target", CancellationToken.None).ConfigureAwait(true);
@@ -71,16 +64,14 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task FindDefinitionAsync_NonExistentName_ReturnsNull()
-    {
+    public async Task FindDefinitionAsync_NonExistentName_ReturnsNull() {
         var result = await _searcher.FindDefinitionAsync("Missing", CancellationToken.None).ConfigureAwait(true);
 
         Assert.Null(result);
     }
 
     [Fact]
-    public async Task FindReferencesAsync_SameNameDifferentFiles_ReturnsAll()
-    {
+    public async Task FindReferencesAsync_SameNameDifferentFiles_ReturnsAll() {
         InsertSymbol(CreateSymbol("BuildIndex", "App.BuildIndex", SymbolKind.Method, "core.cs"));
         var edge1 = new CallEdge { CallerSymbol = "CallerA", CalleeSymbol = "BuildIndex", CallSiteFilePath = "a.cs", CallSiteLine = 10, CallKind = CallKind.Direct };
         var edge2 = new CallEdge { CallerSymbol = "CallerB", CalleeSymbol = "BuildIndex", CallSiteFilePath = "b.cs", CallSiteLine = 20, CallKind = CallKind.Direct };
@@ -95,8 +86,7 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchAsync_NoResults_ReturnsEmptyList()
-    {
+    public async Task SearchAsync_NoResults_ReturnsEmptyList() {
         var result = await _searcher.SearchAsync("NonExistent", CancellationToken.None).ConfigureAwait(true);
 
         Assert.Empty(result.Items);
@@ -104,8 +94,7 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchAsync_RecordsElapsedTime()
-    {
+    public async Task SearchAsync_RecordsElapsedTime() {
         InsertSymbol(CreateSymbol("Foo", "App.Foo", SymbolKind.Method, "a.cs"));
 
         var result = await _searcher.SearchAsync("Foo", CancellationToken.None).ConfigureAwait(true);
@@ -114,15 +103,13 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchAsync_NullQuery_Throws()
-    {
+    public async Task SearchAsync_NullQuery_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _searcher.SearchAsync(null!, CancellationToken.None)).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task SearchAsync_MultipleTokens_AndMatch()
-    {
+    public async Task SearchAsync_MultipleTokens_AndMatch() {
         InsertSymbol(CreateSymbol("ProcessOrder", "App.Services.ProcessOrder", SymbolKind.Method, "svc.cs"));
         InsertSymbol(CreateSymbol("SaveOrder", "App.Services.SaveOrder", SymbolKind.Method, "svc.cs"));
 
@@ -133,10 +120,8 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchAsync_CapsAt200Results()
-    {
-        for (var i = 0; i < 250; i++)
-        {
+    public async Task SearchAsync_CapsAt200Results() {
+        for (var i = 0; i < 250; i++) {
             InsertSymbol(CreateSymbol($"Foo{i}", $"App.Foo{i}", SymbolKind.Method, $"f{i}.cs"));
         }
 
@@ -146,24 +131,21 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchByKindAsync_UnknownKind_ReturnsEmpty()
-    {
+    public async Task SearchByKindAsync_UnknownKind_ReturnsEmpty() {
         var result = await _searcher.SearchByKindAsync(SymbolKind.Operator, CancellationToken.None).ConfigureAwait(true);
 
         Assert.Empty(result.Items);
     }
 
     [Fact]
-    public async Task FindReferencesAsync_NonExistentName_ReturnsEmpty()
-    {
+    public async Task FindReferencesAsync_NonExistentName_ReturnsEmpty() {
         var result = await _searcher.FindReferencesAsync("Missing", CancellationToken.None).ConfigureAwait(true);
 
         Assert.Empty(result);
     }
 
     [Fact]
-    public async Task SearchByPatternAsync_InvalidRegex_ReturnsEmpty()
-    {
+    public async Task SearchByPatternAsync_InvalidRegex_ReturnsEmpty() {
         InsertSymbol(CreateSymbol("Foo", "App.Foo", SymbolKind.Method, "a.cs"));
 
         var result = await _searcher.SearchByPatternAsync("[", 10, CancellationToken.None).ConfigureAwait(true);
@@ -173,8 +155,7 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchByPatternAsync_MatchesByName_ReturnsSymbols()
-    {
+    public async Task SearchByPatternAsync_MatchesByName_ReturnsSymbols() {
         InsertSymbol(CreateSymbol("ProcessOrder", "App.Services.ProcessOrder", SymbolKind.Method, "svc.cs"));
         InsertSymbol(CreateSymbol("ProcessData", "App.Helpers.ProcessData", SymbolKind.Method, "helper.cs"));
         InsertSymbol(CreateSymbol("SaveOrder", "App.Services.SaveOrder", SymbolKind.Method, "svc.cs"));
@@ -187,8 +168,7 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchByPatternAsync_RegexPattern_MatchesFqn()
-    {
+    public async Task SearchByPatternAsync_RegexPattern_MatchesFqn() {
         InsertSymbol(CreateSymbol("Foo", "App.Services.Foo", SymbolKind.Method, "a.cs"));
         InsertSymbol(CreateSymbol("Bar", "App.Helpers.Bar", SymbolKind.Method, "b.cs"));
         InsertSymbol(CreateSymbol("Baz", "App.Services.Baz", SymbolKind.Method, "c.cs"));
@@ -200,8 +180,7 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchByPatternAsync_NoMatches_ReturnsEmpty()
-    {
+    public async Task SearchByPatternAsync_NoMatches_ReturnsEmpty() {
         InsertSymbol(CreateSymbol("Foo", "App.Foo", SymbolKind.Method, "a.cs"));
 
         var result = await _searcher.SearchByPatternAsync("NonExistent", 10, CancellationToken.None).ConfigureAwait(true);
@@ -211,10 +190,8 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchByPatternAsync_RespectsMaxResults()
-    {
-        for (var i = 0; i < 5; i++)
-        {
+    public async Task SearchByPatternAsync_RespectsMaxResults() {
+        for (var i = 0; i < 5; i++) {
             InsertSymbol(CreateSymbol($"Process{i}", $"App.Process{i}", SymbolKind.Method, $"f{i}.cs"));
         }
 
@@ -225,18 +202,15 @@ public sealed class SymbolSearcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchByPatternAsync_NullPattern_Throws()
-    {
+    public async Task SearchByPatternAsync_NullPattern_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _searcher.SearchByPatternAsync(null!, 10, CancellationToken.None)).ConfigureAwait(true);
     }
 
     // ============ 测试辅助方法 ============
 
-    private static SymbolInfo CreateSymbol(string name, string fqn, SymbolKind kind, string file)
-    {
-        return new SymbolInfo
-        {
+    private static SymbolInfo CreateSymbol(string name, string fqn, SymbolKind kind, string file) {
+        return new SymbolInfo {
             Name = name,
             FullyQualifiedName = fqn,
             Kind = kind,
@@ -248,18 +222,15 @@ public sealed class SymbolSearcherTests : IDisposable
         };
     }
 
-    private void InsertSymbol(SymbolInfo symbol)
-    {
+    private void InsertSymbol(SymbolInfo symbol) {
         _store.SymbolsByFqn[symbol.FullyQualifiedName] = symbol;
         AddToBucket(_store.SymbolsByName, symbol.Name, symbol);
         AddToBucket(_store.SymbolsByFile, symbol.FilePath, symbol);
         AddToBucket(_store.SymbolsByKind, symbol.Kind, symbol);
     }
 
-    private static void AddToBucket<TKey>(Dictionary<TKey, List<SymbolInfo>> dict, TKey key, SymbolInfo symbol) where TKey : notnull
-    {
-        if (!dict.TryGetValue(key, out var list))
-        {
+    private static void AddToBucket<TKey>(Dictionary<TKey, List<SymbolInfo>> dict, TKey key, SymbolInfo symbol) where TKey : notnull {
+        if (!dict.TryGetValue(key, out var list)) {
             list = new List<SymbolInfo>();
             dict[key] = list;
         }

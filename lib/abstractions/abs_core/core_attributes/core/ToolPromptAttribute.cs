@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Attributes;
 /// <summary>
 /// 工具提示词分类
 /// </summary>
-public enum ToolPromptCategory
-{
+public enum ToolPromptCategory {
     [EnumValue("agent")]
     Agent,
     [EnumValue("file")]
@@ -25,8 +24,7 @@ public enum ToolPromptCategory
 /// 详细描述在 API 请求构建时替换 [McpTool] 的短描述，对齐 TS 版本 tool.prompt() 的行为
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public sealed class ToolPromptAttribute : Attribute
-{
+public sealed class ToolPromptAttribute : Attribute {
     /// <summary>
     /// 工具名称 — 接收 string 字面量或枚举值（源码生成器从 [EnumValue] 取字符串）。
     /// 用枚举值可实现 SSOT：[ToolPrompt(ToolName = FileToolName.FileRead)] 与 [McpTool(FileToolNameEnumConstants.FileRead)] 共享同一枚举数据源。

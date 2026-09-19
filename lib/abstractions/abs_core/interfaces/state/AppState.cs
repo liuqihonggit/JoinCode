@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.State;
 /// 应用全局状态定义
 /// 参考 TS 原版 AppState 设计，包含所有需要响应式的状态
 /// </summary>
-public sealed record AppState
-{
+public sealed record AppState {
     /// <summary>
     /// 当前会话状态
     /// </summary>
@@ -56,8 +55,7 @@ public sealed record AppState
 /// <summary>
 /// 会话状态
 /// </summary>
-public sealed record SessionState
-{
+public sealed record SessionState {
     /// <summary>
     /// 会话 ID
     /// </summary>
@@ -102,8 +100,7 @@ public sealed record SessionState
 /// <summary>
 /// 聊天消息状态（用于序列化）
 /// </summary>
-public sealed record ApiMessageState
-{
+public sealed record ApiMessageState {
     /// <summary>
     /// 消息角色
     /// </summary>
@@ -130,8 +127,7 @@ public sealed record ApiMessageState
 /// <summary>
 /// Agent 状态
 /// </summary>
-public sealed record AgentState
-{
+public sealed record AgentState {
     /// <summary>
     /// Agent ID
     /// </summary>
@@ -179,8 +175,7 @@ public sealed record AgentState
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 AgentStatusEnumConstants + AgentStatusExtensions
 /// 合并自 JoinCode.Abstractions.Interfaces.AgentStatus (Pending/Stopped) 和 JoinCode.Abstractions.State.AgentStatus (Idle/Paused)
 /// </summary>
-public enum AgentStatus
-{
+public enum AgentStatus {
     /// <summary>等待启动</summary>
     [EnumValue("pending")] Pending = 0,
 
@@ -206,8 +201,7 @@ public enum AgentStatus
 /// <summary>
 /// Agent 状态扩展方法 — 提取自 AgentServiceImpl/SubAgent 等多处重复的终态/活跃态判断
 /// </summary>
-public static class AgentStatusHelper
-{
+public static class AgentStatusHelper {
     /// <summary>
     /// 是否处于终态（Completed/Failed/Stopped）— 不可再转换
     /// </summary>
@@ -224,8 +218,7 @@ public static class AgentStatusHelper
 /// <summary>
 /// 任务状态
 /// </summary>
-public sealed record TaskState
-{
+public sealed record TaskState {
     /// <summary>
     /// 任务 ID
     /// </summary>
@@ -302,8 +295,7 @@ public sealed record TaskState
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 TaskExecutionStatusEnumConstants + TaskExecutionStatusExtensions
 /// 合并自: WorkflowState, AgentExecutionStatus, ShellBackgroundTaskStatus, AgentTaskStatus
 /// </summary>
-public enum TaskExecutionStatus
-{
+public enum TaskExecutionStatus {
     /// <summary>等待执行</summary>
     [EnumValue("pending")] Pending = 0,
 
@@ -335,8 +327,7 @@ public enum TaskExecutionStatus
 /// <summary>
 /// 任务执行状态扩展方法 — 提取自 AgentStateMachine/AgentCoordinator/TaskRuntime 等多处重复的终态/活跃态判断
 /// </summary>
-public static class TaskExecutionStatusHelper
-{
+public static class TaskExecutionStatusHelper {
     /// <summary>
     /// 是否处于终态（Completed/Failed/Cancelled/Stopped）— 不可再转换（除重试外）
     /// </summary>
@@ -353,8 +344,7 @@ public static class TaskExecutionStatusHelper
 /// <summary>
 /// 配置状态
 /// </summary>
-public sealed record ConfigState
-{
+public sealed record ConfigState {
     /// <summary>
     /// 是否启用调试日志
     /// </summary>
@@ -400,8 +390,7 @@ public sealed record ConfigState
 /// <summary>
 /// UI 状态
 /// </summary>
-public sealed record UiState
-{
+public sealed record UiState {
     /// <summary>
     /// 状态栏文本
     /// </summary>
@@ -451,8 +440,7 @@ public sealed record UiState
 /// <summary>
 /// 通知状态
 /// </summary>
-public sealed record NotificationState
-{
+public sealed record NotificationState {
     /// <summary>
     /// 通知 ID
     /// </summary>
@@ -488,8 +476,7 @@ public sealed record NotificationState
 /// 通知类型
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 NotificationTypeEnumConstants + NotificationTypeExtensions
 /// </summary>
-public enum NotificationType
-{
+public enum NotificationType {
     /// <summary>信息</summary>
     [EnumValue("info")] Info = 0,
 
@@ -506,8 +493,7 @@ public enum NotificationType
 /// <summary>
 /// MCP 状态
 /// </summary>
-public sealed record McpState
-{
+public sealed record McpState {
     /// <summary>
     /// 已连接的 MCP 服务器
     /// </summary>
@@ -532,8 +518,7 @@ public sealed record McpState
 /// <summary>
 /// MCP 服务器状态
 /// </summary>
-public sealed record McpServerState
-{
+public sealed record McpServerState {
     /// <summary>
     /// 服务器名称
     /// </summary>
@@ -563,8 +548,7 @@ public sealed record McpServerState
 /// <summary>
 /// MCP 连接状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射
 /// </summary>
-public enum McpConnectionStatus
-{
+public enum McpConnectionStatus {
     [EnumValue("disconnected")] Disconnected,
     [EnumValue("connecting")] Connecting,
     [EnumValue("connected")] Connected,
@@ -575,8 +559,7 @@ public enum McpConnectionStatus
 /// Bridge 生命周期状态 — 归纳原 IsEnabled/IsConnected 两个 bool 的合法组合
 /// <para>消除 IsEnabled=false&amp;IsConnected=true 非法组合，状态唯一数据源</para>
 /// </summary>
-public enum BridgeLifecycleState
-{
+public enum BridgeLifecycleState {
     /// <summary>未启用 — IsEnabled=false</summary>
     [EnumValue("disabled")] Disabled,
     /// <summary>已启用未连接 — IsEnabled=true, IsConnected=false</summary>
@@ -588,8 +571,7 @@ public enum BridgeLifecycleState
 /// <summary>
 /// Bridge 状态
 /// </summary>
-public sealed record BridgeState
-{
+public sealed record BridgeState {
     /// <summary>
     /// Bridge 生命周期状态
     /// </summary>
@@ -599,8 +581,7 @@ public sealed record BridgeState
 /// <summary>
 /// 权限状态
 /// </summary>
-public sealed record PermissionState
-{
+public sealed record PermissionState {
     /// <summary>
     /// 当前权限模式
     /// </summary>
@@ -636,8 +617,7 @@ public sealed record PermissionState
 /// <summary>
 /// 权限请求状态
 /// </summary>
-public sealed record PermissionRequestState
-{
+public sealed record PermissionRequestState {
     /// <summary>
     /// 请求 ID
     /// </summary>
@@ -667,19 +647,16 @@ public sealed record PermissionRequestState
 /// <summary>
 /// 权限请求状态枚举
 /// </summary>
-public enum PermissionRequestStatus
-{
+public enum PermissionRequestStatus {
     [EnumValue("pending")] Pending,
     [EnumValue("approved")] Approved,
     [EnumValue("rejected")] Rejected,
     [EnumValue("expired")] Expired
 }
 
-public static class TaskExecutionStatusSymbolExtensions
-{
+public static class TaskExecutionStatusSymbolExtensions {
     public static StatusSymbol ToStatusSymbol(this TaskExecutionStatus status)
-        => status switch
-        {
+        => status switch {
             TaskExecutionStatus.Running => StatusSymbol.Refresh,
             TaskExecutionStatus.Completed => StatusSymbol.Tick,
             TaskExecutionStatus.Failed => StatusSymbol.Cross,

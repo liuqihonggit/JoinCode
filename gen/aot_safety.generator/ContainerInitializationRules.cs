@@ -1,13 +1,11 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     /// <summary>
     /// 容器初始化规则（JCC11001）：容器类型字段/属性必须初始化，禁止为 null。
     /// 可空容器（如 List of T 问号）允许，用于延迟初始化场景。
     /// 构造函数中赋值的字段/属性自动豁免（按名字匹配，类型级计算一次）。
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class ContainerInitializationRules : DiagnosticAnalyzer
-    {
+    public sealed class ContainerInitializationRules : DiagnosticAnalyzer {
         private static readonly DiagnosticDescriptor RuleContainerNotInitialized = new(
             "JCC11001",
             "容器初始化: 容器类型字段/属性必须初始化，禁止为 null",
@@ -34,15 +32,13 @@ namespace AotSafety.Generator
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
             ImmutableArray.Create(RuleContainerNotInitialized);
 
-        public override void Initialize(AnalysisContext context)
-        {
+        public override void Initialize(AnalysisContext context) {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterSymbolStartAction(AnalyzeTypeStart, SymbolKind.NamedType);
         }
 
-        private static void AnalyzeTypeStart(SymbolStartAnalysisContext ctx)
-        {
+        private static void AnalyzeTypeStart(SymbolStartAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
             if (ctx.Symbol is not INamedTypeSymbol typeSymbol) return;
 
@@ -56,23 +52,19 @@ namespace AotSafety.Generator
                 SyntaxKind.PropertyDeclaration);
         }
 
-        private static HashSet<string> CollectAssignedNames(INamedTypeSymbol typeSymbol, SymbolStartAnalysisContext ctx)
-        {
+        private static HashSet<string> CollectAssignedNames(INamedTypeSymbol typeSymbol, SymbolStartAnalysisContext ctx) {
             var result = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var member in typeSymbol.GetMembers())
-            {
+            foreach (var member in typeSymbol.GetMembers()) {
                 if (ctx.CancellationToken.IsCancellationRequested) return result;
                 if (member is not IMethodSymbol method) continue;
                 if (method.MethodKind is not (MethodKind.Constructor or MethodKind.StaticConstructor)) continue;
 
-                foreach (var syntaxRef in method.DeclaringSyntaxReferences)
-                {
+                foreach (var syntaxRef in method.DeclaringSyntaxReferences) {
                     if (syntaxRef.GetSyntax(ctx.CancellationToken) is not ConstructorDeclarationSyntax ctor)
                         continue;
                     var body = (SyntaxNode?)ctor.Body ?? ctor.ExpressionBody;
                     if (body is null) continue;
-                    foreach (var assignment in body.DescendantNodes().OfType<AssignmentExpressionSyntax>())
-                    {
+                    foreach (var assignment in body.DescendantNodes().OfType<AssignmentExpressionSyntax>()) {
                         if (!assignment.IsKind(SyntaxKind.SimpleAssignmentExpression)) continue;
                         var name = ExtractAssignmentTargetName(assignment.Left);
                         if (name is not null)
@@ -83,18 +75,15 @@ namespace AotSafety.Generator
             return result;
         }
 
-        private static string? ExtractAssignmentTargetName(ExpressionSyntax left)
-        {
-            return left switch
-            {
+        private static string? ExtractAssignmentTargetName(ExpressionSyntax left) {
+            return left switch {
                 IdentifierNameSyntax id => id.Identifier.ValueText,
                 MemberAccessExpressionSyntax ma when ma.Name is IdentifierNameSyntax id2 => id2.Identifier.ValueText,
                 _ => null,
             };
         }
 
-        private static void AnalyzeFieldDeclaration(SyntaxNodeAnalysisContext ctx, HashSet<string> assignedNames)
-        {
+        private static void AnalyzeFieldDeclaration(SyntaxNodeAnalysisContext ctx, HashSet<string> assignedNames) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
             var fieldDecl = (FieldDeclarationSyntax)ctx.Node;
             if (fieldDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.ConstKeyword))) return;
@@ -103,8 +92,7 @@ namespace AotSafety.Generator
             var typeDecl = fieldDecl.Parent as TypeDeclarationSyntax;
             if (ShouldSkipType(typeDecl)) return;
 
-            foreach (var declarator in fieldDecl.Declaration.Variables)
-            {
+            foreach (var declarator in fieldDecl.Declaration.Variables) {
                 if (declarator.Initializer is not null) continue;
                 if (assignedNames.Contains(declarator.Identifier.ValueText)) continue;
 
@@ -114,8 +102,7 @@ namespace AotSafety.Generator
             }
         }
 
-        private static void AnalyzePropertyDeclaration(SyntaxNodeAnalysisContext ctx, HashSet<string> assignedNames)
-        {
+        private static void AnalyzePropertyDeclaration(SyntaxNodeAnalysisContext ctx, HashSet<string> assignedNames) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
             var propDecl = (PropertyDeclarationSyntax)ctx.Node;
             if (propDecl.Initializer is not null) return;
@@ -133,8 +120,7 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleContainerNotInitialized, propDecl.Identifier.GetLocation(), typeName, propName));
         }
 
-        private static bool ShouldSkipType(TypeDeclarationSyntax? typeDecl)
-        {
+        private static bool ShouldSkipType(TypeDeclarationSyntax? typeDecl) {
             if (typeDecl is null) return true;
             var kind = typeDecl.Kind();
             return kind == SyntaxKind.InterfaceDeclaration
@@ -142,8 +128,7 @@ namespace AotSafety.Generator
                 || kind == SyntaxKind.RecordStructDeclaration;
         }
 
-        private static bool IsContainerType(TypeSyntax typeSyntax)
-        {
+        private static bool IsContainerType(TypeSyntax typeSyntax) {
             if (typeSyntax is NullableTypeSyntax) return false;
             if (typeSyntax is ArrayTypeSyntax) return true;
 
@@ -151,10 +136,8 @@ namespace AotSafety.Generator
             return name is not null && ContainerTypeNames.Contains(name);
         }
 
-        private static string? ExtractTypeName(TypeSyntax typeSyntax)
-        {
-            return typeSyntax switch
-            {
+        private static string? ExtractTypeName(TypeSyntax typeSyntax) {
+            return typeSyntax switch {
                 GenericNameSyntax generic => generic.Identifier.ValueText,
                 IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
                 QualifiedNameSyntax qualified => ExtractTypeName(qualified.Right),
@@ -163,12 +146,10 @@ namespace AotSafety.Generator
             };
         }
 
-        private static bool IsSettableAutoProperty(PropertyDeclarationSyntax propDecl)
-        {
+        private static bool IsSettableAutoProperty(PropertyDeclarationSyntax propDecl) {
             if (propDecl.AccessorList is null) return false;
             var hasSetter = false;
-            foreach (var accessor in propDecl.AccessorList.Accessors)
-            {
+            foreach (var accessor in propDecl.AccessorList.Accessors) {
                 if (accessor.Body is not null || accessor.ExpressionBody is not null)
                     return false;
                 if (accessor.IsKind(SyntaxKind.SetAccessorDeclaration))

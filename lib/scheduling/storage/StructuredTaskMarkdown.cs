@@ -4,15 +4,13 @@ namespace Core.Scheduling;
 /// <summary>
 /// 结构化任务 Markdown 写入器 — 将任务上下文序列化为 Markdown 格式字符串
 /// </summary>
-public sealed class StructuredTaskMarkdownWriter
-{
+public sealed class StructuredTaskMarkdownWriter {
     /// <summary>
     /// 将任务上下文转换为 Markdown 格式字符串
     /// </summary>
     /// <param name="context">任务上下文</param>
     /// <returns>Markdown 格式的任务字符串</returns>
-    public static async Task<string> ToMarkdownAsync(IAgentTaskContext context)
-    {
+    public static async Task<string> ToMarkdownAsync(IAgentTaskContext context) {
         var sb = new StringBuilder();
 
         sb.AppendLine(L.T(StringKey.TaskHeader, context.TaskName));
@@ -22,8 +20,7 @@ public sealed class StructuredTaskMarkdownWriter
         sb.AppendLine(L.T(StringKey.LabelCreatedAt, context.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")));
         sb.AppendLine(L.T(StringKey.LabelWorkScope, context.WorkScope));
 
-        if (!string.IsNullOrEmpty(context.ParentTaskId))
-        {
+        if (!string.IsNullOrEmpty(context.ParentTaskId)) {
             sb.AppendLine(L.T(StringKey.LabelParentTask, context.ParentTaskId));
         }
 
@@ -34,15 +31,12 @@ public sealed class StructuredTaskMarkdownWriter
         sb.AppendLine();
 
         var tasks = await context.GetStructuredTasksAsync().ConfigureAwait(false);
-        if (tasks.Count > 0)
-        {
+        if (tasks.Count > 0) {
             sb.AppendLine(L.T(StringKey.StructuredTaskCount, tasks.Count));
             sb.AppendLine();
 
-            foreach (var task in tasks.OrderBy(t => t.Order))
-            {
-                var statusIcon = task.Status switch
-                {
+            foreach (var task in tasks.OrderBy(t => t.Order)) {
+                var statusIcon = task.Status switch {
                     TaskExecutionStatusEnumConstants.Completed => "[x]",
                     TaskExecutionStatusEnumConstants.Running => "[>]",
                     TaskExecutionStatusEnumConstants.Failed => "[!]",
@@ -53,19 +47,16 @@ public sealed class StructuredTaskMarkdownWriter
                 sb.AppendLine();
                 sb.AppendLine(L.T(StringKey.LabelTaskStatus, task.Status));
 
-                if (!string.IsNullOrEmpty(task.Result))
-                {
+                if (!string.IsNullOrEmpty(task.Result)) {
                     sb.AppendLine(L.T(StringKey.LabelTaskResult, task.Result));
                 }
 
-                if (task.Possibilities.Count > 0)
-                {
+                if (task.Possibilities.Count > 0) {
                     sb.AppendLine();
                     sb.AppendLine(L.T(StringKey.LabelPossibilities));
                     sb.AppendLine();
 
-                    for (var i = 0; i < task.Possibilities.Count; i++)
-                    {
+                    for (var i = 0; i < task.Possibilities.Count; i++) {
                         var p = task.Possibilities[i];
                         var excludePrefix = p.Excluded ? "~~" : "";
                         var excludeSuffix = p.Excluded ? "~~" : "";
@@ -88,8 +79,7 @@ public sealed class StructuredTaskMarkdownWriter
 /// <summary>
 /// 结构化任务 Markdown 读取器 — 从 Markdown 文本解析出结构化任务条目列表
 /// </summary>
-public sealed class StructuredTaskMarkdownReader
-{
+public sealed class StructuredTaskMarkdownReader {
     private static readonly string[] StatusPrefixes = new[] { "- **Status**: ", "- **状态**: " };
     private static readonly string[] ResultPrefixes = new[] { "- **Result**: ", "- **结果**: " };
     private static readonly string[] ExclusionReasonPrefixes = new[] { "← Exclusion reason: ", "← 排除原因: " };
@@ -99,8 +89,7 @@ public sealed class StructuredTaskMarkdownReader
     /// </summary>
     /// <param name="markdown">Markdown 格式文本</param>
     /// <returns>解析得到的结构化任务条目列表</returns>
-    public static List<StructuredTaskEntry> ParseTasks(string markdown)
-    {
+    public static List<StructuredTaskEntry> ParseTasks(string markdown) {
         var tasks = new List<StructuredTaskEntry>();
         if (string.IsNullOrWhiteSpace(markdown)) return tasks;
 
@@ -108,16 +97,12 @@ public sealed class StructuredTaskMarkdownReader
         StructuredTaskEntry? currentTask = null;
         var currentPossibilities = new List<TaskPossibility>();
 
-        foreach (var rawLine in lines)
-        {
+        foreach (var rawLine in lines) {
             var line = rawLine.TrimEnd();
 
-            if (line.StartsWith("### "))
-            {
-                if (currentTask != null)
-                {
-                    tasks.Add(currentTask with
-                    {
+            if (line.StartsWith("### ")) {
+                if (currentTask != null) {
+                    tasks.Add(currentTask with {
                         Possibilities = currentPossibilities.ToList()
                     });
                 }
@@ -126,33 +111,24 @@ public sealed class StructuredTaskMarkdownReader
                 var order = ExtractOrder(headerSpan);
                 var description = ExtractDescription(headerSpan);
 
-                currentTask = new StructuredTaskEntry
-                {
+                currentTask = new StructuredTaskEntry {
                     Order = order,
                     Description = description
                 };
                 currentPossibilities = [];
-            }
-            else if (currentTask != null && line.StartsWith("- **"))
-            {
+            } else if (currentTask != null && line.StartsWith("- **")) {
                 var statusVal = TryExtractPrefixed(line, StatusPrefixes);
-                if (statusVal != null)
-                {
+                if (statusVal != null) {
                     currentTask = currentTask with { Status = statusVal };
-                }
-                else
-                {
+                } else {
                     var resultVal = TryExtractPrefixed(line, ResultPrefixes);
-                    if (resultVal != null)
-                    {
+                    if (resultVal != null) {
                         currentTask = currentTask with { Result = resultVal };
                     }
                 }
-            }
-            else if (currentTask != null && line.TrimStart().Length > 2
-                     && char.IsDigit(line.TrimStart()[0])
-                     && line.TrimStart().Contains('.'))
-            {
+            } else if (currentTask != null && line.TrimStart().Length > 2
+                       && char.IsDigit(line.TrimStart()[0])
+                       && line.TrimStart().Contains('.')) {
                 var trimmed = line.AsSpan().TrimStart();
                 var dotIdx = trimmed.IndexOf('.');
                 if (dotIdx < 0) continue;
@@ -162,11 +138,9 @@ public sealed class StructuredTaskMarkdownReader
                 var excluded = contentSpan.StartsWith("~~");
                 string? exclusionReason = null;
 
-                if (excluded)
-                {
+                if (excluded) {
                     var endIdx = contentSpan[2..].IndexOf("~~".AsSpan(), StringComparison.Ordinal);
-                    if (endIdx >= 0)
-                    {
+                    if (endIdx >= 0) {
                         endIdx += 2; // 调整切片偏移
                         var afterStrike = contentSpan[(endIdx + 2)..].TrimStart();
                         exclusionReason = TryExtractPrefixedSpan(afterStrike, ExclusionReasonPrefixes);
@@ -174,20 +148,16 @@ public sealed class StructuredTaskMarkdownReader
                 }
 
                 string desc;
-                if (excluded)
-                {
+                if (excluded) {
                     var endIdx = contentSpan[2..].IndexOf("~~".AsSpan(), StringComparison.Ordinal);
                     desc = endIdx >= 0
                         ? contentSpan[2..(endIdx + 2)].Trim().ToString()
                         : contentSpan.Trim().ToString();
-                }
-                else
-                {
+                } else {
                     desc = contentSpan.Trim().ToString();
                 }
 
-                currentPossibilities.Add(new TaskPossibility
-                {
+                currentPossibilities.Add(new TaskPossibility {
                     Description = desc,
                     Excluded = excluded,
                     ExclusionReason = exclusionReason
@@ -195,10 +165,8 @@ public sealed class StructuredTaskMarkdownReader
             }
         }
 
-        if (currentTask != null)
-        {
-            tasks.Add(currentTask with
-            {
+        if (currentTask != null) {
+            tasks.Add(currentTask with {
                 Possibilities = currentPossibilities.ToList()
             });
         }
@@ -206,21 +174,17 @@ public sealed class StructuredTaskMarkdownReader
         return tasks;
     }
 
-    private static string? TryExtractPrefixed(string line, string[] prefixes)
-    {
+    private static string? TryExtractPrefixed(string line, string[] prefixes) {
         var lineSpan = line.AsSpan();
-        foreach (var prefix in prefixes)
-        {
-            if (lineSpan.StartsWith(prefix.AsSpan(), StringComparison.Ordinal))
-            {
+        foreach (var prefix in prefixes) {
+            if (lineSpan.StartsWith(prefix.AsSpan(), StringComparison.Ordinal)) {
                 return lineSpan[prefix.Length..].Trim().ToString();
             }
         }
         return null;
     }
 
-    private static int ExtractOrder(ReadOnlySpan<char> header)
-    {
+    private static int ExtractOrder(ReadOnlySpan<char> header) {
         var colonIdx = header.IndexOf(':');
         if (colonIdx < 0) return 0;
 
@@ -231,18 +195,14 @@ public sealed class StructuredTaskMarkdownReader
         return int.TryParse(orderSpan, out var order) ? order : 0;
     }
 
-    private static string ExtractDescription(ReadOnlySpan<char> header)
-    {
+    private static string ExtractDescription(ReadOnlySpan<char> header) {
         var colonIdx = header.IndexOf(':');
         return colonIdx >= 0 ? header[(colonIdx + 1)..].Trim().ToString() : header.Trim().ToString();
     }
 
-    private static string? TryExtractPrefixedSpan(ReadOnlySpan<char> line, string[] prefixes)
-    {
-        foreach (var prefix in prefixes)
-        {
-            if (line.StartsWith(prefix.AsSpan(), StringComparison.Ordinal))
-            {
+    private static string? TryExtractPrefixedSpan(ReadOnlySpan<char> line, string[] prefixes) {
+        foreach (var prefix in prefixes) {
+            if (line.StartsWith(prefix.AsSpan(), StringComparison.Ordinal)) {
                 return line[prefix.Length..].Trim().ToString();
             }
         }

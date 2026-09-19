@@ -4,8 +4,7 @@ namespace Memdir.Sync;
 /// <summary>
 /// 团队记忆同步配置选项 — 描述本地/远程存储路径、同步间隔、冲突处理策略与文件监控等参数。
 /// </summary>
-public sealed class TeamMemorySyncOptions
-{
+public sealed class TeamMemorySyncOptions {
     /// <summary>配置节名称。</summary>
     public const string SectionName = "TeamMemorySync";
 

@@ -6,16 +6,14 @@ namespace State;
 /// 提供类型安全的派生状态选择
 /// </summary>
 [Register(typeof(AppStateSelectors), ServiceLifetime.Singleton)]
-public sealed partial class AppStateSelectors : ServiceEntity
-{
+public sealed partial class AppStateSelectors : ServiceEntity {
 
     /// <summary>
     /// 构造 AppState 选择器
     /// </summary>
     /// <param name="store">应用状态存储</param>
     /// <param name="telemetryService">遥测服务（可选，用于记录选择器调用指标）</param>
-    public AppStateSelectors(IStore<AppState> store, ITelemetryService? telemetryService = null)
-    {
+    public AppStateSelectors(IStore<AppState> store, ITelemetryService? telemetryService = null) {
         _store = store;
         _telemetryService = telemetryService;
     }
@@ -30,8 +28,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择当前会话 ID
     /// </summary>
-    public IStoreSelector<AppState, string> SelectSessionId()
-    {
+    public IStoreSelector<AppState, string> SelectSessionId() {
         RecordSelectorMetrics("session", "sessionId");
         return _store.Select(state => state.Session.SessionId);
     }
@@ -39,8 +36,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择系统提示词
     /// </summary>
-    public IStoreSelector<AppState, string> SelectSystemPrompt()
-    {
+    public IStoreSelector<AppState, string> SelectSystemPrompt() {
         RecordSelectorMetrics("session", "systemPrompt");
         return _store.Select(state => state.Session.SystemPrompt);
     }
@@ -48,8 +44,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择聊天历史
     /// </summary>
-    public IStoreSelector<AppState, ImmutableList<ApiMessageState>> SelectMessageList()
-    {
+    public IStoreSelector<AppState, ImmutableList<ApiMessageState>> SelectMessageList() {
         RecordSelectorMetrics("session", "chatHistory");
         return _store.Select(state => state.Session.MessageList);
     }
@@ -57,8 +52,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择当前模型
     /// </summary>
-    public IStoreSelector<AppState, string?> SelectCurrentModel()
-    {
+    public IStoreSelector<AppState, string?> SelectCurrentModel() {
         RecordSelectorMetrics("session", "currentModel");
         return _store.Select(state => state.Session.CurrentModel);
     }
@@ -66,8 +60,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择是否处于计划模式
     /// </summary>
-    public IStoreSelector<AppState, bool> SelectIsPlanMode()
-    {
+    public IStoreSelector<AppState, bool> SelectIsPlanMode() {
         RecordSelectorMetrics("session", "isPlanMode");
         return _store.Select(state => state.Session.IsPlanMode);
     }
@@ -79,8 +72,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择所有 Agent
     /// </summary>
-    public IStoreSelector<AppState, ImmutableDictionary<string, AgentState>> SelectAgents()
-    {
+    public IStoreSelector<AppState, ImmutableDictionary<string, AgentState>> SelectAgents() {
         RecordSelectorMetrics("agent", "agents");
         return _store.Select(state => state.Agents);
     }
@@ -88,8 +80,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择特定 Agent
     /// </summary>
-    public IStoreSelector<AppState, AgentState?> SelectAgent(string agentId)
-    {
+    public IStoreSelector<AppState, AgentState?> SelectAgent(string agentId) {
         RecordSelectorMetrics("agent", "agent");
         return _store.Select(state => state.Agents.GetValueOrDefault(agentId));
     }
@@ -97,8 +88,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择运行中的 Agent 数量
     /// </summary>
-    public IStoreSelector<AppState, int> SelectRunningAgentCount()
-    {
+    public IStoreSelector<AppState, int> SelectRunningAgentCount() {
         RecordSelectorMetrics("agent", "runningAgentCount");
         return _store.Select(state => state.Agents.Count(a => a.Value.Status == AgentStatus.Running));
     }
@@ -106,8 +96,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择活跃 Agent 列表
     /// </summary>
-    public IStoreSelector<AppState, ImmutableList<AgentState>> SelectActiveAgents()
-    {
+    public IStoreSelector<AppState, ImmutableList<AgentState>> SelectActiveAgents() {
         RecordSelectorMetrics("agent", "activeAgents");
         return _store.Select(state => state.Agents
             .Where(a => a.Value.Status != AgentStatus.Idle)
@@ -122,8 +111,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择所有任务
     /// </summary>
-    public IStoreSelector<AppState, ImmutableDictionary<string, TaskState>> SelectTasks()
-    {
+    public IStoreSelector<AppState, ImmutableDictionary<string, TaskState>> SelectTasks() {
         RecordSelectorMetrics("task", "tasks");
         return _store.Select(state => state.Tasks);
     }
@@ -131,8 +119,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择特定任务
     /// </summary>
-    public IStoreSelector<AppState, TaskState?> SelectTask(string taskId)
-    {
+    public IStoreSelector<AppState, TaskState?> SelectTask(string taskId) {
         RecordSelectorMetrics("task", "task");
         return _store.Select(state => state.Tasks.GetValueOrDefault(taskId));
     }
@@ -140,8 +127,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择运行中的任务
     /// </summary>
-    public IStoreSelector<AppState, ImmutableList<TaskState>> SelectRunningTasks()
-    {
+    public IStoreSelector<AppState, ImmutableList<TaskState>> SelectRunningTasks() {
         RecordSelectorMetrics("task", "runningTasks");
         return _store.Select(state => state.Tasks
             .Where(t => t.Value.Status == TaskExecutionStatus.Running)
@@ -152,8 +138,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择待处理任务数量
     /// </summary>
-    public IStoreSelector<AppState, int> SelectPendingTaskCount()
-    {
+    public IStoreSelector<AppState, int> SelectPendingTaskCount() {
         RecordSelectorMetrics("task", "pendingTaskCount");
         return _store.Select(state => state.Tasks.Count(t => t.Value.Status == TaskExecutionStatus.Pending));
     }
@@ -161,8 +146,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择已完成任务数量
     /// </summary>
-    public IStoreSelector<AppState, int> SelectCompletedTaskCount()
-    {
+    public IStoreSelector<AppState, int> SelectCompletedTaskCount() {
         RecordSelectorMetrics("task", "completedTaskCount");
         return _store.Select(state => state.Tasks.Count(t => t.Value.Status == TaskExecutionStatus.Completed));
     }
@@ -174,8 +158,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择调试日志模式
     /// </summary>
-    public IStoreSelector<AppState, bool> SelectDebugLogMode()
-    {
+    public IStoreSelector<AppState, bool> SelectDebugLogMode() {
         RecordSelectorMetrics("config", "debugLogMode");
         return _store.Select(state => state.Config.DebugLog);
     }
@@ -183,8 +166,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择简洁模式
     /// </summary>
-    public IStoreSelector<AppState, bool> SelectBriefMode()
-    {
+    public IStoreSelector<AppState, bool> SelectBriefMode() {
         RecordSelectorMetrics("config", "briefMode");
         return _store.Select(state => state.Config.IsBriefMode);
     }
@@ -192,8 +174,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择当前主题
     /// </summary>
-    public IStoreSelector<AppState, string> SelectTheme()
-    {
+    public IStoreSelector<AppState, string> SelectTheme() {
         RecordSelectorMetrics("config", "theme");
         return _store.Select(state => state.Config.Theme);
     }
@@ -201,8 +182,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择令牌使用情况
     /// </summary>
-    public IStoreSelector<AppState, (long? MaxBudget, long Used)> SelectTokenUsage()
-    {
+    public IStoreSelector<AppState, (long? MaxBudget, long Used)> SelectTokenUsage() {
         RecordSelectorMetrics("config", "tokenUsage");
         return _store.Select(state => (state.Config.MaxTokenBudget, state.Config.UsedTokens));
     }
@@ -214,8 +194,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择状态栏文本
     /// </summary>
-    public IStoreSelector<AppState, string?> SelectStatusLineText()
-    {
+    public IStoreSelector<AppState, string?> SelectStatusLineText() {
         RecordSelectorMetrics("ui", "statusLineText");
         return _store.Select(state => state.Ui.StatusLineText);
     }
@@ -223,8 +202,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择是否加载中
     /// </summary>
-    public IStoreSelector<AppState, bool> SelectIsLoading()
-    {
+    public IStoreSelector<AppState, bool> SelectIsLoading() {
         RecordSelectorMetrics("ui", "isLoading");
         return _store.Select(state => state.Ui.IsLoading);
     }
@@ -232,8 +210,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择当前通知
     /// </summary>
-    public IStoreSelector<AppState, NotificationState?> SelectCurrentNotification()
-    {
+    public IStoreSelector<AppState, NotificationState?> SelectCurrentNotification() {
         RecordSelectorMetrics("ui", "currentNotification");
         return _store.Select(state => state.Ui.CurrentNotification);
     }
@@ -245,8 +222,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择 MCP 服务器列表
     /// </summary>
-    public IStoreSelector<AppState, ImmutableList<McpServerState>> SelectMcpServers()
-    {
+    public IStoreSelector<AppState, ImmutableList<McpServerState>> SelectMcpServers() {
         RecordSelectorMetrics("mcp", "mcpServers");
         return _store.Select(state => state.Mcp.Servers);
     }
@@ -254,8 +230,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择可用工具列表
     /// </summary>
-    public IStoreSelector<AppState, ImmutableList<string>> SelectAvailableTools()
-    {
+    public IStoreSelector<AppState, ImmutableList<string>> SelectAvailableTools() {
         RecordSelectorMetrics("mcp", "availableTools");
         return _store.Select(state => state.Mcp.AvailableTools);
     }
@@ -263,8 +238,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择已连接的 MCP 服务器数量
     /// </summary>
-    public IStoreSelector<AppState, int> SelectConnectedMcpServerCount()
-    {
+    public IStoreSelector<AppState, int> SelectConnectedMcpServerCount() {
         RecordSelectorMetrics("mcp", "connectedMcpServerCount");
         return _store.Select(state => state.Mcp.Servers.Count(s => s.Status == McpConnectionStatus.Connected));
     }
@@ -276,8 +250,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择 Bridge 连接状态
     /// </summary>
-    public IStoreSelector<AppState, bool> SelectBridgeConnected()
-    {
+    public IStoreSelector<AppState, bool> SelectBridgeConnected() {
         RecordSelectorMetrics("bridge", "bridgeConnected");
         return _store.Select(state => state.Bridge.Lifecycle == BridgeLifecycleState.Connected);
     }
@@ -285,8 +258,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择 Bridge 是否启用
     /// </summary>
-    public IStoreSelector<AppState, bool> SelectBridgeEnabled()
-    {
+    public IStoreSelector<AppState, bool> SelectBridgeEnabled() {
         RecordSelectorMetrics("bridge", "bridgeEnabled");
         return _store.Select(state => state.Bridge.Lifecycle != BridgeLifecycleState.Disabled);
     }
@@ -298,8 +270,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择权限模式
     /// </summary>
-    public IStoreSelector<AppState, PermissionMode> SelectPermissionMode()
-    {
+    public IStoreSelector<AppState, PermissionMode> SelectPermissionMode() {
         RecordSelectorMetrics("permission", "permissionMode");
         return _store.Select(state => state.Permission.PermissionMode);
     }
@@ -307,8 +278,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择待处理的权限请求
     /// </summary>
-    public IStoreSelector<AppState, ImmutableList<PermissionRequestState>> SelectPendingPermissions()
-    {
+    public IStoreSelector<AppState, ImmutableList<PermissionRequestState>> SelectPendingPermissions() {
         RecordSelectorMetrics("permission", "pendingPermissions");
         return _store.Select(state => state.Permission.PendingRequests);
     }
@@ -320,8 +290,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择会话概览（组合多个字段）
     /// </summary>
-    public IStoreSelector<AppState, SessionOverview> SelectSessionOverview()
-    {
+    public IStoreSelector<AppState, SessionOverview> SelectSessionOverview() {
         RecordSelectorMetrics("combined", "sessionOverview");
         return _store.SelectByValue(state => new SessionOverview(
             state.Session.SessionId,
@@ -334,8 +303,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     /// <summary>
     /// 选择工作负载概览
     /// </summary>
-    public IStoreSelector<AppState, WorkloadOverview> SelectWorkloadOverview()
-    {
+    public IStoreSelector<AppState, WorkloadOverview> SelectWorkloadOverview() {
         RecordSelectorMetrics("combined", "workloadOverview");
         return _store.SelectByValue(state => new WorkloadOverview(
             state.Agents.Count(a => a.Value.Status == AgentStatus.Running),
@@ -369,8 +337,7 @@ public sealed record WorkloadOverview(
 /// <summary>
 /// SessionOverview 相等比较器
 /// </summary>
-public sealed class SessionOverviewComparer : IEqualityComparer<SessionOverview>
-{
+public sealed class SessionOverviewComparer : IEqualityComparer<SessionOverview> {
     /// <summary>
     /// 单例实例
     /// </summary>
@@ -384,8 +351,7 @@ public sealed class SessionOverviewComparer : IEqualityComparer<SessionOverview>
     /// <param name="x">第一个概览</param>
     /// <param name="y">第二个概览</param>
     /// <returns>相等返回 true，否则返回 false</returns>
-    public bool Equals(SessionOverview? x, SessionOverview? y)
-    {
+    public bool Equals(SessionOverview? x, SessionOverview? y) {
         if (ReferenceEquals(x, y)) return true;
         if (x is null || y is null) return false;
         return x.SessionId == y.SessionId &&
@@ -399,8 +365,7 @@ public sealed class SessionOverviewComparer : IEqualityComparer<SessionOverview>
     /// </summary>
     /// <param name="obj">会话概览</param>
     /// <returns>哈希码</returns>
-    public int GetHashCode(SessionOverview obj)
-    {
+    public int GetHashCode(SessionOverview obj) {
         return HashCode.Combine(obj.SessionId, obj.CurrentModel, obj.MessageCount, obj.IsPlanMode);
     }
 }
@@ -408,8 +373,7 @@ public sealed class SessionOverviewComparer : IEqualityComparer<SessionOverview>
 /// <summary>
 /// WorkloadOverview 相等比较器
 /// </summary>
-public sealed class WorkloadOverviewComparer : IEqualityComparer<WorkloadOverview>
-{
+public sealed class WorkloadOverviewComparer : IEqualityComparer<WorkloadOverview> {
     /// <summary>
     /// 单例实例
     /// </summary>
@@ -423,8 +387,7 @@ public sealed class WorkloadOverviewComparer : IEqualityComparer<WorkloadOvervie
     /// <param name="x">第一个概览</param>
     /// <param name="y">第二个概览</param>
     /// <returns>相等返回 true，否则返回 false</returns>
-    public bool Equals(WorkloadOverview? x, WorkloadOverview? y)
-    {
+    public bool Equals(WorkloadOverview? x, WorkloadOverview? y) {
         if (ReferenceEquals(x, y)) return true;
         if (x is null || y is null) return false;
         return x.RunningAgents == y.RunningAgents &&
@@ -437,8 +400,7 @@ public sealed class WorkloadOverviewComparer : IEqualityComparer<WorkloadOvervie
     /// </summary>
     /// <param name="obj">工作负载概览</param>
     /// <returns>哈希码</returns>
-    public int GetHashCode(WorkloadOverview obj)
-    {
+    public int GetHashCode(WorkloadOverview obj) {
         return HashCode.Combine(obj.RunningAgents, obj.RunningTasks, obj.PendingTasks);
     }
 }

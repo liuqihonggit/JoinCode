@@ -1,14 +1,12 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class LspIntegrationTests
-{
+public sealed class LspIntegrationTests {
     private readonly Mock<ICodeIndexer> _mockIndexer;
     private readonly Mock<ILspService> _mockLspService;
     private readonly ICodeIndexer _indexer;
     private readonly ILspService _lspService;
 
-    public LspIntegrationTests()
-    {
+    public LspIntegrationTests() {
         _mockIndexer = new Mock<ICodeIndexer>();
         _mockLspService = new Mock<ILspService>();
 
@@ -21,30 +19,26 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public void Constructor_WithNullIndexer_ThrowsArgumentNullException()
-    {
+    public void Constructor_WithNullIndexer_ThrowsArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() => new LspIntegration(null!));
     }
 
     [Fact]
-    public void Constructor_WithLspService_SetsIsLspAvailableTrue()
-    {
+    public void Constructor_WithLspService_SetsIsLspAvailableTrue() {
         using var integration = new LspIntegration(_indexer, _lspService);
 
         Assert.True(integration.IsLspAvailable);
     }
 
     [Fact]
-    public void Constructor_WithoutLspService_SetsIsLspAvailableFalse()
-    {
+    public void Constructor_WithoutLspService_SetsIsLspAvailableFalse() {
         using var integration = new LspIntegration(_indexer);
 
         Assert.False(integration.IsLspAvailable);
     }
 
     [Fact]
-    public async Task OnDocumentChangedAsync_TriggersIndexerUpdate()
-    {
+    public async Task OnDocumentChangedAsync_TriggersIndexerUpdate() {
         using var integration = new LspIntegration(_indexer, _lspService);
         var filePath = "/src/Service.cs";
 
@@ -54,8 +48,7 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public async Task OnDocumentSavedAsync_TriggersIndexerUpdate()
-    {
+    public async Task OnDocumentSavedAsync_TriggersIndexerUpdate() {
         using var integration = new LspIntegration(_indexer, _lspService);
         var filePath = "/src/Service.cs";
 
@@ -65,8 +58,7 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public async Task OnWatchedFilesChangedAsync_TriggersIndexerUpdateForEachFile()
-    {
+    public async Task OnWatchedFilesChangedAsync_TriggersIndexerUpdateForEachFile() {
         using var integration = new LspIntegration(_indexer, _lspService);
         var filePaths = new[] { "/src/A.cs", "/src/B.cs", "/src/C.cs" };
 
@@ -76,8 +68,7 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public async Task OnDocumentChangedAsync_WhenIndexerThrows_DoesNotPropagate()
-    {
+    public async Task OnDocumentChangedAsync_WhenIndexerThrows_DoesNotPropagate() {
         _mockIndexer.Setup(x => x.UpdateFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("DB error"));
         using var integration = new LspIntegration(_indexer, _lspService);
@@ -89,8 +80,7 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public async Task OnDocumentChangedAsync_WithNullFilePath_ThrowsArgumentNullException()
-    {
+    public async Task OnDocumentChangedAsync_WithNullFilePath_ThrowsArgumentNullException() {
         using var integration = new LspIntegration(_indexer, _lspService);
 
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
@@ -98,8 +88,7 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public async Task OnDocumentChangedAsync_AfterDispose_ThrowsObjectDisposedException()
-    {
+    public async Task OnDocumentChangedAsync_AfterDispose_ThrowsObjectDisposedException() {
         using var integration = new LspIntegration(_indexer, _lspService);
         integration.Dispose();
 
@@ -108,8 +97,7 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public async Task TryFindDefinitionAsync_WithLspService_ReturnsLspResults()
-    {
+    public async Task TryFindDefinitionAsync_WithLspService_ReturnsLspResults() {
         var expected = new List<LspLocation>
         {
             new() { Uri = "file:///src/Service.cs", Range = new LspRange() }
@@ -125,8 +113,7 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public async Task TryFindDefinitionAsync_WithoutLspService_ReturnsEmpty()
-    {
+    public async Task TryFindDefinitionAsync_WithoutLspService_ReturnsEmpty() {
         using var integration = new LspIntegration(_indexer);
         var result = await integration.TryFindDefinitionAsync("/src/Caller.cs", 10, 5, CancellationToken.None).ConfigureAwait(true);
 
@@ -134,8 +121,7 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public async Task TryFindDefinitionAsync_WhenLspThrows_ReturnsEmpty()
-    {
+    public async Task TryFindDefinitionAsync_WhenLspThrows_ReturnsEmpty() {
         _mockLspService.Setup(x => x.GotoDefinitionAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("LSP crashed"));
 
@@ -146,8 +132,7 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public async Task TryFindReferencesAsync_WithLspService_ReturnsLspResults()
-    {
+    public async Task TryFindReferencesAsync_WithLspService_ReturnsLspResults() {
         var expected = new List<LspLocation>
         {
             new() { Uri = "file:///src/A.cs", Range = new LspRange() },
@@ -163,8 +148,7 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public async Task TryFindReferencesAsync_WithoutLspService_ReturnsEmpty()
-    {
+    public async Task TryFindReferencesAsync_WithoutLspService_ReturnsEmpty() {
         using var integration = new LspIntegration(_indexer);
         var result = await integration.TryFindReferencesAsync("/src/Service.cs", 5, 10, CancellationToken.None).ConfigureAwait(true);
 
@@ -172,8 +156,7 @@ public sealed class LspIntegrationTests
     }
 
     [Fact]
-    public async Task TryFindDefinitionAsync_AfterDispose_ThrowsObjectDisposedException()
-    {
+    public async Task TryFindDefinitionAsync_AfterDispose_ThrowsObjectDisposedException() {
         using var integration = new LspIntegration(_indexer, _lspService);
         integration.Dispose();
 

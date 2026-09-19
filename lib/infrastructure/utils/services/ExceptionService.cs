@@ -12,8 +12,7 @@ public sealed partial class ExceptionService : ServiceEntity, IExceptionService 
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="telemetryService">遥测服务（可选）</param>
-    public ExceptionService(ILogger<ExceptionService> logger, ITelemetryService? telemetryService = null)
-    {
+    public ExceptionService(ILogger<ExceptionService> logger, ITelemetryService? telemetryService = null) {
         _logger = logger;
         _telemetryService = telemetryService;
     }

@@ -87,14 +87,12 @@ public sealed record AgentWorktreeSession {
     /// </summary>
     public static int? ParsePRReference(string input) {
         var urlMatch = Regex.Match(input, @"^https?://[^/]+/[^/]+/[^/]+/pull/(\d+)/?(?:[?#].*)?$", RegexOptions.IgnoreCase);
-        if (urlMatch.Success && int.TryParse(urlMatch.Groups[1].Value, out var urlPrNum))
-        {
+        if (urlMatch.Success && int.TryParse(urlMatch.Groups[1].Value, out var urlPrNum)) {
             return urlPrNum;
         }
 
         var hashMatch = Regex.Match(input, @"^#(\d+)$");
-        if (hashMatch.Success && int.TryParse(hashMatch.Groups[1].Value, out var hashPrNum))
-        {
+        if (hashMatch.Success && int.TryParse(hashMatch.Groups[1].Value, out var hashPrNum)) {
             return hashPrNum;
         }
 

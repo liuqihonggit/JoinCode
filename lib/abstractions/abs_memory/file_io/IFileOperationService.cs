@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 关系: 本接口的底层方法（FileExists/DirectoryExists/GetCurrentDirectory 等）委托给 IFileSystem 实现
 /// 调用方对简单文件操作应优先注入 IFileSystem，仅需要编辑/元数据功能时才使用本接口
 /// </summary>
-public interface IFileOperationService
-{
+public interface IFileOperationService {
     /// <summary>
     /// 读取文件内容（含行号范围支持）
     /// </summary>
@@ -125,8 +124,7 @@ public interface IFileOperationService
 }
 
 // Result records
-public sealed record FileReadResult
-{
+public sealed record FileReadResult {
     public required string FilePath { get; init; }
     public required string Content { get; init; }
     public required int NumLines { get; init; }
@@ -141,8 +139,7 @@ public sealed record FileReadResult
     public ToolDiagnostic? Diagnostic { get; init; }
 
     public static FileReadResult SuccessResult(string filePath, string content, int numLines, int startLine, int totalLines)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             Content = content,
             NumLines = numLines,
@@ -152,8 +149,7 @@ public sealed record FileReadResult
         };
 
     public static FileReadResult FailureResult(string filePath, string errorMessage)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             Content = string.Empty,
             NumLines = 0,
@@ -164,8 +160,7 @@ public sealed record FileReadResult
         };
 
     public static FileReadResult FailureResult(string filePath, ToolDiagnostic diagnostic)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             Content = string.Empty,
             NumLines = 0,
@@ -177,8 +172,7 @@ public sealed record FileReadResult
         };
 }
 
-public sealed record FileWriteResult
-{
+public sealed record FileWriteResult {
     public required string FilePath { get; init; }
     public required string Content { get; init; }
     public required string Operation { get; init; }
@@ -203,8 +197,7 @@ public sealed record FileWriteResult
         string operation,
         string? originalContent = null,
         IEnumerable<StructuredPatchHunk>? structuredPatch = null)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             Content = content,
             Operation = operation,
@@ -214,8 +207,7 @@ public sealed record FileWriteResult
         };
 
     public static FileWriteResult FailureResult(string filePath, string errorMessage)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             Content = string.Empty,
             Operation = string.Empty,
@@ -224,8 +216,7 @@ public sealed record FileWriteResult
         };
 
     public static FileWriteResult FailureResult(string filePath, ToolDiagnostic diagnostic)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             Content = string.Empty,
             Operation = string.Empty,
@@ -235,8 +226,7 @@ public sealed record FileWriteResult
         };
 }
 
-public sealed record FileEditResult
-{
+public sealed record FileEditResult {
     public required string FilePath { get; init; }
     public required string OldString { get; init; }
     public required string NewString { get; init; }
@@ -265,8 +255,7 @@ public sealed record FileEditResult
         string updatedContent,
         int replaceCount,
         IEnumerable<StructuredPatchHunk>? structuredPatch = null)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             OldString = oldString,
             NewString = newString,
@@ -278,8 +267,7 @@ public sealed record FileEditResult
         };
 
     public static FileEditResult FailureResult(string filePath, string oldString, string newString, string errorMessage)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             OldString = oldString,
             NewString = newString,
@@ -291,8 +279,7 @@ public sealed record FileEditResult
         };
 
     public static FileEditResult FailureResult(string filePath, string oldString, string newString, ToolDiagnostic diagnostic)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             OldString = oldString,
             NewString = newString,
@@ -305,15 +292,13 @@ public sealed record FileEditResult
         };
 }
 
-public sealed record LineRangeEditRequest
-{
+public sealed record LineRangeEditRequest {
     public string FilePath { get; }
     public int StartLine { get; }
     public int EndLine { get; }
     public string NewContent { get; }
 
-    public LineRangeEditRequest(string filePath, int startLine, int endLine, string newContent)
-    {
+    public LineRangeEditRequest(string filePath, int startLine, int endLine, string newContent) {
         FilePath = filePath;
         StartLine = startLine;
         EndLine = endLine;
@@ -321,8 +306,7 @@ public sealed record LineRangeEditRequest
     }
 }
 
-public sealed record FileLineEditResult
-{
+public sealed record FileLineEditResult {
     public required string FilePath { get; init; }
     public required int StartLine { get; init; }
     public required int EndLine { get; init; }
@@ -346,8 +330,7 @@ public sealed record FileLineEditResult
         string newContent,
         string updatedFileContent,
         int replacedLinesCount)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             StartLine = startLine,
             EndLine = endLine,
@@ -363,8 +346,7 @@ public sealed record FileLineEditResult
         int startLine,
         int endLine,
         string errorMessage)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             StartLine = startLine,
             EndLine = endLine,
@@ -381,8 +363,7 @@ public sealed record FileLineEditResult
         int startLine,
         int endLine,
         ToolDiagnostic diagnostic)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             StartLine = startLine,
             EndLine = endLine,
@@ -396,8 +377,7 @@ public sealed record FileLineEditResult
         };
 }
 
-public sealed record DirectoryListResult
-{
+public sealed record DirectoryListResult {
     public required string DirectoryPath { get; init; }
     public required IReadOnlyList<FileEntry> Files { get; init; }
     public required IReadOnlyList<DirectoryEntry> Directories { get; init; }
@@ -413,8 +393,7 @@ public sealed record DirectoryListResult
         string directoryPath,
         IReadOnlyList<FileEntry> files,
         IReadOnlyList<DirectoryEntry> directories)
-        => new()
-        {
+        => new() {
             DirectoryPath = directoryPath,
             Files = files,
             Directories = directories,
@@ -422,8 +401,7 @@ public sealed record DirectoryListResult
         };
 
     public static DirectoryListResult FailureResult(string directoryPath, string errorMessage)
-        => new()
-        {
+        => new() {
             DirectoryPath = directoryPath,
             Files = Array.Empty<FileEntry>(),
             Directories = Array.Empty<DirectoryEntry>(),
@@ -432,8 +410,7 @@ public sealed record DirectoryListResult
         };
 
     public static DirectoryListResult FailureResult(string directoryPath, ToolDiagnostic diagnostic)
-        => new()
-        {
+        => new() {
             DirectoryPath = directoryPath,
             Files = Array.Empty<FileEntry>(),
             Directories = Array.Empty<DirectoryEntry>(),
@@ -443,16 +420,14 @@ public sealed record DirectoryListResult
         };
 }
 
-public sealed record FileEntry
-{
+public sealed record FileEntry {
     public required string Name { get; init; }
     public required string FullPath { get; init; }
     public required long Size { get; init; }
     public required DateTime LastModified { get; init; }
 }
 
-public sealed record DirectoryEntry
-{
+public sealed record DirectoryEntry {
     public required string Name { get; init; }
     public required string FullPath { get; init; }
     public required DateTime LastModified { get; init; }
@@ -461,8 +436,7 @@ public sealed record DirectoryEntry
 /// <summary>
 /// 文件元数据读取结果 — 对齐 TS: readFileSyncWithMetadata 返回值
 /// </summary>
-public sealed record FileMetadataResult
-{
+public sealed record FileMetadataResult {
     public required string FilePath { get; init; }
     public required string Content { get; init; }
     /// <summary>
@@ -486,8 +460,7 @@ public sealed record FileMetadataResult
         string content,
         System.Text.Encoding encoding,
         string lineEndings)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             Content = content,
             Encoding = encoding,
@@ -496,8 +469,7 @@ public sealed record FileMetadataResult
         };
 
     public static FileMetadataResult FailureResult(string filePath, string errorMessage)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             Content = string.Empty,
             Encoding = System.Text.Encoding.UTF8,
@@ -507,8 +479,7 @@ public sealed record FileMetadataResult
         };
 
     public static FileMetadataResult FailureResult(string filePath, ToolDiagnostic diagnostic)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             Content = string.Empty,
             Encoding = System.Text.Encoding.UTF8,

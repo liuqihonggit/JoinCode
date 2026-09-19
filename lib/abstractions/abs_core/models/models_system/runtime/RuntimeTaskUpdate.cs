@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Runtime;
 
-public sealed record RuntimeTaskUpdate
-{
+public sealed record RuntimeTaskUpdate {
     public string? Description { get; init; }
     public TaskExecutionStatus? Status { get; init; }
     public RuntimeTaskPriority? Priority { get; init; }

@@ -1,11 +1,9 @@
 
 namespace Integration.Tests.Clock;
 
-public sealed class GoalCommandTests
-{
+public sealed class GoalCommandTests {
     [Fact]
-    public void ParseGoalArgs_SimpleObjective_Should_Return_Objective()
-    {
+    public void ParseGoalArgs_SimpleObjective_Should_Return_Objective() {
         var result = GoalCommand.ParseGoalArgs("实现用户注册功能");
 
         Assert.Equal("实现用户注册功能", result.Objective);
@@ -16,8 +14,7 @@ public sealed class GoalCommandTests
     }
 
     [Fact]
-    public void ParseGoalArgs_WithConstraint_Should_Parse()
-    {
+    public void ParseGoalArgs_WithConstraint_Should_Parse() {
         var result = GoalCommand.ParseGoalArgs("--constraint '不修改公共API' 实现功能");
 
         Assert.Equal("实现功能", result.Objective);
@@ -26,8 +23,7 @@ public sealed class GoalCommandTests
     }
 
     [Fact]
-    public void ParseGoalArgs_WithMultipleConstraints_Should_Parse()
-    {
+    public void ParseGoalArgs_WithMultipleConstraints_Should_Parse() {
         var result = GoalCommand.ParseGoalArgs("--constraint '不修改公共API' --constraint '测试覆盖率>80%' 实现功能");
 
         Assert.Equal("实现功能", result.Objective);
@@ -37,8 +33,7 @@ public sealed class GoalCommandTests
     }
 
     [Fact]
-    public void ParseGoalArgs_WithBudget_Should_Parse()
-    {
+    public void ParseGoalArgs_WithBudget_Should_Parse() {
         var result = GoalCommand.ParseGoalArgs("--budget 50000 实现功能");
 
         Assert.Equal("实现功能", result.Objective);
@@ -46,8 +41,7 @@ public sealed class GoalCommandTests
     }
 
     [Fact]
-    public void ParseGoalArgs_WithConstraintAndBudget_Should_Parse()
-    {
+    public void ParseGoalArgs_WithConstraintAndBudget_Should_Parse() {
         var result = GoalCommand.ParseGoalArgs("--constraint '不修改API' --budget 100000 实现功能");
 
         Assert.Equal("实现功能", result.Objective);
@@ -56,8 +50,7 @@ public sealed class GoalCommandTests
     }
 
     [Fact]
-    public void ParseGoalArgs_CronFlag_Should_Return_CronMode()
-    {
+    public void ParseGoalArgs_CronFlag_Should_Return_CronMode() {
         var result = GoalCommand.ParseGoalArgs("--cron */5 * * * * 每五分钟检查代码");
 
         Assert.True(result.IsCron);
@@ -66,8 +59,7 @@ public sealed class GoalCommandTests
     }
 
     [Fact]
-    public void ParseGoalArgs_ShortCronFlag_Should_Return_CronMode()
-    {
+    public void ParseGoalArgs_ShortCronFlag_Should_Return_CronMode() {
         var result = GoalCommand.ParseGoalArgs("-c 0 * * * * 每小时执行任务");
 
         Assert.True(result.IsCron);
@@ -76,8 +68,7 @@ public sealed class GoalCommandTests
     }
 
     [Fact]
-    public void ParseGoalArgs_CronWithoutDescription_Should_Return_EmptyObjective()
-    {
+    public void ParseGoalArgs_CronWithoutDescription_Should_Return_EmptyObjective() {
         var result = GoalCommand.ParseGoalArgs("--cron */5 * * * *");
 
         Assert.True(result.IsCron);
@@ -86,8 +77,7 @@ public sealed class GoalCommandTests
     }
 
     [Fact]
-    public void ParseGoalArgs_CronWithTooFewTokens_Should_Return_NullCron()
-    {
+    public void ParseGoalArgs_CronWithTooFewTokens_Should_Return_NullCron() {
         var result = GoalCommand.ParseGoalArgs("--cron */5 * *");
 
         Assert.True(result.IsCron);
@@ -95,8 +85,7 @@ public sealed class GoalCommandTests
     }
 
     [Fact]
-    public void ParseGoalArgs_ConstraintWithDoubleQuotes_Should_Parse()
-    {
+    public void ParseGoalArgs_ConstraintWithDoubleQuotes_Should_Parse() {
         var result = GoalCommand.ParseGoalArgs("--constraint \"不修改公共API\" 实现功能");
 
         Assert.Equal("实现功能", result.Objective);
@@ -105,8 +94,7 @@ public sealed class GoalCommandTests
     }
 
     [Fact]
-    public void ParseGoalArgs_ConstraintWithoutQuotes_Should_ParseSingleWord()
-    {
+    public void ParseGoalArgs_ConstraintWithoutQuotes_Should_ParseSingleWord() {
         var result = GoalCommand.ParseGoalArgs("--constraint safe 实现功能");
 
         Assert.Equal("实现功能", result.Objective);
@@ -115,8 +103,7 @@ public sealed class GoalCommandTests
     }
 
     [Fact]
-    public void ParseGoalArgs_BudgetWithInvalidValue_Should_Ignore()
-    {
+    public void ParseGoalArgs_BudgetWithInvalidValue_Should_Ignore() {
         var result = GoalCommand.ParseGoalArgs("--budget abc 实现功能");
 
         Assert.Equal("实现功能", result.Objective);

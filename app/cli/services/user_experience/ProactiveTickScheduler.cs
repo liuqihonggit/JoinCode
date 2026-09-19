@@ -4,8 +4,7 @@ namespace IO.Services;
 /// 主动模式 tick 调度器 — 管理 tick 间隔和下一次 tick 时间
 /// 对齐 TS 原版 proactive/index.ts 的 nextTickAt 逻辑
 /// </summary>
-public sealed class ProactiveTickScheduler
-{
+public sealed class ProactiveTickScheduler {
     private readonly IProactiveStateService _stateService;
     private readonly TerminalFocusDetector _focusDetector;
     private readonly ILogger<ProactiveTickScheduler>? _logger;
@@ -30,8 +29,7 @@ public sealed class ProactiveTickScheduler
         ILogger<ProactiveTickScheduler>? logger = null,
         TimeSpan? tickInterval = null,
         TimeSpan? blurredTickInterval = null,
-        Func<DateTimeOffset>? clock = null)
-    {
+        Func<DateTimeOffset>? clock = null) {
         _stateService = stateService;
         _focusDetector = focusDetector;
         _logger = logger;
@@ -55,16 +53,13 @@ public sealed class ProactiveTickScheduler
     /// <summary>
     /// 检查是否应该发送 tick — 主动模式激活 + 未暂停 + 上下文未阻塞 + 到达 tick 时间
     /// </summary>
-    public bool ShouldTick()
-    {
-        if (!_stateService.IsActive || _stateService.IsPaused || _stateService.IsContextBlocked)
-        {
+    public bool ShouldTick() {
+        if (!_stateService.IsActive || _stateService.IsPaused || _stateService.IsContextBlocked) {
             return false;
         }
 
         var now = _clock();
-        if (_nextTickAt is null || now >= _nextTickAt)
-        {
+        if (_nextTickAt is null || now >= _nextTickAt) {
             return true;
         }
 
@@ -75,10 +70,8 @@ public sealed class ProactiveTickScheduler
     /// 生成 tick 内容并调度下一次 tick
     /// </summary>
     /// <returns>tick 内容（如 "&lt;tick&gt;14:30:05&lt;/tick&gt;"），或 null 如果不应 tick</returns>
-    public string? GenerateTick()
-    {
-        if (!ShouldTick())
-        {
+    public string? GenerateTick() {
+        if (!ShouldTick()) {
             return null;
         }
 
@@ -97,16 +90,14 @@ public sealed class ProactiveTickScheduler
     /// <summary>
     /// 重置调度（激活/停用/清除上下文时调用）
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         _nextTickAt = null;
     }
 
     /// <summary>
     /// 立即调度下一次 tick（不等间隔）
     /// </summary>
-    public void ScheduleImmediate()
-    {
+    public void ScheduleImmediate() {
         _nextTickAt = _clock();
     }
 }

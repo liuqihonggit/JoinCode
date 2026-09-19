@@ -4,8 +4,7 @@ namespace JoinCode.Dream.Pipeline;
 /// <summary>
 /// Dream 管道上下文 — 中间件间共享的可变状态
 /// </summary>
-public sealed class DreamContext : PipelineContextBase
-{
+public sealed class DreamContext : PipelineContextBase {
     /// <summary>Dream 请求</summary>
     public required DreamRequest Request { get; init; }
     /// <summary>取消令牌</summary>

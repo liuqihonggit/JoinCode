@@ -1,11 +1,8 @@
 namespace Core.Goal.Tests;
 
-public sealed class GoalLifecycleMiddlewareTests
-{
-    private static GoalLifecycleContext CreateContext(GoalOperation operation, GoalState? state = null, IToolPermissionManager? permissionManager = null, string? reason = null)
-    {
-        return new GoalLifecycleContext
-        {
+public sealed class GoalLifecycleMiddlewareTests {
+    private static GoalLifecycleContext CreateContext(GoalOperation operation, GoalState? state = null, IToolPermissionManager? permissionManager = null, string? reason = null) {
+        return new GoalLifecycleContext {
             Operation = operation,
             State = state ?? new GoalState { GoalId = "g1", Objective = "test", Status = GoalStatus.Pursuing },
             ChatHistory = new MessageList(),
@@ -20,8 +17,7 @@ public sealed class GoalLifecycleMiddlewareTests
     [Theory]
     [InlineData(GoalOperation.MarkCompleted)]
     [InlineData(GoalOperation.MarkUnmet)]
-    public async Task GoalCompletionSignalMiddleware_SetsShouldSignalCompletion(GoalOperation operation)
-    {
+    public async Task GoalCompletionSignalMiddleware_SetsShouldSignalCompletion(GoalOperation operation) {
         var middleware = new GoalCompletionSignalMiddleware();
         var ctx = CreateContext(operation);
 
@@ -35,8 +31,7 @@ public sealed class GoalLifecycleMiddlewareTests
     [InlineData(GoalOperation.Pause)]
     [InlineData(GoalOperation.Resume)]
     [InlineData(GoalOperation.Clear)]
-    public async Task GoalCompletionSignalMiddleware_DoesNotSetSignalForOtherOperations(GoalOperation operation)
-    {
+    public async Task GoalCompletionSignalMiddleware_DoesNotSetSignalForOtherOperations(GoalOperation operation) {
         var middleware = new GoalCompletionSignalMiddleware();
         var ctx = CreateContext(operation);
 
@@ -48,8 +43,7 @@ public sealed class GoalLifecycleMiddlewareTests
     [Theory]
     [InlineData(GoalOperation.Start)]
     [InlineData(GoalOperation.Resume)]
-    public async Task GoalEngineControlMiddleware_SetsShouldStartEngineLoop(GoalOperation operation)
-    {
+    public async Task GoalEngineControlMiddleware_SetsShouldStartEngineLoop(GoalOperation operation) {
         var middleware = new GoalEngineControlMiddleware();
         var ctx = CreateContext(operation);
 
@@ -63,8 +57,7 @@ public sealed class GoalLifecycleMiddlewareTests
     [InlineData(GoalOperation.Clear)]
     [InlineData(GoalOperation.MarkCompleted)]
     [InlineData(GoalOperation.MarkUnmet)]
-    public async Task GoalEngineControlMiddleware_SetsShouldCancelEngineLoop(GoalOperation operation)
-    {
+    public async Task GoalEngineControlMiddleware_SetsShouldCancelEngineLoop(GoalOperation operation) {
         var middleware = new GoalEngineControlMiddleware();
         var ctx = CreateContext(operation);
 
@@ -79,8 +72,7 @@ public sealed class GoalLifecycleMiddlewareTests
     [InlineData(GoalOperation.Clear)]
     [InlineData(GoalOperation.MarkCompleted)]
     [InlineData(GoalOperation.MarkUnmet)]
-    public async Task GoalHeartbeatControlMiddleware_SetsShouldResetHeartbeat(GoalOperation operation)
-    {
+    public async Task GoalHeartbeatControlMiddleware_SetsShouldResetHeartbeat(GoalOperation operation) {
         var middleware = new GoalHeartbeatControlMiddleware();
         var ctx = CreateContext(operation);
 
@@ -92,8 +84,7 @@ public sealed class GoalLifecycleMiddlewareTests
     [Theory]
     [InlineData(GoalOperation.Start)]
     [InlineData(GoalOperation.Resume)]
-    public async Task GoalHeartbeatControlMiddleware_DoesNotSetResetForOtherOperations(GoalOperation operation)
-    {
+    public async Task GoalHeartbeatControlMiddleware_DoesNotSetResetForOtherOperations(GoalOperation operation) {
         var middleware = new GoalHeartbeatControlMiddleware();
         var ctx = CreateContext(operation);
 
@@ -103,14 +94,12 @@ public sealed class GoalLifecycleMiddlewareTests
     }
 
     [Fact]
-    public async Task GoalPermissionModeMiddleware_WithoutPermissionManager_CallsNext()
-    {
+    public async Task GoalPermissionModeMiddleware_WithoutPermissionManager_CallsNext() {
         var middleware = new GoalPermissionModeMiddleware();
         var ctx = CreateContext(GoalOperation.Start);
         var nextCalled = false;
 
-        await middleware.InvokeAsync(ctx, (c, ct) =>
-        {
+        await middleware.InvokeAsync(ctx, (c, ct) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None).ConfigureAwait(true);
@@ -119,8 +108,7 @@ public sealed class GoalLifecycleMiddlewareTests
     }
 
     [Fact]
-    public async Task GoalPermissionModeMiddleware_Start_SavesAndSetsAutoMode()
-    {
+    public async Task GoalPermissionModeMiddleware_Start_SavesAndSetsAutoMode() {
         var middleware = new GoalPermissionModeMiddleware();
         var permissionManager = new Mock<IToolPermissionManager>();
         permissionManager.Setup(x => x.GetCurrentModeAsync(It.IsAny<CancellationToken>())).ReturnsAsync(PermissionMode.Ask);
@@ -134,8 +122,7 @@ public sealed class GoalLifecycleMiddlewareTests
     }
 
     [Fact]
-    public async Task GoalPermissionModeMiddleware_Start_WhenGetModeThrows_SetsSavedModeToNull()
-    {
+    public async Task GoalPermissionModeMiddleware_Start_WhenGetModeThrows_SetsSavedModeToNull() {
         var middleware = new GoalPermissionModeMiddleware();
         var permissionManager = new Mock<IToolPermissionManager>();
         permissionManager.Setup(x => x.GetCurrentModeAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("fail"));
@@ -150,8 +137,7 @@ public sealed class GoalLifecycleMiddlewareTests
     [InlineData(GoalOperation.Clear)]
     [InlineData(GoalOperation.MarkCompleted)]
     [InlineData(GoalOperation.MarkUnmet)]
-    public async Task GoalPermissionModeMiddleware_Restore_RestoresSavedMode(GoalOperation operation)
-    {
+    public async Task GoalPermissionModeMiddleware_Restore_RestoresSavedMode(GoalOperation operation) {
         var middleware = new GoalPermissionModeMiddleware();
         var permissionManager = new Mock<IToolPermissionManager>();
         permissionManager.Setup(x => x.SetPermissionModeAsync(PermissionMode.Ask, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -167,8 +153,7 @@ public sealed class GoalLifecycleMiddlewareTests
     [InlineData(GoalOperation.Clear)]
     [InlineData(GoalOperation.MarkCompleted)]
     [InlineData(GoalOperation.MarkUnmet)]
-    public async Task GoalPermissionModeMiddleware_Restore_WhenNoSavedMode_DoesNotCallSetMode(GoalOperation operation)
-    {
+    public async Task GoalPermissionModeMiddleware_Restore_WhenNoSavedMode_DoesNotCallSetMode(GoalOperation operation) {
         var middleware = new GoalPermissionModeMiddleware();
         var permissionManager = new Mock<IToolPermissionManager>();
         var ctx = CreateContext(operation, permissionManager: permissionManager.Object);
@@ -179,8 +164,7 @@ public sealed class GoalLifecycleMiddlewareTests
     }
 
     [Fact]
-    public async Task GoalPermissionModeMiddleware_Restore_WhenSetModeThrows_DoesNotThrow()
-    {
+    public async Task GoalPermissionModeMiddleware_Restore_WhenSetModeThrows_DoesNotThrow() {
         var middleware = new GoalPermissionModeMiddleware();
         var permissionManager = new Mock<IToolPermissionManager>();
         permissionManager.Setup(x => x.SetPermissionModeAsync(It.IsAny<PermissionMode>(), It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("fail"));
@@ -199,8 +183,7 @@ public sealed class GoalLifecycleMiddlewareTests
     [InlineData(GoalOperation.Clear, GoalStatus.Pursuing, GoalStatus.Unmet)]
     [InlineData(GoalOperation.MarkCompleted, GoalStatus.Pursuing, GoalStatus.Achieved)]
     [InlineData(GoalOperation.MarkUnmet, GoalStatus.Pursuing, GoalStatus.Unmet)]
-    public async Task GoalStateTransitionMiddleware_TransitionsStatus(GoalOperation operation, GoalStatus initialStatus, GoalStatus expectedStatus)
-    {
+    public async Task GoalStateTransitionMiddleware_TransitionsStatus(GoalOperation operation, GoalStatus initialStatus, GoalStatus expectedStatus) {
         var clock = new Mock<IClockService>();
         clock.Setup(x => x.GetUtcNow()).Returns(DateTime.UtcNow);
         var middleware = new GoalStateTransitionMiddleware(clock.Object);
@@ -214,8 +197,7 @@ public sealed class GoalLifecycleMiddlewareTests
     }
 
     [Fact]
-    public async Task GoalStateTransitionMiddleware_Pause_SetsPausedAt()
-    {
+    public async Task GoalStateTransitionMiddleware_Pause_SetsPausedAt() {
         var clock = new Mock<IClockService>();
         var now = DateTime.UtcNow;
         clock.Setup(x => x.GetUtcNow()).Returns(now);
@@ -229,8 +211,7 @@ public sealed class GoalLifecycleMiddlewareTests
     }
 
     [Fact]
-    public async Task GoalStateTransitionMiddleware_Resume_ClearsPausedAt()
-    {
+    public async Task GoalStateTransitionMiddleware_Resume_ClearsPausedAt() {
         var clock = new Mock<IClockService>();
         var middleware = new GoalStateTransitionMiddleware(clock.Object);
         var state = new GoalState { GoalId = "g1", Objective = "test", Status = GoalStatus.Paused, PausedAt = DateTime.UtcNow };
@@ -242,8 +223,7 @@ public sealed class GoalLifecycleMiddlewareTests
     }
 
     [Fact]
-    public async Task GoalStateTransitionMiddleware_MarkCompleted_SetsAchievedAtAndEvaluation()
-    {
+    public async Task GoalStateTransitionMiddleware_MarkCompleted_SetsAchievedAtAndEvaluation() {
         var clock = new Mock<IClockService>();
         var now = DateTime.UtcNow;
         clock.Setup(x => x.GetUtcNow()).Returns(now);
@@ -260,8 +240,7 @@ public sealed class GoalLifecycleMiddlewareTests
     }
 
     [Fact]
-    public async Task GoalStateTransitionMiddleware_MarkUnmet_SetsAchievedAtAndEvaluation()
-    {
+    public async Task GoalStateTransitionMiddleware_MarkUnmet_SetsAchievedAtAndEvaluation() {
         var clock = new Mock<IClockService>();
         var now = DateTime.UtcNow;
         clock.Setup(x => x.GetUtcNow()).Returns(now);
@@ -278,8 +257,7 @@ public sealed class GoalLifecycleMiddlewareTests
     }
 
     [Fact]
-    public async Task GoalStateTransitionMiddleware_MarkCompleted_WithoutReason_UsesDefault()
-    {
+    public async Task GoalStateTransitionMiddleware_MarkCompleted_WithoutReason_UsesDefault() {
         var clock = new Mock<IClockService>();
         clock.Setup(x => x.GetUtcNow()).Returns(DateTime.UtcNow);
         var middleware = new GoalStateTransitionMiddleware(clock.Object);
@@ -305,20 +283,16 @@ public sealed class GoalLifecycleMiddlewareTests
     [InlineData(GoalOperation.MarkCompleted, GoalStatus.Paused, false)]
     [InlineData(GoalOperation.MarkUnmet, GoalStatus.Pursuing, true)]
     [InlineData(GoalOperation.MarkUnmet, GoalStatus.Paused, false)]
-    public async Task GoalStateValidationMiddleware_ValidatesOperations(GoalOperation operation, GoalStatus status, bool expectedValid, string? goalId = null)
-    {
+    public async Task GoalStateValidationMiddleware_ValidatesOperations(GoalOperation operation, GoalStatus status, bool expectedValid, string? goalId = null) {
         var middleware = new GoalStateValidationMiddleware();
         var state = new GoalState { GoalId = goalId ?? string.Empty, Objective = "test", Status = status };
         var ctx = CreateContext(operation, state: state);
 
         await middleware.InvokeAsync(ctx, (c, ct) => Task.CompletedTask, CancellationToken.None).ConfigureAwait(true);
 
-        if (expectedValid)
-        {
+        if (expectedValid) {
             Assert.False(ctx.Failed);
-        }
-        else
-        {
+        } else {
             Assert.True(ctx.Failed);
         }
     }

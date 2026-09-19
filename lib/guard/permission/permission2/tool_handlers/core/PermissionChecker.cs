@@ -5,8 +5,7 @@ namespace Core.Permission;
 /// 权限检查器 - 通过中间件管道管理工具执行权限
 /// </summary>
 [Register(typeof(IPermissionChecker), ServiceLifetime.Singleton)]
-public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecker
-{
+public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecker {
     private readonly MiddlewarePipeline<PermissionCheckContext> _pipeline;
     private readonly ILogger<PermissionChecker>? _logger;
     private readonly HashSet<string> _autoApprovedTools;
@@ -27,8 +26,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         MiddlewarePipeline<PermissionCheckContext> pipeline,
         IOptions<PermissionConfig> configOptions,
         IFileSystem fs,
-        ILogger<PermissionChecker>? logger = null)
-    {
+        ILogger<PermissionChecker>? logger = null) {
         _pipeline = pipeline;
         _logger = logger;
         _config = configOptions.Value;
@@ -55,8 +53,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// 会话级批准某危险等级 — 用户确认后同会话内同等级操作自动通过
     /// 非持久化，每次打开新 exe 重新提示。由 IToolPermissionManager.ApproveLevelTemporarily 调用
     /// </summary>
-    public void ApproveLevelTemporarily(CommandDangerLevel level)
-    {
+    public void ApproveLevelTemporarily(CommandDangerLevel level) {
         if (level == CommandDangerLevel.Safe || level == CommandDangerLevel.Dangerous)
             return; // Safe 无需批准，Dangerous 永不批准
 
@@ -80,8 +77,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// 2. 用 PermissionModeExtensions.FromValue 解析（支持 "bypass"/"plan"/"auto" 等）
     /// 3. 若解析结果为 Bypass 且 settings.json 中 disableBypassPermissionsMode 为真，则返回 null（忽略环境变量，回退 Default）
     /// </remarks>
-    internal static PermissionMode? TryGetPermissionModeFromEnv(IFileSystem? fs)
-    {
+    internal static PermissionMode? TryGetPermissionModeFromEnv(IFileSystem? fs) {
         var envValue = Environment.GetEnvironmentVariable(JccEnvVar.PermissionMode.ToValue());
         if (string.IsNullOrWhiteSpace(envValue))
             return null;
@@ -91,8 +87,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
             return null;
 
         // 安全闸: settings.json 显式禁用 bypass 模式时，忽略 bypass 环境变量
-        if (parsed.Value == PermissionMode.Bypass && IsDisableBypassPermissionsMode(fs))
-        {
+        if (parsed.Value == PermissionMode.Bypass && IsDisableBypassPermissionsMode(fs)) {
             return null;
         }
 
@@ -102,13 +97,11 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// <summary>
     /// 检查 settings.json 中是否显式禁用 bypass 权限模式
     /// </summary>
-    private static bool IsDisableBypassPermissionsMode(IFileSystem? fs)
-    {
+    private static bool IsDisableBypassPermissionsMode(IFileSystem? fs) {
         if (fs is null)
             return false;
 
-        try
-        {
+        try {
             var settings = SettingsLoader.LoadUserSettings(fs);
             var flag = settings?.Current?.Permissions?.DisableBypassPermissionsMode;
             if (string.IsNullOrWhiteSpace(flag))
@@ -116,9 +109,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
 
             return string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(flag, "1", StringComparison.OrdinalIgnoreCase);
-        }
-        catch
-        {
+        } catch {
             // settings.json 不存在或解析失败时不阻止 bypass（保持向后兼容）
             return false;
         }
@@ -127,11 +118,9 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// <summary>
     /// 当前权限模式
     /// </summary>
-    public PermissionMode CurrentMode
-    {
+    public PermissionMode CurrentMode {
         get => _currentMode;
-        set
-        {
+        set {
             _currentMode = value;
             _logger?.LogInformation("[PermissionChecker] 权限模式切换为: {Mode}", value);
         }
@@ -140,10 +129,8 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// <summary>
     /// 检查工具执行权限 — 通过中间件管道执行
     /// </summary>
-    public async Task<ToolPermissionCheckResult> CheckPermissionAsync(string toolName, Dictionary<string, JsonElement>? arguments = null, CancellationToken cancellationToken = default)
-    {
-        var context = new PermissionCheckContext
-        {
+    public async Task<ToolPermissionCheckResult> CheckPermissionAsync(string toolName, Dictionary<string, JsonElement>? arguments = null, CancellationToken cancellationToken = default) {
+        var context = new PermissionCheckContext {
             ToolName = toolName,
             Arguments = arguments ?? [],
             CurrentMode = _currentMode,
@@ -161,8 +148,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// <summary>
     /// 添加工具到自动批准列表
     /// </summary>
-    public void AddToAutoApproved(string toolName)
-    {
+    public void AddToAutoApproved(string toolName) {
         _autoApprovedTools.Add(toolName);
         _config.AutoApprovedTools[toolName] = new ToolPermissionRule { ToolName = toolName };
     }
@@ -171,18 +157,15 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// 添加自动批准规则（含 RuleContent）— 对齐 TS 版 addPermissionRulesToSettings
     /// WebFetch 使用 "domain:example.com" 格式的 RuleContent
     /// </summary>
-    public void AddToAutoApproved(string toolName, string? ruleContent)
-    {
-        if (string.IsNullOrEmpty(ruleContent))
-        {
+    public void AddToAutoApproved(string toolName, string? ruleContent) {
+        if (string.IsNullOrEmpty(ruleContent)) {
             AddToAutoApproved(toolName);
             return;
         }
 
         // 域名级规则: 不添加工具名到 HashSet（避免无条件批准所有域名）
         // 只添加带 RuleContent 的规则到配置列表
-        _config.AutoApprovedTools[toolName] = new ToolPermissionRule
-        {
+        _config.AutoApprovedTools[toolName] = new ToolPermissionRule {
             ToolName = toolName,
             RuleContent = ruleContent,
             Description = $"Auto-approved: {ruleContent}"
@@ -192,12 +175,10 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// <summary>
     /// 添加自动批准规则并持久化到 settings.json — 对齐 TS 版 persistPermissionUpdate
     /// </summary>
-    public async Task AddToAutoApprovedAndPersistAsync(string toolName, string? ruleContent = null, CancellationToken cancellationToken = default)
-    {
+    public async Task AddToAutoApprovedAndPersistAsync(string toolName, string? ruleContent = null, CancellationToken cancellationToken = default) {
         AddToAutoApproved(toolName, ruleContent);
 
-        try
-        {
+        try {
             // 对齐 TS 版: 持久化到 settings.json 的 permissions.allow 数组
             // 格式: "WebFetch(domain:example.com)" — 对齐 TS 版 PermissionRuleValue
             var permissionValue = string.IsNullOrEmpty(ruleContent)
@@ -214,8 +195,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
 
             var updatedAllow = new List<string>(existingAllow) { permissionValue };
 
-            var updatedPermissions = new PermissionsSettings
-            {
+            var updatedPermissions = new PermissionsSettings {
                 Allow = updatedAllow,
                 Deny = settings.Current?.Permissions?.Deny ?? [],
                 Ask = settings.Current?.Permissions?.Ask ?? [],
@@ -224,17 +204,14 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
                 DisableBypassPermissionsMode = settings.Current?.Permissions?.DisableBypassPermissionsMode,
             };
 
-            var updatedSettings = new SettingsJson
-            {
+            var updatedSettings = new SettingsJson {
                 Vendor = settings.Vendor,
                 Current = new CurrentSettings(settings.Current ?? new CurrentSettings()) { Permissions = updatedPermissions },
             };
             await SettingsLoader.SaveSettingsAsync(_fs, SettingSource.UserSettings, updatedSettings, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("已持久化权限规则: {PermissionValue}", permissionValue);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "持久化权限规则失败: {ToolName}({RuleContent})", toolName, ruleContent);
         }
     }
@@ -242,8 +219,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// <summary>
     /// 添加工具到自动拒绝列表
     /// </summary>
-    public void AddToAutoRejected(string toolName)
-    {
+    public void AddToAutoRejected(string toolName) {
         _autoRejectedTools.Add(toolName);
         _config.AutoRejectedTools[toolName] = new ToolPermissionRule { ToolName = toolName };
     }
@@ -251,8 +227,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// <summary>
     /// 从自动批准列表移除工具
     /// </summary>
-    public void RemoveFromAutoApproved(string toolName)
-    {
+    public void RemoveFromAutoApproved(string toolName) {
         _autoApprovedTools.Remove(toolName);
         _config.AutoApprovedTools.Remove(toolName);
     }
@@ -260,8 +235,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// <summary>
     /// 从自动拒绝列表移除工具
     /// </summary>
-    public void RemoveFromAutoRejected(string toolName)
-    {
+    public void RemoveFromAutoRejected(string toolName) {
         _autoRejectedTools.Remove(toolName);
         _config.AutoRejectedTools.Remove(toolName);
     }

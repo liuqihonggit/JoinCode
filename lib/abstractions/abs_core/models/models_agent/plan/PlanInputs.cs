@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Plan;
 /// <summary>
 /// 计划步骤输入
 /// </summary>
-public sealed record PlanStepInput
-{
+public sealed record PlanStepInput {
     /// <summary>
     /// 步骤描述
     /// </summary>
@@ -24,8 +23,7 @@ public sealed record PlanStepInput
 /// <summary>
 /// 计划模式操作结果
 /// </summary>
-public sealed record PlanOperationResult
-{
+public sealed record PlanOperationResult {
     /// <summary>
     /// 是否成功
     /// </summary>
@@ -63,8 +61,7 @@ public sealed record PlanOperationResult
     /// </summary>
     public string? ApprovalRequestId { get; init; }
 
-    public PlanOperationResult(bool success, PlanState? planState = null, string? errorMessage = null, string? executionResult = null, string? planFileContent = null)
-    {
+    public PlanOperationResult(bool success, PlanState? planState = null, string? errorMessage = null, string? executionResult = null, string? planFileContent = null) {
         Success = success;
         PlanState = planState;
         ErrorMessage = errorMessage;

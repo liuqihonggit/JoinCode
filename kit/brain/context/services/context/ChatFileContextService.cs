@@ -5,8 +5,7 @@ namespace Core.Context;
 /// 提取自 ChatService.UpdateFileContext + DumpMessageList
 /// </summary>
 [Register(typeof(IChatFileContextService), ServiceLifetime.Singleton)]
-public sealed partial class ChatFileContextService : ServiceEntity, IChatFileContextService
-{
+public sealed partial class ChatFileContextService : ServiceEntity, IChatFileContextService {
 
     /// <summary>
     /// 初始化聊天文件上下文服务
@@ -14,8 +13,7 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
     /// <param name="fileContext">文件上下文追踪器</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public ChatFileContextService(FileContextTracker fileContext, IFileSystem fs, ILogger<ChatFileContextService>? logger = null)
-    {
+    public ChatFileContextService(FileContextTracker fileContext, IFileSystem fs, ILogger<ChatFileContextService>? logger = null) {
         _fileContext = fileContext;
         _fs = fs;
         _logger = logger;
@@ -27,10 +25,8 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
     /// <summary>
     /// 从用户消息中提取文件路径并更新文件上下文
     /// </summary>
-    public void UpdateFileContext(string message)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-        {
+    public void UpdateFileContext(string message) {
+        if (string.IsNullOrWhiteSpace(message)) {
             _fileContext.Clear();
             return;
         }
@@ -46,34 +42,27 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
     /// 文件路径：dumps/chat_{sessionId}_turn{N}_iter{M}.txt
     /// turn=用户对话轮次, iter=工具调用迭代次数
     /// </summary>
-    public void DumpMessageList(IList<ApiMessage> messages, string sessionId, int conversationTurn, int toolCallIteration)
-    {
+    public void DumpMessageList(IList<ApiMessage> messages, string sessionId, int conversationTurn, int toolCallIteration) {
         if (Environment.GetEnvironmentVariable("JCC_DUMP_MESSAGES") != "1") return;
 
-        try
-        {
+        try {
             var dir = AppDataConstants.Paths.DumpsDirectory;
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
 
             var filePath = _fs.CombinePath(dir, $"chat_{sessionId}_turn{conversationTurn}_iter{toolCallIteration}.txt");
             var sb = new System.Text.StringBuilder();
 
-            for (var i = 0; i < messages.Count; i++)
-            {
+            for (var i = 0; i < messages.Count; i++) {
                 var msg = messages[i];
                 if (i > 0) sb.AppendLine();
                 sb.AppendLine($"[{msg.Role}]");
                 sb.AppendLine(msg.Content ?? "");
 
-                if (msg.Metadata != null && msg.Metadata.Count > 0)
-                {
-                    try
-                    {
+                if (msg.Metadata != null && msg.Metadata.Count > 0) {
+                    try {
                         var metaJson = RelaxedJsonSerializer.Serialize(msg.Metadata, ChatServiceJsonContext.Default);
                         sb.AppendLine($"[Metadata] {metaJson}");
-                    }
-                    catch (Exception)
-                    {
+                    } catch (Exception) {
                         sb.AppendLine("[Metadata] <serialization failed>");
                     }
                 }
@@ -81,9 +70,7 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
 
             _fs.WriteAllText(filePath, sb.ToString());
             _logger?.LogInformation("对话消息列表已转储: {FilePath} ({Count} 条消息)", filePath, messages.Count);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "转储对话消息列表失败");
         }
     }

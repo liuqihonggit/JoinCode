@@ -3,13 +3,11 @@ namespace Tools.Handlers;
 /// <summary>
 /// FileToolHandlers 错误诊断方法 — partial class，分离诊断构建逻辑以控制文件长度。
 /// </summary>
-public partial class FileToolHandlers
-{
+public partial class FileToolHandlers {
     /// <summary>
     /// 构建参数校验失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildValidationErrorDiagnostic(string validationError)
-    {
+    internal static ToolDiagnostic BuildValidationErrorDiagnostic(string validationError) {
         return ToolDiagnostic.Create(
             reason: "FileValidationError",
             formattedMessage: validationError,
@@ -21,8 +19,7 @@ public partial class FileToolHandlers
     /// 构建 FileWrite UNC 路径拒绝的结构化诊断。
     /// </summary>
     /// <returns>UNC 路径拒绝的结构化诊断</returns>
-    public static ToolDiagnostic BuildUncPathWriteRejectedDiagnostic()
-    {
+    public static ToolDiagnostic BuildUncPathWriteRejectedDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "UncPathWriteRejected",
             formattedMessage: "Cannot write UNC path files (starting with \\\\), this may lead to credential leakage",
@@ -33,8 +30,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 FileEdit UNC 路径拒绝的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildUncPathEditRejectedDiagnostic()
-    {
+    internal static ToolDiagnostic BuildUncPathEditRejectedDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "UncPathEditRejected",
             formattedMessage: "Cannot edit UNC path files (starting with \\\\), this may lead to credential leakage",
@@ -47,8 +43,7 @@ public partial class FileToolHandlers
     /// </summary>
     /// <param name="secretError">密钥检测错误信息</param>
     /// <returns>密钥写入拒绝的结构化诊断</returns>
-    public static ToolDiagnostic BuildTeamMemSecretRejectedDiagnostic(string secretError)
-    {
+    public static ToolDiagnostic BuildTeamMemSecretRejectedDiagnostic(string secretError) {
         return ToolDiagnostic.Create(
             reason: "TeamMemSecretRejected",
             formattedMessage: secretError,
@@ -60,8 +55,7 @@ public partial class FileToolHandlers
     /// 构建 FileWrite 写前读校验失败的结构化诊断。
     /// </summary>
     /// <returns>写前读校验失败的结构化诊断</returns>
-    public static ToolDiagnostic BuildFileNotReadBeforeWriteDiagnostic()
-    {
+    public static ToolDiagnostic BuildFileNotReadBeforeWriteDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "FileNotReadBeforeWrite",
             formattedMessage: "File has not been read yet. Read it first before writing to it. Use the Read tool to examine the file, then write your changes.",
@@ -72,8 +66,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 FileEdit 写前读校验失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildFileNotReadBeforeEditDiagnostic()
-    {
+    internal static ToolDiagnostic BuildFileNotReadBeforeEditDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "FileNotReadBeforeEdit",
             formattedMessage: "File has not been read yet. Read it first before editing it. Use the Read tool to examine the file, then make your edits.",
@@ -90,8 +83,7 @@ public partial class FileToolHandlers
     /// <param name="lastWriteMs">最近写入时间戳（Unix 毫秒）</param>
     /// <param name="readTimestampMs">上次读取时间戳（Unix 毫秒）</param>
     /// <returns>脏写保护的结构化诊断</returns>
-    public static ToolDiagnostic BuildFileModifiedSinceReadDiagnostic(string operation, string filePath, long lastWriteMs, long readTimestampMs)
-    {
+    public static ToolDiagnostic BuildFileModifiedSinceReadDiagnostic(string operation, string filePath, long lastWriteMs, long readTimestampMs) {
         var lastModification = FormatIsoUtc(lastWriteMs);
         var lastRead = FormatIsoUtc(readTimestampMs);
         return ToolDiagnostic.Create(
@@ -111,8 +103,7 @@ public partial class FileToolHandlers
     /// 构建 Notebook 文件编辑拒绝的结构化诊断。
     /// </summary>
     /// <returns>Notebook 编辑拒绝的结构化诊断</returns>
-    public static ToolDiagnostic BuildNotebookEditRejectedDiagnostic()
-    {
+    public static ToolDiagnostic BuildNotebookEditRejectedDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "NotebookEditRejected",
             formattedMessage: "This is a Jupyter Notebook file. Use the notebook_edit tool to edit this file.",
@@ -124,8 +115,7 @@ public partial class FileToolHandlers
     /// 构建 old_string 与 new_string 相同的诊断。
     /// </summary>
     /// <returns>字符串相同的结构化诊断</returns>
-    public static ToolDiagnostic BuildIdenticalStringsDiagnostic()
-    {
+    public static ToolDiagnostic BuildIdenticalStringsDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "IdenticalStrings",
             formattedMessage: "old_string and new_string are identical, no changes needed",
@@ -138,8 +128,7 @@ public partial class FileToolHandlers
     /// </summary>
     /// <param name="settingsError">settings 校验错误信息</param>
     /// <returns>settings 编辑拒绝的结构化诊断</returns>
-    public static ToolDiagnostic BuildSettingsEditRejectedDiagnostic(string settingsError)
-    {
+    public static ToolDiagnostic BuildSettingsEditRejectedDiagnostic(string settingsError) {
         return ToolDiagnostic.Create(
             reason: "SettingsEditRejected",
             formattedMessage: settingsError,
@@ -151,8 +140,7 @@ public partial class FileToolHandlers
     /// 构建 keyword-sections.json 编辑权限拒绝的结构化诊断。
     /// </summary>
     /// <returns>keyword-sections 编辑拒绝的结构化诊断</returns>
-    public static ToolDiagnostic BuildKeywordSectionsEditRejectedDiagnostic()
-    {
+    public static ToolDiagnostic BuildKeywordSectionsEditRejectedDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "KeywordSectionsEditRejected",
             formattedMessage: "keyword-sections.json 只能由 keywordMaintenance Agent 编辑",
@@ -164,8 +152,7 @@ public partial class FileToolHandlers
     /// 构建 doctor Agent 编辑路径拒绝的结构化诊断。
     /// </summary>
     /// <returns>doctor Agent 编辑拒绝的结构化诊断</returns>
-    public static ToolDiagnostic BuildDoctorAgentEditRejectedDiagnostic()
-    {
+    public static ToolDiagnostic BuildDoctorAgentEditRejectedDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "DoctorAgentEditRejected",
             formattedMessage: "doctor Agent 只能编辑 .jcc/diag/、.jcc/reflexion/ 和 worktree 内文件",
@@ -176,8 +163,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建列目录失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildListDirectoryFailedDiagnostic(string errorMessage)
-    {
+    internal static ToolDiagnostic BuildListDirectoryFailedDiagnostic(string errorMessage) {
         return ToolDiagnostic.Create(
             reason: "ListDirectoryFailed",
             formattedMessage: errorMessage,
@@ -188,8 +174,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 FileEdit 服务未初始化的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildFileEditServiceNotInitializedDiagnostic()
-    {
+    internal static ToolDiagnostic BuildFileEditServiceNotInitializedDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "FileEditServiceNotInitialized",
             formattedMessage: "File edit service is not initialized",
@@ -200,8 +185,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 FileSnip 服务未初始化的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildFileChunkingServiceNotInitializedDiagnostic()
-    {
+    internal static ToolDiagnostic BuildFileChunkingServiceNotInitializedDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "FileChunkingServiceNotInitialized",
             formattedMessage: "File chunking service is not initialized",
@@ -212,8 +196,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建批量编辑文件路径为空的诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildFilePathRequiredDiagnostic()
-    {
+    internal static ToolDiagnostic BuildFilePathRequiredDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "FilePathRequired",
             formattedMessage: "At least one file path is required",
@@ -224,8 +207,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建图像 base64 大小超过 API 限制的诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildImageBase64TooLargeDiagnostic(int base64Length, int limit)
-    {
+    internal static ToolDiagnostic BuildImageBase64TooLargeDiagnostic(int base64Length, int limit) {
         return ToolDiagnostic.Create(
             reason: "ImageBase64TooLarge",
             formattedMessage: $"Image base64 size ({base64Length} bytes) exceeds API limit ({limit} bytes). Please use a smaller image.",
@@ -236,8 +218,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建图像 Token 超过最大允许值的诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildImageTokenExceededDiagnostic(int estimatedTokens, int bufferSize, int maxTokens)
-    {
+    internal static ToolDiagnostic BuildImageTokenExceededDiagnostic(int estimatedTokens, int bufferSize, int maxTokens) {
         return ToolDiagnostic.Create(
             reason: "ImageTokenExceeded",
             formattedMessage: $"Image content ({estimatedTokens} tokens, {bufferSize} bytes) exceeds maximum allowed tokens ({maxTokens}). Try reading a smaller image or use offset/limit on text files instead.",
@@ -248,8 +229,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 PDF pages 参数格式无效的诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildPdfInvalidPagesDiagnostic(string pages)
-    {
+    internal static ToolDiagnostic BuildPdfInvalidPagesDiagnostic(string pages) {
         return ToolDiagnostic.Create(
             reason: "PdfInvalidPages",
             formattedMessage: $"Invalid pages parameter: \"{pages}\". Use formats like \"1-5\", \"3\", or \"10-20\". Pages are 1-indexed.",
@@ -260,8 +240,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 PDF 页范围超过最大页数的诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildPdfPageRangeExceedsMaxDiagnostic(string pages, int maxPages)
-    {
+    internal static ToolDiagnostic BuildPdfPageRangeExceedsMaxDiagnostic(string pages, int maxPages) {
         return ToolDiagnostic.Create(
             reason: "PdfPageRangeExceedsMax",
             formattedMessage: $"Page range \"{pages}\" exceeds maximum of {maxPages} pages per request. Please use a smaller range.",
@@ -272,8 +251,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 PDF fallback 读取失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildPdfFallbackReadFailedDiagnostic(string errorMessage)
-    {
+    internal static ToolDiagnostic BuildPdfFallbackReadFailedDiagnostic(string errorMessage) {
         return ToolDiagnostic.Create(
             reason: "PdfFallbackReadFailed",
             formattedMessage: errorMessage,
@@ -284,8 +262,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 PDF 页面提取失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildPdfExtractFailedDiagnostic(string errorMessage)
-    {
+    internal static ToolDiagnostic BuildPdfExtractFailedDiagnostic(string errorMessage) {
         return ToolDiagnostic.Create(
             reason: "PdfExtractFailed",
             formattedMessage: errorMessage,
@@ -296,8 +273,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 ApplyPatchLogic 未初始化的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildApplyPatchNotAvailableDiagnostic()
-    {
+    internal static ToolDiagnostic BuildApplyPatchNotAvailableDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "ApplyPatchNotAvailable",
             formattedMessage: "ApplyPatchLogic is not available",
@@ -308,8 +284,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 ApplyPatch 失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildApplyPatchFailedDiagnostic(string errorText)
-    {
+    internal static ToolDiagnostic BuildApplyPatchFailedDiagnostic(string errorText) {
         return ToolDiagnostic.Create(
             reason: "ApplyPatchFailed",
             formattedMessage: errorText,

@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Agent;
 
-public enum TeammateMessageType
-{
+public enum TeammateMessageType {
     [EnumValue("idle_notification")] IdleNotification,
     [EnumValue("shutdown_request")] ShutdownRequest,
     [EnumValue("shutdown_approved")] ShutdownApproved,
@@ -25,15 +24,13 @@ public enum TeammateMessageType
 /// <summary>
 /// 队友等待结果
 /// </summary>
-public enum TeammateWaitResult
-{
+public enum TeammateWaitResult {
     [EnumValue("shutdown_request")] ShutdownRequest,
     [EnumValue("new_message")] NewMessage,
     [EnumValue("aborted")] Aborted
 }
 
-public sealed class TeammateStructuredMessage
-{
+public sealed class TeammateStructuredMessage {
     public required TeammateMessageType Type { get; init; }
     public required string RequestId { get; init; }
     public string? FromAgentId { get; init; }
@@ -44,8 +41,7 @@ public sealed class TeammateStructuredMessage
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
-public sealed class TeammateIdleNotification
-{
+public sealed class TeammateIdleNotification {
     public required string AgentId { get; init; }
     public required string TeamName { get; init; }
     public string? TeamId { get; init; }
@@ -54,8 +50,7 @@ public sealed class TeammateIdleNotification
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
-public sealed class TeammateShutdownRequest
-{
+public sealed class TeammateShutdownRequest {
     public required string RequestId { get; init; }
     public required string AgentId { get; init; }
     public string? Reason { get; init; }

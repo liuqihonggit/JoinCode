@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Agents;
 
-public sealed class ReasoningAgentBaseTests
-{
+public sealed class ReasoningAgentBaseTests {
     [Fact]
-    public void ExtractJsonObject_ShouldReturnObjectBetweenBraces()
-    {
+    public void ExtractJsonObject_ShouldReturnObjectBetweenBraces() {
         var text = "前缀 {\"key\":\"value\"} 后缀";
 
         var json = TestAgent.ExtractJsonObject(text);
@@ -13,8 +11,7 @@ public sealed class ReasoningAgentBaseTests
     }
 
     [Fact]
-    public void ExtractJsonObject_ShouldReturnNullWhenNoBraces()
-    {
+    public void ExtractJsonObject_ShouldReturnNullWhenNoBraces() {
         var text = "没有json内容";
 
         var json = TestAgent.ExtractJsonObject(text);
@@ -23,8 +20,7 @@ public sealed class ReasoningAgentBaseTests
     }
 
     [Fact]
-    public void ExtractJsonObject_ShouldReturnNullWhenEndBeforeStart()
-    {
+    public void ExtractJsonObject_ShouldReturnNullWhenEndBeforeStart() {
         var text = "} 内容 {";
 
         var json = TestAgent.ExtractJsonObject(text);
@@ -40,16 +36,14 @@ public sealed class ReasoningAgentBaseTests
     [InlineData("Unreliable", TrustLevel.Unreliable)]
     [InlineData("Unknown", TrustLevel.Moderate)]
     [InlineData(null, TrustLevel.Moderate)]
-    public void ParseTrustLevel_ShouldMapCorrectly(string? input, TrustLevel expected)
-    {
+    public void ParseTrustLevel_ShouldMapCorrectly(string? input, TrustLevel expected) {
         var actual = TestAgent.ParseTrustLevel(input);
 
         Assert.Equal(expected, actual);
     }
 
     [Fact]
-    public async Task CompressPromptIfNeededAsync_WhenContextManagerIsNull_ReturnsOriginal()
-    {
+    public async Task CompressPromptIfNeededAsync_WhenContextManagerIsNull_ReturnsOriginal() {
         var context = CreateContext(maxPromptTokens: 10);
         var prompt = "这是一个很长的提示词";
         var agent = new TestAgent(NullLogger<TestAgent>.Instance);
@@ -60,8 +54,7 @@ public sealed class ReasoningAgentBaseTests
     }
 
     [Fact]
-    public async Task CallLlmAsync_WhenChatClientIsNull_ReturnsNullAndZeroTokens()
-    {
+    public async Task CallLlmAsync_WhenChatClientIsNull_ReturnsNullAndZeroTokens() {
         var agent = new TestAgent(NullLogger<TestAgent>.Instance);
 
         var (content, usage, promptTokens) = await agent.CallLlmAsync("user prompt");
@@ -72,8 +65,7 @@ public sealed class ReasoningAgentBaseTests
     }
 
     [Fact]
-    public async Task CallLlmAsync_WhenChatClientReturnsResponse_ReturnsContentAndUsage()
-    {
+    public async Task CallLlmAsync_WhenChatClientReturnsResponse_ReturnsContentAndUsage() {
         var agent = new TestAgent(
             NullLogger<TestAgent>.Instance,
             new FakeChatClient("assistant response"));
@@ -86,8 +78,7 @@ public sealed class ReasoningAgentBaseTests
     }
 
     [Fact]
-    public async Task CallLlmAsync_WhenChatClientThrows_ReturnsNullUsage()
-    {
+    public async Task CallLlmAsync_WhenChatClientThrows_ReturnsNullUsage() {
         var agent = new TestAgent(
             NullLogger<TestAgent>.Instance,
             new FakeChatClient(new InvalidOperationException("boom")));
@@ -100,8 +91,7 @@ public sealed class ReasoningAgentBaseTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_WhenBrokerIsNull_DoesNothing()
-    {
+    public async Task SendMessageAsync_WhenBrokerIsNull_DoesNothing() {
         var agent = new TestAgent(NullLogger<TestAgent>.Instance);
 
         await agent.SendMessageAsync("to", "type", "content", CancellationToken.None);
@@ -110,8 +100,7 @@ public sealed class ReasoningAgentBaseTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_WhenBrokerIsNotNull_SendsMessage()
-    {
+    public async Task SendMessageAsync_WhenBrokerIsNotNull_SendsMessage() {
         var broker = new FakeMessageBroker();
         var agent = new TestAgent(NullLogger<TestAgent>.Instance, messageBroker: broker);
 
@@ -123,8 +112,7 @@ public sealed class ReasoningAgentBaseTests
     }
 
     [Fact]
-    public async Task BroadcastAsync_WhenBrokerIsNotNull_BroadcastsMessage()
-    {
+    public async Task BroadcastAsync_WhenBrokerIsNotNull_BroadcastsMessage() {
         var broker = new FakeMessageBroker();
         var agent = new TestAgent(NullLogger<TestAgent>.Instance, messageBroker: broker);
 
@@ -134,10 +122,8 @@ public sealed class ReasoningAgentBaseTests
         Assert.Equal("broadcast", broker.BroadcastMessages[0].ToAgentId);
     }
 
-    private static ReasoningContext CreateContext(int maxPromptTokens)
-    {
-        return new ReasoningContext
-        {
+    private static ReasoningContext CreateContext(int maxPromptTokens) {
+        return new ReasoningContext {
             AllItems = [],
             AllEvidence = [],
             Dag = new Dag<ReasoningPayload>(),
@@ -145,15 +131,13 @@ public sealed class ReasoningAgentBaseTests
         };
     }
 
-    private sealed class TestAgent : ReasoningAgent
-    {
+    private sealed class TestAgent : ReasoningAgent {
         public override string SystemPrompt => "你是测试Agent";
 
         public TestAgent(ILogger logger, IChatClient? chatClient = null, IMailbox? messageBroker = null)
             : base(new FakeQueryEngine(), logger, AgentRole.Prosecutor, "测试Agent", chatClient, messageBroker) { }
 
-        public override Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
-        {
+        public override Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct) {
             return System.Threading.Tasks.Task.FromResult(new AgentAction { AgentRole = Role });
         }
 

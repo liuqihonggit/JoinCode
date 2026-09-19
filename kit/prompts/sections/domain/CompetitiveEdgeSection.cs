@@ -8,13 +8,11 @@ namespace Core.Prompts.Sections;
     Keywords = new[] { "冲", "认真点", "别敷衍", "全力以赴", "拿出真本事", "认真做", "别偷懒", "严格", "高标准", "竞争", "竞技", "codex", "swe-bench", "outperform", "elite", "go hard", "no mercy", "严肃", "认真", "拼了", "serious", "rigorous" },
     InjectOn = PromptSectionInject.AgentMode | PromptSectionInject.CoordinatorMode,
     Order = 55)]
-public static class CompetitiveEdgeSection
-{
+public static class CompetitiveEdgeSection {
     /// <summary>
     /// 获取 competitive_edge 部分内容；竞争性驱动协议文本。
     /// </summary>
-    public static string GetContent()
-    {
+    public static string GetContent() {
         return """
 # 竞争性驱动协议
 
@@ -56,8 +54,7 @@ public static class CompetitiveEdgeSection
     /// <summary>
     /// 创建 competitive_edge 提示词部分。
     /// </summary>
-    public static SystemPromptSection Create()
-    {
+    public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("competitive_edge", GetContent);
     }
 }

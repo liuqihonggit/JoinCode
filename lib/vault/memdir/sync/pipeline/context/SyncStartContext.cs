@@ -4,8 +4,7 @@ namespace Memdir.Sync;
 /// <summary>
 /// 同步启动管道共享上下文 — 在中间件各阶段间传递状态
 /// </summary>
-public sealed class SyncStartContext : PipelineContextBase, INullCheckContext, IMetricsContext
-{
+public sealed class SyncStartContext : PipelineContextBase, INullCheckContext, IMetricsContext {
     // === 输入 ===
 
     /// <summary>文件系统</summary>
@@ -77,8 +76,7 @@ public sealed class SyncStartContext : PipelineContextBase, INullCheckContext, I
     /// 构建指标标签字典。
     /// </summary>
     /// <returns>包含 operation 与 success 标签的字典。</returns>
-    public Dictionary<string, string> BuildMetricsTags() => new()
-    {
+    public Dictionary<string, string> BuildMetricsTags() => new() {
         ["operation"] = "start",
         ["success"] = IsMetricsSuccess.ToString()
     };

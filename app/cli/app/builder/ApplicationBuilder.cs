@@ -3,8 +3,7 @@ namespace JoinCode.App.Builder;
 /// <summary>
 /// 应用构建器 — 链式注册模块，提供基础设施方法供 Main 调用
 /// </summary>
-public sealed class ApplicationBuilder
-{
+public sealed class ApplicationBuilder {
     private readonly List<IAppModule> _modules = [];
 
     /// <summary>默认构造函数 — 初始化空模块列表</summary>
@@ -13,8 +12,7 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 注册模块（泛型版本）
     /// </summary>
-    public ApplicationBuilder UseModule<TModule>() where TModule : IAppModule, new()
-    {
+    public ApplicationBuilder UseModule<TModule>() where TModule : IAppModule, new() {
         _modules.Add(new TModule());
         return this;
     }
@@ -22,8 +20,7 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 注册模块（实例版本）— 供外部项目（如 GUI）传入跨项目边界的模块
     /// </summary>
-    public ApplicationBuilder UseModule(IAppModule module)
-    {
+    public ApplicationBuilder UseModule(IAppModule module) {
         _modules.Add(module);
         return this;
     }
@@ -31,10 +28,8 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 构建 Host — 按序调用各模块的 ConfigureServices
     /// </summary>
-    public IHost BuildHost(WorkflowConfig config, CommandLineOptions options)
-    {
-        var context = new AppModuleContext
-        {
+    public IHost BuildHost(WorkflowConfig config, CommandLineOptions options) {
+        var context = new AppModuleContext {
             Options = options,
             Config = config
         };
@@ -42,14 +37,12 @@ public sealed class ApplicationBuilder
         var ordered = _modules.OrderBy(m => m.Order).ToList();
 
         return Host.CreateDefaultBuilder()
-            .ConfigureServices((_, services) =>
-            {
+            .ConfigureServices((_, services) => {
                 services.AddSingleton(config);
                 // 视角1 #3: 注册 CommandLineOptions 为单例，供 PermissionConfig 后配置读取
                 services.AddSingleton(options);
 
-                foreach (var module in ordered)
-                {
+                foreach (var module in ordered) {
                     module.ConfigureServices(services, context);
                 }
 
@@ -58,26 +51,19 @@ public sealed class ApplicationBuilder
                 // 替代方案已否决: 修改 Guard 模块接口（破坏组件边界）
                 services.AddOptions<NetworkRetryOptions>();
                 services.AddOptions<PermissionConfig>()
-                    .Configure<CommandLineOptions>((permConfig, cliOptions) =>
-                    {
-                        if (cliOptions.AllowedTools is { Count: > 0 })
-                        {
-                            foreach (var tool in cliOptions.AllowedTools)
-                            {
-                                if (!permConfig.AutoApprovedTools.ContainsKey(tool))
-                                {
+                    .Configure<CommandLineOptions>((permConfig, cliOptions) => {
+                        if (cliOptions.AllowedTools is { Count: > 0 }) {
+                            foreach (var tool in cliOptions.AllowedTools) {
+                                if (!permConfig.AutoApprovedTools.ContainsKey(tool)) {
                                     permConfig.AutoApprovedTools[tool] = new ToolPermissionRule { ToolName = tool, Description = "From CLI --allowed-tools" };
                                 }
                             }
                             Diag.WriteLine($"[MAIN] --allowed-tools 合并 {cliOptions.AllowedTools.Count} 个工具到 PermissionConfig.AutoApprovedTools");
                         }
 
-                        if (cliOptions.DisallowedTools is { Count: > 0 })
-                        {
-                            foreach (var tool in cliOptions.DisallowedTools)
-                            {
-                                if (!permConfig.AutoRejectedTools.ContainsKey(tool))
-                                {
+                        if (cliOptions.DisallowedTools is { Count: > 0 }) {
+                            foreach (var tool in cliOptions.DisallowedTools) {
+                                if (!permConfig.AutoRejectedTools.ContainsKey(tool)) {
                                     permConfig.AutoRejectedTools[tool] = new ToolPermissionRule { ToolName = tool, Description = "From CLI --disallowed-tools" };
                                 }
                             }
@@ -85,8 +71,7 @@ public sealed class ApplicationBuilder
                         }
                     });
             })
-            .ConfigureLogging(logging =>
-            {
+            .ConfigureLogging(logging => {
                 // ADR 0100: 清除 Host.CreateDefaultBuilder() 的默认 AddConsole，用 ConsoleActorLoggerProvider 替代
                 // 默认 AddConsole 的 AnsiLogConsole 直接写 Console.Out，绕过 Actor 串行化
                 logging.ClearProviders();
@@ -97,8 +82,7 @@ public sealed class ApplicationBuilder
                     logging.AddConsole(options => { options.FormatterName = "simple"; });
 
                 var minLevelStr = Environment.GetEnvironmentVariable("JCC_LOG_LEVEL");
-                var minLevel = minLevelStr switch
-                {
+                var minLevel = minLevelStr switch {
                     "Trace" => LogLevel.Trace,
                     "Debug" => LogLevel.Debug,
                     "Information" => LogLevel.Information,
@@ -114,11 +98,9 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 模块初始化 — 按序调用各模块的 ConfigureAsync
     /// </summary>
-    public async Task ConfigureModulesAsync(IServiceProvider services)
-    {
+    public async Task ConfigureModulesAsync(IServiceProvider services) {
         var ordered = _modules.OrderBy(m => m.Order).ToList();
-        foreach (var module in ordered)
-        {
+        foreach (var module in ordered) {
             // P2-5: 迁移到 Diag.WriteLine，统一受 JCC_DEBUGLOG 控制
             Diag.WriteLine($"[MODULE] {module.GetType().Name} start");
             await module.ConfigureAsync(services, CancellationToken.None).ConfigureAwait(false);
@@ -137,12 +119,10 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 执行子命令
     /// </summary>
-    public static async Task<int> RunSubCommandAsync(string[] args)
-    {
+    public static async Task<int> RunSubCommandAsync(string[] args) {
         var subCommand = CliSubCommandExtensions.FromValue(args[0]);
 
-        if (subCommand is CliSubCommand.RemoteControl or CliSubCommand.Rc or CliSubCommand.Remote)
-        {
+        if (subCommand is CliSubCommand.RemoteControl or CliSubCommand.Rc or CliSubCommand.Remote) {
             var bridgeFs = IO.FileSystem.FileSystemFactory.Create();
             var bridgeProcessService = new IO.ProcessService.PhysicalProcessService(
                 new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider()));
@@ -166,16 +146,14 @@ public sealed class ApplicationBuilder
 
         // schema 子命令 — 输出 CLI 参数定义 JSON（对齐架构指南可发现性：Schema 自省）
         // 使用生成器生成的 ToJson() 方法（Utf8JsonWriter，AOT 兼容，无需 JsonContext）
-        if (subCommand == CliSubCommand.Schema)
-        {
+        if (subCommand == CliSubCommand.Schema) {
             var data = System.Text.Json.Nodes.JsonNode.Parse(CliArgSchema.ToJson());
             System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
             return 0;
         }
 
         // 扁平元动词子命令 — ADR 0069: mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve/slash_call/slash_list/slash_schema/doctor
-        if (subCommand is not null)
-        {
+        if (subCommand is not null) {
             var flatResult = await FlatSubCommandRouter.TryExecuteAsync(subCommand.Value, args, CancellationToken.None).ConfigureAwait(false);
             if (flatResult is not null)
                 return flatResult.Value;
@@ -192,8 +170,7 @@ public sealed class ApplicationBuilder
     /// </summary>
     /// <param name="fs">文件系统抽象（与 BridgeMainCommand 复用同一实例）</param>
     /// <returns>已注册 Guard 服务及依赖的 ServiceProvider（调用方负责 Dispose）</returns>
-    internal static ServiceProvider BuildBridgeGuardServices(IFileSystem fs)
-    {
+    internal static ServiceProvider BuildBridgeGuardServices(IFileSystem fs) {
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddConsole());
         services.AddSingleton(fs);
@@ -209,8 +186,7 @@ public sealed class ApplicationBuilder
         // RemotePolicyOptions — 从环境变量读取配置
         // 决策: 与 TelemetryConfig.FromEnvironment() 模式一致（环境变量优先）
         // 环境变量: JCC_REMOTE_POLICY_ENDPOINT / JCC_REMOTE_POLICY_KEY / JCC_REMOTE_POLICY_REFRESH_SECONDS / JCC_REMOTE_POLICY_CACHE_SECONDS
-        var policyOptions = new Core.Policy.RemotePolicyOptions
-        {
+        var policyOptions = new Core.Policy.RemotePolicyOptions {
             ApiEndpoint = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT") ?? string.Empty,
             ClientKey = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_KEY") ?? string.Empty,
             RefreshInterval = ParseTimeSpanSeconds("JCC_REMOTE_POLICY_REFRESH_SECONDS", TimeSpan.FromMinutes(10)),
@@ -241,8 +217,7 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 从环境变量解析 TimeSpan（秒数），失败返回默认值
     /// </summary>
-    private static TimeSpan ParseTimeSpanSeconds(string envVar, TimeSpan defaultValue)
-    {
+    private static TimeSpan ParseTimeSpanSeconds(string envVar, TimeSpan defaultValue) {
         var value = Environment.GetEnvironmentVariable(envVar);
         if (int.TryParse(value, out var seconds) && seconds > 0)
             return TimeSpan.FromSeconds(seconds);
@@ -252,11 +227,9 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 解析命令行参数
     /// </summary>
-    public static CommandLineOptions ParseArgs(string[] args)
-    {
+    public static CommandLineOptions ParseArgs(string[] args) {
         var result = CliArgParser.Parse(args);
-        if (result.HasError)
-        {
+        if (result.HasError) {
             Cli.TerminalHelper.WriteLine($"错误: {result.Error}");
             Cli.TerminalHelper.WriteLine("使用 --help 查看可用选项。");
             Environment.Exit((int)ExitCode.ArgumentParseError);
@@ -271,8 +244,7 @@ public sealed class ApplicationBuilder
         if (Abstractions.Utils.Diagnostics.Diag.IsDebugLog)
             Core.Utils.LockRegistry.DiagnosticsEnabled = true;
 
-        var options = new CommandLineOptions
-        {
+        var options = new CommandLineOptions {
             ShowHelp = result.Help,
             ShowVersion = result.Version,
             PipeName = result.Pipe,
@@ -301,8 +273,7 @@ public sealed class ApplicationBuilder
         };
 
         // --await N: 超时自动关闭秒数
-        if (!string.IsNullOrWhiteSpace(result.Await) && int.TryParse(result.Await, out var awaitSeconds) && awaitSeconds > 0)
-        {
+        if (!string.IsNullOrWhiteSpace(result.Await) && int.TryParse(result.Await, out var awaitSeconds) && awaitSeconds > 0) {
             options.AwaitTimeoutSeconds = awaitSeconds;
         }
 
@@ -311,27 +282,23 @@ public sealed class ApplicationBuilder
         // 已在 CliArgParser.Parse 内部完成，此处只需同步环境变量
         CliArgParser.ApplyEnvVars(result);
 
-        if (Cli.TerminalHelper.IsHeadless)
-        {
+        if (Cli.TerminalHelper.IsHeadless) {
             options.NonInteractive = true;
         }
 
-        if (options.ForceInteractive)
-        {
+        if (options.ForceInteractive) {
             Cli.TerminalHelper.ForceInteractive = true;
             options.NonInteractive = false;
         }
 
         // --no-confirm / --yes（别名已展开）→ ForceNonInteractive
-        if (options.NoConfirm)
-        {
+        if (options.NoConfirm) {
             Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         }
 
         options.DetectedHeadlessMode = Cli.TerminalHelper.IsHeadless ? HeadlessMode.NoTty : HeadlessMode.Interactive;
 
-        if (options.NonInteractive && options.DetectedHeadlessMode == HeadlessMode.Interactive)
-        {
+        if (options.NonInteractive && options.DetectedHeadlessMode == HeadlessMode.Interactive) {
             options.DetectedHeadlessMode = HeadlessMode.UserRequested;
         }
 
@@ -342,8 +309,7 @@ public sealed class ApplicationBuilder
     /// 解析工具列表（逗号或空格分隔）— 用于 --allowed-tools / --disallowed-tools
     /// 支持 "Read,Edit,Bash(git:*)" 和 "Read Edit Bash(git:*)" 两种格式
     /// </summary>
-    private static List<string> ParseToolList(string? raw)
-    {
+    private static List<string> ParseToolList(string? raw) {
         if (string.IsNullOrWhiteSpace(raw))
             return new List<string>();
 
@@ -358,40 +324,31 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 加载配置 — 含 DotEnv 回退
     /// </summary>
-    public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs, IModelConfigLoader? modelConfigLoader = null)
-    {
+    public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs, IModelConfigLoader? modelConfigLoader = null) {
         var dotEnv = GetDotEnv();
         WorkflowConfig config;
 
         var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
         using var configLoggerFactory = LoggerFactory.Create(b => b.AddProvider(new Core.Configuration.StderrLoggerProvider(configLogLevel)));
 
-        var loader = new Core.Configuration.ConfigLoader(modelConfigLoader: modelConfigLoader, loggerFactory: configLoggerFactory)
-        {
+        var loader = new Core.Configuration.ConfigLoader(modelConfigLoader: modelConfigLoader, loggerFactory: configLoggerFactory) {
             SkipProviderValidation = options.SkipProviderValidation
         };
 
-        try
-        {
+        try {
             config = await loader.LoadConfigAsync(fs);
-        }
-        catch (ConfigurationException ex) when (ex.Message.Contains("API Key"))
-        {
-            if (dotEnv is not null)
-            {
+        } catch (ConfigurationException ex) when (ex.Message.Contains("API Key")) {
+            if (dotEnv is not null) {
                 await dotEnv.ApplyToConfigAsync(fs);
                 config = await loader.LoadConfigAsync(fs);
-            }
-            else
-            {
+            } else {
                 throw;
             }
         }
 
         var registry = new Core.Configuration.Providers.ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader(), logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>());
 
-        if (dotEnv is not null)
-        {
+        if (dotEnv is not null) {
             dotEnv.ApplyToMemory(config, registry);
         }
 
@@ -418,51 +375,47 @@ public sealed class ApplicationBuilder
     /// <para>jcc -h exit        → 退出码</para>
     /// <para>jcc -h examples    → 使用示例</para>
     /// </summary>
-    public static void ShowHelp(string? topic = null)
-    {
+    public static void ShowHelp(string? topic = null) {
         Cli.TerminalHelper.WriteLine("JoinCode - AI 智能体命令行工具");
         Cli.TerminalHelper.NewLine();
 
-        if (string.IsNullOrWhiteSpace(topic))
-        {
+        if (string.IsNullOrWhiteSpace(topic)) {
             ShowHelpOverview();
             return;
         }
 
         var t = topic.Trim();
-        switch (t.ToLowerInvariant())
-        {
+        switch (t.ToLowerInvariant()) {
             case "options" or "opt":
-                Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("categorized").Replace("cliarg", "jcc"));
-                break;
+            Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("categorized").Replace("cliarg", "jcc"));
+            break;
             case "sub" or "subcommand" or "subs":
-                Cli.TerminalHelper.WriteLine("子命令分类:");
-                Cli.TerminalHelper.NewLine();
-                Cli.TerminalHelper.WriteLine(CliSubCommandHelpText.GetCategories());
-                break;
+            Cli.TerminalHelper.WriteLine("子命令分类:");
+            Cli.TerminalHelper.NewLine();
+            Cli.TerminalHelper.WriteLine(CliSubCommandHelpText.GetCategories());
+            break;
             case "env" or "environment":
-                ShowEnvironmentVariables();
-                break;
+            ShowEnvironmentVariables();
+            break;
             case "exit" or "exitcode" or "exitcodes":
-                ShowExitCodes();
-                break;
+            ShowExitCodes();
+            break;
             case "examples" or "ex" or "example":
-                Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("examples"));
-                break;
+            Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("examples"));
+            break;
             default:
-                if (TryShowSubCommandHelp(t)) break;
-                Cli.TerminalHelper.WriteLine($"未知主题: {t}");
-                Cli.TerminalHelper.NewLine();
-                ShowHelpOverview();
-                break;
+            if (TryShowSubCommandHelp(t)) break;
+            Cli.TerminalHelper.WriteLine($"未知主题: {t}");
+            Cli.TerminalHelper.NewLine();
+            ShowHelpOverview();
+            break;
         }
     }
 
     /// <summary>
     /// 帮助概览 — 第一级展开, 只显示分类入口
     /// </summary>
-    private static void ShowHelpOverview()
-    {
+    private static void ShowHelpOverview() {
         Cli.TerminalHelper.WriteLine("用法: jcc [选项] [子命令] [参数]");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("帮助主题:");
@@ -480,8 +433,7 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 尝试显示子命令帮助 — 按分类名或命令名查找
     /// </summary>
-    private static bool TryShowSubCommandHelp(string topic)
-    {
+    private static bool TryShowSubCommandHelp(string topic) {
         var help = CliSubCommandHelpText.GetHelp(topic);
         if (help.StartsWith("未知")) return false;
         Cli.TerminalHelper.WriteLine(help);
@@ -491,8 +443,7 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 显示环境变量 — 从 JccEnvVar 枚举 + [SubCommandInfo] 特性源码生成
     /// </summary>
-    private static void ShowEnvironmentVariables()
-    {
+    private static void ShowEnvironmentVariables() {
         Cli.TerminalHelper.WriteLine("环境变量:");
         Cli.TerminalHelper.NewLine();
         foreach (var cat in JccEnvVarHelpText.GetHelp().Split('\n', StringSplitOptions.RemoveEmptyEntries))
@@ -502,8 +453,7 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 显示退出码 — 从 JccExitCode 枚举 + [SubCommandInfo] 特性源码生成
     /// </summary>
-    private static void ShowExitCodes()
-    {
+    private static void ShowExitCodes() {
         Cli.TerminalHelper.WriteLine("退出码:");
         Cli.TerminalHelper.NewLine();
         foreach (var line in JccExitCodeHelpText.GetHelp().Split('\n', StringSplitOptions.RemoveEmptyEntries))
@@ -513,8 +463,7 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 显示版本信息
     /// </summary>
-    public static void ShowVersion()
-    {
+    public static void ShowVersion() {
         var assemblyVersion = typeof(ApplicationBuilder).Assembly.GetName().Version;
         var appVersion = assemblyVersion?.ToString() ?? "1.0.0";
         var runtimeVersion = Environment.Version.ToString();
@@ -524,22 +473,19 @@ public sealed class ApplicationBuilder
 
     private static Entry.DotEnvConfig? _dotEnvCache;
 
-    private static Entry.DotEnvConfig? GetDotEnv()
-    {
+    private static Entry.DotEnvConfig? GetDotEnv() {
         if (_dotEnvCache is null)
             _dotEnvCache = LoadDotEnvCore();
         return _dotEnvCache;
     }
 
-    private static Entry.DotEnvConfig? LoadDotEnvCore()
-    {
+    private static Entry.DotEnvConfig? LoadDotEnvCore() {
         var envPath = FindDotEnvPath();
         if (envPath is null) return null;
         return Entry.DotEnvConfig.LoadFrom(envPath);
     }
 
-    private static string? FindDotEnvPath()
-    {
+    private static string? FindDotEnvPath() {
         // 1. JCC_CONFIG_PATH 环境变量 — 用户自定义配置路径
         var customPath = Environment.GetEnvironmentVariable("JCC_CONFIG_PATH");
         if (!string.IsNullOrEmpty(customPath) && System.IO.File.Exists(customPath))

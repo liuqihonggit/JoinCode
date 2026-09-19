@@ -16,35 +16,30 @@ namespace IO.ProcessService;
 /// 禁止在生产代码中直接 <c>new ProcessStartInfo</c>。
 /// </para>
 /// </summary>
-public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
-{
+public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder {
     private readonly IProcessEncodingProvider _encodingProvider;
 
     /// <summary>
     /// 创建 ProcessStartInfo 统一构建器
     /// </summary>
     /// <param name="encodingProvider">进程编码统一管理器（DI 单例）</param>
-    public ProcessStartInfoBuilder(IProcessEncodingProvider encodingProvider)
-    {
+    public ProcessStartInfoBuilder(IProcessEncodingProvider encodingProvider) {
         _encodingProvider = encodingProvider ?? throw new ArgumentNullException(nameof(encodingProvider));
     }
 
     /// <summary>
     /// 从 <see cref="ProcessOptions"/> 构建 <see cref="ProcessStartInfo"/> — 一次性执行模式
     /// </summary>
-    public ProcessStartInfo Build(ProcessOptions options)
-    {
+    public ProcessStartInfo Build(ProcessOptions options) {
         ArgumentNullException.ThrowIfNull(options);
 
-        if (!options.SkipArgumentValidation)
-        {
+        if (!options.SkipArgumentValidation) {
             CommandArgumentValidator.ValidateList(options.ArgumentList);
             if (options.ArgumentList.Count == 0)
                 CommandArgumentValidator.ValidateString(options.Arguments);
         }
 
-        var psi = new ProcessStartInfo
-        {
+        var psi = new ProcessStartInfo {
             FileName = options.FileName,
             WorkingDirectory = options.WorkingDirectory ?? string.Empty,
             UseShellExecute = false,
@@ -55,18 +50,14 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
             StandardErrorEncoding = options.StandardErrorEncoding ?? _encodingProvider.Error,
         };
 
-        if (options.ArgumentList.Count > 0)
-        {
+        if (options.ArgumentList.Count > 0) {
             foreach (var arg in options.ArgumentList)
                 psi.ArgumentList.Add(arg);
-        }
-        else
-        {
+        } else {
             psi.Arguments = options.Arguments;
         }
 
-        if (options.EnvironmentVariables is not null)
-        {
+        if (options.EnvironmentVariables is not null) {
             foreach (var (key, value) in options.EnvironmentVariables)
                 psi.EnvironmentVariables[key] = value;
         }
@@ -77,12 +68,10 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
     /// <summary>
     /// 从 <see cref="InteractiveProcessOptions"/> 构建 <see cref="ProcessStartInfo"/> — 交互式进程模式
     /// </summary>
-    public ProcessStartInfo BuildInteractive(InteractiveProcessOptions options)
-    {
+    public ProcessStartInfo BuildInteractive(InteractiveProcessOptions options) {
         ArgumentNullException.ThrowIfNull(options);
 
-        if (!options.SkipArgumentValidation)
-        {
+        if (!options.SkipArgumentValidation) {
             CommandArgumentValidator.ValidateList(options.ArgumentList);
             if (options.ArgumentList.Count == 0)
                 CommandArgumentValidator.ValidateString(options.Arguments);
@@ -96,8 +85,7 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
         ValidateNoBomEncoding(outputEncoding, nameof(options.StandardOutputEncoding));
         ValidateNoBomEncoding(errorEncoding, nameof(options.StandardErrorEncoding));
 
-        var psi = new ProcessStartInfo
-        {
+        var psi = new ProcessStartInfo {
             FileName = options.FileName,
             WorkingDirectory = options.WorkingDirectory ?? string.Empty,
             UseShellExecute = false,
@@ -110,18 +98,14 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
             StandardInputEncoding = inputEncoding,
         };
 
-        if (options.ArgumentList.Count > 0)
-        {
+        if (options.ArgumentList.Count > 0) {
             foreach (var arg in options.ArgumentList)
                 psi.ArgumentList.Add(arg);
-        }
-        else
-        {
+        } else {
             psi.Arguments = options.Arguments;
         }
 
-        if (options.EnvironmentVariables is not null)
-        {
+        if (options.EnvironmentVariables is not null) {
             foreach (var (key, value) in options.EnvironmentVariables)
                 psi.EnvironmentVariables[key] = value;
         }
@@ -133,11 +117,9 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
     /// 构建 UseShellExecute=true 的 ProcessStartInfo — 仅用于打开 URL/文件/目录（启动即忘模式）
     /// <para>此模式不经过参数校验和 ArgumentList，因为 UseShellExecute=true 时 ArgumentList 不可用</para>
     /// </summary>
-    public ProcessStartInfo BuildShellOpen(string path)
-    {
+    public ProcessStartInfo BuildShellOpen(string path) {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        return new ProcessStartInfo
-        {
+        return new ProcessStartInfo {
             FileName = path,
             UseShellExecute = true,
         };
@@ -157,8 +139,7 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
     /// <param name="encoding">待检查的编码</param>
     /// <param name="paramName">参数名（用于异常消息）</param>
     /// <exception cref="ArgumentException">编码带 BOM 前缀时抛出</exception>
-    private static void ValidateNoBomEncoding(Encoding? encoding, string paramName)
-    {
+    private static void ValidateNoBomEncoding(Encoding? encoding, string paramName) {
         if (encoding is null) return;
         if (encoding.Preamble.Length == 0) return;
 

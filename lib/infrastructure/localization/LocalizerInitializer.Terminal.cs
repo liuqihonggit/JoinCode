@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterTerminalEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterTerminalEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === Status Bar / Footer (Host UI) ===
         defaultEntries[StringKey.FooterExitHint] = "Esc to exit";
         defaultEntries[StringKey.FooterInterruptHint] = "esc to interrupt";

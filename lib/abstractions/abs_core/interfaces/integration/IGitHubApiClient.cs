@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// GitHub REST API 响应 — 通用返回包装
 /// </summary>
-public sealed record GitHubApiResponse
-{
+public sealed record GitHubApiResponse {
     /// <summary>
     /// 是否成功（2xx 状态码）
     /// </summary>
@@ -42,8 +41,7 @@ public sealed record GitHubApiResponse
 /// <para>5. 错误映射：HTTP 状态码 + GitHub 错误响应体 → GitHubApiResponse.Error</para>
 /// <para>6. Run 日志：GET /actions/runs/{id}/logs 返回 zip → 解压逐文件逐行 yield</para>
 /// </summary>
-public interface IGitHubApiClient
-{
+public interface IGitHubApiClient {
     /// <summary>
     /// 通用 REST API 调用 — 返回原始 JSON 字符串
     /// </summary>

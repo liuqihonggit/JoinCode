@@ -3,11 +3,9 @@ namespace Tui.Tests.Pipes;
 /// <summary>
 /// PollingService 单元测试 — 验证轮询检测新消息、状态变化事件、启停。
 /// </summary>
-public class PollingServiceTests
-{
+public class PollingServiceTests {
     [Fact]
-    public async Task PollOnce_NewMessages_TriggersEvent()
-    {
+    public async Task PollOnce_NewMessages_TriggersEvent() {
         var registry = new PipeRegistry();
         var pipe = new MessagePipe("main", "Main", isMain: true);
         registry.Register(pipe);
@@ -26,8 +24,7 @@ public class PollingServiceTests
     }
 
     [Fact]
-    public void PollOnce_NoNewMessages_DoesNotTrigger()
-    {
+    public void PollOnce_NoNewMessages_DoesNotTrigger() {
         var registry = new PipeRegistry();
         var pipe = new MessagePipe("main", "Main", isMain: true);
         pipe.AddMessage(CreateMessage("msg1", "main"));
@@ -42,8 +39,7 @@ public class PollingServiceTests
     }
 
     [Fact]
-    public void PollOnce_StateChange_TriggersStateEvent()
-    {
+    public void PollOnce_StateChange_TriggersStateEvent() {
         var registry = new PipeRegistry();
         var pipe = new MessagePipe("sub1", "Sub");
         registry.Register(pipe);
@@ -63,8 +59,7 @@ public class PollingServiceTests
     }
 
     [Fact]
-    public async Task PollOnce_MultiplePipes_TriggersForEach()
-    {
+    public async Task PollOnce_MultiplePipes_TriggersForEach() {
         var registry = new PipeRegistry();
         var pipe1 = new MessagePipe("main", "Main", isMain: true);
         var pipe2 = new MessagePipe("sub1", "Sub");
@@ -86,8 +81,7 @@ public class PollingServiceTests
     }
 
     [Fact]
-    public async Task StartStop_Lifecycle_CompletesWithoutError()
-    {
+    public async Task StartStop_Lifecycle_CompletesWithoutError() {
         var registry = new PipeRegistry();
         registry.Register(new MessagePipe("main", "Main", isMain: true));
 
@@ -98,8 +92,7 @@ public class PollingServiceTests
     }
 
     [Fact]
-    public async Task DisposeAsync_AfterStart_CompletesCleanly()
-    {
+    public async Task DisposeAsync_AfterStart_CompletesCleanly() {
         var registry = new PipeRegistry();
         registry.Register(new MessagePipe("main", "Main", isMain: true));
 
@@ -109,18 +102,15 @@ public class PollingServiceTests
     }
 
     [Fact]
-    public void PollInterval_ClampedToMinimum100()
-    {
+    public void PollInterval_ClampedToMinimum100() {
         var registry = new PipeRegistry();
         var service = new PollingService(registry, 50);
         service.Start();
         service.PollOnce();
     }
 
-    private static TuiMessage CreateMessage(string id, string agentId)
-    {
-        return new TuiMessage
-        {
+    private static TuiMessage CreateMessage(string id, string agentId) {
+        return new TuiMessage {
             Id = id,
             AgentId = agentId,
             Type = TuiMessageType.AgentContent,

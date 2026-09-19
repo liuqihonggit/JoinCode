@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// <summary>
 /// Shell 命令封装 - 将解析逻辑从总线移到类型内部
 /// </summary>
-public sealed record ShellCommand
-{
+public sealed record ShellCommand {
     /// <summary>
     /// 原始命令字符串
     /// </summary>
@@ -53,8 +52,7 @@ public sealed record ShellCommand
         bool isPowerShell,
         bool isBash,
         bool hasPipe,
-        bool hasRedirection)
-    {
+        bool hasRedirection) {
         RawCommand = rawCommand;
         CommandName = commandName;
         Arguments = arguments;
@@ -68,10 +66,8 @@ public sealed record ShellCommand
     /// <summary>
     /// 解析命令字符串
     /// </summary>
-    public static ShellCommand Parse(string command)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-        {
+    public static ShellCommand Parse(string command) {
+        if (string.IsNullOrWhiteSpace(command)) {
             throw new ArgumentException("Command cannot be null or empty", nameof(command));
         }
 
@@ -95,8 +91,7 @@ public sealed record ShellCommand
             hasRedirection);
     }
 
-    private static bool DetectPowerShell(string command)
-    {
+    private static bool DetectPowerShell(string command) {
         var powerShellIndicators = new[]
         {
             "powershell", "pwsh", "Invoke-", "Get-", "Set-", "New-", "Remove-",
@@ -107,8 +102,7 @@ public sealed record ShellCommand
             command.Contains(indicator, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool DetectBash(string command)
-    {
+    private static bool DetectBash(string command) {
         var bashIndicators = new[]
         {
             "bash", "sh ", "#!/bin/bash", "#!/bin/sh", "echo ", "grep ", "awk ", "sed "
@@ -118,46 +112,38 @@ public sealed record ShellCommand
             command.Contains(indicator, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static (string CommandName, IReadOnlyList<string> Arguments) ParseCommandParts(string command)
-    {
+    private static (string CommandName, IReadOnlyList<string> Arguments) ParseCommandParts(string command) {
         var parts = SplitCommand(command);
-        if (parts.Count == 0)
-        {
+        if (parts.Count == 0) {
             return (string.Empty, Array.Empty<string>());
         }
 
         return (parts[0], parts.Skip(1).ToList());
     }
 
-    private static List<string> SplitCommand(string command)
-    {
+    private static List<string> SplitCommand(string command) {
         var parts = new List<string>();
         var current = new System.Text.StringBuilder();
         var inQuotes = false;
         var quoteChar = '\0';
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
 
-            if ((c == '"' || c == '\'') && !inQuotes)
-            {
+            if ((c == '"' || c == '\'') && !inQuotes) {
                 inQuotes = true;
                 quoteChar = c;
                 continue;
             }
 
-            if (c == quoteChar && inQuotes)
-            {
+            if (c == quoteChar && inQuotes) {
                 inQuotes = false;
                 quoteChar = '\0';
                 continue;
             }
 
-            if (char.IsWhiteSpace(c) && !inQuotes)
-            {
-                if (current.Length > 0)
-                {
+            if (char.IsWhiteSpace(c) && !inQuotes) {
+                if (current.Length > 0) {
                     parts.Add(current.ToString());
                     current.Clear();
                 }
@@ -167,24 +153,21 @@ public sealed record ShellCommand
             current.Append(c);
         }
 
-        if (current.Length > 0)
-        {
+        if (current.Length > 0) {
             parts.Add(current.ToString());
         }
 
         return parts;
     }
 
-    private static IReadOnlyList<string> ExtractPaths(IReadOnlyList<string> arguments)
-    {
+    private static IReadOnlyList<string> ExtractPaths(IReadOnlyList<string> arguments) {
         return arguments
             .Where(IsPathLike)
             .Select(a => a.Trim('"', '\''))
             .ToList();
     }
 
-    private static bool IsPathLike(string arg)
-    {
+    private static bool IsPathLike(string arg) {
         if (string.IsNullOrEmpty(arg))
             return false;
 

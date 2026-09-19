@@ -1,8 +1,6 @@
-namespace AotSafety.Generator
-{
+namespace AotSafety.Generator {
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public sealed class PerformanceRules : DiagnosticAnalyzer
-    {
+    public sealed class PerformanceRules : DiagnosticAnalyzer {
         private static readonly DiagnosticDescriptor RuleStringConcatInLoop = new(
             "JCC5002",
             "性能: 循环内字符串拼接使用 += 运算符",
@@ -117,8 +115,7 @@ namespace AotSafety.Generator
                 RuleRangeQueryBinarySearch, RuleForeachToLinq, RuleParallelForEach,
                 RuleLongLinqChain);
 
-        public override void Initialize(AnalysisContext context)
-        {
+        public override void Initialize(AnalysisContext context) {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterSyntaxNodeAction(AnalyzeStringConcatInLoop, SyntaxKind.AddAssignmentExpression);
@@ -134,8 +131,7 @@ namespace AotSafety.Generator
             context.RegisterSyntaxNodeAction(AnalyzeLongLinqChain, SyntaxKind.InvocationExpression);
         }
 
-        private static void AnalyzeStringConcatInLoop(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeStringConcatInLoop(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var addAssignment = (AssignmentExpressionSyntax)ctx.Node;
@@ -149,8 +145,7 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleStringConcatInLoop, addAssignment.GetLocation()));
         }
 
-        private static void AnalyzeNestedLoop(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeNestedLoop(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var loopNode = ctx.Node;
@@ -158,11 +153,9 @@ namespace AotSafety.Generator
             var depth = 0;
             var outerLoopLine = -1;
             var current = loopNode.Parent;
-            while (current is not null)
-            {
+            while (current is not null) {
                 if (current is ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax
-                    or ForEachStatementSyntax or ForEachVariableStatementSyntax)
-                {
+                    or ForEachStatementSyntax or ForEachVariableStatementSyntax) {
                     depth++;
                     if (outerLoopLine < 0)
                         outerLoopLine = current.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
@@ -178,21 +171,17 @@ namespace AotSafety.Generator
             if (innerCollection is null) return;
 
             var parent = loopNode.Parent;
-            while (parent is not null)
-            {
+            while (parent is not null) {
                 if (parent is ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax
-                    or ForEachStatementSyntax or ForEachVariableStatementSyntax)
-                {
+                    or ForEachStatementSyntax or ForEachVariableStatementSyntax) {
                     var outerCollection = GetLoopCollectionExpression(parent);
-                    if (outerCollection is not null)
-                    {
+                    if (outerCollection is not null) {
                         var innerText = innerCollection.ToString().Replace(" ", "");
                         var outerText = outerCollection.ToString().Replace(" ", "");
 
                         if (innerText == outerText ||
                             innerText.StartsWith(outerText + ".", StringComparison.Ordinal) ||
-                            innerText.Contains(outerText))
-                        {
+                            innerText.Contains(outerText)) {
                             ctx.ReportDiagnostic(Diagnostic.Create(
                                 RuleNestedLoopOnSameCollection,
                                 loopNode.GetLocation(),
@@ -205,10 +194,8 @@ namespace AotSafety.Generator
             }
         }
 
-        private static ExpressionSyntax? GetLoopCollectionExpression(SyntaxNode loopNode)
-        {
-            return loopNode switch
-            {
+        private static ExpressionSyntax? GetLoopCollectionExpression(SyntaxNode loopNode) {
+            return loopNode switch {
                 ForEachStatementSyntax foreachStmt => foreachStmt.Expression,
                 ForEachVariableStatementSyntax foreachVarStmt => foreachVarStmt.Expression,
                 ForStatementSyntax forStmt => null,
@@ -216,8 +203,7 @@ namespace AotSafety.Generator
             };
         }
 
-        private static void AnalyzeLinearOperationInLoop(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeLinearOperationInLoop(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var invocation = (InvocationExpressionSyntax)ctx.Node;
@@ -246,8 +232,7 @@ namespace AotSafety.Generator
                 $"{typeName}.{methodName}"));
         }
 
-        private static bool IsTailRemoval(InvocationExpressionSyntax invocation, SyntaxNodeAnalysisContext ctx)
-        {
+        private static bool IsTailRemoval(InvocationExpressionSyntax invocation, SyntaxNodeAnalysisContext ctx) {
             var args = invocation.ArgumentList.Arguments;
             if (args.Count == 0) return false;
 
@@ -259,14 +244,12 @@ namespace AotSafety.Generator
             if (IsCountMinusOne(firstArg)) return true;
 
             if (firstArg is PrefixUnaryExpressionSyntax prefixUnary &&
-                prefixUnary.IsKind(SyntaxKind.IndexExpression))
-            {
+                prefixUnary.IsKind(SyntaxKind.IndexExpression)) {
                 var operandText = prefixUnary.Operand.ToString().Trim();
                 if (operandText == "1") return true;
             }
 
-            if (firstArg is IdentifierNameSyntax identifier)
-            {
+            if (firstArg is IdentifierNameSyntax identifier) {
                 var varName = identifier.Identifier.ValueText;
                 if (IsVariableAssignedAsCountMinusOne(identifier, varName, ctx)) return true;
             }
@@ -274,21 +257,18 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsCountMinusOne(ExpressionSyntax expr)
-        {
+        private static bool IsCountMinusOne(ExpressionSyntax expr) {
             if (expr is BinaryExpressionSyntax binary &&
                 binary.IsKind(SyntaxKind.SubtractExpression) &&
                 binary.Right is LiteralExpressionSyntax literal &&
-                literal.Token.ValueText == "1")
-            {
+                literal.Token.ValueText == "1") {
                 var leftText = binary.Left.ToString().Replace(" ", "");
                 if (leftText.EndsWith(".Count", StringComparison.Ordinal)) return true;
             }
             return false;
         }
 
-        private static bool IsVariableAssignedAsCountMinusOne(IdentifierNameSyntax identifier, string varName, SyntaxNodeAnalysisContext ctx)
-        {
+        private static bool IsVariableAssignedAsCountMinusOne(IdentifierNameSyntax identifier, string varName, SyntaxNodeAnalysisContext ctx) {
             var statement = identifier.Parent;
             while (statement is not null && statement is not StatementSyntax)
                 statement = statement.Parent;
@@ -299,14 +279,11 @@ namespace AotSafety.Generator
 
             var removeAtSpanStart = statement.SpanStart;
 
-            foreach (var child in block.ChildNodes())
-            {
+            foreach (var child in block.ChildNodes()) {
                 if (child.SpanStart >= removeAtSpanStart) break;
 
-                if (child is LocalDeclarationStatementSyntax localDecl)
-                {
-                    foreach (var v in localDecl.Declaration.Variables)
-                    {
+                if (child is LocalDeclarationStatementSyntax localDecl) {
+                    foreach (var v in localDecl.Declaration.Variables) {
                         if (v.Identifier.ValueText != varName) continue;
                         if (v.Initializer?.Value is not null && IsCountMinusOne(v.Initializer.Value))
                             return true;
@@ -316,8 +293,7 @@ namespace AotSafety.Generator
                 if (child is ExpressionStatementSyntax exprStmt &&
                     exprStmt.Expression is AssignmentExpressionSyntax assignment &&
                     assignment.Left is IdentifierNameSyntax assignTarget &&
-                    assignTarget.Identifier.ValueText == varName)
-                {
+                    assignTarget.Identifier.ValueText == varName) {
                     if (IsCountMinusOne(assignment.Right)) return true;
                 }
             }
@@ -325,8 +301,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool IsListOrArrayType(INamedTypeSymbol type)
-        {
+        private static bool IsListOrArrayType(INamedTypeSymbol type) {
             if (type.TypeKind == TypeKind.Array) return true;
 
             if (!type.IsGenericType) return false;
@@ -336,8 +311,7 @@ namespace AotSafety.Generator
             return fullName == "System.Collections.Generic.List";
         }
 
-        private static void AnalyzeListInsertAtHead(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeListInsertAtHead(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var invocation = (InvocationExpressionSyntax)ctx.Node;
@@ -363,8 +337,7 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleListInsertAtHead, invocation.GetLocation()));
         }
 
-        private static void AnalyzeMethodLevelListContains(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeMethodLevelListContains(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var method = (MethodDeclarationSyntax)ctx.Node;
@@ -372,8 +345,7 @@ namespace AotSafety.Generator
             var containsCounts = new Dictionary<string, List<InvocationExpressionSyntax>>(StringComparer.Ordinal);
             var variableTypes = new Dictionary<string, (string TypeName, string ElementType)>(StringComparer.Ordinal);
 
-            foreach (var descendant in method.DescendantNodes())
-            {
+            foreach (var descendant in method.DescendantNodes()) {
                 if (descendant is not InvocationExpressionSyntax invocation) continue;
                 if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess) continue;
                 if (memberAccess.Name.Identifier.ValueText != "Contains") continue;
@@ -391,8 +363,7 @@ namespace AotSafety.Generator
                 if (containingType.TypeArguments.Length > 0)
                     elementType = containingType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
 
-                if (!containsCounts.ContainsKey(receiverText))
-                {
+                if (!containsCounts.ContainsKey(receiverText)) {
                     containsCounts[receiverText] = new List<InvocationExpressionSyntax>();
                     variableTypes[receiverText] = ("List", elementType);
                 }
@@ -400,8 +371,7 @@ namespace AotSafety.Generator
             }
 
             const int threshold = 3;
-            foreach (var kvp in containsCounts)
-            {
+            foreach (var kvp in containsCounts) {
                 if (kvp.Value.Count < threshold) continue;
 
                 var varName = kvp.Key;
@@ -415,8 +385,7 @@ namespace AotSafety.Generator
             }
         }
 
-        private static void AnalyzeStaticReadOnlyLinearSearch(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeStaticReadOnlyLinearSearch(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var invocation = (InvocationExpressionSyntax)ctx.Node;
@@ -445,8 +414,7 @@ namespace AotSafety.Generator
                 receiverText, methodName));
         }
 
-        private static void AnalyzeStringToSpan(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeStringToSpan(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             var invocation = (InvocationExpressionSyntax)ctx.Node;
@@ -471,13 +439,11 @@ namespace AotSafety.Generator
                 methodName));
         }
 
-        private static bool IsArrayType(ITypeSymbol type)
-        {
+        private static bool IsArrayType(ITypeSymbol type) {
             return type.TypeKind == TypeKind.Array;
         }
 
-        private static bool IsListType(ITypeSymbol type)
-        {
+        private static bool IsListType(ITypeSymbol type) {
             if (type is not INamedTypeSymbol namedType) return false;
             if (!namedType.IsGenericType) return false;
             var def = namedType.ConstructedFrom;
@@ -486,20 +452,17 @@ namespace AotSafety.Generator
             return fullName == "System.Collections.Generic.List";
         }
 
-        private static void AnalyzeRangeQueryBinarySearch(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeRangeQueryBinarySearch(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
-            var loopBody = ctx.Node switch
-            {
+            var loopBody = ctx.Node switch {
                 ForEachStatementSyntax fe => fe.Statement as BlockSyntax,
                 ForStatementSyntax f => f.Statement as BlockSyntax,
                 _ => null,
             };
             if (loopBody is null) return;
 
-            foreach (var statement in loopBody.Statements)
-            {
+            foreach (var statement in loopBody.Statements) {
                 if (ctx.CancellationToken.IsCancellationRequested) return;
 
                 if (statement is not IfStatementSyntax ifStmt) continue;
@@ -516,8 +479,7 @@ namespace AotSafety.Generator
             }
         }
 
-        private static bool IsRangeCondition(ExpressionSyntax? condition)
-        {
+        private static bool IsRangeCondition(ExpressionSyntax? condition) {
             if (condition is null) return false;
 
             if (condition is not BinaryExpressionSyntax binary) return false;
@@ -529,10 +491,8 @@ namespace AotSafety.Generator
             return IsComparisonWithVariable(left) && IsComparisonWithVariable(right);
         }
 
-        private static bool IsComparisonWithVariable(ExpressionSyntax expr)
-        {
-            return expr.Kind() switch
-            {
+        private static bool IsComparisonWithVariable(ExpressionSyntax expr) {
+            return expr.Kind() switch {
                 SyntaxKind.GreaterThanOrEqualExpression => true,
                 SyntaxKind.LessThanOrEqualExpression => true,
                 SyntaxKind.GreaterThanExpression => true,
@@ -541,8 +501,7 @@ namespace AotSafety.Generator
             };
         }
 
-        private static void AnalyzeForeachToLinq(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeForeachToLinq(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not ForEachStatementSyntax foreachStmt) return;
@@ -551,8 +510,7 @@ namespace AotSafety.Generator
 
             if (body.Statements.Count > 3) return;
 
-            if (TryMatchFilterAndAdd(body, out var filterAddDesc))
-            {
+            if (TryMatchFilterAndAdd(body, out var filterAddDesc)) {
                 ctx.ReportDiagnostic(Diagnostic.Create(
                     RuleForeachToLinq,
                     foreachStmt.ForEachKeyword.GetLocation(),
@@ -560,8 +518,7 @@ namespace AotSafety.Generator
                 return;
             }
 
-            if (TryMatchAnyPattern(body, out var anyDesc))
-            {
+            if (TryMatchAnyPattern(body, out var anyDesc)) {
                 ctx.ReportDiagnostic(Diagnostic.Create(
                     RuleForeachToLinq,
                     foreachStmt.ForEachKeyword.GetLocation(),
@@ -569,8 +526,7 @@ namespace AotSafety.Generator
                 return;
             }
 
-            if (TryMatchAggregation(body, out var aggDesc))
-            {
+            if (TryMatchAggregation(body, out var aggDesc)) {
                 ctx.ReportDiagnostic(Diagnostic.Create(
                     RuleForeachToLinq,
                     foreachStmt.ForEachKeyword.GetLocation(),
@@ -579,8 +535,7 @@ namespace AotSafety.Generator
             }
         }
 
-        private static bool TryMatchFilterAndAdd(BlockSyntax body, out string suggestion)
-        {
+        private static bool TryMatchFilterAndAdd(BlockSyntax body, out string suggestion) {
             suggestion = "";
             if (body.Statements.Count != 1) return false;
 
@@ -595,8 +550,7 @@ namespace AotSafety.Generator
             if (exprStmt.Expression is not InvocationExpressionSyntax invocation) return false;
             if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess) return false;
 
-            if (memberAccess.Name.Identifier.ValueText == "Add")
-            {
+            if (memberAccess.Name.Identifier.ValueText == "Add") {
                 suggestion = ".Where(...).ToList()";
                 return true;
             }
@@ -604,8 +558,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool TryMatchAnyPattern(BlockSyntax body, out string suggestion)
-        {
+        private static bool TryMatchAnyPattern(BlockSyntax body, out string suggestion) {
             suggestion = "";
             if (body.Statements.Count != 1) return false;
 
@@ -620,14 +573,12 @@ namespace AotSafety.Generator
             if (returnStmt.Expression is null) return false;
 
             var returnText = returnStmt.Expression.ToString().Trim();
-            if (returnText == "true")
-            {
+            if (returnText == "true") {
                 suggestion = ".Any(...)";
                 return true;
             }
 
-            if (returnText == "false")
-            {
+            if (returnText == "false") {
                 suggestion = ".All(...)";
                 return true;
             }
@@ -635,14 +586,11 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static bool ContainsLinearSearch(ExpressionSyntax? expr)
-        {
+        private static bool ContainsLinearSearch(ExpressionSyntax? expr) {
             if (expr is null) return false;
-            foreach (var node in expr.DescendantNodesAndSelf())
-            {
+            foreach (var node in expr.DescendantNodesAndSelf()) {
                 if (node is InvocationExpressionSyntax invocation &&
-                    invocation.Expression is MemberAccessExpressionSyntax memberAccess)
-                {
+                    invocation.Expression is MemberAccessExpressionSyntax memberAccess) {
                     var name = memberAccess.Name.Identifier.ValueText;
                     if (name == "Contains" || name == "IndexOf")
                         return true;
@@ -651,32 +599,27 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static StatementSyntax? GetSingleStatement(StatementSyntax thenStatement)
-        {
-            if (thenStatement is BlockSyntax block)
-            {
+        private static StatementSyntax? GetSingleStatement(StatementSyntax thenStatement) {
+            if (thenStatement is BlockSyntax block) {
                 if (block.Statements.Count != 1) return null;
                 return block.Statements[0];
             }
             return thenStatement;
         }
 
-        private static bool TryMatchAggregation(BlockSyntax body, out string suggestion)
-        {
+        private static bool TryMatchAggregation(BlockSyntax body, out string suggestion) {
             suggestion = "";
             if (body.Statements.Count != 1) return false;
 
             if (body.Statements[0] is not ExpressionStatementSyntax exprStmt) return false;
 
-            if (exprStmt.Expression.IsKind(SyntaxKind.AddAssignmentExpression))
-            {
+            if (exprStmt.Expression.IsKind(SyntaxKind.AddAssignmentExpression)) {
                 suggestion = ".Sum(...)";
                 return true;
             }
 
             if (exprStmt.Expression.IsKind(SyntaxKind.PostIncrementExpression) ||
-                exprStmt.Expression.IsKind(SyntaxKind.PreIncrementExpression))
-            {
+                exprStmt.Expression.IsKind(SyntaxKind.PreIncrementExpression)) {
                 suggestion = ".Count(...)";
                 return true;
             }
@@ -684,8 +627,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeParallelForEach(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeParallelForEach(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not InvocationExpressionSyntax invocation) return;
@@ -700,8 +642,7 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleParallelForEach, invocation.GetLocation()));
         }
 
-        private static void AnalyzeLongLinqChain(SyntaxNodeAnalysisContext ctx)
-        {
+        private static void AnalyzeLongLinqChain(SyntaxNodeAnalysisContext ctx) {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not InvocationExpressionSyntax invocation) return;
@@ -714,21 +655,17 @@ namespace AotSafety.Generator
             ctx.ReportDiagnostic(Diagnostic.Create(RuleLongLinqChain, invocation.GetLocation(), chainCount));
         }
 
-        private static int CountChainedCalls(InvocationExpressionSyntax invocation)
-        {
+        private static int CountChainedCalls(InvocationExpressionSyntax invocation) {
             var count = 1;
             var current = invocation.Expression;
 
-            while (current is MemberAccessExpressionSyntax memberAccess)
-            {
+            while (current is MemberAccessExpressionSyntax memberAccess) {
                 count++;
-                if (memberAccess.Expression is InvocationExpressionSyntax innerInvocation)
-                {
+                if (memberAccess.Expression is InvocationExpressionSyntax innerInvocation) {
                     count += CountChainedCalls(innerInvocation) - 1;
                     break;
                 }
-                if (memberAccess.Expression is MemberAccessExpressionSyntax innerMemberAccess)
-                {
+                if (memberAccess.Expression is MemberAccessExpressionSyntax innerMemberAccess) {
                     break;
                 }
                 break;

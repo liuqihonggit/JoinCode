@@ -2,18 +2,15 @@
 #pragma warning disable JCC3010, JCC3011, JCC3012
 namespace Core.Tests.Agents.Coordinator;
 
-public class TeamManagerTests : IAsyncLifetime
-{
+public class TeamManagerTests : IAsyncLifetime {
     private readonly ITeamManager _teamManager;
 
-    public TeamManagerTests()
-    {
+    public TeamManagerTests() {
         _teamManager = new TeamManager(JoinCode.Abstractions.Clock.SystemClockService.Instance);
     }
 
     [Fact]
-    public async Task CreateTeamAsync_WithValidName_ShouldCreateTeam()
-    {
+    public async Task CreateTeamAsync_WithValidName_ShouldCreateTeam() {
         // Arrange
         var teamName = "Test Team";
         var description = "Test Description";
@@ -30,8 +27,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateTeamAsync_WithEmptyName_ShouldFail()
-    {
+    public async Task CreateTeamAsync_WithEmptyName_ShouldFail() {
         // Arrange
         var teamName = "";
 
@@ -44,8 +40,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateTeamAsync_WithInitialMembers_ShouldCreateTeamWithMembers()
-    {
+    public async Task CreateTeamAsync_WithInitialMembers_ShouldCreateTeamWithMembers() {
         // Arrange
         var teamName = "Test Team";
         var initialMembers = new List<string> { "agent1", "agent2", "agent3" };
@@ -62,8 +57,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DeleteTeamAsync_WithExistingTeam_ShouldDelete()
-    {
+    public async Task DeleteTeamAsync_WithExistingTeam_ShouldDelete() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -79,8 +73,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DeleteTeamAsync_WithNonExistentTeam_ShouldFail()
-    {
+    public async Task DeleteTeamAsync_WithNonExistentTeam_ShouldFail() {
         // Act
         var result = await _teamManager.DeleteTeamAsync("non-existent-id").ConfigureAwait(true);
 
@@ -90,8 +83,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetTeamAsync_WithExistingTeam_ShouldReturnTeam()
-    {
+    public async Task GetTeamAsync_WithExistingTeam_ShouldReturnTeam() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -106,8 +98,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetTeamAsync_WithNonExistentTeam_ShouldReturnNull()
-    {
+    public async Task GetTeamAsync_WithNonExistentTeam_ShouldReturnNull() {
         // Act
         var team = await _teamManager.GetTeamAsync("non-existent-id").ConfigureAwait(true);
 
@@ -116,8 +107,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ListTeamsAsync_WithMultipleTeams_ShouldReturnAll()
-    {
+    public async Task ListTeamsAsync_WithMultipleTeams_ShouldReturnAll() {
         // Arrange
         await _teamManager.CreateTeamAsync("Team 1").ConfigureAwait(true);
         await _teamManager.CreateTeamAsync("Team 2").ConfigureAwait(true);
@@ -131,8 +121,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AddTeamMemberAsync_WithValidTeam_ShouldAddMember()
-    {
+    public async Task AddTeamMemberAsync_WithValidTeam_ShouldAddMember() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -148,8 +137,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AddTeamMemberAsync_WithNonExistentTeam_ShouldFail()
-    {
+    public async Task AddTeamMemberAsync_WithNonExistentTeam_ShouldFail() {
         // Act
         var result = await _teamManager.AddTeamMemberAsync("non-existent-id", "agent1").ConfigureAwait(true);
 
@@ -159,8 +147,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AddTeamMemberAsync_DuplicateMember_ShouldFail()
-    {
+    public async Task AddTeamMemberAsync_DuplicateMember_ShouldFail() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -175,8 +162,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RemoveTeamMemberAsync_WithExistingMember_ShouldRemove()
-    {
+    public async Task RemoveTeamMemberAsync_WithExistingMember_ShouldRemove() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -193,8 +179,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RemoveTeamMemberAsync_WithNonExistentMember_ShouldFail()
-    {
+    public async Task RemoveTeamMemberAsync_WithNonExistentMember_ShouldFail() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -208,8 +193,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SendMessageAsync_WithValidTeam_ShouldSendMessage()
-    {
+    public async Task SendMessageAsync_WithValidTeam_ShouldSendMessage() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "sender1" }).ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -227,8 +211,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SendMessageAsync_WithNonMemberSender_ShouldFail()
-    {
+    public async Task SendMessageAsync_WithNonMemberSender_ShouldFail() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team").ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -242,8 +225,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SendMessageToAgentAsync_WithValidAgent_ShouldSendMessage()
-    {
+    public async Task SendMessageToAgentAsync_WithValidAgent_ShouldSendMessage() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "agent1", "agent2" }).ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -261,8 +243,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task BroadcastMessageAsync_WithValidTeam_ShouldBroadcast()
-    {
+    public async Task BroadcastMessageAsync_WithValidTeam_ShouldBroadcast() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "sender1" }).ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -279,8 +260,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetTeamMessagesAsync_WithMultipleMessages_ShouldReturnOrdered()
-    {
+    public async Task GetTeamMessagesAsync_WithMultipleMessages_ShouldReturnOrdered() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "agent1" }).ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -299,8 +279,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task TeamInfo_ShouldHaveCorrectTimestamps()
-    {
+    public async Task TeamInfo_ShouldHaveCorrectTimestamps() {
         // Arrange
         var before = DateTime.UtcNow.AddSeconds(-1);
 
@@ -316,8 +295,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task TeamActivity_ShouldUpdateLastActivityAt()
-    {
+    public async Task TeamActivity_ShouldUpdateLastActivityAt() {
         // Arrange
         var beforeCreate = DateTime.UtcNow.AddMilliseconds(-100);
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "agent1" }).ConfigureAwait(true);
@@ -335,8 +313,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task TeamMessage_ShouldHaveAllProperties()
-    {
+    public async Task TeamMessage_ShouldHaveAllProperties() {
         // Arrange
         var createResult = await _teamManager.CreateTeamAsync("Test Team", initialMembers: new List<string> { "agent1" }).ConfigureAwait(true);
         var teamId = createResult.Data!.TeamId;
@@ -356,8 +333,7 @@ public class TeamManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ComplexScenario_CreateTeamAddMembersSendMessages()
-    {
+    public async Task ComplexScenario_CreateTeamAddMembersSendMessages() {
         // Arrange & Act - 创建团队
         var teamResult = await _teamManager.CreateTeamAsync("Development Team", "Team for development tasks").ConfigureAwait(true);
         teamResult.Success.Should().BeTrue();
@@ -387,8 +363,7 @@ public class TeamManagerTests : IAsyncLifetime
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public Task DisposeAsync()
-    {
+    public Task DisposeAsync() {
         _teamManager.DisposeSafe();
         return Task.CompletedTask;
     }

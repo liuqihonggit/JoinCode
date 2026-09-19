@@ -1,8 +1,7 @@
 namespace JoinCode.App.Middlewares;
 
 [Register(typeof(IPipelinePostHook<WebContext>), ServiceLifetime.Singleton)]
-internal sealed partial class WebTelemetryHook : TelemetryPostHook<WebContext>
-{
+internal sealed partial class WebTelemetryHook : TelemetryPostHook<WebContext> {
     public WebTelemetryHook(ITelemetryService? telemetryService)
         : base(telemetryService, "web.fetch.count", "Web pipeline count") { }
 }

@@ -1,10 +1,8 @@
 namespace Core.Context;
 
-public sealed class TaskProgressTrackerTests
-{
+public sealed class TaskProgressTrackerTests {
     [Fact]
-    public async Task GetCompletedTodoCountAsync_ReturnsCompletedCount()
-    {
+    public async Task GetCompletedTodoCountAsync_ReturnsCompletedCount() {
         var todoService = CreateTodoService(completedCount: 3, totalCount: 5);
         var tracker = new TaskProgressTracker(todoService.Object);
 
@@ -14,8 +12,7 @@ public sealed class TaskProgressTrackerTests
     }
 
     [Fact]
-    public async Task GetCompletedTodoCountAsync_ReturnsZeroOnFailure()
-    {
+    public async Task GetCompletedTodoCountAsync_ReturnsZeroOnFailure() {
         var todoService = new Mock<ITodoService>();
         todoService.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TodoListResult(false, new List<TodoItem>()));
@@ -28,8 +25,7 @@ public sealed class TaskProgressTrackerTests
     }
 
     [Fact]
-    public async Task GetCompletedTodoCountAsync_ReturnsZeroOnException()
-    {
+    public async Task GetCompletedTodoCountAsync_ReturnsZeroOnException() {
         var todoService = new Mock<ITodoService>();
         todoService.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("test"));
@@ -42,13 +38,11 @@ public sealed class TaskProgressTrackerTests
     }
 
     [Fact]
-    public async Task GetCompletedTodoCountAsync_QueryFailsAfterSuccess_ReturnsLastKnownCount()
-    {
+    public async Task GetCompletedTodoCountAsync_QueryFailsAfterSuccess_ReturnsLastKnownCount() {
         var call = 0;
         var todoService = new Mock<ITodoService>();
         todoService.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .Returns(() =>
-            {
+            .Returns(() => {
                 call++;
                 if (call == 1)
                     return Task.FromResult(new TodoListResult(true, CreateTodoItems(5, 8)));
@@ -65,13 +59,11 @@ public sealed class TaskProgressTrackerTests
     }
 
     [Fact]
-    public async Task HasProgressedSinceLastSnapshotAsync_QueryFailsAfterSnapshot_DoesNotReportFalseNoProgress()
-    {
+    public async Task HasProgressedSinceLastSnapshotAsync_QueryFailsAfterSnapshot_DoesNotReportFalseNoProgress() {
         var call = 0;
         var todoService = new Mock<ITodoService>();
         todoService.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .Returns(() =>
-            {
+            .Returns(() => {
                 call++;
                 if (call <= 2)
                     return Task.FromResult(new TodoListResult(true, CreateTodoItems(3, 5)));
@@ -90,8 +82,7 @@ public sealed class TaskProgressTrackerTests
     }
 
     [Fact]
-    public async Task SnapshotCurrentProgressAsync_RecordsCompletedCount()
-    {
+    public async Task SnapshotCurrentProgressAsync_RecordsCompletedCount() {
         var todoService = CreateTodoService(completedCount: 5, totalCount: 8);
         var tracker = new TaskProgressTracker(todoService.Object);
 
@@ -102,13 +93,11 @@ public sealed class TaskProgressTrackerTests
     }
 
     [Fact]
-    public async Task HasProgressedSinceLastSnapshotAsync_ReturnsTrueWhenCountIncreased()
-    {
+    public async Task HasProgressedSinceLastSnapshotAsync_ReturnsTrueWhenCountIncreased() {
         var completedCount = 3;
         var todoService = new Mock<ITodoService>();
         todoService.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .Returns(() =>
-            {
+            .Returns(() => {
                 var items = CreateTodoItems(completedCount, 5);
                 completedCount++;
                 return Task.FromResult(new TodoListResult(true, items));
@@ -123,8 +112,7 @@ public sealed class TaskProgressTrackerTests
     }
 
     [Fact]
-    public async Task HasProgressedSinceLastSnapshotAsync_ReturnsFalseWhenCountUnchanged()
-    {
+    public async Task HasProgressedSinceLastSnapshotAsync_ReturnsFalseWhenCountUnchanged() {
         var todoService = CreateTodoService(completedCount: 3, totalCount: 5);
         var tracker = new TaskProgressTracker(todoService.Object);
 
@@ -135,8 +123,7 @@ public sealed class TaskProgressTrackerTests
     }
 
     [Fact]
-    public async Task HasProgressedSinceLastSnapshotAsync_ReturnsFalseBeforeSnapshot()
-    {
+    public async Task HasProgressedSinceLastSnapshotAsync_ReturnsFalseBeforeSnapshot() {
         var todoService = CreateTodoService(completedCount: 3, totalCount: 5);
         var tracker = new TaskProgressTracker(todoService.Object);
 
@@ -146,13 +133,11 @@ public sealed class TaskProgressTrackerTests
     }
 
     [Fact]
-    public async Task FullProgressTrackingWorkflow_SnapshotThenProgressThenCheck()
-    {
+    public async Task FullProgressTrackingWorkflow_SnapshotThenProgressThenCheck() {
         var callCount = 0;
         var todoService = new Mock<ITodoService>();
         todoService.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .Returns(() =>
-            {
+            .Returns(() => {
                 callCount++;
                 var completed = callCount <= 2 ? 2 : 5;
                 var items = CreateTodoItems(completed, 8);
@@ -170,8 +155,7 @@ public sealed class TaskProgressTrackerTests
         hasProgressed.Should().BeTrue();
     }
 
-    private static Mock<ITodoService> CreateTodoService(int completedCount, int totalCount)
-    {
+    private static Mock<ITodoService> CreateTodoService(int completedCount, int totalCount) {
         var items = CreateTodoItems(completedCount, totalCount);
         var mock = new Mock<ITodoService>();
         mock.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -179,11 +163,9 @@ public sealed class TaskProgressTrackerTests
         return mock;
     }
 
-    private static List<TodoItem> CreateTodoItems(int completedCount, int totalCount)
-    {
+    private static List<TodoItem> CreateTodoItems(int completedCount, int totalCount) {
         var items = new List<TodoItem>();
-        for (var i = 0; i < totalCount; i++)
-        {
+        for (var i = 0; i < totalCount; i++) {
             var isCompleted = i < completedCount;
             items.Add(new TodoItem(
                 Id: $"todo-{i}",

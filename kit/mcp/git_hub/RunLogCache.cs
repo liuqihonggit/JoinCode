@@ -5,8 +5,7 @@ namespace McpToolDispatch;
 /// <para>流式拉取后按 \t 解析步骤名分组,后续展开从缓存读取,避免重复下载</para>
 /// <para>ADR 0067: StepSections 按 ##[error]/##[warning] 等标记分类,支持 Section 级展开</para>
 /// </summary>
-internal sealed class RunLogCache
-{
+internal sealed class RunLogCache {
     /// <summary>Run ID</summary>
     public required string RunId { get; init; }
 
@@ -34,8 +33,7 @@ internal sealed class RunLogCache
     /// 解析日志行的 section 类型 — 按 GitHub Actions 标记分类
     /// <para>##[error] → error, ##[warning] → warning, ##[command] → command, ##[group] → group, 无标记 → normal</para>
     /// </summary>
-    internal static string ParseSectionType(string line)
-    {
+    internal static string ParseSectionType(string line) {
         if (line.Contains("##[error]", StringComparison.OrdinalIgnoreCase)) return SectionError;
         if (line.Contains("##[warning]", StringComparison.OrdinalIgnoreCase)) return SectionWarning;
         if (line.Contains("##[command]", StringComparison.OrdinalIgnoreCase)) return SectionCommand;
@@ -50,8 +48,7 @@ internal sealed class RunLogCache
 /// <para>内存压力时 Level 2 内容被优先驱逐,Level 1 摘要保留,AI 仍可看步骤列表和 section 摘要</para>
 /// <para>属性用 set(非 init)以支持 JSON 反序列化跨进程持久化</para>
 /// </summary>
-internal sealed class RunLogSummary
-{
+internal sealed class RunLogSummary {
     /// <summary>Run ID</summary>
     public string RunId { get; set; } = string.Empty;
 

@@ -1,6 +1,5 @@
 namespace JoinCode.Abstractions.Mcp.Client;
 
-public interface IMcpAuthConfigProvider
-{
+public interface IMcpAuthConfigProvider {
     McpAuthConfig? GetAuthConfig(string authName);
 }

@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// 对齐 TS: src/types/command.ts — ResumeEntrypoint
 /// 用于追踪用户通过哪种方式恢复了会话
 /// </summary>
-public enum ResumeEntrypoint
-{
+public enum ResumeEntrypoint {
     /// <summary>--resume CLI 参数</summary>
     [EnumValue("cli_flag")] CliFlag,
 

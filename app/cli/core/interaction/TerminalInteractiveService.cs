@@ -5,16 +5,14 @@ namespace JoinCode.Cli.Interaction;
 /// 消费方: UserInteractionToolHandlers (MCP AskUserQuestion 工具)
 /// 注册: CliModule 中覆盖 Mock 注册，Order=80 在 CoreModule(Order=30) 之后
 /// </summary>
-public sealed class TerminalInteractiveService : IInteractiveService
-{
+public sealed class TerminalInteractiveService : IInteractiveService {
     private readonly ILogger<TerminalInteractiveService>? _logger;
 
     /// <summary>
     /// 构造函数 — 注入可选日志记录器
     /// </summary>
     /// <param name="logger">日志记录器，可选</param>
-    public TerminalInteractiveService(ILogger<TerminalInteractiveService>? logger = null)
-    {
+    public TerminalInteractiveService(ILogger<TerminalInteractiveService>? logger = null) {
         _logger = logger;
     }
 
@@ -25,13 +23,11 @@ public sealed class TerminalInteractiveService : IInteractiveService
         string question,
         List<string>? options = null,
         bool multiSelect = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(question))
             return Task.FromResult(AskUserQuestionResult.FailureResult("Question cannot be empty"));
 
-        if (options is null || options.Count == 0)
-        {
+        if (options is null || options.Count == 0) {
             TerminalHelper.WriteLine();
             TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{question}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteRaw("> ");
@@ -56,8 +52,7 @@ public sealed class TerminalInteractiveService : IInteractiveService
     /// </summary>
     public Task<AskUserQuestionResult> AskUserQuestionsAsync(
         List<QuestionItem> questions,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (questions.Count == 0)
             return Task.FromResult(AskUserQuestionResult.FailureResult("No questions provided"));
 
@@ -65,8 +60,7 @@ public sealed class TerminalInteractiveService : IInteractiveService
             return Task.FromResult(AskUserQuestionResult.FailureResult("Maximum 4 questions allowed"));
 
         var answers = new Dictionary<string, string>();
-        foreach (var q in questions)
-        {
+        foreach (var q in questions) {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (string.IsNullOrWhiteSpace(q.Question))
@@ -84,8 +78,7 @@ public sealed class TerminalInteractiveService : IInteractiveService
             TerminalHelper.WriteLine(q.Question);
             TerminalHelper.WriteLine();
 
-            for (int i = 0; i < q.Options.Count; i++)
-            {
+            for (int i = 0; i < q.Options.Count; i++) {
                 var opt = q.Options[i];
                 TerminalHelper.WriteLine($"  {AnsiStyleEnumConstants.Bold}{i + 1}.{AnsiStyleEnumConstants.Reset} {opt.Label}");
                 if (!string.IsNullOrWhiteSpace(opt.Description))
@@ -95,13 +88,10 @@ public sealed class TerminalInteractiveService : IInteractiveService
             TerminalHelper.WriteLine();
 
             List<int> selected;
-            if (q.MultiSelect)
-            {
+            if (q.MultiSelect) {
                 TerminalHelper.WriteRaw($"请选择 (1-{q.Options.Count}, 逗号分隔, 0=取消): ");
                 selected = ReadMultiSelection(q.Options.Count, cancellationToken);
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteRaw($"请选择 (1-{q.Options.Count}, 0=取消): ");
                 selected = ReadSingleSelection(q.Options.Count, cancellationToken);
             }
@@ -119,21 +109,18 @@ public sealed class TerminalInteractiveService : IInteractiveService
     /// <summary>
     /// 显示单问题并获取选择索引列表
     /// </summary>
-    private static List<string>? DisplayQuestion(string question, List<string> options, bool multiSelect, CancellationToken ct)
-    {
+    private static List<string>? DisplayQuestion(string question, List<string> options, bool multiSelect, CancellationToken ct) {
         TerminalHelper.WriteLine();
         TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{question}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine();
 
-        for (int i = 0; i < options.Count; i++)
-        {
+        for (int i = 0; i < options.Count; i++) {
             TerminalHelper.WriteLine($"  {AnsiStyleEnumConstants.Bold}{i + 1}.{AnsiStyleEnumConstants.Reset} {options[i]}");
         }
 
         TerminalHelper.WriteLine();
 
-        if (multiSelect)
-        {
+        if (multiSelect) {
             TerminalHelper.WriteRaw($"请选择 (1-{options.Count}, 逗号分隔, 0=取消): ");
             var indices = ReadMultiSelection(options.Count, ct);
             return indices.Select(idx => options[idx - 1]).ToList();
@@ -147,10 +134,8 @@ public sealed class TerminalInteractiveService : IInteractiveService
     /// <summary>
     /// 读取单选输入，返回选中索引(1-based)，空列表表示取消
     /// </summary>
-    private static List<int> ReadSingleSelection(int maxOption, CancellationToken ct)
-    {
-        while (true)
-        {
+    private static List<int> ReadSingleSelection(int maxOption, CancellationToken ct) {
+        while (true) {
             ct.ThrowIfCancellationRequested();
             var input = TerminalHelper.ReadLine().Trim();
 
@@ -167,10 +152,8 @@ public sealed class TerminalInteractiveService : IInteractiveService
     /// <summary>
     /// 读取多选输入(逗号分隔)，返回选中索引列表(1-based)，空列表表示取消
     /// </summary>
-    private static List<int> ReadMultiSelection(int maxOption, CancellationToken ct)
-    {
-        while (true)
-        {
+    private static List<int> ReadMultiSelection(int maxOption, CancellationToken ct) {
+        while (true) {
             ct.ThrowIfCancellationRequested();
             var input = TerminalHelper.ReadLine().Trim();
 
@@ -181,12 +164,10 @@ public sealed class TerminalInteractiveService : IInteractiveService
             var indices = new List<int>();
             var valid = true;
 
-            foreach (var part in parts)
-            {
+            foreach (var part in parts) {
                 if (int.TryParse(part, out var idx) && idx >= 1 && idx <= maxOption)
                     indices.Add(idx);
-                else
-                {
+                else {
                     valid = false;
                     break;
                 }

@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Fork 管道上下文 — 贯穿所有 Fork 中间件
 /// </summary>
-public sealed class ForkContext
-{
+public sealed class ForkContext {
     /// <summary>
     /// 原始 Fork 选项
     /// </summary>

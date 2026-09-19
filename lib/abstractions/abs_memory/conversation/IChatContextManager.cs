@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface IChatContextManager
-{
+public interface IChatContextManager {
     /// <summary>
     /// 当前会话标识 — 对齐 TS getSessionId()
     /// </summary>

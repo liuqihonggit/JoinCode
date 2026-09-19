@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 空闲检测器接口 — 工具空闲检测、提醒注入
 /// </summary>
-public interface IChatIdleDetector
-{
+public interface IChatIdleDetector {
     /// <summary>
     /// 记录助手轮次
     /// </summary>

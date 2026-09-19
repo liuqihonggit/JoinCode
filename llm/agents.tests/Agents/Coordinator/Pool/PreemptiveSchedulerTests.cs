@@ -3,10 +3,8 @@ namespace Sync.Tests.Agents.Coordinator.Pool;
 /// <summary>
 /// PreemptiveScheduler 单元测试 — 验证抢塞新任务的窗口检查+压缩逻辑（ADR 0106 L3）
 /// </summary>
-public sealed class PreemptiveSchedulerTests
-{
-    private static AgentBase CreateAgent(string task = "test task", int? tokenBudget = 128000, int tokensUsed = 0)
-    {
+public sealed class PreemptiveSchedulerTests {
+    private static AgentBase CreateAgent(string task = "test task", int? tokenBudget = 128000, int tokensUsed = 0) {
         var queryEngineMock = new Mock<IQueryEngine>();
         var agent = new AgentBase(task, null, queryEngineMock.Object, null, tokenBudget: tokenBudget);
         agent.Output.TokensUsed = tokensUsed;
@@ -14,15 +12,13 @@ public sealed class PreemptiveSchedulerTests
         return agent;
     }
 
-    private static SubAgentLivenessOptions DefaultOptions() => new()
-    {
+    private static SubAgentLivenessOptions DefaultOptions() => new() {
         PoolMaxSize = 4,
         PreemptMinWindowRatio = 0.2,
     };
 
     [Fact]
-    public async Task TryPreemptAsync_NoAvailableAgent_ReturnsNoAvailableAgent()
-    {
+    public async Task TryPreemptAsync_NoAvailableAgent_ReturnsNoAvailableAgent() {
         var pool = new SubAgentPool(DefaultOptions());
         var ctxMock = new Mock<IChatContextManager>();
         var scheduler = new PreemptiveScheduler(pool, ctxMock.Object, DefaultOptions());
@@ -35,8 +31,7 @@ public sealed class PreemptiveSchedulerTests
     }
 
     [Fact]
-    public async Task TryPreemptAsync_WindowSufficient_SucceedsWithoutCompression()
-    {
+    public async Task TryPreemptAsync_WindowSufficient_SucceedsWithoutCompression() {
         var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser", tokenBudget: 128000, tokensUsed: 1000);
         pool.Return(agent);
@@ -52,8 +47,7 @@ public sealed class PreemptiveSchedulerTests
     }
 
     [Fact]
-    public async Task TryPreemptAsync_WindowInsufficient_CompressesThenSucceeds()
-    {
+    public async Task TryPreemptAsync_WindowInsufficient_CompressesThenSucceeds() {
         var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser", tokenBudget: 1000, tokensUsed: 900);
         pool.Return(agent);
@@ -71,8 +65,7 @@ public sealed class PreemptiveSchedulerTests
     }
 
     [Fact]
-    public async Task TryPreemptAsync_WindowInsufficient_FoldNotExecuted_StillSucceeds()
-    {
+    public async Task TryPreemptAsync_WindowInsufficient_FoldNotExecuted_StillSucceeds() {
         var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser", tokenBudget: 1000, tokensUsed: 900);
         pool.Return(agent);
@@ -89,8 +82,7 @@ public sealed class PreemptiveSchedulerTests
     }
 
     [Fact]
-    public async Task TryPreemptAsync_InjectsNewTaskPrompt()
-    {
+    public async Task TryPreemptAsync_InjectsNewTaskPrompt() {
         var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser");
         pool.Return(agent);

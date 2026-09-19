@@ -9,8 +9,7 @@ namespace Core.DependencyInjection;
 /// <para>后台循环用 <c>volatile bool _stopping</c> + <see cref="PeriodicTimer"/> 模式，避免 CTS 竞态。</para>
 /// </summary>
 [Register(typeof(IHostedService), ServiceLifetime.Singleton)]
-public sealed partial class ShakeMessagePollerHostedService : ServiceEntity, IHostedService
-{
+public sealed partial class ShakeMessagePollerHostedService : ServiceEntity, IHostedService {
     private const string MailboxAgentId = "all-agents";
     private const string MailboxSessionId = "shake-broadcast";
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
@@ -33,8 +32,7 @@ public sealed partial class ShakeMessagePollerHostedService : ServiceEntity, IHo
         IWindowShakeCoordinator coordinator,
         ITeammateMailboxService? mailboxService = null,
         IWindowShakeService? shakeService = null,
-        ILogger<ShakeMessagePollerHostedService>? logger = null)
-    {
+        ILogger<ShakeMessagePollerHostedService>? logger = null) {
         _coordinator = coordinator;
         _mailboxService = mailboxService;
         _shakeService = shakeService;
@@ -45,10 +43,8 @@ public sealed partial class ShakeMessagePollerHostedService : ServiceEntity, IHo
     /// 启动轮询 — 邮箱服务未注册时直接返回。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        if (_mailboxService is null)
-        {
+    public Task StartAsync(CancellationToken cancellationToken) {
+        if (_mailboxService is null) {
             _logger?.LogDebug("ShakeMessagePoller: mailbox service not registered, skipping");
             return Task.CompletedTask;
         }
@@ -62,13 +58,10 @@ public sealed partial class ShakeMessagePollerHostedService : ServiceEntity, IHo
     /// 停止轮询 — 设置 _stopping 标志，等待轮询任务退出。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
+    public async Task StopAsync(CancellationToken cancellationToken) {
         _stopping = true;
-        if (_pollTask is not null)
-        {
-            try { await _pollTask.ConfigureAwait(false); }
-            catch (OperationCanceledException) { }
+        if (_pollTask is not null) {
+            try { await _pollTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
         }
         _logger?.LogInformation("ShakeMessagePoller stopped");
     }
@@ -76,17 +69,12 @@ public sealed partial class ShakeMessagePollerHostedService : ServiceEntity, IHo
     /// <summary>
     /// 轮询循环 — PeriodicTimer + volatile bool 模式，避免 CTS Dispose 竞态。
     /// </summary>
-    private async Task PollLoopAsync(CancellationToken ct)
-    {
+    private async Task PollLoopAsync(CancellationToken ct) {
         using var timer = new PeriodicTimer(PollInterval);
-        while (!_stopping && await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
-        {
-            try
-            {
+        while (!_stopping && await timer.WaitForNextTickAsync(ct).ConfigureAwait(false)) {
+            try {
                 await PollOnceAsync(ct).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
                 _logger?.LogWarning(ex, "ShakeMessagePoller: poll failed");
             }
         }
@@ -95,8 +83,7 @@ public sealed partial class ShakeMessagePollerHostedService : ServiceEntity, IHo
     /// <summary>
     /// 单次轮询 — 读取未读消息，过滤 shake 类型，去抖震动，标记已读。
     /// </summary>
-    internal async Task PollOnceAsync(CancellationToken ct)
-    {
+    internal async Task PollOnceAsync(CancellationToken ct) {
         if (_mailboxService is null) return;
 
         var messages = await _mailboxService.ReadUnreadAsync(MailboxAgentId, MailboxSessionId, ct).ConfigureAwait(false);
@@ -105,8 +92,7 @@ public sealed partial class ShakeMessagePollerHostedService : ServiceEntity, IHo
         var shakeMessages = messages.Where(m => m.MessageType == "shake").ToList();
         if (shakeMessages.Count == 0) return;
 
-        if (_coordinator.IsShakeEnabled && _coordinator.TryAcquireShakeSlot() && _shakeService is not null)
-        {
+        if (_coordinator.IsShakeEnabled && _coordinator.TryAcquireShakeSlot() && _shakeService is not null) {
             var result = await _shakeService.ShakeWindowAsync(ct).ConfigureAwait(false);
             _logger?.LogDebug("ShakeMessagePoller: received {Count} shake messages, shook window: {Result}",
                 shakeMessages.Count, result);

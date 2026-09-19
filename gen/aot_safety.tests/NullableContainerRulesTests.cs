@@ -1,12 +1,9 @@
 namespace AotSafety.Tests;
 
-public class NullableContainerRulesTests
-{
+public class NullableContainerRulesTests {
     [Fact]
-    public async Task NullableContainerField_ReportsJCC11002()
-    {
-        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier>
-        {
+    public async Task NullableContainerField_ReportsJCC11002() {
+        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -20,10 +17,8 @@ public class NullableContainerRulesTests
     }
 
     [Fact]
-    public async Task NonNullableContainerField_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier>
-        {
+    public async Task NonNullableContainerField_NoReport() {
+        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -37,10 +32,8 @@ public class NullableContainerRulesTests
     }
 
     [Fact]
-    public async Task InterfaceNullableProperty_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier>
-        {
+    public async Task InterfaceNullableProperty_NoReport() {
+        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -54,10 +47,8 @@ public class NullableContainerRulesTests
     }
 
     [Fact]
-    public async Task RecordNullableProperty_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier>
-        {
+    public async Task RecordNullableProperty_NoReport() {
+        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -68,10 +59,8 @@ public class NullableContainerRulesTests
     }
 
     [Fact]
-    public async Task RequiredNullableProperty_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier>
-        {
+    public async Task RequiredNullableProperty_NoReport() {
+        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -85,10 +74,8 @@ public class NullableContainerRulesTests
     }
 
     [Fact]
-    public async Task NullableDictionaryField_ReportsJCC11002()
-    {
-        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier>
-        {
+    public async Task NullableDictionaryField_ReportsJCC11002() {
+        var test = new CSharpAnalyzerTest<NullableContainerRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;

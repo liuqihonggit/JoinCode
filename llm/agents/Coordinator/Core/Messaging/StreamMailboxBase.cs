@@ -10,8 +10,7 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 /// <typeparam name="TMessage">邮箱消息类型</typeparam>
 /// <typeparam name="TFrame">传输帧类型 — 由子类从传输层读取的原始帧</typeparam>
-public abstract class StreamMailboxBase<TMessage, TFrame> : MailboxBase<TMessage>
-{
+public abstract class StreamMailboxBase<TMessage, TFrame> : MailboxBase<TMessage> {
     private readonly CancellationTokenSource _cts;
     private Task? _receiveLoopTask;
     private int _started;
@@ -27,8 +26,7 @@ public abstract class StreamMailboxBase<TMessage, TFrame> : MailboxBase<TMessage
         ActorBackpressure? commandBackpressure = null,
         ActorBackpressure? agentBackpressure = null,
         int? outputCapacity = null)
-        : base(commandBackpressure, agentBackpressure, outputCapacity)
-    {
+        : base(commandBackpressure, agentBackpressure, outputCapacity) {
         _cts = new CancellationTokenSource();
     }
 
@@ -41,8 +39,7 @@ public abstract class StreamMailboxBase<TMessage, TFrame> : MailboxBase<TMessage
     /// 启动接收循环 — 子类在 <c>StartAsync</c> 中调用一次。
     /// <para>幂等：重复调用无效。</para>
     /// </summary>
-    protected void StartReceiveLoop()
-    {
+    protected void StartReceiveLoop() {
         if (Interlocked.Exchange(ref _started, 1) != 0) return;
         _receiveLoopTask = Task.Run(() => ReceiveLoopAsync(_cts.Token), CancellationToken.None);
     }
@@ -53,14 +50,11 @@ public abstract class StreamMailboxBase<TMessage, TFrame> : MailboxBase<TMessage
     /// <para>无超时等待 — 符合 AGENTS.md 规则4（释放函数禁止超时）。</para>
     /// <para>幂等：重复调用无效。</para>
     /// </summary>
-    protected async ValueTask StopReceiveLoopAsync()
-    {
+    protected async ValueTask StopReceiveLoopAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
-        if (_receiveLoopTask is not null)
-        {
-            try { await _receiveLoopTask.ConfigureAwait(false); }
-            catch (OperationCanceledException) { }
+        if (_receiveLoopTask is not null) {
+            try { await _receiveLoopTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
         }
         _cts.Dispose();
     }
@@ -70,18 +64,12 @@ public abstract class StreamMailboxBase<TMessage, TFrame> : MailboxBase<TMessage
     /// <para>取消异常静默吞掉，其他异常交给 <see cref="LogReceiveLoopError"/> 日志。</para>
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    private async Task ReceiveLoopAsync(CancellationToken ct)
-    {
-        try
-        {
-            await foreach (var frame in ReceiveFramesAsync(ct).ConfigureAwait(false))
-            {
+    private async Task ReceiveLoopAsync(CancellationToken ct) {
+        try {
+            await foreach (var frame in ReceiveFramesAsync(ct).ConfigureAwait(false)) {
                 await HandleFrameAsync(frame, ct).ConfigureAwait(false);
             }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) {
             LogReceiveLoopError(ex);
         }
     }

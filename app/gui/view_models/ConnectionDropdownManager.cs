@@ -4,8 +4,7 @@ namespace JoinCode.Gui.ViewModels;
 /// 连接/模型下拉管理器 — 从 MainViewModel 提取
 /// 管理供应商连接列表和模型下拉选项的构建、查找与刷新
 /// </summary>
-internal sealed class ConnectionDropdownManager
-{
+internal sealed class ConnectionDropdownManager {
     /// <summary>模型下拉选项 — ObservableCollection 双向绑定，供应商切换时清空重填</summary>
     public ObservableCollection<ModelOptionItem> ModelOptions { get; } = [];
 
@@ -25,8 +24,7 @@ internal sealed class ConnectionDropdownManager
     /// <param name="session">引擎会话门面</param>
     /// <param name="configLoader">模型配置加载器</param>
     /// <param name="selectedConnectionId">当前选中的连接 Id（null 时回退到 session.CurrentVendor）</param>
-    public void RefreshModelOptions(IJccChatSession session, IModelConfigLoader configLoader, string? selectedConnectionId)
-    {
+    public void RefreshModelOptions(IJccChatSession session, IModelConfigLoader configLoader, string? selectedConnectionId) {
         var provider = selectedConnectionId ?? session.CurrentVendor;
         var providerDisplay = VendorKindExtensions.FromValue(provider)?.ToString() ?? provider;
         var map = session.VendorModelMap;
@@ -35,26 +33,22 @@ internal sealed class ConnectionDropdownManager
             : new List<string>();
         var current = session.CurrentModelId;
         if (!string.IsNullOrWhiteSpace(current)
-            && source.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase)))
-        {
+            && source.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase))) {
             // 归属判定优先用会话 VendorModelMap（测试/占位场景 configLoader 可能为空）：
             // 当前模型已存在于其他供应商的目录 → 属于旧供应商残留，不追加（防跨供应商污染）
             var ownedByOtherVendor = map.Any(kvp =>
                 !string.Equals(kvp.Key, provider, StringComparison.OrdinalIgnoreCase)
                 && kvp.Value is not null
                 && kvp.Value.Contains(current, StringComparer.OrdinalIgnoreCase));
-            if (!ownedByOtherVendor)
-            {
+            if (!ownedByOtherVendor) {
                 var modelProvider = configLoader.FindProviderByModelId(current);
-                if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase))
-                {
+                if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase)) {
                     source.Add(current);
                 }
             }
         }
         ModelOptions.Clear();
-        foreach (var id in source)
-        {
+        foreach (var id in source) {
             var tags = BuildModalityTags(configLoader, provider, id);
             ModelOptions.Add(new ModelOptionItem(id, $"{providerDisplay}:{id}", tags));
         }
@@ -63,14 +57,11 @@ internal sealed class ConnectionDropdownManager
 
     /// <summary>重建连接选项 — 从 VendorModelMap.Keys 填充 ObservableCollection（纯真实供应商，Mock 由独立按钮切换）</summary>
     /// <param name="session">引擎会话门面</param>
-    public void RebuildConnectionOptions(IJccChatSession session)
-    {
+    public void RebuildConnectionOptions(IJccChatSession session) {
         ConnectionOptions.Clear();
-        foreach (var provider in session.VendorModelMap.Keys)
-        {
+        foreach (var provider in session.VendorModelMap.Keys) {
             var display = VendorKindExtensions.FromValue(provider)?.ToString() ?? provider;
-            ConnectionOptions.Add(new ConnectionOptionItem
-            {
+            ConnectionOptions.Add(new ConnectionOptionItem {
                 Id = provider,
                 DisplayText = display,
                 IsMock = false
@@ -80,8 +71,7 @@ internal sealed class ConnectionDropdownManager
     }
 
     /// <summary>根据模型模态能力生成标签文本（emoji 缩写）</summary>
-    private static string BuildModalityTags(IModelConfigLoader configLoader, string provider, string modelId)
-    {
+    private static string BuildModalityTags(IModelConfigLoader configLoader, string provider, string modelId) {
         var modalities = configLoader.GetModalities(provider, modelId);
         if (modalities == ModelModalityKind.None || modalities == ModelModalityKind.Text)
             return "";

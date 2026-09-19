@@ -1,10 +1,8 @@
 namespace Core.Tests.Context.Context;
 
-public sealed class DiscoveredToolSetTests
-{
+public sealed class DiscoveredToolSetTests {
     [Fact]
-    public async Task Discover_AddsToolName()
-    {
+    public async Task Discover_AddsToolName() {
         var set = new DiscoveredToolSet();
         var added = await set.DiscoverAsync("mcp.search").ConfigureAwait(true);
 
@@ -14,8 +12,7 @@ public sealed class DiscoveredToolSetTests
     }
 
     [Fact]
-    public async Task Discover_DuplicateReturnsFalse()
-    {
+    public async Task Discover_DuplicateReturnsFalse() {
         var set = new DiscoveredToolSet();
         await set.DiscoverAsync("mcp.search").ConfigureAwait(true);
 
@@ -26,8 +23,7 @@ public sealed class DiscoveredToolSetTests
     }
 
     [Fact]
-    public async Task DiscoverRange_AddsMultiple()
-    {
+    public async Task DiscoverRange_AddsMultiple() {
         var set = new DiscoveredToolSet();
         var added = await set.DiscoverRangeAsync(["mcp.search", "mcp.read", "mcp.write"]).ConfigureAwait(true);
 
@@ -36,8 +32,7 @@ public sealed class DiscoveredToolSetTests
     }
 
     [Fact]
-    public async Task DiscoverRange_SkipsDuplicates()
-    {
+    public async Task DiscoverRange_SkipsDuplicates() {
         var set = new DiscoveredToolSet();
         await set.DiscoverAsync("mcp.search").ConfigureAwait(true);
 
@@ -48,8 +43,7 @@ public sealed class DiscoveredToolSetTests
     }
 
     [Fact]
-    public async Task Forget_RemovesToolName()
-    {
+    public async Task Forget_RemovesToolName() {
         var set = new DiscoveredToolSet();
         await set.DiscoverAsync("mcp.search").ConfigureAwait(true);
 
@@ -61,8 +55,7 @@ public sealed class DiscoveredToolSetTests
     }
 
     [Fact]
-    public async Task Forget_NonExistentReturnsFalse()
-    {
+    public async Task Forget_NonExistentReturnsFalse() {
         var set = new DiscoveredToolSet();
 
         var removed = await set.ForgetAsync("mcp.search").ConfigureAwait(true);
@@ -71,8 +64,7 @@ public sealed class DiscoveredToolSetTests
     }
 
     [Fact]
-    public async Task Clear_RemovesAll()
-    {
+    public async Task Clear_RemovesAll() {
         var set = new DiscoveredToolSet();
         await set.DiscoverRangeAsync(["mcp.search", "mcp.read"]).ConfigureAwait(true);
 
@@ -82,8 +74,7 @@ public sealed class DiscoveredToolSetTests
     }
 
     [Fact]
-    public async Task Snapshot_ReturnsOrderedNames()
-    {
+    public async Task Snapshot_ReturnsOrderedNames() {
         var set = new DiscoveredToolSet();
         await set.DiscoverRangeAsync(["mcp.write", "mcp.search", "mcp.read"]).ConfigureAwait(true);
 
@@ -93,8 +84,7 @@ public sealed class DiscoveredToolSetTests
     }
 
     [Fact]
-    public async Task RestoreFromSnapshot_ReplacesAll()
-    {
+    public async Task RestoreFromSnapshot_ReplacesAll() {
         var set = new DiscoveredToolSet();
         await set.DiscoverAsync("mcp.old").ConfigureAwait(true);
 
@@ -106,8 +96,7 @@ public sealed class DiscoveredToolSetTests
     }
 
     [Fact]
-    public async Task Names_ReturnsDefensiveCopy()
-    {
+    public async Task Names_ReturnsDefensiveCopy() {
         var set = new DiscoveredToolSet();
         await set.DiscoverAsync("mcp.search").ConfigureAwait(true);
 

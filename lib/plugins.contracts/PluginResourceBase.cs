@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>引用计数:其他插件引用此资源时 AddReference,放弃时 ReleaseReference</para>
 /// <para>后台扫描:卸载后通过 ObjectIdManager.IsRegistered 验证 ObjectId 已注销</para>
 /// </summary>
-public abstract class PluginResourceBase : Entity, IPluginHeartbeat
-{
+public abstract class PluginResourceBase : Entity, IPluginHeartbeat {
     /// <summary>所属插件名</summary>
     public string OwnerPluginName { get; }
 
@@ -34,8 +33,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat
 
     /// <summary>创建插件资源</summary>
     protected PluginResourceBase(string ownerPluginName, PluginResourceKind kind, string displayName)
-        : base(ObjectType.Resource, displayName: displayName, registerToSessionRouter: false)
-    {
+        : base(ObjectType.Resource, displayName: displayName, registerToSessionRouter: false) {
         OwnerPluginName = ownerPluginName ?? throw new ArgumentNullException(nameof(ownerPluginName));
         Kind = kind;
         LastHeartbeatAt = CreatedAt;
@@ -45,8 +43,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat
     /// 增加引用 — 返回引用句柄,using/Dispose 时自动减少引用
     /// <para>插件B 引用 插件A 的资源时调用,引用计数 +1</para>
     /// </summary>
-    public ResourceReferenceHandle AddReference(string consumerPluginName)
-    {
+    public ResourceReferenceHandle AddReference(string consumerPluginName) {
         ArgumentNullException.ThrowIfNull(consumerPluginName);
         _consumers.TryAdd(consumerPluginName, 0);
         Interlocked.Increment(ref _refCount);
@@ -57,8 +54,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat
     /// 减少引用 — 引用方放弃此资源时调用
     /// <para>引用计数 -1,归零时表示资源可安全卸载</para>
     /// </summary>
-    public void ReleaseReference(string consumerPluginName)
-    {
+    public void ReleaseReference(string consumerPluginName) {
         ArgumentNullException.ThrowIfNull(consumerPluginName);
         _consumers.TryRemove(consumerPluginName, out _);
         Interlocked.Decrement(ref _refCount);
@@ -69,8 +65,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat
     /// <para>惰性检测:每次跨插件调用时检测,读 volatile bool 纳秒级</para>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void EnsureAlive()
-    {
+    public void EnsureAlive() {
         if (!IsAlive)
             throw new PluginDeadException(DisplayName, OwnerPluginName);
     }
@@ -83,8 +78,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat
     /// <summary>
     /// 刷新心跳 — 插件每次活动时调用,同时更新 LastActivityAt 和 LastHeartbeatAt
     /// </summary>
-    public new void Touch()
-    {
+    public new void Touch() {
         LastActivityAt = DateTime.UtcNow;
         LastHeartbeatAt = LastActivityAt;
     }
@@ -93,8 +87,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat
     /// 标记死亡 — 不可逆,触发 OnDeath 事件
     /// <para>心跳停止 → 本层死亡 → 下层通过 OnDeath 通知死亡</para>
     /// </summary>
-    public void MarkDead()
-    {
+    public void MarkDead() {
         if (!_isAlive) return;
         _isAlive = false;
         OnDeath?.Invoke(this, EventArgs.Empty);
@@ -109,8 +102,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat
     /// <summary>
     /// Entity.Dispose 实现 — 标记死亡 + 子类清理
     /// </summary>
-    public sealed override void Dispose()
-    {
+    public sealed override void Dispose() {
         MarkDead();
         OnResourceDispose();
         base.Dispose();

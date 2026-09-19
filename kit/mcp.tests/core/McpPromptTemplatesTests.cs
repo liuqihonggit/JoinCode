@@ -1,10 +1,8 @@
 namespace Mcp.Tests;
 
-public class McpPromptTemplatesTests
-{
+public class McpPromptTemplatesTests {
     [Fact]
-    public void GetAllTemplates_ContainsMcpWorkflow()
-    {
+    public void GetAllTemplates_ContainsMcpWorkflow() {
         var templates = McpPromptTemplates.GetAllTemplates().ToList();
 
         var mcpWorkflow = templates.FirstOrDefault(t => t.Name == "mcp_workflow");
@@ -14,8 +12,7 @@ public class McpPromptTemplatesTests
     }
 
     [Fact]
-    public void GetContent_ReturnsNullForParameterizedTemplate()
-    {
+    public void GetContent_ReturnsNullForParameterizedTemplate() {
         var content = McpPromptTemplates.GetContent("mcp_workflow");
 
         content.Should().BeNull();

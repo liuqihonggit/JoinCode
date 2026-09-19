@@ -4,8 +4,7 @@ namespace McpClient;
 /// <summary>
 /// MCP Stdio 客户端 - 通过标准输入输出与 MCP 服务器通信
 /// </summary>
-public sealed class McpStdioClient : McpClientBase
-{
+public sealed class McpStdioClient : McpClientBase {
     private readonly McpServerConnectionConfig _config;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
@@ -30,8 +29,7 @@ public sealed class McpStdioClient : McpClientBase
     /// <param name="clock">时钟服务,为 null 时使用系统时钟。</param>
     /// <param name="processService">进程服务,为 null 时使用默认工厂创建。</param>
     public McpStdioClient(McpServerConnectionConfig config, McpClientOptions? options = null, ILogger? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null, IProcessService? processService = null)
-        : base(options ?? new McpClientOptions(), logger)
-    {
+        : base(options ?? new McpClientOptions(), logger) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
@@ -44,10 +42,8 @@ public sealed class McpStdioClient : McpClientBase
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>表示异步连接操作的任务。</returns>
-    public override async Task ConnectAsync(CancellationToken cancellationToken = default)
-    {
-        if (IsConnected)
-        {
+    public override async Task ConnectAsync(CancellationToken cancellationToken = default) {
+        if (IsConnected) {
             _logger?.LogWarning("MCP 客户端已连接");
             return;
         }
@@ -62,12 +58,10 @@ public sealed class McpStdioClient : McpClientBase
             ? McpEnvExpander.ExpandEnvironmentValues(_config.Environment)
             : null;
 
-        try
-        {
+        try {
             var effectiveProcessService = _processService ?? IO.ProcessService.ProcessServiceFactory.Create();
             var (fileName, arguments) = ParseEndpoint(_config.Endpoint);
-            var opts = new InteractiveProcessOptions
-            {
+            var opts = new InteractiveProcessOptions {
                 FileName = fileName,
                 Arguments = arguments,
                 EnvironmentVariables = envVars ?? new Dictionary<string, string>(),
@@ -93,25 +87,20 @@ public sealed class McpStdioClient : McpClientBase
             _connectionSpan?.SetStatus(TelemetryStatusCode.Ok);
             _logger?.LogInformation("MCP 客户端连接成功");
 
-            if (_telemetryService != null)
-            {
+            if (_telemetryService != null) {
                 var connectCounter = _telemetryService.GetCounter("mcp.client.connects", "count", "MCP client connection count");
                 connectCounter.Add(1, new Dictionary<string, string> { ["server"] = _config.Name });
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "连接 MCP 服务器失败");
             _connectionSpan?.SetStatus(TelemetryStatusCode.Error, ex.Message);
             _connectionSpan?.RecordException(ex);
-            if (_connectionSpan is not null)
-            {
+            if (_connectionSpan is not null) {
                 await _connectionSpan.DisposeAsync().ConfigureAwait(false);
                 _connectionSpan = null;
             }
 
-            if (_telemetryService != null)
-            {
+            if (_telemetryService != null) {
                 var errorCounter = _telemetryService.GetCounter("mcp.client.connect.errors", "count", "MCP client connection error count");
                 errorCounter.Add(1, new Dictionary<string, string> { ["server"] = _config.Name });
             }
@@ -125,16 +114,13 @@ public sealed class McpStdioClient : McpClientBase
     /// 解析 endpoint 为 FileName + Arguments — 支持带参数的命令行（如 "node script.js"）。
     /// 如果 endpoint 以引号开头，取引号内为 FileName，引号后为 Arguments；否则按第一个空格拆分。
     /// </summary>
-    private static (string FileName, string Arguments) ParseEndpoint(string endpoint)
-    {
+    private static (string FileName, string Arguments) ParseEndpoint(string endpoint) {
         if (string.IsNullOrWhiteSpace(endpoint))
             return (endpoint, string.Empty);
 
-        if (endpoint[0] == '"')
-        {
+        if (endpoint[0] == '"') {
             var closingQuote = endpoint.IndexOf('"', 1);
-            if (closingQuote > 0)
-            {
+            if (closingQuote > 0) {
                 var fileName = endpoint[1..closingQuote];
                 var arguments = closingQuote + 1 < endpoint.Length
                     ? endpoint[(closingQuote + 1)..].TrimStart()
@@ -155,10 +141,8 @@ public sealed class McpStdioClient : McpClientBase
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>表示异步断开操作的任务。</returns>
-    public override async Task DisconnectAsync(CancellationToken cancellationToken = default)
-    {
-        if (!IsConnected)
-        {
+    public override async Task DisconnectAsync(CancellationToken cancellationToken = default) {
+        if (!IsConnected) {
             return;
         }
 
@@ -168,8 +152,7 @@ public sealed class McpStdioClient : McpClientBase
         IsConnected = false;
 
         _connectionSpan?.SetStatus(TelemetryStatusCode.Ok);
-        if (_connectionSpan is not null)
-        {
+        if (_connectionSpan is not null) {
             await _connectionSpan.DisposeAsync().ConfigureAwait(false);
             _connectionSpan = null;
         }
@@ -177,38 +160,28 @@ public sealed class McpStdioClient : McpClientBase
         _logger?.LogInformation("MCP 客户端已断开连接");
     }
 
-    private async Task CleanupAsync(CancellationToken cancellationToken = default)
-    {
+    private async Task CleanupAsync(CancellationToken cancellationToken = default) {
         _readCts?.Cancel();
         _writeCts?.Cancel();
         _writeChannel?.Writer.TryComplete();
 
-        if (_readTask != null)
-        {
-            try
-            {
+        if (_readTask != null) {
+            try {
                 await _readTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogDebug("等待读取任务完成时出错: {Error}", ex.Message);
             }
         }
 
-        if (_writeConsumerTask != null)
-        {
-            try
-            {
+        if (_writeConsumerTask != null) {
+            try {
                 await _writeConsumerTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogDebug("等待写消费者任务完成时出错: {Error}", ex.Message);
             }
         }
 
-        if (_interactiveProcess != null)
-        {
+        if (_interactiveProcess != null) {
             await _interactiveProcess.DisposeAsync();
             _interactiveProcess = null;
         }
@@ -222,57 +195,41 @@ public sealed class McpStdioClient : McpClientBase
         await CancelPendingRequestsAsync(cancellationToken);
     }
 
-    private void OnInteractiveErrorDataReceived(object? sender, string data)
-    {
-        if (!string.IsNullOrEmpty(data))
-        {
+    private void OnInteractiveErrorDataReceived(object? sender, string data) {
+        if (!string.IsNullOrEmpty(data)) {
             _logger?.LogError("MCP 服务器错误输出: {Error}", data);
         }
     }
 
-    private async Task ReadLoopAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested && _stdoutReader != null)
-            {
+    private async Task ReadLoopAsync(CancellationToken cancellationToken) {
+        try {
+            while (!cancellationToken.IsCancellationRequested && _stdoutReader != null) {
                 var line = await _stdoutReader.ReadLineAsync(cancellationToken);
-                if (line == null)
-                {
+                if (line == null) {
                     break;
                 }
 
-                if (string.IsNullOrWhiteSpace(line))
-                {
+                if (string.IsNullOrWhiteSpace(line)) {
                     continue;
                 }
 
                 _logger?.LogDebug("收到消息: {Message}", line);
 
-                try
-                {
+                try {
                     var message = McpMessageExtensions.FromJson(line);
                     await ProcessMessageAsync(message, cancellationToken);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogError(ex, "解析消息失败: {Message}", line);
                 }
             }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "读取循环异常");
         }
 
-        if (IsConnected && !cancellationToken.IsCancellationRequested)
-        {
+        if (IsConnected && !cancellationToken.IsCancellationRequested) {
             _logger?.LogWarning("MCP Stdio 服务器进程意外退出: {ServerName}", _config.Name);
-            OnConnectionLost(new McpConnectionLostEventArgs
-            {
+            OnConnectionLost(new McpConnectionLostEventArgs {
                 ServerName = _config.Name,
                 TransportType = "stdio"
             });
@@ -282,49 +239,38 @@ public sealed class McpStdioClient : McpClientBase
     /// <summary>
     /// 写消费者循环 — 单消费者从 Channel 串行写 stdin,消除持锁 await IO 死锁风险(P3)
     /// </summary>
-    private async Task WriteLoopAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task WriteLoopAsync(CancellationToken cancellationToken) {
+        try {
             if (_writeChannel is null) return;
-            await foreach (var json in _writeChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-            {
+            await foreach (var json in _writeChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false)) {
                 if (_stdinWriter is null) break;
                 await _stdinWriter.WriteLineAsync(json).ConfigureAwait(false);
             }
-        }
-        catch (OperationCanceledException) { }
-        catch (ChannelClosedException) { _logger?.LogDebug("MCP Stdio 写通道已关闭"); }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (ChannelClosedException) { _logger?.LogDebug("MCP Stdio 写通道已关闭"); } catch (Exception ex) {
             _logger?.LogError(ex, "MCP Stdio 写循环异常");
         }
     }
 
-    private async Task ProcessMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken)
-    {
-        switch (message)
-        {
+    private async Task ProcessMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken) {
+        switch (message) {
             case JsonRpcResponse response:
-                await ProcessResponseAsync(response, cancellationToken);
-                break;
+            await ProcessResponseAsync(response, cancellationToken);
+            break;
 
             case JsonRpcNotification notification:
-                ProcessNotification(notification);
-                break;
+            ProcessNotification(notification);
+            break;
 
             case JsonRpcRequest request:
-                await HandleServerRequestAsync(request, cancellationToken);
-                break;
+            await HandleServerRequestAsync(request, cancellationToken);
+            break;
         }
     }
 
-    private void ProcessNotification(JsonRpcNotification notification)
-    {
+    private void ProcessNotification(JsonRpcNotification notification) {
         _logger?.LogDebug("收到通知: {Method}", notification.Method);
 
-        OnNotificationReceived(new McpNotificationReceivedEventArgs
-        {
+        OnNotificationReceived(new McpNotificationReceivedEventArgs {
             Method = notification.Method,
             Params = notification.Params
         });
@@ -334,10 +280,8 @@ public sealed class McpStdioClient : McpClientBase
     /// <param name="request">JSON-RPC 请求对象。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>服务器返回的 JSON-RPC 响应。</returns>
-    protected override async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken)
-    {
-        if (_stdinWriter == null)
-        {
+    protected override async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken) {
+        if (_stdinWriter == null) {
             throw new InvalidOperationException(McpErrorMessages.NotConnectedToServer);
         }
 
@@ -351,8 +295,7 @@ public sealed class McpStdioClient : McpClientBase
 
         await _requestRegistry.RegisterAsync(requestId, tcs, cancellationToken).ConfigureAwait(false);
 
-        try
-        {
+        try {
             var json = request.ToJson();
             _logger?.LogDebug("发送请求: {Json}", json);
 
@@ -366,9 +309,7 @@ public sealed class McpStdioClient : McpClientBase
             RecordRequestMetrics(request.Method, requestStart);
 
             return response;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             await _requestRegistry.RemoveAsync(requestId, cancellationToken).ConfigureAwait(false);
 
             requestSpan?.SetStatus(TelemetryStatusCode.Error, ex.Message);
@@ -383,10 +324,8 @@ public sealed class McpStdioClient : McpClientBase
     /// <param name="notification">JSON-RPC 通知对象。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>表示异步操作的任务。</returns>
-    protected override async Task SendNotificationAsync(JsonRpcNotification notification, CancellationToken cancellationToken)
-    {
-        if (_stdinWriter == null)
-        {
+    protected override async Task SendNotificationAsync(JsonRpcNotification notification, CancellationToken cancellationToken) {
+        if (_stdinWriter == null) {
             throw new InvalidOperationException(McpErrorMessages.NotConnectedToServer);
         }
 
@@ -396,8 +335,7 @@ public sealed class McpStdioClient : McpClientBase
         await _writeChannel!.Writer.WriteAsync(json, cancellationToken).ConfigureAwait(false);
     }
 
-    private void RecordRequestMetrics(string method, DateTimeOffset startTime, bool isError = false)
-    {
+    private void RecordRequestMetrics(string method, DateTimeOffset startTime, bool isError = false) {
         var durationMs = (_clock.GetUtcNowOffset() - startTime).TotalMilliseconds;
         var tags = new Dictionary<string, string> { ["method"] = method, ["error"] = isError.ToString() };
         _telemetryService?.RecordHistogram("mcp.request.duration", durationMs, tags, "ms", "MCP request duration");
@@ -408,11 +346,9 @@ public sealed class McpStdioClient : McpClientBase
     /// 异步释放客户端资源 — 异步断开连接、异步释放遥测 span 与请求注册表。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
-        if (_connectionSpan is not null)
-        {
+        if (_connectionSpan is not null) {
             await _connectionSpan.DisposeAsync().ConfigureAwait(false);
             _connectionSpan = null;
         }

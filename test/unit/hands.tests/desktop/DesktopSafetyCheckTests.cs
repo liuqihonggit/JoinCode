@@ -4,12 +4,10 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// AC-12 危险坐标拦截验证 — 安全检查器返回 DangerousCoordinate 时点击被拦截不执行 SendInput
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed class DesktopSafetyCheckTests
-{
+public sealed class DesktopSafetyCheckTests {
     /// <summary>AC-12: safetyChecker 返回 DangerousCoordinate 时 ClickAsync 返回失败且不执行 SendInput</summary>
     [Fact]
-    public async Task ClickAsync_DangerousCoordinate_ReturnsFailureAndDoesNotExecute()
-    {
+    public async Task ClickAsync_DangerousCoordinate_ReturnsFailureAndDoesNotExecute() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 
@@ -29,8 +27,7 @@ public sealed class DesktopSafetyCheckTests
 
     /// <summary>AC-12: safetyChecker 返回 None 时 ClickAsync 正常执行</summary>
     [Fact]
-    public async Task ClickAsync_SafeCoordinate_ExecutesSuccessfully()
-    {
+    public async Task ClickAsync_SafeCoordinate_ExecutesSuccessfully() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 

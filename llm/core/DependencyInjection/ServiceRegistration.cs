@@ -1,8 +1,7 @@
 namespace JoinCode.Llm.DependencyInjection;
 
 
-public static partial class ServiceRegistration
-{
+public static partial class ServiceRegistration {
     internal static readonly QueryServiceFactory s_factory = new();
 
     private static int s_providersRegistered;
@@ -11,8 +10,7 @@ public static partial class ServiceRegistration
     /// 确保默认供应商已注册到 s_factory — 幂等,DI 注册阶段和 LlmProvidersPlugin 加载时均可调用
     /// <para>解决 DI 解析 IQueryService 时插件尚未加载的时序问题(ADR 0098)</para>
     /// </summary>
-    internal static void EnsureDefaultProvidersRegistered()
-    {
+    internal static void EnsureDefaultProvidersRegistered() {
         if (Interlocked.CompareExchange(ref s_providersRegistered, 1, 0) != 0) return;
         s_factory.RegisterProvider(ProtocolKind.Anthropic,
             (config, http, logger, fs, executor) => new AnthropicQueryService(config, http, logger, fs, executor));
@@ -28,8 +26,7 @@ public static partial class ServiceRegistration
 
     public static IServiceCollection AddLlmServices(
         this IServiceCollection services,
-        ProviderConfig providerConfig)
-    {
+        ProviderConfig providerConfig) {
         EnsureDefaultProvidersRegistered();
         services.AddSingleton<IQueryService>(sp => CreateQueryService(sp, providerConfig));
 
@@ -38,15 +35,13 @@ public static partial class ServiceRegistration
 
     public static IServiceCollection AddLlmServicesWithCustomQuery(
         this IServiceCollection services,
-        IQueryService customService)
-    {
+        IQueryService customService) {
         services.AddSingleton(customService);
 
         return services;
     }
 
-    public static IChatClient CreateEmptyKernel()
-    {
+    public static IChatClient CreateEmptyKernel() {
         return new ChatClient(new EmptyQueryService());
     }
 
@@ -56,11 +51,9 @@ public static partial class ServiceRegistration
     public static IServiceCollection AddPipeQueryService(
         this IServiceCollection services,
         PipeTransportConfig config,
-        string? apiKey = null)
-    {
+        string? apiKey = null) {
         services.AddSingleton(config);
-        services.AddSingleton<IQueryService>(sp =>
-        {
+        services.AddSingleton<IQueryService>(sp => {
             var logger = sp.GetService<ILogger<Api.Chat.PipeQueryService>>();
             var inner = new Api.Chat.PipeQueryService(config, apiKey, logger);
             return WrapWithFallback(inner, sp);
@@ -75,15 +68,11 @@ public static partial class ServiceRegistration
     public static IServiceCollection AddKernelWithPlugins(
         this IServiceCollection services,
         ProviderConfig providerConfig,
-        PipeTransportConfig? pipeEndpoint = null)
-    {
+        PipeTransportConfig? pipeEndpoint = null) {
         EnsureDefaultProvidersRegistered();
-        if (pipeEndpoint != null)
-        {
+        if (pipeEndpoint != null) {
             services.AddPipeQueryService(pipeEndpoint, providerConfig.ApiKey);
-        }
-        else
-        {
+        } else {
             services.AddSingleton<IQueryService>(sp => CreateQueryService(sp, providerConfig));
         }
 
@@ -95,13 +84,11 @@ public static partial class ServiceRegistration
     /// </summary>
     public static IServiceCollection AddKernelWithDynamicPlugins(
         this IServiceCollection services,
-        ProviderConfig providerConfig)
-    {
+        ProviderConfig providerConfig) {
         return services;
     }
 
-    private static IQueryService CreateQueryService(IServiceProvider sp, ProviderConfig providerConfig)
-    {
+    private static IQueryService CreateQueryService(IServiceProvider sp, ProviderConfig providerConfig) {
         var logger = sp.GetService<ILogger<IQueryService>>();
         var fs = sp.GetService<IFileSystem>();
         var resilientExecutor = CreateLlmResilientExecutor(sp);
@@ -112,8 +99,7 @@ public static partial class ServiceRegistration
     /// <summary>
     /// 创建 LLM API 韧性执行器 — 超时+重试+熔断，受 JCC_RESILIENCE_ENABLED 控制
     /// </summary>
-    private static ResilientHttpExecutor? CreateLlmResilientExecutor(IServiceProvider sp)
-    {
+    private static ResilientHttpExecutor? CreateLlmResilientExecutor(IServiceProvider sp) {
         var resilienceEnabled = Environment.GetEnvironmentVariable("JCC_RESILIENCE_ENABLED") is not "0";
         if (!resilienceEnabled) return null;
 
@@ -123,8 +109,7 @@ public static partial class ServiceRegistration
 
         // 用统一配置创建 24h 预算驱动 policy；无配置则 fallback 到 LlmDefault
         var policy = retryOptions is not null
-            ? new ResiliencePolicy
-            {
+            ? new ResiliencePolicy {
                 Name = "LLM",
                 OperationTimeout = TimeSpan.FromSeconds(30),
                 Retry = retryOptions.ToRetryConfig(),
@@ -138,8 +123,7 @@ public static partial class ServiceRegistration
     /// 用 StreamingFallbackDecorator + BufferedStreamingDecorator 包装内部 QueryService
     /// 对齐 TS: queryModelWithStreaming + queryModelWithoutStreaming 双路径架构
     /// </summary>
-    private static IQueryService WrapWithFallback(IQueryService inner, IServiceProvider sp)
-    {
+    private static IQueryService WrapWithFallback(IQueryService inner, IServiceProvider sp) {
         var config = StreamingFallbackConfig.FromEnvironment();
         var logger = sp.GetService<ILogger<StreamingFallbackDecorator>>();
 

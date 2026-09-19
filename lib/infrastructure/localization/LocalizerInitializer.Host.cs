@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterHostEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterHostEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === AdvisorCommand ===
         defaultEntries[StringKey.HostAdvisorModelLabel] = "Advisor model: {0}";
         defaultEntries[StringKey.HostAdvisorReviewMsg] = "Advisor will review the main model's work";

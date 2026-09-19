@@ -6,8 +6,7 @@ namespace Core.Configuration;
 ///   UserSettings → ProjectSettings → LocalSettings → FlagSettings → PolicySettings
 /// 合并策略: 从低优先级到高优先级依次 Merge，后者覆盖前者
 /// </summary>
-public static class SettingsLoader
-{
+public static class SettingsLoader {
     /// <summary>
     /// 从所有来源加载并合并配置
     /// </summary>
@@ -16,8 +15,7 @@ public static class SettingsLoader
         string? projectDir = null,
         string? flagSettingsPath = null,
         CancellationToken cancellationToken = default,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         SettingsJson? merged = null;
 
         // 按优先级从低到高依次加载并合并
@@ -31,15 +29,11 @@ public static class SettingsLoader
         };
 
         // 并行加载所有源（独立文件 I/O 并行），然后按优先级顺序合并（单线程，保证覆盖语义正确）
-        var loadTasks = sources.Select(async s =>
-        {
+        var loadTasks = sources.Select(async s => {
             SettingsJson? result = null;
-            try
-            {
+            try {
                 result = await s.Loader().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 // 单个来源加载失败不影响其他来源
                 logger?.LogWarning(ex, "Failed to load settings from source");
             }
@@ -48,10 +42,8 @@ public static class SettingsLoader
 
         await Task.WhenAll(loadTasks).ConfigureAwait(false);
 
-        foreach (var (_, settings) in loadTasks.Select(t => t.Result))
-        {
-            if (settings is not null)
-            {
+        foreach (var (_, settings) in loadTasks.Select(t => t.Result)) {
+            if (settings is not null) {
                 merged = SettingsMapper.Merge(merged, settings);
             }
         }
@@ -64,8 +56,7 @@ public static class SettingsLoader
     /// 模型列表由启动时 AutoFetchModels 从 {endpoint}/{modelsEndpoint} 自动拉取填充
     /// 供应商端点来源: README 供应商表 + ModelListFetcher 测试数据
     /// </summary>
-    public static string BuildDefaultSettingsJson()
-    {
+    public static string BuildDefaultSettingsJson() {
         return """
         {
           "vendor": {
@@ -169,8 +160,7 @@ public static class SettingsLoader
     /// 加载用户全局设置: ~/.jcc/settings.json
     /// 文件不存在或为空(0字节)时自动创建默认骨架
     /// </summary>
-    public static async Task<SettingsJson?> LoadUserSettingsAsync(IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static async Task<SettingsJson?> LoadUserSettingsAsync(IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null) {
         var path = GetUserSettingsPath();
         var result = await LoadSettingsFileAsync(fs, path, cancellationToken, logger).ConfigureAwait(false);
         if (result is not null)
@@ -197,8 +187,7 @@ public static class SettingsLoader
     /// 同步加载用户全局设置 — 用于 Configure 回调等不支持 async 的场景
     /// 文件不存在或为空(0字节)时自动创建默认骨架
     /// </summary>
-    public static SettingsJson? LoadUserSettings(IFileSystem fs)
-    {
+    public static SettingsJson? LoadUserSettings(IFileSystem fs) {
         var path = GetUserSettingsPath();
         var result = LoadSettingsFileSync(fs, path);
         if (result is not null)
@@ -223,8 +212,7 @@ public static class SettingsLoader
     /// <summary>
     /// 加载项目共享设置: .jcc/settings.json
     /// </summary>
-    public static async Task<SettingsJson?> LoadProjectSettingsAsync(IFileSystem fs, string? projectDir, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static async Task<SettingsJson?> LoadProjectSettingsAsync(IFileSystem fs, string? projectDir, CancellationToken cancellationToken = default, ILogger? logger = null) {
         if (string.IsNullOrEmpty(projectDir)) return null;
         var path = GetProjectSettingsPath(projectDir);
         return await LoadSettingsFileAsync(fs, path, cancellationToken, logger).ConfigureAwait(false);
@@ -233,8 +221,7 @@ public static class SettingsLoader
     /// <summary>
     /// 加载项目本地设置: .jcc/settings.local.json
     /// </summary>
-    public static async Task<SettingsJson?> LoadLocalSettingsAsync(IFileSystem fs, string? projectDir, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static async Task<SettingsJson?> LoadLocalSettingsAsync(IFileSystem fs, string? projectDir, CancellationToken cancellationToken = default, ILogger? logger = null) {
         if (string.IsNullOrEmpty(projectDir)) return null;
         var path = GetLocalSettingsPath(projectDir);
         return await LoadSettingsFileAsync(fs, path, cancellationToken, logger).ConfigureAwait(false);
@@ -243,8 +230,7 @@ public static class SettingsLoader
     /// <summary>
     /// 加载 CLI 标志设置: --settings 参数指定的路径
     /// </summary>
-    public static async Task<SettingsJson?> LoadFlagSettingsAsync(IFileSystem fs, string? flagSettingsPath, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static async Task<SettingsJson?> LoadFlagSettingsAsync(IFileSystem fs, string? flagSettingsPath, CancellationToken cancellationToken = default, ILogger? logger = null) {
         if (string.IsNullOrEmpty(flagSettingsPath)) return null;
         return await LoadSettingsFileAsync(fs, flagSettingsPath, cancellationToken, logger).ConfigureAwait(false);
     }
@@ -253,8 +239,7 @@ public static class SettingsLoader
     /// 加载策略设置: managed-settings.json（管理员强制）
     /// 对齐 TS 版: policySettings 内部 "first source wins" 策略
     /// </summary>
-    public static async Task<SettingsJson?> LoadPolicySettingsAsync(IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static async Task<SettingsJson?> LoadPolicySettingsAsync(IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null) {
         var path = GetManagedSettingsPath();
         return await LoadSettingsFileAsync(fs, path, cancellationToken, logger).ConfigureAwait(false);
     }
@@ -267,10 +252,8 @@ public static class SettingsLoader
         SettingSource source,
         SettingsJson settings,
         string? projectDir = null,
-        CancellationToken cancellationToken = default)
-    {
-        var path = source switch
-        {
+        CancellationToken cancellationToken = default) {
+        var path = source switch {
             SettingSource.UserSettings => GetUserSettingsPath(),
             SettingSource.ProjectSettings => GetProjectSettingsPath(projectDir ?? fs.GetCurrentDirectory()),
             SettingSource.LocalSettings => GetLocalSettingsPath(projectDir ?? fs.GetCurrentDirectory()),
@@ -292,8 +275,7 @@ public static class SettingsLoader
     /// AppDataFolder 为绝对路径时直接使用;
     /// 否则拼接 {UserProfile}/{AppDataFolder}/{SettingsFileName}
     /// </summary>
-    public static string GetUserSettingsPath()
-    {
+    public static string GetUserSettingsPath() {
         return Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
     }
 
@@ -301,8 +283,7 @@ public static class SettingsLoader
     /// 获取项目共享设置路径: {projectDir}/.jcc/settings.json
     /// 项目级目录始终使用相对目录名，当 AppDataFolder 为绝对路径（测试隔离）时回退到 .jcc
     /// </summary>
-    public static string GetProjectSettingsPath(string projectDir)
-    {
+    public static string GetProjectSettingsPath(string projectDir) {
         var folderName = Path.IsPathRooted(AppDataConstants.AppDataFolder) ? ".jcc" : AppDataConstants.AppDataFolder;
         return Path.Combine(projectDir, folderName, "settings.json");
     }
@@ -310,8 +291,7 @@ public static class SettingsLoader
     /// <summary>
     /// 获取项目本地设置路径: {projectDir}/.jcc/settings.local.json
     /// </summary>
-    public static string GetLocalSettingsPath(string projectDir)
-    {
+    public static string GetLocalSettingsPath(string projectDir) {
         var folderName = Path.IsPathRooted(AppDataConstants.AppDataFolder) ? ".jcc" : AppDataConstants.AppDataFolder;
         return Path.Combine(projectDir, folderName, "settings.local.json");
     }
@@ -321,8 +301,7 @@ public static class SettingsLoader
     /// Windows: C:\ProgramData\jcc\managed-settings.json
     /// 对齐 TS 版: Windows 下 C:\Program Files\ClaudeCode\managed-settings.json
     /// </summary>
-    public static string GetManagedSettingsPath()
-    {
+    public static string GetManagedSettingsPath() {
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             AppDataConstants.AppDataFolder,
@@ -333,23 +312,18 @@ public static class SettingsLoader
 
     #region 内部方法
 
-    private static async Task<SettingsJson?> LoadSettingsFileAsync(IFileSystem fs, string path, CancellationToken cancellationToken, ILogger? logger = null)
-    {
-        if (!fs.FileExists(path))
-        {
+    private static async Task<SettingsJson?> LoadSettingsFileAsync(IFileSystem fs, string path, CancellationToken cancellationToken, ILogger? logger = null) {
+        if (!fs.FileExists(path)) {
             logger?.LogDebug("SL FileExists=False: {Path}", path);
             return null;
         }
 
-        try
-        {
+        try {
             var json = await fs.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
             var result = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
             logger?.LogDebug("SL OK: {Path} len={Len} profile={Profile}", path, json.Length, result?.Current?.Profile);
             return result;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogWarning(ex, "SettingsLoader: Failed to load {Path}", path);
             return null;
         }
@@ -358,18 +332,14 @@ public static class SettingsLoader
     /// <summary>
     /// 同步加载设置文件 — 用于 Configure 回调等不支持 async 的场景
     /// </summary>
-    private static SettingsJson? LoadSettingsFileSync(IFileSystem fs, string path, ILogger? logger = null)
-    {
+    private static SettingsJson? LoadSettingsFileSync(IFileSystem fs, string path, ILogger? logger = null) {
         if (!fs.FileExists(path))
             return null;
 
-        try
-        {
+        try {
             var json = fs.ReadAllText(path);
             return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Diag.WriteLifecycle($"[WARN] 配置文件解析失败，使用默认值: {path} | 错误: {ex.Message}");
             logger?.LogWarning(ex, "SettingsLoader: Failed to load {Path}", path);
             return null;

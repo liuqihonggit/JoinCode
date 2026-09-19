@@ -4,8 +4,7 @@ namespace Core.Utils;
 /// <summary>
 /// Frontmatter解析结果
 /// </summary>
-public sealed class FrontmatterParseResult
-{
+public sealed class FrontmatterParseResult {
     /// <summary>
     /// 是否包含frontmatter
     /// </summary>
@@ -35,8 +34,7 @@ public sealed class FrontmatterParseResult
 /// <summary>
 /// 技能元数据
 /// </summary>
-public sealed class SkillMetadata
-{
+public sealed class SkillMetadata {
     /// <summary>
     /// 技能名称
     /// </summary>
@@ -82,8 +80,7 @@ public sealed class SkillMetadata
 /// Frontmatter解析器
 /// 解析YAML frontmatter，提取技能元数据
 /// </summary>
-public static class FrontmatterParser
-{
+public static class FrontmatterParser {
     private const string FrontmatterDelimiter = "---";
 
     /// <summary>
@@ -92,12 +89,9 @@ public static class FrontmatterParser
     /// <param name="markdown">Markdown内容</param>
     /// <param name="logger">日志记录器</param>
     /// <returns>解析结果</returns>
-    public static FrontmatterParseResult Parse(string markdown, ILogger? logger = null)
-    {
-        if (string.IsNullOrWhiteSpace(markdown))
-        {
-            return new FrontmatterParseResult
-            {
+    public static FrontmatterParseResult Parse(string markdown, ILogger? logger = null) {
+        if (string.IsNullOrWhiteSpace(markdown)) {
+            return new FrontmatterParseResult {
                 HasFrontmatter = false,
                 Content = markdown ?? string.Empty
             };
@@ -105,10 +99,8 @@ public static class FrontmatterParser
 
         var trimmedContent = markdown.TrimStart();
 
-        if (!trimmedContent.StartsWith(FrontmatterDelimiter, StringComparison.Ordinal))
-        {
-            return new FrontmatterParseResult
-            {
+        if (!trimmedContent.StartsWith(FrontmatterDelimiter, StringComparison.Ordinal)) {
+            return new FrontmatterParseResult {
                 HasFrontmatter = false,
                 Content = markdown
             };
@@ -116,10 +108,8 @@ public static class FrontmatterParser
 
         var endIndex = FindFrontmatterEnd(trimmedContent);
 
-        if (endIndex == -1)
-        {
-            return new FrontmatterParseResult
-            {
+        if (endIndex == -1) {
+            return new FrontmatterParseResult {
                 HasFrontmatter = false,
                 Content = markdown,
                 Error = "未找到frontmatter结束标记"
@@ -135,8 +125,7 @@ public static class FrontmatterParser
 
         var data = ParseYaml(frontmatterContent, logger);
 
-        return new FrontmatterParseResult
-        {
+        return new FrontmatterParseResult {
             HasFrontmatter = true,
             RawFrontmatter = trimmedContent[..(endIndex + FrontmatterDelimiter.Length)],
             Data = data,
@@ -151,8 +140,7 @@ public static class FrontmatterParser
     /// <param name="cancellationToken">取消令牌</param>
     /// <param name="logger">日志记录器</param>
     /// <returns>解析结果</returns>
-    public static Task<FrontmatterParseResult> ParseAsync(string markdown, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static Task<FrontmatterParseResult> ParseAsync(string markdown, CancellationToken cancellationToken = default, ILogger? logger = null) {
         return Task.Run(() => Parse(markdown, logger), cancellationToken);
     }
 
@@ -163,8 +151,7 @@ public static class FrontmatterParser
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器</param>
     /// <returns>解析结果</returns>
-    public static FrontmatterParseResult ParseFile(string filePath, IFileSystem fs, ILogger? logger = null)
-    {
+    public static FrontmatterParseResult ParseFile(string filePath, IFileSystem fs, ILogger? logger = null) {
         if (!fs.FileExists(filePath))
             throw new FileNotFoundException($"[INF045] 文件不存在: {filePath}");
 
@@ -180,8 +167,7 @@ public static class FrontmatterParser
     /// <param name="cancellationToken">取消令牌</param>
     /// <param name="logger">日志记录器</param>
     /// <returns>解析结果</returns>
-    public static async Task<FrontmatterParseResult> ParseFileAsync(string filePath, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static async Task<FrontmatterParseResult> ParseFileAsync(string filePath, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null) {
         if (!fs.FileExists(filePath))
             throw new FileNotFoundException($"[INF046] 文件不存在: {filePath}");
 
@@ -194,15 +180,13 @@ public static class FrontmatterParser
     /// </summary>
     /// <param name="result">Frontmatter解析结果</param>
     /// <returns>技能元数据</returns>
-    public static SkillMetadata ExtractSkillMetadata(FrontmatterParseResult result)
-    {
+    public static SkillMetadata ExtractSkillMetadata(FrontmatterParseResult result) {
         if (!result.HasFrontmatter || result.Data.Count == 0)
             return new SkillMetadata();
 
         var data = result.Data;
 
-        return new SkillMetadata
-        {
+        return new SkillMetadata {
             Name = GetStringValue(data, "name", "title", "skill"),
             Description = GetStringValue(data, "description", "desc", "summary"),
             Version = GetStringValue(data, "version"),
@@ -219,15 +203,13 @@ public static class FrontmatterParser
     /// </summary>
     /// <param name="data">数据字典</param>
     /// <returns>YAML字符串</returns>
-    public static string Serialize(Dictionary<string, JsonElement> data)
-    {
+    public static string Serialize(Dictionary<string, JsonElement> data) {
         if (data == null || data.Count == 0)
             return string.Empty;
 
         var yaml = new YamlMappingNode();
 
-        foreach (var kvp in data)
-        {
+        foreach (var kvp in data) {
             yaml.Add(kvp.Key, ConvertToYamlNode(kvp.Value));
         }
 
@@ -237,8 +219,7 @@ public static class FrontmatterParser
         return $"{FrontmatterDelimiter}\n{yamlText}{FrontmatterDelimiter}\n";
     }
 
-    private static int FindFrontmatterEnd(string content)
-    {
+    private static int FindFrontmatterEnd(string content) {
         var searchStart = FrontmatterDelimiter.Length;
 
         var endIndex = content.IndexOf(FrontmatterDelimiter, searchStart, StringComparison.Ordinal);
@@ -246,16 +227,14 @@ public static class FrontmatterParser
         if (endIndex == -1)
             return -1;
 
-        for (var i = searchStart; i < endIndex; i++)
-        {
+        for (var i = searchStart; i < endIndex; i++) {
             var lineEnd = content.IndexOf('\n', i);
             if (lineEnd == -1 || lineEnd > endIndex)
                 lineEnd = endIndex;
 
             var trimmedLine = content.AsSpan(i, lineEnd - i).Trim();
 
-            if (trimmedLine.SequenceEqual(FrontmatterDelimiter.AsSpan()))
-            {
+            if (trimmedLine.SequenceEqual(FrontmatterDelimiter.AsSpan())) {
                 if (i == 0 || content[i - 1] == '\n')
                     return i;
             }
@@ -266,19 +245,15 @@ public static class FrontmatterParser
         return endIndex;
     }
 
-    private static Dictionary<string, JsonElement> ParseYaml(string yamlContent, ILogger? logger = null)
-    {
+    private static Dictionary<string, JsonElement> ParseYaml(string yamlContent, ILogger? logger = null) {
         var result = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
 
-        try
-        {
+        try {
             var yaml = new YamlStream();
             yaml.Load(new StringReader(yamlContent));
 
-            if (yaml.Documents.Count > 0 && yaml.Documents[0].RootNode is YamlMappingNode mapping)
-            {
-                foreach (var entry in mapping.Children)
-                {
+            if (yaml.Documents.Count > 0 && yaml.Documents[0].RootNode is YamlMappingNode mapping) {
+                foreach (var entry in mapping.Children) {
                     var key = entry.Key.ToString();
                     var value = ConvertYamlNodeToJsonElement(entry.Value);
 
@@ -286,17 +261,14 @@ public static class FrontmatterParser
                         result[key] = value.Value;
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogWarning(ex, "FrontmatterParser: failed to parse YAML frontmatter");
         }
 
         return result;
     }
 
-    private static JsonElement? ConvertYamlNodeToJsonElement(YamlNode node)
-    {
+    private static JsonElement? ConvertYamlNodeToJsonElement(YamlNode node) {
         var json = YamlNodeToJson(node);
         if (json == null) return null;
         var bytes = System.Text.Encoding.UTF8.GetBytes(json);
@@ -305,14 +277,11 @@ public static class FrontmatterParser
         return doc.RootElement.Clone();
     }
 
-    private static string? YamlNodeToJson(YamlNode node)
-    {
-        return node switch
-        {
+    private static string? YamlNodeToJson(YamlNode node) {
+        return node switch {
             YamlScalarNode scalar => ScalarToJson(scalar.Value),
             YamlSequenceNode sequence => "[" + string.Join(",", sequence.Children.Select(YamlNodeToJson).Where(v => v != null)) + "]",
-            YamlMappingNode mapping => "{" + string.Join(",", mapping.Children.Select(kvp =>
-            {
+            YamlMappingNode mapping => "{" + string.Join(",", mapping.Children.Select(kvp => {
                 var key = JsonEncodeString(kvp.Key.ToString() ?? string.Empty);
                 var val = YamlNodeToJson(kvp.Value);
                 return val != null ? $"{key}:{val}" : null;
@@ -321,8 +290,7 @@ public static class FrontmatterParser
         };
     }
 
-    private static string ScalarToJson(string? value)
-    {
+    private static string ScalarToJson(string? value) {
         if (value == null) return "null";
         if (value.Equals("true", StringComparison.OrdinalIgnoreCase)) return "true";
         if (value.Equals("false", StringComparison.OrdinalIgnoreCase)) return "false";
@@ -333,14 +301,11 @@ public static class FrontmatterParser
         return JsonEncodeString(value);
     }
 
-    private static string JsonEncodeString(string s)
-    {
+    private static string JsonEncodeString(string s) {
         var sb = new StringBuilder(s.Length + 2);
         sb.Append('"');
-        foreach (var c in s)
-        {
-            switch (c)
-            {
+        foreach (var c in s) {
+            switch (c) {
                 case '\\': sb.Append("\\\\"); break;
                 case '"': sb.Append("\\\""); break;
                 case '\n': sb.Append("\\n"); break;
@@ -353,10 +318,8 @@ public static class FrontmatterParser
         return sb.ToString();
     }
 
-    private static YamlNode ConvertToYamlNode(JsonElement element)
-    {
-        return element.ValueKind switch
-        {
+    private static YamlNode ConvertToYamlNode(JsonElement element) {
+        return element.ValueKind switch {
             JsonValueKind.String => new YamlScalarNode(element.GetString()),
             JsonValueKind.Number => new YamlScalarNode(element.GetRawText()),
             JsonValueKind.True => new YamlScalarNode("true"),
@@ -372,25 +335,20 @@ public static class FrontmatterParser
         };
     }
 
-    private static string? GetStringValue(Dictionary<string, JsonElement> data, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
+    private static string? GetStringValue(Dictionary<string, JsonElement> data, params string[] keys) {
+        foreach (var key in keys) {
             if (data.TryGetValue(key, out var element) && element.ValueKind == JsonValueKind.String)
                 return element.GetString();
         }
         return null;
     }
 
-    private static IEnumerable<string> GetStringList(Dictionary<string, JsonElement> data, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
+    private static IEnumerable<string> GetStringList(Dictionary<string, JsonElement> data, params string[] keys) {
+        foreach (var key in keys) {
             if (!data.TryGetValue(key, out var element))
                 continue;
 
-            return element.ValueKind switch
-            {
+            return element.ValueKind switch {
                 JsonValueKind.String => new[] { element.GetString() ?? string.Empty },
                 JsonValueKind.Array => element.EnumerateArray()
                     .Where(e => e.ValueKind == JsonValueKind.String)

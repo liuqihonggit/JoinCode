@@ -1,19 +1,16 @@
 namespace Core.Goal.Tests;
 
 
-public sealed class GoalUserInteractionServiceTests
-{
+public sealed class GoalUserInteractionServiceTests {
     private static Mock<IInteractiveService> CreateInteractiveMock() => new();
 
-    private static GoalUserInteractionService CreateService(Mock<IInteractiveService>? mock = null)
-    {
+    private static GoalUserInteractionService CreateService(Mock<IInteractiveService>? mock = null) {
         mock ??= CreateInteractiveMock();
         return new GoalUserInteractionService(mock.Object, NullLogger<GoalUserInteractionService>.Instance);
     }
 
     [Fact]
-    public async Task AskToContinueAsync_UserChoosesContinue_ShouldReturnContinue()
-    {
+    public async Task AskToContinueAsync_UserChoosesContinue_ShouldReturnContinue() {
         var mock = CreateInteractiveMock();
         mock.Setup(s => s.AskUserQuestionAsync(
                 It.IsAny<string>(),
@@ -30,8 +27,7 @@ public sealed class GoalUserInteractionServiceTests
     }
 
     [Fact]
-    public async Task AskToContinueAsync_UserChoosesStop_ShouldReturnStop()
-    {
+    public async Task AskToContinueAsync_UserChoosesStop_ShouldReturnStop() {
         var mock = CreateInteractiveMock();
         mock.Setup(s => s.AskUserQuestionAsync(
                 It.IsAny<string>(),
@@ -48,8 +44,7 @@ public sealed class GoalUserInteractionServiceTests
     }
 
     [Fact]
-    public async Task AskToContinueAsync_UserCancels_ShouldReturnCoordinatorTakeover()
-    {
+    public async Task AskToContinueAsync_UserCancels_ShouldReturnCoordinatorTakeover() {
         var mock = CreateInteractiveMock();
         mock.Setup(s => s.AskUserQuestionAsync(
                 It.IsAny<string>(),
@@ -66,16 +61,14 @@ public sealed class GoalUserInteractionServiceTests
     }
 
     [Fact]
-    public async Task AskToContinueAsync_Timeout_ShouldReturnCoordinatorTakeover()
-    {
+    public async Task AskToContinueAsync_Timeout_ShouldReturnCoordinatorTakeover() {
         var mock = CreateInteractiveMock();
         mock.Setup(s => s.AskUserQuestionAsync(
                 It.IsAny<string>(),
                 It.IsAny<List<string>?>(),
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
-            .Returns(async (string q, List<string>? opts, bool multi, CancellationToken ct) =>
-            {
+            .Returns(async (string q, List<string>? opts, bool multi, CancellationToken ct) => {
                 await Task.Delay(TimeSpan.FromSeconds(10), ct);
                 return AskUserQuestionResult.SuccessResult("继续循环");
             });
@@ -89,8 +82,7 @@ public sealed class GoalUserInteractionServiceTests
     }
 
     [Fact]
-    public async Task AskToContinueAsync_InteractionFails_ShouldReturnCoordinatorTakeover()
-    {
+    public async Task AskToContinueAsync_InteractionFails_ShouldReturnCoordinatorTakeover() {
         var mock = CreateInteractiveMock();
         mock.Setup(s => s.AskUserQuestionAsync(
                 It.IsAny<string>(),

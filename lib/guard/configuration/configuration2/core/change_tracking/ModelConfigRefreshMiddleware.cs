@@ -6,24 +6,20 @@ namespace Core.Configuration;
 /// 数据流：settings.json → SettingsReloadMiddleware → VendorModelMapper → ModelConfigLoader.ApplyProviders
 /// </summary>
 [Register(typeof(ISettingsMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ModelConfigRefreshMiddleware : ServiceEntity, ISettingsMiddleware
-{
+public sealed partial class ModelConfigRefreshMiddleware : ServiceEntity, ISettingsMiddleware {
     private readonly IModelConfigLoader _modelConfigLoader;
 
     /// <summary>
     /// 构造模型配置刷新中间件
     /// </summary>
     /// <param name="modelConfigLoader">模型配置加载器</param>
-    public ModelConfigRefreshMiddleware(IModelConfigLoader modelConfigLoader)
-    {
+    public ModelConfigRefreshMiddleware(IModelConfigLoader modelConfigLoader) {
         _modelConfigLoader = modelConfigLoader;
     }
 
     /// <inheritdoc />
-    public async Task InvokeAsync(SettingsContext context, MiddlewareDelegate<SettingsContext> next, CancellationToken ct)
-    {
-        if (context.NewSettings is not null)
-        {
+    public async Task InvokeAsync(SettingsContext context, MiddlewareDelegate<SettingsContext> next, CancellationToken ct) {
+        if (context.NewSettings is not null) {
             var providers = VendorModelMapper.BuildProviders(context.NewSettings);
             _modelConfigLoader.ApplyProviders(providers);
             context.Logger?.LogInformation("模型配置已从 settings.json 刷新");

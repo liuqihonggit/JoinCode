@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// Bridge 远程核心 — 认证恢复相关逻辑（partial）
 /// </summary>
-public static partial class BridgeRemoteCore
-{
+public static partial class BridgeRemoteCore {
     #region recoverFromAuthFailure
 
     /// <summary>
@@ -32,27 +31,22 @@ public static partial class BridgeRemoteCore
         IReplBridgeTransportFactory transportFactory,
         BridgeInitState state,
         BridgeTokenRefreshScheduler refresh,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         // 对齐 TS 端: if (authRecoveryInFlight) return — 防止并发恢复
         if (state.AuthRecoveryInFlight) return;
         state.AuthRecoveryInFlight = true;
         parameters.OnStateChange?.Invoke(BridgeState.Reconnecting, "JWT expired — refreshing");
 
-        try
-        {
+        try {
             // 对齐 TS 端: 先尝试 OAuth 刷新
             var stale = parameters.GetAccessToken();
-            if (parameters.OnAuth401 is not null)
-            {
+            if (parameters.OnAuth401 is not null) {
                 await parameters.OnAuth401(stale ?? string.Empty).ConfigureAwait(false);
             }
 
             var oauthToken = parameters.GetAccessToken() ?? stale;
-            if (string.IsNullOrEmpty(oauthToken) || state.TornDown)
-            {
-                if (!state.TornDown)
-                {
+            if (string.IsNullOrEmpty(oauthToken) || state.TornDown) {
+                if (!state.TornDown) {
                     parameters.OnStateChange?.Invoke(BridgeState.Failed, "JWT refresh failed: no OAuth token");
                 }
                 return;
@@ -69,10 +63,8 @@ public static partial class BridgeRemoteCore
                 config.InitRetryJitterFraction,
                 ct).ConfigureAwait(false);
 
-            if (fresh is null || state.TornDown)
-            {
-                if (!state.TornDown)
-                {
+            if (fresh is null || state.TornDown) {
+                if (!state.TornDown) {
                     parameters.OnStateChange?.Invoke(BridgeState.Failed, "JWT refresh failed after 401");
                 }
                 return;
@@ -87,17 +79,12 @@ public static partial class BridgeRemoteCore
                 oldTransport, transportFactory, state, refresh, ct).ConfigureAwait(false);
 
             logger?.LogDebug("Bridge: Transport rebuilt after 401");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogError("Bridge: 401 recovery failed: {Message}", ex.Message);
-            if (!state.TornDown)
-            {
+            if (!state.TornDown) {
                 parameters.OnStateChange?.Invoke(BridgeState.Failed, $"JWT refresh failed: {ex.Message}");
             }
-        }
-        finally
-        {
+        } finally {
             state.AuthRecoveryInFlight = false;
         }
     }
@@ -126,13 +113,11 @@ public static partial class BridgeRemoteCore
         IReplBridgeTransportFactory transportFactory,
         BridgeInitState state,
         BridgeTokenRefreshScheduler refresh,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         // 对齐 TS 端: flushGate.start() — 排队写入消息
         state.FlushGate.Start();
 
-        try
-        {
+        try {
             // 对齐 TS 端: 保存序列号 + 关闭旧传输
             var seq = oldTransport.GetLastSequenceNum();
             await oldTransport.DisposeAsync().ConfigureAwait(false);
@@ -141,8 +126,7 @@ public static partial class BridgeRemoteCore
             var sdkUrl = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl(fresh.ApiBaseUrl, sessionId);
             var newTransport = transportFactory.CreateV2Transport(sdkUrl, sessionId, fresh.WorkerJwt, config.ConnectTimeoutMs);
 
-            if (state.TornDown)
-            {
+            if (state.TornDown) {
                 await newTransport.DisposeAsync().ConfigureAwait(false);
                 return;
             }
@@ -158,9 +142,7 @@ public static partial class BridgeRemoteCore
 
             // 对齐 TS 端: drainFlushGate — 排空排队消息到新传输
             DrainFlushGate(state.FlushGate, state.RecentPostedUUIDs, parameters.ToSDKMessages, newTransport, sessionId, state.InitCts.Token);
-        }
-        finally
-        {
+        } finally {
             // 对齐 TS 端: flushGate.drop() — 失败路径也结束门控
             state.FlushGate.Drop();
         }
@@ -188,12 +170,9 @@ public static partial class BridgeRemoteCore
         BridgeInitState state,
         IReplBridgeTransportFactory transportFactory,
         BridgeTokenRefreshScheduler refresh,
-        CancellationToken ct)
-    {
-        transport.SetOnConnect(() =>
-        {
-            if (!state.InitialFlushDone && parameters.InitialMessages is { Length: > 0 })
-            {
+        CancellationToken ct) {
+        transport.SetOnConnect(() => {
+            if (!state.InitialFlushDone && parameters.InitialMessages is { Length: > 0 }) {
                 state.InitialFlushDone = true;
                 _ = FlushHistoryAsync(
                     parameters.InitialMessages,
@@ -202,10 +181,8 @@ public static partial class BridgeRemoteCore
                     transport,
                     sessionId,
                     state.InitCts.Token)
-                .ContinueWith(task =>
-                {
-                    if (task.IsFaulted)
-                    {
+                .ContinueWith(task => {
+                    if (task.IsFaulted) {
                         logger?.LogError("Bridge: flushHistory failed: {Message}", task.Exception?.InnerException?.Message);
                     }
 
@@ -213,25 +190,20 @@ public static partial class BridgeRemoteCore
                     DrainFlushGate(state.FlushGate, state.RecentPostedUUIDs, parameters.ToSDKMessages, transport, sessionId, state.InitCts.Token);
                     parameters.OnStateChange?.Invoke(BridgeState.Connected, null);
                 }, state.InitCts.Token);
-            }
-            else if (!state.FlushGate.Active)
-            {
+            } else if (!state.FlushGate.Active) {
                 parameters.OnStateChange?.Invoke(BridgeState.Connected, null);
             }
         });
 
-        transport.SetOnData(data =>
-        {
+        transport.SetOnData(data => {
             BridgeMessaging.HandleIngressMessage(
                 data,
                 state.RecentPostedUUIDs,
                 state.RecentInboundUUIDs,
                 onInboundMessage: parameters.OnInboundMessage,
                 onPermissionResponse: parameters.OnPermissionResponse,
-                onControlRequest: async request =>
-                {
-                    var handlers = new ServerControlRequestHandlers
-                    {
+                onControlRequest: async request => {
+                    var handlers = new ServerControlRequestHandlers {
                         Transport = transport,
                         SessionId = sessionId,
                         OutboundOnly = parameters.OutboundOnly,
@@ -244,16 +216,12 @@ public static partial class BridgeRemoteCore
                 });
         });
 
-        transport.SetOnClose(code =>
-        {
-            if (code == 401 && !state.AuthRecoveryInFlight)
-            {
+        transport.SetOnClose(code => {
+            if (code == 401 && !state.AuthRecoveryInFlight) {
                 _ = RecoverFromAuthFailureAsync(
                     sessionId, parameters, null!, config, logger,
                     transport, transportFactory, state, refresh, ct);
-            }
-            else if (code != 401)
-            {
+            } else if (code != 401) {
                 parameters.OnStateChange?.Invoke(BridgeState.Failed, $"Transport closed (code {code})");
             }
         });

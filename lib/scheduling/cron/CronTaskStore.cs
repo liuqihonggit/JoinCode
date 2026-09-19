@@ -18,8 +18,7 @@ internal sealed record GetTasksByAgentIdCmd(string AgentId, CancellationToken Ct
 /// 消除 AsyncLock。文件读写由 Consumer 串行执行，不再阻塞其他 Cron 任务操作。
 /// </summary>
 [Register(typeof(ICronTaskStore), ServiceLifetime.Singleton)]
-public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Unit>, ICronTaskStore
-{
+public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Unit>, ICronTaskStore {
     private string _filePath;
     private readonly string _baseDir;
     private readonly IFileOperationService _fileOperationService;
@@ -42,8 +41,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         IFileSystem fs,
         string? directory = null,
         IClockService? clock = null)
-        : base()
-    {
+        : base() {
         Diag.WriteLine("[DI] FileCronTaskStore.ctor start");
         var dir = directory ?? AppDataConstants.Paths.CronTasksDirectory;
         if (string.IsNullOrWhiteSpace(dir))
@@ -65,8 +63,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     /// 设置会话隔离标识 — 重新计算文件路径并重新初始化 watcher。
     /// 路径变为 {_baseDir}/{sessionId}/{ScheduledTasksFileName}。
     /// </summary>
-    public void SetSessionId(string sessionId)
-    {
+    public void SetSessionId(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         _watcher?.Dispose();
         _watcher = null;
@@ -75,8 +72,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         InitializeWatcher();
     }
 
-    private void InitializeWatcher()
-    {
+    private void InitializeWatcher() {
         var directory = Path.GetDirectoryName(_filePath);
         if (string.IsNullOrEmpty(directory)) return;
 
@@ -92,17 +88,14 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         _watcher.EnableRaisingEvents = true;
     }
 
-    private void OnFileChanged(object? sender, FileChangedEventArgs e)
-    {
+    private void OnFileChanged(object? sender, FileChangedEventArgs e) {
     }
 
-    private void OnFileDeleted(object? sender, FileChangedEventArgs e)
-    {
+    private void OnFileDeleted(object? sender, FileChangedEventArgs e) {
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<CronTask>> GetAllTasksAsync(CancellationToken ct = default)
-    {
+    public async Task<IReadOnlyList<CronTask>> GetAllTasksAsync(CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = TcsFactory.Create<IReadOnlyList<CronTask>>();
         await SendAsync(new GetAllTasksCmd(ct, tcs), ct).ConfigureAwait(false);
@@ -110,8 +103,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     }
 
     /// <inheritdoc/>
-    public async Task<CronTask> AddTaskAsync(CreateCronTaskRequest request, CancellationToken ct = default)
-    {
+    public async Task<CronTask> AddTaskAsync(CreateCronTaskRequest request, CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         if (!CronExpressionParser.IsValid(request.CronExpression))
@@ -123,8 +115,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     }
 
     /// <inheritdoc/>
-    public async Task RemoveTasksAsync(IEnumerable<string> ids, CancellationToken ct = default)
-    {
+    public async Task RemoveTasksAsync(IEnumerable<string> ids, CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var idSet = new HashSet<string>(ids);
         if (idSet.Count == 0) return;
@@ -135,8 +126,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     }
 
     /// <inheritdoc/>
-    public async Task MarkTasksFiredAsync(IEnumerable<string> ids, long firedAt, CancellationToken ct = default)
-    {
+    public async Task MarkTasksFiredAsync(IEnumerable<string> ids, long firedAt, CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var idSet = new HashSet<string>(ids);
         if (idSet.Count == 0) return;
@@ -147,8 +137,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     }
 
     /// <inheritdoc/>
-    public async Task<CronTask?> GetTaskByIdAsync(string id, CancellationToken ct = default)
-    {
+    public async Task<CronTask?> GetTaskByIdAsync(string id, CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = TcsFactory.Create<CronTask?>();
         await SendAsync(new GetTaskByIdCmd(id, ct, tcs), ct).ConfigureAwait(false);
@@ -156,8 +145,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<CronTask>> GetTasksByAgentIdAsync(string agentId, CancellationToken ct = default)
-    {
+    public async Task<IReadOnlyList<CronTask>> GetTasksByAgentIdAsync(string agentId, CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = TcsFactory.Create<IReadOnlyList<CronTask>>();
         await SendAsync(new GetTasksByAgentIdCmd(agentId, ct, tcs), ct).ConfigureAwait(false);
@@ -167,12 +155,9 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     /// <summary>
     /// Actor Consumer — 线程独占 _sessionTasks 和文件 I/O，串行处理命令，无需锁。
     /// </summary>
-    protected override async ValueTask HandleAsync(ICronStoreCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
-            case GetAllTasksCmd cmd:
-            {
+    protected override async ValueTask HandleAsync(ICronStoreCommand command, CancellationToken ct) {
+        switch (command) {
+            case GetAllTasksCmd cmd: {
                 var fileTasks = await ReadFileTasksAsync(cmd.Ct).ConfigureAwait(false);
                 var allTasks = new List<CronTask>(fileTasks);
                 allTasks.AddRange(_sessionTasks.Values);
@@ -180,10 +165,8 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
                 break;
             }
 
-            case AddTaskCmd cmd:
-            {
-                var task = new CronTask
-                {
+            case AddTaskCmd cmd: {
+                var task = new CronTask {
                     Id = GenerateTaskId(),
                     CronExpression = cmd.Request.CronExpression,
                     Prompt = cmd.Request.Prompt,
@@ -193,12 +176,9 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
                     AgentId = cmd.Request.AgentId
                 };
 
-                if (!cmd.Request.IsDurable)
-                {
+                if (!cmd.Request.IsDurable) {
                     _sessionTasks[task.Id] = task;
-                }
-                else
-                {
+                } else {
                     var tasks = await ReadFileTasksAsync(cmd.Ct).ConfigureAwait(false);
                     var taskList = tasks.ToList();
                     taskList.Add(task);
@@ -210,10 +190,8 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
                 break;
             }
 
-            case RemoveTasksCmd cmd:
-            {
-                foreach (var id in cmd.Ids)
-                {
+            case RemoveTasksCmd cmd: {
+                foreach (var id in cmd.Ids) {
                     _sessionTasks.Remove(id);
                 }
 
@@ -221,8 +199,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
                 var originalCount = fileTasks.Count;
                 var filteredTasks = fileTasks.Where(t => !cmd.Ids.Contains(t.Id)).ToList();
 
-                if (filteredTasks.Count < originalCount)
-                {
+                if (filteredTasks.Count < originalCount) {
                     var json = SerializeTasks(filteredTasks);
                     await WriteJsonAsync(json, cmd.Ct).ConfigureAwait(false);
                 }
@@ -231,24 +208,20 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
                 break;
             }
 
-            case MarkTasksFiredCmd cmd:
-            {
-                foreach (var task in _sessionTasks.Values.Where(t => cmd.Ids.Contains(t.Id)))
-                {
+            case MarkTasksFiredCmd cmd: {
+                foreach (var task in _sessionTasks.Values.Where(t => cmd.Ids.Contains(t.Id))) {
                     task.LastFiredAt = cmd.FiredAt;
                 }
 
                 var fileTasks = await ReadFileTasksAsync(cmd.Ct).ConfigureAwait(false);
                 var changed = false;
 
-                foreach (var task in fileTasks.Where(t => cmd.Ids.Contains(t.Id)))
-                {
+                foreach (var task in fileTasks.Where(t => cmd.Ids.Contains(t.Id))) {
                     task.LastFiredAt = cmd.FiredAt;
                     changed = true;
                 }
 
-                if (changed)
-                {
+                if (changed) {
                     var json = SerializeTasks(fileTasks);
                     await WriteJsonAsync(json, cmd.Ct).ConfigureAwait(false);
                 }
@@ -257,10 +230,8 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
                 break;
             }
 
-            case GetTaskByIdCmd cmd:
-            {
-                if (_sessionTasks.TryGetValue(cmd.Id, out var sessionTask))
-                {
+            case GetTaskByIdCmd cmd: {
+                if (_sessionTasks.TryGetValue(cmd.Id, out var sessionTask)) {
                     cmd.Tcs.TrySetResult(sessionTask);
                     break;
                 }
@@ -270,19 +241,16 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
                 break;
             }
 
-            case GetTasksByAgentIdCmd cmd:
-            {
+            case GetTasksByAgentIdCmd cmd: {
                 var fileTasks = await ReadFileTasksAsync(cmd.Ct).ConfigureAwait(false);
                 var result = new List<CronTask>();
 
-                foreach (var t in _sessionTasks.Values)
-                {
+                foreach (var t in _sessionTasks.Values) {
                     if (t.AgentId == cmd.AgentId)
                         result.Add(t);
                 }
 
-                foreach (var t in fileTasks)
-                {
+                foreach (var t in fileTasks) {
                     if (t.AgentId == cmd.AgentId && !_sessionTasks.ContainsKey(t.Id))
                         result.Add(t);
                 }
@@ -295,19 +263,16 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
 
     /// <summary>命令消费者发生异常时的回调处理，输出诊断日志。</summary>
     /// <param name="ex">消费者抛出的异常。</param>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         Diag.WriteLine($"[FileCronTaskStore] Actor Consumer 异常: {ex.Message}");
     }
 
-    private async Task<IReadOnlyList<CronTask>> ReadFileTasksAsync(CancellationToken ct)
-    {
+    private async Task<IReadOnlyList<CronTask>> ReadFileTasksAsync(CancellationToken ct) {
         var result = await _fileOperationService.ReadFileAsync(_filePath, cancellationToken: ct).ConfigureAwait(false);
         if (!result.Success)
             return Array.Empty<CronTask>();
 
-        try
-        {
+        try {
             var file = RelaxedJsonSerializer.Deserialize(result.Content, SchedulingIndentedJsonContext.Default.CronTaskFile);
 
             if (file?.Tasks == null)
@@ -318,48 +283,40 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
                 .ToList();
 
             return validTasks;
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             return Array.Empty<CronTask>();
         }
     }
 
-    private static string SerializeTasks(IReadOnlyList<CronTask> tasks)
-    {
+    private static string SerializeTasks(IReadOnlyList<CronTask> tasks) {
         var file = new CronTaskFile { Tasks = tasks.ToList() };
         return RelaxedJsonSerializer.Serialize(file, SchedulingIndentedJsonContext.Default);
     }
 
-    private async Task WriteJsonAsync(string json, CancellationToken ct)
-    {
+    private async Task WriteJsonAsync(string json, CancellationToken ct) {
         var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
+        if (!string.IsNullOrEmpty(directory)) {
             _fs.CreateDirectory(directory);
         }
 
         await _fileOperationService.WriteFileAsync(_filePath, json, ct).ConfigureAwait(false);
     }
 
-    private static bool ValidateTask(CronTask task)
-    {
+    private static bool ValidateTask(CronTask task) {
         return !string.IsNullOrEmpty(task.Id)
             && !string.IsNullOrEmpty(task.CronExpression)
             && !string.IsNullOrEmpty(task.Prompt)
             && task.CreatedAt > 0;
     }
 
-    private static string GenerateTaskId()
-    {
+    private static string GenerateTaskId() {
         return Guid.NewGuid().ToString("N")[..8];
     }
 
     /// <summary>
     /// 异步释放文件 watcher 和 Actor 资源
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _watcher?.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);

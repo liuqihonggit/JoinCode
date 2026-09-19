@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 桥接远程核心 — v2 初始化管道的静态分部类
 /// </summary>
-public static partial class BridgeRemoteCore
-{
+public static partial class BridgeRemoteCore {
     #region initEnvLessBridgeCore — 管道化
 
     /// <summary>
@@ -25,28 +24,22 @@ public static partial class BridgeRemoteCore
         IReplBridgeTransportFactory transportFactory,
         MiddlewarePipeline<V2BridgeInitContext> pipeline,
         ILogger? logger = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(parameters);
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(transportFactory);
         ArgumentNullException.ThrowIfNull(pipeline);
 
-        var context = new V2BridgeInitContext
-        {
+        var context = new V2BridgeInitContext {
             Parameters = parameters,
             HttpClient = httpClient,
             TransportFactory = transportFactory,
             Logger = logger,
         };
 
-        try
-        {
+        try {
             await pipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             logger?.LogError(ex, "Bridge: 初始化失败");
             context.Fail(ex.Message);
         }

@@ -5,8 +5,7 @@ namespace Infrastructure.Network.Downloader;
 /// <para>状态流转由 DownloadStateMachine 校验,非法转换抛 InvalidOperationException[DOWN001]</para>
 /// <para>线程安全:Pause/Resume/Cancel 可从 UI 线程调用,下载在工作线程</para>
 /// </summary>
-public interface IDownloadSession : IAsyncDisposable
-{
+public interface IDownloadSession : IAsyncDisposable {
     /// <summary>当前状态(线程安全读取,volatile 语义)</summary>
     DownloadState State { get; }
 

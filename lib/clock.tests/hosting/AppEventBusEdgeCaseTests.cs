@@ -1,11 +1,9 @@
 
 namespace Clock.Tests.Unit.Hosting;
 
-public sealed class AppEventBusEdgeCaseTests
-{
+public sealed class AppEventBusEdgeCaseTests {
     [Fact]
-    public async Task PublishAsync_NullEvent_Throws()
-    {
+    public async Task PublishAsync_NullEvent_Throws() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
 
@@ -13,8 +11,7 @@ public sealed class AppEventBusEdgeCaseTests
     }
 
     [Fact]
-    public async Task SubscribeAsync_NullHandler_Throws()
-    {
+    public async Task SubscribeAsync_NullHandler_Throws() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
 
@@ -22,8 +19,7 @@ public sealed class AppEventBusEdgeCaseTests
     }
 
     [Fact]
-    public async Task PublishAsync_NonAppEventPayload_IsIgnored()
-    {
+    public async Task PublishAsync_NonAppEventPayload_IsIgnored() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
@@ -35,8 +31,7 @@ public sealed class AppEventBusEdgeCaseTests
     }
 
     [Fact]
-    public async Task PublishAsync_SubscriberThrows_DoesNotBreakOtherSubscribers()
-    {
+    public async Task PublishAsync_SubscriberThrows_DoesNotBreakOtherSubscribers() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         var receivedCount = 0;
@@ -50,8 +45,7 @@ public sealed class AppEventBusEdgeCaseTests
     }
 
     [Fact]
-    public async Task SubscribeAllAsync_ReceivesDifferentKinds()
-    {
+    public async Task SubscribeAllAsync_ReceivesDifferentKinds() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         var received = new List<AppEvent>();
@@ -65,8 +59,7 @@ public sealed class AppEventBusEdgeCaseTests
     }
 
     [Fact]
-    public async Task SubscribeAllAsync_AndSpecificSubscriber_BothReceive()
-    {
+    public async Task SubscribeAllAsync_AndSpecificSubscriber_BothReceive() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         var allCount = 0;
@@ -82,8 +75,7 @@ public sealed class AppEventBusEdgeCaseTests
     }
 
     [Fact]
-    public async Task PublishAsync_DefaultSender_IsAppEventBus()
-    {
+    public async Task PublishAsync_DefaultSender_IsAppEventBus() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
@@ -95,8 +87,7 @@ public sealed class AppEventBusEdgeCaseTests
     }
 
     [Fact]
-    public async Task PublishAsync_CustomSender_IsPreserved()
-    {
+    public async Task PublishAsync_CustomSender_IsPreserved() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
@@ -108,8 +99,7 @@ public sealed class AppEventBusEdgeCaseTests
     }
 
     [Fact]
-    public async Task PublishAsync_Timestamp_IsPreserved()
-    {
+    public async Task PublishAsync_Timestamp_IsPreserved() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;

@@ -6,8 +6,7 @@ namespace JoinCode.Cli.Output;
 /// write: 修改，需确认
 /// dangerous: 不可逆，需复核
 /// </summary>
-public enum CommandRiskLevel
-{
+public enum CommandRiskLevel {
     /// <summary>只读操作 — 直接执行，无需确认（如 Read/Grep/Glob/List）</summary>
     [EnumValue("read")]
     Read = 0,

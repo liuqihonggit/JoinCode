@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Cone;
 
-public sealed class ConeOrchestratorTests
-{
+public sealed class ConeOrchestratorTests {
     [Fact]
-    public void RegisterRole_ShouldCreateCone()
-    {
+    public void RegisterRole_ShouldCreateCone() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Prosecutor, 3);
 
@@ -15,21 +13,18 @@ public sealed class ConeOrchestratorTests
     }
 
     [Fact]
-    public void TransferFragment_ShouldCreateCopyWithDecay()
-    {
+    public void TransferFragment_ShouldCreateCopyWithDecay() {
         var orchestrator = new ConeOrchestrator { TransferDecayFactor = 0.9 };
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         orchestrator.RegisterRole(AgentRole.Defender, 5);
 
         var prosCone = orchestrator.GetRole(AgentRole.Prosecutor)!;
-        var fragment = new ObservationFragment
-        {
+        var fragment = new ObservationFragment {
             FragmentId = "f1",
             SourceItemId = "item1",
             RoleChain = AgentRole.Prosecutor,
             RawText = "test evidence",
-            Fingerprint = new CognitiveFingerprint
-            {
+            Fingerprint = new CognitiveFingerprint {
                 EntryStimulus = "test",
                 ProcessingPath = "test",
                 OutputConclusion = "conclusion",
@@ -49,15 +44,13 @@ public sealed class ConeOrchestratorTests
     }
 
     [Fact]
-    public void DetectConeConflict_ShouldReturnConflictResult()
-    {
+    public void DetectConeConflict_ShouldReturnConflictResult() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         orchestrator.RegisterRole(AgentRole.Defender, 5);
 
         var prosCone = orchestrator.GetRole(AgentRole.Prosecutor)!;
-        prosCone.AddFragment(new ObservationFragment
-        {
+        prosCone.AddFragment(new ObservationFragment {
             FragmentId = "pf1",
             SourceItemId = "item1",
             RoleChain = AgentRole.Prosecutor,
@@ -66,8 +59,7 @@ public sealed class ConeOrchestratorTests
         });
 
         var defCone = orchestrator.GetRole(AgentRole.Defender)!;
-        defCone.AddFragment(new ObservationFragment
-        {
+        defCone.AddFragment(new ObservationFragment {
             FragmentId = "df1",
             SourceItemId = "item2",
             RoleChain = AgentRole.Defender,
@@ -83,8 +75,7 @@ public sealed class ConeOrchestratorTests
     }
 
     [Fact]
-    public void CreateFragmentFromItem_ShouldMapDataItemFields()
-    {
+    public void CreateFragmentFromItem_ShouldMapDataItemFields() {
         var orchestrator = new ConeOrchestrator();
         var item = new DataItem { Content = "测试假定", State = DataState.Assumption, Confidence = 80 };
 
@@ -97,11 +88,9 @@ public sealed class ConeOrchestratorTests
     }
 
     [Fact]
-    public void CreateFragmentFromEvidence_ShouldMapEvidenceFields()
-    {
+    public void CreateFragmentFromEvidence_ShouldMapEvidenceFields() {
         var orchestrator = new ConeOrchestrator();
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Content = "DNA匹配",
             Category = EvidenceCategory.Physical,
             TrustLevel = TrustLevel.DirectEvidence,

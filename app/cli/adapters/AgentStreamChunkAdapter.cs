@@ -5,15 +5,12 @@ namespace JoinCode.Adapters;
 /// 将 AgentBase.ExecuteStreamAsync 产出的 AgentStreamChunk 转换为 SessionController/CliEventConsumer 期望的 ChatStreamEvent
 /// 返回 null 表示该 chunk 类型无对应 ChatStreamEvent（如 ThinkingEnd/Error），调用方应跳过
 /// </summary>
-public static class AgentStreamChunkAdapter
-{
+public static class AgentStreamChunkAdapter {
     /// <summary>
     /// 将 AgentStreamChunk 转换为 ChatStreamEvent，无对应映射时返回 null
     /// </summary>
-    public static ChatStreamEvent? ToChatStreamEvent(AgentStreamChunk chunk)
-    {
-        return chunk.Type switch
-        {
+    public static ChatStreamEvent? ToChatStreamEvent(AgentStreamChunk chunk) {
+        return chunk.Type switch {
             AgentStreamChunkType.Content => ChatStreamEvent.Text(chunk.Content ?? string.Empty),
 
             AgentStreamChunkType.ThinkingStart => ChatStreamEvent.Thinking(chunk.ThinkingContent ?? chunk.Content ?? string.Empty),

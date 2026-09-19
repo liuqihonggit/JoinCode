@@ -6,8 +6,7 @@ namespace Core.Agents.Coordinator;
 /// 子类（CoordinatorAgent、ExecutorAgent、ReasoningAgent）继承此类，自动获得对话能力
 /// 压缩管线在阶段2 通过 IChatContextManager 内聚到此
 /// </summary>
-public class AgentBase : Entity, IAgent
-{
+public class AgentBase : Entity, IAgent {
     /// <summary>LLM 查询引擎，用于发起对话请求</summary>
     protected readonly IQueryEngine _queryEngine;
     /// <summary>日志记录器（可选），为 null 时不记录日志</summary>
@@ -19,9 +18,9 @@ public class AgentBase : Entity, IAgent
     /// <summary>取消令牌源，控制 Agent 执行的取消</summary>
     protected readonly CancellationTokenSource _cts;
     /// <summary>暂停锁，用于实现 Agent 暂停/恢复机制</summary>
-    #pragma warning disable JCC4005 // SemaphoreSlim 在 OnDispose() 中释放，分析器无法追踪间接调用路径
+#pragma warning disable JCC4005 // SemaphoreSlim 在 OnDispose() 中释放，分析器无法追踪间接调用路径
     protected readonly AsyncLock _pauseLock;
-    #pragma warning restore JCC4005
+#pragma warning restore JCC4005
     /// <summary>上次缓存安全参数（可选），用于 LLM 缓存复用</summary>
     protected JoinCode.Abstractions.LLM.Chat.CacheSafeParams? _lastCacheSafeParams;
 
@@ -138,8 +137,7 @@ public class AgentBase : Entity, IAgent
         ObjectId sessionId = default,
         IChatContextManager? contextManager = null,
         string? customUniqueId = null)
-        : base(ObjectType.Agent, sessionId, customUniqueId: customUniqueId)
-    {
+        : base(ObjectType.Agent, sessionId, customUniqueId: customUniqueId) {
         Task = task;
         Name = name ?? UniqueId;
         Role = role;
@@ -162,8 +160,7 @@ public class AgentBase : Entity, IAgent
         _executionCount = 0;
         ContextManager = contextManager;
         Output = new AgentOutput();
-        Context = new SubAgentContext
-        {
+        Context = new SubAgentContext {
             AgentId = UniqueId,
             Role = role,
             Variant = variant,
@@ -180,26 +177,23 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 惰性释放 — 持久化服务确认消息全部写入后才调用
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         _cts.Dispose();
         _pauseLock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 
     /// <summary>
     /// 添加上下文信息
     /// </summary>
-    public virtual void AddContext(string context)
-    {
+    public virtual void AddContext(string context) {
         _context.Add(context);
     }
 
     /// <summary>
     /// 执行Agent任务 — 子类可重写以定制执行逻辑
     /// </summary>
-    public virtual async System.Threading.Tasks.Task<SubAgentResult> ExecuteAsync(CancellationToken cancellationToken = default)
-    {
+    public virtual async System.Threading.Tasks.Task<SubAgentResult> ExecuteAsync(CancellationToken cancellationToken = default) {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
         var linkedToken = linkedCts.Token;
 
@@ -207,13 +201,11 @@ public class AgentBase : Entity, IAgent
         Status = TaskExecutionStatus.Running;
         _executionCount++;
 
-        if (_executionCount > Options.MaxIterations)
-        {
+        if (_executionCount > Options.MaxIterations) {
             _logger?.LogWarning("[Agent {AgentId}] 已达最大迭代次数 {MaxIterations},停止执行", UniqueId, Options.MaxIterations);
             CompletedAt = _clock.GetUtcNow();
             Status = TaskExecutionStatus.Completed;
-            return new SubAgentResult
-            {
+            return new SubAgentResult {
                 AgentId = UniqueId,
                 IsSuccess = true,
                 Output = $"已达最大迭代次数 {Options.MaxIterations}",
@@ -221,27 +213,22 @@ public class AgentBase : Entity, IAgent
             };
         }
 
-        if (Context is not null)
-        {
+        if (Context is not null) {
             Context.StartedAt = StartedAt;
             Context.Status = AgentStatus.Running;
         }
 
         using var scope = Context?.EnterScopeWithCwd(Options.WorktreePath);
 
-        try
-        {
+        try {
             _logger?.LogInformation(AgentCoordinatorConstants.LogMessages.SubAgentStartExecute, AgentCoordinatorConstants.LogMessages.SubAgentPrefix, UniqueId, _executionCount);
 
             var prompt = BuildPrompt();
 
             MessageList chatHistory;
-            if (Options.InitialMessageList is not null && Options.InitialMessageList.Count > 0)
-            {
+            if (Options.InitialMessageList is not null && Options.InitialMessageList.Count > 0) {
                 chatHistory = Options.InitialMessageList;
-            }
-            else
-            {
+            } else {
                 chatHistory = new MessageList();
                 var systemMessage = !string.IsNullOrWhiteSpace(SystemPrompt ?? Options.SystemPrompt)
                     ? (SystemPrompt ?? Options.SystemPrompt!)
@@ -251,15 +238,13 @@ public class AgentBase : Entity, IAgent
 
             DrainPendingUserInputs(chatHistory);
 
-            if (!string.IsNullOrWhiteSpace(Options.InitialPrompt))
-            {
+            if (!string.IsNullOrWhiteSpace(Options.InitialPrompt)) {
                 chatHistory.AddUserMessage(Options.InitialPrompt);
             }
 
             // 每轮重注入 criticalSystemReminder — 对齐 TS 原版 re-injected at every user turn
             // 作为 user message 注入到消息流,保持紧迫感(如 verification agent 的 "CRITICAL: VERIFICATION-ONLY")
-            if (!string.IsNullOrWhiteSpace(Options.CriticalSystemReminder))
-            {
+            if (!string.IsNullOrWhiteSpace(Options.CriticalSystemReminder)) {
                 chatHistory.AddUserMessage(Options.CriticalSystemReminder);
             }
 
@@ -268,36 +253,27 @@ public class AgentBase : Entity, IAgent
 
             var queryOptions = BuildChatOptions();
 
-            await foreach (var chunk in _queryEngine.QueryAsync(prompt, chatHistory, queryOptions, linkedToken))
-            {
-                if (Status == TaskExecutionStatus.Paused)
-                {
+            await foreach (var chunk in _queryEngine.QueryAsync(prompt, chatHistory, queryOptions, linkedToken)) {
+                if (Status == TaskExecutionStatus.Paused) {
                     _logger?.LogInformation("[{AgentType} {AgentId}] 进入暂停等待状态", GetType().Name, UniqueId);
                     var pauseStart = _clock.GetUtcNow();
 
-                    try
-                    {
+                    try {
                         using (await _pauseLock.TryLockAsync(linkedToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_pauseLock.Name}' 等待超时")) { }
 
                         var pauseDuration = _clock.GetUtcNow() - pauseStart;
                         _logger?.LogInformation("[{AgentType} {AgentId}] 暂停结束，等待时长 {PauseDurationMs}ms", GetType().Name, UniqueId, pauseDuration.TotalMilliseconds);
-                    }
-                    catch (TimeoutException)
-                    {
+                    } catch (TimeoutException) {
                         _logger?.LogWarning("[{AgentType} {AgentId}] 暂停等待超时（30秒），自动恢复执行", GetType().Name, UniqueId);
                         Status = TaskExecutionStatus.Running;
                     }
                 }
 
-                if (chunk.Type == AgentStreamChunkType.Content)
-                {
+                if (chunk.Type == AgentStreamChunkType.Content) {
                     responseBuilder.Append(chunk.Content);
-                }
-                else if (chunk.Type == AgentStreamChunkType.Complete && chunk.CacheSafeParams is not null)
-                {
+                } else if (chunk.Type == AgentStreamChunkType.Complete && chunk.CacheSafeParams is not null) {
                     _lastCacheSafeParams = chunk.CacheSafeParams;
-                    if (Context is not null)
-                    {
+                    if (Context is not null) {
                         Context.CacheSafeParams = chunk.CacheSafeParams;
                     }
                 }
@@ -307,8 +283,7 @@ public class AgentBase : Entity, IAgent
             CompletedAt = _clock.GetUtcNow();
             Status = TaskExecutionStatus.Completed;
 
-            if (Context is not null)
-            {
+            if (Context is not null) {
                 Context.CompletedAt = CompletedAt;
                 Context.Status = AgentStatus.Completed;
             }
@@ -318,44 +293,36 @@ public class AgentBase : Entity, IAgent
 
             _logger?.LogInformation("[Agent {AgentId}] 任务执行完成，耗时{ElapsedMs}ms", UniqueId, stopwatch.ElapsedMilliseconds);
 
-            return new SubAgentResult
-            {
+            return new SubAgentResult {
                 AgentId = UniqueId,
                 IsSuccess = true,
                 Output = output,
                 ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
                 CacheSafeParams = _lastCacheSafeParams
             };
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             CompletedAt = _clock.GetUtcNow();
             Status = TaskExecutionStatus.Cancelled;
 
-            if (Context is not null)
-            {
+            if (Context is not null) {
                 Context.CompletedAt = CompletedAt;
                 Context.Status = AgentStatus.Stopped;
             }
 
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             CompletedAt = _clock.GetUtcNow();
             Status = TaskExecutionStatus.Failed;
             Output.ErrorMessage = ex.Message;
 
-            if (Context is not null)
-            {
+            if (Context is not null) {
                 Context.CompletedAt = CompletedAt;
                 Context.Status = AgentStatus.Failed;
             }
 
             _logger?.LogError(ex, "[Agent {AgentId}] 任务执行失败", UniqueId);
 
-            return new SubAgentResult
-            {
+            return new SubAgentResult {
                 AgentId = UniqueId,
                 IsSuccess = false,
                 Output = string.Empty,
@@ -367,8 +334,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 流式执行Agent任务 — 子类可重写以定制流式逻辑
     /// </summary>
-    public virtual async IAsyncEnumerable<AgentStreamChunk> ExecuteStreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
+    public virtual async IAsyncEnumerable<AgentStreamChunk> ExecuteStreamAsync([EnumeratorCancellation] CancellationToken cancellationToken = default) {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
         var linkedToken = linkedCts.Token;
 
@@ -376,8 +342,7 @@ public class AgentBase : Entity, IAgent
         Status = TaskExecutionStatus.Running;
         _executionCount++;
 
-        if (_executionCount > Options.MaxIterations)
-        {
+        if (_executionCount > Options.MaxIterations) {
             _logger?.LogWarning("[Agent {AgentId}] 已达最大迭代次数 {MaxIterations},停止执行", UniqueId, Options.MaxIterations);
             CompletedAt = _clock.GetUtcNow();
             Status = TaskExecutionStatus.Completed;
@@ -385,8 +350,7 @@ public class AgentBase : Entity, IAgent
             yield break;
         }
 
-        if (Context is not null)
-        {
+        if (Context is not null) {
             Context.StartedAt = StartedAt;
             Context.Status = AgentStatus.Running;
         }
@@ -396,20 +360,14 @@ public class AgentBase : Entity, IAgent
         var prompt = BuildPrompt();
 
         MessageList chatHistory;
-        if (ContextManager is not null)
-        {
+        if (ContextManager is not null) {
             chatHistory = await ContextManager.GetMessageListAsync(linkedToken).ConfigureAwait(false);
-            if (chatHistory.Count > 0 && chatHistory[chatHistory.Count - 1].Role == MessageRole.User)
-            {
+            if (chatHistory.Count > 0 && chatHistory[chatHistory.Count - 1].Role == MessageRole.User) {
                 chatHistory.RemoveAt(chatHistory.Count - 1);
             }
-        }
-        else if (Options.InitialMessageList is not null && Options.InitialMessageList.Count > 0)
-        {
+        } else if (Options.InitialMessageList is not null && Options.InitialMessageList.Count > 0) {
             chatHistory = Options.InitialMessageList;
-        }
-        else
-        {
+        } else {
             chatHistory = new MessageList();
             var systemMessage = !string.IsNullOrWhiteSpace(SystemPrompt ?? Options.SystemPrompt)
                 ? (SystemPrompt ?? Options.SystemPrompt!)
@@ -419,14 +377,12 @@ public class AgentBase : Entity, IAgent
 
         DrainPendingUserInputs(chatHistory);
 
-        if (!string.IsNullOrWhiteSpace(Options.InitialPrompt))
-        {
+        if (!string.IsNullOrWhiteSpace(Options.InitialPrompt)) {
             chatHistory.AddUserMessage(Options.InitialPrompt);
         }
 
         // 每轮重注入 criticalSystemReminder — 对齐 TS 原版 re-injected at every user turn
-        if (!string.IsNullOrWhiteSpace(Options.CriticalSystemReminder))
-        {
+        if (!string.IsNullOrWhiteSpace(Options.CriticalSystemReminder)) {
             chatHistory.AddUserMessage(Options.CriticalSystemReminder);
         }
 
@@ -440,45 +396,32 @@ public class AgentBase : Entity, IAgent
             ? _queryEngine.QueryAsync(prompt, chatHistory, queryOptions, linkedToken)
             : _queryEngine.QueryAsync(prompt, chatHistory, linkedToken);
 
-        await foreach (var chunk in queryStream.ConfigureAwait(false))
-        {
-            if (Status == TaskExecutionStatus.Paused)
-            {
-                try
-                {
+        await foreach (var chunk in queryStream.ConfigureAwait(false)) {
+            if (Status == TaskExecutionStatus.Paused) {
+                try {
                     using (await _pauseLock.TryLockAsync(linkedToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_pauseLock.Name}' 等待超时")) { }
-                }
-                catch (TimeoutException)
-                {
+                } catch (TimeoutException) {
                     Status = TaskExecutionStatus.Running;
                 }
             }
 
-            if (chunk.Type == AgentStreamChunkType.Content)
-            {
+            if (chunk.Type == AgentStreamChunkType.Content) {
                 responseBuilder.Append(chunk.Content);
-            }
-            else if (chunk.Type == AgentStreamChunkType.Complete && chunk.CacheSafeParams is not null)
-            {
+            } else if (chunk.Type == AgentStreamChunkType.Complete && chunk.CacheSafeParams is not null) {
                 _lastCacheSafeParams = chunk.CacheSafeParams;
-                if (Context is not null)
-                {
+                if (Context is not null) {
                     Context.CacheSafeParams = chunk.CacheSafeParams;
                 }
-            }
-            else if (chunk.Type == AgentStreamChunkType.Error)
-            {
+            } else if (chunk.Type == AgentStreamChunkType.Error) {
                 succeeded = false;
                 errorMessage = chunk.Content;
             }
 
-            if (OutputChannelManager is not null && chunk.Type == AgentStreamChunkType.Content && !string.IsNullOrEmpty(chunk.Content))
-            {
+            if (OutputChannelManager is not null && chunk.Type == AgentStreamChunkType.Content && !string.IsNullOrEmpty(chunk.Content)) {
                 OutputChannelManager.Write(UniqueId, Options.DisplayName ?? Name, chunk.Content, JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
             }
 
-            yield return new AgentStreamChunk
-            {
+            yield return new AgentStreamChunk {
                 Type = chunk.Type,
                 Content = chunk.Content,
                 ThinkingContent = chunk.ThinkingContent,
@@ -505,8 +448,7 @@ public class AgentBase : Entity, IAgent
         CompletedAt = _clock.GetUtcNow();
         Status = succeeded ? TaskExecutionStatus.Completed : TaskExecutionStatus.Failed;
 
-        if (Context is not null)
-        {
+        if (Context is not null) {
             Context.CompletedAt = CompletedAt;
             Context.Status = succeeded ? AgentStatus.Completed : AgentStatus.Failed;
         }
@@ -515,8 +457,7 @@ public class AgentBase : Entity, IAgent
         if (succeeded) Output.Text = finalOutput;
         else Output.ErrorMessage = errorMessage;
 
-        yield return new AgentStreamChunk
-        {
+        yield return new AgentStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = finalOutput,
             ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
@@ -527,10 +468,8 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 暂停LLM循环 — 子类可重写以扩展暂停逻辑
     /// </summary>
-    public virtual void Pause()
-    {
-        if (Status == TaskExecutionStatus.Running)
-        {
+    public virtual void Pause() {
+        if (Status == TaskExecutionStatus.Running) {
             Status = TaskExecutionStatus.Paused;
             _logger?.LogInformation("[{AgentType} {AgentId}] 任务已暂停，等待恢复信号", GetType().Name, UniqueId);
         }
@@ -539,10 +478,8 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 恢复LLM循环 — 子类可重写以扩展恢复逻辑
     /// </summary>
-    public virtual void Resume()
-    {
-        if (Status == TaskExecutionStatus.Paused)
-        {
+    public virtual void Resume() {
+        if (Status == TaskExecutionStatus.Paused) {
             Status = TaskExecutionStatus.Running;
             _logger?.LogInformation("[{AgentType} {AgentId}] 任务已恢复，释放暂停锁", GetType().Name, UniqueId);
         }
@@ -551,8 +488,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 取消LLM循环 — 子类可重写以扩展取消逻辑
     /// </summary>
-    public virtual void Cancel()
-    {
+    public virtual void Cancel() {
         _cts.Cancel();
         Status = TaskExecutionStatus.Cancelled;
         _logger?.LogInformation("[Agent {AgentId}] 任务已取消", UniqueId);
@@ -561,8 +497,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 重置Agent状态（用于重试）— 子类可重写以扩展重置逻辑
     /// </summary>
-    public virtual void Reset()
-    {
+    public virtual void Reset() {
         Status = TaskExecutionStatus.Pending;
         StartedAt = null;
         CompletedAt = null;
@@ -573,18 +508,14 @@ public class AgentBase : Entity, IAgent
     /// 消费用户转发输入队列 — 每轮 LLM 调用前调用，将待处理用户输入追加到 ChatHistory
     /// 用户在子代理运行期间发送的消息，由主代理转发到 IAgentInputForwardQueue，子代理主动消费
     /// </summary>
-    protected void DrainPendingUserInputs(MessageList chatHistory)
-    {
+    protected void DrainPendingUserInputs(MessageList chatHistory) {
         var hasTaskInput = false;
 
-        if (InputForwardQueue is not null)
-        {
+        if (InputForwardQueue is not null) {
             var pendingInputs = InputForwardQueue.TryDrain(UniqueId);
-            if (pendingInputs.Count > 0)
-            {
+            if (pendingInputs.Count > 0) {
                 hasTaskInput = true;
-                foreach (var input in pendingInputs)
-                {
+                foreach (var input in pendingInputs) {
                     chatHistory.AddUserMessage($"[用户追加输入] {input}");
                 }
                 _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 条用户转发输入", UniqueId, pendingInputs.Count);
@@ -594,30 +525,25 @@ public class AgentBase : Entity, IAgent
         // T5.0: 消费契约变更通知 — 收到 ContractChanged 后通知 Worker 停止契约修改，系统将在完成后自动 rebase
         {
             var changeCount = 0;
-            while (ContractChangeNotifications.TryDequeue(out var changeContent))
-            {
+            while (ContractChangeNotifications.TryDequeue(out var changeContent)) {
                 hasTaskInput = true;
                 chatHistory.AddUserMessage($"[契约变更通知] 队长已改热文件并 push: {changeContent}。请停止契约修改，继续内部修改。系统将在你完成后自动 rebase 同步主干，保留本地半成品。");
                 changeCount++;
             }
-            if (changeCount > 0)
-            {
+            if (changeCount > 0) {
                 _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 条契约变更通知", UniqueId, changeCount);
             }
         }
 
         // 延迟邮件: 有任务输入时只消费到期邮件(TickTurns), 空闲时立即读取全部(FlushOnTaskEnd)
-        if (DeferredMailService is not null)
-        {
+        if (DeferredMailService is not null) {
             var mails = hasTaskInput
                 ? DeferredMailService.TickTurns(UniqueId)
                 : DeferredMailService.FlushOnTaskEnd(UniqueId);
-            foreach (var mail in mails)
-            {
+            foreach (var mail in mails) {
                 chatHistory.AddUserMessage($"[延迟邮件] {mail.Subject}: {mail.Body}");
             }
-            if (mails.Count > 0)
-            {
+            if (mails.Count > 0) {
                 _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 封延迟邮件({Mode})", UniqueId, mails.Count, hasTaskInput ? "到期" : "空闲立即");
             }
         }
@@ -626,26 +552,22 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 构建提示词 — 主代理优先用 CurrentInput，子代理用 Task
     /// </summary>
-    protected virtual string BuildPrompt()
-    {
+    protected virtual string BuildPrompt() {
         if (!string.IsNullOrEmpty(CurrentInput))
             return CurrentInput;
 
         var sb = new StringBuilder();
         sb.AppendLine($"任务: {Task}");
 
-        if (_context.Count > 0)
-        {
+        if (_context.Count > 0) {
             sb.AppendLine();
             sb.AppendLine("上下文信息:");
-            foreach (var ctx in _context)
-            {
+            foreach (var ctx in _context) {
                 sb.AppendLine($"- {ctx}");
             }
         }
 
-        if (!string.IsNullOrEmpty(Options.AdditionalInstructions))
-        {
+        if (!string.IsNullOrEmpty(Options.AdditionalInstructions)) {
             sb.AppendLine();
             sb.AppendLine($"额外指令: {Options.AdditionalInstructions}");
         }
@@ -656,8 +578,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 构建聊天选项 — 子类可重写以定制选项
     /// </summary>
-    protected virtual QueryOptions? BuildChatOptions()
-    {
+    protected virtual QueryOptions? BuildChatOptions() {
         var hasAllowed = Options.AllowedTools is not null && Options.AllowedTools.Count > 0;
         var hasDenied = Options.DeniedTools is not null && Options.DeniedTools.Count > 0;
         var hasCacheSafeParams = Options.CacheSafeParams is not null;
@@ -668,8 +589,7 @@ public class AgentBase : Entity, IAgent
         if (!hasAllowed && !hasDenied && !hasCacheSafeParams && !hasContentReplacementState && effortLevel is null && !hasModelName)
             return null;
 
-        return new QueryOptions
-        {
+        return new QueryOptions {
             AllowedTools = Options.AllowedTools ?? [],
             DeniedTools = Options.DeniedTools ?? [],
             CacheSafeParams = Options.CacheSafeParams,
@@ -689,8 +609,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 获取当前会话作用域 — 通过 SessionContext.AsyncLocal 隐式定位
     /// </summary>
-    private static SessionScope? GetCurrentScope()
-    {
+    private static SessionScope? GetCurrentScope() {
         var sessionId = SessionContext.Current;
         if (sessionId is null) return null;
         return SessionRouter.GetScope(sessionId.Value);
@@ -699,8 +618,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 获取当前会话的所有主 Agent (Role=Coordinator) — 替代 AgentRegistry.GetMainAgents
     /// </summary>
-    public static IReadOnlyList<AgentBase> GetMainAgents()
-    {
+    public static IReadOnlyList<AgentBase> GetMainAgents() {
         var scope = GetCurrentScope();
         if (scope is null) return [];
         return scope.GetAll<AgentBase>().Where(a => a.Role == AgentRole.Coordinator).ToList();
@@ -709,8 +627,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 按 ObjectId 获取 Agent — 仅在当前会话作用域内查找, 替代 AgentRegistry.Get
     /// </summary>
-    public static AgentBase? GetById(ObjectId id)
-    {
+    public static AgentBase? GetById(ObjectId id) {
         var scope = GetCurrentScope();
         return scope?.Resolve<AgentBase>(id);
     }
@@ -718,8 +635,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 获取指定主 Agent 的所有子 Agent — 通过 ParentObjectId 过滤, 替代 AgentRegistry.GetSubAgents
     /// </summary>
-    public static IReadOnlyList<AgentBase> GetSubAgents(ObjectId mainAgentId)
-    {
+    public static IReadOnlyList<AgentBase> GetSubAgents(ObjectId mainAgentId) {
         var scope = GetCurrentScope();
         if (scope is null) return [];
         return scope.GetAll<AgentBase>().Where(a => a.ParentObjectId == mainAgentId).ToList();
@@ -728,8 +644,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 按 GoalId 获取 Agent — 替代 AgentRegistry.GetByGoalId
     /// </summary>
-    public static IReadOnlyList<AgentBase> GetByGoalId(string goalId)
-    {
+    public static IReadOnlyList<AgentBase> GetByGoalId(string goalId) {
         var scope = GetCurrentScope();
         if (scope is null) return [];
         return scope.GetAll<AgentBase>().Where(a => a.GoalId == goalId).ToList();
@@ -738,8 +653,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 按状态获取 Agent — 替代 AgentRegistry.GetByStatus
     /// </summary>
-    public static IReadOnlyList<AgentBase> GetByStatus(TaskExecutionStatus status)
-    {
+    public static IReadOnlyList<AgentBase> GetByStatus(TaskExecutionStatus status) {
         var scope = GetCurrentScope();
         if (scope is null) return [];
         return scope.GetAll<AgentBase>().Where(a => a.Status == status).ToList();
@@ -748,8 +662,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 暂停当前会话的指定主 Agent 的所有子 Agent
     /// </summary>
-    public static void PauseAll(ObjectId mainAgentId)
-    {
+    public static void PauseAll(ObjectId mainAgentId) {
         foreach (var agent in GetSubAgents(mainAgentId))
             agent.Pause();
     }
@@ -757,8 +670,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 恢复当前会话的指定主 Agent 的所有子 Agent
     /// </summary>
-    public static void ResumeAll(ObjectId mainAgentId)
-    {
+    public static void ResumeAll(ObjectId mainAgentId) {
         foreach (var agent in GetSubAgents(mainAgentId))
             agent.Resume();
     }
@@ -766,8 +678,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 取消当前会话的指定主 Agent 的所有子 Agent
     /// </summary>
-    public static void CancelAll(ObjectId mainAgentId)
-    {
+    public static void CancelAll(ObjectId mainAgentId) {
         foreach (var agent in GetSubAgents(mainAgentId))
             agent.Cancel();
     }
@@ -775,8 +686,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 暂停所有会话的所有 Agent — 跨会话操作, 替代 AgentRegistry.PauseGlobal
     /// </summary>
-    public static void PauseGlobal()
-    {
+    public static void PauseGlobal() {
         foreach (var scope in SessionRouter.GetAllScopes())
             foreach (var agent in scope.GetAll<AgentBase>())
                 agent.Pause();
@@ -785,8 +695,7 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 恢复所有会话的所有 Agent — 跨会话操作, 替代 AgentRegistry.ResumeGlobal
     /// </summary>
-    public static void ResumeGlobal()
-    {
+    public static void ResumeGlobal() {
         foreach (var scope in SessionRouter.GetAllScopes())
             foreach (var agent in scope.GetAll<AgentBase>())
                 agent.Resume();

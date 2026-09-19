@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Configuration.Settings;
 /// <summary>
 /// OAuth 配置 — 下沉到 Contracts 层供 IProviderDefinition 使用
 /// </summary>
-public sealed record OAuthConfig
-{
+public sealed record OAuthConfig {
     /// <summary>
     /// 提供商名称
     /// </summary>

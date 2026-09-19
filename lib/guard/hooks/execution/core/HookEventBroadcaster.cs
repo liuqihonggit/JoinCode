@@ -4,8 +4,7 @@ namespace Core.Hooks;
 /// <summary>
 /// 钩子事件广播器接口
 /// </summary>
-public interface IHookEventBroadcaster
-{
+public interface IHookEventBroadcaster {
     /// <summary>
     /// 注册事件处理器
     /// </summary>
@@ -51,8 +50,7 @@ public interface IHookEventBroadcaster
 /// 钩子事件广播器实现
 /// </summary>
 [Register(typeof(IHookEventBroadcaster), ServiceLifetime.Singleton)]
-public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroadcaster
-{
+public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroadcaster {
     private readonly ConcurrentBag<Action<HookExecutionEvent>> _handlers = new();
     private readonly ConcurrentQueue<HookExecutionEvent> _pendingEvents = new();
     private readonly ILogger<HookEventBroadcaster>? _logger;
@@ -69,55 +67,44 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
     /// 构造函数 — 注入可选的日志记录器
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
-    public HookEventBroadcaster(ILogger<HookEventBroadcaster>? logger = null)
-    {
+    public HookEventBroadcaster(ILogger<HookEventBroadcaster>? logger = null) {
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public void RegisterHandler(Action<HookExecutionEvent> handler)
-    {
+    public void RegisterHandler(Action<HookExecutionEvent> handler) {
         _handlers.Add(handler);
 
         // 处理挂起的事件
-        while (_pendingEvents.TryDequeue(out var pendingEvent))
-        {
-            try
-            {
+        while (_pendingEvents.TryDequeue(out var pendingEvent)) {
+            try {
                 handler(pendingEvent);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "Failed to process pending hook event");
             }
         }
     }
 
     /// <inheritdoc />
-    public void UnregisterHandler(Action<HookExecutionEvent> handler)
-    {
+    public void UnregisterHandler(Action<HookExecutionEvent> handler) {
         // ConcurrentBag 不支持直接移除，需要重新创建
         var newHandlers = new ConcurrentBag<Action<HookExecutionEvent>>(
             _handlers.Where(h => h != handler));
 
-        while (!_handlers.IsEmpty)
-        {
+        while (!_handlers.IsEmpty) {
             _handlers.TryTake(out _);
         }
 
-        foreach (var h in newHandlers)
-        {
+        foreach (var h in newHandlers) {
             _handlers.Add(h);
         }
     }
 
     /// <inheritdoc />
-    public void BroadcastStarted(string hookId, string hookName, HookEvent hookEvent)
-    {
+    public void BroadcastStarted(string hookId, string hookName, HookEvent hookEvent) {
         if (!ShouldEmit(hookEvent)) return;
 
-        var evt = new HookStartedEvent
-        {
+        var evt = new HookStartedEvent {
             HookId = hookId,
             HookName = hookName,
             HookEvent = hookEvent
@@ -132,12 +119,10 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
         string hookName,
         HookEvent hookEvent,
         string? stdout = null,
-        string? stderr = null)
-    {
+        string? stderr = null) {
         if (!ShouldEmit(hookEvent)) return;
 
-        var evt = new HookProgressEvent
-        {
+        var evt = new HookProgressEvent {
             HookId = hookId,
             HookName = hookName,
             HookEvent = hookEvent,
@@ -149,11 +134,9 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
     }
 
     /// <inheritdoc />
-    public void BroadcastResponse(BroadcastContext context)
-    {
+    public void BroadcastResponse(BroadcastContext context) {
         // 始终记录到调试日志
-        if (!string.IsNullOrEmpty(context.Stdout) || !string.IsNullOrEmpty(context.Stderr))
-        {
+        if (!string.IsNullOrEmpty(context.Stdout) || !string.IsNullOrEmpty(context.Stderr)) {
             _logger?.LogDebug(
                 "Hook {HookName} ({HookEvent}) {Outcome}:\n{Output}",
                 context.HookName,
@@ -164,8 +147,7 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
 
         if (!ShouldEmit(context.HookEvent)) return;
 
-        var evt = new HookResponseEvent
-        {
+        var evt = new HookResponseEvent {
             HookId = context.HookId,
             HookName = context.HookName,
             HookEvent = context.HookEvent,
@@ -181,62 +163,49 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
     }
 
     /// <inheritdoc />
-    public void SetAllEventsEnabled(bool enabled)
-    {
+    public void SetAllEventsEnabled(bool enabled) {
         _allEventsEnabled = enabled;
         _logger?.LogDebug("All hook events {Status}", enabled ? "enabled" : "disabled");
     }
 
     /// <inheritdoc />
-    public void Clear()
-    {
-        while (!_handlers.IsEmpty)
-        {
+    public void Clear() {
+        while (!_handlers.IsEmpty) {
             _handlers.TryTake(out _);
         }
 
-        while (!_pendingEvents.IsEmpty)
-        {
+        while (!_pendingEvents.IsEmpty) {
             _pendingEvents.TryDequeue(out _);
         }
 
         _allEventsEnabled = false;
     }
 
-    private bool ShouldEmit(HookEvent hookEvent)
-    {
-        if (AlwaysEmittedEvents.Contains(hookEvent))
-        {
+    private bool ShouldEmit(HookEvent hookEvent) {
+        if (AlwaysEmittedEvents.Contains(hookEvent)) {
             return true;
         }
 
         return _allEventsEnabled;
     }
 
-    private void Emit(HookExecutionEvent evt)
-    {
-        if (_handlers.IsEmpty)
-        {
+    private void Emit(HookExecutionEvent evt) {
+        if (_handlers.IsEmpty) {
             // 没有处理器，暂存事件
             _pendingEvents.Enqueue(evt);
 
             // 限制挂起事件数量
-            while (_pendingEvents.Count > MaxPendingEvents)
-            {
+            while (_pendingEvents.Count > MaxPendingEvents) {
                 _pendingEvents.TryDequeue(out _);
             }
 
             return;
         }
 
-        foreach (var handler in _handlers)
-        {
-            try
-            {
+        foreach (var handler in _handlers) {
+            try {
                 handler(evt);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "Hook event handler failed");
             }
         }
@@ -246,8 +215,7 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
 /// <summary>
 /// 钩子进度报告器
 /// </summary>
-public interface IHookProgressReporter
-{
+public interface IHookProgressReporter {
     /// <summary>
     /// 报告进度
     /// </summary>
@@ -257,8 +225,7 @@ public interface IHookProgressReporter
 /// <summary>
 /// 钩子进度报告器实现
 /// </summary>
-public sealed partial class HookProgressReporter : IHookProgressReporter, IDisposable
-{
+public sealed partial class HookProgressReporter : IHookProgressReporter, IDisposable {
     private readonly IHookEventBroadcaster _broadcaster;
     private readonly string _hookId;
     private readonly string _hookName;
@@ -288,8 +255,7 @@ public sealed partial class HookProgressReporter : IHookProgressReporter, IDispo
         HookEvent hookEvent,
         Func<Task<(string Stdout, string Stderr)>> getOutput,
         TimeSpan? interval = null,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         _broadcaster = broadcaster;
         _hookId = hookId;
         _hookName = hookName;
@@ -302,8 +268,7 @@ public sealed partial class HookProgressReporter : IHookProgressReporter, IDispo
     /// <summary>
     /// 开始进度报告
     /// </summary>
-    public void Start()
-    {
+    public void Start() {
         if (_disposed) return;
 
         _timer = new Timer(
@@ -314,12 +279,10 @@ public sealed partial class HookProgressReporter : IHookProgressReporter, IDispo
     }
 
     /// <inheritdoc />
-    public async Task ReportProgressAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task ReportProgressAsync(CancellationToken cancellationToken = default) {
         if (_disposed) return;
 
-        try
-        {
+        try {
             var (stdout, stderr) = await _getOutput().ConfigureAwait(false);
             var output = stdout + stderr;
 
@@ -333,9 +296,7 @@ public sealed partial class HookProgressReporter : IHookProgressReporter, IDispo
                 _hookEvent,
                 stdout,
                 stderr);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to report hook progress");
         }
     }
@@ -343,14 +304,12 @@ public sealed partial class HookProgressReporter : IHookProgressReporter, IDispo
     /// <summary>
     /// 停止进度报告
     /// </summary>
-    public void Stop()
-    {
+    public void Stop() {
         _timer?.Change(Timeout.Infinite, Timeout.Infinite);
     }
 
     /// <inheritdoc />
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
 
         _disposed = true;
@@ -361,8 +320,7 @@ public sealed partial class HookProgressReporter : IHookProgressReporter, IDispo
 /// <summary>
 /// 广播响应上下文 — 封装 BroadcastResponse 的9个参数
 /// </summary>
-public sealed record BroadcastContext
-{
+public sealed record BroadcastContext {
     /// <summary>
     /// 钩子唯一标识
     /// </summary>

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils.Diagnostics;
 /// <summary>
 /// 调试日志缓冲区接口 — 捕获 Diag 诊断输出，供 /debug 命令查询
 /// </summary>
-public interface IDebugLogBuffer
-{
+public interface IDebugLogBuffer {
     /// <summary>
     /// 当前缓冲区条目数
     /// </summary>

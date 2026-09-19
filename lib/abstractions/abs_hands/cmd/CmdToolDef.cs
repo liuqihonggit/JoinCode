@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Cmd;
 /// <summary>
 /// LLM 侧工具定义 — 斜杠命令和 MCP 工具的统一工具描述，供 LLM prompt 构建
 /// </summary>
-public sealed record CmdToolDef
-{
+public sealed record CmdToolDef {
     /// <summary>工具名称</summary>
     public required string Name { get; init; }
 
@@ -23,8 +22,7 @@ public sealed record CmdToolDef
     // === 工厂方法 ===
 
     /// <summary>从 MCP 工具创建 — 直接用原 schema</summary>
-    public static CmdToolDef FromMcp(IToolHandler handler) => new()
-    {
+    public static CmdToolDef FromMcp(IToolHandler handler) => new() {
         Name = handler.Name,
         Description = handler.Description,
         InputSchema = handler.InputSchema,
@@ -33,8 +31,7 @@ public sealed record CmdToolDef
     };
 
     /// <summary>从斜杠命令创建 — 自动生成简单 schema</summary>
-    public static CmdToolDef FromSlash(IChatCommand cmd, ToolKind kind = ToolKind.Slash) => new()
-    {
+    public static CmdToolDef FromSlash(IChatCommand cmd, ToolKind kind = ToolKind.Slash) => new() {
         Name = cmd.Name,
         Description = cmd.Description,
         InputSchema = CreateSlashSchema(cmd),
@@ -45,11 +42,9 @@ public sealed record CmdToolDef
     /// <summary>
     /// 为斜杠命令自动生成 schema — {"arguments": string}
     /// </summary>
-    private static ToolSchema CreateSlashSchema(IChatCommand cmd)
-    {
+    private static ToolSchema CreateSlashSchema(IChatCommand cmd) {
         var schema = new ToolSchema();
-        schema.Properties["arguments"] = new ToolSchemaProperty
-        {
+        schema.Properties["arguments"] = new ToolSchemaProperty {
             Type = "string",
             Description = string.IsNullOrEmpty(cmd.ArgumentHint)
                 ? "命令参数"

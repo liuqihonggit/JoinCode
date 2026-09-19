@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 计划实体 — 派生自 Entity，与 Agent 同套路
 /// 代表运行时计划（区别于 PlanState record，后者是数据模型 DTO）
 /// </summary>
-public sealed class PlanEntity : Entity
-{
+public sealed class PlanEntity : Entity {
     public string? Description { get; init; }
     public PlanStatus Status { get; set; } = PlanStatus.Draft;
     public List<PlanStep> Steps { get; init; } = [];
@@ -24,21 +23,18 @@ public sealed class PlanEntity : Entity
         string? description = null,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base(ObjectType.Plan, sessionId, displayName ?? description)
-    {
+        : base(ObjectType.Plan, sessionId, displayName ?? description) {
         Description = description;
         LastUpdatedAt = DateTime.UtcNow;
         Registry.Add(ObjectId, this);
     }
 
-    public override void Dispose()
-    {
+    public override void Dispose() {
         Registry.Remove(ObjectId);
         base.Dispose();
     }
 
-    public PlanState ToPlanState() => new()
-    {
+    public PlanState ToPlanState() => new() {
         PlanId = UniqueId,
         Description = Description,
         Status = Status,
@@ -59,13 +55,11 @@ public sealed class PlanEntity : Entity
     /// <summary>
     /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝所有字段
     /// </summary>
-    public override Entity Clone(CloneContext context)
-    {
+    public override Entity Clone(CloneContext context) {
         var cloned = new PlanEntity(
             description: Description,
             displayName: DisplayName,
-            sessionId: context.TargetSessionId)
-        {
+            sessionId: context.TargetSessionId) {
             Status = Status,
             Steps = new List<PlanStep>(Steps),
             CurrentStepIndex = CurrentStepIndex,
@@ -82,8 +76,7 @@ public sealed class PlanEntity : Entity
 /// <summary>
 /// Plan 注册器 — 基于 MapRegistry
 /// </summary>
-public sealed class PlanEntityRegistry : MapRegistry<ObjectId, PlanEntity>
-{
+public sealed class PlanEntityRegistry : MapRegistry<ObjectId, PlanEntity> {
     internal void Add(ObjectId id, PlanEntity plan) => AddCore(id, plan);
     internal bool Remove(ObjectId id) => RemoveCore(id);
     public IEnumerable<PlanEntity> GetByStatus(PlanStatus status) => Where(p => p.Status == status);

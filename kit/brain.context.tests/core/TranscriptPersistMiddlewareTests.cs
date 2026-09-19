@@ -5,11 +5,9 @@ namespace Brain.Tests.Context;
 /// 回归背景：transcript JSONL 落盘此前由三端各自手写（CLI=CliSession 手动、GUI=GuiSessionStore
 /// 全量覆盖、TUI=TuiSessionStore），违反单一实现原则；下沉为引擎管道中间件后三端自动获得。
 /// </summary>
-public sealed class TranscriptPersistMiddlewareTests
-{
+public sealed class TranscriptPersistMiddlewareTests {
     private static (TranscriptPersistMiddleware Middleware, Mock<ITranscriptService> Transcript, Mock<IChatContextManager> CtxMgr) Create(
-        IReadOnlyList<ApiMessage>? messages = null)
-    {
+        IReadOnlyList<ApiMessage>? messages = null) {
         var transcript = new Mock<ITranscriptService>();
         var ctxMgr = new Mock<IChatContextManager>();
         var messages1 = messages ?? [];
@@ -20,10 +18,8 @@ public sealed class TranscriptPersistMiddlewareTests
         return (mw, transcript, ctxMgr);
     }
 
-    private static async Task<List<ChatStreamEvent>> RunAsync(TranscriptPersistMiddleware mw, bool dryRun = false)
-    {
-        var context = new ChatMiddlewareContext
-        {
+    private static async Task<List<ChatStreamEvent>> RunAsync(TranscriptPersistMiddleware mw, bool dryRun = false) {
+        var context = new ChatMiddlewareContext {
             Message = "hi",
             IsDryRun = dryRun,
             ToolUseContext = new ToolUseContext(),
@@ -36,21 +32,18 @@ public sealed class TranscriptPersistMiddlewareTests
 
     private static async IAsyncEnumerable<ChatStreamEvent> EmptyStreamAsync(
         ChatMiddlewareContext context,
-        [EnumeratorCancellation] CancellationToken ct = default)
-    {
+        [EnumeratorCancellation] CancellationToken ct = default) {
         yield break;
     }
 
     [Fact]
-    public void OnError_Is_Continue()
-    {
+    public void OnError_Is_Continue() {
         var (mw, _, _) = Create();
         mw.OnError.Should().Be(ErrorBehavior.Continue, "落盘失败不得中断对话");
     }
 
     [Fact]
-    public async Task InvokeAsync_WithNewMessages_AppendsDeltaEntries()
-    {
+    public async Task InvokeAsync_WithNewMessages_AppendsDeltaEntries() {
         // 轮次开始时 2 条，结束时 4 条 → 差量 2 条写盘
         var messages = new List<ApiMessage>
         {
@@ -73,8 +66,7 @@ public sealed class TranscriptPersistMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_NoDelta_DoesNotWrite()
-    {
+    public async Task InvokeAsync_NoDelta_DoesNotWrite() {
         var messages = new List<ApiMessage> { new(MessageRole.User, "只有旧的") };
         var (mw, transcript, ctxMgr) = Create(messages);
         ctxMgr.SetupSequence(c => c.CurrentMessageCount).Returns(1).Returns(1);
@@ -86,8 +78,7 @@ public sealed class TranscriptPersistMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_DryRun_DoesNotWrite()
-    {
+    public async Task InvokeAsync_DryRun_DoesNotWrite() {
         var messages = new List<ApiMessage>
         {
             new(MessageRole.User, "a"),
@@ -103,8 +94,7 @@ public sealed class TranscriptPersistMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_TranscriptThrows_EventsStillFlow()
-    {
+    public async Task InvokeAsync_TranscriptThrows_EventsStillFlow() {
         var messages = new List<ApiMessage>
         {
             new(MessageRole.User, "q"),

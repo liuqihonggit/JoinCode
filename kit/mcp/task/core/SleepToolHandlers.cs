@@ -6,16 +6,14 @@ namespace McpToolDispatch;
 /// Sleep 工具处理器 - 延迟执行
 /// </summary>
 [McpToolDispatch(ToolCategory.Sleep)]
-public partial class SleepToolHandlers
-{
+public partial class SleepToolHandlers {
     private readonly ILogger<SleepToolHandlers>? _logger;
 
     /// <summary>
     /// 初始化 <see cref="SleepToolHandlers"/> 实例
     /// </summary>
     /// <param name="logger">日志记录器（可选）</param>
-    public SleepToolHandlers(ILogger<SleepToolHandlers>? logger = null)
-    {
+    public SleepToolHandlers(ILogger<SleepToolHandlers>? logger = null) {
         _logger = logger;
     }
 
@@ -27,39 +25,33 @@ public partial class SleepToolHandlers
         [McpToolParameter("Sleep duration (seconds), max 1800 (30 minutes)")] int duration_seconds,
         [McpToolParameter("Reason for sleep (optional)", Required = false)] string? reason = null,
         [McpToolParameter("Periodic wake interval (seconds, optional, 0 means no wake, default 0)", Required = false)] int tick_interval_seconds = 0,
-        CancellationToken cancellationToken = default)
-    {
-        if (duration_seconds <= 0)
-        {
+        CancellationToken cancellationToken = default) {
+        if (duration_seconds <= 0) {
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepDurationMustBePositive))
                 .Build();
         }
 
         const int maxDuration = 1800;
-        if (duration_seconds > maxDuration)
-        {
+        if (duration_seconds > maxDuration) {
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepDurationTooLarge, maxDuration))
                 .Build();
         }
 
-        if (tick_interval_seconds < 0)
-        {
+        if (tick_interval_seconds < 0) {
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepTickIntervalCannotBeNegative))
                 .Build();
         }
 
-        if (tick_interval_seconds > 0 && tick_interval_seconds > duration_seconds)
-        {
+        if (tick_interval_seconds > 0 && tick_interval_seconds > duration_seconds) {
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepTickIntervalTooLarge))
                 .Build();
         }
 
-        try
-        {
+        try {
             var tickIntervalDisplay = tick_interval_seconds > 0
                 ? L.T(StringKey.SleepTickIntervalSeconds, tick_interval_seconds)
                 : L.T(StringKey.SleepTickIntervalNone);
@@ -73,23 +65,18 @@ public partial class SleepToolHandlers
             var remainingSeconds = duration_seconds;
             var tickCount = 0;
 
-            if (tick_interval_seconds > 0)
-            {
-                while (remainingSeconds > 0)
-                {
+            if (tick_interval_seconds > 0) {
+                while (remainingSeconds > 0) {
                     var waitSeconds = Math.Min(tick_interval_seconds, remainingSeconds);
                     await Task.Delay(TimeSpan.FromSeconds(waitSeconds), cancellationToken).ConfigureAwait(false);
                     remainingSeconds -= waitSeconds;
                     tickCount++;
 
-                    if (remainingSeconds > 0)
-                    {
+                    if (remainingSeconds > 0) {
                         _logger?.LogInformation(L.T(StringKey.SleepTickLog, tickCount, remainingSeconds));
                     }
                 }
-            }
-            else
-            {
+            } else {
                 await Task.Delay(TimeSpan.FromSeconds(duration_seconds), cancellationToken).ConfigureAwait(false);
             }
 
@@ -100,28 +87,22 @@ public partial class SleepToolHandlers
             response.AppendLine(L.T(StringKey.SleepPlannedDuration, duration_seconds));
             response.AppendLine(L.T(StringKey.SleepActualDuration, actualDuration.TotalSeconds));
 
-            if (tick_interval_seconds > 0)
-            {
+            if (tick_interval_seconds > 0) {
                 response.AppendLine(L.T(StringKey.SleepTickInterval, tick_interval_seconds));
                 response.AppendLine(L.T(StringKey.SleepTickCount, tickCount));
             }
 
-            if (!string.IsNullOrEmpty(reason))
-            {
+            if (!string.IsNullOrEmpty(reason)) {
                 response.AppendLine(L.T(StringKey.SleepReason, reason));
             }
 
             return ToolResultBuilder.Success()
                 .WithText(response.ToString())
                 .Build();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             _logger?.LogInformation(L.T(StringKey.SleepCancelledLog));
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.SleepFailedLog));
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepFailed, ex.Message))
@@ -136,10 +117,8 @@ public partial class SleepToolHandlers
     public async Task<ToolResult> SleepUntilAsync(
         [McpToolParameter("Target time (format: HH:mm or yyyy-MM-dd HH:mm:ss)")] string target_time,
         [McpToolParameter("Timezone offset (hours, optional, default local time)", Required = false)] int? timezone_offset_hours = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(target_time))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(target_time)) {
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepTargetTimeCannotBeEmpty))
                 .Build();
@@ -150,41 +129,33 @@ public partial class SleepToolHandlers
         // 尝试解析时间
         if (DateTime.TryParseExact(target_time, "HH:mm",
             System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.None, out var timeOnly))
-        {
+            System.Globalization.DateTimeStyles.None, out var timeOnly)) {
             // 今天的这个时间
             var now = DateTime.Now;
             targetDateTime = new DateTime(now.Year, now.Month, now.Day,
                 timeOnly.Hour, timeOnly.Minute, 0);
 
             // 如果今天的时间已过，设置为明天
-            if (targetDateTime <= now)
-            {
+            if (targetDateTime <= now) {
                 targetDateTime = targetDateTime.AddDays(1);
             }
-        }
-        else if (DateTime.TryParse(target_time, out var fullDateTime))
-        {
+        } else if (DateTime.TryParse(target_time, out var fullDateTime)) {
             targetDateTime = fullDateTime;
-        }
-        else
-        {
+        } else {
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepTimeParseFailed, target_time))
                 .Build();
         }
 
         // 应用时区偏移
-        if (timezone_offset_hours.HasValue)
-        {
+        if (timezone_offset_hours.HasValue) {
             targetDateTime = targetDateTime.AddHours(-timezone_offset_hours.Value);
         }
 
         var waitDuration = targetDateTime - DateTime.UtcNow;
 
         // 检查是否已过期
-        if (waitDuration <= TimeSpan.Zero)
-        {
+        if (waitDuration <= TimeSpan.Zero) {
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepTargetTimeExpired, targetDateTime.ToString("yyyy-MM-dd HH:mm:ss")))
                 .Build();
@@ -192,15 +163,13 @@ public partial class SleepToolHandlers
 
         // 检查最大等待时间（30分钟）
         const int maxWaitSeconds = 1800;
-        if (waitDuration.TotalSeconds > maxWaitSeconds)
-        {
+        if (waitDuration.TotalSeconds > maxWaitSeconds) {
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SleepWaitTooLong, waitDuration.TotalMinutes, maxWaitSeconds / 60))
                 .Build();
         }
 
-        try
-        {
+        try {
             _logger?.LogInformation(L.T(StringKey.SleepUntilStartLog),
                 targetDateTime, waitDuration.TotalSeconds);
 
@@ -209,9 +178,7 @@ public partial class SleepToolHandlers
             return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.SleepUntilReached, targetDateTime.ToString("yyyy-MM-dd HH:mm:ss")))
                 .Build();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             _logger?.LogInformation(L.T(StringKey.SleepUntilCancelledLog));
             throw;
         }

@@ -3,8 +3,7 @@ namespace Core.Utils;
 /// <summary>
 /// 监督指令 — 子 Actor 失败时父 Actor 的处理决策。
 /// </summary>
-public enum SupervisorDirective
-{
+public enum SupervisorDirective {
     /// <summary>恢复正常,继续运行(失败是暂时的)</summary>
     [EnumValue("resume")] Resume,
 
@@ -26,8 +25,7 @@ public enum SupervisorDirective
 public sealed record SupervisorStrategy(
     int MaxRestarts,
     TimeSpan Within,
-    Func<Exception, SupervisorDirective> Decider)
-{
+    Func<Exception, SupervisorDirective> Decider) {
     /// <summary>OneForOne — 只重启失败的子 Actor,最多 3 次/分钟</summary>
     public static readonly SupervisorStrategy OneForOne = new(
         3, TimeSpan.FromMinutes(1),
@@ -47,8 +45,7 @@ public sealed record SupervisorStrategy(
 /// <summary>
 /// 子 Actor 状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射。
 /// </summary>
-public enum ChildActorState
-{
+public enum ChildActorState {
     /// <summary>运行中</summary>
     [EnumValue("running")] Running,
 
@@ -67,8 +64,7 @@ public enum ChildActorState
 /// <para>消息由外部直接调用子 Actor.SendAsync,保持类型安全。</para>
 /// <para>父 Actor 通过 <see cref="SupervisedActor{TCommand}.OnChildFailureAsync"/> 决定如何处理失败。</para>
 /// </summary>
-public sealed class ChildActorHandle : IAsyncDisposable
-{
+public sealed class ChildActorHandle : IAsyncDisposable {
     private readonly Func<CancellationToken, ValueTask<IAsyncDisposable>> _factory;
     private readonly SupervisorStrategy _strategy;
     private readonly Func<ChildActorHandle, Exception, CancellationToken, ValueTask> _onFailure;
@@ -96,8 +92,7 @@ public sealed class ChildActorHandle : IAsyncDisposable
         string id,
         Func<CancellationToken, ValueTask<IAsyncDisposable>> factory,
         SupervisorStrategy strategy,
-        Func<ChildActorHandle, Exception, CancellationToken, ValueTask> onFailure)
-    {
+        Func<ChildActorHandle, Exception, CancellationToken, ValueTask> onFailure) {
         Id = id;
         _factory = factory;
         _strategy = strategy;
@@ -105,38 +100,33 @@ public sealed class ChildActorHandle : IAsyncDisposable
     }
 
     /// <summary>启动子 Actor</summary>
-    internal async ValueTask StartAsync(CancellationToken ct)
-    {
+    internal async ValueTask StartAsync(CancellationToken ct) {
         _instance = await _factory(ct).ConfigureAwait(false);
         State = ChildActorState.Running;
     }
 
     /// <summary>子 Actor 失败时调用 — 根据策略决定处理方式</summary>
-    internal async ValueTask HandleFailureAsync(Exception ex, CancellationToken ct)
-    {
+    internal async ValueTask HandleFailureAsync(Exception ex, CancellationToken ct) {
         var directive = _strategy.Decider(ex);
-        switch (directive)
-        {
+        switch (directive) {
             case SupervisorDirective.Resume:
-                State = ChildActorState.Running;
-                break;
+            State = ChildActorState.Running;
+            break;
             case SupervisorDirective.Restart:
-                await RestartAsync(ct).ConfigureAwait(false);
-                break;
+            await RestartAsync(ct).ConfigureAwait(false);
+            break;
             case SupervisorDirective.Stop:
-                await StopAsync().ConfigureAwait(false);
-                State = ChildActorState.Failed;
-                break;
+            await StopAsync().ConfigureAwait(false);
+            State = ChildActorState.Failed;
+            break;
             case SupervisorDirective.Escalate:
-                await _onFailure(this, ex, ct).ConfigureAwait(false);
-                break;
+            await _onFailure(this, ex, ct).ConfigureAwait(false);
+            break;
         }
     }
 
-    private bool TryRecordRestart()
-    {
-        lock (_restartLock)
-        {
+    private bool TryRecordRestart() {
+        lock (_restartLock) {
             var now = DateTimeOffset.UtcNow;
             _restartTimes.RemoveAll(t => now - t > _strategy.Within);
             if (_restartTimes.Count >= _strategy.MaxRestarts)
@@ -147,19 +137,15 @@ public sealed class ChildActorHandle : IAsyncDisposable
         }
     }
 
-    private async ValueTask RestartAsync(CancellationToken ct)
-    {
-        if (!TryRecordRestart())
-        {
+    private async ValueTask RestartAsync(CancellationToken ct) {
+        if (!TryRecordRestart()) {
             State = ChildActorState.Failed;
             return;
         }
         State = ChildActorState.Restarting;
 
-        if (_instance is not null)
-        {
-            try { await _instance.DisposeAsync().ConfigureAwait(false); }
-            catch (Exception ex) { Console.WriteLine($"[ChildActor:{Id}] Dispose 旧实例异常忽略: {ex.Message}"); }
+        if (_instance is not null) {
+            try { await _instance.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { Console.WriteLine($"[ChildActor:{Id}] Dispose 旧实例异常忽略: {ex.Message}"); }
         }
 
         _instance = await _factory(ct).ConfigureAwait(false);
@@ -167,12 +153,9 @@ public sealed class ChildActorHandle : IAsyncDisposable
     }
 
     /// <summary>停止子 Actor</summary>
-    public async ValueTask StopAsync()
-    {
-        if (_instance is not null)
-        {
-            try { await _instance.DisposeAsync().ConfigureAwait(false); }
-            catch (Exception ex) { Console.WriteLine($"[ChildActor:{Id}] Stop 异常忽略: {ex.Message}"); }
+    public async ValueTask StopAsync() {
+        if (_instance is not null) {
+            try { await _instance.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { Console.WriteLine($"[ChildActor:{Id}] Stop 异常忽略: {ex.Message}"); }
             _instance = null;
         }
         State = ChildActorState.Stopped;
@@ -194,8 +177,7 @@ public sealed record SupervisorEvent(string ChildId, ChildActorState State, stri
 /// <para>子 Actor 生命周期事件通过 OutputAsync 流输出。</para>
 /// </summary>
 /// <typeparam name="TCommand">命令类型</typeparam>
-public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, SupervisorEvent>
-{
+public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, SupervisorEvent> {
     private readonly ConcurrentDictionary<string, ChildActorHandle> _children = new(StringComparer.Ordinal);
 
     /// <summary>构造监督 Actor — 无背压(无界通道)</summary>
@@ -228,8 +210,7 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
     protected async ValueTask<ChildActorHandle> SpawnChildAsync(
         string childId,
         Func<CancellationToken, ValueTask<IAsyncDisposable>> factory,
-        SupervisorStrategy strategy)
-    {
+        SupervisorStrategy strategy) {
         var handle = new ChildActorHandle(childId, factory, strategy, ReportChildFailureAsync);
         _children[childId] = handle;
         await handle.StartAsync(CancellationToken.None).ConfigureAwait(false);
@@ -245,25 +226,21 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
         _children.TryGetValue(childId, out var handle) ? handle : null;
 
     /// <summary>停止所有子 Actor — 父 Actor Dispose 时级联</summary>
-    protected async ValueTask StopAllChildrenAsync()
-    {
-        foreach (var child in _children.Values)
-        {
+    protected async ValueTask StopAllChildrenAsync() {
+        foreach (var child in _children.Values) {
             await child.StopAsync().ConfigureAwait(false);
             TryPublish(new SupervisorEvent(child.Id, ChildActorState.Stopped));
         }
     }
 
     /// <summary>子 Actor 失败回调 — 转发给子类实现的 OnChildFailureAsync</summary>
-    private async ValueTask ReportChildFailureAsync(ChildActorHandle child, Exception ex, CancellationToken ct)
-    {
+    private async ValueTask ReportChildFailureAsync(ChildActorHandle child, Exception ex, CancellationToken ct) {
         await OnChildFailureAsync(child, ex, ct).ConfigureAwait(false);
         TryPublish(new SupervisorEvent(child.Id, child.State, ex.Message));
     }
 
     /// <summary>Dispose 时级联停止所有子 Actor</summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await StopAllChildrenAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }

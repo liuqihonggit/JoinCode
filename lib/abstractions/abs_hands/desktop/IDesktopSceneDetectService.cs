@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 桌面场景 UI 元素检测服务 — 多模态识别当前区域的 UI 元素
 /// </summary>
-public interface IDesktopSceneDetectService
-{
+public interface IDesktopSceneDetectService {
     /// <summary>识别当前缩放区域的 UI 元素（按钮/输入框/标签等）</summary>
     /// <param name="sceneId">场景 ID</param>
     /// <param name="cancellationToken">取消令牌</param>

@@ -3,8 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 开关命令抽象基类 — 提供 on/off/无参数 三分支执行骨架，子类只需实现 OnEnabledAsync/OnDisabledAsync
 /// </summary>
-public abstract class ToggleCommandBase : ChatCommandBase
-{
+public abstract class ToggleCommandBase : ChatCommandBase {
     /// <summary>
     /// 参数提示文本 — 默认 [on|off]
     /// </summary>
@@ -31,22 +30,20 @@ public abstract class ToggleCommandBase : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = GetNormalizedArgs(context);
         var action = ResolveToggleAction(args);
 
-        switch (action)
-        {
+        switch (action) {
             case ToggleAction.On:
-                await OnEnabledAsync(context).ConfigureAwait(false);
-                break;
+            await OnEnabledAsync(context).ConfigureAwait(false);
+            break;
             case ToggleAction.Off:
-                await OnDisabledAsync(context).ConfigureAwait(false);
-                break;
+            await OnDisabledAsync(context).ConfigureAwait(false);
+            break;
             default:
-                await OnDefaultAsync(context, args).ConfigureAwait(false);
-                break;
+            await OnDefaultAsync(context, args).ConfigureAwait(false);
+            break;
         }
 
         await PrintStatusAsync(context).ConfigureAwait(false);
@@ -71,10 +68,8 @@ public abstract class ToggleCommandBase : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <param name="args">原始参数字符串</param>
-    protected virtual Task OnDefaultAsync(ChatCommandContext context, string args)
-    {
-        if (NullAction == ToggleNullAction.Toggle)
-        {
+    protected virtual Task OnDefaultAsync(ChatCommandContext context, string args) {
+        if (NullAction == ToggleNullAction.Toggle) {
             return OnToggleAsync(context);
         }
 
@@ -97,8 +92,7 @@ public abstract class ToggleCommandBase : ChatCommandBase
 /// <summary>
 /// 无参数时的行为策略
 /// </summary>
-public enum ToggleNullAction
-{
+public enum ToggleNullAction {
     /// <summary>切换当前状态</summary>
     [EnumValue("toggle")]
     Toggle,

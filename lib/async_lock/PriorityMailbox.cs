@@ -3,8 +3,7 @@ namespace Core.Utils;
 /// <summary>
 /// 消息优先级 — 多通道优先级邮箱用。
 /// </summary>
-public enum MessagePriority
-{
+public enum MessagePriority {
     /// <summary>高优先级 — 用户交互,立即处理</summary>
     [EnumValue("high")] High,
 
@@ -38,8 +37,7 @@ public sealed record PriorityEvt<TCommand>(TCommand Command, MessagePriority Pri
 /// <para>处理事件通过 OutputAsync 流输出。</para>
 /// </summary>
 /// <typeparam name="TCommand">命令类型</typeparam>
-public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
-{
+public abstract class PriorityMailbox<TCommand> : IAsyncDisposable {
     private readonly Channel<TCommand> _highChannel;
     private readonly Channel<TCommand> _normalChannel;
     private readonly Channel<TCommand> _lowChannel;
@@ -64,16 +62,14 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
         ActorBackpressure? highBackpressure = null,
         ActorBackpressure? normalBackpressure = null,
         ActorBackpressure? lowBackpressure = null,
-        bool startConsuming = true)
-    {
+        bool startConsuming = true) {
         _highBackpressure = highBackpressure;
         _normalBackpressure = normalBackpressure;
         _lowBackpressure = lowBackpressure;
         _highChannel = CreateChannel(highBackpressure);
         _normalChannel = CreateChannel(normalBackpressure);
         _lowChannel = CreateChannel(lowBackpressure);
-        _outputChannel = Channel.CreateUnbounded<PriorityEvt<TCommand>>(new UnboundedChannelOptions
-        {
+        _outputChannel = Channel.CreateUnbounded<PriorityEvt<TCommand>>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = true
         });
@@ -84,8 +80,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     /// 显式启动 Consumer 循环 — 用于构造时传 <c>startConsuming: false</c> 的场景(如测试需先批量入队再启动消费,以验证贪心优先级排序)。
     /// <para>幂等:多次调用只启动一次。</para>
     /// </summary>
-    protected void StartConsuming()
-    {
+    protected void StartConsuming() {
         if (Interlocked.Exchange(ref _consumingStarted, 1) != 0) return;
         _consumerTask = Task.Factory.StartNew(
             ConsumeLoopAsync,
@@ -94,18 +89,14 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
             TaskScheduler.Default).Unwrap();
     }
 
-    private static Channel<TCommand> CreateChannel(ActorBackpressure? bp)
-    {
-        if (bp is null || bp.Capacity == 0)
-        {
-            return Channel.CreateUnbounded<TCommand>(new UnboundedChannelOptions
-            {
+    private static Channel<TCommand> CreateChannel(ActorBackpressure? bp) {
+        if (bp is null || bp.Capacity == 0) {
+            return Channel.CreateUnbounded<TCommand>(new UnboundedChannelOptions {
                 SingleReader = true,
                 SingleWriter = false
             });
         }
-        return Channel.CreateBounded<TCommand>(new BoundedChannelOptions(bp.Capacity)
-        {
+        return Channel.CreateBounded<TCommand>(new BoundedChannelOptions(bp.Capacity) {
             FullMode = bp.FullMode,
             SingleReader = true,
             SingleWriter = false
@@ -143,28 +134,21 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     /// <param name="ct">取消令牌</param>
     /// <exception cref="ObjectDisposedException">Actor 已释放</exception>
     /// <exception cref="TimeoutException">发送超时(背压配置了 SendTimeout 且通道满)</exception>
-    protected internal async ValueTask SendAsync(TCommand cmd, MessagePriority priority, CancellationToken ct = default)
-    {
+    protected internal async ValueTask SendAsync(TCommand cmd, MessagePriority priority, CancellationToken ct = default) {
         ThrowIfDisposed();
         var channel = GetChannel(priority);
         var bp = GetBackpressure(priority);
 
-        if (bp?.SendTimeout is { } timeout)
-        {
+        if (bp?.SendTimeout is { } timeout) {
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             linkedCts.CancelAfter(timeout);
-            try
-            {
+            try {
                 await channel.Writer.WriteAsync(cmd, linkedCts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 throw new TimeoutException(
                     $"PriorityMailbox {GetType().Name} 优先级 {priority} 发送超时({timeout.TotalSeconds:F0}s)");
             }
-        }
-        else
-        {
+        } else {
             await channel.Writer.WriteAsync(cmd, ct).ConfigureAwait(false);
         }
 
@@ -176,8 +160,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     /// <summary>
     /// 向指定优先级通道同步尝试发送命令 — 通道已关闭、已释放或(有界通道)已满时返回 false。
     /// </summary>
-    protected bool TrySend(TCommand cmd, MessagePriority priority)
-    {
+    protected bool TrySend(TCommand cmd, MessagePriority priority) {
         if (Volatile.Read(ref _disposed) != 0) return false;
         var channel = GetChannel(priority);
         if (!channel.Writer.TryWrite(cmd)) return false;
@@ -198,8 +181,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     /// <summary>
     /// Actor 主动推送消息到输出 Channel — 外部通过 OutputAsync 拉取。
     /// </summary>
-    protected bool TryPublish(PriorityEvt<TCommand> evt)
-    {
+    protected bool TryPublish(PriorityEvt<TCommand> evt) {
         if (Volatile.Read(ref _disposed) != 0) return false;
         return _outputChannel.Writer.TryWrite(evt);
     }
@@ -207,8 +189,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     /// <summary>
     /// 外部拉取输出流 — 阻塞式 IAsyncEnumerable。
     /// </summary>
-    public IAsyncEnumerable<PriorityEvt<TCommand>> OutputAsync(CancellationToken cancellationToken = default)
-    {
+    public IAsyncEnumerable<PriorityEvt<TCommand>> OutputAsync(CancellationToken cancellationToken = default) {
         return _outputChannel.Reader.ReadAllAsync(cancellationToken);
     }
 
@@ -218,50 +199,36 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     protected virtual void OnConsumerError(Exception ex) { }
 
     /// <summary>Consumer 循环 — 按优先级顺序消费,全空时信号量等待</summary>
-    private async Task ConsumeLoopAsync()
-    {
-        try
-        {
-            while (!_cts.IsCancellationRequested)
-            {
-                while (TryReadByPriority(out var cmd, out var priority))
-                {
-                    try
-                    {
+    private async Task ConsumeLoopAsync() {
+        try {
+            while (!_cts.IsCancellationRequested) {
+                while (TryReadByPriority(out var cmd, out var priority)) {
+                    try {
                         await HandleAsync(cmd, priority, _cts.Token).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (_cts.IsCancellationRequested)
-                    {
+                    } catch (OperationCanceledException) when (_cts.IsCancellationRequested) {
                         return;
-                    }
-                    catch (Exception ex)
-                    {
+                    } catch (Exception ex) {
                         OnConsumerError(ex);
                     }
                 }
 
                 await _signal.WaitAsync(_cts.Token).ConfigureAwait(false);
             }
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
     }
 
-    private bool TryReadByPriority(out TCommand cmd, out MessagePriority priority)
-    {
-        if (_highChannel.Reader.TryRead(out var highCmd))
-        {
+    private bool TryReadByPriority(out TCommand cmd, out MessagePriority priority) {
+        if (_highChannel.Reader.TryRead(out var highCmd)) {
             cmd = highCmd;
             priority = MessagePriority.High;
             return true;
         }
-        if (_normalChannel.Reader.TryRead(out var normalCmd))
-        {
+        if (_normalChannel.Reader.TryRead(out var normalCmd)) {
             cmd = normalCmd;
             priority = MessagePriority.Normal;
             return true;
         }
-        if (_lowChannel.Reader.TryRead(out var lowCmd))
-        {
+        if (_lowChannel.Reader.TryRead(out var lowCmd)) {
             cmd = lowCmd;
             priority = MessagePriority.Low;
             return true;
@@ -271,38 +238,33 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
         return false;
     }
 
-    private Channel<TCommand> GetChannel(MessagePriority priority) => priority switch
-    {
+    private Channel<TCommand> GetChannel(MessagePriority priority) => priority switch {
         MessagePriority.High => _highChannel,
         MessagePriority.Normal => _normalChannel,
         MessagePriority.Low => _lowChannel,
         _ => throw new ArgumentOutOfRangeException(nameof(priority))
     };
 
-    private ActorBackpressure? GetBackpressure(MessagePriority priority) => priority switch
-    {
+    private ActorBackpressure? GetBackpressure(MessagePriority priority) => priority switch {
         MessagePriority.High => _highBackpressure,
         MessagePriority.Normal => _normalBackpressure,
         MessagePriority.Low => _lowBackpressure,
         _ => null
     };
 
-    private void CheckWatermark(MessagePriority priority, Channel<TCommand> channel, ActorBackpressure? bp)
-    {
+    private void CheckWatermark(MessagePriority priority, Channel<TCommand> channel, ActorBackpressure? bp) {
         if (bp is null) return;
         var count = channel.Reader.Count;
         var level = count >= bp.EffectiveCriticalWatermark ? WatermarkLevel.Critical
                    : count >= bp.EffectiveHighWatermark ? WatermarkLevel.High
                    : WatermarkLevel.Normal;
-        if (level != WatermarkLevel.Normal)
-        {
+        if (level != WatermarkLevel.Normal) {
             PriorityWatermarkReached?.Invoke(this, new PriorityBackpressureEventArgs(
                 GetType().Name, priority, count, bp.Capacity, level));
         }
     }
 
-    private void ThrowIfDisposed()
-    {
+    private void ThrowIfDisposed() {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(GetType().Name);
     }
@@ -310,8 +272,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     /// <summary>
     /// 释放 — 取消 Consumer、完成所有通道、等待 Consumer 退出。
     /// </summary>
-    public virtual async ValueTask DisposeAsync()
-    {
+    public virtual async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         _highChannel.Writer.TryComplete();

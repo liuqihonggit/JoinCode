@@ -7,8 +7,7 @@ namespace Infrastructure.Http;
 /// <para>DI 容器构建前的场景（HttpClientProviderFactory.Create()）使用无参构造函数 fallback</para>
 /// </summary>
 [Register(typeof(IHttpClientProvider), ServiceLifetime.Singleton)]
-public sealed partial class DefaultHttpClientProvider : ServiceEntity, IHttpClientProvider
-{
+public sealed partial class DefaultHttpClientProvider : ServiceEntity, IHttpClientProvider {
     private readonly IHttpClientFactory? _factory;
     private readonly HttpClient? _sharedClient;
 
@@ -16,8 +15,7 @@ public sealed partial class DefaultHttpClientProvider : ServiceEntity, IHttpClie
     /// 无参构造函数 — fallback 到共享 HttpClient 实例
     /// 用于 HttpClientProviderFactory.Create() 路径（DI 容器构建前场景）
     /// </summary>
-    public DefaultHttpClientProvider()
-    {
+    public DefaultHttpClientProvider() {
         _factory = null;
         _sharedClient = new HttpClient();
     }
@@ -27,8 +25,7 @@ public sealed partial class DefaultHttpClientProvider : ServiceEntity, IHttpClie
     /// 用于 DI 容器构建后场景（主程序通过 services.AddHttpClient() 启用）
     /// </summary>
     /// <param name="factory">IHttpClientFactory 实例（必填，由 DI 注入）</param>
-    public DefaultHttpClientProvider(IHttpClientFactory factory)
-    {
+    public DefaultHttpClientProvider(IHttpClientFactory factory) {
         ArgumentNullException.ThrowIfNull(factory);
         _factory = factory;
         _sharedClient = null;
@@ -37,10 +34,8 @@ public sealed partial class DefaultHttpClientProvider : ServiceEntity, IHttpClie
     /// <summary>
     /// 获取 HttpClient — 优先通过 IHttpClientFactory.CreateClient() 创建（Handler 池化），无 factory 时返回共享实例
     /// </summary>
-    public HttpClient GetClient()
-    {
-        if (_factory is not null)
-        {
+    public HttpClient GetClient() {
+        if (_factory is not null) {
             return _factory.CreateClient(string.Empty);
         }
         return _sharedClient ?? throw new InvalidOperationException("Shared client not initialized.");
@@ -51,12 +46,10 @@ public sealed partial class DefaultHttpClientProvider : ServiceEntity, IHttpClie
     /// </summary>
     /// <param name="name">客户端逻辑名称</param>
     /// <returns>HttpClient 实例</returns>
-    public HttpClient GetClient(string name)
-    {
+    public HttpClient GetClient(string name) {
         ArgumentException.ThrowIfNullOrEmpty(name);
 
-        if (_factory is not null)
-        {
+        if (_factory is not null) {
             return _factory.CreateClient(name);
         }
         return _sharedClient ?? throw new InvalidOperationException("Shared client not initialized.");

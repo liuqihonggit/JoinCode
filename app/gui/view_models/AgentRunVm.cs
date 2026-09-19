@@ -5,8 +5,7 @@ namespace JoinCode.Gui.ViewModels;
 /// Refresh() 从 run 拉平快照（状态点/标题/统计/活动行），由 MainViewModel 在事件到达时调用；
 /// 三态布尔驱动三个静态着色的状态点 TextBlock，避免动态画刷键解析。
 /// </summary>
-public sealed class AgentRunVm : INotifyPropertyChanged
-{
+public sealed class AgentRunVm : INotifyPropertyChanged {
     /// <summary>属性变更事件</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -58,17 +57,14 @@ public sealed class AgentRunVm : INotifyPropertyChanged
     public ObservableCollection<string> ActivityLines => _activityLines;
 
     /// <summary>初始化 AgentRunVm 实例</summary>
-    public AgentRunVm(SubAgentRun run)
-    {
+    public AgentRunVm(SubAgentRun run) {
         Run = run ?? throw new ArgumentNullException(nameof(run));
         Refresh();
     }
 
     /// <summary>从运行记录拉平最新快照到绑定属性</summary>
-    public void Refresh()
-    {
-        StateGlyph = Run.State switch
-        {
+    public void Refresh() {
+        StateGlyph = Run.State switch {
             SubAgentRunState.Completed => "✓",
             SubAgentRunState.Failed => "✗",
             _ => "●"
@@ -81,8 +77,7 @@ public sealed class AgentRunVm : INotifyPropertyChanged
             ? Run.Name
             : $"{Run.Name} — {Run.Description}";
 
-        StatsText = Run.State switch
-        {
+        StatsText = Run.State switch {
             SubAgentRunState.Running when Run.ToolUseCount > 0 => $"{Run.ToolUseCount} 次工具调用",
             SubAgentRunState.Running => "启动中…",
             _ => $"完成 ({Run.ToolUseCount} 次工具调用{FormatDurationSuffix()})"
@@ -96,8 +91,7 @@ public sealed class AgentRunVm : INotifyPropertyChanged
     }
 
     /// <summary>时长后缀：终态且有时长才显示 " · 2m 12s"</summary>
-    private string FormatDurationSuffix()
-    {
+    private string FormatDurationSuffix() {
         if (Run.ExecutionTimeMs is not { } ms)
             return Run.IsSuccess ? "" : " · 失败";
         var elapsed = TimeSpan.FromMilliseconds(ms);

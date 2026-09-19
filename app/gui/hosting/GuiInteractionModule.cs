@@ -5,14 +5,12 @@ namespace JoinCode.Gui.Hosting;
 /// Order=80 与 CliModule 同级，在 CoreModule(Order=30) 之后注册以覆盖。
 /// </summary>
 [AppModule(Order = 80)]
-public sealed class GuiInteractionModule : IAppModule
-{
+public sealed class GuiInteractionModule : IAppModule {
     /// <summary>模块注册顺序（80 与 CliModule 同级，覆盖 Core 层 Mock 注册）</summary>
     public int Order => 80;
 
     /// <summary>配置服务</summary>
-    public void ConfigureServices(IServiceCollection services, AppModuleContext context)
-    {
+    public void ConfigureServices(IServiceCollection services, AppModuleContext context) {
         services.AddSingleton<IInteractiveService, AvaloniaInteractiveService>();
         services.AddSingleton<IWindowShakeService, GuiWindowShakeService>();
     }

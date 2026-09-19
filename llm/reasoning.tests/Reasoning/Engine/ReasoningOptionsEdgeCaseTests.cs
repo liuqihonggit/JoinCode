@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Engine;
 
-public sealed class ReasoningOptionsEdgeCaseTests
-{
+public sealed class ReasoningOptionsEdgeCaseTests {
     [Fact]
-    public void DefaultValues_ShouldMatchExpectedDefaults()
-    {
+    public void DefaultValues_ShouldMatchExpectedDefaults() {
         var opts = new ReasoningOptions();
 
         Assert.Equal(100, opts.MaxNodes);
@@ -35,8 +33,7 @@ public sealed class ReasoningOptionsEdgeCaseTests
     }
 
     [Fact]
-    public void IsNodeLimitReached_AtExactLimit_ReturnsTrue()
-    {
+    public void IsNodeLimitReached_AtExactLimit_ReturnsTrue() {
         var opts = new ReasoningOptions { MaxNodes = 5 };
 
         Assert.False(opts.IsNodeLimitReached(4));
@@ -44,8 +41,7 @@ public sealed class ReasoningOptionsEdgeCaseTests
     }
 
     [Fact]
-    public void IsEvidenceLimitReached_AtExactLimit_ReturnsTrue()
-    {
+    public void IsEvidenceLimitReached_AtExactLimit_ReturnsTrue() {
         var opts = new ReasoningOptions { MaxEvidencePerClaim = 3 };
 
         Assert.False(opts.IsEvidenceLimitReached(2));
@@ -53,16 +49,14 @@ public sealed class ReasoningOptionsEdgeCaseTests
     }
 
     [Fact]
-    public void FromPreset_UnknownPreset_ReturnsPanda()
-    {
+    public void FromPreset_UnknownPreset_ReturnsPanda() {
         var result = ReasoningOptions.FromPreset((ReasoningPreset)999);
 
         Assert.Same(ReasoningOptions.Panda, result);
     }
 
     [Fact]
-    public void Builder_FromPreset_UnknownPreset_ReturnsPandaBuilder()
-    {
+    public void Builder_FromPreset_UnknownPreset_ReturnsPandaBuilder() {
         var result = ReasoningOptionsBuilder.FromPreset((ReasoningPreset)999).Build();
 
         Assert.Equal(ReasoningOptions.Panda.MaxNodes, result.MaxNodes);
@@ -70,8 +64,7 @@ public sealed class ReasoningOptionsEdgeCaseTests
     }
 
     [Fact]
-    public void Builder_CreatePanda_ReturnsDefaultBuilder()
-    {
+    public void Builder_CreatePanda_ReturnsDefaultBuilder() {
         var result = ReasoningOptionsBuilder.CreatePanda().Build();
 
         Assert.Equal(ReasoningOptions.Panda.MaxNodes, result.MaxNodes);
@@ -79,8 +72,7 @@ public sealed class ReasoningOptionsEdgeCaseTests
     }
 
     [Fact]
-    public void Builder_AllMethods_ReturnSameInstanceForChaining()
-    {
+    public void Builder_AllMethods_ReturnSameInstanceForChaining() {
         var builder = ReasoningOptionsBuilder.Create();
 
         Assert.Same(builder, builder.WithMaxNodes(1));
@@ -100,8 +92,7 @@ public sealed class ReasoningOptionsEdgeCaseTests
     }
 
     [Fact]
-    public void Builder_DefaultEvidenceWeight_IsReflectedInBuild()
-    {
+    public void Builder_DefaultEvidenceWeight_IsReflectedInBuild() {
         var opts = ReasoningOptionsBuilder.Create()
             .WithDefaultEvidenceWeight(2.5)
             .Build();
@@ -110,8 +101,7 @@ public sealed class ReasoningOptionsEdgeCaseTests
     }
 
     [Fact]
-    public void MurderPreset_ShouldHaveStrictValues()
-    {
+    public void MurderPreset_ShouldHaveStrictValues() {
         var murder = ReasoningOptions.Murder;
 
         Assert.Equal(50, murder.MaxNodes);
@@ -129,8 +119,7 @@ public sealed class ReasoningOptionsEdgeCaseTests
     }
 
     [Fact]
-    public void DivorcePreset_ShouldHavePermissiveValues()
-    {
+    public void DivorcePreset_ShouldHavePermissiveValues() {
         var divorce = ReasoningOptions.Divorce;
 
         Assert.Equal(500, divorce.MaxNodes);

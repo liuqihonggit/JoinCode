@@ -4,8 +4,7 @@ namespace Infrastructure.IO.Services.FileOps;
 /// 文件写入监听器注册中心的线程安全实现
 /// </summary>
 [Register(typeof(IFileWriteListenerRegistry), ServiceLifetime.Singleton)]
-public sealed class FileWriteListenerRegistry : IFileWriteListenerRegistry
-{
+public sealed class FileWriteListenerRegistry : IFileWriteListenerRegistry {
     private readonly ThreadSafeListenerList<IFileWriteListener> _listeners = new();
 
     /// <summary>
@@ -19,8 +18,7 @@ public sealed class FileWriteListenerRegistry : IFileWriteListenerRegistry
     /// 通知所有已注册监听器文件已被写入
     /// </summary>
     /// <param name="e">文件写入事件参数</param>
-    public void Notify(FileWriteEventArgs e)
-    {
+    public void Notify(FileWriteEventArgs e) {
         ArgumentNullException.ThrowIfNull(e);
         _listeners.Notify(l => l.OnFileWrite(e));
     }

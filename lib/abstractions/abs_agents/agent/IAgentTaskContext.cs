@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface IAgentTaskContext
-{
+public interface IAgentTaskContext {
     string TaskId { get; }
 
     int AgentIndex { get; }

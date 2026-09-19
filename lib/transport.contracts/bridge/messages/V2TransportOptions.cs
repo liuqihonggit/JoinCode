@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// v2 传输适配器选项
 /// </summary>
-public sealed class V2TransportOptions
-{
+public sealed class V2TransportOptions {
     /// <summary>SSE 流 URL（/worker/events/stream）</summary>
     public required string SseUrl { get; init; }
 

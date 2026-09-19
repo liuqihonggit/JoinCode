@@ -6,10 +6,8 @@ namespace JoinCode.Tui;
 /// 接入真实 LLM（IQueryEngine.QueryAsync 流式响应）+ 底部Tab面板（Log/Files/Memory/Settings）。
 /// 布局由 RootView 用 Pos.Bottom 链式垂直排列，组件内部用 Pos.Right 链式水平排列。
 /// </summary>
-internal static class TuiModeRunner
-{
-    internal static async Task RunAsync(WorkflowConfig config, IServiceProvider services, CancellationToken cancellationToken = default)
-    {
+internal static class TuiModeRunner {
+    internal static async Task RunAsync(WorkflowConfig config, IServiceProvider services, CancellationToken cancellationToken = default) {
         using var app = Application.Create();
         Application.MaximumIterationsPerSecond = 60;
         app.Init();
@@ -63,14 +61,10 @@ internal static class TuiModeRunner
         var sessionStore = services.GetService<ITranscriptService>() is { } transcriptService2
             ? new Session.TuiSessionStore(transcriptService2)
             : null;
-        if (sessionStore is not null)
-        {
-            try
-            {
+        if (sessionStore is not null) {
+            try {
                 await sessionStore.SaveMetaAsync(config, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 WriteDiag($"[TUI] SaveMetaAsync failed: {ex.Message}");
             }
         }
@@ -99,8 +93,7 @@ internal static class TuiModeRunner
         registry.Register(mainPipe);
 
         var polling = new PollingService(registry, 200);
-        polling.OnMessagesReceived += (_, messages) =>
-        {
+        polling.OnMessagesReceived += (_, messages) => {
             foreach (var msg in messages)
                 outputView.AppendLine(msg.Content);
         };
@@ -108,126 +101,103 @@ internal static class TuiModeRunner
         var startTime = DateTime.UtcNow;
         // 当前正在执行的查询 CTS 容器 — 工具栏 Stop 与处理循环共享（B6：停止当前生成而非退出程序）
         var currentQueryCts = new System.Runtime.CompilerServices.StrongBox<CancellationTokenSource?>(null);
-        toolBar.ActionRequested += action =>
-        {
-            painter.Invoke(() =>
-            {
-                switch (action)
-                {
+        toolBar.ActionRequested += action => {
+            painter.Invoke(() => {
+                switch (action) {
                     case ToolBarAction.New:
-                        outputView.Clear();
-                        chatHistory.Clear();
-                        // T7：开新会话 — 引擎切到全新桶，此后 transcript 写入新会话文件
-                        if (sessionStore is not null)
-                        {
-                            var freshId = JoinCode.Cli.SessionIdGenerator.Generate(null, DateTime.UtcNow.AddMinutes(sessionStore.NewSessionSequence++));
-                            _ = Task.Run(async () =>
-                            {
-                                try
-                                {
-                                    var mgr = services.GetService<IChatContextManager>();
-                                    var chat = services.GetService<Abstractions.Interfaces.IChatService>();
-                                    if (mgr is not null && chat is not null)
-                                        await sessionStore.SwitchToAsync(mgr, chat, freshId).ConfigureAwait(false);
-                                }
-                                catch (Exception switchEx)
-                                {
-                                    WriteDiag($"[T7] New session switch failed: {switchEx.Message}");
-                                }
-                            });
-                        }
-                        outputView.AppendLine("⚡ 新会话已创建");
-                        break;
-                    case ToolBarAction.Pause:
-                        outputView.AppendLine("⏸ 暂停/恢复 — 轮询切换");
-                        _ = Task.Run(async () =>
-                        {
-                            await polling.StopAsync().ConfigureAwait(false);
-                            await Task.Delay(100).ConfigureAwait(false);
-                            polling.Start();
+                    outputView.Clear();
+                    chatHistory.Clear();
+                    // T7：开新会话 — 引擎切到全新桶，此后 transcript 写入新会话文件
+                    if (sessionStore is not null) {
+                        var freshId = JoinCode.Cli.SessionIdGenerator.Generate(null, DateTime.UtcNow.AddMinutes(sessionStore.NewSessionSequence++));
+                        _ = Task.Run(async () => {
+                            try {
+                                var mgr = services.GetService<IChatContextManager>();
+                                var chat = services.GetService<Abstractions.Interfaces.IChatService>();
+                                if (mgr is not null && chat is not null)
+                                    await sessionStore.SwitchToAsync(mgr, chat, freshId).ConfigureAwait(false);
+                            } catch (Exception switchEx) {
+                                WriteDiag($"[T7] New session switch failed: {switchEx.Message}");
+                            }
                         });
-                        break;
-                    case ToolBarAction.Stop:
-                    {
+                    }
+                    outputView.AppendLine("⚡ 新会话已创建");
+                    break;
+                    case ToolBarAction.Pause:
+                    outputView.AppendLine("⏸ 暂停/恢复 — 轮询切换");
+                    _ = Task.Run(async () => {
+                        await polling.StopAsync().ConfigureAwait(false);
+                        await Task.Delay(100).ConfigureAwait(false);
+                        polling.Start();
+                    });
+                    break;
+                    case ToolBarAction.Stop: {
                         var cts = currentQueryCts.Value;
-                        if (cts is not null && !cts.IsCancellationRequested && !cts.Token.IsCancellationRequested)
-                        {
-                            try
-                            {
+                        if (cts is not null && !cts.IsCancellationRequested && !cts.Token.IsCancellationRequested) {
+                            try {
                                 cts.Cancel();
                                 outputView.AppendLine("⏹ 已请求停止当前生成");
-                            }
-                            catch (ObjectDisposedException)
-                            {
+                            } catch (ObjectDisposedException) {
                                 // 命令恰在此时完成并释放 CTS — 视为无进行中任务
                                 outputView.AppendLine("⏹ 当前没有正在进行的生成（/exit 退出程序）");
                             }
-                        }
-                        else
-                        {
+                        } else {
                             outputView.AppendLine("⏹ 当前没有正在进行的生成（/exit 退出程序）");
                         }
                         break;
                     }
                     case ToolBarAction.Chat:
-                        outputView.AppendLine("💬 Chat 模式 — 对话输出在此显示");
-                        break;
+                    outputView.AppendLine("💬 Chat 模式 — 对话输出在此显示");
+                    break;
                     case ToolBarAction.Stats:
-                        var elapsed = DateTime.UtcNow - startTime;
-                        outputView.AppendLine($"📊 Stats │ 消息数: {chatHistory.Count} │ 运行时长: {elapsed:hh\\:mm\\:ss}");
-                        break;
+                    var elapsed = DateTime.UtcNow - startTime;
+                    outputView.AppendLine($"📊 Stats │ 消息数: {chatHistory.Count} │ 运行时长: {elapsed:hh\\:mm\\:ss}");
+                    break;
                 }
             });
         };
 
-        footerTab.TabSwitched += tab =>
-        {
-            switch (tab)
-            {
+        footerTab.TabSwitched += tab => {
+            switch (tab) {
                 case FooterTab.Log:
-                    outputView.AppendLine("📋 [Log] 日志模式 — 输出实时显示在此区域");
-                    break;
+                outputView.AppendLine("📋 [Log] 日志模式 — 输出实时显示在此区域");
+                break;
                 case FooterTab.Files:
-                    outputView.AppendLine($"📁 [Files] 当前目录: {Environment.CurrentDirectory}");
-                    try
-                    {
-                        var files = Directory.GetFiles(Environment.CurrentDirectory);
-                        var dirs = Directory.GetDirectories(Environment.CurrentDirectory);
-                        foreach (var d in dirs.Take(5))
-                            outputView.AppendLine($"  📂 {Path.GetFileName(d)}/");
-                        foreach (var f in files.Take(10))
-                            outputView.AppendLine($"  📄 {Path.GetFileName(f)}");
-                        var total = files.Length + dirs.Length;
-                        if (total > 15)
-                            outputView.AppendLine($"  ... 共 {total} 项");
-                    }
-                    catch (Exception ex) { outputView.AppendLine($"  [错误] {ex.Message}"); }
-                    break;
+                outputView.AppendLine($"📁 [Files] 当前目录: {Environment.CurrentDirectory}");
+                try {
+                    var files = Directory.GetFiles(Environment.CurrentDirectory);
+                    var dirs = Directory.GetDirectories(Environment.CurrentDirectory);
+                    foreach (var d in dirs.Take(5))
+                        outputView.AppendLine($"  📂 {Path.GetFileName(d)}/");
+                    foreach (var f in files.Take(10))
+                        outputView.AppendLine($"  📄 {Path.GetFileName(f)}");
+                    var total = files.Length + dirs.Length;
+                    if (total > 15)
+                        outputView.AppendLine($"  ... 共 {total} 项");
+                } catch (Exception ex) { outputView.AppendLine($"  [错误] {ex.Message}"); }
+                break;
                 case FooterTab.Memory:
-                    outputView.AppendLine($"🧠 [Memory] 对话消息数: {chatHistory.Count}");
-                    break;
+                outputView.AppendLine($"🧠 [Memory] 对话消息数: {chatHistory.Count}");
+                break;
                 case FooterTab.Settings:
-                    outputView.AppendLine($"⚙️ [Settings] 模型: {config.CurrentModelId}");
-                    outputView.AppendLine("  TUI模式: True");
-                    break;
+                outputView.AppendLine($"⚙️ [Settings] 模型: {config.CurrentModelId}");
+                outputView.AppendLine("  TUI模式: True");
+                break;
             }
         };
 
-        using var timer = new System.Threading.Timer(_ =>
-        {
+        using var timer = new System.Threading.Timer(_ => {
             painter.Invoke(() => footerTab.SetElapsedTime(DateTime.UtcNow - startTime));
         }, null, 1000, 1000);
 
-        var top = new Window
-        {
+        var top = new Window {
             Width = Dim.Fill(),
             Height = Dim.Fill(),
             BorderStyle = LineStyle.None,
         };
         top.Add(root);
 
-        root.KeyDown += (_, key) =>
-        {
+        root.KeyDown += (_, key) => {
             if (key == TuiKey.F1) toolBar.TriggerAction(ToolBarAction.New);
             else if (key == TuiKey.F2) toolBar.TriggerAction(ToolBarAction.Pause);
             else if (key == TuiKey.F3) toolBar.TriggerAction(ToolBarAction.Stop);
@@ -243,8 +213,7 @@ internal static class TuiModeRunner
         var iterCount = 0;
         var iterSw = System.Diagnostics.Stopwatch.StartNew();
         var lastIterMs = 0L;
-        app.Iteration += (_, _) =>
-        {
+        app.Iteration += (_, _) => {
             var iterSw2 = System.Diagnostics.Stopwatch.StartNew();
             iterCount++;
             var nowMs = iterSw.ElapsedMilliseconds;
@@ -255,19 +224,15 @@ internal static class TuiModeRunner
             if (iterCount % 100 == 0)
                 PerfTap.Log("Iteration.stats", gap, $"#{iterCount} avg={nowMs / iterCount}ms");
             outputView.Flush();
-            if (!focusSet)
-            {
+            if (!focusSet) {
                 focusSet = true;
                 promptView.SetFocus();
             }
-            try
-            {
+            try {
                 resizeMonitor.CheckAndNotify(Console.WindowWidth, Console.WindowHeight);
-            }
-            catch (Exception ex) { WriteDiag($"[TUI] resize check failed: {ex.Message}"); }
+            } catch (Exception ex) { WriteDiag($"[TUI] resize check failed: {ex.Message}"); }
             var snapshot = queue.GetSnapshot();
-            if (snapshot.All.Count != lastQueueCount)
-            {
+            if (snapshot.All.Count != lastQueueCount) {
                 lastQueueCount = snapshot.All.Count;
                 // 经 painter 广播给全部注册组件（状态栏"队列:N"段/工具栏等），
                 // 直调单个视图会绕过其余组件导致死路径（曾致状态栏队列计数永不更新）
@@ -279,15 +244,12 @@ internal static class TuiModeRunner
         };
 
         polling.Start();
-        try
-        {
+        try {
             using var ctReg = cancellationToken.Register(() => app.RequestStop());
             WriteDiag("[TUI] app.Run start");
             app.Run(top);
             WriteDiag("[TUI] app.Run returned");
-        }
-        finally
-        {
+        } finally {
             processingCts.Cancel();
             await polling.StopAsync().ConfigureAwait(false);
             try { await processingTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
@@ -309,26 +271,21 @@ internal static class TuiModeRunner
         ToolBarView toolBar,
         System.Runtime.CompilerServices.StrongBox<CancellationTokenSource?> currentQueryCts,
         Session.TuiSessionStore? sessionStore,
-        CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
+        CancellationToken cancellationToken) {
+        while (!cancellationToken.IsCancellationRequested) {
             var cmd = queue.Dequeue();
-            if (cmd is null)
-            {
+            if (cmd is null) {
                 await Task.Delay(50, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
             // 斜杠命令 — 转发到共享 SlashCommandRunner（与 GUI 同一执行链路）
-            if (cmd.Content.Length > 0 && cmd.Content[0] == '/')
-            {
+            if (cmd.Content.Length > 0 && cmd.Content[0] == '/') {
                 await HandleSlashCommandAsync(cmd.Content, services, outputView, chatHistory, requestStop, painter, permissionDialog, sessionStore, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
-            mainPipe.AddMessage(new TuiMessage
-            {
+            mainPipe.AddMessage(new TuiMessage {
                 Id = Guid.NewGuid().ToString("N"),
                 AgentId = "main",
                 Type = TuiMessageType.User,
@@ -338,8 +295,7 @@ internal static class TuiModeRunner
 
             outputView.AppendLine($"👤 {cmd.Content}");
 
-            if (queryEngine is null)
-            {
+            if (queryEngine is null) {
                 outputView.AppendLine("🤖 (未配置LLM) 请设置 API Key 后使用");
                 continue;
             }
@@ -351,18 +307,15 @@ internal static class TuiModeRunner
             var permissionRetryCount = 0;
             var cmdCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             currentQueryCts.Value = cmdCts;
-            try
-            {
+            try {
                 painter.Invoke(() => toolBar.SetRunning(true));
                 var chunkCount = 0;
                 long totalTokens = 0;
                 var chunkSw = System.Diagnostics.Stopwatch.StartNew();
-                await foreach (var chunk in queryEngine.QueryAsync(cmd.Content, chatHistory, cmdCts.Token).ConfigureAwait(false))
-                {
+                await foreach (var chunk in queryEngine.QueryAsync(cmd.Content, chatHistory, cmdCts.Token).ConfigureAwait(false)) {
                     chunkCount++;
                     var text = ChunkFormatter.ChunkToText(chunk);
-                    if (!string.IsNullOrEmpty(text))
-                    {
+                    if (!string.IsNullOrEmpty(text)) {
                         outputView.AppendText(text);
                     }
                     if (chunk.Usage is not null)
@@ -372,30 +325,23 @@ internal static class TuiModeRunner
                 PerfTap.Log("chunk-loop-total", chunkSw.ElapsedMilliseconds, $"chunks={chunkCount} cmd={cmd.Content[..Math.Min(50, cmd.Content.Length)]}");
                 if (totalTokens > 0)
                     painter.Invoke(() => statusBar.SetTokenCount(totalTokens));
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 // 用户主动停止当前生成 — 队列继续处理后续命令，不退出程序
                 outputView.AppendLine("  ⏹ 已停止当前生成");
-            }
-            catch (PermissionPendingConfirmationException ex)
-            {
+            } catch (PermissionPendingConfirmationException ex) {
                 // T3 重试上限 — 超限不再弹窗，报错终止本轮（对齐 GUI MaxPermissionRetries）
-                if (permissionRetryCount >= MaxPermissionRetries)
-                {
+                if (permissionRetryCount >= MaxPermissionRetries) {
                     outputView.AppendLine($"  [错误] 权限确认重试次数超限: {ex.ToolName}");
                     continue;
                 }
 
                 PermissionConfirmAction? decision = null;
-                painter.Invoke(() =>
-                {
+                painter.Invoke(() => {
                     decision = permissionDialog.ShowWithDecisionAsync(ex.ToolName, ex.ConfirmationPrompt, cancellationToken).GetAwaiter().GetResult();
                 });
                 painter.Invoke(() => permissionDialog.Hide());
 
-                if (decision is { } d && d != PermissionConfirmAction.Deny)
-                {
+                if (decision is { } d && d != PermissionConfirmAction.Deny) {
                     var duration = GetApprovalDuration(d);
                     permissionManager?.ApproveToolTemporarily(ex.ToolName, duration);
 
@@ -410,18 +356,12 @@ internal static class TuiModeRunner
                     var label = d == PermissionConfirmAction.AlwaysAllow ? "始终允许" : "允许";
                     outputView.AppendLine($"  [{label}] {ex.ToolName}（{duration.TotalMinutes:N0} 分钟）");
                     queue.Enqueue(new QueuedCommand(cmd.Content, CommandOrigin.User, QueuePriority.Now));
-                }
-                else
-                {
+                } else {
                     outputView.AppendLine($"  [拒绝] {ex.ToolName}");
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 outputView.AppendLine($"  [错误] {ex.Message}");
-            }
-            finally
-            {
+            } finally {
                 // 先清空引用再释放 — Stop 按钮读到 null 即报"没有正在进行的生成"，避免对已释放实例 Cancel
                 currentQueryCts.Value = null;
                 cmdCts.Dispose();
@@ -434,8 +374,7 @@ internal static class TuiModeRunner
     /// 裁剪 chatHistory 回快照点 — 权限批准后重发前调用，撤回本轮已入历史的
     /// 用户消息+部分助手/工具消息，避免重发造成上下文重复（对齐 GUI RewindLastTurnAsync 语义）。
     /// </summary>
-    internal static void RewindToSnapshot(MessageList history, int snapshotCount)
-    {
+    internal static void RewindToSnapshot(MessageList history, int snapshotCount) {
         while (history.Count > snapshotCount)
             history.RemoveAt(history.Count - 1);
     }
@@ -447,8 +386,7 @@ internal static class TuiModeRunner
     /// 权限决策 → 批准时长映射（T3 对齐 GUI JccChatSession 语义）：
     /// 允许一次 = 5 分钟临时批准；始终允许 = 24 小时会话级；拒绝 = 零时长。
     /// </summary>
-    internal static TimeSpan GetApprovalDuration(PermissionConfirmAction decision) => decision switch
-    {
+    internal static TimeSpan GetApprovalDuration(PermissionConfirmAction decision) => decision switch {
         PermissionConfirmAction.AlwaysAllow => TimeSpan.FromHours(24),
         PermissionConfirmAction.Allow => TimeSpan.FromMinutes(5),
         _ => TimeSpan.Zero,
@@ -460,11 +398,9 @@ internal static class TuiModeRunner
     /// 保持一致，否则后续对话 LLM 收不到恢复的历史。角色字符串经生成的 FromValue 映射，
     /// 未识别角色回退 Tool（与 GUI ReloadMessagesFromEngineAsync 的 User 回退互补覆盖）。
     /// </summary>
-    internal static void SyncHistoryFromEngine(MessageList history, IReadOnlyList<ApiMessageRecord> records)
-    {
+    internal static void SyncHistoryFromEngine(MessageList history, IReadOnlyList<ApiMessageRecord> records) {
         var rebuilt = new List<ApiMessage>(records.Count);
-        foreach (var record in records)
-        {
+        foreach (var record in records) {
             var role = MessageRoleExtensions.FromValue(record.Role) ?? MessageRole.Tool;
             rebuilt.Add(new ApiMessage(role, record.Content));
         }
@@ -484,11 +420,9 @@ internal static class TuiModeRunner
         TerminalPainter painter,
         PermissionDialogView permissionDialog,
         Session.TuiSessionStore? sessionStore,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         // T7：/sessions 会话切换 — 引擎桶 SwitchSession + 历史灌入 + 本地重绘
-        if (sessionStore is not null && input.TrimStart().StartsWith("/sessions", StringComparison.OrdinalIgnoreCase))
-        {
+        if (sessionStore is not null && input.TrimStart().StartsWith("/sessions", StringComparison.OrdinalIgnoreCase)) {
             await HandleSessionsCommandAsync(input, sessionStore, services, outputView, history, painter, cancellationToken).ConfigureAwait(false);
             return;
         }
@@ -497,8 +431,7 @@ internal static class TuiModeRunner
             input,
             services,
             clearScreen: () => painter.Invoke(() => outputView.Clear()),
-            confirm: msg =>
-            {
+            confirm: msg => {
                 Task<bool>? dialogTask = null;
                 painter.Invoke(() => dialogTask = permissionDialog.ShowAsync("确认", msg, cancellationToken));
                 var confirmed = dialogTask!.GetAwaiter().GetResult();
@@ -515,19 +448,14 @@ internal static class TuiModeRunner
 
         // T1：命令可能改变引擎上下文（/resume 装入历史、/clear 清空、/compact 压缩），
         // 重读引擎消息重建本地 chatHistory，保证后续对话 LLM 收到正确上下文
-        if (result.Handled)
-        {
-            try
-            {
+        if (result.Handled) {
+            try {
                 var chat = services.GetService<Abstractions.Interfaces.IChatService>();
-                if (chat is not null)
-                {
+                if (chat is not null) {
                     var records = await chat.GetMessageListAsync(cancellationToken).ConfigureAwait(false);
                     painter.Invoke(() => SyncHistoryFromEngine(history, records));
                 }
-            }
-            catch (Exception syncEx)
-            {
+            } catch (Exception syncEx) {
                 WriteDiag($"[T1] history sync failed: {syncEx.Message}");
             }
         }
@@ -545,16 +473,13 @@ internal static class TuiModeRunner
         OutputView outputView,
         MessageList history,
         TerminalPainter painter,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var argument = input.TrimStart()["/sessions".Length..].Trim();
         var summaries = await sessionStore.ListSessionsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        if (string.IsNullOrEmpty(argument) || argument is "list" or "ls")
-        {
+        if (string.IsNullOrEmpty(argument) || argument is "list" or "ls") {
             outputView.AppendLine("=== 最近会话 ===");
-            foreach (var (summary, idx) in summaries.Select((s, i) => (s, i)))
-            {
+            foreach (var (summary, idx) in summaries.Select((s, i) => (s, i))) {
                 var marker = summary.SessionId == sessionStore.SessionId ? " ← 当前" : string.Empty;
                 var preview = summary.LastMessagePreview is { Length: > 40 } p ? p[..40] + "…" : summary.LastMessagePreview ?? string.Empty;
                 outputView.AppendLine($"  [{idx + 1}] {summary.SessionId} ({summary.MessageCount} 条){marker}");
@@ -564,14 +489,12 @@ internal static class TuiModeRunner
             return;
         }
 
-        if (!Session.TuiSessionStore.TryResolveTarget(argument, summaries, out var targetId))
-        {
+        if (!Session.TuiSessionStore.TryResolveTarget(argument, summaries, out var targetId)) {
             outputView.AppendLine($"[错误] 无法解析目标: {argument}（序号 1-{summaries.Count} 或完整 sessionId）");
             return;
         }
 
-        if (targetId == sessionStore.SessionId)
-        {
+        if (targetId == sessionStore.SessionId) {
             outputView.AppendLine($"当前已是该会话: {targetId}");
             return;
         }
@@ -579,8 +502,7 @@ internal static class TuiModeRunner
         var transcriptService = services.GetService<Abstractions.Interfaces.ITranscriptService>();
         var ctxMgr = services.GetService<IChatContextManager>();
         var chat = services.GetService<Abstractions.Interfaces.IChatService>();
-        if (transcriptService is null || ctxMgr is null || chat is null)
-        {
+        if (transcriptService is null || ctxMgr is null || chat is null) {
             outputView.AppendLine("[错误] 会话服务未就绪");
             return;
         }
@@ -595,13 +517,11 @@ internal static class TuiModeRunner
         // 2. 切引擎桶 → 灌入历史 → 本地重建（顺序对齐 SessionResumeStep：先切桶再灌入）
         await sessionStore.SwitchToAsync(ctxMgr, chat, targetId, cancellationToken).ConfigureAwait(false);
         await chat.LoadSessionMessagesAsync(records, cancellationToken).ConfigureAwait(false);
-        painter.Invoke(() =>
-        {
+        painter.Invoke(() => {
             SyncHistoryFromEngine(history, records);
             outputView.Clear();
             outputView.AppendLine($"🔄 已切换会话: {targetId}（{records.Count} 条消息）");
-            foreach (var message in history)
-            {
+            foreach (var message in history) {
                 if (message.Role == MessageRole.User && !string.IsNullOrEmpty(message.Content))
                     outputView.AppendLine($"👤 {message.Content}");
                 else if (message.Role == MessageRole.Assistant && !string.IsNullOrEmpty(message.Content))
@@ -611,16 +531,13 @@ internal static class TuiModeRunner
         WriteDiag($"[T7] session switched to {targetId}, {records.Count} messages loaded");
     }
 
-    private static void WriteDiag(string message)
-    {
-        try
-        {
+    private static void WriteDiag(string message) {
+        try {
             var dir = AppDataConstants.UserRuntimeJccTuiDiagDirectory;
             System.IO.Directory.CreateDirectory(dir);
             SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "run.log"),
                 $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n");
-        }
-        catch (Exception logEx) { Console.Error.WriteLine($"[diag] WriteDiag failed: {logEx.Message}"); }
+        } catch (Exception logEx) { Console.Error.WriteLine($"[diag] WriteDiag failed: {logEx.Message}"); }
     }
 }

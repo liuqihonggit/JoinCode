@@ -3,8 +3,7 @@ namespace McpProtocol.Contracts;
 /// <summary>
 /// JSON-RPC 2.0 协议常量
 /// </summary>
-public static class JsonRpc
-{
+public static class JsonRpc {
     /// <summary>JSON-RPC 协议版本号</summary>
     public const string ProtocolVersion = "2.0";
     /// <summary>LSP 风格 Content-Length 框架协议前缀</summary>
@@ -14,8 +13,7 @@ public static class JsonRpc
 /// <summary>
 /// MCP 协议版本常量 — 对齐官方规范版本号
 /// </summary>
-public static class McpProtocolVersion
-{
+public static class McpProtocolVersion {
     /// <summary>2024-11-05 规范版本(已归档)</summary>
     public const string V2024_11_05 = "2024-11-05";
     /// <summary>2025-03-26 规范版本</summary>
@@ -37,8 +35,7 @@ public static class McpProtocolVersion
 /// <summary>
 /// JSON-RPC 错误码常量 — 对齐 RFC 规范定义
 /// </summary>
-public static class ErrorCodes
-{
+public static class ErrorCodes {
     /// <summary>解析错误:服务端收到无效 JSON</summary>
     public const int ParseError = -32700;
     /// <summary>无效请求:发送的 JSON 不是有效请求对象</summary>
@@ -54,8 +51,7 @@ public static class ErrorCodes
 /// <summary>
 /// JSON 值类型字符串常量 — 对齐 JSON Schema type 字段取值
 /// </summary>
-public static class JsonValueTypes
-{
+public static class JsonValueTypes {
     /// <summary>字符串类型</summary>
     public const string String = "string";
     /// <summary>整数类型</summary>

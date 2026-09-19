@@ -13,8 +13,7 @@ namespace Api.LLM.Fallback;
 /// 因此流式+fallback 逻辑通过 CollectStreamingEventsAsync 辅助方法实现：
 /// 先收集流式事件到列表，如果失败则执行 fallback，最后统一 yield
 /// </remarks>
-public sealed class StreamingFallbackDecorator : IQueryService
-{
+public sealed class StreamingFallbackDecorator : IQueryService {
     private readonly IQueryService _inner;
     private readonly StreamingFallbackConfig _config;
     private readonly ILogger? _logger;
@@ -33,8 +32,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
     public StreamingFallbackDecorator(
         IQueryService inner,
         StreamingFallbackConfig? config = null,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _config = config ?? new StreamingFallbackConfig();
         _logger = logger;
@@ -47,8 +45,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         LastRequestFellBack = false;
         return _inner.GetApiMessageContentsAsync(chatHistory, executionSettings, kernel, cancellationToken);
     }
@@ -61,15 +58,12 @@ public sealed class StreamingFallbackDecorator : IQueryService
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
+        [EnumeratorCancellation] CancellationToken cancellationToken = default) {
         LastRequestFellBack = false;
 
-        if (!_config.Enabled)
-        {
+        if (!_config.Enabled) {
             _logger?.LogInformation("[FALLBACK {CallId}] bypassed, Enabled=false", CallTrace.CurrentId);
-            await foreach (var evt in _inner.GetStreamEventContentsAsync(chatHistory, executionSettings, kernel, cancellationToken).ConfigureAwait(false))
-            {
+            await foreach (var evt in _inner.GetStreamEventContentsAsync(chatHistory, executionSettings, kernel, cancellationToken).ConfigureAwait(false)) {
                 yield return evt;
             }
             yield break;
@@ -77,8 +71,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
 
         var result = await CollectWithFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken).ConfigureAwait(false);
 
-        foreach (var evt in result.Events)
-        {
+        foreach (var evt in result.Events) {
             yield return evt;
         }
     }
@@ -91,8 +84,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
         MessageList chatHistory,
         ChatOptions? executionSettings,
         IChatClient? kernel,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         using var watchdog = new StreamIdleWatchdog(
             _config.StreamIdleTimeoutMs,
             cancellationToken,
@@ -100,48 +92,36 @@ public sealed class StreamingFallbackDecorator : IQueryService
 
         var events = new List<StreamEvent>();
 
-        try
-        {
+        try {
             await foreach (var evt in _inner.GetStreamEventContentsAsync(
-                chatHistory, executionSettings, kernel, watchdog.CombinedToken).ConfigureAwait(false))
-            {
+                chatHistory, executionSettings, kernel, watchdog.CombinedToken).ConfigureAwait(false)) {
                 watchdog.Reset();
                 events.Add(evt);
             }
 
-            if (watchdog.WasIdleAborted)
-            {
+            if (watchdog.WasIdleAborted) {
                 throw new StreamingFallbackTriggeredException(
                     "Stream idle timeout - no chunks received",
                     FallbackCause.Watchdog);
             }
 
-            if (events.Count == 0)
-            {
+            if (events.Count == 0) {
                 throw new StreamingFallbackTriggeredException(
                     "Stream completed without receiving any events",
                     FallbackCause.IncompleteStream);
             }
 
             return new StreamingResult(events, fellBack: false);
-        }
-        catch (OperationCanceledException ex) when (watchdog.WasIdleAborted)
-        {
+        } catch (OperationCanceledException ex) when (watchdog.WasIdleAborted) {
             return await ExecuteFallbackAsync(
                 chatHistory, executionSettings, kernel, cancellationToken,
                 new StreamingFallbackTriggeredException("Stream idle timeout", FallbackCause.Watchdog, ex),
                 events);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
             return new StreamingResult(events, fellBack: false);
-        }
-        catch (StreamingFallbackTriggeredException ex)
-        {
+        } catch (StreamingFallbackTriggeredException ex) {
             return await ExecuteFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken, ex, events);
-        }
-        catch (Exception ex) when (ShouldFallback(ex, cancellationToken))
-        {
+        } catch (Exception ex) when (ShouldFallback(ex, cancellationToken)) {
             return await ExecuteFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken, ex, events);
         }
     }
@@ -155,8 +135,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
         IChatClient? kernel,
         CancellationToken cancellationToken,
         Exception originalError,
-        List<StreamEvent> partialEvents)
-    {
+        List<StreamEvent> partialEvents) {
         _logger?.LogWarning("[FALLBACK {CallId}:161] 流式失败, 降级为非流式 | {ExType}: {Message}", CallTrace.CurrentId, originalError.GetType().Name, originalError.Message);
 
         LastRequestFellBack = true;
@@ -168,13 +147,10 @@ public sealed class StreamingFallbackDecorator : IQueryService
         fallbackCts.CancelAfter(_config.NonStreamingTimeoutMs);
 
         IReadOnlyList<ApiMessage> messages;
-        try
-        {
+        try {
             messages = await _inner.GetApiMessageContentsAsync(
                 chatHistory, cappedSettings, kernel, fallbackCts.Token).ConfigureAwait(false);
-        }
-        catch (Exception fallbackEx)
-        {
+        } catch (Exception fallbackEx) {
             _logger?.LogError("[FALLBACK {CallId}:179] 非流式降级也失败 | {ExType}: {Message}", CallTrace.CurrentId, fallbackEx.GetType().Name, fallbackEx.Message);
             throw new AggregateException("Both streaming and non-streaming fallback failed", originalError, fallbackEx);
         }
@@ -186,23 +162,20 @@ public sealed class StreamingFallbackDecorator : IQueryService
     /// <summary>
     /// 判断异常是否应触发 fallback — 对齐 TS catch 块中的条件
     /// </summary>
-    private bool ShouldFallback(Exception ex, CancellationToken originalToken)
-    {
+    private bool ShouldFallback(Exception ex, CancellationToken originalToken) {
         if (originalToken.IsCancellationRequested)
             return false;
 
         if (ex is OperationCanceledException oce && oce.CancellationToken == originalToken)
             return false;
 
-        if (ex is HttpRequestException httpEx && httpEx.StatusCode.HasValue)
-        {
+        if (ex is HttpRequestException httpEx && httpEx.StatusCode.HasValue) {
             var statusCode = (int)httpEx.StatusCode.Value;
             if (_config.FallbackStatusCodes.Contains(statusCode))
                 return true;
         }
 
-        if (ex is ApiException apiEx && apiEx.StatusCode.HasValue)
-        {
+        if (ex is ApiException apiEx && apiEx.StatusCode.HasValue) {
             if (_config.FallbackStatusCodes.Contains(apiEx.StatusCode.Value))
                 return true;
         }
@@ -217,8 +190,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
     /// 调整非流式请求参数 — 对齐 TS adjustParamsForNonStreaming
     /// 将 max_tokens 限制到 MaxNonStreamingTokens (64k)
     /// </summary>
-    private ChatOptions? AdjustSettingsForNonStreaming(ChatOptions? settings)
-    {
+    private ChatOptions? AdjustSettingsForNonStreaming(ChatOptions? settings) {
         if (settings is null)
             return null;
 
@@ -226,8 +198,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
             ? Math.Min(settings.MaxTokens.Value, _config.MaxNonStreamingTokens)
             : _config.MaxNonStreamingTokens;
 
-        return new ChatOptions
-        {
+        return new ChatOptions {
             FastModelId = settings.FastModelId,
             Temperature = settings.Temperature,
             MaxTokens = cappedMaxTokens,
@@ -243,27 +214,22 @@ public sealed class StreamingFallbackDecorator : IQueryService
     /// <summary>
     /// 将非流式 ApiMessage 转换为 StreamEvent 列表 — fallback 后需要统一为流式接口
     /// </summary>
-    private static List<StreamEvent> ConvertToStreamEvents(IReadOnlyList<ApiMessage> messages)
-    {
+    private static List<StreamEvent> ConvertToStreamEvents(IReadOnlyList<ApiMessage> messages) {
         var result = new List<StreamEvent>(messages.Count);
 
-        for (var i = 0; i < messages.Count; i++)
-        {
+        for (var i = 0; i < messages.Count; i++) {
             var msg = messages[i];
             var metadata = new Dictionary<string, JsonElement>();
 
-            if (msg.Metadata != null)
-            {
-                foreach (var kvp in msg.Metadata)
-                {
+            if (msg.Metadata != null) {
+                foreach (var kvp in msg.Metadata) {
                     metadata[kvp.Key] = kvp.Value;
                 }
             }
 
             metadata["StreamingFallback"] = JsonElementHelper.FromBoolean(true);
 
-            if (i == messages.Count - 1)
-            {
+            if (i == messages.Count - 1) {
                 metadata["FinishReason"] = JsonElementHelper.FromString("stop");
             }
 
@@ -276,8 +242,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
     /// <summary>
     /// 流式收集结果 — 事件列表 + 是否触发过 fallback
     /// </summary>
-    private sealed class StreamingResult(List<StreamEvent> events, bool fellBack)
-    {
+    private sealed class StreamingResult(List<StreamEvent> events, bool fellBack) {
         public List<StreamEvent> Events { get; } = events;
         public bool FellBack { get; } = fellBack;
     }
@@ -286,8 +251,7 @@ public sealed class StreamingFallbackDecorator : IQueryService
 /// <summary>
 /// 流式 fallback 触发原因 — 对齐 TS fallback_cause 字段
 /// </summary>
-public enum FallbackCause
-{
+public enum FallbackCause {
     /// <summary>看门狗超时（流长时间无数据）</summary>
     [EnumValue("watchdog")]
     Watchdog,
@@ -313,13 +277,11 @@ public enum FallbackCause
 /// 流式 fallback 触发异常 — 内部使用，由 StreamingFallbackDecorator 抛出
 /// 当看门狗超时或不完整流时抛出，触发非流式 fallback
 /// </summary>
-public sealed class StreamingFallbackTriggeredException : Exception
-{
+public sealed class StreamingFallbackTriggeredException : Exception {
     public FallbackCause Cause { get; }
 
     public StreamingFallbackTriggeredException(string message, FallbackCause cause, Exception? innerException = null)
-        : base(message, innerException)
-    {
+        : base(message, innerException) {
         Cause = cause;
     }
 }

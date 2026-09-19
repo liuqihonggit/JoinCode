@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Security.Permission;
 /// <summary>
 /// 权限回调接口 — 用于跨组件权限交互（如 Bridge 通信、Swarm 协调）
 /// </summary>
-public interface IPermissionCallbacks
-{
+public interface IPermissionCallbacks {
     /// <summary>发送权限请求</summary>
     void SendRequest(string requestId, string toolName, Dictionary<string, JsonElement> input,
         string toolUseId, string description, List<PermissionCallbackUpdate>? suggestions = null, string? blockedPath = null);

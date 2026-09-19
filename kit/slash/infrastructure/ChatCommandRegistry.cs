@@ -4,8 +4,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 聊天命令注册表 — 管理斜杠命令的注册、查询、解析与分类，支持别名、缓存与遗留命令适配
 /// </summary>
-public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfaces.ICommandRegistry, ISlashCommandRegistry
-{
+public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfaces.ICommandRegistry, ISlashCommandRegistry {
     private readonly CategorizedRegistry<string, IChatCommand, ChatCommandCategory> _registry;
     private readonly ILogger<ChatCommandRegistry>? _logger;
     private IReadOnlyList<ChatCommandInfo> _cachedCommandInfos = [];
@@ -15,8 +14,7 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
     /// 构造 — 创建空注册表，命令名按 OrdinalIgnoreCase 比较
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
-    public ChatCommandRegistry(ILogger<ChatCommandRegistry>? logger = null)
-    {
+    public ChatCommandRegistry(ILogger<ChatCommandRegistry>? logger = null) {
         _registry = new CategorizedRegistry<string, IChatCommand, ChatCommandCategory>(
             defaultCategory: ChatCommandCategory.Other,
             isEnabled: cmd => cmd.IsEnabled,
@@ -28,10 +26,8 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
     /// 注册命令 — 同名命令将被覆盖并记录警告，同时注册所有别名
     /// </summary>
     /// <param name="command">要注册的命令</param>
-    public void Register(IChatCommand command)
-    {
-        if (_registry.ContainsKey(command.Name))
-        {
+    public void Register(IChatCommand command) {
+        if (_registry.ContainsKey(command.Name)) {
             _logger?.LogWarning("[ChatCommandRegistry] 命令 '{CommandName}' 已存在，将被覆盖", command.Name);
         }
 
@@ -49,14 +45,12 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
     /// </summary>
     public void SetCategory(string commandName, ChatCommandCategory category) => _registry.SetCategory(commandName, category);
 
-    void JoinCode.Abstractions.Interfaces.ICommandRegistry.Register(JoinCode.Abstractions.Interfaces.ICommand command)
-    {
+    void JoinCode.Abstractions.Interfaces.ICommandRegistry.Register(JoinCode.Abstractions.Interfaces.ICommand command) {
         var adapter = new LegacyCommandAdapter(command);
         Register(adapter);
     }
 
-    bool JoinCode.Abstractions.Interfaces.ICommandRegistry.UnregisterCommand(string commandName)
-    {
+    bool JoinCode.Abstractions.Interfaces.ICommandRegistry.UnregisterCommand(string commandName) {
         var removed = _registry.Unregister(commandName);
         if (removed) _cachedCommandInfosValid = false;
         return removed;
@@ -66,8 +60,7 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
     /// 批量注册命令
     /// </summary>
     /// <param name="commands">命令序列</param>
-    public void RegisterRange(IEnumerable<IChatCommand> commands)
-    {
+    public void RegisterRange(IEnumerable<IChatCommand> commands) {
         foreach (var command in commands)
             Register(command);
     }
@@ -77,8 +70,7 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
     /// </summary>
     /// <param name="commandName">命令名称或别名</param>
     /// <returns>命令实例，未找到返回 null</returns>
-    public IChatCommand? GetCommand(string commandName)
-    {
+    public IChatCommand? GetCommand(string commandName) {
         _registry.TryGetValue(commandName, out var cmd);
         return cmd;
     }
@@ -101,16 +93,13 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
     /// </summary>
     /// <param name="input">原始用户输入</param>
     /// <returns>解析结果，包含命令名与参数</returns>
-    public ChatCommandParseResult Parse(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
+    public ChatCommandParseResult Parse(string input) {
+        if (string.IsNullOrWhiteSpace(input)) {
             return ChatCommandParseResult.Failed("输入为空");
         }
 
         var trimmed = input.TrimStart('/');
-        if (string.IsNullOrWhiteSpace(trimmed))
-        {
+        if (string.IsNullOrWhiteSpace(trimmed)) {
             return ChatCommandParseResult.Failed("命令名称为空");
         }
 
@@ -118,13 +107,10 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
         string commandName;
         string arguments;
 
-        if (spaceIndex == -1)
-        {
+        if (spaceIndex == -1) {
             commandName = trimmed;
             arguments = string.Empty;
-        }
-        else
-        {
+        } else {
             commandName = trimmed[..spaceIndex];
             arguments = trimmed[(spaceIndex + 1)..].Trim();
         }
@@ -136,10 +122,8 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
     /// 获取所有命令信息（带分类）— 结果缓存，注册变更时自动失效
     /// </summary>
     /// <returns>命令信息列表</returns>
-    public IEnumerable<ChatCommandInfo> GetCommandInfos()
-    {
-        if (!_cachedCommandInfosValid)
-        {
+    public IEnumerable<ChatCommandInfo> GetCommandInfos() {
+        if (!_cachedCommandInfosValid) {
             _cachedCommandInfos = _registry.GetCategorizedEntries()
                 .Select(e => new ChatCommandInfo(
                     e.Value.Name,
@@ -156,8 +140,7 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
     }
 }
 
-internal sealed class LegacyCommandAdapter : IChatCommand
-{
+internal sealed class LegacyCommandAdapter : IChatCommand {
     private readonly JoinCode.Abstractions.Interfaces.ICommand _legacyCommand;
 
     public string Name => _legacyCommand.Name;
@@ -168,26 +151,22 @@ internal sealed class LegacyCommandAdapter : IChatCommand
     public bool IsHidden => false;
     public bool IsEnabled => true;
 
-    public LegacyCommandAdapter(JoinCode.Abstractions.Interfaces.ICommand legacyCommand)
-    {
+    public LegacyCommandAdapter(JoinCode.Abstractions.Interfaces.ICommand legacyCommand) {
         _legacyCommand = legacyCommand;
     }
 
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var legacyContext = new LegacyCommandContext(context, _legacyCommand.Name);
         await _legacyCommand.ExecuteAsync(legacyContext, context.CancellationToken);
         return ChatCommandResult.Continue();
     }
 }
 
-internal sealed class LegacyCommandContext : JoinCode.Abstractions.Interfaces.ICommandContext
-{
+internal sealed class LegacyCommandContext : JoinCode.Abstractions.Interfaces.ICommandContext {
     private readonly ChatCommandContext _context;
     private readonly string _commandName;
 
-    public LegacyCommandContext(ChatCommandContext context, string commandName)
-    {
+    public LegacyCommandContext(ChatCommandContext context, string commandName) {
         _context = context;
         _commandName = commandName;
     }
@@ -209,61 +188,44 @@ internal sealed class LegacyCommandContext : JoinCode.Abstractions.Interfaces.IC
     public string ReadPassword(string prompt) => _context.ReadPassword?.Invoke(prompt) ?? string.Empty;
 }
 
-internal sealed class LegacyConsoleOutput : JoinCode.Abstractions.Interfaces.IConsoleOutput
-{
+internal sealed class LegacyConsoleOutput : JoinCode.Abstractions.Interfaces.IConsoleOutput {
     public void WriteLine(string message) => TerminalHelper.WriteLine(message);
     public void WriteError(string message) => TerminalHelper.WriteLine($"{TerminalColors.Error}{message}{AnsiStyleEnumConstants.Reset}");
     public void WriteSuccess(string message) => TerminalHelper.WriteLine($"{TerminalColors.Success}{message}{AnsiStyleEnumConstants.Reset}");
     public void WriteWarning(string message) => TerminalHelper.WriteLine($"{TerminalColors.Warning}{message}{AnsiStyleEnumConstants.Reset}");
-    public string? Prompt(string message)
-    {
+    public string? Prompt(string message) {
         // 非交互模式或测试环境返回 null，避免无限等待
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             return null;
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteRaw(message);
             return TerminalHelper.ReadLine();
         }
     }
-    public bool Confirm(string message)
-    {
+    public bool Confirm(string message) {
         // 非交互模式或测试环境默认拒绝
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             return false;
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteRaw($"{message} (y/N) ");
             return TerminalHelper.ReadLine()?.ToLowerInvariant() == "y";
         }
     }
     public void WriteLine(string message, ConsoleColor color) => TerminalHelper.WriteLine(message);
-    public string ReadPassword(string prompt)
-    {
+    public string ReadPassword(string prompt) {
         // 非交互模式或测试环境回退：返回空字符串
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             TerminalHelper.WriteLine(prompt);
             return string.Empty;
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteRaw(prompt);
             var password = new System.Text.StringBuilder();
-            while (true)
-            {
+            while (true) {
                 var key = TerminalHelper.ReadKey(true);
                 if (key.Key == ConsoleKey.Enter) break;
-                if (key.Key == ConsoleKey.Backspace)
-                {
+                if (key.Key == ConsoleKey.Backspace) {
                     if (password.Length > 0) password.Remove(password.Length - 1, 1);
-                }
-                else
-                {
+                } else {
                     password.Append(key.KeyChar);
                 }
             }
@@ -283,8 +245,7 @@ internal sealed class LegacyConsoleOutput : JoinCode.Abstractions.Interfaces.ICo
 /// <param name="ArgumentHint">参数提示文本</param>
 /// <param name="IsHidden">是否隐藏</param>
 /// <param name="Category">命令分类</param>
-public sealed record ChatCommandInfo(string Name, string Description, string Usage, string[] Aliases, string ArgumentHint, bool IsHidden, ChatCommandCategory Category = ChatCommandCategory.Other)
-{
+public sealed record ChatCommandInfo(string Name, string Description, string Usage, string[] Aliases, string ArgumentHint, bool IsHidden, ChatCommandCategory Category = ChatCommandCategory.Other) {
     /// <summary>
     /// 简化构造 — 别名空、参数提示空、不隐藏、分类为 Other
     /// </summary>
@@ -297,8 +258,7 @@ public sealed record ChatCommandInfo(string Name, string Description, string Usa
 /// <summary>
 /// 命令解析结果 — 由 ChatCommandRegistry.Parse 产生，标记成功/失败及命令名、参数、错误信息
 /// </summary>
-public sealed partial class ChatCommandParseResult
-{
+public sealed partial class ChatCommandParseResult {
     /// <summary>是否解析成功</summary>
     public bool IsSuccess { get; private set; }
     /// <summary>命令名称（成功时有效）</summary>
@@ -316,8 +276,7 @@ public sealed partial class ChatCommandParseResult
     /// <param name="commandName">命令名称</param>
     /// <param name="arguments">命令参数</param>
     /// <returns>成功解析结果</returns>
-    public static ChatCommandParseResult Success(string commandName, string arguments) => new()
-    {
+    public static ChatCommandParseResult Success(string commandName, string arguments) => new() {
         IsSuccess = true,
         CommandName = commandName,
         Arguments = arguments
@@ -328,8 +287,7 @@ public sealed partial class ChatCommandParseResult
     /// </summary>
     /// <param name="errorMessage">错误信息</param>
     /// <returns>失败解析结果</returns>
-    public static ChatCommandParseResult Failed(string errorMessage) => new()
-    {
+    public static ChatCommandParseResult Failed(string errorMessage) => new() {
         IsSuccess = false,
         ErrorMessage = errorMessage
     };

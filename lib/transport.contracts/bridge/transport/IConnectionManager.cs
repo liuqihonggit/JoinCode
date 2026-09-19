@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// 连接管理器接口 — 管理传输连接生命周期和重连逻辑
 /// </summary>
-public interface IConnectionManager : IAsyncDisposable
-{
+public interface IConnectionManager : IAsyncDisposable {
     /// <summary>当前连接状态</summary>
     TransportConnectionState ConnectionState { get; }
 

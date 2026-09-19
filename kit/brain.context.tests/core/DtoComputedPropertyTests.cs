@@ -3,13 +3,10 @@ namespace Core.Context;
 /// <summary>
 /// DTO 计算属性单元测试 — 覆盖 Stryker 算术与条件变异
 /// </summary>
-public sealed class DtoComputedPropertyTests
-{
+public sealed class DtoComputedPropertyTests {
     [Fact]
-    public void ContextCollapseResult_CompressionRatio_WhenOriginalPositive_ReturnsRatio()
-    {
-        var result = new ContextCollapseResult
-        {
+    public void ContextCollapseResult_CompressionRatio_WhenOriginalPositive_ReturnsRatio() {
+        var result = new ContextCollapseResult {
             Collapsed = true,
             CollapsedContent = "collapsed",
             OriginalTokenCount = 100,
@@ -24,10 +21,8 @@ public sealed class DtoComputedPropertyTests
     }
 
     [Fact]
-    public void ContextCollapseResult_CompressionRatio_WhenOriginalZero_ReturnsOne()
-    {
-        var result = new ContextCollapseResult
-        {
+    public void ContextCollapseResult_CompressionRatio_WhenOriginalZero_ReturnsOne() {
+        var result = new ContextCollapseResult {
             Collapsed = false,
             CollapsedContent = string.Empty,
             OriginalTokenCount = 0,
@@ -42,10 +37,8 @@ public sealed class DtoComputedPropertyTests
     }
 
     [Fact]
-    public void CompactResult_TokenSavingsRatio_WhenPreCompactPositive_ReturnsRatio()
-    {
-        var result = new CompactResult
-        {
+    public void CompactResult_TokenSavingsRatio_WhenPreCompactPositive_ReturnsRatio() {
+        var result = new CompactResult {
             Compacted = true,
             Level = CompactLevel.FullCompact,
             Trigger = CompactTrigger.Auto,
@@ -57,10 +50,8 @@ public sealed class DtoComputedPropertyTests
     }
 
     [Fact]
-    public void CompactResult_TokenSavingsRatio_WhenPreCompactZero_ReturnsZero()
-    {
-        var result = new CompactResult
-        {
+    public void CompactResult_TokenSavingsRatio_WhenPreCompactZero_ReturnsZero() {
+        var result = new CompactResult {
             Compacted = false,
             Level = CompactLevel.None,
             Trigger = CompactTrigger.Manual,
@@ -72,8 +63,7 @@ public sealed class DtoComputedPropertyTests
     }
 
     [Fact]
-    public void ContextCollapseOptions_Factories_ReturnExpectedDefaults()
-    {
+    public void ContextCollapseOptions_Factories_ReturnExpectedDefaults() {
         var aggressive = ContextCollapseOptions.Aggressive;
         var balanced = ContextCollapseOptions.Balanced;
         var conservative = ContextCollapseOptions.Conservative;

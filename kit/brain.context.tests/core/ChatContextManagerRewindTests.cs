@@ -7,13 +7,11 @@ namespace Core.Tests.Context;
 /// 3. RewindToStartAsync (all) — 撤回全部对话
 /// 同时验证撤回后剩余消息是原始消息的前缀（前缀缓存保持）
 /// </summary>
-public sealed class ChatContextManagerRewindTests
-{
+public sealed class ChatContextManagerRewindTests {
     private readonly Mock<IStateService> _stateService;
     private readonly ILogger<ChatContextManager> _logger;
 
-    public ChatContextManagerRewindTests()
-    {
+    public ChatContextManagerRewindTests() {
         _stateService = new Mock<IStateService>();
         _stateService.Setup(s => s.SaveStateAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -27,8 +25,7 @@ public sealed class ChatContextManagerRewindTests
     /// 构造包含多轮对话的 ChatContextManager：
     /// [User1, Assistant1, User2, Assistant2, User3, Assistant3]
     /// </summary>
-    private static async Task<ChatContextManager> BuildMultiTurnContextAsync()
-    {
+    private static async Task<ChatContextManager> BuildMultiTurnContextAsync() {
         var sut = new ChatContextManager(new Mock<IStateService>().Object, NullLogger<ChatContextManager>.Instance);
         await sut.AddUserMessageAsync("用户消息1").ConfigureAwait(true);
         await sut.AddAssistantMessageAsync("助手回复1").ConfigureAwait(true);
@@ -42,8 +39,7 @@ public sealed class ChatContextManagerRewindTests
     // === RewindLastTurnAsync 测试 ===
 
     [Fact]
-    public async Task RewindLastTurn_RemovesLastUserAndAssistant()
-    {
+    public async Task RewindLastTurn_RemovesLastUserAndAssistant() {
         var sut = await BuildMultiTurnContextAsync().ConfigureAwait(true);
 
         var result = await sut.RewindLastTurnAsync().ConfigureAwait(true);
@@ -55,8 +51,7 @@ public sealed class ChatContextManagerRewindTests
     }
 
     [Fact]
-    public async Task RewindLastTurn_EmptyHistory_ReturnsZeroRemoved()
-    {
+    public async Task RewindLastTurn_EmptyHistory_ReturnsZeroRemoved() {
         var sut = CreateSut();
 
         var result = await sut.RewindLastTurnAsync().ConfigureAwait(true);
@@ -67,8 +62,7 @@ public sealed class ChatContextManagerRewindTests
     }
 
     [Fact]
-    public async Task RewindLastTurn_PreservesPrefixOfOriginalMessages()
-    {
+    public async Task RewindLastTurn_PreservesPrefixOfOriginalMessages() {
         var sut = await BuildMultiTurnContextAsync().ConfigureAwait(true);
         var originalMessages = await sut.GetMessageListAsync().ConfigureAwait(true);
 
@@ -76,8 +70,7 @@ public sealed class ChatContextManagerRewindTests
 
         var remainingMessages = await sut.GetMessageListAsync().ConfigureAwait(true);
         remainingMessages.Count.Should().Be(4);
-        for (var i = 0; i < remainingMessages.Count; i++)
-        {
+        for (var i = 0; i < remainingMessages.Count; i++) {
             remainingMessages[i].Role.Should().Be(originalMessages[i].Role);
             remainingMessages[i].Content.Should().Be(originalMessages[i].Content);
         }
@@ -86,8 +79,7 @@ public sealed class ChatContextManagerRewindTests
     // === RewindToMessageIndexAsync 测试 ===
 
     [Fact]
-    public async Task RewindToMessageIndex_RemovesMessagesAfterIndex()
-    {
+    public async Task RewindToMessageIndex_RemovesMessagesAfterIndex() {
         var sut = await BuildMultiTurnContextAsync().ConfigureAwait(true);
 
         var result = await sut.RewindToMessageIndexAsync(3).ConfigureAwait(true);
@@ -99,8 +91,7 @@ public sealed class ChatContextManagerRewindTests
     }
 
     [Fact]
-    public async Task RewindToMessageIndex_Zero_RemovesAll()
-    {
+    public async Task RewindToMessageIndex_Zero_RemovesAll() {
         var sut = await BuildMultiTurnContextAsync().ConfigureAwait(true);
 
         var result = await sut.RewindToMessageIndexAsync(0).ConfigureAwait(true);
@@ -111,8 +102,7 @@ public sealed class ChatContextManagerRewindTests
     }
 
     [Fact]
-    public async Task RewindToMessageIndex_OutOfRange_ReturnsFail()
-    {
+    public async Task RewindToMessageIndex_OutOfRange_ReturnsFail() {
         var sut = await BuildMultiTurnContextAsync().ConfigureAwait(true);
 
         var result = await sut.RewindToMessageIndexAsync(100).ConfigureAwait(true);
@@ -122,8 +112,7 @@ public sealed class ChatContextManagerRewindTests
     }
 
     [Fact]
-    public async Task RewindToMessageIndex_PreservesPrefixOfOriginalMessages()
-    {
+    public async Task RewindToMessageIndex_PreservesPrefixOfOriginalMessages() {
         var sut = await BuildMultiTurnContextAsync().ConfigureAwait(true);
         var originalMessages = await sut.GetMessageListAsync().ConfigureAwait(true);
 
@@ -131,8 +120,7 @@ public sealed class ChatContextManagerRewindTests
 
         var remainingMessages = await sut.GetMessageListAsync().ConfigureAwait(true);
         remainingMessages.Count.Should().Be(3);
-        for (var i = 0; i < remainingMessages.Count; i++)
-        {
+        for (var i = 0; i < remainingMessages.Count; i++) {
             remainingMessages[i].Role.Should().Be(originalMessages[i].Role);
             remainingMessages[i].Content.Should().Be(originalMessages[i].Content);
         }
@@ -141,8 +129,7 @@ public sealed class ChatContextManagerRewindTests
     // === RewindToStartAsync 测试 ===
 
     [Fact]
-    public async Task RewindToStart_RemovesAllMessages()
-    {
+    public async Task RewindToStart_RemovesAllMessages() {
         var sut = await BuildMultiTurnContextAsync().ConfigureAwait(true);
 
         var result = await sut.RewindToStartAsync().ConfigureAwait(true);
@@ -154,8 +141,7 @@ public sealed class ChatContextManagerRewindTests
     }
 
     [Fact]
-    public async Task RewindToStart_EmptyHistory_ReturnsZeroRemoved()
-    {
+    public async Task RewindToStart_EmptyHistory_ReturnsZeroRemoved() {
         var sut = CreateSut();
 
         var result = await sut.RewindToStartAsync().ConfigureAwait(true);
@@ -168,8 +154,7 @@ public sealed class ChatContextManagerRewindTests
     // === 连续撤回测试 ===
 
     [Fact]
-    public async Task RewindLast_Twice_RemovesTwoTurns()
-    {
+    public async Task RewindLast_Twice_RemovesTwoTurns() {
         var sut = await BuildMultiTurnContextAsync().ConfigureAwait(true);
 
         await sut.RewindLastTurnAsync().ConfigureAwait(true);
@@ -181,8 +166,7 @@ public sealed class ChatContextManagerRewindTests
     }
 
     [Fact]
-    public async Task RewindLast_ThenRewindToStart_ClearsAll()
-    {
+    public async Task RewindLast_ThenRewindToStart_ClearsAll() {
         var sut = await BuildMultiTurnContextAsync().ConfigureAwait(true);
 
         await sut.RewindLastTurnAsync().ConfigureAwait(true);
@@ -196,8 +180,7 @@ public sealed class ChatContextManagerRewindTests
     // === 撤回后继续对话测试 ===
 
     [Fact]
-    public async Task RewindLast_ThenAddNewMessage_NewMessageAppended()
-    {
+    public async Task RewindLast_ThenAddNewMessage_NewMessageAppended() {
         var sut = await BuildMultiTurnContextAsync().ConfigureAwait(true);
 
         await sut.RewindLastTurnAsync().ConfigureAwait(true);
@@ -210,8 +193,7 @@ public sealed class ChatContextManagerRewindTests
     }
 
     [Fact]
-    public async Task RewindToIndex_ThenAddNewMessage_NewMessageAppendedAtIndex()
-    {
+    public async Task RewindToIndex_ThenAddNewMessage_NewMessageAppendedAtIndex() {
         var sut = await BuildMultiTurnContextAsync().ConfigureAwait(true);
 
         await sut.RewindToMessageIndexAsync(2).ConfigureAwait(true);

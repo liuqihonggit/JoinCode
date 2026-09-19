@@ -4,15 +4,13 @@ namespace Core.Planning;
 /// 计划文件存储 — 管理计划文件的持久化、清理、格式化
 /// 从 PlanModeManager 提取,降低大类复杂度
 /// </summary>
-internal sealed class PlanFileStore
-{
+internal sealed class PlanFileStore {
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
     private readonly ILogger? _logger;
 
     /// <summary>初始化 <see cref="PlanFileStore"/> 实例</summary>
-    public PlanFileStore(IFileSystem fs, IClockService clock, ILogger? logger = null)
-    {
+    public PlanFileStore(IFileSystem fs, IClockService clock, ILogger? logger = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _logger = logger;
@@ -29,8 +27,7 @@ internal sealed class PlanFileStore
         => Path.Combine(PlanSlugGenerator.GetPlansDirectory(), ".active_plan_state.json");
 
     /// <summary>获取已删除文件的归档路径</summary>
-    public static string GetDeletedPath(string filePath, DateTime timestamp)
-    {
+    public static string GetDeletedPath(string filePath, DateTime timestamp) {
         var dir = Path.GetDirectoryName(filePath) ?? ".";
         var fileName = Path.GetFileNameWithoutExtension(filePath);
         var ext = Path.GetExtension(filePath);
@@ -39,8 +36,7 @@ internal sealed class PlanFileStore
     }
 
     /// <summary>将 Plan 格式化为 Markdown</summary>
-    public static string FormatPlanAsMarkdown(PlanState plan)
-    {
+    public static string FormatPlanAsMarkdown(PlanState plan) {
         var sb = new StringBuilder();
         sb.AppendLine($"# Plan: {plan.Description ?? "Untitled"}");
         sb.AppendLine();
@@ -51,14 +47,11 @@ internal sealed class PlanFileStore
         sb.AppendLine($"- **Progress**: {plan.CompletedStepsCount}/{plan.TotalSteps} ({plan.GetProgressPercentage():F1}%)");
         sb.AppendLine();
 
-        if (plan.Steps.Count > 0)
-        {
+        if (plan.Steps.Count > 0) {
             sb.AppendLine("## Steps");
             sb.AppendLine();
-            foreach (var step in plan.Steps)
-            {
-                var statusIcon = step.Status switch
-                {
+            foreach (var step in plan.Steps) {
+                var statusIcon = step.Status switch {
                     PlanStepStatus.Pending => "[ ]",
                     PlanStepStatus.Approved => "[~]",
                     PlanStepStatus.Rejected => "[x]",
@@ -72,12 +65,10 @@ internal sealed class PlanFileStore
                 var toolInfo = !string.IsNullOrEmpty(step.ToolName) ? $" (`{step.ToolName}`)" : "";
                 sb.AppendLine($"- {statusIcon} {step.Description}{toolInfo}");
 
-                if (!string.IsNullOrEmpty(step.ExecutionResult))
-                {
+                if (!string.IsNullOrEmpty(step.ExecutionResult)) {
                     sb.AppendLine($"  - Result: {step.ExecutionResult}");
                 }
-                if (!string.IsNullOrEmpty(step.RejectionReason))
-                {
+                if (!string.IsNullOrEmpty(step.RejectionReason)) {
                     sb.AppendLine($"  - Reason: {step.RejectionReason}");
                 }
             }
@@ -89,44 +80,33 @@ internal sealed class PlanFileStore
     // ── 实例方法 ──
 
     /// <summary>清理旧计划文件（返回清理数量）</summary>
-    public int CleanupOldFiles(int maxAgeDays = 30)
-    {
+    public int CleanupOldFiles(int maxAgeDays = 30) {
         var plansDir = PlanSlugGenerator.GetPlansDirectory();
-        if (!_fs.DirectoryExists(plansDir))
-        {
+        if (!_fs.DirectoryExists(plansDir)) {
             return 0;
         }
 
         var cutoff = _clock.GetUtcNow().AddDays(-maxAgeDays);
         var cleanedCount = 0;
 
-        try
-        {
-            foreach (var filePath in _fs.EnumerateFiles(plansDir, "*.md", SearchOption.TopDirectoryOnly))
-            {
-                try
-                {
+        try {
+            foreach (var filePath in _fs.EnumerateFiles(plansDir, "*.md", SearchOption.TopDirectoryOnly)) {
+                try {
                     var lastWriteTime = _fs.GetLastWriteTimeUtc(filePath);
-                    if (lastWriteTime < cutoff)
-                    {
+                    if (lastWriteTime < cutoff) {
                         var deletedPath = GetDeletedPath(filePath, _clock.GetUtcNow());
                         var deletedDir = Path.GetDirectoryName(deletedPath)!;
-                        if (!_fs.DirectoryExists(deletedDir))
-                        {
+                        if (!_fs.DirectoryExists(deletedDir)) {
                             _fs.CreateDirectory(deletedDir);
                         }
                         _fs.MoveFile(filePath, deletedPath);
                         cleanedCount++;
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning("计划文件清理失败: {Error}", ex.Message);
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning("计划目录遍历失败: {Error}", ex.Message);
         }
 
@@ -134,60 +114,46 @@ internal sealed class PlanFileStore
     }
 
     /// <summary>清除活跃 plan 状态文件</summary>
-    public void ClearActivePlanStateFile()
-    {
+    public void ClearActivePlanStateFile() {
         var filePath = GetActivePlanStateFilePath();
-        if (_fs.FileExists(filePath))
-        {
-            try
-            {
+        if (_fs.FileExists(filePath)) {
+            try {
                 _fs.DeleteFile(filePath);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning("清除活跃 plan 状态文件失败: {Error}", ex.Message);
             }
         }
     }
 
     /// <summary>保存活跃 plan 状态到文件</summary>
-    public async Task SaveActivePlanStateAsync(string planId, string? sessionSlug, PlanState plan, CancellationToken cancellationToken)
-    {
+    public async Task SaveActivePlanStateAsync(string planId, string? sessionSlug, PlanState plan, CancellationToken cancellationToken) {
         var filePath = GetActivePlanStateFilePath();
-        var state = new PersistablePlanState
-        {
+        var state = new PersistablePlanState {
             CurrentPlanId = planId,
             CurrentSessionSlug = sessionSlug,
             Plan = plan
         };
 
-        try
-        {
+        try {
             var dir = Path.GetDirectoryName(filePath)!;
             if (!_fs.DirectoryExists(dir))
                 _fs.CreateDirectory(dir);
             var json = RelaxedJsonSerializer.Serialize(state, PlanJsonContext.Default);
             await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning("保存活跃 plan 状态文件失败: {Error}", ex.Message);
         }
     }
 
     /// <summary>从文件加载活跃 plan 状态（未找到或失败返回 null）</summary>
-    public async Task<PersistablePlanState?> LoadActivePlanStateAsync(CancellationToken cancellationToken)
-    {
+    public async Task<PersistablePlanState?> LoadActivePlanStateAsync(CancellationToken cancellationToken) {
         var filePath = GetActivePlanStateFilePath();
         if (!_fs.FileExists(filePath)) return null;
 
-        try
-        {
+        try {
             var json = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, PlanJsonContext.Default.PersistablePlanState);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning("加载活跃 plan 状态文件失败: {Error}", ex.Message);
             return null;
         }

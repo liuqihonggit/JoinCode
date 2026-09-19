@@ -1,29 +1,24 @@
 namespace JoinCode.CodeIndex.Benchmarks;
 
 [Trait("Category", "Benchmark")]
-public sealed class PerformanceBenchmarkTests : IDisposable
-{
+public sealed class PerformanceBenchmarkTests : IDisposable {
     private readonly string _workspaceRoot;
     private readonly IFileSystem _fs = new IO.FileSystem.PhysicalFileSystem();
     private bool _disposed;
 
-    public PerformanceBenchmarkTests()
-    {
+    public PerformanceBenchmarkTests() {
         _workspaceRoot = Path.Combine(Path.GetTempPath(), $"perf_{Guid.NewGuid():N}");
         _fs.CreateDirectory(_workspaceRoot);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        try { if (_fs.DirectoryExists(_workspaceRoot)) _fs.DeleteDirectory(_workspaceRoot, true); }
-        catch (Exception ex) { Debug.WriteLine($"Failed to delete directory {_workspaceRoot}: {ex.Message}"); }
+        try { if (_fs.DirectoryExists(_workspaceRoot)) _fs.DeleteDirectory(_workspaceRoot, true); } catch (Exception ex) { Debug.WriteLine($"Failed to delete directory {_workspaceRoot}: {ex.Message}"); }
     }
 
     [Fact]
-    public async Task IndexBuild_SmallWorkspace_Under5Seconds()
-    {
+    public async Task IndexBuild_SmallWorkspace_Under5Seconds() {
         GenerateFiles(10, 50);
         using var store = new InMemoryIndexStore();
         using var indexer = new CodeIndexer(store, _fs);
@@ -37,8 +32,7 @@ public sealed class PerformanceBenchmarkTests : IDisposable
     }
 
     [Fact]
-    public async Task IndexBuild_MediumWorkspace_Under30Seconds()
-    {
+    public async Task IndexBuild_MediumWorkspace_Under30Seconds() {
         GenerateFiles(100, 100);
         using var store = new InMemoryIndexStore();
         using var indexer = new CodeIndexer(store, _fs);
@@ -52,8 +46,7 @@ public sealed class PerformanceBenchmarkTests : IDisposable
     }
 
     [Fact]
-    public async Task IncrementalUpdate_SingleFile_Under500ms()
-    {
+    public async Task IncrementalUpdate_SingleFile_Under500ms() {
         GenerateFiles(20, 80);
         using var store = new InMemoryIndexStore();
         using var indexer = new CodeIndexer(store, _fs);
@@ -71,8 +64,7 @@ public sealed class PerformanceBenchmarkTests : IDisposable
     }
 
     [Fact]
-    public async Task QueryLatency_SearchUnder50ms()
-    {
+    public async Task QueryLatency_SearchUnder50ms() {
         GenerateFiles(50, 100);
         using var store = new InMemoryIndexStore();
         using var indexer = new CodeIndexer(store, _fs);
@@ -88,8 +80,7 @@ public sealed class PerformanceBenchmarkTests : IDisposable
     }
 
     [Fact]
-    public async Task QueryLatency_CallGraphUnder100ms()
-    {
+    public async Task QueryLatency_CallGraphUnder100ms() {
         GenerateFiles(30, 80);
         using var store = new InMemoryIndexStore();
         using var indexer = new CodeIndexer(store, _fs);
@@ -104,8 +95,7 @@ public sealed class PerformanceBenchmarkTests : IDisposable
     }
 
     [Fact]
-    public async Task MemoryUsage_L1L2Under600MB()
-    {
+    public async Task MemoryUsage_L1L2Under600MB() {
         GenerateFiles(100, 100);
         using var store = new InMemoryIndexStore();
         using var indexer = new CodeIndexer(store, _fs);
@@ -120,14 +110,11 @@ public sealed class PerformanceBenchmarkTests : IDisposable
         Assert.True(memoryMB < 600, $"内存占用 {memoryMB:F0}MB > 600MB");
     }
 
-    private void GenerateFiles(int fileCount, int linesPerFile)
-    {
-        for (var i = 0; i < fileCount; i++)
-        {
+    private void GenerateFiles(int fileCount, int linesPerFile) {
+        for (var i = 0; i < fileCount; i++) {
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"public class Service_{i} {{");
-            for (var j = 0; j < linesPerFile / 5; j++)
-            {
+            for (var j = 0; j < linesPerFile / 5; j++) {
                 sb.AppendLine($"    public int Prop_{j} {{ get; set; }}");
             }
             sb.AppendLine($"    public void DoWork() {{ Helper_{i}.Process(); }}");

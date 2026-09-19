@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.LLM.Chat;
 /// <summary>
 /// 内容替换记录类型 — 对齐 TS ContentReplacementRecord.kind
 /// </summary>
-public enum ContentReplacementRecordKind
-{
+public enum ContentReplacementRecordKind {
     /// <summary>
     /// 工具结果替换 — 对齐 TS kind: 'tool-result'
     /// </summary>
@@ -12,8 +11,7 @@ public enum ContentReplacementRecordKind
     ToolResult,
 }
 
-public sealed class ContentReplacementRecord
-{
+public sealed class ContentReplacementRecord {
     /// <summary>
     /// 记录类型 — 对齐 TS ContentReplacementRecord.kind
     /// </summary>

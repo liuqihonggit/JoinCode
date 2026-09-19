@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// UI 元素类型 — 多模态 LLM 识别的界面元素分类
 /// </summary>
-public enum UiElementType
-{
+public enum UiElementType {
     /// <summary>未知类型</summary>
     [EnumValue("unknown")]
     Unknown,

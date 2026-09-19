@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public sealed record IndexStats
-{
+public sealed record IndexStats {
     public required int FileCount { get; init; }
     public required int SymbolCount { get; init; }
     public required int CallEdgeCount { get; init; }

@@ -5,16 +5,14 @@ namespace JoinCode.Adapters;
 /// 输入通过 ReplLoopStep 的 readTask 单通道路由，避免 stdin 竞争
 /// </summary>
 [Register(typeof(IPermissionConfirmationHandler), ServiceLifetime.Singleton)]
-public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHandler
-{
+public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHandler {
     private readonly IToolPermissionManager? _permissionManager;
     private readonly IConfirmationGate? _confirmationGate;
 
     /// <summary>初始化 <see cref="CliPermissionConfirmationHandler"/> 实例</summary>
     /// <param name="permissionManager">可选的工具权限管理器，用于临时批准工具或危险等级</param>
     /// <param name="confirmationGate">可选的确认门，用于在 REPL 单通道中路由用户输入</param>
-    public CliPermissionConfirmationHandler(IToolPermissionManager? permissionManager = null, IConfirmationGate? confirmationGate = null)
-    {
+    public CliPermissionConfirmationHandler(IToolPermissionManager? permissionManager = null, IConfirmationGate? confirmationGate = null) {
         _permissionManager = permissionManager;
         _confirmationGate = confirmationGate;
     }
@@ -23,8 +21,7 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
     /// <param name="toolName">待确认的工具名称</param>
     /// <param name="confirmationPrompt">展示给用户的确认提示文本</param>
     /// <returns>用户选择的确认动作（允许/始终允许/拒绝）；非交互环境自动拒绝</returns>
-    public PermissionConfirmAction Confirm(string toolName, string confirmationPrompt)
-    {
+    public PermissionConfirmAction Confirm(string toolName, string confirmationPrompt) {
         Cli.TerminalHelper.WriteLine();
         using (Cli.TerminalHelper.SetColor(ConsoleColor.Cyan))
             Cli.TerminalHelper.WriteRaw("^ ");
@@ -36,14 +33,12 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
         using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
             Cli.TerminalHelper.WriteRaw("(y)允许 / (a)始终允许 / (n)拒绝 [n]: ");
 
-        if (Cli.TerminalHelper.IsInputRedirected || Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (Cli.TerminalHelper.IsInputRedirected || Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             Cli.TerminalHelper.WriteLine("非交互环境，自动拒绝");
             return PermissionConfirmAction.Deny;
         }
 
-        try
-        {
+        try {
             var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             _confirmationGate?.SetPending(tcs);
 
@@ -53,15 +48,13 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
 
             Cli.TerminalHelper.NewLine();
 
-            var action = input.Trim().ToLowerInvariant() switch
-            {
+            var action = input.Trim().ToLowerInvariant() switch {
                 "y" or "yes" => PermissionConfirmAction.Allow,
                 "a" or "always" => PermissionConfirmAction.AlwaysAllow,
                 _ => PermissionConfirmAction.Deny
             };
 
-            if (_permissionManager is not null)
-            {
+            if (_permissionManager is not null) {
                 if (action == PermissionConfirmAction.Allow)
                     _permissionManager.ApproveToolTemporarily(toolName, TimeSpan.FromMinutes(1));
                 else if (action == PermissionConfirmAction.AlwaysAllow)
@@ -74,9 +67,7 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
             }
 
             return action;
-        }
-        catch
-        {
+        } catch {
             _confirmationGate?.Clear();
             return PermissionConfirmAction.Deny;
         }

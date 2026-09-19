@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 /// <summary>
 /// 诊断严重度
 /// </summary>
-public enum DiagnosticSeverity
-{
+public enum DiagnosticSeverity {
     [EnumValue("info")] Info,
     [EnumValue("warning")] Warning,
     [EnumValue("error")] Error,
@@ -14,8 +13,7 @@ public enum DiagnosticSeverity
 /// <summary>
 /// 诊断规则 ID — 每条规则对应一种问题检测模式
 /// </summary>
-public enum DiagnosticRuleId
-{
+public enum DiagnosticRuleId {
     /// <summary>循环检测：同一会话 LoopDetected ≥ 3次</summary>
     [EnumValue("D001")] LoopDetected,
 
@@ -38,8 +36,7 @@ public enum DiagnosticRuleId
 /// <summary>
 /// 诊断事件 — 从病人 stdout 解析出的结构化遥测事件
 /// </summary>
-public sealed record DiagnosticEvent
-{
+public sealed record DiagnosticEvent {
     /// <summary>事件类型标识（如 "loop_detected", "permission_denied", "api_error"）</summary>
     public required string EventType { get; init; }
 
@@ -62,8 +59,7 @@ public sealed record DiagnosticEvent
 /// <summary>
 /// 诊断报告 — 一条诊断规则的检测结果
 /// </summary>
-public sealed record DiagnosticReport
-{
+public sealed record DiagnosticReport {
     /// <summary>规则 ID</summary>
     public required DiagnosticRuleId RuleId { get; init; }
 
@@ -92,8 +88,7 @@ public sealed record DiagnosticReport
 /// <summary>
 /// 病人进程状态
 /// </summary>
-public enum PatientState
-{
+public enum PatientState {
     /// <summary>未启动</summary>
     [EnumValue("not_started")] NotStarted,
 
@@ -116,8 +111,7 @@ public enum PatientState
 /// <summary>
 /// 病人进程信息
 /// </summary>
-public sealed record PatientInfo
-{
+public sealed record PatientInfo {
     /// <summary>病人 ID — 唯一标识一个病人进程</summary>
     public string PatientId { get; init; } = Guid.NewGuid().ToString("N")[..8];
 

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 键盘修饰键 — 可按位组合（如 Ctrl+Shift = Control | Shift）
 /// </summary>
 [Flags]
-public enum KeyModifier
-{
+public enum KeyModifier {
     /// <summary>无修饰键</summary>
     None = 0,
 

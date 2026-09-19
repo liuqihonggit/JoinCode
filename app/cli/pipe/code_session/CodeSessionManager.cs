@@ -2,8 +2,7 @@ namespace JoinCode.Pipe;
 
 /// <summary>代码会话管理器 — 维护代码会话的创建、查询、删除、列表与工作目录更新，线程安全</summary>
 [Register(typeof(CodeSessionManager), ServiceLifetime.Singleton)]
-public sealed partial class CodeSessionManager : ServiceEntity
-{
+public sealed partial class CodeSessionManager : ServiceEntity {
     private readonly CodeSessionRepo _repo;
     private readonly AsyncLock _lock = new();
     private readonly IClockService _clock;
@@ -13,8 +12,7 @@ public sealed partial class CodeSessionManager : ServiceEntity
     /// </summary>
     /// <param name="repo">代码会话仓储</param>
     /// <param name="clock">时钟服务，为 null 时使用系统时钟</param>
-    public CodeSessionManager(CodeSessionRepo repo, IClockService? clock = null)
-    {
+    public CodeSessionManager(CodeSessionRepo repo, IClockService? clock = null) {
         _repo = repo ?? throw new ArgumentNullException(nameof(repo));
         _clock = clock ?? SystemClockService.Instance;
     }
@@ -29,15 +27,13 @@ public sealed partial class CodeSessionManager : ServiceEntity
     public async ValueTask<CodeSessionRecord> CreateSessionAsync(
         string projectName,
         string workDirectory,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(projectName);
         ArgumentException.ThrowIfNullOrWhiteSpace(workDirectory);
 
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        var record = new CodeSessionRecord
-        {
+        var record = new CodeSessionRecord {
             SessionId = Guid.NewGuid().ToString("N"),
             ProjectName = projectName,
             WorkDirectory = workDirectory,
@@ -48,7 +44,7 @@ public sealed partial class CodeSessionManager : ServiceEntity
 
         await _repo.SaveAsync(record, ct).ConfigureAwait(false);
         return record;
-    
+
     }
 
     /// <summary>
@@ -57,8 +53,7 @@ public sealed partial class CodeSessionManager : ServiceEntity
     /// <param name="sessionId">会话标识符</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>会话记录；不存在时返回 null</returns>
-    public async ValueTask<CodeSessionRecord?> GetSessionAsync(string sessionId, CancellationToken ct = default)
-    {
+    public async ValueTask<CodeSessionRecord?> GetSessionAsync(string sessionId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         return await _repo.GetAsync(sessionId, ct).ConfigureAwait(false);
     }
@@ -69,8 +64,7 @@ public sealed partial class CodeSessionManager : ServiceEntity
     /// <param name="sessionId">会话标识符</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>删除成功返回 true；会话不存在返回 false</returns>
-    public async ValueTask<bool> DeleteSessionAsync(string sessionId, CancellationToken ct = default)
-    {
+    public async ValueTask<bool> DeleteSessionAsync(string sessionId, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
         var existing = await _repo.GetAsync(sessionId, ct).ConfigureAwait(false);
@@ -85,8 +79,7 @@ public sealed partial class CodeSessionManager : ServiceEntity
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>会话记录只读列表</returns>
-    public async ValueTask<IReadOnlyList<CodeSessionRecord>> ListSessionsAsync(CancellationToken ct = default)
-    {
+    public async ValueTask<IReadOnlyList<CodeSessionRecord>> ListSessionsAsync(CancellationToken ct = default) {
         return await _repo.GetAllAsync(ct).ConfigureAwait(false);
     }
 
@@ -100,8 +93,7 @@ public sealed partial class CodeSessionManager : ServiceEntity
     public async ValueTask<bool> UpdateWorkDirectoryAsync(
         string sessionId,
         string newWorkDirectory,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(newWorkDirectory);
 
@@ -115,12 +107,11 @@ public sealed partial class CodeSessionManager : ServiceEntity
 
         await _repo.SaveAsync(existing, ct).ConfigureAwait(false);
         return true;
-    
+
     }
 
     /// <summary>释放托管资源 — 销毁异步锁</summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         _lock.Dispose();
         base.Dispose();
     }

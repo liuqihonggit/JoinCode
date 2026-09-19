@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Localization;
 
-public static partial class StringKey
-{
+public static partial class StringKey {
     // === Status Bar / Footer (Host UI) ===
     public const string FooterExitHint = "FooterExitHint";
     public const string FooterInterruptHint = "FooterInterruptHint";

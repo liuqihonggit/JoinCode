@@ -5,8 +5,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// ANSI 转义序列辅助 — CLI 简化版
 /// </summary>
-public static class AnsiEscape
-{
+public static class AnsiEscape {
     /// <summary>
     /// 生成光标上移 ANSI 转义序列
     /// </summary>

@@ -3,16 +3,14 @@ namespace Core.CostTracking;
 /// <summary>
 /// 模型定价表 — 转发到 Abstractions 中的统一实现
 /// </summary>
-internal sealed class ModelPricingTable
-{
+internal sealed class ModelPricingTable {
     private readonly JoinCode.Abstractions.LLM.Execution.Pricing.ModelPricingTable _inner;
 
     /// <summary>
     /// 构造模型定价表实例
     /// </summary>
     /// <param name="modelConfigLoader">模型配置加载器</param>
-    public ModelPricingTable(IModelConfigLoader modelConfigLoader)
-    {
+    public ModelPricingTable(IModelConfigLoader modelConfigLoader) {
         _inner = new(modelConfigLoader);
     }
 

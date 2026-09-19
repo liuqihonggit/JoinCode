@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// BridgeTokenRefreshScheduler 配置选项
 /// </summary>
-public sealed record TokenRefreshOptions
-{
+public sealed record TokenRefreshOptions {
     /// <summary>获取当前访问令牌的委托</summary>
     public required Func<string?> GetAccessToken { get; init; }
 

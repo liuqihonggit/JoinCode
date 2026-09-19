@@ -1,16 +1,12 @@
 namespace Brain.Tests.Prompts;
 
-public sealed class PromptSuggestionCallbackTests
-{
-    private static PromptSuggestionCallback CreateCallback(IForkSubAgentManager? forkManager = null)
-    {
+public sealed class PromptSuggestionCallbackTests {
+    private static PromptSuggestionCallback CreateCallback(IForkSubAgentManager? forkManager = null) {
         return new PromptSuggestionCallback(forkManager);
     }
 
-    private static PostSamplingContext CreateContext(string? querySource = "repl_main_thread", string? sessionId = "test-session")
-    {
-        return new PostSamplingContext
-        {
+    private static PostSamplingContext CreateContext(string? querySource = "repl_main_thread", string? sessionId = "test-session") {
+        return new PostSamplingContext {
             EstimatedTokenCount = 5000,
             ToolCallsSinceLastExtraction = 0,
             QuerySource = querySource,
@@ -20,8 +16,7 @@ public sealed class PromptSuggestionCallbackTests
     }
 
     [Fact]
-    public async Task OnPostSamplingAsync_NonReplSource_DoesNothing()
-    {
+    public async Task OnPostSamplingAsync_NonReplSource_DoesNothing() {
         var forkMock = new Mock<IForkSubAgentManager>();
         var callback = CreateCallback(forkMock.Object);
 
@@ -32,8 +27,7 @@ public sealed class PromptSuggestionCallbackTests
     }
 
     [Fact]
-    public async Task OnPostSamplingAsync_WithoutForkManager_DoesNotThrow()
-    {
+    public async Task OnPostSamplingAsync_WithoutForkManager_DoesNotThrow() {
         var callback = CreateCallback(forkManager: null);
 
         var context = CreateContext();
@@ -42,8 +36,7 @@ public sealed class PromptSuggestionCallbackTests
     }
 
     [Fact]
-    public async Task OnPostSamplingAsync_WithForkManager_CallsForkAsync()
-    {
+    public async Task OnPostSamplingAsync_WithForkManager_CallsForkAsync() {
         var forkMock = new Mock<IForkSubAgentManager>();
         forkMock.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ForkResult { ForkId = "fork-1", State = ForkState.Completed, Result = "run the tests" });
@@ -58,8 +51,7 @@ public sealed class PromptSuggestionCallbackTests
     }
 
     [Fact]
-    public async Task OnPostSamplingAsync_FilteredSuggestion_DoesNotLogAsValid()
-    {
+    public async Task OnPostSamplingAsync_FilteredSuggestion_DoesNotLogAsValid() {
         var forkMock = new Mock<IForkSubAgentManager>();
         forkMock.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ForkResult { ForkId = "fork-1", State = ForkState.Completed, Result = "done" });
@@ -72,8 +64,7 @@ public sealed class PromptSuggestionCallbackTests
     }
 
     [Fact]
-    public async Task OnPostSamplingAsync_ForkFailure_DoesNotThrow()
-    {
+    public async Task OnPostSamplingAsync_ForkFailure_DoesNotThrow() {
         var forkMock = new Mock<IForkSubAgentManager>();
         forkMock.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Fork failed"));
@@ -85,8 +76,7 @@ public sealed class PromptSuggestionCallbackTests
     }
 
     [Fact]
-    public async Task OnPostSamplingAsync_ForkReturnsFailed_DoesNotProcessResult()
-    {
+    public async Task OnPostSamplingAsync_ForkReturnsFailed_DoesNotProcessResult() {
         var forkMock = new Mock<IForkSubAgentManager>();
         forkMock.Setup(f => f.ForkAsync(It.IsAny<ForkOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ForkResult { ForkId = "fork-1", State = ForkState.Failed });

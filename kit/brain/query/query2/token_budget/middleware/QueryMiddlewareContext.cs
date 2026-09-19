@@ -5,8 +5,7 @@ namespace Core.Query;
 /// 查询中间件共享上下文 — 承载 QueryEngine 管道各阶段需要的状态
 /// 中间件通过读写此上下文协同工作，核心引擎在关键生命周期点调用钩子
 /// </summary>
-public sealed class QueryMiddlewareContext
-{
+public sealed class QueryMiddlewareContext {
     /// <summary>
     /// 用户输入
     /// </summary>

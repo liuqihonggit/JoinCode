@@ -4,8 +4,7 @@ namespace JoinCode.Reasoning.Weight.Topology;
 /// 拓扑证据分析器 — 分析证据链的拓扑性质
 /// 长度(15%) + 分支度(25%) + 环检测(20%) + 独立性(25%) + 时间一致性(15%)
 /// </summary>
-public sealed class TopologicalEvidenceAnalyzer
-{
+public sealed class TopologicalEvidenceAnalyzer {
     /// <summary>
     /// 链长度评分阈值 — 超过此值开始衰减
     /// </summary>
@@ -14,8 +13,7 @@ public sealed class TopologicalEvidenceAnalyzer
     /// <summary>
     /// 分析证据链的拓扑性质
     /// </summary>
-    public TopologyScore AnalyzeChainTopology(IReadOnlyList<EvidenceRecord> chain)
-    {
+    public TopologyScore AnalyzeChainTopology(IReadOnlyList<EvidenceRecord> chain) {
         var lengthScore = CalculateLengthScore(chain.Count);
         var branchingScore = CalculateBranchingFactor(chain);
         var cycleScore = 1.0;
@@ -28,8 +26,7 @@ public sealed class TopologicalEvidenceAnalyzer
                         independenceScore * 0.25 +
                         temporalConsistency * 0.15;
 
-        return new TopologyScore
-        {
+        return new TopologyScore {
             LengthScore = lengthScore,
             BranchingScore = branchingScore,
             CycleScore = cycleScore,
@@ -39,14 +36,12 @@ public sealed class TopologicalEvidenceAnalyzer
         };
     }
 
-    private double CalculateLengthScore(int count)
-    {
+    private double CalculateLengthScore(int count) {
         if (count < LengthThreshold) return 1.0;
         return Math.Max(0, 1.0 - (count - LengthThreshold) * 0.05);
     }
 
-    private static double CalculateBranchingFactor(IReadOnlyList<EvidenceRecord> chain)
-    {
+    private static double CalculateBranchingFactor(IReadOnlyList<EvidenceRecord> chain) {
         if (chain.Count <= 1) return 0.5;
 
         var sourceGroups = chain.GroupBy(e => e.Source).ToList();
@@ -55,22 +50,19 @@ public sealed class TopologicalEvidenceAnalyzer
         return multiSourceGroups > 0 ? Math.Min(1.0, multiSourceGroups / (double)chain.Count * 2) : 0.5;
     }
 
-    private static double CalculateIndependence(IReadOnlyList<EvidenceRecord> chain)
-    {
+    private static double CalculateIndependence(IReadOnlyList<EvidenceRecord> chain) {
         if (chain.Count == 0) return 0;
         var distinctSources = chain.Select(e => e.Source).Distinct().Count();
         var independence = distinctSources / (double)chain.Count;
         return Math.Min(1.0, independence * 1.5);
     }
 
-    private static double CalculateTemporalConsistency(IReadOnlyList<EvidenceRecord> chain)
-    {
+    private static double CalculateTemporalConsistency(IReadOnlyList<EvidenceRecord> chain) {
         if (chain.Count <= 1) return 1.0;
 
         var timestamps = chain.Select(e => e.CreatedAt).OrderBy(t => t).ToList();
         var gaps = new List<double>();
-        for (var i = 1; i < timestamps.Count; i++)
-        {
+        for (var i = 1; i < timestamps.Count; i++) {
             gaps.Add((timestamps[i] - timestamps[i - 1]).TotalHours);
         }
 

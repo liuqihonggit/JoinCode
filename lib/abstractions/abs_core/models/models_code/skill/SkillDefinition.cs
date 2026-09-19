@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Skill;
 /// <summary>
 /// 技能定义
 /// </summary>
-public sealed record SkillDefinition
-{
+public sealed record SkillDefinition {
     [JsonPropertyName("name")]
     public required string Name { get; init; }
 
@@ -114,13 +113,10 @@ public sealed record SkillDefinition
     /// <summary>
     /// 构建步骤 Id 索引，供 while 循环 O(1) 查找，避免每次 FirstOrDefault 线性扫描
     /// </summary>
-    public Dictionary<string, SkillStep> BuildStepIndex()
-    {
+    public Dictionary<string, SkillStep> BuildStepIndex() {
         var dict = new Dictionary<string, SkillStep>(Steps.Count, StringComparer.Ordinal);
-        foreach (var s in Steps)
-        {
-            if (!dict.ContainsKey(s.Id))
-            {
+        foreach (var s in Steps) {
+            if (!dict.ContainsKey(s.Id)) {
                 dict[s.Id] = s;
             }
         }
@@ -128,8 +124,7 @@ public sealed record SkillDefinition
     }
 }
 
-public enum SkillSourceFormat
-{
+public enum SkillSourceFormat {
     [EnumValue("json")] Json,
     [EnumValue("markdown")] Markdown
 }
@@ -137,14 +132,12 @@ public enum SkillSourceFormat
 /// <summary>
 /// 技能执行模式 — 对齐 TS PromptCommand.context
 /// </summary>
-public enum SkillExecutionMode
-{
+public enum SkillExecutionMode {
     [EnumValue("inline")] Inline,
     [EnumValue("fork")] Fork
 }
 
-public sealed class SkillParameter
-{
+public sealed class SkillParameter {
     [JsonPropertyName("type")]
     public required string Type { get; init; }
 
@@ -161,8 +154,7 @@ public sealed class SkillParameter
     public ParameterValidation? Validation { get; init; }
 }
 
-public sealed class ParameterValidation
-{
+public sealed class ParameterValidation {
     [JsonPropertyName("min")]
     public double? Min { get; init; }
 
@@ -182,8 +174,7 @@ public sealed class ParameterValidation
     public IReadOnlyList<string> EnumValues { get; init; } = [];
 }
 
-public enum SkillStepType
-{
+public enum SkillStepType {
     [EnumValue("tool")] Tool,
     [EnumValue("prompt")] Prompt,
     [EnumValue("condition")] Condition,
@@ -193,8 +184,7 @@ public enum SkillStepType
     [EnumValue("wait")] Wait
 }
 
-public sealed class SkillStep
-{
+public sealed class SkillStep {
     [JsonPropertyName("id")]
     public required string Id { get; init; }
 
@@ -233,8 +223,7 @@ public sealed class SkillStep
     public RetryConfig? Retry { get; init; }
 }
 
-public sealed class LoopConfig
-{
+public sealed class LoopConfig {
     [JsonPropertyName("count")]
     public int? Count { get; init; }
 
@@ -251,8 +240,7 @@ public sealed class LoopConfig
     public int MaxIterations { get; init; } = 100;
 }
 
-public sealed class RetryConfig
-{
+public sealed class RetryConfig {
     [JsonPropertyName("max_attempts")]
     public int MaxAttempts { get; init; } = 3;
 
@@ -266,10 +254,8 @@ public sealed class RetryConfig
 /// <summary>
 /// SkillStepType 的 AOT 兼容 JSON 转换器 — 使用源码生成器生成的 FromValue/ToValue
 /// </summary>
-public sealed class SkillStepTypeConverter : JsonConverter<SkillStepType>
-{
-    public override SkillStepType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
+public sealed class SkillStepTypeConverter : JsonConverter<SkillStepType> {
+    public override SkillStepType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
         var stringValue = reader.GetString();
         if (stringValue is null)
             throw new JsonException("SkillStepType value cannot be null");
@@ -281,8 +267,7 @@ public sealed class SkillStepTypeConverter : JsonConverter<SkillStepType>
         return result.Value;
     }
 
-    public override void Write(Utf8JsonWriter writer, SkillStepType value, JsonSerializerOptions options)
-    {
+    public override void Write(Utf8JsonWriter writer, SkillStepType value, JsonSerializerOptions options) {
         writer.WriteStringValue(value.ToValue());
     }
 }

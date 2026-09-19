@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 预处理上下文 — 在中间件管道中流转的共享状态
 /// </summary>
-public sealed class PreprocessContext
-{
+public sealed class PreprocessContext {
     /// <summary>原始用户消息</summary>
     public required string Message { get; init; }
 

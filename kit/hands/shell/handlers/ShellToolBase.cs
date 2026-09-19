@@ -9,8 +9,7 @@ namespace Tools.Handlers;
 ///   3. 压缩标记（微压缩时按 Shell 分类链式清理，无需硬编码枚举）
 ///   4. 超时策略（OneShotCommandGroup: 2min绝对超时）
 /// </summary>
-public abstract class ShellToolBase : OneShotCommandGroup
-{
+public abstract class ShellToolBase : OneShotCommandGroup {
     private readonly IShellToolGateService? _gateService;
     private readonly IShellProcessWatchdog? _watchdog;
 
@@ -21,8 +20,7 @@ public abstract class ShellToolBase : OneShotCommandGroup
     /// <param name="watchdog">进程看护（可选）</param>
     protected ShellToolBase(
         IShellToolGateService? gateService = null,
-        IShellProcessWatchdog? watchdog = null)
-    {
+        IShellProcessWatchdog? watchdog = null) {
         _gateService = gateService;
         _watchdog = watchdog;
     }
@@ -40,10 +38,8 @@ public abstract class ShellToolBase : OneShotCommandGroup
     /// <summary>
     /// 检查执行器门控 — 对齐 TS isPowerShellToolEnabled + isWindowsSandboxPolicyViolation
     /// </summary>
-    protected ToolResult? CheckGate(SystemActuatorKind kind)
-    {
-        if (kind == SystemActuatorKind.PowerShell && _gateService is not null && !_gateService.IsPowerShellToolEnabled())
-        {
+    protected ToolResult? CheckGate(SystemActuatorKind kind) {
+        if (kind == SystemActuatorKind.PowerShell && _gateService is not null && !_gateService.IsPowerShellToolEnabled()) {
             var diag = BuildPowerShellUnavailableDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(diag.FormattedMessage)
@@ -51,8 +47,7 @@ public abstract class ShellToolBase : OneShotCommandGroup
                 .Build();
         }
 
-        if (kind == SystemActuatorKind.PowerShell && IsWindowsSandboxPolicyViolation())
-        {
+        if (kind == SystemActuatorKind.PowerShell && IsWindowsSandboxPolicyViolation()) {
             var diag = BuildSandboxPolicyViolationDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(diag.FormattedMessage)
@@ -81,8 +76,7 @@ public abstract class ShellToolBase : OneShotCommandGroup
     /// 检查 Windows 沙箱策略冲突 — 对齐 TS isWindowsSandboxPolicyViolation
     /// 当 Windows 平台上沙箱策略启用且不允许非沙箱命令时返回 true
     /// </summary>
-    private static bool IsWindowsSandboxPolicyViolation()
-    {
+    private static bool IsWindowsSandboxPolicyViolation() {
         if (!OperatingSystem.IsWindows()) return false;
 
         var sandboxEnabled = Environment.GetEnvironmentVariable("JCC_SANDBOX_ENABLED");
@@ -95,16 +89,14 @@ public abstract class ShellToolBase : OneShotCommandGroup
     /// <summary>
     /// 注册进程到看护 — 进程死亡时自动触发回调
     /// </summary>
-    protected void RegisterWatchdog(int processId, Action<int> onProcessDied)
-    {
+    protected void RegisterWatchdog(int processId, Action<int> onProcessDied) {
         _watchdog?.Register(processId, onProcessDied);
     }
 
     /// <summary>
     /// 取消进程看护
     /// </summary>
-    protected void UnregisterWatchdog(int processId)
-    {
+    protected void UnregisterWatchdog(int processId) {
         _watchdog?.Unregister(processId);
     }
 }

@@ -3,13 +3,11 @@ namespace Abs.Tests.Utils;
 /// <summary>
 /// EnvironmentSnapshot 单元测试 — 验证 CaptureQuick 快照采集与 FormatReadable 格式化输出
 /// </summary>
-public sealed class EnvironmentSnapshotTest
-{
+public sealed class EnvironmentSnapshotTest {
     // === CaptureQuick ===
 
     [Fact]
-    public void CaptureQuick_NoFileSystem_SetsWorkingDirectoryAndNoGitRepo()
-    {
+    public void CaptureQuick_NoFileSystem_SetsWorkingDirectoryAndNoGitRepo() {
         var snapshot = EnvironmentSnapshot.CaptureQuick(fs: null, workingDirectory: "/tmp/test");
 
         snapshot.WorkingDirectory.Should().Be("/tmp/test");
@@ -17,8 +15,7 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void CaptureQuick_NullWorkingDirectory_UsesCurrentDirectory()
-    {
+    public void CaptureQuick_NullWorkingDirectory_UsesCurrentDirectory() {
         var snapshot = EnvironmentSnapshot.CaptureQuick(fs: null, workingDirectory: null);
 
         snapshot.WorkingDirectory.Should().Be(Environment.CurrentDirectory);
@@ -26,8 +23,7 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void CaptureQuick_DetectGitFalse_NeverChecksGitRepo()
-    {
+    public void CaptureQuick_DetectGitFalse_NeverChecksGitRepo() {
         var fs = new Mock<IFileSystem>();
 
         var snapshot = EnvironmentSnapshot.CaptureQuick(fs.Object, workingDirectory: "/repo", detectGit: false);
@@ -37,8 +33,7 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void CaptureQuick_GitDirectoryExists_SetsIsGitRepoTrue()
-    {
+    public void CaptureQuick_GitDirectoryExists_SetsIsGitRepoTrue() {
         var fs = new Mock<IFileSystem>();
         fs.Setup(x => x.CombinePath(It.IsAny<string>(), ".git")).Returns("/repo/.git");
         fs.Setup(x => x.DirectoryExists("/repo/.git")).Returns(true);
@@ -50,8 +45,7 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void CaptureQuick_GitDirectoryNotExists_SetsIsGitRepoFalse()
-    {
+    public void CaptureQuick_GitDirectoryNotExists_SetsIsGitRepoFalse() {
         var fs = new Mock<IFileSystem>();
         fs.Setup(x => x.CombinePath(It.IsAny<string>(), ".git")).Returns("/repo/.git");
         fs.Setup(x => x.DirectoryExists("/repo/.git")).Returns(false);
@@ -62,16 +56,14 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void CaptureQuick_SetsConsoleEncodingFromCurrentConsole()
-    {
+    public void CaptureQuick_SetsConsoleEncodingFromCurrentConsole() {
         var snapshot = EnvironmentSnapshot.CaptureQuick(fs: null, workingDirectory: "/tmp");
 
         snapshot.ConsoleEncoding.Should().Be(Console.OutputEncoding?.WebName);
     }
 
     [Fact]
-    public void CaptureQuick_PopulatesRuntimeInfo()
-    {
+    public void CaptureQuick_PopulatesRuntimeInfo() {
         var snapshot = EnvironmentSnapshot.CaptureQuick(fs: null, workingDirectory: "/tmp");
 
         snapshot.OsDescription.Should().NotBeNullOrEmpty();
@@ -82,8 +74,7 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void CaptureQuick_TimestampIsUtcNow()
-    {
+    public void CaptureQuick_TimestampIsUtcNow() {
         var before = DateTime.UtcNow.AddSeconds(-1);
         var snapshot = EnvironmentSnapshot.CaptureQuick(fs: null, workingDirectory: "/tmp");
         var after = DateTime.UtcNow.AddSeconds(1);
@@ -93,8 +84,7 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void CaptureQuick_DefaultDevToolsIsEmpty()
-    {
+    public void CaptureQuick_DefaultDevToolsIsEmpty() {
         var snapshot = EnvironmentSnapshot.CaptureQuick(fs: null, workingDirectory: "/tmp");
 
         snapshot.DevTools.Should().BeEmpty();
@@ -103,10 +93,8 @@ public sealed class EnvironmentSnapshotTest
     // === FormatReadable ===
 
     [Fact]
-    public void FormatReadable_IncludesAllCoreFields()
-    {
-        var snapshot = new EnvironmentSnapshot
-        {
+    public void FormatReadable_IncludesAllCoreFields() {
+        var snapshot = new EnvironmentSnapshot {
             WorkingDirectory = "/repo",
             IsGitRepo = true,
             ConsoleEncoding = "utf-8",
@@ -123,10 +111,8 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void FormatReadable_NoWorkingDirectory_OmitsWorkDirSection()
-    {
-        var snapshot = new EnvironmentSnapshot
-        {
+    public void FormatReadable_NoWorkingDirectory_OmitsWorkDirSection() {
+        var snapshot = new EnvironmentSnapshot {
             WorkingDirectory = null,
         };
 
@@ -137,10 +123,8 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void FormatReadable_IsGitRepoFalse_ShowsNo()
-    {
-        var snapshot = new EnvironmentSnapshot
-        {
+    public void FormatReadable_IsGitRepoFalse_ShowsNo() {
+        var snapshot = new EnvironmentSnapshot {
             WorkingDirectory = "/tmp",
             IsGitRepo = false,
         };
@@ -151,10 +135,8 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void FormatReadable_NonUtf8Encoding_AnnotatesWarning()
-    {
-        var snapshot = new EnvironmentSnapshot
-        {
+    public void FormatReadable_NonUtf8Encoding_AnnotatesWarning() {
+        var snapshot = new EnvironmentSnapshot {
             WorkingDirectory = "/tmp",
             ConsoleEncoding = "gbk",
         };
@@ -165,10 +147,8 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void FormatReadable_Utf8Encoding_NoWarningAnnotation()
-    {
-        var snapshot = new EnvironmentSnapshot
-        {
+    public void FormatReadable_Utf8Encoding_NoWarningAnnotation() {
+        var snapshot = new EnvironmentSnapshot {
             WorkingDirectory = "/tmp",
             ConsoleEncoding = "utf-8",
         };
@@ -180,10 +160,8 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void FormatReadable_NullConsoleEncoding_OmitsEncodingLine()
-    {
-        var snapshot = new EnvironmentSnapshot
-        {
+    public void FormatReadable_NullConsoleEncoding_OmitsEncodingLine() {
+        var snapshot = new EnvironmentSnapshot {
             WorkingDirectory = "/tmp",
             ConsoleEncoding = null,
         };
@@ -194,13 +172,10 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void FormatReadable_WithDevTools_ListsToolNamesAndVersions()
-    {
-        var snapshot = new EnvironmentSnapshot
-        {
+    public void FormatReadable_WithDevTools_ListsToolNamesAndVersions() {
+        var snapshot = new EnvironmentSnapshot {
             WorkingDirectory = "/tmp",
-            DevTools = new Dictionary<string, string?>
-            {
+            DevTools = new Dictionary<string, string?> {
                 ["node"] = "v20.0.0",
                 ["python"] = null,
             }.ToFrozenDictionary(),
@@ -214,10 +189,8 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void FormatReadable_EmptyDevTools_OmitsDevToolsLine()
-    {
-        var snapshot = new EnvironmentSnapshot
-        {
+    public void FormatReadable_EmptyDevTools_OmitsDevToolsLine() {
+        var snapshot = new EnvironmentSnapshot {
             WorkingDirectory = "/tmp",
         };
 
@@ -227,10 +200,8 @@ public sealed class EnvironmentSnapshotTest
     }
 
     [Fact]
-    public void FormatReadable_TimestampFormattedAsUtc()
-    {
-        var snapshot = new EnvironmentSnapshot
-        {
+    public void FormatReadable_TimestampFormattedAsUtc() {
+        var snapshot = new EnvironmentSnapshot {
             Timestamp = new DateTime(2026, 1, 15, 10, 30, 45, DateTimeKind.Utc),
         };
 

@@ -7,16 +7,14 @@ namespace Infrastructure.Network.Downloader.Chunk;
 /// <para>流式写入:64KB 缓冲区,避免大内存占用</para>
 /// <para>chunk.Downloaded 实时更新(内存),元数据持久化由调用方负责</para>
 /// </summary>
-internal sealed class ChunkDownloader
-{
+internal sealed class ChunkDownloader {
     private const int BufferSize = 64 * 1024;
 
     private readonly HttpClient _httpClient;
     private readonly IFileSystem _fs;
 
     /// <summary>构造单分片下载器,注入 HTTP 客户端和文件系统抽象</summary>
-    internal ChunkDownloader(HttpClient httpClient, IFileSystem fs)
-    {
+    internal ChunkDownloader(HttpClient httpClient, IFileSystem fs) {
         _httpClient = httpClient;
         _fs = fs;
     }
@@ -32,8 +30,7 @@ internal sealed class ChunkDownloader
         string url,
         DownloadChunk chunk,
         string partFilePath,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var rangeStart = chunk.Start + chunk.Downloaded;
         var rangeEnd = chunk.End;
 
@@ -55,8 +52,7 @@ internal sealed class ChunkDownloader
         var totalRead = 0L;
         int read;
 
-        while ((read = await responseStream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
-        {
+        while ((read = await responseStream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0) {
             await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
             totalRead += read;
             chunk.Downloaded += read;

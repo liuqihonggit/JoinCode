@@ -6,8 +6,7 @@ namespace JoinCode.Gui.Tests.Theming;
 /// 验证浅色切换在像素级真实生效（区别于仅转换器计算）。调试时帧图保存到 <c>dumps/</c> 目录供人工核对。
 /// </summary>
 [Collection("GuiUiSequential")]
-public sealed class MainWindowRenderTests
-{
+public sealed class MainWindowRenderTests {
     private const double BrightThreshold = 170;
     private const double ContrastMargin = 60;
 
@@ -18,51 +17,42 @@ public sealed class MainWindowRenderTests
         new JoinCode.Gui.Persistence.GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
 
     /// <summary>捕获指定主题下的 MainWindow 渲染帧，返回 (WriteableBitmap, 三区域平均亮度)。</summary>
-    private static (WriteableBitmap Bmp, double Sidebar, double Input, double Full) Capture(bool dark)
-    {
+    private static (WriteableBitmap Bmp, double Sidebar, double Input, double Full) Capture(bool dark) {
         GuiPalette.CurrentVariant = dark
             ? GuiPalette.GuiThemeVariant.Dark
             : GuiPalette.GuiThemeVariant.Light;
 
         var avaVariant = dark ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light;
-        var win = new MainWindow
-        {
+        var win = new MainWindow {
             DataContext = CreateVm(),
             Width = 980,
             Height = 680,
             RequestedThemeVariant = avaVariant
         };
         win.Show();
-        try
-        {
+        try {
             var frame = win.CaptureRenderedFrame()
                 ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null，headless Skia 渲染未生效");
             return (frame, RegionLuma(frame, x: 110, y: 340, w: 40, h: 40), RegionLuma(frame, 490, 660, 200, 15), AverageLuma(frame));
-        }
-        finally
-        {
+        } finally {
             win.Close();
         }
     }
 
-    private static byte[] ReadPixels(WriteableBitmap frame)
-    {
+    private static byte[] ReadPixels(WriteableBitmap frame) {
         var bytes = new byte[frame.PixelSize.Width * frame.PixelSize.Height * 4];
         using var locked = frame.Lock();
         Marshal.Copy(locked.Address, bytes, 0, bytes.Length);
         return bytes;
     }
 
-    private static double RegionLuma(WriteableBitmap frame, int x, int y, int w, int h)
-    {
+    private static double RegionLuma(WriteableBitmap frame, int x, int y, int w, int h) {
         var bytes = ReadPixels(frame);
         var stride = frame.PixelSize.Width * 4;
         double sum = 0;
         int n = 0;
-        for (int py = y; py < y + h; py++)
-        {
-            for (int px = x; px < x + w; px++)
-            {
+        for (int py = y; py < y + h; py++) {
+            for (int px = x; px < x + w; px++) {
                 int i = py * stride + px * 4;
                 double b = bytes[i], g = bytes[i + 1], r = bytes[i + 2];
                 sum += 0.299 * r + 0.587 * g + 0.114 * b;
@@ -73,13 +63,11 @@ public sealed class MainWindowRenderTests
     }
 
     /// <summary>采集一条水平扫描线(从 x0 到 x1、固定 y)上出现的不同 RGB 颜色,用于定位某控件实际渲染色。</summary>
-    private static string ScanRow(WriteableBitmap frame, int y, int x0, int x1)
-    {
+    private static string ScanRow(WriteableBitmap frame, int y, int x0, int x1) {
         var bytes = ReadPixels(frame);
         var stride = frame.PixelSize.Width * 4;
         var seen = new System.Collections.Generic.Dictionary<string, int>();
-        for (int px = x0; px <= x1; px++)
-        {
+        for (int px = x0; px <= x1; px++) {
             int i = y * stride + px * 4;
             var c = $"#{bytes[i + 2]:X2}{bytes[i + 1]:X2}{bytes[i]:X2}";
             seen[c] = seen.TryGetValue(c, out var n) ? n + 1 : 1;
@@ -91,8 +79,7 @@ public sealed class MainWindowRenderTests
         => RegionLuma(frame, 0, 0, frame.PixelSize.Width, frame.PixelSize.Height);
 
     [AvaloniaFact]
-    public void LightThemeFrame_IsVisiblyBrighterThan_DarkThemeFrame()
-    {
+    public void LightThemeFrame_IsVisiblyBrighterThan_DarkThemeFrame() {
         var (_, darkSide, darkInput, darkAvg) = Capture(dark: true);
         var (_, lightSide, lightInput, lightAvg) = Capture(dark: false);
 
@@ -108,11 +95,9 @@ public sealed class MainWindowRenderTests
     }
 
     [AvaloniaFact]
-    public void Signature_StartupFrameIsDark_NeverThirdState()
-    {
+    public void Signature_StartupFrameIsDark_NeverThirdState() {
         // 不手动设置窗口主题 → 完全依赖 App 启动默认,验证首帧即 Dark,不出现 Fluent Default/浅色残留
-        var win = new MainWindow
-        {
+        var win = new MainWindow {
             DataContext = CreateVm(),
             Width = 980,
             Height = 680
@@ -127,15 +112,13 @@ public sealed class MainWindowRenderTests
     }
 
     [AvaloniaFact]
-    public void SessionSelectSwitchesHighlightColor()
-    {
+    public void SessionSelectSwitchesHighlightColor() {
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
         var vm = CreateVm();
         vm.NewConversationCommand.Execute(null);
         var first = vm.Sessions[0];
         var second = vm.Sessions[^1];
-        var win = new MainWindow
-        {
+        var win = new MainWindow {
             DataContext = vm,
             Width = 980,
             Height = 680,
@@ -155,22 +138,18 @@ public sealed class MainWindowRenderTests
         Assert.False(first.IsSelected);
     }
 
-    private static void AssertHighlightColor(MainWindow win, string hex, string label)
-    {
+    private static void AssertHighlightColor(MainWindow win, string hex, string label) {
         var frame = win.CaptureRenderedFrame()
             ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");
         var bytes = ReadPixels(frame);
         var stride = frame.PixelSize.Width * 4;
         // 选中的第一个会话条目渲染在侧栏顶部区域,采样它的背景像素
         var found = false;
-        for (int y = 100; y < 180; y++)
-        {
-            for (int x = 40; x < 200; x++)
-            {
+        for (int y = 100; y < 180; y++) {
+            for (int x = 40; x < 200; x++) {
                 int i = y * stride + x * 4;
                 var c = $"{bytes[i]:X2}{bytes[i + 1]:X2}{bytes[i + 2]:X2}";
-                if (c.Equals(hex, StringComparison.OrdinalIgnoreCase))
-                {
+                if (c.Equals(hex, StringComparison.OrdinalIgnoreCase)) {
                     found = true;
                     break;
                 }

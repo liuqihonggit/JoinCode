@@ -5,8 +5,7 @@ namespace McpToolDispatch;
 /// 支持三种执行类型: shell（命令行）、mcp_call（调用 MCP 服务器）
 /// </summary>
 [Register(typeof(IToolTemplateService), ServiceLifetime.Singleton)]
-public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, IDisposable
-{
+public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, IDisposable {
     private readonly IFileSystem _fs;
     private readonly ILogger<ToolTemplateService>? _logger;
     private readonly string _templatesDir;
@@ -19,8 +18,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public ToolTemplateService(IFileSystem fs, ILogger<ToolTemplateService>? logger = null)
-    {
+    public ToolTemplateService(IFileSystem fs, ILogger<ToolTemplateService>? logger = null) {
         _fs = fs;
         _logger = logger;
         _templatesDir = AppDataConstants.Paths.ToolTemplatesDirectory;
@@ -34,28 +32,21 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>已加载的工具模板只读列表</returns>
-    public async Task<IReadOnlyList<ToolTemplate>> LoadTemplatesAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            if (!_fs.DirectoryExists(_templatesDir))
-            {
+    public async Task<IReadOnlyList<ToolTemplate>> LoadTemplatesAsync(CancellationToken ct = default) {
+        try {
+            if (!_fs.DirectoryExists(_templatesDir)) {
                 _cache = [];
                 return _cache;
             }
 
             var files = _fs.GetFiles(_templatesDir, "*.json", SearchOption.TopDirectoryOnly);
-            var tasks = files.Select(async file =>
-            {
-                try
-                {
+            var tasks = files.Select(async file => {
+                try {
                     var json = await _fs.ReadAllTextAsync(file, ct).ConfigureAwait(false);
                     var template = RelaxedJsonSerializer.Deserialize(json, ToolTemplateJsonContext.Default.ToolTemplate);
-                    if (template is not null)
-                    {
+                    if (template is not null) {
                         var id = Path.GetFileNameWithoutExtension(file);
-                        return new ToolTemplate
-                        {
+                        return new ToolTemplate {
                             Id = id,
                             ToolName = template.ToolName,
                             Description = template.Description,
@@ -66,9 +57,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
                         };
                     }
                     return null;
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "加载工具模板 {File} 失败", file);
                     return null;
                 }
@@ -80,9 +69,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
             _cache = templates;
             _logger?.LogInformation("已加载 {Count} 个工具模板", templates.Count);
             return templates;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "加载工具模板失败");
             _cache = [];
             return _cache;
@@ -96,8 +83,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     /// <param name="registry">工具注册表</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>已注册的工具处理器实例</returns>
-    public async Task<IToolHandler> CreateAndRegisterAsync(ToolTemplate template, IToolRegistry registry, CancellationToken ct = default)
-    {
+    public async Task<IToolHandler> CreateAndRegisterAsync(ToolTemplate template, IToolRegistry registry, CancellationToken ct = default) {
         var schema = BuildSchema(template);
         var handler = new DelegateToolHandler(
             template.ToolName,
@@ -118,8 +104,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     /// <param name="template">工具模板定义</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task SaveTemplateAsync(ToolTemplate template, CancellationToken ct = default)
-    {
+    public async Task SaveTemplateAsync(ToolTemplate template, CancellationToken ct = default) {
         EnsureTemplatesDir();
         var filePath = Path.Combine(_templatesDir, $"{template.Id}.json");
         var json = JsonSerializer.Serialize(template, ToolTemplateJsonContext.Default.ToolTemplate);
@@ -132,29 +117,23 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>工具模板只读列表</returns>
-    public Task<IReadOnlyList<ToolTemplate>> ListTemplatesAsync(CancellationToken ct = default)
-    {
+    public Task<IReadOnlyList<ToolTemplate>> ListTemplatesAsync(CancellationToken ct = default) {
         return Task.FromResult<IReadOnlyList<ToolTemplate>>(_cache);
     }
 
     private async Task<ToolResult> ExecuteTemplateAsync(
         ToolTemplate template,
         Dictionary<string, JsonElement> arguments,
-        CancellationToken ct)
-    {
-        try
-        {
+        CancellationToken ct) {
+        try {
             var execution = template.Execution;
 
-            return execution.Type switch
-            {
+            return execution.Type switch {
                 "shell" => await ExecuteShellAsync(template, arguments, ct).ConfigureAwait(false),
                 "mcp_call" => ExecuteMcpCall(template, arguments),
                 _ => ToolResultBuilder.Error().WithText($"不支持的执行类型: {execution.Type}").Build()
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"工具 '{template.ToolName}' 执行失败: {ex.Message}").Build();
         }
     }
@@ -162,8 +141,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     private async Task<ToolResult> ExecuteShellAsync(
         ToolTemplate template,
         Dictionary<string, JsonElement> arguments,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         var execution = template.Execution;
         if (string.IsNullOrEmpty(execution.Command))
             return ToolResultBuilder.Error().WithText("Shell 执行类型必须指定 Command").Build();
@@ -172,8 +150,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         var args = execution.Args?.Select(a => ReplacePlaceholders(a, arguments)).ToArray() ?? [];
 
         using var process = new System.Diagnostics.Process();
-        process.StartInfo = new System.Diagnostics.ProcessStartInfo
-        {
+        process.StartInfo = new System.Diagnostics.ProcessStartInfo {
             FileName = command,
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -192,12 +169,9 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(execution.TimeoutSeconds));
 
-        try
-        {
+        try {
             await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             process.Kill();
             return ToolResultBuilder.Error().WithText($"Shell 命令执行超时（{execution.TimeoutSeconds}s）").Build();
         }
@@ -205,8 +179,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         var stdout = await stdoutTask.ConfigureAwait(false);
         var stderr = await stderrTask.ConfigureAwait(false);
 
-        if (process.ExitCode != 0)
-        {
+        if (process.ExitCode != 0) {
             return ToolResultBuilder.Error().WithText(
                 $"Shell 命令执行失败 (ExitCode={process.ExitCode}): {stderr}").Build();
         }
@@ -214,8 +187,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         return ToolResultBuilder.Success().WithText(string.IsNullOrEmpty(stderr) ? stdout : $"{stdout}\n{stderr}").Build();
     }
 
-    private ToolResult ExecuteMcpCall(ToolTemplate template, Dictionary<string, JsonElement> arguments)
-    {
+    private ToolResult ExecuteMcpCall(ToolTemplate template, Dictionary<string, JsonElement> arguments) {
         var execution = template.Execution;
         if (string.IsNullOrEmpty(execution.McpTarget))
             return ToolResultBuilder.Error().WithText("MCP 执行类型必须指定 McpTarget").Build();
@@ -224,12 +196,9 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
             $"MCP 调用目标: {execution.McpTarget}，参数: {string.Join(", ", arguments.Keys)}").Build();
     }
 
-    private static string ReplacePlaceholders(string template, Dictionary<string, JsonElement> args)
-    {
-        foreach (var kvp in args)
-        {
-            var value = kvp.Value.ValueKind switch
-            {
+    private static string ReplacePlaceholders(string template, Dictionary<string, JsonElement> args) {
+        foreach (var kvp in args) {
+            var value = kvp.Value.ValueKind switch {
                 JsonValueKind.String => kvp.Value.GetString() ?? "",
                 JsonValueKind.Number => kvp.Value.GetRawText(),
                 JsonValueKind.True => "true",
@@ -241,15 +210,12 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         return template;
     }
 
-    private static ToolSchema BuildSchema(ToolTemplate template)
-    {
+    private static ToolSchema BuildSchema(ToolTemplate template) {
         var properties = new Dictionary<string, ToolSchemaProperty>();
         var required = new List<string>();
 
-        foreach (var param in template.Parameters)
-        {
-            properties[param.Name] = new ToolSchemaProperty
-            {
+        foreach (var param in template.Parameters) {
+            properties[param.Name] = new ToolSchemaProperty {
                 Type = param.Type,
                 Description = param.Description,
                 Enum = param.EnumValues?.ToList() ?? [],
@@ -260,22 +226,17 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
                 required.Add(param.Name);
         }
 
-        return new ToolSchema
-        {
+        return new ToolSchema {
             Properties = properties,
             Required = required.Count > 0 ? required : []
         };
     }
 
-    private void EnsureTemplatesDir()
-    {
-        try
-        {
+    private void EnsureTemplatesDir() {
+        try {
             if (!_fs.DirectoryExists(_templatesDir))
                 _fs.CreateDirectory(_templatesDir);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "创建工具模板目录失败: {Dir}", _templatesDir);
         }
     }
@@ -283,12 +244,11 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     /// <summary>
     /// 释放取消令牌资源。
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _disposeCts.CancelAndDisposeSafe(_logger);
-            base.Dispose();
+        base.Dispose();
     }
 }
 

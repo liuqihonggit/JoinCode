@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Mcp.Client;
 
-public class McpServerConnectionConfig
-{
+public class McpServerConnectionConfig {
     public string Name { get; init; } = string.Empty;
     public string Endpoint { get; init; } = string.Empty;
     public McpClientTransportType TransportType { get; init; } = McpClientTransportType.Stdio;
@@ -11,15 +10,13 @@ public class McpServerConnectionConfig
     public Dictionary<string, string> Headers { get; init; } = [];
 }
 
-public enum McpClientTransportType
-{
+public enum McpClientTransportType {
     [EnumValue("stdio")] Stdio,
     [EnumValue("http")] Http,
     [EnumValue("websocket")] WebSocket,
 }
 
-public class McpAuthConfig
-{
+public class McpAuthConfig {
     public McpAuthType Type { get; init; } = McpAuthType.None;
     public string? ApiKey { get; init; }
     public string? BearerToken { get; init; }
@@ -31,8 +28,7 @@ public class McpAuthConfig
     public List<string> Scopes { get; init; } = [];
 }
 
-public enum McpAuthType
-{
+public enum McpAuthType {
     [EnumValue("none")] None,
     [EnumValue("apikey")] ApiKey,
     [EnumValue("bearer")] Bearer,

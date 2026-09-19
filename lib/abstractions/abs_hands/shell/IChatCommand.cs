@@ -3,8 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 聊天命令上下文
 /// </summary>
-public sealed class ChatCommandContext
-{
+public sealed class ChatCommandContext {
     /// <summary>
     /// 命令参数
     /// </summary>
@@ -54,8 +53,7 @@ public sealed class ChatCommandContext
 /// <summary>
 /// 聊天命令执行结果
 /// </summary>
-public sealed class ChatCommandResult
-{
+public sealed class ChatCommandResult {
     /// <summary>
     /// 是否继续聊天循环
     /// </summary>
@@ -85,8 +83,7 @@ public sealed class ChatCommandResult
 /// <summary>
 /// 聊天命令接口
 /// </summary>
-public interface IChatCommand
-{
+public interface IChatCommand {
     string Name { get; }
 
     string Description { get; }

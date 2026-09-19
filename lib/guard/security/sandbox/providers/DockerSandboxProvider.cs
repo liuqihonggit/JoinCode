@@ -5,8 +5,7 @@ namespace Core.Security.Sandbox.Providers;
 /// Docker 沙箱提供者 — 通过 Docker 容器实现完全隔离的命令执行环境
 /// </summary>
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
-public sealed partial class DockerSandboxProvider : SandboxProviderBase
-{
+public sealed partial class DockerSandboxProvider : SandboxProviderBase {
     private readonly IProcessService _processService;
     private readonly ConcurrentDictionary<string, string> _containerIds = new();
 
@@ -29,41 +28,32 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         ILogger<DockerSandboxProvider>? logger = null,
         IClockService? clock = null,
         ITelemetryService? telemetryService = null)
-        : base(fs, logger, clock ?? SystemClockService.Instance, telemetryService)
-    {
+        : base(fs, logger, clock ?? SystemClockService.Instance, telemetryService) {
         _processService = processService;
     }
 
     /// <summary>
     /// Docker 是否可用 — 检查 PATH 中是否存在 docker/docker.exe 可执行文件
     /// </summary>
-    public override bool IsAvailable
-    {
-        get
-        {
-            try
-            {
+    public override bool IsAvailable {
+        get {
+            try {
                 var path = Environment.GetEnvironmentVariable("PATH") ?? "";
                 var separator = OperatingSystem.IsWindows() ? ';' : ':';
-                foreach (var dir in path.Split(separator, StringSplitOptions.RemoveEmptyEntries))
-                {
+                foreach (var dir in path.Split(separator, StringSplitOptions.RemoveEmptyEntries)) {
                     var exePath = Path.Combine(dir, OperatingSystem.IsWindows() ? "docker.exe" : "docker");
-                    if (Fs.FileExists(exePath))
-                    {
+                    if (Fs.FileExists(exePath)) {
                         return true;
                     }
                 }
                 return false;
-            }
-            catch
-            {
+            } catch {
                 return false;
             }
         }
     }
 
-    private protected override async Task OnCreateAsync(SandboxInfo info, SandboxOptions options, CancellationToken ct)
-    {
+    private protected override async Task OnCreateAsync(SandboxInfo info, SandboxOptions options, CancellationToken ct) {
         var image = options.DockerImage ?? "mcr.microsoft.com/dotnet/sdk:10.0";
 
         var args = new List<string> { "run", "-d" };
@@ -74,20 +64,17 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         args.Add("-e");
         args.Add("JCC_SANDBOX=1");
 
-        if (info.RestrictNetwork)
-        {
+        if (info.RestrictNetwork) {
             args.Add("--network");
             args.Add("none");
         }
 
-        if (options.MemoryLimitMb > 0)
-        {
+        if (options.MemoryLimitMb > 0) {
             args.Add("--memory");
             args.Add($"{options.MemoryLimitMb}m");
         }
 
-        if (options.CpuLimitPercent > 0 && options.CpuLimitPercent <= 100)
-        {
+        if (options.CpuLimitPercent > 0 && options.CpuLimitPercent <= 100) {
             var cpuQuota = options.CpuLimitPercent * 1000 / 100;
             args.Add("--cpu-quota");
             args.Add(cpuQuota.ToString());
@@ -101,15 +88,13 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         args.Add("sleep");
         args.Add("infinity");
 
-        var result = await _processService.ExecuteAsync(new ProcessOptions
-        {
+        var result = await _processService.ExecuteAsync(new ProcessOptions {
             FileName = "docker",
             ArgumentList = args,
             TimeoutMs = 30000
         }, ct).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             throw new InvalidOperationException($"[GRD013] Docker 容器创建失败: {result.StandardError}");
         }
 
@@ -121,23 +106,17 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         await base.OnCreateAsync(info, options, ct).ConfigureAwait(false);
     }
 
-    private protected override async Task OnDestroyAsync(SandboxInfo info, CancellationToken ct)
-    {
-        if (_containerIds.TryRemove(info.SandboxId, out var containerId))
-        {
-            try
-            {
-                await _processService.ExecuteAsync(new ProcessOptions
-                {
+    private protected override async Task OnDestroyAsync(SandboxInfo info, CancellationToken ct) {
+        if (_containerIds.TryRemove(info.SandboxId, out var containerId)) {
+            try {
+                await _processService.ExecuteAsync(new ProcessOptions {
                     FileName = "docker",
                     ArgumentList = new[] { "rm", "-f", containerId },
                     TimeoutMs = 10000
                 }, ct).ConfigureAwait(false);
 
                 Logger?.LogInformation("[Sandbox:Docker] 容器已移除: {ContainerId}", containerId);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Logger?.LogWarning(ex, "[Sandbox:Docker] 移除容器 {ContainerId} 失败", containerId);
             }
         }
@@ -157,22 +136,18 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         string sandboxId,
         string command,
         int timeoutMs = 30000,
-        CancellationToken ct = default)
-    {
-        if (!_containerIds.TryGetValue(sandboxId, out var containerId))
-        {
+        CancellationToken ct = default) {
+        if (!_containerIds.TryGetValue(sandboxId, out var containerId)) {
             throw new InvalidOperationException($"[GRD014] Docker 沙箱 '{sandboxId}' 容器未运行");
         }
 
-        var result = await _processService.ExecuteAsync(new ProcessOptions
-        {
+        var result = await _processService.ExecuteAsync(new ProcessOptions {
             FileName = "docker",
             ArgumentList = new[] { "exec", containerId, "/bin/sh", "-c", ShellCommandEscape.EscapeForSingleQuotedShell(command) },
             TimeoutMs = timeoutMs
         }, ct).ConfigureAwait(false);
 
-        return new ProviderExecutionResult
-        {
+        return new ProviderExecutionResult {
             StandardOutput = result.StandardOutput,
             StandardError = result.StandardError,
             ExitCode = result.ExitCode,

@@ -7,15 +7,13 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有构建时间戳，C# 使用 Assembly 信息
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Version, Description = "显示版本信息", Usage = "/version", Category = ChatCommandCategory.Info)]
-public sealed class VersionCommand : ChatCommandBase
-{
+public sealed class VersionCommand : ChatCommandBase {
     /// <summary>
     /// 执行版本命令,输出 JoinCode 版本号、运行时、架构与操作系统信息
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var assemblyVersion = typeof(VersionCommand).Assembly.GetName().Version;
         var appVersion = assemblyVersion?.ToString() ?? "1.0.0";
         var snapshot = JoinCode.Abstractions.Utils.EnvironmentSnapshot.CaptureQuick();

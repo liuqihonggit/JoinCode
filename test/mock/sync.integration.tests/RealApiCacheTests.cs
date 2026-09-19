@@ -1,10 +1,8 @@
 namespace JoinCode.Tests;
 
 [Trait("Category", "Integration")]
-public sealed class RealApiCacheTests
-{
-    static RealApiCacheTests()
-    {
+public sealed class RealApiCacheTests {
+    static RealApiCacheTests() {
         // 集成测试启动时加载 .env 文件中的 API Key
         Infrastructure.IO.Configuration.EnvFileLoader.LoadFromDirectory(new IO.FileSystem.PhysicalFileSystem());
     }
@@ -12,14 +10,12 @@ public sealed class RealApiCacheTests
     private static bool HasAnthropicKey => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(ProviderEnvVarEnumConstants.AnthropicApiKey));
     private static bool HasOpenAIKey => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey));
 
-    private static HttpClient CreateAnthropicClient()
-    {
+    private static HttpClient CreateAnthropicClient() {
         var apiKey = Environment.GetEnvironmentVariable(ProviderEnvVarEnumConstants.AnthropicApiKey);
         if (string.IsNullOrEmpty(apiKey))
             throw new InvalidOperationException($"[GEN045] {ProviderEnvVarEnumConstants.AnthropicApiKey} 环境变量未设置");
 
-        var client = new HttpClient
-        {
+        var client = new HttpClient {
             BaseAddress = new Uri("https://api.anthropic.com")
         };
         client.DefaultRequestHeaders.Add("x-api-key", apiKey);
@@ -28,14 +24,12 @@ public sealed class RealApiCacheTests
         return client;
     }
 
-    private static HttpClient CreateOpenAIClient()
-    {
+    private static HttpClient CreateOpenAIClient() {
         var apiKey = Environment.GetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey);
         if (string.IsNullOrEmpty(apiKey))
             throw new InvalidOperationException($"[GEN046] {ProviderEnvVarEnumConstants.OpenAiApiKey} 环境变量未设置");
 
-        var client = new HttpClient
-        {
+        var client = new HttpClient {
             BaseAddress = new Uri("https://api.openai.com")
         };
         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
@@ -43,8 +37,7 @@ public sealed class RealApiCacheTests
     }
 
     [Fact]
-    public async Task Anthropic_StaticPrefix_CacheHitOnSecondTurn()
-    {
+    public async Task Anthropic_StaticPrefix_CacheHitOnSecondTurn() {
         if (!HasAnthropicKey) return;
         using var client = CreateAnthropicClient();
         var systemPrompt = "You are a helpful assistant. " + new string('x', 2000);
@@ -67,8 +60,7 @@ public sealed class RealApiCacheTests
     }
 
     [Fact]
-    public async Task Anthropic_DeferLoading_SchemaNotSent()
-    {
+    public async Task Anthropic_DeferLoading_SchemaNotSent() {
         if (!HasAnthropicKey) return;
         using var client = CreateAnthropicClient();
         var systemPrompt = "You are a helpful assistant. " + new string('x', 2000);
@@ -83,8 +75,7 @@ public sealed class RealApiCacheTests
     }
 
     [Fact]
-    public async Task Anthropic_ScopeOrg_WithMcpTools()
-    {
+    public async Task Anthropic_ScopeOrg_WithMcpTools() {
         if (!HasAnthropicKey) return;
         using var client = CreateAnthropicClient();
         var systemPrompt = "You are a helpful assistant. " + new string('x', 2000);
@@ -97,8 +88,7 @@ public sealed class RealApiCacheTests
     }
 
     [Fact]
-    public async Task OpenAI_StaticPrefix_CachedTokensOnSecondTurn()
-    {
+    public async Task OpenAI_StaticPrefix_CachedTokensOnSecondTurn() {
         if (!HasOpenAIKey) return;
         using var client = CreateOpenAIClient();
         var systemPrompt = "You are a helpful assistant. " + new string('x', 2000);
@@ -117,10 +107,8 @@ public sealed class RealApiCacheTests
             "第二轮应有 cached_tokens > 0（缓存命中）");
     }
 
-    private static string BuildAnthropicRequest(string systemPrompt, string userMessage)
-    {
-        var request = new TestAnthropicRequest
-        {
+    private static string BuildAnthropicRequest(string systemPrompt, string userMessage) {
+        var request = new TestAnthropicRequest {
             Model = "claude-sonnet-4-20250514",
             MaxTokens = 100,
             System =
@@ -140,10 +128,8 @@ public sealed class RealApiCacheTests
         return JsonSerializer.Serialize(request, RealApiCacheJsonContext.Default.TestAnthropicRequest);
     }
 
-    private static string BuildAnthropicRequestWithDeferredTools(string systemPrompt, string userMessage)
-    {
-        var request = new TestAnthropicRequest
-        {
+    private static string BuildAnthropicRequestWithDeferredTools(string systemPrompt, string userMessage) {
+        var request = new TestAnthropicRequest {
             Model = "claude-sonnet-4-20250514",
             MaxTokens = 100,
             System =
@@ -174,10 +160,8 @@ public sealed class RealApiCacheTests
         return JsonSerializer.Serialize(request, RealApiCacheJsonContext.Default.TestAnthropicRequest);
     }
 
-    private static string BuildAnthropicRequestWithMcpTools(string systemPrompt, string userMessage)
-    {
-        var request = new TestAnthropicRequest
-        {
+    private static string BuildAnthropicRequestWithMcpTools(string systemPrompt, string userMessage) {
+        var request = new TestAnthropicRequest {
             Model = "claude-sonnet-4-20250514",
             MaxTokens = 100,
             System =
@@ -214,10 +198,8 @@ public sealed class RealApiCacheTests
         return JsonSerializer.Serialize(request, RealApiCacheJsonContext.Default.TestAnthropicRequest);
     }
 
-    private static string BuildOpenAIRequest(string systemPrompt, string userMessage)
-    {
-        var request = new TestOpenAIRequest
-        {
+    private static string BuildOpenAIRequest(string systemPrompt, string userMessage) {
+        var request = new TestOpenAIRequest {
             Model = "gpt-4o",
             MaxTokens = 100,
             Messages =
@@ -229,8 +211,7 @@ public sealed class RealApiCacheTests
         return JsonSerializer.Serialize(request, RealApiCacheJsonContext.Default.TestOpenAIRequest);
     }
 
-    private static async Task<AnthropicRealResponse> SendAnthropicRequestAsync(HttpClient client, string json)
-    {
+    private static async Task<AnthropicRealResponse> SendAnthropicRequestAsync(HttpClient client, string json) {
         var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
         var response = await client.PostAsync("/v1/messages", content).ConfigureAwait(true);
         var body = await response.Content.ReadAsStringAsync().ConfigureAwait(true);
@@ -241,8 +222,7 @@ public sealed class RealApiCacheTests
         var doc = JsonDocument.Parse(body);
         var usage = doc.RootElement.GetProperty("usage");
 
-        return new AnthropicRealResponse
-        {
+        return new AnthropicRealResponse {
             InputTokens = usage.GetProperty("input_tokens").GetInt32(),
             OutputTokens = usage.GetProperty("output_tokens").GetInt32(),
             CacheCreationInputTokens = usage.TryGetProperty("cache_creation_input_tokens", out var cc) ? cc.GetInt32() : 0,
@@ -250,8 +230,7 @@ public sealed class RealApiCacheTests
         };
     }
 
-    private static async Task<OpenAIRealResponse> SendOpenAIRequestAsync(HttpClient client, string json)
-    {
+    private static async Task<OpenAIRealResponse> SendOpenAIRequestAsync(HttpClient client, string json) {
         var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
         var response = await client.PostAsync("/v1/chat/completions", content).ConfigureAwait(true);
         var body = await response.Content.ReadAsStringAsync().ConfigureAwait(true);
@@ -263,49 +242,42 @@ public sealed class RealApiCacheTests
         var usage = doc.RootElement.GetProperty("usage");
 
         int cachedTokens = 0;
-        if (usage.TryGetProperty("prompt_tokens_details", out var details))
-        {
+        if (usage.TryGetProperty("prompt_tokens_details", out var details)) {
             if (details.TryGetProperty("cached_tokens", out var ct))
                 cachedTokens = ct.GetInt32();
         }
 
-        return new OpenAIRealResponse
-        {
+        return new OpenAIRealResponse {
             PromptTokens = usage.GetProperty("prompt_tokens").GetInt32(),
             CompletionTokens = usage.GetProperty("completion_tokens").GetInt32(),
             CachedTokens = cachedTokens
         };
     }
 
-    private static void OutputCacheStats(string label, AnthropicRealResponse r)
-    {
+    private static void OutputCacheStats(string label, AnthropicRealResponse r) {
         Console.WriteLine($"[{label}] Input={r.InputTokens}, Output={r.OutputTokens}, " +
             $"CacheCreation={r.CacheCreationInputTokens}, CacheRead={r.CacheReadInputTokens}");
     }
 
-    private static void OutputOpenAICacheStats(string label, OpenAIRealResponse r)
-    {
+    private static void OutputOpenAICacheStats(string label, OpenAIRealResponse r) {
         Console.WriteLine($"[{label}] Prompt={r.PromptTokens}, Completion={r.CompletionTokens}, Cached={r.CachedTokens}");
     }
 
-    private sealed class AnthropicRealResponse
-    {
+    private sealed class AnthropicRealResponse {
         public int InputTokens { get; set; }
         public int OutputTokens { get; set; }
         public int CacheCreationInputTokens { get; set; }
         public int CacheReadInputTokens { get; set; }
     }
 
-    private sealed class OpenAIRealResponse
-    {
+    private sealed class OpenAIRealResponse {
         public int PromptTokens { get; set; }
         public int CompletionTokens { get; set; }
         public int CachedTokens { get; set; }
     }
 }
 
-internal sealed class TestAnthropicRequest
-{
+internal sealed class TestAnthropicRequest {
     [JsonPropertyName("model")]
     public string Model { get; set; } = string.Empty;
 
@@ -324,8 +296,7 @@ internal sealed class TestAnthropicRequest
     public List<TestAnthropicTool> Tools { get; set; } = [];
 }
 
-internal sealed class TestAnthropicSystemBlock
-{
+internal sealed class TestAnthropicSystemBlock {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "text";
 
@@ -337,8 +308,7 @@ internal sealed class TestAnthropicSystemBlock
     public TestCacheControl? CacheControl { get; set; }
 }
 
-internal sealed class TestAnthropicMessage
-{
+internal sealed class TestAnthropicMessage {
     [JsonPropertyName("role")]
     public string Role { get; set; } = string.Empty;
 
@@ -346,8 +316,7 @@ internal sealed class TestAnthropicMessage
     public string? Content { get; set; }
 }
 
-internal sealed class TestAnthropicTool
-{
+internal sealed class TestAnthropicTool {
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
@@ -368,8 +337,7 @@ internal sealed class TestAnthropicTool
     public bool? DeferLoading { get; set; }
 }
 
-internal sealed class TestInputSchema
-{
+internal sealed class TestInputSchema {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "object";
 
@@ -378,8 +346,7 @@ internal sealed class TestInputSchema
     public Dictionary<string, TestSchemaProperty> Properties { get; set; } = [];
 }
 
-internal sealed class TestSchemaProperty
-{
+internal sealed class TestSchemaProperty {
     [JsonPropertyName("type")]
     public string Type { get; set; } = string.Empty;
 
@@ -388,8 +355,7 @@ internal sealed class TestSchemaProperty
     public string? Description { get; set; }
 }
 
-internal sealed class TestCacheControl
-{
+internal sealed class TestCacheControl {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "ephemeral";
 
@@ -398,8 +364,7 @@ internal sealed class TestCacheControl
     public string? Scope { get; set; }
 }
 
-internal sealed class TestOpenAIRequest
-{
+internal sealed class TestOpenAIRequest {
     [JsonPropertyName("model")]
     public string Model { get; set; } = string.Empty;
 
@@ -410,8 +375,7 @@ internal sealed class TestOpenAIRequest
     public List<TestOpenAIMessage> Messages { get; set; } = [];
 }
 
-internal sealed class TestOpenAIMessage
-{
+internal sealed class TestOpenAIMessage {
     [JsonPropertyName("role")]
     public string Role { get; set; } = string.Empty;
 

@@ -4,14 +4,12 @@ namespace Core.Agents;
 /// 代理系统提示词构建器 — 根据代理定义、上下文、团队信息组装系统提示词
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentPromptBuilder), ServiceLifetime.Singleton)]
-public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentPromptBuilder
-{
+public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentPromptBuilder {
 
     /// <summary>
     /// 构造 AgentPromptBuilder 实例，注入定义提供者、子代理上下文访问器、服务提供者及日志器
     /// </summary>
-    public AgentPromptBuilder(JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider definitionProvider, ISubAgentContextAccessor subAgentContextAccessor, IServiceProvider? serviceProvider = null, ILogger<AgentPromptBuilder>? logger = null)
-    {
+    public AgentPromptBuilder(JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider definitionProvider, ISubAgentContextAccessor subAgentContextAccessor, IServiceProvider? serviceProvider = null, ILogger<AgentPromptBuilder>? logger = null) {
         _definitionProvider = definitionProvider;
         _subAgentContextAccessor = subAgentContextAccessor;
         _serviceProvider = serviceProvider;
@@ -41,11 +39,9 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
         string? agentType,
         string task,
         IReadOnlyList<string>? context = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition = null;
-        if (!string.IsNullOrWhiteSpace(agentType))
-        {
+        if (!string.IsNullOrWhiteSpace(agentType)) {
             var role = AgentRole.Executor;
             ExecutorVariant? variant = ExecutorVariantExtensions.FromValue(agentType);
             definition = await _definitionProvider.GetAgentDefinitionAsync(role, variant, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -53,77 +49,60 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
 
         var sb = new StringBuilder();
 
-        if (definition?.SystemPrompt is not null)
-        {
+        if (definition?.SystemPrompt is not null) {
             sb.AppendLine(definition.SystemPrompt);
-        }
-        else
-        {
+        } else {
             sb.AppendLine(string.Format(AgentCoordinatorConstants.SystemPrompts.SubAgentSystemMessage, task));
         }
 
-        if (!string.IsNullOrWhiteSpace(definition?.DisplayId))
-        {
+        if (!string.IsNullOrWhiteSpace(definition?.DisplayId)) {
             sb.AppendLine();
             sb.AppendLine($"你是 {definition.DisplayId} 类型的代理。");
         }
 
-        if (!string.IsNullOrWhiteSpace(definition?.Description))
-        {
+        if (!string.IsNullOrWhiteSpace(definition?.Description)) {
             sb.AppendLine($"角色描述: {definition.Description}");
         }
 
         var toolsDescription = GetToolsDescription(definition);
-        if (toolsDescription is not null)
-        {
+        if (toolsDescription is not null) {
             sb.AppendLine();
             sb.AppendLine($"可用工具: {toolsDescription}");
         }
 
-        if (context is not null && context.Count > 0)
-        {
+        if (context is not null && context.Count > 0) {
             sb.AppendLine();
             sb.AppendLine("上下文信息:");
-            foreach (var ctx in context)
-            {
+            foreach (var ctx in context) {
                 sb.AppendLine($"- {ctx}");
             }
         }
 
-        if (_subAgentContextAccessor.Current is not null && ResolvedTeammateInitService is not null)
-        {
+        if (_subAgentContextAccessor.Current is not null && ResolvedTeammateInitService is not null) {
             var currentCtx = _subAgentContextAccessor.Current;
-            if (!string.IsNullOrWhiteSpace(currentCtx.SessionId) && currentCtx.SessionId != global::Core.Utils.SessionIdFactory.DefaultSessionId)
-            {
-                try
-                {
+            if (!string.IsNullOrWhiteSpace(currentCtx.SessionId) && currentCtx.SessionId != global::Core.Utils.SessionIdFactory.DefaultSessionId) {
+                try {
                     var initContext = await ResolvedTeammateInitService.BuildInitContextAsync(currentCtx.SessionId, currentCtx.AgentId, cancellationToken).ConfigureAwait(false);
-                    if (initContext is not null)
-                    {
+                    if (initContext is not null) {
                         sb.AppendLine();
                         sb.AppendLine("=== 团队上下文 ===");
                         sb.AppendLine(initContext.BuildContextSummary());
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "[AgentPromptBuilder] 构建团队上下文失败: {AgentId}", currentCtx.AgentId);
                 }
             }
         }
 
-        if (definition?.ModelName is not null)
-        {
+        if (definition?.ModelName is not null) {
             sb.AppendLine();
             sb.AppendLine($"使用模型: {definition.ModelName}");
         }
 
-        if (definition?.Skills is not null && definition.Skills.Count > 0)
-        {
+        if (definition?.Skills is not null && definition.Skills.Count > 0) {
             sb.AppendLine();
             sb.AppendLine("预加载技能:");
-            foreach (var skill in definition.Skills)
-            {
+            foreach (var skill in definition.Skills) {
                 sb.AppendLine($"- /{skill}");
             }
         }
@@ -140,8 +119,7 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
         string task,
         IReadOnlyList<string>? context,
         AgentPromptContext? promptContext,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var basePrompt = await BuildSystemPromptAsync(agentType, task, context, cancellationToken).ConfigureAwait(false);
 
         if (promptContext is null)
@@ -149,24 +127,21 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
 
         var sb = new StringBuilder(basePrompt);
 
-        if (promptContext.McpServers is { Count: > 0 } mcpServers)
-        {
+        if (promptContext.McpServers is { Count: > 0 } mcpServers) {
             sb.AppendLine();
             sb.AppendLine("=== 当前 MCP 服务器 ===");
             foreach (var server in mcpServers)
                 sb.AppendLine($"- {server}");
         }
 
-        if (promptContext.AvailableSkills is { Count: > 0 } availableSkills)
-        {
+        if (promptContext.AvailableSkills is { Count: > 0 } availableSkills) {
             sb.AppendLine();
             sb.AppendLine("=== 可用技能 ===");
             foreach (var skill in availableSkills)
                 sb.AppendLine($"- /{skill}");
         }
 
-        if (!string.IsNullOrWhiteSpace(promptContext.SettingsSummary))
-        {
+        if (!string.IsNullOrWhiteSpace(promptContext.SettingsSummary)) {
             sb.AppendLine();
             sb.AppendLine("=== 当前配置 ===");
             sb.AppendLine(promptContext.SettingsSummary);
@@ -175,12 +150,10 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
         return sb.ToString();
     }
 
-    private static string? GetToolsDescription(JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition)
-    {
+    private static string? GetToolsDescription(JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition) {
         if (definition is null) return null;
 
-        if (definition.Tools is { Count: > 0 } tools && definition.DisallowedTools is { Count: > 0 } disallowedTools)
-        {
+        if (definition.Tools is { Count: > 0 } tools && definition.DisallowedTools is { Count: > 0 } disallowedTools) {
             var denySet = new HashSet<string>(disallowedTools);
             var effectiveTools = tools.Where(t => !denySet.Contains(t)).ToList();
             return effectiveTools.Count == 0 ? "无" : string.Join(", ", effectiveTools);

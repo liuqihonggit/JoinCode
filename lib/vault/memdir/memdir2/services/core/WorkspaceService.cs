@@ -5,28 +5,24 @@ namespace Core.Memdir;
 /// 工作区服务实现 — 维护额外的 Memdir 工作目录集合,支持添加、移除、枚举与清空。
 /// </summary>
 [Register(typeof(IWorkspaceService), ServiceLifetime.Singleton)]
-public sealed partial class WorkspaceService : ServiceEntity, IWorkspaceService
-{
+public sealed partial class WorkspaceService : ServiceEntity, IWorkspaceService {
     private readonly HashSet<string> _directories = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<WorkspaceService>? _logger;
 
     /// <summary>
     /// 构造函数 — 注入日志器。
     /// </summary>
-    public WorkspaceService(ILogger<WorkspaceService>? logger = null)
-    {
+    public WorkspaceService(ILogger<WorkspaceService>? logger = null) {
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public bool AddDirectory(string path)
-    {
+    public bool AddDirectory(string path) {
         ArgumentNullException.ThrowIfNull(path);
 
         var fullPath = Path.GetFullPath(path);
 
-        if (_directories.Contains(fullPath))
-        {
+        if (_directories.Contains(fullPath)) {
             _logger?.LogDebug(L.T(StringKey.VaultLogDirectoryExists), fullPath);
             return false;
         }
@@ -37,15 +33,13 @@ public sealed partial class WorkspaceService : ServiceEntity, IWorkspaceService
     }
 
     /// <inheritdoc />
-    public bool RemoveDirectory(string path)
-    {
+    public bool RemoveDirectory(string path) {
         ArgumentNullException.ThrowIfNull(path);
 
         var fullPath = Path.GetFullPath(path);
         var removed = _directories.Remove(fullPath);
 
-        if (removed)
-        {
+        if (removed) {
             _logger?.LogInformation(L.T(StringKey.VaultLogRemovedWorkspace), fullPath);
             return true;
         }
@@ -55,14 +49,12 @@ public sealed partial class WorkspaceService : ServiceEntity, IWorkspaceService
     }
 
     /// <inheritdoc />
-    public IEnumerable<string> GetAdditionalDirectories()
-    {
+    public IEnumerable<string> GetAdditionalDirectories() {
         return _directories;
     }
 
     /// <inheritdoc />
-    public void Clear()
-    {
+    public void Clear() {
         _directories.Clear();
         _logger?.LogInformation(L.T(StringKey.VaultLogClearedWorkspaces));
     }

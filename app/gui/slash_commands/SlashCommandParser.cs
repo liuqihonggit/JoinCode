@@ -1,8 +1,7 @@
 namespace JoinCode.Gui.SlashCommands;
 
 /// <summary>补全模式 — 命令名/命令参数/文件/工具</summary>
-public enum SlashCompletionMode
-{
+public enum SlashCompletionMode {
     /// <summary>命令名补全（/xxx）</summary>
     [EnumValue("command")]
     Command,
@@ -23,8 +22,7 @@ public enum SlashCompletionMode
 /// <summary>
 /// 补全光标解析结果 — 描述当前光标位置是否触发补全及查询前缀。
 /// </summary>
-public readonly record struct SlashParseResult
-{
+public readonly record struct SlashParseResult {
     /// <summary>是否触发补全</summary>
     public bool ShouldComplete { get; init; }
 
@@ -64,8 +62,7 @@ public readonly record struct SlashParseResult
 /// 遍历 CompletionTriggerRegistry.All 找触发符，@ → 子代理补全；# → 文件补全；
 /// / → 命令名补全或命令参数补全（Argument 模式为 / 特殊分支，保留 ParseSlash 处理）。
 /// </summary>
-public static class SlashCommandParser
-{
+public static class SlashCommandParser {
     /// <summary>支持参数补全的命令集（FrozenSet O(1) 查找）</summary>
     private static readonly FrozenSet<string> ArgumentCompletableCommands = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase, "/model", "/theme", "/config", "/effort", "/provider");
@@ -76,8 +73,7 @@ public static class SlashCommandParser
     /// <param name="text">输入框完整文本</param>
     /// <param name="cursor">光标位置（0 到 text.Length）</param>
     /// <returns>解析结果；不触发时 ShouldComplete=false</returns>
-    public static SlashParseResult Parse(string text, int cursor)
-    {
+    public static SlashParseResult Parse(string text, int cursor) {
         if (string.IsNullOrEmpty(text) || cursor <= 0 || cursor > text.Length)
             return SlashParseResult.None;
 
@@ -103,8 +99,7 @@ public static class SlashCommandParser
         var prefixAfter = afterTrigger.ToString();
         var provider = CompletionTriggerRegistry.TryGet(triggerChar);
         var mode = provider?.Mode ?? SlashCompletionMode.File;
-        return new SlashParseResult
-        {
+        return new SlashParseResult {
             ShouldComplete = true,
             Mode = mode,
             TriggerChar = triggerChar,
@@ -115,15 +110,12 @@ public static class SlashCommandParser
     }
 
     /// <summary>遍历 Registry.All 找行内最近的触发符（不再硬编码 / @ #）</summary>
-    private static (int idx, char triggerChar) FindNearestTrigger(ReadOnlySpan<char> lineSlice)
-    {
+    private static (int idx, char triggerChar) FindNearestTrigger(ReadOnlySpan<char> lineSlice) {
         var nearestIdx = -1;
         var nearestChar = '\0';
-        foreach (var provider in CompletionTriggerRegistry.All)
-        {
+        foreach (var provider in CompletionTriggerRegistry.All) {
             var idx = lineSlice.LastIndexOf(provider.TriggerChar);
-            if (idx > nearestIdx)
-            {
+            if (idx > nearestIdx) {
                 nearestIdx = idx;
                 nearestChar = provider.TriggerChar;
             }
@@ -132,13 +124,10 @@ public static class SlashCommandParser
     }
 
     private static SlashParseResult ParseSlash(
-        ReadOnlySpan<char> slice, int triggerIndex, ReadOnlySpan<char> afterSlash, int spaceInAfter, int cursor)
-    {
-        if (spaceInAfter < 0)
-        {
+        ReadOnlySpan<char> slice, int triggerIndex, ReadOnlySpan<char> afterSlash, int spaceInAfter, int cursor) {
+        if (spaceInAfter < 0) {
             var prefix = slice[triggerIndex..].ToString();
-            return new SlashParseResult
-            {
+            return new SlashParseResult {
                 ShouldComplete = true,
                 Mode = SlashCompletionMode.Command,
                 TriggerChar = '/',
@@ -160,8 +149,7 @@ public static class SlashCommandParser
         if (argPrefix.Contains(' '))
             return SlashParseResult.None;
 
-        return new SlashParseResult
-        {
+        return new SlashParseResult {
             ShouldComplete = true,
             Mode = SlashCompletionMode.Argument,
             TriggerChar = '/',

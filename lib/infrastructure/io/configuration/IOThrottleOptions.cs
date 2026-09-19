@@ -4,8 +4,7 @@ namespace IO.Configuration;
 /// <summary>
 /// IO 限流配置选项
 /// </summary>
-public sealed class IOThrottleOptions
-{
+public sealed class IOThrottleOptions {
     /// <summary>默认最大并发读操作数</summary>
     public const int DefaultMaxConcurrentReads = 10;
     /// <summary>默认最大并发写操作数</summary>
@@ -67,8 +66,7 @@ public sealed class IOThrottleOptions
     /// 验证配置选项的有效性
     /// </summary>
     /// <returns>验证错误消息，如果有效则返回 null</returns>
-    public string? Validate()
-    {
+    public string? Validate() {
         return ValidationHelper.CombineErrors(
             ValidatePositive(MaxConcurrentReads, nameof(MaxConcurrentReads)),
             ValidatePositive(MaxConcurrentWrites, nameof(MaxConcurrentWrites)),
@@ -92,8 +90,7 @@ public sealed class IOThrottleOptions
     /// </summary>
     /// <param name="operationType">IO 操作类型</param>
     /// <returns>对应操作类型的最大并发数</returns>
-    public int GetConcurrencyLimit(IOOperationType operationType) => operationType switch
-    {
+    public int GetConcurrencyLimit(IOOperationType operationType) => operationType switch {
         IOOperationType.Read => MaxConcurrentReads,
         IOOperationType.Write => MaxConcurrentWrites,
         IOOperationType.Delete => MaxConcurrentDeletes,
@@ -105,8 +102,7 @@ public sealed class IOThrottleOptions
     /// </summary>
     /// <param name="operationType">IO 操作类型</param>
     /// <returns>对应操作类型消耗的令牌数</returns>
-    public double GetTokenCost(IOOperationType operationType) => operationType switch
-    {
+    public double GetTokenCost(IOOperationType operationType) => operationType switch {
         IOOperationType.Read => ReadTokenCost,
         IOOperationType.Write => WriteTokenCost,
         IOOperationType.Delete => DeleteTokenCost,

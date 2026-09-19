@@ -4,8 +4,7 @@ namespace Core.Context;
 /// 空闲工具检测器 — 追踪连续未使用工具的轮次，达到阈值时触发提醒
 /// </summary>
 [Register(typeof(IdleToolDetector), ServiceLifetime.Singleton)]
-public sealed partial class IdleToolDetector : ServiceEntity
-{
+public sealed partial class IdleToolDetector : ServiceEntity {
     private int _consecutiveNoToolRounds;
     private readonly int _maxIdleRounds;
     private readonly string _reminderContent;
@@ -16,8 +15,7 @@ public sealed partial class IdleToolDetector : ServiceEntity
     public int MaxIdleRounds => _maxIdleRounds;
 
     /// <summary>初始化空闲工具检测器，指定最大空闲轮次和提醒内容</summary>
-    public IdleToolDetector(int maxIdleRounds = 3, string? reminderContent = null)
-    {
+    public IdleToolDetector(int maxIdleRounds = 3, string? reminderContent = null) {
         ArgumentOutOfRangeException.ThrowIfLessThan(maxIdleRounds, 1);
 
         _maxIdleRounds = maxIdleRounds;
@@ -25,14 +23,10 @@ public sealed partial class IdleToolDetector : ServiceEntity
     }
 
     /// <summary>收到LLM响应后更新空闲计数，使用了工具则重置，否则递增</summary>
-    public void OnLlmResponse(bool usedTool)
-    {
-        if (usedTool)
-        {
+    public void OnLlmResponse(bool usedTool) {
+        if (usedTool) {
             Volatile.Write(ref _consecutiveNoToolRounds, 0);
-        }
-        else
-        {
+        } else {
             Interlocked.Increment(ref _consecutiveNoToolRounds);
         }
     }
@@ -42,15 +36,13 @@ public sealed partial class IdleToolDetector : ServiceEntity
         => Volatile.Read(ref _consecutiveNoToolRounds) >= _maxIdleRounds;
 
     /// <summary>获取格式化后的提醒消息，包含当前空闲轮次数</summary>
-    public string GetReminderMessage()
-    {
+    public string GetReminderMessage() {
         var rounds = Volatile.Read(ref _consecutiveNoToolRounds);
         return string.Format(_reminderContent, rounds);
     }
 
     /// <summary>重置空闲计数器为零</summary>
-    public void Reset()
-    {
+    public void Reset() {
         Volatile.Write(ref _consecutiveNoToolRounds, 0);
     }
 

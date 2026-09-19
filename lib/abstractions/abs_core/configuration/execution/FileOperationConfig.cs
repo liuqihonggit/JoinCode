@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Configuration.Execution;
 /// <remarks>
 /// 手动注册（有自定义验证逻辑），不使用 [RegisterOptions]
 /// </remarks>
-public sealed class FileOperationConfig
-{
+public sealed class FileOperationConfig {
     /// <summary>
     /// 最大读取大小（字节，默认 256KB，与 TS 对齐）
     /// </summary>

@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// 作为 ConnectionManager 和 StringMessageRouter 的外观
 /// </summary>
 [Register(typeof(ITransportManager), ServiceLifetime.Singleton)]
-public sealed partial class TransportManager : ITransportManager
-{
+public sealed partial class TransportManager : ITransportManager {
     private readonly IConnectionManager _connectionManager;
     private readonly IMessageRouter _messageRouter;
     private readonly ILogger<TransportManager>? _logger;
@@ -24,26 +23,22 @@ public sealed partial class TransportManager : ITransportManager
     /// <summary>接收到 Bridge 消息时触发</summary>
     public event EventHandler<BridgeMessageReceivedEventArgs>? MessageReceived;
     /// <summary>连接状态变更时触发</summary>
-    public event EventHandler<StateChangedEventArgs<TransportConnectionState>>? ConnectionStateChanged
-    {
+    public event EventHandler<StateChangedEventArgs<TransportConnectionState>>? ConnectionStateChanged {
         add => _connectionManager.ConnectionStateChanged += value;
         remove => _connectionManager.ConnectionStateChanged -= value;
     }
     /// <summary>传输错误发生时触发</summary>
-    public event EventHandler<TransportErrorEventArgs>? ErrorOccurred
-    {
+    public event EventHandler<TransportErrorEventArgs>? ErrorOccurred {
         add => _connectionManager.ErrorOccurred += value;
         remove => _connectionManager.ErrorOccurred -= value;
     }
     /// <summary>开始重连时触发</summary>
-    public event EventHandler? Reconnecting
-    {
+    public event EventHandler? Reconnecting {
         add => _connectionManager.Reconnecting += value;
         remove => _connectionManager.Reconnecting -= value;
     }
     /// <summary>重连成功时触发</summary>
-    public event EventHandler? Reconnected
-    {
+    public event EventHandler? Reconnected {
         add => _connectionManager.Reconnected += value;
         remove => _connectionManager.Reconnected -= value;
     }
@@ -57,8 +52,7 @@ public sealed partial class TransportManager : ITransportManager
     public TransportManager(
         IConnectionManager connectionManager,
         IMessageRouter messageRouter,
-        ILogger<TransportManager>? logger = null)
-    {
+        ILogger<TransportManager>? logger = null) {
         _logger = logger;
         _connectionManager = connectionManager;
         _messageRouter = messageRouter;
@@ -83,8 +77,7 @@ public sealed partial class TransportManager : ITransportManager
     /// <summary>
     /// 发送消息
     /// </summary>
-    public async Task SendMessageAsync(BridgeMessage message, CancellationToken cancellationToken = default)
-    {
+    public async Task SendMessageAsync(BridgeMessage message, CancellationToken cancellationToken = default) {
         var json = message.ToJson();
         await _connectionManager.SendMessageAsync(json, cancellationToken).ConfigureAwait(false);
         _logger?.LogDebug("[TransportManager] 消息已发送: {MessageType}", message.Type);
@@ -105,10 +98,8 @@ public sealed partial class TransportManager : ITransportManager
     /// <summary>
     /// 从 JSON 消息中提取消息 ID
     /// </summary>
-    private static string? ExtractMessageId(string messageJson)
-    {
-        try
-        {
+    private static string? ExtractMessageId(string messageJson) {
+        try {
             var node = JsonNode.Parse(messageJson);
             if (node is not JsonObject obj)
                 return null;
@@ -117,9 +108,7 @@ public sealed partial class TransportManager : ITransportManager
                 return idNode?.GetValue<string>();
 
             return null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -127,29 +116,23 @@ public sealed partial class TransportManager : ITransportManager
     /// <summary>
     /// 处理去重后的字符串消息 — 反序列化为 BridgeMessage 并分发
     /// </summary>
-    private void OnStringMessageReceived(object? sender, StringMessageReceivedEventArgs e)
-    {
-        try
-        {
+    private void OnStringMessageReceived(object? sender, StringMessageReceivedEventArgs e) {
+        try {
             var message = BridgeMessageSerialization.FromJson(e.MessageJson);
 
-            if (message is null)
-            {
+            if (message is null) {
                 _logger?.LogWarning("[TransportManager] 无法解析消息: {Message}", e.MessageJson);
                 return;
             }
 
             // 过滤 Echo 消息
-            if (message is EchoMessage)
-            {
+            if (message is EchoMessage) {
                 _logger?.LogDebug("[TransportManager] 过滤 Echo 消息: {MessageId}", e.MessageId);
                 return;
             }
 
             MessageReceived?.Invoke(this, new BridgeMessageReceivedEventArgs(message));
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[TransportManager] 反序列化消息失败");
         }
     }
@@ -158,8 +141,7 @@ public sealed partial class TransportManager : ITransportManager
     /// 异步释放传输管理器资源
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await _connectionManager.DisposeAsync().ConfigureAwait(false);
         await _messageRouter.DisposeAsync().ConfigureAwait(false);

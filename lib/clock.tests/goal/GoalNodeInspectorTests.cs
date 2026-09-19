@@ -1,14 +1,11 @@
 namespace Core.Goal.Tests;
 
 
-public sealed class GoalNodeInspectorTests
-{
+public sealed class GoalNodeInspectorTests {
     private readonly GoalNodeInspector _sut = new();
 
-    private static GoalNodePayload CreateNode(string name, GoalNodeStatus status = GoalNodeStatus.Running, DateTime? startedAt = null, int loopIteration = 0)
-    {
-        return new GoalNodePayload
-        {
+    private static GoalNodePayload CreateNode(string name, GoalNodeStatus status = GoalNodeStatus.Running, DateTime? startedAt = null, int loopIteration = 0) {
+        return new GoalNodePayload {
             Kind = GoalNodeKind.Function,
             Name = name,
             Status = status,
@@ -17,15 +14,13 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task CheckHealthAsync_EmptyNodes_Should_Return_Healthy()
-    {
+    public async Task CheckHealthAsync_EmptyNodes_Should_Return_Healthy() {
         var report = await _sut.CheckHealthAsync([]).ConfigureAwait(true);
         Assert.False(report.HasAlerts);
     }
 
     [Fact]
-    public async Task CheckHealthAsync_NodeTimeout_Should_Alert()
-    {
+    public async Task CheckHealthAsync_NodeTimeout_Should_Alert() {
         var now = DateTime.UtcNow;
         var node = CreateNode("slow_node", startedAt: now.AddMinutes(-31));
 
@@ -36,8 +31,7 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task CheckHealthAsync_NodeWithinTimeout_Should_NoAlert()
-    {
+    public async Task CheckHealthAsync_NodeWithinTimeout_Should_NoAlert() {
         var now = DateTime.UtcNow;
         var node = CreateNode("ok_node", startedAt: now.AddMinutes(-10));
 
@@ -47,8 +41,7 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task CheckHealthAsync_DeadLoop_Should_Alert()
-    {
+    public async Task CheckHealthAsync_DeadLoop_Should_Alert() {
         var now = DateTime.UtcNow;
         var node = CreateNode("loop_node", startedAt: now.AddMinutes(-3));
         node.LoopIteration = 15;
@@ -60,8 +53,7 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task CheckHealthAsync_HighIterationButLongTime_Should_NoDeadLoopAlert()
-    {
+    public async Task CheckHealthAsync_HighIterationButLongTime_Should_NoDeadLoopAlert() {
         var now = DateTime.UtcNow;
         var node = CreateNode("slow_loop_node", startedAt: now.AddMinutes(-10));
         node.LoopIteration = 15;
@@ -72,13 +64,11 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task CheckHealthAsync_FileConflict_Should_Alert()
-    {
+    public async Task CheckHealthAsync_FileConflict_Should_Alert() {
         var now = DateTime.UtcNow;
         var nodeA = CreateNode("node_a", startedAt: now);
         var nodeB = CreateNode("node_b", startedAt: now);
-        var modifiedFiles = new Dictionary<string, IReadOnlyList<string>>
-        {
+        var modifiedFiles = new Dictionary<string, IReadOnlyList<string>> {
             ["node_a"] = ["shared.cs"],
             ["node_b"] = ["shared.cs"],
         };
@@ -90,13 +80,11 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task CheckHealthAsync_NoFileConflict_Should_NoAlert()
-    {
+    public async Task CheckHealthAsync_NoFileConflict_Should_NoAlert() {
         var now = DateTime.UtcNow;
         var nodeA = CreateNode("node_a", startedAt: now);
         var nodeB = CreateNode("node_b", startedAt: now);
-        var modifiedFiles = new Dictionary<string, IReadOnlyList<string>>
-        {
+        var modifiedFiles = new Dictionary<string, IReadOnlyList<string>> {
             ["node_a"] = ["a.cs"],
             ["node_b"] = ["b.cs"],
         };
@@ -107,10 +95,8 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task ObserveLoopAsync_FirstObservation_Should_NotTerminate()
-    {
-        var ctx = new LoopObservationContext
-        {
+    public async Task ObserveLoopAsync_FirstObservation_Should_NotTerminate() {
+        var ctx = new LoopObservationContext {
             GoalId = "g1",
             NodeId = "neg_review",
             LoopIteration = 1,
@@ -124,14 +110,11 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task ObserveLoopAsync_TrendImprovement_Should_Terminate()
-    {
+    public async Task ObserveLoopAsync_TrendImprovement_Should_Terminate() {
         var goalId = "g1";
 
-        for (var i = 0; i < 2; i++)
-        {
-            await _sut.ObserveLoopAsync(new LoopObservationContext
-            {
+        for (var i = 0; i < 2; i++) {
+            await _sut.ObserveLoopAsync(new LoopObservationContext {
                 GoalId = goalId,
                 NodeId = "neg_review",
                 LoopIteration = i + 1,
@@ -141,8 +124,7 @@ public sealed class GoalNodeInspectorTests
             }).ConfigureAwait(true);
         }
 
-        var result = await _sut.ObserveLoopAsync(new LoopObservationContext
-        {
+        var result = await _sut.ObserveLoopAsync(new LoopObservationContext {
             GoalId = goalId,
             NodeId = "neg_review",
             LoopIteration = 3,
@@ -155,12 +137,10 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task ObserveLoopAsync_Stalemate_Should_Terminate()
-    {
+    public async Task ObserveLoopAsync_Stalemate_Should_Terminate() {
         var goalId = "g1";
 
-        await _sut.ObserveLoopAsync(new LoopObservationContext
-        {
+        await _sut.ObserveLoopAsync(new LoopObservationContext {
             GoalId = goalId,
             NodeId = "neg_review",
             LoopIteration = 1,
@@ -169,8 +149,7 @@ public sealed class GoalNodeInspectorTests
             TotalTurnsCompleted = 1,
         }).ConfigureAwait(true);
 
-        await _sut.ObserveLoopAsync(new LoopObservationContext
-        {
+        await _sut.ObserveLoopAsync(new LoopObservationContext {
             GoalId = goalId,
             NodeId = "neg_review",
             LoopIteration = 2,
@@ -179,8 +158,7 @@ public sealed class GoalNodeInspectorTests
             TotalTurnsCompleted = 2,
         }).ConfigureAwait(true);
 
-        var result = await _sut.ObserveLoopAsync(new LoopObservationContext
-        {
+        var result = await _sut.ObserveLoopAsync(new LoopObservationContext {
             GoalId = goalId,
             NodeId = "neg_review",
             LoopIteration = 3,
@@ -193,12 +171,10 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task ObserveLoopAsync_NearHardLimit_Should_Terminate()
-    {
+    public async Task ObserveLoopAsync_NearHardLimit_Should_Terminate() {
         var goalId = "g1";
 
-        await _sut.ObserveLoopAsync(new LoopObservationContext
-        {
+        await _sut.ObserveLoopAsync(new LoopObservationContext {
             GoalId = goalId,
             NodeId = "neg_review",
             LoopIteration = 1,
@@ -207,8 +183,7 @@ public sealed class GoalNodeInspectorTests
             TotalTurnsCompleted = 1,
         }).ConfigureAwait(true);
 
-        var result = await _sut.ObserveLoopAsync(new LoopObservationContext
-        {
+        var result = await _sut.ObserveLoopAsync(new LoopObservationContext {
             GoalId = goalId,
             NodeId = "neg_review",
             LoopIteration = 12,
@@ -221,21 +196,18 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task ScoreAsync_Should_Return_DefaultScore()
-    {
+    public async Task ScoreAsync_Should_Return_DefaultScore() {
         var score = await _sut.ScoreAsync("test output").ConfigureAwait(true);
         Assert.Equal(0.5, score.Overall);
     }
 
     [Fact]
-    public async Task ScoreAsync_NullOutput_Should_Throw()
-    {
+    public async Task ScoreAsync_NullOutput_Should_Throw() {
         await Assert.ThrowsAsync<ArgumentException>(() => _sut.ScoreAsync("")).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ScoreAsync_WithKernel_Should_ParseLlmScore()
-    {
+    public async Task ScoreAsync_WithKernel_Should_ParseLlmScore() {
         var kernel = new Mock<IChatClient>();
         var chatService = new Mock<IQueryService>();
         chatService.Setup(x => x.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
@@ -253,8 +225,7 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task ScoreAsync_WithKernel_LlmFails_Should_ReturnDefault()
-    {
+    public async Task ScoreAsync_WithKernel_LlmFails_Should_ReturnDefault() {
         var kernel = new Mock<IChatClient>();
         var chatService = new Mock<IQueryService>();
         chatService.Setup(x => x.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
@@ -269,8 +240,7 @@ public sealed class GoalNodeInspectorTests
     }
 
     [Fact]
-    public async Task ScoreAsync_WithKernel_InvalidJson_Should_ReturnDefault()
-    {
+    public async Task ScoreAsync_WithKernel_InvalidJson_Should_ReturnDefault() {
         var kernel = new Mock<IChatClient>();
         var chatService = new Mock<IQueryService>();
         chatService.Setup(x => x.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))

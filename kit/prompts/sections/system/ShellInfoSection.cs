@@ -5,25 +5,20 @@ namespace Core.Prompts.Sections;
 /// 从 SystemActuatorInfos 通用集合遍历，新增 SystemActuatorKind 无需改此代码
 /// </summary>
 [PromptSection(Name = "shell_info", Order = 69, IsDynamic = true)]
-public static class ShellInfoSection
-{
+public static class ShellInfoSection {
     /// <summary>
     /// 创建 Shell 信息提示词部分。
     /// </summary>
     /// <returns>动态系统提示词部分。</returns>
-    public static SystemPromptSection Create()
-    {
-        return SystemPromptSection.Dynamic("shell_info", () =>
-        {
+    public static SystemPromptSection Create() {
+        return SystemPromptSection.Dynamic("shell_info", () => {
             var config = PromptConfigSnapshot.Current;
             var lines = new List<string>();
 
             var shellInfos = config.ShellInfos;
 
-            if (shellInfos is not null && shellInfos.Count > 0)
-            {
-                foreach (var kvp in shellInfos)
-                {
+            if (shellInfos is not null && shellInfos.Count > 0) {
+                foreach (var kvp in shellInfos) {
                     var info = kvp.Value;
                     var line = info.Kind == SystemActuatorKind.Bash && info.Version == "cmd-fallback"
                         ? $"{ShellToolNameEnumConstants.Bash}: 不可用（未找到 Git Bash，回退到 cmd.exe — 仅支持 CMD 语法）"
@@ -33,31 +28,23 @@ public static class ShellInfoSection
                     lines.Add(line);
                 }
 
-                if (shellInfos.TryGetValue(SystemActuatorKind.PowerShell, out var psInfo) && !psInfo.DisplayName.Contains("Core"))
-                {
+                if (shellInfos.TryGetValue(SystemActuatorKind.PowerShell, out var psInfo) && !psInfo.DisplayName.Contains("Core")) {
                     lines.Add("注意: Windows PowerShell 5.1 不支持 &&、||、三元运算符 ?:、空合并 ?? — 使用 ; if ($?) { } 替代链式命令");
                 }
-            }
-            else
-            {
+            } else {
                 var shell = Environment.GetEnvironmentVariable("SHELL");
-                if (!string.IsNullOrEmpty(shell))
-                {
+                if (!string.IsNullOrEmpty(shell)) {
                     var shellName = shell.Contains("zsh") ? "zsh" :
                                     shell.Contains("bash") ? "bash" :
                                     shell.Contains("powershell") ? "powershell" :
                                     shell.Contains("cmd") ? "cmd" : shell;
                     lines.Add($"Shell: {shellName}");
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
+                } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
                     var comspec = Environment.GetEnvironmentVariable("COMSPEC");
                     lines.Add(string.IsNullOrEmpty(comspec)
                         ? "Shell: cmd.exe (Windows 默认)"
                         : $"Shell: {Path.GetFileName(comspec)} (Windows 默认)");
-                }
-                else
-                {
+                } else {
                     lines.Add("Shell: unknown");
                 }
             }

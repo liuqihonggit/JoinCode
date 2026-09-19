@@ -4,8 +4,7 @@ namespace Core.Hooks.Lifecycle;
 /// 会话启动钩子管理器 — 在会话启动时编排 SessionStart 钩子,聚合阻断决策与附加配置
 /// </summary>
 [Register(typeof(ISessionStartHookManager), ServiceLifetime.Singleton)]
-public sealed partial class SessionStartHookManager : ServiceEntity, ISessionStartHookManager
-{
+public sealed partial class SessionStartHookManager : ServiceEntity, ISessionStartHookManager {
     private readonly IHookOrchestrator _orchestrator;
     private readonly ILogger<SessionStartHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
@@ -13,18 +12,15 @@ public sealed partial class SessionStartHookManager : ServiceEntity, ISessionSta
     /// <summary>
     /// 初始化会话启动钩子管理器实例
     /// </summary>
-    public SessionStartHookManager(IHookOrchestrator orchestrator, ILogger<SessionStartHookManager>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public SessionStartHookManager(IHookOrchestrator orchestrator, ILogger<SessionStartHookManager>? logger = null, ITelemetryService? telemetryService = null) {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         _logger = logger;
         _telemetryService = telemetryService;
     }
 
     /// <inheritdoc/>
-    public async Task<SessionStartHookResult> OnSessionStartAsync(SessionStartHookContext context, CancellationToken ct = default)
-    {
-        var payload = new Dictionary<string, JsonElement>
-        {
+    public async Task<SessionStartHookResult> OnSessionStartAsync(SessionStartHookContext context, CancellationToken ct = default) {
+        var payload = new Dictionary<string, JsonElement> {
             ["sessionId"] = JsonElementHelper.FromString(context.SessionId),
             ["source"] = JsonElementHelper.FromString(context.Source),
             ["configuration"] = JsonSerializer.SerializeToElement(context.Configuration, HooksJsonContext.Default.DictionaryStringJsonElement)
@@ -37,53 +33,43 @@ public sealed partial class SessionStartHookManager : ServiceEntity, ISessionSta
             payload,
             matcher: context.Source,
             sessionId: context.SessionId,
-            cancellationToken: ct).ConfigureAwait(false))
-        {
-            if (result.Outcome == HookOutcome.Blocking)
-            {
+            cancellationToken: ct).ConfigureAwait(false)) {
+            if (result.Outcome == HookOutcome.Blocking) {
                 _logger?.LogInformation("SessionStart hook blocked session {SessionId}: {Message}",
                     context.SessionId, result.Message);
 
                 RecordHookMetrics(context.Source, true);
-                return new SessionStartHookResult
-                {
+                return new SessionStartHookResult {
                     ShouldProceed = false,
                     Message = result.Message
                 };
             }
 
-            if (result.PreventContinuation)
-            {
-                return new SessionStartHookResult
-                {
+            if (result.PreventContinuation) {
+                return new SessionStartHookResult {
                     ShouldProceed = false,
                     Message = result.Message
                 };
             }
 
-            if (result.UpdatedInput != null)
-            {
-                foreach (var kvp in result.UpdatedInput)
-                {
+            if (result.UpdatedInput != null) {
+                foreach (var kvp in result.UpdatedInput) {
                     additionalConfig[kvp.Key] = kvp.Value;
                 }
             }
 
-            if (result.AdditionalContext != null)
-            {
+            if (result.AdditionalContext != null) {
                 additionalConfig["additionalContext"] = JsonElementHelper.FromString(result.AdditionalContext);
             }
 
-            if (result.InitialUserMessage != null)
-            {
+            if (result.InitialUserMessage != null) {
                 additionalConfig["initialUserMessage"] = JsonElementHelper.FromString(result.InitialUserMessage);
             }
         }
 
         RecordHookMetrics(context.Source, false);
 
-        return new SessionStartHookResult
-        {
+        return new SessionStartHookResult {
             AdditionalConfig = additionalConfig
         };
     }

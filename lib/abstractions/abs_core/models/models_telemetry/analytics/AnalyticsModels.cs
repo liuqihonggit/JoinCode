@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Analytics;
 
-public enum AnalyticsEventType
-{
+public enum AnalyticsEventType {
     [EnumValue("toolCall")] ToolCall,
     [EnumValue("toolSuccess")] ToolSuccess,
     [EnumValue("toolError")] ToolError,
@@ -12,8 +11,7 @@ public enum AnalyticsEventType
     [EnumValue("performance")] Performance
 }
 
-public sealed record AnalyticsEvent
-{
+public sealed record AnalyticsEvent {
     public required string EventId { get; init; }
     public required AnalyticsEventType Type { get; init; }
     public required string Name { get; init; }
@@ -26,8 +24,7 @@ public sealed record AnalyticsEvent
     public string? ErrorMessage { get; init; }
 }
 
-public sealed record AnalyticsExportData
-{
+public sealed record AnalyticsExportData {
     public required DateTime ExportTime { get; init; }
     public required DateTime? StartDate { get; init; }
     public required DateTime? EndDate { get; init; }
@@ -35,8 +32,7 @@ public sealed record AnalyticsExportData
     public required List<AnalyticsEvent> Events { get; init; }
 }
 
-public sealed record ToolUsageStatistics
-{
+public sealed record ToolUsageStatistics {
     public required string ToolName { get; init; }
     public int CallCount { get; init; }
     public int SuccessCount { get; init; }
@@ -46,8 +42,7 @@ public sealed record ToolUsageStatistics
     public DateTime? LastCallAt { get; init; }
 }
 
-public sealed record UsageStatisticsReport
-{
+public sealed record UsageStatisticsReport {
     public int TotalEvents { get; init; }
     public int TotalToolCalls { get; init; }
     public double ToolSuccessRate { get; init; }
@@ -57,8 +52,7 @@ public sealed record UsageStatisticsReport
     public double ErrorRate { get; init; }
 }
 
-public sealed record DailyStatistics
-{
+public sealed record DailyStatistics {
     public required DateTime Date { get; init; }
     public int EventCount { get; init; }
     public int ToolCalls { get; init; }

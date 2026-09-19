@@ -4,8 +4,7 @@ namespace McpToolDispatch;
 /// GitHub Actions Run 工具 — gh run 子命令全套
 /// <para>避坑2/3/5: 大日志 maxLines 截断 + --job 精准拉 + 30s 超时</para>
 /// </summary>
-public partial class GitHubToolHandlers
-{
+public partial class GitHubToolHandlers {
     /// <summary>
     /// 列出 Actions Run — 支持状态/分支过滤，发现失败 run 时附排障步骤提示
     /// </summary>
@@ -16,8 +15,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("分支过滤(可选)", Required = false)] string? branch = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -51,8 +49,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -67,20 +64,17 @@ public partial class GitHubToolHandlers
         var markers = hasFilter ? GitHubRunLogFilter.GetFilterMarkers(filterLevel) : null;
 
         // === expand=jobs: 列出 job 列表(不下载日志,轻量 API 调用) ===
-        if (string.Equals(expand, "jobs", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.Equals(expand, "jobs", StringComparison.OrdinalIgnoreCase)) {
             return await ListJobsAsync(owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
         }
 
         // === filter=failed: 智能过滤测试失败(状态机提取 Failed+Error+StackTrace,Rust 风格输出) ===
-        if (string.Equals(filter, "failed", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.Equals(filter, "failed", StringComparison.OrdinalIgnoreCase)) {
             return await FilterFailedTestsAsync(owner, repoName, run_id, job_id, maxLines, skip, cancellationToken);
         }
 
         // === expand=failed: 只拉失败步骤日志(量少,不缓存) ===
-        if (string.Equals(expand, "failed", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.Equals(expand, "failed", StringComparison.OrdinalIgnoreCase)) {
             return await StreamAndFilterAsync(owner, repoName, run_id, job_id, true, "失败步骤", markers, filterLevel, maxLines, cancellationToken, GitHubRunLogHints.FailedHint, skip);
         }
 
@@ -90,29 +84,24 @@ public partial class GitHubToolHandlers
             : null;
         var wantSteps = string.Equals(expand, "steps", StringComparison.OrdinalIgnoreCase);
 
-        if (wantSteps || expandStep is not null)
-        {
+        if (wantSteps || expandStep is not null) {
             // expand=steps 必须带 job_id(诱导式: 先 expand=jobs 看列表,再按需下载)
-            if (wantSteps && string.IsNullOrWhiteSpace(job_id))
-            {
+            if (wantSteps && string.IsNullOrWhiteSpace(job_id)) {
                 return Ok("expand=steps 需要指定 job_id 参数。\n\n💡 操作步骤:\n1. 先用 expand=jobs 查看 job 列表(获取 job ID 和状态)\n2. 再用 expand=steps job_id=123 下载指定 job 日志并查看步骤列表\n3. 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456", "提示:");
             }
 
             // 解析 /section:Type 后缀
             string? sectionType = null;
-            if (expandStep is not null)
-            {
+            if (expandStep is not null) {
                 var sectionIdx = expandStep.IndexOf("/section:", StringComparison.OrdinalIgnoreCase);
-                if (sectionIdx >= 0)
-                {
+                if (sectionIdx >= 0) {
                     sectionType = expandStep[(sectionIdx + 9)..].Trim();
                     expandStep = expandStep[..sectionIdx].Trim();
                 }
             }
 
             // expand=step:Name/section:Type: 从 Level2 内容缓存读取(ADR 0067)
-            if (expandStep is not null && sectionType is not null)
-            {
+            if (expandStep is not null && sectionType is not null) {
                 var sectionLines = await GetOrFetchSectionAsync(owner, repoName, run_id, job_id, expandStep, sectionType, working_dir, wantRefresh, cancellationToken);
                 if (sectionLines is null)
                     return Ok($"未找到步骤 '{expandStep}' 或 section '{sectionType}'，建议先 expand=step:{expandStep} 查看 section 摘要");
@@ -131,12 +120,10 @@ public partial class GitHubToolHandlers
             if (summary is null) return Fail("日志拉取失败");
 
             // expand=steps: 返回步骤列表(有 error 的步骤标 ❌)
-            if (wantSteps)
-            {
+            if (wantSteps) {
                 var stepsText = summary.StepLineCounts
                     .OrderByDescending(kvp => kvp.Value)
-                    .Select(kvp =>
-                    {
+                    .Select(kvp => {
                         var hasError = summary.SectionCounts.TryGetValue(kvp.Key, out var secs)
                             && secs.TryGetValue(RunLogCache.SectionError, out _);
                         var marker = hasError ? "❌ " : "   ";
@@ -146,8 +133,7 @@ public partial class GitHubToolHandlers
             }
 
             // expand=step:Name: 返回 section 摘要(Level 2,ADR 0067)
-            if (expandStep is not null)
-            {
+            if (expandStep is not null) {
                 if (!summary.SectionCounts.TryGetValue(expandStep, out var secs))
                     return Ok($"未找到步骤 '{expandStep}'，可用步骤: {string.Join(", ", summary.SectionCounts.Keys)}");
 
@@ -161,8 +147,7 @@ public partial class GitHubToolHandlers
         // === 常规模式: log=false 看详情, log=true 拉日志 ===
         var wantLog = log == true;
 
-        if (wantLog)
-        {
+        if (wantLog) {
             // log=true: 用 REST API 日志流 + 过滤/分页
             return await StreamAndFilterAsync(owner, repoName, run_id, job_id, false, "日志", markers, filterLevel, maxLines, cancellationToken, GitHubRunLogHints.LogHint, skip);
         }
@@ -244,8 +229,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("是否只重跑失败的 job(默认 true)", Required = false)] bool? failed_only = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -266,8 +250,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("Run ID", Required = true)] string run_id,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();

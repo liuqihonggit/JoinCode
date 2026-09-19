@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// UI 元素检测器 — 截图 → 多模态 LLM → 结构化 UI 元素列表（PRD V-02/V-03/V-04）
 /// </summary>
-public interface IUiElementDetector
-{
+public interface IUiElementDetector {
     /// <summary>检测截图中的所有 UI 元素（V-02 + V-03）</summary>
     /// <param name="base64Png">base64 编码的 PNG 截图</param>
     /// <param name="cancellationToken">取消令牌</param>

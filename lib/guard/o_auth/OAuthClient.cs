@@ -5,8 +5,7 @@ namespace Services.OAuth;
 /// OAuth 客户端接口
 /// 处理 OAuth 2.0 授权流程
 /// </summary>
-public interface IOAuthClient
-{
+public interface IOAuthClient {
     /// <summary>
     /// 生成授权 URL
     /// </summary>
@@ -48,8 +47,7 @@ public interface IOAuthClient
 /// OAuth 客户端实现
 /// </summary>
 [Register(typeof(IOAuthClient), ServiceLifetime.Singleton)]
-public sealed partial class OAuthClient : ServiceEntity, IOAuthClient
-{
+public sealed partial class OAuthClient : ServiceEntity, IOAuthClient {
     private readonly HttpClient _httpClient;
     private readonly ILogger<OAuthClient>? _logger;
     private readonly IClockService _clock;
@@ -60,24 +58,21 @@ public sealed partial class OAuthClient : ServiceEntity, IOAuthClient
     /// <param name="httpClient">HTTP 客户端</param>
     /// <param name="logger">日志器，可为空</param>
     /// <param name="clock">时钟服务，可为空则使用系统时钟</param>
-    public OAuthClient(HttpClient httpClient, ILogger<OAuthClient>? logger = null, IClockService? clock = null)
-    {
+    public OAuthClient(HttpClient httpClient, ILogger<OAuthClient>? logger = null, IClockService? clock = null) {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
     }
 
     /// <inheritdoc />
-    public string BuildAuthorizationUrl(OAuthConfig config, string state, PkceParameters pkce)
-    {
+    public string BuildAuthorizationUrl(OAuthConfig config, string state, PkceParameters pkce) {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentException.ThrowIfNullOrEmpty(state);
         ArgumentNullException.ThrowIfNull(pkce);
 
         var scope = string.Join(" ", config.Scope);
 
-        var queryParams = new Dictionary<string, string>
-        {
+        var queryParams = new Dictionary<string, string> {
             ["client_id"] = config.ClientId,
             ["response_type"] = "code",
             ["redirect_uri"] = config.RedirectUri,
@@ -86,15 +81,13 @@ public sealed partial class OAuthClient : ServiceEntity, IOAuthClient
         };
 
         // 添加 PKCE 参数
-        if (config.UsePkce)
-        {
+        if (config.UsePkce) {
             queryParams["code_challenge"] = pkce.CodeChallenge;
             queryParams["code_challenge_method"] = pkce.CodeChallengeMethod;
         }
 
         // 添加额外参数
-        foreach (var param in config.AdditionalParams)
-        {
+        foreach (var param in config.AdditionalParams) {
             queryParams[param.Key] = param.Value;
         }
 
@@ -107,27 +100,23 @@ public sealed partial class OAuthClient : ServiceEntity, IOAuthClient
     }
 
     /// <inheritdoc />
-    public async Task<OAuthToken> ExchangeCodeAsync(OAuthConfig config, string code, PkceParameters pkce, CancellationToken cancellationToken = default)
-    {
+    public async Task<OAuthToken> ExchangeCodeAsync(OAuthConfig config, string code, PkceParameters pkce, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentException.ThrowIfNullOrEmpty(code);
         ArgumentNullException.ThrowIfNull(pkce);
 
-        var requestBody = new Dictionary<string, string>
-        {
+        var requestBody = new Dictionary<string, string> {
             ["grant_type"] = "authorization_code",
             ["client_id"] = config.ClientId,
             ["code"] = code,
             ["redirect_uri"] = config.RedirectUri
         };
 
-        if (!string.IsNullOrEmpty(config.ClientSecret))
-        {
+        if (!string.IsNullOrEmpty(config.ClientSecret)) {
             requestBody["client_secret"] = config.ClientSecret;
         }
 
-        if (config.UsePkce)
-        {
+        if (config.UsePkce) {
             requestBody["code_verifier"] = pkce.CodeVerifier;
         }
 
@@ -139,20 +128,17 @@ public sealed partial class OAuthClient : ServiceEntity, IOAuthClient
     }
 
     /// <inheritdoc />
-    public async Task<OAuthToken> RefreshTokenAsync(OAuthConfig config, string refreshToken, CancellationToken cancellationToken = default)
-    {
+    public async Task<OAuthToken> RefreshTokenAsync(OAuthConfig config, string refreshToken, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentException.ThrowIfNullOrEmpty(refreshToken);
 
-        var requestBody = new Dictionary<string, string>
-        {
+        var requestBody = new Dictionary<string, string> {
             ["grant_type"] = "refresh_token",
             ["client_id"] = config.ClientId,
             ["refresh_token"] = refreshToken
         };
 
-        if (!string.IsNullOrEmpty(config.ClientSecret))
-        {
+        if (!string.IsNullOrEmpty(config.ClientSecret)) {
             requestBody["client_secret"] = config.ClientSecret;
         }
 
@@ -164,53 +150,41 @@ public sealed partial class OAuthClient : ServiceEntity, IOAuthClient
     }
 
     /// <inheritdoc />
-    public async Task RevokeTokenAsync(OAuthConfig config, string token, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(config.RevocationEndpoint))
-        {
+    public async Task RevokeTokenAsync(OAuthConfig config, string token, CancellationToken cancellationToken = default) {
+        if (string.IsNullOrEmpty(config.RevocationEndpoint)) {
             _logger?.LogWarning("Revocation endpoint not configured for {Provider}", config.Provider);
             return;
         }
 
-        var requestBody = new Dictionary<string, string>
-        {
+        var requestBody = new Dictionary<string, string> {
             ["token"] = token,
             ["client_id"] = config.ClientId
         };
 
-        if (!string.IsNullOrEmpty(config.ClientSecret))
-        {
+        if (!string.IsNullOrEmpty(config.ClientSecret)) {
             requestBody["client_secret"] = config.ClientSecret;
         }
 
         var content = new FormUrlEncodedContent(requestBody);
 
-        try
-        {
+        try {
             var response = await _httpClient.PostAsync(config.RevocationEndpoint, content, cancellationToken).ConfigureAwait(false);
 
-            if (response.IsSuccessStatusCode)
-            {
+            if (response.IsSuccessStatusCode) {
                 _logger?.LogInformation("Token revoked successfully for {Provider}", config.Provider);
-            }
-            else
-            {
+            } else {
                 var error = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                 _logger?.LogWarning("Failed to revoke token for {Provider}: {Error}", config.Provider, error);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Error revoking token for {Provider}", config.Provider);
         }
     }
 
-    private OAuthToken MapToOAuthToken(OAuth2TokenResponse tokenResponse)
-    {
+    private OAuthToken MapToOAuthToken(OAuth2TokenResponse tokenResponse) {
         var expiresAt = _clock.GetUtcNowOffset().AddSeconds(tokenResponse.ExpiresIn);
 
-        return new OAuthToken
-        {
+        return new OAuthToken {
             AccessToken = tokenResponse.AccessToken,
             RefreshToken = tokenResponse.RefreshToken,
             TokenType = tokenResponse.TokenType,

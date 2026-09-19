@@ -6,8 +6,7 @@ namespace Integration.Tests.Clock.Goal;
 /// 模拟进程重启：第一个 GoalEngine 写入持久化 → 丢弃实例 → 新 GoalEngine 从存储恢复。
 /// 按 sessionId 隔离：路径 {baseDir}/{sessionId}/{goalId}.json
 /// </summary>
-public sealed class GoalRehydrateTests
-{
+public sealed class GoalRehydrateTests {
     private readonly IO.FileSystem.PhysicalFileSystem _fs = new();
     private readonly string _tempDir = Path.Combine(Path.GetTempPath(), "jcc-goal-test-" + Guid.NewGuid().ToString("N")[..8]);
     private const string SessionId = "test-session-001";
@@ -15,8 +14,7 @@ public sealed class GoalRehydrateTests
     /// <summary>
     /// 创建临时目录下的 GoalStateStore，用真实文件系统验证持久化往返。
     /// </summary>
-    private GoalStateStore CreateStore()
-    {
+    private GoalStateStore CreateStore() {
         _fs.CreateDirectory(_tempDir);
         return new GoalStateStore(_fs, _tempDir);
     }
@@ -24,16 +22,14 @@ public sealed class GoalRehydrateTests
     /// <summary>
     /// 清理临时目录。
     /// </summary>
-    private void Cleanup()
-    {
+    private void Cleanup() {
         if (_fs.DirectoryExists(_tempDir)) _fs.DeleteDirectory(_tempDir, true);
     }
 
     /// <summary>
     /// 创建松散 mock 的 GoalEngine 依赖，设置 sessionId，仅用于 RehydrateAsync（不启动引擎循环）。
     /// </summary>
-    private static GoalEngine CreateEngine(IGoalStateStore? stateStore = null)
-    {
+    private static GoalEngine CreateEngine(IGoalStateStore? stateStore = null) {
         var chatMock = new Mock<JoinCode.Abstractions.LLM.IChatClient>();
         chatMock.Setup(c => c.Plugins).Returns(new Mock<JoinCode.Abstractions.LLM.IToolCollection>().Object);
         var evaluatorMock = new Mock<IGoalEvaluator>();
@@ -44,13 +40,10 @@ public sealed class GoalRehydrateTests
     }
 
     [Fact]
-    public async Task GoalStateStore_SaveAndLoad_RoundTripsState()
-    {
+    public async Task GoalStateStore_SaveAndLoad_RoundTripsState() {
         var store = CreateStore();
-        try
-        {
-            var state = new GoalState
-            {
+        try {
+            var state = new GoalState {
                 GoalId = "goal-test-001",
                 Objective = "实现用户注册功能",
                 Status = GoalStatus.Pursuing,
@@ -78,19 +71,15 @@ public sealed class GoalRehydrateTests
             loaded.PersistedHistory.Should().HaveCount(3);
             loaded.PersistedHistory![0].Role.Should().Be("system");
             loaded.PersistedHistory[2].Content.Should().Be("我来分析需求...");
-        }
-        finally
-        {
+        } finally {
             Cleanup();
         }
     }
 
     [Fact]
-    public async Task GoalStateStore_GetActiveGoals_FiltersCompleted()
-    {
+    public async Task GoalStateStore_GetActiveGoals_FiltersCompleted() {
         var store = CreateStore();
-        try
-        {
+        try {
             await store.SaveAsync(new GoalState { GoalId = "g1", Objective = "活跃目标", Status = GoalStatus.Pursuing, SessionId = SessionId }, CancellationToken.None);
             await store.SaveAsync(new GoalState { GoalId = "g2", Objective = "暂停目标", Status = GoalStatus.Paused, SessionId = SessionId }, CancellationToken.None);
             await store.SaveAsync(new GoalState { GoalId = "g3", Objective = "已完成目标", Status = GoalStatus.Achieved, SessionId = SessionId }, CancellationToken.None);
@@ -100,19 +89,15 @@ public sealed class GoalRehydrateTests
 
             active.Should().HaveCount(2);
             active.Select(s => s.GoalId).Should().BeEquivalentTo(["g1", "g2"]);
-        }
-        finally
-        {
+        } finally {
             Cleanup();
         }
     }
 
     [Fact]
-    public async Task GoalStateStore_SessionIsolation_DifferentSessionsDoNotMix()
-    {
+    public async Task GoalStateStore_SessionIsolation_DifferentSessionsDoNotMix() {
         var store = CreateStore();
-        try
-        {
+        try {
             await store.SaveAsync(new GoalState { GoalId = "g-a", Objective = "会话A目标", Status = GoalStatus.Pursuing, SessionId = "session-a" }, CancellationToken.None);
             await store.SaveAsync(new GoalState { GoalId = "g-b", Objective = "会话B目标", Status = GoalStatus.Pursuing, SessionId = "session-b" }, CancellationToken.None);
 
@@ -121,21 +106,16 @@ public sealed class GoalRehydrateTests
 
             activeA.Should().ContainSingle().Which.GoalId.Should().Be("g-a");
             activeB.Should().ContainSingle().Which.GoalId.Should().Be("g-b");
-        }
-        finally
-        {
+        } finally {
             Cleanup();
         }
     }
 
     [Fact]
-    public async Task GoalEngine_Rehydrate_RestoresStateAndHistory()
-    {
+    public async Task GoalEngine_Rehydrate_RestoresStateAndHistory() {
         var store = CreateStore();
-        try
-        {
-            var originalState = new GoalState
-            {
+        try {
+            var originalState = new GoalState {
                 GoalId = "goal-rehydrate-001",
                 Objective = "重构认证模块",
                 Status = GoalStatus.Pursuing,
@@ -160,34 +140,27 @@ public sealed class GoalRehydrateTests
             engine.CurrentState.Objective.Should().Be("重构认证模块");
             engine.CurrentState.Status.Should().Be(GoalStatus.Pursuing);
             engine.CurrentState.Constraints.Should().ContainSingle().Which.Should().Be("保持向后兼容");
-        }
-        finally
-        {
+        } finally {
             Cleanup();
         }
     }
 
     [Fact]
-    public async Task GoalEngine_Rehydrate_EmptyStore_NoOp()
-    {
+    public async Task GoalEngine_Rehydrate_EmptyStore_NoOp() {
         var store = CreateStore();
-        try
-        {
+        try {
             var engine = CreateEngine(store);
 
             await engine.RehydrateAsync(CancellationToken.None);
 
             engine.CurrentState.Should().BeNull();
-        }
-        finally
-        {
+        } finally {
             Cleanup();
         }
     }
 
     [Fact]
-    public async Task GoalEngine_Rehydrate_NoStore_NoOp()
-    {
+    public async Task GoalEngine_Rehydrate_NoStore_NoOp() {
         var engine = CreateEngine(stateStore: null);
 
         var act = async () => await engine.RehydrateAsync(CancellationToken.None);
@@ -197,20 +170,16 @@ public sealed class GoalRehydrateTests
     }
 
     [Fact]
-    public async Task GoalStateStore_Delete_RemovesState()
-    {
+    public async Task GoalStateStore_Delete_RemovesState() {
         var store = CreateStore();
-        try
-        {
+        try {
             await store.SaveAsync(new GoalState { GoalId = "g-del", Objective = "待删除", Status = GoalStatus.Pursuing, SessionId = SessionId }, CancellationToken.None);
             (await store.LoadAsync(SessionId, "g-del", CancellationToken.None)).Should().NotBeNull();
 
             await store.DeleteAsync(SessionId, "g-del", CancellationToken.None);
 
             (await store.LoadAsync(SessionId, "g-del", CancellationToken.None)).Should().BeNull();
-        }
-        finally
-        {
+        } finally {
             Cleanup();
         }
     }

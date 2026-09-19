@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 文件操作工具名称枚举
 /// </summary>
-public enum FileToolName
-{
+public enum FileToolName {
     [EnumValue("read")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     FileRead,

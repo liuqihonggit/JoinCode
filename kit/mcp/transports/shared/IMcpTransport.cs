@@ -5,8 +5,7 @@ namespace McpClient.Transports;
 /// MCP 传输接口 — 抽象 JSON-RPC 消息的底层传输通道(stdio/HTTP/WebSocket 等),
 /// 统一启动/停止/发送/接收生命周期。
 /// </summary>
-public interface IMcpTransport : IAsyncDisposable
-{
+public interface IMcpTransport : IAsyncDisposable {
     /// <summary>
     /// 启动传输连接
     /// </summary>
@@ -37,8 +36,7 @@ public interface IMcpTransport : IAsyncDisposable
 /// <summary>
 /// 消息接收事件参数 — 携带收到的 JSON-RPC 消息与连接标识
 /// </summary>
-public class McpMessageReceivedEventArgs : EventArgs
-{
+public class McpMessageReceivedEventArgs : EventArgs {
     /// <summary>收到的 JSON-RPC 消息</summary>
     public required JsonRpcMessage Message { get; init; }
     /// <summary>连接标识,可为 null</summary>
@@ -48,8 +46,7 @@ public class McpMessageReceivedEventArgs : EventArgs
 /// <summary>
 /// 传输错误事件参数 — 携带异常与连接标识
 /// </summary>
-public class McpTransportErrorEventArgs : EventArgs
-{
+public class McpTransportErrorEventArgs : EventArgs {
     /// <summary>传输异常</summary>
     public required Exception Exception { get; init; }
     /// <summary>连接标识,可为 null</summary>

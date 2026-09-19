@@ -7,16 +7,14 @@ namespace Services.SystemPower;
 /// <para>Dispose 时自动恢复系统默认执行状态</para>
 /// </summary>
 [Register(typeof(IPreventSleepService), ServiceLifetime.Singleton)]
-public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepService
-{
+public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepService {
 
     /// <summary>
     /// 初始化防睡眠服务实例
     /// </summary>
     /// <param name="logger">日志记录器,为 null 时静默运行</param>
     /// <param name="telemetryService">遥测服务,为 null 时不记录指标</param>
-    public PreventSleepService(ILogger<PreventSleepService>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public PreventSleepService(ILogger<PreventSleepService>? logger = null, ITelemetryService? telemetryService = null) {
         _logger = logger;
         _telemetryService = telemetryService;
     }
@@ -39,14 +37,12 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     /// <param name="type">防睡眠类型,默认为 Continuous(连续防睡眠)</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>成功阻止返回 true;SetThreadExecutionState 失败返回 false</returns>
-    public async Task<bool> PreventSleepAsync(SleepPreventionType type = SleepPreventionType.Continuous, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> PreventSleepAsync(SleepPreventionType type = SleepPreventionType.Continuous, CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (_isSleepPrevented)
-        {
+        if (_isSleepPrevented) {
             _logger?.LogDebug(L.T(StringKey.PreventSleepAlreadyActive));
             return true;
         }
@@ -56,8 +52,7 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
             : ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED;
 
         var result = SetThreadExecutionState(flags);
-        if (result == 0)
-        {
+        if (result == 0) {
             _logger?.LogError(L.T(StringKey.PreventSleepSetStateFailed));
             return false;
         }
@@ -68,7 +63,7 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
         _logger?.LogInformation(L.T(StringKey.PreventSleepActivated), type);
         RecordSleepMetrics("prevent", true);
         return true;
-    
+
     }
 
     /// <summary>
@@ -77,20 +72,17 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>成功恢复返回 true;SetThreadExecutionState 失败返回 false</returns>
-    public async Task<bool> AllowSleepAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> AllowSleepAsync(CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_isSleepPrevented)
-        {
+        if (!_isSleepPrevented) {
             return true;
         }
 
         var result = SetThreadExecutionState(ES_CONTINUOUS);
-        if (result == 0)
-        {
+        if (result == 0) {
             _logger?.LogError(L.T(StringKey.PreventSleepRestoreFailed));
             return false;
         }
@@ -100,25 +92,23 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
         _logger?.LogInformation(L.T(StringKey.PreventSleepDeactivated));
         RecordSleepMetrics("allow", true);
         return true;
-    
+
     }
 
     /// <summary>
     /// 释放资源 — 若当前处于防睡眠状态,恢复系统默认执行状态并释放锁
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
 
-        if (_isSleepPrevented)
-        {
+        if (_isSleepPrevented) {
             SetThreadExecutionState(ES_CONTINUOUS);
             _isSleepPrevented = false;
         }
 
         _lock.Dispose();
         _disposed = true;
-            base.Dispose();
+        base.Dispose();
     }
 
     [global::System.Runtime.InteropServices.DllImport("kernel32.dll")]

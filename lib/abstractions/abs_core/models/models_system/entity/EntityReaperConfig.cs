@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models;
 /// <summary>
 /// 实体回收器配置
 /// </summary>
-public sealed class EntityReaperConfig
-{
+public sealed class EntityReaperConfig {
     /// <summary>
     /// 扫描间隔 — 默认 60 秒
     /// </summary>

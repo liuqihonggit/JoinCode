@@ -3,8 +3,7 @@ namespace Core.Hooks.ToolPermission;
 /// <summary>
 /// 权限钩子执行器接口 — 注册、注销并执行工具权限钩子链
 /// </summary>
-public interface IPermissionHookExecutor
-{
+public interface IPermissionHookExecutor {
     /// <summary>
     /// 异步注册权限钩子
     /// </summary>

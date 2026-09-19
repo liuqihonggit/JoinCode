@@ -5,8 +5,7 @@ namespace Tools.Handlers;
 /// 对齐 TS: 省略 subagent_type 时 fork 自己，继承完整对话上下文
 /// </summary>
 [Register(typeof(IAgentToolMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddleware
-{
+public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddleware {
 
     /// <summary>
     /// 构造 Agent Fork 判断中间件
@@ -23,8 +22,7 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
         ITelemetryService? telemetryService = null,
         IInProcessTeammateTaskExecutor? teammateExecutor = null,
         IWorktreeDecisionPolicy? worktreeDecisionPolicy = null,
-        IAgentWorktreeManager? worktreeManager = null)
-    {
+        IAgentWorktreeManager? worktreeManager = null) {
         _subAgentContextAccessor = subAgentContextAccessor;
         _forkManager = forkManager;
         _telemetryService = telemetryService;
@@ -45,25 +43,21 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public async Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct) {
         // SubagentType 非空 → 不走 fork/teammate，交给后续中间件
-        if (!string.IsNullOrEmpty(context.SubagentType))
-        {
+        if (!string.IsNullOrEmpty(context.SubagentType)) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
 
         // 优先走 teammate 路径（支持 Interrupt 中断 + idle 恢复，对齐 TS 原版 inProcessRunner）
-        if (_teammateExecutor is not null)
-        {
+        if (_teammateExecutor is not null) {
             await ExecuteTeammatePathAsync(context, ct).ConfigureAwait(false);
             return;
         }
 
         // 回退 fork 路径
-        if (_forkManager is not null)
-        {
+        if (_forkManager is not null) {
             await ExecuteForkPathAsync(context, ct).ConfigureAwait(false);
             return;
         }
@@ -71,13 +65,11 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private async Task ExecuteTeammatePathAsync(AgentToolContext context, CancellationToken ct)
-    {
+    private async Task ExecuteTeammatePathAsync(AgentToolContext context, CancellationToken ct) {
         var teammateId = $"teammate-{Guid.NewGuid():N}";
         var sessionId = _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
-        var definition = new InProcessTeammateDefinition
-        {
+        var definition = new InProcessTeammateDefinition {
             TaskId = teammateId,
             TeammateId = teammateId,
             Task = context.Prompt,
@@ -114,8 +106,7 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
     /// <summary>
     /// 解析 Teammate 隔离模式 — 优先级: 显式 isolation > WorktreeDecisionPolicy.Decide > None
     /// </summary>
-    private AgentIsolationMode ResolveTeammateIsolationMode(string? explicitIsolation)
-    {
+    private AgentIsolationMode ResolveTeammateIsolationMode(string? explicitIsolation) {
         var explicitMode = AgentIsolationModeExtensions.FromValue(explicitIsolation);
         if (explicitMode is not null)
             return explicitMode.Value;
@@ -127,15 +118,13 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
         return _worktreeDecisionPolicy.Decide(enableWorktree, ExecutorVariant.Teammate);
     }
 
-    private async Task ExecuteForkPathAsync(AgentToolContext context, CancellationToken ct)
-    {
+    private async Task ExecuteForkPathAsync(AgentToolContext context, CancellationToken ct) {
         var forkManager = _forkManager ?? throw new InvalidOperationException("ForkManager not available.");
 
         var sessionId = _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var parentCacheSafeParams = _subAgentContextAccessor.Current?.CacheSafeParams;
 
-        var forkOptions = new ForkOptions
-        {
+        var forkOptions = new ForkOptions {
             ParentSessionId = sessionId,
             TaskDescription = context.Prompt,
             ShareCache = true,

@@ -4,8 +4,7 @@ namespace Core.Goal;
 /// <summary>
 /// 目标评估器接口 — 评估目标是否已完成
 /// </summary>
-public interface IGoalEvaluator
-{
+public interface IGoalEvaluator {
     /// <summary>
     /// 异步评估目标是否达成
     /// </summary>

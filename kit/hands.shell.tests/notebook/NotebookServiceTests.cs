@@ -1,19 +1,16 @@
 namespace Hands.Tests.Notebook;
 
-public sealed class NotebookServiceTests : IDisposable
-{
+public sealed class NotebookServiceTests : IDisposable {
     private readonly InMemoryFileOperationService _fileOperationService;
     private readonly NotebookService _service;
     private bool _disposed;
 
-    public NotebookServiceTests()
-    {
+    public NotebookServiceTests() {
         _fileOperationService = new InMemoryFileOperationService();
         _service = new NotebookService(_fileOperationService, _fileOperationService.FileSystem);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
 
@@ -21,8 +18,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void Create_WithoutKernel_ReturnsEmptyNotebook()
-    {
+    public void Create_WithoutKernel_ReturnsEmptyNotebook() {
         var doc = _service.Create();
 
         doc.NbFormat.Should().Be(4);
@@ -33,8 +29,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void Create_WithKernelAndLanguage_SetsMetadata()
-    {
+    public void Create_WithKernelAndLanguage_SetsMetadata() {
         var doc = _service.Create("Python 3", "python");
 
         doc.Metadata.KernelSpec.Should().NotBeNull();
@@ -48,8 +43,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void AddCell_AppendsToEnd()
-    {
+    public void AddCell_AppendsToEnd() {
         var doc = _service.Create();
         var result = _service.AddCell(doc, NotebookCellType.Code, "print('hi')");
 
@@ -61,8 +55,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void AddCell_AtSpecificIndex_InsertsThere()
-    {
+    public void AddCell_AtSpecificIndex_InsertsThere() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "first");
         _service.AddCell(doc, NotebookCellType.Markdown, "second");
@@ -74,8 +67,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void AddCell_NegativeIndex_ClampedToZero()
-    {
+    public void AddCell_NegativeIndex_ClampedToZero() {
         var doc = _service.Create();
 
         var result = _service.AddCell(doc, NotebookCellType.Code, "first", -1);
@@ -84,8 +76,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void AddCell_IndexBeyondCount_AppendsAtEnd()
-    {
+    public void AddCell_IndexBeyondCount_AppendsAtEnd() {
         var doc = _service.Create();
 
         var result = _service.AddCell(doc, NotebookCellType.Code, "first", 100);
@@ -94,8 +85,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void AddCell_GeneratesId_WhenNbFormatMinor45()
-    {
+    public void AddCell_GeneratesId_WhenNbFormatMinor45() {
         var doc = _service.Create();
 
         _service.AddCell(doc, NotebookCellType.Code, "x");
@@ -104,8 +94,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void AddCell_DoesNotGenerateId_WhenOldFormat()
-    {
+    public void AddCell_DoesNotGenerateId_WhenOldFormat() {
         var doc = new NotebookDocument { NbFormat = 4, NbFormatMinor = 4, Metadata = new NotebookMetadata(), Cells = new List<NotebookCell>() };
 
         _service.AddCell(doc, NotebookCellType.Code, "x");
@@ -114,8 +103,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void DeleteCell_RemovesCell()
-    {
+    public void DeleteCell_RemovesCell() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "x");
 
@@ -126,8 +114,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void DeleteCell_InvalidIndex_ReturnsError()
-    {
+    public void DeleteCell_InvalidIndex_ReturnsError() {
         var doc = _service.Create();
 
         var result = _service.DeleteCell(doc, 0);
@@ -137,8 +124,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void EditCell_UpdatesContent()
-    {
+    public void EditCell_UpdatesContent() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "old");
 
@@ -149,8 +135,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void EditCell_ChangesType()
-    {
+    public void EditCell_ChangesType() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "x");
 
@@ -161,8 +146,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void MoveCell_ReordersCells()
-    {
+    public void MoveCell_ReordersCells() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "first");
         _service.AddCell(doc, NotebookCellType.Code, "second");
@@ -178,8 +162,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void MoveCell_InvalidFromIndex_ReturnsError()
-    {
+    public void MoveCell_InvalidFromIndex_ReturnsError() {
         var doc = _service.Create();
 
         var result = _service.MoveCell(doc, 0, 0);
@@ -189,8 +172,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void MoveCell_InvalidToIndex_ReturnsError()
-    {
+    public void MoveCell_InvalidToIndex_ReturnsError() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "x");
 
@@ -201,8 +183,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void ChangeCellType_SameType_DoesNotModifyCell()
-    {
+    public void ChangeCellType_SameType_DoesNotModifyCell() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "x");
         var originalId = doc.Cells[0].Id;
@@ -215,8 +196,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void ChangeCellType_ToCode_ClearsOutputs()
-    {
+    public void ChangeCellType_ToCode_ClearsOutputs() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Markdown, "x");
 
@@ -229,8 +209,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void ExecuteCell_NonCodeCell_ReturnsError()
-    {
+    public void ExecuteCell_NonCodeCell_ReturnsError() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Markdown, "x");
 
@@ -241,8 +220,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void ExecuteCell_CodeCell_SetsExecutionCountAndOutput()
-    {
+    public void ExecuteCell_CodeCell_SetsExecutionCountAndOutput() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "print('hi')");
 
@@ -254,8 +232,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void ExecuteCell_MultipleCells_IncrementsExecutionCount()
-    {
+    public void ExecuteCell_MultipleCells_IncrementsExecutionCount() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "x");
         _service.ExecuteCell(doc, 0);
@@ -267,8 +244,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void ClearAllOutputs_ResetsCodeCells()
-    {
+    public void ClearAllOutputs_ResetsCodeCells() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "x");
         _service.ExecuteCell(doc, 0, "output");
@@ -281,8 +257,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void GetCellContent_ReturnsSourceText()
-    {
+    public void GetCellContent_ReturnsSourceText() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "hello");
 
@@ -292,8 +267,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void GetCellContent_InvalidIndex_ReturnsNull()
-    {
+    public void GetCellContent_InvalidIndex_ReturnsNull() {
         var doc = _service.Create();
 
         var content = _service.GetCellContent(doc, 0);
@@ -302,8 +276,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void ListCells_TruncatesLongContent()
-    {
+    public void ListCells_TruncatesLongContent() {
         var doc = _service.Create();
         var longText = new string('a', 60);
         _service.AddCell(doc, NotebookCellType.Code, longText);
@@ -316,8 +289,7 @@ public sealed class NotebookServiceTests : IDisposable
     }
 
     [Fact]
-    public void ListCells_ReplacesNewlinesInPreview()
-    {
+    public void ListCells_ReplacesNewlinesInPreview() {
         var doc = _service.Create();
         _service.AddCell(doc, NotebookCellType.Code, "line1\nline2");
 

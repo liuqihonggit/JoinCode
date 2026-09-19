@@ -4,18 +4,14 @@ namespace Integration.Tests.Capture;
 /// <summary>
 /// ANSI 输出解析器 — 用于测试中解析终端输出
 /// </summary>
-public sealed class AnsiOutputParser
-{
-    public List<AnsiSegment> Parse(string output)
-    {
+public sealed class AnsiOutputParser {
+    public List<AnsiSegment> Parse(string output) {
         ArgumentNullException.ThrowIfNull(output);
         var segments = new List<AnsiSegment>();
         var pos = 0;
 
-        while (pos < output.Length)
-        {
-            if (output[pos] == '\x1b' && pos + 1 < output.Length && output[pos + 1] == '[')
-            {
+        while (pos < output.Length) {
+            if (output[pos] == '\x1b' && pos + 1 < output.Length && output[pos + 1] == '[') {
                 var seqStart = pos;
                 pos += 2;
                 while (pos < output.Length && !char.IsLetter(output[pos]))
@@ -24,18 +20,12 @@ public sealed class AnsiOutputParser
 
                 var sequence = output[seqStart..pos];
                 segments.Add(new AnsiSegment(sequence, SegmentType.EscapeSequence, null));
-            }
-            else if (output[pos] == '\n')
-            {
+            } else if (output[pos] == '\n') {
                 segments.Add(new AnsiSegment("\n", SegmentType.NewLine, null));
                 pos++;
-            }
-            else if (output[pos] == '\r')
-            {
+            } else if (output[pos] == '\r') {
                 pos++;
-            }
-            else
-            {
+            } else {
                 var textStart = pos;
                 while (pos < output.Length && output[pos] != '\x1b' && output[pos] != '\n' && output[pos] != '\r')
                     pos++;
@@ -48,8 +38,7 @@ public sealed class AnsiOutputParser
         return segments;
     }
 
-    private static TextKind? ClassifyText(string text)
-    {
+    private static TextKind? ClassifyText(string text) {
         var trimmed = text.Trim();
         if (trimmed.Length == 0) return null;
 
@@ -65,16 +54,14 @@ public sealed class AnsiOutputParser
         return TextKind.Plain;
     }
 
-    private static bool IsOptionText(string text)
-    {
+    private static bool IsOptionText(string text) {
         var options = new[]
         {
             "Yes", "No", "Always", "Allow",
             "是", "否", "始终", "允许",
             "始终允许", "始终允许此命令", "始终允许此域名"
         };
-        foreach (var opt in options)
-        {
+        foreach (var opt in options) {
             if (text.Equals(opt, StringComparison.Ordinal))
                 return true;
             if (text.EndsWith(opt, StringComparison.Ordinal) && text.Length > opt.Length)
@@ -83,24 +70,19 @@ public sealed class AnsiOutputParser
         return false;
     }
 
-    public ParsedAnsiOutput ToStructured(List<AnsiSegment> segments)
-    {
+    public ParsedAnsiOutput ToStructured(List<AnsiSegment> segments) {
         ArgumentNullException.ThrowIfNull(segments);
         var output = new ParsedAnsiOutput();
         var currentStyles = new HashSet<string>();
 
-        foreach (var seg in segments)
-        {
-            if (seg.Type == SegmentType.EscapeSequence)
-            {
+        foreach (var seg in segments) {
+            if (seg.Type == SegmentType.EscapeSequence) {
                 var style = ClassifyEscapeSequence(seg.Content);
                 if (style == "reset")
                     currentStyles.Clear();
                 else if (style is not null)
                     currentStyles.Add(style);
-            }
-            else if (seg.Type == SegmentType.Text && seg.TextKind is not null)
-            {
+            } else if (seg.Type == SegmentType.Text && seg.TextKind is not null) {
                 output.Elements.Add(new AnsiElement(
                     seg.Content,
                     seg.TextKind.Value,
@@ -112,8 +94,7 @@ public sealed class AnsiOutputParser
         return output;
     }
 
-    private static string? ClassifyEscapeSequence(string seq)
-    {
+    private static string? ClassifyEscapeSequence(string seq) {
         if (seq == "\x1b[0m") return "reset";
         if (seq == "\x1b[1m") return "bold";
         if (seq == "\x1b[2m") return "dim";
@@ -130,15 +111,13 @@ public sealed class AnsiOutputParser
 
 public readonly record struct AnsiSegment(string Content, SegmentType Type, TextKind? TextKind);
 
-public enum SegmentType : byte
-{
+public enum SegmentType : byte {
     EscapeSequence,
     Text,
     NewLine
 }
 
-public enum TextKind : byte
-{
+public enum TextKind : byte {
     Plain,
     Icon,
     Option,
@@ -146,8 +125,7 @@ public enum TextKind : byte
     LineNumber
 }
 
-public sealed record ParsedAnsiOutput
-{
+public sealed record ParsedAnsiOutput {
     public List<AnsiElement> Elements { get; } = [];
 }
 

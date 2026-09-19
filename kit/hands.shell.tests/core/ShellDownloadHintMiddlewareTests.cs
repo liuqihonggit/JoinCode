@@ -3,8 +3,7 @@ namespace Hands.Tests.Shell;
 /// <summary>
 /// ShellDownloadHintMiddleware 单元测试 — 验证 curl/wget 下载检测、提示构建、--no-intercept 放行
 /// </summary>
-public class ShellDownloadHintMiddlewareTests
-{
+public class ShellDownloadHintMiddlewareTests {
     // === IsDownloadCommand ===
 
     [Theory]
@@ -24,30 +23,26 @@ public class ShellDownloadHintMiddlewareTests
     [InlineData("echo hello", false)]
     [InlineData("git pull", false)]
     [InlineData("", false)]
-    public void IsDownloadCommand_DetectsCorrectly(string command, bool expected)
-    {
+    public void IsDownloadCommand_DetectsCorrectly(string command, bool expected) {
         ShellDownloadHintMiddleware.IsDownloadCommand(command).Should().Be(expected);
     }
 
     // === StripNoInterceptFlag ===
 
     [Fact]
-    public void StripNoInterceptFlag_RemovesFlagFromMiddle()
-    {
+    public void StripNoInterceptFlag_RemovesFlagFromMiddle() {
         var result = ShellDownloadHintMiddleware.StripNoInterceptFlag("curl --no-intercept -o file.zip https://example.com/file.zip");
         result.Should().Be("curl -o file.zip https://example.com/file.zip");
     }
 
     [Fact]
-    public void StripNoInterceptFlag_RemovesFlagFromEnd()
-    {
+    public void StripNoInterceptFlag_RemovesFlagFromEnd() {
         var result = ShellDownloadHintMiddleware.StripNoInterceptFlag("curl -o file.zip https://example.com/file.zip --no-intercept");
         result.Should().Be("curl -o file.zip https://example.com/file.zip");
     }
 
     [Fact]
-    public void StripNoInterceptFlag_NoFlag_ReturnsOriginal()
-    {
+    public void StripNoInterceptFlag_NoFlag_ReturnsOriginal() {
         var result = ShellDownloadHintMiddleware.StripNoInterceptFlag("curl -o file.zip https://example.com/file.zip");
         result.Should().Be("curl -o file.zip https://example.com/file.zip");
     }
@@ -55,30 +50,26 @@ public class ShellDownloadHintMiddlewareTests
     // === BuildDownloadHint ===
 
     [Fact]
-    public void BuildDownloadHint_ContainsDownloadFileToolName()
-    {
+    public void BuildDownloadHint_ContainsDownloadFileToolName() {
         var hint = ShellDownloadHintMiddleware.BuildDownloadHint("curl -o file.zip https://example.com/file.zip");
         hint.Should().Contain("download_file");
     }
 
     [Fact]
-    public void BuildDownloadHint_ContainsNoInterceptFlag()
-    {
+    public void BuildDownloadHint_ContainsNoInterceptFlag() {
         var hint = ShellDownloadHintMiddleware.BuildDownloadHint("curl -o file.zip https://example.com/file.zip");
         hint.Should().Contain("--no-intercept");
     }
 
     [Fact]
-    public void BuildDownloadHint_ContainsOriginalCommand()
-    {
+    public void BuildDownloadHint_ContainsOriginalCommand() {
         var command = "curl -o file.zip https://example.com/file.zip";
         var hint = ShellDownloadHintMiddleware.BuildDownloadHint(command);
         hint.Should().Contain(command);
     }
 
     [Fact]
-    public void BuildDownloadHint_ContainsMultithreadHint()
-    {
+    public void BuildDownloadHint_ContainsMultithreadHint() {
         var hint = ShellDownloadHintMiddleware.BuildDownloadHint("wget https://example.com/file.zip");
         hint.Should().Contain("多线程").And.Contain("断点续传");
     }

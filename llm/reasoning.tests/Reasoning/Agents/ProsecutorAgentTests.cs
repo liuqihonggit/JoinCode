@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Agents;
 
-public sealed class ProsecutorAgentTests
-{
+public sealed class ProsecutorAgentTests {
     [Fact]
-    public async Task ReasonAsync_WithNoAssumptions_ReturnsEmptyAction()
-    {
+    public async Task ReasonAsync_WithNoAssumptions_ReturnsEmptyAction() {
         var agent = new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance);
         var context = CreateContext([]);
 
@@ -17,8 +15,7 @@ public sealed class ProsecutorAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithAssumptionsButNoChatClient_ReturnsActionWithAffectedClaims()
-    {
+    public async Task ReasonAsync_WithAssumptionsButNoChatClient_ReturnsActionWithAffectedClaims() {
         var agent = new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         var context = CreateContext([item]);
@@ -32,8 +29,7 @@ public sealed class ProsecutorAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithValidLlmResponse_ParsesEvidence()
-    {
+    public async Task ReasonAsync_WithValidLlmResponse_ParsesEvidence() {
         var json = "{\"evidence\":[{\"content\":\"DNA匹配\",\"source\":\"实验室\",\"trustLevel\":\"DirectEvidence\",\"weight\":5.0}]}";
         var agent = new ProsecutorAgent(
             new FakeQueryEngine(),
@@ -55,8 +51,7 @@ public sealed class ProsecutorAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithMalformedJson_LogsWarningAndReturnsEmptyEvidence()
-    {
+    public async Task ReasonAsync_WithMalformedJson_LogsWarningAndReturnsEmptyEvidence() {
         var agent = new ProsecutorAgent(
             new FakeQueryEngine(),
             NullLogger<ProsecutorAgent>.Instance,
@@ -71,8 +66,7 @@ public sealed class ProsecutorAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithMissingEvidenceArray_ReturnsEmptyEvidence()
-    {
+    public async Task ReasonAsync_WithMissingEvidenceArray_ReturnsEmptyEvidence() {
         var agent = new ProsecutorAgent(
             new FakeQueryEngine(),
             NullLogger<ProsecutorAgent>.Instance,
@@ -86,8 +80,7 @@ public sealed class ProsecutorAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_WithBroker_SendsEvidenceSubmittedMessage()
-    {
+    public async Task ReasonAsync_WithBroker_SendsEvidenceSubmittedMessage() {
         var broker = new FakeMessageBroker();
         var agent = new ProsecutorAgent(
             new FakeQueryEngine(),
@@ -105,8 +98,7 @@ public sealed class ProsecutorAgentTests
     }
 
     [Fact]
-    public async Task ReasonAsync_EvidenceItemUsesDefaults_WhenOptionalFieldsMissing()
-    {
+    public async Task ReasonAsync_EvidenceItemUsesDefaults_WhenOptionalFieldsMissing() {
         var json = "{\"evidence\":[{\"content\":\"仅内容\"}]}";
         var agent = new ProsecutorAgent(
             new FakeQueryEngine(),
@@ -124,10 +116,8 @@ public sealed class ProsecutorAgentTests
         Assert.Equal(1.0, action.Evidence[0].Weight);
     }
 
-    private static ReasoningContext CreateContext(IReadOnlyList<DataItem> items)
-    {
-        return new ReasoningContext
-        {
+    private static ReasoningContext CreateContext(IReadOnlyList<DataItem> items) {
+        return new ReasoningContext {
             AllItems = items,
             AllEvidence = [],
             Dag = new Dag<ReasoningPayload>(),

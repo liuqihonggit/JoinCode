@@ -5,8 +5,7 @@ namespace Tools.Handlers;
 /// 对齐 TS: ConfigTool.ts — 统一入口（省略 value = GET，提供 value = SET）
 /// </summary>
 [McpToolDispatch(ToolCategory.Config)]
-public sealed partial class ConfigToolHandlers
-{
+public sealed partial class ConfigToolHandlers {
     private readonly IConfigurationService _configService;
     private readonly ITelemetryService? _telemetryService;
     private readonly ILogger<ConfigToolHandlers>? _logger;
@@ -17,8 +16,7 @@ public sealed partial class ConfigToolHandlers
     /// <param name="configService">配置服务，提供设置的读写能力</param>
     /// <param name="telemetryService">可选遥测服务</param>
     /// <param name="logger">可选日志记录器</param>
-    public ConfigToolHandlers(IConfigurationService configService, ITelemetryService? telemetryService = null, ILogger<ConfigToolHandlers>? logger = null)
-    {
+    public ConfigToolHandlers(IConfigurationService configService, ITelemetryService? telemetryService = null, ILogger<ConfigToolHandlers>? logger = null) {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _telemetryService = telemetryService;
         _logger = logger;
@@ -31,13 +29,10 @@ public sealed partial class ConfigToolHandlers
     [McpTool(InteractionToolNameEnumConstants.ConfigGet, "Get a configuration setting value", "config", ConcurrencySafe = true)]
     public async Task<ToolResult> ConfigGetAsync(
         [McpToolParameter("The setting key (e.g., \"theme\", \"model\", \"permissions.defaultMode\")")] string setting,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             // 对齐 TS: isSupported — 未知 key 拒绝
-            if (!SupportedSettings.IsSupported(setting))
-            {
+            if (!SupportedSettings.IsSupported(setting)) {
                 var diagnostic = BuildUnknownSettingDiagnostic(setting);
                 return ToolResultBuilder.Error()
                     .WithText(diagnostic.FormattedMessage)
@@ -58,9 +53,7 @@ public sealed partial class ConfigToolHandlers
             return ToolResultBuilder.Success()
                 .WithText($"{setting} = {FormatValue(displayValue)}")
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("config_get", ex, _logger, "setting", setting);
         }
     }
@@ -74,13 +67,10 @@ public sealed partial class ConfigToolHandlers
     public async Task<ToolResult> ConfigSetAsync(
         [McpToolParameter("The setting key")] string setting,
         [McpToolParameter("The new value")] string value,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             // 对齐 TS: isSupported — 未知 key 拒绝
-            if (!SupportedSettings.IsSupported(setting))
-            {
+            if (!SupportedSettings.IsSupported(setting)) {
                 var diagnostic = BuildUnknownSettingDiagnostic(setting);
                 return ToolResultBuilder.Error()
                     .WithText(diagnostic.FormattedMessage)
@@ -92,15 +82,13 @@ public sealed partial class ConfigToolHandlers
             var finalValue = value;
 
             // 对齐 TS: boolean 强转
-            if (config.Type == "boolean")
-            {
+            if (config.Type == "boolean") {
                 var lower = value.ToLowerInvariant().Trim();
                 if (lower is "true")
                     finalValue = "true";
                 else if (lower is "false")
                     finalValue = "false";
-                else
-                {
+                else {
                     var boolDiag = BuildInvalidBooleanValueDiagnostic(setting, value);
                     return ToolResultBuilder.Error()
                         .WithText(boolDiag.FormattedMessage)
@@ -111,8 +99,7 @@ public sealed partial class ConfigToolHandlers
 
             // 对齐 TS: options 校验
             var options = SupportedSettings.GetOptionsForSetting(setting);
-            if (options is not null && !options.Contains(finalValue))
-            {
+            if (options is not null && !options.Contains(finalValue)) {
                 var optionsDiag = BuildInvalidOptionValueDiagnostic(setting, value, options);
                 return ToolResultBuilder.Error()
                     .WithText(optionsDiag.FormattedMessage)
@@ -121,11 +108,9 @@ public sealed partial class ConfigToolHandlers
             }
 
             // 对齐 TS: validateOnWrite — 异步验证
-            if (config.ValidateOnWrite is not null)
-            {
+            if (config.ValidateOnWrite is not null) {
                 var (valid, error) = await config.ValidateOnWrite(finalValue).ConfigureAwait(false);
-                if (!valid)
-                {
+                if (!valid) {
                     var validateDiag = BuildValidateOnWriteFailedDiagnostic(setting, finalValue, error);
                     return ToolResultBuilder.Error()
                         .WithText(validateDiag.FormattedMessage)
@@ -140,8 +125,7 @@ public sealed partial class ConfigToolHandlers
 
             var success = await _configService.SetAsync(setting, finalValue, source, config.AppStateKey, cancellationToken).ConfigureAwait(false);
 
-            if (!success)
-            {
+            if (!success) {
                 var setFailedDiag = BuildSetFailedDiagnostic(setting, finalValue);
                 return ToolResultBuilder.Error()
                     .WithText(setFailedDiag.FormattedMessage)
@@ -157,9 +141,7 @@ public sealed partial class ConfigToolHandlers
             return ToolResultBuilder.Success()
                 .WithText($"Set {setting} to {FormatValue(finalValue)}")
                 .Build();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("config_set", ex, _logger, "setting", setting, new DiagnosticDetail("value", value));
         }
     }
@@ -169,10 +151,8 @@ public sealed partial class ConfigToolHandlers
     /// 对齐 TS: prompt.ts — 动态生成设置列表
     /// </summary>
     [McpTool(InteractionToolNameEnumConstants.ConfigList, "List all configurable settings", "config", ConcurrencySafe = true)]
-    public Task<ToolResult> ConfigListAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
+    public Task<ToolResult> ConfigListAsync(CancellationToken cancellationToken = default) {
+        try {
             var sb = new StringBuilder();
             sb.AppendLine("Available settings:");
             sb.AppendLine();
@@ -180,29 +160,24 @@ public sealed partial class ConfigToolHandlers
             var globalSettings = new List<(string Key, ConfigSetting Config)>();
             var projectSettings = new List<(string Key, ConfigSetting Config)>();
 
-            foreach (var (key, config) in SupportedSettings.All)
-            {
+            foreach (var (key, config) in SupportedSettings.All) {
                 if (config.Source == "global")
                     globalSettings.Add((key, config));
                 else
                     projectSettings.Add((key, config));
             }
 
-            if (globalSettings.Count > 0)
-            {
+            if (globalSettings.Count > 0) {
                 sb.AppendLine("Global settings:");
-                foreach (var (key, config) in globalSettings)
-                {
+                foreach (var (key, config) in globalSettings) {
                     AppendSettingLine(sb, key, config);
                 }
                 sb.AppendLine();
             }
 
-            if (projectSettings.Count > 0)
-            {
+            if (projectSettings.Count > 0) {
                 sb.AppendLine("Project settings:");
-                foreach (var (key, config) in projectSettings)
-                {
+                foreach (var (key, config) in projectSettings) {
                     AppendSettingLine(sb, key, config);
                 }
             }
@@ -210,26 +185,20 @@ public sealed partial class ConfigToolHandlers
             return Task.FromResult(ToolResultBuilder.Success()
                 .WithText(sb.ToString())
                 .Build());
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("config_list", ex, _logger));
         }
     }
 
-    private static void AppendSettingLine(StringBuilder sb, string key, ConfigSetting config)
-    {
+    private static void AppendSettingLine(StringBuilder sb, string key, ConfigSetting config) {
         sb.Append("  - ");
         sb.Append(key);
 
         var options = config.GetOptions is not null ? config.GetOptions() : config.Options;
-        if (options is { Length: > 0 })
-        {
+        if (options is { Length: > 0 }) {
             sb.Append(": ");
             sb.Append(string.Join(", ", options.Select(o => $"\"{o}\"")));
-        }
-        else if (config.Type == "boolean")
-        {
+        } else if (config.Type == "boolean") {
             sb.Append(": true/false");
         }
 
@@ -237,8 +206,7 @@ public sealed partial class ConfigToolHandlers
         sb.AppendLine(config.Description);
     }
 
-    private static string FormatValue(string? value)
-    {
+    private static string FormatValue(string? value) {
         if (value is null)
             return "null";
         if (bool.TryParse(value, out var b))
@@ -250,16 +218,14 @@ public sealed partial class ConfigToolHandlers
     /// 未知设置项的诊断消息 — 列出所有支持的设置 + 模糊匹配建议。
     /// 仅在失败路径调用，不影响正常操作性能。
     /// </summary>
-    internal static string BuildUnknownSettingMessage(string setting)
-    {
+    internal static string BuildUnknownSettingMessage(string setting) {
         return BuildUnknownSettingDiagnostic(setting).FormattedMessage;
     }
 
     /// <summary>
     /// 未知设置项的结构化诊断 — 列出所有支持的设置 + 模糊匹配建议。
     /// </summary>
-    internal static ToolDiagnostic BuildUnknownSettingDiagnostic(string setting)
-    {
+    internal static ToolDiagnostic BuildUnknownSettingDiagnostic(string setting) {
         var sb = new StringBuilder(256);
         sb.Append($"Unknown setting: \"{setting}\"");
 
@@ -267,25 +233,21 @@ public sealed partial class ConfigToolHandlers
         var suggestions = new List<string>(1);
 
         var candidates = new List<string>();
-        foreach (var key in SupportedSettings.All.Keys)
-        {
+        foreach (var key in SupportedSettings.All.Keys) {
             if (key.Contains(setting, StringComparison.OrdinalIgnoreCase) ||
-                setting.Contains(key, StringComparison.OrdinalIgnoreCase))
-            {
+                setting.Contains(key, StringComparison.OrdinalIgnoreCase)) {
                 candidates.Add(key);
             }
         }
 
-        if (candidates.Count > 0)
-        {
+        if (candidates.Count > 0) {
             sb.Append($"\n[诊断] 你是不是想用: {string.Join(", ", candidates)}");
             details.Add(new DiagnosticDetail("candidates", string.Join(", ", candidates)));
             suggestions.Add($"你是不是想用: {string.Join(", ", candidates)}");
         }
 
         sb.Append($"\n[诊断] 支持的设置项 ({SupportedSettings.All.Count} 个):");
-        foreach (var key in SupportedSettings.All.Keys)
-        {
+        foreach (var key in SupportedSettings.All.Keys) {
             sb.Append($"\n  - {key}");
         }
 
@@ -295,8 +257,7 @@ public sealed partial class ConfigToolHandlers
     /// <summary>
     /// boolean 类型设置项值无效的诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildInvalidBooleanValueDiagnostic(string setting, string value)
-    {
+    internal static ToolDiagnostic BuildInvalidBooleanValueDiagnostic(string setting, string value) {
         var sb = new StringBuilder(128);
         sb.Append($"{setting} requires true or false.");
         sb.Append($"\n[诊断] 提供的值: \"{value}\"");
@@ -316,8 +277,7 @@ public sealed partial class ConfigToolHandlers
     /// <summary>
     /// 选项校验失败的诊断 — 值不在允许的选项列表中。
     /// </summary>
-    internal static ToolDiagnostic BuildInvalidOptionValueDiagnostic(string setting, string value, string[] options)
-    {
+    internal static ToolDiagnostic BuildInvalidOptionValueDiagnostic(string setting, string value, string[] options) {
         var sb = new StringBuilder(128);
         sb.Append($"Invalid value \"{value}\". Options: {string.Join(", ", options)}");
         sb.Append($"\n[诊断] 设置项: {setting}");
@@ -338,8 +298,7 @@ public sealed partial class ConfigToolHandlers
     /// <summary>
     /// validateOnWrite 异步验证失败的诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildValidateOnWriteFailedDiagnostic(string setting, string value, string? error)
-    {
+    internal static ToolDiagnostic BuildValidateOnWriteFailedDiagnostic(string setting, string value, string? error) {
         var errorMessage = error ?? "Validation failed";
         var sb = new StringBuilder(128);
         sb.Append(errorMessage);
@@ -360,8 +319,7 @@ public sealed partial class ConfigToolHandlers
     /// <summary>
     /// 配置写入失败的诊断 — SetAsync 返回 false。
     /// </summary>
-    internal static ToolDiagnostic BuildSetFailedDiagnostic(string setting, string value)
-    {
+    internal static ToolDiagnostic BuildSetFailedDiagnostic(string setting, string value) {
         var sb = new StringBuilder(128);
         sb.Append($"Failed to set {setting}");
         sb.Append($"\n[诊断] 设置项: {setting}");

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Exceptions;
 /// <summary>
 /// 异常上下文信息
 /// </summary>
-public sealed class ExceptionContext
-{
+public sealed class ExceptionContext {
     private readonly Dictionary<string, JsonElement> _data = new();
 
     /// <summary>
@@ -31,8 +30,7 @@ public sealed class ExceptionContext
     /// <summary>
     /// 添加上下文数据
     /// </summary>
-    public ExceptionContext WithData(string key, JsonElement value)
-    {
+    public ExceptionContext WithData(string key, JsonElement value) {
         _data[key] = value;
         return this;
     }
@@ -40,8 +38,7 @@ public sealed class ExceptionContext
     /// <summary>
     /// 添加上下文数据（字符串便捷方法）
     /// </summary>
-    public ExceptionContext WithData(string key, string? value)
-    {
+    public ExceptionContext WithData(string key, string? value) {
         _data[key] = JsonElementHelper.FromString(value);
         return this;
     }
@@ -49,10 +46,8 @@ public sealed class ExceptionContext
     /// <summary>
     /// 批量添加上下文数据
     /// </summary>
-    public ExceptionContext WithData(IEnumerable<KeyValuePair<string, JsonElement>> data)
-    {
-        foreach (var (key, value) in data)
-        {
+    public ExceptionContext WithData(IEnumerable<KeyValuePair<string, JsonElement>> data) {
+        foreach (var (key, value) in data) {
             _data[key] = value;
         }
         return this;

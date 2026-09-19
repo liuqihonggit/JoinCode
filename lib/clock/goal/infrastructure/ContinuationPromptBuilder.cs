@@ -5,8 +5,7 @@ namespace Core.Goal;
 /// 续行提示词构建器 — 目标引擎的续行/预算超限提示词
 /// </summary>
 [PromptTemplate(Name = "continuation", Category = PromptTemplateCategory.Goal, Description = "目标续行和预算超限提示词", HasParameters = true)]
-public static class ContinuationPromptBuilder
-{
+public static class ContinuationPromptBuilder {
     /// <summary>
     /// 构建续行提示词 — 引导 LLM 在预算内继续推进目标，并执行完成审计
     /// </summary>
@@ -21,8 +20,7 @@ public static class ContinuationPromptBuilder
         IReadOnlyList<string> constraints,
         int tokensUsed,
         int? tokenBudget,
-        string evaluatorReason)
-    {
+        string evaluatorReason) {
         var constraintsText = constraints.Count > 0
             ? string.Join("\n", constraints.Select(c => $"- {c}"))
             : "无";
@@ -71,8 +69,7 @@ public static class ContinuationPromptBuilder
         string objective,
         int tokensUsed,
         int tokenBudget,
-        int elapsedSeconds)
-    {
+        int elapsedSeconds) {
         return $"""
             The active thread goal has reached its token budget.
 
@@ -99,8 +96,7 @@ public static class ContinuationPromptBuilder
     public static string BuildStagnationAlertPrompt(
         string objective,
         int elapsedSeconds,
-        int turnsCompleted)
-    {
+        int turnsCompleted) {
         var formattedDuration = FormatDuration(elapsedSeconds);
         var avgSecondsPerTurn = turnsCompleted > 0 ? (double)elapsedSeconds / turnsCompleted : elapsedSeconds;
 
@@ -122,8 +118,7 @@ public static class ContinuationPromptBuilder
             """;
     }
 
-    private static string FormatDuration(int seconds)
-    {
+    private static string FormatDuration(int seconds) {
         if (seconds < 60) return $"{seconds}s";
         if (seconds < 3600) return $"{seconds / 60}m{seconds % 60}s";
         return $"{seconds / 3600}h{(seconds % 3600) / 60}m";

@@ -4,13 +4,11 @@ namespace Core.Prompts.Sections;
 /// 协调器模式提示词部分
 /// </summary>
 [PromptSection(Name = "coordinator", InjectOn = PromptSectionInject.CoordinatorMode, IsDynamic = true, Order = 13)]
-public static class CoordinatorSection
-{
+public static class CoordinatorSection {
     /// <summary>
     /// 获取内容（从枚举常量读取工具名称）
     /// </summary>
-    public static string? GetContent()
-    {
+    public static string? GetContent() {
         return GetCoordinatorSystemPrompt(
             AgentToolName.Agent.ToValue(),
             AgentToolName.AgentSendMessage.ToValue(),
@@ -20,8 +18,7 @@ public static class CoordinatorSection
     /// <summary>
     /// 获取协调器系统提示词
     /// </summary>
-    public static string GetCoordinatorSystemPrompt(string agentToolName, string sendMessageToolName, string taskStopToolName)
-    {
+    public static string GetCoordinatorSystemPrompt(string agentToolName, string sendMessageToolName, string taskStopToolName) {
         return $@"你是协调多个工作者完成软件工程任务的 AI 助手。
 
 ## 1. 你的角色

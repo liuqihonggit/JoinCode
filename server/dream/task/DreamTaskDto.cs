@@ -4,8 +4,7 @@ namespace JoinCode.Dream;
 /// <summary>
 /// 做梦任务DTO - 用于JSON序列化
 /// </summary>
-public sealed class DreamTaskDto
-{
+public sealed class DreamTaskDto {
     /// <summary>任务 ID</summary>
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
@@ -55,10 +54,8 @@ public sealed class DreamTaskDto
     /// </summary>
     /// <param name="state">做梦任务状态对象</param>
     /// <returns>对应的 DTO 实例</returns>
-    public static DreamTaskDto FromState(DreamTaskState state)
-    {
-        return new DreamTaskDto
-        {
+    public static DreamTaskDto FromState(DreamTaskState state) {
+        return new DreamTaskDto {
             Id = state.Id,
             Status = state.Status.ToString(),
             Description = state.Description,
@@ -68,8 +65,7 @@ public sealed class DreamTaskDto
             Phase = state.Phase.ToString(),
             SessionsReviewing = state.SessionsReviewing,
             FilesTouched = new List<string>(state.FilesTouched),
-            Turns = state.Turns.Select(t => new DreamTurnDto
-            {
+            Turns = state.Turns.Select(t => new DreamTurnDto {
                 Text = t.Text,
                 ToolUseCount = t.ToolUseCount
             }).ToList(),
@@ -81,10 +77,8 @@ public sealed class DreamTaskDto
     /// 转换为状态对象
     /// </summary>
     /// <returns>对应的状态对象</returns>
-    public DreamTaskState ToState()
-    {
-        var state = new DreamTaskState
-        {
+    public DreamTaskState ToState() {
+        var state = new DreamTaskState {
             Id = Id,
             Description = Description,
             StartTime = StartTime,
@@ -94,25 +88,20 @@ public sealed class DreamTaskDto
             PriorMtime = PriorMtime
         };
 
-        if (Enum.TryParse<DreamTaskStatus>(Status, out var status))
-        {
+        if (Enum.TryParse<DreamTaskStatus>(Status, out var status)) {
             state.Status = status;
         }
 
-        if (Enum.TryParse<DreamPhase>(Phase, out var phase))
-        {
+        if (Enum.TryParse<DreamPhase>(Phase, out var phase)) {
             state.Phase = phase;
         }
 
-        foreach (var file in FilesTouched)
-        {
+        foreach (var file in FilesTouched) {
             state.FilesTouched.Add(file);
         }
 
-        foreach (var turn in Turns)
-        {
-            state.Turns.Add(new DreamTurn
-            {
+        foreach (var turn in Turns) {
+            state.Turns.Add(new DreamTurn {
                 Text = turn.Text,
                 ToolUseCount = turn.ToolUseCount
             });
@@ -125,8 +114,7 @@ public sealed class DreamTaskDto
 /// <summary>
 /// 做梦回合DTO
 /// </summary>
-public sealed class DreamTurnDto
-{
+public sealed class DreamTurnDto {
     /// <summary>回合文本</summary>
     [JsonPropertyName("text")]
     public string Text { get; set; } = string.Empty;

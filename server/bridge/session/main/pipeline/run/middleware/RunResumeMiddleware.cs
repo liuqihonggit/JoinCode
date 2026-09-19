@@ -4,16 +4,14 @@ namespace Core.Bridge;
 /// 会话恢复中间件 — 处理 --continue 与 --session-id 参数,从指针或 API 恢复会话上下文
 /// </summary>
 [Register(typeof(IBridgeRunMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class RunResumeMiddleware : ServiceEntity, IBridgeRunMiddleware
-{
+public sealed partial class RunResumeMiddleware : ServiceEntity, IBridgeRunMiddleware {
 
     /// <summary>
     /// 构造会话恢复中间件
     /// </summary>
     /// <param name="deps">桥接主依赖集合</param>
     /// <param name="logger">日志记录器</param>
-    public RunResumeMiddleware(BridgeMainDeps deps, ILogger<RunResumeMiddleware> logger)
-    {
+    public RunResumeMiddleware(BridgeMainDeps deps, ILogger<RunResumeMiddleware> logger) {
         _deps = deps;
         _logger = logger;
     }
@@ -27,14 +25,11 @@ public sealed partial class RunResumeMiddleware : ServiceEntity, IBridgeRunMiddl
     /// <param name="next">后续中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>异步任务</returns>
-    public async Task InvokeAsync(BridgeRunContext ctx, MiddlewareDelegate<BridgeRunContext> next, CancellationToken ct)
-    {
-        if (ctx.Args.ContinueSession)
-        {
+    public async Task InvokeAsync(BridgeRunContext ctx, MiddlewareDelegate<BridgeRunContext> next, CancellationToken ct) {
+        if (ctx.Args.ContinueSession) {
             var found = await _deps.PointerService.ReadAcrossWorktreesAsync(
                 _deps.WorkingDirectory, ct).ConfigureAwait(false);
-            if (found is not null)
-            {
+            if (found is not null) {
                 var (pointerWithAge, pointerDir) = found.Value;
                 ctx.ResumeSessionId = pointerWithAge.Pointer.SessionId;
                 ctx.ReuseEnvironmentId = pointerWithAge.Pointer.EnvironmentId;
@@ -44,32 +39,22 @@ public sealed partial class RunResumeMiddleware : ServiceEntity, IBridgeRunMiddl
                 var fromWt = pointerDir != _deps.WorkingDirectory ? $" from worktree {pointerDir}" : "";
                 _logger.LogInformation("BridgeMain: resuming session {SessionId} ({Age} ago){FromWt}",
                     ctx.ResumeSessionId, ageStr, fromWt);
-            }
-            else
-            {
+            } else {
                 _logger.LogDebug("BridgeMain: --continue but no valid pointer found in this directory or its worktrees");
             }
-        }
-        else if (ctx.Args.SessionId is not null)
-        {
+        } else if (ctx.Args.SessionId is not null) {
             ctx.ResumeSessionId = ctx.Args.SessionId;
-            try
-            {
+            try {
                 var envId = await _deps.ApiClient.GetBridgeSessionEnvironmentIdAsync(
                     ctx.ResumeSessionId, ct).ConfigureAwait(false);
-                if (envId is not null)
-                {
+                if (envId is not null) {
                     ctx.ReuseEnvironmentId = envId;
                     _logger.LogInformation("BridgeMain: resuming session {SessionId} on environment {EnvId}",
                         ctx.ResumeSessionId, envId);
-                }
-                else
-                {
+                } else {
                     _logger.LogDebug("BridgeMain: session {SessionId} has no environment_id, will register fresh", ctx.ResumeSessionId);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger.LogDebug(ex, "BridgeMain: getBridgeSession failed for {SessionId} (non-fatal)", ctx.ResumeSessionId);
             }
         }

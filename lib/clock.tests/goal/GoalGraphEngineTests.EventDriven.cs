@@ -4,8 +4,7 @@ namespace Core.Goal.Tests;
 /// <summary>
 /// EventDrivenGraphScheduler 行为等价测试 — 验证 Channel 驱动调度与轮询式调度行为一致。
 /// </summary>
-public sealed partial class GoalGraphEngineTests
-{
+public sealed partial class GoalGraphEngineTests {
     private static GoalGraphEngine CreateEventDrivenEngine(
         Mock<IChatClient>? kernel = null,
         Mock<IGoalEvaluator>? evaluator = null,
@@ -14,8 +13,7 @@ public sealed partial class GoalGraphEngineTests
         IGoalUserInteraction? userInteraction = null,
         IGoalNodeInspector? nodeInspector = null,
         IGoalConflictMessenger? conflictMessenger = null,
-        SubAgentConcurrencyOptions? concurrencyOptions = null)
-    {
+        SubAgentConcurrencyOptions? concurrencyOptions = null) {
         return new GoalGraphEngine(
             (kernel ?? CreateKernelMock()).Object,
             (evaluator ?? CreateEvaluatorMock()).Object,
@@ -34,8 +32,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task EventDriven_SerialExecution_Should_ExecuteInOrder_AndPassOutput()
-    {
+    public async Task EventDriven_SerialExecution_Should_ExecuteInOrder_AndPassOutput() {
         var engine = CreateEventDrivenEngine();
         var executionOrder = new List<string>();
 
@@ -50,30 +47,26 @@ public sealed partial class GoalGraphEngineTests
         dag.AddEdge(new DagEdge { Id = "e-ab", FromId = "A", ToId = "B" });
         dag.AddEdge(new DagEdge { Id = "e-bc", FromId = "B", ToId = "C" });
 
-        engine.RegisterFunction("A", _ =>
-        {
+        engine.RegisterFunction("A", _ => {
             executionOrder.Add("A");
             return Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10));
         });
 
-        engine.RegisterFunction("B", ctx =>
-        {
+        engine.RegisterFunction("B", ctx => {
             executionOrder.Add("B");
             var upstreamA = ctx.UpstreamOutputs.GetValueOrDefault("A", null);
             var output = $"B-received-{upstreamA}";
             return Task.FromResult(NodeResult.Succeeded(output, tokensUsed: 20));
         });
 
-        engine.RegisterFunction("C", ctx =>
-        {
+        engine.RegisterFunction("C", ctx => {
             executionOrder.Add("C");
             var upstreamB = ctx.UpstreamOutputs.GetValueOrDefault("B", null);
             var output = $"C-received-{upstreamB}";
             return Task.FromResult(NodeResult.Succeeded(output, tokensUsed: 30));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "event-driven-serial",
             Dag = dag,
             StartNodeId = "A",
@@ -94,8 +87,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task EventDriven_ParallelDiamond_Should_ExecuteBAndC_InParallel()
-    {
+    public async Task EventDriven_ParallelDiamond_Should_ExecuteBAndC_InParallel() {
         var engine = CreateEventDrivenEngine();
         var executedNodes = new ConcurrentBag<string>();
         var concurrencyOptions = new SubAgentConcurrencyOptions { MaxConcurrentExecutions = 2 };
@@ -116,31 +108,26 @@ public sealed partial class GoalGraphEngineTests
         dag.AddEdge(new DagEdge { Id = "e-bd", FromId = "B", ToId = "D" });
         dag.AddEdge(new DagEdge { Id = "e-cd", FromId = "C", ToId = "D" });
 
-        engine.RegisterFunction("A", _ =>
-        {
+        engine.RegisterFunction("A", _ => {
             executedNodes.Add("A");
             return Task.FromResult(NodeResult.Succeeded("A-out", tokensUsed: 5));
         });
-        engine.RegisterFunction("B", async _ =>
-        {
+        engine.RegisterFunction("B", async _ => {
             executedNodes.Add("B");
             await Task.Delay(50);
             return NodeResult.Succeeded("B-out", tokensUsed: 10);
         });
-        engine.RegisterFunction("C", async _ =>
-        {
+        engine.RegisterFunction("C", async _ => {
             executedNodes.Add("C");
             await Task.Delay(30);
             return NodeResult.Succeeded("C-out", tokensUsed: 15);
         });
-        engine.RegisterFunction("D", _ =>
-        {
+        engine.RegisterFunction("D", _ => {
             executedNodes.Add("D");
             return Task.FromResult(NodeResult.Succeeded("D-out", tokensUsed: 20));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "event-driven-diamond",
             Dag = dag,
             StartNodeId = "A",
@@ -162,8 +149,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task EventDriven_FailedEndNode_Should_SetGoalUnmet()
-    {
+    public async Task EventDriven_FailedEndNode_Should_SetGoalUnmet() {
         var engine = CreateEventDrivenEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -174,8 +160,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("A", _ =>
             Task.FromResult(NodeResult.Failed("intentional failure")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "event-driven-fail-end",
             Dag = dag,
             StartNodeId = "A",
@@ -194,21 +179,18 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task EventDriven_Concurrent10Runs_Should_NoDeadlock()
-    {
+    public async Task EventDriven_Concurrent10Runs_Should_NoDeadlock() {
         var engine = CreateEventDrivenEngine();
         engine.RegisterFunction("A", _ => Task.FromResult(NodeResult.Succeeded("A-out", tokensUsed: 1)));
         engine.RegisterFunction("B", _ => Task.FromResult(NodeResult.Succeeded("B-out", tokensUsed: 1)));
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        var tasks = Enumerable.Range(0, 10).Select(_ =>
-        {
+        var tasks = Enumerable.Range(0, 10).Select(_ => {
             var dag = new Dag<GoalNodePayload>();
             dag.AddNode(MakeFunctionNode("A", "step-a"));
             dag.AddNode(MakeFunctionNode("B", "step-b"));
             dag.AddEdge(new DagEdge { Id = "e-ab", FromId = "A", ToId = "B" });
-            var graph = new GoalGraph
-            {
+            var graph = new GoalGraph {
                 Name = "event-driven-concurrent",
                 Dag = dag,
                 StartNodeId = "A",
@@ -227,8 +209,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task EventDriven_Cancellation_Should_PropagateAndStop()
-    {
+    public async Task EventDriven_Cancellation_Should_PropagateAndStop() {
         var engine = CreateEventDrivenEngine();
         var executedNodes = new List<string>();
 
@@ -237,20 +218,17 @@ public sealed partial class GoalGraphEngineTests
         dag.AddNode(MakeFunctionNode("B", "step-b"));
         dag.AddEdge(new DagEdge { Id = "e-ab", FromId = "A", ToId = "B" });
 
-        engine.RegisterFunction("A", async _ =>
-        {
+        engine.RegisterFunction("A", async _ => {
             executedNodes.Add("A");
             await Task.Delay(100);
             return NodeResult.Succeeded("A-out");
         });
-        engine.RegisterFunction("B", _ =>
-        {
+        engine.RegisterFunction("B", _ => {
             executedNodes.Add("B");
             return Task.FromResult(NodeResult.Succeeded("B-out"));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "event-driven-cancel",
             Dag = dag,
             StartNodeId = "A",

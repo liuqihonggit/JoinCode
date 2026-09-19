@@ -4,8 +4,7 @@ namespace Core.Agents.Worktree;
 /// worktree 删除状态机 — 显式状态枚举驱动，删除失败时转入 Diagnosing 探测根因。
 /// <para>对齐 AGENTS.md 规则8：显式状态枚举 + switch 表达式实现状态转换，结果携带 State 字段。</para>
 /// </summary>
-public enum RemovalState
-{
+public enum RemovalState {
     /// <summary>初始状态</summary>
     [EnumValue("idle")]
     Idle,
@@ -29,8 +28,7 @@ public enum RemovalState
 /// <summary>
 /// worktree 删除失败根因 — 诊断后暴露给调用方决策。
 /// </summary>
-public enum RemovalFailureReason
-{
+public enum RemovalFailureReason {
     /// <summary>无失败</summary>
     None,
     /// <summary>路径不存在（worktree 已被删除或从未创建）</summary>
@@ -48,8 +46,7 @@ public enum RemovalFailureReason
 /// <summary>
 /// worktree 删除结果 — 携带状态机状态 + 失败根因 + 错误信息。
 /// </summary>
-public sealed record WorktreeRemovalResult
-{
+public sealed record WorktreeRemovalResult {
     /// <summary>状态机当前状态</summary>
     public required RemovalState State { get; init; }
     /// <summary>失败根因</summary>
@@ -72,8 +69,7 @@ public sealed record WorktreeRemovalResult
 /// worktree 删除失败诊断器 — 路径存在性 + 错误消息模式匹配，确定失败根因。
 /// <para>不盲目兜底，把根因暴露给调用方决策（如提示用户关闭编辑器、检查权限）。</para>
 /// </summary>
-public sealed class WorktreeRemovalDiagnoser
-{
+public sealed class WorktreeRemovalDiagnoser {
     private readonly IFileOperationService _fileSystem;
 
     /// <summary>
@@ -90,11 +86,9 @@ public sealed class WorktreeRemovalDiagnoser
     public async Task<WorktreeRemovalResult> DiagnoseAsync(
         string worktreePath,
         string errorMessage,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var exists = await _fileSystem.DirectoryExistsAsync(worktreePath, cancellationToken).ConfigureAwait(false);
-        if (!exists)
-        {
+        if (!exists) {
             return WorktreeRemovalResult.DiagnosedResult(RemovalFailureReason.PathNotFound, errorMessage);
         }
 
@@ -105,16 +99,13 @@ public sealed class WorktreeRemovalDiagnoser
     /// <summary>
     /// 错误消息分类 — 转小写后单次模式匹配，对齐"字符串匹配优先转小写"规范。
     /// </summary>
-    private static RemovalFailureReason ClassifyError(string errorMessage)
-    {
-        if (string.IsNullOrWhiteSpace(errorMessage))
-        {
+    private static RemovalFailureReason ClassifyError(string errorMessage) {
+        if (string.IsNullOrWhiteSpace(errorMessage)) {
             return RemovalFailureReason.Unknown;
         }
 
         var lower = errorMessage.ToLowerInvariant();
-        return lower switch
-        {
+        return lower switch {
             _ when lower.Contains("being used") || lower.Contains("occupied") || lower.Contains("busy") =>
                 RemovalFailureReason.ProcessOccupied,
             _ when lower.Contains("permission denied") || lower.Contains("access is denied") || lower.Contains("unauthorized") =>

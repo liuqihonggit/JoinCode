@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Configuration.Settings;
 /// 对齐 TS: memdir/memoryAge.ts — memoryFreshnessNote + memoryFreshnessText + memoryAge
 /// 在读取记忆文件时，如果文件超过1天，在输出前加一个 system-reminder 提示记忆可能过时
 /// </summary>
-public static class MemoryFreshnessNote
-{
+public static class MemoryFreshnessNote {
     /// <summary>
     /// 一天的毫秒数
     /// </summary>
@@ -17,8 +16,7 @@ public static class MemoryFreshnessNote
     /// 计算记忆年龄（天数）
     /// 对齐 TS: memoryAgeDays — 向下取整，0=今天，1=昨天，2+=更早
     /// </summary>
-    public static int MemoryAgeDays(long mtimeMs)
-    {
+    public static int MemoryAgeDays(long mtimeMs) {
         var ageMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - mtimeMs;
         return Math.Max(0, (int)(ageMs / MillisecondsPerDay));
     }
@@ -27,8 +25,7 @@ public static class MemoryFreshnessNote
     /// 人类可读的年龄字符串
     /// 对齐 TS: memoryAge — "today" / "yesterday" / "N days ago"
     /// </summary>
-    public static string MemoryAge(long mtimeMs)
-    {
+    public static string MemoryAge(long mtimeMs) {
         var days = MemoryAgeDays(mtimeMs);
         if (days == 0) return "today";
         if (days == 1) return "yesterday";
@@ -39,8 +36,7 @@ public static class MemoryFreshnessNote
     /// 纯文本过时警告（超过1天的记忆）
     /// 对齐 TS: memoryFreshnessText — 新鲜记忆返回空字符串
     /// </summary>
-    public static string FreshnessText(long mtimeMs)
-    {
+    public static string FreshnessText(long mtimeMs) {
         var days = MemoryAgeDays(mtimeMs);
         if (days <= 1) return string.Empty;
         return $"This memory is {days} days old. " +
@@ -54,8 +50,7 @@ public static class MemoryFreshnessNote
     /// 对齐 TS: memoryFreshnessNote — 用于 FileReadTool 输出
     /// 新鲜记忆（≤1天）返回空字符串
     /// </summary>
-    public static string FreshnessNote(long mtimeMs)
-    {
+    public static string FreshnessNote(long mtimeMs) {
         var text = FreshnessText(mtimeMs);
         if (string.IsNullOrEmpty(text)) return string.Empty;
         return $"<system-reminder>{text}</system-reminder>\n";
@@ -66,8 +61,7 @@ public static class MemoryFreshnessNote
     /// 对齐 TS: isAutoMemFile — 检查路径是否在记忆目录下
     /// 记忆目录: ~/.jcc/memories/ 或 ~/.jcc/rules/ 或项目下的 .jcc/rules/
     /// </summary>
-    public static bool IsMemoryFile(string filePath)
-    {
+    public static bool IsMemoryFile(string filePath) {
         if (string.IsNullOrWhiteSpace(filePath)) return false;
 
         var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

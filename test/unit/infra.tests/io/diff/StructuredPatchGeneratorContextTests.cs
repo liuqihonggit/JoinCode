@@ -1,10 +1,8 @@
 namespace JoinCode.Infra.Tests.IO.Diff;
 
-public sealed class StructuredPatchGeneratorContextTests
-{
+public sealed class StructuredPatchGeneratorContextTests {
     [Fact]
-    public void Generate_DefaultContextLines_IsFour()
-    {
+    public void Generate_DefaultContextLines_IsFour() {
         var oldLines = Enumerable.Range(1, 20).Select(i => $"line{i}").ToArray();
         var newLines = oldLines.Select(l => l == "line10" ? "line10-CHANGED" : l).ToArray();
         var oldContent = string.Join("\n", oldLines) + "\n";
@@ -29,8 +27,7 @@ public sealed class StructuredPatchGeneratorContextTests
     }
 
     [Fact]
-    public void Generate_ChangeAtEndOfFile_IsIncluded()
-    {
+    public void Generate_ChangeAtEndOfFile_IsIncluded() {
         var oldLines = Enumerable.Range(1, 20).Select(i => $"line{i}").ToArray();
         var newLines = oldLines.Select(l => l == "line20" ? "line20-CHANGED" : l).ToArray();
         var oldContent = string.Join("\n", oldLines) + "\n";
@@ -46,8 +43,7 @@ public sealed class StructuredPatchGeneratorContextTests
     }
 
     [Fact]
-    public void Generate_ChangeBeyondFirstContext_IsIncluded()
-    {
+    public void Generate_ChangeBeyondFirstContext_IsIncluded() {
         var oldLines = Enumerable.Range(1, 30).Select(i => $"line{i}").ToArray();
         var newLines = oldLines.Select(l => l == "line18" ? "line18-CHANGED" : l).ToArray();
         var oldContent = string.Join("\n", oldLines) + "\n";

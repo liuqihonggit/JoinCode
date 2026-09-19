@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 内容替换器接口 — 超大工具结果持久化、per-message 预算
 /// </summary>
-public interface IChatContentReplacer
-{
+public interface IChatContentReplacer {
     /// <summary>
     /// 初始化内容替换状态
     /// </summary>

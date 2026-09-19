@@ -4,18 +4,15 @@ namespace Brain.Tests.Context.Compact;
 /// SessionMemoryExtractionService 单元测试 — 对齐 TS sessionMemory.ts
 /// 验证文件初始化、提示词构建、提取阈值判断
 /// </summary>
-public sealed class SessionMemoryExtractionServiceTests
-{
-    private static Testing.Common.Services.InMemoryFileSystem CreateFileSystem(string? cwd = null)
-    {
+public sealed class SessionMemoryExtractionServiceTests {
+    private static Testing.Common.Services.InMemoryFileSystem CreateFileSystem(string? cwd = null) {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         if (cwd is not null) fs.SetCurrentDirectory(cwd);
         return fs;
     }
 
     [Fact]
-    public async Task InitializeSessionMemoryFileAsync_CreatesFileWithTemplate()
-    {
+    public async Task InitializeSessionMemoryFileAsync_CreatesFileWithTemplate() {
         var fs = CreateFileSystem("/test/project");
         var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
@@ -30,8 +27,7 @@ public sealed class SessionMemoryExtractionServiceTests
     }
 
     [Fact]
-    public async Task InitializeSessionMemoryFileAsync_ExistingFile_ReturnsContent()
-    {
+    public async Task InitializeSessionMemoryFileAsync_ExistingFile_ReturnsContent() {
         var fs = CreateFileSystem("/test/project");
         var existingContent = "# 会话标题\nMy Session\n\n# 当前状态\nWorking on tests";
         fs.CreateDirectory("/test/project/.jcc");
@@ -48,8 +44,7 @@ public sealed class SessionMemoryExtractionServiceTests
     }
 
     [Fact]
-    public async Task BuildExtractionPromptAsync_ReturnsPromptWithNotesPath()
-    {
+    public async Task BuildExtractionPromptAsync_ReturnsPromptWithNotesPath() {
         var fs = CreateFileSystem("/test/project");
         var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
@@ -65,8 +60,7 @@ public sealed class SessionMemoryExtractionServiceTests
     }
 
     [Fact]
-    public void ShouldExtract_FirstTime_BelowThreshold_ReturnsFalse()
-    {
+    public void ShouldExtract_FirstTime_BelowThreshold_ReturnsFalse() {
         var fs = CreateFileSystem("/test/project");
         var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
@@ -79,8 +73,7 @@ public sealed class SessionMemoryExtractionServiceTests
     }
 
     [Fact]
-    public void ShouldExtract_FirstTime_AboveThreshold_ReturnsTrue()
-    {
+    public void ShouldExtract_FirstTime_AboveThreshold_ReturnsTrue() {
         var fs = CreateFileSystem("/test/project");
         var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
@@ -93,8 +86,7 @@ public sealed class SessionMemoryExtractionServiceTests
     }
 
     [Fact]
-    public void ShouldExtract_AfterPreviousExtraction_BelowUpdateThreshold_ReturnsFalse()
-    {
+    public void ShouldExtract_AfterPreviousExtraction_BelowUpdateThreshold_ReturnsFalse() {
         var fs = CreateFileSystem("/test/project");
         var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
@@ -109,8 +101,7 @@ public sealed class SessionMemoryExtractionServiceTests
     }
 
     [Fact]
-    public void ShouldExtract_AfterPreviousExtraction_AboveUpdateThreshold_ReturnsTrue()
-    {
+    public void ShouldExtract_AfterPreviousExtraction_AboveUpdateThreshold_ReturnsTrue() {
         var fs = CreateFileSystem("/test/project");
         var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
@@ -125,8 +116,7 @@ public sealed class SessionMemoryExtractionServiceTests
     }
 
     [Fact]
-    public void ShouldExtract_ToolCallsExceedThreshold_ReturnsTrue()
-    {
+    public void ShouldExtract_ToolCallsExceedThreshold_ReturnsTrue() {
         var fs = CreateFileSystem("/test/project");
         var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
@@ -141,8 +131,7 @@ public sealed class SessionMemoryExtractionServiceTests
     }
 
     [Fact]
-    public void GetMemoryFilePath_ReturnsExpectedPath()
-    {
+    public void GetMemoryFilePath_ReturnsExpectedPath() {
         var fs = CreateFileSystem("/my/project");
         var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),

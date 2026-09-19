@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 代理定义提供者 - 从多个来源加载代理定义
 /// </summary>
-public interface IAgentDefinitionProvider
-{
+public interface IAgentDefinitionProvider {
     /// <summary>
     /// 获取所有可用的代理定义
     /// </summary>

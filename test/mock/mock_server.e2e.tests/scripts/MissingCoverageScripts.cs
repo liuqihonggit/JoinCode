@@ -4,13 +4,11 @@ namespace MockServer.E2E.Tests.Scripts;
 /// 缺失覆盖的功能 E2E 测试脚本
 /// Write / Edit / Grep / Glob 工具 + Agent spawn + 聊天命令
 /// </summary>
-public static class MissingCoverageScripts
-{
+public static class MissingCoverageScripts {
     // ============================================================
     // Write 工具调用
     // ============================================================
-    public static ConversationScript WriteToolCall => new()
-    {
+    public static ConversationScript WriteToolCall => new() {
         Name = "Write工具调用",
         Turns =
         [
@@ -43,8 +41,7 @@ public static class MissingCoverageScripts
     // ============================================================
     // Edit 工具调用 — 编辑现有文件
     // ============================================================
-    public static ConversationScript EditToolCall => new()
-    {
+    public static ConversationScript EditToolCall => new() {
         Name = "Edit工具调用",
         Turns =
         [
@@ -77,8 +74,7 @@ public static class MissingCoverageScripts
     // ============================================================
     // Grep 工具调用 — 搜索文件内容
     // ============================================================
-    public static ConversationScript GrepToolCall => new()
-    {
+    public static ConversationScript GrepToolCall => new() {
         Name = "Grep工具调用",
         Turns =
         [
@@ -111,8 +107,7 @@ public static class MissingCoverageScripts
     // ============================================================
     // Glob 工具调用 — 文件通配
     // ============================================================
-    public static ConversationScript GlobToolCall => new()
-    {
+    public static ConversationScript GlobToolCall => new() {
         Name = "Glob工具调用",
         Turns =
         [
@@ -145,8 +140,7 @@ public static class MissingCoverageScripts
     // ============================================================
     // Agent spawn 全链路测试
     // ============================================================
-    public static ConversationScript AgentSpawnToolCall => new()
-    {
+    public static ConversationScript AgentSpawnToolCall => new() {
         Name = "Agent工具调用（spawn 子代理）",
         Turns =
         [
@@ -187,8 +181,7 @@ public static class MissingCoverageScripts
     // ============================================================
     // Agent 通过 agent_spawn 工具 spawn
     // ============================================================
-    public static ConversationScript AgentSpawnViaTool => new()
-    {
+    public static ConversationScript AgentSpawnViaTool => new() {
         Name = "agent_spawn 工具调用",
         Turns =
         [
@@ -226,8 +219,7 @@ public static class MissingCoverageScripts
     // ============================================================
     // Agent spawn with worktree isolation
     // ============================================================
-    public static ConversationScript AgentWorktreeIsolation => new()
-    {
+    public static ConversationScript AgentWorktreeIsolation => new() {
         Name = "Agent工具调用（worktree隔离）",
         Turns =
         [
@@ -267,13 +259,11 @@ public static class MissingCoverageScripts
 /// <summary>
 /// 聊天命令 E2E 测试脚本
 /// </summary>
-public static class ChatCommandScripts
-{
+public static class ChatCommandScripts {
     // ============================================================
     // /help 命令
     // ============================================================
-    public static ConversationScript HelpCommand => new()
-    {
+    public static ConversationScript HelpCommand => new() {
         Name = "/help 命令",
         Turns =
         [
@@ -298,8 +288,7 @@ public static class ChatCommandScripts
     // ============================================================
     // /clear 命令
     // ============================================================
-    public static ConversationScript ClearCommand => new()
-    {
+    public static ConversationScript ClearCommand => new() {
         Name = "/clear 命令",
         Turns =
         [
@@ -324,10 +313,8 @@ public static class ChatCommandScripts
 /// <summary>
 /// 任务工具 E2E 测试脚本
 /// </summary>
-public static class TaskToolScripts
-{
-    public static ConversationScript TaskCreateTest => new()
-    {
+public static class TaskToolScripts {
+    public static ConversationScript TaskCreateTest => new() {
         Name = "TaskCreate 工具调用",
         Turns =
         [
@@ -361,10 +348,8 @@ public static class TaskToolScripts
 /// <summary>
 /// 基础设施工具 E2E 测试脚本
 /// </summary>
-public static class InfrastructureToolScripts
-{
-    public static ConversationScript StructuredOutputRegisterTest => new()
-    {
+public static class InfrastructureToolScripts {
+    public static ConversationScript StructuredOutputRegisterTest => new() {
         Name = "structured_output_register 工具调用",
         Turns =
         [
@@ -398,10 +383,8 @@ public static class InfrastructureToolScripts
 /// <summary>
 /// 调度工具 E2E 测试脚本
 /// </summary>
-public static class SchedulingToolScripts
-{
-    public static ConversationScript CronListTest => new()
-    {
+public static class SchedulingToolScripts {
+    public static ConversationScript CronListTest => new() {
         Name = "CronList 工具调用",
         Turns =
         [
@@ -435,10 +418,8 @@ public static class SchedulingToolScripts
 /// <summary>
 /// 网络工具 E2E 测试脚本
 /// </summary>
-public static class WebToolScripts
-{
-    public static ConversationScript WebSearchTest => new()
-    {
+public static class WebToolScripts {
+    public static ConversationScript WebSearchTest => new() {
         Name = "WebSearch 工具调用",
         Turns =
         [

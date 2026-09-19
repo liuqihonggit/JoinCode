@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Agent 释放管道上下文 — 承载释放过程中各中间件共享的状态与结果
 /// </summary>
-public sealed class AgentDisposeContext : PipelineContextBase
-{
+public sealed class AgentDisposeContext : PipelineContextBase {
     /// <summary>目标 Agent 标识（必填）</summary>
     public required string AgentId { get; init; }
     /// <summary>取消令牌，用于协作式取消释放流程</summary>

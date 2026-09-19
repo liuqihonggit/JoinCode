@@ -4,8 +4,7 @@ namespace IO.FileSystem;
 /// <summary>
 /// 内存文件系统实现 — 纯内存, 0磁盘IO, 用于测试
 /// </summary>
-public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
-{
+public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
     private readonly ConcurrentDictionary<string, InMemoryFileEntry> _files = new();
     private readonly ConcurrentDictionary<string, InMemoryDirectoryEntry> _directories = new();
     private readonly WatcherRegistry _watcherRegistry = new();
@@ -15,8 +14,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     /// <summary>
     /// 构造内存文件系统，初始化根目录和默认当前目录
     /// </summary>
-    public InMemoryFileSystem()
-    {
+    public InMemoryFileSystem() {
         _directories[string.Empty] = new InMemoryDirectoryEntry { FullPath = string.Empty };
         _directories[NormalizePath(_currentDirectory)] = new InMemoryDirectoryEntry { FullPath = NormalizePath(_currentDirectory) };
         _editActor = new EditFileActor(this);
@@ -25,22 +23,19 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     // === File 写操作 ===
 
     /// <inheritdoc />
-    public Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default)
-    {
+    public Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default) {
         WriteAllText(path, contents);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public Task WriteAllTextAsync(string path, string contents, Encoding encoding, CancellationToken cancellationToken = default)
-    {
+    public Task WriteAllTextAsync(string path, string contents, Encoding encoding, CancellationToken cancellationToken = default) {
         WriteAllText(path, contents, encoding);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public void WriteAllText(string path, string contents)
-    {
+    public void WriteAllText(string path, string contents) {
         var normalizedPath = NormalizePath(path);
         var directory = Path.GetDirectoryName(normalizedPath) ?? string.Empty;
         EnsureDirectoryExists(directory);
@@ -54,8 +49,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public void WriteAllText(string path, string contents, Encoding encoding)
-    {
+    public void WriteAllText(string path, string contents, Encoding encoding) {
         var normalizedPath = NormalizePath(path);
         var directory = Path.GetDirectoryName(normalizedPath) ?? string.Empty;
         EnsureDirectoryExists(directory);
@@ -66,12 +60,9 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         // 对齐 File.WriteAllText: 编码写入时包含 preamble (BOM)
         var preamble = encoding.GetPreamble();
         var contentBytes = encoding.GetBytes(contents);
-        if (preamble.Length == 0)
-        {
+        if (preamble.Length == 0) {
             file.ByteContent = contentBytes;
-        }
-        else
-        {
+        } else {
             var bytes = new byte[preamble.Length + contentBytes.Length];
             Buffer.BlockCopy(preamble, 0, bytes, 0, preamble.Length);
             Buffer.BlockCopy(contentBytes, 0, bytes, preamble.Length, contentBytes.Length);
@@ -85,15 +76,13 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default)
-    {
+    public Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default) {
         WriteAllBytes(path, bytes);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public void WriteAllBytes(string path, byte[] bytes)
-    {
+    public void WriteAllBytes(string path, byte[] bytes) {
         var normalizedPath = NormalizePath(path);
         var directory = Path.GetDirectoryName(normalizedPath) ?? string.Empty;
         EnsureDirectoryExists(directory);
@@ -108,15 +97,13 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public Task AppendAllTextAsync(string path, string contents, CancellationToken cancellationToken = default)
-    {
+    public Task AppendAllTextAsync(string path, string contents, CancellationToken cancellationToken = default) {
         AppendAllText(path, contents);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public void AppendAllText(string path, string contents)
-    {
+    public void AppendAllText(string path, string contents) {
         var normalizedPath = NormalizePath(path);
         var directory = Path.GetDirectoryName(normalizedPath) ?? string.Empty;
         EnsureDirectoryExists(directory);
@@ -124,13 +111,10 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         var file = _files.GetOrAdd(normalizedPath, _ => new InMemoryFileEntry { FullPath = normalizedPath });
         // 如果 ByteContent 存在，需要先解码为 TextContent 再追加，然后清除 ByteContent
         // 否则 ReadAllBytes 会优先返回过时的 ByteContent
-        if (file.ByteContent is not null)
-        {
+        if (file.ByteContent is not null) {
             file.TextContent = (System.Text.Encoding.UTF8.GetString(file.ByteContent) + contents);
             file.ByteContent = null;
-        }
-        else
-        {
+        } else {
             file.TextContent = (file.TextContent ?? string.Empty) + contents;
         }
         file.LastWriteTime = DateTime.Now;
@@ -148,16 +132,13 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         => Task.FromResult(ReadAllText(path, encoding));
 
     /// <inheritdoc />
-    public string ReadAllText(string path)
-    {
+    public string ReadAllText(string path) {
         var normalizedPath = NormalizePath(path);
-        if (_files.TryGetValue(normalizedPath, out var file))
-        {
+        if (_files.TryGetValue(normalizedPath, out var file)) {
             // 优先返回 TextContent，若为 null 则从 ByteContent 解码
             if (file.TextContent is not null)
                 return file.TextContent;
-            if (file.ByteContent is not null)
-            {
+            if (file.ByteContent is not null) {
                 // 对齐 File.ReadAllText: 使用 StreamReader 自动检测编码并跳过 BOM
                 using var ms = new MemoryStream(file.ByteContent);
                 using var reader = ms.AsUtf8Reader();
@@ -169,13 +150,10 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public string ReadAllText(string path, Encoding encoding)
-    {
+    public string ReadAllText(string path, Encoding encoding) {
         var normalizedPath = NormalizePath(path);
-        if (_files.TryGetValue(normalizedPath, out var file))
-        {
-            if (file.ByteContent is not null)
-            {
+        if (_files.TryGetValue(normalizedPath, out var file)) {
+            if (file.ByteContent is not null) {
                 // 对齐 File.ReadAllText(path, encoding): 使用指定编码解码，自动跳过 BOM
                 using var ms = new MemoryStream(file.ByteContent);
                 using var reader = new StreamReader(ms, encoding);
@@ -191,8 +169,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         => Task.FromResult(ReadAllLines(path));
 
     /// <inheritdoc />
-    public string[] ReadAllLines(string path)
-    {
+    public string[] ReadAllLines(string path) {
         var content = ReadAllText(path);
         // 对齐 System.IO.File.ReadAllLines: 按行分割，去除行终止符，忽略末尾空行
         if (string.IsNullOrEmpty(content))
@@ -201,8 +178,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         var lines = content.Split('\n');
         // Split('\n') 在 "line1\n" 时产生 ["line1", ""]，需移除尾部空字符串
         var result = new List<string>(lines.Length);
-        for (var i = 0; i < lines.Length; i++)
-        {
+        for (var i = 0; i < lines.Length; i++) {
             var line = lines[i].TrimEnd('\r');
             // 跳过末尾的空行（由末尾 \n 产生的空字符串）
             if (i == lines.Length - 1 && line.Length == 0)
@@ -217,11 +193,9 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         => Task.FromResult(ReadAllBytes(path));
 
     /// <inheritdoc />
-    public byte[] ReadAllBytes(string path)
-    {
+    public byte[] ReadAllBytes(string path) {
         var normalizedPath = NormalizePath(path);
-        if (_files.TryGetValue(normalizedPath, out var file))
-        {
+        if (_files.TryGetValue(normalizedPath, out var file)) {
             return file.ByteContent ?? System.Text.Encoding.UTF8.GetBytes(file.TextContent ?? string.Empty);
         }
         throw new FileNotFoundException($"[INF004] 文件未找到: {path}");
@@ -230,11 +204,9 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     // === File 原子编辑 ===
 
     /// <inheritdoc />
-    public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default)
-    {
+    public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<object?>();
-        Func<byte[], CancellationToken, Task<(byte[]? NewContent, object? Result)>> wrapped = async (bytes, ct) =>
-        {
+        Func<byte[], CancellationToken, Task<(byte[]? NewContent, object? Result)>> wrapped = async (bytes, ct) => {
             var (newContent, result) = await transform(bytes, ct).ConfigureAwait(false);
             return (newContent, (object?)result);
         };
@@ -245,23 +217,20 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     // === File 存在/删除/移动/复制 ===
 
     /// <inheritdoc />
-    public bool FileExists(string path)
-    {
+    public bool FileExists(string path) {
         var normalizedPath = NormalizePath(path);
         return _files.ContainsKey(normalizedPath);
     }
 
     /// <inheritdoc />
-    public void DeleteFile(string path)
-    {
+    public void DeleteFile(string path) {
         var normalizedPath = NormalizePath(path);
         _files.TryRemove(normalizedPath, out _);
         _watcherRegistry.NotifyChanged(path, WatcherChangeTypes.Deleted);
     }
 
     /// <inheritdoc />
-    public void MoveFile(string sourcePath, string destPath, bool overwrite = false)
-    {
+    public void MoveFile(string sourcePath, string destPath, bool overwrite = false) {
         var normalizedSource = NormalizePath(sourcePath);
         var normalizedDest = NormalizePath(destPath);
 
@@ -281,8 +250,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public void CopyFile(string sourcePath, string destPath, bool overwrite = false)
-    {
+    public void CopyFile(string sourcePath, string destPath, bool overwrite = false) {
         var normalizedSource = NormalizePath(sourcePath);
         var normalizedDest = NormalizePath(destPath);
 
@@ -295,8 +263,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         var destDir = Path.GetDirectoryName(normalizedDest) ?? string.Empty;
         EnsureDirectoryExists(destDir);
 
-        _files[normalizedDest] = new InMemoryFileEntry
-        {
+        _files[normalizedDest] = new InMemoryFileEntry {
             FullPath = normalizedDest,
             TextContent = sourceFile.TextContent,
             ByteContent = sourceFile.ByteContent,
@@ -308,20 +275,17 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     // === File 流操作 ===
 
     /// <inheritdoc />
-    public Stream OpenRead(string path)
-    {
+    public Stream OpenRead(string path) {
         var bytes = ReadAllBytes(path);
         return new MemoryStream(bytes, writable: false);
     }
 
     /// <inheritdoc />
-    public Stream Open(string path, FileMode mode)
-    {
+    public Stream Open(string path, FileMode mode) {
         var normalizedPath = NormalizePath(path);
         var exists = _files.ContainsKey(normalizedPath);
 
-        return mode switch
-        {
+        return mode switch {
             FileMode.Create or FileMode.CreateNew or FileMode.OpenOrCreate => new InMemoryFileStream(this, normalizedPath, mode, exists),
             FileMode.Open when exists => new MemoryStream(ReadAllBytes(path), writable: true),
             FileMode.Open => throw new FileNotFoundException($"[INF009] 文件未找到: {path}"),
@@ -339,8 +303,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     // === File 时间戳 ===
 
     /// <inheritdoc />
-    public DateTime GetLastWriteTime(string path)
-    {
+    public DateTime GetLastWriteTime(string path) {
         var normalizedPath = NormalizePath(path);
         if (_files.TryGetValue(normalizedPath, out var file))
             return file.LastWriteTime;
@@ -352,8 +315,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         => GetLastWriteTime(path).ToUniversalTime();
 
     /// <inheritdoc />
-    public DateTime GetCreationTime(string path)
-    {
+    public DateTime GetCreationTime(string path) {
         var normalizedPath = NormalizePath(path);
         if (_files.TryGetValue(normalizedPath, out var file))
             return file.CreationTime;
@@ -365,11 +327,9 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         => GetCreationTime(path).ToUniversalTime();
 
     /// <inheritdoc />
-    public long GetFileLength(string path)
-    {
+    public long GetFileLength(string path) {
         var normalizedPath = NormalizePath(path);
-        if (_files.TryGetValue(normalizedPath, out var file))
-        {
+        if (_files.TryGetValue(normalizedPath, out var file)) {
             if (file.ByteContent is not null)
                 return file.ByteContent.Length;
             return System.Text.Encoding.UTF8.GetByteCount(file.TextContent ?? string.Empty);
@@ -378,8 +338,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public FileAttributes GetFileAttributes(string path)
-    {
+    public FileAttributes GetFileAttributes(string path) {
         var normalizedPath = NormalizePath(path);
         if (_files.ContainsKey(normalizedPath))
             return FileAttributes.Normal;
@@ -391,16 +350,14 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     // === Directory 操作 ===
 
     /// <inheritdoc />
-    public bool DirectoryExists(string path)
-    {
+    public bool DirectoryExists(string path) {
         ArgumentNullException.ThrowIfNull(path);
         var normalizedPath = NormalizePath(path);
         return _directories.ContainsKey(normalizedPath);
     }
 
     /// <inheritdoc />
-    public DirectoryInfo CreateDirectory(string path)
-    {
+    public DirectoryInfo CreateDirectory(string path) {
         var normalizedPath = NormalizePath(path);
         if (!string.IsNullOrEmpty(normalizedPath))
             EnsureDirectoryExists(normalizedPath);
@@ -408,13 +365,11 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public void DeleteDirectory(string path, bool recursive = false)
-    {
+    public void DeleteDirectory(string path, bool recursive = false) {
         var normalizedPath = NormalizePath(path);
         if (string.IsNullOrEmpty(normalizedPath)) return;
 
-        if (recursive)
-        {
+        if (recursive) {
             var filesToDelete = _files.Keys.Where(f => f.StartsWith(normalizedPath + "/", StringComparison.Ordinal)).ToList();
             foreach (var file in filesToDelete)
                 _files.TryRemove(file, out _);
@@ -436,8 +391,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         => EnumerateDirectories(path, searchPattern, searchOption).ToArray();
 
     /// <inheritdoc />
-    public IEnumerable<string> EnumerateFiles(string path, string searchPattern, SearchOption searchOption)
-    {
+    public IEnumerable<string> EnumerateFiles(string path, string searchPattern, SearchOption searchOption) {
         var normalizedPath = NormalizePath(path);
         var pattern = GlobToRegex(searchPattern);
         var regex = new System.Text.RegularExpressions.Regex("^" + pattern + "$");
@@ -449,8 +403,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public IEnumerable<string> EnumerateDirectories(string path, string searchPattern, SearchOption searchOption)
-    {
+    public IEnumerable<string> EnumerateDirectories(string path, string searchPattern, SearchOption searchOption) {
         ArgumentNullException.ThrowIfNull(path);
         var normalizedPath = NormalizePath(path);
         var pattern = GlobToRegex(searchPattern);
@@ -464,8 +417,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public void MoveDirectory(string sourceDir, string destDir)
-    {
+    public void MoveDirectory(string sourceDir, string destDir) {
         var normalizedSource = NormalizePath(sourceDir);
         var normalizedDest = NormalizePath(destDir);
 
@@ -476,10 +428,8 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
 
         // 移动所有子文件
         var filesToMove = _files.Keys.Where(f => f.StartsWith(normalizedSource + "/", StringComparison.Ordinal)).ToList();
-        foreach (var file in filesToMove)
-        {
-            if (_files.TryRemove(file, out var entry))
-            {
+        foreach (var file in filesToMove) {
+            if (_files.TryRemove(file, out var entry)) {
                 var newPath = normalizedDest + file.Substring(normalizedSource.Length);
                 entry.FullPath = newPath;
                 _files[newPath] = entry;
@@ -488,10 +438,8 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
 
         // 移动所有子目录
         var dirsToMove = _directories.Keys.Where(d => d.StartsWith(normalizedSource + "/", StringComparison.Ordinal)).OrderBy(d => d.Length).ToList();
-        foreach (var dir in dirsToMove)
-        {
-            if (_directories.TryRemove(dir, out var entry))
-            {
+        foreach (var dir in dirsToMove) {
+            if (_directories.TryRemove(dir, out var entry)) {
                 var newPath = normalizedDest + dir.Substring(normalizedSource.Length);
                 entry.FullPath = newPath;
                 _directories[newPath] = entry;
@@ -510,16 +458,14 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     public void SetDirectoryLastWriteTimeUtc(string path, DateTime utcTime) { }
 
     /// <inheritdoc />
-    public string? GetParentPath(string path)
-    {
+    public string? GetParentPath(string path) {
         var normalizedPath = NormalizePath(path);
         var parent = Path.GetDirectoryName(normalizedPath)?.Replace('\\', '/');
         return string.IsNullOrEmpty(parent) ? null : parent.Replace('/', '\\');
     }
 
     /// <inheritdoc />
-    public string GetDirectoryName(string path)
-    {
+    public string GetDirectoryName(string path) {
         var normalizedPath = NormalizePath(path);
         var name = normalizedPath.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
         return name ?? path;
@@ -536,8 +482,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         => _currentDirectory = path;
 
     /// <inheritdoc />
-    public string GetFullPath(string path)
-    {
+    public string GetFullPath(string path) {
         if (Path.IsPathFullyQualified(path))
             return path;
         return Path.Combine(_currentDirectory, path).Replace('\\', '/');
@@ -550,8 +495,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     // === Watch ===
 
     /// <inheritdoc />
-    public IFileSystemWatcher Watch(string path, string filter = "*.*")
-    {
+    public IFileSystemWatcher Watch(string path, string filter = "*.*") {
         var watcher = new InMemoryFileSystemWatcher(this, path, filter);
         RegisterWatcher(watcher);
         return watcher;
@@ -574,23 +518,20 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     /// <summary>
     /// 清空整个文件系统
     /// </summary>
-    public void Clear()
-    {
+    public void Clear() {
         _files.Clear();
         _directories.Clear();
         _directories[string.Empty] = new InMemoryDirectoryEntry { FullPath = string.Empty };
     }
 
-    private void EnsureDirectoryExists(string path)
-    {
+    private void EnsureDirectoryExists(string path) {
         var normalizedPath = NormalizePath(path);
         if (string.IsNullOrEmpty(normalizedPath)) return;
 
         var parts = normalizedPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
         var currentPath = string.Empty;
 
-        foreach (var part in parts)
-        {
+        foreach (var part in parts) {
             currentPath = string.IsNullOrEmpty(currentPath) ? part : $"{currentPath}/{part}";
             _directories.GetOrAdd(currentPath, _ => new InMemoryDirectoryEntry { FullPath = currentPath });
         }
@@ -607,11 +548,9 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     private static string GlobToRegex(string pattern)
         => pattern.Replace("*", ".*").Replace("?", ".");
 
-    private static bool MatchDirectory(string filePath, string targetDir, SearchOption searchOption)
-    {
+    private static bool MatchDirectory(string filePath, string targetDir, SearchOption searchOption) {
         var dir = Path.GetDirectoryName(filePath)?.Replace('\\', '/') ?? string.Empty;
-        if (searchOption == SearchOption.TopDirectoryOnly)
-        {
+        if (searchOption == SearchOption.TopDirectoryOnly) {
             if (string.IsNullOrEmpty(targetDir))
                 return string.IsNullOrEmpty(dir) || dir == ".";
             return dir == targetDir;
@@ -621,11 +560,9 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         return dir.StartsWith(targetDir + "/", StringComparison.Ordinal) || dir == targetDir;
     }
 
-    private static bool MatchParentDirectory(string dirPath, string targetDir, SearchOption searchOption)
-    {
+    private static bool MatchParentDirectory(string dirPath, string targetDir, SearchOption searchOption) {
         var parent = Path.GetDirectoryName(dirPath)?.Replace('\\', '/') ?? string.Empty;
-        if (searchOption == SearchOption.TopDirectoryOnly)
-        {
+        if (searchOption == SearchOption.TopDirectoryOnly) {
             if (string.IsNullOrEmpty(targetDir))
                 return string.IsNullOrEmpty(parent) || parent == ".";
             return parent == targetDir;
@@ -638,8 +575,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     /// <summary>
     /// 内存文件条目
     /// </summary>
-    private sealed class InMemoryFileEntry
-    {
+    private sealed class InMemoryFileEntry {
         public string FullPath { get; set; } = string.Empty;
         public string? TextContent { get; set; }
         public byte[]? ByteContent { get; set; }
@@ -650,8 +586,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     /// <summary>
     /// 内存目录条目
     /// </summary>
-    private sealed class InMemoryDirectoryEntry
-    {
+    private sealed class InMemoryDirectoryEntry {
         public string FullPath { get; set; } = string.Empty;
     }
 
@@ -659,15 +594,13 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     /// 内存文件流 — 写入时更新 InMemoryFileSystem
     /// </summary>
 #pragma warning disable JCC9103 // Stream 基类要求同时实现 IDisposable 和 IAsyncDisposable
-    private sealed class InMemoryFileStream : Stream
-    {
+    private sealed class InMemoryFileStream : Stream {
         private readonly InMemoryFileSystem _fs;
         private readonly string _path;
         private readonly MemoryStream _inner;
         private int _disposed;
 
-        public InMemoryFileStream(InMemoryFileSystem fs, string path, FileMode mode, bool exists)
-        {
+        public InMemoryFileStream(InMemoryFileSystem fs, string path, FileMode mode, bool exists) {
             _fs = fs;
             _path = path;
 
@@ -680,8 +613,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
             // 使用可扩展的 MemoryStream — new MemoryStream(byte[], writable) 创建固定大小流，
             // 写入超过初始大小时抛 NotSupportedException，导致 JsonSerializer.SerializeAsync 失败
             _inner = new MemoryStream();
-            if (initialData.Length > 0)
-            {
+            if (initialData.Length > 0) {
                 _inner.Write(initialData, 0, initialData.Length);
                 if (mode != FileMode.Append)
                     _inner.Position = 0;
@@ -711,8 +643,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         public override void Write(byte[] buffer, int offset, int count)
             => _inner.Write(buffer, offset, count);
 
-        protected override void Dispose(bool disposing)
-        {
+        protected override void Dispose(bool disposing) {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             var data = _inner.ToArray();
             _fs.WriteAllBytes(_path.Replace('/', '\\'), data);
@@ -730,8 +661,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     /// <summary>
     /// 内存文件编辑 Actor — 串行化 EditFileAsync 读-改-写事务，消除 per-path AsyncLock — TASK001
     /// </summary>
-    private sealed class EditFileActor : ActorBase<EditFileCmd, Unit>
-    {
+    private sealed class EditFileActor : ActorBase<EditFileCmd, Unit> {
         private readonly InMemoryFileSystem _owner;
 
         public EditFileActor(InMemoryFileSystem owner) : base() => _owner = owner;
@@ -740,18 +670,14 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
         public async Task<object?> AskReplyAsync(TaskCompletionSource<object?> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(EditFileCmd cmd, CancellationToken ct)
-        {
-            try
-            {
+        protected override async ValueTask HandleAsync(EditFileCmd cmd, CancellationToken ct) {
+            try {
                 var bytes = await _owner.ReadAllBytesAsync(cmd.Path, ct).ConfigureAwait(false);
                 var (newContent, result) = await cmd.Transform(bytes, ct).ConfigureAwait(false);
                 if (newContent is not null)
                     await _owner.WriteAllBytesAsync(cmd.Path, newContent, ct).ConfigureAwait(false);
                 cmd.Reply.SetResult(result);
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex) { cmd.Reply.SetException(ex); }
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.Reply.SetException(ex); }
         }
     }
 }

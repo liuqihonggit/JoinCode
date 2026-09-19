@@ -5,8 +5,7 @@ namespace Core.Context.Compact;
 /// 压缩阈值配置 — 控制自动压缩、警告和兜底的各类阈值
 /// </summary>
 [RegisterOptions]
-public sealed partial class CompactThresholds : ServiceEntity
-{
+public sealed partial class CompactThresholds : ServiceEntity {
     /// <summary>自动压缩缓冲 token 数</summary>
     public int AutoCompactBufferTokens { get; init; } = 13_000;
     /// <summary>警告缓冲 token 数</summary>

@@ -4,8 +4,7 @@ namespace JoinCode.App.Modules;
 /// 管道模块 — 注册命名管道通信服务
 /// </summary>
 [AppModule(Order = 70)]
-public sealed class PipeModule : IAppModule
-{
+public sealed class PipeModule : IAppModule {
     /// <summary>模块加载顺序，数值越小越先加载</summary>
     public int Order => 70;
 
@@ -14,8 +13,7 @@ public sealed class PipeModule : IAppModule
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <param name="context">应用模块上下文</param>
-    public void ConfigureServices(IServiceCollection services, AppModuleContext context)
-    {
+    public void ConfigureServices(IServiceCollection services, AppModuleContext context) {
         services.RegisterPipeServices();
     }
 

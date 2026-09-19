@@ -4,8 +4,7 @@ namespace Core.Configuration.Providers;
 /// <summary>
 /// Anthropic 协议供应商 — x-api-key 认证 + v1/messages 端点
 /// </summary>
-public sealed class AnthropicProviderDefinition : IProviderDefinition
-{
+public sealed class AnthropicProviderDefinition : IProviderDefinition {
     private readonly IModelConfigLoader _modelConfigLoader;
     private readonly string _providerName;
     private readonly string? _apiKeyEnvVar;
@@ -13,8 +12,7 @@ public sealed class AnthropicProviderDefinition : IProviderDefinition
     /// <summary>
     /// 构造 Anthropic 协议供应商定义
     /// </summary>
-    public AnthropicProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName = "anthropic", string? apiKeyEnvVar = null)
-    {
+    public AnthropicProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName = "anthropic", string? apiKeyEnvVar = null) {
         _modelConfigLoader = modelConfigLoader;
         _providerName = providerName;
         _apiKeyEnvVar = apiKeyEnvVar;
@@ -47,10 +45,8 @@ public sealed class AnthropicProviderDefinition : IProviderDefinition
     public string GetChatEndpoint(ProviderConfig config) => "v1/messages";
 
     /// <inheritdoc />
-    public void ConfigureHttpClient(HttpClient client, ProviderConfig config)
-    {
-        if (!string.IsNullOrEmpty(config.ApiKey))
-        {
+    public void ConfigureHttpClient(HttpClient client, ProviderConfig config) {
+        if (!string.IsNullOrEmpty(config.ApiKey)) {
             client.DefaultRequestHeaders.Add("x-api-key", config.ApiKey);
             client.DefaultRequestHeaders.Add("anthropic-version", "2024-10-22");
             client.DefaultRequestHeaders.Add("anthropic-beta", "prompt-caching-2024-07-31,prompt-caching-scope-2026-01-05,context-management-2025-06-27");
@@ -58,10 +54,8 @@ public sealed class AnthropicProviderDefinition : IProviderDefinition
     }
 
     /// <inheritdoc />
-    public string? ResolveApiKeyFromEnv()
-    {
-        if (_apiKeyEnvVar is not null)
-        {
+    public string? ResolveApiKeyFromEnv() {
+        if (_apiKeyEnvVar is not null) {
             var key = Environment.GetEnvironmentVariable(_apiKeyEnvVar);
             if (!string.IsNullOrEmpty(key)) return key;
         }

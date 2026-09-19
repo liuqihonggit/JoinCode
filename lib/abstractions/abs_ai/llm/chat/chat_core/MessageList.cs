@@ -1,16 +1,13 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class MessageList : IList<ApiMessage>, IReadOnlyList<ApiMessage>
-{
+public sealed class MessageList : IList<ApiMessage>, IReadOnlyList<ApiMessage> {
     private readonly List<ApiMessage> _messages;
 
-    public MessageList()
-    {
+    public MessageList() {
         _messages = [];
     }
 
-    public MessageList(IEnumerable<ApiMessage> messages)
-    {
+    public MessageList(IEnumerable<ApiMessage> messages) {
         _messages = [.. messages];
     }
 
@@ -18,18 +15,15 @@ public sealed class MessageList : IList<ApiMessage>, IReadOnlyList<ApiMessage>
     /// 零拷贝工厂 — 直接接管传入的 List，不复制元素。
     /// 调用方在此调用后不得再使用原 List 引用（所有权转移）。
     /// </summary>
-    public static MessageList FromList(List<ApiMessage> messages)
-    {
+    public static MessageList FromList(List<ApiMessage> messages) {
         return new MessageList(messages, owns: true);
     }
 
-    private MessageList(List<ApiMessage> messages, bool owns)
-    {
+    private MessageList(List<ApiMessage> messages, bool owns) {
         _messages = messages;
     }
 
-    public ApiMessage this[int index]
-    {
+    public ApiMessage this[int index] {
         get => _messages[index];
         set => _messages[index] = value;
     }
@@ -45,8 +39,7 @@ public sealed class MessageList : IList<ApiMessage>, IReadOnlyList<ApiMessage>
     /// 原子替换全部消息 — 对齐 TS applyToolResultBudget 返回新数组后直接赋值
     /// 避免 Clear()+AddRange() 非原子窗口（并发读者可能看到空列表）
     /// </summary>
-    public void ReplaceAll(IReadOnlyList<ApiMessage> newMessages)
-    {
+    public void ReplaceAll(IReadOnlyList<ApiMessage> newMessages) {
         _messages.Clear();
         // 先构建完整列表再一次性 AddRange，缩小非原子窗口
         _messages.EnsureCapacity(newMessages.Count);

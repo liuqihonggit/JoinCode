@@ -4,8 +4,7 @@ namespace Core.Prompts.Sections;
 /// Chrome 浏览器自动化提示词部分
 /// </summary>
 [PromptSection(Name = "chrome_automation", Keywords = new[] { "chrome", "浏览器", "browser", "自动化", "网页", "UI自动化", "puppeteer", "playwright", "selenium" }, InjectOn = PromptSectionInject.Keyword, Order = 60)]
-public static class ChromeAutomationSection
-{
+public static class ChromeAutomationSection {
     /// <summary>
     /// 基础 Chrome 提示词
     /// </summary>

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 定时任务实体 — 派生自 Entity，与 Agent 同套路
 /// 代表运行时定时任务（区别于 CronTask record，后者是持久化层 DTO）
 /// </summary>
-public sealed class CronTaskEntity : Entity
-{
+public sealed class CronTaskEntity : Entity {
     public string CronExpression { get; }
     public string Prompt { get; }
     public bool IsRecurring { get; init; }
@@ -28,8 +27,7 @@ public sealed class CronTaskEntity : Entity
         ObjectId? agentObjectId = default,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base(ObjectType.Cron, sessionId, displayName ?? prompt)
-    {
+        : base(ObjectType.Cron, sessionId, displayName ?? prompt) {
         CronExpression = cronExpression;
         Prompt = prompt;
         IsRecurring = isRecurring;
@@ -39,14 +37,12 @@ public sealed class CronTaskEntity : Entity
         Registry.Add(ObjectId, this);
     }
 
-    public override void Dispose()
-    {
+    public override void Dispose() {
         Registry.Remove(ObjectId);
         base.Dispose();
     }
 
-    public bool IsExpired(long nowMs, long maxAgeMs)
-    {
+    public bool IsExpired(long nowMs, long maxAgeMs) {
         if (maxAgeMs == 0 || IsPermanent) return false;
         var createdAtMs = new DateTimeOffset(CreatedAt).ToUnixTimeMilliseconds();
         return IsRecurring && (nowMs - createdAtMs) >= maxAgeMs;
@@ -56,8 +52,7 @@ public sealed class CronTaskEntity : Entity
 /// <summary>
 /// CronTask 注册器 — 基于 MapRegistry
 /// </summary>
-public sealed class CronTaskEntityRegistry : MapRegistry<ObjectId, CronTaskEntity>
-{
+public sealed class CronTaskEntityRegistry : MapRegistry<ObjectId, CronTaskEntity> {
     internal void Add(ObjectId id, CronTaskEntity task) => AddCore(id, task);
     internal bool Remove(ObjectId id) => RemoveCore(id);
     public IEnumerable<CronTaskEntity> GetActive() => Where(t => t.LastFiredAt.HasValue);

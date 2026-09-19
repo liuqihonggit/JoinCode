@@ -5,16 +5,14 @@ namespace McpToolDispatch;
 /// 沙箱工具处理器 — 提供沙箱进入、退出、切换、状态查询和命令执行等隔离能力
 /// </summary>
 [McpToolDispatch(ToolCategory.Sandbox)]
-public sealed class SandboxToolHandlers
-{
+public sealed class SandboxToolHandlers {
     private readonly ISandboxManager _sandboxManager;
 
     /// <summary>
     /// 初始化沙箱工具处理器
     /// </summary>
     /// <param name="sandboxManager">沙箱管理器</param>
-    public SandboxToolHandlers(ISandboxManager sandboxManager)
-    {
+    public SandboxToolHandlers(ISandboxManager sandboxManager) {
         _sandboxManager = sandboxManager ?? throw new ArgumentNullException(nameof(sandboxManager));
     }
 
@@ -39,20 +37,16 @@ public sealed class SandboxToolHandlers
         [McpToolParameter("Memory limit in MB (process/docker only)", Required = false, DefaultValue = "0")] string memoryLimitMb,
         [McpToolParameter("CPU limit percent 1-100 (process/docker only)", Required = false, DefaultValue = "0")] string cpuLimitPercent,
         [McpToolParameter("Allow automatic fallback to lower isolation if requested type unavailable", Required = false, DefaultValue = "true")] string allowFallback,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var type = SandboxTypeExtensions.FromValue(sandboxType);
-        if (type is null)
-        {
+        if (type is null) {
             return ToolResultBuilder.Error()
                 .WithText($"未知沙箱类型: '{sandboxType}'。可用类型: soft, process, docker, bubblewrap。使用 sandbox_status 查看当前平台支持哪些类型。")
                 .Build();
         }
 
-        if (!_sandboxManager.AvailableTypes.Contains(type.Value))
-        {
-            if (!allowFallback.Equals("true", StringComparison.OrdinalIgnoreCase))
-            {
+        if (!_sandboxManager.AvailableTypes.Contains(type.Value)) {
+            if (!allowFallback.Equals("true", StringComparison.OrdinalIgnoreCase)) {
                 return ToolResultBuilder.Error()
                     .WithText($"沙箱类型 '{sandboxType}' 在当前平台不可用。可用类型: {string.Join(", ", _sandboxManager.AvailableTypes.Select(t => t.ToValue()))}。设置 allowFallback=true 可自动降级。")
                     .Build();
@@ -61,8 +55,7 @@ public sealed class SandboxToolHandlers
             return await EnterWithFallbackAsync(type.Value, restrictFileSystem, restrictNetwork, sandboxRoot, memoryLimitMb, cpuLimitPercent, cancellationToken).ConfigureAwait(false);
         }
 
-        var options = new SandboxOptions
-        {
+        var options = new SandboxOptions {
             Type = type.Value,
             RestrictFileSystem = restrictFileSystem.Equals("true", StringComparison.OrdinalIgnoreCase),
             RestrictNetwork = restrictNetwork.Equals("true", StringComparison.OrdinalIgnoreCase),
@@ -71,8 +64,7 @@ public sealed class SandboxToolHandlers
             CpuLimitPercent = int.TryParse(cpuLimitPercent, out var cpu) ? cpu : 0
         };
 
-        try
-        {
+        try {
             var info = await _sandboxManager.EnterSandboxAsync(options, cancellationToken).ConfigureAwait(false);
 
             var response = new StringBuilder();
@@ -88,11 +80,8 @@ public sealed class SandboxToolHandlers
             return ToolResultBuilder.Success()
                 .WithText(response.ToString())
                 .Build();
-        }
-        catch (Exception ex)
-        {
-            if (allowFallback.Equals("true", StringComparison.OrdinalIgnoreCase))
-            {
+        } catch (Exception ex) {
+            if (allowFallback.Equals("true", StringComparison.OrdinalIgnoreCase)) {
                 return await EnterWithFallbackAsync(type.Value, restrictFileSystem, restrictNetwork, sandboxRoot, memoryLimitMb, cpuLimitPercent, cancellationToken).ConfigureAwait(false);
             }
 
@@ -109,17 +98,14 @@ public sealed class SandboxToolHandlers
     /// <returns>工具执行结果</returns>
     [McpTool(SandboxToolNameEnumConstants.SandboxExit, "Exit the current sandbox and restore normal access.", "sandbox")]
     public async Task<ToolResult> SandboxExitAsync(
-        CancellationToken cancellationToken = default)
-    {
-        if (!_sandboxManager.IsInSandbox)
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_sandboxManager.IsInSandbox) {
             return ToolResultBuilder.Success()
                 .WithText("当前不在沙箱中，无需退出。使用 sandbox_enter 进入沙箱。")
                 .Build();
         }
 
-        try
-        {
+        try {
             var previousType = _sandboxManager.ActiveSandboxType;
             var previousId = _sandboxManager.CurrentSandboxId;
             await _sandboxManager.ExitSandboxAsync(cancellationToken).ConfigureAwait(false);
@@ -127,9 +113,7 @@ public sealed class SandboxToolHandlers
             return ToolResultBuilder.Success()
                 .WithText($"已退出沙箱 (类型: {previousType.ToValue()}, ID: {previousId})。文件系统和网络访问已恢复正常。")
                 .Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error()
                 .WithText($"退出沙箱失败: {ex.Message}。沙箱资源可能未完全清理，建议使用 sandbox_status 检查状态。")
                 .Build();
@@ -145,32 +129,27 @@ public sealed class SandboxToolHandlers
     [McpTool(SandboxToolNameEnumConstants.SandboxSwitch, "Switch to a different sandbox type while preserving isolation settings. Useful for escalating or de-escalating isolation level. If the target type is unavailable, automatically falls back.", "sandbox")]
     public async Task<ToolResult> SandboxSwitchAsync(
         [McpToolParameter("Target sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { SandboxTypeEnumConstants.Soft, SandboxTypeEnumConstants.Process, SandboxTypeEnumConstants.Docker, SandboxTypeEnumConstants.Bubblewrap })] string sandboxType,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var type = SandboxTypeExtensions.FromValue(sandboxType);
-        if (type is null)
-        {
+        if (type is null) {
             return ToolResultBuilder.Error()
                 .WithText($"未知沙箱类型: '{sandboxType}'。可用类型: soft, process, docker, bubblewrap")
                 .Build();
         }
 
-        if (!_sandboxManager.IsInSandbox)
-        {
+        if (!_sandboxManager.IsInSandbox) {
             return ToolResultBuilder.Error()
                 .WithText($"当前不在沙箱中，无法切换。请先使用 sandbox_enter 进入沙箱。")
                 .Build();
         }
 
-        if (!_sandboxManager.AvailableTypes.Contains(type.Value))
-        {
+        if (!_sandboxManager.AvailableTypes.Contains(type.Value)) {
             return ToolResultBuilder.Error()
                 .WithText($"沙箱类型 '{sandboxType}' 在当前平台不可用。可用类型: {string.Join(", ", _sandboxManager.AvailableTypes.Select(t => t.ToValue()))}")
                 .Build();
         }
 
-        try
-        {
+        try {
             var previousType = _sandboxManager.ActiveSandboxType;
             await _sandboxManager.SwitchProviderAsync(type.Value, cancellationToken).ConfigureAwait(false);
 
@@ -179,9 +158,7 @@ public sealed class SandboxToolHandlers
             return ToolResultBuilder.Success()
                 .WithText($"沙箱已切换: {previousType.ToValue()} → {type.Value.ToValue()}。{isolationChange}")
                 .Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error()
                 .WithText($"切换沙箱失败: {ex.Message}。旧沙箱可能已销毁，建议使用 sandbox_enter 重新进入。")
                 .Build();
@@ -195,13 +172,11 @@ public sealed class SandboxToolHandlers
     /// <returns>工具执行结果</returns>
     [McpTool(SandboxToolNameEnumConstants.SandboxStatus, "Get the current sandbox status including type, isolation level, available types, and health state.", "sandbox")]
     public Task<ToolResult> SandboxStatusAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var response = new StringBuilder();
         response.AppendLine($"In sandbox: {_sandboxManager.IsInSandbox}");
 
-        if (_sandboxManager.IsInSandbox && _sandboxManager.CurrentSandbox is not null)
-        {
+        if (_sandboxManager.IsInSandbox && _sandboxManager.CurrentSandbox is not null) {
             var info = _sandboxManager.CurrentSandbox;
             response.AppendLine($"Type: {info.Type.ToValue()}");
             response.AppendLine($"Sandbox ID: {info.SandboxId}");
@@ -210,13 +185,10 @@ public sealed class SandboxToolHandlers
             response.AppendLine($"File system restricted: {info.RestrictFileSystem}");
             response.AppendLine($"Network restricted: {info.RestrictNetwork}");
             response.AppendLine($"Capabilities: {info.Capabilities}");
-            if (info.AllowedPaths is not null && info.AllowedPaths.Count > 0)
-            {
+            if (info.AllowedPaths is not null && info.AllowedPaths.Count > 0) {
                 response.AppendLine($"Allowed paths: {string.Join(", ", info.AllowedPaths)}");
             }
-        }
-        else
-        {
+        } else {
             response.AppendLine("提示: 当前无沙箱保护，所有文件系统和网络访问不受限制。");
             response.AppendLine("使用 sandbox_enter 进入沙箱以获得隔离保护。");
         }
@@ -224,12 +196,9 @@ public sealed class SandboxToolHandlers
         response.AppendLine($"Available types: {string.Join(", ", _sandboxManager.AvailableTypes.Select(t => t.ToValue()))}");
         response.AppendLine($"Health: {_sandboxManager.HealthState.ToValue()}");
 
-        if (_sandboxManager.HealthState == SandboxHealthState.Fallback)
-        {
+        if (_sandboxManager.HealthState == SandboxHealthState.Fallback) {
             response.AppendLine("⚠️ 当前沙箱为降级模式，隔离级别低于请求值，请注意安全风险。");
-        }
-        else if (_sandboxManager.HealthState == SandboxHealthState.Degraded)
-        {
+        } else if (_sandboxManager.HealthState == SandboxHealthState.Degraded) {
             response.AppendLine("⚠️ 沙箱处于降级状态，部分功能可能异常。建议 sandbox_exit 后重新进入。");
         }
 
@@ -251,44 +220,36 @@ public sealed class SandboxToolHandlers
         [McpToolParameter("Command to execute in the sandbox", Required = true)] string command,
         [McpToolParameter("Timeout preset: 2min (default), 4min, 8min, or custom", Required = false, DefaultValue = SandboxExecutionTimeoutEnumConstants.TwoMinutes, EnumValues = new[] { SandboxExecutionTimeoutEnumConstants.TwoMinutes, SandboxExecutionTimeoutEnumConstants.FourMinutes, SandboxExecutionTimeoutEnumConstants.EightMinutes, SandboxExecutionTimeoutEnumConstants.Custom })] string timeout,
         [McpToolParameter("Custom timeout in seconds (only used when timeout=custom)", Required = false, DefaultValue = "0")] string customTimeoutSeconds,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_sandboxManager.IsInSandbox)
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_sandboxManager.IsInSandbox) {
             return ToolResultBuilder.Error()
                 .WithText("当前不在沙箱中，无法执行沙箱命令。请先使用 sandbox_enter 进入沙箱，或直接使用 bash/powershell 工具执行。")
                 .Build();
         }
 
         var timeoutPreset = SandboxExecutionTimeoutExtensions.FromValue(timeout);
-        if (timeoutPreset is null)
-        {
+        if (timeoutPreset is null) {
             return ToolResultBuilder.Error()
                 .WithText($"未知超时选项: '{timeout}'。可用: 2min, 4min, 8min, custom")
                 .Build();
         }
 
-        var execOptions = new SandboxExecutionOptions
-        {
+        var execOptions = new SandboxExecutionOptions {
             TimeoutPreset = timeoutPreset.Value,
             CustomTimeoutSeconds = int.TryParse(customTimeoutSeconds, out var custom) ? custom : 0
         };
 
-        if (timeoutPreset.Value == SandboxExecutionTimeout.Custom && execOptions.CustomTimeoutSeconds <= 0)
-        {
+        if (timeoutPreset.Value == SandboxExecutionTimeout.Custom && execOptions.CustomTimeoutSeconds <= 0) {
             return ToolResultBuilder.Error()
                 .WithText("使用 custom 超时选项时，customTimeoutSeconds 必须大于 0。")
                 .Build();
         }
 
-        try
-        {
+        try {
             var result = await _sandboxManager.ExecuteInSandboxAsync(command, execOptions, cancellationToken).ConfigureAwait(false);
 
             return BuildExecResultResponse(result);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error()
                 .WithText($"沙箱执行失败: {ex.Message}")
                 .Build();
@@ -306,104 +267,88 @@ public sealed class SandboxToolHandlers
     public async Task<ToolResult> SandboxExecContinueAsync(
         [McpToolParameter("Execution ID from sandbox_exec timeout response", Required = true)] string executionId,
         [McpToolParameter("Action: wait (continue waiting for another timeout period) or stop (force kill the process)", Required = true, EnumValues = new[] { SandboxContinueActionEnumConstants.Wait, SandboxContinueActionEnumConstants.Stop })] string action,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(executionId))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrEmpty(executionId)) {
             return ToolResultBuilder.Error()
                 .WithText("缺少 executionId 参数。请使用 sandbox_exec 超时响应中返回的 Execution ID。")
                 .Build();
         }
 
-        if (!action.Equals("wait", StringComparison.OrdinalIgnoreCase) && !action.Equals("stop", StringComparison.OrdinalIgnoreCase))
-        {
+        if (!action.Equals("wait", StringComparison.OrdinalIgnoreCase) && !action.Equals("stop", StringComparison.OrdinalIgnoreCase)) {
             return ToolResultBuilder.Error()
                 .WithText($"未知操作: '{action}'。可用: wait (继续等待), stop (强行终止)")
                 .Build();
         }
 
-        try
-        {
+        try {
             var result = await _sandboxManager.ContinueExecutionAsync(executionId, action, cancellationToken).ConfigureAwait(false);
 
             return BuildExecResultResponse(result);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error()
                 .WithText($"继续执行失败: {ex.Message}")
                 .Build();
         }
     }
 
-    private static ToolResult BuildExecResultResponse(SandboxExecutionResult result)
-    {
+    private static ToolResult BuildExecResultResponse(SandboxExecutionResult result) {
         var response = new StringBuilder();
         response.AppendLine($"Execution ID: {result.ExecutionId}");
         response.AppendLine($"State: {result.State.ToValue()}");
         response.AppendLine($"Elapsed: {result.Elapsed.TotalSeconds:0.0}s / {result.ConfiguredTimeout?.TotalMinutes:0}min limit");
 
-        switch (result.State)
-        {
+        switch (result.State) {
             case SandboxExecutionState.Completed:
-                response.AppendLine($"Exit code: {result.ExitCode}");
-                if (!string.IsNullOrEmpty(result.Stdout))
-                {
-                    response.AppendLine("--- stdout ---");
-                    response.AppendLine(result.Stdout);
-                }
-                if (!string.IsNullOrEmpty(result.Stderr))
-                {
-                    response.AppendLine("--- stderr ---");
-                    response.AppendLine(result.Stderr);
-                }
-                break;
+            response.AppendLine($"Exit code: {result.ExitCode}");
+            if (!string.IsNullOrEmpty(result.Stdout)) {
+                response.AppendLine("--- stdout ---");
+                response.AppendLine(result.Stdout);
+            }
+            if (!string.IsNullOrEmpty(result.Stderr)) {
+                response.AppendLine("--- stderr ---");
+                response.AppendLine(result.Stderr);
+            }
+            break;
 
             case SandboxExecutionState.TimedOut:
-                response.AppendLine();
-                response.AppendLine("⏱️ 命令执行已超时，但未中断！命令仍在运行中。");
-                response.AppendLine(result.GetLlmPrompt());
-                response.AppendLine();
-                response.AppendLine("已收集的部分输出:");
-                if (!string.IsNullOrEmpty(result.Stdout))
-                {
-                    response.AppendLine("--- stdout (partial) ---");
-                    response.AppendLine(result.Stdout);
-                }
-                if (!string.IsNullOrEmpty(result.Stderr))
-                {
-                    response.AppendLine("--- stderr (partial) ---");
-                    response.AppendLine(result.Stderr);
-                }
-                break;
+            response.AppendLine();
+            response.AppendLine("⏱️ 命令执行已超时，但未中断！命令仍在运行中。");
+            response.AppendLine(result.GetLlmPrompt());
+            response.AppendLine();
+            response.AppendLine("已收集的部分输出:");
+            if (!string.IsNullOrEmpty(result.Stdout)) {
+                response.AppendLine("--- stdout (partial) ---");
+                response.AppendLine(result.Stdout);
+            }
+            if (!string.IsNullOrEmpty(result.Stderr)) {
+                response.AppendLine("--- stderr (partial) ---");
+                response.AppendLine(result.Stderr);
+            }
+            break;
 
             case SandboxExecutionState.ForceStopped:
-                response.AppendLine("进程已被强行终止。");
-                if (!string.IsNullOrEmpty(result.Stdout))
-                {
-                    response.AppendLine("--- stdout (before kill) ---");
-                    response.AppendLine(result.Stdout);
-                }
-                if (!string.IsNullOrEmpty(result.Stderr))
-                {
-                    response.AppendLine("--- stderr (before kill) ---");
-                    response.AppendLine(result.Stderr);
-                }
-                break;
+            response.AppendLine("进程已被强行终止。");
+            if (!string.IsNullOrEmpty(result.Stdout)) {
+                response.AppendLine("--- stdout (before kill) ---");
+                response.AppendLine(result.Stdout);
+            }
+            if (!string.IsNullOrEmpty(result.Stderr)) {
+                response.AppendLine("--- stderr (before kill) ---");
+                response.AppendLine(result.Stderr);
+            }
+            break;
 
             case SandboxExecutionState.Failed:
-                response.AppendLine($"Error: {result.ErrorMessage}");
-                if (!string.IsNullOrEmpty(result.Stdout))
-                {
-                    response.AppendLine("--- stdout ---");
-                    response.AppendLine(result.Stdout);
-                }
-                if (!string.IsNullOrEmpty(result.Stderr))
-                {
-                    response.AppendLine("--- stderr ---");
-                    response.AppendLine(result.Stderr);
-                }
-                break;
+            response.AppendLine($"Error: {result.ErrorMessage}");
+            if (!string.IsNullOrEmpty(result.Stdout)) {
+                response.AppendLine("--- stdout ---");
+                response.AppendLine(result.Stdout);
+            }
+            if (!string.IsNullOrEmpty(result.Stderr)) {
+                response.AppendLine("--- stderr ---");
+                response.AppendLine(result.Stderr);
+            }
+            break;
         }
 
         return ToolResultBuilder.Success()
@@ -418,10 +363,8 @@ public sealed class SandboxToolHandlers
         string? sandboxRoot,
         string memoryLimitMb,
         string cpuLimitPercent,
-        CancellationToken ct)
-    {
-        var options = new SandboxOptions
-        {
+        CancellationToken ct) {
+        var options = new SandboxOptions {
             Type = requestedType,
             RestrictFileSystem = restrictFileSystem.Equals("true", StringComparison.OrdinalIgnoreCase),
             RestrictNetwork = restrictNetwork.Equals("true", StringComparison.OrdinalIgnoreCase),
@@ -432,15 +375,13 @@ public sealed class SandboxToolHandlers
 
         var result = await _sandboxManager.TryEnterWithFallbackAsync(options, ct).ConfigureAwait(false);
 
-        if (result.Info is not null)
-        {
+        if (result.Info is not null) {
             var response = new StringBuilder();
             response.AppendLine($"Sandbox activated: {result.Info.Type.ToValue()}");
             response.AppendLine($"Sandbox ID: {result.Info.SandboxId}");
             response.AppendLine($"Root path: {result.Info.RootPath}");
 
-            if (result.WasDegraded)
-            {
+            if (result.WasDegraded) {
                 response.AppendLine();
                 response.AppendLine($"⚠️ 降级提示: {result.Message}");
                 response.AppendLine($"请求类型: {result.RequestedType.ToValue()}, 实际类型: {result.ActualType.ToValue()}");
@@ -457,10 +398,8 @@ public sealed class SandboxToolHandlers
             .Build();
     }
 
-    private static string GetIsolationChangeDescription(SandboxType from, SandboxType to)
-    {
-        var level = new Dictionary<SandboxType, int>
-        {
+    private static string GetIsolationChangeDescription(SandboxType from, SandboxType to) {
+        var level = new Dictionary<SandboxType, int> {
             [SandboxType.Soft] = 1,
             [SandboxType.Process] = 2,
             [SandboxType.Bubblewrap] = 3,
@@ -470,13 +409,11 @@ public sealed class SandboxToolHandlers
         var fromLevel = level.GetValueOrDefault(from, 0);
         var toLevel = level.GetValueOrDefault(to, 0);
 
-        if (toLevel > fromLevel)
-        {
+        if (toLevel > fromLevel) {
             return "隔离级别已提升，安全性增强。";
         }
 
-        if (toLevel < fromLevel)
-        {
+        if (toLevel < fromLevel) {
             return "⚠️ 隔离级别已降低，请注意安全风险。";
         }
 

@@ -1,13 +1,11 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed partial class BridgeMainTests
-{
+public sealed partial class BridgeMainTests {
     #region BridgeMainResult
 
     [Fact]
-    public void BridgeMainResult_Defaults()
-    {
+    public void BridgeMainResult_Defaults() {
         var result = new BridgeMainResult();
         Assert.False(result.Completed);
         Assert.Null(result.HelpText);
@@ -16,15 +14,13 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeMainResult_WithError()
-    {
+    public void BridgeMainResult_WithError() {
         var result = new BridgeMainResult { Error = "something failed" };
         Assert.True(result.HasError);
     }
 
     [Fact]
-    public void BridgeMainResult_Completed()
-    {
+    public void BridgeMainResult_Completed() {
         var result = new BridgeMainResult { Completed = true };
         Assert.True(result.Completed);
         Assert.False(result.HasError);
@@ -35,11 +31,9 @@ public sealed partial class BridgeMainTests
     #region BridgeMainDeps — 必填字段验证
 
     [Fact]
-    public void BridgeMainDeps_AllRequiredFields_Set()
-    {
+    public void BridgeMainDeps_AllRequiredFields_Set() {
         var fs = new InMemoryFileSystem();
-        var deps = new BridgeMainDeps
-        {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = fs,
@@ -59,10 +53,8 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeMainDeps_OptionalFields_DefaultNull()
-    {
-        var deps = new BridgeMainDeps
-        {
+    public void BridgeMainDeps_OptionalFields_DefaultNull() {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -92,10 +84,8 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeMainDeps_CreateBridgeSession_CanBeSet()
-    {
-        var deps = new BridgeMainDeps
-        {
+    public void BridgeMainDeps_CreateBridgeSession_CanBeSet() {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -114,8 +104,7 @@ public sealed partial class BridgeMainTests
     #region BridgeMainPollConfig
 
     [Fact]
-    public void BridgeMainPollConfig_Defaults()
-    {
+    public void BridgeMainPollConfig_Defaults() {
         var config = new BridgeMainPollConfig();
         Assert.Equal(5000, config.PollIntervalMs);
         Assert.Equal(30000, config.HeartbeatIntervalMs);
@@ -127,8 +116,7 @@ public sealed partial class BridgeMainTests
     #region BridgeMainArgs — 属性
 
     [Fact]
-    public void BridgeMainArgs_Defaults()
-    {
+    public void BridgeMainArgs_Defaults() {
         var args = new BridgeMainArgs();
         Assert.False(args.DebugLog);
         Assert.False(args.Sandbox);
@@ -147,22 +135,19 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeMainArgs_HasError_WithNullError()
-    {
+    public void BridgeMainArgs_HasError_WithNullError() {
         var args = new BridgeMainArgs { Error = null };
         Assert.False(args.HasError);
     }
 
     [Fact]
-    public void BridgeMainArgs_HasError_WithEmptyError()
-    {
+    public void BridgeMainArgs_HasError_WithEmptyError() {
         var args = new BridgeMainArgs { Error = "" };
         Assert.False(args.HasError);
     }
 
     [Fact]
-    public void BridgeMainArgs_HasError_WithError()
-    {
+    public void BridgeMainArgs_HasError_WithError() {
         var args = new BridgeMainArgs { Error = "something" };
         Assert.True(args.HasError);
     }

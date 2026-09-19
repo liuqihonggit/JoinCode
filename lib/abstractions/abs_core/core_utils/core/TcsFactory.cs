@@ -8,8 +8,7 @@ namespace JoinCode.Abstractions.Utils;
 /// RunContinuationsAsynchronously 让续体在线程池上执行而非同步调用,避免 Actor/邮箱场景下 Consumer 线程被阻塞。
 /// </para>
 /// </summary>
-public static class TcsFactory
-{
+public static class TcsFactory {
     /// <summary>创建带 RunContinuationsAsynchronously 的 TaskCompletionSource&lt;T&gt;</summary>
     public static TaskCompletionSource<T> Create<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 

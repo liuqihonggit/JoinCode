@@ -3,11 +3,9 @@ namespace Core.Utils;
 /// <summary>
 /// ActorSettings 单元测试 — 验证默认值、校验合法性、友好提示词。
 /// </summary>
-public class ActorSettingsTest
-{
+public class ActorSettingsTest {
     [Fact]
-    public void DefaultValues_AreCorrect()
-    {
+    public void DefaultValues_AreCorrect() {
         var settings = new ActorSettings();
 
         settings.BuildQueue.Mode.Should().Be("serial");
@@ -21,23 +19,20 @@ public class ActorSettingsTest
     }
 
     [Fact]
-    public void Validate_DefaultValues_Passes()
-    {
+    public void Validate_DefaultValues_Passes() {
         var settings = new ActorSettings();
         var act = () => settings.Validate();
         act.Should().NotThrow();
     }
 
     [Fact]
-    public void BuildQueue_IsParallel_TrueWhenModeIsParallel()
-    {
+    public void BuildQueue_IsParallel_TrueWhenModeIsParallel() {
         var settings = new ActorSettings { BuildQueue = { Mode = "parallel" } };
         settings.BuildQueue.IsParallel.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_InvalidMode_ThrowsWithFriendlyMessage()
-    {
+    public void Validate_InvalidMode_ThrowsWithFriendlyMessage() {
         var settings = new ActorSettings { BuildQueue = { Mode = "invalid" } };
         var act = () => settings.Validate();
         act.Should().Throw<ArgumentException>()
@@ -45,8 +40,7 @@ public class ActorSettingsTest
     }
 
     [Fact]
-    public void Validate_ZeroWorkerCount_ThrowsWithFriendlyMessage()
-    {
+    public void Validate_ZeroWorkerCount_ThrowsWithFriendlyMessage() {
         var settings = new ActorSettings { BuildQueue = { WorkerCount = 0 } };
         var act = () => settings.Validate();
         act.Should().Throw<ArgumentException>()
@@ -54,8 +48,7 @@ public class ActorSettingsTest
     }
 
     [Fact]
-    public void Validate_OverMaxWorkerCount_ThrowsWithFriendlyMessage()
-    {
+    public void Validate_OverMaxWorkerCount_ThrowsWithFriendlyMessage() {
         var settings = new ActorSettings { BuildQueue = { WorkerCount = 20 } };
         var act = () => settings.Validate();
         act.Should().Throw<ArgumentException>()
@@ -63,8 +56,7 @@ public class ActorSettingsTest
     }
 
     [Fact]
-    public void Validate_NegativeCapacity_ThrowsWithFriendlyMessage()
-    {
+    public void Validate_NegativeCapacity_ThrowsWithFriendlyMessage() {
         var settings = new ActorSettings();
         settings.Backpressure.Build.Capacity = -1;
         var act = () => settings.Validate();
@@ -73,8 +65,7 @@ public class ActorSettingsTest
     }
 
     [Fact]
-    public void Validate_HighWatermarkOverCapacity_ThrowsWithFriendlyMessage()
-    {
+    public void Validate_HighWatermarkOverCapacity_ThrowsWithFriendlyMessage() {
         var settings = new ActorSettings();
         settings.Backpressure.Build.Capacity = 100;
         settings.Backpressure.Build.HighWatermark = 200;
@@ -84,8 +75,7 @@ public class ActorSettingsTest
     }
 
     [Fact]
-    public void Validate_NegativeSendTimeout_ThrowsWithFriendlyMessage()
-    {
+    public void Validate_NegativeSendTimeout_ThrowsWithFriendlyMessage() {
         var settings = new ActorSettings();
         settings.Backpressure.Build.SendTimeoutSeconds = -1;
         var act = () => settings.Validate();
@@ -94,10 +84,8 @@ public class ActorSettingsTest
     }
 
     [Fact]
-    public void Validate_CustomValidConfig_Passes()
-    {
-        var settings = new ActorSettings
-        {
+    public void Validate_CustomValidConfig_Passes() {
+        var settings = new ActorSettings {
             BuildQueue = { Mode = "parallel", WorkerCount = 4 },
             Backpressure =
             {

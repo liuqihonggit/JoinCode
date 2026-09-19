@@ -5,46 +5,39 @@ namespace Core.Tests.Bridge;
 /// BridgeClient 集成测试
 /// 测试 MCP 客户端完整流程、技能加载和执行、Bridge 消息循环、消息去重功能
 /// </summary>
-public class BridgeClientIntegrationTests : IAsyncLifetime
-{
+public class BridgeClientIntegrationTests : IAsyncLifetime {
     private readonly ITestOutputHelper _output;
     private readonly ILoggerFactory _loggerFactory;
     private string _tempSkillsDir = null!;
     private readonly IFileOperationService _fileOperationService;
 
-    public BridgeClientIntegrationTests(ITestOutputHelper output)
-    {
+    public BridgeClientIntegrationTests(ITestOutputHelper output) {
         _output = output;
-        _loggerFactory = LoggerFactory.Create(builder =>
-        {
+        _loggerFactory = LoggerFactory.Create(builder => {
             builder.AddProvider(new Testing.Common.Logging.TestOutputLoggerProvider(output));
             builder.SetMinimumLevel(LogLevel.Debug);
         });
         _fileOperationService = new InMemoryFileOperationService();
     }
 
-    public async Task InitializeAsync()
-    {
+    public async Task InitializeAsync() {
         _tempSkillsDir = "/test/bridge/skills";
         _fileOperationService.CreateDirectory(_tempSkillsDir);
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
-    public async Task DisposeAsync()
-    {
+    public async Task DisposeAsync() {
         _loggerFactory.DisposeSafe();
     }
 
     #region MCP 客户端完整流程测试
 
     [Fact]
-    public async Task BridgeClient_Initialize_ShouldSucceed()
-    {
+    public async Task BridgeClient_Initialize_ShouldSucceed() {
         // Arrange
         var handler = CreateMessageHandler();
 
-        var initRequest = new InitializeRequest
-        {
+        var initRequest = new InitializeRequest {
             Id = Guid.NewGuid().ToString("N"),
             ProtocolVersion = "1.0",
             ClientInfo = new ClientInfo { Name = "test-client", Version = "1.0.0" }
@@ -62,22 +55,18 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task BridgeClient_ToolsList_ShouldReturnTools()
-    {
+    public async Task BridgeClient_ToolsList_ShouldReturnTools() {
         // Arrange
         var toolRegistry = CreateToolRegistry();
-        await toolRegistry.RegisterToolAsync("test_tool", "A test tool", new ToolSchema(), async (name, args, ct, onProgress) =>
-        {
-            return new ToolResult
-            {
+        await toolRegistry.RegisterToolAsync("test_tool", "A test tool", new ToolSchema(), async (name, args, ct, onProgress) => {
+            return new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Test result" } }
             };
         }).ConfigureAwait(true);
 
         var handler = CreateMessageHandler(toolRegistry: toolRegistry);
 
-        var toolsListRequest = new ToolsListRequest
-        {
+        var toolsListRequest = new ToolsListRequest {
             Id = Guid.NewGuid().ToString("N")
         };
 
@@ -93,29 +82,24 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task BridgeClient_ToolsCall_ShouldExecuteTool()
-    {
+    public async Task BridgeClient_ToolsCall_ShouldExecuteTool() {
         // Arrange
         var toolExecuted = false;
         var toolRegistry = CreateToolRegistry();
-        await toolRegistry.RegisterToolAsync("echo_tool", "Echo tool", new ToolSchema(), async (name, args, ct, onProgress) =>
-        {
+        await toolRegistry.RegisterToolAsync("echo_tool", "Echo tool", new ToolSchema(), async (name, args, ct, onProgress) => {
             toolExecuted = true;
             var message = args.TryGetValue("message", out var msg) ? msg.ToString() : "empty";
-            return new ToolResult
-            {
+            return new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = $"Echo: {message}" } }
             };
         }).ConfigureAwait(true);
 
         var handler = CreateMessageHandler(toolRegistry: toolRegistry);
 
-        var toolCallRequest = new ToolsCallRequest
-        {
+        var toolCallRequest = new ToolsCallRequest {
             Id = Guid.NewGuid().ToString("N"),
             ToolName = "echo_tool",
-            Arguments = new Dictionary<string, System.Text.Json.JsonElement>
-            {
+            Arguments = new Dictionary<string, System.Text.Json.JsonElement> {
                 ["message"] = System.Text.Json.JsonDocument.Parse("\"Hello World\"").RootElement
             }
         };
@@ -136,14 +120,12 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
     #region 技能加载和执行测试
 
     [Fact]
-    public async Task BridgeClient_SkillExecute_NonExistentSkill_ShouldReturnError()
-    {
+    public async Task BridgeClient_SkillExecute_NonExistentSkill_ShouldReturnError() {
         // Arrange
         var skillService = CreateTestSkillService();
         var handler = CreateMessageHandler(skillService: skillService);
 
-        var skillRequest = new SkillExecuteRequest
-        {
+        var skillRequest = new SkillExecuteRequest {
             Id = Guid.NewGuid().ToString("N"),
             SkillName = "non_existent_skill",
             Parameters = new Dictionary<string, System.Text.Json.JsonElement>()
@@ -160,10 +142,8 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
         skillResponse.Error.Should().Contain("not found");
     }
 
-    private ISkillService CreateTestSkillService()
-    {
-        var options = new SkillOptions
-        {
+    private ISkillService CreateTestSkillService() {
+        var options = new SkillOptions {
             SkillsDirectory = _tempSkillsDir,
             CacheExpiration = TimeSpan.FromMinutes(5)
         };
@@ -183,16 +163,13 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task BridgeClient_SkillExecute_ExistingSkill_ShouldReturnResult()
-    {
+    public async Task BridgeClient_SkillExecute_ExistingSkill_ShouldReturnResult() {
         // Arrange
         var skillService = CreateTestSkillService();
-        var skill = new SkillDefinition
-        {
+        var skill = new SkillDefinition {
             Name = "test_skill",
             Description = "A test skill",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["input"] = new SkillParameter { Type = "string", Description = "Input value", Required = true }
             },
             Steps = new List<SkillStep>
@@ -210,12 +187,10 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
 
         var handler = CreateMessageHandler(skillService: skillService);
 
-        var skillRequest = new SkillExecuteRequest
-        {
+        var skillRequest = new SkillExecuteRequest {
             Id = Guid.NewGuid().ToString("N"),
             SkillName = "test_skill",
-            Parameters = new Dictionary<string, System.Text.Json.JsonElement>
-            {
+            Parameters = new Dictionary<string, System.Text.Json.JsonElement> {
                 ["input"] = System.Text.Json.JsonDocument.Parse("\"test_value\"").RootElement
             }
         };
@@ -236,8 +211,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
     #region Bridge 消息循环测试
 
     [Fact]
-    public async Task BridgeClient_Ping_ShouldReturnPong()
-    {
+    public async Task BridgeClient_Ping_ShouldReturnPong() {
         // Arrange
         var handler = CreateMessageHandler();
 
@@ -252,13 +226,11 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task BridgeClient_ControlRequest_Ping_ShouldReturnPong()
-    {
+    public async Task BridgeClient_ControlRequest_Ping_ShouldReturnPong() {
         // Arrange
         var handler = CreateMessageHandler();
 
-        var controlRequest = new ControlRequest
-        {
+        var controlRequest = new ControlRequest {
             Id = Guid.NewGuid().ToString("N"),
             Command = "ping"
         };
@@ -275,15 +247,13 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task BridgeClient_ControlRequest_GetStatus_ShouldReturnStatus()
-    {
+    public async Task BridgeClient_ControlRequest_GetStatus_ShouldReturnStatus() {
         // Arrange
         var toolRegistry = CreateToolRegistry();
         await toolRegistry.RegisterToolAsync("tool1", "Tool 1", new ToolSchema(), (n, a, c, onProgress) => Task.FromResult(new ToolResult())).ConfigureAwait(true);
 
         var skillService = CreateTestSkillService();
-        var skill = new SkillDefinition
-        {
+        var skill = new SkillDefinition {
             Name = "skill1",
             Description = "Skill 1",
             Steps = new List<SkillStep>()
@@ -292,8 +262,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
 
         var handler = CreateMessageHandler(toolRegistry: toolRegistry, skillService: skillService);
 
-        var controlRequest = new ControlRequest
-        {
+        var controlRequest = new ControlRequest {
             Id = Guid.NewGuid().ToString("N"),
             Command = "getStatus"
         };
@@ -310,13 +279,11 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task BridgeClient_ControlRequest_UnknownCommand_ShouldReturnError()
-    {
+    public async Task BridgeClient_ControlRequest_UnknownCommand_ShouldReturnError() {
         // Arrange
         var handler = CreateMessageHandler();
 
-        var controlRequest = new ControlRequest
-        {
+        var controlRequest = new ControlRequest {
             Id = Guid.NewGuid().ToString("N"),
             Command = "unknown_command"
         };
@@ -337,12 +304,10 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
     #region 消息去重测试
 
     [Fact]
-    public async Task BridgeClient_EchoMessages_ShouldBeFilteredByTransport()
-    {
+    public async Task BridgeClient_EchoMessages_ShouldBeFilteredByTransport() {
         // Arrange - Echo 消息在 TransportManager 层被过滤
         // 这里测试 EchoMessage 类型是否正确创建
-        var echoMessage = new EchoMessage
-        {
+        var echoMessage = new EchoMessage {
             Id = Guid.NewGuid().ToString("N"),
             OriginalMessageId = Guid.NewGuid().ToString("N"),
             EchoData = System.Text.Json.JsonDocument.Parse("{}").RootElement
@@ -357,17 +322,14 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
 
     #region 辅助方法
 
-    private static IToolRegistry CreateToolRegistry()
-    {
+    private static IToolRegistry CreateToolRegistry() {
         return new LocalToolRegistry();
     }
 
     private MessageHandlerCoordinator CreateMessageHandler(
         IToolRegistry? toolRegistry = null,
-        ISkillService? skillService = null)
-    {
-        var context = new MessageHandlerContext
-        {
+        ISkillService? skillService = null) {
+        var context = new MessageHandlerContext {
             ToolRegistry = toolRegistry,
             SkillService = skillService,
             Logger = _loggerFactory.CreateLogger<MessageHandlerContext>()

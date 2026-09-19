@@ -4,12 +4,10 @@ namespace Core.Configuration.ConfigPipeline;
 /// Step 6: 规则赋值
 /// </summary>
 [Register(typeof(IConfigLoadMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class RulesAssignMiddleware : ServiceEntity, IConfigLoadMiddleware
-{
+public sealed partial class RulesAssignMiddleware : ServiceEntity, IConfigLoadMiddleware {
 
     /// <inheritdoc/>
-    public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct) {
         var config = context.Config;
         config.ProjectRules = context.ProjectRules;
         config.ExternalRules = context.ExternalRules;

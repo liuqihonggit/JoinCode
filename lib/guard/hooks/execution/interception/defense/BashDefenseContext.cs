@@ -11,8 +11,7 @@ namespace Core.Hooks.Execution.Interception.Defense;
 /// </list>
 /// </para>
 /// </summary>
-public sealed class BashDefenseContext
-{
+public sealed class BashDefenseContext {
     /// <summary>原始命令（调用方传入，未经任何改写）</summary>
     public required string OriginalCommand { get; init; }
 

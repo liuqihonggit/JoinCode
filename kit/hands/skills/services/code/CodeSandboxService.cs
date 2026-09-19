@@ -5,8 +5,7 @@ namespace Core.Skills;
 /// 代码沙箱服务 — 在临时目录中编译并执行 C# 代码，捕获输出和错误
 /// </summary>
 [Register(typeof(ICodeSandboxService), ServiceLifetime.Singleton)]
-public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxService
-{
+public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxService {
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
@@ -21,8 +20,7 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
     /// <param name="processService">进程执行服务</param>
     /// <param name="telemetryService">遥测服务</param>
     /// <param name="logger">日志记录器</param>
-    public CodeSandboxService(IFileOperationService fileOperationService, IFileSystem fs, IProcessService processService, ITelemetryService? telemetryService = null, ILogger<CodeSandboxService>? logger = null)
-    {
+    public CodeSandboxService(IFileOperationService fileOperationService, IFileSystem fs, IProcessService processService, ITelemetryService? telemetryService = null, ILogger<CodeSandboxService>? logger = null) {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
@@ -37,8 +35,7 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
     /// <param name="timeoutMs">执行超时毫秒数</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>执行输出（标准输出 + 标准错误 + 退出码）</returns>
-    public async Task<string> ExecuteAsync(string code, int timeoutMs, CancellationToken cancellationToken = default)
-    {
+    public async Task<string> ExecuteAsync(string code, int timeoutMs, CancellationToken cancellationToken = default) {
         await using var span = _telemetryService?.StartSpan("sandbox.execute", TelemetrySpanKind.Server);
         span?.SetTag("sandbox.code_length", code.Length);
         span?.SetTag("sandbox.timeout_ms", timeoutMs);
@@ -46,8 +43,7 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
         var tempDir = Path.Combine(Path.GetTempPath(), $"csharp_sandbox_{Guid.NewGuid():N}");
         _fs.CreateDirectory(tempDir);
 
-        try
-        {
+        try {
             var codeFile = Path.Combine(tempDir, "Program.cs");
             await _fs.WriteAllTextAsync(codeFile, code, cancellationToken).ConfigureAwait(false);
 
@@ -62,16 +58,14 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
 </Project>";
             await _fs.WriteAllTextAsync(projectFile, projectContent, cancellationToken).ConfigureAwait(false);
 
-            var buildResult = await _processService.ExecuteAsync(new ProcessOptions
-            {
+            var buildResult = await _processService.ExecuteAsync(new ProcessOptions {
                 FileName = "dotnet",
                 ArgumentList = new[] { "build", "--configuration", "Release", "--nologo" },
                 WorkingDirectory = tempDir,
                 TimeoutMs = 30000
             }, cancellationToken).ConfigureAwait(false);
 
-            if (!buildResult.Success)
-            {
+            if (!buildResult.Success) {
                 var buildError = string.IsNullOrWhiteSpace(buildResult.StandardError) ? buildResult.StandardOutput : buildResult.StandardError;
 
                 span?.SetStatus(TelemetryStatusCode.Error, "Build failed");
@@ -84,18 +78,14 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
             var exePath = _fs.FileExists(dllPath) ? dllPath : Path.Combine(tempDir, "bin", "Release", "net10.0", "Sandbox.exe");
 
             ProcessResult runResult;
-            try
-            {
-                runResult = await _processService.ExecuteAsync(new ProcessOptions
-                {
+            try {
+                runResult = await _processService.ExecuteAsync(new ProcessOptions {
                     FileName = "dotnet",
                     ArgumentList = new[] { exePath },
                     WorkingDirectory = tempDir,
                     TimeoutMs = timeoutMs
                 }, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
                 span?.SetStatus(TelemetryStatusCode.Error, "Execution timeout");
                 RecordSandboxMetrics(isSuccess: false, isTimeout: true);
 
@@ -103,18 +93,15 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
             }
 
             var resultBuilder = new StringBuilder();
-            if (!string.IsNullOrWhiteSpace(runResult.StandardOutput))
-            {
+            if (!string.IsNullOrWhiteSpace(runResult.StandardOutput)) {
                 resultBuilder.AppendLine(L.T(StringKey.SandboxOutputLabel));
                 resultBuilder.AppendLine(runResult.StandardOutput);
             }
-            if (!string.IsNullOrWhiteSpace(runResult.StandardError))
-            {
+            if (!string.IsNullOrWhiteSpace(runResult.StandardError)) {
                 resultBuilder.AppendLine(L.T(StringKey.SandboxErrorLabel));
                 resultBuilder.AppendLine(runResult.StandardError);
             }
-            if (runResult.ExitCode != 0)
-            {
+            if (runResult.ExitCode != 0) {
                 resultBuilder.AppendLine(L.T(StringKey.SandboxExitCodeLabel, runResult.ExitCode));
             }
 
@@ -122,18 +109,12 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
             RecordSandboxMetrics(isSuccess: runResult.Success, isTimeout: false);
 
             return resultBuilder.ToString().Trim();
-        }
-        finally
-        {
-            try
-            {
-                if (_fs.DirectoryExists(tempDir))
-                {
+        } finally {
+            try {
+                if (_fs.DirectoryExists(tempDir)) {
                     await DeleteDirectoryAsync(tempDir, cancellationToken).ConfigureAwait(false);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "清理临时目录失败");
             }
         }
@@ -146,8 +127,7 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
     /// <param name="variables">变量声明代码；为 null 则不添加</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表达式求值结果文本</returns>
-    public async Task<string> EvaluateExpressionAsync(string expression, string? variables, CancellationToken cancellationToken = default)
-    {
+    public async Task<string> EvaluateExpressionAsync(string expression, string? variables, CancellationToken cancellationToken = default) {
         var codeBuilder = new StringBuilder(512);
         codeBuilder.AppendLine("using System;");
         codeBuilder.AppendLine("using System.Linq;");
@@ -173,8 +153,7 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
         return await ExecuteAsync(codeBuilder.ToString(), 10000, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task DeleteDirectoryAsync(string directoryPath, CancellationToken cancellationToken)
-    {
+    private async Task DeleteDirectoryAsync(string directoryPath, CancellationToken cancellationToken) {
         var files = _fs.GetFiles(directoryPath, "*", SearchOption.AllDirectories);
         var deleteTasks = files.Select(file => _fileOperationService.DeleteFileAsync(file, cancellationToken));
         await Task.WhenAll(deleteTasks).ConfigureAwait(false);

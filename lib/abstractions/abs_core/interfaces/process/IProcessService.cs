@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 进程执行结果
 /// </summary>
-public sealed class ProcessResult : ICommandExecutionResult
-{
+public sealed class ProcessResult : ICommandExecutionResult {
     public required int ExitCode { get; init; }
     public required string StandardOutput { get; init; }
     public required string StandardError { get; init; }
@@ -22,8 +21,7 @@ public sealed class ProcessResult : ICommandExecutionResult
 /// <summary>
 /// 进程启动选项
 /// </summary>
-public sealed class ProcessOptions
-{
+public sealed class ProcessOptions {
     public required string FileName { get; init; }
     public string Arguments { get; init; } = string.Empty;
     /// <summary>
@@ -48,8 +46,7 @@ public sealed class ProcessOptions
 /// <summary>
 /// 交互式进程句柄 — 用于需要持续读写 stdin/stdout 的场景（MCP Stdio、插件宿主等）
 /// </summary>
-public interface IInteractiveProcess : IAsyncDisposable
-{
+public interface IInteractiveProcess : IAsyncDisposable {
     /// <summary>进程标准输入写入器</summary>
     System.IO.StreamWriter StandardInput { get; }
 
@@ -78,8 +75,7 @@ public interface IInteractiveProcess : IAsyncDisposable
 /// <summary>
 /// 交互式进程启动选项
 /// </summary>
-public sealed class InteractiveProcessOptions
-{
+public sealed class InteractiveProcessOptions {
     public required string FileName { get; init; }
     public string Arguments { get; init; } = string.Empty;
     /// <summary>
@@ -110,8 +106,7 @@ public sealed class InteractiveProcessOptions
 /// <para>生产环境: PhysicalProcessService (委托给 System.Diagnostics.Process)</para>
 /// <para>测试环境: NoOpProcessService (跳过所有进程操作)</para>
 /// </summary>
-public interface IProcessService
-{
+public interface IProcessService {
     /// <summary>
     /// 执行命令并等待退出 — 覆盖简单执行模式
     /// <para>内部自动处理 stdout/stderr 读取顺序，消除死锁风险</para>

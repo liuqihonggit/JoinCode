@@ -6,8 +6,7 @@ namespace Core.DependencyInjection;
 /// 在应用停止时停止同步。
 /// </summary>
 [Register(typeof(IHostedService), ServiceLifetime.Singleton)]
-public sealed partial class TeamMemorySyncHostedService : ServiceEntity, IHostedService
-{
+public sealed partial class TeamMemorySyncHostedService : ServiceEntity, IHostedService {
     private readonly global::Memdir.Sync.ITeamMemorySyncService _syncService;
     private readonly ILogger<TeamMemorySyncHostedService>? _logger;
 
@@ -18,8 +17,7 @@ public sealed partial class TeamMemorySyncHostedService : ServiceEntity, IHosted
     /// <param name="logger">可选的日志记录器。</param>
     public TeamMemorySyncHostedService(
         global::Memdir.Sync.ITeamMemorySyncService syncService,
-        ILogger<TeamMemorySyncHostedService>? logger = null)
-    {
+        ILogger<TeamMemorySyncHostedService>? logger = null) {
         _syncService = syncService;
         _logger = logger;
     }
@@ -28,15 +26,11 @@ public sealed partial class TeamMemorySyncHostedService : ServiceEntity, IHosted
     /// 启动团队记忆同步服务。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    public async Task StartAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
+    public async Task StartAsync(CancellationToken cancellationToken) {
+        try {
             await _syncService.StartAsync(cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation(L.T(StringKey.TeamMemorySyncStartedLog));
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.TeamMemorySyncStartFailedLog));
         }
     }
@@ -45,15 +39,11 @@ public sealed partial class TeamMemorySyncHostedService : ServiceEntity, IHosted
     /// 停止团队记忆同步服务。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
+    public async Task StopAsync(CancellationToken cancellationToken) {
+        try {
             await _syncService.StopAsync(cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation(L.T(StringKey.TeamMemorySyncStoppedLog));
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.TeamMemorySyncStopFailedLog));
         }
     }

@@ -1,12 +1,9 @@
 namespace Llm.Tests.Adapters.LLM.Serialization;
 
-public class NativeJsonContextTests
-{
+public class NativeJsonContextTests {
     [Fact]
-    public void OpenAIChatRequest_RoundTrip_SerializesModelAndMessages()
-    {
-        var request = new OpenAIChatRequest
-        {
+    public void OpenAIChatRequest_RoundTrip_SerializesModelAndMessages() {
+        var request = new OpenAIChatRequest {
             Model = "gpt-4o",
             Stream = true,
             Temperature = 0.7f,
@@ -27,10 +24,8 @@ public class NativeJsonContextTests
     }
 
     [Fact]
-    public void OpenAIChatResponse_RoundTrip_PreservesChoices()
-    {
-        var response = new OpenAIChatResponse
-        {
+    public void OpenAIChatResponse_RoundTrip_PreservesChoices() {
+        var response = new OpenAIChatResponse {
             Id = "resp-1",
             Model = "gpt-4o",
             Choices =
@@ -53,14 +48,11 @@ public class NativeJsonContextTests
     }
 
     [Fact]
-    public void OpenAIChatChunk_RoundTrip_PreservesUsage()
-    {
-        var chunk = new OpenAIChatChunk
-        {
+    public void OpenAIChatChunk_RoundTrip_PreservesUsage() {
+        var chunk = new OpenAIChatChunk {
             Id = "chunk-1",
             Model = "gpt-4o",
-            Usage = new OpenAIUsage
-            {
+            Usage = new OpenAIUsage {
                 PromptTokens = 10,
                 CompletionTokens = 5,
                 TotalTokens = 15
@@ -75,19 +67,14 @@ public class NativeJsonContextTests
     }
 
     [Fact]
-    public void OpenAITool_RoundTrip_PreservesFunction()
-    {
-        var tool = new OpenAITool
-        {
-            Function = new OpenAIFunctionDefinition
-            {
+    public void OpenAITool_RoundTrip_PreservesFunction() {
+        var tool = new OpenAITool {
+            Function = new OpenAIFunctionDefinition {
                 Name = "ToolA",
                 Description = "desc",
-                Parameters = new OpenAIFunctionParameters
-                {
+                Parameters = new OpenAIFunctionParameters {
                     Type = "object",
-                    Properties = new Dictionary<string, OpenAIParameterProperty>
-                    {
+                    Properties = new Dictionary<string, OpenAIParameterProperty> {
                         ["x"] = new() { Type = "integer", Description = "param" }
                     },
                     Required = new List<string> { "x" }
@@ -103,10 +90,8 @@ public class NativeJsonContextTests
     }
 
     [Fact]
-    public void TokenUsage_RoundTrip_PreservesTotals()
-    {
-        var usage = new TokenUsage(10, 5)
-        {
+    public void TokenUsage_RoundTrip_PreservesTotals() {
+        var usage = new TokenUsage(10, 5) {
             CacheCreationInputTokens = 1,
             CacheReadInputTokens = 2,
             ReasoningTokens = 3
@@ -123,10 +108,8 @@ public class NativeJsonContextTests
     }
 
     [Fact]
-    public void OpenAIChatRequest_WithThinking_SerializesThinkingField()
-    {
-        var request = new OpenAIChatRequest
-        {
+    public void OpenAIChatRequest_WithThinking_SerializesThinkingField() {
+        var request = new OpenAIChatRequest {
             Model = "deepseek-v4-pro",
             Messages = [new OpenAIApiMessage { Role = "user", Content = "hi" }],
             Thinking = new OpenAIThinkingOptions { Type = "enabled" }
@@ -143,10 +126,8 @@ public class NativeJsonContextTests
     }
 
     [Fact]
-    public void OpenAIChatRequest_WithoutThinking_DoesNotSerializeThinkingField()
-    {
-        var request = new OpenAIChatRequest
-        {
+    public void OpenAIChatRequest_WithoutThinking_DoesNotSerializeThinkingField() {
+        var request = new OpenAIChatRequest {
             Model = "deepseek-v4-pro",
             Messages = [new OpenAIApiMessage { Role = "user", Content = "hi" }]
         };
@@ -158,8 +139,7 @@ public class NativeJsonContextTests
     }
 
     [Fact]
-    public void OpenAIApiMessage_TextContent_SerializesContentAsString()
-    {
+    public void OpenAIApiMessage_TextContent_SerializesContentAsString() {
         var msg = new OpenAIApiMessage { Role = "user", Content = "hello" };
 
         var json = JsonSerializer.Serialize(msg, NativeJsonContext.Default.OpenAIApiMessage);
@@ -169,10 +149,8 @@ public class NativeJsonContextTests
     }
 
     [Fact]
-    public void OpenAIApiMessage_MultimodalContent_SerializesAsArrayWithImageUrl()
-    {
-        var msg = new OpenAIApiMessage
-        {
+    public void OpenAIApiMessage_MultimodalContent_SerializesAsArrayWithImageUrl() {
+        var msg = new OpenAIApiMessage {
             Role = "user",
             Content = new List<OpenAIContentPart>
             {
@@ -189,10 +167,8 @@ public class NativeJsonContextTests
     }
 
     [Fact]
-    public void OpenAIApiMessage_MultimodalContent_RoundTripsImageUrlPart()
-    {
-        var msg = new OpenAIApiMessage
-        {
+    public void OpenAIApiMessage_MultimodalContent_RoundTripsImageUrlPart() {
+        var msg = new OpenAIApiMessage {
             Role = "user",
             Content = new List<OpenAIContentPart>
             {

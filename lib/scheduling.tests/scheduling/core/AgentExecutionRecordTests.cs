@@ -1,13 +1,10 @@
 
 namespace Core.Tests.Scheduling;
 
-public class AgentExecutionRecordTests
-{
+public class AgentExecutionRecordTests {
     [Fact]
-    public void AllSuccess_EmptyResults_ShouldBeFalse()
-    {
-        var record = new AgentExecutionRecord
-        {
+    public void AllSuccess_EmptyResults_ShouldBeFalse() {
+        var record = new AgentExecutionRecord {
             TaskId = "t1",
             TaskName = "task",
             StartTime = DateTime.UtcNow,
@@ -20,10 +17,8 @@ public class AgentExecutionRecordTests
     }
 
     [Fact]
-    public void AllSuccess_NullResults_ShouldBeFalse()
-    {
-        var record = new AgentExecutionRecord
-        {
+    public void AllSuccess_NullResults_ShouldBeFalse() {
+        var record = new AgentExecutionRecord {
             TaskId = "t1",
             TaskName = "task",
             StartTime = DateTime.UtcNow,
@@ -36,10 +31,8 @@ public class AgentExecutionRecordTests
     }
 
     [Fact]
-    public void AllSuccess_AllSucceeded_ShouldBeTrue()
-    {
-        var record = new AgentExecutionRecord
-        {
+    public void AllSuccess_AllSucceeded_ShouldBeTrue() {
+        var record = new AgentExecutionRecord {
             TaskId = "t1",
             TaskName = "task",
             StartTime = DateTime.UtcNow,
@@ -56,10 +49,8 @@ public class AgentExecutionRecordTests
     }
 
     [Fact]
-    public void AllSuccess_OneFailed_ShouldBeFalse()
-    {
-        var record = new AgentExecutionRecord
-        {
+    public void AllSuccess_OneFailed_ShouldBeFalse() {
+        var record = new AgentExecutionRecord {
             TaskId = "t1",
             TaskName = "task",
             StartTime = DateTime.UtcNow,
@@ -76,10 +67,8 @@ public class AgentExecutionRecordTests
     }
 
     [Fact]
-    public void SuccessCount_And_FailureCount_ShouldMatchResults()
-    {
-        var record = new AgentExecutionRecord
-        {
+    public void SuccessCount_And_FailureCount_ShouldMatchResults() {
+        var record = new AgentExecutionRecord {
             TaskId = "t1",
             TaskName = "task",
             StartTime = DateTime.UtcNow,
@@ -98,10 +87,8 @@ public class AgentExecutionRecordTests
     }
 
     [Fact]
-    public void GetMergedOutput_EmptyOrNull_ShouldReturnEmptyString()
-    {
-        var emptyRecord = new AgentExecutionRecord
-        {
+    public void GetMergedOutput_EmptyOrNull_ShouldReturnEmptyString() {
+        var emptyRecord = new AgentExecutionRecord {
             TaskId = "t1",
             TaskName = "task",
             StartTime = DateTime.UtcNow,
@@ -112,8 +99,7 @@ public class AgentExecutionRecordTests
 
         emptyRecord.GetMergedOutput().Should().BeEmpty();
 
-        var nullRecord = new AgentExecutionRecord
-        {
+        var nullRecord = new AgentExecutionRecord {
             TaskId = "t1",
             TaskName = "task",
             StartTime = DateTime.UtcNow,
@@ -126,10 +112,8 @@ public class AgentExecutionRecordTests
     }
 
     [Fact]
-    public void GetMergedOutput_ShouldSkipFailedAndEmptyOutputs()
-    {
-        var record = new AgentExecutionRecord
-        {
+    public void GetMergedOutput_ShouldSkipFailedAndEmptyOutputs() {
+        var record = new AgentExecutionRecord {
             TaskId = "t1",
             TaskName = "task",
             StartTime = DateTime.UtcNow,

@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Agents;
 /// <summary>
 /// 法官Agent — 最终裁决，基于 DAG 证据链 + 5维客观权重 + 链式传播
 /// </summary>
-public sealed class JudgeAgent : ReasoningAgent
-{
+public sealed class JudgeAgent : ReasoningAgent {
     /// <summary>
     /// 法官 Agent 的系统提示词 — 指示 LLM 基于控辩双方证据链做出 Accept/Reject/PartiallyAccept/Pending 裁决
     /// </summary>
@@ -31,8 +30,7 @@ public sealed class JudgeAgent : ReasoningAgent
     /// <param name="context">推理上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>包含裁决列表和 Token 使用量的 Agent 动作</returns>
-    public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
-    {
+    public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct) {
         var action = new AgentAction { AgentRole = Role, ActionType = "裁决" };
         var opts = context.Options;
 
@@ -42,8 +40,7 @@ public sealed class JudgeAgent : ReasoningAgent
 
         var visibleEvidence = context.GetVisibleEvidenceForRole(Role);
 
-        foreach (var item in pending)
-        {
+        foreach (var item in pending) {
             var supportingEdgeIds = context.Dag.Edges.Values
                 .Where(e => e.ToId == item.Id && e.Label == "SUPPORTS")
                 .Select(e => e.FromId)
@@ -63,14 +60,12 @@ public sealed class JudgeAgent : ReasoningAgent
                 .ToList();
 
             var verdict = DecideWithWeightedSystem(item, prosEvidence, defEvidence, opts);
-            if (verdict is not null)
-            {
+            if (verdict is not null) {
                 action.Verdicts.Add(verdict);
             }
         }
 
-        if (pending.Count > 0)
-        {
+        if (pending.Count > 0) {
             var itemsText = string.Join("\n", pending.Select((x, i) =>
                 $"{i + 1}. [{x.State}] {x.Content} (置信度:{x.Confidence}%)"));
 
@@ -81,24 +76,18 @@ public sealed class JudgeAgent : ReasoningAgent
             userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct);
 
             var (llmResponse, usage, promptTokens) = await CallLlmAsync(userPrompt, temperature: context.Options.JudgeTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
-            if (llmResponse is not null)
-            {
-                foreach (var v in ParseVerdictsFromLlmResponse(llmResponse, pending))
-                {
+            if (llmResponse is not null) {
+                foreach (var v in ParseVerdictsFromLlmResponse(llmResponse, pending)) {
                     var existing = action.Verdicts.FirstOrDefault(x => x.ClaimId == v.ClaimId);
-                    if (existing is null)
-                    {
+                    if (existing is null) {
                         action.Verdicts.Add(v);
                     }
                 }
             }
 
-            if (usage is not null)
-            {
+            if (usage is not null) {
                 action.TokensUsed = usage.TotalTokens + promptTokens;
-            }
-            else
-            {
+            } else {
                 action.TokensUsed = promptTokens;
             }
 
@@ -116,8 +105,7 @@ public sealed class JudgeAgent : ReasoningAgent
         DataItem item,
         IReadOnlyList<EvidenceRecord> prosEvidence,
         IReadOnlyList<EvidenceRecord> defEvidence,
-        ReasoningOptions opts)
-    {
+        ReasoningOptions opts) {
         if (prosEvidence.Count == 0 && defEvidence.Count == 0) return null;
 
         var result = _decisionSystem.MakeWeightedDecision(prosEvidence, defEvidence);
@@ -125,10 +113,8 @@ public sealed class JudgeAgent : ReasoningAgent
         var prosWeight = result.ProsecutionWeight;
         var defWeight = result.DefenseWeight;
 
-        if (prosWeight >= opts.AcceptThreshold && prosWeight > defWeight * opts.AcceptMultiplier)
-        {
-            return new Verdict
-            {
+        if (prosWeight >= opts.AcceptThreshold && prosWeight > defWeight * opts.AcceptMultiplier) {
+            return new Verdict {
                 ClaimId = item.Id,
                 Decision = VerdictDecision.Accept,
                 Reason = $"控方证据充分 (加权:{prosWeight:F2} vs {defWeight:F2}, 拓扑:{result.TopologyImpact:F2}, 信念一致性:{result.BeliefConsistency:F2})",
@@ -136,10 +122,8 @@ public sealed class JudgeAgent : ReasoningAgent
             };
         }
 
-        if (defWeight > prosWeight * opts.RejectMultiplier)
-        {
-            return new Verdict
-            {
+        if (defWeight > prosWeight * opts.RejectMultiplier) {
+            return new Verdict {
                 ClaimId = item.Id,
                 Decision = VerdictDecision.Reject,
                 Reason = $"辩方证据更有力 (加权:{defWeight:F2} vs {prosWeight:F2})",
@@ -147,10 +131,8 @@ public sealed class JudgeAgent : ReasoningAgent
             };
         }
 
-        if (prosWeight > 0 && defWeight > 0 && Math.Abs(prosWeight - defWeight) < opts.PendingWeightDelta)
-        {
-            return new Verdict
-            {
+        if (prosWeight > 0 && defWeight > 0 && Math.Abs(prosWeight - defWeight) < opts.PendingWeightDelta) {
+            return new Verdict {
                 ClaimId = item.Id,
                 Decision = VerdictDecision.Pending,
                 Reason = $"控辩双方证据相当 (加权:{prosWeight:F2} vs {defWeight:F2})，需要补充证据",
@@ -158,10 +140,8 @@ public sealed class JudgeAgent : ReasoningAgent
             };
         }
 
-        if (prosWeight > 0 && defWeight > 0 && prosWeight > defWeight && prosWeight < defWeight * opts.AcceptMultiplier)
-        {
-            return new Verdict
-            {
+        if (prosWeight > 0 && defWeight > 0 && prosWeight > defWeight && prosWeight < defWeight * opts.AcceptMultiplier) {
+            return new Verdict {
                 ClaimId = item.Id,
                 Decision = VerdictDecision.PartiallyAccept,
                 Reason = $"控方证据占优但不足以完全确认 (加权:{prosWeight:F2} vs {defWeight:F2})",
@@ -172,43 +152,36 @@ public sealed class JudgeAgent : ReasoningAgent
         return null;
     }
 
-    private List<Verdict> ParseVerdictsFromLlmResponse(string content, IReadOnlyList<DataItem> pending)
-    {
+    private List<Verdict> ParseVerdictsFromLlmResponse(string content, IReadOnlyList<DataItem> pending) {
         var verdicts = new List<Verdict>();
-        try
-        {
+        try {
             var json = ExtractJsonObject(content, _logger);
             if (json is null) return verdicts;
 
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.TryGetProperty("verdicts", out var vArray)) return verdicts;
 
-            foreach (var item in vArray.EnumerateArray())
-            {
+            foreach (var item in vArray.EnumerateArray()) {
                 var claimContent = item.TryGetProperty("claimContent", out var cc) ? cc.GetString() : null;
                 var claim = claimContent is not null
                     ? pending.FirstOrDefault(p => p.Content.Contains(claimContent, StringComparison.Ordinal))
                     : null;
 
-                verdicts.Add(new Verdict
-                {
+                verdicts.Add(new Verdict {
                     ClaimId = claim?.Id ?? string.Empty,
                     Decision = item.TryGetProperty("decision", out var d) ? ParseDecision(d.GetString()) : VerdictDecision.Pending,
                     Reason = item.TryGetProperty("reason", out var r) ? r.GetString() ?? string.Empty : string.Empty,
                     Confidence = item.TryGetProperty("confidence", out var c) ? c.GetInt32() : 50,
                 });
             }
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             _logger.LogWarning(ex, "[法官] 解析LLM裁决JSON失败");
         }
 
         return verdicts;
     }
 
-    private static VerdictDecision ParseDecision(string? value) => value switch
-    {
+    private static VerdictDecision ParseDecision(string? value) => value switch {
         "Accept" => VerdictDecision.Accept,
         "Reject" => VerdictDecision.Reject,
         "PartiallyAccept" => VerdictDecision.PartiallyAccept,

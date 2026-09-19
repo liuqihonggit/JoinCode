@@ -4,8 +4,7 @@ namespace JoinCode.CodeIndex.Ast;
 /// <summary>
 /// TreeSitter 解析器封装 — 提供源码 AST 解析能力
 /// </summary>
-public sealed class TreeSitterParser : IDisposable
-{
+public sealed class TreeSitterParser : IDisposable {
     private readonly Language _language;
     private readonly Parser _parser;
     private int _disposed;
@@ -14,8 +13,7 @@ public sealed class TreeSitterParser : IDisposable
     /// 构造 TreeSitter 解析器
     /// </summary>
     /// <param name="languageId">语言标识符（如 "csharp"、"python"）</param>
-    public TreeSitterParser(string languageId)
-    {
+    public TreeSitterParser(string languageId) {
         ArgumentNullException.ThrowIfNull(languageId);
 
         _language = new Language(languageId);
@@ -29,8 +27,7 @@ public sealed class TreeSitterParser : IDisposable
     /// <returns>解析得到的语法树</returns>
     /// <exception cref="ObjectDisposedException">对象已释放</exception>
     /// <exception cref="InvalidOperationException">解析失败</exception>
-    public Tree Parse(string sourceCode)
-    {
+    public Tree Parse(string sourceCode) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
         var tree = _parser.Parse(sourceCode);
@@ -45,8 +42,7 @@ public sealed class TreeSitterParser : IDisposable
     /// <returns>解析得到的新语法树</returns>
     /// <exception cref="ObjectDisposedException">对象已释放</exception>
     /// <exception cref="InvalidOperationException">增量解析失败</exception>
-    public Tree Parse(string sourceCode, Tree oldTree)
-    {
+    public Tree Parse(string sourceCode, Tree oldTree) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         ArgumentNullException.ThrowIfNull(oldTree);
 
@@ -57,10 +53,8 @@ public sealed class TreeSitterParser : IDisposable
     /// <summary>
     /// 释放解析器和语言资源
     /// </summary>
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-        {
+    public void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) {
             return;
         }
 

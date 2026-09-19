@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 支持 git worktree（.git 是文件时解析到主仓库）。
 /// 替代项目中 11 处重复的 FindGitRoot / DiscoverWorkspaceRoot / FindWorkspaceRoot 实现。
 /// </summary>
-public static class GitWorkspaceResolver
-{
+public static class GitWorkspaceResolver {
     private static readonly string WorktreesMarker =
         System.IO.Path.DirectorySeparatorChar + ".git" + System.IO.Path.DirectorySeparatorChar + "worktrees" + System.IO.Path.DirectorySeparatorChar;
 
@@ -22,21 +21,17 @@ public static class GitWorkspaceResolver
     public static async Task<string?> FindGitRootAsync(
         string startPath,
         IFileSystem fs,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var currentPath = ResolveStartDirectory(startPath, fs);
         if (string.IsNullOrEmpty(currentPath)) return null;
 
-        while (!string.IsNullOrEmpty(currentPath))
-        {
+        while (!string.IsNullOrEmpty(currentPath)) {
             var gitPath = fs.CombinePath(currentPath, ".git");
-            if (fs.DirectoryExists(gitPath))
-            {
+            if (fs.DirectoryExists(gitPath)) {
                 return currentPath;
             }
 
-            if (fs.FileExists(gitPath))
-            {
+            if (fs.FileExists(gitPath)) {
                 var canonicalRoot = await ResolveCanonicalGitRootFromGitdirFileAsync(gitPath, currentPath, fs, cancellationToken).ConfigureAwait(false);
                 return canonicalRoot ?? currentPath;
             }
@@ -56,16 +51,13 @@ public static class GitWorkspaceResolver
     /// <param name="startPath">起始路径（文件或目录），为 null/空时用当前工作目录</param>
     /// <param name="fs">文件系统抽象</param>
     /// <returns>git 工作区目录绝对路径，找不到返回 null</returns>
-    public static string? FindGitWorkspaceDir(string? startPath, IFileSystem fs)
-    {
+    public static string? FindGitWorkspaceDir(string? startPath, IFileSystem fs) {
         var currentPath = ResolveStartDirectory(startPath, fs);
         if (string.IsNullOrEmpty(currentPath)) return null;
 
-        while (!string.IsNullOrEmpty(currentPath))
-        {
+        while (!string.IsNullOrEmpty(currentPath)) {
             var gitPath = fs.CombinePath(currentPath, ".git");
-            if (fs.DirectoryExists(gitPath) || fs.FileExists(gitPath))
-            {
+            if (fs.DirectoryExists(gitPath) || fs.FileExists(gitPath)) {
                 return currentPath;
             }
 
@@ -83,16 +75,13 @@ public static class GitWorkspaceResolver
     /// <param name="startPath">起始路径（文件或目录）</param>
     /// <param name="fs">文件系统抽象</param>
     /// <returns>.sln/.slnx 所在目录绝对路径，找不到返回 null</returns>
-    public static string? FindSolutionRoot(string startPath, IFileSystem fs)
-    {
+    public static string? FindSolutionRoot(string startPath, IFileSystem fs) {
         var currentPath = ResolveStartDirectory(startPath, fs);
         if (string.IsNullOrEmpty(currentPath)) return null;
 
-        while (!string.IsNullOrEmpty(currentPath))
-        {
+        while (!string.IsNullOrEmpty(currentPath)) {
             if (fs.GetFiles(currentPath, "*.sln", SearchOption.TopDirectoryOnly).Length > 0 ||
-                fs.GetFiles(currentPath, "*.slnx", SearchOption.TopDirectoryOnly).Length > 0)
-            {
+                fs.GetFiles(currentPath, "*.slnx", SearchOption.TopDirectoryOnly).Length > 0) {
                 return currentPath;
             }
 
@@ -115,8 +104,7 @@ public static class GitWorkspaceResolver
     public static async Task<string?> FindWorkspaceRootAsync(
         string? startPath,
         IFileSystem fs,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var path = ResolveStartDirectory(startPath, fs);
         if (string.IsNullOrEmpty(path)) return null;
 
@@ -134,13 +122,10 @@ public static class GitWorkspaceResolver
         string gitdirFilePath,
         string worktreePath,
         IFileSystem fs,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
+        CancellationToken cancellationToken) {
+        try {
             var content = (await fs.ReadAllTextAsync(gitdirFilePath, cancellationToken).ConfigureAwait(false)).Trim();
-            if (!content.StartsWith("gitdir: ", StringComparison.OrdinalIgnoreCase))
-            {
+            if (!content.StartsWith("gitdir: ", StringComparison.OrdinalIgnoreCase)) {
                 return null;
             }
 
@@ -154,9 +139,7 @@ public static class GitWorkspaceResolver
             var canonicalRoot = normalizedGitdir[..markerIdx];
             var canonicalGitDir = fs.CombinePath(canonicalRoot, ".git");
             return fs.DirectoryExists(canonicalGitDir) ? canonicalRoot : null;
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return null;
         }
     }
@@ -164,16 +147,12 @@ public static class GitWorkspaceResolver
     /// <summary>
     /// 将 startPath 解析为目录路径：文件取所在目录，目录直接用，null/空取当前工作目录。
     /// </summary>
-    private static string? ResolveStartDirectory(string? startPath, IFileSystem fs)
-    {
-        if (string.IsNullOrEmpty(startPath))
-        {
-            try { return fs.GetCurrentDirectory(); }
-            catch { return null; }
+    private static string? ResolveStartDirectory(string? startPath, IFileSystem fs) {
+        if (string.IsNullOrEmpty(startPath)) {
+            try { return fs.GetCurrentDirectory(); } catch { return null; }
         }
 
-        if (fs.FileExists(startPath))
-        {
+        if (fs.FileExists(startPath)) {
             return System.IO.Path.GetDirectoryName(startPath);
         }
 

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// <summary>
 /// 派发决策 — 队长派发前检查热点表，决定任务由队长自己揽还是派给Worker
 /// </summary>
-public sealed record DispatchDecision
-{
+public sealed record DispatchDecision {
     /// <summary>
     /// 队长是否应自己处理（热点文件契约改不派给Worker）
     /// </summary>

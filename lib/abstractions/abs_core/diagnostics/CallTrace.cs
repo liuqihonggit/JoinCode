@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Diagnostics;
 /// 格式: {sessionId短码}.{递增序号}，如 88d5.0、88d5.1
 /// 用法: LLMInvocationHandler 入口 SetId，下游各层通过 CurrentId 读取
 /// </summary>
-public static class CallTrace
-{
+public static class CallTrace {
     private static readonly AsyncLocal<string?> _callId = new();
 
     /// <summary>当前调用链路 ID（无则 null）</summary>

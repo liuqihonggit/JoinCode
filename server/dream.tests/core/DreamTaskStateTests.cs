@@ -4,14 +4,11 @@ namespace Dream.Tests;
 /// <summary>
 /// 做梦任务状态测试
 /// </summary>
-public sealed class DreamTaskStateTests
-{
+public sealed class DreamTaskStateTests {
     [Fact]
-    public void Constructor_ShouldInitializeWithDefaultValues()
-    {
+    public void Constructor_ShouldInitializeWithDefaultValues() {
         // Arrange & Act
-        var state = new DreamTaskState
-        {
+        var state = new DreamTaskState {
             Id = "d12345678",
             Description = "test",
             StartTime = DateTime.UtcNow,
@@ -31,8 +28,7 @@ public sealed class DreamTaskStateTests
     }
 
     [Fact]
-    public void AddTurn_WithEmptyTouchedPaths_ShouldNotChangePhase()
-    {
+    public void AddTurn_WithEmptyTouchedPaths_ShouldNotChangePhase() {
         // Arrange
         var state = CreateTestState();
         var turn = new DreamTurn { Text = "test", ToolUseCount = 0 };
@@ -46,8 +42,7 @@ public sealed class DreamTaskStateTests
     }
 
     [Fact]
-    public void AddTurn_WithTouchedPaths_ShouldChangePhaseToUpdating()
-    {
+    public void AddTurn_WithTouchedPaths_ShouldChangePhaseToUpdating() {
         // Arrange
         var state = CreateTestState();
         var turn = new DreamTurn { Text = "test", ToolUseCount = 1 };
@@ -61,8 +56,7 @@ public sealed class DreamTaskStateTests
     }
 
     [Fact]
-    public void AddTurn_ShouldDeduplicateFilePaths()
-    {
+    public void AddTurn_ShouldDeduplicateFilePaths() {
         // Arrange
         var state = CreateTestState();
         var turn1 = new DreamTurn { Text = "turn1", ToolUseCount = 1 };
@@ -80,14 +74,12 @@ public sealed class DreamTaskStateTests
     }
 
     [Fact]
-    public void AddTurn_ShouldLimitMaxTurns()
-    {
+    public void AddTurn_ShouldLimitMaxTurns() {
         // Arrange
         var state = CreateTestState();
 
         // Act - 添加35个回合（超过最大30个）
-        for (var i = 0; i < 35; i++)
-        {
+        for (var i = 0; i < 35; i++) {
             state.AddTurn(new DreamTurn { Text = $"turn{i}", ToolUseCount = 0 }, Array.Empty<string>());
         }
 
@@ -98,8 +90,7 @@ public sealed class DreamTaskStateTests
     }
 
     [Fact]
-    public void Complete_ShouldSetStatusAndEndTime()
-    {
+    public void Complete_ShouldSetStatusAndEndTime() {
         // Arrange
         var state = CreateTestState();
         var beforeComplete = DateTime.UtcNow;
@@ -116,8 +107,7 @@ public sealed class DreamTaskStateTests
     }
 
     [Fact]
-    public void Fail_ShouldSetStatusAndEndTime()
-    {
+    public void Fail_ShouldSetStatusAndEndTime() {
         // Arrange
         var state = CreateTestState();
 
@@ -132,12 +122,10 @@ public sealed class DreamTaskStateTests
     }
 
     [Fact]
-    public void Kill_ShouldSetStatusAndCancelToken()
-    {
+    public void Kill_ShouldSetStatusAndCancelToken() {
         // Arrange
         var cts = new CancellationTokenSource();
-        var state = new DreamTaskState
-        {
+        var state = new DreamTaskState {
             Id = "d12345678",
             Description = "test",
             StartTime = DateTime.UtcNow,
@@ -158,8 +146,7 @@ public sealed class DreamTaskStateTests
     }
 
     [Fact]
-    public void IsTerminal_ShouldReturnFalseForRunning()
-    {
+    public void IsTerminal_ShouldReturnFalseForRunning() {
         // Arrange
         var state = CreateTestState();
 
@@ -171,8 +158,7 @@ public sealed class DreamTaskStateTests
     [InlineData(DreamTaskStatus.Completed)]
     [InlineData(DreamTaskStatus.Failed)]
     [InlineData(DreamTaskStatus.Killed)]
-    public void IsTerminal_ShouldReturnTrueForTerminalStates(DreamTaskStatus status)
-    {
+    public void IsTerminal_ShouldReturnTrueForTerminalStates(DreamTaskStatus status) {
         // Arrange
         var state = CreateTestState();
         state.Status = status;
@@ -181,8 +167,7 @@ public sealed class DreamTaskStateTests
         Assert.True(state.IsTerminal);
     }
 
-    private static DreamTaskState CreateTestState() => new()
-    {
+    private static DreamTaskState CreateTestState() => new() {
         Id = TaskIdGenerator.GenerateTaskId(TaskType.Dream),
         Description = "test",
         StartTime = DateTime.UtcNow,

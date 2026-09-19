@@ -5,16 +5,14 @@ namespace JoinCode.Entry.Tests;
 /// InitDebugDumpStep 单元测试 — 验证根据 DebugDumpChoice 位标志决定 dump 行为
 /// 覆盖: None 跳过、All dump 全部、Prompt 仅 dump 提示词、JSON 模式跳过
 /// </summary>
-public class InitDebugDumpStepTests
-{
+public class InitDebugDumpStepTests {
     private readonly Mock<IDebugLogBuffer> _debugLogBuffer;
     private readonly Mock<ICrashSnapshotStore> _crashSnapshotStore;
     private readonly Mock<ISystemPromptProvider> _systemPromptProvider;
     private readonly Mock<IToolRegistry> _toolRegistry;
     private readonly IServiceProvider _serviceProvider;
 
-    public InitDebugDumpStepTests()
-    {
+    public InitDebugDumpStepTests() {
         _debugLogBuffer = new Mock<IDebugLogBuffer>();
         _crashSnapshotStore = new Mock<ICrashSnapshotStore>();
         _systemPromptProvider = new Mock<ISystemPromptProvider>();
@@ -37,12 +35,9 @@ public class InitDebugDumpStepTests
         _serviceProvider = services.BuildServiceProvider();
     }
 
-    private StartupContext CreateContext(DebugDumpSection choice, bool isJsonMode = false)
-    {
-        var config = new WorkflowConfig
-        {
-            Provider = new ProviderConfig
-            {
+    private StartupContext CreateContext(DebugDumpSection choice, bool isJsonMode = false) {
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig {
                 ApiKey = "sk-test",
                 Vendor = "openai",
                 ModelId = "gpt-4o"
@@ -52,8 +47,7 @@ public class InitDebugDumpStepTests
         var hostMock = new Mock<IHost>();
         hostMock.SetupGet(h => h.Services).Returns(_serviceProvider);
 
-        return new StartupContext
-        {
+        return new StartupContext {
             Config = config,
             Options = new CommandLineOptions { JsonOutput = isJsonMode },
             Host = hostMock.Object,
@@ -63,14 +57,12 @@ public class InitDebugDumpStepTests
     }
 
     [Fact]
-    public async Task NoneChoice_ShouldSkipDumpAndCallNext()
-    {
+    public async Task NoneChoice_ShouldSkipDumpAndCallNext() {
         var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.None);
         var nextCalled = false;
 
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -80,14 +72,12 @@ public class InitDebugDumpStepTests
     }
 
     [Fact]
-    public async Task JsonMode_ShouldSkipDumpEvenWithAllChoice()
-    {
+    public async Task JsonMode_ShouldSkipDumpEvenWithAllChoice() {
         var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.All, isJsonMode: true);
         var nextCalled = false;
 
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -97,14 +87,12 @@ public class InitDebugDumpStepTests
     }
 
     [Fact]
-    public async Task AllChoice_ShouldDumpAllSections()
-    {
+    public async Task AllChoice_ShouldDumpAllSections() {
         var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.All);
         var nextCalled = false;
 
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -116,14 +104,12 @@ public class InitDebugDumpStepTests
     }
 
     [Fact]
-    public async Task PromptOnly_ShouldDumpOnlySystemPrompt()
-    {
+    public async Task PromptOnly_ShouldDumpOnlySystemPrompt() {
         var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.Prompt);
         var nextCalled = false;
 
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -135,14 +121,12 @@ public class InitDebugDumpStepTests
     }
 
     [Fact]
-    public async Task InitOnly_ShouldDumpOnlyInitInfo()
-    {
+    public async Task InitOnly_ShouldDumpOnlyInitInfo() {
         var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.Init);
         var nextCalled = false;
 
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -154,14 +138,12 @@ public class InitDebugDumpStepTests
     }
 
     [Fact]
-    public async Task LogOnly_ShouldDumpOnlyLogs()
-    {
+    public async Task LogOnly_ShouldDumpOnlyLogs() {
         var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.Log);
         var nextCalled = false;
 
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -172,14 +154,12 @@ public class InitDebugDumpStepTests
     }
 
     [Fact]
-    public async Task CombinedInitAndPrompt_ShouldDumpBoth()
-    {
+    public async Task CombinedInitAndPrompt_ShouldDumpBoth() {
         var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.Init | DebugDumpSection.Prompt);
         var nextCalled = false;
 
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);

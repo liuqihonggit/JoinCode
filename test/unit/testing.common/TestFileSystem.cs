@@ -5,8 +5,7 @@ namespace Testing.Common;
 /// <para>设置 UseRealFileSystem = true 切换到真实磁盘（PhysicalFileSystem）</para>
 /// <para>默认 UseRealFileSystem = false 使用内存文件系统（InMemoryFileSystem，0磁盘IO）</para>
 /// </summary>
-public static class TestFileSystem
-{
+public static class TestFileSystem {
     /// <summary>
     /// 全局切换: true = PhysicalFileSystem (真实磁盘), false = InMemoryFileSystem (内存)
     /// 可在 AssemblyInitialize 或任意测试前设置

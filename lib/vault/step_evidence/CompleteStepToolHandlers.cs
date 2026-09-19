@@ -6,8 +6,7 @@ namespace Services.StepEvidence.ToolHandlers;
 /// 与 TodoWrite 互补：TodoWrite 管理任务列表状态，complete_step 是步骤的正式签收。
 /// </summary>
 [McpToolDispatch(ToolCategory.StepEvidence)]
-public class CompleteStepToolHandlers
-{
+public class CompleteStepToolHandlers {
     private static readonly FrozenSet<string> ValidKinds = FrozenSet.ToFrozenSet(
     [
         StepEvidenceKindEnumConstants.Verification,
@@ -33,51 +32,43 @@ public class CompleteStepToolHandlers
         [McpToolParameter("What is now true or changed as a result of finishing this step")] string result,
         [McpToolParameter("Proof the step is done. At least one item is required. Each item has: kind (verification|diff|files|manual) and summary, plus optional command (REQUIRED for verification) and paths (REQUIRED for diff/files)", Required = false)] List<StepEvidenceInput>? evidence = null,
         [McpToolParameter("Optional caveats, follow-ups, or anything deferred", Required = false)] string? notes = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(step))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(step)) {
             var diag = BuildEmptyStepDiagnostic();
             return Task.FromResult(ToolResultBuilder.Error()
                 .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
         }
 
-        if (string.IsNullOrWhiteSpace(result))
-        {
+        if (string.IsNullOrWhiteSpace(result)) {
             var diag = BuildEmptyResultDiagnostic();
             return Task.FromResult(ToolResultBuilder.Error()
                 .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
         }
 
-        if (evidence is null || evidence.Count == 0)
-        {
+        if (evidence is null || evidence.Count == 0) {
             var diag = BuildNoEvidenceDiagnostic();
             return Task.FromResult(ToolResultBuilder.Error()
                 .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
         }
 
         var kinds = new List<string>(evidence.Count);
-        for (var i = 0; i < evidence.Count; i++)
-        {
+        for (var i = 0; i < evidence.Count; i++) {
             var e = evidence[i];
 
-            if (!ValidKinds.Contains(e.Kind))
-            {
+            if (!ValidKinds.Contains(e.Kind)) {
                 var diag = BuildInvalidKindDiagnostic(i + 1, e.Kind);
                 return Task.FromResult(ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
             }
 
-            if (string.IsNullOrWhiteSpace(e.Summary))
-            {
+            if (string.IsNullOrWhiteSpace(e.Summary)) {
                 var diag = BuildEmptySummaryDiagnostic(i + 1);
                 return Task.FromResult(ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
             }
 
             if (e.Kind.Equals(StepEvidenceKindEnumConstants.Verification, StringComparison.OrdinalIgnoreCase)
-                && string.IsNullOrWhiteSpace(e.Command))
-            {
+                && string.IsNullOrWhiteSpace(e.Command)) {
                 var diag = BuildMissingVerificationCommandDiagnostic(i + 1);
                 return Task.FromResult(ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
@@ -85,8 +76,7 @@ public class CompleteStepToolHandlers
 
             if ((e.Kind.Equals(StepEvidenceKindEnumConstants.Diff, StringComparison.OrdinalIgnoreCase)
                  || e.Kind.Equals(StepEvidenceKindEnumConstants.Files, StringComparison.OrdinalIgnoreCase))
-                && (e.Paths is null || e.Paths.Count == 0))
-            {
+                && (e.Paths is null || e.Paths.Count == 0)) {
                 var diag = BuildMissingPathsDiagnostic(i + 1, e.Kind);
                 return Task.FromResult(ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
@@ -98,8 +88,7 @@ public class CompleteStepToolHandlers
         var response = new StringBuilder();
         response.Append($"Step \"{step}\" signed off with {evidence.Count} evidence item(s) [{string.Join(", ", kinds)}].");
 
-        if (!string.IsNullOrWhiteSpace(notes))
-        {
+        if (!string.IsNullOrWhiteSpace(notes)) {
             response.Append($" Notes: {notes}");
         }
 

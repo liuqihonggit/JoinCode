@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Configuration.Llm;
 /// 用法: model.Modalities.HasFlag(ModelModalityKind.ReadImage) 或 model.Modalities = ModelModalityKind.Text | ModelModalityKind.ReadImage
 /// </summary>
 [Flags]
-public enum ModelModalityKind
-{
+public enum ModelModalityKind {
     /// <summary>无能力</summary>
     [EnumValue("none")] None = 0,
 

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Vim 模式枚举
 /// </summary>
-public enum VimMode
-{
+public enum VimMode {
     [EnumValue("normal")] Normal,
     [EnumValue("insert")] Insert,
     [EnumValue("visual")] Visual,
@@ -16,8 +15,7 @@ public enum VimMode
 /// <summary>
 /// Vim 寄存器名称
 /// </summary>
-public enum VimRegisterName
-{
+public enum VimRegisterName {
     [EnumValue("unnamed")] Unnamed,
     [EnumValue("clipboard")] Clipboard,
     [EnumValue("a")] A, B, C, D, E, F, G, H, I, J, K, L, M,
@@ -27,8 +25,7 @@ public enum VimRegisterName
 /// <summary>
 /// Vim 寄存器内容
 /// </summary>
-public sealed class VimRegisterContent
-{
+public sealed class VimRegisterContent {
     public required string Text { get; init; }
     public bool IsLinewise { get; init; }
 }
@@ -36,8 +33,7 @@ public sealed class VimRegisterContent
 /// <summary>
 /// Vim 标记
 /// </summary>
-public sealed class VimMark
-{
+public sealed class VimMark {
     public required string Name { get; init; }
     public required int Position { get; init; }
     public required int Line { get; init; }
@@ -47,8 +43,7 @@ public sealed class VimMark
 /// <summary>
 /// Vim 按键处理结果
 /// </summary>
-public sealed class VimKeyResult
-{
+public sealed class VimKeyResult {
     public static readonly VimKeyResult Handled = new() { IsHandled = true };
     public static readonly VimKeyResult NotHandled = new() { IsHandled = false };
     public static VimKeyResult Submit(string text) => new() { IsHandled = true, SubmitText = text };
@@ -62,16 +57,14 @@ public sealed class VimKeyResult
 /// <summary>
 /// Vim 命令事件参数
 /// </summary>
-public sealed class VimCommandEventArgs : EventArgs
-{
+public sealed class VimCommandEventArgs : EventArgs {
     public required string Command { get; init; }
 }
 
 /// <summary>
 /// Vim 引擎接口 — CLI 简化版
 /// </summary>
-public interface IVimEngine
-{
+public interface IVimEngine {
     VimMode CurrentMode { get; }
     bool IsEnabled { get; }
     string CommandBuffer { get; }

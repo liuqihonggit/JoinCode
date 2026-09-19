@@ -8,8 +8,7 @@ namespace Infrastructure.HotSpot;
 /// </para>
 /// </summary>
 [Register(typeof(IAutoRebaseService), ServiceLifetime.Singleton)]
-public sealed class AutoRebaseService : IAutoRebaseService
-{
+public sealed class AutoRebaseService : IAutoRebaseService {
     private readonly IGitCommandRunner _gitRunner;
     private readonly IMailbox _mailbox;
     private readonly ILogger<AutoRebaseService>? _logger;
@@ -20,16 +19,14 @@ public sealed class AutoRebaseService : IAutoRebaseService
     /// <param name="gitRunner">Git 命令执行器</param>
     /// <param name="mailbox">代理间邮箱</param>
     /// <param name="logger">日志记录器，可为 null</param>
-    public AutoRebaseService(IGitCommandRunner gitRunner, IMailbox mailbox, ILogger<AutoRebaseService>? logger = null)
-    {
+    public AutoRebaseService(IGitCommandRunner gitRunner, IMailbox mailbox, ILogger<AutoRebaseService>? logger = null) {
         _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
         _mailbox = mailbox ?? throw new ArgumentNullException(nameof(mailbox));
         _logger = logger;
     }
 
     /// <inheritdoc/>
-    public async Task<AutoRebaseResult> RebaseSyncAsync(AutoRebaseRequest request, CancellationToken cancellationToken = default)
-    {
+    public async Task<AutoRebaseResult> RebaseSyncAsync(AutoRebaseRequest request, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.WorktreePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.AgentId);
 
@@ -40,20 +37,17 @@ public sealed class AutoRebaseService : IAutoRebaseService
         var stash = GitSubCommand.Stash.ToValue();
 
         var fetchResult = await _gitRunner.ExecuteAsync($"{fetch} {upstream}", workDir, cancellationToken).ConfigureAwait(false);
-        if (!fetchResult.Success)
-        {
+        if (!fetchResult.Success) {
             _logger?.LogWarning("[AutoRebase] fetch 失败 for {AgentId}: {Error}", request.AgentId, fetchResult.Error);
             return Failed($"fetch 失败: {fetchResult.Error}");
         }
 
         var upstreamCount = await _gitRunner.GetUpstreamCommitCountAsync(upstream, workDir, cancellationToken).ConfigureAwait(false);
-        if (upstreamCount < 0)
-        {
+        if (upstreamCount < 0) {
             _logger?.LogWarning("[AutoRebase] rev-list 解析失败 for {AgentId}", request.AgentId);
             return Failed("rev-list 解析失败");
         }
-        if (upstreamCount == 0)
-        {
+        if (upstreamCount == 0) {
             _logger?.LogDebug("[AutoRebase] 主干无新提交，跳过 for {AgentId}", request.AgentId);
             return Skipped("主干无新提交");
         }
@@ -61,11 +55,9 @@ public sealed class AutoRebaseService : IAutoRebaseService
         var hasUncommitted = await _gitRunner.HasUncommittedChangesAsync(workDir, cancellationToken).ConfigureAwait(false);
 
         var stashed = false;
-        if (hasUncommitted)
-        {
+        if (hasUncommitted) {
             var stashResult = await _gitRunner.ExecuteAsync($"{stash} push -m \"auto-rebase-stash\"", workDir, cancellationToken).ConfigureAwait(false);
-            if (!stashResult.Success)
-            {
+            if (!stashResult.Success) {
                 _logger?.LogWarning("[AutoRebase] stash 失败 for {AgentId}: {Error}", request.AgentId, stashResult.Error);
                 return Failed($"stash 失败: {stashResult.Error}");
             }
@@ -74,13 +66,11 @@ public sealed class AutoRebaseService : IAutoRebaseService
 
         var rebaseResult = await _gitRunner.ExecuteAsync($"{rebase} {upstream}", workDir, cancellationToken).ConfigureAwait(false);
 
-        if (rebaseResult.Success)
-        {
+        if (rebaseResult.Success) {
             if (stashed)
                 await SafeStashPopAsync(workDir, cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation("[AutoRebase] rebase 成功 for {AgentId}", request.AgentId);
-            return new AutoRebaseResult
-            {
+            return new AutoRebaseResult {
                 FinalState = RebaseSyncState.Completed,
                 Success = true,
                 Message = "rebase 成功",
@@ -99,8 +89,7 @@ public sealed class AutoRebaseService : IAutoRebaseService
 
         _logger?.LogWarning("[AutoRebase] rebase 冲突 for {AgentId}, 冲突文件: {Files}", request.AgentId, string.Join(", ", conflictFiles));
 
-        return new AutoRebaseResult
-        {
+        return new AutoRebaseResult {
             FinalState = RebaseSyncState.Completed,
             Success = true,
             Message = "rebase 冲突已 abort，邮箱已通知队长",
@@ -109,23 +98,17 @@ public sealed class AutoRebaseService : IAutoRebaseService
         };
     }
 
-    private async Task SafeStashPopAsync(string workDir, CancellationToken ct)
-    {
-        try
-        {
+    private async Task SafeStashPopAsync(string workDir, CancellationToken ct) {
+        try {
             await _gitRunner.ExecuteAsync($"{GitSubCommand.Stash.ToValue()} pop", workDir, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning("[AutoRebase] stash pop 异常: {Error}", ex.Message);
         }
     }
 
-    private async Task NotifyConflictAsync(AutoRebaseRequest request, IReadOnlyList<string> conflictFiles, CancellationToken ct)
-    {
+    private async Task NotifyConflictAsync(AutoRebaseRequest request, IReadOnlyList<string> conflictFiles, CancellationToken ct) {
         var filesText = conflictFiles.Count > 0 ? string.Join("\n", conflictFiles) : "(未知)";
-        var msg = new CoordinatorMessage
-        {
+        var msg = new CoordinatorMessage {
             FromAgentId = request.AgentId,
             ToAgentId = request.CaptainId!,
             MessageType = TeammateMessageTypeEnumConstants.ForceSync,
@@ -135,15 +118,13 @@ public sealed class AutoRebaseService : IAutoRebaseService
         await _mailbox.SendAsync(request.CaptainId!, msg, ct).ConfigureAwait(false);
     }
 
-    private static AutoRebaseResult Failed(string message) => new()
-    {
+    private static AutoRebaseResult Failed(string message) => new() {
         FinalState = RebaseSyncState.Failed,
         Success = false,
         Message = message,
     };
 
-    private static AutoRebaseResult Skipped(string message) => new()
-    {
+    private static AutoRebaseResult Skipped(string message) => new() {
         FinalState = RebaseSyncState.Skipped,
         Success = true,
         Message = message,

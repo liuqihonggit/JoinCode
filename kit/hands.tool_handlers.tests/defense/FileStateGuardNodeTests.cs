@@ -1,12 +1,10 @@
 namespace Core.Tests;
 
-public class FileStateGuardNodeTests
-{
+public class FileStateGuardNodeTests {
     private readonly IFileSystem _fs = TestFileSystem.Current;
 
     [Fact]
-    public void HasBeenRead_NullCache_ReturnsTrue()
-    {
+    public void HasBeenRead_NullCache_ReturnsTrue() {
         var node = new FileStateGuardNode(_fs);
 
         var result = node.HasBeenRead("/test.txt");
@@ -15,8 +13,7 @@ public class FileStateGuardNodeTests
     }
 
     [Fact]
-    public void HasBeenRead_FileNotExists_ReturnsTrue()
-    {
+    public void HasBeenRead_FileNotExists_ReturnsTrue() {
         var cache = new Mock<IFileStateCache>();
         var node = new FileStateGuardNode(_fs, cache.Object);
 
@@ -26,8 +23,7 @@ public class FileStateGuardNodeTests
     }
 
     [Fact]
-    public void HasBeenRead_FileExistsInCache_ReturnsTrue()
-    {
+    public void HasBeenRead_FileExistsInCache_ReturnsTrue() {
         var filePath = CreateFile("test");
         var cache = new Mock<IFileStateCache>();
         cache.Setup(c => c.HasBeenRead(filePath)).Returns(true);
@@ -39,8 +35,7 @@ public class FileStateGuardNodeTests
     }
 
     [Fact]
-    public void HasBeenRead_FileExistsNotInCache_ReturnsFalse()
-    {
+    public void HasBeenRead_FileExistsNotInCache_ReturnsFalse() {
         var filePath = CreateFile("test");
         var cache = new Mock<IFileStateCache>();
         cache.Setup(c => c.HasBeenRead(filePath)).Returns(false);
@@ -52,8 +47,7 @@ public class FileStateGuardNodeTests
     }
 
     [Fact]
-    public async Task CheckStaleWriteAsync_NullCache_ReturnsNull()
-    {
+    public async Task CheckStaleWriteAsync_NullCache_ReturnsNull() {
         var node = new FileStateGuardNode(_fs);
 
         var result = await node.CheckStaleWriteAsync("/test.txt", CancellationToken.None);
@@ -62,8 +56,7 @@ public class FileStateGuardNodeTests
     }
 
     [Fact]
-    public async Task CheckStaleWriteAsync_FileNotExists_ReturnsNull()
-    {
+    public async Task CheckStaleWriteAsync_FileNotExists_ReturnsNull() {
         var cache = new Mock<IFileStateCache>();
         var node = new FileStateGuardNode(_fs, cache.Object);
 
@@ -72,8 +65,7 @@ public class FileStateGuardNodeTests
         Assert.Null(result);
     }
 
-    private string CreateFile(string content)
-    {
+    private string CreateFile(string content) {
         var path = Path.Combine(Path.GetTempPath(), $"state_test_{Guid.NewGuid():N}.txt");
         _fs.WriteAllText(path, content);
         return path;

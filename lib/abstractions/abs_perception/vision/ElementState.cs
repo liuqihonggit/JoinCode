@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// UI 元素状态 — 对应可见性/可用性/交互状态
 /// </summary>
-public enum ElementState
-{
+public enum ElementState {
     /// <summary>正常可用</summary>
     [EnumValue("normal")]
     Normal,

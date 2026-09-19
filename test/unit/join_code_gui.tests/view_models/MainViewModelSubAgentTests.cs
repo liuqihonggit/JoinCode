@@ -5,8 +5,7 @@ namespace JoinCode.Gui.Tests.ViewModels;
 /// 引擎 AgentStarted/活动/AgentFinished 事件必须归约为一张内嵌运行组卡片（D2 内嵌组合模型），
 /// 且子代理 Content 不得污染主对话正文。
 /// </summary>
-public class MainViewModelSubAgentTests
-{
+public class MainViewModelSubAgentTests {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
     private static MainViewModel CreateVm() => new(
@@ -18,8 +17,7 @@ public class MainViewModelSubAgentTests
         ChatStreamEvent.AgentStarted(id, name, "调研任务", "executor");
 
     [Fact]
-    public void HandleSubAgentActivity_ShouldInsertSingleGroupCard()
-    {
+    public void HandleSubAgentActivity_ShouldInsertSingleGroupCard() {
         var vm = CreateVm();
         vm.PrepareAgentRunTurnForTest();
 
@@ -32,8 +30,7 @@ public class MainViewModelSubAgentTests
     }
 
     [Fact]
-    public async Task HandleSubAgentActivity_Finished_ShouldFreezeStatsInCard()
-    {
+    public async Task HandleSubAgentActivity_Finished_ShouldFreezeStatsInCard() {
         var vm = CreateVm();
         await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout); // 占位助手消息存在（对齐真实回合）
         vm.PrepareAgentRunTurnForTest();
@@ -48,8 +45,7 @@ public class MainViewModelSubAgentTests
     }
 
     [Fact]
-    public void HandleSubAgentActivity_ShouldRouteMultipleAgentsIntoOneCard()
-    {
+    public void HandleSubAgentActivity_ShouldRouteMultipleAgentsIntoOneCard() {
         var vm = CreateVm();
         vm.PrepareAgentRunTurnForTest();
 

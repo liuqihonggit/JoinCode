@@ -6,8 +6,7 @@ namespace JoinCode.Gui.Hosting;
 /// 注册: GuiInteractionModule (Order=80) 覆盖 CoreModule 的 Mock 注册。
 /// 线程安全: 工具管道在后台线程调用，弹窗通过 Dispatcher.UIThread 调度到 UI 线程。
 /// </summary>
-public sealed class AvaloniaInteractiveService : IInteractiveService
-{
+public sealed class AvaloniaInteractiveService : IInteractiveService {
     private readonly ILogger<AvaloniaInteractiveService>? _logger;
 
     /// <summary>
@@ -17,8 +16,7 @@ public sealed class AvaloniaInteractiveService : IInteractiveService
     public Func<QuestionItem, Task<AskUserQuestionResult>>? ShowDialogCallback { get; set; }
 
     /// <summary>初始化 AvaloniaInteractiveService 实例</summary>
-    public AvaloniaInteractiveService(ILogger<AvaloniaInteractiveService>? logger = null)
-    {
+    public AvaloniaInteractiveService(ILogger<AvaloniaInteractiveService>? logger = null) {
         _logger = logger;
     }
 
@@ -27,10 +25,8 @@ public sealed class AvaloniaInteractiveService : IInteractiveService
         string question,
         List<string>? options = null,
         bool multiSelect = false,
-        CancellationToken cancellationToken = default)
-    {
-        var questionItem = new QuestionItem
-        {
+        CancellationToken cancellationToken = default) {
+        var questionItem = new QuestionItem {
             Question = question,
             Header = "确认",
             Options = options?.Select(o => new QuestionOption { Label = o, Description = "" }).ToList()
@@ -44,8 +40,7 @@ public sealed class AvaloniaInteractiveService : IInteractiveService
     /// <summary>异步询问用户多个问题（逐个弹窗呈现，最多 4 个问题）</summary>
     public async Task<AskUserQuestionResult> AskUserQuestionsAsync(
         List<QuestionItem> questions,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (questions.Count == 0)
             return AskUserQuestionResult.FailureResult("No questions provided");
 
@@ -54,34 +49,25 @@ public sealed class AvaloniaInteractiveService : IInteractiveService
 
         var answers = new Dictionary<string, string>();
 
-        foreach (var q in questions)
-        {
+        foreach (var q in questions) {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (ShowDialogCallback is null)
-            {
+            if (ShowDialogCallback is null) {
                 _logger?.LogWarning("[AvaloniaInteractive] ShowDialogCallback 未设置，回退到自动选择第一项");
                 answers[q.Question] = q.Options[0].Label;
                 continue;
             }
 
             AskUserQuestionResult result;
-            if (Dispatcher.UIThread.CheckAccess())
-            {
+            if (Dispatcher.UIThread.CheckAccess()) {
                 result = await ShowDialogCallback(q);
-            }
-            else
-            {
+            } else {
                 var tcs = new TaskCompletionSource<AskUserQuestionResult>();
-                Dispatcher.UIThread.Post(async () =>
-                {
-                    try
-                    {
+                Dispatcher.UIThread.Post(async () => {
+                    try {
                         var r = await ShowDialogCallback(q);
                         tcs.SetResult(r);
-                    }
-                    catch (Exception ex)
-                    {
+                    } catch (Exception ex) {
                         tcs.SetException(ex);
                     }
                 }, DispatcherPriority.Normal);

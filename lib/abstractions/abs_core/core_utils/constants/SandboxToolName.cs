@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Utils;
 
-public enum SandboxToolName
-{
+public enum SandboxToolName {
     [EnumValue("sandbox_enter")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     SandboxEnter,

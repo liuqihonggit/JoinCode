@@ -5,8 +5,7 @@ namespace Core.Agents.Coordinator;
 /// 对齐 TS: cleanupWorktreeIfNeeded — fork 完成后清理 worktree
 /// </summary>
 [Register(typeof(IForkMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddleware
-{
+public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddleware {
 
     /// <summary>
     /// 初始化 Fork 执行中间件
@@ -15,8 +14,7 @@ public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddle
     /// <param name="telemetryService">遥测服务</param>
     /// <param name="worktreeManager">工作树管理器</param>
     /// <param name="logger">日志记录器</param>
-    public ForkExecutionMiddleware(IAgentLifecycleManager lifecycleManager, ITelemetryService? telemetryService = null, IAgentWorktreeManager? worktreeManager = null, ILogger<ForkExecutionMiddleware>? logger = null)
-    {
+    public ForkExecutionMiddleware(IAgentLifecycleManager lifecycleManager, ITelemetryService? telemetryService = null, IAgentWorktreeManager? worktreeManager = null, ILogger<ForkExecutionMiddleware>? logger = null) {
         _lifecycleManager = lifecycleManager;
         _telemetryService = telemetryService;
         _worktreeManager = worktreeManager;
@@ -38,10 +36,8 @@ public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddle
     /// <param name="next">下一中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct)
-    {
-        if (context.Agent is null)
-        {
+    public async Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct) {
+        if (context.Agent is null) {
             context.FinalState = ForkState.Failed;
             context.FinalResult = "Agent not spawned";
             await CleanupWorktreeIfNeededAsync(context.Agent?.ObjectId.UniqueId, ct).ConfigureAwait(false);
@@ -50,8 +46,7 @@ public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddle
         }
 
         // 后台模式: 仅标记，由 Manager 启动后台任务
-        if (context.Options.RunInBackground)
-        {
+        if (context.Options.RunInBackground) {
             context.IsBackground = true;
             context.FinalState = ForkState.Running;
             await next(context, ct).ConfigureAwait(false);
@@ -59,63 +54,48 @@ public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddle
         }
 
         // 同步执行
-        try
-        {
+        try {
             var result = await _lifecycleManager.ExecuteAsync(context.Agent, ct).ConfigureAwait(false);
             context.ExecutionResult = result;
 
-            if (result.IsSuccess)
-            {
+            if (result.IsSuccess) {
                 context.FinalState = ForkState.Completed;
                 context.FinalResult = result.Output;
                 RecordForkMetrics("fork", true);
                 _logger?.LogInformation("Fork {ForkId} completed successfully", context.ForkId);
-            }
-            else
-            {
+            } else {
                 context.FinalState = ForkState.Failed;
                 context.FinalResult = result.Error ?? "Unknown error";
                 RecordForkMetrics("fork", false);
                 _logger?.LogWarning("Fork {ForkId} failed: {Error}", context.ForkId, result.Error);
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             context.FinalState = ForkState.Cancelled;
             context.FinalResult = null;
             RecordForkMetrics("fork_cancelled", false);
             _logger?.LogInformation("Fork {ForkId} was cancelled", context.ForkId);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             context.FinalState = ForkState.Failed;
             context.FinalResult = ex.Message;
             RecordForkMetrics("fork_error", false);
             _logger?.LogError(ex, "Fork {ForkId} failed with exception", context.ForkId);
-        }
-        finally
-        {
+        } finally {
             await CleanupWorktreeIfNeededAsync(context.Agent?.ObjectId.UniqueId, ct).ConfigureAwait(false);
         }
 
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private async Task CleanupWorktreeIfNeededAsync(string? agentId, CancellationToken ct)
-    {
+    private async Task CleanupWorktreeIfNeededAsync(string? agentId, CancellationToken ct) {
         if (string.IsNullOrEmpty(agentId) || _worktreeManager is null) return;
 
-        try
-        {
+        try {
             var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(agentId, cancellationToken: ct).ConfigureAwait(false);
-            if (cleanupDetail.Kept)
-            {
+            if (cleanupDetail.Kept) {
                 _logger?.LogInformation("Fork agent {AgentId} worktree kept: {Path} (reason: {Reason})",
                     agentId, cleanupDetail.WorktreePath, cleanupDetail.Reason);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Fork agent {AgentId} worktree cleanup failed", agentId);
         }
     }

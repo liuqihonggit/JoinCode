@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Cmd;
 /// <summary>
 /// 统一命令描述符 — 包装 IChatCommand 或 IToolHandler 的引用，不复制数据
 /// </summary>
-public sealed record CmdDescriptor
-{
+public sealed record CmdDescriptor {
     /// <summary>命令名称</summary>
     public required string Name { get; init; }
 
@@ -23,8 +22,7 @@ public sealed record CmdDescriptor
     // === 工厂方法 ===
 
     /// <summary>从斜杠命令创建</summary>
-    public static CmdDescriptor FromSlash(IChatCommand cmd) => new()
-    {
+    public static CmdDescriptor FromSlash(IChatCommand cmd) => new() {
         Name = cmd.Name,
         Source = CmdSource.Slash,
         Description = cmd.Description,
@@ -32,8 +30,7 @@ public sealed record CmdDescriptor
     };
 
     /// <summary>从 MCP 工具创建</summary>
-    public static CmdDescriptor FromMcp(IToolHandler handler) => new()
-    {
+    public static CmdDescriptor FromMcp(IToolHandler handler) => new() {
         Name = handler.Name,
         Source = CmdSource.Mcp,
         Description = handler.Description,
@@ -45,16 +42,13 @@ public sealed record CmdDescriptor
     /// <summary>
     /// 执行命令 — 根据来源调用 IChatCommand.ExecuteAsync 或 IToolHandler.ExecuteAsync
     /// </summary>
-    public async Task<CmdResult> ExecuteAsync(CmdContext ctx)
-    {
-        if (SlashCommand is not null)
-        {
+    public async Task<CmdResult> ExecuteAsync(CmdContext ctx) {
+        if (SlashCommand is not null) {
             var slashResult = await SlashCommand.ExecuteAsync(ctx.ToSlashContext()).ConfigureAwait(false);
             return CmdResult.FromSlashResult(slashResult);
         }
 
-        if (McpHandler is not null)
-        {
+        if (McpHandler is not null) {
             var mcpResult = await McpHandler.ExecuteAsync(
                 ctx.ToMcpArgs(),
                 ctx.CancellationToken,

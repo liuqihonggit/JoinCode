@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 计划模式管理器接口
 /// </summary>
-public interface IPlanModeManager
-{
+public interface IPlanModeManager {
     /// <summary>
     /// 当前是否处于计划模式
     /// </summary>

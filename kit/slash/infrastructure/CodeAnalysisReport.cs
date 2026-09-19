@@ -3,8 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 代码分析报告 — 描述一次代码分析的整体结果
 /// </summary>
-public sealed class CodeAnalysisReport
-{
+public sealed class CodeAnalysisReport {
     /// <summary>
     /// 分析目标路径
     /// </summary>
@@ -29,8 +28,7 @@ public sealed class CodeAnalysisReport
 /// <summary>
 /// 文件类型条目 — 单个扩展名对应的文件计数
 /// </summary>
-public sealed class FileTypeEntry
-{
+public sealed class FileTypeEntry {
     /// <summary>
     /// 文件扩展名
     /// </summary>

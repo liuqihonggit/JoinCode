@@ -1,10 +1,8 @@
 namespace Core.Context;
 
-public sealed class LoopDiagnosticJournalTests
-{
+public sealed class LoopDiagnosticJournalTests {
     [Fact]
-    public async Task Record_ReturnsEntryWithTraceId()
-    {
+    public async Task Record_ReturnsEntryWithTraceId() {
         await using var journal = new LoopDiagnosticJournal();
         var entry = journal.Record("tool_start", "session1", 1, 0);
 
@@ -15,8 +13,7 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public async Task Record_WindowCountUpdated_AfterBackgroundConsumes()
-    {
+    public async Task Record_WindowCountUpdated_AfterBackgroundConsumes() {
         await using var journal = new LoopDiagnosticJournal();
 
         journal.Record("tool_start", "s1", 1, 0);
@@ -28,8 +25,7 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public async Task Record_WindowSliding_CapacityExceeded()
-    {
+    public async Task Record_WindowSliding_CapacityExceeded() {
         await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 5);
 
         for (var i = 0; i < 10; i++)
@@ -41,8 +37,7 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public async Task OnLoopDetected_ReturnsAnomalyRecord()
-    {
+    public async Task OnLoopDetected_ReturnsAnomalyRecord() {
         await using var journal = new LoopDiagnosticJournal();
 
         journal.Record("tool_start", "s1", 3, 5);
@@ -65,8 +60,7 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public async Task OnLoopDetected_TraceChainPopulated_AfterBackgroundConsumes()
-    {
+    public async Task OnLoopDetected_TraceChainPopulated_AfterBackgroundConsumes() {
         await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 10);
 
         journal.Record("tool_start", "s1", 1, 0);
@@ -83,8 +77,7 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public async Task OnLoopDetected_ToDiagnosticData_ContainsAllFields()
-    {
+    public async Task OnLoopDetected_ToDiagnosticData_ContainsAllFields() {
         await using var journal = new LoopDiagnosticJournal();
         journal.Record("event", "s1", 1, 0);
 
@@ -107,8 +100,7 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public async Task OnLoopDetected_TextSnippet_TruncatedWhenTooLong()
-    {
+    public async Task OnLoopDetected_TextSnippet_TruncatedWhenTooLong() {
         await using var journal = new LoopDiagnosticJournal();
         journal.Record("event", "s1", 1, 0);
 
@@ -122,8 +114,7 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public async Task OnLoopDetected_NullEntropy_NotIncludedInData()
-    {
+    public async Task OnLoopDetected_NullEntropy_NotIncludedInData() {
         await using var journal = new LoopDiagnosticJournal();
         journal.Record("event", "s1", 1, 0);
 
@@ -135,8 +126,7 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public async Task Reset_ClearsWindow()
-    {
+    public async Task Reset_ClearsWindow() {
         await using var journal = new LoopDiagnosticJournal();
 
         journal.Record("event", "s1", 1, 0);
@@ -150,8 +140,7 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public async Task OnLoopDetected_AddsAnomalyToWindow()
-    {
+    public async Task OnLoopDetected_AddsAnomalyToWindow() {
         await using var journal = new LoopDiagnosticJournal();
 
         journal.Record("event", "s1", 1, 0);
@@ -162,8 +151,7 @@ public sealed class LoopDiagnosticJournalTests
         Assert.Equal(2, journal.WindowCount);
     }
 
-    private static async Task WaitForWindowCountAsync(LoopDiagnosticJournal journal, int expectedCount, int timeoutMs = 2000)
-    {
+    private static async Task WaitForWindowCountAsync(LoopDiagnosticJournal journal, int expectedCount, int timeoutMs = 2000) {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         while (journal.WindowCount != expectedCount && sw.ElapsedMilliseconds < timeoutMs)
             await Task.Delay(10);

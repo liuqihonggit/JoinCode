@@ -3,13 +3,11 @@ namespace MockServer.E2E.Tests.Scripts;
 /// <summary>
 /// 聊天命令 E2E 测试脚本 — 覆盖全部 chat commands (Phase 1: Session/Model/Code/Config/Info/System)
 /// </summary>
-public static partial class ChatCommandConversationScripts
-{
+public static partial class ChatCommandConversationScripts {
     /// <summary>
     /// /exit 命令 — NonInteractive 模式下直接退出（交互模式有确认对话框，E2E 无法确认）
     /// </summary>
-    public static ConversationScript ExitCommand => new()
-    {
+    public static ConversationScript ExitCommand => new() {
         Name = "/exit 命令",
         Turns =
         [
@@ -32,8 +30,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /compact 命令 — 压缩对话上下文
     /// </summary>
-    public static ConversationScript CompactCommand => new()
-    {
+    public static ConversationScript CompactCommand => new() {
         Name = "/compact 命令",
         Turns =
         [
@@ -78,8 +75,7 @@ public static partial class ChatCommandConversationScripts
     /// /history 命令 — 查看对话历史（jcc 内部处理，不经过 LLM）
     /// NoErrors 断言移除 — 输出中可能包含误触 Error 检测的系统提示文本
     /// </summary>
-    public static ConversationScript HistoryCommand => new()
-    {
+    public static ConversationScript HistoryCommand => new() {
         Name = "/history 命令",
         Turns =
         [
@@ -112,8 +108,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /version 命令 — 查看版本
     /// </summary>
-    public static ConversationScript VersionCommand => new()
-    {
+    public static ConversationScript VersionCommand => new() {
         Name = "/version 命令",
         Turns =
         [
@@ -137,8 +132,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /stats 命令 — 查看统计
     /// </summary>
-    public static ConversationScript StatsCommand => new()
-    {
+    public static ConversationScript StatsCommand => new() {
         Name = "/stats 命令",
         Turns =
         [
@@ -162,8 +156,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /cost 命令 — 查看成本
     /// </summary>
-    public static ConversationScript CostCommand => new()
-    {
+    public static ConversationScript CostCommand => new() {
         Name = "/cost 命令",
         Turns =
         [
@@ -187,8 +180,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /model 命令 — 查看/切换模型
     /// </summary>
-    public static ConversationScript ModelCommand => new()
-    {
+    public static ConversationScript ModelCommand => new() {
         Name = "/model 命令",
         Turns =
         [
@@ -212,8 +204,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /tools 命令 — 列出可用工具
     /// </summary>
-    public static ConversationScript ToolsCommand => new()
-    {
+    public static ConversationScript ToolsCommand => new() {
         Name = "/tools 命令",
         Turns =
         [
@@ -237,8 +228,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /config 命令 — 查看配置
     /// </summary>
-    public static ConversationScript ConfigCommand => new()
-    {
+    public static ConversationScript ConfigCommand => new() {
         Name = "/config 命令",
         Turns =
         [
@@ -262,8 +252,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /tasks 命令 — 查看任务
     /// </summary>
-    public static ConversationScript TasksCommand => new()
-    {
+    public static ConversationScript TasksCommand => new() {
         Name = "/tasks 命令",
         Turns =
         [
@@ -287,8 +276,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /reset 命令（/clear 别名）— 重置对话
     /// </summary>
-    public static ConversationScript ResetCommand => new()
-    {
+    public static ConversationScript ResetCommand => new() {
         Name = "/reset 命令（/clear 别名）",
         Turns =
         [
@@ -312,8 +300,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /session 命令 — 查看会话信息
     /// </summary>
-    public static ConversationScript SessionCommand => new()
-    {
+    public static ConversationScript SessionCommand => new() {
         Name = "/session 命令",
         Turns =
         [
@@ -337,8 +324,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /effort 命令 — 查看/设置推理努力度
     /// </summary>
-    public static ConversationScript EffortCommand => new()
-    {
+    public static ConversationScript EffortCommand => new() {
         Name = "/effort 命令",
         Turns =
         [
@@ -362,8 +348,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /resume 命令 — 恢复对话
     /// </summary>
-    public static ConversationScript ResumeCommand => new()
-    {
+    public static ConversationScript ResumeCommand => new() {
         Name = "/resume 命令",
         Turns =
         [
@@ -392,8 +377,7 @@ public static partial class ChatCommandConversationScripts
     /// /rewind 命令 — 撤回最后一轮对话
     /// 多轮：先建立 1 轮对话上下文，再执行 /rewind last
     /// </summary>
-    public static ConversationScript RewindCommand => new()
-    {
+    public static ConversationScript RewindCommand => new() {
         Name = "/rewind 命令",
         Turns =
         [
@@ -428,8 +412,7 @@ public static partial class ChatCommandConversationScripts
     /// /fork 命令 — 创建当前对话的分支
     /// 多轮：先建立 1 轮对话上下文，再执行 /fork
     /// </summary>
-    public static ConversationScript ForkCommand => new()
-    {
+    public static ConversationScript ForkCommand => new() {
         Name = "/fork 命令",
         Turns =
         [
@@ -463,8 +446,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /branch 命令 — 列出/创建/切换/删除对话分支
     /// </summary>
-    public static ConversationScript BranchCommand => new()
-    {
+    public static ConversationScript BranchCommand => new() {
         Name = "/branch 命令",
         Turns =
         [
@@ -488,8 +470,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /rename 命令 — 重命名当前会话
     /// </summary>
-    public static ConversationScript RenameCommand => new()
-    {
+    public static ConversationScript RenameCommand => new() {
         Name = "/rename 命令",
         Turns =
         [
@@ -513,8 +494,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /brief 命令 — 切换简要消息模式
     /// </summary>
-    public static ConversationScript BriefCommand => new()
-    {
+    public static ConversationScript BriefCommand => new() {
         Name = "/brief 命令",
         Turns =
         [
@@ -538,8 +518,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /quit 命令 — NonInteractive 模式下直接退出（交互模式会终止进程）
     /// </summary>
-    public static ConversationScript QuitCommand => new()
-    {
+    public static ConversationScript QuitCommand => new() {
         Name = "/quit 命令",
         Turns =
         [
@@ -566,8 +545,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /fast 命令 — 切换快速模式
     /// </summary>
-    public static ConversationScript FastCommand => new()
-    {
+    public static ConversationScript FastCommand => new() {
         Name = "/fast 命令",
         Turns =
         [
@@ -591,8 +569,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /thinkback 命令 — 回放 AI 的思考过程
     /// </summary>
-    public static ConversationScript ThinkbackCommand => new()
-    {
+    public static ConversationScript ThinkbackCommand => new() {
         Name = "/thinkback 命令",
         Turns =
         [
@@ -616,8 +593,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /rate-limit-options 命令 — 显示速率限制
     /// </summary>
-    public static ConversationScript RateLimitOptionsCommand => new()
-    {
+    public static ConversationScript RateLimitOptionsCommand => new() {
         Name = "/rate-limit-options 命令",
         Turns =
         [
@@ -641,8 +617,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /extra-usage 命令 — 查看额外用量信息
     /// </summary>
-    public static ConversationScript ExtraUsageCommand => new()
-    {
+    public static ConversationScript ExtraUsageCommand => new() {
         Name = "/extra-usage 命令",
         Turns =
         [
@@ -670,8 +645,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /review 命令 — 审查代码变更（非交互模式回退默认 prompt）
     /// </summary>
-    public static ConversationScript ReviewCommand => new()
-    {
+    public static ConversationScript ReviewCommand => new() {
         Name = "/review 命令",
         Turns =
         [
@@ -695,8 +669,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /diff files 命令 — 列出变更文件（避免交互式浏览器）
     /// </summary>
-    public static ConversationScript DiffFilesCommand => new()
-    {
+    public static ConversationScript DiffFilesCommand => new() {
         Name = "/diff files 命令",
         Turns =
         [
@@ -720,8 +693,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /files 命令 — 列出上下文文件
     /// </summary>
-    public static ConversationScript FilesCommand => new()
-    {
+    public static ConversationScript FilesCommand => new() {
         Name = "/files 命令",
         Turns =
         [
@@ -745,8 +717,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /execute 命令 — 执行代码
     /// </summary>
-    public static ConversationScript ExecuteCommand => new()
-    {
+    public static ConversationScript ExecuteCommand => new() {
         Name = "/execute 命令",
         Turns =
         [
@@ -771,8 +742,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /analyze 命令 — 分析代码
     /// </summary>
-    public static ConversationScript AnalyzeCommand => new()
-    {
+    public static ConversationScript AnalyzeCommand => new() {
         Name = "/analyze 命令",
         Turns =
         [
@@ -796,8 +766,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /add-dir 命令 — 添加工作目录
     /// </summary>
-    public static ConversationScript AddDirCommand => new()
-    {
+    public static ConversationScript AddDirCommand => new() {
         Name = "/add-dir 命令",
         Turns =
         [
@@ -823,8 +792,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /security-review 命令 — 安全审查
     /// </summary>
-    public static ConversationScript SecurityReviewCommand => new()
-    {
+    public static ConversationScript SecurityReviewCommand => new() {
         Name = "/security-review 命令",
         Turns =
         [
@@ -848,8 +816,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /commit 命令 — Git 提交（非交互模式取消提交）
     /// </summary>
-    public static ConversationScript CommitCommand => new()
-    {
+    public static ConversationScript CommitCommand => new() {
         Name = "/commit 命令",
         Turns =
         [
@@ -873,8 +840,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /worktree list 命令 — 列出 worktree（避免交互式确认）
     /// </summary>
-    public static ConversationScript WorktreeCommand => new()
-    {
+    public static ConversationScript WorktreeCommand => new() {
         Name = "/worktree list 命令",
         Turns =
         [
@@ -902,8 +868,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /theme 命令 — 设置主题
     /// </summary>
-    public static ConversationScript ThemeCommand => new()
-    {
+    public static ConversationScript ThemeCommand => new() {
         Name = "/theme 命令",
         Turns =
         [
@@ -927,8 +892,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /color 命令 — 颜色测试
     /// </summary>
-    public static ConversationScript ColorCommand => new()
-    {
+    public static ConversationScript ColorCommand => new() {
         Name = "/color 命令",
         Turns =
         [
@@ -952,8 +916,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /vim 命令 — Vim 模式切换
     /// </summary>
-    public static ConversationScript VimCommand => new()
-    {
+    public static ConversationScript VimCommand => new() {
         Name = "/vim 命令",
         Turns =
         [
@@ -977,8 +940,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /env 命令 — 环境变量查询
     /// </summary>
-    public static ConversationScript EnvCommand => new()
-    {
+    public static ConversationScript EnvCommand => new() {
         Name = "/env 命令",
         Turns =
         [
@@ -1002,8 +964,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /sandbox-toggle 命令 — 沙箱状态查询
     /// </summary>
-    public static ConversationScript SandboxToggleCommand => new()
-    {
+    public static ConversationScript SandboxToggleCommand => new() {
         Name = "/sandbox-toggle 命令",
         Turns =
         [
@@ -1027,8 +988,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /permissions 命令 — 权限列表
     /// </summary>
-    public static ConversationScript PermissionsCommand => new()
-    {
+    public static ConversationScript PermissionsCommand => new() {
         Name = "/permissions 命令",
         Turns =
         [
@@ -1052,8 +1012,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /init quick 命令 — 快速初始化（不调用 LLM）
     /// </summary>
-    public static ConversationScript InitCommand => new()
-    {
+    public static ConversationScript InitCommand => new() {
         Name = "/init quick 命令",
         Turns =
         [
@@ -1077,8 +1036,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /doctor 命令 — 诊断（非交互模式下 Dialog 不输出，仅验证不卡死）
     /// </summary>
-    public static ConversationScript DoctorCommand => new()
-    {
+    public static ConversationScript DoctorCommand => new() {
         Name = "/doctor 命令",
         Turns =
         [
@@ -1105,8 +1063,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /status 命令 — 会话状态
     /// </summary>
-    public static ConversationScript StatusCommand => new()
-    {
+    public static ConversationScript StatusCommand => new() {
         Name = "/status 命令",
         Turns =
         [
@@ -1130,8 +1087,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /usage 命令 — 用量统计
     /// </summary>
-    public static ConversationScript UsageCommand => new()
-    {
+    public static ConversationScript UsageCommand => new() {
         Name = "/usage 命令",
         Turns =
         [
@@ -1155,8 +1111,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /insights stats 命令 — 会话统计（不调用 LLM）
     /// </summary>
-    public static ConversationScript InsightsCommand => new()
-    {
+    public static ConversationScript InsightsCommand => new() {
         Name = "/insights stats 命令",
         Turns =
         [
@@ -1180,8 +1135,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /release-notes 命令 — 发行说明（可能 5s 网络超时）
     /// </summary>
-    public static ConversationScript ReleaseNotesCommand => new()
-    {
+    public static ConversationScript ReleaseNotesCommand => new() {
         Name = "/release-notes 命令",
         Turns =
         [
@@ -1205,8 +1159,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /context 命令 — 上下文可视化
     /// </summary>
-    public static ConversationScript ContextCommand => new()
-    {
+    public static ConversationScript ContextCommand => new() {
         Name = "/context 命令",
         Turns =
         [
@@ -1235,8 +1188,7 @@ public static partial class ChatCommandConversationScripts
     /// /export 命令 — 导出对话到文件
     /// 非交互模式自动走 fallback 分支,输出 "已导出到: {filePath}"
     /// </summary>
-    public static ConversationScript ExportCommand => new()
-    {
+    public static ConversationScript ExportCommand => new() {
         Name = "/export 命令",
         Turns =
         [
@@ -1261,8 +1213,7 @@ public static partial class ChatCommandConversationScripts
     /// /copy 命令 — 复制最近 AI 消息到剪贴板
     /// 空会话时输出 "没有可复制的 AI 消息"
     /// </summary>
-    public static ConversationScript CopyCommand => new()
-    {
+    public static ConversationScript CopyCommand => new() {
         Name = "/copy 命令",
         Turns =
         [
@@ -1286,8 +1237,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /summary 命令 — 会话摘要
     /// </summary>
-    public static ConversationScript SummaryCommand => new()
-    {
+    public static ConversationScript SummaryCommand => new() {
         Name = "/summary 命令",
         Turns =
         [
@@ -1311,8 +1261,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /statusline 命令 — 状态栏开关
     /// </summary>
-    public static ConversationScript StatuslineCommand => new()
-    {
+    public static ConversationScript StatuslineCommand => new() {
         Name = "/statusline 命令",
         Turns =
         [
@@ -1336,8 +1285,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /heapdump 命令 — 堆转储/运行时诊断
     /// </summary>
-    public static ConversationScript HeapdumpCommand => new()
-    {
+    public static ConversationScript HeapdumpCommand => new() {
         Name = "/heapdump 命令",
         Turns =
         [
@@ -1361,8 +1309,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /tag 命令 — 会话标签管理
     /// </summary>
-    public static ConversationScript TagCommand => new()
-    {
+    public static ConversationScript TagCommand => new() {
         Name = "/tag 命令",
         Turns =
         [
@@ -1386,8 +1333,7 @@ public static partial class ChatCommandConversationScripts
     /// <summary>
     /// /workflows 命令 — 工作流列表
     /// </summary>
-    public static ConversationScript WorkflowsCommand => new()
-    {
+    public static ConversationScript WorkflowsCommand => new() {
         Name = "/workflows 命令",
         Turns =
         [
@@ -1412,8 +1358,7 @@ public static partial class ChatCommandConversationScripts
     /// /upgrade 命令 — 检查更新
     /// UpgradeService 未注入时走 fallback 输出 "当前版本" + "请手动访问 GitHub Releases"
     /// </summary>
-    public static ConversationScript UpgradeCommand => new()
-    {
+    public static ConversationScript UpgradeCommand => new() {
         Name = "/upgrade 命令",
         Turns =
         [

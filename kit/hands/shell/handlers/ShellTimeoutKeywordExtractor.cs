@@ -5,16 +5,14 @@ namespace Tools.Shell;
 /// 提取最大等待时间（秒），用于动态调整超时上限，规避默认超时终止
 /// 支持范围: PowerShell + Bash + cmd.exe + Python/C# 内嵌脚本
 /// </summary>
-public static partial class ShellTimeoutKeywordExtractor
-{
+public static partial class ShellTimeoutKeywordExtractor {
     /// <summary>
     /// 从命令文本中提取最大等待时间（秒）。返回 null 表示无等待关键字。
     /// 取所有匹配中的最大值（脚本可能含多个 sleep）。
     /// </summary>
     /// <param name="command">待解析的命令文本</param>
     /// <returns>最大等待秒数；若命令不含等待关键字则返回 null</returns>
-    public static int? ExtractMaxWaitSeconds(string command)
-    {
+    public static int? ExtractMaxWaitSeconds(string command) {
         if (string.IsNullOrWhiteSpace(command))
             return null;
 
@@ -39,10 +37,8 @@ public static partial class ShellTimeoutKeywordExtractor
         MatchCollection matches,
         Func<Match, int> scaler,
         ref int maxSeconds,
-        ref bool found)
-    {
-        for (var i = 0; i < matches.Count; i++)
-        {
+        ref bool found) {
+        for (var i = 0; i < matches.Count; i++) {
             var seconds = scaler(matches[i]);
             if (seconds <= 0)
                 continue;
@@ -52,26 +48,22 @@ public static partial class ShellTimeoutKeywordExtractor
         }
     }
 
-    private static int ScaleSeconds(Match m)
-    {
+    private static int ScaleSeconds(Match m) {
         return double.TryParse(m.Groups[1].ValueSpan, CultureInfo.InvariantCulture, out var sec) && sec > 0
             ? (int)Math.Ceiling(sec)
             : 0;
     }
 
-    private static int ScaleMilliseconds(Match m)
-    {
+    private static int ScaleMilliseconds(Match m) {
         return double.TryParse(m.Groups[1].ValueSpan, CultureInfo.InvariantCulture, out var ms) && ms > 0
             ? (int)Math.Ceiling(ms / 1000.0)
             : 0;
     }
 
-    private static int ScaleBashSleep(Match m)
-    {
+    private static int ScaleBashSleep(Match m) {
         if (!double.TryParse(m.Groups[1].ValueSpan, CultureInfo.InvariantCulture, out var val) || val <= 0)
             return 0;
-        var seconds = m.Groups[2].Value switch
-        {
+        var seconds = m.Groups[2].Value switch {
             "s" => val,
             "m" => val * 60,
             "h" => val * 3600,

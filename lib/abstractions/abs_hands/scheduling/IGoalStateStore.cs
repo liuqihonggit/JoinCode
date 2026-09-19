@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Interfaces.Scheduling;
 /// 路径模式: {baseDir}/{sessionId}/{goalId}.json
 /// 对齐文档 IGoalStateStore，复用 GoalState 模型，禁止创造新术语。
 /// </summary>
-public interface IGoalStateStore : IStore
-{
+public interface IGoalStateStore : IStore {
     /// <summary>加载目标状态（不存在返回 null）</summary>
     Task<GoalState?> LoadAsync(string sessionId, string goalId, CancellationToken cancellationToken = default);
 

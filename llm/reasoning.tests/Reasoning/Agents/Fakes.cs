@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Tests.Agents;
 /// <summary>
 /// 用于推理 Agent 测试的伪造实现集合
 /// </summary>
-internal sealed class FakeQueryEngine : IQueryEngine
-{
+internal sealed class FakeQueryEngine : IQueryEngine {
     public Task<string> ExecuteQueryAsync(string query, CancellationToken cancellationToken = default)
         => Task.FromResult(string.Empty);
 
@@ -19,23 +18,19 @@ internal sealed class FakeQueryEngine : IQueryEngine
     public IChatClient GetKernel() => new FakeChatClient((string?)null);
 }
 
-internal sealed class FakeQueryService : IQueryService
-{
+internal sealed class FakeQueryService : IQueryService {
     private readonly Func<MessageList, string?>? _responseFactory;
     private readonly Exception? _exceptionToThrow;
 
-    public FakeQueryService(string? fixedResponse)
-    {
+    public FakeQueryService(string? fixedResponse) {
         _responseFactory = _ => fixedResponse;
     }
 
-    public FakeQueryService(Func<MessageList, string?> responseFactory)
-    {
+    public FakeQueryService(Func<MessageList, string?> responseFactory) {
         _responseFactory = responseFactory;
     }
 
-    public FakeQueryService(Exception exceptionToThrow)
-    {
+    public FakeQueryService(Exception exceptionToThrow) {
         _exceptionToThrow = exceptionToThrow;
     }
 
@@ -43,10 +38,8 @@ internal sealed class FakeQueryService : IQueryService
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (_exceptionToThrow is not null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_exceptionToThrow is not null) {
             throw _exceptionToThrow;
         }
 
@@ -64,18 +57,15 @@ internal sealed class FakeQueryService : IQueryService
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         return AsyncEnumerable.Empty<StreamEvent>();
     }
 }
 
-internal sealed class FakeChatClient : IChatClient
-{
+internal sealed class FakeChatClient : IChatClient {
     private readonly IQueryService _queryService;
 
-    public FakeChatClient(IQueryService queryService)
-    {
+    public FakeChatClient(IQueryService queryService) {
         _queryService = queryService;
     }
 
@@ -93,8 +83,7 @@ internal sealed class FakeChatClient : IChatClient
     public IQueryService GetChatCompletionService() => _queryService;
 }
 
-internal sealed class FakeToolCollection : IToolCollection
-{
+internal sealed class FakeToolCollection : IToolCollection {
     public IEnumerable<string> PluginNames => [];
 
     public void Add(IToolGroup plugin) { }
@@ -104,8 +93,7 @@ internal sealed class FakeToolCollection : IToolCollection
     public bool Remove(string name) => false;
 }
 
-internal sealed class FakeMessageBroker : IMailbox
-{
+internal sealed class FakeMessageBroker : IMailbox {
     public List<CoordinatorMessage> SentMessages { get; } = [];
     public List<CoordinatorMessage> BroadcastMessages { get; } = [];
 
@@ -113,20 +101,17 @@ internal sealed class FakeMessageBroker : IMailbox
 
     public void UnregisterAgent(string agentId) { }
 
-    public Task<bool> SendAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default)
-    {
+    public Task<bool> SendAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default) {
         SentMessages.Add(message);
         return Task.FromResult(true);
     }
 
-    public Task BroadcastAsync(CoordinatorMessage message, CancellationToken cancellationToken = default)
-    {
+    public Task BroadcastAsync(CoordinatorMessage message, CancellationToken cancellationToken = default) {
         BroadcastMessages.Add(message);
         return Task.CompletedTask;
     }
 
-    public IAsyncEnumerable<CoordinatorMessage> ReceiveAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public IAsyncEnumerable<CoordinatorMessage> ReceiveAsync(string agentId, CancellationToken cancellationToken = default) {
         return AsyncEnumerable.Empty<CoordinatorMessage>();
     }
 

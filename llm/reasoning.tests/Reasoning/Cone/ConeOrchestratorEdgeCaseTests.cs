@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Cone;
 
-public sealed class ConeOrchestratorEdgeCaseTests
-{
+public sealed class ConeOrchestratorEdgeCaseTests {
     [Fact]
-    public void TransferFragment_WhenFromRoleNotRegistered_ReturnsNull()
-    {
+    public void TransferFragment_WhenFromRoleNotRegistered_ReturnsNull() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Defender, 5);
 
@@ -14,8 +12,7 @@ public sealed class ConeOrchestratorEdgeCaseTests
     }
 
     [Fact]
-    public void TransferFragment_WhenToRoleNotRegistered_ReturnsNull()
-    {
+    public void TransferFragment_WhenToRoleNotRegistered_ReturnsNull() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         var cone = orchestrator.GetRole(AgentRole.Prosecutor)!;
@@ -27,8 +24,7 @@ public sealed class ConeOrchestratorEdgeCaseTests
     }
 
     [Fact]
-    public void TransferFragment_WhenFragmentNotFound_ReturnsNull()
-    {
+    public void TransferFragment_WhenFragmentNotFound_ReturnsNull() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         orchestrator.RegisterRole(AgentRole.Defender, 5);
@@ -39,20 +35,17 @@ public sealed class ConeOrchestratorEdgeCaseTests
     }
 
     [Fact]
-    public void TransferFragment_AppliesDecayFactor()
-    {
+    public void TransferFragment_AppliesDecayFactor() {
         var orchestrator = new ConeOrchestrator { TransferDecayFactor = 0.5 };
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         orchestrator.RegisterRole(AgentRole.Defender, 5);
         var cone = orchestrator.GetRole(AgentRole.Prosecutor)!;
-        cone.AddFragment(new ObservationFragment
-        {
+        cone.AddFragment(new ObservationFragment {
             FragmentId = "f1",
             SourceItemId = "item1",
             RoleChain = AgentRole.Prosecutor,
             RawText = "test",
-            Fingerprint = new CognitiveFingerprint
-            {
+            Fingerprint = new CognitiveFingerprint {
                 EntryStimulus = "test",
                 ProcessingPath = "test",
                 OutputConclusion = "conclusion",
@@ -72,8 +65,7 @@ public sealed class ConeOrchestratorEdgeCaseTests
     }
 
     [Fact]
-    public void DetectConeConflict_WhenRoleANotRegistered_ReturnsNoConflict()
-    {
+    public void DetectConeConflict_WhenRoleANotRegistered_ReturnsNoConflict() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Defender, 5);
 
@@ -85,8 +77,7 @@ public sealed class ConeOrchestratorEdgeCaseTests
     }
 
     [Fact]
-    public void DetectConeConflict_WhenNoActiveConclusions_ReturnsNoConflict()
-    {
+    public void DetectConeConflict_WhenNoActiveConclusions_ReturnsNoConflict() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         orchestrator.RegisterRole(AgentRole.Defender, 5);
@@ -97,8 +88,7 @@ public sealed class ConeOrchestratorEdgeCaseTests
     }
 
     [Fact]
-    public void GetAllRoles_ReturnsRegisteredRoles()
-    {
+    public void GetAllRoles_ReturnsRegisteredRoles() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         orchestrator.RegisterRole(AgentRole.Judge, 6);
@@ -111,8 +101,7 @@ public sealed class ConeOrchestratorEdgeCaseTests
     }
 
     [Fact]
-    public void GetRole_WhenNotRegistered_ReturnsNull()
-    {
+    public void GetRole_WhenNotRegistered_ReturnsNull() {
         var orchestrator = new ConeOrchestrator();
 
         var result = orchestrator.GetRole(AgentRole.Prosecutor);
@@ -121,8 +110,7 @@ public sealed class ConeOrchestratorEdgeCaseTests
     }
 
     [Fact]
-    public void CreateFragmentFromItem_WithCustomEntryStimulus_UsesProvidedValue()
-    {
+    public void CreateFragmentFromItem_WithCustomEntryStimulus_UsesProvidedValue() {
         var orchestrator = new ConeOrchestrator();
         var item = new DataItem { Content = "内容", State = DataState.Assumption, Confidence = 80 };
 
@@ -132,11 +120,9 @@ public sealed class ConeOrchestratorEdgeCaseTests
     }
 
     [Fact]
-    public void CreateFragmentFromEvidence_WithDirectEvidence_MapsHighConfidence()
-    {
+    public void CreateFragmentFromEvidence_WithDirectEvidence_MapsHighConfidence() {
         var orchestrator = new ConeOrchestrator();
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Content = "DNA",
             Category = EvidenceCategory.Physical,
             TrustLevel = TrustLevel.DirectEvidence,
@@ -149,16 +135,13 @@ public sealed class ConeOrchestratorEdgeCaseTests
         Assert.Equal(1.0, fragment.Fingerprint.Confidence, precision: 2);
     }
 
-    private static ObservationFragment CreateFragment(string id, AgentRole role)
-    {
-        return new ObservationFragment
-        {
+    private static ObservationFragment CreateFragment(string id, AgentRole role) {
+        return new ObservationFragment {
             FragmentId = id,
             SourceItemId = id,
             RoleChain = role,
             RawText = "test",
-            Fingerprint = new CognitiveFingerprint
-            {
+            Fingerprint = new CognitiveFingerprint {
                 EntryStimulus = "test",
                 ProcessingPath = "test",
                 OutputConclusion = "conclusion",

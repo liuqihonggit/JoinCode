@@ -1,35 +1,29 @@
 namespace Tools.Handlers;
 
-public sealed class AsyncAgentAllowedToolsTests
-{
+public sealed class AsyncAgentAllowedToolsTests {
     [Fact]
-    public void AsyncAgentAllowedTools_Contains_FileRead()
-    {
+    public void AsyncAgentAllowedTools_Contains_FileRead() {
         AsyncAgentAllowedTools.Tools.Should().Contain(FileToolNameEnumConstants.FileRead);
     }
 
     [Fact]
-    public void AsyncAgentAllowedTools_Contains_Bash()
-    {
+    public void AsyncAgentAllowedTools_Contains_Bash() {
         AsyncAgentAllowedTools.Tools.Should().Contain(ShellToolNameEnumConstants.Bash);
     }
 
     [Fact]
-    public void AsyncAgentAllowedTools_DoesNotContain_AgentSpawn()
-    {
+    public void AsyncAgentAllowedTools_DoesNotContain_AgentSpawn() {
         AsyncAgentAllowedTools.Tools.Should().NotContain(AgentToolNameEnumConstants.AgentSpawn);
     }
 
     [Fact]
-    public void AsyncAgentAllowedTools_DoesNotContain_AskUser()
-    {
+    public void AsyncAgentAllowedTools_DoesNotContain_AskUser() {
         AsyncAgentAllowedTools.Tools.Should().NotContain("ask_user");
         AsyncAgentAllowedTools.Tools.Should().NotContain("AskUser");
     }
 
     [Fact]
-    public void AsyncAgentAllowedTools_IsNotEmpty()
-    {
+    public void AsyncAgentAllowedTools_IsNotEmpty() {
         AsyncAgentAllowedTools.Tools.Should().NotBeEmpty();
     }
 }

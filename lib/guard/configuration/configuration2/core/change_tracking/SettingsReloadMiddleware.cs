@@ -4,15 +4,13 @@ namespace Core.Configuration;
 /// 设置重载中间件 — 重新加载 SettingsJson，对齐 TS 版 getInitialSettings()
 /// </summary>
 [Register(typeof(ISettingsMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class SettingsReloadMiddleware : ServiceEntity, ISettingsMiddleware
-{
+public sealed partial class SettingsReloadMiddleware : ServiceEntity, ISettingsMiddleware {
     /// <inheritdoc />
 
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public async Task InvokeAsync(SettingsContext context, MiddlewareDelegate<SettingsContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(SettingsContext context, MiddlewareDelegate<SettingsContext> next, CancellationToken ct) {
         var newSettings = await ConfigLoader.LoadSettingsJsonAsync(context.FileSystem, ct).ConfigureAwait(false);
         context.NewSettings = newSettings;
 

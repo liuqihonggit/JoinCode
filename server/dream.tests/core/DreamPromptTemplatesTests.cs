@@ -1,10 +1,8 @@
 namespace Dream.Tests;
 
-public class DreamPromptTemplatesTests
-{
+public class DreamPromptTemplatesTests {
     [Fact]
-    public void GetAllTemplates_ContainsConsolidation()
-    {
+    public void GetAllTemplates_ContainsConsolidation() {
         var templates = DreamPromptTemplates.GetAllTemplates().ToList();
 
         var consolidation = templates.FirstOrDefault(t => t.Name == "consolidation");
@@ -14,8 +12,7 @@ public class DreamPromptTemplatesTests
     }
 
     [Fact]
-    public void GetContent_ReturnsNullForParameterizedTemplate()
-    {
+    public void GetContent_ReturnsNullForParameterizedTemplate() {
         var content = DreamPromptTemplates.GetContent("consolidation");
 
         content.Should().BeNull();

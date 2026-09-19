@@ -5,8 +5,7 @@ namespace Infrastructure.IO.Services.FileOps;
 /// Search service implementation - provides Glob and Grep search capabilities
 /// </summary>
 [Register(typeof(ISearchService), ServiceLifetime.Singleton)]
-public sealed partial class SearchService : ServiceEntity, ISearchService
-{
+public sealed partial class SearchService : ServiceEntity, ISearchService {
     private readonly ILogger<SearchService>? _logger;
     private readonly IFileOperationService _fileOperationService;
     private readonly ITelemetryService? _telemetryService;
@@ -23,8 +22,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         IFileOperationService fileOperationService,
         IFileSystem fs,
         ILogger<SearchService>? logger = null,
-        ITelemetryService? telemetryService = null)
-    {
+        ITelemetryService? telemetryService = null) {
         _fileOperationService = fileOperationService;
         _fs = fs;
         _logger = logger;
@@ -35,22 +33,18 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     public async Task<GlobSearchResult> GlobSearchAsync(
         string pattern,
         string? path = null,
-        CancellationToken cancellationToken = default)
-    {
-        return await Task.Run(async () =>
-        {
+        CancellationToken cancellationToken = default) {
+        return await Task.Run(async () => {
             var stopwatch = Stopwatch.StartNew();
             await using var span = _telemetryService?.StartSpan("search.glob", TelemetrySpanKind.Server);
             span?.SetTag("pattern", pattern);
 
-            try
-            {
+            try {
                 var baseDir = string.IsNullOrEmpty(path)
                     ? _fileOperationService.GetCurrentDirectory()
                     : _fileOperationService.GetFullPath(path);
 
-                if (!_fileOperationService.DirectoryExists(baseDir))
-                {
+                if (!_fileOperationService.DirectoryExists(baseDir)) {
                     RecordSearchMetrics("glob", stopwatch.ElapsedMilliseconds, false);
                     return GlobSearchResult.FailureResult($"Directory does not exist: {baseDir}");
                 }
@@ -59,8 +53,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                 // ripgrep 的 --glob 只接受相对模式，Matcher 同理
                 var (effectiveBaseDir, relativePattern) = ExtractGlobBaseDirectory(pattern, baseDir);
 
-                if (!_fileOperationService.DirectoryExists(effectiveBaseDir))
-                {
+                if (!_fileOperationService.DirectoryExists(effectiveBaseDir)) {
                     RecordSearchMetrics("glob", stopwatch.ElapsedMilliseconds, false);
                     return GlobSearchResult.FailureResult($"Directory does not exist: {effectiveBaseDir}");
                 }
@@ -73,14 +66,12 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                 // 优化：多个展开模式共享一次文件枚举（对齐 ripgrep 单次扫描行为）
                 // 先构建所有 Matcher，再统一枚举一次
                 var matchers = new List<Matcher>(expandedPatterns.Count);
-                foreach (var pat in expandedPatterns)
-                {
+                foreach (var pat in expandedPatterns) {
                     var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
                     matcher.AddInclude(pat);
 
                     // 排除 VCS 目录（对齐 TS: .git/.svn/.hg/.bzr/.jj/.sl）
-                    foreach (var vcsDir in VcsDirectoryExclusions.Names)
-                    {
+                    foreach (var vcsDir in VcsDirectoryExclusions.Names) {
                         matcher.AddExclude($"**/{vcsDir}/**");
                     }
 
@@ -90,8 +81,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                 // 一次枚举所有文件，多个 Matcher 共享遍历
                 var allFiles = _fileOperationService.EnumerateFiles(effectiveBaseDir, "*", SearchOption.AllDirectories);
                 var normalizedBase = effectiveBaseDir.Replace('\\', '/').TrimStart('/');
-                foreach (var filePath in allFiles)
-                {
+                foreach (var filePath in allFiles) {
                     cancellationToken.ThrowIfCancellationRequested();
 
                     var normalizedFile = filePath.Replace('\\', '/').TrimStart('/');
@@ -100,12 +90,9 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                         : normalizedFile;
 
                     // 任意 Matcher 匹配即可（OR 语义，对齐 ripgrep 多 --glob 参数）
-                    foreach (var matcher in matchers)
-                    {
-                        if (matcher.Match(relativePath).HasMatches)
-                        {
-                            if (seen.Add(filePath))
-                            {
+                    foreach (var matcher in matchers) {
+                        if (matcher.Match(relativePath).HasMatches) {
+                            if (seen.Add(filePath)) {
                                 matches.Add(filePath);
                             }
                             break;
@@ -136,13 +123,9 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                     stopwatch.ElapsedMilliseconds,
                     resultFiles,
                     truncated);
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 throw;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "Glob search failed: {Pattern}", pattern);
                 RecordSearchMetrics("glob", stopwatch.ElapsedMilliseconds, false);
                 return GlobSearchResult.FailureResult(ex.Message);
@@ -153,12 +136,10 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     /// <inheritdoc />
     public async Task<GrepSearchResult> GrepSearchAsync(
         GrepSearchInput input,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         await using var span = _telemetryService?.StartSpan("search.grep", TelemetrySpanKind.Server);
         span?.SetTag("pattern", input.Pattern);
-        try
-        {
+        try {
             // 入口处检查取消，对齐 TS ripgrep 超时取消行为
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -166,8 +147,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                 ? _fileOperationService.GetCurrentDirectory()
                 : _fileOperationService.GetFullPath(input.Path);
 
-            if (!_fileOperationService.DirectoryExists(basePath) && !_fileOperationService.FileExists(basePath))
-            {
+            if (!_fileOperationService.DirectoryExists(basePath) && !_fileOperationService.FileExists(basePath)) {
                 RecordSearchMetrics("grep", 0, false);
                 return GrepSearchResult.FailureResult($"Path does not exist: {basePath}");
             }
@@ -175,8 +155,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
             // Compile regex — 使用 Compiled 提升匹配性能（对齐 ripgrep 的高性能正则引擎）
             var (compiledRegex, regexError) = SearchRegexCompiler.Compile(
                 input.Pattern, input.CaseInsensitive, input.Multiline);
-            if (regexError is not null)
-            {
+            if (regexError is not null) {
                 RecordSearchMetrics("grep", 0, false);
                 return GrepSearchResult.FailureResult($"Invalid regular expression: {regexError}");
             }
@@ -191,24 +170,19 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
             var filesToSearch = CollectSearchFiles(basePath, input.Glob, input.FileType, input.DenyPatterns, cancellationToken);
 
             // Search files in parallel
-            var searchTasks = filesToSearch.Select(async filePath =>
-            {
+            var searchTasks = filesToSearch.Select(async filePath => {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                try
-                {
+                try {
                     var readResult = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-                    if (!readResult.Success)
-                    {
+                    if (!readResult.Success) {
                         return null;
                     }
                     var fileContent = readResult.Content;
 
-                    if (input.OutputMode == SearchOutputMode.Count)
-                    {
+                    if (input.OutputMode == SearchOutputMode.Count) {
                         var count = regex.Matches(fileContent).Count;
-                        if (count > 0)
-                        {
+                        if (count > 0) {
                             return new FileSearchResult(filePath, count, null);
                         }
                         return null;
@@ -218,39 +192,30 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                     var lineRanges = LineSpanIndexer.BuildLineRanges(contentSpan);
 
                     var matchedLines = new List<int>();
-                    for (var i = 0; i < lineRanges.Count; i++)
-                    {
+                    for (var i = 0; i < lineRanges.Count; i++) {
                         var (s, l) = lineRanges[i];
-                        if (regex.IsMatch(contentSpan.Slice(s, l)))
-                        {
+                        if (regex.IsMatch(contentSpan.Slice(s, l))) {
                             matchedLines.Add(i);
                         }
                     }
 
-                    if (matchedLines.Count == 0)
-                    {
+                    if (matchedLines.Count == 0) {
                         return null;
                     }
 
                     var fileContentLines = new List<string>();
-                    if (input.OutputMode == SearchOutputMode.Content)
-                    {
-                        foreach (var index in matchedLines)
-                        {
+                    if (input.OutputMode == SearchOutputMode.Content) {
+                        foreach (var index in matchedLines) {
                             var start = Math.Max(0, index - (input.Before ?? context));
                             var end = Math.Min(lineRanges.Count, index + (input.After ?? context) + 1);
 
-                            for (var current = start; current < end; current++)
-                            {
+                            for (var current = start; current < end; current++) {
                                 var (ls, ll) = lineRanges[current];
                                 var lineSpan = contentSpan.Slice(ls, ll);
                                 string lineContent;
-                                if (lineSpan.Length > MaxContentLineLength)
-                                {
+                                if (lineSpan.Length > MaxContentLineLength) {
                                     lineContent = string.Concat(lineSpan.Slice(0, MaxContentLineLength).ToString(), "...");
-                                }
-                                else
-                                {
+                                } else {
                                     lineContent = lineSpan.ToString();
                                 }
                                 var prefix = input.LineNumbers
@@ -262,9 +227,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                     }
 
                     return new FileSearchResult(filePath, matchedLines.Count, fileContentLines);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "Failed to read file: {FilePath}", filePath);
                     return null;
                 }
@@ -272,16 +235,14 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
 
             var searchResults = await Task.WhenAll(searchTasks).ConfigureAwait(false);
 
-            foreach (var result in searchResults.OfType<FileSearchResult>())
-            {
+            foreach (var result in searchResults.OfType<FileSearchResult>()) {
                 filenames.Add(result.FilePath);
                 totalMatches += result.MatchCount;
                 contentLines.AddRange(result.ContentLines ?? []);
             }
 
             // Sort files_with_matches by mtime (newest first, aligned with TS)
-            if (input.OutputMode == SearchOutputMode.Files)
-            {
+            if (input.OutputMode == SearchOutputMode.Files) {
                 filenames = filenames
                     .Select(f => new { Path = f, Time = _fileOperationService.GetFileLastWriteTime(f) })
                     .OrderByDescending(x => x.Time)
@@ -290,50 +251,44 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                     .ToList();
             }
 
-                // Apply limit and offset
-                var (filteredFilenames, appliedLimit, appliedOffset) = ApplyLimit(
-                    filenames, input.HeadLimit, input.Offset);
+            // Apply limit and offset
+            var (filteredFilenames, appliedLimit, appliedOffset) = ApplyLimit(
+                filenames, input.HeadLimit, input.Offset);
 
-                if (input.OutputMode == SearchOutputMode.Content)
-                {
-                    var (filteredLines, lineLimit, lineOffset) = ApplyLimit(
-                        contentLines, input.HeadLimit, input.Offset);
-
-                    RecordSearchMetrics("grep", 0, true, filenames.Count);
-                    return GrepSearchResult.SuccessResult(
-                        input.OutputMode.ToValue(),
-                        filteredFilenames,
-                        string.Join("\n", filteredLines),
-                        filteredLines.Count,
-                        null,
-                        lineLimit,
-                        lineOffset);
-                }
+            if (input.OutputMode == SearchOutputMode.Content) {
+                var (filteredLines, lineLimit, lineOffset) = ApplyLimit(
+                    contentLines, input.HeadLimit, input.Offset);
 
                 RecordSearchMetrics("grep", 0, true, filenames.Count);
                 return GrepSearchResult.SuccessResult(
                     input.OutputMode.ToValue(),
                     filteredFilenames,
+                    string.Join("\n", filteredLines),
+                    filteredLines.Count,
                     null,
-                    null,
-                    input.OutputMode == SearchOutputMode.Count ? totalMatches : null,
-                    appliedLimit,
-                    appliedOffset);
+                    lineLimit,
+                    lineOffset);
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Grep search failed: {Pattern}", input.Pattern);
-                RecordSearchMetrics("grep", 0, false);
-                return GrepSearchResult.FailureResult(ex.Message);
-            }
+
+            RecordSearchMetrics("grep", 0, true, filenames.Count);
+            return GrepSearchResult.SuccessResult(
+                input.OutputMode.ToValue(),
+                filteredFilenames,
+                null,
+                null,
+                input.OutputMode == SearchOutputMode.Count ? totalMatches : null,
+                appliedLimit,
+                appliedOffset);
+        } catch (OperationCanceledException) {
+            throw;
+        } catch (Exception ex) {
+            _logger?.LogError(ex, "Grep search failed: {Pattern}", input.Pattern);
+            RecordSearchMetrics("grep", 0, false);
+            return GrepSearchResult.FailureResult(ex.Message);
+        }
     }
 
-    private void RecordSearchMetrics(string kind, long elapsedMs, bool isSuccess, int resultCount = 0)
-    {
+    private void RecordSearchMetrics(string kind, long elapsedMs, bool isSuccess, int resultCount = 0) {
         _telemetryService?.RecordCount("search.operation.count", new Dictionary<string, string> { ["kind"] = kind, ["success"] = isSuccess.ToString() }, "count", "Search operation count");
         if (isSuccess && elapsedMs > 0)
             _telemetryService?.RecordHistogram("search.operation.duration", elapsedMs, new Dictionary<string, string> { ["kind"] = kind }, "ms", "Search operation duration");
@@ -346,45 +301,37 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     /// 对齐 TS extractGlobBaseDirectory: 找到第一个 glob 特殊字符（* ? [ {），
     /// 其之前的静态路径部分作为基目录，剩余部分作为相对模式
     /// </summary>
-    private static (string BaseDir, string RelativePattern) ExtractGlobBaseDirectory(string pattern, string defaultBaseDir)
-    {
-        if (!Path.IsPathFullyQualified(pattern))
-        {
+    private static (string BaseDir, string RelativePattern) ExtractGlobBaseDirectory(string pattern, string defaultBaseDir) {
+        if (!Path.IsPathFullyQualified(pattern)) {
             return (defaultBaseDir, pattern);
         }
 
         // 找到第一个 glob 特殊字符的位置
         var globChars = pattern.AsSpan();
         var firstGlobPos = -1;
-        for (var i = 0; i < globChars.Length; i++)
-        {
+        for (var i = 0; i < globChars.Length; i++) {
             var c = globChars[i];
-            if (c is '*' or '?' or '[' or '{')
-            {
+            if (c is '*' or '?' or '[' or '{') {
                 firstGlobPos = i;
                 break;
             }
         }
 
-        if (firstGlobPos == -1)
-        {
+        if (firstGlobPos == -1) {
             // 无 glob 特殊字符，是精确路径
             return (pattern, "*");
         }
 
         // 找到第一个 glob 特殊字符之前的最后一个目录分隔符
         var lastSepPos = -1;
-        for (var i = firstGlobPos - 1; i >= 0; i--)
-        {
-            if (globChars[i] is '/' or '\\')
-            {
+        for (var i = firstGlobPos - 1; i >= 0; i--) {
+            if (globChars[i] is '/' or '\\') {
                 lastSepPos = i;
                 break;
             }
         }
 
-        if (lastSepPos == -1)
-        {
+        if (lastSepPos == -1) {
             // 无目录分隔符，使用默认基目录
             return (defaultBaseDir, pattern);
         }
@@ -398,17 +345,14 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         return (baseDir, relativePattern);
     }
 
-    private static IReadOnlyList<string> ExpandBraces(string pattern)
-    {
+    private static IReadOnlyList<string> ExpandBraces(string pattern) {
         var openIndex = pattern.IndexOf('{');
-        if (openIndex == -1)
-        {
+        if (openIndex == -1) {
             return new List<string> { pattern };
         }
 
         var closeIndex = pattern.IndexOf('}', openIndex);
-        if (closeIndex == -1)
-        {
+        if (closeIndex == -1) {
             // Unmatched brace, treat as literal
             return new List<string> { pattern };
         }
@@ -418,8 +362,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         var alternatives = pattern[(openIndex + 1)..closeIndex].Split(',');
 
         var results = new List<string>();
-        foreach (var alt in alternatives)
-        {
+        foreach (var alt in alternatives) {
             var expanded = ExpandBraces($"{prefix}{alt}{suffix}");
             results.AddRange(expanded);
         }
@@ -433,15 +376,12 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     // 二进制检测缓冲区大小（对齐 ripgrep 的 8KB 采样窗口）
     private const int BinaryDetectionBufferSize = 8192;
 
-    private IReadOnlyList<string> CollectSearchFiles(string basePath, string? globFilter, string? fileType, IReadOnlyList<string>? denyPatterns = null, CancellationToken cancellationToken = default)
-    {
-        if (_fileOperationService.FileExists(basePath))
-        {
+    private IReadOnlyList<string> CollectSearchFiles(string basePath, string? globFilter, string? fileType, IReadOnlyList<string>? denyPatterns = null, CancellationToken cancellationToken = default) {
+        if (_fileOperationService.FileExists(basePath)) {
             return [basePath];
         }
 
-        if (!_fileOperationService.DirectoryExists(basePath))
-        {
+        if (!_fileOperationService.DirectoryExists(basePath)) {
             return [];
         }
 
@@ -454,44 +394,35 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
 
         // 添加 include 模式
-        if (!string.IsNullOrEmpty(globFilter))
-        {
+        if (!string.IsNullOrEmpty(globFilter)) {
             // 展开大括号后添加
-            foreach (var expanded in ExpandBraces(globFilter.Replace('\\', '/')))
-            {
+            foreach (var expanded in ExpandBraces(globFilter.Replace('\\', '/'))) {
                 matcher.AddInclude(expanded);
             }
         }
 
-        if (!string.IsNullOrEmpty(fileType))
-        {
+        if (!string.IsNullOrEmpty(fileType)) {
             // 对齐 ripgrep --type: 使用预定义的文件类型扩展名映射
             // 当 glob 和 type 同时存在时，ripgrep 是 AND 逻辑
-            if (FileTypeExtensionMap.TryGetValue(fileType, out var extensions))
-            {
-                foreach (var ext in extensions)
-                {
+            if (FileTypeExtensionMap.TryGetValue(fileType, out var extensions)) {
+                foreach (var ext in extensions) {
                     if (ext.StartsWith('.'))
                         matcher.AddInclude($"**/*{ext}");
                     else
                         matcher.AddInclude($"**/{ext}");
                 }
-            }
-            else
-            {
+            } else {
                 // 未知类型，回退到简单扩展名匹配
                 matcher.AddInclude($"**/*.{fileType}");
             }
         }
 
-        if (string.IsNullOrEmpty(globFilter) && string.IsNullOrEmpty(fileType))
-        {
+        if (string.IsNullOrEmpty(globFilter) && string.IsNullOrEmpty(fileType)) {
             matcher.AddInclude("**/*");
         }
 
         // 排除 VCS 目录
-        foreach (var vcsDir in VcsDirectoryExclusions.Names)
-        {
+        foreach (var vcsDir in VcsDirectoryExclusions.Names) {
             matcher.AddExclude($"**/{vcsDir}/**");
         }
 
@@ -511,8 +442,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         // 预计算规范化基路径（循环外，避免重复计算）
         var normalizedBase = basePath.Replace('\\', '/').TrimStart('/');
 
-        foreach (var filePath in allFiles)
-        {
+        foreach (var filePath in allFiles) {
             cancellationToken.ThrowIfCancellationRequested();
 
             // 统一路径分隔符为 /，确保相对路径计算正确
@@ -521,10 +451,8 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                 ? normalizedFile[normalizedBase.Length..].TrimStart('/')
                 : normalizedFile;
 
-            if (matcher.Match(relativePath).HasMatches)
-            {
-                if (needsAndFilter && typeExtensions is not null)
-                {
+            if (matcher.Match(relativePath).HasMatches) {
+                if (needsAndFilter && typeExtensions is not null) {
                     var ext = Path.GetExtension(filePath).TrimStart('.');
                     if (!typeExtensions.Contains(ext))
                         continue;
@@ -553,8 +481,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     /// 加载搜索路径及其父目录中的 .gitignore 匹配器
     /// 对齐 ripgrep 行为：从搜索目录向上查找到仓库根目录，收集所有 .gitignore
     /// </summary>
-    private List<GitignoreMatcher> LoadGitignoreMatchers(string searchPath)
-    {
+    private List<GitignoreMatcher> LoadGitignoreMatchers(string searchPath) {
         var matchers = new List<GitignoreMatcher>();
 
         // 内存文件系统路径（非 Windows 绝对路径）无法使用 File.Exists/Directory.Exists
@@ -564,12 +491,10 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         var currentDir = searchPath;
 
         // 向上查找 .gitignore，最多 20 层（防止无限循环）
-        for (var i = 0; i < 20; i++)
-        {
+        for (var i = 0; i < 20; i++) {
             var gitignorePath = Path.Combine(currentDir, ".gitignore");
             var matcher = GitignoreMatcher.FromFile(gitignorePath, _fs);
-            if (matcher is not null)
-            {
+            if (matcher is not null) {
                 matchers.Add(matcher);
             }
 
@@ -592,8 +517,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     /// <summary>
     /// 检查文件是否被 .gitignore 规则忽略
     /// </summary>
-    private static bool IsIgnoredByGitignore(List<GitignoreMatcher> matchers, string filePath, string basePath)
-    {
+    private static bool IsIgnoredByGitignore(List<GitignoreMatcher> matchers, string filePath, string basePath) {
         if (matchers.Count == 0)
             return false;
 
@@ -604,8 +528,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
             ? normalizedFile[(normalizedBase.Length + 1)..]
             : normalizedFile;
 
-        foreach (var matcher in matchers)
-        {
+        foreach (var matcher in matchers) {
             if (matcher.IsIgnored(relativePath))
                 return true;
         }
@@ -617,8 +540,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     /// 检查文件是否被 Read deny 规则排除 — 对齐 TS getFileReadIgnorePatterns
     /// deny 模式已规范化为相对路径，匹配时将文件路径也转为相对路径
     /// </summary>
-    private static bool IsDeniedByPatterns(string filePath, string basePath, IReadOnlyList<string>? denyPatterns)
-    {
+    private static bool IsDeniedByPatterns(string filePath, string basePath, IReadOnlyList<string>? denyPatterns) {
         if (denyPatterns is null || denyPatterns.Count == 0)
             return false;
 
@@ -628,14 +550,12 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
             ? normalizedFile[(normalizedBase.Length + 1)..]
             : normalizedFile;
 
-        for (var i = 0; i < denyPatterns.Count; i++)
-        {
+        for (var i = 0; i < denyPatterns.Count; i++) {
             var pattern = denyPatterns[i];
             // 对齐 TS: 绝对模式直接匹配路径，相对模式匹配任意深度
             if (relativePath.Contains(pattern, StringComparison.OrdinalIgnoreCase) ||
                 relativePath.EndsWith(pattern, StringComparison.OrdinalIgnoreCase) ||
-                normalizedFile.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-            {
+                normalizedFile.Contains(pattern, StringComparison.OrdinalIgnoreCase)) {
                 return true;
             }
         }
@@ -647,22 +567,18 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     /// 检测文件是否为二进制文件
     /// 对齐 ripgrep 行为：先检查扩展名白名单，再采样前 8KB 检测 null 字节和非打印字符
     /// </summary>
-    private bool IsBinaryFile(string filePath)
-    {
+    private bool IsBinaryFile(string filePath) {
         // 快速路径：已知二进制扩展名直接跳过
-        if (BinaryFileDetector.IsBinaryByExtension(filePath))
-        {
+        if (BinaryFileDetector.IsBinaryByExtension(filePath)) {
             return true;
         }
 
         // 内存文件系统路径（非 Windows 绝对路径）无法使用 FileStream，跳过内容检测
-        if (!Path.IsPathFullyQualified(filePath) || !_fs.FileExists(filePath))
-        {
+        if (!Path.IsPathFullyQualified(filePath) || !_fs.FileExists(filePath)) {
             return false;
         }
 
-        try
-        {
+        try {
             using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             var buffer = new byte[BinaryDetectionBufferSize];
             var bytesRead = stream.Read(buffer);
@@ -670,23 +586,19 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
             if (bytesRead == 0) return false;
 
             var nonPrintableCount = 0;
-            for (var i = 0; i < bytesRead; i++)
-            {
+            for (var i = 0; i < bytesRead; i++) {
                 var b = buffer[i];
                 // Null 字节始终视为二进制（对齐 ripgrep）
                 if (b == 0) return true;
                 // 统计非打印字符（排除 TAB=9, LF=10, CR=13）
-                if (b < 0x20 && b is not (9 or 10 or 13))
-                {
+                if (b < 0x20 && b is not (9 or 10 or 13)) {
                     nonPrintableCount++;
                 }
             }
 
             // 超过 10% 非打印字符视为二进制
             return nonPrintableCount > bytesRead / 10;
-        }
-        catch
-        {
+        } catch {
             return true;
         }
     }
@@ -694,20 +606,17 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     private static (List<T> Items, int? AppliedLimit, int? AppliedOffset) ApplyLimit<T>(
         List<T> items,
         int? headLimit,
-        int? offset)
-    {
+        int? offset) {
         var offsetValue = offset ?? 0;
         var result = items.Skip(offsetValue).ToList();
 
         var explicitLimit = headLimit ?? WorkflowConstants.Limits.DefaultGrepResultLimit;
-        if (explicitLimit == 0)
-        {
+        if (explicitLimit == 0) {
             return (result, null, offsetValue > 0 ? offsetValue : null);
         }
 
         var truncated = result.Count > explicitLimit;
-        if (truncated)
-        {
+        if (truncated) {
             result = result.Take(explicitLimit).ToList();
         }
 

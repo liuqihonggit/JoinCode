@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 超时后协调者自动接管（用户可能睡觉/离开）
 /// 不修改底层 IInteractiveService，Goal 层专用
 /// </summary>
-public interface IGoalUserInteraction
-{
+public interface IGoalUserInteraction {
     /// <summary>
     /// 带超时询问用户是否继续循环
     /// </summary>
@@ -28,8 +27,7 @@ public interface IGoalUserInteraction
 /// <summary>
 /// Goal 用户决策结果
 /// </summary>
-public sealed record GoalUserDecision
-{
+public sealed record GoalUserDecision {
     /// <summary>用户选择继续循环</summary>
     public bool ShouldContinue { get; init; }
 
@@ -39,20 +37,17 @@ public sealed record GoalUserDecision
     /// <summary>决策原因</summary>
     public string? Reason { get; init; }
 
-    public static GoalUserDecision Continue(string? reason = null) => new()
-    {
+    public static GoalUserDecision Continue(string? reason = null) => new() {
         ShouldContinue = true,
         Reason = reason ?? "User chose to continue",
     };
 
-    public static GoalUserDecision Stop(string? reason = null) => new()
-    {
+    public static GoalUserDecision Stop(string? reason = null) => new() {
         ShouldContinue = false,
         Reason = reason ?? "User chose to stop",
     };
 
-    public static GoalUserDecision CoordinatorTakeover(string? reason = null) => new()
-    {
+    public static GoalUserDecision CoordinatorTakeover(string? reason = null) => new() {
         ShouldContinue = false,
         CoordinatorTakenOver = true,
         Reason = reason ?? "Coordinator takeover due to timeout",

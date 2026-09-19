@@ -1,8 +1,7 @@
 namespace JoinCode.Abstractions.Attributes;
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-public sealed class McpToolAttribute : Attribute
-{
+public sealed class McpToolAttribute : Attribute {
     public string Name { get; }
     public string Description { get; }
     public string Category { get; }
@@ -26,8 +25,7 @@ public sealed class McpToolAttribute : Attribute
     /// </summary>
     public string? GroupName { get; set; }
 
-    public McpToolAttribute(string name, string description, string category = "other")
-    {
+    public McpToolAttribute(string name, string description, string category = "other") {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         Description = description ?? throw new ArgumentNullException(nameof(description));
         Category = category ?? throw new ArgumentNullException(nameof(category));
@@ -37,8 +35,7 @@ public sealed class McpToolAttribute : Attribute
 /// <summary>
 /// McpToolAttribute.Kind 参数常量 — C# 特性不支持 nullable enum，使用 int + 常量
 /// </summary>
-public static class ToolKindEnumConstants
-{
+public static class ToolKindEnumConstants {
     /// <summary>未设置 — 继承类级 Kind</summary>
     public const int Unset = -1;
 

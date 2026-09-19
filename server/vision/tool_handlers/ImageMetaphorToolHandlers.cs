@@ -6,8 +6,7 @@ namespace JoinCode.Vision.ToolHandlers;
 /// 膨胀停止：token 预算(默认2000) + 层数上限(默认3) 双保险
 /// </summary>
 [McpToolDispatch(ToolCategory.Vision)]
-public class ImageMetaphorToolHandlers
-{
+public class ImageMetaphorToolHandlers {
     private readonly IQueryService _queryService;
     private readonly ILogger<ImageMetaphorToolHandlers>? _logger;
 
@@ -15,8 +14,7 @@ public class ImageMetaphorToolHandlers
 
     /// <param name="queryService">LLM 查询服务 — 发送图片到多模态模型获取结构化描述</param>
     /// <param name="logger">可选日志器</param>
-    public ImageMetaphorToolHandlers(IQueryService queryService, ILogger<ImageMetaphorToolHandlers>? logger = null)
-    {
+    public ImageMetaphorToolHandlers(IQueryService queryService, ILogger<ImageMetaphorToolHandlers>? logger = null) {
         _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
         _logger = logger;
     }
@@ -26,15 +24,13 @@ public class ImageMetaphorToolHandlers
     public async Task<ToolResult> ImageDescribeAsync(
         [McpToolParameter("图片 base64 编码", Required = true)] string imageBase64,
         [McpToolParameter("最大标签数，默认10", Required = false)] int maxLabels = 10,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(imageBase64))
             return ToolResultBuilder.Error().WithText("[VIS200] imageBase64 不能为空").Build();
 
         var messages = new MessageList();
         messages.AddSystemMessage(DescribeSystemPrompt);
-        messages.Add(new ApiMessage(MessageRole.User, $"请分析这张图片，最多识别 {maxLabels} 个标签，以JSON格式返回。")
-        {
+        messages.Add(new ApiMessage(MessageRole.User, $"请分析这张图片，最多识别 {maxLabels} 个标签，以JSON格式返回。") {
             ContentBlocks = [new ToolContent { Type = ToolContentType.Image, Data = imageBase64, MimeType = "image/png" }]
         });
 
@@ -53,8 +49,7 @@ public class ImageMetaphorToolHandlers
         sb.AppendLine($"图片摘要: {result.Summary}");
         sb.AppendLine($"标签数: {result.Labels.Count}");
         sb.AppendLine();
-        for (var i = 0; i < result.Labels.Count; i++)
-        {
+        for (var i = 0; i < result.Labels.Count; i++) {
             var label = result.Labels[i];
             sb.AppendLine($"  [{i + 1}] {label.Label} — {label.Description}");
             if (label.SuggestedAttributes.Count > 0)
@@ -75,8 +70,7 @@ public class ImageMetaphorToolHandlers
         [McpToolParameter("当前下钻深度（0=顶层，首次下钻传1）", Required = false)] int currentDepth = 1,
         [McpToolParameter("最大下钻深度，默认3", Required = false)] int maxDepth = 3,
         [McpToolParameter("token 预算上限，默认2000", Required = false)] int tokenBudget = 2000,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(imageBase64))
             return ToolResultBuilder.Error().WithText("[VIS210] imageBase64 不能为空").Build();
         if (string.IsNullOrWhiteSpace(label))
@@ -88,8 +82,7 @@ public class ImageMetaphorToolHandlers
         var drillOptions = new ChatOptions { Temperature = 0.3f, MaxTokens = tokenBudget };
         var messages = new MessageList();
         messages.AddSystemMessage(DrillDownSystemPrompt);
-        messages.Add(new ApiMessage(MessageRole.User, $"请深入分析图片中「{label}」的详细属性（当前深度 {currentDepth}/{maxDepth}），以JSON格式返回。")
-        {
+        messages.Add(new ApiMessage(MessageRole.User, $"请深入分析图片中「{label}」的详细属性（当前深度 {currentDepth}/{maxDepth}），以JSON格式返回。") {
             ContentBlocks = [new ToolContent { Type = ToolContentType.Image, Data = imageBase64, MimeType = "image/png" }]
         });
 
@@ -108,13 +101,11 @@ public class ImageMetaphorToolHandlers
         sb.AppendLine($"标签: {result.Label} (深度 {currentDepth}/{maxDepth})");
         sb.AppendLine($"属性数: {result.Attributes.Count}");
         sb.AppendLine();
-        foreach (var attr in result.Attributes)
-        {
+        foreach (var attr in result.Attributes) {
             sb.AppendLine($"  {attr.Name}: {attr.Value} (置信度={attr.Confidence:F2})");
         }
 
-        if (result.SuggestedNext.Count > 0)
-        {
+        if (result.SuggestedNext.Count > 0) {
             sb.AppendLine();
             sb.AppendLine($"建议下一步下钻: {string.Join(", ", result.SuggestedNext)}");
         }

@@ -4,14 +4,12 @@ namespace Core.Query;
 /// 状态转换中间件 — 查询开始前和完成后转换查询状态
 /// </summary>
 [Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class StateTransitionMiddleware : ServiceEntity, IQueryMiddleware
-{
+public sealed partial class StateTransitionMiddleware : ServiceEntity, IQueryMiddleware {
     /// <summary>
     /// 构造函数 — 注入查询状态转换器（可选）
     /// </summary>
     /// <param name="stateTransitions">查询状态转换器</param>
-    public StateTransitionMiddleware(IQueryStateTransitions? stateTransitions = null)
-    {
+    public StateTransitionMiddleware(IQueryStateTransitions? stateTransitions = null) {
         _stateTransitions = stateTransitions;
     }
     private readonly IQueryStateTransitions? _stateTransitions;
@@ -29,13 +27,10 @@ public sealed partial class StateTransitionMiddleware : ServiceEntity, IQueryMid
     /// <param name="next">下一委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct)
-    {
-        if (_stateTransitions is not null)
-        {
+    public async Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct) {
+        if (_stateTransitions is not null) {
             var current = _stateTransitions.CurrentState;
-            if (current is QueryState.Completed or QueryState.Failed or QueryState.Cancelled or QueryState.Running)
-            {
+            if (current is QueryState.Completed or QueryState.Failed or QueryState.Cancelled or QueryState.Running) {
                 _stateTransitions.Reset();
             }
 
@@ -45,8 +40,7 @@ public sealed partial class StateTransitionMiddleware : ServiceEntity, IQueryMid
 
         await next(context, ct).ConfigureAwait(false);
 
-        if (_stateTransitions is not null && context.IsQueryComplete)
-        {
+        if (_stateTransitions is not null && context.IsQueryComplete) {
             _stateTransitions.TransitionTo(QueryState.Completed);
         }
     }

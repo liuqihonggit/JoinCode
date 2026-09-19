@@ -4,23 +4,19 @@ namespace JoinCode.CliCommands;
 /// MCP 工具命令执行器 — 扁平元动词 mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve 的共享逻辑。
 /// <para>ADR: 0069 — 从 System.CommandLine.Command 迁移为纯静态类，子命令路由由 FlatSubCommandRouter 处理。</para>
 /// </summary>
-public sealed class McpCliCommand
-{
+public sealed class McpCliCommand {
     private static readonly Cli.Output.CliOutputJsonContext JsonCtx = Cli.Output.CliOutputJsonContext.Default;
 
     internal static Task<int> ExecuteCallAsync(
         string toolName, string? args, string[]? kvArgs, string? argsFile, bool argsStdin, bool json,
-        string? vendor = null, string? model = null, CancellationToken ct = default)
-    {
+        string? vendor = null, string? model = null, CancellationToken ct = default) {
         var argDict = ParseArgs(args, kvArgs, argsFile, argsStdin);
         if (argDict is null)
             return Task.FromResult(OutputError("参数解析失败", json));
 
-        return WithHostAsync(async services =>
-        {
+        return WithHostAsync(async services => {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
-            if (!await registry.ContainsToolAsync(toolName, ct).ConfigureAwait(false))
-            {
+            if (!await registry.ContainsToolAsync(toolName, ct).ConfigureAwait(false)) {
                 var allTools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
                 var suggestions = LlmJsonHelper.SuggestToolNames(toolName, allTools.Keys);
                 var msg = suggestions.Count > 0
@@ -34,13 +30,11 @@ public sealed class McpCliCommand
     }
 
     internal static Task<int> ExecuteListAsync(string? category, bool json, CancellationToken ct = default)
-        => WithHostAsync(async services =>
-        {
+        => WithHostAsync(async services => {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
             var tools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
 
-            if (json)
-            {
+            if (json) {
                 var filtered = tools.Values
                     .Where(t => string.IsNullOrEmpty(category) || string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
                     .ToList();
@@ -50,16 +44,13 @@ public sealed class McpCliCommand
                     .ToList();
                 var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
                 System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, JsonCtx));
-            }
-            else
-            {
+            } else {
                 var grouped = tools.Values
                     .Where(t => string.IsNullOrEmpty(category) || string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
                     .GroupBy(t => t.Category ?? "(无分类)")
                     .OrderBy(g => g.Key);
 
-                foreach (var g in grouped)
-                {
+                foreach (var g in grouped) {
                     TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleEnumConstants.Reset} ({g.Count()}): {string.Join(", ", g.OrderBy(t => t.Name).Select(t => t.Name))}");
                 }
                 TerminalHelper.NewLine();
@@ -69,8 +60,7 @@ public sealed class McpCliCommand
         }, ct: ct);
 
     internal static Task<int> ExecuteSearchAsync(string query, bool json, CancellationToken ct = default)
-        => WithHostAsync(async services =>
-        {
+        => WithHostAsync(async services => {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
             var allTools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
 
@@ -78,68 +68,58 @@ public sealed class McpCliCommand
                 .Select(t => new DeferredToolInfo(t.Name, t.Description, null, t.Kind == ToolKind.Mcp, t.Category, t.GroupName))
                 .ToList();
             var engine = new ToolSearchEngine(deferredTools);
-        var result = engine.Search(query, 20);
+            var result = engine.Search(query, 20);
 
-        if (json)
-        {
-            var count = result.MatchedToolNames.Count;
-            var items = result.MatchedToolNames.Select(name => new Cli.Output.CliToolSearchItem(
-                name,
-                allTools.TryGetValue(name, out var t) ? t.Description : null,
-                allTools.TryGetValue(name, out var t2) ? t2.Category : null)).ToList();
-            var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
-            System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, JsonCtx));
-        }
-        else
-        {
-            TerminalHelper.WriteLine($"搜索 '{query}' 结果 ({result.MatchedToolNames.Count}/{allTools.Count}):");
-            foreach (var name in result.MatchedToolNames)
-            {
-                if (allTools.TryGetValue(name, out var t))
-                    TerminalHelper.WriteLine($"  [{t.Category ?? "?"}] {name}: {t.Description}");
-                else
-                    TerminalHelper.WriteLine($"  {name}");
+            if (json) {
+                var count = result.MatchedToolNames.Count;
+                var items = result.MatchedToolNames.Select(name => new Cli.Output.CliToolSearchItem(
+                    name,
+                    allTools.TryGetValue(name, out var t) ? t.Description : null,
+                    allTools.TryGetValue(name, out var t2) ? t2.Category : null)).ToList();
+                var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
+                System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, JsonCtx));
+            } else {
+                TerminalHelper.WriteLine($"搜索 '{query}' 结果 ({result.MatchedToolNames.Count}/{allTools.Count}):");
+                foreach (var name in result.MatchedToolNames) {
+                    if (allTools.TryGetValue(name, out var t))
+                        TerminalHelper.WriteLine($"  [{t.Category ?? "?"}] {name}: {t.Description}");
+                    else
+                        TerminalHelper.WriteLine($"  {name}");
+                }
             }
-        }
-        return 0;
-    }, ct: ct);
+            return 0;
+        }, ct: ct);
 
     internal static Task<int> ExecuteSchemaAsync(string toolName, bool json, CancellationToken ct = default)
-        => WithHostAsync(async services =>
-        {
+        => WithHostAsync(async services => {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
             var info = await registry.GetToolInfoAsync(toolName, ct).ConfigureAwait(false);
 
-        if (info is null)
-        {
-            var allTools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
-            var suggestions = LlmJsonHelper.SuggestToolNames(toolName, allTools.Keys);
-            var msg = suggestions.Count > 0
-                ? $"未找到工具: {toolName}。是否想用: {string.Join(", ", suggestions)}?（用 jcc mcp_schema <工具名> 查看参数）"
-                : $"未找到工具: {toolName}（用 jcc mcp_list 查看已注册工具）";
-            return OutputError(msg, json);
-        }
+            if (info is null) {
+                var allTools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
+                var suggestions = LlmJsonHelper.SuggestToolNames(toolName, allTools.Keys);
+                var msg = suggestions.Count > 0
+                    ? $"未找到工具: {toolName}。是否想用: {string.Join(", ", suggestions)}?（用 jcc mcp_schema <工具名> 查看参数）"
+                    : $"未找到工具: {toolName}（用 jcc mcp_list 查看已注册工具）";
+                return OutputError(msg, json);
+            }
 
-        if (json)
-        {
-            var schemaJson = RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default);
-            System.Console.WriteLine($"{{\"ok\":true,\"data\":{schemaJson},\"meta\":{{\"totalCount\":1}},\"schemaVersion\":\"1\"}}");
-        }
-        else
-        {
-            TerminalHelper.WriteLine($"工具: {info.Name}");
-            TerminalHelper.WriteLine($"描述: {info.Description}");
-            TerminalHelper.WriteLine($"分类: {info.Category ?? "(无)"}");
-            TerminalHelper.WriteLine($"参数 Schema:");
-            System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
-            TerminalHelper.NewLine();
-            TerminalHelper.WriteLine(LlmJsonHelper.BuildShellCallExamples(info.Name, info.InputSchema));
-        }
-        return 0;
-    }, ct: ct);
+            if (json) {
+                var schemaJson = RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default);
+                System.Console.WriteLine($"{{\"ok\":true,\"data\":{schemaJson},\"meta\":{{\"totalCount\":1}},\"schemaVersion\":\"1\"}}");
+            } else {
+                TerminalHelper.WriteLine($"工具: {info.Name}");
+                TerminalHelper.WriteLine($"描述: {info.Description}");
+                TerminalHelper.WriteLine($"分类: {info.Category ?? "(无)"}");
+                TerminalHelper.WriteLine($"参数 Schema:");
+                System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
+                TerminalHelper.NewLine();
+                TerminalHelper.WriteLine(LlmJsonHelper.BuildShellCallExamples(info.Name, info.InputSchema));
+            }
+            return 0;
+        }, ct: ct);
 
-    internal static async Task<IAsyncHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default)
-    {
+    internal static async Task<IAsyncHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default) {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true, SkipProviderValidation = true };
         if (!string.IsNullOrEmpty(vendor))
@@ -153,11 +133,9 @@ public sealed class McpCliCommand
         return result.Host;
     }
 
-    internal static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct, int? awaitSeconds = null)
-    {
+    internal static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct, int? awaitSeconds = null) {
         if (!string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(transport, "http", StringComparison.OrdinalIgnoreCase))
-        {
+            && !string.Equals(transport, "http", StringComparison.OrdinalIgnoreCase)) {
             TerminalHelper.WriteError($"不支持的传输方式: {transport}（仅支持 stdio 或 http）");
             return 1;
         }
@@ -171,21 +149,16 @@ public sealed class McpCliCommand
 
         // --await N: 子命令级超时,优雅退出并输出结构化信息
         using var serveCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        if (awaitSeconds is { } secs && secs > 0)
-        {
+        if (awaitSeconds is { } secs && secs > 0) {
             serveCts.CancelAfter(TimeSpan.FromSeconds(secs));
             TerminalHelper.WriteLine($"{TerminalColors.Info}--await {secs}s{AnsiStyleEnumConstants.Reset} 超时计时器已启动");
         }
 
-        if (string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase)) {
             TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleEnumConstants.Reset} stdio 模式启动，暴露 {toolCount} 个工具");
-            try
-            {
+            try {
                 await server.RunAsync(serveCts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (serveCts.Token.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (serveCts.Token.IsCancellationRequested) {
                 WriteServeExitReport("stdio", toolCount, 0, 0, TimeSpan.Zero);
             }
             return 0;
@@ -198,14 +171,11 @@ public sealed class McpCliCommand
         McpHttpServer? httpServer = null;
         var usedTcp = false;
 
-        try
-        {
+        try {
             httpServer = new McpHttpServer(server, prefix, statelessMode: true);
             httpServer.Start();
             TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleEnumConstants.Reset} HTTP 模式启动(HttpListener): {prefix}，暴露 {toolCount} 个工具");
-        }
-        catch (HttpListenerException)
-        {
+        } catch (HttpListenerException) {
             // HttpListener 不可用(沙箱/无 HTTP.sys) → 降级 TcpListener
             httpServer?.Dispose();
             httpServer = null;
@@ -216,19 +186,13 @@ public sealed class McpCliCommand
 
         TerminalHelper.WriteLine("按 Ctrl+C 停止");
 
-        try
-        {
-            if (usedTcp)
-            {
+        try {
+            if (usedTcp) {
                 await tcpServer!.RunAsync(serveCts.Token).ConfigureAwait(false);
-            }
-            else
-            {
+            } else {
                 await httpServer!.RunAsync(serveCts.Token).ConfigureAwait(false);
             }
-        }
-        catch (OperationCanceledException) when (serveCts.Token.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (serveCts.Token.IsCancellationRequested) {
             // 优雅退出
         }
 
@@ -243,10 +207,8 @@ public sealed class McpCliCommand
     }
 
     /// <summary>mcp_serve 退出时输出结构化 JSON 报告</summary>
-    private static void WriteServeExitReport(string transport, int toolCount, int totalRequests, int totalErrors, TimeSpan uptime)
-    {
-        var data = new System.Text.Json.Nodes.JsonObject
-        {
+    private static void WriteServeExitReport(string transport, int toolCount, int totalRequests, int totalErrors, TimeSpan uptime) {
+        var data = new System.Text.Json.Nodes.JsonObject {
             ["transport"] = transport,
             ["toolCount"] = toolCount,
             ["totalRequests"] = totalRequests,
@@ -257,25 +219,20 @@ public sealed class McpCliCommand
         TerminalHelper.WriteLine($"{TerminalColors.Info}mcp_serve 退出报告{AnsiStyleEnumConstants.Reset}: {report}");
     }
 
-    internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null, CancellationToken ct = default)
-    {
+    internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null, CancellationToken ct = default) {
         // 注意:不使用 using var host,因为 host.Dispose() 内部会调用 Environment.Exit(210) 导致退出码被覆盖。
         // CLI 子命令进程很快退出,host 资源由 OS 自动回收,无需显式释放。
         var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
         return await action(host.Services).ConfigureAwait(false);
     }
 
-    private static Dictionary<string, JsonElement>? ParseArgs(string? args, string[]? kvArgs, string? argsFile, bool argsStdin)
-    {
+    private static Dictionary<string, JsonElement>? ParseArgs(string? args, string[]? kvArgs, string? argsFile, bool argsStdin) {
         // 优先级: kvArgs (key=value) > argsJson (JSON) > argsFile > argsStdin
-        if (kvArgs is { Length: > 0 })
-        {
+        if (kvArgs is { Length: > 0 }) {
             var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            foreach (var kv in kvArgs)
-            {
+            foreach (var kv in kvArgs) {
                 var eqIdx = kv.IndexOf('=');
-                if (eqIdx <= 0 || eqIdx == kv.Length - 1)
-                {
+                if (eqIdx <= 0 || eqIdx == kv.Length - 1) {
                     var detail = eqIdx <= 0 ? "缺少 '=' 分隔符" : "'=' 后面不能为空";
                     TerminalHelper.WriteError(CliErrorCatalog.ArgInvalidKeyValueFormat(kv, detail).ToRustStyleString(kv));
                     return null;
@@ -288,8 +245,7 @@ public sealed class McpCliCommand
         }
 
         string? json = null;
-        if (argsStdin)
-        {
+        if (argsStdin) {
             // 读取 stdin 原始字节，循环去除所有前导 UTF-8 BOM（PowerShell 管道可能注入多个 BOM）
             using var stream = System.Console.OpenStandardInput();
             using var ms = new System.IO.MemoryStream();
@@ -299,8 +255,7 @@ public sealed class McpCliCommand
             while (bytes.Length - offset >= 3 && bytes[offset] == 0xEF && bytes[offset + 1] == 0xBB && bytes[offset + 2] == 0xBF)
                 offset += 3;
             json = System.Text.Encoding.UTF8.GetString(bytes, offset, bytes.Length - offset);
-        }
-        else if (!string.IsNullOrEmpty(argsFile))
+        } else if (!string.IsNullOrEmpty(argsFile))
             json = System.IO.File.ReadAllText(argsFile);
         else if (!string.IsNullOrEmpty(args))
             json = args;
@@ -308,29 +263,20 @@ public sealed class McpCliCommand
         if (string.IsNullOrEmpty(json))
             return new();
 
-        try
-        {
+        try {
             return ParseJsonObject(json);
-        }
-        catch (System.Text.Json.JsonException ex)
-        {
+        } catch (System.Text.Json.JsonException ex) {
             var repairResult = LlmJsonHelper.RepairJson(json);
-            if (repairResult.Success)
-            {
-                try
-                {
+            if (repairResult.Success) {
+                try {
                     var repairedDict = ParseJsonObject(repairResult.RepairedJson);
                     if (repairResult.RepairHint is not null)
                         TerminalHelper.WriteError($"JSON 参数已自动修复: {repairResult.RepairHint}");
                     return repairedDict;
-                }
-                catch (System.Text.Json.JsonException repairEx)
-                {
+                } catch (System.Text.Json.JsonException repairEx) {
                     TerminalHelper.WriteError(FormatJsonError(repairEx, repairResult.RepairedJson, null, "JSON 修复后仍解析失败"));
                 }
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteError(FormatJsonError(ex, json, null, "JSON 解析失败"));
                 if (repairResult.RepairHint is not null)
                     TerminalHelper.WriteError($"修复提示: {repairResult.RepairHint}");
@@ -345,11 +291,9 @@ public sealed class McpCliCommand
     /// <summary>
     /// 将 JSON 字符串解析为 Dictionary（必须是 JSON 对象）
     /// </summary>
-    private static Dictionary<string, JsonElement> ParseJsonObject(string json)
-    {
+    private static Dictionary<string, JsonElement> ParseJsonObject(string json) {
         using var doc = JsonDocument.Parse(json);
-        if (doc.RootElement.ValueKind != JsonValueKind.Object)
-        {
+        if (doc.RootElement.ValueKind != JsonValueKind.Object) {
             TerminalHelper.WriteError("参数 JSON 必须是对象（{}），不能是数组或标量");
             throw new System.Text.Json.JsonException("JSON 必须是对象");
         }
@@ -362,8 +306,7 @@ public sealed class McpCliCommand
     /// <summary>
     /// 格式化 JSON 解析错误 — Rust 风格，箭头指向出错位置
     /// </summary>
-    private static string FormatJsonError(System.Text.Json.JsonException ex, string json, string? keyName, string title)
-    {
+    private static string FormatJsonError(System.Text.Json.JsonException ex, string json, string? keyName, string title) {
         var sb = new StringBuilder();
         sb.Append(title);
         if (keyName is not null)
@@ -386,8 +329,7 @@ public sealed class McpCliCommand
         sb.Append($"\n  --> 行 {displayLine}, 列 {displayCol}");
         sb.Append("\n   |");
 
-        if (errorLine.Length > 0)
-        {
+        if (errorLine.Length > 0) {
             sb.Append($"\n {lineLabel} | {errorLine}");
             var markerCol = Math.Min(colNum, errorLine.Length);
             var markerIndent = new string(' ', markerCol);
@@ -405,31 +347,20 @@ public sealed class McpCliCommand
     /// <para>当 value 以 { 或 [ 开头时，尝试解析为 JSON 对象或数组；解析失败时调用 LlmJsonHelper.RepairJson 修复（处理 PowerShell 引号剥离等问题）。</para>
     /// </summary>
     /// <summary>将字符串值按类型推断转换为 JsonElement（int/double/bool/null/JSON/字符串）</summary>
-    internal static JsonElement ParseValueToJsonElement(string value, string keyName)
-    {
-        if (value.Length > 0 && (value[0] == '{' || value[0] == '['))
-        {
-            try
-            {
+    internal static JsonElement ParseValueToJsonElement(string value, string keyName) {
+        if (value.Length > 0 && (value[0] == '{' || value[0] == '[')) {
+            try {
                 return JsonDocument.Parse(value).RootElement.Clone();
-            }
-            catch (System.Text.Json.JsonException ex)
-            {
+            } catch (System.Text.Json.JsonException ex) {
                 var repairResult = LlmJsonHelper.RepairJson(value);
-                if (repairResult.Success)
-                {
-                    try
-                    {
+                if (repairResult.Success) {
+                    try {
                         return JsonDocument.Parse(repairResult.RepairedJson).RootElement.Clone();
-                    }
-                    catch (System.Text.Json.JsonException repairEx)
-                    {
+                    } catch (System.Text.Json.JsonException repairEx) {
                         TerminalHelper.WriteError(FormatJsonError(repairEx, repairResult.RepairedJson, keyName, "JSON value 修复后仍解析失败"));
                         TerminalHelper.WriteError($"  修复后: {repairResult.RepairedJson}");
                     }
-                }
-                else
-                {
+                } else {
                     TerminalHelper.WriteError(FormatJsonError(ex, value, keyName, "JSON value 解析失败"));
                     if (repairResult.RepairHint is not null)
                         TerminalHelper.WriteError($"  修复提示: {repairResult.RepairHint}");
@@ -456,29 +387,21 @@ public sealed class McpCliCommand
     }
 
     /// <summary>输出工具执行结果 — 供 gh 等子命令复用，避免第二套输出逻辑</summary>
-    internal static int OutputResult(ToolResult result, bool json)
-    {
-        if (json)
-        {
+    internal static int OutputResult(ToolResult result, bool json) {
+        if (json) {
             var envelope = CliOutputEnvelope.Success(result);
             System.Console.WriteLine(envelope.ToString());
-        }
-        else
-        {
+        } else {
             // 非 json 模式: 遍历所有 Content,输出文本 + 图片摘要
             var hasOutput = false;
-            foreach (var c in result.Content)
-            {
-                if (!string.IsNullOrEmpty(c.Text))
-                {
+            foreach (var c in result.Content) {
+                if (!string.IsNullOrEmpty(c.Text)) {
                     if (result.IsError)
                         TerminalHelper.WriteError(c.Text);
                     else
                         TerminalHelper.WriteLine(c.Text);
                     hasOutput = true;
-                }
-                else if (!string.IsNullOrEmpty(c.Data))
-                {
+                } else if (!string.IsNullOrEmpty(c.Data)) {
                     // 图片内容: 输出摘要信息(base64 太长不直接输出到控制台)
                     var mimeType = c.MimeType ?? "unknown";
                     var decodedSize = c.Data.Length * 3 / 4;
@@ -486,8 +409,7 @@ public sealed class McpCliCommand
                     hasOutput = true;
                 }
             }
-            if (!hasOutput)
-            {
+            if (!hasOutput) {
                 var fallback = "(无文本输出)";
                 if (result.IsError)
                     TerminalHelper.WriteError(fallback);
@@ -498,39 +420,31 @@ public sealed class McpCliCommand
         return result.IsError ? 1 : 0;
     }
 
-    private static int OutputError(string message, bool json)
-    {
-        if (json)
-        {
+    private static int OutputError(string message, bool json) {
+        if (json) {
             var envelope = CliOutputEnvelope.Fail(new CliStructuredError("TOOL_ERROR", message, null, false));
             System.Console.WriteLine(envelope.ToString());
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteError(message);
         }
         return 1;
     }
 
-    private static void AppendEscapedJson(StringBuilder sb, string text)
-    {
-        foreach (var c in text)
-        {
-            switch (c)
-            {
+    private static void AppendEscapedJson(StringBuilder sb, string text) {
+        foreach (var c in text) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;
                 case '\r': sb.Append("\\r"); break;
                 case '\t': sb.Append("\\t"); break;
                 default:
-                    if (c < 0x20)
-                        sb.Append($"\\u{(int)c:X4}");
-                    else
-                        sb.Append(c);
-                    break;
+                if (c < 0x20)
+                    sb.Append($"\\u{(int)c:X4}");
+                else
+                    sb.Append(c);
+                break;
             }
         }
     }
 }
-

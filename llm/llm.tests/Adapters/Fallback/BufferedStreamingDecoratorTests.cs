@@ -1,10 +1,8 @@
 namespace Llm.Tests.Adapters.Fallback;
 
-public class BufferedStreamingDecoratorTests
-{
+public class BufferedStreamingDecoratorTests {
     [Fact]
-    public async Task GetApiMessageContentsAsync_CollectsStreamEventsIntoMessage()
-    {
+    public async Task GetApiMessageContentsAsync_CollectsStreamEventsIntoMessage() {
         var mock = new Mock<IQueryService>();
         mock.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
@@ -21,8 +19,7 @@ public class BufferedStreamingDecoratorTests
     }
 
     [Fact]
-    public async Task GetStreamEventContentsAsync_DelegatesToInner()
-    {
+    public async Task GetStreamEventContentsAsync_DelegatesToInner() {
         var mock = new Mock<IQueryService>();
         mock.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(),
@@ -32,8 +29,7 @@ public class BufferedStreamingDecoratorTests
         var decorator = new BufferedStreamingDecorator(mock.Object);
 
         var events = new List<StreamEvent>();
-        await foreach (var evt in decorator.GetStreamEventContentsAsync(new MessageList()))
-        {
+        await foreach (var evt in decorator.GetStreamEventContentsAsync(new MessageList())) {
             events.Add(evt);
         }
 
@@ -41,8 +37,7 @@ public class BufferedStreamingDecoratorTests
     }
 
     [Fact]
-    public async Task GetApiMessageContentsAsync_ExtractsUsageFromMetadata()
-    {
+    public async Task GetApiMessageContentsAsync_ExtractsUsageFromMetadata() {
         var usage = new TokenUsage(100, 50);
         var usageJson = JsonElementHelper.FromObject(usage, NativeJsonContext.Default.TokenUsage);
 
@@ -63,8 +58,7 @@ public class BufferedStreamingDecoratorTests
     }
 
     private static async IAsyncEnumerable<StreamEvent> ProduceStreamEventsAsync(
-        [EnumeratorCancellation] CancellationToken ct = default)
-    {
+        [EnumeratorCancellation] CancellationToken ct = default) {
         await Task.Delay(1, ct);
         yield return new StreamEvent(MessageRole.Assistant, "hello ", "test-model");
         yield return new StreamEvent(MessageRole.Assistant, "world", "test-model");
@@ -72,8 +66,7 @@ public class BufferedStreamingDecoratorTests
 
     private static async IAsyncEnumerable<StreamEvent> ProduceStreamWithUsageAsync(
         JsonElement usageJson,
-        [EnumeratorCancellation] CancellationToken ct = default)
-    {
+        [EnumeratorCancellation] CancellationToken ct = default) {
         await Task.Delay(1, ct);
         yield return new StreamEvent(MessageRole.Assistant, "response", "test-model",
             new Dictionary<string, JsonElement> { ["Usage"] = usageJson });

@@ -3,8 +3,7 @@ namespace Core.Skills;
 /// <summary>
 /// 代码操作类型
 /// </summary>
-public enum CodeOperation
-{
+public enum CodeOperation {
     /// <summary>
     /// 生成代码
     /// </summary>
@@ -27,8 +26,7 @@ public enum CodeOperation
 /// <summary>
 /// 代码服务中间件上下文
 /// </summary>
-public sealed class CodeContext : PipelineContextBase, IMetricsContext
-{
+public sealed class CodeContext : PipelineContextBase, IMetricsContext {
     // === IMetricsContext ===
 
     /// <summary>
@@ -47,10 +45,8 @@ public sealed class CodeContext : PipelineContextBase, IMetricsContext
     /// 构建指标标签字典
     /// </summary>
     /// <returns>包含操作类型、缓存命中、安全失败等标签的字典</returns>
-    public Dictionary<string, string> BuildMetricsTags()
-    {
-        var tags = new Dictionary<string, string>
-        {
+    public Dictionary<string, string> BuildMetricsTags() {
+        var tags = new Dictionary<string, string> {
             ["operation"] = Operation.ToString().ToLowerInvariant(),
             ["cached"] = IsCached.ToString()
         };

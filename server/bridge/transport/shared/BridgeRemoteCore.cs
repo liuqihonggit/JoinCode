@@ -14,6 +14,5 @@ namespace Core.Bridge;
 /// - BridgeRemoteCore.FlushHistory.cs  (FlushHistoryAsync + DrainFlushGate)
 /// - BridgeRemoteCore.AuthRecovery.cs  (RecoverFromAuthFailure + RebuildTransport + WireTransportCallbacks)
 /// </summary>
-public static partial class BridgeRemoteCore
-{
+public static partial class BridgeRemoteCore {
 }

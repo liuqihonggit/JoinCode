@@ -5,8 +5,7 @@ namespace McpClient;
 /// 安全令牌存储 — AES 加密持久化 OAuth 令牌到本地文件
 /// <para>密钥派生自机器名+用户名（PBKDF2-SHA256），跨机器/用户隔离</para>
 /// </summary>
-public sealed partial class McpSecureTokenStorage
-{
+public sealed partial class McpSecureTokenStorage {
     private readonly IFileSystem _fs;
     private readonly ILogger<McpSecureTokenStorage>? _logger;
     private readonly string _storagePath;
@@ -18,8 +17,7 @@ public sealed partial class McpSecureTokenStorage
     /// <param name="fs">文件系统抽象</param>
     /// <param name="storagePath">存储文件路径</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public McpSecureTokenStorage(IFileSystem fs, string storagePath, ILogger<McpSecureTokenStorage>? logger = null)
-    {
+    public McpSecureTokenStorage(IFileSystem fs, string storagePath, ILogger<McpSecureTokenStorage>? logger = null) {
         ArgumentNullException.ThrowIfNull(fs);
         ArgumentException.ThrowIfNullOrWhiteSpace(storagePath);
         _fs = fs;
@@ -34,8 +32,7 @@ public sealed partial class McpSecureTokenStorage
     /// <param name="key">键名</param>
     /// <param name="value">明文值</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task SaveAsync(string key, string value, CancellationToken cancellationToken = default)
-    {
+    public async Task SaveAsync(string key, string value, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentNullException.ThrowIfNull(value);
 
@@ -44,8 +41,7 @@ public sealed partial class McpSecureTokenStorage
 
         var json = JsonSerializer.Serialize(data, McpClientJsonContext.Default.DictionaryStringString);
         var directory = Path.GetDirectoryName(_storagePath);
-        if (!string.IsNullOrEmpty(directory))
-        {
+        if (!string.IsNullOrEmpty(directory)) {
             _fs.CreateDirectory(directory);
         }
 
@@ -59,22 +55,17 @@ public sealed partial class McpSecureTokenStorage
     /// <param name="key">键名</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>解密后的明文值；键不存在或解密失败返回 null</returns>
-    public async Task<string?> LoadAsync(string key, CancellationToken cancellationToken = default)
-    {
+    public async Task<string?> LoadAsync(string key, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
         var data = await LoadAllAsync(cancellationToken).ConfigureAwait(false);
-        if (!data.TryGetValue(key, out var encrypted))
-        {
+        if (!data.TryGetValue(key, out var encrypted)) {
             return null;
         }
 
-        try
-        {
+        try {
             return Decrypt(encrypted);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "解密安全存储值失败: {Key}", key);
             return null;
         }
@@ -86,13 +77,11 @@ public sealed partial class McpSecureTokenStorage
     /// <param name="key">键名</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>删除成功返回 true；键不存在返回 false</returns>
-    public async Task<bool> DeleteAsync(string key, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> DeleteAsync(string key, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
         var data = await LoadAllAsync(cancellationToken).ConfigureAwait(false);
-        if (!data.Remove(key))
-        {
+        if (!data.Remove(key)) {
             return false;
         }
 
@@ -101,26 +90,20 @@ public sealed partial class McpSecureTokenStorage
         return true;
     }
 
-    private async Task<Dictionary<string, string>> LoadAllAsync(CancellationToken cancellationToken)
-    {
-        if (!_fs.FileExists(_storagePath))
-        {
+    private async Task<Dictionary<string, string>> LoadAllAsync(CancellationToken cancellationToken) {
+        if (!_fs.FileExists(_storagePath)) {
             return new Dictionary<string, string>();
         }
 
-        try
-        {
+        try {
             return await _fs.ReadAndDeserializeAsync(_storagePath, McpClientJsonContext.Default.DictionaryStringString, cancellationToken).ConfigureAwait(false)
                 ?? new Dictionary<string, string>();
-        }
-        catch
-        {
+        } catch {
             return new Dictionary<string, string>();
         }
     }
 
-    private string Encrypt(string plaintext)
-    {
+    private string Encrypt(string plaintext) {
         var iv = new byte[16];
         RandomNumberGenerator.Fill(iv);
 
@@ -139,8 +122,7 @@ public sealed partial class McpSecureTokenStorage
         return Convert.ToBase64String(result);
     }
 
-    private string Decrypt(string encrypted)
-    {
+    private string Decrypt(string encrypted) {
         var data = Convert.FromBase64String(encrypted);
 
         var iv = new byte[16];
@@ -158,8 +140,7 @@ public sealed partial class McpSecureTokenStorage
         return Encoding.UTF8.GetString(plaintextBytes);
     }
 
-    private static byte[] DeriveKey()
-    {
+    private static byte[] DeriveKey() {
         var machineName = Environment.MachineName;
         var userName = Environment.UserName;
         var salt = Encoding.UTF8.GetBytes($"MCP-SecureStorage-{machineName}-{userName}");
@@ -169,8 +150,7 @@ public sealed partial class McpSecureTokenStorage
     }
 
 #pragma warning disable SYSLIB0060
-    private static byte[] Pbkdf2DeriveBytes(byte[] password, byte[] salt, int iterations, HashAlgorithmName hashAlgorithm, int outputLength)
-    {
+    private static byte[] Pbkdf2DeriveBytes(byte[] password, byte[] salt, int iterations, HashAlgorithmName hashAlgorithm, int outputLength) {
         using var deriveBytes = new Rfc2898DeriveBytes(password, salt, iterations, hashAlgorithm);
         return deriveBytes.GetBytes(outputLength);
     }

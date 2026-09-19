@@ -5,24 +5,21 @@ namespace Core.Goal;
 /// 引擎控制中间件 — Start/Resume 时标记启动循环，Clear/MarkCompleted/MarkUnmet 时标记取消循环
 /// </summary>
 [Register(typeof(IGoalLifecycleMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class GoalEngineControlMiddleware : ServiceEntity, IGoalLifecycleMiddleware
-{
+public sealed partial class GoalEngineControlMiddleware : ServiceEntity, IGoalLifecycleMiddleware {
 
     /// <inheritdoc />
-    public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)
-    {
-        switch (ctx.Operation)
-        {
+    public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct) {
+        switch (ctx.Operation) {
             case GoalOperation.Start:
             case GoalOperation.Resume:
-                ctx.ShouldStartEngineLoop = true;
-                break;
+            ctx.ShouldStartEngineLoop = true;
+            break;
 
             case GoalOperation.Clear:
             case GoalOperation.MarkCompleted:
             case GoalOperation.MarkUnmet:
-                ctx.ShouldCancelEngineLoop = true;
-                break;
+            ctx.ShouldCancelEngineLoop = true;
+            break;
         }
 
         return next(ctx, ct);

@@ -4,8 +4,7 @@ namespace Core.Skills.Mcp;
 /// <summary>
 /// MCP 技能适配器 — 将 MCP 工具适配为技能定义，并转发工具调用到 MCP 客户端
 /// </summary>
-public sealed partial class McpSkillAdapter
-{
+public sealed partial class McpSkillAdapter {
     private readonly IMcpClient _client;
     private readonly ILogger<McpSkillAdapter>? _logger;
 
@@ -14,8 +13,7 @@ public sealed partial class McpSkillAdapter
     /// </summary>
     /// <param name="client">MCP 客户端实例</param>
     /// <param name="logger">日志记录器</param>
-    public McpSkillAdapter(IMcpClient client, ILogger<McpSkillAdapter>? logger = null)
-    {
+    public McpSkillAdapter(IMcpClient client, ILogger<McpSkillAdapter>? logger = null) {
         _client = client;
         _logger = logger;
     }
@@ -26,12 +24,10 @@ public sealed partial class McpSkillAdapter
     /// <param name="toolInfo">MCP 工具信息</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>适配后的技能定义；适配失败返回 null</returns>
-    public async Task<SkillDefinition?> AdaptToolAsync(JoinCode.Abstractions.Tools.ToolInfo toolInfo, CancellationToken cancellationToken = default)
-    {
+    public async Task<SkillDefinition?> AdaptToolAsync(JoinCode.Abstractions.Tools.ToolInfo toolInfo, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(toolInfo);
 
-        try
-        {
+        try {
             var parameters = ConvertSchemaToParameters(toolInfo.InputSchema, toolInfo.InputSchema.Required);
             var steps = new List<SkillStep>
             {
@@ -53,8 +49,7 @@ public sealed partial class McpSkillAdapter
                 }
             };
 
-            return new SkillDefinition
-            {
+            return new SkillDefinition {
                 Name = $"mcp_{toolInfo.Name}",
                 Description = $"[MCP] {toolInfo.Description ?? toolInfo.Name}",
                 Version = "1.0",
@@ -65,9 +60,7 @@ public sealed partial class McpSkillAdapter
                 Permissions = new List<string> { "mcp.tool.call" }.AsReadOnly(),
                 Namespace = "mcp"
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[McpSkillAdapter] 适配工具 {ToolName} 失败", toolInfo.Name);
             return null;
         }
@@ -85,27 +78,22 @@ public sealed partial class McpSkillAdapter
         string toolName,
         Dictionary<string, JsonElement>? arguments,
         ExecutionContext ctx,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
 
         var actualToolName = toolName.StartsWith("mcp_") ? toolName[4..] : toolName;
 
-        try
-        {
+        try {
             var result = await _client.CallToolAsync(actualToolName, arguments, cancellationToken).ConfigureAwait(false);
 
-            if (result.IsError)
-            {
+            if (result.IsError) {
                 var errorContent = result.GetFirstText() ?? "未知错误";
                 return SkillResult.FailureResult(toolName, $"MCP 工具 '{actualToolName}' 执行失败: {errorContent}");
             }
 
             var output = result.GetFirstText() ?? string.Empty;
             return SkillResult.SuccessResult(toolName, output);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[McpSkillAdapter] 执行 MCP 工具 {ToolName} 失败", actualToolName);
             return SkillResult.FailureResult(toolName, ex.Message);
         }
@@ -113,15 +101,12 @@ public sealed partial class McpSkillAdapter
 
     private static Dictionary<string, SkillParameter> ConvertSchemaToParameters(
         ToolSchema schema,
-        IReadOnlyList<string>? requiredParams)
-    {
+        IReadOnlyList<string>? requiredParams) {
         var parameters = new Dictionary<string, SkillParameter>();
 
-        foreach (var (name, prop) in schema.Properties)
-        {
+        foreach (var (name, prop) in schema.Properties) {
             var isRequired = requiredParams?.Contains(name) ?? false;
-            parameters[name] = new SkillParameter
-            {
+            parameters[name] = new SkillParameter {
                 Type = MapJsonTypeToSkillType(prop.Type),
                 Description = prop.Description ?? name,
                 Required = isRequired,
@@ -133,10 +118,8 @@ public sealed partial class McpSkillAdapter
         return parameters;
     }
 
-    private static string MapJsonTypeToSkillType(string jsonType)
-    {
-        return jsonType.ToLowerInvariant() switch
-        {
+    private static string MapJsonTypeToSkillType(string jsonType) {
+        return jsonType.ToLowerInvariant() switch {
             "string" => "string",
             "integer" => "integer",
             "number" => "number",
@@ -147,18 +130,15 @@ public sealed partial class McpSkillAdapter
         };
     }
 
-    private static ParameterValidation? BuildValidation(ToolSchemaProperty prop)
-    {
-        if (prop.Enum != null && prop.Enum.Count > 0)
-        {
+    private static ParameterValidation? BuildValidation(ToolSchemaProperty prop) {
+        if (prop.Enum != null && prop.Enum.Count > 0) {
             return new ParameterValidation { EnumValues = prop.Enum };
         }
 
         return null;
     }
 
-    private static string BuildToolPrompt(JoinCode.Abstractions.Tools.ToolInfo toolInfo)
-    {
+    private static string BuildToolPrompt(JoinCode.Abstractions.Tools.ToolInfo toolInfo) {
         var paramList = toolInfo.InputSchema.Properties.Keys;
         return $"调用 MCP 工具 {toolInfo.Name}，参数: {string.Join(", ", paramList)}";
     }

@@ -4,8 +4,7 @@ namespace Core.Skills.BuiltIn;
 /// <summary>
 /// 批量技能 — 研究并规划大规模变更，然后在隔离的 worktree 代理中并行执行，每个代理开一个 PR
 /// </summary>
-public sealed class BatchSkill
-{
+public sealed class BatchSkill {
     private const int MinAgents = 5;
     private const int MaxAgents = 30;
 
@@ -20,15 +19,12 @@ public sealed class BatchSkill
     /// 创建技能定义
     /// </summary>
     /// <returns>批量技能的技能定义</returns>
-    public static SkillDefinition CreateDefinition()
-    {
-        return new SkillDefinition
-        {
+    public static SkillDefinition CreateDefinition() {
+        return new SkillDefinition {
             Name = "batch",
             Description = "Research and plan a large-scale change, then execute it in parallel across isolated worktree agents that each open a PR",
             Version = "3.0",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["instruction"] = new() { Type = "string", Description = "Description of the batch change to make", Required = true }
             },
             Steps = [],
@@ -43,8 +39,7 @@ public sealed class BatchSkill
         };
     }
 
-    private static string BuildPromptTemplate()
-    {
+    private static string BuildPromptTemplate() {
         return $""""
 # Batch: Parallel Work Orchestration
 

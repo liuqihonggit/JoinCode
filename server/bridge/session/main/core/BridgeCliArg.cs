@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// Bridge 远程控制命令行参数枚举 — [CliOption] 由 CliOptionGenerator 自动生成 BridgeCliArgParser + BridgeCliArgParseResult
 /// 参数名引用 JccCliArgEnumConstants（由 JccCliArg 枚举 + [EnumValue] 生成），确保参数名单一数据源
 /// </summary>
-public enum BridgeCliArg
-{
+public enum BridgeCliArg {
     /// <summary>调试日志</summary>
     [CliOption(JccCliArgEnumConstants.DebugLog, "-d", "调试日志")]
     DebugLog,

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// Agent 角色注册表 — 管理 AgentRoleProfile 的注册和查询
 /// 内置 Profile 在 DI 配置时注册，用户/项目自定义 Profile 运行时追加
 /// </summary>
-public interface IAgentRoleRegistry : IRegistry
-{
+public interface IAgentRoleRegistry : IRegistry {
     /// <summary>
     /// 注册角色档案
     /// </summary>

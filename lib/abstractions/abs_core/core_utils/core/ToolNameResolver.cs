@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 工具名解析与推荐 — 从 ToolCallRepairService 提取的单一职责小类
 /// <para>职责: 工具名归一化(大小写/下划线模糊匹配) + 相似工具名推荐(Levenshtein编辑距离)</para>
 /// </summary>
-internal static class ToolNameResolver
-{
+internal static class ToolNameResolver {
     private static readonly Func<string, string?>[] ToolNameResolvers =
     [
         name => FileToolNameExtensions.FromValue(name)?.ToValue(),
@@ -35,13 +34,11 @@ internal static class ToolNameResolver
     /// 利用各工具名枚举的 FromValue（OrdinalIgnoreCase）反查，找到标准名后返回
     /// 找不到匹配则返回原名（可能是 MCP 工具或自定义工具）
     /// </summary>
-    public static string RepairToolName(string? toolName)
-    {
+    public static string RepairToolName(string? toolName) {
         if (string.IsNullOrEmpty(toolName))
             return toolName ?? string.Empty;
 
-        foreach (var resolver in ToolNameResolvers)
-        {
+        foreach (var resolver in ToolNameResolvers) {
             var standard = resolver(toolName);
             if (standard is not null)
                 return standard;
@@ -55,8 +52,7 @@ internal static class ToolNameResolver
     /// 去下划线模糊匹配 — 当 FromValue 精确匹配失败时,去掉下划线后 OrdinalIgnoreCase 比较
     /// <para>场景: WEBFETCH → web_fetch, webfetch → web_fetch</para>
     /// </summary>
-    private static string? UnderscoreFallback(string name)
-    {
+    private static string? UnderscoreFallback(string name) {
         var normalized = name.Replace("_", "");
         return UnderscoreFallbackCore<FileToolName>(normalized, v => v.ToValue())
             ?? UnderscoreFallbackCore<SearchToolName>(normalized, v => v.ToValue())
@@ -80,10 +76,8 @@ internal static class ToolNameResolver
             ?? UnderscoreFallbackCore<WorktreeToolName>(normalized, v => v.ToValue());
     }
 
-    private static string? UnderscoreFallbackCore<TEnum>(string normalized, Func<TEnum, string> toValue) where TEnum : struct, Enum
-    {
-        foreach (var value in Enum.GetValues<TEnum>())
-        {
+    private static string? UnderscoreFallbackCore<TEnum>(string normalized, Func<TEnum, string> toValue) where TEnum : struct, Enum {
+        foreach (var value in Enum.GetValues<TEnum>()) {
             var enumValue = toValue(value);
             if (enumValue.Replace("_", "").Equals(normalized, StringComparison.OrdinalIgnoreCase))
                 return enumValue;
@@ -96,14 +90,12 @@ internal static class ToolNameResolver
     /// <para>匹配策略: 精确(大小写不同) > 前缀 > 子串 > 编辑距离≤3</para>
     /// <para>返回按相似度降序排列的工具名,最多 5 个</para>
     /// </summary>
-    public static IReadOnlyList<string> SuggestToolNames(string input, IEnumerable<string> availableTools)
-    {
+    public static IReadOnlyList<string> SuggestToolNames(string input, IEnumerable<string> availableTools) {
         if (string.IsNullOrEmpty(input) || availableTools is null)
             return Array.Empty<string>();
 
         var scored = new List<(string Name, int Score)>();
-        foreach (var tool in availableTools)
-        {
+        foreach (var tool in availableTools) {
             var score = ComputeNameSimilarity(input, tool);
             if (score > 0)
                 scored.Add((tool, score));
@@ -117,8 +109,7 @@ internal static class ToolNameResolver
             .ToList();
     }
 
-    private static int ComputeNameSimilarity(string input, string candidate)
-    {
+    private static int ComputeNameSimilarity(string input, string candidate) {
         if (string.Equals(input, candidate, StringComparison.OrdinalIgnoreCase))
             return 100;
 
@@ -139,8 +130,7 @@ internal static class ToolNameResolver
     }
 
     /// <summary>Levenshtein 编辑距离(大小写不敏感)</summary>
-    private static int LevenshteinIgnoreCase(string a, string b)
-    {
+    private static int LevenshteinIgnoreCase(string a, string b) {
         if (a.Length == 0) return b.Length;
         if (b.Length == 0) return a.Length;
 
@@ -148,11 +138,9 @@ internal static class ToolNameResolver
         var curr = new int[b.Length + 1];
         for (int j = 0; j <= b.Length; j++) prev[j] = j;
 
-        for (int i = 1; i <= a.Length; i++)
-        {
+        for (int i = 1; i <= a.Length; i++) {
             curr[0] = i;
-            for (int j = 1; j <= b.Length; j++)
-            {
+            for (int j = 1; j <= b.Length; j++) {
                 var cost = char.ToLowerInvariant(a[i - 1]) == char.ToLowerInvariant(b[j - 1]) ? 0 : 1;
                 curr[j] = Math.Min(Math.Min(prev[j] + 1, curr[j - 1] + 1), prev[j - 1] + cost);
             }

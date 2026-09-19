@@ -3,8 +3,7 @@ namespace Core.Query;
 /// <summary>
 /// Token消耗信息
 /// </summary>
-public class TokenConsumption
-{
+public class TokenConsumption {
     /// <summary>
     /// 消耗数量
     /// </summary>

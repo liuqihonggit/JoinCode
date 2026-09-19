@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Weight;
 
-public sealed class ChainWeightPropagatorTests
-{
+public sealed class ChainWeightPropagatorTests {
     [Fact]
-    public void CalculateChainScore_ShouldReturnZeroForEmptyChain()
-    {
+    public void CalculateChainScore_ShouldReturnZeroForEmptyChain() {
         var propagator = new ChainWeightPropagator();
 
         var result = propagator.CalculateChainScore([]);
@@ -13,11 +11,9 @@ public sealed class ChainWeightPropagatorTests
     }
 
     [Fact]
-    public void CalculateChainScore_ShouldReturnPositiveScoreForSingleEvidence()
-    {
+    public void CalculateChainScore_ShouldReturnPositiveScoreForSingleEvidence() {
         var propagator = new ChainWeightPropagator();
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Content = "证据1",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.Moderate,
@@ -31,8 +27,7 @@ public sealed class ChainWeightPropagatorTests
     }
 
     [Fact]
-    public void CalculateChainScore_ShouldPropagateBetweenEvidence()
-    {
+    public void CalculateChainScore_ShouldPropagateBetweenEvidence() {
         var propagator = new ChainWeightPropagator();
         var chain = new List<EvidenceRecord>
         {
@@ -50,8 +45,7 @@ public sealed class ChainWeightPropagatorTests
     }
 
     [Fact]
-    public void CalculateChainScore_DecayFactor_ShouldAffectPropagation()
-    {
+    public void CalculateChainScore_DecayFactor_ShouldAffectPropagation() {
         var lowDecay = new ChainWeightPropagator { DecayFactor = 0.3 };
         var highDecay = new ChainWeightPropagator { DecayFactor = 0.9 };
 

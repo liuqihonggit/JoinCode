@@ -3,8 +3,7 @@ namespace Infra.Services.Tests.Network;
 /// <summary>
 /// NetworkConnectivityService 单元测试 — 验证状态计算、VPN识别、多流接口、路由判断、事件触发
 /// </summary>
-public sealed class NetworkConnectivityServiceTest
-{
+public sealed class NetworkConnectivityServiceTest {
     private static NetworkConnectivityService CreateSut(
         IReadOnlyList<NetworkInterfaceInfo> interfaces,
         bool vpnProcess = false,
@@ -18,16 +17,14 @@ public sealed class NetworkConnectivityServiceTest
         new() { Name = name, Kind = kind, IsUp = up };
 
     [Fact]
-    public void Constructor_NoInterfaces_OfflineState()
-    {
+    public void Constructor_NoInterfaces_OfflineState() {
         var sut = CreateSut([]);
         sut.CurrentState.Should().Be(NetworkConnectivityState.Offline);
         sut.IsNetworkAvailable().Should().BeFalse();
     }
 
     [Fact]
-    public void Constructor_WithEthernetInterface_OnlineState()
-    {
+    public void Constructor_WithEthernetInterface_OnlineState() {
         var sut = CreateSut([Iface("eth0", NetworkInterfaceKind.Ethernet)]);
         sut.CurrentState.Should().Be(NetworkConnectivityState.Online);
         sut.IsNetworkAvailable().Should().BeTrue();
@@ -35,8 +32,7 @@ public sealed class NetworkConnectivityServiceTest
     }
 
     [Fact]
-    public void Constructor_WithVpnTunnelInterface_OnlineWithVpnState()
-    {
+    public void Constructor_WithVpnTunnelInterface_OnlineWithVpnState() {
         var sut = CreateSut([
             Iface("eth0", NetworkInterfaceKind.Ethernet),
             Iface("tun0", NetworkInterfaceKind.VpnTunnel),
@@ -46,8 +42,7 @@ public sealed class NetworkConnectivityServiceTest
     }
 
     [Fact]
-    public void Constructor_WithVpnProcess_OnlineWithVpnState()
-    {
+    public void Constructor_WithVpnProcess_OnlineWithVpnState() {
         var sut = CreateSut(
             [Iface("eth0", NetworkInterfaceKind.Ethernet)],
             vpnProcess: true);
@@ -56,8 +51,7 @@ public sealed class NetworkConnectivityServiceTest
     }
 
     [Fact]
-    public void Constructor_WithProxyEnv_OnlineWithProxyState()
-    {
+    public void Constructor_WithProxyEnv_OnlineWithProxyState() {
         var sut = CreateSut(
             [Iface("eth0", NetworkInterfaceKind.Ethernet)],
             proxyEnv: true);
@@ -65,8 +59,7 @@ public sealed class NetworkConnectivityServiceTest
     }
 
     [Fact]
-    public void Constructor_VpnTakesPrecedenceOverProxy()
-    {
+    public void Constructor_VpnTakesPrecedenceOverProxy() {
         var sut = CreateSut(
             [Iface("tun0", NetworkInterfaceKind.VpnTunnel)],
             vpnProcess: true,
@@ -75,8 +68,7 @@ public sealed class NetworkConnectivityServiceTest
     }
 
     [Fact]
-    public void GetActiveInterfaces_ReturnsProvidedInterfaces()
-    {
+    public void GetActiveInterfaces_ReturnsProvidedInterfaces() {
         var interfaces = new List<NetworkInterfaceInfo>
         {
             Iface("eth0", NetworkInterfaceKind.Ethernet),
@@ -88,8 +80,7 @@ public sealed class NetworkConnectivityServiceTest
     }
 
     [Fact]
-    public void GetCurrentRoute_WhenVpnActive_ReturnsVpnRoute()
-    {
+    public void GetCurrentRoute_WhenVpnActive_ReturnsVpnRoute() {
         var sut = CreateSut(
             [Iface("tun0", NetworkInterfaceKind.VpnTunnel)],
             vpnProcess: true);
@@ -97,8 +88,7 @@ public sealed class NetworkConnectivityServiceTest
     }
 
     [Fact]
-    public void GetCurrentRoute_WhenProxyConfigured_ReturnsProxyRoute()
-    {
+    public void GetCurrentRoute_WhenProxyConfigured_ReturnsProxyRoute() {
         var sut = CreateSut(
             [Iface("eth0", NetworkInterfaceKind.Ethernet)],
             proxyEnv: true);
@@ -106,22 +96,19 @@ public sealed class NetworkConnectivityServiceTest
     }
 
     [Fact]
-    public void GetCurrentRoute_WhenDirect_ReturnsDirectRoute()
-    {
+    public void GetCurrentRoute_WhenDirect_ReturnsDirectRoute() {
         var sut = CreateSut([Iface("eth0", NetworkInterfaceKind.Ethernet)]);
         sut.GetCurrentRoute().Type.Should().Be(NetworkRouteType.Direct);
     }
 
     [Fact]
-    public void GetCurrentRoute_WhenOffline_ReturnsDirectRoute()
-    {
+    public void GetCurrentRoute_WhenOffline_ReturnsDirectRoute() {
         var sut = CreateSut([]);
         sut.GetCurrentRoute().Type.Should().Be(NetworkRouteType.Direct);
     }
 
     [Fact]
-    public void RefreshState_WhenStateChanges_RaisesStateChangedEvent()
-    {
+    public void RefreshState_WhenStateChanges_RaisesStateChangedEvent() {
         var interfaces = new List<NetworkInterfaceInfo>();
         var sut = new NetworkConnectivityService(
             interfaceProvider: () => interfaces,
@@ -140,8 +127,7 @@ public sealed class NetworkConnectivityServiceTest
     }
 
     [Fact]
-    public void RefreshState_WhenStateUnchanged_DoesNotRaiseEvent()
-    {
+    public void RefreshState_WhenStateUnchanged_DoesNotRaiseEvent() {
         var sut = CreateSut([Iface("eth0", NetworkInterfaceKind.Ethernet)]);
         var raised = false;
         sut.StateChanged += (_, _) => raised = true;
@@ -152,16 +138,14 @@ public sealed class NetworkConnectivityServiceTest
     }
 
     [Fact]
-    public void Constructor_OnlyLoopback_OfflineState()
-    {
+    public void Constructor_OnlyLoopback_OfflineState() {
         var sut = CreateSut([Iface("lo", NetworkInterfaceKind.Loopback)]);
         sut.CurrentState.Should().Be(NetworkConnectivityState.Offline);
         sut.IsNetworkAvailable().Should().BeFalse();
     }
 
     [Fact]
-    public void GetCurrentRoute_WhenVpnViaInterface_ReturnsViaInterfaceName()
-    {
+    public void GetCurrentRoute_WhenVpnViaInterface_ReturnsViaInterfaceName() {
         var sut = CreateSut([Iface("tun0", NetworkInterfaceKind.VpnTunnel)], vpnProcess: true);
         var route = sut.GetCurrentRoute();
         route.Type.Should().Be(NetworkRouteType.Vpn);

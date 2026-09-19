@@ -3,11 +3,9 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// Win32DesktopInputService 纯方法单元测试 — 验证标志映射/结构构造逻辑
 /// </summary>
-public sealed class Win32DesktopInputServiceTests
-{
+public sealed class Win32DesktopInputServiceTests {
     [Fact]
-    public void MouseActionToFlags_Click_ReturnsLeftDownUp()
-    {
+    public void MouseActionToFlags_Click_ReturnsLeftDownUp() {
         var (down, up) = Win32DesktopInputService.MouseActionToFlags(MouseAction.Click);
 
         down.Should().Be(NativeConstants.MOUSEEVENTF_LEFTDOWN);
@@ -15,8 +13,7 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void MouseActionToFlags_RightClick_ReturnsRightDownUp()
-    {
+    public void MouseActionToFlags_RightClick_ReturnsRightDownUp() {
         var (down, up) = Win32DesktopInputService.MouseActionToFlags(MouseAction.RightClick);
 
         down.Should().Be(NativeConstants.MOUSEEVENTF_RIGHTDOWN);
@@ -24,8 +21,7 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void MouseActionToFlags_DoubleClick_ReturnsLeftDownUp()
-    {
+    public void MouseActionToFlags_DoubleClick_ReturnsLeftDownUp() {
         var (down, up) = Win32DesktopInputService.MouseActionToFlags(MouseAction.DoubleClick);
 
         down.Should().Be(NativeConstants.MOUSEEVENTF_LEFTDOWN);
@@ -33,8 +29,7 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void MouseActionToFlags_MiddleClick_ReturnsMiddleDownUp()
-    {
+    public void MouseActionToFlags_MiddleClick_ReturnsMiddleDownUp() {
         var (down, up) = Win32DesktopInputService.MouseActionToFlags(MouseAction.MiddleClick);
 
         down.Should().Be(NativeConstants.MOUSEEVENTF_MIDDLEDOWN);
@@ -42,8 +37,7 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void MouseActionToFlags_LeftDown_ReturnsDownOnly()
-    {
+    public void MouseActionToFlags_LeftDown_ReturnsDownOnly() {
         var (down, up) = Win32DesktopInputService.MouseActionToFlags(MouseAction.LeftDown);
 
         down.Should().Be(NativeConstants.MOUSEEVENTF_LEFTDOWN);
@@ -51,8 +45,7 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void MouseActionToFlags_LeftUp_ReturnsUpOnly()
-    {
+    public void MouseActionToFlags_LeftUp_ReturnsUpOnly() {
         var (down, up) = Win32DesktopInputService.MouseActionToFlags(MouseAction.LeftUp);
 
         down.Should().Be(0u);
@@ -60,8 +53,7 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void MouseActionToFlags_Move_ReturnsZeroFlags()
-    {
+    public void MouseActionToFlags_Move_ReturnsZeroFlags() {
         var (down, up) = Win32DesktopInputService.MouseActionToFlags(MouseAction.Move);
 
         down.Should().Be(0u);
@@ -69,16 +61,14 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void KeyModifierToVirtualKeys_None_ReturnsEmpty()
-    {
+    public void KeyModifierToVirtualKeys_None_ReturnsEmpty() {
         var keys = Win32DesktopInputService.KeyModifierToVirtualKeys(KeyModifier.None);
 
         keys.Should().BeEmpty();
     }
 
     [Fact]
-    public void KeyModifierToVirtualKeys_SingleModifiers_ReturnCorrectVk()
-    {
+    public void KeyModifierToVirtualKeys_SingleModifiers_ReturnCorrectVk() {
         Win32DesktopInputService.KeyModifierToVirtualKeys(KeyModifier.Shift).Should().Equal((ushort)0x10);
         Win32DesktopInputService.KeyModifierToVirtualKeys(KeyModifier.Control).Should().Equal((ushort)0x11);
         Win32DesktopInputService.KeyModifierToVirtualKeys(KeyModifier.Alt).Should().Equal((ushort)0x12);
@@ -86,16 +76,14 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void KeyModifierToVirtualKeys_CombinedModifiers_ReturnInShiftCtrlAltWinOrder()
-    {
+    public void KeyModifierToVirtualKeys_CombinedModifiers_ReturnInShiftCtrlAltWinOrder() {
         var keys = Win32DesktopInputService.KeyModifierToVirtualKeys(KeyModifier.Control | KeyModifier.Shift | KeyModifier.Alt | KeyModifier.Win);
 
         keys.Should().Equal((ushort)0x10, (ushort)0x11, (ushort)0x12, (ushort)0x5B);
     }
 
     [Fact]
-    public void BuildMouseInput_SetsTypeAndFlags()
-    {
+    public void BuildMouseInput_SetsTypeAndFlags() {
         var input = Win32DesktopInputService.BuildMouseInput(NativeConstants.MOUSEEVENTF_LEFTDOWN);
 
         input.type.Should().Be(NativeConstants.INPUT_MOUSE);
@@ -103,8 +91,7 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void BuildKeyInput_Down_SetsVkAndNoKeyUpFlag()
-    {
+    public void BuildKeyInput_Down_SetsVkAndNoKeyUpFlag() {
         var input = Win32DesktopInputService.BuildKeyInput(0x0D, down: true);
 
         input.type.Should().Be(NativeConstants.INPUT_KEYBOARD);
@@ -113,8 +100,7 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void BuildKeyInput_Up_SetsVkAndKeyUpFlag()
-    {
+    public void BuildKeyInput_Up_SetsVkAndKeyUpFlag() {
         var input = Win32DesktopInputService.BuildKeyInput(0x0D, down: false);
 
         input.u.ki.wVk.Should().Be((ushort)0x0D);
@@ -122,8 +108,7 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void BuildUnicodeInput_SetsScanAndUnicodeFlag()
-    {
+    public void BuildUnicodeInput_SetsScanAndUnicodeFlag() {
         var input = Win32DesktopInputService.BuildUnicodeInput((ushort)'A', down: true);
 
         input.type.Should().Be(NativeConstants.INPUT_KEYBOARD);
@@ -133,8 +118,7 @@ public sealed class Win32DesktopInputServiceTests
     }
 
     [Fact]
-    public void BuildUnicodeInput_Up_SetsScanAndUnicodeKeyUpFlag()
-    {
+    public void BuildUnicodeInput_Up_SetsScanAndUnicodeKeyUpFlag() {
         var input = Win32DesktopInputService.BuildUnicodeInput((ushort)'中', down: false);
 
         input.u.ki.wScan.Should().Be((ushort)'中');

@@ -162,8 +162,7 @@ public partial class MemoryCacheService : ServiceEntity, ICacheService, IDisposa
     /// <summary>
     /// 释放底层 MemoryCache 资源
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _cache?.Dispose();

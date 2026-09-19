@@ -4,8 +4,7 @@ namespace McpToolDispatch;
 /// 预设工具链超边 — 基于领域知识的工具关联定义
 /// 工具名称全部来自 XxxToolName 枚举的 ToValue()，零硬编码字符串
 /// </summary>
-public static class ToolHypergraphPresets
-{
+public static class ToolHypergraphPresets {
     /// <summary>
     /// 获取预设工具链超边数组 — 包含文件操作、Shell 执行、搜索、Git、代码分析等领域的工具关联与链路顺序定义
     /// </summary>

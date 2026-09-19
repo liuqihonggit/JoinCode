@@ -1,13 +1,10 @@
 namespace JoinCode.Reasoning.Tests.Cone;
 
-public sealed class ReasoningContextConeFilterTests
-{
+public sealed class ReasoningContextConeFilterTests {
     [Fact]
-    public void GetVisibleItemsForRole_NoCone_ReturnsAllItems()
-    {
+    public void GetVisibleItemsForRole_NoCone_ReturnsAllItems() {
         var items = CreateTestItems(3, DataState.Assumption);
-        var context = new ReasoningContext
-        {
+        var context = new ReasoningContext {
             AllItems = items,
             AllEvidence = [],
             Dag = new Dag<ReasoningPayload>(),
@@ -21,8 +18,7 @@ public sealed class ReasoningContextConeFilterTests
     }
 
     [Fact]
-    public void GetVisibleItemsForRole_WithCone_ReturnsVisibleAndUnresolved()
-    {
+    public void GetVisibleItemsForRole_WithCone_ReturnsVisibleAndUnresolved() {
         var cone = new ConeOrchestrator();
         cone.RegisterRole(AgentRole.Prosecutor, 5);
 
@@ -33,8 +29,7 @@ public sealed class ReasoningContextConeFilterTests
         var fragment = cone.CreateFragmentFromItem(AgentRole.Prosecutor, item1);
         cone.GetRole(AgentRole.Prosecutor)!.AddFragment(fragment);
 
-        var context = new ReasoningContext
-        {
+        var context = new ReasoningContext {
             AllItems = [item1, item2, item3],
             AllEvidence = [],
             Dag = new Dag<ReasoningPayload>(),
@@ -50,16 +45,14 @@ public sealed class ReasoningContextConeFilterTests
     }
 
     [Fact]
-    public void GetVisibleItemsForRole_EmptyCone_ReturnsUnresolvedItems()
-    {
+    public void GetVisibleItemsForRole_EmptyCone_ReturnsUnresolvedItems() {
         var cone = new ConeOrchestrator();
         cone.RegisterRole(AgentRole.Prosecutor, 5);
 
         var item1 = new DataItem { Id = "item1", Content = "假定1", State = DataState.Assumption, Confidence = 80 };
         var item2 = new DataItem { Id = "item2", Content = "事实1", State = DataState.Fact, Confidence = 90 };
 
-        var context = new ReasoningContext
-        {
+        var context = new ReasoningContext {
             AllItems = [item1, item2],
             AllEvidence = [],
             Dag = new Dag<ReasoningPayload>(),
@@ -74,11 +67,9 @@ public sealed class ReasoningContextConeFilterTests
     }
 
     [Fact]
-    public void GetVisibleEvidenceForRole_NoCone_ReturnsAllEvidence()
-    {
+    public void GetVisibleEvidenceForRole_NoCone_ReturnsAllEvidence() {
         var evidence = CreateTestEvidence(3, AgentRole.Prosecutor);
-        var context = new ReasoningContext
-        {
+        var context = new ReasoningContext {
             AllItems = [],
             AllEvidence = evidence,
             Dag = new Dag<ReasoningPayload>(),
@@ -92,8 +83,7 @@ public sealed class ReasoningContextConeFilterTests
     }
 
     [Fact]
-    public void GetVisibleEvidenceForRole_WithCone_ReturnsOnlyVisibleEvidence()
-    {
+    public void GetVisibleEvidenceForRole_WithCone_ReturnsOnlyVisibleEvidence() {
         var cone = new ConeOrchestrator();
         cone.RegisterRole(AgentRole.Prosecutor, 5);
 
@@ -103,8 +93,7 @@ public sealed class ReasoningContextConeFilterTests
         var fragment = cone.CreateFragmentFromEvidence(AgentRole.Prosecutor, ev1);
         cone.GetRole(AgentRole.Prosecutor)!.AddFragment(fragment);
 
-        var context = new ReasoningContext
-        {
+        var context = new ReasoningContext {
             AllItems = [],
             AllEvidence = [ev1, ev2],
             Dag = new Dag<ReasoningPayload>(),
@@ -118,15 +107,13 @@ public sealed class ReasoningContextConeFilterTests
     }
 
     [Fact]
-    public void GetVisibleItemsForRole_PendingEvidence_AlwaysVisible()
-    {
+    public void GetVisibleItemsForRole_PendingEvidence_AlwaysVisible() {
         var cone = new ConeOrchestrator();
         cone.RegisterRole(AgentRole.Prosecutor, 5);
 
         var item1 = new DataItem { Id = "item1", Content = "待证1", State = DataState.PendingEvidence, Confidence = 50 };
 
-        var context = new ReasoningContext
-        {
+        var context = new ReasoningContext {
             AllItems = [item1],
             AllEvidence = [],
             Dag = new Dag<ReasoningPayload>(),
@@ -139,11 +126,9 @@ public sealed class ReasoningContextConeFilterTests
         result.Should().Contain(i => i.Id == "item1", "PendingEvidence is always visible");
     }
 
-    private static List<DataItem> CreateTestItems(int count, DataState state)
-    {
+    private static List<DataItem> CreateTestItems(int count, DataState state) {
         return Enumerable.Range(0, count)
-            .Select(i => new DataItem
-            {
+            .Select(i => new DataItem {
                 Id = $"item{i}",
                 Content = $"测试项{i}",
                 State = state,
@@ -152,11 +137,9 @@ public sealed class ReasoningContextConeFilterTests
             .ToList();
     }
 
-    private static List<EvidenceRecord> CreateTestEvidence(int count, AgentRole submittedBy)
-    {
+    private static List<EvidenceRecord> CreateTestEvidence(int count, AgentRole submittedBy) {
         return Enumerable.Range(0, count)
-            .Select(i => new EvidenceRecord
-            {
+            .Select(i => new EvidenceRecord {
                 Id = $"ev{i}",
                 Content = $"测试证据{i}",
                 Category = EvidenceCategory.Documentary,

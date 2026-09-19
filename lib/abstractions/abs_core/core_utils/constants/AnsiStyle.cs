@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// ANSI 文本样式控制码枚举
 /// </summary>
-public enum AnsiStyle
-{
+public enum AnsiStyle {
     [EnumValue("\x1b[")] Esc,
     [EnumValue("\x1b[0m")] Reset,
     [EnumValue("\x1b[1m")] Bold,

@@ -1,17 +1,14 @@
 namespace MockServer.Core.Tests;
 
-public sealed class MockServerConfigTests : IDisposable
-{
+public sealed class MockServerConfigTests : IDisposable {
     private readonly string _tempDir;
 
-    public MockServerConfigTests()
-    {
+    public MockServerConfigTests() {
         _tempDir = Path.Combine(Path.GetTempPath(), $"mockserver_test_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (Directory.Exists(_tempDir))
             Directory.Delete(_tempDir, true);
     }
@@ -19,30 +16,26 @@ public sealed class MockServerConfigTests : IDisposable
     #region LoadFromFile Tests
 
     [Fact]
-    public void LoadFromFile_NullPath_ThrowsArgumentException()
-    {
+    public void LoadFromFile_NullPath_ThrowsArgumentException() {
         var act = () => MockServerConfig.LoadFromFile(null!);
         act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
-    public void LoadFromFile_EmptyPath_ThrowsArgumentException()
-    {
+    public void LoadFromFile_EmptyPath_ThrowsArgumentException() {
         var act = () => MockServerConfig.LoadFromFile("");
         act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
-    public void LoadFromFile_NonexistentFile_ThrowsFileNotFoundException()
-    {
+    public void LoadFromFile_NonexistentFile_ThrowsFileNotFoundException() {
         var path = Path.Combine(_tempDir, "nonexistent.json");
         var act = () => MockServerConfig.LoadFromFile(path);
         act.Should().Throw<FileNotFoundException>();
     }
 
     [Fact]
-    public void LoadFromFile_ValidJson_LoadsConfigCorrectly()
-    {
+    public void LoadFromFile_ValidJson_LoadsConfigCorrectly() {
         var json = """
             {
               "port": 9999,
@@ -83,8 +76,7 @@ public sealed class MockServerConfigTests : IDisposable
     }
 
     [Fact]
-    public void LoadFromFile_InvalidJson_ThrowsJsonException()
-    {
+    public void LoadFromFile_InvalidJson_ThrowsJsonException() {
         var path = Path.Combine(_tempDir, "bad.json");
         IO.FileSystem.SafeFileIO.WriteAllText(path, "not valid json{{{");
 
@@ -93,8 +85,7 @@ public sealed class MockServerConfigTests : IDisposable
     }
 
     [Fact]
-    public void LoadFromFile_DeserializesToNull_ThrowsInvalidOperationException()
-    {
+    public void LoadFromFile_DeserializesToNull_ThrowsInvalidOperationException() {
         var path = Path.Combine(_tempDir, "null.json");
         IO.FileSystem.SafeFileIO.WriteAllText(path, "null");
 
@@ -107,8 +98,7 @@ public sealed class MockServerConfigTests : IDisposable
     #region LoadFromFileOrDefault Tests
 
     [Fact]
-    public void LoadFromFileOrDefault_NonexistentFile_ReturnsDefaultConfig()
-    {
+    public void LoadFromFileOrDefault_NonexistentFile_ReturnsDefaultConfig() {
         var path = Path.Combine(_tempDir, "missing.json");
 
         var config = MockServerConfig.LoadFromFileOrDefault(path);
@@ -120,8 +110,7 @@ public sealed class MockServerConfigTests : IDisposable
     }
 
     [Fact]
-    public void LoadFromFileOrDefault_ExistingFile_LoadsConfig()
-    {
+    public void LoadFromFileOrDefault_ExistingFile_LoadsConfig() {
         var json = """{ "port": 8080 }""";
         var path = Path.Combine(_tempDir, "cfg.json");
         IO.FileSystem.SafeFileIO.WriteAllText(path, json);
@@ -132,8 +121,7 @@ public sealed class MockServerConfigTests : IDisposable
     }
 
     [Fact]
-    public void LoadFromFileOrDefault_InvalidJson_ReturnsDefaultConfig()
-    {
+    public void LoadFromFileOrDefault_InvalidJson_ReturnsDefaultConfig() {
         var path = Path.Combine(_tempDir, "broken.json");
         IO.FileSystem.SafeFileIO.WriteAllText(path, "{bad json");
 
@@ -145,34 +133,28 @@ public sealed class MockServerConfigTests : IDisposable
     }
 
     [Fact]
-    public void LoadFromFileOrDefault_RelativePathFallbackToBaseDirectory_WhenFileNotInCwd()
-    {
+    public void LoadFromFileOrDefault_RelativePathFallbackToBaseDirectory_WhenFileNotInCwd() {
         var fileName = $"mockserver_fallback_{Guid.NewGuid():N}.json";
         var baseDirFile = Path.Combine(AppContext.BaseDirectory, fileName);
-        try
-        {
+        try {
             IO.FileSystem.SafeFileIO.WriteAllText(baseDirFile, """{ "port": 7777, "default_response": "from basedir" }""");
 
             var config = MockServerConfig.LoadFromFileOrDefault(fileName);
 
             config.Port.Should().Be(7777);
             config.DefaultResponse.Should().Be("from basedir");
-        }
-        finally
-        {
+        } finally {
             if (File.Exists(baseDirFile))
                 File.Delete(baseDirFile);
         }
     }
 
     [Fact]
-    public void LoadFromFileOrDefault_SpecificPathTakesPrecedenceOverBaseDirectory()
-    {
+    public void LoadFromFileOrDefault_SpecificPathTakesPrecedenceOverBaseDirectory() {
         var fileName = $"mockserver_precedence_{Guid.NewGuid():N}.json";
         var specificFile = Path.Combine(_tempDir, fileName);
         var baseDirFile = Path.Combine(AppContext.BaseDirectory, fileName);
-        try
-        {
+        try {
             IO.FileSystem.SafeFileIO.WriteAllText(specificFile, """{ "port": 1111, "default_response": "from specific" }""");
             IO.FileSystem.SafeFileIO.WriteAllText(baseDirFile, """{ "port": 2222, "default_response": "from basedir" }""");
 
@@ -180,17 +162,14 @@ public sealed class MockServerConfigTests : IDisposable
 
             config.Port.Should().Be(1111);
             config.DefaultResponse.Should().Be("from specific");
-        }
-        finally
-        {
+        } finally {
             if (File.Exists(baseDirFile))
                 File.Delete(baseDirFile);
         }
     }
 
     [Fact]
-    public void LoadFromFileOrDefault_FileNotInCwdOrBaseDir_ReturnsDefault()
-    {
+    public void LoadFromFileOrDefault_FileNotInCwdOrBaseDir_ReturnsDefault() {
         var config = MockServerConfig.LoadFromFileOrDefault($"totally_nonexistent_mockserver_{Guid.NewGuid():N}.json");
 
         config.Should().NotBeNull();
@@ -204,8 +183,7 @@ public sealed class MockServerConfigTests : IDisposable
     #region Default Values Tests
 
     [Fact]
-    public void DefaultConfig_HasExpectedDefaults()
-    {
+    public void DefaultConfig_HasExpectedDefaults() {
         var config = new MockServerConfig();
 
         config.Port.Should().Be(0);
@@ -214,8 +192,7 @@ public sealed class MockServerConfigTests : IDisposable
     }
 
     [Fact]
-    public void ScriptedTurn_Defaults_AreCorrect()
-    {
+    public void ScriptedTurn_Defaults_AreCorrect() {
         var turn = new ScriptedTurn();
 
         turn.TextResponse.Should().BeNull();
@@ -225,8 +202,7 @@ public sealed class MockServerConfigTests : IDisposable
     }
 
     [Fact]
-    public void ToolCallConfig_Defaults_AreCorrect()
-    {
+    public void ToolCallConfig_Defaults_AreCorrect() {
         var tc = new ToolCallConfig();
 
         tc.ToolName.Should().Be("");

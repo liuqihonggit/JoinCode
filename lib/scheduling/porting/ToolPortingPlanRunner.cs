@@ -5,8 +5,7 @@ namespace Core.Scheduling;
 /// 工具移植计划运行器 - 用于执行和监控工具移植并行计划
 /// </summary>
 [Register(typeof(ToolPortingPlanRunner), ServiceLifetime.Singleton)]
-public sealed partial class ToolPortingPlanRunner : ServiceEntity
-{
+public sealed partial class ToolPortingPlanRunner : ServiceEntity {
     private readonly ParallelExecutionEngine _executionEngine;
     private readonly ILogger<ToolPortingPlanRunner>? _logger;
     private readonly IClockService _clock;
@@ -19,8 +18,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
     /// <param name="executionEngine">并行执行引擎</param>
     /// <param name="logger">日志记录器,为空时不记录日志</param>
     /// <param name="clock">时钟服务,为空时使用系统默认时钟</param>
-    public ToolPortingPlanRunner(ParallelExecutionEngine executionEngine, ILogger<ToolPortingPlanRunner>? logger = null, IClockService? clock = null)
-    {
+    public ToolPortingPlanRunner(ParallelExecutionEngine executionEngine, ILogger<ToolPortingPlanRunner>? logger = null, IClockService? clock = null) {
         ArgumentNullException.ThrowIfNull(executionEngine);
         _executionEngine = executionEngine;
         _logger = logger;
@@ -30,8 +28,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
     /// <summary>
     /// 运行完整的并行计划
     /// </summary>
-    public async Task<ToolPortingExecutionResult> RunAsync(PlanOptions? options = null)
-    {
+    public async Task<ToolPortingExecutionResult> RunAsync(PlanOptions? options = null) {
         options ??= new PlanOptions();
         _executionLog.Clear();
 
@@ -45,8 +42,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
         Log("");
 
         // 创建执行选项
-        var executionOptions = new ExecutionOptions
-        {
+        var executionOptions = new ExecutionOptions {
             SimulatedWorkDurationMs = options.SimulatedMode ? 500 : 0,
             MaxConcurrentTasks = 12,
             VerboseLogging = options.DebugLog
@@ -69,22 +65,18 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
         Log(L.T(StringKey.CompletionRate, report.CompletionPercentage));
         Log(L.T(StringKey.ExecutionDuration, report.ExecutionDuration.TotalSeconds));
 
-        if (report.FailedTasks.Count > 0)
-        {
+        if (report.FailedTasks.Count > 0) {
             Log("");
             Log(L.T(StringKey.FailedTaskList));
-            foreach (var task in report.FailedTasks)
-            {
+            foreach (var task in report.FailedTasks) {
                 Log($"  - {task.Name}: {task.LastMessage}");
             }
         }
 
         Log("");
         Log(L.T(StringKey.TaskDetails));
-        foreach (var detail in report.TaskDetails.OrderBy(d => d.TaskName))
-        {
-            var statusIcon = detail.Status switch
-            {
+        foreach (var detail in report.TaskDetails.OrderBy(d => d.TaskName)) {
+            var statusIcon = detail.Status switch {
                 ScheduledTaskStatus.Completed => "✓",
                 ScheduledTaskStatus.Failed => "✗",
                 ScheduledTaskStatus.InProgress => "→",
@@ -98,8 +90,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
         Log(L.T(StringKey.ExecutionResultLabel, result.Success ? L.T(StringKey.SuccessLabel) : L.T(StringKey.FailedLabel)));
         Log("=".PadRight(60, '='));
 
-        return new ToolPortingExecutionResult
-        {
+        return new ToolPortingExecutionResult {
             Success = result.Success,
             Report = report,
             ExecutionLog = _executionLog.ToString()
@@ -109,13 +100,11 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
     /// <summary>
     /// 执行计划的便捷方法
     /// </summary>
-    public async Task<ToolPortingExecutionResult> ExecutePlanAsync(PlanOptions options)
-    {
+    public async Task<ToolPortingExecutionResult> ExecutePlanAsync(PlanOptions options) {
         var result = await RunAsync(options).ConfigureAwait(false);
 
         // 记录执行历史
-        var record = new PlanExecutionRecord
-        {
+        var record = new PlanExecutionRecord {
             ExecutedAt = _clock.GetUtcNow(),
             Options = options,
             Result = result
@@ -123,8 +112,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
         _executionHistory.Enqueue(record);
 
         // 限制历史记录数量
-        while (_executionHistory.Count > WorkflowConstants.Limits.ExecutionHistoryMax)
-        {
+        while (_executionHistory.Count > WorkflowConstants.Limits.ExecutionHistoryMax) {
             _executionHistory.TryDequeue(out _);
         }
 
@@ -134,16 +122,14 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
     /// <summary>
     /// 获取执行历史
     /// </summary>
-    public IEnumerable<PlanExecutionRecord> GetExecutionHistory()
-    {
+    public IEnumerable<PlanExecutionRecord> GetExecutionHistory() {
         return _executionHistory;
     }
 
     /// <summary>
     /// 生成任务分配方案
     /// </summary>
-    public TaskAssignmentPlan GenerateAssignmentPlan()
-    {
+    public TaskAssignmentPlan GenerateAssignmentPlan() {
         var scheduler = new ToolPortingScheduler();
         scheduler.InitializeTasks();
 
@@ -151,8 +137,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
         var firstWave = scheduler.GetFirstWaveTasks();
         var secondWave = tasks.Where(t => t.Dependencies.Any()).ToList();
 
-        var assignments = tasks.Select(t => new TaskAgentAssignment
-        {
+        var assignments = tasks.Select(t => new TaskAgentAssignment {
             TaskId = t.Id,
             TaskName = t.Name,
             Description = t.Description,
@@ -163,8 +148,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
             AgentWorkScopes = GetAgentWorkScopes(t)
         }).ToList();
 
-        return new TaskAssignmentPlan
-        {
+        return new TaskAssignmentPlan {
             TotalTasks = tasks.Count,
             FirstWaveCount = firstWave.Count(),
             SecondWaveCount = secondWave.Count,
@@ -177,8 +161,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
     /// <summary>
     /// 导出计划到 JSON
     /// </summary>
-    public string ExportPlanToJson()
-    {
+    public string ExportPlanToJson() {
         var plan = GenerateAssignmentPlan();
         return RelaxedJsonSerializer.Serialize(plan, SchedulingIndentedTasksJsonContext.Default);
     }
@@ -186,8 +169,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
     /// <summary>
     /// 导出计划到 Markdown
     /// </summary>
-    public string ExportPlanToMarkdown()
-    {
+    public string ExportPlanToMarkdown() {
         var plan = GenerateAssignmentPlan();
         var sb = new StringBuilder();
 
@@ -206,10 +188,8 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
         sb.AppendLine(L.T(StringKey.FirstWaveTableHeader));
         sb.AppendLine("|------|----------|--------|----------|");
 
-        foreach (var assignment in plan.Assignments.Where(a => a.IsFirstWave).OrderByDescending(a => a.Priority))
-        {
-            var priority = assignment.Priority switch
-            {
+        foreach (var assignment in plan.Assignments.Where(a => a.IsFirstWave).OrderByDescending(a => a.Priority)) {
+            var priority = assignment.Priority switch {
                 TodoPriority.Critical => $"{PrioritySymbol.Critical.ToValue()} Critical",
                 TodoPriority.High => $"{PrioritySymbol.High.ToValue()} High",
                 TodoPriority.Medium => $"{PrioritySymbol.Medium.ToValue()} Medium",
@@ -225,10 +205,8 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
         sb.AppendLine(L.T(StringKey.SecondWaveTableHeader));
         sb.AppendLine("|------|----------|--------|----------|----------|");
 
-        foreach (var assignment in plan.Assignments.Where(a => !a.IsFirstWave).OrderByDescending(a => a.Priority))
-        {
-            var priority = assignment.Priority switch
-            {
+        foreach (var assignment in plan.Assignments.Where(a => !a.IsFirstWave).OrderByDescending(a => a.Priority)) {
+            var priority = assignment.Priority switch {
                 TodoPriority.Critical => $"{PrioritySymbol.Critical.ToValue()} Critical",
                 TodoPriority.High => $"{PrioritySymbol.High.ToValue()} High",
                 TodoPriority.Medium => $"{PrioritySymbol.Medium.ToValue()} Medium",
@@ -243,11 +221,9 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
         sb.AppendLine(L.T(StringKey.SectionExecutionOrder));
         sb.AppendLine();
         sb.AppendLine("```");
-        foreach (var phase in plan.ExecutionOrder)
-        {
+        foreach (var phase in plan.ExecutionOrder) {
             sb.AppendLine(L.T(StringKey.PhaseLabel, phase.PhaseNumber, phase.Description));
-            foreach (var taskName in phase.TaskNames)
-            {
+            foreach (var taskName in phase.TaskNames) {
                 sb.AppendLine($"  - {taskName}");
             }
         }
@@ -273,16 +249,13 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
         return sb.ToString();
     }
 
-    private void Log(string message)
-    {
+    private void Log(string message) {
         _executionLog.AppendLine(message);
         _logger?.LogInformation(message);
     }
 
-    private List<string> GetAgentWorkScopes(ScheduledTask task)
-    {
-        return task.Name switch
-        {
+    private List<string> GetAgentWorkScopes(ScheduledTask task) {
+        return task.Name switch {
             "Task-01-Agent-Core" => new List<string>
             {
                 "AgentTool + agentColorManager + agentDisplay",
@@ -340,14 +313,12 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
         };
     }
 
-    private List<ExecutionPhase> GenerateExecutionOrder(List<ScheduledTask> tasks)
-    {
+    private List<ExecutionPhase> GenerateExecutionOrder(List<ScheduledTask> tasks) {
         var phases = new List<ExecutionPhase>();
 
         // 第一波
         var firstWave = tasks.Where(t => !t.Dependencies.Any()).ToList();
-        phases.Add(new ExecutionPhase
-        {
+        phases.Add(new ExecutionPhase {
             PhaseNumber = 1,
             Description = L.T(StringKey.FirstWaveDescription),
             TaskNames = firstWave.Select(t => t.Name).ToList()
@@ -355,8 +326,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
 
         // 第二波
         var secondWave = tasks.Where(t => t.Dependencies.Any()).ToList();
-        phases.Add(new ExecutionPhase
-        {
+        phases.Add(new ExecutionPhase {
             PhaseNumber = 2,
             Description = L.T(StringKey.SecondWaveDescription),
             TaskNames = secondWave.Select(t => t.Name).ToList()
@@ -369,8 +339,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
 /// <summary>
 /// 计划选项
 /// </summary>
-public sealed partial class PlanOptions
-{
+public sealed partial class PlanOptions {
     /// <summary>
     /// 是否使用模拟模式（用于测试）
     /// </summary>
@@ -385,8 +354,7 @@ public sealed partial class PlanOptions
 /// <summary>
 /// 工具移植计划执行结果
 /// </summary>
-public sealed partial class ToolPortingExecutionResult
-{
+public sealed partial class ToolPortingExecutionResult {
     /// <summary>执行是否成功</summary>
     public required bool Success { get; init; }
     /// <summary>执行报告,包含任务详情与统计信息</summary>
@@ -398,8 +366,7 @@ public sealed partial class ToolPortingExecutionResult
 /// <summary>
 /// 任务分配计划
 /// </summary>
-public sealed partial class TaskAssignmentPlan
-{
+public sealed partial class TaskAssignmentPlan {
     /// <summary>任务总数</summary>
     public int TotalTasks { get; init; }
     /// <summary>第一波(无依赖)任务数</summary>
@@ -417,8 +384,7 @@ public sealed partial class TaskAssignmentPlan
 /// <summary>
 /// 任务智能体分配
 /// </summary>
-public sealed partial class TaskAgentAssignment
-{
+public sealed partial class TaskAgentAssignment {
     /// <summary>任务唯一标识</summary>
     public required string TaskId { get; init; }
     /// <summary>任务名称</summary>
@@ -440,8 +406,7 @@ public sealed partial class TaskAgentAssignment
 /// <summary>
 /// 执行阶段
 /// </summary>
-public sealed partial class ExecutionPhase
-{
+public sealed partial class ExecutionPhase {
     /// <summary>阶段编号(从 1 开始)</summary>
     public required int PhaseNumber { get; init; }
     /// <summary>阶段描述</summary>
@@ -453,8 +418,7 @@ public sealed partial class ExecutionPhase
 /// <summary>
 /// 计划执行记录 - 用于跟踪执行历史
 /// </summary>
-public sealed partial class PlanExecutionRecord
-{
+public sealed partial class PlanExecutionRecord {
     /// <summary>
     /// 执行时间
     /// </summary>

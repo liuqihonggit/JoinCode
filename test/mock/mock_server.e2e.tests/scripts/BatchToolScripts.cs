@@ -3,10 +3,8 @@ namespace MockServer.E2E.Tests.Scripts;
 /// <summary>
 /// 文件操作工具批量 E2E 测试脚本
 /// </summary>
-public static class BatchFileToolScripts
-{
-    public static ConversationScript FileToolsBatch => new()
-    {
+public static class BatchFileToolScripts {
+    public static ConversationScript FileToolsBatch => new() {
         Name = "文件工具批量测试",
         Turns =
         [
@@ -54,10 +52,8 @@ public static class BatchFileToolScripts
 /// <summary>
 /// Shell 工具批量 E2E 测试脚本
 /// </summary>
-public static class BatchShellToolScripts
-{
-    public static ConversationScript ShellToolsBatch => new()
-    {
+public static class BatchShellToolScripts {
+    public static ConversationScript ShellToolsBatch => new() {
         Name = "Shell工具批量测试",
         Turns =
         [
@@ -97,10 +93,8 @@ public static class BatchShellToolScripts
 /// <summary>
 /// Git 工具批量 E2E 测试脚本
 /// </summary>
-public static class BatchGitToolScripts
-{
-    public static ConversationScript GitToolsBatch => new()
-    {
+public static class BatchGitToolScripts {
+    public static ConversationScript GitToolsBatch => new() {
         Name = "Git工具批量测试",
         Turns =
         [
@@ -142,10 +136,8 @@ public static class BatchGitToolScripts
 /// <summary>
 /// 交互+配置工具批量 E2E 测试脚本
 /// </summary>
-public static class BatchInteractionToolScripts
-{
-    public static ConversationScript InteractionToolsBatch => new()
-    {
+public static class BatchInteractionToolScripts {
+    public static ConversationScript InteractionToolsBatch => new() {
         Name = "交互工具批量测试",
         Turns =
         [
@@ -181,10 +173,8 @@ public static class BatchInteractionToolScripts
 /// <summary>
 /// Agent 管理工具批量 E2E 测试脚本
 /// </summary>
-public static class BatchAgentToolScripts
-{
-    public static ConversationScript AgentToolsBatch => new()
-    {
+public static class BatchAgentToolScripts {
+    public static ConversationScript AgentToolsBatch => new() {
         Name = "Agent工具批量测试",
         Turns =
         [
@@ -228,10 +218,8 @@ public static class BatchAgentToolScripts
 /// <summary>
 /// 搜索工具批量 E2E 测试脚本
 /// </summary>
-public static class BatchSearchToolScripts
-{
-    public static ConversationScript SearchToolsBatch => new()
-    {
+public static class BatchSearchToolScripts {
+    public static ConversationScript SearchToolsBatch => new() {
         Name = "搜索工具批量测试",
         Turns =
         [
@@ -271,10 +259,8 @@ public static class BatchSearchToolScripts
 /// <summary>
 /// Plan 模式工具批量 E2E 测试脚本
 /// </summary>
-public static class BatchPlanToolScripts
-{
-    public static ConversationScript PlanToolsBatch => new()
-    {
+public static class BatchPlanToolScripts {
+    public static ConversationScript PlanToolsBatch => new() {
         Name = "Plan工具批量测试",
         Turns =
         [
@@ -310,10 +296,8 @@ public static class BatchPlanToolScripts
 /// <summary>
 /// System 工具批量 E2E 测试脚本
 /// </summary>
-public static class BatchSystemToolScripts
-{
-    public static ConversationScript SystemToolsBatch => new()
-    {
+public static class BatchSystemToolScripts {
+    public static ConversationScript SystemToolsBatch => new() {
         Name = "System工具批量测试",
         Turns =
         [

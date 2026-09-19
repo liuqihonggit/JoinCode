@@ -3,8 +3,7 @@ namespace McpToolDispatch;
 /// <summary>
 /// GitHub Run 日志提示常量 — 各种场景下的排障步骤提示文本
 /// </summary>
-internal static class GitHubRunLogHints
-{
+internal static class GitHubRunLogHints {
     /// <summary>
     /// gh_run_list 发现失败 run 时的排障步骤提示
     /// </summary>

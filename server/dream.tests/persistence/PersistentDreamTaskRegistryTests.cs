@@ -3,11 +3,9 @@ namespace Dream.Tests.Persistence;
 /// <summary>
 /// 持久化做梦任务注册表单元测试
 /// </summary>
-public sealed class PersistentDreamTaskRegistryTests
-{
+public sealed class PersistentDreamTaskRegistryTests {
     [Fact]
-    public async Task RegisterDreamTaskAsync_SavesToPersistence()
-    {
+    public async Task RegisterDreamTaskAsync_SavesToPersistence() {
         var persistence = new Mock<IDreamTaskPersistence>();
         var registry = new PersistentDreamTaskRegistry(persistence.Object);
 
@@ -18,8 +16,7 @@ public sealed class PersistentDreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task AddDreamTurnAsync_SavesUpdatedTask()
-    {
+    public async Task AddDreamTurnAsync_SavesUpdatedTask() {
         var persistence = new Mock<IDreamTaskPersistence>();
         var registry = new PersistentDreamTaskRegistry(persistence.Object);
         var taskId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
@@ -30,8 +27,7 @@ public sealed class PersistentDreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task CompleteDreamTaskAsync_SavesAndRemovesFromActive()
-    {
+    public async Task CompleteDreamTaskAsync_SavesAndRemovesFromActive() {
         var persistence = new Mock<IDreamTaskPersistence>();
         var registry = new PersistentDreamTaskRegistry(persistence.Object);
         var taskId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
@@ -45,8 +41,7 @@ public sealed class PersistentDreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task FailDreamTaskAsync_SavesAndRemovesFromActive()
-    {
+    public async Task FailDreamTaskAsync_SavesAndRemovesFromActive() {
         var persistence = new Mock<IDreamTaskPersistence>();
         var registry = new PersistentDreamTaskRegistry(persistence.Object);
         var taskId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
@@ -59,8 +54,7 @@ public sealed class PersistentDreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task KillDreamTaskAsync_SavesAndRemovesFromActive()
-    {
+    public async Task KillDreamTaskAsync_SavesAndRemovesFromActive() {
         var persistence = new Mock<IDreamTaskPersistence>();
         var registry = new PersistentDreamTaskRegistry(persistence.Object);
         var taskId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
@@ -73,8 +67,7 @@ public sealed class PersistentDreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task KillDreamTaskAsync_NonExistent_DoesNotThrow()
-    {
+    public async Task KillDreamTaskAsync_NonExistent_DoesNotThrow() {
         var persistence = new Mock<IDreamTaskPersistence>();
         var registry = new PersistentDreamTaskRegistry(persistence.Object);
 
@@ -84,8 +77,7 @@ public sealed class PersistentDreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task KillDreamTaskAsync_AlreadyTerminal_DoesNotThrow()
-    {
+    public async Task KillDreamTaskAsync_AlreadyTerminal_DoesNotThrow() {
         var persistence = new Mock<IDreamTaskPersistence>();
         var registry = new PersistentDreamTaskRegistry(persistence.Object);
         var taskId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
@@ -97,12 +89,10 @@ public sealed class PersistentDreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task GetTaskStateAsync_FromPersistence_WhenNotActive()
-    {
+    public async Task GetTaskStateAsync_FromPersistence_WhenNotActive() {
         var persistence = new Mock<IDreamTaskPersistence>();
         persistence.Setup(p => p.LoadAsync("d12345678", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DreamTaskState
-            {
+            .ReturnsAsync(new DreamTaskState {
                 Id = "d12345678",
                 Description = "dreaming",
                 StartTime = DateTime.UtcNow,
@@ -118,8 +108,7 @@ public sealed class PersistentDreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task GetAllTasksAsync_MergesActiveAndPersisted()
-    {
+    public async Task GetAllTasksAsync_MergesActiveAndPersisted() {
         var persistence = new Mock<IDreamTaskPersistence>();
         persistence.Setup(p => p.LoadAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<DreamTaskState>
@@ -144,8 +133,7 @@ public sealed class PersistentDreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task LoadActiveTasksAsync_LoadsNonTerminalTasks()
-    {
+    public async Task LoadActiveTasksAsync_LoadsNonTerminalTasks() {
         var persistence = new Mock<IDreamTaskPersistence>();
         persistence.Setup(p => p.LoadAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<DreamTaskState>
@@ -162,8 +150,7 @@ public sealed class PersistentDreamTaskRegistryTests
     }
 
     [Fact]
-    public async Task CleanupAsync_DelegatesToPersistence()
-    {
+    public async Task CleanupAsync_DelegatesToPersistence() {
         var persistence = new Mock<IDreamTaskPersistence>();
         var registry = new PersistentDreamTaskRegistry(persistence.Object);
 

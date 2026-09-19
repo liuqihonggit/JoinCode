@@ -20,6 +20,7 @@
     <!-- NET分析器开关：/p:EnableNETAnalyzers=false 禁用内置Roslyn分析器，节省~10s -->
     <EnableNETAnalyzers Condition="'$(EnableNETAnalyzers)' == ''">true</EnableNETAnalyzers>
     <AnalysisLevel Condition="'$(AnalysisLevel)' == ''">latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <!-- 生成文件输出开关：/p:EmitCompilerGeneratedFiles=false 禁用生成文件写磁盘，节省IO -->
     <EmitCompilerGeneratedFiles Condition="'$(EmitCompilerGeneratedFiles)' == ''">true</EmitCompilerGeneratedFiles>
     <Company>JoinCode</Company>

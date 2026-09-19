@@ -5,8 +5,7 @@ namespace MockServer.E2E.Tests;
 /// 验证端到端链路: LLM输出 → 工具调用 → 权限检查/超时中间件 → 结果返回
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed class TimeoutAndPathE2ETests : CoverageTestBase
-{
+public sealed class TimeoutAndPathE2ETests : CoverageTestBase {
     public TimeoutAndPathE2ETests(ITestOutputHelper output) : base(output) { }
 
     [Fact]

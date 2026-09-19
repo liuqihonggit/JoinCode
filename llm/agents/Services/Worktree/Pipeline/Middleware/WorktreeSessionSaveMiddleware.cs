@@ -4,14 +4,12 @@ namespace Core.Agents.Worktree;
 /// Worktree 会话保存中间件 — 保存会话 + 遥测记录
 /// </summary>
 [Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WorktreeSessionSaveMiddleware : ServiceEntity, IWorktreeCreateMiddleware
-{
+public sealed partial class WorktreeSessionSaveMiddleware : ServiceEntity, IWorktreeCreateMiddleware {
 
     /// <summary>
     /// 构造 WorktreeSessionSaveMiddleware 实例，注入延迟加载的管道操作、文件操作服务、时钟服务、遥测服务及日志器
     /// </summary>
-    public WorktreeSessionSaveMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, IFileOperationService fs, IClockService clock, ITelemetryService? telemetryService = null, ILogger<WorktreeSessionSaveMiddleware>? logger = null)
-    {
+    public WorktreeSessionSaveMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, IFileOperationService fs, IClockService clock, ITelemetryService? telemetryService = null, ILogger<WorktreeSessionSaveMiddleware>? logger = null) {
         _worktreeService = worktreeService;
         _fs = fs;
         _clock = clock;
@@ -36,10 +34,8 @@ public sealed partial class WorktreeSessionSaveMiddleware : ServiceEntity, IWork
     /// <param name="context">worktree 创建上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
-    {
-        if (context.IsRecovery)
-        {
+    public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct) {
+        if (context.IsRecovery) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -51,8 +47,7 @@ public sealed partial class WorktreeSessionSaveMiddleware : ServiceEntity, IWork
             ? (long)(_clock.GetUtcNow() - context.CreationStartTime.Value).TotalMilliseconds
             : 0;
 
-        var session = new AgentWorktreeSession
-        {
+        var session = new AgentWorktreeSession {
             AgentId = context.AgentId,
             OriginalCwd = context.OriginalCwd,
             WorktreePath = context.WorktreePath,

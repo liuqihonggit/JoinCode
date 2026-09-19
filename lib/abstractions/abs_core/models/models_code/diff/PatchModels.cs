@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Diff;
 /// <summary>
 /// Patch 行类型 — 对齐 TS diff 库的行前缀
 /// </summary>
-public enum PatchLineType : byte
-{
+public enum PatchLineType : byte {
     /// <summary>上下文行（前缀 ' '）</summary>
     [EnumValue("context")] Context,
     /// <summary>添加行（前缀 '+'）</summary>
@@ -16,8 +15,7 @@ public enum PatchLineType : byte
 /// <summary>
 /// Patch 行 — 对齐 TS StructuredPatchHunk.lines 中的单行
 /// </summary>
-public sealed record PatchLine
-{
+public sealed record PatchLine {
     /// <summary>行类型</summary>
     public required PatchLineType Type { get; init; }
 
@@ -34,8 +32,7 @@ public sealed record PatchLine
 /// <summary>
 /// 结构化 Patch Hunk — 对齐 TS StructuredPatchHunk (npm diff 库)
 /// </summary>
-public sealed record StructuredPatchHunk
-{
+public sealed record StructuredPatchHunk {
     /// <summary>旧文件起始行号</summary>
     public required int OldStart { get; init; }
 

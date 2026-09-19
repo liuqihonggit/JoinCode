@@ -2,10 +2,8 @@
 #pragma warning disable JCC9001, JCC9002
 namespace Core.Tests.LLM;
 
-public sealed class SessionTagServiceTests
-{
-    private static SessionTagService CreateService()
-    {
+public sealed class SessionTagServiceTests {
+    private static SessionTagService CreateService() {
         var tempPath = Path.Combine(Path.GetTempPath(), $"tag_test_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempPath);
         var fileOp = new InMemoryFileOperationService();
@@ -13,8 +11,7 @@ public sealed class SessionTagServiceTests
     }
 
     [Fact]
-    public void AddTag_ShouldAddTag()
-    {
+    public void AddTag_ShouldAddTag() {
         var service = CreateService();
 
         var added = service.AddTag("session1", "important");
@@ -24,8 +21,7 @@ public sealed class SessionTagServiceTests
     }
 
     [Fact]
-    public void AddTag_SameTagTwice_ShouldReturnFalse()
-    {
+    public void AddTag_SameTagTwice_ShouldReturnFalse() {
         var service = CreateService();
 
         service.AddTag("session1", "important");
@@ -36,8 +32,7 @@ public sealed class SessionTagServiceTests
     }
 
     [Fact]
-    public void AddTag_NullSessionId_ShouldThrow()
-    {
+    public void AddTag_NullSessionId_ShouldThrow() {
         var service = CreateService();
 
         var act = () => service.AddTag(null!, "tag");
@@ -46,8 +41,7 @@ public sealed class SessionTagServiceTests
     }
 
     [Fact]
-    public void AddTag_NullTag_ShouldThrow()
-    {
+    public void AddTag_NullTag_ShouldThrow() {
         var service = CreateService();
 
         var act = () => service.AddTag("session1", null!);
@@ -56,8 +50,7 @@ public sealed class SessionTagServiceTests
     }
 
     [Fact]
-    public void RemoveTag_ShouldRemoveTag()
-    {
+    public void RemoveTag_ShouldRemoveTag() {
         var service = CreateService();
         service.AddTag("session1", "important");
 
@@ -68,8 +61,7 @@ public sealed class SessionTagServiceTests
     }
 
     [Fact]
-    public void RemoveTag_NonExistentTag_ShouldReturnFalse()
-    {
+    public void RemoveTag_NonExistentTag_ShouldReturnFalse() {
         var service = CreateService();
 
         var removed = service.RemoveTag("session1", "nonexistent");
@@ -78,16 +70,14 @@ public sealed class SessionTagServiceTests
     }
 
     [Fact]
-    public void GetTags_UnknownSession_ShouldReturnEmpty()
-    {
+    public void GetTags_UnknownSession_ShouldReturnEmpty() {
         var service = CreateService();
 
         service.GetTags("unknown").Should().BeEmpty();
     }
 
     [Fact]
-    public void GetTags_ShouldBeSorted()
-    {
+    public void GetTags_ShouldBeSorted() {
         var service = CreateService();
 
         service.AddTag("session1", "zebra");
@@ -99,8 +89,7 @@ public sealed class SessionTagServiceTests
     }
 
     [Fact]
-    public void GetAllTags_ShouldReturnAllSessions()
-    {
+    public void GetAllTags_ShouldReturnAllSessions() {
         var service = CreateService();
 
         service.AddTag("session1", "tag1");
@@ -112,8 +101,7 @@ public sealed class SessionTagServiceTests
     }
 
     [Fact]
-    public void AddTag_CaseInsensitive_ShouldNotDuplicate()
-    {
+    public void AddTag_CaseInsensitive_ShouldNotDuplicate() {
         var service = CreateService();
 
         service.AddTag("session1", "Important");
@@ -124,8 +112,7 @@ public sealed class SessionTagServiceTests
     }
 
     [Fact]
-    public void RemoveTag_WhenLastTagRemoved_ShouldRemoveSession()
-    {
+    public void RemoveTag_WhenLastTagRemoved_ShouldRemoveSession() {
         var service = CreateService();
         service.AddTag("session1", "only-tag");
 

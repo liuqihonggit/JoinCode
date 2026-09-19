@@ -8,8 +8,7 @@ namespace Core.Bridge;
 /// 封装子进程的生命周期和通信接口
 /// 通过 IProcessService.StartInteractiveAsync 创建进程，支持 JCC_PROCESS_MODE 环境变量切换
 /// </summary>
-public sealed class BridgeSubprocessHandle : PluginResourceBase
-{
+public sealed class BridgeSubprocessHandle : PluginResourceBase {
     private readonly SubprocessIoChannels _io;
     private readonly SubprocessState _state;
     private readonly ILogger? _logger;
@@ -63,8 +62,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// 私有构造 — 通过 CreateAsync 工厂方法创建
     /// </summary>
     private BridgeSubprocessHandle(IInteractiveProcess process, BridgeSubprocessOptions options, ILogger? logger, ResilientSubprocess? resilientSubprocess = null)
-        : base("Bridge", PluginResourceKind.Hook, options.SessionId)
-    {
+        : base("Bridge", PluginResourceKind.Hook, options.SessionId) {
         SessionId = options.SessionId;
         AccessToken = options.AccessToken;
         _logger = logger;
@@ -88,14 +86,12 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         BridgeSubprocessOptions options,
         IProcessService processService,
         ILogger? logger = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(options.ExecPath);
         ArgumentNullException.ThrowIfNull(processService);
 
-        var interactiveOptions = new InteractiveProcessOptions
-        {
+        var interactiveOptions = new InteractiveProcessOptions {
             FileName = options.ExecPath,
             Arguments = options.Arguments ?? string.Empty,
             ArgumentList = options.ArgumentList,
@@ -107,8 +103,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
 
         ResilientSubprocess? resilientSubprocess = null;
         var resilienceEnabled = Environment.GetEnvironmentVariable("JCC_RESILIENCE_ENABLED") is not "0";
-        if (resilienceEnabled)
-        {
+        if (resilienceEnabled) {
             var policy = SubprocessResiliencePolicy.BridgeDefault;
             Func<CancellationToken, Task<IInteractiveProcess>> spawnFunc = async spawnCt =>
                 await processService.StartInteractiveAsync(interactiveOptions, spawnCt).ConfigureAwait(false);
@@ -118,10 +113,8 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         return new BridgeSubprocessHandle(process, options, logger, resilientSubprocess);
     }
 
-    private async Task MonitorExitAsync(CancellationToken ct)
-    {
-        try
-        {
+    private async Task MonitorExitAsync(CancellationToken ct) {
+        try {
             await _io.WaitForExitAsync(ct).ConfigureAwait(false);
             var exitCode = _io.ExitCode;
             var status = exitCode == 0
@@ -131,13 +124,9 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
             _state.TrySetDone(status);
             _logger?.LogInformation("[SubprocessHandle] 进程退出: {SessionId}, 退出码={ExitCode}, 状态={Status}",
                 SessionId, exitCode, status);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             _state.TrySetDone(BridgeSubprocessStatus.Failed);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _state.TrySetDone(BridgeSubprocessStatus.Failed);
             _logger?.LogWarning(ex, "[SubprocessHandle] 监控进程退出异常: {SessionId}", SessionId);
         }
@@ -149,8 +138,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// <param name="data">写入的数据字符串</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task WriteStdinAsync(string data, CancellationToken ct = default)
-    {
+    public async Task WriteStdinAsync(string data, CancellationToken ct = default) {
         await _io.WriteStdinAsync(data, ct).ConfigureAwait(false);
     }
 
@@ -161,8 +149,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// <param name="newToken">新的访问令牌</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task UpdateAccessTokenAsync(string newToken, CancellationToken ct = default)
-    {
+    public async Task UpdateAccessTokenAsync(string newToken, CancellationToken ct = default) {
         AccessToken = newToken;
         var message = $"{{\"type\":\"update_environment_variables\",\"variables\":{{\"JCC_SESSION_ACCESS_TOKEN\":\"{newToken}\"}}}}\n";
         await WriteStdinAsync(message, ct).ConfigureAwait(false);
@@ -177,8 +164,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// <summary>
     /// 强制杀死 — 对齐 TS 端 forceKill()
     /// </summary>
-    public void ForceKill()
-    {
+    public void ForceKill() {
         if (!_state.TryMarkSigkillSent()) return;
         _io.TryKillProcess("已强制终止", LogLevel.Warning);
     }
@@ -187,12 +173,9 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     public event EventHandler<string>? OutputLineReceived;
 
     /// <summary>异步读取 stdout（NDJSON 行）— 消费 StandardOutput 流</summary>
-    private async Task ReadStdoutAsync(CancellationToken ct)
-    {
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
+    private async Task ReadStdoutAsync(CancellationToken ct) {
+        try {
+            while (!ct.IsCancellationRequested) {
                 var line = await _io.ReadStdoutLineAsync(ct).ConfigureAwait(false);
                 if (line is null) break;
 
@@ -200,32 +183,26 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
                 _io.WriteTranscript(line);
 
                 // 对齐 TS 端 sessionRunner.ts: 检测首条用户消息 — onFirstUserMessage 回调
-                if (!_state.FirstUserMessageSeen && OnFirstUserMessage is not null)
-                {
+                if (!_state.FirstUserMessageSeen && OnFirstUserMessage is not null) {
                     var userText = ExtractUserMessageText(line);
-                    if (userText is not null)
-                    {
+                    if (userText is not null) {
                         _state.MarkFirstUserMessageSeen();
                         OnFirstUserMessage(userText);
                     }
                 }
 
                 // 对齐 TS 端 sessionRunner.ts: extractActivities — 提取活动信息
-                if (OnActivity is not null)
-                {
+                if (OnActivity is not null) {
                     var extractedActivities = BridgeNdjsonParser.ExtractActivities(line);
-                    foreach (var activity in extractedActivities)
-                    {
+                    foreach (var activity in extractedActivities) {
                         OnActivity(activity);
                     }
                 }
 
                 // 对齐 TS 端 sessionRunner.ts: control_request 检测 — 权限请求
-                if (OnPermissionRequest is not null)
-                {
+                if (OnPermissionRequest is not null) {
                     var permReq = BridgeNdjsonParser.ExtractPermissionRequest(line);
-                    if (permReq is not null)
-                    {
+                    if (permReq is not null) {
                         OnPermissionRequest(permReq, AccessToken);
                     }
                 }
@@ -233,13 +210,9 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
                 // 通知外部
                 OutputLineReceived?.Invoke(this, line);
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             // 正常取消
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "[SubprocessHandle] stdout 读取结束");
         }
     }
@@ -250,12 +223,10 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// </summary>
     /// <param name="ndjsonLine">NDJSON 行字符串</param>
     /// <returns>用户消息文本；非用户消息返回 null</returns>
-    internal static string? ExtractUserMessageText(string ndjsonLine)
-    {
+    internal static string? ExtractUserMessageText(string ndjsonLine) {
         if (string.IsNullOrWhiteSpace(ndjsonLine)) return null;
 
-        try
-        {
+        try {
             var json = RelaxedJsonSerializer.Deserialize(ndjsonLine, BridgeJsonContext.Default.DictionaryStringJsonElement);
             if (json is null) return null;
 
@@ -265,8 +236,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
             if (!string.Equals(type, "user", StringComparison.OrdinalIgnoreCase)) return null;
 
             // 跳过 tool-result 消息 — 对齐 TS 端: message.role === 'tool-result'
-            if (json.TryGetValue("role", out var roleEl) && roleEl.ValueKind == JsonValueKind.String)
-            {
+            if (json.TryGetValue("role", out var roleEl) && roleEl.ValueKind == JsonValueKind.String) {
                 var role = roleEl.GetString();
                 if (string.Equals(role, "tool-result", StringComparison.OrdinalIgnoreCase)) return null;
             }
@@ -275,32 +245,25 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
             if (json.TryGetValue("synthetic", out var synthEl) && synthEl.ValueKind == JsonValueKind.True) return null;
 
             // 跳过 replay 消息 — 对齐 TS 端: message.source === 'replay'
-            if (json.TryGetValue("source", out var sourceEl) && sourceEl.ValueKind == JsonValueKind.String)
-            {
+            if (json.TryGetValue("source", out var sourceEl) && sourceEl.ValueKind == JsonValueKind.String) {
                 var source = sourceEl.GetString();
                 if (string.Equals(source, "replay", StringComparison.OrdinalIgnoreCase)) return null;
             }
 
             // 提取文本内容 — 对齐 TS 端: extractUserMessageText
-            if (json.TryGetValue("content", out var contentEl))
-            {
-                if (contentEl.ValueKind == JsonValueKind.String)
-                {
+            if (json.TryGetValue("content", out var contentEl)) {
+                if (contentEl.ValueKind == JsonValueKind.String) {
                     var text = contentEl.GetString();
                     return string.IsNullOrWhiteSpace(text) ? null : text;
                 }
 
-                if (contentEl.ValueKind == JsonValueKind.Array)
-                {
+                if (contentEl.ValueKind == JsonValueKind.Array) {
                     // content 是数组，提取第一个 text 类型的 block
-                    foreach (var item in contentEl.EnumerateArray())
-                    {
+                    foreach (var item in contentEl.EnumerateArray()) {
                         if (item.TryGetProperty("type", out var blockTypeEl) &&
                             blockTypeEl.ValueKind == JsonValueKind.String &&
-                            string.Equals(blockTypeEl.GetString(), "text", StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (item.TryGetProperty("text", out var textEl) && textEl.ValueKind == JsonValueKind.String)
-                            {
+                            string.Equals(blockTypeEl.GetString(), "text", StringComparison.OrdinalIgnoreCase)) {
+                            if (item.TryGetProperty("text", out var textEl) && textEl.ValueKind == JsonValueKind.String) {
                                 var text = textEl.GetString();
                                 return string.IsNullOrWhiteSpace(text) ? null : text;
                             }
@@ -310,12 +273,9 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
             }
 
             // 兜底: 尝试 message.content（嵌套结构）
-            if (json.TryGetValue("message", out var msgEl) && msgEl.ValueKind == JsonValueKind.Object)
-            {
-                if (msgEl.TryGetProperty("content", out var msgContentEl))
-                {
-                    if (msgContentEl.ValueKind == JsonValueKind.String)
-                    {
+            if (json.TryGetValue("message", out var msgEl) && msgEl.ValueKind == JsonValueKind.Object) {
+                if (msgEl.TryGetProperty("content", out var msgContentEl)) {
+                    if (msgContentEl.ValueKind == JsonValueKind.String) {
                         var text = msgContentEl.GetString();
                         return string.IsNullOrWhiteSpace(text) ? null : text;
                     }
@@ -323,9 +283,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
             }
 
             return null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -334,8 +292,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// 异步释放子进程资源 — 唯一释放入口：标记释放 → 终止进程 → 释放 IO 通道 → Entity 注销
     /// </summary>
     /// <returns>表示异步释放操作的 ValueTask</returns>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (!_state.MarkDisposed()) return;
 
         await TerminateProcessAsync().ConfigureAwait(false);
@@ -344,18 +301,13 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     }
 
     /// <summary>终止进程并等待退出 — 提取保持 DisposeAsync 主体清晰</summary>
-    private async Task TerminateProcessAsync()
-    {
-        try
-        {
-            if (_io.IsRunning)
-            {
+    private async Task TerminateProcessAsync() {
+        try {
+            if (_io.IsRunning) {
                 Kill();
                 await _io.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[BridgeSubprocessHandle] Dispose 时等待进程退出失败");
         }
     }
@@ -366,8 +318,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
 /// 负责生成 jcc.exe 子进程并管理其生命周期
 /// ProcessStartInfo 由 BridgeSubprocessHandle 内部创建，避免 JCC3004 分析器误报
 /// </summary>
-public sealed class BridgeSubprocessSpawner
-{
+public sealed class BridgeSubprocessSpawner {
     private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
@@ -393,8 +344,7 @@ public sealed class BridgeSubprocessSpawner
     /// <param name="fs">文件系统抽象</param>
     /// <param name="processService">进程服务</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public BridgeSubprocessSpawner(IFileSystem fs, IProcessService processService, ILogger? logger = null)
-    {
+    public BridgeSubprocessSpawner(IFileSystem fs, IProcessService processService, ILogger? logger = null) {
         _fs = fs;
         _processService = processService;
         _logger = logger;
@@ -408,8 +358,7 @@ public sealed class BridgeSubprocessSpawner
     /// <param name="options">子进程选项</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>创建好的子进程句柄</returns>
-    public async Task<BridgeSubprocessHandle> SpawnAsync(BridgeSubprocessOptions options, CancellationToken cancellationToken = default)
-    {
+    public async Task<BridgeSubprocessHandle> SpawnAsync(BridgeSubprocessOptions options, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(options);
 
         // 对齐 TS 端: safeFilenameId 净化会话 ID
@@ -419,15 +368,11 @@ public sealed class BridgeSubprocessSpawner
         string? debugFile = null;
         string? transcriptPath = null;
 
-        if (!string.IsNullOrEmpty(options.DebugFile))
-        {
+        if (!string.IsNullOrEmpty(options.DebugFile)) {
             var extIdx = options.DebugFile.LastIndexOf('.');
-            if (extIdx > 0)
-            {
+            if (extIdx > 0) {
                 debugFile = $"{options.DebugFile[..extIdx]}-{safeId}{options.DebugFile[extIdx..]}";
-            }
-            else
-            {
+            } else {
                 debugFile = $"{options.DebugFile}-{safeId}";
             }
 
@@ -436,16 +381,13 @@ public sealed class BridgeSubprocessSpawner
             transcriptPath = string.IsNullOrEmpty(debugDir)
                 ? $"bridge-transcript-{safeId}.json"
                 : Path.Combine(debugDir, $"bridge-transcript-{safeId}.json");
-        }
-        else if (options.DebugLog || IsAntBuild())
-        {
+        } else if (options.DebugLog || IsAntBuild()) {
             var tempDir = JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeDirectory;
             debugFile = Path.Combine(tempDir, $"bridge-session-{safeId}.log");
         }
 
         // 构建带 transcript 的路径
-        var argList = BuildArgumentList(new BridgeSubprocessOptions
-        {
+        var argList = BuildArgumentList(new BridgeSubprocessOptions {
             SessionId = options.SessionId,
             SdkUrl = options.SdkUrl,
             AccessToken = options.AccessToken,
@@ -466,14 +408,12 @@ public sealed class BridgeSubprocessSpawner
         var argsDisplay = string.Join(' ', argList);
         _logger?.LogInformation("[SubprocessSpawner] 生成子进程: {ExecPath} {Args}", ExecPath, argsDisplay);
 
-        if (!string.IsNullOrEmpty(debugFile))
-        {
+        if (!string.IsNullOrEmpty(debugFile)) {
             _logger?.LogDebug("[SubprocessSpawner] Debug log: {DebugFile}", debugFile);
         }
 
         // BridgeSubprocessHandle 内部创建 ProcessStartInfo + Process 并消费 StandardError/StandardOutput
-        var handleOptions = new BridgeSubprocessOptions
-        {
+        var handleOptions = new BridgeSubprocessOptions {
             SessionId = options.SessionId,
             ExecPath = ExecPath,
             ArgumentList = argList,
@@ -499,27 +439,20 @@ public sealed class BridgeSubprocessSpawner
         handle.OnActivity = options.OnActivity;
 
         // 对齐 TS 端: 初始化 transcript stream
-        if (!string.IsNullOrEmpty(transcriptPath))
-        {
-            try
-            {
+        if (!string.IsNullOrEmpty(transcriptPath)) {
+            try {
                 // 确保目录存在
                 var dir = Path.GetDirectoryName(transcriptPath);
-                if (!string.IsNullOrEmpty(dir) && !_fs.DirectoryExists(dir))
-                {
+                if (!string.IsNullOrEmpty(dir) && !_fs.DirectoryExists(dir)) {
                     _fs.CreateDirectory(dir);
                 }
 
                 // FileMode.Append 在 .NET 5+ 中文件不存在时抛 FileNotFoundException
                 // 需要先确保文件存在
-                if (!_fs.FileExists(transcriptPath))
-                {
-                    try
-                    {
+                if (!_fs.FileExists(transcriptPath)) {
+                    try {
                         _fs.Open(transcriptPath, FileMode.CreateNew).Dispose();
-                    }
-                    catch (IOException ex) when (_fs.FileExists(transcriptPath))
-                    {
+                    } catch (IOException ex) when (_fs.FileExists(transcriptPath)) {
                         // TOCTOU 竞态：其他进程在我们检查和创建之间已创建了文件 — 安全忽略
                         _logger?.LogDebug(ex, "Transcript file already exists (created by another process): {Path}", transcriptPath);
                     }
@@ -530,9 +463,7 @@ public sealed class BridgeSubprocessSpawner
 
                 // 将 transcript stream 注入 handle（handle 内部在 stdout 读取时写入）
                 handle.SetTranscriptStream(stream);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[SubprocessSpawner] Transcript 写入初始化失败（非致命）");
             }
         }
@@ -545,14 +476,12 @@ public sealed class BridgeSubprocessSpawner
     /// <summary>对齐 TS 端: safeFilenameId — 去除非法文件名字符</summary>
     /// <param name="id">原始 ID</param>
     /// <returns>净化后的安全文件名 ID</returns>
-    public static string SafeFilenameId(string id)
-    {
+    public static string SafeFilenameId(string id) {
         return System.Text.RegularExpressions.Regex.Replace(id, @"[^a-zA-Z0-9_-]", "_");
     }
 
     /// <summary>检测是否为 Ant 构建</summary>
-    private static bool IsAntBuild()
-    {
+    private static bool IsAntBuild() {
         return Environment.GetEnvironmentVariable("USER_TYPE") == "ant";
     }
 
@@ -560,13 +489,11 @@ public sealed class BridgeSubprocessSpawner
     /// 构建环境变量字典 — 对齐 TS 端子进程环境变量
     /// 包含 JCC_SESSION_ACCESS_TOKEN、JCC_POST_FOR_SESSION_INGRESS_V2 等
     /// </summary>
-    private Dictionary<string, string> BuildEnvironmentVariables(BridgeSubprocessOptions options)
-    {
+    private Dictionary<string, string> BuildEnvironmentVariables(BridgeSubprocessOptions options) {
         var env = new Dictionary<string, string>();
 
         // 额外环境变量
-        foreach (var (key, value) in ExtraEnv)
-        {
+        foreach (var (key, value) in ExtraEnv) {
             env[key] = value;
         }
 
@@ -574,8 +501,7 @@ public sealed class BridgeSubprocessSpawner
         env["JCC_ENVIRONMENT_KIND"] = "bridge";
         env["JCC_AGENT_ROLE"] = "worker";
 
-        if (options.AccessToken is not null)
-        {
+        if (options.AccessToken is not null) {
             // 对齐 TS 端: JCC_SESSION_ACCESS_TOKEN
             env[JccEnvVar.SessionAccessToken.ToValue()] = options.AccessToken;
         }
@@ -586,17 +512,14 @@ public sealed class BridgeSubprocessSpawner
         // v1: HybridTransport (WS reads + POST writes) to Session-Ingress
         env[JccEnvVar.PostForSessionIngressV2.ToValue()] = "1";
 
-        if (options.UseCcrV2)
-        {
+        if (options.UseCcrV2) {
             env[JccEnvVar.BridgeUseCcrV2.ToValue()] = "1";
-            if (options.WorkerEpoch.HasValue)
-            {
+            if (options.WorkerEpoch.HasValue) {
                 env[JccEnvVar.WorkerEpoch.ToValue()] = options.WorkerEpoch.Value.ToString();
             }
         }
 
-        if (options.Sandbox)
-        {
+        if (options.Sandbox) {
             env[JccEnvVar.ForceSandbox.ToValue()] = "1";
         }
 
@@ -606,15 +529,12 @@ public sealed class BridgeSubprocessSpawner
     /// <summary>
     /// 构建命令行参数列表 — 对齐 TS 端子进程参数，使用 ArgumentList 消除字符串拼接注入风险
     /// </summary>
-    private static IReadOnlyList<string> BuildArgumentList(BridgeSubprocessOptions options)
-    {
+    private static IReadOnlyList<string> BuildArgumentList(BridgeSubprocessOptions options) {
         var args = new List<string>();
 
         // 额外脚本参数 — 对齐 TS 端: [...deps.scriptArgs, ...]
-        if (options.ScriptArgs is not null)
-        {
-            foreach (var arg in options.ScriptArgs)
-            {
+        if (options.ScriptArgs is not null) {
+            foreach (var arg in options.ScriptArgs) {
                 args.Add(arg);
             }
         }
@@ -622,14 +542,12 @@ public sealed class BridgeSubprocessSpawner
         // --print 模式（非交互）
         args.Add(JccCliArg.Print.ToValue());
 
-        if (options.SdkUrl is not null)
-        {
+        if (options.SdkUrl is not null) {
             args.Add(JccCliArg.SdkUrl.ToValue());
             args.Add(options.SdkUrl);
         }
 
-        if (options.SessionId is not null)
-        {
+        if (options.SessionId is not null) {
             args.Add(JccCliArg.SessionId.ToValue());
             args.Add(options.SessionId);
         }
@@ -642,19 +560,16 @@ public sealed class BridgeSubprocessSpawner
 
         args.Add(JccCliArg.ReplayUserMessages.ToValue());
 
-        if (options.DebugLog)
-        {
+        if (options.DebugLog) {
             args.Add(JccCliArg.DebugLog.ToValue());
         }
 
-        if (!string.IsNullOrEmpty(options.DebugFile))
-        {
+        if (!string.IsNullOrEmpty(options.DebugFile)) {
             args.Add(JccCliArg.DebugFile.ToValue());
             args.Add(options.DebugFile);
         }
 
-        if (!string.IsNullOrEmpty(options.PermissionMode))
-        {
+        if (!string.IsNullOrEmpty(options.PermissionMode)) {
             args.Add(JccCliArg.PermissionMode.ToValue());
             args.Add(options.PermissionMode);
         }
@@ -670,29 +585,23 @@ public sealed class BridgeSubprocessSpawner
     /// <returns>表示异步操作的任务</returns>
     public async Task ShutdownAllAsync(
         IReadOnlyList<BridgeSubprocessHandle> handles,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (handles.Count == 0) return;
 
         _logger?.LogInformation("[SubprocessSpawner] 关闭 {Count} 个子进程", handles.Count);
 
         // 1. 向所有进程发送 SIGTERM
-        foreach (var handle in handles)
-        {
+        foreach (var handle in handles) {
             handle.Kill();
         }
 
         // 2. 等待优雅退出
-        try
-        {
+        try {
             var doneTasks = handles.Select(h => h.Done).ToArray();
             await Task.WhenAll(doneTasks).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             // 3. 强制杀死未退出的进程
-            foreach (var handle in handles.Where(h => h.IsRunning))
-            {
+            foreach (var handle in handles.Where(h => h.IsRunning)) {
                 handle.ForceKill();
             }
         }
@@ -704,8 +613,7 @@ public sealed class BridgeSubprocessSpawner
 /// <summary>
 /// 子进程生成选项 — 对齐 TS 端 spawn 选项
 /// </summary>
-public sealed class BridgeSubprocessOptions
-{
+public sealed class BridgeSubprocessOptions {
     /// <summary>会话 ID</summary>
     public required string SessionId { get; init; }
 

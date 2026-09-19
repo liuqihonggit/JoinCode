@@ -1,10 +1,8 @@
 namespace Infra.Tests.Subprocess;
 
-public sealed class ProcessHealthMonitorTests
-{
+public sealed class ProcessHealthMonitorTests {
     [Fact]
-    public async Task InitialState_IsHealthy()
-    {
+    public async Task InitialState_IsHealthy() {
         var process = CreateMockProcess(false);
         await using var monitor = new ProcessHealthMonitor(process, new HealthCheckConfig { Interval = TimeSpan.FromHours(1) });
 
@@ -13,11 +11,9 @@ public sealed class ProcessHealthMonitorTests
     }
 
     [Fact]
-    public async Task DetectsExitedProcess_BecomesUnhealthy()
-    {
+    public async Task DetectsExitedProcess_BecomesUnhealthy() {
         var process = CreateMockProcess(true);
-        var config = new HealthCheckConfig
-        {
+        var config = new HealthCheckConfig {
             Interval = TimeSpan.FromMilliseconds(50),
             FailureThreshold = 1,
         };
@@ -35,11 +31,9 @@ public sealed class ProcessHealthMonitorTests
     }
 
     [Fact]
-    public async Task HealthyProcess_StaysHealthy()
-    {
+    public async Task HealthyProcess_StaysHealthy() {
         var process = CreateMockProcess(false);
-        var config = new HealthCheckConfig
-        {
+        var config = new HealthCheckConfig {
             Interval = TimeSpan.FromMilliseconds(50),
         };
 
@@ -51,8 +45,7 @@ public sealed class ProcessHealthMonitorTests
         monitor.ConsecutiveFailures.Should().Be(0);
     }
 
-    private static IInteractiveProcess CreateMockProcess(bool hasExited)
-    {
+    private static IInteractiveProcess CreateMockProcess(bool hasExited) {
         var mock = new Mock<IInteractiveProcess>();
         mock.SetupGet(p => p.Id).Returns(123);
         mock.SetupGet(p => p.HasExited).Returns(hasExited);
@@ -64,26 +57,22 @@ public sealed class ProcessHealthMonitorTests
     }
 }
 
-public sealed class ProcessRestartManagerTests
-{
+public sealed class ProcessRestartManagerTests {
     [Fact]
-    public void InitialState_CanRestart()
-    {
+    public void InitialState_CanRestart() {
         var manager = new ProcessRestartManager(3);
         manager.RestartCount.Should().Be(0);
         manager.CanRestart.Should().BeTrue();
     }
 
     [Fact]
-    public void MaxRestarts_Reached_CannotRestart()
-    {
+    public void MaxRestarts_Reached_CannotRestart() {
         var manager = new ProcessRestartManager(0);
         manager.CanRestart.Should().BeFalse();
     }
 
     [Fact]
-    public async Task RestartAsync_IncrementsCount()
-    {
+    public async Task RestartAsync_IncrementsCount() {
         var manager = new ProcessRestartManager(3);
         var oldProcess = CreateMockProcess(1);
         var newProcess = CreateMockProcess(2);
@@ -99,8 +88,7 @@ public sealed class ProcessRestartManagerTests
     }
 
     [Fact]
-    public async Task RestartAsync_ExceedsMax_Throws()
-    {
+    public async Task RestartAsync_ExceedsMax_Throws() {
         var manager = new ProcessRestartManager(1);
         var oldProcess = CreateMockProcess(1);
         var newProcess = CreateMockProcess(2);
@@ -112,16 +100,14 @@ public sealed class ProcessRestartManagerTests
     }
 
     [Fact]
-    public void Reset_ClearsCount()
-    {
+    public void Reset_ClearsCount() {
         var manager = new ProcessRestartManager(3);
         manager.Reset();
         manager.RestartCount.Should().Be(0);
         manager.CanRestart.Should().BeTrue();
     }
 
-    private static IInteractiveProcess CreateMockProcess(int pid)
-    {
+    private static IInteractiveProcess CreateMockProcess(int pid) {
         var mock = new Mock<IInteractiveProcess>();
         mock.SetupGet(p => p.Id).Returns(pid);
         mock.SetupGet(p => p.HasExited).Returns(false);

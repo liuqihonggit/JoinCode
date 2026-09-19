@@ -5,8 +5,7 @@ namespace Core.Permission;
 /// 删除操作检测器接口 — 可扩展的删除操作检测机制
 /// 实现此接口以支持不同工具类型的删除操作检测（file_delete、Shell rm/del、PowerShell Remove-Item 等）
 /// </summary>
-public interface IDeleteOperationDetector
-{
+public interface IDeleteOperationDetector {
     /// <summary>
     /// 检测当前工具调用是否为删除操作
     /// </summary>
@@ -17,8 +16,7 @@ public interface IDeleteOperationDetector
 /// <summary>
 /// 删除操作信息 — 描述检测到的删除操作详情
 /// </summary>
-public sealed record DeleteOperationInfo
-{
+public sealed record DeleteOperationInfo {
     /// <summary>
     /// 被删除的目标路径（可能为 null，如 Shell 命令中路径无法提取）
     /// </summary>

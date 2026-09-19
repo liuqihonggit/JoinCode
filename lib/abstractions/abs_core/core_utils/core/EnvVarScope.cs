@@ -8,8 +8,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 详见 ADR-0093、AGENTS.md「代码风格规范」。
 /// </para>
 /// </summary>
-public sealed class EnvVarScope : IDisposable
-{
+public sealed class EnvVarScope : IDisposable {
     private readonly List<(string Name, string? Original, EnvironmentVariableTarget Target)> _restored = [];
     private bool _disposed;
 
@@ -19,8 +18,7 @@ public sealed class EnvVarScope : IDisposable
     /// <param name="name">环境变量名。</param>
     /// <param name="value">新值（null 表示删除该变量）。</param>
     /// <param name="target">变量目标（Process/User/Machine），默认 Process。</param>
-    public static EnvVarScope Set(string name, string? value, EnvironmentVariableTarget target = EnvironmentVariableTarget.Process)
-    {
+    public static EnvVarScope Set(string name, string? value, EnvironmentVariableTarget target = EnvironmentVariableTarget.Process) {
         var scope = new EnvVarScope();
         scope.Add(name, value, target);
         return scope;
@@ -33,8 +31,7 @@ public sealed class EnvVarScope : IDisposable
     /// <param name="value">新值（null 表示删除）。</param>
     /// <param name="target">变量目标。</param>
     /// <returns>当前作用域（链式调用）。</returns>
-    public EnvVarScope Add(string name, string? value, EnvironmentVariableTarget target = EnvironmentVariableTarget.Process)
-    {
+    public EnvVarScope Add(string name, string? value, EnvironmentVariableTarget target = EnvironmentVariableTarget.Process) {
         if (_disposed) throw new ObjectDisposedException(nameof(EnvVarScope));
         var original = Environment.GetEnvironmentVariable(name, target);
         _restored.Add((name, original, target));
@@ -45,12 +42,10 @@ public sealed class EnvVarScope : IDisposable
     /// <summary>
     /// 恢复所有环境变量到设置前原值（按设置逆序恢复）。幂等。
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        for (var i = _restored.Count - 1; i >= 0; i--)
-        {
+        for (var i = _restored.Count - 1; i >= 0; i--) {
             var (name, original, target) = _restored[i];
             Environment.SetEnvironmentVariable(name, original, target);
         }

@@ -5,17 +5,14 @@ namespace Core.Permission;
 /// 绕过权限检查中间件 — BypassPermissions 模式下直接批准所有操作
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class BypassPermissionMiddleware : ServiceEntity, IPermissionMiddleware
-{
+public sealed partial class BypassPermissionMiddleware : ServiceEntity, IPermissionMiddleware {
     /// <inheritdoc />
 
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
-    {
-        if (context.CurrentMode == PermissionMode.Bypass)
-        {
+    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
+        if (context.CurrentMode == PermissionMode.Bypass) {
             context.Result = ToolPermissionCheckResult.Approved();
             return Task.CompletedTask;
         }

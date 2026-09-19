@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 路径级权限检查器接口 — 对齐 TS checkReadPermissionForTool / checkWritePermissionForTool
 /// 检查文件读写操作的路径级权限（工作目录、规则匹配、内部路径白名单等）
 /// </summary>
-public interface IPathPermissionChecker
-{
+public interface IPathPermissionChecker {
     /// <summary>
     /// 检查读取权限 — 对齐 TS checkReadPermissionForTool 9步决策链
     /// </summary>

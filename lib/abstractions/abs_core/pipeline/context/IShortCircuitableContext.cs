@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 可短路的管道上下文 — 中间件调用 ShortCircuit() 后，管道自动跳过后续中间件
 /// </summary>
-public interface IShortCircuitableContext
-{
+public interface IShortCircuitableContext {
     /// <summary>
     /// 是否已短路 — 管道在每个中间件执行前检查此属性
     /// </summary>

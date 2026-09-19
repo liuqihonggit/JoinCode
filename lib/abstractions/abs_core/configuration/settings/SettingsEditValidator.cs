@@ -4,14 +4,12 @@ namespace JoinCode.Abstractions.Configuration.Settings;
 /// settings.json 文件编辑校验器。
 /// 对齐 TS: validateInputForSettingsFileEdit — 只阻止"从合法变非法"的降级编辑，不阻止修复。
 /// </summary>
-public static class SettingsEditValidator
-{
+public static class SettingsEditValidator {
     /// <summary>
     /// 判断文件路径是否为 JCC settings 文件。
     /// 对齐 TS: isClaudeSettingsPath — 识别 .jcc/settings.json 和 .jcc/settings.local.json
     /// </summary>
-    public static bool IsJccSettingsPath(string filePath)
-    {
+    public static bool IsJccSettingsPath(string filePath) {
         if (string.IsNullOrWhiteSpace(filePath))
             return false;
 
@@ -29,8 +27,7 @@ public static class SettingsEditValidator
     /// <param name="originalContent">编辑前的文件内容</param>
     /// <param name="updatedContent">编辑后的文件内容（由调用方模拟编辑得到）</param>
     /// <returns>null 表示允许编辑；非 null 表示拒绝编辑的错误消息</returns>
-    public static string? ValidateEdit(string filePath, string originalContent, string updatedContent)
-    {
+    public static string? ValidateEdit(string filePath, string originalContent, string updatedContent) {
         if (!IsJccSettingsPath(filePath))
             return null;
 
@@ -41,8 +38,7 @@ public static class SettingsEditValidator
 
         // 编辑前有效 + 编辑后无效 → 拒绝
         var afterResult = ValidateSettingsContent(updatedContent);
-        if (!afterResult.IsValid)
-        {
+        if (!afterResult.IsValid) {
             return $"JCC settings.json 验证失败:\n{afterResult.Error}\n\n注意: 除非明确指示，否则不要更新 env 字段。";
         }
 
@@ -53,23 +49,18 @@ public static class SettingsEditValidator
     /// 验证 settings.json 内容是否合法。
     /// 对齐 TS: validateSettingsFileContent — 使用 JsonDocument 做基础结构验证。
     /// </summary>
-    internal static SettingsValidationResult ValidateSettingsContent(string content)
-    {
+    internal static SettingsValidationResult ValidateSettingsContent(string content) {
         if (string.IsNullOrWhiteSpace(content))
             return SettingsValidationResult.Invalid("内容为空");
 
         JsonDocument doc;
-        try
-        {
+        try {
             doc = JsonDocument.Parse(content);
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             return SettingsValidationResult.Invalid($"无效的 JSON: {ex.Message}");
         }
 
-        using (doc)
-        {
+        using (doc) {
             if (doc.RootElement.ValueKind != JsonValueKind.Object)
                 return SettingsValidationResult.Invalid("根元素必须是 JSON 对象");
 
@@ -99,10 +90,8 @@ public static class SettingsEditValidator
             ValidateOptionalBoolean(root, "strictPluginOnlyCustomization", errors);
 
             // env 字段的值必须是字符串
-            if (root.TryGetProperty("env", out var env) && env.ValueKind == JsonValueKind.Object)
-            {
-                foreach (var prop in env.EnumerateObject())
-                {
+            if (root.TryGetProperty("env", out var env) && env.ValueKind == JsonValueKind.Object) {
+                foreach (var prop in env.EnumerateObject()) {
                     if (prop.Value.ValueKind != JsonValueKind.String)
                         errors.Add($"env.{prop.Name}: 值必须是字符串");
                 }
@@ -112,8 +101,7 @@ public static class SettingsEditValidator
             if (root.TryGetProperty("permissions", out var perms)
                 && perms.ValueKind == JsonValueKind.Object
                 && perms.TryGetProperty("defaultMode", out var mode)
-                && mode.ValueKind == JsonValueKind.String)
-            {
+                && mode.ValueKind == JsonValueKind.String) {
                 var validModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
                     "plan", "auto", "ask", "bypass"
@@ -129,32 +117,27 @@ public static class SettingsEditValidator
         return SettingsValidationResult.Valid();
     }
 
-    private static void ValidateOptionalString(JsonElement root, string key, List<string> errors)
-    {
+    private static void ValidateOptionalString(JsonElement root, string key, List<string> errors) {
         if (root.TryGetProperty(key, out var prop) && prop.ValueKind != JsonValueKind.String)
             errors.Add($"{key}: 必须是字符串");
     }
 
-    private static void ValidateOptionalObject(JsonElement root, string key, List<string> errors)
-    {
+    private static void ValidateOptionalObject(JsonElement root, string key, List<string> errors) {
         if (root.TryGetProperty(key, out var prop) && prop.ValueKind != JsonValueKind.Object)
             errors.Add($"{key}: 必须是 JSON 对象");
     }
 
-    private static void ValidateOptionalArray(JsonElement root, string key, List<string> errors)
-    {
+    private static void ValidateOptionalArray(JsonElement root, string key, List<string> errors) {
         if (root.TryGetProperty(key, out var prop) && prop.ValueKind != JsonValueKind.Array)
             errors.Add($"{key}: 必须是 JSON 数组");
     }
 
-    private static void ValidateOptionalNumber(JsonElement root, string key, List<string> errors)
-    {
+    private static void ValidateOptionalNumber(JsonElement root, string key, List<string> errors) {
         if (root.TryGetProperty(key, out var prop) && prop.ValueKind != JsonValueKind.Number)
             errors.Add($"{key}: 必须是数字");
     }
 
-    private static void ValidateOptionalBoolean(JsonElement root, string key, List<string> errors)
-    {
+    private static void ValidateOptionalBoolean(JsonElement root, string key, List<string> errors) {
         if (root.TryGetProperty(key, out var prop) && prop.ValueKind != JsonValueKind.True && prop.ValueKind != JsonValueKind.False)
             errors.Add($"{key}: 必须是布尔值");
     }
@@ -163,8 +146,7 @@ public static class SettingsEditValidator
 /// <summary>
 /// settings.json 验证结果
 /// </summary>
-internal sealed record SettingsValidationResult
-{
+internal sealed record SettingsValidationResult {
     public bool IsValid { get; init; }
     public string? Error { get; init; }
 

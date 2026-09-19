@@ -1,13 +1,11 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
-public class ListToolsResult
-{
+public class ListToolsResult {
     [JsonPropertyName("tools")]
     public List<ToolDefinition> Tools { get; set; } = [];
 }
 
-public class ToolDefinition
-{
+public class ToolDefinition {
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
@@ -21,12 +19,10 @@ public class ToolDefinition
     public string Category { get; set; } = "general";
 }
 
-public class InputSchema : InputSchemaBase
-{
+public class InputSchema : InputSchemaBase {
     [JsonPropertyName("properties")]
     public Dictionary<string, PropertySchema> Properties { get; set; } = [];
 }
 
-public class PropertySchema : SchemaProperty
-{
+public class PropertySchema : SchemaProperty {
 }

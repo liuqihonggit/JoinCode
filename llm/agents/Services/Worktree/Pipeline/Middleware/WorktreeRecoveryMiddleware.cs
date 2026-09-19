@@ -5,14 +5,12 @@ namespace Core.Agents.Worktree;
 /// 对齐 TS readWorktreeHeadSha：直接读取 .git 指针文件获取 HEAD SHA（无子进程，~15ms 优化）
 /// </summary>
 [Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktreeCreateMiddleware
-{
+public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktreeCreateMiddleware {
 
     /// <summary>
     /// 构造 WorktreeRecoveryMiddleware 实例，注入文件操作服务、延迟加载的管道操作、时钟服务及日志器
     /// </summary>
-    public WorktreeRecoveryMiddleware(IFileOperationService fs, Lazy<IWorktreePipelineOperations> worktreeService, IClockService clock, ILogger<WorktreeRecoveryMiddleware>? logger = null)
-    {
+    public WorktreeRecoveryMiddleware(IFileOperationService fs, Lazy<IWorktreePipelineOperations> worktreeService, IClockService clock, ILogger<WorktreeRecoveryMiddleware>? logger = null) {
         _fs = fs;
         _worktreeService = worktreeService;
         _clock = clock;
@@ -35,28 +33,22 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
     /// <param name="context">worktree 创建上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct) {
         WorktreeContextEnricher.EnsureGitRoot(context, _fs);
         var worktreePath = AgentWorktreeSession.GenerateWorktreePath(context.GitRoot, context.AgentId);
         var branchName = AgentWorktreeSession.GenerateBranchName(context.AgentId);
 
         var existingHeadSha = await ReadWorktreeHeadSha(worktreePath).ConfigureAwait(false);
-        if (existingHeadSha is not null)
-        {
+        if (existingHeadSha is not null) {
             _logger?.LogInformation("恢复现有 worktree: {WorktreePath}, Agent: {AgentId}", worktreePath, context.AgentId);
 
-            try
-            {
+            try {
                 _fs.SetDirectoryLastWriteTimeUtc(worktreePath, _clock.GetUtcNow());
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogDebug(ex, "更新 worktree mtime 失败: {Path}", worktreePath);
             }
 
-            var existingSession = new AgentWorktreeSession
-            {
+            var existingSession = new AgentWorktreeSession {
                 AgentId = context.AgentId,
                 OriginalCwd = context.OriginalCwd,
                 WorktreePath = worktreePath,
@@ -78,22 +70,18 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
             return;
         }
 
-        if (string.IsNullOrEmpty(context.WorktreePath))
-        {
+        if (string.IsNullOrEmpty(context.WorktreePath)) {
             context.WorktreePath = worktreePath;
         }
-        if (string.IsNullOrEmpty(context.BranchName))
-        {
+        if (string.IsNullOrEmpty(context.BranchName)) {
             context.BranchName = branchName;
         }
 
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private async Task<string?> ReadWorktreeHeadSha(string worktreePath)
-    {
-        try
-        {
+    private async Task<string?> ReadWorktreeHeadSha(string worktreePath) {
+        try {
             var gitFile = _fs.CombinePath(worktreePath, ".git");
             if (!_fs.FileExists(gitFile)) return null;
 
@@ -115,8 +103,7 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
 
             var headContent = headReadResult.Content.Trim();
 
-            if (headContent.StartsWith("ref: ", StringComparison.OrdinalIgnoreCase))
-            {
+            if (headContent.StartsWith("ref: ", StringComparison.OrdinalIgnoreCase)) {
                 var refPath = headContent["ref: ".Length..].Trim();
                 var refFile = _fs.CombinePath(normalizedGitdir, refPath);
                 if (!_fs.FileExists(refFile)) return null;
@@ -126,9 +113,7 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
             }
 
             return headContent.Length == 40 && headContent.All(c => char.IsAsciiHexDigit(c)) ? headContent : null;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "读取 worktree HEAD SHA 失败: {Path}", worktreePath);
             return null;
         }

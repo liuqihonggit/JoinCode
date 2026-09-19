@@ -10,15 +10,13 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.Ide, Description = "IDE 集成管理", Usage = "/ide [detect|connect|disconnect|status|open]", Category = ChatCommandCategory.Platform, ArgumentHint = "detect|connect|disconnect|status|open", IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "IDE 操作", Enum = new[] { "detect", "connect", "disconnect", "status", "open" })]
 [ChatCommandArg("file_path", Type = "string", Description = "open 操作时打开的文件路径（可附 :行号）")]
-public sealed class IdeCommand : ChatCommandBase
-{
+public sealed class IdeCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /ide 命令 — 根据子参数分发检测、连接、断开、打开文件、状态操作
     /// </summary>
     /// <param name="context">命令执行上下文，包含参数、会话 ID、取消令牌等</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var ideService = ChatCommandBase.GetService<IIdeIntegrationService>(context);
 
         if (ideService is null)
@@ -28,52 +26,48 @@ public sealed class IdeCommand : ChatCommandBase
         var parts = arg.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
         var subCommand = parts.Length > 0 ? parts[0] : "";
 
-        switch (subCommand)
-        {
+        switch (subCommand) {
             case PlatformActionEnumConstants.Detect:
-                HandleDetect(ideService);
-                break;
+            HandleDetect(ideService);
+            break;
             case PlatformActionEnumConstants.Connect:
             case "c":
-                await HandleConnectionAsync(ideService, ToggleAction.On);
-                break;
+            await HandleConnectionAsync(ideService, ToggleAction.On);
+            break;
             case PlatformActionEnumConstants.Disconnect:
             case "d":
-                await HandleConnectionAsync(ideService, ToggleAction.Off);
-                break;
+            await HandleConnectionAsync(ideService, ToggleAction.Off);
+            break;
             case PlatformActionEnumConstants.Open:
             case "o":
-                await HandleOpenAsync(ideService, parts.Length > 1 ? parts[1] : "");
-                break;
+            await HandleOpenAsync(ideService, parts.Length > 1 ? parts[1] : "");
+            break;
             case PlatformActionEnumConstants.Status:
             case "s":
             case "":
-                HandleStatus(ideService);
-                break;
+            HandleStatus(ideService);
+            break;
             default:
-                TerminalHelper.WriteLine(L.T(StringKey.IdeUnknownArg, context.Arguments));
-                TerminalHelper.WriteLine(L.T(StringKey.IdeUsage));
-                break;
+            TerminalHelper.WriteLine(L.T(StringKey.IdeUnknownArg, context.Arguments));
+            TerminalHelper.WriteLine(L.T(StringKey.IdeUsage));
+            break;
         }
 
         return ChatCommandResult.Continue();
     }
 
-    private static void HandleDetect(IIdeIntegrationService ideService)
-    {
+    private static void HandleDetect(IIdeIntegrationService ideService) {
         TerminalHelper.WriteLine(L.T(StringKey.IdeDetecting));
         TerminalHelper.NewLine();
 
         var details = ideService.DetectInstalledIdesDetailed();
 
-        if (details.Count == 0)
-        {
+        if (details.Count == 0) {
             TerminalHelper.WriteLine(L.T(StringKey.IdeNoneDetected));
             return;
         }
 
-        foreach (var detail in details)
-        {
+        foreach (var detail in details) {
             var status = detail.ExtensionInstalled ? "已安装" : "未安装";
             var running = detail.IsRunning ? " [运行中]" : "";
             var onPath = detail.FoundOnPath ? " (PATH)" : "";
@@ -89,22 +83,18 @@ public sealed class IdeCommand : ChatCommandBase
         TerminalHelper.WriteLine(L.T(StringKey.IdeConnectHint));
     }
 
-    private static async Task HandleConnectionAsync(IIdeIntegrationService ideService, ToggleAction action)
-    {
-        if (action == ToggleAction.On)
-        {
+    private static async Task HandleConnectionAsync(IIdeIntegrationService ideService, ToggleAction action) {
+        if (action == ToggleAction.On) {
             var ides = ideService.DetectInstalledIdes();
 
-            if (ides.Count == 0)
-            {
+            if (ides.Count == 0) {
                 TerminalHelper.WriteLine(L.T(StringKey.IdeNoInstalled));
                 return;
             }
 
             // 交互模式：使用 Selector 组件
             // 对齐 TS: RunningIDESelector — 上下键选择IDE+Enter连接+Esc取消
-            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
+            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 var selector = new Selector<IdeInfo>(
                     "选择要连接的 IDE",
                     [.. ides],
@@ -114,8 +104,7 @@ public sealed class IdeCommand : ChatCommandBase
 
                 var result = await selector.ShowAsync(CancellationToken.None).ConfigureAwait(false);
 
-                if (result.Cancelled || result.Selected is null)
-                {
+                if (result.Cancelled || result.Selected is null) {
                     TerminalHelper.WriteLine(L.T(StringKey.IdeCancelled));
                     return;
                 }
@@ -131,24 +120,19 @@ public sealed class IdeCommand : ChatCommandBase
 
             // 非交互模式回退
             TerminalHelper.WriteLine(L.T(StringKey.IdeDetectedList));
-            for (var i = 0; i < ides.Count; i++)
-            {
+            for (var i = 0; i < ides.Count; i++) {
                 TerminalHelper.WriteLine(L.T(StringKey.IdeDetectedItem, i + 1, ides[i].Name));
             }
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine(L.T(StringKey.IdeNonInteractive));
-        }
-        else
-        {
+        } else {
             await ideService.DisconnectAsync().ConfigureAwait(false);
             TerminalHelper.WriteLine(L.T(StringKey.IdeDisconnected));
         }
     }
 
-    private static async Task HandleOpenAsync(IIdeIntegrationService ideService, string args)
-    {
-        if (ideService.CurrentConnection is null)
-        {
+    private static async Task HandleOpenAsync(IIdeIntegrationService ideService, string args) {
+        if (ideService.CurrentConnection is null) {
             TerminalHelper.WriteLine(L.T(StringKey.IdeNotConnected));
             return;
         }
@@ -157,18 +141,15 @@ public sealed class IdeCommand : ChatCommandBase
         int? line = null;
 
         var colonIndex = args.LastIndexOf(':');
-        if (colonIndex > 0 && colonIndex < args.Length - 1)
-        {
+        if (colonIndex > 0 && colonIndex < args.Length - 1) {
             var lineStr = args[(colonIndex + 1)..];
-            if (int.TryParse(lineStr, out var parsedLine))
-            {
+            if (int.TryParse(lineStr, out var parsedLine)) {
                 filePath = args[..colonIndex];
                 line = parsedLine;
             }
         }
 
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
+        if (string.IsNullOrWhiteSpace(filePath)) {
             TerminalHelper.WriteLine(L.T(StringKey.IdeOpenUsage));
             return;
         }
@@ -181,12 +162,10 @@ public sealed class IdeCommand : ChatCommandBase
             TerminalHelper.WriteLine(L.T(StringKey.IdeOpenFailed, filePath));
     }
 
-    private static void HandleStatus(IIdeIntegrationService ideService)
-    {
+    private static void HandleStatus(IIdeIntegrationService ideService) {
         var current = ideService.CurrentConnection;
 
-        if (current is not null)
-        {
+        if (current is not null) {
             TerminalHelper.WriteLine(L.T(StringKey.IdeCurrentConnection, current.Name));
             TerminalHelper.WriteLine(L.T(StringKey.IdeExtensionInstalled, current.ExtensionInstalled ? "是" : "否"));
             TerminalHelper.WriteLine(L.T(StringKey.IdeStatusConnected));
@@ -194,25 +173,19 @@ public sealed class IdeCommand : ChatCommandBase
             var currentFile = ideService.CurrentFilePath;
             if (!string.IsNullOrEmpty(currentFile))
                 TerminalHelper.WriteLine(L.T(StringKey.IdeCurrentFile, currentFile));
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine(L.T(StringKey.IdeNoCurrentConnection));
         }
 
         TerminalHelper.NewLine();
         var ides = ideService.DetectInstalledIdes();
 
-        if (ides.Count > 0)
-        {
+        if (ides.Count > 0) {
             TerminalHelper.WriteLine(L.T(StringKey.IdeInstalledList));
-            foreach (var ide in ides)
-            {
+            foreach (var ide in ides) {
                 TerminalHelper.WriteLine(L.T(StringKey.IdeInstalledItem, ide.Name, ide.ExtensionInstalled ? "已安装" : "未安装"));
             }
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine(L.T(StringKey.IdeNoInstalledIdes));
         }
     }

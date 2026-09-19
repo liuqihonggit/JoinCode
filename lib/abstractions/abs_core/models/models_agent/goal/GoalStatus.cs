@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Goal;
 /// <summary>
 /// 目标状态枚举
 /// </summary>
-public enum GoalStatus
-{
+public enum GoalStatus {
     /// <summary>正在执行</summary>
     [EnumValue("pursuing")] Pursuing,
     /// <summary>已暂停</summary>

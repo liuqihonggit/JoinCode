@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// GitHub CLI 工具名称枚举 — 对应 gh 子命令的 MCP 工具暴露
 /// <para>安全级别：readonly=只读查询, safe-write=变更操作(合并/关闭/创建/下载等)</para>
 /// </summary>
-public enum GitHubToolName
-{
+public enum GitHubToolName {
     // === PR 全套 ===
     [EnumValue("gh_pr_view")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]

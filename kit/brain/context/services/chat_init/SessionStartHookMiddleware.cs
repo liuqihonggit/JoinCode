@@ -4,16 +4,14 @@ namespace Core.Context;
 /// 会话启动 Hook 中间件 — 执行会话启动 Hook，允许外部逻辑阻止会话启动
 /// </summary>
 [Register(typeof(IChatInitMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class SessionStartHookMiddleware : ServiceEntity, IChatInitMiddleware
-{
+public sealed partial class SessionStartHookMiddleware : ServiceEntity, IChatInitMiddleware {
 
     /// <summary>
     /// 初始化 <see cref="SessionStartHookMiddleware"/> 实例
     /// </summary>
     /// <param name="sessionStartHookManager">可选的会话启动 Hook 管理器</param>
     /// <param name="logger">可选的日志记录器</param>
-    public SessionStartHookMiddleware(ISessionStartHookManager? sessionStartHookManager = null, ILogger<SessionStartHookMiddleware>? logger = null)
-    {
+    public SessionStartHookMiddleware(ISessionStartHookManager? sessionStartHookManager = null, ILogger<SessionStartHookMiddleware>? logger = null) {
         _sessionStartHookManager = sessionStartHookManager;
         _logger = logger;
     }
@@ -28,19 +26,15 @@ public sealed partial class SessionStartHookMiddleware : ServiceEntity, IChatIni
     /// <summary>
     /// 执行会话启动 Hook
     /// </summary>
-    public async Task InvokeAsync(ChatInitContext context, MiddlewareDelegate<ChatInitContext> next, CancellationToken ct)
-    {
-        if (_sessionStartHookManager is not null)
-        {
+    public async Task InvokeAsync(ChatInitContext context, MiddlewareDelegate<ChatInitContext> next, CancellationToken ct) {
+        if (_sessionStartHookManager is not null) {
             var sessionId = context.SessionId;
-            var startContext = new SessionStartHookContext
-            {
+            var startContext = new SessionStartHookContext {
                 SessionId = sessionId,
                 Source = "tui"
             };
             var startResult = await _sessionStartHookManager.OnSessionStartAsync(startContext).ConfigureAwait(false);
-            if (!startResult.ShouldProceed)
-            {
+            if (!startResult.ShouldProceed) {
                 _logger?.LogWarning("[SessionStart] 会话启动被 Hook 阻止: {Message}", startResult.Message);
             }
         }

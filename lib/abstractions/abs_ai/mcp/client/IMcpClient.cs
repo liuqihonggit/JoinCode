@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Mcp.Client;
 
-public interface IMcpClient : IAsyncDisposable
-{
+public interface IMcpClient : IAsyncDisposable {
     bool IsConnected { get; }
 
     Implementation? ServerInfo { get; }
@@ -40,21 +39,18 @@ public interface IMcpClient : IAsyncDisposable
         CancellationToken cancellationToken = default);
 }
 
-public sealed class McpNotificationReceivedEventArgs : EventArgs
-{
+public sealed class McpNotificationReceivedEventArgs : EventArgs {
     public required string Method { get; init; }
     public JsonElement? Params { get; init; }
 }
 
-public sealed class McpConnectionLostEventArgs : EventArgs
-{
+public sealed class McpConnectionLostEventArgs : EventArgs {
     public required string ServerName { get; init; }
     public required string TransportType { get; init; }
     public Exception? Error { get; init; }
 }
 
-public sealed class McpElicitationRequestEventArgs : EventArgs
-{
+public sealed class McpElicitationRequestEventArgs : EventArgs {
     public required string ServerName { get; init; }
     public required JsonRpcId RequestId { get; init; }
     public required ElicitRequestParams Params { get; init; }

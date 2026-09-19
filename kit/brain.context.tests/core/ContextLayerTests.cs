@@ -1,11 +1,9 @@
 
 namespace Core.Tests.Context;
 
-public class ContextLayerTests
-{
+public class ContextLayerTests {
     [Fact]
-    public void ContextLayer_CreateDetailed_ShouldSetCorrectType()
-    {
+    public void ContextLayer_CreateDetailed_ShouldSetCorrectType() {
         var layer = ContextLayer.CreateDetailed("Test content", "TestLayer");
 
         Assert.Equal(ContextLayerType.Detailed, layer.LayerType);
@@ -14,8 +12,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_CreateSummary_ShouldSetCorrectType()
-    {
+    public void ContextLayer_CreateSummary_ShouldSetCorrectType() {
         var layer = ContextLayer.CreateSummary("Summary content", "SummaryLayer");
 
         Assert.Equal(ContextLayerType.Summary, layer.LayerType);
@@ -23,8 +20,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_CreateIndex_ShouldSetCorrectType()
-    {
+    public void ContextLayer_CreateIndex_ShouldSetCorrectType() {
         var layer = ContextLayer.CreateIndex("Index content", "IndexLayer");
 
         Assert.Equal(ContextLayerType.Index, layer.LayerType);
@@ -32,8 +28,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_DefaultLayerName_ShouldBeGenerated()
-    {
+    public void ContextLayer_DefaultLayerName_ShouldBeGenerated() {
         var layer = ContextLayer.CreateDetailed("Content");
 
         Assert.NotNull(layer.Metadata.LayerName);
@@ -41,8 +36,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_TokenCount_ShouldEstimateCorrectly()
-    {
+    public void ContextLayer_TokenCount_ShouldEstimateCorrectly() {
         var content = new string('a', 100);
         var layer = ContextLayer.CreateDetailed(content);
 
@@ -50,24 +44,21 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_TokenCount_EmptyContent_ShouldBeZero()
-    {
+    public void ContextLayer_TokenCount_EmptyContent_ShouldBeZero() {
         var layer = ContextLayer.CreateDetailed("");
 
         Assert.Equal(0, layer.TokenCount);
     }
 
     [Fact]
-    public void ContextLayer_IsCompressed_Initially_ShouldBeFalse()
-    {
+    public void ContextLayer_IsCompressed_Initially_ShouldBeFalse() {
         var layer = ContextLayer.CreateDetailed("Content");
 
         Assert.False(layer.IsCompressed);
     }
 
     [Fact]
-    public void ContextLayer_Compress_DetailedLayer_ShouldCompress()
-    {
+    public void ContextLayer_Compress_DetailedLayer_ShouldCompress() {
         var longContent = new string('x', 500);
         var layer = ContextLayer.CreateDetailed(longContent, "TestLayer");
         var originalTokenCount = layer.TokenCount;
@@ -81,8 +72,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_Compress_ShortContent_ShouldNotChange()
-    {
+    public void ContextLayer_Compress_ShortContent_ShouldNotChange() {
         var shortContent = "Short";
         var layer = ContextLayer.CreateDetailed(shortContent);
 
@@ -92,8 +82,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_Compress_IndexLayer_ShouldNotCompress()
-    {
+    public void ContextLayer_Compress_IndexLayer_ShouldNotCompress() {
         var longContent = new string('x', 500);
         var layer = ContextLayer.CreateIndex(longContent);
 
@@ -104,8 +93,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_Decompress_ShouldRestoreOriginal()
-    {
+    public void ContextLayer_Decompress_ShouldRestoreOriginal() {
         var longContent = new string('x', 500);
         var layer = ContextLayer.CreateDetailed(longContent);
 
@@ -120,8 +108,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_Decompress_NotCompressed_ShouldReturnSame()
-    {
+    public void ContextLayer_Decompress_NotCompressed_ShouldReturnSame() {
         var layer = ContextLayer.CreateDetailed("Content");
 
         var result = layer.Decompress();
@@ -130,8 +117,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_GetSummary_DetailedLayer_ShouldReturnCorrectFormat()
-    {
+    public void ContextLayer_GetSummary_DetailedLayer_ShouldReturnCorrectFormat() {
         var layer = ContextLayer.CreateDetailed("Content", "DetailedLayer");
 
         var summary = layer.GetSummary();
@@ -142,8 +128,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_GetSummary_SummaryLayer_ShouldIncludeCompressionRatio()
-    {
+    public void ContextLayer_GetSummary_SummaryLayer_ShouldIncludeCompressionRatio() {
         var longContent = new string('x', 500);
         var layer = ContextLayer.CreateSummary(longContent, "SummaryLayer");
         layer.Compress();
@@ -156,8 +141,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_GetSummary_IndexLayer_ShouldReturnCorrectFormat()
-    {
+    public void ContextLayer_GetSummary_IndexLayer_ShouldReturnCorrectFormat() {
         var layer = ContextLayer.CreateIndex("Content", "IndexLayer");
 
         var summary = layer.GetSummary();
@@ -167,8 +151,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_Metadata_CreatedAt_ShouldBeSet()
-    {
+    public void ContextLayer_Metadata_CreatedAt_ShouldBeSet() {
         var before = DateTime.UtcNow.AddSeconds(-1);
         var layer = ContextLayer.CreateDetailed("Content");
         var after = DateTime.UtcNow.AddSeconds(1);
@@ -178,8 +161,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_Metadata_OriginalTokenCount_ShouldBeSet()
-    {
+    public void ContextLayer_Metadata_OriginalTokenCount_ShouldBeSet() {
         var content = new string('a', 100);
         var layer = ContextLayer.CreateDetailed(content);
 
@@ -187,18 +169,15 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_Metadata_CompressionRatio_Initially_ShouldBeOne()
-    {
+    public void ContextLayer_Metadata_CompressionRatio_Initially_ShouldBeOne() {
         var layer = ContextLayer.CreateDetailed("Content");
 
         Assert.Equal(1.0, layer.Metadata.CompressionRatio);
     }
 
     [Fact]
-    public void ContextLayer_Metadata_WithCompression_ShouldCreateNewInstance()
-    {
-        var original = new LayerMetadata("TestLayer")
-        {
+    public void ContextLayer_Metadata_WithCompression_ShouldCreateNewInstance() {
+        var original = new LayerMetadata("TestLayer") {
             OriginalTokenCount = 100
         };
 
@@ -213,8 +192,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_ToJson_ShouldSerializeCorrectly()
-    {
+    public void ContextLayer_ToJson_ShouldSerializeCorrectly() {
         var layer = ContextLayer.CreateDetailed("Test content", "TestLayer");
 
         var json = layer.ToJson();
@@ -227,8 +205,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_FromJson_ShouldDeserializeCorrectly()
-    {
+    public void ContextLayer_FromJson_ShouldDeserializeCorrectly() {
         var original = ContextLayer.CreateDetailed("Test content", "TestLayer");
         var json = original.ToJson();
 
@@ -241,16 +218,14 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_FromJson_InvalidJson_ShouldReturnNull()
-    {
+    public void ContextLayer_FromJson_InvalidJson_ShouldReturnNull() {
         var result = ContextLayer.FromJson("invalid json");
 
         Assert.Null(result);
     }
 
     [Fact]
-    public void ContextLayer_Content_SetValue_ShouldUpdate()
-    {
+    public void ContextLayer_Content_SetValue_ShouldUpdate() {
         var layer = ContextLayer.CreateDetailed("Initial");
 
         layer.Content = "Updated";
@@ -259,8 +234,7 @@ public class ContextLayerTests
     }
 
     [Fact]
-    public void ContextLayer_Compress_AlreadyCompressed_ShouldReturnSame()
-    {
+    public void ContextLayer_Compress_AlreadyCompressed_ShouldReturnSame() {
         var longContent = new string('x', 500);
         var layer = ContextLayer.CreateDetailed(longContent);
 
@@ -277,8 +251,7 @@ public class ContextLayerTests
     [InlineData(ContextLayerType.Detailed)]
     [InlineData(ContextLayerType.Summary)]
     [InlineData(ContextLayerType.Index)]
-    public void ContextLayer_AllTypes_ShouldBeSerializable(ContextLayerType layerType)
-    {
+    public void ContextLayer_AllTypes_ShouldBeSerializable(ContextLayerType layerType) {
         var layer = new ContextLayer(layerType, "Test content", "TestLayer");
 
         var json = layer.ToJson();

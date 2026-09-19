@@ -5,38 +5,28 @@ namespace JoinCode.Pipelines.Middlewares;
 /// 不将异常转换为流事件（避免错误被当作 AI 回复持久化），
 /// 仅提供结构化日志记录 + 友好异常转换，异常由上层 ChatService 处理
 /// </summary>
-internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.Context.IChatMiddleware
-{
+internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.Context.IChatMiddleware {
     private readonly ILogger<ChatErrorHandlingMiddleware> _logger;
 
-    public ChatErrorHandlingMiddleware(ILogger<ChatErrorHandlingMiddleware> logger)
-    {
+    public ChatErrorHandlingMiddleware(ILogger<ChatErrorHandlingMiddleware> logger) {
         _logger = logger;
     }
 
     public async IAsyncEnumerable<JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> InvokeAsync(
         Core.Context.ChatMiddlewareContext context,
         JoinCode.Abstractions.Pipeline.StreamMiddlewareDelegate<Core.Context.ChatMiddlewareContext, JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> next,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
-    {
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct) {
         Exception? error = null;
         await using var enumerator = next(context, ct).GetAsyncEnumerator(ct);
 
-        while (true)
-        {
-            try
-            {
-                if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
-                {
+        while (true) {
+            try {
+                if (!await enumerator.MoveNextAsync().ConfigureAwait(false)) {
                     break;
                 }
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 throw;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 error = ex;
                 break;
             }
@@ -44,8 +34,7 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
             yield return enumerator.Current;
         }
 
-        if (error is not null)
-        {
+        if (error is not null) {
             var classified = ClassifyException(error);
             var errorCode = classified is WorkflowException wfEx ? wfEx.ErrorCode : ErrorCode.WorkflowExecution.ToValue();
             _logger.LogError(error, "[ChatErrorHandling] 管道异常: Turn={Turn}, DryRun={DryRun}, Code={Code}",
@@ -61,16 +50,13 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
     /// 2. 纯 HTTP/超时类异常转换为带友好消息的 ApiException
     /// 3. 其余异常转换为 WorkflowExecution 通用 ApiException
     /// </summary>
-    internal static Exception ClassifyException(Exception ex)
-    {
+    internal static Exception ClassifyException(Exception ex) {
         if (ex is WorkflowException workflowEx)
             return workflowEx;
 
-        if (ex is System.Net.Http.HttpRequestException httpEx)
-        {
+        if (ex is System.Net.Http.HttpRequestException httpEx) {
             var statusCode = (int?)httpEx.StatusCode;
-            return statusCode switch
-            {
+            return statusCode switch {
                 401 => ApiException.Authentication(GetEndpointHint(ex), "API Key 无效或已过期。请检查供应商专属环境变量（如 OPENAI_API_KEY、DEEPSEEK_API_KEY）配置。"),
                 403 => new ApiException("API 访问被拒绝。请检查账户权限和 API Key 配置。", ex, statusCode: 403, errorCode: ErrorCode.ApiAuthorization.ToValue()),
                 429 => ApiException.RateLimit(GetEndpointHint(ex)),
@@ -90,8 +76,7 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
         return new ApiException($"对话管道异常: {ex.Message}", ex, errorCode: ErrorCode.WorkflowExecution.ToValue());
     }
 
-    private static string GetEndpointHint(Exception ex)
-    {
+    private static string GetEndpointHint(Exception ex) {
         var msg = ex.Message;
         if (msg.Contains("localhost") || msg.Contains("127.0.0.1"))
             return "本地服务";

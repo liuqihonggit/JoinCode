@@ -5,14 +5,12 @@ namespace Core.Agents;
 /// 合并自路径 A 的 McpSetupMiddleware
 /// </summary>
 [Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class McpSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
-{
+public sealed partial class McpSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware {
 
     /// <summary>
     /// 构造 McpSetupMiddleware 实例，注入可选的 MCP 服务器管理器与日志器
     /// </summary>
-    public McpSetupMiddleware(IAgentMcpServerManager? mcpServerManager = null, ILogger<McpSetupMiddleware>? logger = null)
-    {
+    public McpSetupMiddleware(IAgentMcpServerManager? mcpServerManager = null, ILogger<McpSetupMiddleware>? logger = null) {
         _mcpServerManager = mcpServerManager;
         _logger = logger;
     }
@@ -28,33 +26,26 @@ public sealed partial class McpSetupMiddleware : ServiceEntity, IUnifiedSpawnMid
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
-    {
-        if (_mcpServerManager is not null && context.Agent is not null)
-        {
+    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
+        if (_mcpServerManager is not null && context.Agent is not null) {
             await InitializeMcpServersIfNeededAsync(context.AgentId, context.Definition, ct).ConfigureAwait(false);
         }
 
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private async Task InitializeMcpServersIfNeededAsync(string agentId, JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition, CancellationToken cancellationToken)
-    {
+    private async Task InitializeMcpServersIfNeededAsync(string agentId, JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition, CancellationToken cancellationToken) {
         if (definition is null) return;
         if (definition.McpServers is null or { Count: 0 }) return;
 
-        try
-        {
+        try {
             var result = await (_mcpServerManager ?? throw new InvalidOperationException("McpServerManager not available")).InitializeAgentMcpServersAsync(definition, null, cancellationToken).ConfigureAwait(false);
 
-            if (result.ConnectedServers.Count > 0)
-            {
+            if (result.ConnectedServers.Count > 0) {
                 _logger?.LogInformation("[McpSetupMiddleware] Agent {AgentId} 已连接 {Count} 个 MCP 服务器，可用工具: {ToolCount}",
                     agentId, result.ConnectedServers.Count, result.ToolNames.Count);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[McpSetupMiddleware] Agent {AgentId} MCP 服务器初始化失败", agentId);
         }
     }

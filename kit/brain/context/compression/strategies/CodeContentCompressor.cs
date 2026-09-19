@@ -5,8 +5,7 @@ namespace Core.Context.Compression;
 /// 代码内容压缩策略
 /// </summary>
 [Register(typeof(ICompressionStrategy), ServiceLifetime.Transient)]
-public sealed partial class CodeContentCompressor : CompressionStrategyBase
-{
+public sealed partial class CodeContentCompressor : CompressionStrategyBase {
     /// <summary>
     /// 策略名称
     /// </summary>
@@ -61,12 +60,10 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
     public override Task<string> CompressAsync(
         string content,
         CompressionOptions options,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ValidateOptions(options);
 
-        if (string.IsNullOrWhiteSpace(content))
-        {
+        if (string.IsNullOrWhiteSpace(content)) {
             return Task.FromResult(content);
         }
 
@@ -78,72 +75,59 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
 
 
 
-        for (var i = 0; i < lines.Length; i++)
-        {
+        for (var i = 0; i < lines.Length; i++) {
             cancellationToken.ThrowIfCancellationRequested();
 
             var line = lines[i];
             var trimmedLine = line.Trim();
 
-            if (ShouldSkipLine(trimmedLine, options))
-            {
+            if (ShouldSkipLine(trimmedLine, options)) {
                 continue;
             }
 
-            if (IsImportStatement(trimmedLine))
-            {
-                if (options.PreserveImports)
-                {
+            if (IsImportStatement(trimmedLine)) {
+                if (options.PreserveImports) {
                     result.AppendLine(line);
                 }
                 // 如果不保留导入语句，则跳过
                 continue;
             }
 
-            if (IsDocumentationComment(trimmedLine) && options.PreserveDocumentation)
-            {
+            if (IsDocumentationComment(trimmedLine) && options.PreserveDocumentation) {
                 result.AppendLine(line);
                 continue;
             }
 
-            if (IsComment(trimmedLine) && options.PreserveComments)
-            {
-                if (IsKeyComment(trimmedLine))
-                {
+            if (IsComment(trimmedLine) && options.PreserveComments) {
+                if (IsKeyComment(trimmedLine)) {
                     result.AppendLine(line);
                 }
                 continue;
             }
 
-            if (IsTypeDefinition(trimmedLine) && options.PreserveTypeDefinitions)
-            {
+            if (IsTypeDefinition(trimmedLine) && options.PreserveTypeDefinitions) {
                 result.AppendLine(line);
                 inMethodBody = false;
                 continue;
             }
 
-            if (IsEnumDefinition(trimmedLine) && options.PreserveEnums)
-            {
+            if (IsEnumDefinition(trimmedLine) && options.PreserveEnums) {
                 result.AppendLine(line);
                 inMethodBody = false;
                 continue;
             }
 
-            if (IsConstantDefinition(trimmedLine) && options.PreserveConstants)
-            {
+            if (IsConstantDefinition(trimmedLine) && options.PreserveConstants) {
                 result.AppendLine(line);
                 continue;
             }
 
-            if (IsMethodOrPropertySignature(trimmedLine))
-            {
-                if (options.PreserveSignatures)
-                {
+            if (IsMethodOrPropertySignature(trimmedLine)) {
+                if (options.PreserveSignatures) {
                     result.AppendLine(line);
                 }
 
-                if (IsExpressionBodiedMember(trimmedLine))
-                {
+                if (IsExpressionBodiedMember(trimmedLine)) {
                     continue;
                 }
 
@@ -153,24 +137,18 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
                 continue;
             }
 
-            if (inMethodBody)
-            {
+            if (inMethodBody) {
                 braceDepth += CountBraces(line);
 
-                if (braceDepth <= 0)
-                {
+                if (braceDepth <= 0) {
                     inMethodBody = false;
 
                     if (options.MaxMethodBodyLines > 0 &&
-                        i - methodBodyStartLine <= options.MaxMethodBodyLines)
-                    {
-                        for (var j = methodBodyStartLine + 1; j <= i; j++)
-                        {
+                        i - methodBodyStartLine <= options.MaxMethodBodyLines) {
+                        for (var j = methodBodyStartLine + 1; j <= i; j++) {
                             result.AppendLine(lines[j]);
                         }
-                    }
-                    else
-                    {
+                    } else {
                         result.AppendLine("    // ... method body omitted ...");
                     }
                 }
@@ -178,8 +156,7 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
                 continue;
             }
 
-            if (!string.IsNullOrWhiteSpace(line))
-            {
+            if (!string.IsNullOrWhiteSpace(line)) {
                 result.AppendLine(line);
             }
         }
@@ -194,8 +171,7 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
     /// <param name="content">原始内容</param>
     /// <param name="options">压缩选项</param>
     /// <returns>预估压缩比率 (0-1)</returns>
-    public override double EstimateCompressionRatio(string content, CompressionOptions options)
-    {
+    public override double EstimateCompressionRatio(string content, CompressionOptions options) {
         if (string.IsNullOrWhiteSpace(content))
             return 1.0;
 
@@ -205,24 +181,20 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
         var inMethodBody = false;
         var braceDepth = 0;
 
-        foreach (var line in lines)
-        {
+        foreach (var line in lines) {
             var trimmedLine = line.Trim();
 
-            if (IsMethodOrPropertySignature(trimmedLine) && !IsExpressionBodiedMember(trimmedLine))
-            {
+            if (IsMethodOrPropertySignature(trimmedLine) && !IsExpressionBodiedMember(trimmedLine)) {
                 inMethodBody = true;
                 braceDepth = CountBraces(line);
                 continue;
             }
 
-            if (inMethodBody)
-            {
+            if (inMethodBody) {
                 methodBodyLines++;
                 braceDepth += CountBraces(line);
 
-                if (braceDepth <= 0)
-                {
+                if (braceDepth <= 0) {
                     inMethodBody = false;
                 }
             }
@@ -235,22 +207,19 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
         return Math.Max(estimatedRatio, options.TargetCompressionRatio);
     }
 
-    private static bool ShouldSkipLine(string trimmedLine, CompressionOptions options)
-    {
+    private static bool ShouldSkipLine(string trimmedLine, CompressionOptions options) {
         if (string.IsNullOrWhiteSpace(trimmedLine))
             return true;
 
         if (trimmedLine.StartsWith("#region", StringComparison.OrdinalIgnoreCase) ||
-            trimmedLine.StartsWith("#endregion", StringComparison.OrdinalIgnoreCase))
-        {
+            trimmedLine.StartsWith("#endregion", StringComparison.OrdinalIgnoreCase)) {
             return true;
         }
 
         return false;
     }
 
-    private static bool IsImportStatement(string line)
-    {
+    private static bool IsImportStatement(string line) {
         return line.StartsWith("using ", StringComparison.Ordinal) ||
                line.StartsWith("import ", StringComparison.Ordinal) ||
                line.StartsWith("require", StringComparison.Ordinal) ||
@@ -258,8 +227,7 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
                line.StartsWith("#include", StringComparison.Ordinal);
     }
 
-    private static bool IsDocumentationComment(string line)
-    {
+    private static bool IsDocumentationComment(string line) {
         return line.StartsWith("///") ||
                line.StartsWith("/**") ||
                line.StartsWith("* ") ||
@@ -267,8 +235,7 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
                line.StartsWith("\"\"\"", StringComparison.Ordinal);
     }
 
-    private static bool IsComment(string line)
-    {
+    private static bool IsComment(string line) {
         return line.StartsWith("//") ||
                line.StartsWith("#") ||
                line.StartsWith("/*") ||
@@ -282,15 +249,12 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
         "TODO", "FIXME", "HACK", "NOTE", "IMPORTANT",
         "WARNING", "CRITICAL", "KEY", "SUMMARY");
 
-    private static bool IsKeyComment(string line)
-    {
+    private static bool IsKeyComment(string line) {
         // 使用 Span 避免字符串分配，逐个检查关键字
         var lineSpan = line.AsSpan();
 
-        foreach (var indicator in KeyIndicators)
-        {
-            if (lineSpan.Contains(indicator.AsSpan(), StringComparison.OrdinalIgnoreCase))
-            {
+        foreach (var indicator in KeyIndicators) {
+            if (lineSpan.Contains(indicator.AsSpan(), StringComparison.OrdinalIgnoreCase)) {
                 return true;
             }
         }
@@ -298,41 +262,34 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
         return false;
     }
 
-    private static bool IsTypeDefinition(string line)
-    {
+    private static bool IsTypeDefinition(string line) {
         return TypePatternRegexes.Any(regex => regex.IsMatch(line));
     }
 
-    private static bool IsEnumDefinition(string line)
-    {
+    private static bool IsEnumDefinition(string line) {
         return EnumDefinitionRegex.IsMatch(line);
     }
 
-    private static bool IsConstantDefinition(string line)
-    {
+    private static bool IsConstantDefinition(string line) {
         return ConstantDefinitionRegex.IsMatch(line) ||
                line.Contains("=", StringComparison.Ordinal) &&
                (line.Contains("const", StringComparison.OrdinalIgnoreCase) ||
                 line.Contains("readonly", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool IsMethodOrPropertySignature(string line)
-    {
+    private static bool IsMethodOrPropertySignature(string line) {
         return MethodPatternRegexes.Any(regex => regex.IsMatch(line));
     }
 
-    private static bool IsExpressionBodiedMember(string line)
-    {
+    private static bool IsExpressionBodiedMember(string line) {
         return line.Contains("=>", StringComparison.Ordinal) ||
                (line.Contains("{", StringComparison.Ordinal) &&
                 line.Contains("}", StringComparison.Ordinal));
     }
 
-    private static int CountBraces(string line)
-    {
+    private static int CountBraces(string line) {
         var count = 0;
-        foreach (var c in line)
-        {
+        foreach (var c in line) {
             if (c == '{') count++;
             else if (c == '}') count--;
         }

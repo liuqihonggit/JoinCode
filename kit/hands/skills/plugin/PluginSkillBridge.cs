@@ -5,8 +5,7 @@ namespace Core.Skills.Plugin;
 /// 插件技能桥接 — 将插件提供的技能注册到技能服务，管理生命周期
 /// </summary>
 [Register(typeof(IPluginSkillBridge), ServiceLifetime.Singleton)]
-public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridge
-{
+public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridge {
     private readonly IPluginManager _pluginManager;
     private readonly ISkillService _skillService;
     private readonly ILogger<PluginSkillBridge>? _logger;
@@ -22,8 +21,7 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
     public PluginSkillBridge(
         IPluginManager pluginManager,
         ISkillService skillService,
-        ILogger<PluginSkillBridge>? logger = null)
-    {
+        ILogger<PluginSkillBridge>? logger = null) {
         Diag.WriteLine("[BRIDGE-CTOR] start");
         _pluginManager = pluginManager;
         _skillService = skillService;
@@ -38,19 +36,16 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
     /// <param name="pluginName">插件名称</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>撤销注册的函数</returns>
-    public async Task<Action> RegisterPluginSkillsAsync(string pluginName, CancellationToken cancellationToken = default)
-    {
+    public async Task<Action> RegisterPluginSkillsAsync(string pluginName, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(pluginName);
 
-        if (_pluginSkillMap.ContainsKey(pluginName))
-        {
+        if (_pluginSkillMap.ContainsKey(pluginName)) {
             _logger?.LogWarning(L.T(StringKey.PluginSkillAlreadyRegistered), pluginName);
             await Task.CompletedTask.ConfigureAwait(false);
             return () => { };
         }
 
-        if (!_pluginManager.IsPluginLoaded(pluginName))
-        {
+        if (!_pluginManager.IsPluginLoaded(pluginName)) {
             _logger?.LogWarning(L.T(StringKey.PluginSkillPluginNotLoaded), pluginName);
             await Task.CompletedTask.ConfigureAwait(false);
             return () => { };
@@ -59,16 +54,12 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
         var skills = ExtractPluginSkills(pluginName);
         var registeredSkillNames = new List<string>();
 
-        foreach (var skill in skills)
-        {
-            try
-            {
+        foreach (var skill in skills) {
+            try {
                 _skillService.RegisterSkill(skill);
                 registeredSkillNames.Add(skill.Name);
                 _logger?.LogInformation("[PluginSkillBridge] 注册插件技能: {Plugin}/{Skill}", pluginName, skill.Name);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "[PluginSkillBridge] 注册插件技能失败: {Plugin}/{Skill}", pluginName, skill.Name);
             }
         }
@@ -81,12 +72,9 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
 
         var capturedSkillNames = registeredSkillNames;
         var capturedPluginName = pluginName;
-        return () =>
-        {
-            foreach (var skillName in capturedSkillNames)
-            {
-                try { _skillService.UnregisterSkill(skillName); }
-                catch (Exception ex) { _logger?.LogError(ex, "[PluginSkillBridge] 撤销技能失败: {Plugin}/{Skill}", capturedPluginName, skillName); }
+        return () => {
+            foreach (var skillName in capturedSkillNames) {
+                try { _skillService.UnregisterSkill(skillName); } catch (Exception ex) { _logger?.LogError(ex, "[PluginSkillBridge] 撤销技能失败: {Plugin}/{Skill}", capturedPluginName, skillName); }
             }
             _pluginSkillMap.TryRemove(capturedPluginName, out _);
         };
@@ -98,25 +86,19 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
     /// <param name="pluginName">插件名称</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task UnregisterPluginSkillsAsync(string pluginName, CancellationToken cancellationToken = default)
-    {
+    public async Task UnregisterPluginSkillsAsync(string pluginName, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(pluginName);
 
-        if (!_pluginSkillMap.TryRemove(pluginName, out var skillNames))
-        {
+        if (!_pluginSkillMap.TryRemove(pluginName, out var skillNames)) {
             _logger?.LogWarning("[PluginSkillBridge] 插件 {Plugin} 没有注册的技能", pluginName);
             return;
         }
 
-        foreach (var skillName in skillNames)
-        {
-            try
-            {
+        foreach (var skillName in skillNames) {
+            try {
                 _skillService.UnregisterSkill(skillName);
                 _logger?.LogInformation("[PluginSkillBridge] 注销插件技能: {Plugin}/{Skill}", pluginName, skillName);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "[PluginSkillBridge] 注销插件技能失败: {Plugin}/{Skill}", pluginName, skillName);
             }
         }
@@ -131,21 +113,17 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
     /// </summary>
     /// <param name="pluginName">插件名称</param>
     /// <returns>插件技能定义列表</returns>
-    public async Task<IReadOnlyList<SkillDefinition>> GetPluginSkillsAsync(string pluginName)
-    {
+    public async Task<IReadOnlyList<SkillDefinition>> GetPluginSkillsAsync(string pluginName) {
         ArgumentException.ThrowIfNullOrEmpty(pluginName);
 
-        if (!_pluginSkillMap.TryGetValue(pluginName, out var skillNames))
-        {
+        if (!_pluginSkillMap.TryGetValue(pluginName, out var skillNames)) {
             return Array.Empty<SkillDefinition>();
         }
 
         var skills = new List<SkillDefinition>();
-        foreach (var skillName in skillNames)
-        {
+        foreach (var skillName in skillNames) {
             var skill = await _skillService.GetSkillAsync(skillName).ConfigureAwait(false);
-            if (skill != null)
-            {
+            if (skill != null) {
                 skills.Add(skill);
             }
         }
@@ -157,56 +135,45 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
     /// 获取所有已注册技能的插件名称
     /// </summary>
     /// <returns>插件名称可枚举集合</returns>
-    public IEnumerable<string> GetPluginsWithSkills()
-    {
+    public IEnumerable<string> GetPluginsWithSkills() {
         return _pluginSkillMap.Keys;
     }
 
     /// <summary>
     /// 释放资源 — 注销所有插件技能并清空映射
     /// </summary>
-    public override void Dispose()
-    {
-        if (_isDisposed)
-        {
+    public override void Dispose() {
+        if (_isDisposed) {
             return;
         }
 
         _isDisposed = true;
 
-        foreach (var pluginName in _pluginSkillMap.Keys.ToList())
-        {
-            try
-            {
+        foreach (var pluginName in _pluginSkillMap.Keys.ToList()) {
+            try {
                 var skillNames = _pluginSkillMap[pluginName];
-                foreach (var skillName in skillNames)
-                {
+                foreach (var skillName in skillNames) {
                     _skillService.UnregisterSkill(skillName);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "[PluginSkillBridge] 释放插件 {Plugin} 技能时出错", pluginName);
             }
         }
 
         _pluginSkillMap.Clear();
-            base.Dispose();
+        base.Dispose();
     }
 
-    private List<SkillDefinition> ExtractPluginSkills(string pluginName)
-    {
+    private List<SkillDefinition> ExtractPluginSkills(string pluginName) {
         var skills = new List<SkillDefinition>();
 
         var workflowPlugin = _pluginManager.GetWorkflowPlugin(pluginName);
-        if (workflowPlugin != null)
-        {
+        if (workflowPlugin != null) {
             var pluginSkills = ExtractFromWorkflowPlugin(pluginName, workflowPlugin);
             skills.AddRange(pluginSkills);
         }
 
-        if (skills.Count == 0)
-        {
+        if (skills.Count == 0) {
             var defaultSkill = CreateDefaultPluginSkill(pluginName);
             skills.Add(defaultSkill);
         }
@@ -214,18 +181,15 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
         return skills;
     }
 
-    private static List<SkillDefinition> ExtractFromWorkflowPlugin(string pluginName, WorkflowPluginHost host)
-    {
+    private static List<SkillDefinition> ExtractFromWorkflowPlugin(string pluginName, WorkflowPluginHost host) {
         var skills = new List<SkillDefinition>();
         var plugin = host.Plugin;
 
-        var skill = new SkillDefinition
-        {
+        var skill = new SkillDefinition {
             Name = $"plugin_{plugin.Name}",
             Description = plugin.Description,
             Version = plugin.Version,
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["action"] = new() { Type = "string", Description = "要执行的操作", Required = true },
                 ["input"] = new() { Type = "string", Description = "操作输入", Required = false }
             },
@@ -241,15 +205,12 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
         return skills;
     }
 
-    private static SkillDefinition CreateDefaultPluginSkill(string pluginName)
-    {
-        return new SkillDefinition
-        {
+    private static SkillDefinition CreateDefaultPluginSkill(string pluginName) {
+        return new SkillDefinition {
             Name = $"plugin_{pluginName}",
             Description = $"插件 {pluginName} 提供的技能",
             Version = "1.0",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["action"] = new() { Type = "string", Description = "要执行的操作", Required = true },
                 ["input"] = new() { Type = "string", Description = "操作输入", Required = false }
             },

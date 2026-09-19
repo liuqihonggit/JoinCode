@@ -3,8 +3,7 @@ namespace JoinCode.Dream;
 /// <summary>
 /// 自动做梦配置
 /// </summary>
-public sealed class AutoDreamConfig
-{
+public sealed class AutoDreamConfig {
     /// <summary>
     /// 最小间隔小时数（默认24小时）
     /// </summary>
@@ -52,8 +51,7 @@ public readonly record struct SessionScanResult(
 /// <summary>
 /// 自动做梦配置构建器 - 支持链式配置
 /// </summary>
-public sealed class AutoDreamConfigBuilder
-{
+public sealed class AutoDreamConfigBuilder {
     private int _minHours = 24;
     private int _minSessions = 5;
     private int _sessionScanIntervalMs = 10 * 60 * 1000;
@@ -62,8 +60,7 @@ public sealed class AutoDreamConfigBuilder
     private string? _autoMemoryPath;
     private string? _projectDir;
 
-    private AutoDreamConfigBuilder()
-    {
+    private AutoDreamConfigBuilder() {
     }
 
     /// <summary>
@@ -74,8 +71,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 设置最小间隔小时数
     /// </summary>
-    public AutoDreamConfigBuilder WithMinHours(int hours)
-    {
+    public AutoDreamConfigBuilder WithMinHours(int hours) {
         _minHours = hours;
         return this;
     }
@@ -83,8 +79,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 设置最小会话数量
     /// </summary>
-    public AutoDreamConfigBuilder WithMinSessions(int sessions)
-    {
+    public AutoDreamConfigBuilder WithMinSessions(int sessions) {
         _minSessions = sessions;
         return this;
     }
@@ -92,8 +87,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 设置会话扫描间隔（毫秒）
     /// </summary>
-    public AutoDreamConfigBuilder WithSessionScanInterval(int milliseconds)
-    {
+    public AutoDreamConfigBuilder WithSessionScanInterval(int milliseconds) {
         _sessionScanIntervalMs = milliseconds;
         return this;
     }
@@ -101,8 +95,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 设置会话扫描间隔（分钟）
     /// </summary>
-    public AutoDreamConfigBuilder WithSessionScanIntervalMinutes(int minutes)
-    {
+    public AutoDreamConfigBuilder WithSessionScanIntervalMinutes(int minutes) {
         _sessionScanIntervalMs = minutes * 60 * 1000;
         return this;
     }
@@ -110,8 +103,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 启用自动做梦
     /// </summary>
-    public AutoDreamConfigBuilder Enable()
-    {
+    public AutoDreamConfigBuilder Enable() {
         _enabled = true;
         return this;
     }
@@ -119,8 +111,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 禁用自动做梦
     /// </summary>
-    public AutoDreamConfigBuilder Disable()
-    {
+    public AutoDreamConfigBuilder Disable() {
         _enabled = false;
         return this;
     }
@@ -128,8 +119,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 设置是否启用自动做梦
     /// </summary>
-    public AutoDreamConfigBuilder WithEnabled(bool enabled)
-    {
+    public AutoDreamConfigBuilder WithEnabled(bool enabled) {
         _enabled = enabled;
         return this;
     }
@@ -137,8 +127,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 启用自动记忆
     /// </summary>
-    public AutoDreamConfigBuilder EnableAutoMemory()
-    {
+    public AutoDreamConfigBuilder EnableAutoMemory() {
         _autoMemoryEnabled = true;
         return this;
     }
@@ -146,8 +135,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 禁用自动记忆
     /// </summary>
-    public AutoDreamConfigBuilder DisableAutoMemory()
-    {
+    public AutoDreamConfigBuilder DisableAutoMemory() {
         _autoMemoryEnabled = false;
         return this;
     }
@@ -155,8 +143,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 设置是否启用自动记忆
     /// </summary>
-    public AutoDreamConfigBuilder WithAutoMemoryEnabled(bool enabled)
-    {
+    public AutoDreamConfigBuilder WithAutoMemoryEnabled(bool enabled) {
         _autoMemoryEnabled = enabled;
         return this;
     }
@@ -164,8 +151,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 设置自动记忆目录路径
     /// </summary>
-    public AutoDreamConfigBuilder WithAutoMemoryPath(string path)
-    {
+    public AutoDreamConfigBuilder WithAutoMemoryPath(string path) {
         _autoMemoryPath = path;
         return this;
     }
@@ -173,8 +159,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 设置项目目录
     /// </summary>
-    public AutoDreamConfigBuilder WithProjectDir(string projectDir)
-    {
+    public AutoDreamConfigBuilder WithProjectDir(string projectDir) {
         _projectDir = projectDir;
         return this;
     }
@@ -182,8 +167,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 使用高频扫描模式（适合开发环境）
     /// </summary>
-    public AutoDreamConfigBuilder UseHighFrequencyMode()
-    {
+    public AutoDreamConfigBuilder UseHighFrequencyMode() {
         _minHours = 1;
         _minSessions = 2;
         _sessionScanIntervalMs = 60 * 1000; // 1分钟
@@ -193,8 +177,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 使用低频扫描模式（适合生产环境）
     /// </summary>
-    public AutoDreamConfigBuilder UseLowFrequencyMode()
-    {
+    public AutoDreamConfigBuilder UseLowFrequencyMode() {
         _minHours = 48;
         _minSessions = 10;
         _sessionScanIntervalMs = 60 * 60 * 1000; // 1小时
@@ -204,8 +187,7 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 使用默认平衡模式
     /// </summary>
-    public AutoDreamConfigBuilder UseBalancedMode()
-    {
+    public AutoDreamConfigBuilder UseBalancedMode() {
         _minHours = 24;
         _minSessions = 5;
         _sessionScanIntervalMs = 10 * 60 * 1000; // 10分钟
@@ -215,10 +197,8 @@ public sealed class AutoDreamConfigBuilder
     /// <summary>
     /// 构建自动做梦配置
     /// </summary>
-    public AutoDreamConfig Build()
-    {
-        return new AutoDreamConfig
-        {
+    public AutoDreamConfig Build() {
+        return new AutoDreamConfig {
             MinHours = _minHours,
             MinSessions = _minSessions,
             SessionScanIntervalMs = _sessionScanIntervalMs,

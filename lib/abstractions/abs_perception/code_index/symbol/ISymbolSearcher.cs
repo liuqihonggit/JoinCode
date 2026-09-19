@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public interface ISymbolSearcher
-{
+public interface ISymbolSearcher {
     Task<SearchResult<SymbolInfo>> SearchAsync(string query, CancellationToken ct);
     Task<SearchResult<SymbolInfo>> SearchByKindAsync(SymbolKind kind, CancellationToken ct);
     Task<SymbolInfo?> FindDefinitionAsync(string symbolName, CancellationToken ct);

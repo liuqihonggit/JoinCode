@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Brain.Context.Hierarchy;
 
-public record LayerMetadata
-{
+public record LayerMetadata {
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
 
     public DateTime? CompressedAt { get; init; }
@@ -18,15 +17,12 @@ public record LayerMetadata
 
     public LayerMetadata() { }
 
-    public LayerMetadata(string layerName)
-    {
+    public LayerMetadata(string layerName) {
         LayerName = layerName;
     }
 
-    public LayerMetadata WithCompression(int compressedTokenCount)
-    {
-        return this with
-        {
+    public LayerMetadata WithCompression(int compressedTokenCount) {
+        return this with {
             CompressedAt = DateTime.UtcNow,
             CompressedTokenCount = compressedTokenCount
         };

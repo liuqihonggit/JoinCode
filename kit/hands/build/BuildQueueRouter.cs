@@ -6,8 +6,7 @@ namespace Services.Build;
 /// <para>不修改现有 BuildQueueService,通过 DI 手动注册替换:services.AddSingleton&lt;IBuildQueueService, BuildQueueRouter&gt;()。</para>
 /// <para>Worker 崩溃时 RouterActor 自动重启(OneForOne 策略),不影响其他 Worker。</para>
 /// </summary>
-public sealed class BuildQueueRouter : BuildQueueBase
-{
+public sealed class BuildQueueRouter : BuildQueueBase {
     private readonly BuildQueueRouterActor _router;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _cancelSources = new();
     private readonly ILogger<BuildQueueRouter>? _logger;
@@ -23,17 +22,14 @@ public sealed class BuildQueueRouter : BuildQueueBase
         ISystemActuatorRegistry actuatorRegistry,
         int workerCount = 2,
         IPreventSleepService? preventSleepService = null,
-        ILogger<BuildQueueRouter>? logger = null)
-    {
+        ILogger<BuildQueueRouter>? logger = null) {
         _logger = logger;
         _router = new BuildQueueRouterActor();
 
         workerCount = Math.Max(1, workerCount);
-        for (var i = 0; i < workerCount; i++)
-        {
+        for (var i = 0; i < workerCount; i++) {
             var workerId = $"build-worker-{i}";
-            _router.AddWorkerAsync(workerId, _ =>
-            {
+            _router.AddWorkerAsync(workerId, _ => {
                 var worker = new BuildWorker(
                     workerId, actuatorRegistry, preventSleepService,
                     logger as ILogger);
@@ -45,8 +41,7 @@ public sealed class BuildQueueRouter : BuildQueueBase
     }
 
     /// <inheritdoc />
-    public override async Task<string> SubmitAsync(BuildRequest request, CancellationToken ct)
-    {
+    public override async Task<string> SubmitAsync(BuildRequest request, CancellationToken ct) {
         ThrowIfDisposed(nameof(BuildQueueRouter));
 
         var (entry, tcs) = CreateQueuedEntry(request);
@@ -54,18 +49,14 @@ public sealed class BuildQueueRouter : BuildQueueBase
         var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _cancelSources[entry.BuildId] = cts;
 
-        try
-        {
+        try {
             await _router.RouteAsync(
                 new BuildWorker.ExecuteBuildCommand(entry, tcs, cts.Token),
-                async (msg, worker) =>
-                {
+                async (msg, worker) => {
                     if (worker is BuildWorker w)
                         await w.SubmitAsync(msg).ConfigureAwait(false);
                 }).ConfigureAwait(false);
-        }
-        catch
-        {
+        } catch {
             _store.TryRemoveTcs(entry.BuildId, out var failedTcs);
             failedTcs?.TrySetCanceled();
             _cancelSources.TryRemove(entry.BuildId, out var failedCts);
@@ -80,41 +71,37 @@ public sealed class BuildQueueRouter : BuildQueueBase
     }
 
     /// <inheritdoc />
-    public override Task<bool> CancelAsync(string buildId, CancellationToken ct)
-    {
+    public override Task<bool> CancelAsync(string buildId, CancellationToken ct) {
         if (!_store.TryGetEntry(buildId, out var entry))
             return Task.FromResult(false);
 
-        switch (entry.Status)
-        {
+        switch (entry.Status) {
             case BuildQueueEntryStatus.Queued:
-                entry.Status = BuildQueueEntryStatus.Cancelled;
-                entry.CompletedAt = DateTimeOffset.UtcNow;
-                CompleteWithCancellation(buildId, entry);
-                _logger?.LogInformation("Build cancelled (was queued): {BuildId}", buildId);
-                return Task.FromResult(true);
+            entry.Status = BuildQueueEntryStatus.Cancelled;
+            entry.CompletedAt = DateTimeOffset.UtcNow;
+            CompleteWithCancellation(buildId, entry);
+            _logger?.LogInformation("Build cancelled (was queued): {BuildId}", buildId);
+            return Task.FromResult(true);
 
             case BuildQueueEntryStatus.Building:
-                entry.Status = BuildQueueEntryStatus.Cancelling;
-                if (_cancelSources.TryGetValue(buildId, out var cts))
-                    cts.Cancel();
-                _logger?.LogInformation("Build cancelling (was building): {BuildId}", buildId);
-                return Task.FromResult(true);
+            entry.Status = BuildQueueEntryStatus.Cancelling;
+            if (_cancelSources.TryGetValue(buildId, out var cts))
+                cts.Cancel();
+            _logger?.LogInformation("Build cancelling (was building): {BuildId}", buildId);
+            return Task.FromResult(true);
 
             default:
-                return Task.FromResult(false);
+            return Task.FromResult(false);
         }
     }
 
     /// <inheritdoc />
-    public override BuildQueueStatus GetStatus()
-    {
+    public override BuildQueueStatus GetStatus() {
         var pendingCount = _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Queued);
         var buildingCount = _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Building);
         var currentBuild = _store.Entries.FirstOrDefault(e => e.Status == BuildQueueEntryStatus.Building);
 
-        return new BuildQueueStatus
-        {
+        return new BuildQueueStatus {
             PendingCount = pendingCount,
             IsBuilding = buildingCount > 0,
             CurrentBuildId = currentBuild?.BuildId,
@@ -127,14 +114,12 @@ public sealed class BuildQueueRouter : BuildQueueBase
     }
 
     /// <inheritdoc />
-    public override Task ClearCacheAsync(CancellationToken ct)
-    {
+    public override Task ClearCacheAsync(CancellationToken ct) {
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         foreach (var cts in _cancelSources.Values)
@@ -151,8 +136,7 @@ public sealed class BuildQueueRouter : BuildQueueBase
 }
 
 /// <summary>RouterActor 暴露 public 构造函数</summary>
-internal sealed class BuildQueueRouterActor : RouterActor<BuildWorker.ICommand>
-{
+internal sealed class BuildQueueRouterActor : RouterActor<BuildWorker.ICommand> {
     public BuildQueueRouterActor() : base() { }
 }
 
@@ -166,8 +150,7 @@ internal sealed record BuildEvent(string BuildId, string WorkerId, BuildQueueEnt
 /// <para>每个 Worker 独立执行编译,不共享状态,崩溃时由 RouterActor 自动重启。</para>
 /// <para>编译事件通过 OutputAsync 流输出。</para>
 /// </summary>
-internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent>
-{
+internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent> {
     internal interface ICommand;
 
     internal sealed record ExecuteBuildCommand(
@@ -185,8 +168,7 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent>
         ISystemActuatorRegistry actuatorRegistry,
         IPreventSleepService? preventSleepService = null,
         ILogger? logger = null)
-        : base(ActorBackpressure.Build)
-    {
+        : base(ActorBackpressure.Build) {
         _workerId = workerId;
         _actuatorRegistry = actuatorRegistry;
         _preventSleepService = preventSleepService;
@@ -195,8 +177,7 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent>
 
     public ValueTask SubmitAsync(ICommand command) => SendAsync(command);
 
-    protected override async ValueTask HandleAsync(ICommand command, CancellationToken ct)
-    {
+    protected override async ValueTask HandleAsync(ICommand command, CancellationToken ct) {
         if (command is not ExecuteBuildCommand(var entry, var tcs, var buildCt))
             return;
 
@@ -207,8 +188,7 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent>
         _logger?.LogInformation("[{WorkerId}] Build {BuildId} started: {Command}",
             _workerId, entry.BuildId, entry.Request.Command);
 
-        try
-        {
+        try {
             var result = await ExecuteBuildAsync(entry, buildCt).ConfigureAwait(false);
             entry.Result = result;
             entry.CompletedAt = DateTimeOffset.UtcNow;
@@ -222,17 +202,13 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent>
             TryPublish(new BuildEvent(entry.BuildId, _workerId, entry.Status, $"exit={result.ExitCode}"));
             _logger?.LogInformation("[{WorkerId}] Build {BuildId} completed: exit={ExitCode}",
                 _workerId, entry.BuildId, result.ExitCode);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             entry.Status = BuildQueueEntryStatus.Cancelled;
             entry.CompletedAt = DateTimeOffset.UtcNow;
             tcs.TrySetResult(BuildQueueBase.CreateCancelledResult(entry, "Build was cancelled"));
             TryPublish(new BuildEvent(entry.BuildId, _workerId, BuildQueueEntryStatus.Cancelled));
             _logger?.LogInformation("[{WorkerId}] Build {BuildId} cancelled", _workerId, entry.BuildId);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             entry.Status = BuildQueueEntryStatus.Failed;
             entry.CompletedAt = DateTimeOffset.UtcNow;
             tcs.TrySetResult(BuildQueueBase.CreateFailedResult(entry, ex));
@@ -241,8 +217,7 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent>
         }
     }
 
-    private Task<BuildQueueResult> ExecuteBuildAsync(BuildQueueEntry entry, CancellationToken buildCt)
-    {
+    private Task<BuildQueueResult> ExecuteBuildAsync(BuildQueueEntry entry, CancellationToken buildCt) {
         return BuildQueueBase.ExecuteBuildCoreAsync(
             entry, _actuatorRegistry, _preventSleepService, _logger, buildCt,
             preferResultExecutionTime: true);

@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Exceptions;
 
-public class WorkflowException : Exception
-{
+public class WorkflowException : Exception {
     /// <summary>
     /// 错误码
     /// </summary>
@@ -35,8 +34,7 @@ public class WorkflowException : Exception
         string? errorCode = null,
         ErrorCategory category = ErrorCategory.Workflow,
         ExceptionContext? context = null)
-        : base(message)
-    {
+        : base(message) {
         ErrorCode = errorCode ?? global::JoinCode.Abstractions.Exceptions.ErrorCode.WorkflowGeneral.ToValue();
         Category = category;
         Context = context ?? new ExceptionContext();
@@ -51,15 +49,13 @@ public class WorkflowException : Exception
         string? errorCode = null,
         ErrorCategory category = ErrorCategory.Workflow,
         ExceptionContext? context = null)
-        : base(message, innerException)
-    {
+        : base(message, innerException) {
         ErrorCode = errorCode ?? global::JoinCode.Abstractions.Exceptions.ErrorCode.WorkflowGeneral.ToValue();
         Category = category;
         Context = context ?? new ExceptionContext();
     }
 
-    public WorkflowException WithContext(Action<ExceptionContext> configure)
-    {
+    public WorkflowException WithContext(Action<ExceptionContext> configure) {
         configure(Context);
         return this;
     }
@@ -67,8 +63,7 @@ public class WorkflowException : Exception
     /// <summary>
     /// 添加请求ID
     /// </summary>
-    public WorkflowException WithRequestId(string requestId)
-    {
+    public WorkflowException WithRequestId(string requestId) {
         Context.RequestId = requestId;
         return this;
     }
@@ -76,8 +71,7 @@ public class WorkflowException : Exception
     /// <summary>
     /// 添加操作名称
     /// </summary>
-    public WorkflowException WithOperation(string operationName)
-    {
+    public WorkflowException WithOperation(string operationName) {
         Context.OperationName = operationName;
         return this;
     }
@@ -86,8 +80,7 @@ public class WorkflowException : Exception
 /// <summary>
 /// 错误类别
 /// </summary>
-public enum ErrorCategory
-{
+public enum ErrorCategory {
     [EnumValue("workflow")] Workflow,
     [EnumValue("configuration")] Configuration,
     [EnumValue("api")] Api,

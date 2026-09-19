@@ -5,14 +5,12 @@ namespace Core.Agents;
 /// 合并自路径 B 的 SpawnCoordRegisterMessageMiddleware
 /// </summary>
 [Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class RegisterMessageMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
-{
+public sealed partial class RegisterMessageMiddleware : ServiceEntity, IUnifiedSpawnMiddleware {
 
     /// <summary>
     /// 构造 RegisterMessageMiddleware 实例，注入消息代理、子代理上下文访问器、日志器及可选的队友初始化服务
     /// </summary>
-    public RegisterMessageMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<RegisterMessageMiddleware> logger, ITeammateInitService? teammateInitService = null, IServiceProvider? serviceProvider = null)
-    {
+    public RegisterMessageMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<RegisterMessageMiddleware> logger, ITeammateInitService? teammateInitService = null, IServiceProvider? serviceProvider = null) {
         _messageBroker = messageBroker;
         _subAgentContextAccessor = subAgentContextAccessor;
         _logger = logger;
@@ -36,44 +34,35 @@ public sealed partial class RegisterMessageMiddleware : ServiceEntity, IUnifiedS
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
-    {
-        if (context.IsMainAgent || context.Agent is null)
-        {
+    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
+        if (context.IsMainAgent || context.Agent is null) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
 
-        try
-        {
+        try {
             var sessionId = _subAgentContextAccessor.Current?.SessionId;
             context.SessionId = sessionId;
             _messageBroker.RegisterAgent(context.AgentId, sessionId);
 
             await InitializeTeammateHooksIfNeededAsync(context.AgentId, sessionId, context.CancellationToken).ConfigureAwait(false);
             context.MessageRegistered = true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogError(ex, "[RegisterMessage] 注册Agent {AgentId} 消息通道时发生异常", context.AgentId);
         }
 
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private async Task InitializeTeammateHooksIfNeededAsync(string agentId, string? sessionId, CancellationToken cancellationToken)
-    {
+    private async Task InitializeTeammateHooksIfNeededAsync(string agentId, string? sessionId, CancellationToken cancellationToken) {
         if (ResolvedTeammateInitService is null || sessionId is null) return;
 
         var teamId = _subAgentContextAccessor.Current?.TeamId;
         if (string.IsNullOrEmpty(teamId)) return;
 
-        try
-        {
+        try {
             await ResolvedTeammateInitService.InitializeTeammateHooksAsync(teamId, agentId, sessionId, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogWarning(ex, "[RegisterMessage] 初始化 Teammate {AgentId} 钩子失败", agentId);
         }
     }

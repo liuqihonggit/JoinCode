@@ -4,8 +4,7 @@ namespace JoinCode.Transport.Bridge;
 /// 统一 OAuth 401 重试逻辑 — 对齐 TS 端 bridgeApi.ts:106-139 withOAuthRetry
 /// 401 → 调用 onAuth401 刷新 token → 用新 token 重试一次 → 仍 401 返回错误
 /// </summary>
-public static class BridgeOAuthRetry
-{
+public static class BridgeOAuthRetry {
     /// <summary>
     /// 执行 OAuth 401 重试 — 通用 HTTP 请求重试
     /// 对齐 TS 端:
@@ -33,15 +32,13 @@ public static class BridgeOAuthRetry
         Func<string?> getAccessToken,
         Func<string, Task<bool>>? onAuth401,
         int timeoutMs,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(createRequest);
         ArgumentNullException.ThrowIfNull(getAccessToken);
 
         // 1. 使用当前 token 发起请求
         var accessToken = getAccessToken();
-        if (string.IsNullOrEmpty(accessToken))
-        {
+        if (string.IsNullOrEmpty(accessToken)) {
             return null;
         }
 
@@ -50,25 +47,20 @@ public static class BridgeOAuthRetry
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
         HttpResponseMessage? response;
-        try
-        {
+        try {
             response = await httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
-        }
-        catch
-        {
+        } catch {
             // 网络错误 — 不重试，直接返回 null
             return null;
         }
 
         // 2. 非 401 — 直接返回
-        if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized)
-        {
+        if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized) {
             return response;
         }
 
         // 3. 401 但无刷新处理器
-        if (onAuth401 is null)
-        {
+        if (onAuth401 is null) {
             return response;
         }
 
@@ -76,31 +68,25 @@ public static class BridgeOAuthRetry
         var refreshed = await onAuth401(accessToken).ConfigureAwait(false);
 
         // 5. 刷新成功 — 用新 token 重试一次
-        if (refreshed)
-        {
+        if (refreshed) {
             var newToken = getAccessToken();
-            if (string.IsNullOrEmpty(newToken))
-            {
+            if (string.IsNullOrEmpty(newToken)) {
                 return response;
             }
 
             var retryRequest = createRequest(newToken);
             using var retryCts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
-            try
-            {
+            try {
                 var retryResponse = await httpClient.SendAsync(retryRequest, retryCts.Token).ConfigureAwait(false);
 
                 // 重试仍 401 — 返回原始 401 响应
-                if (retryResponse.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                {
+                if (retryResponse.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
                     return response;
                 }
 
                 return retryResponse;
-            }
-            catch
-            {
+            } catch {
                 // 重试网络错误 — 返回原始 401 响应
                 return response;
             }
@@ -130,29 +116,25 @@ public static class BridgeOAuthRetry
         Func<string?> getAccessToken,
         Func<string, Task<bool>>? onAuth401,
         int timeoutMs,
-        CancellationToken ct = default) where TResponse : class
-    {
+        CancellationToken ct = default) where TResponse : class {
         var response = await ExecuteWithOAuthRetryAsync(
             httpClient, createRequest, context, getAccessToken, onAuth401, timeoutMs, ct).ConfigureAwait(false);
 
-        if (response is null)
-        {
+        if (response is null) {
             return null;
         }
 
         var statusCode = (int)response.StatusCode;
 
         // 非成功非 4xx — 尝试反序列化
-        if (statusCode >= 500)
-        {
+        if (statusCode >= 500) {
             return null;
         }
 
         var responseJson = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
         // 409 = 幂等 — 返回 null
-        if (statusCode == 409)
-        {
+        if (statusCode == 409) {
             return null;
         }
 

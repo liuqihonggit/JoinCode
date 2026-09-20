@@ -63,6 +63,7 @@ public class McpServer {
         // Console 标准流生命周期 = 进程，不应释放（Dispose 会连带关闭底层 Console 流）。
         // reader/writer 仅作包装，故不用 using var。详见 ADR-0093 规则1例外。
         var reader = _inputReader ?? new StreamReader(Console.OpenStandardInput());
+        // leave-open: Console 标准流不应释放(Dispose 会关闭底层 Console 流),详见 ADR-0093
         var writer = _outputWriter ?? new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
 
         while (!cancellationToken.IsCancellationRequested) {

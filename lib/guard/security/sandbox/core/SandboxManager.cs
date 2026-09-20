@@ -233,11 +233,10 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     private (ISandboxProvider Provider, bool FallbackUsed) ResolveProviderWithFallback(SandboxType type) {
         if (type == SandboxType.None) {
             var envType = Environment.GetEnvironmentVariable(JccEnvVar.SandboxMode.ToValue());
-            if (!string.IsNullOrEmpty(envType)) {
-                var parsed = SandboxTypeExtensions.FromValue(envType);
-                if (parsed is not null && parsed.Value != SandboxType.None) {
-                    type = parsed.Value;
-                }
+            if (!string.IsNullOrEmpty(envType)
+                && SandboxTypeExtensions.FromValue(envType) is { } parsed
+                && parsed != SandboxType.None) {
+                type = parsed;
             }
 
             if (type == SandboxType.None) {
@@ -270,14 +269,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         if (_ipcClient is not null && !_ipcClient.IsRunning) {
             try {
                 await _ipcClient.StartAsync(ct: ct).ConfigureAwait(false);
-
-                if (_ipcClient.SatelliteProcessId is int satellitePid && _lifecycleActor.ActiveProvider is ProcessSandboxProvider psp && _lifecycleActor.ActiveSandboxId is not null) {
-                    if (!psp.TryAssignProcessToJobObject(_lifecycleActor.ActiveSandboxId!, satellitePid)) {
-                        _logger?.LogWarning("[SandboxManager] 将卫星进程 {Pid} 加入 JobObject 失败", satellitePid);
-                    } else {
-                        _logger?.LogInformation("[SandboxManager] 卫星进程 {Pid} 已加入 JobObject", satellitePid);
-                    }
-                }
+                TryAssignSatelliteToJobObject();
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[SandboxManager] 卫星进程启动失败，回退到直接执行");
             }
@@ -288,6 +280,41 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         }
 
         return await ExecuteDirectlyAsync(command, options, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 将卫星进程加入当前 JobObject（若处于进程沙箱中）
+    /// </summary>
+    private void TryAssignSatelliteToJobObject() {
+        if (_ipcClient!.SatelliteProcessId is not int satellitePid
+            || _lifecycleActor.ActiveProvider is not ProcessSandboxProvider psp
+            || _lifecycleActor.ActiveSandboxId is null) {
+            return;
+        }
+
+        if (psp.TryAssignProcessToJobObject(_lifecycleActor.ActiveSandboxId, satellitePid)) {
+            _logger?.LogInformation("[SandboxManager] 卫星进程 {Pid} 已加入 JobObject", satellitePid);
+        } else {
+            _logger?.LogWarning("[SandboxManager] 将卫星进程 {Pid} 加入 JobObject 失败", satellitePid);
+        }
+    }
+
+    /// <summary>
+    /// 填充沙箱环境变量（JCC_SANDBOX_ROOT/NO_NETWORK/ALLOWED_PATHS）
+    /// </summary>
+    private static void PopulateSandboxEnvVars(Dictionary<string, string> envVars, ISandboxProvider provider, string sandboxId) {
+        var sandboxInfo = provider.GetSandboxInfo(sandboxId);
+        if (sandboxInfo is null) return;
+
+        if (sandboxInfo.RestrictFileSystem) {
+            envVars["JCC_SANDBOX_ROOT"] = sandboxInfo.RootPath;
+        }
+        if (sandboxInfo.RestrictNetwork) {
+            envVars["JCC_SANDBOX_NO_NETWORK"] = "1";
+        }
+        if (sandboxInfo.AllowedPaths is not null) {
+            envVars["JCC_SANDBOX_ALLOWED_PATHS"] = string.Join(Path.PathSeparator, sandboxInfo.AllowedPaths);
+        }
     }
 
     private async Task<AbstractionsSandboxExecutionResult> ExecuteViaIpcAsync(string command, SandboxExecutionOptions options, CancellationToken ct) {
@@ -305,18 +332,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
 
         var envVars = new Dictionary<string, string>();
         if (activeProvider is not null && activeSandboxId is not null) {
-            var sandboxInfo = activeProvider.GetSandboxInfo(activeSandboxId);
-            if (sandboxInfo is not null) {
-                if (sandboxInfo.RestrictFileSystem) {
-                    envVars["JCC_SANDBOX_ROOT"] = sandboxInfo.RootPath;
-                }
-                if (sandboxInfo.RestrictNetwork) {
-                    envVars["JCC_SANDBOX_NO_NETWORK"] = "1";
-                }
-                if (sandboxInfo.AllowedPaths is not null) {
-                    envVars["JCC_SANDBOX_ALLOWED_PATHS"] = string.Join(Path.PathSeparator, sandboxInfo.AllowedPaths);
-                }
-            }
+            PopulateSandboxEnvVars(envVars, activeProvider, activeSandboxId);
         }
 
         var request = new SandboxExecuteRequest {

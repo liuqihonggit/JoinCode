@@ -198,10 +198,8 @@ public static class BashRegexCheckRegistry {
         for (var i = 0; i < command.Length; i++) {
             var c = command[i];
             if (c == '\\' && !inSingleQuote) {
-                if (!inDoubleQuote) {
-                    if (i + 1 < command.Length && (command[i + 1] == ' ' || command[i + 1] == '\t'))
-                        return true;
-                }
+                if (!inDoubleQuote && i + 1 < command.Length && (command[i + 1] == ' ' || command[i + 1] == '\t'))
+                    return true;
                 i++;
                 continue;
             }
@@ -218,10 +216,8 @@ public static class BashRegexCheckRegistry {
         for (var i = 0; i < command.Length; i++) {
             var c = command[i];
             if (c == '\\' && !inSingleQuote) {
-                if (!inDoubleQuote) {
-                    if (i + 1 < command.Length && ShellOperators.Contains(command[i + 1]))
-                        return true;
-                }
+                if (!inDoubleQuote && i + 1 < command.Length && ShellOperators.Contains(command[i + 1]))
+                    return true;
                 i++;
                 continue;
             }
@@ -382,17 +378,19 @@ public static class BashRegexCheckRegistry {
 
                     if (char.IsWhiteSpace(flagChar) || flagChar == '=') break;
 
-                    if (flagChar is '\'' or '"' or '`') {
-                        if (baseCmd.Equals("cut", StringComparison.OrdinalIgnoreCase) &&
-                            flagContentBuilder.ToString() == "-d")
-                            break;
-
-                        if (j + 1 < command.Length) {
-                            var nextFlagChar = command[j + 1];
-                            if (!Regex.IsMatch(nextFlagChar.ToString(), @"[a-zA-Z0-9_'""-]"))
-                                break;
-                        }
+                    if (flagChar is not '\'' and not '"' and not '`') {
+                        flagContentBuilder.Append(flagChar);
+                        j++;
+                        continue;
                     }
+
+                    if (baseCmd.Equals("cut", StringComparison.OrdinalIgnoreCase) &&
+                        flagContentBuilder.ToString() == "-d")
+                        break;
+
+                    if (j + 1 < command.Length &&
+                        !Regex.IsMatch(command[j + 1].ToString(), @"[a-zA-Z0-9_'""-]"))
+                        break;
 
                     flagContentBuilder.Append(flagChar);
                     j++;
@@ -435,13 +433,15 @@ public static class BashRegexCheckRegistry {
         }
 
         var finalContent = combinedBuilder.ToString();
-        if (pos < command.Length && Regex.IsMatch(command[pos].ToString(), @"[a-zA-Z0-9\\${`-]")) {
-            if (Regex.IsMatch(finalContent, @"^-+$") || finalContent == "") {
-                if (command[pos] == '-') return true;
-                if (Regex.IsMatch(command[pos].ToString(), @"[a-zA-Z0-9\\${`]") && finalContent != "")
-                    return true;
-            }
-            if (Regex.IsMatch(finalContent, @"^-")) return true;
+        if (pos >= command.Length || !Regex.IsMatch(command[pos].ToString(), @"[a-zA-Z0-9\\${`-]"))
+            return false;
+
+        if (Regex.IsMatch(finalContent, @"^-")) return true;
+
+        if (Regex.IsMatch(finalContent, @"^-+$") || finalContent == "") {
+            if (command[pos] == '-') return true;
+            if (finalContent != "" && Regex.IsMatch(command[pos].ToString(), @"[a-zA-Z0-9\\${`]"))
+                return true;
         }
 
         return false;
@@ -984,11 +984,11 @@ public static class BashRegexCheckRegistry {
             if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
 
             if (!inSingleQuote && !inDoubleQuote) {
-                if (char.IsWhiteSpace(c) || c is ';' or '|' or '&') {
-                    if (current.Length > 0) { tokens.Add(current.ToString()); current.Clear(); }
+                if (!(char.IsWhiteSpace(c) || c is ';' or '|' or '&')) {
+                    current.Append(c);
                     continue;
                 }
-                current.Append(c);
+                if (current.Length > 0) { tokens.Add(current.ToString()); current.Clear(); }
             }
         }
 

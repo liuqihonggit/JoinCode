@@ -70,12 +70,8 @@ public static partial class PsReadOnlyValidation {
                 // 管道首命令必须通过白名单验证
                 if (!IsAllowlistedCommand(cmd, originalCommand)) return false;
             } else {
-                // 管道后续命令：安全输出 cmdlet（无参数）或通过白名单验证
-                if (IsSafeOutputCommand(cmd.Name)) {
-                    // 安全输出命令无参数时直接放行
-                    if (cmd.Args.Length == 0) continue;
-                }
-
+                // 管道后续命令：安全输出 cmdlet（无参数）直接放行，否则需通过白名单验证
+                if (IsSafeOutputCommand(cmd.Name) && cmd.Args.Length == 0) continue;
                 if (!IsAllowlistedCommand(cmd, originalCommand)) return false;
             }
         }
@@ -153,9 +149,9 @@ public static partial class PsReadOnlyValidation {
             // 冒号绑定参数值检查（-InputObject:$env:SECRET）
             if (arg.StartsWith('-') && arg.Contains(':')) {
                 var colonIdx = arg.IndexOf(':', 1);
-                if (colonIdx > 0 && colonIdx + 1 < arg.Length) {
-                    var valuePart = arg[(colonIdx + 1)..];
-                    if (ContainsMetaChars(valuePart)) return true;
+                if (colonIdx > 0 && colonIdx + 1 < arg.Length
+                    && ContainsMetaChars(arg[(colonIdx + 1)..])) {
+                    return true;
                 }
             }
 

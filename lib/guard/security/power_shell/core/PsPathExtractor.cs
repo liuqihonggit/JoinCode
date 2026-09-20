@@ -61,78 +61,18 @@ public static partial class PsPathExtractor {
 
             if (IsParameter(arg)) {
                 // 处理冒号语法（-Path:value）
-                var colonIdx = arg.IndexOf(':', 1);
-                if (colonIdx > 0) {
-                    var paramPart = arg[..colonIdx];
-                    var valuePart = arg[(colonIdx + 1)..];
-                    var paramLower = paramPart.ToLowerInvariant();
-
-                    if (MatchesParam(paramLower, config.PathParams)) {
-                        if (HasComplexColonValue(valuePart)) {
-                            hasUnvalidatablePathArg = true;
-                        } else if (!string.IsNullOrEmpty(valuePart)) {
-                            paths.Add(valuePart);
-                        }
-                    } else if (MatchesParam(paramLower, config.LeafOnlyPathParams)) {
-                        if (IsSimpleLeaf(valuePart)) {
-                            paths.Add(valuePart);
-                        } else {
-                            hasUnvalidatablePathArg = true;
-                        }
-                    }
-                    // 其他冒号参数：已知值参数或未知参数，冒号值已内联处理
+                if (TryProcessColonSyntax(arg, config, paths, ref hasUnvalidatablePathArg))
                     continue;
-                }
 
                 // 空格分隔的命名参数
                 var argLower = arg.ToLowerInvariant();
-
-                if (MatchesParam(argLower, config.PathParams)) {
-                    // 下一个参数是路径值
-                    if (i + 1 < cmd.Args.Length) {
-                        i++;
-                        var nextArg = cmd.Args[i];
-                        var nextType = i + 1 < cmd.ElementTypes.Length
-                            ? cmd.ElementTypes[i + 1]
-                            : PsElementType.Other;
-
-                        if (!SafePathElementTypes.Contains(nextType)) {
-                            hasUnvalidatablePathArg = true;
-                        } else {
-                            paths.Add(nextArg);
-                        }
-                    }
-                } else if (MatchesParam(argLower, config.LeafOnlyPathParams)) {
-                    if (i + 1 < cmd.Args.Length) {
-                        i++;
-                        var nextArg = cmd.Args[i];
-                        if (IsSimpleLeaf(nextArg)) {
-                            paths.Add(nextArg);
-                        } else {
-                            hasUnvalidatablePathArg = true;
-                        }
-                    }
-                } else if (MatchesParam(argLower, allSwitches)) {
-                    // 开关参数，不消费下一个参数
-                } else if (MatchesParam(argLower, allValueParams)) {
-                    // 值参数，消费下一个参数但不做路径验证
-                    if (i + 1 < cmd.Args.Length) {
-                        i++; // 跳过值
-                    }
-                } else {
-                    // 未知参数 → 不可验证
-                    hasUnvalidatablePathArg = true;
-                }
+                ProcessSpaceSeparatedParam(argLower, config, allSwitches, allValueParams,
+                    cmd, ref i, paths, ref hasUnvalidatablePathArg);
             } else {
                 // 位置参数
                 positionalIndex++;
-                if (positionalIndex > config.PositionalSkip) {
-                    if (SafePathElementTypes.Contains(elementType)) {
-                        paths.Add(arg);
-                    } else {
-                        hasUnvalidatablePathArg = true;
-                    }
-                }
+                ProcessPositionalArg(arg, elementType, config, positionalIndex,
+                    paths, ref hasUnvalidatablePathArg);
             }
         }
 
@@ -142,6 +82,104 @@ public static partial class PsPathExtractor {
             HasUnvalidatablePathArg = hasUnvalidatablePathArg,
             OptionalWrite = config.OptionalWrite,
         };
+    }
+
+    /// <summary>
+    /// 尝试处理冒号语法（-Path:value），返回 true 表示已处理
+    /// </summary>
+    private static bool TryProcessColonSyntax(
+        string arg, PsCmdletPathConfig config,
+        List<string> paths, ref bool hasUnvalidatablePathArg) {
+        var colonIdx = arg.IndexOf(':', 1);
+        if (colonIdx <= 0) return false;
+
+        var paramPart = arg[..colonIdx];
+        var valuePart = arg[(colonIdx + 1)..];
+        var paramLower = paramPart.ToLowerInvariant();
+
+        if (MatchesParam(paramLower, config.PathParams)) {
+            if (HasComplexColonValue(valuePart))
+                hasUnvalidatablePathArg = true;
+            else if (!string.IsNullOrEmpty(valuePart))
+                paths.Add(valuePart);
+        } else if (MatchesParam(paramLower, config.LeafOnlyPathParams)) {
+            if (IsSimpleLeaf(valuePart))
+                paths.Add(valuePart);
+            else
+                hasUnvalidatablePathArg = true;
+        }
+        // 其他冒号参数：已知值参数或未知参数，冒号值已内联处理
+        return true;
+    }
+
+    /// <summary>
+    /// 处理空格分隔的命名参数
+    /// </summary>
+    private static void ProcessSpaceSeparatedParam(
+        string argLower, PsCmdletPathConfig config,
+        FrozenSet<string> allSwitches, FrozenSet<string> allValueParams,
+        PsCommandElement cmd, ref int i,
+        List<string> paths, ref bool hasUnvalidatablePathArg) {
+        if (MatchesParam(argLower, config.PathParams))
+            ProcessPathParamNext(cmd, ref i, paths, ref hasUnvalidatablePathArg);
+        else if (MatchesParam(argLower, config.LeafOnlyPathParams))
+            ProcessLeafOnlyParamNext(cmd, ref i, paths, ref hasUnvalidatablePathArg);
+        else if (MatchesParam(argLower, allSwitches)) {
+            // 开关参数，不消费下一个参数
+        } else if (MatchesParam(argLower, allValueParams)) {
+            // 值参数，消费下一个参数但不做路径验证
+            if (i + 1 < cmd.Args.Length)
+                i++;
+        } else {
+            // 未知参数 → 不可验证
+            hasUnvalidatablePathArg = true;
+        }
+    }
+
+    /// <summary>
+    /// 处理路径参数的下一个参数值
+    /// </summary>
+    private static void ProcessPathParamNext(
+        PsCommandElement cmd, ref int i,
+        List<string> paths, ref bool hasUnvalidatablePathArg) {
+        if (i + 1 >= cmd.Args.Length) return;
+        i++;
+        var nextArg = cmd.Args[i];
+        var nextType = i + 1 < cmd.ElementTypes.Length
+            ? cmd.ElementTypes[i + 1]
+            : PsElementType.Other;
+        if (!SafePathElementTypes.Contains(nextType))
+            hasUnvalidatablePathArg = true;
+        else
+            paths.Add(nextArg);
+    }
+
+    /// <summary>
+    /// 处理叶子参数的下一个参数值
+    /// </summary>
+    private static void ProcessLeafOnlyParamNext(
+        PsCommandElement cmd, ref int i,
+        List<string> paths, ref bool hasUnvalidatablePathArg) {
+        if (i + 1 >= cmd.Args.Length) return;
+        i++;
+        var nextArg = cmd.Args[i];
+        if (IsSimpleLeaf(nextArg))
+            paths.Add(nextArg);
+        else
+            hasUnvalidatablePathArg = true;
+    }
+
+    /// <summary>
+    /// 处理位置参数
+    /// </summary>
+    private static void ProcessPositionalArg(
+        string arg, PsElementType elementType, PsCmdletPathConfig config, int positionalIndex,
+        List<string> paths, ref bool hasUnvalidatablePathArg) {
+        if (positionalIndex <= config.PositionalSkip) return;
+        if (SafePathElementTypes.Contains(elementType))
+            paths.Add(arg);
+        else
+            hasUnvalidatablePathArg = true;
     }
 
     /// <summary>

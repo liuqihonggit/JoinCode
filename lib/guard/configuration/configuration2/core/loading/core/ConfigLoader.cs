@@ -201,12 +201,10 @@ public class ConfigLoader {
         } else {
             // 回退: definition 为 null（无 settings.json）时，根据 provider 名推断 API Key 环境变量名
             var inferredEnvVar = EnvOverrideApplier.InferApiKeyEnvVar(provider);
-            if (inferredEnvVar is not null) {
-                var envValue = Environment.GetEnvironmentVariable(inferredEnvVar);
-                if (!string.IsNullOrEmpty(envValue)) {
-                    sources.Add(($"{inferredEnvVar} 环境变量", envValue));
-                    apiKey = envValue;
-                }
+            if (inferredEnvVar is not null
+                && Environment.GetEnvironmentVariable(inferredEnvVar) is { Length: > 0 } envValue) {
+                sources.Add(($"{inferredEnvVar} 环境变量", envValue));
+                apiKey = envValue;
             }
         }
 

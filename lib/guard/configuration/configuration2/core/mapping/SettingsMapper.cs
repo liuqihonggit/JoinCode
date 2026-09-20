@@ -77,22 +77,7 @@ public sealed partial class SettingsMapper : ServiceEntity {
             }
 
             if (newDefinition is not null) {
-                config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
-                config.Provider.Definition = newDefinition;
-                // Protocol — ApplyProfileFromVendor 已从 settings.json profile 设置(配置大于代码)
-                // 仅当 profile 未配 protocol 时回退到 definition 的默认协议
-                var profileProtocol = GetProfileProtocol(envProvider, settings);
-                if (string.IsNullOrEmpty(profileProtocol))
-                    config.Provider.Protocol = newDefinition.Protocol.ToValue();
-
-                // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
-                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue()))) {
-                    config.Provider.ModelId ??= newDefinition.DefaultModelId;
-                    if (config.Provider.ModelId is null && !SkipProviderValidation) {
-                        throw new ConfigurationException(
-                            $"Provider '{newDefinition.ProviderName}' 没有定义默认模型，请通过 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
-                    }
-                }
+                ApplyProviderDefinitionDefaults(config, newDefinition, envProvider, settings);
             } else {
                 Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。元命令模式降级运行。");
             }
@@ -133,6 +118,28 @@ public sealed partial class SettingsMapper : ServiceEntity {
         var envStateFilePath = Environment.GetEnvironmentVariable(JccEnvVar.StateFilePath.ToValue());
         if (!string.IsNullOrEmpty(envStateFilePath))
             config.StateFilePath = envStateFilePath;
+    }
+
+    /// <summary>
+    /// 应用新 Provider 定义的默认值到 WorkflowConfig — Endpoint/Definition/Protocol/ModelId 回退
+    /// </summary>
+    private void ApplyProviderDefinitionDefaults(WorkflowConfig config, IProviderDefinition newDefinition, string envProvider, SettingsJson? settings) {
+        config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
+        config.Provider.Definition = newDefinition;
+        // Protocol — ApplyProfileFromVendor 已从 settings.json profile 设置(配置大于代码)
+        // 仅当 profile 未配 protocol 时回退到 definition 的默认协议
+        var profileProtocol = GetProfileProtocol(envProvider, settings);
+        if (string.IsNullOrEmpty(profileProtocol))
+            config.Provider.Protocol = newDefinition.Protocol.ToValue();
+
+        // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue()))) {
+            config.Provider.ModelId ??= newDefinition.DefaultModelId;
+            if (config.Provider.ModelId is null && !SkipProviderValidation) {
+                throw new ConfigurationException(
+                    $"Provider '{newDefinition.ProviderName}' 没有定义默认模型，请通过 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
+            }
+        }
     }
 
     /// <summary>

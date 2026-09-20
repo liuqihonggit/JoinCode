@@ -56,19 +56,16 @@ public sealed partial class CompactHookManager : ServiceEntity, ICompactHookMana
                 };
             }
 
-            if (result.UpdatedInput != null) {
-                if (result.UpdatedInput.TryGetValue("action", out var actionElement) &&
-                    actionElement.ValueKind == JsonValueKind.String &&
-                    actionElement.GetString() is string actionStr) {
-                    var customAction = CompactHookActionExtensions.FromValue(actionStr);
-                    if (customAction is not null) {
-                        return new CompactHookResult {
-                            ShouldCompact = customAction.Value == CompactHookAction.Proceed,
-                            Message = result.Message,
-                            Action = customAction.Value
-                        };
-                    }
-                }
+            if (result.UpdatedInput != null &&
+                result.UpdatedInput.TryGetValue("action", out var actionElement) &&
+                actionElement.ValueKind == JsonValueKind.String &&
+                actionElement.GetString() is string actionStr &&
+                CompactHookActionExtensions.FromValue(actionStr) is { } customAction) {
+                return new CompactHookResult {
+                    ShouldCompact = customAction == CompactHookAction.Proceed,
+                    Message = result.Message,
+                    Action = customAction
+                };
             }
         }
 

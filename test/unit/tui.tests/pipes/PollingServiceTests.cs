@@ -10,7 +10,7 @@ public class PollingServiceTests {
         var pipe = new MessagePipe("main", "Main", isMain: true);
         registry.Register(pipe);
 
-        var service = new PollingService(registry, 200);
+        await using var service = new PollingService(registry, 200);
         var received = new List<(string AgentId, int Count)>();
         service.OnMessagesReceived += (agentId, msgs) => received.Add((agentId, msgs.Count));
 
@@ -24,13 +24,13 @@ public class PollingServiceTests {
     }
 
     [Fact]
-    public void PollOnce_NoNewMessages_DoesNotTrigger() {
+    public async Task PollOnce_NoNewMessages_DoesNotTrigger() {
         var registry = new PipeRegistry();
         var pipe = new MessagePipe("main", "Main", isMain: true);
         pipe.AddMessage(CreateMessage("msg1", "main"));
         registry.Register(pipe);
 
-        var service = new PollingService(registry, 200);
+        await using var service = new PollingService(registry, 200);
         var received = new List<string>();
         service.OnMessagesReceived += (agentId, _) => received.Add(agentId);
 
@@ -39,12 +39,12 @@ public class PollingServiceTests {
     }
 
     [Fact]
-    public void PollOnce_StateChange_TriggersStateEvent() {
+    public async Task PollOnce_StateChange_TriggersStateEvent() {
         var registry = new PipeRegistry();
         var pipe = new MessagePipe("sub1", "Sub");
         registry.Register(pipe);
 
-        var service = new PollingService(registry, 200);
+        await using var service = new PollingService(registry, 200);
         var stateChanges = new List<(string AgentId, AgentState State)>();
         service.OnStateChanged += (agentId, state) => stateChanges.Add((agentId, state));
 
@@ -66,7 +66,7 @@ public class PollingServiceTests {
         registry.Register(pipe1);
         registry.Register(pipe2);
 
-        var service = new PollingService(registry, 200);
+        await using var service = new PollingService(registry, 200);
         var received = new List<string>();
         service.OnMessagesReceived += (agentId, _) => received.Add(agentId);
 
@@ -85,7 +85,7 @@ public class PollingServiceTests {
         var registry = new PipeRegistry();
         registry.Register(new MessagePipe("main", "Main", isMain: true));
 
-        var service = new PollingService(registry, 100);
+        await using var service = new PollingService(registry, 100);
         service.Start();
         await Task.Delay(150);
         await service.StopAsync();
@@ -102,9 +102,9 @@ public class PollingServiceTests {
     }
 
     [Fact]
-    public void PollInterval_ClampedToMinimum100() {
+    public async Task PollInterval_ClampedToMinimum100() {
         var registry = new PipeRegistry();
-        var service = new PollingService(registry, 50);
+        await using var service = new PollingService(registry, 50);
         service.Start();
         service.PollOnce();
     }

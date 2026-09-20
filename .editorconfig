@@ -240,6 +240,6 @@ dotnet_diagnostic.JCC9301.severity = error
 dotnet_diagnostic.JCC3008.severity = error
 dotnet_diagnostic.JCC3006.severity = error
 dotnet_diagnostic.JCC5001.severity = error
+dotnet_diagnostic.JCC1009.severity = error
 
-#### 档3：卫语句检测（先 suggestion，验证后升 warning → error） ####
-dotnet_diagnostic.JCC1009.severity = suggestion
+#### 档3：卫语句检测 ####

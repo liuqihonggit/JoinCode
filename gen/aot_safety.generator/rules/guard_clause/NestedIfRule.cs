@@ -59,7 +59,7 @@ public sealed class NestedIfRule : AnalyzerRuleBase<NestedIfRule> {
 
         while (parent is not null) {
             if (parent is IfStatementSyntax parentIf) {
-                if (parentIf.Else is null || parentIf.Else.Statement != current) {
+                if (!IsElseIfChainLink(parentIf, current)) {
                     depth++;
                 }
             }
@@ -71,14 +71,31 @@ public sealed class NestedIfRule : AnalyzerRuleBase<NestedIfRule> {
 
     private static IfStatementSyntax FindOutermostIf(IfStatementSyntax ifStmt) {
         var outermost = ifStmt;
+        var current = (SyntaxNode)ifStmt;
         var parent = ifStmt.Parent;
 
         while (parent is not null) {
             if (parent is IfStatementSyntax parentIf) {
-                outermost = parentIf;
+                if (!IsElseIfChainLink(parentIf, current)) {
+                    outermost = parentIf;
+                }
             }
+            current = parent;
             parent = parent.Parent;
         }
         return outermost;
+    }
+
+    /// <summary>
+    /// 判断 current 是否处于 parentIf 的 else-if 链中. else-if 链不计入嵌套深度:
+    /// if (a) {} else if (b) {} 中, if(b) 是 if(a) 的平级分支而非嵌套.
+    /// 两种情况:
+    /// 1. current 是 else-if 的 IfStatement 本身 (parentIf.Else.Statement == current 且为 IfStatement)
+    /// 2. current 是 ElseClause, 且其 Statement 是 IfStatement (遍历到 else-if 链的边界节点)
+    /// </summary>
+    private static bool IsElseIfChainLink(IfStatementSyntax parentIf, SyntaxNode current) {
+        if (parentIf.Else is not { } elseClause) return false;
+        if (elseClause.Statement is not IfStatementSyntax) return false;
+        return current == elseClause || current == elseClause.Statement;
     }
 }

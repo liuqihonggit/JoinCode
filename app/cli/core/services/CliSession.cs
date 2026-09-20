@@ -409,8 +409,7 @@ public sealed class CliSession {
             if (!string.IsNullOrEmpty(result.ErrorCode)) {
                 TerminalHelper.WriteLine();
                 TerminalHelper.WriteLine($"✖ {result.ErrorMessage}");
-                if (result.IsRetryable)
-                    TerminalHelper.WriteLine("  此错误通常可重试，请稍后再试。");
+                WriteRetryHint(result.IsRetryable);
                 TerminalHelper.WriteLine("  请检查：1. API Key 配置  2. 网络连接  3. API 服务状态");
             } else {
                 TerminalHelper.WriteLine($"错误: {result.ErrorMessage}");
@@ -418,6 +417,11 @@ public sealed class CliSession {
             LastResponse = result.Response;
         }
         Diag.WriteLine($"[CliSession] StreamResponseAsync done: succeeded={result.Succeeded}, responseLen={result.Response.Length}");
+    }
+
+    private static void WriteRetryHint(bool isRetryable) {
+        if (isRetryable)
+            TerminalHelper.WriteLine("  此错误通常可重试，请稍后再试。");
     }
 
 

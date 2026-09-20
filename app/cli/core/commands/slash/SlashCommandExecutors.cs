@@ -197,10 +197,10 @@ internal static class SlashSchemaExecutor {
                 System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
             } else {
                 TerminalHelper.WriteLine($"命令: /{entry.CommandName}");
-                if (!string.IsNullOrEmpty(entry.ArgumentHint))
-                    TerminalHelper.WriteLine($"参数提示: {entry.ArgumentHint}");
-                else
-                    TerminalHelper.WriteLine("（未声明结构化参数 schema，使用 [ChatCommandArg] 特性声明以启用）");
+                var hint = !string.IsNullOrEmpty(entry.ArgumentHint)
+                    ? $"参数提示: {entry.ArgumentHint}"
+                    : "（未声明结构化参数 schema，使用 [ChatCommandArg] 特性声明以启用）";
+                TerminalHelper.WriteLine(hint);
             }
         }
 

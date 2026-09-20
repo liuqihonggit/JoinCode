@@ -23,11 +23,9 @@ internal static class McpCallCommand {
         string[]? kvArgs = null;
         if (!argsStdin && argsFile is null) {
             var allPositional = FlatSubCommandRouter.GetAllPositional(args, 0);
-            if (allPositional is { Length: > 0 }) {
-                if (allPositional.Length > 1 && allPositional[1].StartsWith("{"))
-                    argsJson = allPositional[1];
-                else if (allPositional.Length > 1)
-                    kvArgs = allPositional[1..];
+            if (allPositional is { Length: > 1 }) {
+                argsJson = allPositional[1].StartsWith("{") ? allPositional[1] : null;
+                kvArgs = argsJson is null ? allPositional[1..] : null;
             }
         }
         return await McpCliCommand.ExecuteCallAsync(toolName!, argsJson, kvArgs, argsFile, argsStdin, json, vendor, model, ct).ConfigureAwait(false);

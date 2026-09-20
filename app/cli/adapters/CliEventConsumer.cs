@@ -106,16 +106,19 @@ public sealed class CliEventConsumer : IResettableEventConsumer {
             var glyph = status.ToValue();
             TerminalHelper.WriteLine($"[{glyph}] {toolName}");
             var displayText = ToolErrorFormatter.ExtractMessage(resultText, isError);
-            if (!string.IsNullOrEmpty(displayText)) {
-                var lines = displayText.Split('\n');
-                var maxLines = isError ? 15 : 20;
-                var displayCount = Math.Min(lines.Length, maxLines);
-                for (var i = 0; i < displayCount; i++)
-                    TerminalHelper.WriteLine($"  {lines[i].TrimEnd('\r')}");
-                if (lines.Length > maxLines)
-                    TerminalHelper.WriteLine($"  ... ({lines.Length} lines total, showing first {maxLines})");
-            }
+            if (!string.IsNullOrEmpty(displayText))
+                WriteToolEndText(displayText, isError);
         }
+    }
+
+    private static void WriteToolEndText(string displayText, bool isError) {
+        var lines = displayText.Split('\n');
+        var maxLines = isError ? 15 : 20;
+        var displayCount = Math.Min(lines.Length, maxLines);
+        for (var i = 0; i < displayCount; i++)
+            TerminalHelper.WriteLine($"  {lines[i].TrimEnd('\r')}");
+        if (lines.Length > maxLines)
+            TerminalHelper.WriteLine($"  ... ({lines.Length} lines total, showing first {maxLines})");
     }
 
     /// <summary>工具调用进度</summary>

@@ -66,7 +66,7 @@ public class ParallelExecutionEngineTests {
     /// 测试使用 AgentCoordinator 构造引擎时，应正确初始化
     /// </summary>
     [Fact]
-    public void Constructor_WithAgentCoordinator_ShouldInitializeCorrectly() {
+    public async Task Constructor_WithAgentCoordinator_ShouldInitializeCorrectly() {
         var agentCoordinator = CreateAgentCoordinator();
 
         await using var engine = new ParallelExecutionEngine(
@@ -91,7 +91,7 @@ public class ParallelExecutionEngineTests {
     /// 测试使用模拟模式构造引擎时，应正确初始化
     /// </summary>
     [Fact]
-    public void Constructor_SimulationMode_ShouldInitializeCorrectly() {
+    public async Task Constructor_SimulationMode_ShouldInitializeCorrectly() {
         await using var engine = new ParallelExecutionEngine(simulationMode: true, NullLogger<ParallelExecutionEngine>.Instance);
 
         engine.Should().NotBeNull();
@@ -101,7 +101,7 @@ public class ParallelExecutionEngineTests {
     /// 测试使用 null Logger 构造引擎时，应正确初始化（Logger 是可选的）
     /// </summary>
     [Fact]
-    public void Constructor_WithNullLogger_ShouldInitializeCorrectly() {
+    public async Task Constructor_WithNullLogger_ShouldInitializeCorrectly() {
         var agentCoordinator = CreateAgentCoordinator();
 
         await using var engine = new ParallelExecutionEngine(agentCoordinator, null);

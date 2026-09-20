@@ -143,7 +143,7 @@ public sealed class BriefModeServiceTests {
     }
 
     [Fact]
-    public void CrossInstance_PersistedToFile_WhenFileSystemProvided() {
+    public async Task CrossInstance_PersistedToFile_WhenFileSystemProvided() {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         var cwd = fs.GetCurrentDirectory();
         fs.CreateDirectory(Path.Combine(cwd, ".git"));

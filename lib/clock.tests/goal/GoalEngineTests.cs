@@ -93,7 +93,7 @@ public sealed class GoalEngineTests {
     }
 
     [Fact]
-    public void Constructor_WithoutPermissionManager_Should_Create_Successfully() {
+    public async Task Constructor_WithoutPermissionManager_Should_Create_Successfully() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         await using var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
 
@@ -103,7 +103,7 @@ public sealed class GoalEngineTests {
     }
 
     [Fact]
-    public void Constructor_WithPermissionManager_Should_Create_Successfully() {
+    public async Task Constructor_WithPermissionManager_Should_Create_Successfully() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var permissionManager = new Mock<IToolPermissionManager>();
 

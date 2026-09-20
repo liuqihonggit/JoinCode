@@ -2,7 +2,7 @@
 
 public sealed class SystemPromptDumpTests {
     [Fact]
-    public void Dump_AllSections_ToFile() {
+    public async Task Dump_AllSections_ToFile() {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         var options = new SystemPromptProviderOptions {
             EnabledTools = ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "Task"],

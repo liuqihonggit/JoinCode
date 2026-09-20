@@ -3,7 +3,7 @@ namespace Core.Tests.Query;
 
 public class QueryEngineEnhancedTests {
     [Fact]
-    public void QueryEngine_Create_WithTokenBudgetManager_ShouldNotThrow() {
+    public async Task QueryEngine_Create_WithTokenBudgetManager_ShouldNotThrow() {
         // Arrange
         await using var tokenBudgetManager = new TokenBudgetManager();
 

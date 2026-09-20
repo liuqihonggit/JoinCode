@@ -8,7 +8,7 @@
 /// </summary>
 public class JccChatSessionAssemblyTests {
     [Fact]
-    public void VendorModelMap_DumpAllData() {
+    public async Task VendorModelMap_DumpAllData() {
         // 密闭化：目录数据由测试 fixture 灌入（对齐生产 settings.json vendor 节的真实清单），
         // 不再依赖本机 ~/.jcc/settings.json 内容（B8 修复：环境差异导致基线必失败）
         await using var session = new PlaceholderChatSession(modelConfigLoader: CreateFedLoader());
@@ -34,7 +34,7 @@ public class JccChatSessionAssemblyTests {
     }
 
     [Fact]
-    public void VendorModelMap_MultipleInstances_AreIdentical() {
+    public async Task VendorModelMap_MultipleInstances_AreIdentical() {
         var loader = CreateFedLoader();
         await using var s1 = new PlaceholderChatSession(modelConfigLoader: loader);
         await using var s2 = new PlaceholderChatSession(modelConfigLoader: loader);
@@ -132,7 +132,7 @@ public class JccChatSessionAssemblyTests {
     }
 
     [Fact]
-    public void ModelSurface_ExposesProviderAndCurrentModelFromSharedConfig() {
+    public async Task ModelSurface_ExposesProviderAndCurrentModelFromSharedConfig() {
         var config = new WorkflowConfig {
             Provider = new ProviderConfig {
                 Vendor = "openai",
@@ -149,7 +149,7 @@ public class JccChatSessionAssemblyTests {
     }
 
     [Fact]
-    public void ModelSurface_VendorModelMap_ComesFromSharedModelConfigLoader() {
+    public async Task ModelSurface_VendorModelMap_ComesFromSharedModelConfigLoader() {
         var loader = CreateFedLoader();
         var config = new WorkflowConfig {
             Provider = new ProviderConfig {
@@ -170,7 +170,7 @@ public class JccChatSessionAssemblyTests {
     }
 
     [Fact]
-    public void ModelSurface_VendorModelMap_DoesNotIncludeCustomModel() {
+    public async Task ModelSurface_VendorModelMap_DoesNotIncludeCustomModel() {
         // VendorModelMap 是纯配置数据，不追加当前模型（追加逻辑在 MainViewModel.RebuildModelOptionsCache）
         var config = new WorkflowConfig {
             Provider = new ProviderConfig {
@@ -188,7 +188,7 @@ public class JccChatSessionAssemblyTests {
     }
 
     [Fact]
-    public void ModelSurface_VendorModelMap_DoesNotDuplicateCatalogModel() {
+    public async Task ModelSurface_VendorModelMap_DoesNotDuplicateCatalogModel() {
         var config = new WorkflowConfig {
             Provider = new ProviderConfig {
                 Vendor = "openai",
@@ -280,7 +280,7 @@ public class JccChatSessionAssemblyTests {
     }
 
     [Fact]
-    public void Session_EffortLevel_DefaultsToAuto_WithoutRegisteredProvider() {
+    public async Task Session_EffortLevel_DefaultsToAuto_WithoutRegisteredProvider() {
         // 未注册 IExecutionSettingsProvider 时，门面回退 Auto（对齐 CLI ShowCurrentEffort fallback）
         var config = new WorkflowConfig {
             Provider = new ProviderConfig {
@@ -297,7 +297,7 @@ public class JccChatSessionAssemblyTests {
     }
 
     [Fact]
-    public void Session_EffortLevel_ReflectsRegisteredProviderValue() {
+    public async Task Session_EffortLevel_ReflectsRegisteredProviderValue() {
         // 注册 IExecutionSettingsProvider 后，门面读取其当前 EffortLevel
         using var provider = new ExecutionSettingsProvider(
             new WorkflowConfig {

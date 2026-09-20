@@ -70,7 +70,7 @@ public sealed class BridgePermissionCallbacksTests {
     }
 
     [Fact]
-    public void SendRequest_WritesToTransport() {
+    public async Task SendRequest_WritesToTransport() {
         await using var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 
@@ -82,7 +82,7 @@ public sealed class BridgePermissionCallbacksTests {
     }
 
     [Fact]
-    public void CancelRequest_WritesToTransport() {
+    public async Task CancelRequest_WritesToTransport() {
         await using var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 

@@ -150,7 +150,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime {
     }
 
     [Fact]
-    public void GetTotalStatistics_NoRecords_ShouldReturnEmptyStats() {
+    public async Task GetTotalStatistics_NoRecords_ShouldReturnEmptyStats() {
         // Arrange - fresh CostTracker with no records
         await using var freshTracker = new CostTracker(_fileOperationServiceMock.Object, storagePath: "/test/empty_costs.json");
 

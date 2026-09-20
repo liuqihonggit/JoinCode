@@ -27,7 +27,7 @@ public sealed class PluginManagerDiagnosticTests {
     }
 
     [Fact]
-    public void PluginManager_GetDiagnostics_EmptyInitially() {
+    public async Task PluginManager_GetDiagnostics_EmptyInitially() {
         await using var pm = new PluginManager(
             fs: new PhysicalFileSystem());
         Assert.Empty(pm.GetDiagnostics());

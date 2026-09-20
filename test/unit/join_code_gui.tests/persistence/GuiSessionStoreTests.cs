@@ -51,7 +51,7 @@ public class GuiSessionStoreTests {
     }
 
     [Fact]
-    public void Delete_RemovesSessionFile() {
+    public async Task Delete_RemovesSessionFile() {
         await using var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
@@ -63,7 +63,7 @@ public class GuiSessionStoreTests {
     }
 
     [Fact]
-    public void Save_WithoutId_Throws() {
+    public async Task Save_WithoutId_Throws() {
         await using var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 

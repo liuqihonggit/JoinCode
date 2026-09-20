@@ -63,7 +63,7 @@ public class MainViewModelTests {
     }
 
     [Fact]
-    public void NewConversation_CreatesSessionAndClearsMessages() {
+    public async Task NewConversation_CreatesSessionAndClearsMessages() {
         var vm = CreateVm();
         vm.InputText = "hello";
         vm.SendCommand.Execute(null);
@@ -143,7 +143,7 @@ public class MainViewModelTests {
     }
 
     [Fact]
-    public void ModelOptions_AreBoundToSessionRealModels() {
+    public async Task ModelOptions_AreBoundToSessionRealModels() {
         await using var fake = new FakeSession();
         await using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
@@ -154,7 +154,7 @@ public class MainViewModelTests {
     }
 
     [Fact]
-    public void ModelOptions_DisplayText_DistinguishesProviderAndModel() {
+    public async Task ModelOptions_DisplayText_DistinguishesProviderAndModel() {
         var vm = CreateVm();
 
         foreach (var item in vm.ModelOptions) {
@@ -163,7 +163,7 @@ public class MainViewModelTests {
     }
 
     [Fact]
-    public void SelectedModelChange_WritesBackToSharedConfig() {
+    public async Task SelectedModelChange_WritesBackToSharedConfig() {
         var vm = CreateVm();
 
         vm.SelectedModel = "deepseek-reasoner";
@@ -172,7 +172,7 @@ public class MainViewModelTests {
     }
 
     [Fact]
-    public void SelectedModelOptionChange_SyncsSelectedModel() {
+    public async Task SelectedModelOptionChange_SyncsSelectedModel() {
         await using var session = new CrossContaminationSession();
         await using var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
@@ -183,7 +183,7 @@ public class MainViewModelTests {
     }
 
     [Fact]
-    public void ConnectionOptions_OnlyRealProviders() {
+    public async Task ConnectionOptions_OnlyRealProviders() {
         await using var fake = new FakeSession();
         await using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
@@ -196,7 +196,7 @@ public class MainViewModelTests {
     }
 
     [Fact]
-    public void ToggleMock_UpdatesStatusAndModels() {
+    public async Task ToggleMock_UpdatesStatusAndModels() {
         await using var fake = new FakeSession();
         await using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
@@ -207,7 +207,7 @@ public class MainViewModelTests {
     }
 
     [Fact]
-    public void ToggleMock_ToggleBackRestoresRealSession() {
+    public async Task ToggleMock_ToggleBackRestoresRealSession() {
         await using var fake = new FakeSession();
         await using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
@@ -220,7 +220,7 @@ public class MainViewModelTests {
     }
 
     [Fact]
-    public void SwitchProvider_UpdatesModelListFromVendorModelMap() {
+    public async Task SwitchProvider_UpdatesModelListFromVendorModelMap() {
         await using var fake = new FakeSession();
         await using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
@@ -231,7 +231,7 @@ public class MainViewModelTests {
 
     /// <summary>跨供应商切换时，旧供应商的 CurrentModelId 不应污染新供应商的模型列表</summary>
     [Fact]
-    public void ModelOptions_DoesNotCrossContaminateModelsFromOtherProviders() {
+    public async Task ModelOptions_DoesNotCrossContaminateModelsFromOtherProviders() {
         await using var session = new CrossContaminationSession();
         await using var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
@@ -262,14 +262,14 @@ public class MainViewModelTests {
     }
 
     [Fact]
-    public void ModelOptions_NoDuplicateModels() {
+    public async Task ModelOptions_NoDuplicateModels() {
         var vm = CreateVm();
         var ids = vm.ModelOptions.Select(o => o.Id).ToArray();
         ids.Distinct().Count().Should().Be(ids.Length, "模型ID不应重复");
     }
 
     [Fact]
-    public void AttachRealSession_HotSwapsPlaceholderToRealEngine() {
+    public async Task AttachRealSession_HotSwapsPlaceholderToRealEngine() {
         // 异步启动路径：VM 先以占位会话显示，引擎组装完成后再热切换
         await using var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
         vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
@@ -286,7 +286,7 @@ public class MainViewModelTests {
 
     /// <summary>占位模式（session is null）时状态栏应显示加载提示，但供应商/模型列表仍从 models.json 填充供预览</summary>
     [Fact]
-    public void PlaceholderMode_ShowsLoadingStatus() {
+    public async Task PlaceholderMode_ShowsLoadingStatus() {
         // 注入 fixture 目录 loader — 占位会话从 VM 的 _modelConfigLoader 构建供应商预览（B8 密闭化）
         await using var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"), JoinCode.Gui.Tests.Hosting.JccChatSessionAssemblyTests.CreateFedLoader());
         vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
@@ -1571,7 +1571,7 @@ public class MainViewModelTests {
 /// </summary>
 public sealed class AllMessagesTextToolResultTests {
     [Fact]
-    public void ToolResultText_AppearsInAllMessagesText() {
+    public async Task ToolResultText_AppearsInAllMessagesText() {
         await using var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
         vm.Messages.Add(new ChatUiMessage {
             Role = MessageRole.User,

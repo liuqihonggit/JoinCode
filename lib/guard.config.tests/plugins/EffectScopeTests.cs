@@ -5,7 +5,7 @@ public sealed class EffectScopeTests {
         => _ = scope.DisposeAsync().AsTask();
 
     [Fact]
-    public void Add_AppliesImmediately() {
+    public async Task Add_AppliesImmediately() {
         await using var scope = new EffectScope();
         var applied = false;
         scope.Add(() => applied = true, () => { });
@@ -15,7 +15,7 @@ public sealed class EffectScopeTests {
     }
 
     [Fact]
-    public void Dispose_RevertsInReverseOrder() {
+    public async Task Dispose_RevertsInReverseOrder() {
         await using var scope = new EffectScope();
         var log = new List<int>();
         scope.Add(() => log.Add(1), () => log.Add(-1), "first");
@@ -36,7 +36,7 @@ public sealed class EffectScopeTests {
     }
 
     [Fact]
-    public void OnRevertFailed_InvokedOnRevertException() {
+    public async Task OnRevertFailed_InvokedOnRevertException() {
         Exception? caught = null;
         string? caughtDesc = null;
         await using var scope = new EffectScope((ex, desc) => { caught = ex; caughtDesc = desc; });
@@ -62,7 +62,7 @@ public sealed class EffectScopeTests {
     }
 
     [Fact]
-    public void Dispose_Idempotent() {
+    public async Task Dispose_Idempotent() {
         await using var scope = new EffectScope();
         var count = 0;
         scope.Add(() => { }, () => count++);

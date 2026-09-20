@@ -38,7 +38,7 @@ public class SubAgentTranscriptTests {
     }
 
     [Fact]
-    public void OpenTranscriptCommand_ShouldRaiseRequestWithRun() {
+    public async Task OpenTranscriptCommand_ShouldRaiseRequestWithRun() {
         await using var vm = new MainViewModel(
             new JoinCode.Gui.Hosting.PlaceholderChatSession(),
             new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"),

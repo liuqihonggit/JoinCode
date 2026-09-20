@@ -31,7 +31,7 @@ public class WorktreeLifecycleGuardTest {
     /// 路径不同时构造成功，WorktreePath 返回锁定的路径。
     /// </summary>
     [Fact]
-    public void Ctor_WhenDifferent_LocksPath() {
+    public async Task Ctor_WhenDifferent_LocksPath() {
         await using var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs());
 
         guard.WorktreePath.Should().Be(WorktreePath);

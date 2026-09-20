@@ -3,7 +3,7 @@ namespace Bridge.Tests.Phase7B;
 
 public sealed class BridgeTokenRefreshSchedulerTests {
     [Fact]
-    public void ScheduleFromExpiresIn_ValidSeconds_SchedulesRefresh() {
+    public async Task ScheduleFromExpiresIn_ValidSeconds_SchedulesRefresh() {
         await using var scheduler = new BridgeTokenRefreshScheduler(
             new TokenRefreshOptions {
                 GetAccessToken = () => "test-token",
@@ -45,7 +45,7 @@ public sealed class BridgeTokenRefreshSchedulerTests {
     }
 
     [Fact]
-    public void CancelAll_StopsAllScheduledRefreshes() {
+    public async Task CancelAll_StopsAllScheduledRefreshes() {
         await using var scheduler = new BridgeTokenRefreshScheduler(
             new TokenRefreshOptions {
                 GetAccessToken = () => "test-token",
@@ -63,7 +63,7 @@ public sealed class BridgeTokenRefreshSchedulerTests {
     }
 
     [Fact]
-    public void Schedule_SameSession_ReplacesPrevious() {
+    public async Task Schedule_SameSession_ReplacesPrevious() {
         await using var scheduler = new BridgeTokenRefreshScheduler(
             new TokenRefreshOptions {
                 GetAccessToken = () => "test-token",

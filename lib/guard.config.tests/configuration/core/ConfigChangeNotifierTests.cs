@@ -2,7 +2,7 @@
 
 public sealed class ConfigChangeNotifierTests {
     [Fact]
-    public void StartMonitoring_Should_Not_Throw_When_Directory_Does_Not_Exist() {
+    public async Task StartMonitoring_Should_Not_Throw_When_Directory_Does_Not_Exist() {
         await using var notifier = new ConfigChangeNotifier(new IO.FileSystem.PhysicalFileSystem(), NullLogger<ConfigChangeNotifier>.Instance);
 
         notifier.StartMonitoring(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));

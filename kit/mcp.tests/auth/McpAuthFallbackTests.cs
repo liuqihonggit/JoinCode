@@ -52,7 +52,7 @@ public sealed class McpAuthFallbackTests {
     /// 验证 McpPkceAuthProvider 在 httpClient=null 时通过 HttpClientProviderFactory 初始化 _httpClient
     /// </summary>
     [Fact]
-    public void McpPkceAuthProvider_WhenHttpClientNull_ShouldInitializeViaFactory() {
+    public async Task McpPkceAuthProvider_WhenHttpClientNull_ShouldInitializeViaFactory() {
         // Arrange
         using var fs = new PhysicalFileSystem();
         var options = new McpOAuthOptions {
@@ -79,7 +79,7 @@ public sealed class McpAuthFallbackTests {
     /// 验证 OAuth2AuthProvider 在 options.HttpClient=null 时通过 HttpClientProviderFactory 初始化 _httpClient
     /// </summary>
     [Fact]
-    public void OAuth2AuthProvider_WhenOptionsHttpClientNull_ShouldInitializeViaFactory() {
+    public async Task OAuth2AuthProvider_WhenOptionsHttpClientNull_ShouldInitializeViaFactory() {
         // Arrange — 不设置 HttpClient 字段，触发 fallback 路径
         var options = new OAuth2ProviderOptions {
             ClientId = "test-client-id",

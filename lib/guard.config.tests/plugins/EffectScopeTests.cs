@@ -1,4 +1,4 @@
-namespace Core.Tests.Plugins;
+﻿namespace Core.Tests.Plugins;
 
 public sealed class EffectScopeTests {
     private static void DisposeSync(EffectScope scope)
@@ -6,7 +6,7 @@ public sealed class EffectScopeTests {
 
     [Fact]
     public void Add_AppliesImmediately() {
-        var scope = new EffectScope();
+        using var scope = new EffectScope();
         var applied = false;
         scope.Add(() => applied = true, () => { });
         Assert.True(applied);
@@ -16,7 +16,7 @@ public sealed class EffectScopeTests {
 
     [Fact]
     public void Dispose_RevertsInReverseOrder() {
-        var scope = new EffectScope();
+        using var scope = new EffectScope();
         var log = new List<int>();
         scope.Add(() => log.Add(1), () => log.Add(-1), "first");
         scope.Add(() => log.Add(2), () => log.Add(-2), "second");
@@ -39,7 +39,7 @@ public sealed class EffectScopeTests {
     public void OnRevertFailed_InvokedOnRevertException() {
         Exception? caught = null;
         string? caughtDesc = null;
-        var scope = new EffectScope((ex, desc) => { caught = ex; caughtDesc = desc; });
+        using var scope = new EffectScope((ex, desc) => { caught = ex; caughtDesc = desc; });
         scope.Add(() => { }, () => throw new InvalidOperationException("revert failed"), "test-desc");
         DisposeSync(scope);
         Assert.NotNull(caught);
@@ -63,7 +63,7 @@ public sealed class EffectScopeTests {
 
     [Fact]
     public void Dispose_Idempotent() {
-        var scope = new EffectScope();
+        using var scope = new EffectScope();
         var count = 0;
         scope.Add(() => { }, () => count++);
         DisposeSync(scope);

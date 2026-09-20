@@ -1,4 +1,4 @@
-namespace JoinCode.Tests.Guard;
+﻿namespace JoinCode.Tests.Guard;
 
 public class CoordinatorHandlerClassifierTests {
     private sealed class StubCommandClassifier : ICommandClassifier {
@@ -41,7 +41,7 @@ public class CoordinatorHandlerClassifierTests {
             "bash", MakeInput("ls -la"), "msg1", "tool1",
             new StubPermissionLogger(), queueOps);
 
-        var handler = new CoordinatorHandler();
+        await using var handler = new CoordinatorHandler();
         var result = await handler.HandleAsync(new CoordinatorPermissionParams {
             Context = ctx,
             PendingClassifierCheck = new object(),
@@ -62,7 +62,7 @@ public class CoordinatorHandlerClassifierTests {
             "bash", MakeInput("rm -rf /"), "msg1", "tool1",
             new StubPermissionLogger(), queueOps);
 
-        var handler = new CoordinatorHandler();
+        await using var handler = new CoordinatorHandler();
         var result = await handler.HandleAsync(new CoordinatorPermissionParams {
             Context = ctx,
             PendingClassifierCheck = new object(),
@@ -83,7 +83,7 @@ public class CoordinatorHandlerClassifierTests {
             "bash", MakeInput("npm run build"), "msg1", "tool1",
             new StubPermissionLogger(), queueOps);
 
-        var handler = new CoordinatorHandler();
+        await using var handler = new CoordinatorHandler();
         var result = await handler.HandleAsync(new CoordinatorPermissionParams {
             Context = ctx,
             PendingClassifierCheck = new object(),
@@ -101,7 +101,7 @@ public class CoordinatorHandlerClassifierTests {
             "bash", MakeInput("ls -la"), "msg1", "tool1",
             new StubPermissionLogger(), queueOps);
 
-        var handler = new CoordinatorHandler();
+        await using var handler = new CoordinatorHandler();
         var result = await handler.HandleAsync(new CoordinatorPermissionParams {
             Context = ctx,
             PendingClassifierCheck = new object(),
@@ -121,7 +121,7 @@ public class CoordinatorHandlerClassifierTests {
             "fileedit", MakeInput("some file"), "msg1", "tool1",
             new StubPermissionLogger(), queueOps);
 
-        var handler = new CoordinatorHandler();
+        await using var handler = new CoordinatorHandler();
         var result = await handler.HandleAsync(new CoordinatorPermissionParams {
             Context = ctx,
             PendingClassifierCheck = new object(),
@@ -141,7 +141,7 @@ public class CoordinatorHandlerClassifierTests {
             "bash", MakeInput("ls -la"), "msg1", "tool1",
             new StubPermissionLogger(), queueOps);
 
-        var handler = new CoordinatorHandler();
+        await using var handler = new CoordinatorHandler();
         var result = await handler.HandleAsync(new CoordinatorPermissionParams {
             Context = ctx,
             PendingClassifierCheck = null,
@@ -161,7 +161,7 @@ public class CoordinatorHandlerClassifierTests {
             "bash", MakeInput("cat /etc/passwd"), "msg1", "tool1",
             new StubPermissionLogger(), queueOps);
 
-        var handler = new CoordinatorHandler();
+        await using var handler = new CoordinatorHandler();
         var result = await handler.HandleAsync(new CoordinatorPermissionParams {
             Context = ctx,
             PendingClassifierCheck = new object(),

@@ -1,4 +1,4 @@
-namespace Core.Tests.Plugins;
+﻿namespace Core.Tests.Plugins;
 
 /// <summary>
 /// 跨插件链路验证 — 修复断裂点 #3(AddReference)、#4(EnsureAlive)、#8(PrepareUnloadAsync)
@@ -75,7 +75,7 @@ public sealed class CrossPluginLinkTests {
         using var pluginA = new PluginA();
         using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
-        var cmdB = new CommandResourceA(pluginB.Name, "cmdB");
+        using var cmdB = new CommandResourceA(pluginB.Name, "cmdB");
         pluginB.RegisterResource(cmdB);
 
         var reference = new ResourceReference(
@@ -101,7 +101,7 @@ public sealed class CrossPluginLinkTests {
 
     [Fact]
     public void TwoPhaseUnload_ResourceIdsCollectedAndScanned() {
-        var pluginA = new PluginA();
+        using var pluginA = new PluginA();
         var cmdA = pluginA.CreateCommandResource();
         var resourceIds = pluginA.Resources.Select(r => r.ObjectId).ToList();
         resourceIds.Should().HaveCount(1);

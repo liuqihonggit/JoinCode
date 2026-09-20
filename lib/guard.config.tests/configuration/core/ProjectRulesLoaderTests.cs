@@ -1,4 +1,4 @@
-namespace Core.Tests.Configuration;
+﻿namespace Core.Tests.Configuration;
 
 /// <summary>
 /// 与 SettingsLoaderTests 共享 AppDataConstants 全局状态,需串行执行避免相互污染
@@ -32,7 +32,7 @@ public sealed class ProjectRulesLoaderTests {
         _fs.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(false);
         _fs.Setup(x => x.GetFullPath(It.IsAny<string>())).Returns<string>(p => Path.GetFullPath(p));
         _fs.Setup(x => x.GetParentPath(BaseDir)).Returns((string?)null);
-        var loader = new ProjectRulesLoader(_fs.Object);
+        await using var loader = new ProjectRulesLoader(_fs.Object);
 
         var result = await loader.LoadRulesAsync(BaseDir).ConfigureAwait(true);
 
@@ -121,7 +121,7 @@ public sealed class ProjectRulesLoaderTests {
         _fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(false);
         _fs.Setup(x => x.GetCurrentDirectory()).Returns(BaseDir);
         _fs.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(false);
-        var loader = new ProjectRulesLoader(_fs.Object);
+        using var loader = new ProjectRulesLoader(_fs.Object);
 
         Assert.False(loader.HasRulesFile(BaseDir));
     }
@@ -141,7 +141,7 @@ public sealed class ProjectRulesLoaderTests {
         _fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(false);
         _fs.Setup(x => x.GetCurrentDirectory()).Returns(BaseDir);
         _fs.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(false);
-        var loader = new ProjectRulesLoader(_fs.Object);
+        using var loader = new ProjectRulesLoader(_fs.Object);
 
         var path = loader.GetRulesFilePath(BaseDir);
 

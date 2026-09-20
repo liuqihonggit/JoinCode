@@ -1,9 +1,9 @@
-namespace Core.Tests.Configuration;
+﻿namespace Core.Tests.Configuration;
 
 public sealed class ConfigChangeNotifierTests {
     [Fact]
     public void StartMonitoring_Should_Not_Throw_When_Directory_Does_Not_Exist() {
-        var notifier = new ConfigChangeNotifier(new IO.FileSystem.PhysicalFileSystem(), NullLogger<ConfigChangeNotifier>.Instance);
+        using var notifier = new ConfigChangeNotifier(new IO.FileSystem.PhysicalFileSystem(), NullLogger<ConfigChangeNotifier>.Instance);
 
         notifier.StartMonitoring(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
 

@@ -1,4 +1,4 @@
-namespace Core.Tests.Plugins;
+﻿namespace Core.Tests.Plugins;
 
 public sealed class PluginResourceBaseTests {
     private sealed class TestResource : PluginResourceBase {
@@ -108,7 +108,7 @@ public sealed class PluginResourceBaseTests {
 
     [Fact]
     public void Dispose_UnregistersFromObjectIdManager() {
-        var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
+        using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         var objectId = resource.ObjectId;
 
         ObjectIdManager.IsRegistered(objectId).Should().BeTrue();
@@ -119,7 +119,7 @@ public sealed class PluginResourceBaseTests {
 
     [Fact]
     public void Dispose_MarksDead() {
-        var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
+        using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         resource.Dispose();
         resource.IsAlive.Should().BeFalse();

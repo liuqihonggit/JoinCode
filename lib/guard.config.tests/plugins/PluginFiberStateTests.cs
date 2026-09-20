@@ -1,4 +1,4 @@
-namespace Core.Tests.Plugins;
+﻿namespace Core.Tests.Plugins;
 
 public sealed class PluginFiberStateTests {
     [Fact]
@@ -52,7 +52,7 @@ public sealed class PluginFiberStateTests {
 
     [Fact]
     public void WorkflowPluginBase_UnloadTwice_SecondReturnsAlreadyUnloaded() {
-        var plugin = new FiberTestPlugin();
+        using var plugin = new FiberTestPlugin();
         var r1 = plugin.Unload();
         Assert.True(r1.IsSuccess);
         Assert.Equal(PluginFiberState.Unloaded, plugin.Fiber.State);

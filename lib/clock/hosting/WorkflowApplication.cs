@@ -62,13 +62,12 @@ public sealed partial class WorkflowApplication : IAsyncDisposable {
         _logger?.LogInformation(L.T(StringKey.WorkflowAppInitializing));
 
         if (_cronTaskStore is not null) {
-            var cronService = new CronSchedulerService(
+            _serviceHost.RegisterService(new CronSchedulerService(
                 _cronTaskStore,
                 _messageBus,
                 _notificationService,
-                _cronLogger);
+                _cronLogger));
 
-            _serviceHost.RegisterService(cronService);
             _logger?.LogInformation(L.T(StringKey.WorkflowAppCronRegistered));
         }
 

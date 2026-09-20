@@ -245,14 +245,15 @@ public sealed class DisposableConsistencyRules : DiagnosticAnalyzer {
     }
 
     /// <summary>
-    /// 判断初始化表达式是否为"获取而非新建"——不含 ObjectCreationExpression 即从字段/属性/方法获取,不拥有所有权。
+    /// 判断初始化表达式是否为"获取而非新建"——顶层不是 ObjectCreationExpression 即从字段/属性/方法获取,不拥有所有权。
+    /// 只检查顶层,不递归检查方法调用参数中的 new(如 Factory.Create(new Options()) 顶层是方法调用,应跳过)。
     /// 纯语法结构分析,不依赖方法名前缀,可共享给其他项目。
     /// </summary>
     private static bool IsFetchedNotCreated(SyntaxNode initValue) {
-        return !initValue.DescendantNodesAndSelf()
-            .Where(n => !n.Ancestors().Any(a => a.IsKind(SyntaxKind.ThrowExpression) || a.IsKind(SyntaxKind.ThrowStatement)))
-            .Any(n => n.IsKind(SyntaxKind.ObjectCreationExpression) ||
-                     n.IsKind(SyntaxKind.ImplicitObjectCreationExpression));
+        if (initValue is ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax) return false;
+        if (initValue is AwaitExpressionSyntax awaitExpr) return IsFetchedNotCreated(awaitExpr.Expression);
+        if (initValue is ParenthesizedExpressionSyntax paren) return IsFetchedNotCreated(paren.Expression);
+        return true;
     }
 
     /// <summary>

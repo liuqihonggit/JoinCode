@@ -29,7 +29,7 @@ public sealed class AskClarifyCommand : ChatCommandBase {
         var chatService = context.GetCommandServices().ChatService;
 
         var bufferedOut = TerminalHelper.Out;
-        var realStdout = new StreamWriter(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true };
+        await using var realStdout = new StreamWriter(Console.OpenStandardOutput(), Console.OutputEncoding, leaveOpen: true) { AutoFlush = true };
         TerminalHelper.SetOut(realStdout);
 
         try {

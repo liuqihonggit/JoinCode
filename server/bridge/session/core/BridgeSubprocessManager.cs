@@ -458,11 +458,10 @@ public sealed class BridgeSubprocessSpawner {
                     }
                 }
 
-                var stream = new StreamWriter(_fs.Open(transcriptPath, FileMode.Append));
                 _logger?.LogDebug("[SubprocessSpawner] Transcript log: {Path}", transcriptPath);
 
                 // 将 transcript stream 注入 handle（handle 内部在 stdout 读取时写入）
-                handle.SetTranscriptStream(stream);
+                handle.SetTranscriptStream(new StreamWriter(_fs.Open(transcriptPath, FileMode.Append)));
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[SubprocessSpawner] Transcript 写入初始化失败（非致命）");
             }

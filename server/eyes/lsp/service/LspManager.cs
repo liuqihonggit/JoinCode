@@ -155,9 +155,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager {
         if (IsInitialized) return;
 
         foreach (var config in configs) {
-            var instance = new LspServerInstance(config, _fs, _processService, _logger);
-
-            _registry.Register(config.Name, instance, config.ExtensionToLanguage);
+            _registry.Register(config.Name, new LspServerInstance(config, _fs, _processService, _logger), config.ExtensionToLanguage);
 
             _logger.LogInformation("Registered LSP server: {Name} ({LanguageId}) for extensions: {Extensions}",
                 config.Name, config.LanguageId, string.Join(", ", config.ExtensionToLanguage.Keys));

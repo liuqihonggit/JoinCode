@@ -25,9 +25,6 @@ internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddle
         var sessionIngressUrl = ctx.SessionIngressUrl ?? throw new InvalidOperationException("SessionIngressUrl is not set. Ensure SessionCreateMiddleware runs first.");
 
         // 初始化去重集合和状态
-        var recentPostedUUIDs = new BoundedUUIDSet(2000);
-        var recentInboundUUIDs = new BoundedUUIDSet(2000);
-
         BoundedUUIDSet? initialMessageUUIDs = null;
         if (parameters.InitialMessages is { Length: > 0 }) {
             initialMessageUUIDs = new BoundedUUIDSet(2000);
@@ -41,8 +38,8 @@ internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddle
 
         var state = new BridgeInitState {
             FlushGate = new BridgeFlushGate<string>(),
-            RecentPostedUUIDs = recentPostedUUIDs,
-            RecentInboundUUIDs = recentInboundUUIDs,
+            RecentPostedUUIDs = new BoundedUUIDSet(2000),
+            RecentInboundUUIDs = new BoundedUUIDSet(2000),
             InitialMessageUUIDs = initialMessageUUIDs,
             InitCts = new CancellationTokenSource(),
             UserMessageCallbackDone = parameters.OnUserMessage is null,

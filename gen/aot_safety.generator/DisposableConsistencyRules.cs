@@ -272,11 +272,16 @@ public sealed class DisposableConsistencyRules : DiagnosticAnalyzer {
 
     /// <summary>
     /// 检查变量所有权是否转移(纯语法结构分析,不依赖方法名前缀):
-    /// return x / this.field = x / dict[key] = x / new Wrapper(x) 后 return 或赋值给字段/索引器 / 对象初始化器属性赋值 / lambda 引用
+    /// return/yield return x / this.field = x / dict[key] = x / new Wrapper(x) 后 return/yield return 或赋值给字段/索引器 / 对象初始化器属性赋值 / lambda 引用
     /// </summary>
     private static bool IsOwnershipTransferred(SyntaxNode method, string varName, SemanticModel? semanticModel = null, CancellationToken ct = default) {
         foreach (var ret in method.DescendantNodes().OfType<ReturnStatementSyntax>()) {
             if (ret.Expression is not null && ContainsIdentifier(ret.Expression, varName))
+                return true;
+        }
+
+        foreach (var yield in method.DescendantNodes().OfType<YieldStatementSyntax>()) {
+            if (yield.Expression is not null && ContainsIdentifier(yield.Expression, varName))
                 return true;
         }
 
@@ -293,7 +298,7 @@ public sealed class DisposableConsistencyRules : DiagnosticAnalyzer {
             if (!objCreate.ArgumentList.Arguments.Any(arg => ContainsIdentifier(arg.Expression, varName))) continue;
             var parent = objCreate.Parent;
             while (parent is not null) {
-                if (parent is ReturnStatementSyntax) return true;
+                if (parent is ReturnStatementSyntax or YieldStatementSyntax) return true;
                 if (parent is AssignmentExpressionSyntax assign &&
                     assign.Left is MemberAccessExpressionSyntax or ElementAccessExpressionSyntax) return true;
                 parent = parent.Parent;
@@ -306,7 +311,7 @@ public sealed class DisposableConsistencyRules : DiagnosticAnalyzer {
                 if (ContainsIdentifier(assign.Right, varName)) {
                     var parent = objInit.Parent;
                     while (parent is not null) {
-                        if (parent is ReturnStatementSyntax) return true;
+                        if (parent is ReturnStatementSyntax or YieldStatementSyntax) return true;
                         if (parent is AssignmentExpressionSyntax outerAssign &&
                             outerAssign.Left is MemberAccessExpressionSyntax or ElementAccessExpressionSyntax) return true;
                         parent = parent.Parent;

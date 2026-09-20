@@ -49,7 +49,7 @@ public class PermissionIntegrationTests : IAsyncDisposable {
     }
 
     private static IEnumerable<IToolExecutionMiddleware> BuildToolExecutionMiddlewares(IToolPermissionManager permissionManager) {
-        using var interceptor = new PermissionCheckingInterceptor(permissionManager, NullLogger<PermissionCheckingInterceptor>.Instance);
+        var interceptor = new PermissionCheckingInterceptor(permissionManager, NullLogger<PermissionCheckingInterceptor>.Instance);
         yield return new ArgumentRepairMiddleware(NullLogger<ArgumentRepairMiddleware>.Instance);
         yield return new RequiredParamsMiddleware(NullLogger<RequiredParamsMiddleware>.Instance);
         yield return new PermissionCheckMiddleware(interceptor, NullLogger<PermissionCheckMiddleware>.Instance);

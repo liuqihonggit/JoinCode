@@ -146,8 +146,11 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             StopCooldownTimerUnchecked();
             _cooldownTimer = new Timer(_ => {
-                _logger?.LogDebug("Fast Mode cooldown expired, auto-deactivating");
-                Deactivate();
+                try {
+                    _logger?.LogDebug("Fast Mode cooldown expired, auto-deactivating");
+                    Deactivate();
+                }
+                catch (Exception ex) { _logger?.LogWarning(ex, "Fast Mode cooldown timer 回调异常"); }
             }, null, _cooldownDuration, Timeout.InfiniteTimeSpan);
         }
     }

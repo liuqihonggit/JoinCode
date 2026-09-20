@@ -243,14 +243,31 @@ lib/abstractions/abs_ai.tests/decision/
 
 | 任务 | 状态 | 提交 |
 |------|------|------|
-| 任务J0: 类型化决策抽象层 | ✅ 完成(9 测试通过) | 待提交 |
-| 任务J1: 枚举扩展 | ⏳ 待开始 | - |
-| 任务J2: DTO + JsonContext | ⏳ 待开始 | - |
-| 任务J3: JevProviderDefinition | ⏳ 待开始 | - |
-| 任务J4: JevQueryService | ⏳ 待开始 | - |
-| 任务J5: Registry + 插件注册 | ⏳ 待开始 | - |
-| 任务J6: 配置示例 + 文档 | ⏳ 待开始 | - |
-| 任务J7: E2E 验证 | ⏳ 待开始(需 API Key) | - |
+| 任务J0: 类型化决策抽象层 | ✅ 完成(9 测试通过) | 2870b9f7a |
+| 任务J1: 枚举扩展 | ✅ 完成(8 测试通过) | 88d508a59 |
+| 任务J2: DTO + JsonContext | ✅ 完成(8 测试通过) | d82c2ec2c |
+| 任务J3: JevProviderDefinition | ✅ 完成(17 测试通过) | c94d8ada2 |
+| 任务J4: JevQueryService | ✅ 完成(6 通过 1 跳过) | 601929b4c |
+| 任务J5: Registry + 插件注册 | ✅ 完成(3 测试通过) | 425b5b094 |
+| 任务J6: 配置示例 + 文档 | ✅ 完成(本文档) | 待提交 |
+| 任务J7: E2E 验证 | ⏳ 待用户验证(需 API Key) | - |
+
+## 自主决策记录(用户睡觉期间自主完成)
+
+<!-- 🤖 Auto Decision: 2026-09-21 -->
+<!-- 决策2: Jev 不支持流式,GetStreamEventContentsAsync 降级为非流式包装单次 yield -->
+<!-- 原因: 端点路径 systemone 暗示非流式决策端点,Jev 返回类型化决策而非文本流 -->
+<!-- 替代方案: 实现 SSE 流式(但 Jev API 可能不支持,且决策结果适合一次性返回) -->
+
+<!-- 🤖 Auto Decision: 2026-09-21 -->
+<!-- 决策3: MessageList 拼接为单个字符串作为 state(方案 a) -->
+<!-- 原因: 最简单直接,Jev 的 state 是输入材料,MessageList 拼接为带角色标记的字符串 -->
+<!-- 替代方案: JSON 数组(方案 b)或 ChatOptions.JevState 专用字段(方案 c,需扩展 ChatOptions) -->
+
+<!-- 🤖 Auto Decision: 2026-09-21 -->
+<!-- 决策: JsonElementHelper 替代 JsonSerializer.SerializeToElement 保证 AOT 安全 -->
+<!-- 原因: JCC1011 分析器拦截无 JsonTypeInfo 的 SerializeToElement,NativeAOT 下会触发反射异常 -->
+<!-- 替代方案: 在 JevJsonContext 注册 string/double/int 原生类型(但 JsonElementHelper 已有现成方法) -->
 
 ## 参考链接
 

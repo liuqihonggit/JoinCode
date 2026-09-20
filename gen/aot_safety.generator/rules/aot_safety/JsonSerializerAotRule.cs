@@ -13,23 +13,17 @@ namespace AotSafety.Generator.Rules;
     Category = "AotSafety",
     Severity = DiagnosticSeverity.Warning,
     HelpLinkUri = "NativeAOT disables reflection-based serialization. All JsonSerializer.Serialize/Deserialize/SerializeToElement calls must pass a JsonTypeInfo parameter (e.g., XxxJsonContext.Default.T). Exceptions: (1) test code, (2) SerializeToElement with JsonElement/JsonNode parameter (no reflection), (3) calls passing JsonSerializerOptions with TypeInfoResolver.")]
+[AnalyzerRule(
+    AnalyzerId = "JsonSerializerAot",
+    Id = "JCC1012",
+    Title = "AOT incompatible: JsonSerializerOptions created without TypeInfoResolver",
+    Description = "new JsonSerializerOptions {{ {0} }} 未设置 TypeInfoResolver，在 NativeAOT 下使用此 options 会触发反射序列化异常。应从 JsonContext.Default.Options 继承，或设置 TypeInfoResolver 属性。",
+    Category = "AotSafety",
+    Severity = DiagnosticSeverity.Warning,
+    HelpLinkUri = "NativeAOT disables reflection-based serialization. new JsonSerializerOptions() defaults TypeInfoResolver to null, any serialization using this options falls back to reflection. Correct approaches: (1) Use JsonContext.Default.Options (includes TypeInfoResolver). (2) new JsonSerializerOptions(JsonContext.Default.Options) { ... } (inherit then override). (3) Explicitly set options.TypeInfoResolver = JsonContext.Default.")]
 public sealed class JsonSerializerAotRule : IAnalyzerRule {
-    private static readonly DiagnosticDescriptor RuleMissingTypeInfo = RuleDescriptorFactory.Create<JsonSerializerAotRule>();
-
-    private static readonly DiagnosticDescriptor RuleOptionsNoResolver = new(
-        "JCC1012",
-        "AOT incompatible: JsonSerializerOptions created without TypeInfoResolver",
-        "new JsonSerializerOptions {{ {0} }} 未设置 TypeInfoResolver，在 NativeAOT 下使用此 options 会触发反射序列化异常。应从 JsonContext.Default.Options 继承，或设置 TypeInfoResolver 属性。",
-        "AotSafety",
-        DiagnosticSeverity.Warning,
-        true,
-        "NativeAOT disables reflection-based serialization. new JsonSerializerOptions() defaults TypeInfoResolver to null, " +
-        "any serialization using this options falls back to reflection. Correct approaches: " +
-        "(1) Use JsonContext.Default.Options (includes TypeInfoResolver). " +
-        "(2) new JsonSerializerOptions(JsonContext.Default.Options) { ... } (inherit then override). " +
-        "(3) Explicitly set options.TypeInfoResolver = JsonContext.Default.");
-
-    public IReadOnlyList<DiagnosticDescriptor> Descriptors { get; } = new[] { RuleMissingTypeInfo, RuleOptionsNoResolver };
+    private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Map = RuleDescriptorFactory.CreateAll<JsonSerializerAotRule>();
+    public IReadOnlyList<DiagnosticDescriptor> Descriptors { get; } = Map.Values.ToList();
 
     private static readonly HashSet<string> SerializerMethodNames = new(StringComparer.Ordinal) {
         "Serialize", "Deserialize", "SerializeToElement", "DeserializeFromElement",
@@ -67,7 +61,7 @@ public sealed class JsonSerializerAotRule : IAnalyzerRule {
         if (IsJsonElementOnlySerializeToElement(method, invocation)) return;
         if (UsesOptionsWithResolver(invocation, ctx)) return;
 
-        ctx.ReportDiagnostic(Diagnostic.Create(RuleMissingTypeInfo, invocation.GetLocation(), method.Name));
+        ctx.ReportDiagnostic(Diagnostic.Create(Map["JCC1011"], invocation.GetLocation(), method.Name));
     }
 
     private static void AnalyzeObjectCreation(SyntaxNodeAnalysisContext ctx, bool isTestProject) {
@@ -89,7 +83,7 @@ public sealed class JsonSerializerAotRule : IAnalyzerRule {
         if (InheritsFromContextOptions(creation, ctx)) return;
 
         var details = ExtractOptionsDetails(creation);
-        ctx.ReportDiagnostic(Diagnostic.Create(RuleOptionsNoResolver, creation.GetLocation(), details));
+        ctx.ReportDiagnostic(Diagnostic.Create(Map["JCC1012"], creation.GetLocation(), details));
     }
 
     private static void AnalyzeImplicitObjectCreation(SyntaxNodeAnalysisContext ctx, bool isTestProject) {
@@ -107,7 +101,7 @@ public sealed class JsonSerializerAotRule : IAnalyzerRule {
         if (HasTypeInfoResolverInitializerForImplicit(creation)) return;
 
         var details = ExtractImplicitOptionsDetails(creation);
-        ctx.ReportDiagnostic(Diagnostic.Create(RuleOptionsNoResolver, creation.GetLocation(), details));
+        ctx.ReportDiagnostic(Diagnostic.Create(Map["JCC1012"], creation.GetLocation(), details));
     }
 
     private static bool IsJsonSerializerType(INamedTypeSymbol? type) {

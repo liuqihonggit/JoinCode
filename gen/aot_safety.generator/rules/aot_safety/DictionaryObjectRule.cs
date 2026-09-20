@@ -2,7 +2,7 @@ namespace AotSafety.Generator.Rules;
 
 /// <summary>
 /// JCC1001/JCC1002/JCC1003: Dictionary&lt;string, object?&gt; 在 NativeAOT 下不安全。
-/// 多描述符规则 — 3 个 descriptor 对应 nullable/non-nullable/inherits 三种情况。
+/// 多描述符规则 — 3 个 [AnalyzerRule] 特性对应 nullable/non-nullable/inherits 三种情况。
 /// </summary>
 [AnalyzerRule(
     AnalyzerId = "AotSafety",
@@ -12,28 +12,25 @@ namespace AotSafety.Generator.Rules;
     Category = "AotSafety",
     Severity = DiagnosticSeverity.Warning,
     HelpLinkUri = "NativeAOT requires all serialized types to be determined at compile time. The object? value type cannot satisfy this requirement.")]
+[AnalyzerRule(
+    AnalyzerId = "AotSafety",
+    Id = "JCC1002",
+    Title = "AOT incompatible: Dictionary<string, object> is unsafe under NativeAOT",
+    Description = "Type '{0}' uses Dictionary<string, object> which cannot be safely serialized under NativeAOT. Use Dictionary<string, JsonElement> or a strongly-typed alternative instead.",
+    Category = "AotSafety",
+    Severity = DiagnosticSeverity.Warning,
+    HelpLinkUri = "NativeAOT requires all serialized types to be determined at compile time. The object value type cannot satisfy this requirement.")]
+[AnalyzerRule(
+    AnalyzerId = "AotSafety",
+    Id = "JCC1003",
+    Title = "AOT incompatible: Type inherits from Dictionary<string, object?>",
+    Description = "Type '{0}' inherits from Dictionary<string, object?> which cannot be safely serialized under NativeAOT. Use composition with Dictionary<string, JsonElement> or a strongly-typed wrapper instead.",
+    Category = "AotSafety",
+    Severity = DiagnosticSeverity.Warning,
+    HelpLinkUri = "Inheriting from Dictionary<string, object?> makes the entire type unsafe for AOT serialization.")]
 public sealed class DictionaryObjectRule : IAnalyzerRule {
-    private static readonly DiagnosticDescriptor RuleNullable = RuleDescriptorFactory.Create<DictionaryObjectRule>();
-
-    private static readonly DiagnosticDescriptor RuleNonNullable = new(
-        "JCC1002",
-        "AOT incompatible: Dictionary<string, object> is unsafe under NativeAOT",
-        "Type '{0}' uses Dictionary<string, object> which cannot be safely serialized under NativeAOT. Use Dictionary<string, JsonElement> or a strongly-typed alternative instead.",
-        "AotSafety",
-        DiagnosticSeverity.Warning,
-        true,
-        "NativeAOT requires all serialized types to be determined at compile time. The object value type cannot satisfy this requirement.");
-
-    private static readonly DiagnosticDescriptor RuleInherits = new(
-        "JCC1003",
-        "AOT incompatible: Type inherits from Dictionary<string, object?>",
-        "Type '{0}' inherits from Dictionary<string, object?> which cannot be safely serialized under NativeAOT. Use composition with Dictionary<string, JsonElement> or a strongly-typed wrapper instead.",
-        "AotSafety",
-        DiagnosticSeverity.Warning,
-        true,
-        "Inheriting from Dictionary<string, object?> makes the entire type unsafe for AOT serialization.");
-
-    public IReadOnlyList<DiagnosticDescriptor> Descriptors { get; } = new[] { RuleNullable, RuleNonNullable, RuleInherits };
+    private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Map = RuleDescriptorFactory.CreateAll<DictionaryObjectRule>();
+    public IReadOnlyList<DiagnosticDescriptor> Descriptors { get; } = Map.Values.ToList();
 
     public void Register(CompilationStartAnalysisContext context, ProjectContext projectContext) {
         context.RegisterSyntaxNodeAction(Analyze,
@@ -78,14 +75,14 @@ public sealed class DictionaryObjectRule : IAnalyzerRule {
             var isNullable = symbol.TypeArguments.Length >= 2 &&
                 symbol.TypeArguments[1].IsReferenceType;
 
-            var rule = isNullable ? RuleNullable : RuleNonNullable;
+            var rule = isNullable ? Map["JCC1001"] : Map["JCC1002"];
             var displayStr = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
             ctx.ReportDiagnostic(Diagnostic.Create(rule, location, displayStr));
         }
 
         if (symbol.BaseType is not null && IsDictionaryStringObject(symbol.BaseType)) {
             var displayStr = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
-            ctx.ReportDiagnostic(Diagnostic.Create(RuleInherits, location, displayStr));
+            ctx.ReportDiagnostic(Diagnostic.Create(Map["JCC1003"], location, displayStr));
         }
     }
 

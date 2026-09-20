@@ -2,39 +2,35 @@ namespace AotSafety.Generator.Rules;
 
 /// <summary>
 /// JCC3010/JCC3011/JCC3012: 测试中 Task.Delay 真实等待。仅 Test 项目触发。
-/// 多描述符规则 — 3 个 descriptor 对应 int/TimeSpan/未知参数类型,直接实现 IAnalyzerRule。
-/// [AnalyzerRule] 标记主 Id (JCC3010),另外两个 descriptor 手动创建。
+/// 多描述符规则 — 3 个 [AnalyzerRule] 特性对应 int/TimeSpan/未知参数类型。
 /// </summary>
 [AnalyzerRule(
     AnalyzerId = "AsyncSafety",
     Id = "JCC3010",
-    Title = "测试性能: Task.Delay({0}ms) 真实等待",
+    Title = "测试性能: Task.Delay0ms 真实等待",
     Description = "测试中 Task.Delay({0}ms) 真实等待。用 FakeTimeProvider.Advance() 推进时间，或 SemaphoreSlim 信号替代盲等。",
     Category = "AsyncCorrectness",
     Severity = DiagnosticSeverity.Warning,
     HelpLinkUri = "Use FakeTimeProvider.Advance() or SemaphoreSlim signal instead of Task.Delay in tests.")]
+[AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
+    Id = "JCC3011",
+    Title = "测试性能: Task.Delay(TimeSpan) 真实等待",
+    Description = "测试中 Task.Delay({0}) 真实等待 {1}ms。用 FakeTimeProvider.Advance() 推进时间，或 SemaphoreSlim 信号替代盲等。",
+    Category = "AsyncCorrectness",
+    Severity = DiagnosticSeverity.Warning,
+    HelpLinkUri = "Use FakeTimeProvider.Advance() or SemaphoreSlim signal instead of Task.Delay in tests.")]
+[AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
+    Id = "JCC3012",
+    Title = "测试性能: Task.Delay 真实等待",
+    Description = "测试中 Task.Delay 真实等待。用 FakeTimeProvider.Advance() 推进时间，或 SemaphoreSlim 信号替代盲等。",
+    Category = "AsyncCorrectness",
+    Severity = DiagnosticSeverity.Warning,
+    HelpLinkUri = "Use FakeTimeProvider.Advance() or SemaphoreSlim signal instead of Task.Delay in tests.")]
 public sealed class TaskDelayInTestsRule : IAnalyzerRule {
-    private static readonly DiagnosticDescriptor RuleInt = RuleDescriptorFactory.Create<TaskDelayInTestsRule>();
-
-    private static readonly DiagnosticDescriptor RuleTimeSpan = new(
-        "JCC3011",
-        "测试性能: Task.Delay({0}) 真实等待 {1}ms",
-        "测试中 Task.Delay({0}) 真实等待 {1}ms。用 FakeTimeProvider.Advance() 推进时间，或 SemaphoreSlim 信号替代盲等。",
-        "AsyncCorrectness",
-        DiagnosticSeverity.Warning,
-        true,
-        "Use FakeTimeProvider.Advance() or SemaphoreSlim signal instead of Task.Delay in tests.");
-
-    private static readonly DiagnosticDescriptor RuleUnknown = new(
-        "JCC3012",
-        "测试性能: Task.Delay 真实等待",
-        "测试中 Task.Delay 真实等待。用 FakeTimeProvider.Advance() 推进时间，或 SemaphoreSlim 信号替代盲等。",
-        "AsyncCorrectness",
-        DiagnosticSeverity.Warning,
-        true,
-        "Use FakeTimeProvider.Advance() or SemaphoreSlim signal instead of Task.Delay in tests.");
-
-    public IReadOnlyList<DiagnosticDescriptor> Descriptors { get; } = new[] { RuleInt, RuleTimeSpan, RuleUnknown };
+    private static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> Map = RuleDescriptorFactory.CreateAll<TaskDelayInTestsRule>();
+    public IReadOnlyList<DiagnosticDescriptor> Descriptors { get; } = Map.Values.ToList();
 
     public void Register(CompilationStartAnalysisContext context, ProjectContext projectContext) {
         if (!projectContext.IsTest) return;
@@ -68,14 +64,14 @@ public sealed class TaskDelayInTestsRule : IAnalyzerRule {
                     if (firstArg is LiteralExpressionSyntax intLiteral &&
                         intLiteral.Token.Value is int ms) {
                         ctx.ReportDiagnostic(Diagnostic.Create(
-                            RuleInt,
+                            Map["JCC3010"],
                             invocation.GetLocation(),
                             ms.ToString()));
                         return;
                     }
 
                     ctx.ReportDiagnostic(Diagnostic.Create(
-                        RuleUnknown,
+                        Map["JCC3012"],
                         invocation.GetLocation()));
                     return;
                 } else if (firstParamType.Name == "TimeSpan") {
@@ -86,7 +82,7 @@ public sealed class TaskDelayInTestsRule : IAnalyzerRule {
                             tsInvocation.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax msLiteral &&
                             msLiteral.Token.Value is int tsMs) {
                             ctx.ReportDiagnostic(Diagnostic.Create(
-                                RuleTimeSpan,
+                                Map["JCC3011"],
                                 invocation.GetLocation(),
                                 $"TimeSpan.FromMilliseconds({tsMs})",
                                 tsMs.ToString()));
@@ -105,7 +101,7 @@ public sealed class TaskDelayInTestsRule : IAnalyzerRule {
                             };
                             if (secMs > 0) {
                                 ctx.ReportDiagnostic(Diagnostic.Create(
-                                    RuleTimeSpan,
+                                    Map["JCC3011"],
                                     invocation.GetLocation(),
                                     $"TimeSpan.FromSeconds({secValue})",
                                     secMs.ToString()));
@@ -115,18 +111,18 @@ public sealed class TaskDelayInTestsRule : IAnalyzerRule {
                     }
 
                     ctx.ReportDiagnostic(Diagnostic.Create(
-                        RuleUnknown,
+                        Map["JCC3012"],
                         invocation.GetLocation()));
                     return;
                 }
             }
 
             ctx.ReportDiagnostic(Diagnostic.Create(
-                RuleUnknown,
+                Map["JCC3012"],
                 invocation.GetLocation()));
         } else {
             ctx.ReportDiagnostic(Diagnostic.Create(
-                RuleUnknown,
+                Map["JCC3012"],
                 invocation.GetLocation()));
         }
     }

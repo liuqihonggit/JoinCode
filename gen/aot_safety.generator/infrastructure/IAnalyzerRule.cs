@@ -2,9 +2,10 @@ namespace AotSafety.Generator.Infrastructure;
 
 /// <summary>
 /// 分析器规则特性 — 标记每个规则类,声明诊断元数据(Id/Title/Description/Category/Severity 等)。
+/// AllowMultiple=true 支持多描述符规则(如 DictionaryObjectRule 有 JCC1001/1002/1003 三个特性)。
 /// 替代手动 new DiagnosticDescriptor(...),由 RuleDescriptorFactory 从特性提取创建。
 /// </summary>
-[AttributeUsage(AttributeTargets.Class, Inherited = false)]
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]
 public sealed class AnalyzerRuleAttribute : Attribute {
     public string Id { get; set; } = "";
     public string AnalyzerId { get; set; } = "";
@@ -17,7 +18,7 @@ public sealed class AnalyzerRuleAttribute : Attribute {
 }
 
 /// <summary>
-/// MSBuild ProjectType 属性映射的枚举 — 由 build_property.ProjectType 标签驱动,替代程序集名/引用猜测。
+/// MSBuild ProjectType 属性映射的枚举 — 由 build_property.ProjectType 标签驱动。
 /// </summary>
 public enum ProjectType {
     Unknown,
@@ -30,7 +31,7 @@ public enum ProjectType {
 }
 
 /// <summary>
-/// 项目上下文 — 从 Compilation + AnalyzerConfigOptionsProvider 提取 ProjectType 标签,提供给每个规则做项目类型判断。
+/// 项目上下文 — 从 Compilation + AnalyzerConfigOptionsProvider 提取 ProjectType 标签。
 /// </summary>
 public sealed class ProjectContext {
     public ProjectType ProjectType { get; set; } = ProjectType.Unknown;
@@ -67,7 +68,7 @@ public sealed class ProjectContext {
 
 /// <summary>
 /// 分析器规则接口 — 每个规则一个类一个文件,实现此接口。
-/// Descriptors: 该规则声明的所有诊断描述符(通常1个,TaskDelayInTestsRule有3个)。
+/// Descriptors: 该规则声明的所有诊断描述符(通常1个,多描述符规则有多个)。
 /// Register: 在 CompilationStartAnalysisContext 上注册语法节点动作。
 /// </summary>
 public interface IAnalyzerRule {

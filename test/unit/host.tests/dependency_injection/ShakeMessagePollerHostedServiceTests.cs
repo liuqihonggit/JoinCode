@@ -1,4 +1,4 @@
-using Core.DependencyInjection;
+﻿using Core.DependencyInjection;
 
 namespace Host.Tests.DependencyInjection;
 
@@ -28,7 +28,7 @@ public sealed class ShakeMessagePollerHostedServiceTests {
     [Fact]
     public async Task StartAsync_MailboxServiceNull_DoesNotStartPolling() {
         var coordinator = CreateCoordinator();
-        var service = new ShakeMessagePollerHostedService(coordinator.Object);
+        await using var service = new ShakeMessagePollerHostedService(coordinator.Object);
 
         await service.StartAsync(CancellationToken.None);
         await service.StopAsync(CancellationToken.None);
@@ -48,7 +48,7 @@ public sealed class ShakeMessagePollerHostedServiceTests {
             .ReturnsAsync(new ShakeResult("TestWindow", "0x7B", "test"));
 
         var coordinator = CreateCoordinator(enabled: true, canShake: true);
-        var service = new ShakeMessagePollerHostedService(
+        await using var service = new ShakeMessagePollerHostedService(
             coordinator.Object, mailboxMock.Object, shakeServiceMock.Object);
 
         await service.PollOnceAsync(CancellationToken.None);
@@ -66,7 +66,7 @@ public sealed class ShakeMessagePollerHostedServiceTests {
 
         var shakeServiceMock = new Mock<IWindowShakeService>();
         var coordinator = CreateCoordinator();
-        var service = new ShakeMessagePollerHostedService(
+        await using var service = new ShakeMessagePollerHostedService(
             coordinator.Object, mailboxMock.Object, shakeServiceMock.Object);
 
         await service.PollOnceAsync(CancellationToken.None);
@@ -84,7 +84,7 @@ public sealed class ShakeMessagePollerHostedServiceTests {
 
         var shakeServiceMock = new Mock<IWindowShakeService>();
         var coordinator = CreateCoordinator();
-        var service = new ShakeMessagePollerHostedService(
+        await using var service = new ShakeMessagePollerHostedService(
             coordinator.Object, mailboxMock.Object, shakeServiceMock.Object);
 
         await service.PollOnceAsync(CancellationToken.None);
@@ -100,7 +100,7 @@ public sealed class ShakeMessagePollerHostedServiceTests {
 
         var shakeServiceMock = new Mock<IWindowShakeService>();
         var coordinator = CreateCoordinator(enabled: false);
-        var service = new ShakeMessagePollerHostedService(
+        await using var service = new ShakeMessagePollerHostedService(
             coordinator.Object, mailboxMock.Object, shakeServiceMock.Object);
 
         await service.PollOnceAsync(CancellationToken.None);
@@ -115,7 +115,7 @@ public sealed class ShakeMessagePollerHostedServiceTests {
             .ReturnsAsync(new List<CoordinatorMessage> { CreateShakeMessage() });
 
         var coordinator = CreateCoordinator();
-        var service = new ShakeMessagePollerHostedService(
+        await using var service = new ShakeMessagePollerHostedService(
             coordinator.Object, mailboxMock.Object, shakeService: null);
 
         await service.PollOnceAsync(CancellationToken.None);

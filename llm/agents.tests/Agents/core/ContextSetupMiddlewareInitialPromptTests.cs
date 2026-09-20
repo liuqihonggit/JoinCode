@@ -1,4 +1,4 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
 
 /// <summary>
@@ -17,7 +17,7 @@ public sealed class ContextSetupMiddlewareInitialPromptTests {
             InitialPrompt = "/review the code",
         };
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
-        var mw = new ContextSetupMiddleware(contextAccessor.Object);
+        await using var mw = new ContextSetupMiddleware(contextAccessor.Object);
 
         var ctx = new UnifiedSpawnContext {
             Task = "test task",
@@ -45,7 +45,7 @@ public sealed class ContextSetupMiddlewareInitialPromptTests {
             WhenToUse = "code agent",
         };
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
-        var mw = new ContextSetupMiddleware(contextAccessor.Object);
+        await using var mw = new ContextSetupMiddleware(contextAccessor.Object);
 
         var ctx = new UnifiedSpawnContext {
             Task = "test task",

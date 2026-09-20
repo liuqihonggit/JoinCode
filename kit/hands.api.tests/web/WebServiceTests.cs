@@ -1,4 +1,4 @@
-namespace Core.Tests.Web;
+﻿namespace Core.Tests.Web;
 
 
 public sealed class WebServiceTests {
@@ -30,8 +30,8 @@ public sealed class WebServiceTests {
 
     private WebService CreateService(bool supportsWebSearch = true) {
         var cache = new WebFetchCache();
-        var domainChecker = new DomainBlocklistChecker(_apiClientMock.Object, cache);
-        var binaryStorage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem());
+        using var domainChecker = new DomainBlocklistChecker(_apiClientMock.Object, cache);
+        using var binaryStorage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem());
 
         var middlewares = new IMiddleware<WebContext>[]
         {
@@ -94,7 +94,7 @@ public sealed class WebServiceTests {
 
     [Fact]
     public async Task SearchAsync_NoQueryService_ReturnsError() {
-        var service = new WebService(
+        await using var service = new WebService(
             new MiddlewarePipeline<WebContext>(Enumerable.Empty<IMiddleware<WebContext>>()),
             new WebFetchCache(),
             providerConfig: CreateProviderConfig());

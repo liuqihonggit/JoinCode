@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 
 /// <summary>
@@ -32,7 +32,7 @@ public sealed class InitCommandTests {
 
     [Fact]
     public async Task Execute_WithQuick_Should_Create_JccDirectory_Using_AppDataConstants() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var cwd = "/test/init-unit";
         fs.SetCurrentDirectory(cwd);
 
@@ -53,7 +53,7 @@ public sealed class InitCommandTests {
 
     [Fact]
     public async Task Execute_WithQuick_Should_Write_Files_To_AppDataConstants_Path() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var cwd = "/test/init-files";
         fs.SetCurrentDirectory(cwd);
 
@@ -89,7 +89,7 @@ public sealed class InitCommandTests {
     [Fact]
     public async Task Execute_WithQuickAlias_Q_Should_Behave_Like_Quick() {
         // Arrange — "q" 是 "quick" 的别名
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var cwd = "/test/init-q";
         fs.SetCurrentDirectory(cwd);
 
@@ -109,7 +109,7 @@ public sealed class InitCommandTests {
     [Fact]
     public async Task Execute_WithQuick_Should_Not_Throw_When_ConfigService_Unavailable() {
         // Arrange — ServiceProvider 为 null 时,RegisterProjectConfigAsync 应安全跳过
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         fs.SetCurrentDirectory("/test/init-no-config");
 
         var cmd = new InitCommand();
@@ -136,7 +136,7 @@ public sealed class InitCommandTests {
     [Fact]
     public async Task Execute_WithQuick_Should_Skip_Existing_Files() {
         // Arrange — 已存在的文件不应被覆盖
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var cwd = "/test/init-existing";
         fs.SetCurrentDirectory(cwd);
 

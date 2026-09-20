@@ -1,4 +1,4 @@
-namespace Hands.Tests.Shell;
+﻿namespace Hands.Tests.Shell;
 
 /// <summary>
 /// AbsoluteTimeoutMiddleware 单元测试 — 验证超时策略驱动的绝对超时中间件
@@ -8,7 +8,7 @@ public class AbsoluteTimeoutMiddlewareTests {
 
     [Fact]
     public async Task NonePolicy_DoesNotEnforceTimeout() {
-        var sut = new AbsoluteTimeoutMiddleware(DefaultConfig);
+        await using var sut = new AbsoluteTimeoutMiddleware(DefaultConfig);
         var context = CreateContext(ToolTimeoutPolicy.None);
 
         var nextCalled = false;
@@ -20,7 +20,7 @@ public class AbsoluteTimeoutMiddlewareTests {
 
     [Fact]
     public async Task AbsoluteTwoMinutes_NextCompletes_ResultNotModified() {
-        var sut = new AbsoluteTimeoutMiddleware(DefaultConfig);
+        await using var sut = new AbsoluteTimeoutMiddleware(DefaultConfig);
         var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -31,7 +31,7 @@ public class AbsoluteTimeoutMiddlewareTests {
     [Fact]
     public async Task AbsoluteTwoMinutes_TimeoutFires_SetsErrorResultWithResumeHint() {
         var config = new ShellExecutionConfig { AbsoluteTimeoutSeconds = 1 };
-        var sut = new AbsoluteTimeoutMiddleware(config);
+        await using var sut = new AbsoluteTimeoutMiddleware(config);
         var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
 
         await sut.InvokeAsync(context, async (_, ct) => {
@@ -53,7 +53,7 @@ public class AbsoluteTimeoutMiddlewareTests {
     [Fact]
     public async Task ConfigZero_FallsBackToPolicyValue() {
         var config = new ShellExecutionConfig { AbsoluteTimeoutSeconds = 0 };
-        var sut = new AbsoluteTimeoutMiddleware(config);
+        await using var sut = new AbsoluteTimeoutMiddleware(config);
         var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -64,7 +64,7 @@ public class AbsoluteTimeoutMiddlewareTests {
     [Fact]
     public async Task ConfigOverride_UsesConfigValue() {
         var config = new ShellExecutionConfig { AbsoluteTimeoutSeconds = 1 };
-        var sut = new AbsoluteTimeoutMiddleware(config);
+        await using var sut = new AbsoluteTimeoutMiddleware(config);
         var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
 
         await sut.InvokeAsync(context, async (_, ct) => {
@@ -82,7 +82,7 @@ public class AbsoluteTimeoutMiddlewareTests {
 
     [Fact]
     public async Task ExternalCancellation_PropagatesNormally() {
-        var sut = new AbsoluteTimeoutMiddleware(DefaultConfig);
+        await using var sut = new AbsoluteTimeoutMiddleware(DefaultConfig);
         var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
         using var cts = new CancellationTokenSource();
 

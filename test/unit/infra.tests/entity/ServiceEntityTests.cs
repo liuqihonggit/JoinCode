@@ -1,4 +1,4 @@
-namespace Infra.Tests.EntityTests;
+﻿namespace Infra.Tests.EntityTests;
 
 public sealed class ServiceEntityTests {
     private sealed class TestService : ServiceEntity {
@@ -46,7 +46,7 @@ public sealed class ServiceEntityTests {
 
     [Fact]
     public void ServiceEntity_Dispose_InvokesOverriddenOnDispose() {
-        var service = new TestServiceWithDispose();
+        using var service = new TestServiceWithDispose();
         service.OnDisposeCalled.Should().BeFalse();
         service.Dispose();
         service.OnDisposeCalled.Should().BeTrue();

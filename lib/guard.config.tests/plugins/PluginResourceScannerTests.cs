@@ -1,4 +1,4 @@
-namespace Core.Tests.Plugins;
+﻿namespace Core.Tests.Plugins;
 
 public sealed class PluginResourceScannerTests {
     private sealed class TestEntity : Entity {
@@ -9,8 +9,8 @@ public sealed class PluginResourceScannerTests {
     [Fact]
     public void ScanPluginResources_AllUnregistered_NoLeaks() {
         var scanner = new PluginResourceScanner();
-        var e1 = new TestEntity("res1");
-        var e2 = new TestEntity("res2");
+        using var e1 = new TestEntity("res1");
+        using var e2 = new TestEntity("res2");
         var ids = new[] { e1.ObjectId, e2.ObjectId };
         e1.Dispose();
         e2.Dispose();
@@ -24,7 +24,7 @@ public sealed class PluginResourceScannerTests {
     [Fact]
     public void ScanPluginResources_WithLeak_DetectsLeak() {
         var scanner = new PluginResourceScanner();
-        var e1 = new TestEntity("res1");
+        using var e1 = new TestEntity("res1");
         using var e2 = new TestEntity("res2");
         var ids = new[] { e1.ObjectId, e2.ObjectId };
         e1.Dispose();

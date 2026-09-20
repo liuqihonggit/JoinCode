@@ -1,4 +1,4 @@
-namespace Core.Context;
+﻿namespace Core.Context;
 
 /// <summary>
 /// LoopInterventionOptions 及 Builder 单元测试
@@ -6,7 +6,7 @@ namespace Core.Context;
 public sealed class LoopInterventionOptionsTests {
     [Fact]
     public void Defaults_AreExpectedValues() {
-        var options = new LoopInterventionOptions();
+        using var options = new LoopInterventionOptions();
 
         options.HardTruncateThreshold.Should().Be(3);
         options.CompactThreshold.Should().Be(5);

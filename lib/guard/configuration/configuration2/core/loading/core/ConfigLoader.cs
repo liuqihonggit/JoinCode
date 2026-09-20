@@ -81,7 +81,7 @@ public class ConfigLoader {
                 projectDir: projectDir,
                 cancellationToken: cancellationToken,
                 logger: _logger);
-            var rulesLoader = new ProjectRulesLoader(fs);
+            await using var rulesLoader = new ProjectRulesLoader(fs);
             var projectRulesTask = rulesLoader.LoadRulesAsync(projectDir, cancellationToken);
             var externalRulesLoader = new ExternalRulesLoader(fs);
             var externalRulesTask = externalRulesLoader.LoadProjectRulesAsync(projectDir, cancellationToken);

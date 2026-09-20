@@ -1,9 +1,9 @@
-namespace Core.Tests.Prompts;
+﻿namespace Core.Tests.Prompts;
 
 public sealed class DescriptionRulesSectionTests {
     [Fact]
     public void Create_With_Null_Rules_Should_Return_Null_Content() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
         PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
 
@@ -14,7 +14,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_With_Empty_Rules_Should_Return_Null_Content() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
         PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
 
@@ -25,7 +25,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_With_No_User_Message_Should_Return_Null_Content() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         var rules = new List<ExternalRuleEntry>
         {
             new() { Name = "测试", Content = "规则内容", Description = "修复bug时使用" }
@@ -39,7 +39,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_With_Matching_Description_Should_Return_Content() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复登录页面的bug");
 
         var rules = new List<ExternalRuleEntry>
@@ -59,7 +59,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_With_Non_Matching_Description_Should_Return_Null() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("添加新功能");
 
         var rules = new List<ExternalRuleEntry>
@@ -75,7 +75,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_Should_Skip_AlwaysApply_Rules() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
 
         var rules = new List<ExternalRuleEntry>
@@ -91,7 +91,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_Should_Skip_Glob_Rules() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
 
         var rules = new List<ExternalRuleEntry>
@@ -107,7 +107,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_Should_Skip_Rule_Without_Description() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
 
         var rules = new List<ExternalRuleEntry>
@@ -123,7 +123,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_Should_Be_Dynamic_Section() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
 
         var section = DescriptionRulesSection.Create();
@@ -133,7 +133,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_Should_Reflect_Updated_Message() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         var rules = new List<ExternalRuleEntry>
         {
             new() { Name = "Bug修复规则", Content = "修复bug时请先写测试", Description = "修复bug时使用" }
@@ -153,7 +153,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_With_English_Description_Should_Match() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("Fix the authentication bug");
 
         var rules = new List<ExternalRuleEntry>
@@ -171,7 +171,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_With_Partial_Keyword_Match_Should_Work() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("优化性能问题");
 
         var rules = new List<ExternalRuleEntry>
@@ -189,7 +189,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_With_Multiple_Matching_Rules_Should_Return_All() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复安全漏洞");
 
         var rules = new List<ExternalRuleEntry>
@@ -243,7 +243,7 @@ public sealed class DescriptionRulesSectionTests {
 
     [Fact]
     public void Create_With_Empty_User_Message_Should_Return_Null() {
-        var tracker = new FileContextTracker();
+        using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("");
 
         var rules = new List<ExternalRuleEntry>

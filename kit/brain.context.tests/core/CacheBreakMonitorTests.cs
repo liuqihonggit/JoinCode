@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.Context;
 
 public partial class CacheBreakMonitorTests {
@@ -413,7 +413,7 @@ public partial class CacheBreakMonitorTests {
     [Fact]
     public async Task DecideAfterUsage_SuccessfulFold_ResetsStuckGuard() {
         var executor = new ContextFoldExecutor(new StubSummarizer());
-        var sut = new ChatContextManager(
+        await using var sut = new ChatContextManager(
             _stateService.Object,
             _logger,
             new ChatContextOptions {

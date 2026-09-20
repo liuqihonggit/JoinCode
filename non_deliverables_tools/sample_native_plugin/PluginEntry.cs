@@ -30,7 +30,7 @@ public static class PluginEntry {
         if (respBytes.Length > respCap)
             return (int)NativePluginError.BufferTooSmall;
 
-        for (int i = 0; i < respBytes.Length; i++)
+        for (var i = 0; i < respBytes.Length; i++)
             respPtr[i] = respBytes[i];
 
         return respBytes.Length;
@@ -50,7 +50,7 @@ public static class PluginEntry {
         if (infoBytes.Length > respCap)
             return (int)NativePluginError.BufferTooSmall;
 
-        for (int i = 0; i < infoBytes.Length; i++)
+        for (var i = 0; i < infoBytes.Length; i++)
             respPtr[i] = infoBytes[i];
 
         return infoBytes.Length;

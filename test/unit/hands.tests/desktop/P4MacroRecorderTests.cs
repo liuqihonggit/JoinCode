@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop.Tests;
+﻿namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
 /// P4 宏录制单元测试
@@ -24,7 +24,7 @@ public sealed class P4MacroRecorderTests {
 
     [Fact]
     public void StartRecording_SetsIsRecordingTrue_AndClearsPrevious() {
-        var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
+        using var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
 
         recorder.IsRecording.Should().BeFalse();
         recorder.StartRecording("test-macro");
@@ -42,7 +42,7 @@ public sealed class P4MacroRecorderTests {
 
     [Fact]
     public void RecordOperation_WhenNotRecording_DoesNothing() {
-        var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
+        using var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
 
         recorder.RecordOperation(SuccessOp());
 
@@ -53,7 +53,7 @@ public sealed class P4MacroRecorderTests {
 
     [Fact]
     public void StopRecording_ReturnsMacroWithRecordedOperations() {
-        var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
+        using var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
 
         recorder.StartRecording("my-macro");
         recorder.RecordOperation(new DesktopOperation(DesktopOperationKind.Click, 100, 200, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null));
@@ -75,7 +75,7 @@ public sealed class P4MacroRecorderTests {
     [Fact]
     public async Task PlayAsync_ExecutesAllOperations_ReturnsResult() {
         var inputMock = CreateInputMock();
-        var recorder = new MacroRecorder(inputMock.Object, new Mock<IFileSystem>().Object);
+        await using var recorder = new MacroRecorder(inputMock.Object, new Mock<IFileSystem>().Object);
 
         var macro = new Macro("test", new[]
         {
@@ -103,7 +103,7 @@ public sealed class P4MacroRecorderTests {
         inputMock.Setup(i => i.TypeTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SuccessOp(DesktopOperationKind.TypeText));
 
-        var recorder = new MacroRecorder(inputMock.Object, new Mock<IFileSystem>().Object);
+        await using var recorder = new MacroRecorder(inputMock.Object, new Mock<IFileSystem>().Object);
 
         var macro = new Macro("test", new[]
         {
@@ -119,7 +119,7 @@ public sealed class P4MacroRecorderTests {
 
     [Fact]
     public async Task PlayAsync_EmptyMacro_ReturnsZero() {
-        var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
+        await using var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
         var macro = new Macro("empty", [], DateTimeOffset.UtcNow);
 
         var result = await recorder.PlayAsync(macro);
@@ -135,7 +135,7 @@ public sealed class P4MacroRecorderTests {
     [Fact]
     public void SaveMacro_WritesJsonToFile() {
         var fsMock = new Mock<IFileSystem>();
-        var recorder = new MacroRecorder(CreateInputMock().Object, fsMock.Object);
+        using var recorder = new MacroRecorder(CreateInputMock().Object, fsMock.Object);
 
         var macro = new Macro("test", new[]
         {
@@ -153,7 +153,7 @@ public sealed class P4MacroRecorderTests {
         var fsMock = new Mock<IFileSystem>();
         fsMock.Setup(fs => fs.ReadAllText("/tmp/test.json")).Returns(json);
 
-        var recorder = new MacroRecorder(CreateInputMock().Object, fsMock.Object);
+        using var recorder = new MacroRecorder(CreateInputMock().Object, fsMock.Object);
 
         var macro = recorder.LoadMacro("/tmp/test.json");
 

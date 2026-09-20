@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.Scheduling;
 
 /// <summary>
@@ -66,10 +66,10 @@ public class ParallelExecutionEngineTests {
     /// 测试使用 AgentCoordinator 构造引擎时，应正确初始化
     /// </summary>
     [Fact]
-    public void Constructor_WithAgentCoordinator_ShouldInitializeCorrectly() {
+    public async Task Constructor_WithAgentCoordinator_ShouldInitializeCorrectly() {
         var agentCoordinator = CreateAgentCoordinator();
 
-        var engine = new ParallelExecutionEngine(
+        await using var engine = new ParallelExecutionEngine(
             agentCoordinator,
             NullLogger<ParallelExecutionEngine>.Instance);
 
@@ -91,8 +91,8 @@ public class ParallelExecutionEngineTests {
     /// 测试使用模拟模式构造引擎时，应正确初始化
     /// </summary>
     [Fact]
-    public void Constructor_SimulationMode_ShouldInitializeCorrectly() {
-        var engine = new ParallelExecutionEngine(simulationMode: true, NullLogger<ParallelExecutionEngine>.Instance);
+    public async Task Constructor_SimulationMode_ShouldInitializeCorrectly() {
+        await using var engine = new ParallelExecutionEngine(simulationMode: true, NullLogger<ParallelExecutionEngine>.Instance);
 
         engine.Should().NotBeNull();
     }
@@ -101,10 +101,10 @@ public class ParallelExecutionEngineTests {
     /// 测试使用 null Logger 构造引擎时，应正确初始化（Logger 是可选的）
     /// </summary>
     [Fact]
-    public void Constructor_WithNullLogger_ShouldInitializeCorrectly() {
+    public async Task Constructor_WithNullLogger_ShouldInitializeCorrectly() {
         var agentCoordinator = CreateAgentCoordinator();
 
-        var engine = new ParallelExecutionEngine(agentCoordinator, null);
+        await using var engine = new ParallelExecutionEngine(agentCoordinator, null);
 
         engine.Should().NotBeNull();
     }
@@ -119,7 +119,7 @@ public class ParallelExecutionEngineTests {
     [Fact]
     public async Task ExecuteAsync_SimulationMode_ShouldReturnResult() {
         // Arrange
-        var engine = new ParallelExecutionEngine(simulationMode: true);
+        await using var engine = new ParallelExecutionEngine(simulationMode: true);
 
         // Act
         var result = await engine.ExecuteAsync().ConfigureAwait(true);
@@ -134,7 +134,7 @@ public class ParallelExecutionEngineTests {
     [Fact]
     public async Task ExecuteAsync_WithOptions_ShouldUseOptions() {
         // Arrange
-        var engine = new ParallelExecutionEngine(simulationMode: true);
+        await using var engine = new ParallelExecutionEngine(simulationMode: true);
         var options = new ExecutionOptions {
             MaxConcurrentTasks = 5,
             SimulatedWorkDurationMs = 100

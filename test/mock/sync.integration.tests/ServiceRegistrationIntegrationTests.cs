@@ -1,4 +1,4 @@
-namespace Tests;
+﻿namespace Tests;
 
 [Trait("Category", "Integration")]
 public class ServiceRegistrationIntegrationTests {
@@ -6,8 +6,8 @@ public class ServiceRegistrationIntegrationTests {
     private static readonly string DefaultModelId = Loader.GetDefaultModelId("deepseek");
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterITranscriptService() {
-        var services = BuildServiceCollection();
+    public async Task AddWorkflowServices_ShouldRegisterITranscriptService() {
+        var services = await BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
         var transcriptService = sp.GetService<ITranscriptService>();
@@ -15,8 +15,8 @@ public class ServiceRegistrationIntegrationTests {
     }
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterIFastModeService() {
-        var services = BuildServiceCollection();
+    public async Task AddWorkflowServices_ShouldRegisterIFastModeService() {
+        var services = await BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
         var fastModeService = sp.GetService<IFastModeService>();
@@ -24,8 +24,8 @@ public class ServiceRegistrationIntegrationTests {
     }
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterISimpleModeService() {
-        var services = BuildServiceCollection();
+    public async Task AddWorkflowServices_ShouldRegisterISimpleModeService() {
+        var services = await BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
         var simpleModeService = sp.GetService<ISimpleModeService>();
@@ -33,8 +33,8 @@ public class ServiceRegistrationIntegrationTests {
     }
 
     [Fact]
-    public void FastModeService_ShouldUsePrimaryModelIdFromConfig() {
-        var services = BuildServiceCollection();
+    public async Task FastModeService_ShouldUsePrimaryModelIdFromConfig() {
+        var services = await BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
         var fastModeService = sp.GetRequiredService<IFastModeService>();
@@ -42,8 +42,8 @@ public class ServiceRegistrationIntegrationTests {
     }
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterIWebService() {
-        var services = BuildServiceCollection();
+    public async Task AddWorkflowServices_ShouldRegisterIWebService() {
+        var services = await BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
         var webService = sp.GetService<IWebService>();
@@ -51,8 +51,8 @@ public class ServiceRegistrationIntegrationTests {
     }
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterITaskService() {
-        var services = BuildServiceCollection();
+    public async Task AddWorkflowServices_ShouldRegisterITaskService() {
+        var services = await BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
         var taskService = sp.GetService<ITaskService>();
@@ -60,8 +60,8 @@ public class ServiceRegistrationIntegrationTests {
     }
 
     [Fact]
-    public void AddWorkflowServices_ShouldRegisterIAgentWorktreeService() {
-        var services = BuildServiceCollection();
+    public async Task AddWorkflowServices_ShouldRegisterIAgentWorktreeService() {
+        var services = await BuildServiceCollection();
         var sp = services.BuildServiceProvider();
 
         var worktreeService = sp.GetService<IAgentWorktreeService>();
@@ -73,17 +73,17 @@ public class ServiceRegistrationIntegrationTests {
     /// 仅在 AddAiWorkflowServices 完整路径下可用，AddWorkflowServices 不含 AI 服务。
     /// </summary>
     [Fact]
-    public void AddAiWorkflowServices_ShouldRegisterIChatService() {
-        var services = BuildAiServiceCollection();
+    public async Task AddAiWorkflowServices_ShouldRegisterIChatService() {
+        var services = await BuildAiServiceCollection();
         var sp = services.BuildServiceProvider();
 
         var chatService = sp.GetService<IChatService>();
         Assert.NotNull(chatService);
     }
 
-    private static ServiceCollection BuildServiceCollection() {
+    private static async Task<ServiceCollection> BuildServiceCollection() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-        var fileSystem = new IO.FileSystem.InMemoryFileSystem();
+        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
 
@@ -99,9 +99,9 @@ public class ServiceRegistrationIntegrationTests {
         return services;
     }
 
-    private static ServiceCollection BuildAiServiceCollection() {
+    private static async Task<ServiceCollection> BuildAiServiceCollection() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-        var fileSystem = new IO.FileSystem.InMemoryFileSystem();
+        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
 

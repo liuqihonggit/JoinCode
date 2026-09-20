@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 
 public sealed class BuiltInAgentToolHandlersOutputTests {
@@ -20,7 +20,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
 
         var roleMock = new Mock<IAgentRoleRegistry>();
         var fsMock = CreateFsMock();
-        var truncator = new SubAgentOutputTruncator(fsMock.Object, NullLogger<SubAgentOutputTruncator>.Instance, "X:\\tmp\\subagent");
+        using var truncator = new SubAgentOutputTruncator(fsMock.Object, NullLogger<SubAgentOutputTruncator>.Instance, "X:\\tmp\\subagent");
         var handler = new BuiltInAgentToolHandlers(svcMock.Object, roleMock.Object, NullLogger<BuiltInAgentToolHandlers>.Instance, null, truncator);
         return (handler, svcMock);
     }
@@ -36,9 +36,9 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
 
         var roleMock = new Mock<IAgentRoleRegistry>();
         var fsMock = CreateFsMock();
-        var truncator = new SubAgentOutputTruncator(fsMock.Object, NullLogger<SubAgentOutputTruncator>.Instance, "X:\\tmp\\subagent");
+        using var truncator = new SubAgentOutputTruncator(fsMock.Object, NullLogger<SubAgentOutputTruncator>.Instance, "X:\\tmp\\subagent");
         var summaryClientMock = new Mock<ISubAgentSummaryClient>();
-        var summaryGenerator = new SubAgentSummaryGenerator(summaryClientMock.Object, subAgentConfig?.Summary, NullLogger<SubAgentSummaryGenerator>.Instance);
+        using var summaryGenerator = new SubAgentSummaryGenerator(summaryClientMock.Object, subAgentConfig?.Summary, NullLogger<SubAgentSummaryGenerator>.Instance);
         var handler = new BuiltInAgentToolHandlers(svcMock.Object, roleMock.Object, NullLogger<BuiltInAgentToolHandlers>.Instance, null, truncator, summaryGenerator, subAgentConfig);
         return (handler, svcMock, summaryClientMock);
     }
@@ -76,7 +76,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
         svcMock.Setup(x => x.WaitForAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                .ReturnsAsync(new AgentResult { AgentId = "raw", Success = true, Output = "raw output" });
         var roleMock = new Mock<IAgentRoleRegistry>();
-        var handler = new BuiltInAgentToolHandlers(svcMock.Object, roleMock.Object, null, null, null);
+        await using var handler = new BuiltInAgentToolHandlers(svcMock.Object, roleMock.Object, null, null, null);
 
         var result = await handler.PlanAgentAsync("目标");
 

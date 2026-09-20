@@ -1,4 +1,4 @@
-namespace Core.Goal.Tests;
+﻿namespace Core.Goal.Tests;
 
 
 public sealed class GoalNodeInspectorTests {
@@ -215,7 +215,7 @@ public sealed class GoalNodeInspectorTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var inspector = new GoalNodeInspector(kernel: kernel.Object);
+        await using var inspector = new GoalNodeInspector(kernel: kernel.Object);
         var score = await inspector.ScoreAsync("test output").ConfigureAwait(true);
 
         Assert.Equal(0.7, score.Overall, precision: 2);
@@ -233,7 +233,7 @@ public sealed class GoalNodeInspectorTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var inspector = new GoalNodeInspector(kernel: kernel.Object);
+        await using var inspector = new GoalNodeInspector(kernel: kernel.Object);
         var score = await inspector.ScoreAsync("test output").ConfigureAwait(true);
 
         Assert.Equal(0.5, score.Overall);
@@ -248,7 +248,7 @@ public sealed class GoalNodeInspectorTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var inspector = new GoalNodeInspector(kernel: kernel.Object);
+        await using var inspector = new GoalNodeInspector(kernel: kernel.Object);
         var score = await inspector.ScoreAsync("test output").ConfigureAwait(true);
 
         Assert.Equal(0.5, score.Overall);

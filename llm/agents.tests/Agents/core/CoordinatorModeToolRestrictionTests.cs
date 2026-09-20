@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 
 /// <summary>
@@ -10,7 +10,7 @@ public sealed class CoordinatorModeToolRestrictionTests {
     public void GetProfile_CoordinatorModeEnabled_RestrictsToolsToAgentSendMessageTaskStop() {
         Environment.SetEnvironmentVariable("JCC_COORDINATOR_MODE", "1");
         try {
-            var registry = new AgentRoleProfileRegistry();
+            using var registry = new AgentRoleProfileRegistry();
             registry.RegisterBuiltInProfiles();
             var profile = registry.GetProfile(AgentRole.Coordinator);
 
@@ -28,7 +28,7 @@ public sealed class CoordinatorModeToolRestrictionTests {
     [Fact]
     public void GetProfile_CoordinatorModeDisabled_AllowsAllTools() {
         Environment.SetEnvironmentVariable("JCC_COORDINATOR_MODE", null);
-        var registry = new AgentRoleProfileRegistry();
+        using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
         var profile = registry.GetProfile(AgentRole.Coordinator);
 

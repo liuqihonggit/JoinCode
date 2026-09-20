@@ -1,4 +1,4 @@
-namespace Core.Tests.CostTracking;
+﻿namespace Core.Tests.CostTracking;
 
 public class CostSummaryHookTests {
     private readonly Mock<IFileOperationService> _fileOpMock = new();
@@ -31,7 +31,7 @@ public class CostSummaryHookTests {
         await using (tracker) {
             tracker.RecordUsage("model-a", 1000, 500);
 
-            var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
+            await using var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
 
             var summary = await hook.GenerateSummaryAsync().ConfigureAwait(true);
 
@@ -45,7 +45,7 @@ public class CostSummaryHookTests {
     public async Task GenerateSummaryAsync_NoUsage_ShouldReturnEmptyStats() {
         var tracker = CreateCostTracker();
         await using (tracker) {
-            var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
+            await using var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
 
             var summary = await hook.GenerateSummaryAsync().ConfigureAwait(true);
 
@@ -61,7 +61,7 @@ public class CostSummaryHookTests {
             tracker.RecordUsage("model-a", 100, 50);
             tracker.RecordUsage("model-b", 200, 100);
 
-            var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
+            await using var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
 
             var summary = await hook.GenerateSummaryAsync().ConfigureAwait(true);
 
@@ -77,7 +77,7 @@ public class CostSummaryHookTests {
         await using (tracker) {
             tracker.RecordUsage("model-a", 100, 50, 500, 200);
 
-            var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
+            await using var hook = new CostSummaryHook(tracker, NullLogger<CostSummaryHook>.Instance);
 
             var summary = await hook.GenerateSummaryAsync().ConfigureAwait(true);
 

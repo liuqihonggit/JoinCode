@@ -1,4 +1,4 @@
-namespace JoinCode.Host.Tests;
+﻿namespace JoinCode.Host.Tests;
 
 
 public class ApiKeySaveLoadTests {
@@ -23,7 +23,7 @@ public class ApiKeySaveLoadTests {
     public async Task SaveApiKey_AndLoad_ShouldUpdateProviderConfig() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
         var originalPaths = AppDataConstants.Paths;
-        var fs = new PhysicalFileSystem();
+        await using var fs = new PhysicalFileSystem();
 
         try {
             AppDataConstants.Paths = AppDataPaths.FromEnvironment() with {
@@ -72,7 +72,7 @@ public class ApiKeySaveLoadTests {
     public async Task SaveApiKey_WithDifferentProvider_ShouldLoadCorrectProvider() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
         var originalPaths = AppDataConstants.Paths;
-        var fs = new PhysicalFileSystem();
+        await using var fs = new PhysicalFileSystem();
 
         try {
             AppDataConstants.Paths = AppDataPaths.FromEnvironment() with {
@@ -99,7 +99,7 @@ public class ApiKeySaveLoadTests {
     public async Task SaveApiKey_OverwriteExisting_ShouldUpdateValue() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
         var originalPaths = AppDataConstants.Paths;
-        var fs = new PhysicalFileSystem();
+        await using var fs = new PhysicalFileSystem();
 
         try {
             AppDataConstants.Paths = AppDataPaths.FromEnvironment() with {
@@ -138,7 +138,7 @@ public class ApiKeySaveLoadTests {
     public async Task SaveApiKey_ForEachProvider_ShouldSaveAndLoadCorrectly(string provider, string apiKey) {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
         var originalPaths = AppDataConstants.Paths;
-        var fs = new PhysicalFileSystem();
+        await using var fs = new PhysicalFileSystem();
 
         try {
             AppDataConstants.Paths = AppDataPaths.FromEnvironment() with {

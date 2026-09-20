@@ -1,4 +1,4 @@
-namespace Core.Context;
+﻿namespace Core.Context;
 
 public sealed class LoopInterventionMiddlewareTests {
     [Fact]
@@ -65,7 +65,7 @@ public sealed class LoopInterventionMiddlewareTests {
         chatClient.Setup(c => c.GetChatCompletionService()).Returns(queryService.Object);
 
         var loopDetector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, cooldownChars: 0, requiredRepeats: 3);
-        var chunkProcessor = new ChatStreamChunkProcessor(loopDetector, new Mock<IChatUsageProcessor>().Object);
+        await using var chunkProcessor = new ChatStreamChunkProcessor(loopDetector, new Mock<IChatUsageProcessor>().Object);
 
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
@@ -75,7 +75,7 @@ public sealed class LoopInterventionMiddlewareTests {
         contextManager.Setup(c => c.RewindLastTurnAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(RewindResult.Ok(RewindKind.TrimLastTurn, 2, 5));
 
-        var middleware = new LoopInterventionMiddleware(
+        await using var middleware = new LoopInterventionMiddleware(
             chatClient.Object, contextManager.Object, chunkProcessor,
             options: Options.Create(new LoopInterventionOptions()),
             logger: NullLogger<LoopInterventionMiddleware>.Instance);
@@ -140,7 +140,7 @@ public sealed class LoopInterventionMiddlewareTests {
         chatClient.Setup(c => c.GetChatCompletionService()).Returns(queryService.Object);
 
         var loopDetector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, cooldownChars: 0, requiredRepeats: 3);
-        var chunkProcessor = new ChatStreamChunkProcessor(loopDetector, new Mock<IChatUsageProcessor>().Object);
+        await using var chunkProcessor = new ChatStreamChunkProcessor(loopDetector, new Mock<IChatUsageProcessor>().Object);
 
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
@@ -150,7 +150,7 @@ public sealed class LoopInterventionMiddlewareTests {
         contextManager.Setup(c => c.RewindLastTurnAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(RewindResult.Ok(RewindKind.TrimLastTurn, 2, 5));
 
-        var middleware = new LoopInterventionMiddleware(
+        await using var middleware = new LoopInterventionMiddleware(
             chatClient.Object, contextManager.Object, chunkProcessor,
             progressTracker: null,
             options: Options.Create(new LoopInterventionOptions()),
@@ -203,7 +203,7 @@ public sealed class LoopInterventionMiddlewareTests {
         chatClient.Setup(c => c.GetChatCompletionService()).Returns(queryService.Object);
 
         var loopDetector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, cooldownChars: 0, requiredRepeats: 3);
-        var chunkProcessor = new ChatStreamChunkProcessor(loopDetector, new Mock<IChatUsageProcessor>().Object);
+        await using var chunkProcessor = new ChatStreamChunkProcessor(loopDetector, new Mock<IChatUsageProcessor>().Object);
 
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
@@ -215,7 +215,7 @@ public sealed class LoopInterventionMiddlewareTests {
 
         var progressTracker = new StubTaskProgressTracker(hasProgressed: false, completedCount: 2);
 
-        var middleware = new LoopInterventionMiddleware(
+        await using var middleware = new LoopInterventionMiddleware(
             chatClient.Object, contextManager.Object, chunkProcessor,
             progressTracker: progressTracker,
             options: Options.Create(new LoopInterventionOptions()),
@@ -263,7 +263,7 @@ public sealed class LoopInterventionMiddlewareTests {
         chatClient.Setup(c => c.GetChatCompletionService()).Returns(queryService.Object);
 
         var loopDetector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, cooldownChars: 0, requiredRepeats: 3);
-        var chunkProcessor = new ChatStreamChunkProcessor(loopDetector, new Mock<IChatUsageProcessor>().Object);
+        await using var chunkProcessor = new ChatStreamChunkProcessor(loopDetector, new Mock<IChatUsageProcessor>().Object);
 
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
@@ -273,7 +273,7 @@ public sealed class LoopInterventionMiddlewareTests {
         contextManager.Setup(c => c.RewindLastTurnAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(RewindResult.Ok(RewindKind.TrimLastTurn, 2, 5));
 
-        var middleware = new LoopInterventionMiddleware(
+        await using var middleware = new LoopInterventionMiddleware(
             chatClient.Object, contextManager.Object, chunkProcessor,
             options: Options.Create(new LoopInterventionOptions()),
             logger: NullLogger<LoopInterventionMiddleware>.Instance);
@@ -303,7 +303,7 @@ public sealed class LoopInterventionMiddlewareTests {
         chatClient.Setup(c => c.GetChatCompletionService()).Returns(queryService.Object);
 
         var loopDetector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, cooldownChars: 0, requiredRepeats: 3);
-        var chunkProcessor = new ChatStreamChunkProcessor(loopDetector, new Mock<IChatUsageProcessor>().Object);
+        await using var chunkProcessor = new ChatStreamChunkProcessor(loopDetector, new Mock<IChatUsageProcessor>().Object);
 
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
@@ -318,7 +318,7 @@ public sealed class LoopInterventionMiddlewareTests {
             .WithCompactThreshold(10)
             .Build();
 
-        var middleware = new LoopInterventionMiddleware(
+        await using var middleware = new LoopInterventionMiddleware(
             chatClient.Object, contextManager.Object, chunkProcessor,
             options: Options.Create(options),
             logger: NullLogger<LoopInterventionMiddleware>.Instance);
@@ -357,7 +357,7 @@ public sealed class LoopInterventionMiddlewareTests {
         chunkProcessor.Setup(c => c.CreateIterationState())
             .Returns(new IterationState());
 
-        var middleware = new LoopInterventionMiddleware(
+        await using var middleware = new LoopInterventionMiddleware(
             chatClient.Object, contextManager.Object, chunkProcessor.Object,
             options: Options.Create(new LoopInterventionOptions()),
             logger: NullLogger<LoopInterventionMiddleware>.Instance);
@@ -398,7 +398,7 @@ public sealed class LoopInterventionMiddlewareTests {
         chunkProcessor.Setup(c => c.CreateIterationState())
             .Returns(new IterationState());
 
-        var middleware = new LoopInterventionMiddleware(
+        await using var middleware = new LoopInterventionMiddleware(
             chatClient.Object, contextManager.Object, chunkProcessor.Object,
             options: Options.Create(new LoopInterventionOptions()),
             logger: NullLogger<LoopInterventionMiddleware>.Instance);
@@ -462,7 +462,7 @@ public sealed class LoopInterventionMiddlewareTests {
             .WithMaxRetryAttempts(2)
             .Build();
 
-        var middleware = new LoopInterventionMiddleware(
+        await using var middleware = new LoopInterventionMiddleware(
             chatClient.Object, contextManager.Object, chunkProcessor.Object,
             options: Options.Create(options),
             logger: NullLogger<LoopInterventionMiddleware>.Instance);
@@ -482,7 +482,7 @@ public sealed class LoopInterventionMiddlewareTests {
 
     [Fact]
     public void Options_SecondChanceTemperature_DefaultIsLower() {
-        var options = new LoopInterventionOptions();
+        using var options = new LoopInterventionOptions();
         options.SecondChanceTemperature.Should().Be(0.3f);
         options.SecondChanceTemperature.Should().BeLessThan(options.RetryTemperature);
     }

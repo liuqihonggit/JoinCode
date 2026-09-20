@@ -1,4 +1,4 @@
-namespace Core.Tests.Plugins;
+﻿namespace Core.Tests.Plugins;
 
 public sealed class WorkflowPluginBaseTests {
     private sealed class TestPlugin : WorkflowPluginBase {
@@ -41,7 +41,7 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void Unload_ReleasesAllResources() {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
         var r1 = plugin.RegisterResource(new TestResource("test-plugin", "cmd1"));
         var r2 = plugin.RegisterResource(new TestResource("test-plugin", "cmd2"));
         var r1Id = r1.ObjectId;
@@ -60,7 +60,7 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void Unload_MarksDead() {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
 
         plugin.Unload();
 
@@ -69,7 +69,7 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void Unload_CallsOnUnload() {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
 
         plugin.Unload();
 
@@ -78,7 +78,7 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void Unload_ReleasesUnmanagedResources() {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
         var handle = new TestSafeHandle();
         plugin.UnmanagedResources.Register("buf1", handle, 1024);
 

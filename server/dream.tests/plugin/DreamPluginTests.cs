@@ -1,4 +1,4 @@
-namespace Dream.Tests.Plugin;
+﻿namespace Dream.Tests.Plugin;
 
 /// <summary>
 /// Dream 插件入口单元测试
@@ -6,7 +6,7 @@ namespace Dream.Tests.Plugin;
 public sealed class DreamPluginTests {
     [Fact]
     public void Name_Version_Description_AreCorrect() {
-        var plugin = new DreamPlugin();
+        using var plugin = new DreamPlugin();
 
         Assert.Equal("Dream", plugin.Name);
         Assert.Equal("1.0.0", plugin.Version);
@@ -15,7 +15,7 @@ public sealed class DreamPluginTests {
 
     [Fact]
     public async Task LoadAsync_RegistersServices() {
-        var plugin = new DreamPlugin();
+        await using var plugin = new DreamPlugin();
         var services = new ServiceCollection();
         var ctx = new PluginContext("Dream", services);
 
@@ -28,7 +28,7 @@ public sealed class DreamPluginTests {
 
     [Fact]
     public async Task InitializeAsync_WithPersistentRegistry_LoadsActiveTasks() {
-        var plugin = new DreamPlugin();
+        await using var plugin = new DreamPlugin();
         var persistence = new Mock<IDreamTaskPersistence>();
         persistence.Setup(p => p.LoadAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<DreamTaskState>());
@@ -45,7 +45,7 @@ public sealed class DreamPluginTests {
 
     [Fact]
     public async Task InitializeAsync_WithNonPersistentRegistry_DoesNotThrow() {
-        var plugin = new DreamPlugin();
+        await using var plugin = new DreamPlugin();
         var services = new ServiceCollection();
         services.AddSingleton<IDreamTaskRegistry, InMemoryDreamTaskRegistry>();
         var provider = services.BuildServiceProvider();
@@ -57,7 +57,7 @@ public sealed class DreamPluginTests {
 
     [Fact]
     public void RegisterCommands_RegistersDreamCommands() {
-        var plugin = new DreamPlugin();
+        using var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
         var services = new ServiceCollection();
         services.AddSingleton<IDreamFeature>(Mock.Of<IDreamFeature>());
@@ -71,7 +71,7 @@ public sealed class DreamPluginTests {
 
     [Fact]
     public void UnregisterCommands_AfterRegister_UnregistersAll() {
-        var plugin = new DreamPlugin();
+        using var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
         var services = new ServiceCollection();
         services.AddSingleton<IDreamFeature>(Mock.Of<IDreamFeature>());
@@ -96,7 +96,7 @@ public sealed class DreamPluginTests {
 
     [Fact]
     public void Unload_ReturnsSuccess() {
-        var plugin = new DreamPlugin();
+        using var plugin = new DreamPlugin();
 
         var result = plugin.Unload();
 

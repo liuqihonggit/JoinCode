@@ -1,4 +1,4 @@
-namespace Infra.IO.Tests;
+﻿namespace Infra.IO.Tests;
 
 /// <summary>
 /// FileWriter BOM 写入行为测试。
@@ -12,7 +12,7 @@ public class FileWriterBomTests {
 
     [Fact]
     public async Task WriteFileAsync_NewFile_NoBom() {
-        var fs = new PhysicalFileSystem();
+        await using var fs = new PhysicalFileSystem();
         var config = new FileOperationConfig();
         var writer = new FileWriter(fs, config);
         var path = GetTempPath();
@@ -32,7 +32,7 @@ public class FileWriterBomTests {
 
     [Fact]
     public async Task WriteFileAsync_NewFile_EmptyContent_NoBom() {
-        var fs = new PhysicalFileSystem();
+        await using var fs = new PhysicalFileSystem();
         var config = new FileOperationConfig();
         var writer = new FileWriter(fs, config);
         var path = GetTempPath();
@@ -49,7 +49,7 @@ public class FileWriterBomTests {
 
     [Fact]
     public async Task WriteFileAsync_UpdateExistingNoBom_PreservesNoBom() {
-        var fs = new PhysicalFileSystem();
+        await using var fs = new PhysicalFileSystem();
         var config = new FileOperationConfig();
         var writer = new FileWriter(fs, config);
         var path = GetTempPath();

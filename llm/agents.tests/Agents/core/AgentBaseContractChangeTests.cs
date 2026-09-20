@@ -1,4 +1,4 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
 
 /// <summary>
@@ -20,7 +20,7 @@ public sealed class AgentBaseContractChangeTests {
         initialMessages.AddSystemMessage("test system");
 
         var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
-        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+        await using var agent = new AgentBase("test task", options, queryEngine.Object, null);
         var queue = new ConcurrentQueue<string>();
         queue.Enqueue("IFoo 接口签名变更");
         agent.ContractChangeNotifications = queue;
@@ -37,7 +37,7 @@ public sealed class AgentBaseContractChangeTests {
         initialMessages.AddSystemMessage("test system");
 
         var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
-        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+        await using var agent = new AgentBase("test task", options, queryEngine.Object, null);
         var queue = new ConcurrentQueue<string>();
         queue.Enqueue("变更1: IFoo");
         queue.Enqueue("变更2: IBar");
@@ -56,7 +56,7 @@ public sealed class AgentBaseContractChangeTests {
         initialMessages.AddSystemMessage("test system");
 
         var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
-        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+        await using var agent = new AgentBase("test task", options, queryEngine.Object, null);
         agent.ContractChangeNotifications = new ConcurrentQueue<string>();
 
         await agent.ExecuteAsync();
@@ -81,7 +81,7 @@ public sealed class AgentBaseContractChangeTests {
         initialMessages.AddSystemMessage("test system");
 
         var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
-        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+        await using var agent = new AgentBase("test task", options, queryEngine.Object, null);
         var queue = new ConcurrentQueue<string>();
         queue.Enqueue("变更内容");
         agent.ContractChangeNotifications = queue;
@@ -98,7 +98,7 @@ public sealed class AgentBaseContractChangeTests {
         initialMessages.AddSystemMessage("test system");
 
         var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
-        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+        await using var agent = new AgentBase("test task", options, queryEngine.Object, null);
 
         var queue = new ConcurrentQueue<string>();
         queue.Enqueue("任务进行中");
@@ -140,7 +140,7 @@ public sealed class AgentBaseContractChangeTests {
         initialMessages.AddSystemMessage("test system");
 
         var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
-        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+        await using var agent = new AgentBase("test task", options, queryEngine.Object, null);
 
         var mail = new DeferredMail {
             To = agent.ObjectId.UniqueId,
@@ -168,7 +168,7 @@ public sealed class AgentBaseContractChangeTests {
         initialMessages.AddSystemMessage("test system");
 
         var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
-        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+        await using var agent = new AgentBase("test task", options, queryEngine.Object, null);
 
         var queue = new ConcurrentQueue<string>();
         queue.Enqueue("IFoo 变更");

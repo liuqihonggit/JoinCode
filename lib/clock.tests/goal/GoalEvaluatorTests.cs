@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Goal.Tests;
 
 public sealed class GoalEvaluatorTests {
@@ -135,7 +135,7 @@ public sealed class GoalEvaluatorTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var evaluator = new GoalEvaluator(kernel.Object);
+        await using var evaluator = new GoalEvaluator(kernel.Object);
         var result = await evaluator.EvaluateAsync("实现功能", [], "对话内容").ConfigureAwait(true);
 
         Assert.False(result.IsCompleted);
@@ -151,7 +151,7 @@ public sealed class GoalEvaluatorTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var evaluator = new GoalEvaluator(kernel.Object);
+        await using var evaluator = new GoalEvaluator(kernel.Object);
         var result = await evaluator.EvaluateAsync("实现功能", ["不修改API"], "对话内容").ConfigureAwait(true);
 
         Assert.True(result.IsCompleted);
@@ -167,7 +167,7 @@ public sealed class GoalEvaluatorTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var evaluator = new GoalEvaluator(kernel.Object);
+        await using var evaluator = new GoalEvaluator(kernel.Object);
         var result = await evaluator.EvaluateAsync("实现功能", [], "对话内容").ConfigureAwait(true);
 
         Assert.False(result.IsCompleted);
@@ -217,7 +217,7 @@ public sealed class GoalEvaluatorTests {
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
         var logger = new Mock<ILogger<GoalEvaluator>>();
-        var evaluator = new GoalEvaluator(kernel.Object, logger.Object);
+        await using var evaluator = new GoalEvaluator(kernel.Object, logger.Object);
         var result = await evaluator.EvaluateAsync("实现功能", [], "对话内容").ConfigureAwait(true);
 
         Assert.False(result.IsCompleted);
@@ -235,7 +235,7 @@ public sealed class GoalEvaluatorTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var evaluator = new GoalEvaluator(kernel.Object);
+        await using var evaluator = new GoalEvaluator(kernel.Object);
         await evaluator.EvaluateAsync("实现功能", ["不修改公共API"], "对话内容").ConfigureAwait(true);
 
         Assert.NotNull(capturedHistory);

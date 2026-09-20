@@ -1,4 +1,4 @@
-namespace Hands.Tests.Integration;
+﻿namespace Hands.Tests.Integration;
 
 /// <summary>
 /// UpgradeService 下载/SHA256/应用更新单元测试
@@ -21,7 +21,7 @@ public sealed class UpgradeServiceUpdateTests {
             Releases = []
         };
         var source = new MockUpdateSource(manifest);
-        var service = new UpgradeService(_httpClient, _fs, updateSource: source);
+        await using var service = new UpgradeService(_httpClient, _fs, updateSource: source);
 
         var version = await service.GetLatestVersionAsync();
 
@@ -30,7 +30,7 @@ public sealed class UpgradeServiceUpdateTests {
 
     [Fact]
     public async Task GetUpdateEntryAsync_NoUpdateSource_ReturnsNull() {
-        var service = new UpgradeService(_httpClient, _fs);
+        await using var service = new UpgradeService(_httpClient, _fs);
 
         var entry = await service.GetUpdateEntryAsync();
 
@@ -54,7 +54,7 @@ public sealed class UpgradeServiceUpdateTests {
             ]
         };
         var source = new MockUpdateSource(manifest);
-        var service = new UpgradeService(_httpClient, _fs, updateSource: source);
+        await using var service = new UpgradeService(_httpClient, _fs, updateSource: source);
 
         var entry = await service.GetUpdateEntryAsync();
 
@@ -79,7 +79,7 @@ public sealed class UpgradeServiceUpdateTests {
             ]
         };
         var source = new MockUpdateSource(manifest);
-        var service = new UpgradeService(_httpClient, _fs, updateSource: source);
+        await using var service = new UpgradeService(_httpClient, _fs, updateSource: source);
 
         var entry = await service.GetUpdateEntryAsync();
 
@@ -94,7 +94,7 @@ public sealed class UpgradeServiceUpdateTests {
             Releases = []
         };
         var source = new MockUpdateSource(manifest);
-        var service = new UpgradeService(_httpClient, _fs, updateSource: source);
+        await using var service = new UpgradeService(_httpClient, _fs, updateSource: source);
 
         var entry = await service.GetUpdateEntryAsync();
 
@@ -103,7 +103,7 @@ public sealed class UpgradeServiceUpdateTests {
 
     [Fact]
     public async Task DownloadUpdateAsync_NoUpdateSource_ReturnsFailed() {
-        var service = new UpgradeService(_httpClient, _fs);
+        await using var service = new UpgradeService(_httpClient, _fs);
         var entry = new UpdateManifestEntry {
             Version = "1.0.0",
             DownloadUrl = "http://test/jcc.exe",
@@ -127,7 +127,7 @@ public sealed class UpgradeServiceUpdateTests {
             Releases = []
         };
         var source = new MockUpdateSource(manifest, content);
-        var service = new UpgradeService(_httpClient, _fs, updateSource: source);
+        await using var service = new UpgradeService(_httpClient, _fs, updateSource: source);
         var entry = new UpdateManifestEntry {
             Version = "999.0.0",
             DownloadUrl = "http://test/jcc.exe",
@@ -154,7 +154,7 @@ public sealed class UpgradeServiceUpdateTests {
             Releases = []
         };
         var source = new MockUpdateSource(manifest, content);
-        var service = new UpgradeService(_httpClient, _fs, updateSource: source);
+        await using var service = new UpgradeService(_httpClient, _fs, updateSource: source);
         var entry = new UpdateManifestEntry {
             Version = "999.0.0",
             DownloadUrl = "http://test/jcc.exe",
@@ -179,7 +179,7 @@ public sealed class UpgradeServiceUpdateTests {
             Releases = []
         };
         var source = new MockUpdateSource(manifest, content);
-        var service = new UpgradeService(_httpClient, _fs, updateSource: source);
+        await using var service = new UpgradeService(_httpClient, _fs, updateSource: source);
         var entry = new UpdateManifestEntry {
             Version = "999.0.0",
             DownloadUrl = "http://test/jcc.exe",
@@ -201,7 +201,7 @@ public sealed class UpgradeServiceUpdateTests {
 
     [Fact]
     public async Task ApplyUpdateAsync_NonExistentFile_ReturnsFailed() {
-        var service = new UpgradeService(_httpClient, _fs);
+        await using var service = new UpgradeService(_httpClient, _fs);
 
         var result = await service.ApplyUpdateAsync("/nonexistent/path/jcc.exe.new");
 

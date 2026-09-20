@@ -6,7 +6,7 @@ namespace Hands.Tests.ToolHandlers;
 public class AgentValidationMiddlewareTests {
     [Fact]
     public async Task EmptyDescription_SetsErrorWithDiagnostic() {
-        var sut = new AgentValidationMiddleware();
+        await using var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "", Prompt = "do something" };
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -20,7 +20,7 @@ public class AgentValidationMiddlewareTests {
 
     [Fact]
     public async Task EmptyPrompt_SetsErrorWithDiagnostic() {
-        var sut = new AgentValidationMiddleware();
+        await using var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "test agent", Prompt = "" };
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -34,7 +34,7 @@ public class AgentValidationMiddlewareTests {
 
     [Fact]
     public async Task ValidInputs_PassesToNext() {
-        var sut = new AgentValidationMiddleware();
+        await using var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "test agent", Prompt = "do something" };
 
         var nextCalled = false;
@@ -66,7 +66,7 @@ public class AgentValidationMiddlewareTests {
 
     [Fact]
     public async Task SubagentType_WithComma_ParsesPrimaryTypeAndAllowedTypes() {
-        var sut = new AgentValidationMiddleware();
+        await using var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "test agent", Prompt = "do something", SubagentType = "worker,researcher" };
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -77,7 +77,7 @@ public class AgentValidationMiddlewareTests {
 
     [Fact]
     public async Task SubagentType_SingleType_DoesNotParseAllowedTypes() {
-        var sut = new AgentValidationMiddleware();
+        await using var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "test agent", Prompt = "do something", SubagentType = "worker" };
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -88,7 +88,7 @@ public class AgentValidationMiddlewareTests {
 
     [Fact]
     public async Task SubagentType_Null_DoesNotParse() {
-        var sut = new AgentValidationMiddleware();
+        await using var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "test agent", Prompt = "do something" };
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);

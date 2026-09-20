@@ -1,10 +1,10 @@
-
+﻿
 namespace Bridge.Tests.Phase7B;
 
 public sealed class BridgeTokenRefreshSchedulerTests {
     [Fact]
-    public void ScheduleFromExpiresIn_ValidSeconds_SchedulesRefresh() {
-        var scheduler = new BridgeTokenRefreshScheduler(
+    public async Task ScheduleFromExpiresIn_ValidSeconds_SchedulesRefresh() {
+        await using var scheduler = new BridgeTokenRefreshScheduler(
             new TokenRefreshOptions {
                 GetAccessToken = () => "test-token",
                 OnRefresh = (sessionId, token) => { },
@@ -24,7 +24,7 @@ public sealed class BridgeTokenRefreshSchedulerTests {
     public async Task Cancel_StopsScheduledRefresh() {
         var fakeTime = new FakeTimeProvider();
         var refreshed = false;
-        var scheduler = new BridgeTokenRefreshScheduler(
+        await using var scheduler = new BridgeTokenRefreshScheduler(
             new TokenRefreshOptions {
                 GetAccessToken = () => "test-token",
                 OnRefresh = (sessionId, token) => { refreshed = true; },
@@ -45,8 +45,8 @@ public sealed class BridgeTokenRefreshSchedulerTests {
     }
 
     [Fact]
-    public void CancelAll_StopsAllScheduledRefreshes() {
-        var scheduler = new BridgeTokenRefreshScheduler(
+    public async Task CancelAll_StopsAllScheduledRefreshes() {
+        await using var scheduler = new BridgeTokenRefreshScheduler(
             new TokenRefreshOptions {
                 GetAccessToken = () => "test-token",
                 OnRefresh = (sessionId, token) => { },
@@ -63,8 +63,8 @@ public sealed class BridgeTokenRefreshSchedulerTests {
     }
 
     [Fact]
-    public void Schedule_SameSession_ReplacesPrevious() {
-        var scheduler = new BridgeTokenRefreshScheduler(
+    public async Task Schedule_SameSession_ReplacesPrevious() {
+        await using var scheduler = new BridgeTokenRefreshScheduler(
             new TokenRefreshOptions {
                 GetAccessToken = () => "test-token",
                 OnRefresh = (sessionId, token) => { },

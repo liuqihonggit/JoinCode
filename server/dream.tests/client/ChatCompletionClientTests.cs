@@ -1,4 +1,4 @@
-namespace Dream.Tests.Client;
+﻿namespace Dream.Tests.Client;
 
 /// <summary>
 /// 聊天完成客户端单元测试
@@ -18,7 +18,7 @@ public sealed class ChatCompletionClientTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ApiMessage> { new(MessageRole.Assistant, "result") });
 
-        var client = new ChatCompletionClient(kernel.Object);
+        await using var client = new ChatCompletionClient(kernel.Object);
 
         var result = await client.GetCompletionAsync(new MessageList()).ConfigureAwait(true);
 
@@ -38,7 +38,7 @@ public sealed class ChatCompletionClientTests {
                 new(MessageRole.Assistant, "second")
             });
 
-        var client = new ChatCompletionClient(kernel.Object);
+        await using var client = new ChatCompletionClient(kernel.Object);
 
         var result = await client.GetCompletionAsync(new MessageList()).ConfigureAwait(true);
 
@@ -54,7 +54,7 @@ public sealed class ChatCompletionClientTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ApiMessage>());
 
-        var client = new ChatCompletionClient(kernel.Object);
+        await using var client = new ChatCompletionClient(kernel.Object);
 
         var result = await client.GetCompletionAsync(new MessageList()).ConfigureAwait(true);
 
@@ -70,7 +70,7 @@ public sealed class ChatCompletionClientTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ApiMessage> { new(MessageRole.Assistant, null) });
 
-        var client = new ChatCompletionClient(kernel.Object);
+        await using var client = new ChatCompletionClient(kernel.Object);
 
         var result = await client.GetCompletionAsync(new MessageList()).ConfigureAwait(true);
 
@@ -87,7 +87,7 @@ public sealed class ChatCompletionClientTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), null, null, cts.Token))
             .ReturnsAsync(new List<ApiMessage> { new(MessageRole.Assistant, "ok") });
 
-        var client = new ChatCompletionClient(kernel.Object);
+        await using var client = new ChatCompletionClient(kernel.Object);
 
         var result = await client.GetCompletionAsync(new MessageList(), cts.Token).ConfigureAwait(true);
 

@@ -1,4 +1,4 @@
-namespace Guard.Security.Tests;
+﻿namespace Guard.Security.Tests;
 
 /// <summary>
 /// DangerousCommandProtectionMiddleware 单元测试 — 验证 Bypass 模式下黑灯(Dangerous)穿透漏洞已修复
@@ -36,7 +36,7 @@ public class DangerousCommandProtectionMiddlewareTests {
     [InlineData("shred /etc/passwd")]
     [InlineData("dd if=/dev/zero of=/dev/sda")]
     public async Task Bypass_Mode_Should_Reject_Dangerous_Command(string command) {
-        var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var context = CreateContext(PermissionMode.Bypass, command);
         var nextCalled = false;
 
@@ -52,7 +52,7 @@ public class DangerousCommandProtectionMiddlewareTests {
     [InlineData("git commit -m \"msg\"")]
     [InlineData("ls")]
     public async Task Bypass_Mode_Should_Allow_NonDangerous_Command(string command) {
-        var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var context = CreateContext(PermissionMode.Bypass, command);
         var nextCalled = false;
 
@@ -71,7 +71,7 @@ public class DangerousCommandProtectionMiddlewareTests {
     [InlineData(PermissionMode.Auto)]
     [InlineData(PermissionMode.Ask)]
     public async Task All_NonBypass_Modes_Should_Reject_Dangerous(PermissionMode mode) {
-        var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var context = CreateContext(mode, "rm -rf /");
 
         await middleware.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -86,7 +86,7 @@ public class DangerousCommandProtectionMiddlewareTests {
 
     [Fact]
     public async Task SameLevelApproval_LightValidation_Should_AutoApprove() {
-        var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.LightValidation };
         var context = CreateContext(PermissionMode.Ask, "git commit -m \"msg\"", approved);
         var nextCalled = false;
@@ -99,7 +99,7 @@ public class DangerousCommandProtectionMiddlewareTests {
 
     [Fact]
     public async Task SameLevelApproval_Execution_Should_AutoApprove() {
-        var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.Execution };
         var context = CreateContext(PermissionMode.Ask, "rm file.txt", approved);
         var nextCalled = false;
@@ -112,7 +112,7 @@ public class DangerousCommandProtectionMiddlewareTests {
 
     [Fact]
     public async Task DifferentLevelApproval_Should_Still_Confirm() {
-        var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.LightValidation };
         var context = CreateContext(PermissionMode.Ask, "rm file.txt", approved);
 
@@ -124,7 +124,7 @@ public class DangerousCommandProtectionMiddlewareTests {
 
     [Fact]
     public async Task DangerousLevel_Should_Never_AutoApprove_Even_If_In_ApprovedLevels() {
-        var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        await using var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
         var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.Dangerous };
         var context = CreateContext(PermissionMode.Ask, "rm -rf /", approved);
         var nextCalled = false;

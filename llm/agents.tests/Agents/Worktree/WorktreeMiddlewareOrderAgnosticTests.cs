@@ -1,4 +1,4 @@
-namespace JoinCode.Agents.Tests.Worktree;
+﻿namespace JoinCode.Agents.Tests.Worktree;
 
 /// <summary>
 /// Worktree 中间件顺序无关性测试 — 验证综合防御策略:
@@ -88,7 +88,7 @@ public class WorktreeMiddlewareOrderAgnosticTests {
         await fs.WriteFileAsync(settingsFile, "{}");
 
         var opsMock = new Mock<IWorktreePipelineOperations>();
-        var middleware = new WorktreeConfigMiddleware(
+        await using var middleware = new WorktreeConfigMiddleware(
             fs,
             new Lazy<IWorktreePipelineOperations>(() => opsMock.Object));
 
@@ -125,7 +125,7 @@ public class WorktreeMiddlewareOrderAgnosticTests {
         var clockMock = new Mock<IClockService>();
         clockMock.Setup(x => x.GetUtcNow()).Returns(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
-        var middleware = new WorktreeRecoveryMiddleware(
+        await using var middleware = new WorktreeRecoveryMiddleware(
             fs,
             new Lazy<IWorktreePipelineOperations>(() => opsMock.Object),
             clockMock.Object);
@@ -161,7 +161,7 @@ public class WorktreeMiddlewareOrderAgnosticTests {
         opsMock.Setup(x => x.ExecuteGitCommandAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GitCommandResult { Success = true });
 
-        var middleware = new WorktreeGitInfoMiddleware(
+        await using var middleware = new WorktreeGitInfoMiddleware(
             new Lazy<IWorktreePipelineOperations>(() => opsMock.Object),
             fs);
 
@@ -193,7 +193,7 @@ public class WorktreeMiddlewareOrderAgnosticTests {
         var clockMock = new Mock<IClockService>();
         clockMock.Setup(x => x.GetUtcNow()).Returns(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
-        var middleware = new WorktreeSessionSaveMiddleware(
+        await using var middleware = new WorktreeSessionSaveMiddleware(
             new Lazy<IWorktreePipelineOperations>(() => opsMock.Object),
             fs,
             clockMock.Object);

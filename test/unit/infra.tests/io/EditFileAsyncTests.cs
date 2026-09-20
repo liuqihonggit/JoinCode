@@ -1,4 +1,4 @@
-namespace Infra.IO.Tests;
+﻿namespace Infra.IO.Tests;
 
 /// <summary>
 /// IFileSystem.EditFileAsync 并发安全与原子性测试。
@@ -7,7 +7,7 @@ namespace Infra.IO.Tests;
 public class EditFileAsyncTests {
     [Fact]
     public async Task EditFileAsync_ConcurrentSameFile_NoLostUpdates() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var path = "/test/concurrent.txt";
         fs.WriteAllText(path, "");
 
@@ -31,7 +31,7 @@ public class EditFileAsyncTests {
 
     [Fact]
     public async Task EditFileAsync_DifferentFiles_Parallel() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var path1 = "/test/file1.txt";
         var path2 = "/test/file2.txt";
         fs.WriteAllText(path1, "a");
@@ -54,7 +54,7 @@ public class EditFileAsyncTests {
 
     [Fact]
     public async Task EditFileAsync_FileNotFound_ThrowsFileNotFoundException() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var path = "/test/nonexistent.txt";
 
         await Assert.ThrowsAsync<FileNotFoundException>(async () =>
@@ -63,7 +63,7 @@ public class EditFileAsyncTests {
 
     [Fact]
     public async Task EditFileAsync_TransformReturnsNull_NoWrite() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var path = "/test/skip.txt";
         fs.WriteAllText(path, "original");
 
@@ -75,7 +75,7 @@ public class EditFileAsyncTests {
 
     [Fact]
     public async Task EditFileAsync_TransformReceivesCurrentContent() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var path = "/test/receive.txt";
         fs.WriteAllText(path, "hello world");
 
@@ -89,7 +89,7 @@ public class EditFileAsyncTests {
 
     [Fact]
     public async Task EditFileAsync_SequentialEdits_ComposeCorrectly() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var path = "/test/sequential.txt";
         fs.WriteAllText(path, "0");
 

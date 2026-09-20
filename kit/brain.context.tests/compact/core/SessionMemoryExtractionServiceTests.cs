@@ -1,4 +1,4 @@
-namespace Brain.Tests.Context.Compact;
+﻿namespace Brain.Tests.Context.Compact;
 
 /// <summary>
 /// SessionMemoryExtractionService 单元测试 — 对齐 TS sessionMemory.ts
@@ -14,10 +14,10 @@ public sealed class SessionMemoryExtractionServiceTests {
     [Fact]
     public async Task InitializeSessionMemoryFileAsync_CreatesFileWithTemplate() {
         var fs = CreateFileSystem("/test/project");
-        var compactService = new SessionMemoryCompactService(
+        await using var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
             fileSystem: fs);
-        var service = new SessionMemoryExtractionService(compactService, fs);
+        await using var service = new SessionMemoryExtractionService(compactService, fs);
 
         var content = await service.InitializeSessionMemoryFileAsync().ConfigureAwait(true);
 
@@ -33,10 +33,10 @@ public sealed class SessionMemoryExtractionServiceTests {
         fs.CreateDirectory("/test/project/.jcc");
         fs.WriteAllText("/test/project/.jcc/session-memory.md", existingContent);
 
-        var compactService = new SessionMemoryCompactService(
+        await using var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
             fileSystem: fs);
-        var service = new SessionMemoryExtractionService(compactService, fs);
+        await using var service = new SessionMemoryExtractionService(compactService, fs);
 
         var content = await service.InitializeSessionMemoryFileAsync().ConfigureAwait(true);
 
@@ -46,10 +46,10 @@ public sealed class SessionMemoryExtractionServiceTests {
     [Fact]
     public async Task BuildExtractionPromptAsync_ReturnsPromptWithNotesPath() {
         var fs = CreateFileSystem("/test/project");
-        var compactService = new SessionMemoryCompactService(
+        await using var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
             fileSystem: fs);
-        var service = new SessionMemoryExtractionService(compactService, fs);
+        await using var service = new SessionMemoryExtractionService(compactService, fs);
 
         await service.InitializeSessionMemoryFileAsync().ConfigureAwait(true);
         var prompt = await service.BuildExtractionPromptAsync().ConfigureAwait(true);
@@ -62,10 +62,10 @@ public sealed class SessionMemoryExtractionServiceTests {
     [Fact]
     public void ShouldExtract_FirstTime_BelowThreshold_ReturnsFalse() {
         var fs = CreateFileSystem("/test/project");
-        var compactService = new SessionMemoryCompactService(
+        using var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
             fileSystem: fs);
-        var service = new SessionMemoryExtractionService(compactService, fs);
+        using var service = new SessionMemoryExtractionService(compactService, fs);
 
         var result = service.ShouldExtract(5000, 0);
 
@@ -75,10 +75,10 @@ public sealed class SessionMemoryExtractionServiceTests {
     [Fact]
     public void ShouldExtract_FirstTime_AboveThreshold_ReturnsTrue() {
         var fs = CreateFileSystem("/test/project");
-        var compactService = new SessionMemoryCompactService(
+        using var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
             fileSystem: fs);
-        var service = new SessionMemoryExtractionService(compactService, fs);
+        using var service = new SessionMemoryExtractionService(compactService, fs);
 
         var result = service.ShouldExtract(15000, 0);
 
@@ -88,10 +88,10 @@ public sealed class SessionMemoryExtractionServiceTests {
     [Fact]
     public void ShouldExtract_AfterPreviousExtraction_BelowUpdateThreshold_ReturnsFalse() {
         var fs = CreateFileSystem("/test/project");
-        var compactService = new SessionMemoryCompactService(
+        using var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
             fileSystem: fs);
-        var service = new SessionMemoryExtractionService(compactService, fs);
+        using var service = new SessionMemoryExtractionService(compactService, fs);
 
         service.RecordExtractionCompleted(15000);
 
@@ -103,10 +103,10 @@ public sealed class SessionMemoryExtractionServiceTests {
     [Fact]
     public void ShouldExtract_AfterPreviousExtraction_AboveUpdateThreshold_ReturnsTrue() {
         var fs = CreateFileSystem("/test/project");
-        var compactService = new SessionMemoryCompactService(
+        using var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
             fileSystem: fs);
-        var service = new SessionMemoryExtractionService(compactService, fs);
+        using var service = new SessionMemoryExtractionService(compactService, fs);
 
         service.RecordExtractionCompleted(15000);
 
@@ -118,10 +118,10 @@ public sealed class SessionMemoryExtractionServiceTests {
     [Fact]
     public void ShouldExtract_ToolCallsExceedThreshold_ReturnsTrue() {
         var fs = CreateFileSystem("/test/project");
-        var compactService = new SessionMemoryCompactService(
+        using var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
             fileSystem: fs);
-        var service = new SessionMemoryExtractionService(compactService, fs);
+        using var service = new SessionMemoryExtractionService(compactService, fs);
 
         service.RecordExtractionCompleted(15000);
 
@@ -133,10 +133,10 @@ public sealed class SessionMemoryExtractionServiceTests {
     [Fact]
     public void GetMemoryFilePath_ReturnsExpectedPath() {
         var fs = CreateFileSystem("/my/project");
-        var compactService = new SessionMemoryCompactService(
+        using var compactService = new SessionMemoryCompactService(
             new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance),
             fileSystem: fs);
-        var service = new SessionMemoryExtractionService(compactService, fs);
+        using var service = new SessionMemoryExtractionService(compactService, fs);
 
         var path = service.GetMemoryFilePath();
 

@@ -1,4 +1,4 @@
-namespace Host.Tests.Adapters;
+﻿namespace Host.Tests.Adapters;
 
 public sealed class SessionControllerTests {
     [Fact]
@@ -208,7 +208,7 @@ public sealed class SessionControllerTests {
     [Fact]
     public async Task StreamResponseAsync_MainAgentPath_CallsSaveContext() {
         var queryEngine = CreateMockQueryEngine();
-        var agent = new AgentBase(
+        await using var agent = new AgentBase(
             task: string.Empty,
             options: null,
             queryEngine: queryEngine,
@@ -238,7 +238,7 @@ public sealed class SessionControllerTests {
     [Fact]
     public async Task StreamResponseAsync_MainAgentPath_CallsPreprocessor() {
         var queryEngine = CreateMockQueryEngine();
-        var agent = new AgentBase(
+        await using var agent = new AgentBase(
             task: string.Empty,
             options: null,
             queryEngine: queryEngine,

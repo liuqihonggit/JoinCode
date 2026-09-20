@@ -1,9 +1,9 @@
-namespace JoinCode.Reasoning.Tests.Agents;
+﻿namespace JoinCode.Reasoning.Tests.Agents;
 
 public sealed class JudgeAgentTests {
     [Fact]
     public async Task ReasonAsync_WithNoPendingItems_ReturnsEmptyAction() {
-        var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
+        await using var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
         var context = CreateContext([], []);
 
         var action = await agent.ReasonAsync(context, CancellationToken.None);
@@ -15,7 +15,7 @@ public sealed class JudgeAgentTests {
 
     [Fact]
     public async Task ReasonAsync_WithNoEvidence_ReturnsEmptyVerdicts() {
-        var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
+        await using var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Assumption };
         var context = CreateContext([item], []);
 
@@ -26,7 +26,7 @@ public sealed class JudgeAgentTests {
 
     [Fact]
     public async Task ReasonAsync_WithStrongProsecutionEvidence_ReturnsAcceptVerdict() {
-        var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
+        await using var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Assumption };
         var evidence = new[]
         {
@@ -60,7 +60,7 @@ public sealed class JudgeAgentTests {
 
     [Fact]
     public async Task ReasonAsync_WithStrongDefenseEvidence_ReturnsRejectVerdict() {
-        var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
+        await using var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Assumption };
         var evidence = new EvidenceRecord {
             Id = "ev1",
@@ -80,7 +80,7 @@ public sealed class JudgeAgentTests {
 
     [Fact]
     public async Task ReasonAsync_WithBalancedEvidence_ReturnsPendingOrPartial() {
-        var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
+        await using var agent = new JudgeAgent(new FakeQueryEngine(), NullLogger<JudgeAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Assumption };
         var pros = new EvidenceRecord {
             Id = "ev1",
@@ -108,7 +108,7 @@ public sealed class JudgeAgentTests {
     [Fact]
     public async Task ReasonAsync_WithLlmResponse_ParsesVerdicts() {
         var json = "{\"verdicts\":[{\"claimContent\":\"假定1\",\"decision\":\"Accept\",\"reason\":\"证据充分\",\"confidence\":90}]}";
-        var agent = new JudgeAgent(
+        await using var agent = new JudgeAgent(
             new FakeQueryEngine(),
             NullLogger<JudgeAgent>.Instance,
             new FakeChatClient(json));
@@ -126,7 +126,7 @@ public sealed class JudgeAgentTests {
 
     [Fact]
     public async Task ReasonAsync_WithMalformedLlmResponse_ReturnsEmptyParsedVerdicts() {
-        var agent = new JudgeAgent(
+        await using var agent = new JudgeAgent(
             new FakeQueryEngine(),
             NullLogger<JudgeAgent>.Instance,
             new FakeChatClient("not json"));
@@ -141,7 +141,7 @@ public sealed class JudgeAgentTests {
     [Fact]
     public async Task ReasonAsync_WithBroker_BroadcastsVerdictIssued() {
         var broker = new FakeMessageBroker();
-        var agent = new JudgeAgent(
+        await using var agent = new JudgeAgent(
             new FakeQueryEngine(),
             NullLogger<JudgeAgent>.Instance,
             new FakeChatClient("{\"verdicts\":[]}"),
@@ -158,7 +158,7 @@ public sealed class JudgeAgentTests {
     [Fact]
     public async Task ReasonAsync_LlmVerdictDefaults_WhenOptionalFieldsMissing() {
         var json = "{\"verdicts\":[{\"claimContent\":\"未知\"}]}";
-        var agent = new JudgeAgent(
+        await using var agent = new JudgeAgent(
             new FakeQueryEngine(),
             NullLogger<JudgeAgent>.Instance,
             new FakeChatClient(json));

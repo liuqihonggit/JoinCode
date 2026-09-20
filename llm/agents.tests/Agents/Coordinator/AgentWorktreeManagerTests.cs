@@ -1,4 +1,4 @@
-namespace Core.Tests.Agents.Coordinator;
+﻿namespace Core.Tests.Agents.Coordinator;
 
 public class AgentWorktreeManagerTests : IAsyncLifetime {
     private readonly Mock<IAgentWorktreeService> _worktreeServiceMock;
@@ -62,7 +62,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
 
     [Fact]
     public async Task CreateWorktreeAsync_ShouldReturnFalse_WhenIsolationDisabled() {
-        var manager = new AgentWorktreeManager(
+        await using var manager = new AgentWorktreeManager(
             worktreeService: _worktreeServiceMock.Object,
             enableWorktreeIsolation: false);
 
@@ -170,7 +170,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
 
     [Fact]
     public async Task CleanupWorktreeAsync_ShouldReturnNotIsolated_WhenNoWorktreeService() {
-        var manager = new AgentWorktreeManager(
+        await using var manager = new AgentWorktreeManager(
             worktreeService: null,
             enableWorktreeIsolation: true);
 
@@ -229,8 +229,8 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
 
     [Fact]
     public void IsWorktreeIsolationEnabled_ShouldReflectConstructorParameter() {
-        var enabled = new AgentWorktreeManager(_worktreeServiceMock.Object, enableWorktreeIsolation: true);
-        var disabled = new AgentWorktreeManager(_worktreeServiceMock.Object, enableWorktreeIsolation: false);
+        using var enabled = new AgentWorktreeManager(_worktreeServiceMock.Object, enableWorktreeIsolation: true);
+        using var disabled = new AgentWorktreeManager(_worktreeServiceMock.Object, enableWorktreeIsolation: false);
 
         enabled.IsWorktreeIsolationEnabled.Should().BeTrue();
         disabled.IsWorktreeIsolationEnabled.Should().BeFalse();

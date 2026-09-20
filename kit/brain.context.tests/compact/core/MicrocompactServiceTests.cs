@@ -1,4 +1,4 @@
-namespace Brain.Tests.Context.Compact;
+﻿namespace Brain.Tests.Context.Compact;
 
 /// <summary>
 /// MicrocompactService 单元测试 — 对齐 TS microCompact.ts
@@ -7,7 +7,7 @@ namespace Brain.Tests.Context.Compact;
 public sealed class MicrocompactServiceTests {
     [Fact]
     public void CompactMessages_ClearsOldToolResults() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
             CreateAssistantToolCallMessage("call_1", "bash"),
@@ -32,7 +32,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void CompactMessages_OnlyCompactsCompactableTools() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
             CreateAssistantToolCallMessage("call_1", "bash"),
@@ -50,7 +50,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void CompactMessages_SkipsAlreadyClearedResults() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
             CreateAssistantToolCallMessage("call_1", "bash"),
@@ -67,7 +67,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void CompactMessages_NoCompactableTools_ReturnsUnchanged() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
             new(MessageRole.User, "hello"),
@@ -82,7 +82,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void CompactMessages_UsesToolCallsMetadata() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         // 使用 ChatService 实际存储格式: Metadata["ToolCalls"] = [{Id, Name, Arguments}]
         var toolCalls = new List<Dictionary<string, JsonElement>>
         {
@@ -110,7 +110,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void CompactMessages_CustomCompactableToolNames() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var customTools = new HashSet<string> { "MyCustomTool" };
         var messages = new List<ApiMessage>
         {
@@ -129,7 +129,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void TimeBasedCompact_ReturnsNull_WhenNoTimestamp() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
             new(MessageRole.Assistant, "hello"), // 无 timestamp
@@ -142,7 +142,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void TimeBasedCompact_ReturnsNull_WhenGapTooSmall() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var metadata = new Dictionary<string, JsonElement> {
             ["timestamp"] = JsonSerializer.SerializeToElement(DateTime.UtcNow.ToString("O")),
         };
@@ -158,7 +158,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void EstimateMessageTokens_ReturnsNonZero() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
             new(MessageRole.User, "hello world"),
@@ -171,7 +171,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void EstimateMessageTokens_IncludesContentBlocks() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var contentBlocks = new List<ToolContent>
         {
             new() { Type = ToolContentType.Image, Data = "base64data", MimeType = "image/png" },
@@ -190,7 +190,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void EstimateMessageTokens_IncludesToolUseBlocks() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
             CreateAssistantToolCallMessage("call_1", "bash"),
@@ -204,7 +204,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void CompactMessages_EmptyList_ReturnsUnchanged() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>();
 
         var result = service.CompactMessages(messages);
@@ -215,7 +215,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void CompactMessages_MultipleToolResultsInSequence() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
             CreateAssistantToolCallMessage("call_1", "bash"),
@@ -239,7 +239,7 @@ public sealed class MicrocompactServiceTests {
 
     [Fact]
     public void TimeBasedCompact_ActuallyClears_WhenGapExceeded() {
-        var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var oldTimestamp = DateTime.UtcNow.AddMinutes(-120).ToString("O");
         var assistantMetadata = new Dictionary<string, JsonElement> {
             ["timestamp"] = JsonSerializer.SerializeToElement(oldTimestamp),

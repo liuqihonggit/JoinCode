@@ -1,4 +1,4 @@
-#nullable disable
+﻿#nullable disable
 
 namespace Bridge.Tests;
 
@@ -105,7 +105,7 @@ public sealed class BridgeExtensionHandlersTests {
 
     [Fact]
     public async Task DeviceTrustHandler_VerifyTrustedDevice_ReturnsTrue() {
-        var store = new TrustedDeviceStore(NullLogger<TrustedDeviceStore>.Instance);
+        await using var store = new TrustedDeviceStore(NullLogger<TrustedDeviceStore>.Instance);
         await store.AddAsync(new TrustedDeviceEntry {
             DeviceId = "device-1",
             DeviceName = "Test Device",
@@ -142,7 +142,7 @@ public sealed class BridgeExtensionHandlersTests {
 
     [Fact]
     public async Task DeviceTrustHandler_TrustDevice_AddsToStore() {
-        var store = new TrustedDeviceStore(NullLogger<TrustedDeviceStore>.Instance);
+        await using var store = new TrustedDeviceStore(NullLogger<TrustedDeviceStore>.Instance);
         var handler = new DeviceTrustHandler(store);
         var request = CreateRequest(new Dictionary<string, JsonElement> {
             ["action"] = JsonSerializer.SerializeToElement("trust"),
@@ -160,7 +160,7 @@ public sealed class BridgeExtensionHandlersTests {
 
     [Fact]
     public async Task DeviceTrustHandler_RevokeDevice_ReturnsTrueWhenExists() {
-        var store = new TrustedDeviceStore(NullLogger<TrustedDeviceStore>.Instance);
+        await using var store = new TrustedDeviceStore(NullLogger<TrustedDeviceStore>.Instance);
         await store.AddAsync(new TrustedDeviceEntry {
             DeviceId = "device-3",
             DeviceName = "Test Device",
@@ -219,7 +219,7 @@ public sealed class BridgeExtensionHandlersTests {
     [Fact]
     public async Task SecretHandler_ValidateCorrectValue_ReturnsTrue() {
         var config = new BridgeConfig { EncryptionKeyBase64 = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) };
-        var store = new WorkSecretStore(config, NullLogger<WorkSecretStore>.Instance);
+        await using var store = new WorkSecretStore(config, NullLogger<WorkSecretStore>.Instance);
         var entry = await store.CreateAsync("api-key", "secret-value").ConfigureAwait(true);
 
         var handler = new SecretHandler(store);
@@ -251,7 +251,7 @@ public sealed class BridgeExtensionHandlersTests {
     [Fact]
     public async Task SecretHandler_Rotate_ReturnsNewSecretId() {
         var config = new BridgeConfig { EncryptionKeyBase64 = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) };
-        var store = new WorkSecretStore(config, NullLogger<WorkSecretStore>.Instance);
+        await using var store = new WorkSecretStore(config, NullLogger<WorkSecretStore>.Instance);
         var entry = await store.CreateAsync("api-key", "old-value").ConfigureAwait(true);
 
         var handler = new SecretHandler(store);

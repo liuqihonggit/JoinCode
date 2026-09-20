@@ -1,4 +1,4 @@
-namespace Infra.Tests.Housekeeping;
+﻿namespace Infra.Tests.Housekeeping;
 
 
 public sealed class BackgroundHousekeepingServiceTests {
@@ -10,7 +10,7 @@ public sealed class BackgroundHousekeepingServiceTests {
 
         var fs = new TestInMemFs();
         var clock = new FakeClockService();
-        var sut = new BackgroundHousekeepingService(housekeeping.Object, fs, clock);
+        await using var sut = new BackgroundHousekeepingService(housekeeping.Object, fs, clock);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await sut.StartAsync(cts.Token);

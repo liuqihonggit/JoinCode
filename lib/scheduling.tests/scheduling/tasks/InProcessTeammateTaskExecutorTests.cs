@@ -1,4 +1,4 @@
-
+﻿
 namespace Sync.Tests.Scheduling.Tasks;
 
 public class InProcessTeammateTaskExecutorTests {
@@ -160,7 +160,7 @@ public class InProcessTeammateTaskExecutorTests {
     [Fact]
     public async Task ExecuteTeammateAsync_ContinuousMode_FailureThenRetry_ShouldContinueLoop() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new AgentBase("Continuous task", null, queryEngineMock.Object, null);
+        await using var agent = new AgentBase("Continuous task", null, queryEngineMock.Object, null);
 
         var successResult = new SubAgentResult {
             AgentId = "agent-c",
@@ -217,7 +217,7 @@ public class InProcessTeammateTaskExecutorTests {
     [Fact]
     public async Task InterruptTeammateAsync_WhenTeammateWorking_ShouldCancelWorkTokenButNotLifecycle() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new AgentBase("Interrupt test", null, queryEngineMock.Object, null);
+        await using var agent = new AgentBase("Interrupt test", null, queryEngineMock.Object, null);
 
         var workCancelledTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -267,7 +267,7 @@ public class InProcessTeammateTaskExecutorTests {
     [Fact]
     public async Task GetActiveTeammateSnapshotsAsync_WhenTeammateActive_ShouldReturnSnapshotWithTaskAndParent() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
-        var agent = new AgentBase("Snapshot task", null, queryEngineMock.Object, null);
+        await using var agent = new AgentBase("Snapshot task", null, queryEngineMock.Object, null);
 
         _lifecycleManagerMock
             .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
@@ -339,7 +339,7 @@ public class InProcessTeammateTaskExecutorTests {
             .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<WorktreeCleanupMode>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(WorktreeCleanupDetail.SuccessfullyRemoved);
 
-        var executor = new InProcessTeammateTaskExecutor(
+        await using var executor = new InProcessTeammateTaskExecutor(
             _lifecycleManagerMock.Object,
             _messageBrokerMock.Object,
             NullLogger<InProcessTeammateTaskExecutor>.Instance,
@@ -390,7 +390,7 @@ public class InProcessTeammateTaskExecutorTests {
             .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<WorktreeCleanupMode>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(WorktreeCleanupDetail.NotIsolated);
 
-        var executor = new InProcessTeammateTaskExecutor(
+        await using var executor = new InProcessTeammateTaskExecutor(
             _lifecycleManagerMock.Object,
             _messageBrokerMock.Object,
             NullLogger<InProcessTeammateTaskExecutor>.Instance,

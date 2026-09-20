@@ -1,4 +1,4 @@
-namespace Core.Tests.Plugins;
+﻿namespace Core.Tests.Plugins;
 
 public sealed class ObjectTypeAndObjectIdManagerTests {
     [Fact]
@@ -16,7 +16,7 @@ public sealed class ObjectTypeAndObjectIdManagerTests {
     [Fact]
     public void ObjectIdManager_IsRegistered_ReturnsTrueForRegistered() {
         ObjectIdManager.Clear();
-        var entity = new TestEntity(ObjectType.Plugin, "test-plugin");
+        using var entity = new TestEntity(ObjectType.Plugin, "test-plugin");
 
         ObjectIdManager.IsRegistered(entity.ObjectId).Should().BeTrue();
 

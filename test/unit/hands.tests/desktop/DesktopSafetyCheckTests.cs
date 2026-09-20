@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop.Tests;
+﻿namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
 /// AC-12 危险坐标拦截验证 — 安全检查器返回 DangerousCoordinate 时点击被拦截不执行 SendInput
@@ -14,7 +14,7 @@ public sealed class DesktopSafetyCheckTests {
         var safetyMock = new Mock<IDesktopSafetyChecker>();
         safetyMock.Setup(s => s.CheckClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(UnsafeOperationKind.DangerousCoordinate);
-        var inputService = new Win32DesktopInputService(safetyMock.Object);
+        await using var inputService = new Win32DesktopInputService(safetyMock.Object);
 
         var result = await inputService.ClickAsync(100, 200, MouseAction.Click);
 
@@ -34,7 +34,7 @@ public sealed class DesktopSafetyCheckTests {
         var safetyMock = new Mock<IDesktopSafetyChecker>();
         safetyMock.Setup(s => s.CheckClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(UnsafeOperationKind.None);
-        var inputService = new Win32DesktopInputService(safetyMock.Object);
+        await using var inputService = new Win32DesktopInputService(safetyMock.Object);
 
         var result = await inputService.ClickAsync(500, 500, MouseAction.Move);
 

@@ -1,10 +1,10 @@
-namespace Core.Context;
+﻿namespace Core.Context;
 
 public sealed class TaskProgressTrackerTests {
     [Fact]
     public async Task GetCompletedTodoCountAsync_ReturnsCompletedCount() {
         var todoService = CreateTodoService(completedCount: 3, totalCount: 5);
-        var tracker = new TaskProgressTracker(todoService.Object);
+        await using var tracker = new TaskProgressTracker(todoService.Object);
 
         var count = await tracker.GetCompletedTodoCountAsync().ConfigureAwait(true);
 
@@ -17,7 +17,7 @@ public sealed class TaskProgressTrackerTests {
         todoService.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TodoListResult(false, new List<TodoItem>()));
 
-        var tracker = new TaskProgressTracker(todoService.Object);
+        await using var tracker = new TaskProgressTracker(todoService.Object);
 
         var count = await tracker.GetCompletedTodoCountAsync().ConfigureAwait(true);
 
@@ -30,7 +30,7 @@ public sealed class TaskProgressTrackerTests {
         todoService.Setup(s => s.ListTodosAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("test"));
 
-        var tracker = new TaskProgressTracker(todoService.Object);
+        await using var tracker = new TaskProgressTracker(todoService.Object);
 
         var count = await tracker.GetCompletedTodoCountAsync().ConfigureAwait(true);
 
@@ -49,7 +49,7 @@ public sealed class TaskProgressTrackerTests {
                 throw new InvalidOperationException("transient failure");
             });
 
-        var tracker = new TaskProgressTracker(todoService.Object);
+        await using var tracker = new TaskProgressTracker(todoService.Object);
 
         var first = await tracker.GetCompletedTodoCountAsync().ConfigureAwait(true);
         var afterFailure = await tracker.GetCompletedTodoCountAsync().ConfigureAwait(true);
@@ -70,7 +70,7 @@ public sealed class TaskProgressTrackerTests {
                 throw new InvalidOperationException("transient failure");
             });
 
-        var tracker = new TaskProgressTracker(todoService.Object);
+        await using var tracker = new TaskProgressTracker(todoService.Object);
         await tracker.SnapshotCurrentProgressAsync().ConfigureAwait(true);
 
         // 快照后查询失败 → 仍保持 3，不把基线清零误判为"回退"
@@ -84,7 +84,7 @@ public sealed class TaskProgressTrackerTests {
     [Fact]
     public async Task SnapshotCurrentProgressAsync_RecordsCompletedCount() {
         var todoService = CreateTodoService(completedCount: 5, totalCount: 8);
-        var tracker = new TaskProgressTracker(todoService.Object);
+        await using var tracker = new TaskProgressTracker(todoService.Object);
 
         await tracker.SnapshotCurrentProgressAsync().ConfigureAwait(true);
 
@@ -103,7 +103,7 @@ public sealed class TaskProgressTrackerTests {
                 return Task.FromResult(new TodoListResult(true, items));
             });
 
-        var tracker = new TaskProgressTracker(todoService.Object);
+        await using var tracker = new TaskProgressTracker(todoService.Object);
 
         await tracker.SnapshotCurrentProgressAsync().ConfigureAwait(true);
 
@@ -114,7 +114,7 @@ public sealed class TaskProgressTrackerTests {
     [Fact]
     public async Task HasProgressedSinceLastSnapshotAsync_ReturnsFalseWhenCountUnchanged() {
         var todoService = CreateTodoService(completedCount: 3, totalCount: 5);
-        var tracker = new TaskProgressTracker(todoService.Object);
+        await using var tracker = new TaskProgressTracker(todoService.Object);
 
         await tracker.SnapshotCurrentProgressAsync().ConfigureAwait(true);
 
@@ -125,7 +125,7 @@ public sealed class TaskProgressTrackerTests {
     [Fact]
     public async Task HasProgressedSinceLastSnapshotAsync_ReturnsFalseBeforeSnapshot() {
         var todoService = CreateTodoService(completedCount: 3, totalCount: 5);
-        var tracker = new TaskProgressTracker(todoService.Object);
+        await using var tracker = new TaskProgressTracker(todoService.Object);
 
         var hasProgressed = await tracker.HasProgressedSinceLastSnapshotAsync().ConfigureAwait(true);
 
@@ -144,7 +144,7 @@ public sealed class TaskProgressTrackerTests {
                 return Task.FromResult(new TodoListResult(true, items));
             });
 
-        var tracker = new TaskProgressTracker(todoService.Object);
+        await using var tracker = new TaskProgressTracker(todoService.Object);
 
         var initialCount = await tracker.GetCompletedTodoCountAsync().ConfigureAwait(true);
         initialCount.Should().Be(2);

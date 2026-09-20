@@ -1,4 +1,4 @@
-namespace Infra.Tests.EntityTests;
+﻿namespace Infra.Tests.EntityTests;
 
 public sealed class ToolExecutionEntityRegistryTests {
     [Fact]
@@ -14,7 +14,7 @@ public sealed class ToolExecutionEntityRegistryTests {
 
     [Fact]
     public void Remove_OnDispose() {
-        var entity = new ToolExecutionEntity("test");
+        using var entity = new ToolExecutionEntity("test");
         var objectId = entity.ObjectId;
         ToolExecutionEntity.Registry.Get(objectId).Should().BeSameAs(entity);
         entity.Dispose();

@@ -1,4 +1,4 @@
-
+﻿
 namespace Bridge.Tests;
 
 /// <summary>
@@ -72,7 +72,7 @@ public sealed class BridgeIntegrationTests {
     [Fact]
     public async Task BridgeServer_RegistersSessionToUIService() {
         // Arrange
-        var uiService = new BridgeUIService(logger: NullLogger<BridgeUIService>.Instance);
+        await using var uiService = new BridgeUIService(logger: NullLogger<BridgeUIService>.Instance);
 
         // BridgeServer 构造函数中会订阅 PeerSessionManager 事件
         // 我们直接测试 UIService 的注册行为
@@ -96,7 +96,7 @@ public sealed class BridgeIntegrationTests {
     [Fact]
     public async Task BridgeServer_UnregistersSessionFromUIService() {
         // Arrange
-        var uiService = new BridgeUIService(logger: NullLogger<BridgeUIService>.Instance);
+        await using var uiService = new BridgeUIService(logger: NullLogger<BridgeUIService>.Instance);
         var session = new BridgeSessionDisplay {
             SessionId = "test-client-002",
             ClientName = "test-client-002",
@@ -120,7 +120,7 @@ public sealed class BridgeIntegrationTests {
     [Fact]
     public void BridgeClient_GeneratesJwtTokenOnStart() {
         // Arrange
-        var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-integration-test" }, NullLogger.Instance);
+        using var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-integration-test" }, NullLogger.Instance);
 
         // Act - 模拟 BridgeClient 启动时生成 JWT Token
         var token = jwtService.GenerateToken("bridge-client", 3600);
@@ -137,7 +137,7 @@ public sealed class BridgeIntegrationTests {
     [Fact]
     public void BridgeClient_JwtTokenRefreshWorks() {
         // Arrange
-        var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-refresh-test" }, NullLogger.Instance);
+        using var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-refresh-test" }, NullLogger.Instance);
         // 使用 299 秒过期，使其立即进入刷新窗口（剩余 <= 300 秒）
         var token = jwtService.GenerateToken("bridge-client", 299);
 
@@ -162,7 +162,7 @@ public sealed class BridgeIntegrationTests {
             BackoffMultiplier = 2.0,
             JitterPercent = 0.0 // 无抖动，方便断言
         };
-        var pollConfigManager = new PollConfigManager(pollConfig, NullLogger<PollConfigManager>.Instance);
+        await using var pollConfigManager = new PollConfigManager(pollConfig, NullLogger<PollConfigManager>.Instance);
 
         // Act - 无错误时，间隔应为基础值
         var normalInterval = await pollConfigManager.CalculateNextIntervalAsync(hasError: false).ConfigureAwait(true);
@@ -182,7 +182,7 @@ public sealed class BridgeIntegrationTests {
     [Fact]
     public async Task BridgeClient_PollConfigResetToDefault() {
         // Arrange
-        var pollConfigManager = new PollConfigManager(
+        await using var pollConfigManager = new PollConfigManager(
             new PollConfig { IntervalMs = 500, MaxIntervalMs = 10000 },
             NullLogger<PollConfigManager>.Instance);
 

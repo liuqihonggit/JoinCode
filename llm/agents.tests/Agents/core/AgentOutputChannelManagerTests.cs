@@ -1,4 +1,4 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
 /// <summary>
 /// AgentOutputChannelManager 单元测试 — 汇聚 channel + 注册/注销/写入/拉取
@@ -20,7 +20,7 @@ public class AgentOutputChannelManagerTests {
 
     [Fact]
     public async Task Write_Then_ReadAllAsync_ReturnsChunk() {
-        var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
+        await using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
         manager.Register("agent-001", "explorer");
         manager.Write("agent-001", "explorer", "hello", JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
 
@@ -35,7 +35,7 @@ public class AgentOutputChannelManagerTests {
 
     [Fact]
     public async Task Write_MultipleChunks_AllReturned() {
-        var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
+        await using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
         manager.Register("agent-001", "explorer");
         manager.Write("agent-001", "explorer", "hello", JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
         manager.Write("agent-001", "explorer", " world", JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
@@ -50,7 +50,7 @@ public class AgentOutputChannelManagerTests {
 
     [Fact]
     public async Task Write_MultipleAgents_AllReturnedInOrder() {
-        var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
+        await using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
         manager.Register("agent-001", "explorer");
         manager.Register("agent-002", "planner");
         manager.Write("agent-001", "explorer", "exploring", JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
@@ -66,7 +66,7 @@ public class AgentOutputChannelManagerTests {
 
     [Fact]
     public void Write_EmptyContent_Skipped() {
-        var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
+        using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
         manager.Register("agent-001", "explorer");
         manager.Write("agent-001", "explorer", "", JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
 
@@ -76,7 +76,7 @@ public class AgentOutputChannelManagerTests {
 
     [Fact]
     public void GetActiveAgents_AfterRegister_ReturnsAgent() {
-        var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
+        using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
         manager.Register("agent-001", "explorer");
         manager.Register("agent-002", null);
 
@@ -88,7 +88,7 @@ public class AgentOutputChannelManagerTests {
 
     [Fact]
     public void GetActiveAgents_AfterUnregister_Removed() {
-        var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
+        using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
         manager.Register("agent-001", "explorer");
         manager.Register("agent-002", "planner");
 
@@ -101,7 +101,7 @@ public class AgentOutputChannelManagerTests {
 
     [Fact]
     public void GetActiveAgents_Empty_ReturnsEmptyList() {
-        var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
+        using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
         Assert.Empty(manager.GetActiveAgents());
     }
 }

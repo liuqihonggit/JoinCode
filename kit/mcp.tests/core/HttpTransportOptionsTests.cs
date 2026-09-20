@@ -1,4 +1,4 @@
-namespace Mcp.Tests;
+﻿namespace Mcp.Tests;
 
 /// <summary>
 /// HttpTransportOptions 单元测试 — 验证 MCP 2025-11-25 协议版本默认值与 MCP-Protocol-Version 头部配置
@@ -49,16 +49,16 @@ public class HttpTransportOptionsTests {
     }
 
     [Fact]
-    public void HttpTransport_IsStateless_WhenStatelessMode_True() {
+    public async Task HttpTransport_IsStateless_WhenStatelessMode_True() {
         var options = new HttpTransportOptions { Endpoint = "http://localhost:9999", StatelessMode = true };
-        var transport = new HttpTransport(options);
+        await using var transport = new HttpTransport(options);
         transport.IsStateless.Should().BeTrue();
     }
 
     [Fact]
-    public void HttpTransport_IsStateless_WhenNoSession_True() {
+    public async Task HttpTransport_IsStateless_WhenNoSession_True() {
         var options = new HttpTransportOptions { Endpoint = "http://localhost:9999" };
-        var transport = new HttpTransport(options);
+        await using var transport = new HttpTransport(options);
         transport.IsStateless.Should().BeTrue();
     }
 }

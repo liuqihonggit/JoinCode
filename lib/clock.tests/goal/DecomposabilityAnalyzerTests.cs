@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Goal.Tests;
 
 public sealed class DecomposabilityAnalyzerTests {
@@ -118,7 +118,7 @@ public sealed class DecomposabilityAnalyzerTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var analyzer = new DecomposabilityAnalyzer(kernel.Object);
+        await using var analyzer = new DecomposabilityAnalyzer(kernel.Object);
         var result = await analyzer.AnalyzeAsync("实现功能", []).ConfigureAwait(true);
 
         Assert.False(result.IsDecomposable);
@@ -134,7 +134,7 @@ public sealed class DecomposabilityAnalyzerTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var analyzer = new DecomposabilityAnalyzer(kernel.Object);
+        await using var analyzer = new DecomposabilityAnalyzer(kernel.Object);
         var result = await analyzer.AnalyzeAsync("重构多个模块", ["不修改API"]).ConfigureAwait(true);
 
         Assert.True(result.IsDecomposable);
@@ -150,7 +150,7 @@ public sealed class DecomposabilityAnalyzerTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var analyzer = new DecomposabilityAnalyzer(kernel.Object);
+        await using var analyzer = new DecomposabilityAnalyzer(kernel.Object);
         var result = await analyzer.AnalyzeAsync("实现功能", []).ConfigureAwait(true);
 
         Assert.False(result.IsDecomposable);
@@ -169,7 +169,7 @@ public sealed class DecomposabilityAnalyzerTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var analyzer = new DecomposabilityAnalyzer(kernel.Object);
+        await using var analyzer = new DecomposabilityAnalyzer(kernel.Object);
         await analyzer.AnalyzeAsync("实现功能", ["不修改公共API"]).ConfigureAwait(true);
 
         Assert.NotNull(capturedHistory);
@@ -292,7 +292,7 @@ public sealed class DecomposabilityAnalyzerTests {
 
         kernel.Setup(x => x.GetChatCompletionService()).Returns(chatService.Object);
 
-        var analyzer = new DecomposabilityAnalyzer(kernel.Object);
+        await using var analyzer = new DecomposabilityAnalyzer(kernel.Object);
         await analyzer.AnalyzeAsync("实现功能", []).ConfigureAwait(true);
 
         Assert.NotNull(capturedHistory);

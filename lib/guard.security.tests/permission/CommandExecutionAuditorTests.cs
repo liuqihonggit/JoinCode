@@ -1,4 +1,4 @@
-namespace Guard.Security.Tests;
+﻿namespace Guard.Security.Tests;
 
 /// <summary>
 /// CommandExecutionAuditor 审计日志测试 — 验证 JSONL 写入和结构化记录
@@ -8,8 +8,8 @@ public class CommandExecutionAuditorTests {
         => new(fs, dir, NullLogger<CommandExecutionAuditor>.Instance);
 
     [Fact]
-    public void Record_Creates_Audit_Directory_And_File() {
-        var fs = new InMemoryFileSystem();
+    public async Task Record_Creates_Audit_Directory_And_File() {
+        await using var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
 
         auditor.Record(new CommandExecutionAuditEntry(
@@ -24,8 +24,8 @@ public class CommandExecutionAuditorTests {
     }
 
     [Fact]
-    public void Record_Writes_Valid_JSONL() {
-        var fs = new InMemoryFileSystem();
+    public async Task Record_Writes_Valid_JSONL() {
+        await using var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
 
         auditor.Record(new CommandExecutionAuditEntry(
@@ -45,8 +45,8 @@ public class CommandExecutionAuditorTests {
     }
 
     [Fact]
-    public void Record_Appends_Multiple_Entries_To_Same_File() {
-        var fs = new InMemoryFileSystem();
+    public async Task Record_Appends_Multiple_Entries_To_Same_File() {
+        await using var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
         var timestamp = DateTimeOffset.Parse("2026-09-13T12:00:00Z");
 
@@ -59,8 +59,8 @@ public class CommandExecutionAuditorTests {
     }
 
     [Fact]
-    public void Record_With_FilesChanged_Serializes_Changes() {
-        var fs = new InMemoryFileSystem();
+    public async Task Record_With_FilesChanged_Serializes_Changes() {
+        await using var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
 
         var changes = new List<FileChangeRecord>
@@ -89,8 +89,8 @@ public class CommandExecutionAuditorTests {
     }
 
     [Fact]
-    public void Record_Does_Not_Throw_On_FileSystem_Error() {
-        var fs = new InMemoryFileSystem();
+    public async Task Record_Does_Not_Throw_On_FileSystem_Error() {
+        await using var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs, "/nonexistent/path/that/should/not/exist");
 
         var act = () => auditor.Record(new CommandExecutionAuditEntry(

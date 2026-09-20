@@ -1,4 +1,4 @@
-namespace Core.Tests.Plugins;
+﻿namespace Core.Tests.Plugins;
 
 public sealed class PluginManagerDiagnosticTests {
     [Fact]
@@ -27,8 +27,8 @@ public sealed class PluginManagerDiagnosticTests {
     }
 
     [Fact]
-    public void PluginManager_GetDiagnostics_EmptyInitially() {
-        var pm = new PluginManager(
+    public async Task PluginManager_GetDiagnostics_EmptyInitially() {
+        await using var pm = new PluginManager(
             fs: new PhysicalFileSystem());
         Assert.Empty(pm.GetDiagnostics());
     }

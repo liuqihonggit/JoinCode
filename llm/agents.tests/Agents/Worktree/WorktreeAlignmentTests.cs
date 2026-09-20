@@ -1,4 +1,4 @@
-namespace JoinCode.Agents.Tests.Worktree;
+﻿namespace JoinCode.Agents.Tests.Worktree;
 
 public class WorktreeAlignmentTests {
     [Fact]
@@ -93,7 +93,7 @@ public class WorktreeAlignmentTests {
     public async Task KeepWorktreeAsync_ShouldRemoveSessionButKeepDirectory() {
         var fs = new InMemoryFileOperationService();
         var gitRunner = new Mock<IGitCommandRunner>();
-        var service = new AgentWorktreeService(fs, gitRunner.Object, fs.FileSystem);
+        await using var service = new AgentWorktreeService(fs, gitRunner.Object, fs.FileSystem);
 
         var session = new AgentWorktreeSession {
             AgentId = "test-agent",

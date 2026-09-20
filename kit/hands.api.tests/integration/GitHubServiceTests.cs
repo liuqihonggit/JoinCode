@@ -1,4 +1,4 @@
-namespace Hands.Tests.Integration;
+﻿namespace Hands.Tests.Integration;
 
 public sealed class GitHubServiceTests {
     private readonly FakeHttpMessageHandler _handler;
@@ -77,7 +77,7 @@ public sealed class GitHubServiceTests {
 
     [Fact]
     public async Task ListSubscriptionsAsync_NoConfig_ReturnsEmpty() {
-        var service = new GitHubService(_httpClient);
+        await using var service = new GitHubService(_httpClient);
 
         var subs = await service.ListSubscriptionsAsync().ConfigureAwait(true);
 

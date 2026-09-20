@@ -1,4 +1,4 @@
-namespace JoinCode.CodeIndex.Tests;
+﻿namespace JoinCode.CodeIndex.Tests;
 
 public sealed class GraphPersistenceTests : IDisposable {
     private readonly InMemoryIndexStore _store;
@@ -72,7 +72,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
         using var loadStore = new InMemoryIndexStore();
-        var loadPersistence = new GraphPersistence(loadStore, _fs);
+        await using var loadPersistence = new GraphPersistence(loadStore, _fs);
         var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
         Assert.True(loaded, "LoadAsync 应返回 true 表示成功加载");
 

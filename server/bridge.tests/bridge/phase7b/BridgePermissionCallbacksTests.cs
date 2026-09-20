@@ -1,4 +1,4 @@
-
+﻿
 namespace Bridge.Tests.Phase7B;
 
 public sealed class BridgePermissionCallbacksTests {
@@ -36,7 +36,7 @@ public sealed class BridgePermissionCallbacksTests {
 
     [Fact]
     public async Task OnResponse_RegistersAndFiresHandler() {
-        var transport = new MockTransport();
+        await using var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 
         var fired = false;
@@ -58,7 +58,7 @@ public sealed class BridgePermissionCallbacksTests {
 
     [Fact]
     public async Task HandleResponse_UnknownRequestId_DoesNotThrow() {
-        var transport = new MockTransport();
+        await using var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 
         var response = new PermissionCallbackResponse {
@@ -70,8 +70,8 @@ public sealed class BridgePermissionCallbacksTests {
     }
 
     [Fact]
-    public void SendRequest_WritesToTransport() {
-        var transport = new MockTransport();
+    public async Task SendRequest_WritesToTransport() {
+        await using var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 
         service.SendRequest("req1", "ReadFile", new Dictionary<string, JsonElement>(),
@@ -82,8 +82,8 @@ public sealed class BridgePermissionCallbacksTests {
     }
 
     [Fact]
-    public void CancelRequest_WritesToTransport() {
-        var transport = new MockTransport();
+    public async Task CancelRequest_WritesToTransport() {
+        await using var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 
         service.CancelRequest("req1");

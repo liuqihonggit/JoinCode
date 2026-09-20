@@ -1,4 +1,4 @@
-namespace JoinCode.Gui.Tests.Hosting;
+﻿namespace JoinCode.Gui.Tests.Hosting;
 
 /// <summary>
 /// 引擎会话权限确认闭环测试 — 验证网关在引擎抛出
@@ -10,12 +10,12 @@ public class JccChatSessionPermissionTests {
 
     [Fact]
     public async Task Stream_WhenPermissionPendingAndAllowed_RetriesAndSucceeds() {
-        var fakeChat = new FakeChatService(throwOnFirstStream: true);
+        await using var fakeChat = new FakeChatService(throwOnFirstStream: true);
         var fakePermission = new FakePermissionManager();
         var services = new ServiceCollection();
         services.AddSingleton<IToolPermissionManager>(fakePermission);
         var sp = services.BuildServiceProvider();
-        var session = new JccChatSession(sp, fakeChat, CreateConfig());
+        await using var session = new JccChatSession(sp, fakeChat, CreateConfig());
         var handlerCalls = 0;
 
         session.PermissionConfirmationHandler = request => {
@@ -40,12 +40,12 @@ public class JccChatSessionPermissionTests {
 
     [Fact]
     public async Task Stream_WhenPermissionDenied_EmitsToolErrorAndStops() {
-        var fakeChat = new FakeChatService(throwOnFirstStream: true);
+        await using var fakeChat = new FakeChatService(throwOnFirstStream: true);
         var fakePermission = new FakePermissionManager();
         var services = new ServiceCollection();
         services.AddSingleton<IToolPermissionManager>(fakePermission);
         var sp = services.BuildServiceProvider();
-        var session = new JccChatSession(sp, fakeChat, CreateConfig());
+        await using var session = new JccChatSession(sp, fakeChat, CreateConfig());
         var handlerCalls = 0;
 
         session.PermissionConfirmationHandler = request => {
@@ -67,11 +67,11 @@ public class JccChatSessionPermissionTests {
 
     [Fact]
     public async Task Stream_WhenNoHandler_DefaultsToDeny() {
-        var fakeChat = new FakeChatService(throwOnFirstStream: true);
+        await using var fakeChat = new FakeChatService(throwOnFirstStream: true);
         var services = new ServiceCollection();
         services.AddSingleton<IToolPermissionManager>(new FakePermissionManager());
         var sp = services.BuildServiceProvider();
-        var session = new JccChatSession(sp, fakeChat, CreateConfig());
+        await using var session = new JccChatSession(sp, fakeChat, CreateConfig());
 
         var events = new List<ChatStreamEvent>();
         await foreach (var evt in session.StreamAsync("请执行命令").WithCancellation(new CancellationTokenSource(Timeout).Token)) {

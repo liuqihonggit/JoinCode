@@ -1,4 +1,4 @@
-namespace Core.Configuration.Tests;
+﻿namespace Core.Configuration.Tests;
 
 public sealed class SimpleModeServiceTests {
     private readonly SimpleModeService _service;
@@ -145,8 +145,8 @@ public sealed class SimpleModeServiceTests {
 
     [Fact]
     public void Enable_Should_Also_Enable_BriefMode() {
-        var briefModeService = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
-        var service = new SimpleModeService(briefModeService: briefModeService);
+        using var briefModeService = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new SimpleModeService(briefModeService: briefModeService);
 
         service.Enable();
 
@@ -155,8 +155,8 @@ public sealed class SimpleModeServiceTests {
 
     [Fact]
     public void Disable_Should_Also_Disable_BriefMode() {
-        var briefModeService = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
-        var service = new SimpleModeService(briefModeService: briefModeService);
+        using var briefModeService = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        using var service = new SimpleModeService(briefModeService: briefModeService);
 
         service.Enable();
         service.Disable();

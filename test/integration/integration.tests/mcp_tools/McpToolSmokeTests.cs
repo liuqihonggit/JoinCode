@@ -1,4 +1,4 @@
-namespace Integration.Tests.McpTools;
+﻿namespace Integration.Tests.McpTools;
 
 /// <summary>
 /// MCP 工具冒烟测试 — 验证每个已注册工具能被调用且返回有效 ToolResult
@@ -9,7 +9,7 @@ namespace Integration.Tests.McpTools;
 public sealed class McpToolSmokeTests {
     private static async Task<(Tools.LocalToolRegistry Registry, IReadOnlyList<ToolInfo> Tools)> BuildAndRegisterAllToolsAsync() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-        var fileSystem = new IO.FileSystem.InMemoryFileSystem();
+        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
 

@@ -1,4 +1,4 @@
-
+﻿
 namespace Dream.Tests;
 
 /// <summary>
@@ -24,7 +24,7 @@ public sealed class DreamIntegrationTests {
         sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { "session1", "session2", "session3" });
 
-        var taskRegistry = new InMemoryDreamTaskRegistry();
+        await using var taskRegistry = new InMemoryDreamTaskRegistry();
 
         var config = new AutoDreamConfig {
             Enabled = true,
@@ -32,7 +32,7 @@ public sealed class DreamIntegrationTests {
             MinSessions = 1
         };
 
-        var feature = new DreamFeature(
+        await using var feature = new DreamFeature(
             chatCompletionClientMock.Object,
             sessionScannerMock.Object,
             taskRegistry,
@@ -74,9 +74,9 @@ public sealed class DreamIntegrationTests {
         sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { "session1" });
 
-        var taskRegistry = new InMemoryDreamTaskRegistry();
+        await using var taskRegistry = new InMemoryDreamTaskRegistry();
 
-        var feature = new DreamFeature(
+        await using var feature = new DreamFeature(
             chatCompletionClientMock.Object,
             sessionScannerMock.Object,
             taskRegistry,
@@ -114,9 +114,9 @@ public sealed class DreamIntegrationTests {
         sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { "session1" });
 
-        var taskRegistry = new InMemoryDreamTaskRegistry();
+        await using var taskRegistry = new InMemoryDreamTaskRegistry();
 
-        var feature = new DreamFeature(
+        await using var feature = new DreamFeature(
             chatCompletionClientMock.Object,
             sessionScannerMock.Object,
             taskRegistry,
@@ -151,14 +151,14 @@ public sealed class DreamIntegrationTests {
         sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<string>());
 
-        var taskRegistry = new InMemoryDreamTaskRegistry();
+        await using var taskRegistry = new InMemoryDreamTaskRegistry();
 
         var config = new AutoDreamConfig {
             Enabled = false,
             MinSessions = 100
         };
 
-        var feature = new DreamFeature(
+        await using var feature = new DreamFeature(
             chatCompletionClientMock.Object,
             sessionScannerMock.Object,
             taskRegistry,
@@ -188,10 +188,10 @@ public sealed class DreamIntegrationTests {
             .Callback<long, CancellationToken>((time, _) => capturedTime = time)
             .ReturnsAsync(new[] { "session1" });
 
-        var taskRegistry = new InMemoryDreamTaskRegistry();
+        await using var taskRegistry = new InMemoryDreamTaskRegistry();
         var config = new AutoDreamConfig { Enabled = true, MinHours = 24, MinSessions = 1 };
 
-        var feature = new DreamFeature(
+        await using var feature = new DreamFeature(
             chatCompletionClientMock.Object,
             sessionScannerMock.Object,
             taskRegistry,
@@ -224,9 +224,9 @@ public sealed class DreamIntegrationTests {
         sessionScannerMock.Setup(s => s.ListSessionsTouchedSinceAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { "session1" });
 
-        var taskRegistry = new InMemoryDreamTaskRegistry();
+        await using var taskRegistry = new InMemoryDreamTaskRegistry();
 
-        var feature = new DreamFeature(
+        await using var feature = new DreamFeature(
             chatCompletionClientMock.Object,
             sessionScannerMock.Object,
             taskRegistry,

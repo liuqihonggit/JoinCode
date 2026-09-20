@@ -1,4 +1,4 @@
-namespace Hands.Tests.Network;
+﻿namespace Hands.Tests.Network;
 
 public sealed class RemoteTriggerServiceTests {
     private readonly FakeHttpMessageHandler _handler;
@@ -76,7 +76,7 @@ public sealed class RemoteTriggerServiceTests {
         var configMock = new Mock<IConfigurationService>();
         configMock.Setup(c => c.GetAsync("api.key", It.IsAny<CancellationToken>()))
             .ReturnsAsync("sk-test");
-        var service = new RemoteTriggerService(_httpClient, configMock.Object);
+        await using var service = new RemoteTriggerService(_httpClient, configMock.Object);
         try {
             await service.ExecuteAsync(TriggerAction.List).ConfigureAwait(true);
 

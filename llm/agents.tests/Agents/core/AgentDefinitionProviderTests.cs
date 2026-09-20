@@ -1,4 +1,4 @@
-namespace Sync.Tests.Agents;
+﻿namespace Sync.Tests.Agents;
 
 public sealed class AgentDefinitionProviderTests {
     [Fact]
@@ -194,7 +194,7 @@ public sealed class AgentDefinitionProviderTests {
 
     [Fact]
     public async Task GetAgentDefinitionsAsync_ReturnsBuiltInDefinitions() {
-        var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());
+        await using var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());
 
         var definitions = await provider.GetAgentDefinitionsAsync().ConfigureAwait(true);
 
@@ -204,7 +204,7 @@ public sealed class AgentDefinitionProviderTests {
 
     [Fact]
     public async Task GetAgentDefinitionAsync_ReturnsCorrectAgentByType() {
-        var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());
+        await using var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());
 
         var codeAgent = await provider.GetAgentDefinitionAsync(AgentRole.Executor, ExecutorVariant.Code).ConfigureAwait(true);
 
@@ -215,7 +215,7 @@ public sealed class AgentDefinitionProviderTests {
 
     [Fact]
     public async Task GetAgentDefinitionAsync_UnknownType_ReturnsNull() {
-        var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());
+        await using var provider = new AgentDefinitionProvider(new IO.FileSystem.PhysicalFileSystem());
 
         var result = await provider.GetAgentDefinitionAsync(AgentRole.Executor, (ExecutorVariant)999).ConfigureAwait(true);
 

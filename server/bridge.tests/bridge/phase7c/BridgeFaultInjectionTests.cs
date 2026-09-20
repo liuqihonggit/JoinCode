@@ -1,4 +1,4 @@
-
+﻿
 namespace Bridge.Tests.Phase7C;
 
 public sealed class BridgeFaultInjectionTests {
@@ -53,7 +53,7 @@ public sealed class BridgeFaultInjectionTests {
     [Fact]
     public void FaultInjectionBridgeApiClient_ConstructsSuccessfully() {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-        var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
+        using var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
         var inner = new BridgeApiClient(http, options);
         using var client = new FaultInjectionBridgeApiClient(inner);
 
@@ -63,7 +63,7 @@ public sealed class BridgeFaultInjectionTests {
     [Fact]
     public async Task FaultInjectionBridgeApiClient_WithFatalFault_ThrowsFatalError() {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-        var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
+        await using var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
         var inner = new BridgeApiClient(http, options);
         using var client = new FaultInjectionBridgeApiClient(inner);
 
@@ -84,7 +84,7 @@ public sealed class BridgeFaultInjectionTests {
     [Fact]
     public async Task FaultInjectionBridgeApiClient_WithTransientFault_ThrowsHttpRequestException() {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-        var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
+        await using var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
         var inner = new BridgeApiClient(http, options);
         using var client = new FaultInjectionBridgeApiClient(inner);
 

@@ -40,7 +40,7 @@ public sealed class PromptTriggerTester {
         var scenarioContext = new PromptTestContext(scenario.Config);
 
         // 创建Provider实例
-        var provider = CreateProvider(scenario.Config);
+        using var provider = CreateProvider(scenario.Config);
 
         // 获取所有Section
         var sections = provider.GetSections().ToList();

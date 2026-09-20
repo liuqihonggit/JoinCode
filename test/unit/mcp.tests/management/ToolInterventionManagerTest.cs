@@ -1,4 +1,4 @@
-namespace Mcp.Tests.Management;
+﻿namespace Mcp.Tests.Management;
 
 /// <summary>
 /// ToolInterventionManager 单元测试 — 验证规则增删、黑名单、降权、过期、重定向
@@ -215,7 +215,7 @@ public sealed class ToolInterventionManagerTest : IAsyncLifetime {
     public async Task AddRuleAsync_PersistsToDisk() {
         await _manager.AddRuleAsync("persist_tool", InterventionType.Blacklist, "持久化测试");
 
-        var manager2 = new ToolInterventionManager(_fs);
+        await using var manager2 = new ToolInterventionManager(_fs);
         var rule = await manager2.GetRuleAsync("persist_tool");
         rule.Should().NotBeNull();
         rule!.Type.Should().Be(InterventionType.Blacklist);

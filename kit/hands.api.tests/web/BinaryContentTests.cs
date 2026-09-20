@@ -1,4 +1,4 @@
-namespace Hands.Tests.Web;
+﻿namespace Hands.Tests.Web;
 
 /// <summary>
 /// BinaryContentTypeDetector 单元测试 — 对齐TS版 mcpOutputStorage.ts isBinaryContentType
@@ -120,7 +120,7 @@ public class BinaryContentStorageTests {
 
     [Fact]
     public async Task PersistAsync_PdfContent_SavesToCorrectPath() {
-        var storage = new BinaryContentStorage(_fs);
+        await using var storage = new BinaryContentStorage(_fs);
         var bytes = new byte[] { 0x25, 0x50, 0x44, 0x46 }; // %PDF header
         var persistId = "webfetch-1234567890-abc123";
 
@@ -138,7 +138,7 @@ public class BinaryContentStorageTests {
 
     [Fact]
     public async Task PersistAsync_ImageContent_SavesWithCorrectExtension() {
-        var storage = new BinaryContentStorage(_fs);
+        await using var storage = new BinaryContentStorage(_fs);
         var bytes = new byte[] { 0x89, 0x50, 0x4E, 0x47 }; // PNG header
         var persistId = "webfetch-test-png";
 
@@ -151,7 +151,7 @@ public class BinaryContentStorageTests {
 
     [Fact]
     public async Task PersistAsync_UnknownMimeType_SavesAsBin() {
-        var storage = new BinaryContentStorage(_fs);
+        await using var storage = new BinaryContentStorage(_fs);
         var bytes = new byte[] { 0x00, 0x01, 0x02 };
         var persistId = "webfetch-unknown";
 
@@ -164,7 +164,7 @@ public class BinaryContentStorageTests {
 
     [Fact]
     public async Task PersistAsync_NullMimeType_SavesAsBin() {
-        var storage = new BinaryContentStorage(_fs);
+        await using var storage = new BinaryContentStorage(_fs);
         var bytes = new byte[] { 0x00 };
         var persistId = "webfetch-null";
 
@@ -176,7 +176,7 @@ public class BinaryContentStorageTests {
 
     [Fact]
     public void GeneratePersistId_StartsWithWebfetch() {
-        var storage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem(), null);
+        using var storage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem(), null);
         var id = storage.GeneratePersistId();
         id.Should().StartWith("webfetch-");
         id.Length.Should().BeGreaterThan("webfetch-".Length);
@@ -184,7 +184,7 @@ public class BinaryContentStorageTests {
 
     [Fact]
     public void GeneratePersistId_UniqueIds() {
-        var storage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem(), null);
+        using var storage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem(), null);
         var id1 = storage.GeneratePersistId();
         var id2 = storage.GeneratePersistId();
         id1.Should().NotBe(id2);

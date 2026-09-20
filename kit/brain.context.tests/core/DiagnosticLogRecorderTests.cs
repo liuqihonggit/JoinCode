@@ -1,10 +1,10 @@
-namespace Core.Tests.Context;
+﻿namespace Core.Tests.Context;
 
 
 public class DiagnosticLogRecorderTests {
     [Fact]
     public async Task InvokeAsync_RecordsTurnStartAndEnd() {
-        var fs = new IOFileSystem();
+        await using var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
         var events = new List<ChatStreamEvent>
@@ -21,7 +21,7 @@ public class DiagnosticLogRecorderTests {
 
     [Fact]
     public async Task InvokeAsync_RecordsToolStartAndEnd() {
-        var fs = new IOFileSystem();
+        await using var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
         var events = new List<ChatStreamEvent>
@@ -41,7 +41,7 @@ public class DiagnosticLogRecorderTests {
 
     [Fact]
     public async Task InvokeAsync_RecordsToolErrorAsAnomaly() {
-        var fs = new IOFileSystem();
+        await using var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
         var events = new List<ChatStreamEvent>
@@ -60,7 +60,7 @@ public class DiagnosticLogRecorderTests {
 
     [Fact]
     public async Task InvokeAsync_RecordsLoopDetectedAsAnomaly() {
-        var fs = new IOFileSystem();
+        await using var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
         var events = new List<ChatStreamEvent>
@@ -78,7 +78,7 @@ public class DiagnosticLogRecorderTests {
 
     [Fact]
     public async Task InvokeAsync_LoopDetected_ContainsRepeatedPattern() {
-        var fs = new IOFileSystem();
+        await using var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
         var events = new List<ChatStreamEvent>
@@ -95,7 +95,7 @@ public class DiagnosticLogRecorderTests {
 
     [Fact]
     public async Task InvokeAsync_EveryEntry_ContainsTraceField() {
-        var fs = new IOFileSystem();
+        await using var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
         var events = new List<ChatStreamEvent>
@@ -114,7 +114,7 @@ public class DiagnosticLogRecorderTests {
 
     [Fact]
     public async Task InvokeAsync_LoopDetected_ContainsTriggerCountAndStartIndex() {
-        var fs = new IOFileSystem();
+        await using var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
         var events = new List<ChatStreamEvent>
@@ -132,7 +132,7 @@ public class DiagnosticLogRecorderTests {
 
     [Fact]
     public async Task InvokeAsync_RecordsApiCompleteWithUsage() {
-        var fs = new IOFileSystem();
+        await using var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
         var usage = new TokenUsage(100, 50) { CacheCreationInputTokens = 10, CacheReadInputTokens = 20 };
@@ -150,7 +150,7 @@ public class DiagnosticLogRecorderTests {
 
     [Fact]
     public async Task InvokeAsync_PassesThroughAllEvents() {
-        var fs = new IOFileSystem();
+        await using var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
         var events = new List<ChatStreamEvent>
@@ -177,7 +177,7 @@ public class DiagnosticLogRecorderTests {
 
     [Fact]
     public async Task InvokeAsync_CreatesDiagDirectory() {
-        var fs = new IOFileSystem();
+        await using var fs = new IOFileSystem();
         var recorder = CreateRecorder(fs);
         var context = CreateContext();
         var events = new List<ChatStreamEvent> { ChatStreamEvent.Done() };

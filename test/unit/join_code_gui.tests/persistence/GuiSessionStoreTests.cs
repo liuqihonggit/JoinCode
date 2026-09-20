@@ -1,4 +1,4 @@
-namespace JoinCode.Gui.Tests.Persistence;
+﻿namespace JoinCode.Gui.Tests.Persistence;
 
 /// <summary>
 /// GuiSessionStore 持久化测试 — 验证会话写入/读取/列表/删除，
@@ -9,7 +9,7 @@ public class GuiSessionStoreTests {
 
     [Fact]
     public async Task SaveThenLoad_RoundTripsMessages() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
         var saved = new GuiSessionData {
@@ -36,7 +36,7 @@ public class GuiSessionStoreTests {
 
     [Fact]
     public async Task ListSessions_ReturnsSummariesSortedByLastModified() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
         store.Save(new GuiSessionData { Id = "a", CustomTitle = "A 会话", Messages = [new GuiSessionMessage { Role = "user", Content = "1" }] });
@@ -51,8 +51,8 @@ public class GuiSessionStoreTests {
     }
 
     [Fact]
-    public void Delete_RemovesSessionFile() {
-        var fs = new InMemoryFileSystem();
+    public async Task Delete_RemovesSessionFile() {
+        await using var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
         store.Save(new GuiSessionData { Id = "to-delete", Messages = [new GuiSessionMessage { Role = "user", Content = "x" }] });
@@ -63,8 +63,8 @@ public class GuiSessionStoreTests {
     }
 
     [Fact]
-    public void Save_WithoutId_Throws() {
-        var fs = new InMemoryFileSystem();
+    public async Task Save_WithoutId_Throws() {
+        await using var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
         var act = () => store.Save(new GuiSessionData { Messages = [] });

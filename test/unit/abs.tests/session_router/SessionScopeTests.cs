@@ -1,4 +1,4 @@
-namespace Abs.Tests.SessionRouterTests;
+﻿namespace Abs.Tests.SessionRouterTests;
 
 [Collection(nameof(SessionRouterCollection))]
 public sealed class SessionScopeTests {
@@ -99,8 +99,8 @@ public sealed class SessionScopeTests {
     public void Dispose_清理所有Entity() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        var goal1 = new Goal("目标1");
-        var goal2 = new Goal("目标2");
+        using var goal1 = new Goal("目标1");
+        using var goal2 = new Goal("目标2");
 
         scope.Register(goal1);
         scope.Register(goal2);

@@ -1,4 +1,4 @@
-
+﻿
 namespace Sync.Tests.Scheduling.Tasks;
 
 public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
@@ -76,7 +76,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
     [Fact]
     public async Task ExecuteDagAsync_WithoutStateStore_ShouldNotThrow() {
         SetupToolSuccess();
-        var executor = new WorkflowTaskExecutor(
+        await using var executor = new WorkflowTaskExecutor(
             _toolGatewayMock.Object,
             _lifecycleManagerMock.Object,
             NullLogger<WorkflowTaskExecutor>.Instance);
@@ -274,7 +274,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
     public async Task ExecuteDagAsync_WithProgressSink_ShouldPushStartedAndCompleted() {
         SetupToolSuccess();
         var sink = new RecordingWorkflowProgressSink();
-        var executor = new WorkflowTaskExecutor(
+        await using var executor = new WorkflowTaskExecutor(
             _toolGatewayMock.Object,
             _lifecycleManagerMock.Object,
             NullLogger<WorkflowTaskExecutor>.Instance,
@@ -297,7 +297,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
             .ThrowsAsync(new JoinCode.Abstractions.Exceptions.WorkflowException("failed", "ERR"));
 
         var sink = new RecordingWorkflowProgressSink();
-        var executor = new WorkflowTaskExecutor(
+        await using var executor = new WorkflowTaskExecutor(
             _toolGatewayMock.Object,
             _lifecycleManagerMock.Object,
             NullLogger<WorkflowTaskExecutor>.Instance,

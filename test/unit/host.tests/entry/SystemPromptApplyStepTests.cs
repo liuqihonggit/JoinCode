@@ -1,4 +1,4 @@
-namespace JoinCode.Entry.Tests;
+﻿namespace JoinCode.Entry.Tests;
 
 
 /// <summary>
@@ -36,7 +36,7 @@ public class SystemPromptApplyStepTests {
     [Fact]
     public async Task NoSystemPromptAndNoAppend_ShouldCallNextWithoutApplying() {
         // Arrange — 默认 CommandLineOptions 无 --system-prompt 也无 --append-system-prompt
-        var step = new SystemPromptApplyStep();
+        await using var step = new SystemPromptApplyStep();
         var chatMock = new Mock<IChatService>();
         var contextMgrMock = new Mock<IChatContextManager>();
         var context = CreateContext(new CommandLineOptions(), chatMock.Object, contextMgrMock.Object);
@@ -59,7 +59,7 @@ public class SystemPromptApplyStepTests {
     [Fact]
     public async Task SystemPrompt_ShouldCallSetSystemPromptAsyncAndContinue() {
         // Arrange — 指定 --system-prompt
-        var step = new SystemPromptApplyStep();
+        await using var step = new SystemPromptApplyStep();
         var chatMock = new Mock<IChatService>();
         chatMock.Setup(s => s.SetSystemPromptAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -85,7 +85,7 @@ public class SystemPromptApplyStepTests {
     [Fact]
     public async Task AppendSystemPrompt_ShouldCallAddDynamicSystemMessageAsyncAndContinue() {
         // Arrange — 指定 --append-system-prompt
-        var step = new SystemPromptApplyStep();
+        await using var step = new SystemPromptApplyStep();
         var chatMock = new Mock<IChatService>();
         var contextMgrMock = new Mock<IChatContextManager>();
         contextMgrMock.Setup(m => m.AddDynamicSystemMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -112,7 +112,7 @@ public class SystemPromptApplyStepTests {
     public async Task BothSystemPromptAndAppend_ShouldApplyBothInOrder() {
         // Arrange — 同时指定 --system-prompt 和 --append-system-prompt
         // 语义: 先覆盖静态，再追加动态 — 最终前缀 = newStatic + dynamicAppend
-        var step = new SystemPromptApplyStep();
+        await using var step = new SystemPromptApplyStep();
         var chatMock = new Mock<IChatService>();
         chatMock.Setup(s => s.SetSystemPromptAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -143,7 +143,7 @@ public class SystemPromptApplyStepTests {
     [Fact]
     public async Task EmptySystemPrompt_ShouldBeSkipped() {
         // Arrange — 空字符串 SystemPrompt 应视为未设置（不应用）
-        var step = new SystemPromptApplyStep();
+        await using var step = new SystemPromptApplyStep();
         var chatMock = new Mock<IChatService>();
         var contextMgrMock = new Mock<IChatContextManager>();
 

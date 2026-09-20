@@ -1,4 +1,4 @@
-namespace Guard.Security.Tests;
+﻿namespace Guard.Security.Tests;
 
 /// <summary>
 /// FileSystemSnapshotService 文件系统快照对比测试
@@ -17,7 +17,7 @@ public class FileSystemSnapshotServiceTests {
 
     [Fact]
     public async Task CaptureAsync_Existing_Directory_Captures_Files() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
         fs.WriteAllText("/test/dir/file1.txt", "content1");
         fs.WriteAllText("/test/dir/file2.txt", "content2");
@@ -32,7 +32,7 @@ public class FileSystemSnapshotServiceTests {
 
     [Fact]
     public async Task Compare_Detects_Created_Files() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
         fs.WriteAllText("/test/dir/existing.txt", "old");
 
@@ -49,7 +49,7 @@ public class FileSystemSnapshotServiceTests {
 
     [Fact]
     public async Task Compare_Detects_Modified_Files() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
         fs.WriteAllText("/test/dir/file.txt", "original content");
 
@@ -66,7 +66,7 @@ public class FileSystemSnapshotServiceTests {
 
     [Fact]
     public async Task Compare_Detects_Deleted_Files() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
         fs.WriteAllText("/test/dir/keep.txt", "keep");
         fs.WriteAllText("/test/dir/delete.txt", "delete me");
@@ -84,7 +84,7 @@ public class FileSystemSnapshotServiceTests {
 
     [Fact]
     public async Task Compare_No_Changes_Returns_Empty() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
         fs.WriteAllText("/test/dir/file.txt", "unchanged");
 
@@ -97,7 +97,7 @@ public class FileSystemSnapshotServiceTests {
 
     [Fact]
     public async Task Compare_Multiple_Changes_Detected() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
         fs.WriteAllText("/test/dir/keep.txt", "keep");
         fs.WriteAllText("/test/dir/modify.txt", "original");

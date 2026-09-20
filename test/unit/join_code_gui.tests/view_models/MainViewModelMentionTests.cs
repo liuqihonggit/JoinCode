@@ -1,4 +1,4 @@
-namespace JoinCode.Gui.Tests.ViewModels;
+﻿namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// F4 与子代理对话（@提及）GUI 路由测试 —
@@ -81,7 +81,7 @@ public class MainViewModelMentionTests {
 
     [Fact]
     public async Task Mention_WhenAgentFound_ShouldForwardWithoutNewTurn() {
-        var session = new MentionSession {
+        await using var session = new MentionSession {
             Finder = name => name == "explore" ? "agent-1" : null,
             Running = [new("agent-1", "explore", "调研", "running", DateTime.Now, 0, 0)]
         };
@@ -100,7 +100,7 @@ public class MainViewModelMentionTests {
 
     [Fact]
     public async Task Mention_WhenNotFound_ShouldEchoRunningList() {
-        var session = new MentionSession {
+        await using var session = new MentionSession {
             Finder = _ => null,
             Running = [new("a9", "planner", "规划", "running", DateTime.Now, 0, 0)]
         };
@@ -115,7 +115,7 @@ public class MainViewModelMentionTests {
 
     [Fact]
     public async Task BusySend_WithSingleRunningAgent_ShouldAutoForward() {
-        var session = new MentionSession {
+        await using var session = new MentionSession {
             Running = [new("solo", "worker", "干活", "running", DateTime.Now, 0, 0)]
         };
         var vm = CreateVm(session);

@@ -1,4 +1,4 @@
-namespace Hands.Tests.Shell;
+﻿namespace Hands.Tests.Shell;
 
 /// <summary>
 /// ShellTimeoutKeywordMiddleware 单元测试 — 验证脚本内等待关键字的超时自动调整与冲突报错
@@ -8,7 +8,7 @@ public class ShellTimeoutKeywordMiddlewareTests {
 
     [Fact]
     public async Task NoKeyword_PassesThroughWithoutModification() {
-        var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
+        await using var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("echo hello");
 
         var nextCalled = false;
@@ -21,7 +21,7 @@ public class ShellTimeoutKeywordMiddlewareTests {
 
     [Fact]
     public async Task Keyword_NoUserTimeout_AutoExtendsOverrideTimeout() {
-        var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
+        await using var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 100", timeout: null);
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -32,7 +32,7 @@ public class ShellTimeoutKeywordMiddlewareTests {
 
     [Fact]
     public async Task Keyword_UserTimeoutSufficient_PassesThrough() {
-        var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
+        await using var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: 120_000);
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -43,7 +43,7 @@ public class ShellTimeoutKeywordMiddlewareTests {
 
     [Fact]
     public async Task Keyword_UserTimeoutInsufficient_ReturnsErrorToAi() {
-        var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
+        await using var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: 30_000);
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -55,7 +55,7 @@ public class ShellTimeoutKeywordMiddlewareTests {
 
     [Fact]
     public async Task Keyword_UserTimeoutInsufficient_ErrorContainsWaitAndUserSeconds() {
-        var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
+        await using var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: 30_000);
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -68,7 +68,7 @@ public class ShellTimeoutKeywordMiddlewareTests {
 
     [Fact]
     public async Task Keyword_OverrideTimeoutAlreadySet_ExtendsIfInsufficient() {
-        var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
+        await using var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: null);
         context.OverrideTimeout = 30_000;
 
@@ -80,7 +80,7 @@ public class ShellTimeoutKeywordMiddlewareTests {
 
     [Fact]
     public async Task Keyword_OverrideTimeoutAlreadySet_PassesIfSufficient() {
-        var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
+        await using var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: null);
         context.OverrideTimeout = 120_000;
 
@@ -92,7 +92,7 @@ public class ShellTimeoutKeywordMiddlewareTests {
 
     [Fact]
     public async Task Keyword_UserTimeoutInsufficient_DoesNotCallNext() {
-        var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
+        await using var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("sleep 60", timeout: 30_000);
 
         var nextCalled = false;
@@ -103,7 +103,7 @@ public class ShellTimeoutKeywordMiddlewareTests {
 
     [Fact]
     public async Task PowerShellStartSleep_NoUserTimeout_AutoExtends() {
-        var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
+        await using var sut = new ShellTimeoutKeywordMiddleware(DefaultConfig);
         var context = CreateContext("Start-Sleep -Seconds 200", timeout: null);
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -114,7 +114,7 @@ public class ShellTimeoutKeywordMiddlewareTests {
     [Fact]
     public async Task CustomBuffer_AppliedToRequiredTimeout() {
         var config = new ShellExecutionConfig { TimeoutKeywordBufferSeconds = 10, DefaultTimeoutSeconds = 120 };
-        var sut = new ShellTimeoutKeywordMiddleware(config);
+        await using var sut = new ShellTimeoutKeywordMiddleware(config);
         var context = CreateContext("sleep 200", timeout: null);
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);

@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests.Network.Downloader;
+﻿namespace Infra.Services.Tests.Network.Downloader;
 
 /// <summary>
 /// RangeDownloader + DownloadSession 集成单元测试 — 验证完整下载/多线程/Cancel/WaitForCompletion/状态流转
@@ -57,8 +57,8 @@ public sealed class RangeDownloaderTests {
                 Content = new ByteArrayContent(data)
             };
         });
-        var fs = new InMemoryFileSystem();
-        var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
+        await using var fs = new InMemoryFileSystem();
+        await using var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
         var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         await Task.Delay(50);

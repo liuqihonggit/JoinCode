@@ -1,10 +1,10 @@
-namespace Core.Context;
+﻿namespace Core.Context;
 
 public sealed class GuardianJournalIntegrationTests {
     [Fact]
     public async Task Detect_OutputLoopTriggered_JournalReceivesAnomalyCommand() {
         await using var journal = new LoopDiagnosticJournal(logger: null);
-        var guardian = new InformationEntropyGuardian(
+        await using var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 5, checkInterval: 1, requiredRepeats: 3, cooldownChars: 0),
             journal: journal);
@@ -26,7 +26,7 @@ public sealed class GuardianJournalIntegrationTests {
     [Fact]
     public async Task CheckTextLoop_ShannonEntropyTriggered_JournalReceivesAnomalyCommand() {
         await using var journal = new LoopDiagnosticJournal(logger: null);
-        var guardian = new InformationEntropyGuardian(
+        await using var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 100, checkInterval: 100, requiredRepeats: 100, cooldownChars: 0),
             shannonEntropyDetector: new ShannonEntropyDetector(
@@ -59,7 +59,7 @@ public sealed class GuardianJournalIntegrationTests {
     [Fact]
     public async Task CheckToolCallLoop_Triggered_JournalReceivesAnomalyCommand() {
         await using var journal = new LoopDiagnosticJournal(logger: null);
-        var guardian = new InformationEntropyGuardian(
+        await using var guardian = new InformationEntropyGuardian(
             toolCallSequenceDetector: new ToolCallSequenceDetector(
                 windowSize: 6, minPatternLength: 2, requiredRepeats: 3),
             journal: journal);
@@ -91,7 +91,7 @@ public sealed class GuardianJournalIntegrationTests {
     [Fact]
     public async Task Reset_ClearsGuardianAndJournalState() {
         await using var journal = new LoopDiagnosticJournal(logger: null);
-        var guardian = new InformationEntropyGuardian(
+        await using var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 5, checkInterval: 1, requiredRepeats: 3, cooldownChars: 0),
             journal: journal);
@@ -118,7 +118,7 @@ public sealed class GuardianJournalIntegrationTests {
     [Fact]
     public async Task SetContext_UpdatesSessionAndTurnInfo() {
         await using var journal = new LoopDiagnosticJournal(logger: null);
-        var guardian = new InformationEntropyGuardian(
+        await using var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 5, checkInterval: 1, requiredRepeats: 3, cooldownChars: 0),
             journal: journal);
@@ -137,7 +137,7 @@ public sealed class GuardianJournalIntegrationTests {
     [Fact]
     public async Task MultipleTriggers_EachRecordedToJournal() {
         await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 50, logger: null);
-        var guardian = new InformationEntropyGuardian(
+        await using var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 5, checkInterval: 1, requiredRepeats: 3, cooldownChars: 0),
             journal: journal);

@@ -1,4 +1,4 @@
-
+﻿
 namespace Bridge.Tests.Phase7D;
 
 public sealed partial class BridgeMainTests {
@@ -126,7 +126,7 @@ public sealed partial class BridgeMainTests {
 
     [Fact]
     public async Task RunAsync_FallsBackToInjectedScheduler_WhenNoGetAccessToken() {
-        var injectedScheduler = new BridgeTokenRefreshScheduler(
+        await using var injectedScheduler = new BridgeTokenRefreshScheduler(
             new TokenRefreshOptions {
                 GetAccessToken = () => "injected-token",
                 OnRefresh = (_, _) => { },

@@ -2,6 +2,8 @@ namespace AotSafety.Generator;
 
 /// <summary>
 /// Disposable 一致性检测分析器主入口 — 从 RuleRegistry 获取 AnalyzerId="DisposableConsistency" 的规则。
+/// 每个规则是独立类/文件,通过 [AnalyzerRule(AnalyzerId="DisposableConsistency")] 特性自动发现。
+/// 覆盖: JCC9102-JCC9108, JCC9200-JCC9202。
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class DisposableConsistencyRules : DiagnosticAnalyzer {

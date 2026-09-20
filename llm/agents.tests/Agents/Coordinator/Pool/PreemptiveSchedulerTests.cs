@@ -1,4 +1,4 @@
-namespace Sync.Tests.Agents.Coordinator.Pool;
+﻿namespace Sync.Tests.Agents.Coordinator.Pool;
 
 /// <summary>
 /// PreemptiveScheduler 单元测试 — 验证抢塞新任务的窗口检查+压缩逻辑（ADR 0106 L3）
@@ -19,7 +19,7 @@ public sealed class PreemptiveSchedulerTests {
 
     [Fact]
     public async Task TryPreemptAsync_NoAvailableAgent_ReturnsNoAvailableAgent() {
-        var pool = new SubAgentPool(DefaultOptions());
+        await using var pool = new SubAgentPool(DefaultOptions());
         var ctxMock = new Mock<IChatContextManager>();
         var scheduler = new PreemptiveScheduler(pool, ctxMock.Object, DefaultOptions());
 
@@ -32,7 +32,7 @@ public sealed class PreemptiveSchedulerTests {
 
     [Fact]
     public async Task TryPreemptAsync_WindowSufficient_SucceedsWithoutCompression() {
-        var pool = new SubAgentPool(DefaultOptions());
+        await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser", tokenBudget: 128000, tokensUsed: 1000);
         pool.Return(agent);
         var ctxMock = new Mock<IChatContextManager>();
@@ -48,7 +48,7 @@ public sealed class PreemptiveSchedulerTests {
 
     [Fact]
     public async Task TryPreemptAsync_WindowInsufficient_CompressesThenSucceeds() {
-        var pool = new SubAgentPool(DefaultOptions());
+        await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser", tokenBudget: 1000, tokensUsed: 900);
         pool.Return(agent);
         var ctxMock = new Mock<IChatContextManager>();
@@ -66,7 +66,7 @@ public sealed class PreemptiveSchedulerTests {
 
     [Fact]
     public async Task TryPreemptAsync_WindowInsufficient_FoldNotExecuted_StillSucceeds() {
-        var pool = new SubAgentPool(DefaultOptions());
+        await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser", tokenBudget: 1000, tokensUsed: 900);
         pool.Return(agent);
         var ctxMock = new Mock<IChatContextManager>();
@@ -83,7 +83,7 @@ public sealed class PreemptiveSchedulerTests {
 
     [Fact]
     public async Task TryPreemptAsync_InjectsNewTaskPrompt() {
-        var pool = new SubAgentPool(DefaultOptions());
+        await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser");
         pool.Return(agent);
         var ctxMock = new Mock<IChatContextManager>();

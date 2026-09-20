@@ -1,11 +1,11 @@
-
+﻿
 namespace Core.Tests.Query;
 
 public class QueryEngineEnhancedTests {
     [Fact]
-    public void QueryEngine_Create_WithTokenBudgetManager_ShouldNotThrow() {
+    public async Task QueryEngine_Create_WithTokenBudgetManager_ShouldNotThrow() {
         // Arrange
-        var tokenBudgetManager = new TokenBudgetManager();
+        await using var tokenBudgetManager = new TokenBudgetManager();
 
         // Act & Assert - 由于创建 QueryEngine 需要 Kernel，我们只能测试配置
         tokenBudgetManager.Should().NotBeNull();

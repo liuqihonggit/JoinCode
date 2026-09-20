@@ -1,9 +1,9 @@
-namespace JoinCode.Reasoning.Tests.Agents;
+﻿namespace JoinCode.Reasoning.Tests.Agents;
 
 public sealed class DefenderAgentTests {
     [Fact]
     public async Task ReasonAsync_WithNoTargets_ReturnsEmptyAction() {
-        var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
+        await using var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
         var context = CreateContext([], []);
 
         var action = await agent.ReasonAsync(context, CancellationToken.None);
@@ -16,7 +16,7 @@ public sealed class DefenderAgentTests {
 
     [Fact]
     public async Task ReasonAsync_WithVerifiedItemAndInsufficientEvidence_AddsDoubt() {
-        var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
+        await using var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Verified };
         var context = CreateContext([item], []);
 
@@ -30,7 +30,7 @@ public sealed class DefenderAgentTests {
 
     [Fact]
     public async Task ReasonAsync_WithSufficientEvidence_DoesNotAddDoubt() {
-        var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
+        await using var agent = new DefenderAgent(new FakeQueryEngine(), NullLogger<DefenderAgent>.Instance);
         var item = new DataItem { Id = "claim1", Content = "假定1", State = DataState.Verified };
         var evidence = new EvidenceRecord[]
         {
@@ -61,7 +61,7 @@ public sealed class DefenderAgentTests {
     [Fact]
     public async Task ReasonAsync_WithValidLlmResponse_ParsesCounterEvidenceAndDoubts() {
         var json = "{\"counterEvidence\":[{\"content\":\"不在场证明\",\"source\":\"证人\",\"trustLevel\":\"StrongCorroboration\",\"weight\":2.5}],\"doubts\":[\"证据来源可疑\"]}";
-        var agent = new DefenderAgent(
+        await using var agent = new DefenderAgent(
             new FakeQueryEngine(),
             NullLogger<DefenderAgent>.Instance,
             new FakeChatClient(json));
@@ -99,7 +99,7 @@ public sealed class DefenderAgentTests {
 
     [Fact]
     public async Task ReasonAsync_WithMalformedJson_ReturnsEmptyParsedResults() {
-        var agent = new DefenderAgent(
+        await using var agent = new DefenderAgent(
             new FakeQueryEngine(),
             NullLogger<DefenderAgent>.Instance,
             new FakeChatClient("invalid"));
@@ -114,7 +114,7 @@ public sealed class DefenderAgentTests {
     [Fact]
     public async Task ReasonAsync_WithBroker_SendsCounterEvidenceSubmittedMessage() {
         var broker = new FakeMessageBroker();
-        var agent = new DefenderAgent(
+        await using var agent = new DefenderAgent(
             new FakeQueryEngine(),
             NullLogger<DefenderAgent>.Instance,
             new FakeChatClient("{\"counterEvidence\":[],\"doubts\":[]}"),
@@ -132,7 +132,7 @@ public sealed class DefenderAgentTests {
     [Fact]
     public async Task ReasonAsync_CounterEvidenceDefaults_WhenOptionalFieldsMissing() {
         var json = "{\"counterEvidence\":[{\"content\":\"仅内容\"}]}";
-        var agent = new DefenderAgent(
+        await using var agent = new DefenderAgent(
             new FakeQueryEngine(),
             NullLogger<DefenderAgent>.Instance,
             new FakeChatClient(json));

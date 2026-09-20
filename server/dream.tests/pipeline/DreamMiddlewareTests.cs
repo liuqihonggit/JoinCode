@@ -1,4 +1,4 @@
-namespace Dream.Tests.Pipeline;
+﻿namespace Dream.Tests.Pipeline;
 
 
 public sealed class DreamMiddlewareTests {
@@ -19,7 +19,7 @@ public sealed class DreamMiddlewareTests {
     [Fact]
     public async Task Gate_Disabled_SetsSkippedResult() {
         var config = new AutoDreamConfig { Enabled = false, MinHours = 1, MinSessions = 1 };
-        var mw = new DreamGateCheckMiddleware(_sessionScanner.Object, config, NullLogger<DreamGateCheckMiddleware>.Instance);
+        await using var mw = new DreamGateCheckMiddleware(_sessionScanner.Object, config, NullLogger<DreamGateCheckMiddleware>.Instance);
         var ctx = new DreamContext { Request = new DreamRequest() };
 
         await mw.InvokeAsync(ctx, (c, ct) => Task.CompletedTask, CancellationToken.None).ConfigureAwait(true);
@@ -31,7 +31,7 @@ public sealed class DreamMiddlewareTests {
     [Fact]
     public async Task Gate_Force_SkipsCheck() {
         var config = new AutoDreamConfig { Enabled = false, MinHours = 1, MinSessions = 1 };
-        var mw = new DreamGateCheckMiddleware(_sessionScanner.Object, config, NullLogger<DreamGateCheckMiddleware>.Instance);
+        await using var mw = new DreamGateCheckMiddleware(_sessionScanner.Object, config, NullLogger<DreamGateCheckMiddleware>.Instance);
         var ctx = new DreamContext { Request = new DreamRequest(Force: true) };
 
         await mw.InvokeAsync(ctx, (c, ct) => Task.CompletedTask, CancellationToken.None).ConfigureAwait(true);
@@ -45,7 +45,7 @@ public sealed class DreamMiddlewareTests {
         _sessionScanner.Setup(x => x.ListSessionsTouchedSinceAsync(It.IsAny<long>(), default))
             .ReturnsAsync([]);
 
-        var mw = new DreamGateCheckMiddleware(_sessionScanner.Object, _config, NullLogger<DreamGateCheckMiddleware>.Instance);
+        await using var mw = new DreamGateCheckMiddleware(_sessionScanner.Object, _config, NullLogger<DreamGateCheckMiddleware>.Instance);
         var ctx = new DreamContext { Request = new DreamRequest() };
 
         await mw.InvokeAsync(ctx, (c, ct) => Task.CompletedTask, CancellationToken.None).ConfigureAwait(true);
@@ -58,7 +58,7 @@ public sealed class DreamMiddlewareTests {
 
     [Fact]
     public async Task Scan_UserProvidedSessions_UsesThem() {
-        var mw = new DreamSessionScanMiddleware(_sessionScanner.Object, _config, NullLogger<DreamSessionScanMiddleware>.Instance);
+        await using var mw = new DreamSessionScanMiddleware(_sessionScanner.Object, _config, NullLogger<DreamSessionScanMiddleware>.Instance);
         var ctx = new DreamContext { Request = new DreamRequest(SessionIds: ["s1", "s2"]) };
 
         await mw.InvokeAsync(ctx, (c, ct) => Task.CompletedTask, CancellationToken.None).ConfigureAwait(true);
@@ -72,7 +72,7 @@ public sealed class DreamMiddlewareTests {
         _sessionScanner.Setup(x => x.ListSessionsTouchedSinceAsync(It.IsAny<long>(), default))
             .ReturnsAsync([]);
 
-        var mw = new DreamSessionScanMiddleware(_sessionScanner.Object, _config, NullLogger<DreamSessionScanMiddleware>.Instance);
+        await using var mw = new DreamSessionScanMiddleware(_sessionScanner.Object, _config, NullLogger<DreamSessionScanMiddleware>.Instance);
         var ctx = new DreamContext { Request = new DreamRequest() };
 
         await mw.InvokeAsync(ctx, (c, ct) => Task.CompletedTask, CancellationToken.None).ConfigureAwait(true);
@@ -86,7 +86,7 @@ public sealed class DreamMiddlewareTests {
         _sessionScanner.Setup(x => x.ListSessionsTouchedSinceAsync(It.IsAny<long>(), default))
             .ReturnsAsync(["s1", "s2", "s3"]);
 
-        var mw = new DreamSessionScanMiddleware(_sessionScanner.Object, _config, NullLogger<DreamSessionScanMiddleware>.Instance);
+        await using var mw = new DreamSessionScanMiddleware(_sessionScanner.Object, _config, NullLogger<DreamSessionScanMiddleware>.Instance);
         var ctx = new DreamContext { Request = new DreamRequest() };
 
         await mw.InvokeAsync(ctx, (c, ct) => Task.CompletedTask, CancellationToken.None).ConfigureAwait(true);
@@ -99,7 +99,7 @@ public sealed class DreamMiddlewareTests {
 
     [Fact]
     public async Task Register_RegistersTask_SetsTaskId() {
-        var mw = new DreamTaskRegisterMiddleware(_taskRegistry, _config);
+        await using var mw = new DreamTaskRegisterMiddleware(_taskRegistry, _config);
         var ctx = new DreamContext { Request = new DreamRequest(), SessionIds = ["s1"] };
 
         await mw.InvokeAsync(ctx, (c, ct) => Task.CompletedTask, CancellationToken.None).ConfigureAwait(true);
@@ -112,7 +112,7 @@ public sealed class DreamMiddlewareTests {
 
     [Fact]
     public async Task PromptBuild_SetsPrompts() {
-        var mw = new DreamPromptBuildMiddleware();
+        await using var mw = new DreamPromptBuildMiddleware();
         var ctx = new DreamContext { Request = new DreamRequest(), SessionIds = ["s1"] };
 
         await mw.InvokeAsync(ctx, (c, ct) => Task.CompletedTask, CancellationToken.None).ConfigureAwait(true);
@@ -129,7 +129,7 @@ public sealed class DreamMiddlewareTests {
         _chatClient.Setup(x => x.GetCompletionAsync(It.IsAny<MessageList>(), default))
             .ReturnsAsync("consolidated memory");
 
-        var mw = new DreamLlmConsolidateMiddleware(_chatClient.Object);
+        await using var mw = new DreamLlmConsolidateMiddleware(_chatClient.Object);
         var ctx = new DreamContext {
             Request = new DreamRequest(),
             SystemPrompt = "system",
@@ -146,7 +146,7 @@ public sealed class DreamMiddlewareTests {
 
     [Fact]
     public async Task RecordTurn_RecordsAndCompletes() {
-        var mw = new DreamRecordTurnMiddleware(_taskRegistry);
+        await using var mw = new DreamRecordTurnMiddleware(_taskRegistry);
         var ctx = new DreamContext {
             Request = new DreamRequest(),
             TaskId = "test-task",

@@ -1,4 +1,4 @@
-namespace JoinCode.Agents.Tests.Worktree;
+﻿namespace JoinCode.Agents.Tests.Worktree;
 
 /// <summary>
 /// WorktreeLifecycleGuard 单元测试 — 验证路径锁定、标准 Dispose 模式、终结器兜底。
@@ -31,8 +31,8 @@ public class WorktreeLifecycleGuardTest {
     /// 路径不同时构造成功，WorktreePath 返回锁定的路径。
     /// </summary>
     [Fact]
-    public void Ctor_WhenDifferent_LocksPath() {
-        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs());
+    public async Task Ctor_WhenDifferent_LocksPath() {
+        await using var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs());
 
         guard.WorktreePath.Should().Be(WorktreePath);
         guard.MainPath.Should().Be(MainPath);
@@ -89,7 +89,7 @@ public class WorktreeLifecycleGuardTest {
     /// </summary>
     [Fact]
     public async Task ReleaseAsync_WhenGitRunnerNull_ReturnsFail() {
-        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: true));
+        await using var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: true));
 
         var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
 
@@ -104,7 +104,7 @@ public class WorktreeLifecycleGuardTest {
     [Fact]
     public async Task ReleaseAsync_WhenPathNotExists_ReturnsFail() {
         var gitRunner = new Mock<IGitCommandRunner>();
-        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: false), gitRunner.Object);
+        await using var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: false), gitRunner.Object);
 
         var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
 
@@ -124,7 +124,7 @@ public class WorktreeLifecycleGuardTest {
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GitCommandResult { Success = true, ExitCode = 0 });
 
-        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object, branchName: "worktree-agent-abc");
+        await using var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object, branchName: "worktree-agent-abc");
 
         var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
 
@@ -215,7 +215,7 @@ public class WorktreeLifecycleGuardTest {
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GitCommandResult { Success = false, ExitCode = 1, Error = "fatal: unable to remove: being used by another process" });
 
-        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object);
+        await using var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object);
 
         var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
 
@@ -234,7 +234,7 @@ public class WorktreeLifecycleGuardTest {
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GitCommandResult { Success = false, ExitCode = 1, Error = "fatal: Permission denied" });
 
-        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object);
+        await using var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object);
 
         var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
 
@@ -253,7 +253,7 @@ public class WorktreeLifecycleGuardTest {
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GitCommandResult { Success = false, ExitCode = 1, Error = "fatal: not a working tree" });
 
-        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object);
+        await using var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object);
 
         var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
 

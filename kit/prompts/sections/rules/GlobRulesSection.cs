@@ -10,7 +10,8 @@ public static class GlobRulesSection {
     /// </summary>
     public static string? GetContent() {
         var externalRules = PromptConfigSnapshot.Current.ExternalRules;
-        var fileContext = PromptConfigSnapshot.Current.FileContext ?? new FileContextTracker();
+        var fileContext = PromptConfigSnapshot.Current.FileContext;
+        if (fileContext is null) return null;
 
         if (externalRules is null || externalRules.Count == 0) return null;
 

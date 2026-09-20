@@ -18,7 +18,7 @@ public sealed partial class SettingsLoadMiddleware : ServiceEntity, IConfigLoadM
         var projectDir = context.ProjectDirectory ?? _fs.GetCurrentDirectory();
 
         var settingsTask = SettingsLoader.LoadAllSourcesAsync(_fs, projectDir: projectDir, cancellationToken: ct);
-        var rulesLoader = new ProjectRulesLoader(_fs);
+        await using var rulesLoader = new ProjectRulesLoader(_fs);
         var projectRulesTask = rulesLoader.LoadRulesAsync(projectDir, ct);
         var externalRulesLoader = new ExternalRulesLoader(_fs);
         var externalRulesTask = externalRulesLoader.LoadProjectRulesAsync(projectDir, ct);

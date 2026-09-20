@@ -1,4 +1,4 @@
-
+﻿
 namespace Dream.Tests;
 
 /// <summary>
@@ -36,7 +36,7 @@ public sealed class DreamFeatureTests {
     public async Task ExecuteAsync_WhenDisabledAndNotForce_ReturnsSkippedResult() {
         // Arrange
         var config = new AutoDreamConfig { Enabled = false };
-        var feature = new DreamFeature(
+        await using var feature = new DreamFeature(
             _chatCompletionClientMock.Object,
             _sessionScannerMock.Object,
             _taskRegistry,
@@ -60,7 +60,7 @@ public sealed class DreamFeatureTests {
         SetupChatCompletionResponse("整合结果");
 
         var config = new AutoDreamConfig { Enabled = false }; // 即使禁用
-        var feature = new DreamFeature(
+        await using var feature = new DreamFeature(
             _chatCompletionClientMock.Object,
             _sessionScannerMock.Object,
             _taskRegistry,
@@ -93,7 +93,7 @@ public sealed class DreamFeatureTests {
     public async Task ExecuteAsync_WithInsufficientSessions_ReturnsSkippedResult() {
         // Arrange
         var config = new AutoDreamConfig { Enabled = true, MinSessions = 5 };
-        var feature = new DreamFeature(
+        await using var feature = new DreamFeature(
             _chatCompletionClientMock.Object,
             _sessionScannerMock.Object,
             _taskRegistry,

@@ -1,4 +1,4 @@
-namespace JoinCode.CodeIndex.Tests;
+﻿namespace JoinCode.CodeIndex.Tests;
 
 public sealed class ContentHashTests {
     [Fact]
@@ -39,7 +39,7 @@ public sealed class ContentHashTests {
 
     [Fact]
     public async Task ReadFileAndComputeHashAsync_ExistingFile_ReturnsContentAndHash() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         fs.WriteAllText("/tmp/sample.cs", "public class Foo { }");
 
         var (content, hash) = await HashUtility.ReadFileAndComputeHashAsync("/tmp/sample.cs", fs, CancellationToken.None).ConfigureAwait(true);

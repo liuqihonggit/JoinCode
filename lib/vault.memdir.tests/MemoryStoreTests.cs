@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.Memdir;
 
 public class MemoryStoreTests : IDisposable {
@@ -393,7 +393,7 @@ public class MemoryStoreTests : IDisposable {
         var newPath = "/test/new_memories.json";
 
         // Act
-        var store = new MemoryStore(Options.Create(new MemdirOptions { StoragePath = newPath }), _fileOperationServiceMock.Object, NullLogger<MemoryStore>.Instance);
+        using var store = new MemoryStore(Options.Create(new MemdirOptions { StoragePath = newPath }), _fileOperationServiceMock.Object, NullLogger<MemoryStore>.Instance);
 
         // Assert
         store.Search("anything").Should().BeEmpty();

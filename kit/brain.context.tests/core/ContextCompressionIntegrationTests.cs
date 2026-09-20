@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.Context;
 
 public partial class ContextCompressionIntegrationTests {
@@ -13,8 +13,8 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task CompressAsync_WithCodeContent_ShouldReduceTokenCount() {
         // Arrange
-        var factory = new CompressionStrategyFactory();
-        var compressor = new ContextCompressor(factory);
+        await using var factory = new CompressionStrategyFactory();
+        await using var compressor = new ContextCompressor(factory);
         var codeContent = GenerateLargeCodeContent(100);
         var originalLength = codeContent.Length;
 
@@ -43,8 +43,8 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task CompressAsync_WithDialogueContent_ShouldPreserveKeyDecisions() {
         // Arrange
-        var factory = new CompressionStrategyFactory();
-        var compressor = new ContextCompressor(factory);
+        await using var factory = new CompressionStrategyFactory();
+        await using var compressor = new ContextCompressor(factory);
         var dialogue = GenerateDialogueContent(50);
         var originalLength = dialogue.Length;
 
@@ -70,8 +70,8 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task CompressBatchAsync_MultipleContents_ShouldCompressAll() {
         // Arrange
-        var factory = new CompressionStrategyFactory();
-        var compressor = new ContextCompressor(factory);
+        await using var factory = new CompressionStrategyFactory();
+        await using var compressor = new ContextCompressor(factory);
         var contents = new List<ContentItem>
         {
             new() { Id = "1", Type = ContentType.Code, Content = GenerateLargeCodeContent(50) },
@@ -95,8 +95,8 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public void CanCompress_WithValidContent_ShouldReturnTrue() {
         // Arrange
-        var factory = new CompressionStrategyFactory();
-        var compressor = new ContextCompressor(factory);
+        using var factory = new CompressionStrategyFactory();
+        using var compressor = new ContextCompressor(factory);
         var longContent = new string('x', 1000);
 
         // Act & Assert
@@ -109,8 +109,8 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public void CanCompress_WithShortContent_ShouldReturnFalse() {
         // Arrange
-        var factory = new CompressionStrategyFactory();
-        var compressor = new ContextCompressor(factory);
+        using var factory = new CompressionStrategyFactory();
+        using var compressor = new ContextCompressor(factory);
         var shortContent = "短内容";
 
         // Act & Assert
@@ -120,8 +120,8 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public void GetCompressionRatio_ShouldReturnEstimatedRatio() {
         // Arrange
-        var factory = new CompressionStrategyFactory();
-        var compressor = new ContextCompressor(factory);
+        using var factory = new CompressionStrategyFactory();
+        using var compressor = new ContextCompressor(factory);
         var codeContent = GenerateLargeCodeContent(50);
 
         // Act
@@ -263,8 +263,8 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task FullCompressionWorkflow_WithContextHierarchy_ShouldReduceTokens() {
         // Arrange
-        var factory = new CompressionStrategyFactory();
-        var compressor = new ContextCompressor(factory);
+        await using var factory = new CompressionStrategyFactory();
+        await using var compressor = new ContextCompressor(factory);
         var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions {
                 TokenThreshold = 2000,
@@ -308,8 +308,8 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public async Task Performance_LargeContextCompression_ShouldCompleteInReasonableTime() {
         // Arrange
-        var factory = new CompressionStrategyFactory();
-        var compressor = new ContextCompressor(factory);
+        await using var factory = new CompressionStrategyFactory();
+        await using var compressor = new ContextCompressor(factory);
         var largeContent = GenerateLargeCodeContent(1000); // 大量代码
 
         _output.WriteLine($"测试内容大小: {largeContent.Length} 字符");
@@ -334,7 +334,7 @@ public partial class ContextCompressionIntegrationTests {
     [Fact]
     public void CompressionStrategyFactory_RegisterAndRetrieve_ShouldWork() {
         // Arrange
-        var factory = new CompressionStrategyFactory();
+        using var factory = new CompressionStrategyFactory();
 
         // Act & Assert - 验证默认策略已注册
         factory.HasStrategyFor(ContentType.Code).Should().BeTrue();

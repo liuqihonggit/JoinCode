@@ -1,4 +1,4 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
 
 /// <summary>
@@ -20,7 +20,7 @@ public sealed class ContextSetupMiddlewareSkillPreloadTests {
             .ReturnsAsync(skill);
 
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
-        var mw = new ContextSetupMiddleware(contextAccessor.Object, null, skillServiceMock.Object);
+        await using var mw = new ContextSetupMiddleware(contextAccessor.Object, null, skillServiceMock.Object);
 
         var ctx = new UnifiedSpawnContext {
             Task = "test task",
@@ -50,7 +50,7 @@ public sealed class ContextSetupMiddlewareSkillPreloadTests {
     [Fact]
     public async Task InvokeAsync_NoSkillService_InitialMessageListIsNull() {
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
-        var mw = new ContextSetupMiddleware(contextAccessor.Object);
+        await using var mw = new ContextSetupMiddleware(contextAccessor.Object);
 
         var ctx = new UnifiedSpawnContext {
             Task = "test task",
@@ -82,7 +82,7 @@ public sealed class ContextSetupMiddlewareSkillPreloadTests {
             .ReturnsAsync((SkillDefinition?)null);
 
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
-        var mw = new ContextSetupMiddleware(contextAccessor.Object, null, skillServiceMock.Object);
+        await using var mw = new ContextSetupMiddleware(contextAccessor.Object, null, skillServiceMock.Object);
 
         var ctx = new UnifiedSpawnContext {
             Task = "test task",

@@ -1,9 +1,9 @@
-namespace Core.Tests.Voice;
+﻿namespace Core.Tests.Voice;
 
 public sealed class VoiceOptionsTests {
     [Fact]
     public void DefaultValues_ShouldMatchExpected() {
-        var options = new VoiceOptions();
+        using var options = new VoiceOptions();
 
         options.Backend.Should().Be(SttBackend.WhisperApi);
         options.WhisperApiEndpoint.Should().Be("https://api.openai.com/v1/audio/transcriptions");

@@ -1,4 +1,4 @@
-
+﻿
 namespace Clock.Tests.Unit.Hosting;
 
 public sealed class ServiceHostTests {
@@ -39,8 +39,8 @@ public sealed class ServiceHostTests {
     }
 
     [Fact]
-    public void RegisterService_AddsToStatuses() {
-        var host = new ServiceHost();
+    public async Task RegisterService_AddsToStatuses() {
+        await using var host = new ServiceHost();
         var service = CreateService("svc");
 
         host.RegisterService(service);
@@ -89,7 +89,7 @@ public sealed class ServiceHostTests {
 
     [Fact]
     public async Task StopAsync_StopsAllServices() {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
         var service = CreateService("svc");
         host.RegisterService(service);
 
@@ -102,7 +102,7 @@ public sealed class ServiceHostTests {
 
     [Fact]
     public async Task StopAsync_WhenNotRunning_Returns() {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
 
         await host.StopAsync().ConfigureAwait(true);
 
@@ -111,7 +111,7 @@ public sealed class ServiceHostTests {
 
     [Fact]
     public async Task StopAsync_WhenServiceThrows_LogsAndContinues() {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
         var service = CreateService("svc", throwOnStop: true);
         host.RegisterService(service);
 
@@ -135,7 +135,7 @@ public sealed class ServiceHostTests {
 
     [Fact]
     public async Task StartServiceAsync_ByName_NotFound_ReturnsFalse() {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
 
         var result = await host.StartServiceAsync("missing").ConfigureAwait(true);
 
@@ -157,7 +157,7 @@ public sealed class ServiceHostTests {
 
     [Fact]
     public async Task StopServiceAsync_ByName_NotFound_ReturnsFalse() {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
 
         var result = await host.StopServiceAsync("missing").ConfigureAwait(true);
 
@@ -165,15 +165,15 @@ public sealed class ServiceHostTests {
     }
 
     [Fact]
-    public void GetServiceStatus_Unknown_ReturnsNull() {
-        var host = new ServiceHost();
+    public async Task GetServiceStatus_Unknown_ReturnsNull() {
+        await using var host = new ServiceHost();
 
         Assert.Null(host.GetServiceStatus("missing"));
     }
 
     [Fact]
-    public void GetAllServiceStatuses_ReturnsAll() {
-        var host = new ServiceHost();
+    public async Task GetAllServiceStatuses_ReturnsAll() {
+        await using var host = new ServiceHost();
         host.RegisterService(CreateService("svc1"));
         host.RegisterService(CreateService("svc2"));
 

@@ -73,8 +73,8 @@ public class ServiceRegistrationIntegrationTests {
     /// 仅在 AddAiWorkflowServices 完整路径下可用，AddWorkflowServices 不含 AI 服务。
     /// </summary>
     [Fact]
-    public void AddAiWorkflowServices_ShouldRegisterIChatService() {
-        var services = BuildAiServiceCollection();
+    public async Task AddAiWorkflowServices_ShouldRegisterIChatService() {
+        var services = await BuildAiServiceCollection();
         var sp = services.BuildServiceProvider();
 
         var chatService = sp.GetService<IChatService>();
@@ -99,7 +99,7 @@ public class ServiceRegistrationIntegrationTests {
         return services;
     }
 
-    private static ServiceCollection BuildAiServiceCollection() {
+    private static async Task<ServiceCollection> BuildAiServiceCollection() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
         await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);

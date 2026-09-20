@@ -137,26 +137,32 @@ public class ErrorRecoveryToolHandlers {
         var dir = Path.GetDirectoryName(filePath);
         var fileName = Path.GetFileName(filePath);
 
-        if (!_fs.FileExists(filePath) && !_fs.DirectoryExists(filePath)) {
+        var fileNotFound = !_fs.FileExists(filePath) && !_fs.DirectoryExists(filePath);
+        var dirValid = !string.IsNullOrEmpty(dir);
+
+        if (fileNotFound) {
             sb.AppendLine("### 文件不存在");
-            if (!string.IsNullOrEmpty(dir) && _fs.DirectoryExists(dir)) {
-                sb.AppendLine($"目录 `{dir}` 存在，但文件 `{fileName}` 不存在");
-                try {
-                    var similar = _fs.GetFiles(dir, "*", SearchOption.TopDirectoryOnly)
-                        .Where(f => Path.GetFileName(f).Contains(Path.GetFileNameWithoutExtension(fileName), StringComparison.OrdinalIgnoreCase))
-                        .Take(5).ToArray();
-                    if (similar.Length > 0) {
-                        sb.AppendLine("可能的目标文件:");
-                        foreach (var f in similar)
-                            sb.AppendLine($"- {f}");
-                    }
-                } catch (Exception) {
-                    _logger?.LogDebug("无法列出目录 {Dir} 中的相似文件", dir);
+        }
+
+        if (fileNotFound && dir is not null && _fs.DirectoryExists(dir)) {
+            sb.AppendLine($"目录 `{dir}` 存在，但文件 `{fileName}` 不存在");
+            try {
+                var similar = _fs.GetFiles(dir, "*", SearchOption.TopDirectoryOnly)
+                    .Where(f => Path.GetFileName(f).Contains(Path.GetFileNameWithoutExtension(fileName), StringComparison.OrdinalIgnoreCase))
+                    .Take(5).ToArray();
+                if (similar.Length > 0) {
+                    sb.AppendLine("可能的目标文件:");
+                    foreach (var f in similar)
+                        sb.AppendLine($"- {f}");
                 }
-            } else if (!string.IsNullOrEmpty(dir)) {
-                sb.AppendLine($"目录 `{dir}` 也不存在，可能路径有误");
+            } catch (Exception) {
+                _logger?.LogDebug("无法列出目录 {Dir} 中的相似文件", dir);
             }
-        } else {
+        } else if (fileNotFound && dirValid) {
+            sb.AppendLine($"目录 `{dir}` 也不存在，可能路径有误");
+        }
+
+        if (!fileNotFound) {
             sb.AppendLine("### 文件存在但操作失败");
             sb.AppendLine("- 可能是权限问题或文件被占用");
             sb.AppendLine("- 建议检查文件是否被其他进程锁定");
@@ -217,19 +223,17 @@ public class ErrorRecoveryToolHandlers {
             var sourceBranchResult = await _gitRunner.ExecuteAsync("branch --show-current", source_worktree_path, ct).ConfigureAwait(false);
             var targetBranchResult = await _gitRunner.ExecuteAsync("branch --show-current", target_worktree_path, ct).ConfigureAwait(false);
 
-            if (sourceBranchResult.Success && targetBranchResult.Success) {
-                var sourceBranch = sourceBranchResult.Output.Trim();
-                var targetBranch = targetBranchResult.Output.Trim();
+            var sourceBranch = sourceBranchResult.Success ? sourceBranchResult.Output.Trim() : "";
+            var targetBranch = targetBranchResult.Success ? targetBranchResult.Output.Trim() : "";
 
-                if (!string.IsNullOrEmpty(sourceBranch) && !string.IsNullOrEmpty(targetBranch)) {
-                    var conflictCheck = await _gitRunner.DetectMergeConflictAsync(targetBranch, sourceBranch, target_worktree_path, ct).ConfigureAwait(false);
-                    if (conflictCheck.HasConflict) {
-                        hasBranchConflict = true;
-                        sb.AppendLine($"- ⚠️ **分支合并冲突**: {targetBranch} ← {sourceBranch}");
-                        sb.AppendLine($"  冲突文件: {string.Join(", ", conflictCheck.ConflictFiles)}");
-                    } else {
-                        sb.AppendLine($"- ✅ 分支 {targetBranch} 与 {sourceBranch} 无合并冲突");
-                    }
+            if (!string.IsNullOrEmpty(sourceBranch) && !string.IsNullOrEmpty(targetBranch)) {
+                var conflictCheck = await _gitRunner.DetectMergeConflictAsync(targetBranch, sourceBranch, target_worktree_path, ct).ConfigureAwait(false);
+                if (conflictCheck.HasConflict) {
+                    hasBranchConflict = true;
+                    sb.AppendLine($"- ⚠️ **分支合并冲突**: {targetBranch} ← {sourceBranch}");
+                    sb.AppendLine($"  冲突文件: {string.Join(", ", conflictCheck.ConflictFiles)}");
+                } else {
+                    sb.AppendLine($"- ✅ 分支 {targetBranch} 与 {sourceBranch} 无合并冲突");
                 }
             }
         } catch (Exception ex) {

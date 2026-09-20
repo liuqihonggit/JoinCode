@@ -86,14 +86,10 @@ public class PowerShellToolHandlers : ShellToolBase {
                     command, workDir, [], [], [], [], [], false);
                 if (permResult.Behavior == PermissionBehavior.Deny
                     || permResult.Behavior == PermissionBehavior.Ask) {
-                    var permWarning = new StringBuilder();
-                    permWarning.AppendLine($"{StatusSymbol.Warning.ToValue()} {(permResult.Behavior == PermissionBehavior.Deny ? "Operation denied" : "User approval required")}");
-                    permWarning.AppendLine();
-                    if (!string.IsNullOrEmpty(permResult.Message)) permWarning.AppendLine(permResult.Message);
-                    if (!string.IsNullOrEmpty(permResult.Suggestions)) { permWarning.AppendLine(); permWarning.AppendLine(permResult.Suggestions); }
+                    var permWarning = BuildPsPermissionWarning(permResult.Behavior, permResult.Message, permResult.Suggestions);
 
                     RecordPsmetrics("ps_enhanced", permResult.Behavior == PermissionBehavior.Deny ? "denied" : "ask");
-                    var permDiag = BuildPermissionDeniedDiagnostic(permResult, permWarning.ToString());
+                    var permDiag = BuildPermissionDeniedDiagnostic(permResult, permWarning);
                     return ToolResultBuilder.Error().WithText(permDiag.FormattedMessage).WithDiagnostic(permDiag).Build();
                 }
             }
@@ -134,33 +130,29 @@ public class PowerShellToolHandlers : ShellToolBase {
 
             var result = context.Result ?? ToolResultBuilder.PipelineNoResult();
 
-            if (ShellPathRetryHelper.IsPathError(result)) {
-                var normalizedCommand = ShellPathRetryHelper.TryNormalizeCommand(command, toForwardSlash: false);
-                if (normalizedCommand is not null) {
-                    var retryContext = new ShellPipelineContext {
-                        Command = normalizedCommand,
-                        Provider = actuator,
-                        Description = description,
-                        Timeout = timeout,
-                        TimeoutPolicy = TimeoutPolicy,
-                        WorkingDirectory = workDir,
-                        Background = background,
-                        AutoBackground = auto_background,
-                        DangerouslyDisableSandbox = dangerously_disable_sandbox,
-                        CancellationToken = cancellationToken,
-                        OnProgress = onProgress,
-                    };
+            if (!ShellPathRetryHelper.IsPathError(result)) return result;
 
-                    await _pipeline.ExecuteAsync(retryContext, cancellationToken).ConfigureAwait(false);
+            var normalizedCommand = ShellPathRetryHelper.TryNormalizeCommand(command, toForwardSlash: false);
+            if (normalizedCommand is null) return result;
 
-                    var retryResult = retryContext.Result;
-                    if (retryResult is not null && !retryResult.IsError) {
-                        return retryResult;
-                    }
-                }
-            }
+            var retryContext = new ShellPipelineContext {
+                Command = normalizedCommand,
+                Provider = actuator,
+                Description = description,
+                Timeout = timeout,
+                TimeoutPolicy = TimeoutPolicy,
+                WorkingDirectory = workDir,
+                Background = background,
+                AutoBackground = auto_background,
+                DangerouslyDisableSandbox = dangerously_disable_sandbox,
+                CancellationToken = cancellationToken,
+                OnProgress = onProgress,
+            };
 
-            return result;
+            await _pipeline.ExecuteAsync(retryContext, cancellationToken).ConfigureAwait(false);
+
+            var retryResult = retryContext.Result;
+            return retryResult is not null && !retryResult.IsError ? retryResult : result;
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("powershell", ex, _logger, "command", command);
         }
@@ -599,6 +591,18 @@ public class PowerShellToolHandlers : ShellToolBase {
 
     private void RecordPsmetrics(string operation, string result)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "powershell.handler.count", operation, result);
+
+    /// <summary>
+    /// 构建 PS 权限拒绝/询问的警告消息 — 提取自 PowerShellAsync,消除嵌套 if
+    /// </summary>
+    private static string BuildPsPermissionWarning(PermissionBehavior behavior, string? message, string? suggestions) {
+        var permWarning = new StringBuilder();
+        permWarning.AppendLine($"{StatusSymbol.Warning.ToValue()} {(behavior == PermissionBehavior.Deny ? "Operation denied" : "User approval required")}");
+        permWarning.AppendLine();
+        if (!string.IsNullOrEmpty(message)) permWarning.AppendLine(message);
+        if (!string.IsNullOrEmpty(suggestions)) { permWarning.AppendLine(); permWarning.AppendLine(suggestions); }
+        return permWarning.ToString();
+    }
 
     private async Task<ConstrainedLanguageModeCheck> CheckConstrainedLanguageModeAsync(CancellationToken cancellationToken) {
         try {

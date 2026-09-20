@@ -105,13 +105,11 @@ public class NotebookToolHandlers {
         }
 
         // Read-before-Edit 校验：跨进程时 FileStateCache 不共享，自动读取文件并记录
-        if (!_fileStateCache.HasBeenRead(notebook_path)) {
-            if (_fs.FileExists(notebook_path)) {
-                var autoReadResult = await _fileOperationService.ReadFileAsync(notebook_path, cancellationToken: cancellationToken).ConfigureAwait(false);
-                if (autoReadResult.Success) {
-                    var autoReadMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(notebook_path)).ToUnixTimeMilliseconds();
-                    _fileStateCache.RecordRead(notebook_path, autoReadResult.Content, autoReadMs);
-                }
+        if (!_fileStateCache.HasBeenRead(notebook_path) && _fs.FileExists(notebook_path)) {
+            var autoReadResult = await _fileOperationService.ReadFileAsync(notebook_path, cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (autoReadResult.Success) {
+                var autoReadMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(notebook_path)).ToUnixTimeMilliseconds();
+                _fileStateCache.RecordRead(notebook_path, autoReadResult.Content, autoReadMs);
             }
         }
 

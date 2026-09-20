@@ -175,21 +175,20 @@ public sealed partial class ApplyPatchLogic : ServiceEntity {
         var fileIdx = adjustedStart;
         var maxDiffLines = 0;
         foreach (var line in hunk.Lines) {
-            if (line.StartsWith(' ') || line.StartsWith('-')) {
-                var expected = line[1..];
-                var actual = fileIdx >= 0 && fileIdx < fileLines.Count ? fileLines[fileIdx] : "<EOF>";
-                var marker = expected == actual ? " " : "!";
-                sb.Append($"\n  {marker} 期望: {TruncateLine(expected)}");
-                if (expected != actual) {
-                    sb.Append($"\n    实际: {TruncateLine(actual)}");
-                    maxDiffLines++;
-                    if (maxDiffLines >= 5) {
-                        sb.Append("\n  ... (后续差异行省略)");
-                        break;
-                    }
+            if (!line.StartsWith(' ') && !line.StartsWith('-')) continue;
+            var expected = line[1..];
+            var actual = fileIdx >= 0 && fileIdx < fileLines.Count ? fileLines[fileIdx] : "<EOF>";
+            var marker = expected == actual ? " " : "!";
+            sb.Append($"\n  {marker} 期望: {TruncateLine(expected)}");
+            if (expected != actual) {
+                sb.Append($"\n    实际: {TruncateLine(actual)}");
+                maxDiffLines++;
+                if (maxDiffLines >= 5) {
+                    sb.Append("\n  ... (后续差异行省略)");
+                    break;
                 }
-                fileIdx++;
             }
+            fileIdx++;
         }
 
         return sb.ToString();

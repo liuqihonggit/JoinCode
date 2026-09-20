@@ -48,24 +48,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
     private void ValidateSchemaStructure(JsonObject schema, string path, List<ValidationError> errors) {
         // type 必须是合法值
         if (schema.TryGetPropertyValue("type", out var typeNode)) {
-            if (typeNode is JsonValue typeValue && typeValue.TryGetValue(out string? typeStr)) {
-                var validTypes = new HashSet<string> { "object", "array", "string", "number", "integer", "boolean", "null" };
-                if (!validTypes.Contains(typeStr)) {
-                    errors.Add(new ValidationError { Path = path, Message = $"Invalid type value: '{typeStr}'" });
-                }
-            } else if (typeNode is JsonArray typeArray) {
-                // type 可以是数组
-                foreach (var t in typeArray) {
-                    if (t is JsonValue tv && tv.TryGetValue(out string? ts)) {
-                        var validTypes = new HashSet<string> { "object", "array", "string", "number", "integer", "boolean", "null" };
-                        if (!validTypes.Contains(ts)) {
-                            errors.Add(new ValidationError { Path = path, Message = $"Invalid type value in array: '{ts}'" });
-                        }
-                    }
-                }
-            } else {
-                errors.Add(new ValidationError { Path = path, Message = "Schema 'type' must be a string or array of strings" });
-            }
+            ValidateTypeNode(typeNode, path, errors);
         }
 
         // properties 必须是对象
@@ -74,14 +57,14 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         }
 
         // required 必须是字符串数组
-        if (schema.TryGetPropertyValue("required", out var requiredNode)) {
-            if (requiredNode is not JsonArray reqArray) {
-                errors.Add(new ValidationError { Path = $"{path}.required", Message = "Schema 'required' must be an array" });
-            } else {
-                for (var i = 0; i < reqArray.Count; i++) {
-                    if (reqArray[i] is not JsonValue rv || !rv.TryGetValue(out string? _)) {
-                        errors.Add(new ValidationError { Path = $"{path}.required[{i}]", Message = "Each 'required' item must be a string" });
-                    }
+        var hasRequired = schema.TryGetPropertyValue("required", out var requiredNode);
+        if (hasRequired && requiredNode is not JsonArray) {
+            errors.Add(new ValidationError { Path = $"{path}.required", Message = "Schema 'required' must be an array" });
+        }
+        if (hasRequired && requiredNode is JsonArray reqArray) {
+            for (var i = 0; i < reqArray.Count; i++) {
+                if (reqArray[i] is not JsonValue rv || !rv.TryGetValue(out string? _)) {
+                    errors.Add(new ValidationError { Path = $"{path}.required[{i}]", Message = "Each 'required' item must be a string" });
                 }
             }
         }
@@ -119,6 +102,26 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         // 递归验证 additionalProperties 中的子 Schema
         if (schema.TryGetPropertyValue("additionalProperties", out var addPropsNode2) && addPropsNode2 is JsonObject addPropsObj) {
             ValidateSchemaStructure(addPropsObj, $"{path}.additionalProperties", errors);
+        }
+    }
+
+    /// <summary>
+    /// 验证 type 节点合法性 — 字符串或字符串数组
+    /// </summary>
+    private void ValidateTypeNode(JsonNode? typeNode, string path, List<ValidationError> errors) {
+        var validTypes = new HashSet<string> { "object", "array", "string", "number", "integer", "boolean", "null" };
+        if (typeNode is JsonValue typeValue && typeValue.TryGetValue(out string? typeStr)) {
+            if (!validTypes.Contains(typeStr)) {
+                errors.Add(new ValidationError { Path = path, Message = $"Invalid type value: '{typeStr}'" });
+            }
+        } else if (typeNode is JsonArray typeArray) {
+            // type 可以是数组
+            foreach (var t in typeArray) {
+                if (t is JsonValue tv && tv.TryGetValue(out string? ts) && !validTypes.Contains(ts))
+                    errors.Add(new ValidationError { Path = path, Message = $"Invalid type value in array: '{ts}'" });
+            }
+        } else {
+            errors.Add(new ValidationError { Path = path, Message = "Schema 'type' must be a string or array of strings" });
         }
     }
 
@@ -244,21 +247,20 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         }
 
         // Additional properties (strict mode)
-        if (schema.TryGetPropertyValue("additionalProperties", out var additionalPropsNode)) {
-            if (additionalPropsNode is JsonValue additionalPropsValue
-                && additionalPropsValue.TryGetValue(out bool allowAdditional)
-                && !allowAdditional) {
-                var definedProps = schema.TryGetPropertyValue("properties", out var dp) && dp is JsonObject dpObj
-                    ? dpObj.Select(p => p.Key).ToHashSet()
-                    : new HashSet<string>();
+        if (schema.TryGetPropertyValue("additionalProperties", out var additionalPropsNode)
+            && additionalPropsNode is JsonValue additionalPropsValue
+            && additionalPropsValue.TryGetValue(out bool allowAdditional)
+            && !allowAdditional) {
+            var definedProps = schema.TryGetPropertyValue("properties", out var dp) && dp is JsonObject dpObj
+                ? dpObj.Select(p => p.Key).ToHashSet()
+                : new HashSet<string>();
 
-                foreach (var (key, _) in instance) {
-                    if (!definedProps.Contains(key)) {
-                        errors.Add(new ValidationError {
-                            Path = $"{path}.{key}",
-                            Message = L.T(StringKey.SchemaAdditionalPropertyNotAllowed, key)
-                        });
-                    }
+            foreach (var (key, _) in instance) {
+                if (!definedProps.Contains(key)) {
+                    errors.Add(new ValidationError {
+                        Path = $"{path}.{key}",
+                        Message = L.T(StringKey.SchemaAdditionalPropertyNotAllowed, key)
+                    });
                 }
             }
         }
@@ -357,10 +359,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
             if (value.TryGetValue(out string? _)) return "string";
             if (value.TryGetValue(out double d)) {
                 // 整数判断: 无小数部分且在long范围内
-                if (d == Math.Truncate(d) && !double.IsInfinity(d) && Math.Abs(d) <= long.MaxValue) {
-                    return "integer";
-                }
-                return "number";
+                return (d == Math.Truncate(d) && !double.IsInfinity(d) && Math.Abs(d) <= long.MaxValue) ? "integer" : "number";
             }
             if (value.TryGetValue(out decimal _)) return "number";
         }

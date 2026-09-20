@@ -20,28 +20,25 @@ public partial class FileToolHandlers {
         }
 
         // ── 统一写入防御链 — dry_run 不写盘跳过防御，非 dry_run 对每个目标文件跑防御 ──
-        if (!dry_run) {
-            var targetPaths = ExtractPatchTargetPaths(patch);
-            if (targetPaths.Count > 0) {
-                // 对每个目标文件并行跑防御链，任一拒绝即整体拒绝
-                var defenses = await Task.WhenAll(
-                    targetPaths.Select(async path => {
-                        var safety = await _writeDefense
-                            .Begin(path, patch, FileOperationType.Edit, "patching")
-                            .Then(_writeDefense.RejectUncPath)           // UNC 路径拒绝
-                            .Then(_writeDefense.ResolveSandboxAsync)     // 沙箱路径解析
-                            .Then(_writeDefense.CheckTeamMemSecrets)     // 团队密钥检测（patch 内容可能含密钥）
-                            .Then(_writeDefense.RequireReadBeforeWrite)  // 写前读校验
-                            .Then(_writeDefense.GuardStaleWriteAsync)    // 脏写保护
-                            .Then(_writeDefense.BackupBeforeWriteAsync)  // 写前备份
-                            .ExecuteAsync(cancellationToken).ConfigureAwait(false);
-                        return (Path: path, Safety: safety);
-                    })).ConfigureAwait(false);
+        if (!dry_run && ExtractPatchTargetPaths(patch) is { Count: > 0 } targetPaths) {
+            // 对每个目标文件并行跑防御链，任一拒绝即整体拒绝
+            var defenses = await Task.WhenAll(
+                targetPaths.Select(async path => {
+                    var safety = await _writeDefense
+                        .Begin(path, patch, FileOperationType.Edit, "patching")
+                        .Then(_writeDefense.RejectUncPath)           // UNC 路径拒绝
+                        .Then(_writeDefense.ResolveSandboxAsync)     // 沙箱路径解析
+                        .Then(_writeDefense.CheckTeamMemSecrets)     // 团队密钥检测（patch 内容可能含密钥）
+                        .Then(_writeDefense.RequireReadBeforeWrite)  // 写前读校验
+                        .Then(_writeDefense.GuardStaleWriteAsync)    // 脏写保护
+                        .Then(_writeDefense.BackupBeforeWriteAsync)  // 写前备份
+                        .ExecuteAsync(cancellationToken).ConfigureAwait(false);
+                    return (Path: path, Safety: safety);
+                })).ConfigureAwait(false);
 
-                var rejectedDefense = defenses.FirstOrDefault(d => d.Safety.Rejection is not null);
-                if (rejectedDefense.Safety.Rejection is not null)
-                    return rejectedDefense.Safety.Rejection;
-            }
+            var rejectedDefense = defenses.FirstOrDefault(d => d.Safety.Rejection is not null);
+            if (rejectedDefense.Safety.Rejection is not null)
+                return rejectedDefense.Safety.Rejection;
         }
 
         // ── 应用 patch ──

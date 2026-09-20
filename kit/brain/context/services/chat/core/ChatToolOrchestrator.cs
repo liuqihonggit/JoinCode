@@ -109,18 +109,15 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
                     };
                     var cmdResult = await descriptor.ExecuteAsync(cmdCtx).ConfigureAwait(false);
 
-                    var sb = new StringBuilder();
-                    foreach (var c in cmdResult.Content) {
-                        if (string.IsNullOrEmpty(c.Text)) continue;
-                        if (sb.Length > 0) sb.Append('\n');
-                        sb.Append(c.Text);
-                    }
+                    var contentText = string.Join('\n', cmdResult.Content
+                        .Where(c => !string.IsNullOrEmpty(c.Text))
+                        .Select(c => c.Text));
 
                     _logger?.LogInformation("[ChatToolOrchestrator] 斜杠命令调用: {ToolName} → {Result}",
                         toolCallName, cmdResult.IsError ? "ERROR" : "OK");
 
                     return new ToolCallResult {
-                        ResultText = sb.ToString(),
+                        ResultText = contentText,
                         IsError = cmdResult.IsError,
                     };
                 }
@@ -129,12 +126,10 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
             string? argumentRepairHint = null;
             if (arguments.Count > 0 && _toolRegistry is not null) {
                 var handler = await _toolRegistry.GetToolAsync(toolCallName, ct).ConfigureAwait(false);
-                if (handler is not null) {
-                    var argRepair = LlmJsonHelper.RepairArguments(toolCallName, arguments, handler.InputSchema, _logger);
-                    if (argRepair.RepairHint is not null) {
-                        arguments = argRepair.RepairedArguments;
-                        argumentRepairHint = argRepair.RepairHint;
-                    }
+                if (handler is not null
+                    && LlmJsonHelper.RepairArguments(toolCallName, arguments, handler.InputSchema, _logger) is { RepairHint: not null } argRepair) {
+                    arguments = argRepair.RepairedArguments;
+                    argumentRepairHint = argRepair.RepairHint;
                 }
             }
 
@@ -154,23 +149,10 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
             if (toolResult.IsImage) {
                 resultText = "[Image data detected and sent to model]";
             } else {
-                if (toolResult.IsError) {
-                    var sb = new StringBuilder();
-                    foreach (var c in toolResult.Content) {
-                        if (string.IsNullOrEmpty(c.Text)) continue;
-                        if (sb.Length > 0) sb.Append('\n');
-                        sb.Append("Error: ").Append(c.Text);
-                    }
-                    resultText = sb.ToString();
-                } else {
-                    var sb = new StringBuilder();
-                    foreach (var c in toolResult.Content) {
-                        if (string.IsNullOrEmpty(c.Text)) continue;
-                        if (sb.Length > 0) sb.Append('\n');
-                        sb.Append(c.Text);
-                    }
-                    resultText = sb.ToString();
-                }
+                var prefix = toolResult.IsError ? "Error: " : null;
+                resultText = string.Join('\n', toolResult.Content
+                    .Where(c => !string.IsNullOrEmpty(c.Text))
+                    .Select(c => prefix is not null ? prefix + c.Text : c.Text));
             }
 
             if (combinedRepairHint is not null) {

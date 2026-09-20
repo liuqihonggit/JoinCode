@@ -124,18 +124,18 @@ internal sealed class BridgeRunOrchestrator {
         // 4. 首次远程确认 — 对齐 TS 端: remoteDialogSeen 检查 + readline y/n 对话框
         var remoteDialogSeen = _owner._deps.CheckRemoteDialogAccepted?.Invoke() ?? true;
         if (!remoteDialogSeen) {
-            // 对齐 TS 端: if (!getGlobalConfig().remoteDialogSeen) → 弹出 readline 对话框
-            if (_owner._deps.RemoteControlDialog is not null) {
-                var accepted = await _owner._deps.RemoteControlDialog(ct).ConfigureAwait(false);
-                // 无论用户回答什么，都保存 remoteDialogSeen=true 防止下次再问
-                _owner._deps.MarkRemoteDialogSeen?.Invoke();
-                if (!accepted) {
-                    _owner._logger?.LogDebug("BridgeMain: remote control declined by user");
-                    return new BridgeMainResult { Error = "Remote control not accepted." };
-                }
-            } else {
-                // 无对话框回调（非交互模式）: 直接拒绝
+            // 无对话框回调（非交互模式）: 直接拒绝
+            if (_owner._deps.RemoteControlDialog is null) {
                 _owner._logger?.LogDebug("BridgeMain: remote control not accepted — skipping");
+                return new BridgeMainResult { Error = "Remote control not accepted." };
+            }
+
+            // 对齐 TS 端: if (!getGlobalConfig().remoteDialogSeen) → 弹出 readline 对话框
+            var accepted = await _owner._deps.RemoteControlDialog(ct).ConfigureAwait(false);
+            // 无论用户回答什么，都保存 remoteDialogSeen=true 防止下次再问
+            _owner._deps.MarkRemoteDialogSeen?.Invoke();
+            if (!accepted) {
+                _owner._logger?.LogDebug("BridgeMain: remote control declined by user");
                 return new BridgeMainResult { Error = "Remote control not accepted." };
             }
         }

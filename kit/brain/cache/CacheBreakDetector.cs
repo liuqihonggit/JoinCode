@@ -173,15 +173,14 @@ public class CacheBreakDetector {
         // 消息序列前缀检测 — 对齐线上真实字节前缀。
         // 只比对快照时已存在的前 N 条消息：尾部追加（多轮增长）不破坏前缀，前缀变短（撤回）仍是可命中前缀，
         // 唯有既有前缀中的消息被篡改/插入会破坏真实线上前缀，必须上报。
-        if (snapshot.ConversationCount > 0 && !string.IsNullOrEmpty(snapshot.ConversationHash)) {
-            var currentCount = currentConversation?.Count ?? 0;
-            if (currentCount >= snapshot.ConversationCount) {
-                var preserved = currentConversation!.Take(snapshot.ConversationCount).ToList();
-                var preservedHash = ContentHash.ComputeConversation(preserved);
-                if (preservedHash != snapshot.ConversationHash) {
-                    return CacheBreakResult.Break(CacheBreakKind.ConversationHistoryChanged,
-                        $"Conversation history prefix changed: hash {snapshot.ConversationHash} → {preservedHash} (first {snapshot.ConversationCount} messages)");
-                }
+        if (snapshot.ConversationCount > 0
+            && !string.IsNullOrEmpty(snapshot.ConversationHash)
+            && (currentConversation?.Count ?? 0) >= snapshot.ConversationCount) {
+            var preserved = currentConversation!.Take(snapshot.ConversationCount).ToList();
+            var preservedHash = ContentHash.ComputeConversation(preserved);
+            if (preservedHash != snapshot.ConversationHash) {
+                return CacheBreakResult.Break(CacheBreakKind.ConversationHistoryChanged,
+                    $"Conversation history prefix changed: hash {snapshot.ConversationHash} → {preservedHash} (first {snapshot.ConversationCount} messages)");
             }
         }
 

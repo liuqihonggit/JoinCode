@@ -146,14 +146,15 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
 
             if (chatHistory is { Count: > 0 }) {
                 foreach (var msg in chatHistory) {
-                    if (msg.Role == MessageRole.System) {
-                        if (string.IsNullOrWhiteSpace(_promptStore.StaticPrompt)) {
-                            _promptStore.Update(msg.Content ?? string.Empty);
-                        }
+                    if (msg.Role != MessageRole.System) {
+                        Log.Append(new ApiMessage(msg.Role, msg.Content, msg.Metadata));
                         continue;
                     }
 
-                    Log.Append(new ApiMessage(msg.Role, msg.Content, msg.Metadata));
+                    if (string.IsNullOrWhiteSpace(_promptStore.StaticPrompt)) {
+                        _promptStore.Update(msg.Content ?? string.Empty);
+                    }
+                    continue;
                 }
             }
 

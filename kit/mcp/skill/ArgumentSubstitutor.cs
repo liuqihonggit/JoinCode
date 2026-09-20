@@ -107,10 +107,7 @@ public sealed class ArgumentSubstitutor {
                 } else if (c == '"') {
                     inDoubleQuote = true;
                 } else if (char.IsWhiteSpace(c)) {
-                    if (current.Length > 0) {
-                        result.Add(current.ToString());
-                        current.Clear();
-                    }
+                    FlushCurrentToken(current, result);
                 } else {
                     current.Append(c);
                 }
@@ -122,5 +119,14 @@ public sealed class ArgumentSubstitutor {
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 提交当前 token 到结果列表 — 仅当 current 非空时提交并清空
+    /// </summary>
+    private static void FlushCurrentToken(StringBuilder current, List<string> result) {
+        if (current.Length <= 0) return;
+        result.Add(current.ToString());
+        current.Clear();
     }
 }

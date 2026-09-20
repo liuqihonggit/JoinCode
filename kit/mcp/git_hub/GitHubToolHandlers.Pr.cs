@@ -185,16 +185,23 @@ public partial class GitHubToolHandlers {
         if (!result.Success) return Fail(result.Error);
 
         if (delete_branch == true) {
-            var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
-            if (prResult.Success) {
-                try {
-                    using var doc = JsonDocument.Parse(prResult.Body);
-                    var branchName = doc.RootElement.GetProperty("head").GetProperty("ref").GetString();
-                    if (!string.IsNullOrEmpty(branchName)) await _apiClient.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/git/refs/heads/{branchName}", ct: cancellationToken).ConfigureAwait(false);
-                } catch (Exception ex) { _logger?.LogDebug(ex, "删除 PR 分支失败(非致命)"); }
-            }
+            await TryDeleteBranchAsync(owner, repoName, number, cancellationToken).ConfigureAwait(false);
         }
         return Ok(result.Body, "PR 合并成功");
+    }
+
+    /// <summary>
+    /// 尝试删除 PR 分支 — 合并成功后清理远程分支(非致命,失败仅记日志)
+    /// </summary>
+    private async Task TryDeleteBranchAsync(string owner, string repo, string number, CancellationToken ct) {
+        if (_apiClient is null) return;
+        var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/pulls/{number}", ct: ct).ConfigureAwait(false);
+        if (!prResult.Success) return;
+        try {
+            using var doc = JsonDocument.Parse(prResult.Body);
+            var branchName = doc.RootElement.GetProperty("head").GetProperty("ref").GetString();
+            if (!string.IsNullOrEmpty(branchName)) await _apiClient.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repo}/git/refs/heads/{branchName}", ct: ct).ConfigureAwait(false);
+        } catch (Exception ex) { _logger?.LogDebug(ex, "删除 PR 分支失败(非致命)"); }
     }
 
     /// <summary>

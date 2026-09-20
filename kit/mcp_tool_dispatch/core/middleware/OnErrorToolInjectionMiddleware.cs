@@ -103,14 +103,13 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
         var hasAnalysis = false;
 
         // 1. 同工具历史失败率
-        if (record is not null && (record.SuccessCount + record.FailCount) > 0) {
-            var failRate = (double)record.FailCount / (record.SuccessCount + record.FailCount);
-            if (failRate > 0.3) {
-                sb.AppendLine($"### 历史分析: '{toolName}' 失败率 {failRate:P0}（成功{record.SuccessCount}次/失败{record.FailCount}次）");
-                if (!string.IsNullOrEmpty(record.LastErrorMessage))
-                    sb.AppendLine($"- 上次错误: {record.LastErrorMessage}");
-                hasAnalysis = true;
-            }
+        if (record is not null &&
+            (record.SuccessCount + record.FailCount) > 0 &&
+            (double)record.FailCount / (record.SuccessCount + record.FailCount) is var failRate && failRate > 0.3) {
+            sb.AppendLine($"### 历史分析: '{toolName}' 失败率 {failRate:P0}（成功{record.SuccessCount}次/失败{record.FailCount}次）");
+            if (!string.IsNullOrEmpty(record.LastErrorMessage))
+                sb.AppendLine($"- 上次错误: {record.LastErrorMessage}");
+            hasAnalysis = true;
         }
 
         // 2. 同超边关联工具状态 — 检查关联工具是否也有问题

@@ -57,16 +57,16 @@ public sealed partial class RunValidationMiddleware : ServiceEntity, IBridgeRunM
 
         var remoteDialogSeen = _deps.CheckRemoteDialogAccepted?.Invoke() ?? true;
         if (!remoteDialogSeen) {
-            if (_deps.RemoteControlDialog is not null) {
-                var accepted = await _deps.RemoteControlDialog(ct).ConfigureAwait(false);
-                _deps.MarkRemoteDialogSeen?.Invoke();
-                if (!accepted) {
-                    _logger.LogDebug("BridgeMain: remote control declined by user");
-                    ctx.EarlyResult = new BridgeMainResult { Error = "Remote control not accepted." };
-                    return;
-                }
-            } else {
+            if (_deps.RemoteControlDialog is null) {
                 _logger.LogDebug("BridgeMain: remote control not accepted — skipping");
+                ctx.EarlyResult = new BridgeMainResult { Error = "Remote control not accepted." };
+                return;
+            }
+
+            var accepted = await _deps.RemoteControlDialog(ct).ConfigureAwait(false);
+            _deps.MarkRemoteDialogSeen?.Invoke();
+            if (!accepted) {
+                _logger.LogDebug("BridgeMain: remote control declined by user");
                 ctx.EarlyResult = new BridgeMainResult { Error = "Remote control not accepted." };
                 return;
             }

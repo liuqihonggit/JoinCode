@@ -294,36 +294,41 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
             if (msg.Role == MessageRole.Assistant) {
                 // 提取 assistant 消息 ID（从 ToolCalls[0].Id 或生成基于索引的 ID）
                 var asstId = ExtractAssistantMessageId(msg, i);
-                if (!seenAsstIds.Contains(asstId)) {
-                    // 新的 assistant 消息 → 刷新组
-                    if (current.Count > 0) {
-                        groups.Add(current);
-                        current = new();
-                    }
-                    seenAsstIds.Add(asstId);
+                if (seenAsstIds.Contains(asstId)) {
+                    // 同 ID 的 assistant 片段不创建新边界
+                    continue;
                 }
-                // 同 ID 的 assistant 片段不创建新边界
+                // 新的 assistant 消息 → 刷新组
+                if (current.Count > 0) {
+                    groups.Add(current);
+                    current = new();
+                }
+                seenAsstIds.Add(asstId);
                 continue;
             }
 
-            if (msg.Role == MessageRole.Tool) {
-                var toolCallId = msg.ExtractToolCallId();
-                if (toolCallId is not null && !string.IsNullOrEmpty(msg.Content)) {
-                    // 对齐 TS isContentAlreadyCompacted — 已被 persisted-output 替换的内容不再作为 candidate
-                    if (IsContentAlreadyCompacted(msg.Content))
-                        continue;
-
-                    // 对齐 TS hasImageBlock — 仅跳过包含图片的 tool result
-                    // TS: content.some(b => typeof b === 'object' && 'type' in b && b.type === 'image')
-                    // 不跳过含 tool_reference 等非图片类型的合法 budget candidate
-                    if (msg.ContentBlocks is not null && msg.ContentBlocks.Any(b => b.Type == ToolContentType.Image))
-                        continue;
-
-                    var toolName = msg.ExtractToolName() ?? string.Empty;
-                    current.Add((i, toolCallId, msg.Content, toolName));
-                }
+            if (msg.Role != MessageRole.Tool) {
+                // user/system 消息不创建边界
+                continue;
             }
-            // user/system 消息不创建边界
+
+            var toolCallId = msg.ExtractToolCallId();
+            if (toolCallId is null || string.IsNullOrEmpty(msg.Content)) {
+                continue;
+            }
+
+            // 对齐 TS isContentAlreadyCompacted — 已被 persisted-output 替换的内容不再作为 candidate
+            if (IsContentAlreadyCompacted(msg.Content))
+                continue;
+
+            // 对齐 TS hasImageBlock — 仅跳过包含图片的 tool result
+            // TS: content.some(b => typeof b === 'object' && 'type' in b && b.type === 'image')
+            // 不跳过含 tool_reference 等非图片类型的合法 budget candidate
+            if (msg.ContentBlocks is not null && msg.ContentBlocks.Any(b => b.Type == ToolContentType.Image))
+                continue;
+
+            var toolName = msg.ExtractToolName() ?? string.Empty;
+            current.Add((i, toolCallId, msg.Content, toolName));
         }
 
         if (current.Count > 0)

@@ -251,34 +251,29 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase {
             }
 
             // 提取文本内容 — 对齐 TS 端: extractUserMessageText
-            if (json.TryGetValue("content", out var contentEl)) {
-                if (contentEl.ValueKind == JsonValueKind.String) {
-                    var text = contentEl.GetString();
-                    return string.IsNullOrWhiteSpace(text) ? null : text;
-                }
+            if (json.TryGetValue("content", out var contentEl) && contentEl.ValueKind == JsonValueKind.String) {
+                var text = contentEl.GetString();
+                return string.IsNullOrWhiteSpace(text) ? null : text;
+            }
 
-                if (contentEl.ValueKind == JsonValueKind.Array) {
-                    // content 是数组，提取第一个 text 类型的 block
-                    foreach (var item in contentEl.EnumerateArray()) {
-                        if (item.TryGetProperty("type", out var blockTypeEl) &&
-                            blockTypeEl.ValueKind == JsonValueKind.String &&
-                            string.Equals(blockTypeEl.GetString(), "text", StringComparison.OrdinalIgnoreCase)) {
-                            if (item.TryGetProperty("text", out var textEl) && textEl.ValueKind == JsonValueKind.String) {
-                                var text = textEl.GetString();
-                                return string.IsNullOrWhiteSpace(text) ? null : text;
-                            }
-                        }
+            if (json.TryGetValue("content", out var contentArrEl) && contentArrEl.ValueKind == JsonValueKind.Array) {
+                // content 是数组，提取第一个 text 类型的 block
+                foreach (var item in contentArrEl.EnumerateArray()) {
+                    if (item.TryGetProperty("type", out var blockTypeEl) &&
+                        blockTypeEl.ValueKind == JsonValueKind.String &&
+                        string.Equals(blockTypeEl.GetString(), "text", StringComparison.OrdinalIgnoreCase) &&
+                        item.TryGetProperty("text", out var textEl) && textEl.ValueKind == JsonValueKind.String) {
+                        var text = textEl.GetString();
+                        return string.IsNullOrWhiteSpace(text) ? null : text;
                     }
                 }
             }
 
             // 兜底: 尝试 message.content（嵌套结构）
             if (json.TryGetValue("message", out var msgEl) && msgEl.ValueKind == JsonValueKind.Object) {
-                if (msgEl.TryGetProperty("content", out var msgContentEl)) {
-                    if (msgContentEl.ValueKind == JsonValueKind.String) {
-                        var text = msgContentEl.GetString();
-                        return string.IsNullOrWhiteSpace(text) ? null : text;
-                    }
+                if (msgEl.TryGetProperty("content", out var msgContentEl) && msgContentEl.ValueKind == JsonValueKind.String) {
+                    var text = msgContentEl.GetString();
+                    return string.IsNullOrWhiteSpace(text) ? null : text;
                 }
             }
 

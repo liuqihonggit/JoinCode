@@ -228,13 +228,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
         if (iterState.ToolCallName is null) {
             Diag.WriteLine($"[LOOP {iterState.CallId}] 纯文本响应, 长度={iterState.FullResponse.Length}");
-            if (iterState.FullResponse.Length > 0) {
-                var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
-                foreach (var evt in pureEvents)
-                    yield return evt;
-                if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
-                    await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
+            if (iterState.FullResponse.Length == 0) {
+                yield break;
             }
+            var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
+            foreach (var evt in pureEvents)
+                yield return evt;
+            if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
+                await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
             yield break;
         }
 
@@ -312,13 +313,14 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
         if (iterState.ToolCallName is null) {
             Diag.WriteLine($"[LOOP {iterState.CallId}] 纯文本响应, 长度={iterState.FullResponse.Length}");
-            if (iterState.FullResponse.Length > 0) {
-                var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
-                foreach (var evt in pureEvents)
-                    yield return evt;
-                if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
-                    await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
+            if (iterState.FullResponse.Length == 0) {
+                yield break;
             }
+            var (pureEvents, pureResponse) = BuildPureTextResponse(iterState, context);
+            foreach (var evt in pureEvents)
+                yield return evt;
+            if (!context.IsDryRun && !string.IsNullOrWhiteSpace(pureResponse))
+                await _contextManager.AddAssistantMessageAsync(pureResponse, ct).ConfigureAwait(false);
             yield break;
         }
 

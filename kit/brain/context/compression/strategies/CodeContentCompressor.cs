@@ -137,28 +137,29 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase {
                 continue;
             }
 
-            if (inMethodBody) {
-                braceDepth += CountBraces(line);
-
-                if (braceDepth <= 0) {
-                    inMethodBody = false;
-
-                    if (options.MaxMethodBodyLines > 0 &&
-                        i - methodBodyStartLine <= options.MaxMethodBodyLines) {
-                        for (var j = methodBodyStartLine + 1; j <= i; j++) {
-                            result.AppendLine(lines[j]);
-                        }
-                    } else {
-                        result.AppendLine("    // ... method body omitted ...");
-                    }
+            if (!inMethodBody) {
+                if (!string.IsNullOrWhiteSpace(line)) {
+                    result.AppendLine(line);
                 }
-
                 continue;
             }
 
-            if (!string.IsNullOrWhiteSpace(line)) {
-                result.AppendLine(line);
+            braceDepth += CountBraces(line);
+
+            if (braceDepth <= 0) {
+                inMethodBody = false;
+
+                if (options.MaxMethodBodyLines > 0 &&
+                    i - methodBodyStartLine <= options.MaxMethodBodyLines) {
+                    for (var j = methodBodyStartLine + 1; j <= i; j++) {
+                        result.AppendLine(lines[j]);
+                    }
+                } else {
+                    result.AppendLine("    // ... method body omitted ...");
+                }
             }
+
+            continue;
         }
 
         var compressed = result.ToString().TrimEnd();

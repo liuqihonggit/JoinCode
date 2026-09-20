@@ -84,11 +84,8 @@ public partial class McpClientToolHandlers : ServiceEntity {
                     Auth = authConfig
                 };
             } else if (use_oauth && _deps.OAuthService != null) {
-                if (!_deps.OAuthService.IsAuthenticated) {
-                    var authSuccess = await _deps.OAuthService.StartAuthorizationFlowAsync(cancellationToken).ConfigureAwait(false);
-                    if (!authSuccess) {
-                        return ToolResultBuilder.Error().WithText(L.T(StringKey.OAuthAuthenticationFailed)).Build();
-                    }
+                if (!_deps.OAuthService.IsAuthenticated && !await _deps.OAuthService.StartAuthorizationFlowAsync(cancellationToken).ConfigureAwait(false)) {
+                    return ToolResultBuilder.Error().WithText(L.T(StringKey.OAuthAuthenticationFailed)).Build();
                 }
 
                 var accessToken = await _deps.OAuthService.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);

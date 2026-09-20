@@ -135,12 +135,10 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport {
             BackgroundTask = ProcessSseResponseAsync(response, ct);
         } else {
             var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            if (!string.IsNullOrWhiteSpace(responseBody)) {
-                var responseMessage = ParseMessage(responseBody);
-                if (responseMessage is not null) {
-                    OnPayloadReceived(Encoding.UTF8.GetBytes(responseBody));
-                    MessageReceived?.Invoke(this, new McpMessageReceivedEventArgs { Message = responseMessage });
-                }
+            var responseMessage = !string.IsNullOrWhiteSpace(responseBody) ? ParseMessage(responseBody) : null;
+            if (responseMessage is not null) {
+                OnPayloadReceived(Encoding.UTF8.GetBytes(responseBody));
+                MessageReceived?.Invoke(this, new McpMessageReceivedEventArgs { Message = responseMessage });
             }
         }
     }

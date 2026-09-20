@@ -612,16 +612,10 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
                         wtSession = wtResult.Success ? wtResult.Session : null;
                     }
 
-                    if (wtSession is not null) {
-                        ((AgentBase)_agent).Options.WorktreePath = wtSession.WorktreePath;
-                        ((AgentBase)_agent).Options.WorktreeBranch = wtSession.BranchName;
-                        if (((AgentBase)_agent).Context is not null) {
-                            ((AgentBase)_agent).Context!.WorktreePath = wtSession.WorktreePath;
-                        }
-                        _owner._logger?.LogInformation("Teammate {TeammateId} worktree created: {Path}", _teammateId, wtSession.WorktreePath);
-                    } else {
+                    if (wtSession is not null)
+                        ApplyWorktreeSession(wtSession);
+                    else
                         _owner._logger?.LogWarning("Teammate {TeammateId} worktree creation failed, degrading to normal mode", _teammateId);
-                    }
                 } catch (Exception ex) {
                     _owner._logger?.LogWarning(ex, "Teammate {TeammateId} worktree creation exception, degrading to normal mode", _teammateId);
                 }
@@ -663,6 +657,18 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
             await _owner.SendAsync(new RegisterTeammateCmd(_teammateId, _state, _pendingChannel, registerTcs), _externalCt).ConfigureAwait(false);
             await _owner.AskAwait(registerTcs, _externalCt).ConfigureAwait(false);
             _registered = true;
+        }
+
+        /// <summary>
+        /// 应用 worktree 会话到 Agent
+        /// </summary>
+        private void ApplyWorktreeSession(AgentWorktreeSession wtSession) {
+            if (_agent is not AgentBase agent) return;
+            agent.Options.WorktreePath = wtSession.WorktreePath;
+            agent.Options.WorktreeBranch = wtSession.BranchName;
+            if (agent.Context is not null)
+                agent.Context.WorktreePath = wtSession.WorktreePath;
+            _owner._logger?.LogInformation("Teammate {TeammateId} worktree created: {Path}", _teammateId, wtSession.WorktreePath);
         }
 
         /// <summary>

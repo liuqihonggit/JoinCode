@@ -1,10 +1,10 @@
-namespace McpToolRegistry.Tests;
+﻿namespace McpToolRegistry.Tests;
 
 
 public class OnErrorInjectionTests {
     [Fact]
     public async Task ToolExecutionMiddleware_CatchesException_SetsIsErrorTrue() {
-        var middleware = new ToolExecutionMiddleware(NullLogger<ToolExecutionMiddleware>.Instance);
+        await using var middleware = new ToolExecutionMiddleware(NullLogger<ToolExecutionMiddleware>.Instance);
 
         var throwingHandler = new Mock<IToolHandler>();
         throwingHandler.SetupGet(h => h.Name).Returns("failing_tool");
@@ -26,7 +26,7 @@ public class OnErrorInjectionTests {
 
     [Fact]
     public async Task ToolExecutionMiddleware_CatchesException_ResultHasExceptionTypeAndMessage() {
-        var middleware = new ToolExecutionMiddleware(NullLogger<ToolExecutionMiddleware>.Instance);
+        await using var middleware = new ToolExecutionMiddleware(NullLogger<ToolExecutionMiddleware>.Instance);
 
         var throwingHandler = new Mock<IToolHandler>();
         throwingHandler.SetupGet(h => h.Name).Returns("failing_tool");
@@ -73,9 +73,9 @@ public class OnErrorInjectionTests {
         monitor.Setup(m => m.GetAllRecordsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<string, ToolHealthRecord>());
 
-        var scorer = new ToolHypergraphScorer();
+        await using var scorer = new ToolHypergraphScorer();
 
-        var middleware = new OnErrorToolInjectionMiddleware(
+        await using var middleware = new OnErrorToolInjectionMiddleware(
             registry.Object, monitor.Object, scorer,
             NullLogger<OnErrorToolInjectionMiddleware>.Instance);
 

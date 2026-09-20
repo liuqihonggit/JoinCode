@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop.Tests;
+﻿namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
 /// AC-08 小按钮夹逼 E2E — 1920×1080 → 64×64 约需 6 层 zoom 收敛
@@ -12,13 +12,13 @@ public sealed class DesktopSceneSmallButtonE2ETests {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 
-        var fileSystem = new PhysicalFileSystem();
-        var screenCapture = new GdiScreenCaptureService();
+        await using var fileSystem = new PhysicalFileSystem();
+        await using var screenCapture = new GdiScreenCaptureService();
         var annotator = new QuadtreeEncoder();
         var renderer = new QuadtreeRenderer(annotator);
-        var stateStore = new DesktopSceneStateStore(fileSystem);
-        var captureService = new DesktopSceneCaptureService(screenCapture, annotator, renderer, stateStore, fileSystem);
-        var zoomService = new DesktopSceneZoomService(renderer, stateStore, fileSystem);
+        await using var stateStore = new DesktopSceneStateStore(fileSystem);
+        await using var captureService = new DesktopSceneCaptureService(screenCapture, annotator, renderer, stateStore, fileSystem);
+        await using var zoomService = new DesktopSceneZoomService(renderer, stateStore, fileSystem);
 
         var sceneId = $"e2e_small_{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}";
         var capture = await captureService.CaptureWithGridAsync(sceneId, 2);
@@ -51,13 +51,13 @@ public sealed class DesktopSceneSmallButtonE2ETests {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 
-        var fileSystem = new PhysicalFileSystem();
-        var screenCapture = new GdiScreenCaptureService();
+        await using var fileSystem = new PhysicalFileSystem();
+        await using var screenCapture = new GdiScreenCaptureService();
         var annotator = new QuadtreeEncoder();
         var renderer = new QuadtreeRenderer(annotator);
-        var stateStore = new DesktopSceneStateStore(fileSystem);
-        var captureService = new DesktopSceneCaptureService(screenCapture, annotator, renderer, stateStore, fileSystem);
-        var zoomService = new DesktopSceneZoomService(renderer, stateStore, fileSystem);
+        await using var stateStore = new DesktopSceneStateStore(fileSystem);
+        await using var captureService = new DesktopSceneCaptureService(screenCapture, annotator, renderer, stateStore, fileSystem);
+        await using var zoomService = new DesktopSceneZoomService(renderer, stateStore, fileSystem);
 
         var sceneId = $"e2e_area_{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}";
         var capture = await captureService.CaptureWithGridAsync(sceneId, 2);

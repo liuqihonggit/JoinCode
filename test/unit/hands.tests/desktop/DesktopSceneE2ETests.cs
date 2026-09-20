@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop.Tests;
+﻿namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
 /// AC-07 E2E 真实运行冒烟测试 — 真实截图 + 四叉树网格 + 渲染 + 状态持久化
@@ -12,12 +12,12 @@ public sealed class DesktopSceneE2ETests {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 
-        var fileSystem = new PhysicalFileSystem();
-        var screenCapture = new GdiScreenCaptureService();
+        await using var fileSystem = new PhysicalFileSystem();
+        await using var screenCapture = new GdiScreenCaptureService();
         var annotator = new QuadtreeEncoder();
         var renderer = new QuadtreeRenderer(annotator);
-        var stateStore = new DesktopSceneStateStore(fileSystem);
-        var captureService = new DesktopSceneCaptureService(screenCapture, annotator, renderer, stateStore, fileSystem);
+        await using var stateStore = new DesktopSceneStateStore(fileSystem);
+        await using var captureService = new DesktopSceneCaptureService(screenCapture, annotator, renderer, stateStore, fileSystem);
 
         var sceneId = $"e2e_{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}";
         var capture = await captureService.CaptureWithGridAsync(sceneId, 2);
@@ -46,13 +46,13 @@ public sealed class DesktopSceneE2ETests {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 
-        var fileSystem = new PhysicalFileSystem();
-        var screenCapture = new GdiScreenCaptureService();
+        await using var fileSystem = new PhysicalFileSystem();
+        await using var screenCapture = new GdiScreenCaptureService();
         var annotator = new QuadtreeEncoder();
         var renderer = new QuadtreeRenderer(annotator);
-        var stateStore = new DesktopSceneStateStore(fileSystem);
-        var captureService = new DesktopSceneCaptureService(screenCapture, annotator, renderer, stateStore, fileSystem);
-        var zoomService = new DesktopSceneZoomService(renderer, stateStore, fileSystem);
+        await using var stateStore = new DesktopSceneStateStore(fileSystem);
+        await using var captureService = new DesktopSceneCaptureService(screenCapture, annotator, renderer, stateStore, fileSystem);
+        await using var zoomService = new DesktopSceneZoomService(renderer, stateStore, fileSystem);
 
         var sceneId = $"e2e_zoom_{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}";
         await captureService.CaptureWithGridAsync(sceneId, 2);
@@ -78,13 +78,13 @@ public sealed class DesktopSceneE2ETests {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
 
-        var fileSystem = new PhysicalFileSystem();
-        var screenCapture = new GdiScreenCaptureService();
+        await using var fileSystem = new PhysicalFileSystem();
+        await using var screenCapture = new GdiScreenCaptureService();
         var annotator = new QuadtreeEncoder();
         var renderer = new QuadtreeRenderer(annotator);
-        var stateStore = new DesktopSceneStateStore(fileSystem);
-        var captureService = new DesktopSceneCaptureService(screenCapture, annotator, renderer, stateStore, fileSystem);
-        var zoomService = new DesktopSceneZoomService(renderer, stateStore, fileSystem);
+        await using var stateStore = new DesktopSceneStateStore(fileSystem);
+        await using var captureService = new DesktopSceneCaptureService(screenCapture, annotator, renderer, stateStore, fileSystem);
+        await using var zoomService = new DesktopSceneZoomService(renderer, stateStore, fileSystem);
 
         var sceneId = $"e2e_back_{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}";
         await captureService.CaptureWithGridAsync(sceneId, 2);

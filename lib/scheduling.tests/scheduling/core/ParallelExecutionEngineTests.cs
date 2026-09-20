@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.Scheduling;
 
 /// <summary>
@@ -69,7 +69,7 @@ public class ParallelExecutionEngineTests {
     public void Constructor_WithAgentCoordinator_ShouldInitializeCorrectly() {
         var agentCoordinator = CreateAgentCoordinator();
 
-        var engine = new ParallelExecutionEngine(
+        using var engine = new ParallelExecutionEngine(
             agentCoordinator,
             NullLogger<ParallelExecutionEngine>.Instance);
 
@@ -92,7 +92,7 @@ public class ParallelExecutionEngineTests {
     /// </summary>
     [Fact]
     public void Constructor_SimulationMode_ShouldInitializeCorrectly() {
-        var engine = new ParallelExecutionEngine(simulationMode: true, NullLogger<ParallelExecutionEngine>.Instance);
+        using var engine = new ParallelExecutionEngine(simulationMode: true, NullLogger<ParallelExecutionEngine>.Instance);
 
         engine.Should().NotBeNull();
     }
@@ -104,7 +104,7 @@ public class ParallelExecutionEngineTests {
     public void Constructor_WithNullLogger_ShouldInitializeCorrectly() {
         var agentCoordinator = CreateAgentCoordinator();
 
-        var engine = new ParallelExecutionEngine(agentCoordinator, null);
+        using var engine = new ParallelExecutionEngine(agentCoordinator, null);
 
         engine.Should().NotBeNull();
     }
@@ -119,7 +119,7 @@ public class ParallelExecutionEngineTests {
     [Fact]
     public async Task ExecuteAsync_SimulationMode_ShouldReturnResult() {
         // Arrange
-        var engine = new ParallelExecutionEngine(simulationMode: true);
+        await using var engine = new ParallelExecutionEngine(simulationMode: true);
 
         // Act
         var result = await engine.ExecuteAsync().ConfigureAwait(true);
@@ -134,7 +134,7 @@ public class ParallelExecutionEngineTests {
     [Fact]
     public async Task ExecuteAsync_WithOptions_ShouldUseOptions() {
         // Arrange
-        var engine = new ParallelExecutionEngine(simulationMode: true);
+        await using var engine = new ParallelExecutionEngine(simulationMode: true);
         var options = new ExecutionOptions {
             MaxConcurrentTasks = 5,
             SimulatedWorkDurationMs = 100

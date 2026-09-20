@@ -1,4 +1,4 @@
-namespace Hands.Tests.Serialization;
+﻿namespace Hands.Tests.Serialization;
 
 public sealed class McpAuthPersistenceServiceTests {
     private readonly Mock<IConfigurationService> _configMock;
@@ -66,7 +66,7 @@ public sealed class McpAuthPersistenceServiceTests {
 
     [Fact]
     public async Task LoadAsync_WithoutConfigService_ReturnsNull() {
-        var service = new McpAuthPersistenceService();
+        await using var service = new McpAuthPersistenceService();
 
         var result = await service.LoadAsync("auth1").ConfigureAwait(true);
 
@@ -89,7 +89,7 @@ public sealed class McpAuthPersistenceServiceTests {
 
     [Fact]
     public async Task ListAsync_WithoutConfigService_ReturnsEmpty() {
-        var service = new McpAuthPersistenceService();
+        await using var service = new McpAuthPersistenceService();
 
         var result = await service.ListAsync().ConfigureAwait(true);
 

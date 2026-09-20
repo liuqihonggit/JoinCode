@@ -1,9 +1,9 @@
-namespace McpToolRegistry.Tests;
+﻿namespace McpToolRegistry.Tests;
 
 public sealed class PermissionAwareToolExecutorEntityTests {
     [Fact]
     public void ToolExecutionContext_HasExecutionEntity_AfterCreation() {
-        var entity = new ToolExecutionEntity("read_file");
+        using var entity = new ToolExecutionEntity("read_file");
         var context = new ToolExecutionContext {
             ToolName = "read_file",
             Arguments = [],

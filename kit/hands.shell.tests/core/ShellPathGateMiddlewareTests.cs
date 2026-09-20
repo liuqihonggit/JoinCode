@@ -1,4 +1,4 @@
-namespace Hands.Tests.Shell;
+﻿namespace Hands.Tests.Shell;
 
 /// <summary>
 /// ShellPathGateMiddleware 单元测试 — 验证路径门控中间件不再自动转换路径(报错让 LLM 自己修正)
@@ -17,7 +17,7 @@ public class ShellPathGateMiddlewareTests {
         var probeService = new Mock<IEnvironmentProbeService>();
 
         var provider = CreateMockProvider(kind);
-        var sut = new ShellPathGateMiddleware(probeService.Object);
+        await using var sut = new ShellPathGateMiddleware(probeService.Object);
         var context = new ShellPipelineContext {
             Command = "echo hello",
             Provider = provider.Object,
@@ -37,7 +37,7 @@ public class ShellPathGateMiddlewareTests {
         var probeService = new Mock<IEnvironmentProbeService>();
 
         var provider = CreateMockProvider(kind);
-        var sut = new ShellPathGateMiddleware(probeService.Object);
+        await using var sut = new ShellPathGateMiddleware(probeService.Object);
         var context = new ShellPipelineContext {
             Command = command,
             Provider = provider.Object,
@@ -53,7 +53,7 @@ public class ShellPathGateMiddlewareTests {
     public async Task InvokeAsync_CallsNextMiddleware() {
         var probeService = new Mock<IEnvironmentProbeService>();
         var provider = CreateMockProvider(SystemActuatorKind.Bash);
-        var sut = new ShellPathGateMiddleware(probeService.Object);
+        await using var sut = new ShellPathGateMiddleware(probeService.Object);
         var context = new ShellPipelineContext {
             Command = "echo hello",
             Provider = provider.Object,

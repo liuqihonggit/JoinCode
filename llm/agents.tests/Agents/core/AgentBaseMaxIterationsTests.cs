@@ -1,4 +1,4 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
 
 /// <summary>
@@ -14,7 +14,7 @@ public sealed class AgentBaseMaxIterationsTests {
             .Returns(Array.Empty<QueryStreamChunk>().ToAsyncEnumerable());
 
         var options = new SubAgentOptions { MaxIterations = 1 };
-        var agent = new AgentBase("test task", options, queryEngineMock.Object, null);
+        await using var agent = new AgentBase("test task", options, queryEngineMock.Object, null);
 
         var result1 = await agent.ExecuteAsync();
         result1.IsSuccess.Should().BeTrue();
@@ -32,7 +32,7 @@ public sealed class AgentBaseMaxIterationsTests {
             .Setup(x => x.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<QueryOptions?>(), It.IsAny<CancellationToken>()))
             .Returns(Array.Empty<QueryStreamChunk>().ToAsyncEnumerable());
 
-        var agent = new AgentBase("test task", null, queryEngineMock.Object, null);
+        await using var agent = new AgentBase("test task", null, queryEngineMock.Object, null);
 
         var result = await agent.ExecuteAsync();
         result.IsSuccess.Should().BeTrue();

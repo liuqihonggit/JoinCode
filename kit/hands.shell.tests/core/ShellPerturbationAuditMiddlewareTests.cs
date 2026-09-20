@@ -1,4 +1,4 @@
-namespace Hands.Tests.Shell;
+﻿namespace Hands.Tests.Shell;
 
 /// <summary>
 /// ShellPerturbationAuditMiddleware 单元测试 — 验证 MTP 扰动审计中间件的 PostToolUse 统计行为
@@ -7,7 +7,7 @@ public class ShellPerturbationAuditMiddlewareTests {
     [Fact]
     public async Task NullExecutionResult_DoesNotRecord() {
         var node = new MtpPerturbationNode();
-        var sut = new ShellPerturbationAuditMiddleware(node);
+        await using var sut = new ShellPerturbationAuditMiddleware(node);
         var context = CreateContext("echo hello");
         context.ExecutionResult = null;
 
@@ -20,7 +20,7 @@ public class ShellPerturbationAuditMiddlewareTests {
     [Fact]
     public async Task SuccessExecution_RecordsWithoutTrigger() {
         var node = new MtpPerturbationNode();
-        var sut = new ShellPerturbationAuditMiddleware(node);
+        await using var sut = new ShellPerturbationAuditMiddleware(node);
         var context = CreateContext("echo hello");
         context.ExecutionResult = CreateResult(exitCode: 0, stderr: "");
 
@@ -34,7 +34,7 @@ public class ShellPerturbationAuditMiddlewareTests {
     [Fact]
     public async Task FailedExecutionWithRedirect_RecordsAnomaly() {
         var node = new MtpPerturbationNode();
-        var sut = new ShellPerturbationAuditMiddleware(node);
+        await using var sut = new ShellPerturbationAuditMiddleware(node);
         var context = CreateContext("cmd >nul");
         context.ExecutionResult = CreateResult(exitCode: 1, stderr: "The system cannot find the path specified");
 
@@ -48,7 +48,7 @@ public class ShellPerturbationAuditMiddlewareTests {
     [Fact]
     public async Task ThreeConsecutiveAnomalies_TriggersAdaptive() {
         var node = new MtpPerturbationNode();
-        var sut = new ShellPerturbationAuditMiddleware(node);
+        await using var sut = new ShellPerturbationAuditMiddleware(node);
 
         for (var i = 0; i < 3; i++) {
             var context = CreateContext("cmd >nul");
@@ -64,7 +64,7 @@ public class ShellPerturbationAuditMiddlewareTests {
     [Fact]
     public async Task NextMiddleware_AlwaysCalledFirst() {
         var node = new MtpPerturbationNode();
-        var sut = new ShellPerturbationAuditMiddleware(node);
+        await using var sut = new ShellPerturbationAuditMiddleware(node);
         var context = CreateContext("echo hello");
         context.ExecutionResult = CreateResult(exitCode: 0, stderr: "");
 

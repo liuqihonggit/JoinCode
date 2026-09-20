@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.Scheduling;
 
 /// <summary>
@@ -256,12 +256,12 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         var taskId = createResult.Data!.Id;
 
         // Act - 创建新的服务实例（模拟进程重启）
-        var taskFileWriter = new TaskFileWriter(_fileOperationService);
-        var taskFileReader = new TaskFileReader(_fileOperationService);
+        await using var taskFileWriter = new TaskFileWriter(_fileOperationService);
+        await using var taskFileReader = new TaskFileReader(_fileOperationService);
 
         var options = new TaskDirectoryOptions { TaskDirectoryPath = "tasks" };
         var fileOps = new TaskFileOperations(_fileOperationService, taskFileWriter, taskFileReader, _fs);
-        var newService = new FileBasedTaskService(fileOps, options);
+        await using var newService = new FileBasedTaskService(fileOps, options);
 
         var task = await newService.GetTaskAsync(taskId).ConfigureAwait(true);
 

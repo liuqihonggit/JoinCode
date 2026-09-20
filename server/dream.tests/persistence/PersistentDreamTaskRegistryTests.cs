@@ -1,4 +1,4 @@
-namespace Dream.Tests.Persistence;
+﻿namespace Dream.Tests.Persistence;
 
 /// <summary>
 /// 持久化做梦任务注册表单元测试
@@ -7,7 +7,7 @@ public sealed class PersistentDreamTaskRegistryTests {
     [Fact]
     public async Task RegisterDreamTaskAsync_SavesToPersistence() {
         var persistence = new Mock<IDreamTaskPersistence>();
-        var registry = new PersistentDreamTaskRegistry(persistence.Object);
+        await using var registry = new PersistentDreamTaskRegistry(persistence.Object);
 
         var taskId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
 
@@ -18,7 +18,7 @@ public sealed class PersistentDreamTaskRegistryTests {
     [Fact]
     public async Task AddDreamTurnAsync_SavesUpdatedTask() {
         var persistence = new Mock<IDreamTaskPersistence>();
-        var registry = new PersistentDreamTaskRegistry(persistence.Object);
+        await using var registry = new PersistentDreamTaskRegistry(persistence.Object);
         var taskId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
 
         await registry.AddDreamTurnAsync(taskId, new DreamTurn { Text = "turn", ToolUseCount = 0 }, Array.Empty<string>()).ConfigureAwait(true);
@@ -29,7 +29,7 @@ public sealed class PersistentDreamTaskRegistryTests {
     [Fact]
     public async Task CompleteDreamTaskAsync_SavesAndRemovesFromActive() {
         var persistence = new Mock<IDreamTaskPersistence>();
-        var registry = new PersistentDreamTaskRegistry(persistence.Object);
+        await using var registry = new PersistentDreamTaskRegistry(persistence.Object);
         var taskId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
 
         await registry.CompleteDreamTaskAsync(taskId).ConfigureAwait(true);
@@ -43,7 +43,7 @@ public sealed class PersistentDreamTaskRegistryTests {
     [Fact]
     public async Task FailDreamTaskAsync_SavesAndRemovesFromActive() {
         var persistence = new Mock<IDreamTaskPersistence>();
-        var registry = new PersistentDreamTaskRegistry(persistence.Object);
+        await using var registry = new PersistentDreamTaskRegistry(persistence.Object);
         var taskId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
 
         await registry.FailDreamTaskAsync(taskId).ConfigureAwait(true);
@@ -56,7 +56,7 @@ public sealed class PersistentDreamTaskRegistryTests {
     [Fact]
     public async Task KillDreamTaskAsync_SavesAndRemovesFromActive() {
         var persistence = new Mock<IDreamTaskPersistence>();
-        var registry = new PersistentDreamTaskRegistry(persistence.Object);
+        await using var registry = new PersistentDreamTaskRegistry(persistence.Object);
         var taskId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
 
         await registry.KillDreamTaskAsync(taskId).ConfigureAwait(true);
@@ -99,7 +99,7 @@ public sealed class PersistentDreamTaskRegistryTests {
                 SessionsReviewing = 1,
                 PriorMtime = 0
             });
-        var registry = new PersistentDreamTaskRegistry(persistence.Object);
+        await using var registry = new PersistentDreamTaskRegistry(persistence.Object);
 
         var task = await registry.GetTaskStateAsync("d12345678").ConfigureAwait(true);
 
@@ -122,7 +122,7 @@ public sealed class PersistentDreamTaskRegistryTests {
                     PriorMtime = 0
                 }
             });
-        var registry = new PersistentDreamTaskRegistry(persistence.Object);
+        await using var registry = new PersistentDreamTaskRegistry(persistence.Object);
         var activeId = await registry.RegisterDreamTaskAsync(CreateRequest()).ConfigureAwait(true);
 
         var all = await registry.GetAllTasksAsync().ConfigureAwait(true);
@@ -141,7 +141,7 @@ public sealed class PersistentDreamTaskRegistryTests {
                 new() { Id = "active", Description = "dreaming", StartTime = DateTime.UtcNow, SessionsReviewing = 1, PriorMtime = 0, Status = DreamTaskStatus.Running },
                 new() { Id = "completed", Description = "dreaming", StartTime = DateTime.UtcNow, SessionsReviewing = 1, PriorMtime = 0, Status = DreamTaskStatus.Completed }
             });
-        var registry = new PersistentDreamTaskRegistry(persistence.Object);
+        await using var registry = new PersistentDreamTaskRegistry(persistence.Object);
 
         await registry.LoadActiveTasksAsync().ConfigureAwait(true);
 
@@ -152,7 +152,7 @@ public sealed class PersistentDreamTaskRegistryTests {
     [Fact]
     public async Task CleanupAsync_DelegatesToPersistence() {
         var persistence = new Mock<IDreamTaskPersistence>();
-        var registry = new PersistentDreamTaskRegistry(persistence.Object);
+        await using var registry = new PersistentDreamTaskRegistry(persistence.Object);
 
         await registry.CleanupAsync(5).ConfigureAwait(true);
 

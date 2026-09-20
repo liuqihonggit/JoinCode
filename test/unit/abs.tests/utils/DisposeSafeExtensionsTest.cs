@@ -1,4 +1,4 @@
-namespace Abs.Tests.Utils;
+﻿namespace Abs.Tests.Utils;
 
 /// <summary>
 /// DisposeSafeExtensions 单元测试 — 验证安全释放扩展的幂等性、异常吞咽与日志记录行为
@@ -88,7 +88,7 @@ public sealed class DisposeSafeExtensionsTest {
 
     [Fact]
     public async Task DisposeSafeAsync_Normal_DisposesAsync() {
-        var obj = new TrackableAsyncDisposable();
+        await using var obj = new TrackableAsyncDisposable();
 
         await obj.DisposeSafeAsync();
 

@@ -1,11 +1,11 @@
-
+﻿
 namespace Core.Tests.Query;
 
 public class TokenBudgetManagerTests {
     [Fact]
     public async Task AllocateBudget_ShouldIncreaseTotalBudget() {
         // Arrange
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
         var initialBudget = await manager.GetRemainingBudgetAsync().ConfigureAwait(true);
 
         // Act
@@ -18,7 +18,7 @@ public class TokenBudgetManagerTests {
     [Fact]
     public async Task ConsumeTokens_ShouldDecreaseRemainingBudget() {
         // Arrange
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
         await manager.AllocateBudgetAsync(1000).ConfigureAwait(true);
 
         // Act
@@ -31,7 +31,7 @@ public class TokenBudgetManagerTests {
     [Fact]
     public async Task GetRemainingBudget_WhenNoBudgetAllocated_ShouldReturnUnlimited() {
         // Arrange
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
 
         // Act
         var remaining = await manager.GetRemainingBudgetAsync().ConfigureAwait(true);
@@ -43,7 +43,7 @@ public class TokenBudgetManagerTests {
     [Fact]
     public async Task SetBudgetAlertThreshold_ShouldUpdateThreshold() {
         // Arrange
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
         await manager.AllocateBudgetAsync(1000).ConfigureAwait(true);
         var alertFired = false;
         manager.BudgetAlert += (s, e) => alertFired = true;
@@ -69,7 +69,7 @@ public class TokenBudgetManagerTests {
     [Fact]
     public async Task ResetBudget_ShouldClearAllBudget() {
         // Arrange
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
         await manager.AllocateBudgetAsync(1000).ConfigureAwait(true);
         await manager.ConsumeTokensAsync(500, "Test consumption").ConfigureAwait(true);
 
@@ -83,7 +83,7 @@ public class TokenBudgetManagerTests {
     [Fact]
     public async Task BudgetAlert_ShouldFireWhenThresholdExceeded() {
         // Arrange
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
         await manager.AllocateBudgetAsync(1000).ConfigureAwait(true);
         await manager.SetBudgetAlertThresholdAsync(0.8).ConfigureAwait(true);
         var alertFired = false;
@@ -99,7 +99,7 @@ public class TokenBudgetManagerTests {
     [Fact]
     public async Task BudgetAlert_ShouldNotFireWhenThresholdNotExceeded() {
         // Arrange
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
         await manager.AllocateBudgetAsync(1000).ConfigureAwait(true);
         await manager.SetBudgetAlertThresholdAsync(0.8).ConfigureAwait(true);
         var alertFired = false;
@@ -114,7 +114,7 @@ public class TokenBudgetManagerTests {
 
     [Fact]
     public async Task Constructor_InitializesBudgetToZero() {
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
 
         var remaining = await manager.GetRemainingBudgetAsync().ConfigureAwait(true);
 
@@ -132,7 +132,7 @@ public class TokenBudgetManagerTests {
 
     [Fact]
     public async Task BudgetAlert_ExactlyAtThreshold_Fires() {
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
         await manager.AllocateBudgetAsync(1000).ConfigureAwait(true);
         await manager.SetBudgetAlertThresholdAsync(0.5).ConfigureAwait(true);
         var alertFired = false;
@@ -145,7 +145,7 @@ public class TokenBudgetManagerTests {
 
     [Fact]
     public async Task BudgetAlert_WithZeroBudgetAndThreshold_DoesNotFire() {
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
         await manager.SetBudgetAlertThresholdAsync(0.8).ConfigureAwait(true);
         var alertFired = false;
         manager.BudgetAlert += (s, e) => alertFired = true;
@@ -158,7 +158,7 @@ public class TokenBudgetManagerTests {
     [Fact]
     public async Task MultipleAllocations_ShouldAccumulate() {
         // Arrange
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
 
         // Act
         await manager.AllocateBudgetAsync(500).ConfigureAwait(true);
@@ -172,7 +172,7 @@ public class TokenBudgetManagerTests {
     [Fact]
     public async Task ConsumeTokens_ExceedingBudget_ShouldAllowNegative() {
         // Arrange
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
         await manager.AllocateBudgetAsync(100).ConfigureAwait(true);
 
         // Act
@@ -185,7 +185,7 @@ public class TokenBudgetManagerTests {
     [Fact]
     public async Task BudgetAlert_WithZeroThreshold_ShouldNotFire() {
         // Arrange
-        var manager = new TokenBudgetManager();
+        await using var manager = new TokenBudgetManager();
         await manager.AllocateBudgetAsync(1000).ConfigureAwait(true);
         var alertFired = false;
         manager.BudgetAlert += (s, e) => alertFired = true;

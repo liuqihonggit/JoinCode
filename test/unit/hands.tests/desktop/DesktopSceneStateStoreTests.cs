@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop.Tests;
+﻿namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
 /// DesktopSceneStateStore 单元测试 — AC-05b 跨进程文件持久化
@@ -10,13 +10,13 @@ public sealed class DesktopSceneStateStoreTests {
         var storedFiles = new Dictionary<string, string>();
         var fsMock = CreateSharedFileSystemMock(storedFiles);
 
-        var storeA = new DesktopSceneStateStore("/fake/scenarios", fsMock.Object);
+        await using var storeA = new DesktopSceneStateStore("/fake/scenarios", fsMock.Object);
         var state = new DesktopSceneState("sc_001", 1, "L0.2",
             new[] { new ZoomHistoryEntry(1, "L0.2", 2, DateTimeOffset.UtcNow) },
             null, "zoom", DateTimeOffset.UtcNow);
         await storeA.SaveAsync(state);
 
-        var storeB = new DesktopSceneStateStore("/fake/scenarios", fsMock.Object);
+        await using var storeB = new DesktopSceneStateStore("/fake/scenarios", fsMock.Object);
         var loaded = await storeB.LoadAsync("sc_001");
 
         loaded.Should().NotBeNull();
@@ -31,7 +31,7 @@ public sealed class DesktopSceneStateStoreTests {
     [Fact]
     public async Task Load_NonexistentScene_ReturnsNull() {
         var fsMock = CreateSharedFileSystemMock(new Dictionary<string, string>());
-        var store = new DesktopSceneStateStore("/fake/scenarios", fsMock.Object);
+        await using var store = new DesktopSceneStateStore("/fake/scenarios", fsMock.Object);
         var loaded = await store.LoadAsync("sc_nonexistent");
         loaded.Should().BeNull();
     }

@@ -1,4 +1,4 @@
-namespace Guard.Tests.Hooks.Execution.Interception;
+﻿namespace Guard.Tests.Hooks.Execution.Interception;
 
 /// <summary>
 /// CommandInterceptionDispatcher 单元测试 — 验证守卫链/拦截器链/链式改写/优先级/短路/异常跳过
@@ -10,7 +10,7 @@ public sealed class CommandInterceptionDispatcherTests {
 
     [Fact]
     public async Task DispatchAsync_NoGuardsNoInterceptors_PassesThrough() {
-        var dispatcher = new CommandInterceptionDispatcher([], []);
+        await using var dispatcher = new CommandInterceptionDispatcher([], []);
 
         var outcome = await dispatcher.DispatchAsync("git status", EmptyContext, default);
 
@@ -23,7 +23,7 @@ public sealed class CommandInterceptionDispatcherTests {
     [Fact]
     public async Task DispatchAsync_GuardAllow_PassesThrough() {
         var guard = new StubGuard("g1", priority: 100, new CommandDecision.Allow());
-        var dispatcher = new CommandInterceptionDispatcher([guard], []);
+        await using var dispatcher = new CommandInterceptionDispatcher([guard], []);
 
         var outcome = await dispatcher.DispatchAsync("ls", EmptyContext, default);
 
@@ -37,7 +37,7 @@ public sealed class CommandInterceptionDispatcherTests {
     public async Task DispatchAsync_GuardRewrite_RewritesCommandAndPassesThrough() {
         var guard = new StubGuard("rewrite1", priority: 100,
             new CommandDecision.Rewrite("git -c http.proxy=x fetch", "vpn"));
-        var dispatcher = new CommandInterceptionDispatcher([guard], []);
+        await using var dispatcher = new CommandInterceptionDispatcher([guard], []);
 
         var outcome = await dispatcher.DispatchAsync("git fetch", EmptyContext, default);
 
@@ -54,7 +54,7 @@ public sealed class CommandInterceptionDispatcherTests {
         var guardLow = new StubGuard("body", priority: 100,
             new CommandDecision.Rewrite("git -c http.proxy=x fetch --body", "body"));
 
-        var dispatcher = new CommandInterceptionDispatcher([guardLow, guardHigh], []);
+        await using var dispatcher = new CommandInterceptionDispatcher([guardLow, guardHigh], []);
 
         var outcome = await dispatcher.DispatchAsync("git fetch", EmptyContext, default);
 
@@ -68,7 +68,7 @@ public sealed class CommandInterceptionDispatcherTests {
     public async Task DispatchAsync_GuardDeny_ShortCircuitsWithError() {
         var diag = ToolDiagnostic.Create("命令被拒绝", "禁止直接执行 git commit");
         var guard = new StubGuard("denyCommit", priority: 1000, new CommandDecision.Deny(diag));
-        var dispatcher = new CommandInterceptionDispatcher([guard], []);
+        await using var dispatcher = new CommandInterceptionDispatcher([guard], []);
 
         var outcome = await dispatcher.DispatchAsync("git commit -m x", EmptyContext, default);
 
@@ -82,7 +82,7 @@ public sealed class CommandInterceptionDispatcherTests {
         var diag = ToolDiagnostic.Create("拒绝", "denied");
         var denyGuard = new StubGuard("deny", priority: 200, new CommandDecision.Deny(diag));
         var allowGuard = new StubGuard("allow", priority: 100, new CommandDecision.Allow());
-        var dispatcher = new CommandInterceptionDispatcher([allowGuard, denyGuard], []);
+        await using var dispatcher = new CommandInterceptionDispatcher([allowGuard, denyGuard], []);
 
         var outcome = await dispatcher.DispatchAsync("cmd", EmptyContext, default);
 
@@ -96,7 +96,7 @@ public sealed class CommandInterceptionDispatcherTests {
     public async Task DispatchAsync_GuardRedirect_ShortCircuitsWithHint() {
         var guard = new StubGuard("redirectCommit", priority: 1000,
             new CommandDecision.Redirect("/commit", "请使用 /commit 斜杠命令创建提交"));
-        var dispatcher = new CommandInterceptionDispatcher([guard], []);
+        await using var dispatcher = new CommandInterceptionDispatcher([guard], []);
 
         var outcome = await dispatcher.DispatchAsync("git commit", EmptyContext, default);
 
@@ -112,7 +112,7 @@ public sealed class CommandInterceptionDispatcherTests {
         var handoffGuard = new StubGuard("handoff", priority: 100, new CommandDecision.Handoff());
         var interceptor = new StubInterceptor("i1", priority: 100,
             new InterceptResult.Handled(ToolResultBuilder.Success().WithText("handled").Build()));
-        var dispatcher = new CommandInterceptionDispatcher([handoffGuard], [interceptor]);
+        await using var dispatcher = new CommandInterceptionDispatcher([handoffGuard], [interceptor]);
 
         var outcome = await dispatcher.DispatchAsync("cmd", EmptyContext, default);
 
@@ -127,7 +127,7 @@ public sealed class CommandInterceptionDispatcherTests {
     public async Task DispatchAsync_InterceptorHandled_ShortCircuits() {
         var interceptor = new StubInterceptor("build", priority: 100,
             new InterceptResult.Handled(ToolResultBuilder.Success().WithText("build queued").Build()));
-        var dispatcher = new CommandInterceptionDispatcher([], [interceptor]);
+        await using var dispatcher = new CommandInterceptionDispatcher([], [interceptor]);
 
         var outcome = await dispatcher.DispatchAsync("dotnet build", EmptyContext, default);
 
@@ -138,7 +138,7 @@ public sealed class CommandInterceptionDispatcherTests {
     [Fact]
     public async Task DispatchAsync_InterceptorContinue_PassesThrough() {
         var interceptor = new StubInterceptor("sed", priority: 100, new InterceptResult.Continue());
-        var dispatcher = new CommandInterceptionDispatcher([], [interceptor]);
+        await using var dispatcher = new CommandInterceptionDispatcher([], [interceptor]);
 
         var outcome = await dispatcher.DispatchAsync("sed -i s/a/b/ f.txt", EmptyContext, default);
 
@@ -150,7 +150,7 @@ public sealed class CommandInterceptionDispatcherTests {
         var throwingInterceptor = new StubInterceptor("thrower", priority: 100, throwOnHandle: true);
         var passInterceptor = new StubInterceptor("pass", priority: 50,
             new InterceptResult.Handled(ToolResultBuilder.Success().WithText("ok").Build()));
-        var dispatcher = new CommandInterceptionDispatcher([], [throwingInterceptor, passInterceptor]);
+        await using var dispatcher = new CommandInterceptionDispatcher([], [throwingInterceptor, passInterceptor]);
 
         var outcome = await dispatcher.DispatchAsync("cmd", EmptyContext, default);
 
@@ -164,7 +164,7 @@ public sealed class CommandInterceptionDispatcherTests {
     public async Task DispatchAsync_GuardsEvaluatedByPriorityDescending() {
         var first = new StubGuard("first", priority: 50, new CommandDecision.Allow());
         var second = new StubGuard("second", priority: 100, new CommandDecision.Allow());
-        var dispatcher = new CommandInterceptionDispatcher([first, second], []);
+        await using var dispatcher = new CommandInterceptionDispatcher([first, second], []);
 
         await dispatcher.DispatchAsync("cmd", EmptyContext, default);
 
@@ -177,7 +177,7 @@ public sealed class CommandInterceptionDispatcherTests {
     public void Constructor_GuardsSortedByPriorityDescending() {
         var low = new StubGuard("low", priority: 10, new CommandDecision.Allow());
         var high = new StubGuard("high", priority: 100, new CommandDecision.Allow());
-        var dispatcher = new CommandInterceptionDispatcher([low, high], []);
+        using var dispatcher = new CommandInterceptionDispatcher([low, high], []);
 
         dispatcher.GetGuards()[0].Should().BeSameAs(high);
         dispatcher.GetGuards()[1].Should().BeSameAs(low);

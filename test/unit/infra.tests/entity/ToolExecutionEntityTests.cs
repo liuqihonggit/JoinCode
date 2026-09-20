@@ -1,4 +1,4 @@
-namespace Infra.Tests.EntityTests;
+﻿namespace Infra.Tests.EntityTests;
 
 public sealed class ToolExecutionEntityTests {
     [Fact]
@@ -29,7 +29,7 @@ public sealed class ToolExecutionEntityTests {
 
     [Fact]
     public void Dispose_RemovesFromRegistry() {
-        var entity = new ToolExecutionEntity("test");
+        using var entity = new ToolExecutionEntity("test");
         var objectId = entity.ObjectId;
         ToolExecutionEntity.Registry.Get(objectId).Should().BeSameAs(entity);
         entity.Dispose();
@@ -38,7 +38,7 @@ public sealed class ToolExecutionEntityTests {
 
     [Fact]
     public void Dispose_SetsLifecycleToDisposed() {
-        var entity = new ToolExecutionEntity("test");
+        using var entity = new ToolExecutionEntity("test");
         entity.LifecycleState = EntityLifecycle.Active;
         entity.Dispose();
         entity.LifecycleState.Should().Be(EntityLifecycle.Disposed);

@@ -1,4 +1,4 @@
-namespace Hands.Tests.Shell;
+﻿namespace Hands.Tests.Shell;
 
 /// <summary>
 /// ShellValidationMiddleware 单元测试 — 验证 Shell 命令参数验证中间件的结构化诊断
@@ -6,7 +6,7 @@ namespace Hands.Tests.Shell;
 public class ShellValidationMiddlewareTests {
     [Fact]
     public async Task EmptyCommand_SetsValidationErrorWithDiagnostic() {
-        var sut = new ShellValidationMiddleware();
+        await using var sut = new ShellValidationMiddleware();
         var context = CreateContext(command: "");
 
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -20,7 +20,7 @@ public class ShellValidationMiddlewareTests {
 
     [Fact]
     public async Task ValidCommand_PassesToNext() {
-        var sut = new ShellValidationMiddleware();
+        await using var sut = new ShellValidationMiddleware();
         var context = CreateContext(command: "echo hello");
 
         var nextCalled = false;

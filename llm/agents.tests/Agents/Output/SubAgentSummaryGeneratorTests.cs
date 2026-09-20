@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 
 public sealed class SubAgentSummaryGeneratorTests {
@@ -6,7 +6,7 @@ public sealed class SubAgentSummaryGeneratorTests {
 
     [Fact]
     public async Task ClientNull_ReturnsSkipped() {
-        var sut = new SubAgentSummaryGenerator(client: null, config: new SubAgentSummaryConfig { Auto = true });
+        await using var sut = new SubAgentSummaryGenerator(client: null, config: new SubAgentSummaryConfig { Auto = true });
 
         var result = await sut.TrySummarizeAsync("agent-1", GenerateText(100), 50);
 
@@ -17,7 +17,7 @@ public sealed class SubAgentSummaryGeneratorTests {
     [Fact]
     public async Task AutoDisabled_ReturnsSkipped() {
         var clientMock = new Mock<ISubAgentSummaryClient>();
-        var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = false });
+        await using var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = false });
 
         var result = await sut.TrySummarizeAsync("agent-1", GenerateText(100), 50);
 
@@ -28,7 +28,7 @@ public sealed class SubAgentSummaryGeneratorTests {
     [Fact]
     public async Task OutputWithinBudget_ReturnsNotNeeded() {
         var clientMock = new Mock<ISubAgentSummaryClient>();
-        var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true });
+        await using var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true });
 
         var result = await sut.TrySummarizeAsync("agent-1", GenerateText(50), 100);
 
@@ -43,7 +43,7 @@ public sealed class SubAgentSummaryGeneratorTests {
             .Setup(c => c.SummarizeAsync(It.IsAny<string>(), "agent-1", 50, It.IsAny<CancellationToken>()))
             .ReturnsAsync(GenerateText(30));
 
-        var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true });
+        await using var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true });
 
         var result = await sut.TrySummarizeAsync("agent-1", GenerateText(100), 50);
 
@@ -59,7 +59,7 @@ public sealed class SubAgentSummaryGeneratorTests {
             .Setup(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string?)null);
 
-        var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true, MaxRetries = 0 });
+        await using var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true, MaxRetries = 0 });
 
         var result = await sut.TrySummarizeAsync("agent-1", GenerateText(100), 50);
 
@@ -74,7 +74,7 @@ public sealed class SubAgentSummaryGeneratorTests {
             .Setup(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(GenerateText(80));
 
-        var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true, MaxRetries = 0 });
+        await using var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true, MaxRetries = 0 });
 
         var result = await sut.TrySummarizeAsync("agent-1", GenerateText(100), 50);
 
@@ -89,7 +89,7 @@ public sealed class SubAgentSummaryGeneratorTests {
             .ThrowsAsync(new InvalidOperationException("transient"))
             .ReturnsAsync(GenerateText(30));
 
-        var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true, MaxRetries = 1 });
+        await using var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true, MaxRetries = 1 });
 
         var result = await sut.TrySummarizeAsync("agent-1", GenerateText(100), 50);
 
@@ -104,7 +104,7 @@ public sealed class SubAgentSummaryGeneratorTests {
             .Setup(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("always fails"));
 
-        var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true, MaxRetries = 2 });
+        await using var sut = new SubAgentSummaryGenerator(clientMock.Object, new SubAgentSummaryConfig { Auto = true, MaxRetries = 2 });
 
         var result = await sut.TrySummarizeAsync("agent-1", GenerateText(100), 50);
 

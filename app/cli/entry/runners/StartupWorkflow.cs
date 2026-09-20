@@ -1,4 +1,4 @@
-namespace JoinCode.Entry;
+﻿namespace JoinCode.Entry;
 
 internal sealed class StartupWorkflow {
     private readonly IModelConfigLoader? _modelConfigLoader;
@@ -192,7 +192,7 @@ internal sealed class StartupWorkflow {
 
     internal static async Task<bool> CheckWorkspaceTrustAsync(CommandLineOptions options, IFileSystem fs) {
         var workspacePath = fs.GetCurrentDirectory();
-        var trustManager = new TrustFolderManager(fs);
+        await using var trustManager = new TrustFolderManager(fs);
 
         if (trustManager.IsTrusted(workspacePath)) {
             return true;

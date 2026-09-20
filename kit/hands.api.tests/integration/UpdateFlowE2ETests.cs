@@ -1,4 +1,4 @@
-namespace Hands.Tests.Integration;
+﻿namespace Hands.Tests.Integration;
 
 /// <summary>
 /// 更新流程 E2E 集成测试 — 启动 UpdateServer + UpgradeService 完整更新链路
@@ -8,7 +8,7 @@ namespace Hands.Tests.Integration;
 public sealed class UpdateFlowE2ETests {
     [Fact]
     public async Task FullUpdateFlow_ServerToDownload_Succeeds() {
-        var fs = new IO.FileSystem.PhysicalFileSystem();
+        await using var fs = new IO.FileSystem.PhysicalFileSystem();
         var exeContent = "fake jcc exe content for e2e test"u8.ToArray();
         var sha256 = await ComputeSha256Async(exeContent);
 
@@ -23,7 +23,7 @@ public sealed class UpdateFlowE2ETests {
             var httpClient = new HttpClient();
             var manifestUrl = $"{server.Url}/manifest.json";
             var updateSource = new StaticFileUpdateSource(httpClient, manifestUrl);
-            var service = new UpgradeService(httpClient, fs, updateSource: updateSource);
+            await using var service = new UpgradeService(httpClient, fs, updateSource: updateSource);
 
             var isAvailable = await service.IsUpdateAvailableAsync();
             isAvailable.Should().BeTrue("999.0.0 应大于当前版本");
@@ -51,7 +51,7 @@ public sealed class UpdateFlowE2ETests {
 
     [Fact]
     public async Task FullUpdateFlow_WrongSha256_DownloadFails() {
-        var fs = new IO.FileSystem.PhysicalFileSystem();
+        await using var fs = new IO.FileSystem.PhysicalFileSystem();
         var exeContent = "fake jcc exe content for sha256 mismatch"u8.ToArray();
         var wrongSha256 = "0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -66,7 +66,7 @@ public sealed class UpdateFlowE2ETests {
             var httpClient = new HttpClient();
             var manifestUrl = $"{server.Url}/manifest.json";
             var updateSource = new StaticFileUpdateSource(httpClient, manifestUrl);
-            var service = new UpgradeService(httpClient, fs, updateSource: updateSource);
+            await using var service = new UpgradeService(httpClient, fs, updateSource: updateSource);
 
             var entry = await service.GetUpdateEntryAsync();
             entry.Should().NotBeNull();
@@ -82,7 +82,7 @@ public sealed class UpdateFlowE2ETests {
 
     [Fact]
     public async Task FullUpdateFlow_HealthCheck_ServerResponds() {
-        var fs = new IO.FileSystem.PhysicalFileSystem();
+        await using var fs = new IO.FileSystem.PhysicalFileSystem();
         var contentRoot = fs.CombinePath(Path.GetTempPath(), $"update_e2e_{Guid.NewGuid():N}");
         var server = new UpdateServer(fs, port: 0, contentRoot: contentRoot);
         server.GenerateContent("1.0.0", "abc", "exe"u8.ToArray());
@@ -103,7 +103,7 @@ public sealed class UpdateFlowE2ETests {
 
     [Fact]
     public async Task FullUpdateFlow_ManifestEndpoint_ReturnsJson() {
-        var fs = new IO.FileSystem.PhysicalFileSystem();
+        await using var fs = new IO.FileSystem.PhysicalFileSystem();
         var exeContent = "test exe"u8.ToArray();
         var sha256 = await ComputeSha256Async(exeContent);
         var contentRoot = fs.CombinePath(Path.GetTempPath(), $"update_e2e_{Guid.NewGuid():N}");

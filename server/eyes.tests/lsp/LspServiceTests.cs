@@ -1,4 +1,4 @@
-namespace Core.Tests.Lsp;
+﻿namespace Core.Tests.Lsp;
 
 public sealed class LspModelTests {
     [Fact]
@@ -373,7 +373,7 @@ public sealed class LspServiceTests {
     [Fact]
     public async Task GotoDefinitionAsync_NoServerForFile_ReturnsEmpty() {
         _mockManager.Setup(m => m.GetServerForFile(It.IsAny<string>())).Returns((ILspServerInstance?)null);
-        var service = new LspService(CreateEngineContext(), CreateDeps());
+        await using var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var result = await service.GotoDefinitionAsync("/src/readme.md", 1, 1).ConfigureAwait(true);
 
@@ -384,7 +384,7 @@ public sealed class LspServiceTests {
     [Fact]
     public async Task FindReferencesAsync_NoServerForFile_ReturnsEmpty() {
         _mockManager.Setup(m => m.GetServerForFile(It.IsAny<string>())).Returns((ILspServerInstance?)null);
-        var service = new LspService(CreateEngineContext(), CreateDeps());
+        await using var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var result = await service.FindReferencesAsync("/src/readme.md", 1, 1).ConfigureAwait(true);
 
@@ -395,7 +395,7 @@ public sealed class LspServiceTests {
     [Fact]
     public async Task HoverAsync_NoServerForFile_ReturnsNull() {
         _mockManager.Setup(m => m.GetServerForFile(It.IsAny<string>())).Returns((ILspServerInstance?)null);
-        var service = new LspService(CreateEngineContext(), CreateDeps());
+        await using var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var result = await service.HoverAsync("/src/readme.md", 1, 1).ConfigureAwait(true);
 
@@ -405,7 +405,7 @@ public sealed class LspServiceTests {
     [Fact]
     public async Task GetCompletionsAsync_NoServerForFile_ReturnsEmpty() {
         _mockManager.Setup(m => m.GetServerForFile(It.IsAny<string>())).Returns((ILspServerInstance?)null);
-        var service = new LspService(CreateEngineContext(), CreateDeps());
+        await using var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var result = await service.GetCompletionsAsync("/src/readme.md", 1, 1).ConfigureAwait(true);
 
@@ -416,7 +416,7 @@ public sealed class LspServiceTests {
     [Fact]
     public async Task GetDocumentSymbolsAsync_NoServerForFile_ReturnsEmpty() {
         _mockManager.Setup(m => m.GetServerForFile(It.IsAny<string>())).Returns((ILspServerInstance?)null);
-        var service = new LspService(CreateEngineContext(), CreateDeps());
+        await using var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var result = await service.GetDocumentSymbolsAsync("/src/readme.md").ConfigureAwait(true);
 
@@ -426,7 +426,7 @@ public sealed class LspServiceTests {
 
     [Fact]
     public async Task SearchWorkspaceSymbolsAsync_NoServers_ReturnsEmpty() {
-        var service = new LspService(CreateEngineContext(), CreateDeps());
+        await using var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var result = await service.SearchWorkspaceSymbolsAsync("MyClass").ConfigureAwait(true);
 
@@ -458,7 +458,7 @@ public sealed class LspServiceTests {
         mockServer.Setup(s => s.State).Returns(LspServerState.Stopped);
         _mockManager.Setup(m => m.GetAllServers())
             .Returns(new Dictionary<string, ILspServerInstance> { ["test-server"] = mockServer.Object });
-        var service = new LspService(CreateEngineContext(), CreateDeps());
+        await using var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var result = await service.SearchWorkspaceSymbolsAsync("MyClass").ConfigureAwait(true);
 
@@ -475,7 +475,7 @@ public sealed class LspServiceTests {
         mockServer.Setup(s => s.State).Returns(LspServerState.Error);
         _mockManager.Setup(m => m.GetAllServers())
             .Returns(new Dictionary<string, ILspServerInstance> { ["test-server"] = mockServer.Object });
-        var service = new LspService(CreateEngineContext(), CreateDeps());
+        await using var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var result = await service.SearchWorkspaceSymbolsAsync("MyClass").ConfigureAwait(true);
 
@@ -496,7 +496,7 @@ public sealed class LspServiceTests {
             .ReturnsAsync(jsonResponse);
         _mockManager.Setup(m => m.GetAllServers())
             .Returns(new Dictionary<string, ILspServerInstance> { ["test-server"] = mockServer.Object });
-        var service = new LspService(CreateEngineContext(), CreateDeps());
+        await using var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var result = await service.SearchWorkspaceSymbolsAsync("MyFunc").ConfigureAwait(true);
 

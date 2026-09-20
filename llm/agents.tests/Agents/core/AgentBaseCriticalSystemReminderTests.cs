@@ -1,4 +1,4 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
 
 /// <summary>
@@ -16,7 +16,7 @@ public sealed class AgentBaseCriticalSystemReminderTests {
             .Returns(Array.Empty<QueryStreamChunk>().ToAsyncEnumerable());
 
         var options = new SubAgentOptions { CriticalSystemReminder = "CRITICAL: stay focused" };
-        var agent = new AgentBase("test task", options, queryEngineMock.Object, null);
+        await using var agent = new AgentBase("test task", options, queryEngineMock.Object, null);
 
         await agent.ExecuteAsync();
 
@@ -37,7 +37,7 @@ public sealed class AgentBaseCriticalSystemReminderTests {
             .Returns(Array.Empty<QueryStreamChunk>().ToAsyncEnumerable());
 
         var options = new SubAgentOptions();
-        var agent = new AgentBase("test task", options, queryEngineMock.Object, null);
+        await using var agent = new AgentBase("test task", options, queryEngineMock.Object, null);
 
         await agent.ExecuteAsync();
 
@@ -58,7 +58,7 @@ public sealed class AgentBaseCriticalSystemReminderTests {
             .Returns(Array.Empty<QueryStreamChunk>().ToAsyncEnumerable());
 
         var options = new SubAgentOptions { CriticalSystemReminder = "CRITICAL: verify only" };
-        var agent = new AgentBase("test task", options, queryEngineMock.Object, null);
+        await using var agent = new AgentBase("test task", options, queryEngineMock.Object, null);
 
         await agent.ExecuteAsync();
         await agent.ExecuteAsync();

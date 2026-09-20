@@ -1,4 +1,4 @@
-namespace Hands.Tests.Web;
+﻿namespace Hands.Tests.Web;
 
 /// <summary>
 /// WebService 二进制内容持久化集成测试 — 对齐TS版 WebFetchTool/utils.ts 的二进制处理链路
@@ -30,8 +30,8 @@ public class WebServiceBinaryContentTests {
 
     private WebService CreateService(Mock<IApiClient> apiClient) {
         var cache = new WebFetchCache();
-        var domainChecker = new DomainBlocklistChecker(apiClient.Object, cache);
-        var binaryStorage = new BinaryContentStorage(_fs);
+        using var domainChecker = new DomainBlocklistChecker(apiClient.Object, cache);
+        using var binaryStorage = new BinaryContentStorage(_fs);
 
         var middlewares = new IMiddleware<WebContext>[]
         {

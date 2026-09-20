@@ -1,4 +1,4 @@
-
+﻿
 namespace Bridge.Tests.Phase7D;
 
 public sealed class BridgeRemoteCoreTests {
@@ -128,7 +128,7 @@ public sealed class BridgeRemoteCoreTests {
 
     [Fact]
     public async Task FlushHistory_NoMessages_NoWrite() {
-        var transport = new MockTransport();
+        await using var transport = new MockTransport();
         await BridgeRemoteCore.FlushHistoryAsync(
             [], 0, null, transport, "cse_test", CancellationToken.None).ConfigureAwait(true);
         Assert.Equal(0, transport.WriteBatchCallCount);
@@ -136,7 +136,7 @@ public sealed class BridgeRemoteCoreTests {
 
     [Fact]
     public async Task FlushHistory_WithCap_TruncatesFromStart() {
-        var transport = new MockTransport();
+        await using var transport = new MockTransport();
         var messages = new[] { "msg1", "msg2", "msg3", "msg4", "msg5" };
         await BridgeRemoteCore.FlushHistoryAsync(
             messages, initialHistoryCap: 3, null, transport, "cse_test", CancellationToken.None).ConfigureAwait(true);
@@ -150,7 +150,7 @@ public sealed class BridgeRemoteCoreTests {
 
     [Fact]
     public async Task FlushHistory_NoCap_SendsAll() {
-        var transport = new MockTransport();
+        await using var transport = new MockTransport();
         var messages = new[] { "msg1", "msg2", "msg3" };
         await BridgeRemoteCore.FlushHistoryAsync(
             messages, initialHistoryCap: 0, null, transport, "cse_test", CancellationToken.None).ConfigureAwait(true);
@@ -160,7 +160,7 @@ public sealed class BridgeRemoteCoreTests {
 
     [Fact]
     public async Task FlushHistory_WithToSDKMessages_ConvertsAndSends() {
-        var transport = new MockTransport();
+        await using var transport = new MockTransport();
         var messages = new[] { "raw1", "raw2" };
         Func<string, string[]> toSDK = msg => [$"sdk_{msg}"];
         await BridgeRemoteCore.FlushHistoryAsync(
@@ -178,8 +178,8 @@ public sealed class BridgeRemoteCoreTests {
     [Fact]
     public void DrainFlushGate_NoPending_NoWrite() {
         var flushGate = new BridgeFlushGate<string>();
-        var transport = new MockTransport();
-        var uuidSet = new BoundedUUIDSet(100);
+        using var transport = new MockTransport();
+        using var uuidSet = new BoundedUUIDSet(100);
         flushGate.Start();
         var msgs = flushGate.End();
         Assert.Empty(msgs);
@@ -191,8 +191,8 @@ public sealed class BridgeRemoteCoreTests {
     [Fact]
     public void DrainFlushGate_WithPending_SendsAll() {
         var flushGate = new BridgeFlushGate<string>();
-        var transport = new MockTransport();
-        var uuidSet = new BoundedUUIDSet(100);
+        using var transport = new MockTransport();
+        using var uuidSet = new BoundedUUIDSet(100);
 
         flushGate.Start();
         flushGate.Enqueue("queued1", "queued2");
@@ -207,8 +207,8 @@ public sealed class BridgeRemoteCoreTests {
     [Fact]
     public void DrainFlushGate_WithToSDKMessages_ConvertsAndSends() {
         var flushGate = new BridgeFlushGate<string>();
-        var transport = new MockTransport();
-        var uuidSet = new BoundedUUIDSet(100);
+        using var transport = new MockTransport();
+        using var uuidSet = new BoundedUUIDSet(100);
         Func<string, string[]> toSDK = msg => [$"sdk_{msg}"];
 
         flushGate.Start();

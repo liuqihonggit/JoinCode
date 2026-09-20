@@ -1,4 +1,4 @@
-namespace JoinCode.Entry;
+﻿namespace JoinCode.Entry;
 
 /// <summary>
 /// 会话初始化中间件 — 创建 CliSession 并初始化
@@ -87,7 +87,7 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         if (goalEngine is null || cronTaskStore is null) return;
         var logger = services.GetService<ILogger<CronGoalBridge>>();
         var agentDefProvider = services.GetService<IAgentDefinitionProvider>();
-        var bridge = new CronGoalBridge(cronTaskStore, goalEngine, agentDefProvider, logger);
+        await using var bridge = new CronGoalBridge(cronTaskStore, goalEngine, agentDefProvider, logger);
         await bridge.StartAsync(ct).ConfigureAwait(false);
     }
 

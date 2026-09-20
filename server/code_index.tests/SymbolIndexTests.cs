@@ -1,4 +1,4 @@
-namespace JoinCode.CodeIndex.Tests;
+﻿namespace JoinCode.CodeIndex.Tests;
 
 public sealed class SymbolIndexTests : IDisposable {
     private readonly InMemoryIndexStore _store;
@@ -19,7 +19,7 @@ public sealed class SymbolIndexTests : IDisposable {
 
     [Fact]
     public async Task IndexFileAsync_SingleFile_StoresSymbols() {
-        var fs = new IO.FileSystem.InMemoryFileSystem();
+        await using var fs = new IO.FileSystem.InMemoryFileSystem();
         var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
         var path = "test.cs";
         fs.WriteAllText(path, "public class Foo { public void Bar() { } }");
@@ -32,7 +32,7 @@ public sealed class SymbolIndexTests : IDisposable {
 
     [Fact]
     public async Task IndexFileAsync_MultipleFiles_StoresAllSymbols() {
-        var fs = new IO.FileSystem.InMemoryFileSystem();
+        await using var fs = new IO.FileSystem.InMemoryFileSystem();
         var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
         fs.WriteAllText("a.cs", "public class A { }");
         fs.WriteAllText("b.cs", "public class B { }");
@@ -65,7 +65,7 @@ public sealed class SymbolIndexTests : IDisposable {
 
     [Fact]
     public async Task IndexFileAsync_ReindexOverwrites_EnsuresIdempotency() {
-        var fs = new IO.FileSystem.InMemoryFileSystem();
+        await using var fs = new IO.FileSystem.InMemoryFileSystem();
         var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
         var path = "test.cs";
         fs.WriteAllText(path, "public class Old { }");
@@ -116,7 +116,7 @@ public sealed class SymbolIndexTests : IDisposable {
 
     [Fact]
     public async Task IndexFilesAsync_IndexesMultipleFiles() {
-        var fs = new IO.FileSystem.InMemoryFileSystem();
+        await using var fs = new IO.FileSystem.InMemoryFileSystem();
         var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
         fs.WriteAllText("a.cs", "public class A { }");
         fs.WriteAllText("b.cs", "public class B { }");

@@ -1,4 +1,4 @@
-namespace Sync.Tests.Agents.Coordinator.Pool;
+﻿namespace Sync.Tests.Agents.Coordinator.Pool;
 
 /// <summary>
 /// SubAgentPool 单元测试 — 验证代理池回池/抢塞/清理逻辑（ADR 0106 L3）
@@ -16,7 +16,7 @@ public sealed class SubAgentPoolTests {
 
     [Fact]
     public void Return_PoolEnabled_AddsToPool() {
-        var pool = new SubAgentPool(DefaultOptions());
+        using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
 
         var result = pool.Return(agent);
@@ -29,7 +29,7 @@ public sealed class SubAgentPoolTests {
     public void Return_PoolFull_DisposesAgent() {
         var options = DefaultOptions();
         options.PoolMaxSize = 1;
-        var pool = new SubAgentPool(options);
+        using var pool = new SubAgentPool(options);
         var agent1 = CreateAgent("task A");
         var agent2 = CreateAgent("task B");
 
@@ -44,7 +44,7 @@ public sealed class SubAgentPoolTests {
     public void Return_PoolDisabled_DisposesAgent() {
         var options = DefaultOptions();
         options.PoolMaxSize = 0;
-        var pool = new SubAgentPool(options);
+        using var pool = new SubAgentPool(options);
         var agent = CreateAgent();
 
         var result = pool.Return(agent);
@@ -56,7 +56,7 @@ public sealed class SubAgentPoolTests {
 
     [Fact]
     public void TryAcquire_EmptyPool_ReturnsNull() {
-        var pool = new SubAgentPool(DefaultOptions());
+        using var pool = new SubAgentPool(DefaultOptions());
 
         var agent = pool.TryAcquire("any task");
 
@@ -65,7 +65,7 @@ public sealed class SubAgentPoolTests {
 
     [Fact]
     public void TryAcquire_MatchingTask_ReturnsAgent() {
-        var pool = new SubAgentPool(DefaultOptions());
+        using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser");
         agent.Status = TaskExecutionStatus.Completed;
         pool.Return(agent);
@@ -79,7 +79,7 @@ public sealed class SubAgentPoolTests {
 
     [Fact]
     public void TryAcquire_NoCompletedAgent_ReturnsNull() {
-        var pool = new SubAgentPool(DefaultOptions());
+        using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
         agent.Status = TaskExecutionStatus.Running;
         pool.Return(agent);
@@ -91,7 +91,7 @@ public sealed class SubAgentPoolTests {
 
     [Fact]
     public void TryAcquire_PartialMatch_ReturnsBestMatch() {
-        var pool = new SubAgentPool(DefaultOptions());
+        using var pool = new SubAgentPool(DefaultOptions());
         var agent1 = CreateAgent("fix bug in parser");
         agent1.Status = TaskExecutionStatus.Completed;
         var agent2 = CreateAgent("refactor code module");
@@ -107,7 +107,7 @@ public sealed class SubAgentPoolTests {
 
     [Fact]
     public void Remove_ExistingAgent_DisposesAndRemoves() {
-        var pool = new SubAgentPool(DefaultOptions());
+        using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
         pool.Return(agent);
 
@@ -119,7 +119,7 @@ public sealed class SubAgentPoolTests {
 
     [Fact]
     public void Remove_NonExistingAgent_ReturnsFalse() {
-        var pool = new SubAgentPool(DefaultOptions());
+        using var pool = new SubAgentPool(DefaultOptions());
 
         var result = pool.Remove("nonexistent-id");
 
@@ -130,7 +130,7 @@ public sealed class SubAgentPoolTests {
     public void IsFull_WhenCountReachesMax_ReturnsTrue() {
         var options = DefaultOptions();
         options.PoolMaxSize = 2;
-        var pool = new SubAgentPool(options);
+        using var pool = new SubAgentPool(options);
 
         pool.Return(CreateAgent("task A"));
         pool.IsFull.Should().BeFalse();
@@ -154,7 +154,7 @@ public sealed class SubAgentPoolTests {
 
     [Fact]
     public void Return_SameAgentTwice_SecondFails() {
-        var pool = new SubAgentPool(DefaultOptions());
+        using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
 
         pool.Return(agent);

@@ -1,4 +1,4 @@
-namespace Llm.Tests.Adapters.LLM;
+﻿namespace Llm.Tests.Adapters.LLM;
 
 public class ChatClientTests {
     [Fact]
@@ -10,20 +10,20 @@ public class ChatClientTests {
     [Fact]
     public void GetChatCompletionService_ReturnsInjectedService() {
         var mockService = new Mock<IQueryService>();
-        var client = new ChatClient(mockService.Object);
+        using var client = new ChatClient(mockService.Object);
 
         client.GetChatCompletionService().Should().BeSameAs(mockService.Object);
     }
 
     [Fact]
     public void Plugins_IsNotNull() {
-        var client = new ChatClient(new Mock<IQueryService>().Object);
+        using var client = new ChatClient(new Mock<IQueryService>().Object);
         client.Plugins.Should().NotBeNull();
     }
 
     [Fact]
     public void ToolCollection_AddAndGetPlugin_ReturnsPlugin() {
-        var client = new ChatClient(new Mock<IQueryService>().Object);
+        using var client = new ChatClient(new Mock<IQueryService>().Object);
         var plugin = new ToolGroup("test", [new ToolDef("fn", "desc")]);
 
         client.Plugins.Add(plugin);
@@ -34,7 +34,7 @@ public class ChatClientTests {
 
     [Fact]
     public void ToolCollection_Remove_RemovesPlugin() {
-        var client = new ChatClient(new Mock<IQueryService>().Object);
+        using var client = new ChatClient(new Mock<IQueryService>().Object);
         client.Plugins.Add(new ToolGroup("test", []));
 
         var removed = client.Plugins.Remove("test");
@@ -45,7 +45,7 @@ public class ChatClientTests {
 
     [Fact]
     public void ToolCollection_GetMissingPlugin_ReturnsNull() {
-        var client = new ChatClient(new Mock<IQueryService>().Object);
+        using var client = new ChatClient(new Mock<IQueryService>().Object);
         client.Plugins.GetPlugin("missing").Should().BeNull();
     }
 

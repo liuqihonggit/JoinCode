@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop.Tests;
+﻿namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
 /// P5 观察学习单元测试
@@ -206,7 +206,7 @@ public sealed class P5ObservationLearnerTests {
     public async Task AbstractAsync_ValidResponse_ReturnsParsedLogic() {
         var llmResponse = """{"name":"登录模式","pattern":"输入凭据并点击登录","parameters":"user={u},pass={p}","steps":["输入用户名","输入密码","点击登录"],"confidence":0.85}""";
         var mock = CreateQueryMock(llmResponse);
-        var learner = new ObservationLearner(mock.Object);
+        await using var learner = new ObservationLearner(mock.Object);
 
         var session = MakeSession(
             new DesktopOperation(DesktopOperationKind.TypeText, 100, 200, "admin", null, null, DateTimeOffset.UtcNow, true, null),
@@ -223,7 +223,7 @@ public sealed class P5ObservationLearnerTests {
     [Fact]
     public async Task AbstractAsync_EmptyResponse_ReturnsFallback() {
         var mock = CreateQueryMock("");
-        var learner = new ObservationLearner(mock.Object);
+        await using var learner = new ObservationLearner(mock.Object);
 
         var result = await learner.AbstractAsync(MakeSession(Op()));
 
@@ -243,7 +243,7 @@ public sealed class P5ObservationLearnerTests {
     [Fact]
     public async Task AbstractAsync_CallsQueryServiceOnce() {
         var mock = CreateQueryMock("""{"name":"x","pattern":"","parameters":"","steps":[],"confidence":0.5}""");
-        var learner = new ObservationLearner(mock.Object);
+        await using var learner = new ObservationLearner(mock.Object);
 
         await learner.AbstractAsync(MakeSession(Op()));
 
@@ -257,7 +257,7 @@ public sealed class P5ObservationLearnerTests {
     [Fact]
     public async Task OptimizeAsync_ValidResponse_ReturnsText() {
         var mock = CreateQueryMock("建议：合并步骤1和2");
-        var learner = new ObservationLearner(mock.Object);
+        await using var learner = new ObservationLearner(mock.Object);
 
         var logic = new AbstractOperationLogic("test", "pattern", "p", ["s1", "s2"], 0.8);
         var result = await learner.OptimizeAsync(logic);
@@ -268,7 +268,7 @@ public sealed class P5ObservationLearnerTests {
     [Fact]
     public async Task OptimizeAsync_EmptyResponse_ReturnsDefaultMessage() {
         var mock = CreateQueryMock("");
-        var learner = new ObservationLearner(mock.Object);
+        await using var learner = new ObservationLearner(mock.Object);
 
         var logic = new AbstractOperationLogic("test", "pattern", "p", [], 0.5);
         var result = await learner.OptimizeAsync(logic);
@@ -293,7 +293,7 @@ public sealed class P5ObservationLearnerTests {
     public async Task ReproduceAsync_ValidResponse_ReturnsMacroWithOperations() {
         var llmResponse = """{"operations":[{"kind":"Click","x":100,"y":200,"succeeded":true},{"kind":"TypeText","x":0,"y":0,"text":"hello","succeeded":true}]}""";
         var mock = CreateQueryMock(llmResponse);
-        var learner = new ObservationLearner(mock.Object);
+        await using var learner = new ObservationLearner(mock.Object);
 
         var logic = new AbstractOperationLogic("输入文本", "点击并输入", "", ["点击", "输入"], 0.8);
         var macro = await learner.ReproduceAsync(logic, "在记事本中输入hello");
@@ -309,7 +309,7 @@ public sealed class P5ObservationLearnerTests {
     [Fact]
     public async Task ReproduceAsync_EmptyResponse_ReturnsEmptyMacro() {
         var mock = CreateQueryMock("");
-        var learner = new ObservationLearner(mock.Object);
+        await using var learner = new ObservationLearner(mock.Object);
 
         var logic = new AbstractOperationLogic("test", "p", "", [], 0.5);
         var macro = await learner.ReproduceAsync(logic, "context");
@@ -329,7 +329,7 @@ public sealed class P5ObservationLearnerTests {
     [Fact]
     public async Task ReproduceAsync_CallsQueryServiceOnce() {
         var mock = CreateQueryMock("""{"operations":[]}""");
-        var learner = new ObservationLearner(mock.Object);
+        await using var learner = new ObservationLearner(mock.Object);
 
         var logic = new AbstractOperationLogic("test", "p", "", [], 0.5);
         await learner.ReproduceAsync(logic, "context");

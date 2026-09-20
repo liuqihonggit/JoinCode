@@ -1,10 +1,10 @@
-namespace Infra.Tests.Services;
+﻿namespace Infra.Tests.Services;
 
 public sealed class ReleaseNotesServiceTests {
     [Fact]
     public void Constructor_Should_Set_Default_Timeout() {
         var httpClient = new HttpClient();
-        var service = new ReleaseNotesService(httpClient);
+        using var service = new ReleaseNotesService(httpClient);
 
         service.Should().NotBeNull();
     }
@@ -12,7 +12,7 @@ public sealed class ReleaseNotesServiceTests {
     [Fact]
     public void Constructor_Should_Accept_Custom_Timeout() {
         var httpClient = new HttpClient();
-        var service = new ReleaseNotesService(httpClient,
+        using var service = new ReleaseNotesService(httpClient,
             requestTimeout: TimeSpan.FromSeconds(3),
             cacheDuration: TimeSpan.FromMinutes(30));
 
@@ -22,7 +22,7 @@ public sealed class ReleaseNotesServiceTests {
     [Fact]
     public async Task GetRecentReleasesAsync_WhenNetworkFails_Should_Return_Empty() {
         var httpClient = new HttpClient(new FailingHandler());
-        var service = new ReleaseNotesService(httpClient,
+        await using var service = new ReleaseNotesService(httpClient,
             requestTimeout: TimeSpan.FromSeconds(1),
             cacheDuration: TimeSpan.FromMinutes(1));
 
@@ -35,7 +35,7 @@ public sealed class ReleaseNotesServiceTests {
     [Fact]
     public async Task GetRecentReleasesAsync_WhenTimeout_Should_Return_Empty() {
         var httpClient = new HttpClient(new DelayingHandler(TimeSpan.FromSeconds(10)));
-        var service = new ReleaseNotesService(httpClient,
+        await using var service = new ReleaseNotesService(httpClient,
             requestTimeout: TimeSpan.FromMilliseconds(100),
             cacheDuration: TimeSpan.FromMinutes(1));
 
@@ -51,7 +51,7 @@ public sealed class ReleaseNotesServiceTests {
         var handler = new CountingHandler(json);
 
         var httpClient = new HttpClient(handler);
-        var service = new ReleaseNotesService(httpClient,
+        await using var service = new ReleaseNotesService(httpClient,
             requestTimeout: TimeSpan.FromSeconds(5),
             cacheDuration: TimeSpan.FromHours(1));
 
@@ -70,7 +70,7 @@ public sealed class ReleaseNotesServiceTests {
         var fakeTime = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
 
         var httpClient = new HttpClient(handler);
-        var service = new ReleaseNotesService(httpClient,
+        await using var service = new ReleaseNotesService(httpClient,
             requestTimeout: TimeSpan.FromSeconds(5),
             cacheDuration: TimeSpan.FromMilliseconds(50),
             timeProvider: fakeTime);
@@ -90,7 +90,7 @@ public sealed class ReleaseNotesServiceTests {
         var handler = new CountingHandler(json);
 
         var httpClient = new HttpClient(handler);
-        var service = new ReleaseNotesService(httpClient,
+        await using var service = new ReleaseNotesService(httpClient,
             requestTimeout: TimeSpan.FromSeconds(5),
             cacheDuration: TimeSpan.FromHours(1));
 

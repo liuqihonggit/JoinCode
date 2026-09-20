@@ -1,4 +1,4 @@
-namespace Infra.Tests.EntityTests;
+﻿namespace Infra.Tests.EntityTests;
 
 public sealed class EntityLifecycleTests {
     private sealed class TestEntity : JoinCode.Abstractions.Entity.Entity {
@@ -62,13 +62,13 @@ public sealed class EntityLifecycleTests {
         using var entity = new TestEntity();
         entity.IsTimedOut.Should().BeFalse();
 
-        var timedOutEntity = new TestEntity { TimeoutAt = DateTime.UtcNow.AddSeconds(-1) };
+        using var timedOutEntity = new TestEntity { TimeoutAt = DateTime.UtcNow.AddSeconds(-1) };
         timedOutEntity.IsTimedOut.Should().BeTrue();
     }
 
     [Fact]
     public void Entity_Dispose_SetsLifecycleToDisposed() {
-        var entity = new TestEntity();
+        using var entity = new TestEntity();
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
         entity.Dispose();
         entity.LifecycleState.Should().Be(EntityLifecycle.Disposed);

@@ -1,4 +1,4 @@
-namespace Core.Tests.Prompts;
+﻿namespace Core.Tests.Prompts;
 
 public sealed class ToolIdleReminderServiceTests {
     private static ToolIdleReminderConfig CreateConfig(
@@ -12,7 +12,7 @@ public sealed class ToolIdleReminderServiceTests {
 
     [Fact]
     public async Task CheckAndGenerateRemindersAsync_NoTurns_ReturnsEmpty() {
-        var service = new ToolIdleReminderService([CreateConfig()]);
+        await using var service = new ToolIdleReminderService([CreateConfig()]);
 
         var results = await service.CheckAndGenerateRemindersAsync().ConfigureAwait(true);
 
@@ -21,7 +21,7 @@ public sealed class ToolIdleReminderServiceTests {
 
     [Fact]
     public async Task CheckAndGenerateRemindersAsync_BelowThreshold_ReturnsEmpty() {
-        var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 3)]);
+        await using var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 3)]);
 
         service.RecordAssistantTurn(null);
         service.RecordAssistantTurn(null);
@@ -33,7 +33,7 @@ public sealed class ToolIdleReminderServiceTests {
 
     [Fact]
     public async Task CheckAndGenerateRemindersAsync_ReachesThreshold_ReturnsReminder() {
-        var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 3, turnsBetweenReminders: 1)]);
+        await using var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 3, turnsBetweenReminders: 1)]);
 
         service.RecordAssistantTurn(null);
         service.RecordAssistantTurn(null);
@@ -48,7 +48,7 @@ public sealed class ToolIdleReminderServiceTests {
 
     [Fact]
     public async Task CheckAndGenerateRemindersAsync_ToolUsed_ResetsCounter() {
-        var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 3, turnsBetweenReminders: 1)]);
+        await using var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 3, turnsBetweenReminders: 1)]);
 
         service.RecordAssistantTurn(null);
         service.RecordAssistantTurn(null);
@@ -61,7 +61,7 @@ public sealed class ToolIdleReminderServiceTests {
 
     [Fact]
     public async Task CheckAndGenerateRemindersAsync_ReminderThrottle_PreventsFrequentReminders() {
-        var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 2, turnsBetweenReminders: 5)]);
+        await using var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 2, turnsBetweenReminders: 5)]);
 
         for (var i = 0; i < 3; i++) service.RecordAssistantTurn(null);
 
@@ -76,7 +76,7 @@ public sealed class ToolIdleReminderServiceTests {
 
     [Fact]
     public async Task CheckAndGenerateRemindersAsync_AfterThrottlePeriod_GeneratesAgain() {
-        var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 2, turnsBetweenReminders: 3)]);
+        await using var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 2, turnsBetweenReminders: 3)]);
 
         for (var i = 0; i < 3; i++) service.RecordAssistantTurn(null);
 
@@ -96,7 +96,7 @@ public sealed class ToolIdleReminderServiceTests {
             CreateConfig(toolName: "tool_a", turnsSinceUse: 2, turnsBetweenReminders: 1),
             CreateConfig(toolName: "tool_b", turnsSinceUse: 4, turnsBetweenReminders: 1),
         };
-        var service = new ToolIdleReminderService(configs);
+        await using var service = new ToolIdleReminderService(configs);
 
         service.RecordAssistantTurn(null);
         service.RecordAssistantTurn(null);
@@ -114,7 +114,7 @@ public sealed class ToolIdleReminderServiceTests {
             turnsBetweenReminders: 1,
             stateProvider: _ => new ValueTask<string>("Current todos:\n1. [in_progress] Task A"));
 
-        var service = new ToolIdleReminderService([config]);
+        await using var service = new ToolIdleReminderService([config]);
 
         service.RecordAssistantTurn(null);
         service.RecordAssistantTurn(null);
@@ -133,7 +133,7 @@ public sealed class ToolIdleReminderServiceTests {
             turnsBetweenReminders: 1,
             stateProvider: _ => throw new InvalidOperationException("State unavailable"));
 
-        var service = new ToolIdleReminderService([config]);
+        await using var service = new ToolIdleReminderService([config]);
 
         service.RecordAssistantTurn(null);
         service.RecordAssistantTurn(null);
@@ -146,7 +146,7 @@ public sealed class ToolIdleReminderServiceTests {
 
     [Fact]
     public async Task Reset_ClearsAllCounters() {
-        var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 2, turnsBetweenReminders: 1)]);
+        await using var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 2, turnsBetweenReminders: 1)]);
 
         service.RecordAssistantTurn(null);
         service.RecordAssistantTurn(null);
@@ -158,7 +158,7 @@ public sealed class ToolIdleReminderServiceTests {
 
     [Fact]
     public async Task CheckAndGenerateRemindersAsync_ToolUsedInDifferentCase_ResetsCounter() {
-        var service = new ToolIdleReminderService([CreateConfig(toolName: TodoToolName.TodoWrite.ToValue(), turnsSinceUse: 3, turnsBetweenReminders: 1)]);
+        await using var service = new ToolIdleReminderService([CreateConfig(toolName: TodoToolName.TodoWrite.ToValue(), turnsSinceUse: 3, turnsBetweenReminders: 1)]);
 
         service.RecordAssistantTurn(null);
         service.RecordAssistantTurn(null);

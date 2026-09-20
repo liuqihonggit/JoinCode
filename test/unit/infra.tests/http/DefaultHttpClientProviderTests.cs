@@ -1,4 +1,4 @@
-namespace Infra.Tests.Http;
+﻿namespace Infra.Tests.Http;
 
 
 /// <summary>
@@ -23,7 +23,7 @@ public sealed class DefaultHttpClientProviderTests {
         var spyFactory = new SpyHttpClientFactory();
 
         // Act
-        var provider = new DefaultHttpClientProvider(spyFactory);
+        using var provider = new DefaultHttpClientProvider(spyFactory);
         var client = provider.GetClient();
 
         // Assert
@@ -41,7 +41,7 @@ public sealed class DefaultHttpClientProviderTests {
         var spyFactory = new SpyHttpClientFactory();
 
         // Act
-        var provider = new DefaultHttpClientProvider(spyFactory);
+        using var provider = new DefaultHttpClientProvider(spyFactory);
         _ = provider.GetClient("PolicyClient");
 
         // Assert
@@ -60,7 +60,7 @@ public sealed class DefaultHttpClientProviderTests {
     public void GetClient_WhenFactoryInjected_MultipleCalls_ShouldCreateMultipleClients() {
         // Arrange
         var spyFactory = new SpyHttpClientFactory();
-        var provider = new DefaultHttpClientProvider(spyFactory);
+        using var provider = new DefaultHttpClientProvider(spyFactory);
 
         // Act
         var client1 = provider.GetClient();
@@ -84,7 +84,7 @@ public sealed class DefaultHttpClientProviderTests {
     [Fact]
     public void GetClient_WhenFactoryNull_ShouldFallbackToSharedHttpClient() {
         // Arrange — 无参构造函数（HttpClientProviderFactory.Create() 路径）
-        var provider = new DefaultHttpClientProvider();
+        using var provider = new DefaultHttpClientProvider();
 
         // Act
         var client1 = provider.GetClient();
@@ -101,7 +101,7 @@ public sealed class DefaultHttpClientProviderTests {
     [Fact]
     public void DefaultHttpClientProvider_ParameterlessConstructor_ShouldNotThrow() {
         // Act
-        var provider = new DefaultHttpClientProvider();
+        using var provider = new DefaultHttpClientProvider();
 
         // Assert
         provider.Should().NotBeNull("无参构造函数必须能正常工作 — HttpClientProviderFactory.Create() 依赖此路径");

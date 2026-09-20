@@ -1,4 +1,4 @@
-
+﻿
 namespace Sync.Tests.Scheduling.Tasks;
 
 public class WorkflowTaskExecutorTests {
@@ -199,7 +199,7 @@ public class WorkflowTaskExecutorTests {
         // 而非绕过权限管道直接调用 IToolRegistry.ExecuteToolAsync。
         var gatewayMock = new Mock<IToolExecutionGateway>();
         var lifecycleMock = new Mock<IAgentLifecycleManager>();
-        var executor = new WorkflowTaskExecutor(
+        await using var executor = new WorkflowTaskExecutor(
             gatewayMock.Object,
             lifecycleMock.Object,
             NullLogger<WorkflowTaskExecutor>.Instance);

@@ -1,4 +1,4 @@
-namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
+﻿namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
 
 
 public class ResponsesQueryServiceTests {
@@ -174,7 +174,7 @@ public class ResponsesQueryServiceTests {
     [Fact]
     public void CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
         var service = CreateService();
-        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup("tools", [new ToolDef("TestTool", "A test tool")]));
         var options = new ChatOptions { ToolChoice = ToolChoice.AutoInvoke };
 
@@ -657,7 +657,7 @@ public class ResponsesQueryServiceTests {
 
     [Fact]
     public void BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
-        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file"),
             new ToolDef("write", "Write a file")
@@ -672,7 +672,7 @@ public class ResponsesQueryServiceTests {
 
     [Fact]
     public void BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
-        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.server1.tool1", "MCP tool 1"),
             new ToolDef("mcp.server2.tool2", "MCP tool 2")
@@ -688,7 +688,7 @@ public class ResponsesQueryServiceTests {
 
     [Fact]
     public void BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
-        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file")
         ]));
@@ -711,7 +711,7 @@ public class ResponsesQueryServiceTests {
 
     [Fact]
     public void CreateSecondResponsesRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
-        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1"),
             new ToolDef("mcp.tool2", "MCP tool 2")
@@ -733,7 +733,7 @@ public class ResponsesQueryServiceTests {
 
     [Fact]
     public void CreateSecondResponsesRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
-        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));
@@ -748,7 +748,7 @@ public class ResponsesQueryServiceTests {
 
     [Fact]
     public void CreateSecondResponsesRequestWithDescriptions_PreservesOriginalFields() {
-        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));

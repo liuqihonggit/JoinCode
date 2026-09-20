@@ -1,9 +1,9 @@
-namespace Core.Tests.LLM;
+﻿namespace Core.Tests.LLM;
 
 public sealed class FileOperationTrackerTests {
     [Fact]
     public void Track_ReadOperation_ShouldRecord() {
-        var tracker = new FileOperationTracker();
+        using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/file.cs", FileOperationType.Read);
 
@@ -14,7 +14,7 @@ public sealed class FileOperationTrackerTests {
 
     [Fact]
     public void Track_WriteOperation_ShouldRecord() {
-        var tracker = new FileOperationTracker();
+        using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/file.cs", FileOperationType.Write);
 
@@ -25,7 +25,7 @@ public sealed class FileOperationTrackerTests {
 
     [Fact]
     public void Track_EditOperation_ShouldRecord() {
-        var tracker = new FileOperationTracker();
+        using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/file.cs", FileOperationType.Edit);
 
@@ -36,7 +36,7 @@ public sealed class FileOperationTrackerTests {
 
     [Fact]
     public void Track_MultipleOperationsOnSameFile_ShouldRecordAll() {
-        var tracker = new FileOperationTracker();
+        using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/file.cs", FileOperationType.Read);
         tracker.Track("/path/to/file.cs", FileOperationType.Edit);
@@ -56,7 +56,7 @@ public sealed class FileOperationTrackerTests {
 
     [Fact]
     public void GetOperatedFilePaths_ShouldReturnDistinctPaths() {
-        var tracker = new FileOperationTracker();
+        using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/a.cs", FileOperationType.Read);
         tracker.Track("/path/to/a.cs", FileOperationType.Edit);
@@ -68,7 +68,7 @@ public sealed class FileOperationTrackerTests {
 
     [Fact]
     public void GetOperatedFilePaths_ShouldBeSorted() {
-        var tracker = new FileOperationTracker();
+        using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/z.cs", FileOperationType.Read);
         tracker.Track("/path/to/a.cs", FileOperationType.Read);
@@ -80,7 +80,7 @@ public sealed class FileOperationTrackerTests {
 
     [Fact]
     public void Clear_ShouldRemoveAllEntries() {
-        var tracker = new FileOperationTracker();
+        using var tracker = new FileOperationTracker();
         tracker.Track("/path/to/file.cs", FileOperationType.Read);
 
         tracker.Clear();
@@ -91,14 +91,14 @@ public sealed class FileOperationTrackerTests {
 
     [Fact]
     public void GetAllEntries_EmptyTracker_ShouldReturnEmpty() {
-        var tracker = new FileOperationTracker();
+        using var tracker = new FileOperationTracker();
 
         tracker.GetAllEntries().Should().BeEmpty();
     }
 
     [Fact]
     public void GetOperatedFilePaths_EmptyTracker_ShouldReturnEmpty() {
-        var tracker = new FileOperationTracker();
+        using var tracker = new FileOperationTracker();
 
         tracker.GetOperatedFilePaths().Should().BeEmpty();
     }

@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Tests;
+﻿namespace Infrastructure.Pipeline.Tests;
 
 
 /// <summary>
@@ -92,7 +92,7 @@ public sealed class LoggingScopeMiddlewareTests {
 
     [Fact]
     public async Task Middleware_DefaultSelector_Entity_GetsObjectId() {
-        var entity = new TestEntity(ObjectType.Agent, "test-entity");
+        await using var entity = new TestEntity(ObjectType.Agent, "test-entity");
         var logScopeStates = new List<LogScopeState>();
 
         var middleware = new LoggingScopeMiddleware<TestEntity>(
@@ -122,7 +122,7 @@ public sealed class LoggingScopeMiddlewareTests {
 
     [Fact]
     public async Task Middleware_CustomSelector_ExtractsObjectId() {
-        var entity = new TestEntity(ObjectType.Session, "my-session");
+        await using var entity = new TestEntity(ObjectType.Session, "my-session");
         var context = new TestContextWithObjectId(entity.ObjectId);
 
         var middleware = new LoggingScopeMiddleware<TestContextWithObjectId>(
@@ -144,7 +144,7 @@ public sealed class LoggingScopeMiddlewareTests {
             .Use(new TrackingMiddleware("A", executionLog))
             .Build();
 
-        var entity = new TestEntity(ObjectType.Agent, "pipeline-test");
+        await using var entity = new TestEntity(ObjectType.Agent, "pipeline-test");
         await pipeline.ExecuteAsync(entity, CancellationToken.None).ConfigureAwait(true);
 
         executionLog.Should().Equal("A");

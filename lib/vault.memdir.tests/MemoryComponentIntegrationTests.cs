@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.Memdir;
 
 /// <summary>
@@ -117,7 +117,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable {
     public async Task MemoryManagementService_UsesMemoryScanner() {
         // Arrange
         var fileOpService = new InMemoryFileOperationService();
-        var memoryStore = new MemoryStore(
+        await using var memoryStore = new MemoryStore(
             Options.Create(new MemdirOptions { StoragePath = "/test/memdir/mms-scanner/store.json" }),
             fileOpService,
             NullLogger<MemoryStore>.Instance);
@@ -126,7 +126,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable {
         mockScanner.Setup(s => s.ScanAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Array.Empty<MemoryEntry>());
 
-        var sut = new MemoryManagementService(
+        await using var sut = new MemoryManagementService(
             memoryStore,
             optional: new MemoryOptionalServices(MemoryScanner: mockScanner.Object),
             logger: NullLogger<MemoryManagementService>.Instance);
@@ -144,7 +144,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable {
     public async Task MemoryManagementService_UsesMemoryTruncator() {
         // Arrange
         var fileOpService = new InMemoryFileOperationService();
-        var memoryStore = new MemoryStore(
+        await using var memoryStore = new MemoryStore(
             Options.Create(new MemdirOptions { StoragePath = "/test/memdir/mms-truncator/store.json" }),
             fileOpService,
             NullLogger<MemoryStore>.Instance);
@@ -156,7 +156,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable {
         mockTruncator.Setup(t => t.SmartTruncate(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TruncationThreshold?>()))
             .Returns((string content, string query, TruncationThreshold? _) => content);
 
-        var sut = new MemoryManagementService(
+        await using var sut = new MemoryManagementService(
             memoryStore,
             optional: new MemoryOptionalServices(MemoryTruncator: mockTruncator.Object),
             logger: NullLogger<MemoryManagementService>.Instance);
@@ -174,7 +174,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable {
     public async Task MemoryManagementService_UsesRelevanceSelector() {
         // Arrange
         var fileOpService = new InMemoryFileOperationService();
-        var memoryStore = new MemoryStore(
+        await using var memoryStore = new MemoryStore(
             Options.Create(new MemdirOptions { StoragePath = "/test/memdir/mms-selector/store.json" }),
             fileOpService,
             NullLogger<MemoryStore>.Instance);
@@ -190,7 +190,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable {
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ScoredMemory>());
 
-        var sut = new MemoryManagementService(
+        await using var sut = new MemoryManagementService(
             memoryStore,
             optional: new MemoryOptionalServices(RelevanceSelector: mockSelector.Object),
             logger: NullLogger<MemoryManagementService>.Instance);
@@ -212,7 +212,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable {
     public async Task MemoryManagementService_UsesAgeCalculator() {
         // Arrange
         var fileOpService = new InMemoryFileOperationService();
-        var memoryStore = new MemoryStore(
+        await using var memoryStore = new MemoryStore(
             Options.Create(new MemdirOptions { StoragePath = "/test/memdir/mms-age/store.json" }),
             fileOpService,
             NullLogger<MemoryStore>.Instance);
@@ -226,7 +226,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable {
         mockAgeCalculator.Setup(c => c.ShouldArchive(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(false);
 
-        var sut = new MemoryManagementService(
+        await using var sut = new MemoryManagementService(
             memoryStore,
             optional: new MemoryOptionalServices(AgeCalculator: mockAgeCalculator.Object),
             logger: NullLogger<MemoryManagementService>.Instance);

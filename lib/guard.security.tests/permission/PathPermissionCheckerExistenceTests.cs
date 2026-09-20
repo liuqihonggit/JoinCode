@@ -1,4 +1,4 @@
-namespace Core.Tests.Permission;
+﻿namespace Core.Tests.Permission;
 
 /// <summary>
 /// PathPermissionChecker 路径存在性检查单元测试 — 验证步骤8.5
@@ -10,7 +10,7 @@ public class PathPermissionCheckerExistenceTests {
     [Fact]
     public void WorkDirOutside_NonExistentPath_ReturnsInvalid() {
         var fs = CreateFileSystem(WorkingDir);
-        var sut = new PathPermissionChecker(fs.Object, WorkingDir);
+        using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
         var result = sut.CheckReadPermission(@"D:\other\nonexistent.txt");
 
@@ -24,7 +24,7 @@ public class PathPermissionCheckerExistenceTests {
         var fs = CreateFileSystem(WorkingDir);
         fs.Setup(x => x.FileExists(It.Is<string>(p => p.Contains("existing", StringComparison.OrdinalIgnoreCase)))).Returns(true);
 
-        var sut = new PathPermissionChecker(fs.Object, WorkingDir);
+        using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
         var result = sut.CheckReadPermission(existingPath);
 
@@ -35,7 +35,7 @@ public class PathPermissionCheckerExistenceTests {
     [Fact]
     public void WorkDirInside_NonExistentPath_ReturnsAllow() {
         var fs = CreateFileSystem(WorkingDir);
-        var sut = new PathPermissionChecker(fs.Object, WorkingDir);
+        using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
         var result = sut.CheckReadPermission(Path.Combine(WorkingDir, "newfile.txt"));
 
@@ -45,7 +45,7 @@ public class PathPermissionCheckerExistenceTests {
     [Fact]
     public void GarbledPath_WithReplacementChar_ReturnsInvalid() {
         var fs = CreateFileSystem(WorkingDir);
-        var sut = new PathPermissionChecker(fs.Object, WorkingDir);
+        using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
         var garbledPath = @"D:\other\bad\uFFFDfile.txt".Replace("uFFFD", "\uFFFD");
 
@@ -58,7 +58,7 @@ public class PathPermissionCheckerExistenceTests {
     [Fact]
     public void GarbledPath_WithControlChar_ReturnsInvalid() {
         var fs = CreateFileSystem(WorkingDir);
-        var sut = new PathPermissionChecker(fs.Object, WorkingDir);
+        using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
         var garbledPath = @"D:\other\bad\" + "\x01control.txt";
 
@@ -71,7 +71,7 @@ public class PathPermissionCheckerExistenceTests {
     [Fact]
     public void UncPath_NonExistent_ReturnsAsk_Step1Priority() {
         var fs = CreateFileSystem(WorkingDir);
-        var sut = new PathPermissionChecker(fs.Object, WorkingDir);
+        using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
         var result = sut.CheckReadPermission(@"\\network\share\nonexistent.txt");
 
@@ -88,7 +88,7 @@ public class PathPermissionCheckerExistenceTests {
             Pattern = @"D:\blocked\**",
             Source = PathPermissionRuleSource.UserSettings
         };
-        var sut = new PathPermissionChecker(fs.Object, WorkingDir, rules: [denyRule]);
+        using var sut = new PathPermissionChecker(fs.Object, WorkingDir, rules: [denyRule]);
 
         var result = sut.CheckReadPermission(@"D:\blocked\nonexistent.txt");
 
@@ -98,7 +98,7 @@ public class PathPermissionCheckerExistenceTests {
     [Fact]
     public void WritePermission_NonExistentPath_DoesNotCheckExistence() {
         var fs = CreateFileSystem(WorkingDir);
-        var sut = new PathPermissionChecker(fs.Object, WorkingDir);
+        using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
         var result = sut.CheckWritePermission(@"D:\other\newfile.txt");
 
@@ -111,7 +111,7 @@ public class PathPermissionCheckerExistenceTests {
         var fs = CreateFileSystem(WorkingDir);
         fs.Setup(x => x.DirectoryExists(It.Is<string>(p => p.Contains("existingdir", StringComparison.OrdinalIgnoreCase)))).Returns(true);
 
-        var sut = new PathPermissionChecker(fs.Object, WorkingDir);
+        using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
         var result = sut.CheckReadPermission(@"D:\other\existingdir");
 
@@ -127,7 +127,7 @@ public class PathPermissionCheckerExistenceTests {
             Pattern = @"D:\allowed\**",
             Source = PathPermissionRuleSource.UserSettings
         };
-        var sut = new PathPermissionChecker(fs.Object, WorkingDir, rules: [allowRule]);
+        using var sut = new PathPermissionChecker(fs.Object, WorkingDir, rules: [allowRule]);
 
         var result = sut.CheckReadPermission(@"D:\allowed\nonexistent.txt");
 

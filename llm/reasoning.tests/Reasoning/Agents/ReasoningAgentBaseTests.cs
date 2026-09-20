@@ -1,4 +1,4 @@
-namespace JoinCode.Reasoning.Tests.Agents;
+﻿namespace JoinCode.Reasoning.Tests.Agents;
 
 public sealed class ReasoningAgentBaseTests {
     [Fact]
@@ -46,7 +46,7 @@ public sealed class ReasoningAgentBaseTests {
     public async Task CompressPromptIfNeededAsync_WhenContextManagerIsNull_ReturnsOriginal() {
         var context = CreateContext(maxPromptTokens: 10);
         var prompt = "这是一个很长的提示词";
-        var agent = new TestAgent(NullLogger<TestAgent>.Instance);
+        await using var agent = new TestAgent(NullLogger<TestAgent>.Instance);
 
         var result = await agent.CompressPromptIfNeededAsync(context, AgentRole.Prosecutor, prompt, CancellationToken.None);
 
@@ -55,7 +55,7 @@ public sealed class ReasoningAgentBaseTests {
 
     [Fact]
     public async Task CallLlmAsync_WhenChatClientIsNull_ReturnsNullAndZeroTokens() {
-        var agent = new TestAgent(NullLogger<TestAgent>.Instance);
+        await using var agent = new TestAgent(NullLogger<TestAgent>.Instance);
 
         var (content, usage, promptTokens) = await agent.CallLlmAsync("user prompt");
 
@@ -66,7 +66,7 @@ public sealed class ReasoningAgentBaseTests {
 
     [Fact]
     public async Task CallLlmAsync_WhenChatClientReturnsResponse_ReturnsContentAndUsage() {
-        var agent = new TestAgent(
+        await using var agent = new TestAgent(
             NullLogger<TestAgent>.Instance,
             new FakeChatClient("assistant response"));
 
@@ -79,7 +79,7 @@ public sealed class ReasoningAgentBaseTests {
 
     [Fact]
     public async Task CallLlmAsync_WhenChatClientThrows_ReturnsNullUsage() {
-        var agent = new TestAgent(
+        await using var agent = new TestAgent(
             NullLogger<TestAgent>.Instance,
             new FakeChatClient(new InvalidOperationException("boom")));
 
@@ -92,7 +92,7 @@ public sealed class ReasoningAgentBaseTests {
 
     [Fact]
     public async Task SendMessageAsync_WhenBrokerIsNull_DoesNothing() {
-        var agent = new TestAgent(NullLogger<TestAgent>.Instance);
+        await using var agent = new TestAgent(NullLogger<TestAgent>.Instance);
 
         await agent.SendMessageAsync("to", "type", "content", CancellationToken.None);
 
@@ -102,7 +102,7 @@ public sealed class ReasoningAgentBaseTests {
     [Fact]
     public async Task SendMessageAsync_WhenBrokerIsNotNull_SendsMessage() {
         var broker = new FakeMessageBroker();
-        var agent = new TestAgent(NullLogger<TestAgent>.Instance, messageBroker: broker);
+        await using var agent = new TestAgent(NullLogger<TestAgent>.Instance, messageBroker: broker);
 
         await agent.SendMessageAsync("defender", "evidence", "hello", CancellationToken.None);
 
@@ -114,7 +114,7 @@ public sealed class ReasoningAgentBaseTests {
     [Fact]
     public async Task BroadcastAsync_WhenBrokerIsNotNull_BroadcastsMessage() {
         var broker = new FakeMessageBroker();
-        var agent = new TestAgent(NullLogger<TestAgent>.Instance, messageBroker: broker);
+        await using var agent = new TestAgent(NullLogger<TestAgent>.Instance, messageBroker: broker);
 
         await agent.BroadcastAsync("verdict", "done", CancellationToken.None);
 

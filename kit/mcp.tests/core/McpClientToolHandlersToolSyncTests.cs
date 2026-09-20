@@ -1,4 +1,4 @@
-namespace Mcp.Tests;
+﻿namespace Mcp.Tests;
 
 /// <summary>
 /// McpConnectAsync 连接成功后应同步远程工具到注册表，
@@ -7,15 +7,15 @@ namespace Mcp.Tests;
 public sealed class McpClientToolHandlersToolSyncTests {
     [Fact]
     public async Task McpConnectAsync_ConnectionSucceeded_SyncsRemoteTools() {
-        var client = new FakeMcpClient();
+        await using var client = new FakeMcpClient();
         var factory = new FakeClientFactory(client);
-        var registry = new FakeMcpToolRegistry();
+        await using var registry = new FakeMcpToolRegistry();
 
         var deps = new McpClientToolDeps(
             ToolRegistry: registry,
             ClientFactory: factory);
 
-        var handler = new McpClientToolHandlers(deps, NullLogger<McpClientToolHandlers>.Instance);
+        await using var handler = new McpClientToolHandlers(deps, NullLogger<McpClientToolHandlers>.Instance);
 
         var result = await handler.McpConnectAsync("mock", "http://localhost:18090/mcp", "http", cancellationToken: CancellationToken.None);
 

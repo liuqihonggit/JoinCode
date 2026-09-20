@@ -1,4 +1,4 @@
-namespace Mcp.Tests;
+﻿namespace Mcp.Tests;
 
 /// <summary>
 /// McpClientToolHandlers 持久化测试 — 验证 SaveStateAsync/LoadState 跨进程共享连接配置。
@@ -6,9 +6,9 @@ namespace Mcp.Tests;
 public sealed class McpClientToolHandlersPersistenceTests {
     private static (McpClientToolHandlers handler, InMemoryFileSystem fs) CreateHandlerWithFileSystem() {
         var fs = new InMemoryFileSystem();
-        var client = new FakeMcpClient();
+        using var client = new FakeMcpClient();
         var factory = new FakeClientFactory(client);
-        var registry = new FakeMcpToolRegistry();
+        using var registry = new FakeMcpToolRegistry();
         var deps = new McpClientToolDeps(ToolRegistry: registry, ClientFactory: factory);
         var handler = new McpClientToolHandlers(deps, NullLogger<McpClientToolHandlers>.Instance, fs);
         return (handler, fs);
@@ -65,9 +65,9 @@ public sealed class McpClientToolHandlersPersistenceTests {
         fs.CreateDirectory(dir);
         fs.WriteAllText(filePath, """{"connections":[{"name":"restored","endpoint":"http://localhost:18090/mcp","transportType":"http","useOAuth":false,"authName":null}]}""");
 
-        var client = new FakeMcpClient();
+        await using var client = new FakeMcpClient();
         var factory = new FakeClientFactory(client);
-        var registry = new FakeMcpToolRegistry();
+        await using var registry = new FakeMcpToolRegistry();
         var deps = new McpClientToolDeps(ToolRegistry: registry, ClientFactory: factory);
 
         await using var handler = new McpClientToolHandlers(deps, NullLogger<McpClientToolHandlers>.Instance, fs);

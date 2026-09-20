@@ -1,4 +1,4 @@
-namespace Core.Tests.Security;
+﻿namespace Core.Tests.Security;
 
 public sealed class LlmAutoModeClassifierTests {
     [Fact]
@@ -9,7 +9,7 @@ public sealed class LlmAutoModeClassifierTests {
             Reason = "只读操作",
             Action = SecurityAction.AutoApprove
         });
-        var classifier = new LlmAutoModeClassifier(rule, queryEngine: null);
+        await using var classifier = new LlmAutoModeClassifier(rule, queryEngine: null);
 
         var result = await classifier.ClassifyAsync(CreateRequest("read"));
 
@@ -26,7 +26,7 @@ public sealed class LlmAutoModeClassifierTests {
             Action = SecurityAction.RequireConfirmation
         });
         var llm = CreateMockEngine("""{"classification":"lowRisk","confidence":0.9,"reason":"LLM分析安全","action":"autoApprove"}""");
-        var classifier = new LlmAutoModeClassifier(rule, llm);
+        await using var classifier = new LlmAutoModeClassifier(rule, llm);
 
         var result = await classifier.ClassifyAsync(CreateRequest("test"));
 
@@ -43,7 +43,7 @@ public sealed class LlmAutoModeClassifierTests {
             Action = SecurityAction.AutoApprove
         });
         var llm = CreateMockEngine("""{"classification":"highRisk","confidence":0.88,"reason":"复杂管道链","action":"requireApproval"}""");
-        var classifier = new LlmAutoModeClassifier(rule, llm);
+        await using var classifier = new LlmAutoModeClassifier(rule, llm);
 
         var result = await classifier.ClassifyAsync(CreateRequest("echo hello | grep foo && rm bar"));
 
@@ -59,7 +59,7 @@ public sealed class LlmAutoModeClassifierTests {
             Reason = "未知",
             Action = SecurityAction.RequireConfirmation
         });
-        var classifier = new LlmAutoModeClassifier(rule, queryEngine: null);
+        await using var classifier = new LlmAutoModeClassifier(rule, queryEngine: null);
 
         var result = await classifier.ClassifyAsync(CreateRequest("test"));
 
@@ -75,7 +75,7 @@ public sealed class LlmAutoModeClassifierTests {
             Action = SecurityAction.RequireConfirmation
         });
         var llm = CreateMockEngine(throwException: true);
-        var classifier = new LlmAutoModeClassifier(rule, llm);
+        await using var classifier = new LlmAutoModeClassifier(rule, llm);
 
         var result = await classifier.ClassifyAsync(CreateRequest("test"));
 
@@ -91,7 +91,7 @@ public sealed class LlmAutoModeClassifierTests {
             Action = SecurityAction.RequireConfirmation
         });
         var llm = CreateMockEngine("not valid json at all");
-        var classifier = new LlmAutoModeClassifier(rule, llm);
+        await using var classifier = new LlmAutoModeClassifier(rule, llm);
 
         var result = await classifier.ClassifyAsync(CreateRequest("test"));
 
@@ -107,7 +107,7 @@ public sealed class LlmAutoModeClassifierTests {
             Action = SecurityAction.RequireConfirmation
         });
         var llm = CreateMockEngine("""{"classification":"dangerous","confidence":0.99,"reason":"rm -rf detected","action":"block"}""");
-        var classifier = new LlmAutoModeClassifier(rule, llm);
+        await using var classifier = new LlmAutoModeClassifier(rule, llm);
 
         var result = await classifier.ClassifyAsync(CreateRequest("rm -rf /tmp && echo done"));
 
@@ -125,7 +125,7 @@ public sealed class LlmAutoModeClassifierTests {
             Action = SecurityAction.RequireConfirmation
         });
         var llm = CreateMockEngine("Here is the analysis:\n{\"classification\":\"highRisk\",\"confidence\":0.9,\"reason\":\"dangerous\",\"action\":\"requireApproval\"}\nDone.");
-        var classifier = new LlmAutoModeClassifier(rule, llm);
+        await using var classifier = new LlmAutoModeClassifier(rule, llm);
 
         var result = await classifier.ClassifyAsync(CreateRequest("test"));
 

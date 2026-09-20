@@ -1,4 +1,4 @@
-namespace Mcp.Tests;
+﻿namespace Mcp.Tests;
 
 /// <summary>
 /// McpClient 响应处理丢弃异常回归测试
@@ -66,7 +66,7 @@ public sealed class McpClientResponseDiscardTests {
     /// </summary>
     [Fact]
     public async Task ProcessResponseAsync_ActorModel_DoesNotDeadlock() {
-        var client = new TestClient();
+        await using var client = new TestClient();
         var tcs = await client.RegisterPendingForTestAsync(1);
 
         await client.ProcessResponseForTest(CreateResponse(1)).WaitAsync(TimeSpan.FromSeconds(5));

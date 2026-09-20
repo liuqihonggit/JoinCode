@@ -1,4 +1,4 @@
-namespace Mcp.Tests.Auth;
+﻿namespace Mcp.Tests.Auth;
 
 
 /// <summary>
@@ -54,7 +54,7 @@ public sealed class McpAuthFallbackTests {
     [Fact]
     public void McpPkceAuthProvider_WhenHttpClientNull_ShouldInitializeViaFactory() {
         // Arrange
-        var fs = new PhysicalFileSystem();
+        using var fs = new PhysicalFileSystem();
         var options = new McpOAuthOptions {
             ClientId = "test-client-id",
             AuthorizationUrl = "https://example.com/auth",
@@ -63,7 +63,7 @@ public sealed class McpAuthFallbackTests {
         };
 
         // Act — 不传 httpClient，触发 fallback 路径
-        var provider = new McpPkceAuthProvider(options, fs);
+        using var provider = new McpPkceAuthProvider(options, fs);
 
         // Assert
         var httpClient = GetPrivateHttpClientField(provider);
@@ -89,7 +89,7 @@ public sealed class McpAuthFallbackTests {
         };
 
         // Act
-        var provider = new OAuth2AuthProvider(options);
+        using var provider = new OAuth2AuthProvider(options);
 
         // Assert
         var httpClient = GetPrivateHttpClientField(provider);

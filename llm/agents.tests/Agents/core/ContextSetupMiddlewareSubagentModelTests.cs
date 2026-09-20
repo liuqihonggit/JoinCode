@@ -1,4 +1,4 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
 
 /// <summary>
@@ -120,7 +120,7 @@ public sealed class ContextSetupMiddlewareSubagentModelTests {
             contextAccessor.Setup(x => x.Current).Returns(parentContext);
         }
 
-        var mw = new ContextSetupMiddleware(contextAccessor.Object);
+        await using var mw = new ContextSetupMiddleware(contextAccessor.Object);
 
         var ctx = new UnifiedSpawnContext {
             Task = "test task",

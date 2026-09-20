@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop.Tests;
+﻿namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
 /// MultimodalUiElementDetector 纯方法单元测试 — 验证 JSON 解析、枚举映射、LLM 交互
@@ -260,7 +260,7 @@ public sealed class MultimodalUiElementDetectorTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ApiMessage> { new(MessageRole.Assistant, llmResponse) });
 
-        var detector = new MultimodalUiElementDetector(mockQueryService.Object);
+        await using var detector = new MultimodalUiElementDetector(mockQueryService.Object);
 
         var result = await detector.DetectAsync("base64dummy");
 
@@ -277,7 +277,7 @@ public sealed class MultimodalUiElementDetectorTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ApiMessage> { new(MessageRole.Assistant, "") });
 
-        var detector = new MultimodalUiElementDetector(mockQueryService.Object);
+        await using var detector = new MultimodalUiElementDetector(mockQueryService.Object);
 
         var result = await detector.DetectAsync("base64dummy");
 
@@ -302,7 +302,7 @@ public sealed class MultimodalUiElementDetectorTests {
             .Callback<MessageList, ChatOptions?, IChatClient?, CancellationToken>((msgs, _, _, _) => capturedMessages = msgs)
             .ReturnsAsync(new List<ApiMessage> { new(MessageRole.Assistant, """{"imageWidth":0,"imageHeight":0,"elements":[]}""") });
 
-        var detector = new MultimodalUiElementDetector(mockQueryService.Object);
+        await using var detector = new MultimodalUiElementDetector(mockQueryService.Object);
         await detector.DetectAsync("myBase64Image");
 
         capturedMessages.Should().NotBeNull();
@@ -333,7 +333,7 @@ public sealed class MultimodalUiElementDetectorTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ApiMessage> { new(MessageRole.Assistant, llmResponse) });
 
-        var detector = new MultimodalUiElementDetector(mockQueryService.Object);
+        await using var detector = new MultimodalUiElementDetector(mockQueryService.Object);
 
         var result = await detector.FindByDescriptionAsync("base64dummy", "保存按钮");
 
@@ -351,7 +351,7 @@ public sealed class MultimodalUiElementDetectorTests {
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ApiMessage> { new(MessageRole.Assistant, llmResponse) });
 
-        var detector = new MultimodalUiElementDetector(mockQueryService.Object);
+        await using var detector = new MultimodalUiElementDetector(mockQueryService.Object);
 
         var result = await detector.FindByDescriptionAsync("base64dummy", "不存在的元素");
 
@@ -379,7 +379,7 @@ public sealed class MultimodalUiElementDetectorTests {
             .Callback<MessageList, ChatOptions?, IChatClient?, CancellationToken>((msgs, _, _, _) => capturedMessages = msgs)
             .ReturnsAsync(new List<ApiMessage> { new(MessageRole.Assistant, """{"found":false,"element":null}""") });
 
-        var detector = new MultimodalUiElementDetector(mockQueryService.Object);
+        await using var detector = new MultimodalUiElementDetector(mockQueryService.Object);
         await detector.FindByDescriptionAsync("img", "红色的停止按钮");
 
         capturedMessages.Should().NotBeNull();

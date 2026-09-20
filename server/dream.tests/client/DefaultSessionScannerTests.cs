@@ -1,4 +1,4 @@
-namespace Dream.Tests.Client;
+﻿namespace Dream.Tests.Client;
 
 /// <summary>
 /// 默认会话扫描器单元测试
@@ -8,7 +8,7 @@ public sealed class DefaultSessionScannerTests {
     public void Constructor_NullConfig_UsesCurrentDirectory() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
 
-        var scanner = new DefaultSessionScanner(null!, fs);
+        using var scanner = new DefaultSessionScanner(null!, fs);
 
         Assert.Equal(fs.GetCurrentDirectory(), scanner.GetProjectDir());
     }
@@ -18,7 +18,7 @@ public sealed class DefaultSessionScannerTests {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
 
-        var scanner = new DefaultSessionScanner(config, fs);
+        using var scanner = new DefaultSessionScanner(config, fs);
 
         Assert.Equal("/project", scanner.GetProjectDir());
     }
@@ -27,7 +27,7 @@ public sealed class DefaultSessionScannerTests {
     public async Task ListSessionsTouchedSinceAsync_NoSessionsDir_ReturnsEmpty() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
-        var scanner = new DefaultSessionScanner(config, fs);
+        await using var scanner = new DefaultSessionScanner(config, fs);
 
         var sessions = await scanner.ListSessionsTouchedSinceAsync(0).ConfigureAwait(true);
 
@@ -38,7 +38,7 @@ public sealed class DefaultSessionScannerTests {
     public async Task ListSessionsTouchedSinceAsync_WithNewFiles_ReturnsSessionIds() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
-        var scanner = new DefaultSessionScanner(config, fs);
+        await using var scanner = new DefaultSessionScanner(config, fs);
 
         var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
         fs.WriteAllText($"{sessionsDir}/session1.json", "data");
@@ -58,7 +58,7 @@ public sealed class DefaultSessionScannerTests {
     public async Task ListSessionsTouchedSinceAsync_WithOnlyOldFiles_ReturnsEmpty() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
-        var scanner = new DefaultSessionScanner(config, fs);
+        await using var scanner = new DefaultSessionScanner(config, fs);
 
         var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
         fs.WriteAllText($"{sessionsDir}/session1.json", "data");
@@ -74,7 +74,7 @@ public sealed class DefaultSessionScannerTests {
     public async Task ListSessionsTouchedSinceAsync_IgnoresNonJsonlFiles() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
-        var scanner = new DefaultSessionScanner(config, fs);
+        await using var scanner = new DefaultSessionScanner(config, fs);
 
         var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
         fs.WriteAllText($"{sessionsDir}/session1.json", "data");
@@ -93,7 +93,7 @@ public sealed class DefaultSessionScannerTests {
     public async Task ListSessionsTouchedSinceAsync_SkipsEmptySessionIdFile() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
-        var scanner = new DefaultSessionScanner(config, fs);
+        await using var scanner = new DefaultSessionScanner(config, fs);
 
         var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
         fs.WriteAllText($"{sessionsDir}/.json", "data");

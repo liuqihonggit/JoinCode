@@ -234,6 +234,9 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0110](0110-platform-bot-adapter-pattern.md) | 平台机器人适配器模式 | accepted | 2026-09-16 |
 | [0111](0111-unified-messaging-channel-mailboxhub-upgrade.md) | 统一消息通道 MailboxHub 升级 | accepted | 2026-09-16 |
 | [0112](0112-dispose-fire-and-forget-ban-continuewith-to-await.md) | Dispose 体内禁止 fire-and-forget + ContinueWith→await 统一释放规范 | accepted | 2026-09-17 |
+| [0113](0113-mtp-perturbation-bash-defense.md) | MTP 扰动防御 | accepted | 2026-09-17 |
+| [0114](0114-config-template-source-generator.md) | 配置模板源码生成器 | accepted | 2026-09-17 |
+| [0115](0115-typed-decision-abstraction-layer.md) | 类型化决策抽象层 ITypedDecision | accepted | 2026-09-21 |
 
 ## 主题索引（按议题）
 

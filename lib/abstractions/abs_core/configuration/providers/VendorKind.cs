@@ -14,5 +14,6 @@ public enum VendorKind {
     [EnumValue("agnes")] Agnes = 4,
     [EnumValue("sensenova")] Sensenova = 5,
     [EnumValue("bedrock")] Bedrock = 6,
-    [EnumValue("zhipu")] Zhipu = 7
+    [EnumValue("zhipu")] Zhipu = 7,
+    [EnumValue("jev")] Jev = 8
 }

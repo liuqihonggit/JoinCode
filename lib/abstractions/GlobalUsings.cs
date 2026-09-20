@@ -14,6 +14,7 @@ global using JoinCode.Abstractions.Configuration.Execution;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Configuration.Settings;
+global using JoinCode.Abstractions.Decision;
 global using JoinCode.Abstractions.Diagnostics;
 global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Exceptions;

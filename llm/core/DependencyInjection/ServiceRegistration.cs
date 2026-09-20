@@ -20,6 +20,8 @@ public static partial class ServiceRegistration {
             (config, http, logger, fs, executor) => new AgnesQueryService(config, http, logger, fs, executor));
         s_factory.RegisterProvider(ProtocolKind.OpenAiResponses,
             (config, http, logger, fs, executor) => new ResponsesQueryService(config, http, logger, fs, executor));
+        s_factory.RegisterProvider(ProtocolKind.Jev,
+            (config, http, logger, fs, executor) => new JevQueryService(config, http, logger, fs, executor));
         s_factory.RegisterDefault(
             (config, http, logger, fs, executor) => new OpenAIQueryService(config, http, logger, fs, executor));
     }

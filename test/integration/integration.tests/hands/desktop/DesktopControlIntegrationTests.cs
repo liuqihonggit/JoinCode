@@ -1,4 +1,4 @@
-namespace Integration.Tests;
+﻿namespace Integration.Tests;
 
 /// <summary>
 /// P0 E2E 集成验收 — 记事本全链路：启动→查找窗口→激活→输入文本→截图→关闭
@@ -16,9 +16,9 @@ public sealed class DesktopControlIntegrationTests {
             return;
         }
 
-        var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
-        var windows = new Win32WindowManagementService();
-        var capture = new GdiScreenCaptureService();
+        await using var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
+        await using var windows = new Win32WindowManagementService();
+        await using var capture = new GdiScreenCaptureService();
 
         var notepad = System.Diagnostics.Process.Start("notepad.exe");
         try {
@@ -55,7 +55,7 @@ public sealed class DesktopControlIntegrationTests {
 
     [Fact]
     public async Task ScreenCapture_FullScreen_ReturnsValidPng() {
-        var capture = new GdiScreenCaptureService();
+        await using var capture = new GdiScreenCaptureService();
 
         var base64 = await capture.CaptureFullScreenAsync();
 
@@ -65,7 +65,7 @@ public sealed class DesktopControlIntegrationTests {
 
     [Fact]
     public async Task WindowManager_Enumerate_ReturnsNonEmptyOnDesktop() {
-        var windows = new Win32WindowManagementService();
+        await using var windows = new Win32WindowManagementService();
 
         var list = await windows.EnumerateAsync();
 

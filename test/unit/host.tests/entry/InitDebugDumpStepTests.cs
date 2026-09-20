@@ -1,4 +1,4 @@
-namespace JoinCode.Entry.Tests;
+﻿namespace JoinCode.Entry.Tests;
 
 
 /// <summary>
@@ -58,7 +58,7 @@ public class InitDebugDumpStepTests {
 
     [Fact]
     public async Task NoneChoice_ShouldSkipDumpAndCallNext() {
-        var step = new InitDebugDumpStep();
+        await using var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.None);
         var nextCalled = false;
 
@@ -73,7 +73,7 @@ public class InitDebugDumpStepTests {
 
     [Fact]
     public async Task JsonMode_ShouldSkipDumpEvenWithAllChoice() {
-        var step = new InitDebugDumpStep();
+        await using var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.All, isJsonMode: true);
         var nextCalled = false;
 
@@ -88,7 +88,7 @@ public class InitDebugDumpStepTests {
 
     [Fact]
     public async Task AllChoice_ShouldDumpAllSections() {
-        var step = new InitDebugDumpStep();
+        await using var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.All);
         var nextCalled = false;
 
@@ -105,7 +105,7 @@ public class InitDebugDumpStepTests {
 
     [Fact]
     public async Task PromptOnly_ShouldDumpOnlySystemPrompt() {
-        var step = new InitDebugDumpStep();
+        await using var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.Prompt);
         var nextCalled = false;
 
@@ -122,7 +122,7 @@ public class InitDebugDumpStepTests {
 
     [Fact]
     public async Task InitOnly_ShouldDumpOnlyInitInfo() {
-        var step = new InitDebugDumpStep();
+        await using var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.Init);
         var nextCalled = false;
 
@@ -139,7 +139,7 @@ public class InitDebugDumpStepTests {
 
     [Fact]
     public async Task LogOnly_ShouldDumpOnlyLogs() {
-        var step = new InitDebugDumpStep();
+        await using var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.Log);
         var nextCalled = false;
 
@@ -155,7 +155,7 @@ public class InitDebugDumpStepTests {
 
     [Fact]
     public async Task CombinedInitAndPrompt_ShouldDumpBoth() {
-        var step = new InitDebugDumpStep();
+        await using var step = new InitDebugDumpStep();
         var context = CreateContext(DebugDumpSection.Init | DebugDumpSection.Prompt);
         var nextCalled = false;
 

@@ -1,4 +1,4 @@
-namespace JoinCode.Entry.Tests;
+﻿namespace JoinCode.Entry.Tests;
 
 
 /// <summary>
@@ -29,7 +29,7 @@ public class NonInteractiveApiKeyCheckStepTests {
     [Fact]
     public async Task EmptyApiKey_ShouldSetNonZeroExitCodeAndNotCallNext() {
         // Arrange — 无 API Key 是 R-P2-002 修复目标场景
-        var step = new NonInteractiveApiKeyCheckStep();
+        await using var step = new NonInteractiveApiKeyCheckStep();
         var context = CreateContext(apiKey: string.Empty);
         var nextCalled = false;
 
@@ -47,7 +47,7 @@ public class NonInteractiveApiKeyCheckStepTests {
     [Fact]
     public async Task ValidApiKey_ShouldCallNextAndKeepExitCodeZero() {
         // Arrange — 有 API Key 是正常场景
-        var step = new NonInteractiveApiKeyCheckStep();
+        await using var step = new NonInteractiveApiKeyCheckStep();
         var context = CreateContext(apiKey: "sk-test-key-12345");
         var nextCalled = false;
 

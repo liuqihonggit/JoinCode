@@ -1,4 +1,4 @@
-namespace Integration.Tests;
+﻿namespace Integration.Tests;
 
 /// <summary>
 /// P3 复合操作集成测试 — 真实桌面执行右键菜单链/多步点击/拖拽悬停，截图验证效果
@@ -35,9 +35,9 @@ public sealed class P3CompoundOperationIntegrationTests {
             return;
         }
 
-        var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
-        var windows = new Win32WindowManagementService();
-        var capture = new GdiScreenCaptureService();
+        await using var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
+        await using var windows = new Win32WindowManagementService();
+        await using var capture = new GdiScreenCaptureService();
         var handler = new CompoundOperationToolHandlers(input);
 
         var (notepad, hwnd, rect) = await StartNotepadAsync(windows);
@@ -86,9 +86,9 @@ public sealed class P3CompoundOperationIntegrationTests {
             return;
         }
 
-        var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
-        var windows = new Win32WindowManagementService();
-        var capture = new GdiScreenCaptureService();
+        await using var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
+        await using var windows = new Win32WindowManagementService();
+        await using var capture = new GdiScreenCaptureService();
         var handler = new CompoundOperationToolHandlers(input);
 
         var (notepad, hwnd, rect) = await StartNotepadAsync(windows);
@@ -129,9 +129,9 @@ public sealed class P3CompoundOperationIntegrationTests {
             return;
         }
 
-        var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
-        var windows = new Win32WindowManagementService();
-        var capture = new GdiScreenCaptureService();
+        await using var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
+        await using var windows = new Win32WindowManagementService();
+        await using var capture = new GdiScreenCaptureService();
         var handler = new CompoundOperationToolHandlers(input);
 
         var (notepad, hwnd, rect) = await StartNotepadAsync(windows);

@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 public sealed class StatusCommandTests {
     [Fact]
@@ -28,7 +28,7 @@ public sealed class StatusCommandTests {
     [Fact]
     public async Task ExecuteAsync_Should_Return_Continue() {
         var cmd = new StatusCommand();
-        var catalog = new ModelCatalog(new Core.Configuration.Providers.ProviderDefinitionRegistry(new JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader()));
+        await using var catalog = new ModelCatalog(new Core.Configuration.Providers.ProviderDefinitionRegistry(new JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader()));
         var mockProvider = new Mock<IServiceProvider>();
         mockProvider.Setup(p => p.GetService(typeof(IModelCatalog))).Returns(catalog);
 

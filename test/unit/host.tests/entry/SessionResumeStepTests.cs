@@ -1,4 +1,4 @@
-namespace JoinCode.Entry.Tests;
+﻿namespace JoinCode.Entry.Tests;
 
 
 /// <summary>
@@ -43,8 +43,8 @@ public class SessionResumeStepTests {
     [Fact]
     public async Task NoContinueAndNoResume_ShouldCallNextWithoutResume() {
         // Arrange — 默认 CommandLineOptions 无 --continue 也无 --resume
-        var step = new SessionResumeStep();
-        var fs = new InMemoryFileSystem();
+        await using var step = new SessionResumeStep();
+        await using var fs = new InMemoryFileSystem();
         var context = CreateContext(new CommandLineOptions(), fs);
         var nextCalled = false;
 
@@ -61,8 +61,8 @@ public class SessionResumeStepTests {
     [Fact]
     public async Task Continue_WithNoSessionsDirectory_ShouldCallNextWithoutError() {
         // Arrange — sessions 目录不存在
-        var step = new SessionResumeStep();
-        var fs = new InMemoryFileSystem();
+        await using var step = new SessionResumeStep();
+        await using var fs = new InMemoryFileSystem();
         var options = new CommandLineOptions { ContinueSession = true };
         var context = CreateContext(options, fs);
         var nextCalled = false;
@@ -81,8 +81,8 @@ public class SessionResumeStepTests {
     [Fact]
     public async Task Continue_WithSessions_ShouldLoadMostRecent() {
         // Arrange — 写入两个会话，一个旧一个新
-        var step = new SessionResumeStep();
-        var fs = new InMemoryFileSystem();
+        await using var step = new SessionResumeStep();
+        await using var fs = new InMemoryFileSystem();
 
         // 创建 sessions 目录
         fs.CreateDirectory(SessionsDir);
@@ -113,8 +113,8 @@ public class SessionResumeStepTests {
     [Fact]
     public async Task Resume_WithExactSessionId_ShouldLoadSession() {
         // Arrange
-        var step = new SessionResumeStep();
-        var fs = new InMemoryFileSystem();
+        await using var step = new SessionResumeStep();
+        await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory(SessionsDir);
 
         WriteSessionFile(fs, "abc-123", "测试会话", DateTime.UtcNow,
@@ -137,8 +137,8 @@ public class SessionResumeStepTests {
     [Fact]
     public async Task Resume_WithNonExistentId_ShouldStillCallNextWithoutError() {
         // Arrange
-        var step = new SessionResumeStep();
-        var fs = new InMemoryFileSystem();
+        await using var step = new SessionResumeStep();
+        await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory(SessionsDir);
 
         var options = new CommandLineOptions { ResumeSessionId = "non-existent-id" };
@@ -157,8 +157,8 @@ public class SessionResumeStepTests {
     [Fact]
     public async Task Resume_WithTitleMatch_ShouldLoadSession() {
         // Arrange — 通过标题模糊匹配
-        var step = new SessionResumeStep();
-        var fs = new InMemoryFileSystem();
+        await using var step = new SessionResumeStep();
+        await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory(SessionsDir);
 
         WriteSessionFile(fs, "session-001", "重构认证模块", DateTime.UtcNow,
@@ -180,8 +180,8 @@ public class SessionResumeStepTests {
     [Fact]
     public async Task Continue_WithoutSession_ShouldSkipResumeAndContinue() {
         // Arrange — Session 属性为 null（模拟 SessionInitStep 未初始化）
-        var step = new SessionResumeStep();
-        var fs = new InMemoryFileSystem();
+        await using var step = new SessionResumeStep();
+        await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory(SessionsDir);
 
         // Session = null（默认就是 null）

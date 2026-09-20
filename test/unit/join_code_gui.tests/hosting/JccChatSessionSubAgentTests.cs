@@ -1,4 +1,4 @@
-namespace JoinCode.Gui.Tests.Hosting;
+﻿namespace JoinCode.Gui.Tests.Hosting;
 
 /// <summary>
 /// JccChatSession.GetAvailableSubAgentsAsync 测试 — 验证从 IAgentDefinitionProvider 提取
@@ -16,7 +16,7 @@ public class JccChatSessionSubAgentTests {
         var services = new ServiceCollection();
         services.AddSingleton<IAgentDefinitionProvider>(mockProvider);
         var sp = services.BuildServiceProvider();
-        var session = new JccChatSession(sp, null!, new WorkflowConfig {
+        await using var session = new JccChatSession(sp, null!, new WorkflowConfig {
             Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
         });
 
@@ -31,7 +31,7 @@ public class JccChatSessionSubAgentTests {
     [Fact]
     public async Task GetAvailableSubAgentsAsync_NoProvider_ReturnsEmpty() {
         var sp = new ServiceCollection().BuildServiceProvider();
-        var session = new JccChatSession(sp, null!, new WorkflowConfig {
+        await using var session = new JccChatSession(sp, null!, new WorkflowConfig {
             Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
         });
 
@@ -49,7 +49,7 @@ public class JccChatSessionSubAgentTests {
         var services = new ServiceCollection();
         services.AddSingleton<IAgentDefinitionProvider>(mockProvider);
         var sp = services.BuildServiceProvider();
-        var session = new JccChatSession(sp, null!, new WorkflowConfig {
+        await using var session = new JccChatSession(sp, null!, new WorkflowConfig {
             Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
         });
 

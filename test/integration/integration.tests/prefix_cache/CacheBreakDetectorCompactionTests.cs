@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.LLM.Chat;
+﻿namespace JoinCode.Abstractions.LLM.Chat;
 
 public sealed class CacheBreakDetectorCompactionTests {
     private readonly CacheBreakDetector _detector = new();
@@ -66,7 +66,7 @@ public sealed class CacheBreakDetectorCompactionTests {
 
     [Fact]
     public void SessionStats_RecordsCompactionEntered_SeparatelyFromEviction() {
-        var stats = new SessionStats();
+        using var stats = new SessionStats();
         stats.RecordTurn(new TokenUsage(100, 50), 0, CacheBreakResult.Break(CacheBreakKind.CompactionEntered, "compacted"));
         stats.RecordTurn(new TokenUsage(100, 50), 0, CacheBreakResult.Break(CacheBreakKind.CacheEviction, "evicted"));
 

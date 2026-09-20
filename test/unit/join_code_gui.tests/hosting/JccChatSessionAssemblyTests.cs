@@ -1,4 +1,4 @@
-namespace JoinCode.Gui.Tests.Hosting;
+﻿namespace JoinCode.Gui.Tests.Hosting;
 
 /// <summary>
 /// 引擎会话组装测试 — 验证 GUI 进程内引擎接入的关键假设：
@@ -11,7 +11,7 @@ public class JccChatSessionAssemblyTests {
     public void VendorModelMap_DumpAllData() {
         // 密闭化：目录数据由测试 fixture 灌入（对齐生产 settings.json vendor 节的真实清单），
         // 不再依赖本机 ~/.jcc/settings.json 内容（B8 修复：环境差异导致基线必失败）
-        var session = new PlaceholderChatSession(modelConfigLoader: CreateFedLoader());
+        using var session = new PlaceholderChatSession(modelConfigLoader: CreateFedLoader());
         var map = session.VendorModelMap;
 
         map.Keys.Should().BeEquivalentTo(["anthropic", "openai", "deepseek", "agnes", "sensenova"]);
@@ -36,9 +36,9 @@ public class JccChatSessionAssemblyTests {
     [Fact]
     public void VendorModelMap_MultipleInstances_AreIdentical() {
         var loader = CreateFedLoader();
-        var s1 = new PlaceholderChatSession(modelConfigLoader: loader);
-        var s2 = new PlaceholderChatSession(modelConfigLoader: loader);
-        var s3 = new PlaceholderChatSession(modelConfigLoader: loader);
+        using var s1 = new PlaceholderChatSession(modelConfigLoader: loader);
+        using var s2 = new PlaceholderChatSession(modelConfigLoader: loader);
+        using var s3 = new PlaceholderChatSession(modelConfigLoader: loader);
 
         s1.VendorModelMap.Keys.Should().BeEquivalentTo(s2.VendorModelMap.Keys);
         s2.VendorModelMap.Keys.Should().BeEquivalentTo(s3.VendorModelMap.Keys);
@@ -139,7 +139,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        var session = new JccChatSession(
+        using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             config);
@@ -157,7 +157,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        var session = new JccChatSession(
+        using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             config,
@@ -178,7 +178,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "sensenova-6.7-flash-lite"
             }
         };
-        var session = new JccChatSession(
+        using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             config,
@@ -195,7 +195,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        var session = new JccChatSession(
+        using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             config,
@@ -220,7 +220,7 @@ public class JccChatSessionAssemblyTests {
         // 无持久化设置时，EffortLevel 默认 Auto（模型默认级别）— 对齐 CLI ShowCurrentEffort。
         // 直接构造 ExecutionSettingsProvider + InMemoryFileSystem，隔离真实磁盘，保证确定性
         // （物理磁盘 ~/.jcc/settings.json 可能含用户 effortLevel=low）。
-        var provider = new ExecutionSettingsProvider(
+        using var provider = new ExecutionSettingsProvider(
             new WorkflowConfig {
                 Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
@@ -233,7 +233,7 @@ public class JccChatSessionAssemblyTests {
     [Fact]
     public async Task SetEffortLevelAsync_PersistsHighToSettingsJson() {
         // 对齐 CLI EffortCommand.PersistEffortAsync：非 auto 级别写入 settings.json（键 effortLevel）
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var services = new ServiceCollection();
         services.AddSingleton<IFileSystem>(fs);
         services.AddSingleton<IConfigurationService, Core.Configuration.ConfigurationService>();
@@ -245,7 +245,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        var session = new JccChatSession(sp, null!, config);
+        await using var session = new JccChatSession(sp, null!, config);
 
         await session.SetEffortLevelAsync(EffortLevel.High);
 
@@ -257,7 +257,7 @@ public class JccChatSessionAssemblyTests {
     [Fact]
     public async Task SetEffortLevelAsync_AutoRemovesPersistedKey() {
         // 对齐 CLI EffortCommand：auto → 移除 effortLevel 键（恢复模型默认）
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var services = new ServiceCollection();
         services.AddSingleton<IFileSystem>(fs);
         services.AddSingleton<IConfigurationService, Core.Configuration.ConfigurationService>();
@@ -269,7 +269,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        var session = new JccChatSession(sp, null!, config);
+        await using var session = new JccChatSession(sp, null!, config);
 
         await session.SetEffortLevelAsync(EffortLevel.High);
         await session.SetEffortLevelAsync(EffortLevel.Auto);
@@ -288,7 +288,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        var session = new JccChatSession(
+        using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             config);
@@ -299,7 +299,7 @@ public class JccChatSessionAssemblyTests {
     [Fact]
     public void Session_EffortLevel_ReflectsRegisteredProviderValue() {
         // 注册 IExecutionSettingsProvider 后，门面读取其当前 EffortLevel
-        var provider = new ExecutionSettingsProvider(
+        using var provider = new ExecutionSettingsProvider(
             new WorkflowConfig {
                 Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
@@ -307,7 +307,7 @@ public class JccChatSessionAssemblyTests {
             null!) {
             EffortLevel = EffortLevel.Medium
         };
-        var session = new JccChatSession(
+        using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             new WorkflowConfig {
@@ -322,13 +322,13 @@ public class JccChatSessionAssemblyTests {
     public async Task SetTemperatureAndMaxTokens_WritesBackToSharedProvider() {
         // GUI 滑块写回：门面 SetTemperature/SetMaxTokens 应写入共享 IExecutionSettingsProvider，
         // 使 ChatOptionsFactory 下次创建时覆盖 LlmParameters.Chat 默认值。
-        var provider = new ExecutionSettingsProvider(
+        await using var provider = new ExecutionSettingsProvider(
             new WorkflowConfig {
                 Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
             new InMemoryFileSystem(),
             null!);
-        var session = new JccChatSession(
+        await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             new WorkflowConfig {
@@ -352,8 +352,8 @@ public class JccChatSessionAssemblyTests {
     public async Task SetSystemPromptAsync_ForwardsToChatService() {
         // 对齐 CLI SystemPromptApplyStep：GUI 编辑系统提示词后应经 IChatService.SetSystemPromptAsync
         // 应用（admin 管道，替换静态系统提示词），而非仅本地存储占位。
-        var fakeChat = new RecordingChatService();
-        var session = new JccChatSession(
+        await using var fakeChat = new RecordingChatService();
+        await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             fakeChat,
             new WorkflowConfig {
@@ -370,7 +370,7 @@ public class JccChatSessionAssemblyTests {
         // 对齐 CLI ModelCommand.ApplyModelSwitchAsync：切换模型需持久化 modelId
         // 到 settings.json（键 "model"，与 SettingsJson 生成器 jsonName 一致），
         // 否则 GUI 重启后回到默认模型再次触发 404。
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var services = new ServiceCollection();
         services.AddSingleton<IFileSystem>(fs);
         services.AddSingleton<IConfigurationService, Core.Configuration.ConfigurationService>();
@@ -382,7 +382,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        var session = new JccChatSession(sp, null!, config);
+        await using var session = new JccChatSession(sp, null!, config);
 
         await session.SetModelAsync("sensenova-6.7-flash-lite");
 

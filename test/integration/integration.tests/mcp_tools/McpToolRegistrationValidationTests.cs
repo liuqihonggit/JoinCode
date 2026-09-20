@@ -1,9 +1,9 @@
-namespace Integration.Tests.McpTools;
+﻿namespace Integration.Tests.McpTools;
 
 public sealed class McpToolRegistrationValidationTests {
     private static async Task<(Tools.LocalToolRegistry Registry, IReadOnlyList<ToolInfo> Tools, List<string> RegistrationFailures)> BuildAndRegisterAllToolsAsync() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-        var fileSystem = new IO.FileSystem.InMemoryFileSystem();
+        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
 

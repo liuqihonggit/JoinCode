@@ -1,4 +1,4 @@
-namespace JoinCode.Gui.Tests.ViewModels;
+﻿namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// 子代理回放数据契约测试 —
@@ -39,7 +39,7 @@ public class SubAgentTranscriptTests {
 
     [Fact]
     public void OpenTranscriptCommand_ShouldRaiseRequestWithRun() {
-        var vm = new MainViewModel(
+        using var vm = new MainViewModel(
             new JoinCode.Gui.Hosting.PlaceholderChatSession(),
             new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"),
             new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));

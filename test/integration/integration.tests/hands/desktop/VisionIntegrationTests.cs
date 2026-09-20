@@ -1,4 +1,4 @@
-namespace Integration.Tests;
+﻿namespace Integration.Tests;
 
 /// <summary>
 /// P1 E2E 集成验收 — 视觉理解引导桌面操作全链路（PRD §6.3 M2 验收场景）
@@ -16,9 +16,9 @@ public sealed class VisionIntegrationTests {
             return;
         }
 
-        var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
-        var windows = new Win32WindowManagementService();
-        var capture = new GdiScreenCaptureService();
+        await using var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
+        await using var windows = new Win32WindowManagementService();
+        await using var capture = new GdiScreenCaptureService();
 
         var notepad = System.Diagnostics.Process.Start("notepad.exe");
         try {
@@ -98,7 +98,7 @@ public sealed class VisionIntegrationTests {
 
     [Fact]
     public async Task DetectUiElements_RealScreenshot_MockDetector_ReturnsFormattedText() {
-        var capture = new GdiScreenCaptureService();
+        await using var capture = new GdiScreenCaptureService();
 
         var detectorMock = new Mock<IUiElementDetector>();
         detectorMock
@@ -128,7 +128,7 @@ public sealed class VisionIntegrationTests {
 
     [Fact]
     public async Task FindElement_RealScreenshot_MockDetector_ReturnsClickCoordinates() {
-        var capture = new GdiScreenCaptureService();
+        await using var capture = new GdiScreenCaptureService();
 
         var detectorMock = new Mock<IUiElementDetector>();
         detectorMock

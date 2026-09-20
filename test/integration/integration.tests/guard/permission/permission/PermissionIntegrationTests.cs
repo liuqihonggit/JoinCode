@@ -1,4 +1,4 @@
-#pragma warning disable JCC3010, JCC3011, JCC3012
+﻿#pragma warning disable JCC3010, JCC3011, JCC3012
 namespace Integration.Tests.Guard.Permission;
 
 
@@ -49,7 +49,7 @@ public class PermissionIntegrationTests : IAsyncDisposable {
     }
 
     private static IEnumerable<IToolExecutionMiddleware> BuildToolExecutionMiddlewares(IToolPermissionManager permissionManager) {
-        var interceptor = new PermissionCheckingInterceptor(permissionManager, NullLogger<PermissionCheckingInterceptor>.Instance);
+        using var interceptor = new PermissionCheckingInterceptor(permissionManager, NullLogger<PermissionCheckingInterceptor>.Instance);
         yield return new ArgumentRepairMiddleware(NullLogger<ArgumentRepairMiddleware>.Instance);
         yield return new RequiredParamsMiddleware(NullLogger<RequiredParamsMiddleware>.Instance);
         yield return new PermissionCheckMiddleware(interceptor, NullLogger<PermissionCheckMiddleware>.Instance);

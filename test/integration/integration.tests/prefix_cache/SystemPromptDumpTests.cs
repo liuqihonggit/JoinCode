@@ -1,9 +1,9 @@
-namespace Integration.Tests.PrefixCache.Unit;
+﻿namespace Integration.Tests.PrefixCache.Unit;
 
 public sealed class SystemPromptDumpTests {
     [Fact]
     public void Dump_AllSections_ToFile() {
-        var fs = new IO.FileSystem.InMemoryFileSystem();
+        using var fs = new IO.FileSystem.InMemoryFileSystem();
         var options = new SystemPromptProviderOptions {
             EnabledTools = ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "Task"],
             ModelId = "deepseek-v4-flash",
@@ -13,8 +13,8 @@ public sealed class SystemPromptDumpTests {
             LanguagePreference = "简体中文"
         };
 
-        var provider = new DefaultSystemPromptProvider(fs, options);
-        var builder = new SystemPromptBuilder();
+        using var provider = new DefaultSystemPromptProvider(fs, options);
+        using var builder = new SystemPromptBuilder();
         builder.AddFromProvider(provider);
 
         var (staticPrefix, dynamicSuffix) = builder.BuildPartitioned();

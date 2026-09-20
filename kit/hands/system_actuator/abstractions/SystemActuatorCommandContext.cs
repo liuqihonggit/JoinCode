@@ -191,13 +191,16 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     private void StartSizeWatchdog() {
         _sizeWatchdogTimer = new Timer(static state => {
             var ctx = (SystemActuatorCommandContext)(state ?? throw new InvalidOperationException("Timer state is null."));
-            if (ctx._status is not (SystemActuatorCommandStatus.Running or SystemActuatorCommandStatus.Backgrounded)) return;
+            try {
+                if (ctx._status is not (SystemActuatorCommandStatus.Running or SystemActuatorCommandStatus.Backgrounded)) return;
 
-            var outputLength = ctx._outputCollector.GetCurrentStdoutLength();
-            if (outputLength > SystemActuatorExecutionResult.MaxPersistedSizeBytes) {
-                ctx._logger?.LogWarning("任务输出超过硬上限，强制杀死: {TaskId}, Size={Size}", ctx._backgroundTaskId ?? ctx.TaskId, outputLength);
-                ctx.Kill();
+                var outputLength = ctx._outputCollector.GetCurrentStdoutLength();
+                if (outputLength > SystemActuatorExecutionResult.MaxPersistedSizeBytes) {
+                    ctx._logger?.LogWarning("任务输出超过硬上限，强制杀死: {TaskId}, Size={Size}", ctx._backgroundTaskId ?? ctx.TaskId, outputLength);
+                    ctx.Kill();
+                }
             }
+            catch (Exception ex) { ctx._logger?.LogWarning(ex, "size watchdog timer 回调异常"); }
         }, this, TimeSpan.FromMilliseconds(SizeWatchdogIntervalMs), TimeSpan.FromMilliseconds(SizeWatchdogIntervalMs));
     }
 
@@ -233,12 +236,15 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _assistantTimer = new Timer(
             static state => {
                 var ctx = (SystemActuatorCommandContext)(state ?? throw new InvalidOperationException("Timer state is null."));
-                if (ctx._status == SystemActuatorCommandStatus.Running && ctx._backgroundTaskId is null) {
-                    var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
-                    if (ctx.Background(taskId)) {
-                        ctx._logger?.LogInformation("Assistant 自动后台化: {TaskId}, 命令: {Command}", taskId, ctx._command);
+                try {
+                    if (ctx._status == SystemActuatorCommandStatus.Running && ctx._backgroundTaskId is null) {
+                        var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
+                        if (ctx.Background(taskId)) {
+                            ctx._logger?.LogInformation("Assistant 自动后台化: {TaskId}, 命令: {Command}", taskId, ctx._command);
+                        }
                     }
                 }
+                catch (Exception ex) { ctx._logger?.LogWarning(ex, "Assistant 自动后台化 timer 回调异常"); }
             },
             this,
             SystemActuatorBackgroundConstants.AssistantBlockingBudgetMs,
@@ -288,15 +294,18 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
     private static void HandleTimeout(object state) {
         var ctx = (SystemActuatorCommandContext)state;
-        if (ctx._status != SystemActuatorCommandStatus.Running) return;
+        try {
+            if (ctx._status != SystemActuatorCommandStatus.Running) return;
 
-        if (ctx.ShouldAutoBackground) {
-            var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
-            ctx.Background(taskId);
-            ctx._logger?.LogInformation("超时自动后台化: {TaskId}, 命令: {Command}", taskId, ctx._command);
-        } else {
-            ctx.Kill();
+            if (ctx.ShouldAutoBackground) {
+                var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
+                ctx.Background(taskId);
+                ctx._logger?.LogInformation("超时自动后台化: {TaskId}, 命令: {Command}", taskId, ctx._command);
+            } else {
+                ctx.Kill();
+            }
         }
+        catch (Exception ex) { ctx._logger?.LogWarning(ex, "timeout timer 回调异常"); }
     }
 
     private async Task MonitorProcessExitAsync() {

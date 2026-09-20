@@ -67,9 +67,12 @@ public sealed class DebounceTracker : IDisposable {
             existingTimer.Dispose();
 
         _timers[filePath] = new Timer(_ => {
-            _timers.TryRemove(filePath, out var timer);
-            timer?.Dispose();
-            if (!_disposed) fireAction();
+            try {
+                _timers.TryRemove(filePath, out var timer);
+                timer?.Dispose();
+                if (!_disposed) fireAction();
+            }
+            catch (Exception ex) { Console.Error.WriteLine($"[DebounceTracker] timer 回调异常: {ex}"); }
         }, null, interval, Timeout.InfiniteTimeSpan);
     }
 

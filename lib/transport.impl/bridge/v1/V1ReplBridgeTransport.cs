@@ -107,7 +107,10 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport {
             _streamEventBuffer.Add(message);
             if (_streamEventTimer is null) {
                 _streamEventTimer = new Timer(
-                    _ => FlushStreamEvents(),
+                    _ => {
+                        try { FlushStreamEvents(); }
+                        catch (Exception ex) { _logger?.LogWarning(ex, "[V1Transport] stream_event flush timer 回调异常"); }
+                    },
                     null,
                     BatchFlushIntervalMs,
                     Timeout.Infinite);

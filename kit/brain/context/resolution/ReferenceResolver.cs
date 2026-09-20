@@ -467,9 +467,9 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                 }
 
                 if (!found)
-                    currentPath = await TryDirectOrFuzzyDirMatchAsync(currentPath, part, matchedParts, cancellationToken) ?? currentPath;
+                    currentPath = await TryDirectOrFuzzyDirMatchAsync(currentPath, part, matchedParts, cancellationToken).ConfigureAwait(false) ?? currentPath;
             } else {
-                currentPath = await TryNonAliasPartMatchAsync(currentPath, part, reference, matchedParts, allMatches, opts, cancellationToken);
+                currentPath = await TryNonAliasPartMatchAsync(currentPath, part, reference, matchedParts, allMatches, opts, cancellationToken).ConfigureAwait(false);
             }
         }
 

@@ -77,11 +77,15 @@ internal static class TestHelper {
                 continue;
             foreach (var refName in asm.GetReferencedAssemblies()) {
                 try {
+#pragma warning disable JCC1013
                     var loaded = Assembly.Load(refName);
+#pragma warning restore JCC1013
                     if (loadedPaths.Contains(loaded.Location))
                         continue;
                     queue.Enqueue(loaded);
-                } catch { }
+                } catch (Exception ex) {
+                    System.Diagnostics.Trace.WriteLine($"加载引用程序集失败: {ex.Message}");
+                }
             }
         }
     }

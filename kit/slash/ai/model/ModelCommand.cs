@@ -113,9 +113,7 @@ public sealed class ModelCommand : ChatCommandBase {
                     if (effortLevel != EffortLevel.Auto) {
                         TerminalHelper.WriteLine($"  Effort: {effortLevel.ToValue()}");
                         // 持久化 Picker 中调节的 effort — 对齐 TS resolvePickerEffortPersistence
-                        var pickerConfigService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
-                        if (pickerConfigService is not null)
-                            await pickerConfigService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effortLevel.ToValue(), context.CancellationToken).ConfigureAwait(false);
+                        await PersistPickerEffortAsync(context, effortLevel).ConfigureAwait(false);
                     }
                     return ChatCommandResult.Continue();
                     case ConsoleKey.Escape:
@@ -126,6 +124,15 @@ public sealed class ModelCommand : ChatCommandBase {
         }
 
         return ChatCommandResult.Continue();
+    }
+
+    /// <summary>
+    /// 持久化 Picker 中调节的 effort 等级 — 对齐 TS resolvePickerEffortPersistence
+    /// </summary>
+    private static async Task PersistPickerEffortAsync(ChatCommandContext context, EffortLevel effortLevel) {
+        var pickerConfigService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
+        if (pickerConfigService is not null)
+            await pickerConfigService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effortLevel.ToValue(), context.CancellationToken).ConfigureAwait(false);
     }
 
     private Task<ChatCommandResult> ShowModelInfoAsync(ChatCommandContext context) {
@@ -214,14 +221,11 @@ public sealed class ModelCommand : ChatCommandBase {
 
         // 4. Effort 自动降级检查 — 对齐 TS effortAutoDowngrade
         var settingsProvider = context.GetCommandServices().ExecutionSettingsProvider;
-        if (settingsProvider is not null) {
-            var currentEffort = settingsProvider.EffortLevel;
-            if (currentEffort == EffortLevel.Max) {
-                var provider = GetCurrentProvider(context);
-                if (!ResolveModelCatalog(context).SupportsMaxEffort(modelId, provider)) {
-                    settingsProvider.EffortLevel = EffortLevel.High;
-                    TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {modelId} 不支持 max effort，已降级为 high{AnsiStyleEnumConstants.Reset}");
-                }
+        if (settingsProvider is not null && settingsProvider.EffortLevel == EffortLevel.Max) {
+            var provider = GetCurrentProvider(context);
+            if (!ResolveModelCatalog(context).SupportsMaxEffort(modelId, provider)) {
+                settingsProvider.EffortLevel = EffortLevel.High;
+                TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {modelId} 不支持 max effort，已降级为 high{AnsiStyleEnumConstants.Reset}");
             }
         }
 

@@ -143,26 +143,7 @@ public sealed class TasksCommand : ChatCommandBase {
         if (shellService is not null) {
             var task = await shellService.GetTaskAsync(taskId, context.CancellationToken).ConfigureAwait(false);
             if (task is not null) {
-                TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}── Shell 任务详情 ──{AnsiStyleEnumConstants.Reset}");
-                TerminalHelper.WriteLine($"  ID: {task.TaskId}");
-                TerminalHelper.WriteLine($"  命令: {task.Command}");
-                TerminalHelper.WriteLine($"  状态: {task.Status}");
-                if (task.ExitCode.HasValue)
-                    TerminalHelper.WriteLine($"  退出码: {task.ExitCode}");
-                if (task.AgentId is not null)
-                    TerminalHelper.WriteLine($"  Agent: {task.AgentId}");
-
-                var output = await shellService.GetTaskOutputAsync(taskId, context.CancellationToken).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(output)) {
-                    TerminalHelper.WriteLine($"{TerminalColors.Muted}── 输出 ──{AnsiStyleEnumConstants.Reset}");
-                    var lines = output.Split('\n');
-                    var displayLines = lines.Length > 30 ? lines[^30..] : lines;
-                    foreach (var line in displayLines)
-                        TerminalHelper.WriteLine($"  {line}");
-                    if (lines.Length > 30)
-                        TerminalHelper.WriteLine($"  {TerminalColors.Muted}... (显示最后 30 行){AnsiStyleEnumConstants.Reset}");
-                }
-
+                await RenderShellTaskDetailAsync(shellService, task, taskId, context.CancellationToken).ConfigureAwait(false);
                 return;
             }
         }
@@ -171,18 +152,51 @@ public sealed class TasksCommand : ChatCommandBase {
         if (taskService is not null) {
             var task = await taskService.GetTaskAsync(taskId, context.CancellationToken).ConfigureAwait(false);
             if (task is not null) {
-                TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}── 任务详情 ──{AnsiStyleEnumConstants.Reset}");
-                TerminalHelper.WriteLine($"  ID: {task.Id}");
-                TerminalHelper.WriteLine($"  标题: {task.Title}");
-                TerminalHelper.WriteLine($"  状态: {task.Status}");
-                TerminalHelper.WriteLine($"  优先级: {task.Priority}");
-                if (task.Assignee is not null)
-                    TerminalHelper.WriteLine($"  负责人: {task.Assignee}");
+                RenderTaskServiceDetail(task);
                 return;
             }
         }
 
         TerminalHelper.WriteLine($"{TerminalColors.Error}未找到任务: {taskId}{AnsiStyleEnumConstants.Reset}");
+    }
+
+    /// <summary>
+    /// 渲染 Shell 任务详情 — 对齐 TS bashes.tsx 中的任务详情展示
+    /// </summary>
+    private static async Task RenderShellTaskDetailAsync(ISystemActuatorRegistry shellService, SystemActuatorBackgroundTaskInfo task, string taskId, CancellationToken ct) {
+        TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}── Shell 任务详情 ──{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"  ID: {task.TaskId}");
+        TerminalHelper.WriteLine($"  命令: {task.Command}");
+        TerminalHelper.WriteLine($"  状态: {task.Status}");
+        if (task.ExitCode.HasValue)
+            TerminalHelper.WriteLine($"  退出码: {task.ExitCode}");
+        if (task.AgentId is not null)
+            TerminalHelper.WriteLine($"  Agent: {task.AgentId}");
+
+        var output = await shellService.GetTaskOutputAsync(taskId, ct).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(output))
+            return;
+
+        TerminalHelper.WriteLine($"{TerminalColors.Muted}── 输出 ──{AnsiStyleEnumConstants.Reset}");
+        var lines = output.Split('\n');
+        var displayLines = lines.Length > 30 ? lines[^30..] : lines;
+        foreach (var line in displayLines)
+            TerminalHelper.WriteLine($"  {line}");
+        if (lines.Length > 30)
+            TerminalHelper.WriteLine($"  {TerminalColors.Muted}... (显示最后 30 行){AnsiStyleEnumConstants.Reset}");
+    }
+
+    /// <summary>
+    /// 渲染 Task Service 任务详情
+    /// </summary>
+    private static void RenderTaskServiceDetail(TaskItem task) {
+        TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}── 任务详情 ──{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"  ID: {task.Id}");
+        TerminalHelper.WriteLine($"  标题: {task.Title}");
+        TerminalHelper.WriteLine($"  状态: {task.Status}");
+        TerminalHelper.WriteLine($"  优先级: {task.Priority}");
+        if (task.Assignee is not null)
+            TerminalHelper.WriteLine($"  负责人: {task.Assignee}");
     }
 
     private static async Task CreateTaskAsync(ChatCommandContext context, string[] args) {

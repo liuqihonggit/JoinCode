@@ -144,8 +144,7 @@ public static class DebugLogRenderer {
                 sb.AppendLine($"  {TerminalColors.Error}错误 ({errors.Count}):{AnsiStyleEnumConstants.Reset}");
                 foreach (var e in errors.Take(20)) {
                     sb.AppendLine($"    [{e.Severity.ToValue()}] {e.FenceName}: {e.ExceptionType}: {e.ExceptionMessage}");
-                    if (e.ExecutionContext.ToolName is not null)
-                        sb.AppendLine($"      工具: {e.ExecutionContext.ToolName}  轮次: {e.ExecutionContext.TurnIndex}");
+                    AppendToolLineIfPresent(sb, e.ExecutionContext.ToolName, e.ExecutionContext.TurnIndex, "      ");
                     sb.AppendLine($"      时间: {e.CapturedAt:HH:mm:ss.fff}  ID: {e.Id:N}");
                 }
             }
@@ -188,10 +187,8 @@ public static class DebugLogRenderer {
                 foreach (var e in errors) {
                     sb.AppendLine($"  [{e.Severity.ToValue()}] {e.FenceName}");
                     sb.AppendLine($"    {e.ExceptionType}: {e.ExceptionMessage}");
-                    if (e.ErrorCode is not null)
-                        sb.AppendLine($"    错误码: {e.ErrorCode}");
-                    if (e.ExecutionContext.ToolName is not null)
-                        sb.AppendLine($"    工具: {e.ExecutionContext.ToolName}  轮次: {e.ExecutionContext.TurnIndex}");
+                    AppendErrorCodeIfPresent(sb, e.ErrorCode);
+                    AppendToolLineIfPresent(sb, e.ExecutionContext.ToolName, e.ExecutionContext.TurnIndex, "    ");
                     sb.AppendLine($"    时间: {e.CapturedAt:HH:mm:ss.fff}  ID: {e.Id:N}");
                     sb.AppendLine();
                 }
@@ -303,6 +300,22 @@ public static class DebugLogRenderer {
 
         sb.AppendLine($"  总计: {sections.Count} 个部分, {totalLength:N0} 字符");
         sb.AppendLine();
+    }
+
+    /// <summary>
+    /// 追加工具调用信息行（若工具名存在）
+    /// </summary>
+    private static void AppendToolLineIfPresent<T>(StringBuilder sb, string? toolName, T turnIndex, string indent) {
+        if (toolName is not null)
+            sb.AppendLine($"{indent}工具: {toolName}  轮次: {turnIndex}");
+    }
+
+    /// <summary>
+    /// 追加错误码行（若错误码存在）
+    /// </summary>
+    private static void AppendErrorCodeIfPresent(StringBuilder sb, string? errorCode) {
+        if (errorCode is not null)
+            sb.AppendLine($"    错误码: {errorCode}");
     }
 
     /// <summary>

@@ -21,14 +21,7 @@ public sealed class ExportCommand : ChatCommandBase {
 
         // 对齐 TS: --clipboard 参数 → 复制到剪贴板
         if (args.Equals("--clipboard", StringComparison.OrdinalIgnoreCase)) {
-            var clipboard = context.GetCommandServices().ClipboardService;
-            if (clipboard is not null) {
-                await clipboard.SetTextAsync(content, context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Success}已复制对话到剪贴板{AnsiStyleEnumConstants.Reset}");
-            } else {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}剪贴板服务不可用{AnsiStyleEnumConstants.Reset}");
-            }
-
+            await CopyToClipboardAsync(context, content).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }
 
@@ -50,13 +43,7 @@ public sealed class ExportCommand : ChatCommandBase {
             }
 
             if (result.SelectedIndex == 1) {
-                var clipboard = context.GetCommandServices().ClipboardService;
-                if (clipboard is not null) {
-                    await clipboard.SetTextAsync(content, context.CancellationToken).ConfigureAwait(false);
-                    TerminalHelper.WriteLine($"{TerminalColors.Success}已复制对话到剪贴板{AnsiStyleEnumConstants.Reset}");
-                } else {
-                    TerminalHelper.WriteLine($"{TerminalColors.Error}剪贴板服务不可用{AnsiStyleEnumConstants.Reset}");
-                }
+                await CopyToClipboardAsync(context, content).ConfigureAwait(false);
                 return ChatCommandResult.Continue();
             }
 
@@ -70,6 +57,19 @@ public sealed class ExportCommand : ChatCommandBase {
         var fallbackFilename = ExtractSmartFilename(history);
         await WriteToFileAsync(fallbackFilename, content, context.CancellationToken, context.GetCommandServices().FileSystem).ConfigureAwait(false);
         return ChatCommandResult.Continue();
+    }
+
+    /// <summary>
+    /// 复制内容到剪贴板并输出结果提示
+    /// </summary>
+    private static async Task CopyToClipboardAsync(ChatCommandContext context, string content) {
+        var clipboard = context.GetCommandServices().ClipboardService;
+        if (clipboard is not null) {
+            await clipboard.SetTextAsync(content, context.CancellationToken).ConfigureAwait(false);
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已复制对话到剪贴板{AnsiStyleEnumConstants.Reset}");
+        } else {
+            TerminalHelper.WriteLine($"{TerminalColors.Error}剪贴板服务不可用{AnsiStyleEnumConstants.Reset}");
+        }
     }
 
     private static async Task WriteToFileAsync(string filename, string content, CancellationToken ct, IFileSystem fs) {

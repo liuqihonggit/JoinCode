@@ -78,26 +78,9 @@ public sealed class CommitCommand : ChatCommandBase {
         if (args.Length > 0) {
             message = context.Arguments;
         } else {
-            message = await GenerateCommitMessageAsync(context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
-            TerminalHelper.WriteLine($"\n建议的提交信息: {message}");
-
-            if (!(context.Confirm?.Invoke("使用此提交信息？") ?? false)) {
-                var customMessage = context.Prompt?.Invoke("请输入提交信息: ");
-                if (customMessage is null) {
-                    // 非交互模式或测试环境取消提交
-                    if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
-                        TerminalHelper.WriteLine("取消提交（非交互模式）");
-                        return ChatCommandResult.Continue();
-                    } else {
-                        customMessage = TerminalHelper.ReadLine();
-                    }
-                }
-                if (string.IsNullOrWhiteSpace(customMessage)) {
-                    TerminalHelper.WriteLine("取消提交");
-                    return ChatCommandResult.Continue();
-                }
-                message = customMessage;
-            }
+            var resolved = await ResolveGeneratedMessageAsync(context, fs, gitRunner).ConfigureAwait(false);
+            if (resolved is null) return ChatCommandResult.Continue();
+            message = resolved;
         }
 
         if (!(context.Confirm?.Invoke("确认提交这些变更？") ?? false)) {
@@ -118,6 +101,33 @@ public sealed class CommitCommand : ChatCommandBase {
         }
 
         return ChatCommandResult.Continue();
+    }
+
+    /// <summary>
+    /// 生成并确认提交信息；返回 null 表示用户取消提交。
+    /// </summary>
+    private async Task<string?> ResolveGeneratedMessageAsync(ChatCommandContext context, IFileSystem fs, IGitCommandRunner gitRunner) {
+        var message = await GenerateCommitMessageAsync(context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
+        TerminalHelper.WriteLine($"\n建议的提交信息: {message}");
+
+        if (context.Confirm?.Invoke("使用此提交信息？") ?? false) {
+            return message;
+        }
+
+        var customMessage = context.Prompt?.Invoke("请输入提交信息: ");
+        if (customMessage is null) {
+            // 非交互模式或测试环境取消提交
+            if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
+                TerminalHelper.WriteLine("取消提交（非交互模式）");
+                return null;
+            }
+            customMessage = TerminalHelper.ReadLine();
+        }
+        if (string.IsNullOrWhiteSpace(customMessage)) {
+            TerminalHelper.WriteLine("取消提交");
+            return null;
+        }
+        return customMessage;
     }
 
     private static async Task<string> GenerateCommitMessageAsync(CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner) {

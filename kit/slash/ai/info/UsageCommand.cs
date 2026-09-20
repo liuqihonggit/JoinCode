@@ -17,71 +17,10 @@ public sealed class UsageCommand : ChatCommandBase {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
         // 预收集 Rate Limits 数据
-        string rateLimitsContent;
-
-        if (services.RateLimitTracker is not null) {
-            var snapshot = services.RateLimitTracker.GetLatestSnapshot();
-            if (snapshot is not null) {
-                var sb = new StringBuilder();
-
-                if (snapshot.RequestLimit.HasValue && snapshot.RequestRemaining.HasValue && snapshot.RequestLimit.Value > 0) {
-                    var usedRequests = snapshot.RequestLimit.Value - snapshot.RequestRemaining.Value;
-                    var percentage = Math.Round((double)usedRequests / snapshot.RequestLimit.Value * 100, 1);
-                    var resetsAt = snapshot.RequestResetsAt ?? _clock.GetUtcNow().AddHours(5);
-                    RenderLimitBar(sb, "Current session", percentage, resetsAt, _clock);
-                }
-
-                if (snapshot.TokenLimit.HasValue && snapshot.TokenRemaining.HasValue && snapshot.TokenLimit.Value > 0) {
-                    var usedTokens = snapshot.TokenLimit.Value - snapshot.TokenRemaining.Value;
-                    var percentage = Math.Round((double)usedTokens / snapshot.TokenLimit.Value * 100, 1);
-                    var resetsAt = snapshot.TokenResetsAt ?? _clock.GetUtcNow().AddDays(7);
-                    RenderLimitBar(sb, "Current week (all models)", percentage, resetsAt, _clock);
-                }
-
-                rateLimitsContent = sb.ToString();
-            } else {
-                rateLimitsContent = $"  {TerminalColors.Muted}速率限制数据暂不可用{AnsiStyleEnumConstants.Reset}\n  {TerminalColors.Muted}数据将在首次 API 请求后自动填充{AnsiStyleEnumConstants.Reset}";
-            }
-        } else {
-            rateLimitsContent = $"  {TerminalColors.Muted}速率限制数据暂不可用{AnsiStyleEnumConstants.Reset}\n  {TerminalColors.Muted}数据将在首次 API 请求后自动填充{AnsiStyleEnumConstants.Reset}";
-        }
+        var rateLimitsContent = BuildRateLimitsContent(services.RateLimitTracker, _clock);
 
         // 预收集 Token Usage 数据
-        string tokenUsageContent;
-        if (services.UsageTracker is not null) {
-            var stats = services.UsageTracker.GetTodayStatistics();
-            if (stats.TotalTokens > 0) {
-                var sb = new StringBuilder();
-                sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Token Usage (Today){AnsiStyleEnumConstants.Reset}");
-                sb.AppendLine();
-
-                RenderTokenBar(sb, "Input", stats.TotalInputTokens, stats.TotalTokens);
-                RenderTokenBar(sb, "Output", stats.TotalOutputTokens, stats.TotalTokens);
-
-                sb.Append(TerminalColors.Muted);
-                sb.Append($"  Total: {stats.TotalTokens:N0} tokens");
-                sb.Append($" · Requests: {stats.TotalRequests}");
-                sb.AppendLine(AnsiStyleEnumConstants.Reset);
-
-                if (stats.TotalCacheReadTokens > 0) {
-                    sb.AppendLine($"{TerminalColors.Muted}  Cache read: {stats.TotalCacheReadTokens:N0} tokens{AnsiStyleEnumConstants.Reset}");
-                }
-
-                if (stats.TotalCacheCreationTokens > 0) {
-                    sb.AppendLine($"{TerminalColors.Muted}  Cache creation: {stats.TotalCacheCreationTokens:N0} tokens{AnsiStyleEnumConstants.Reset}");
-                }
-
-                if (stats.TotalCostUsd > 0) {
-                    sb.AppendLine($"{TerminalColors.Muted}  Cost: ${stats.TotalCostUsd:F4} USD{AnsiStyleEnumConstants.Reset}");
-                }
-
-                tokenUsageContent = sb.ToString();
-            } else {
-                tokenUsageContent = $"  {TerminalColors.Muted}暂无今日 Token 用量数据{AnsiStyleEnumConstants.Reset}";
-            }
-        } else {
-            tokenUsageContent = $"  {TerminalColors.Muted}用量追踪器不可用{AnsiStyleEnumConstants.Reset}";
-        }
+        var tokenUsageContent = BuildTokenUsageContent(services.UsageTracker);
 
         var panel = new TabPanel(
             ["Rate Limits", "Token Usage"],
@@ -93,6 +32,72 @@ public sealed class UsageCommand : ChatCommandBase {
 
         return panel.ShowAsync(context.CancellationToken)
             .ContinueWith(_ => ChatCommandResult.Continue(), TaskContinuationOptions.ExecuteSynchronously);
+    }
+
+    /// <summary>
+    /// 构建 Rate Limits 标签页内容 — 对齐 TS Usage.tsx 中的速率限制展示
+    /// </summary>
+    private static string BuildRateLimitsContent(IRateLimitTracker? tracker, IClockService clock) {
+        var unavailable = $"  {TerminalColors.Muted}速率限制数据暂不可用{AnsiStyleEnumConstants.Reset}\n  {TerminalColors.Muted}数据将在首次 API 请求后自动填充{AnsiStyleEnumConstants.Reset}";
+        if (tracker is null)
+            return unavailable;
+
+        var snapshot = tracker.GetLatestSnapshot();
+        if (snapshot is null)
+            return unavailable;
+
+        var sb = new StringBuilder();
+
+        if (snapshot.RequestLimit.HasValue && snapshot.RequestRemaining.HasValue && snapshot.RequestLimit.Value > 0) {
+            var usedRequests = snapshot.RequestLimit.Value - snapshot.RequestRemaining.Value;
+            var percentage = Math.Round((double)usedRequests / snapshot.RequestLimit.Value * 100, 1);
+            var resetsAt = snapshot.RequestResetsAt ?? clock.GetUtcNow().AddHours(5);
+            RenderLimitBar(sb, "Current session", percentage, resetsAt, clock);
+        }
+
+        if (snapshot.TokenLimit.HasValue && snapshot.TokenRemaining.HasValue && snapshot.TokenLimit.Value > 0) {
+            var usedTokens = snapshot.TokenLimit.Value - snapshot.TokenRemaining.Value;
+            var percentage = Math.Round((double)usedTokens / snapshot.TokenLimit.Value * 100, 1);
+            var resetsAt = snapshot.TokenResetsAt ?? clock.GetUtcNow().AddDays(7);
+            RenderLimitBar(sb, "Current week (all models)", percentage, resetsAt, clock);
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 构建 Token Usage 标签页内容 — 对齐 TS Usage.tsx 中的 Token 用量展示
+    /// </summary>
+    private static string BuildTokenUsageContent(IUsageTracker? tracker) {
+        if (tracker is null)
+            return $"  {TerminalColors.Muted}用量追踪器不可用{AnsiStyleEnumConstants.Reset}";
+
+        var stats = tracker.GetTodayStatistics();
+        if (stats.TotalTokens <= 0)
+            return $"  {TerminalColors.Muted}暂无今日 Token 用量数据{AnsiStyleEnumConstants.Reset}";
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Token Usage (Today){AnsiStyleEnumConstants.Reset}");
+        sb.AppendLine();
+
+        RenderTokenBar(sb, "Input", stats.TotalInputTokens, stats.TotalTokens);
+        RenderTokenBar(sb, "Output", stats.TotalOutputTokens, stats.TotalTokens);
+
+        sb.Append(TerminalColors.Muted);
+        sb.Append($"  Total: {stats.TotalTokens:N0} tokens");
+        sb.Append($" · Requests: {stats.TotalRequests}");
+        sb.AppendLine(AnsiStyleEnumConstants.Reset);
+
+        if (stats.TotalCacheReadTokens > 0)
+            sb.AppendLine($"{TerminalColors.Muted}  Cache read: {stats.TotalCacheReadTokens:N0} tokens{AnsiStyleEnumConstants.Reset}");
+
+        if (stats.TotalCacheCreationTokens > 0)
+            sb.AppendLine($"{TerminalColors.Muted}  Cache creation: {stats.TotalCacheCreationTokens:N0} tokens{AnsiStyleEnumConstants.Reset}");
+
+        if (stats.TotalCostUsd > 0)
+            sb.AppendLine($"{TerminalColors.Muted}  Cost: ${stats.TotalCostUsd:F4} USD{AnsiStyleEnumConstants.Reset}");
+
+        return sb.ToString();
     }
 
     /// <summary>

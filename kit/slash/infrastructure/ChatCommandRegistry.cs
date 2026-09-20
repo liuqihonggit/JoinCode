@@ -217,21 +217,21 @@ internal sealed class LegacyConsoleOutput : JoinCode.Abstractions.Interfaces.ICo
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             TerminalHelper.WriteLine(prompt);
             return string.Empty;
-        } else {
-            TerminalHelper.WriteRaw(prompt);
-            var password = new System.Text.StringBuilder();
-            while (true) {
-                var key = TerminalHelper.ReadKey(true);
-                if (key.Key == ConsoleKey.Enter) break;
-                if (key.Key == ConsoleKey.Backspace) {
-                    if (password.Length > 0) password.Remove(password.Length - 1, 1);
-                } else {
-                    password.Append(key.KeyChar);
-                }
-            }
-            TerminalHelper.NewLine();
-            return password.ToString();
         }
+
+        TerminalHelper.WriteRaw(prompt);
+        var password = new System.Text.StringBuilder();
+        while (true) {
+            var key = TerminalHelper.ReadKey(true);
+            if (key.Key == ConsoleKey.Enter) break;
+            if (key.Key == ConsoleKey.Backspace) {
+                if (password.Length > 0) password.Remove(password.Length - 1, 1);
+            } else {
+                password.Append(key.KeyChar);
+            }
+        }
+        TerminalHelper.NewLine();
+        return password.ToString();
     }
 }
 

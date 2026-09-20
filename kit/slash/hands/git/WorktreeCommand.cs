@@ -162,35 +162,21 @@ public sealed class WorktreeCommand : ChatCommandBase {
 
         var session = await worktreeService.GetSessionAsync(agentId).ConfigureAwait(false);
         if (session is null) {
-            var gitRoot = await worktreeService.FindGitRootAsync(context.GetCommandServices().FileSystem.GetCurrentDirectory()).ConfigureAwait(false);
-            if (!string.IsNullOrEmpty(gitRoot)) {
-                var worktreePath = AgentWorktreeSession.GenerateWorktreePath(gitRoot, agentId);
-                if (context.GetCommandServices().FileSystem.DirectoryExists(worktreePath)) {
-                    TerminalHelper.WriteLine($"{TerminalColors.Warning}找到未记录的 worktree 目录: {worktreePath}{AnsiStyleEnumConstants.Reset}");
-                    if (context.Confirm?.Invoke("是否强制移除？") ?? false) {
-                        // 兜底清理:session 不存在(未记录的 worktree),直接删除目录。
-                        // 注意:可能残留 .git/worktrees/ 元数据和分支引用,建议后续执行 `git worktree prune`。
-                        context.GetCommandServices().FileSystem.DeleteDirectory(worktreePath, true);
-                        TerminalHelper.WriteLine($"{TerminalColors.Success}已移除 worktree 目录{AnsiStyleEnumConstants.Reset}");
-                        return;
-                    }
-                }
+            if (await TryRemoveUnrecordedWorktreeAsync(context, worktreeService, agentId).ConfigureAwait(false)) {
+                return;
             }
 
             TerminalHelper.WriteLine($"{TerminalColors.Error}未找到智能体 '{agentId}' 的 worktree{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
-        if (!force) {
-            var hasChanges = await worktreeService.HasUncommittedChangesAsync(session.WorktreePath, context.CancellationToken).ConfigureAwait(false);
-            if (hasChanges) {
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}该 worktree 有未提交的更改{AnsiStyleEnumConstants.Reset}");
-                if (!(context.Confirm?.Invoke("是否强制移除？") ?? false)) {
-                    TerminalHelper.WriteLine("已取消移除");
-                    return;
-                }
-                force = true;
+        if (!force && await worktreeService.HasUncommittedChangesAsync(session.WorktreePath, context.CancellationToken).ConfigureAwait(false)) {
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}该 worktree 有未提交的更改{AnsiStyleEnumConstants.Reset}");
+            if (!(context.Confirm?.Invoke("是否强制移除？") ?? false)) {
+                TerminalHelper.WriteLine("已取消移除");
+                return;
             }
+            force = true;
         }
 
         var result = await worktreeService.RemoveAgentWorktreeAsync(agentId, force, context.CancellationToken).ConfigureAwait(false);
@@ -203,6 +189,26 @@ public sealed class WorktreeCommand : ChatCommandBase {
         } else {
             TerminalHelper.WriteLine($"{TerminalColors.Error}移除失败: {result.ErrorMessage}{AnsiStyleEnumConstants.Reset}");
         }
+    }
+
+    /// <summary>
+    /// 尝试移除未记录的 worktree 目录；返回 true 表示已移除并应直接返回，false 表示未处理。
+    /// </summary>
+    private async Task<bool> TryRemoveUnrecordedWorktreeAsync(ChatCommandContext context, IAgentWorktreeService worktreeService, string agentId) {
+        var gitRoot = await worktreeService.FindGitRootAsync(context.GetCommandServices().FileSystem.GetCurrentDirectory()).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(gitRoot)) return false;
+
+        var worktreePath = AgentWorktreeSession.GenerateWorktreePath(gitRoot, agentId);
+        if (!context.GetCommandServices().FileSystem.DirectoryExists(worktreePath)) return false;
+
+        TerminalHelper.WriteLine($"{TerminalColors.Warning}找到未记录的 worktree 目录: {worktreePath}{AnsiStyleEnumConstants.Reset}");
+        if (!(context.Confirm?.Invoke("是否强制移除？") ?? false)) return false;
+
+        // 兜底清理:session 不存在(未记录的 worktree),直接删除目录。
+        // 注意:可能残留 .git/worktrees/ 元数据和分支引用,建议后续执行 `git worktree prune`。
+        context.GetCommandServices().FileSystem.DeleteDirectory(worktreePath, true);
+        TerminalHelper.WriteLine($"{TerminalColors.Success}已移除 worktree 目录{AnsiStyleEnumConstants.Reset}");
+        return true;
     }
 
     private async Task CreateWorktreeAsync(ChatCommandContext context, IAgentWorktreeService worktreeService, string[] args) {

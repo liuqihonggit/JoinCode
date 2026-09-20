@@ -18,7 +18,8 @@ public static class RuleDescriptorFactory {
                 attr.Category,
                 attr.Severity,
                 attr.IsEnabledByDefault,
-                attr.HelpLinkUri),
+                attr.HelpLinkUri,
+                attr.IsCompilationEnd ? WellKnownDiagnosticTags.CompilationEnd : null),
             StringComparer.Ordinal);
     }
 

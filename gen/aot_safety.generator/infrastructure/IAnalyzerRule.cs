@@ -15,6 +15,7 @@ public sealed class AnalyzerRuleAttribute : Attribute {
     public DiagnosticSeverity Severity { get; set; } = DiagnosticSeverity.Warning;
     public bool IsEnabledByDefault { get; set; } = true;
     public string HelpLinkUri { get; set; } = "";
+    public bool IsCompilationEnd { get; set; } = false;
 }
 
 /// <summary>

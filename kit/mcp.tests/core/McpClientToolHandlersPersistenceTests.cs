@@ -4,7 +4,7 @@
 /// McpClientToolHandlers 持久化测试 — 验证 SaveStateAsync/LoadState 跨进程共享连接配置。
 /// </summary>
 public sealed class McpClientToolHandlersPersistenceTests {
-    private static (McpClientToolHandlers handler, InMemoryFileSystem fs) CreateHandlerWithFileSystem() {
+    private static async Task<(McpClientToolHandlers handler, InMemoryFileSystem fs)> CreateHandlerWithFileSystem() {
         var fs = new InMemoryFileSystem();
         await using var client = new FakeMcpClient();
         var factory = new FakeClientFactory(client);
@@ -24,7 +24,7 @@ public sealed class McpClientToolHandlersPersistenceTests {
 
     [Fact]
     public async Task McpConnectAsync_WithFileSystem_PersistsConnections() {
-        var created = CreateHandlerWithFileSystem();
+        var created = await CreateHandlerWithFileSystem();
         await using var handler = created.handler;
         var fs = created.fs;
         var filePath = GetConnectionsFilePath();
@@ -42,7 +42,7 @@ public sealed class McpClientToolHandlersPersistenceTests {
 
     [Fact]
     public async Task McpDisconnectAsync_WithFileSystem_RemovesConnection() {
-        var created = CreateHandlerWithFileSystem();
+        var created = await CreateHandlerWithFileSystem();
         await using var handler = created.handler;
         var fs = created.fs;
         var filePath = GetConnectionsFilePath();

@@ -243,4 +243,5 @@ public enum ProviderEnvVar {
     [EnumValue("DEEPSEEK_API_KEY")] DeepSeekApiKey,
     [EnumValue("SENSENOVA_API_KEY")] SenseNovaApiKey,
     [EnumValue("ZHIPUAI_API_KEY")] ZhipuApiKey,
+    [EnumValue("JEV_API_KEY")] JevApiKey,
 }

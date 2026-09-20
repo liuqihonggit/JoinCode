@@ -1,5 +1,7 @@
 global using FluentAssertions;
+global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Llm;
+global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Decision;
 global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Exceptions;

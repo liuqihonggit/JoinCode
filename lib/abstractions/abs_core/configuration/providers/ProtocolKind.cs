@@ -11,5 +11,6 @@ public enum ProtocolKind {
     [EnumValue("anthropic")] Anthropic = 1,
     [EnumValue("azure")] Azure = 2,
     [EnumValue("agnes")] Agnes = 3,
-    [EnumValue("responses")] OpenAiResponses = 4
+    [EnumValue("responses")] OpenAiResponses = 4,
+    [EnumValue("jev")] Jev = 5
 }

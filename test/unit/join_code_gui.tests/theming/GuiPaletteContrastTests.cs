@@ -155,7 +155,7 @@ public class GuiPaletteContrastTests {
     public void ToggleThemeVm_FlipsIsDarkTheme() {
         // InMemory store → ConfigurationService 走内存文件系统，LoadThemeFromSettings 读到 Auto
         // 提前返回，不会异步覆盖 IsDarkTheme（B8：裸构造读真实 settings.json 的 theme 键导致偶发翻转）
-        using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         vm.IsDarkTheme.Should().BeTrue();
 
         vm.ToggleThemeCommand.Execute(null);

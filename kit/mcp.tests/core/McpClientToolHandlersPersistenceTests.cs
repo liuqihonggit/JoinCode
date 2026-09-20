@@ -6,9 +6,9 @@
 public sealed class McpClientToolHandlersPersistenceTests {
     private static (McpClientToolHandlers handler, InMemoryFileSystem fs) CreateHandlerWithFileSystem() {
         var fs = new InMemoryFileSystem();
-        using var client = new FakeMcpClient();
+        await using var client = new FakeMcpClient();
         var factory = new FakeClientFactory(client);
-        using var registry = new FakeMcpToolRegistry();
+        await using var registry = new FakeMcpToolRegistry();
         var deps = new McpClientToolDeps(ToolRegistry: registry, ClientFactory: factory);
         var handler = new McpClientToolHandlers(deps, NullLogger<McpClientToolHandlers>.Instance, fs);
         return (handler, fs);

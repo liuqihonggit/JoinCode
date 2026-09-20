@@ -40,7 +40,7 @@ public sealed class ServiceHostTests {
 
     [Fact]
     public void RegisterService_AddsToStatuses() {
-        using var host = new ServiceHost();
+        await using var host = new ServiceHost();
         var service = CreateService("svc");
 
         host.RegisterService(service);
@@ -166,14 +166,14 @@ public sealed class ServiceHostTests {
 
     [Fact]
     public void GetServiceStatus_Unknown_ReturnsNull() {
-        using var host = new ServiceHost();
+        await using var host = new ServiceHost();
 
         Assert.Null(host.GetServiceStatus("missing"));
     }
 
     [Fact]
     public void GetAllServiceStatuses_ReturnsAll() {
-        using var host = new ServiceHost();
+        await using var host = new ServiceHost();
         host.RegisterService(CreateService("svc1"));
         host.RegisterService(CreateService("svc2"));
 

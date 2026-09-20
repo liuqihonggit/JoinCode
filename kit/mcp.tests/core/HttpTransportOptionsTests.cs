@@ -51,14 +51,14 @@ public class HttpTransportOptionsTests {
     [Fact]
     public void HttpTransport_IsStateless_WhenStatelessMode_True() {
         var options = new HttpTransportOptions { Endpoint = "http://localhost:9999", StatelessMode = true };
-        using var transport = new HttpTransport(options);
+        await using var transport = new HttpTransport(options);
         transport.IsStateless.Should().BeTrue();
     }
 
     [Fact]
     public void HttpTransport_IsStateless_WhenNoSession_True() {
         var options = new HttpTransportOptions { Endpoint = "http://localhost:9999" };
-        using var transport = new HttpTransport(options);
+        await using var transport = new HttpTransport(options);
         transport.IsStateless.Should().BeTrue();
     }
 }

@@ -11,7 +11,7 @@ public class JccChatSessionAssemblyTests {
     public void VendorModelMap_DumpAllData() {
         // 密闭化：目录数据由测试 fixture 灌入（对齐生产 settings.json vendor 节的真实清单），
         // 不再依赖本机 ~/.jcc/settings.json 内容（B8 修复：环境差异导致基线必失败）
-        using var session = new PlaceholderChatSession(modelConfigLoader: CreateFedLoader());
+        await using var session = new PlaceholderChatSession(modelConfigLoader: CreateFedLoader());
         var map = session.VendorModelMap;
 
         map.Keys.Should().BeEquivalentTo(["anthropic", "openai", "deepseek", "agnes", "sensenova"]);
@@ -36,9 +36,9 @@ public class JccChatSessionAssemblyTests {
     [Fact]
     public void VendorModelMap_MultipleInstances_AreIdentical() {
         var loader = CreateFedLoader();
-        using var s1 = new PlaceholderChatSession(modelConfigLoader: loader);
-        using var s2 = new PlaceholderChatSession(modelConfigLoader: loader);
-        using var s3 = new PlaceholderChatSession(modelConfigLoader: loader);
+        await using var s1 = new PlaceholderChatSession(modelConfigLoader: loader);
+        await using var s2 = new PlaceholderChatSession(modelConfigLoader: loader);
+        await using var s3 = new PlaceholderChatSession(modelConfigLoader: loader);
 
         s1.VendorModelMap.Keys.Should().BeEquivalentTo(s2.VendorModelMap.Keys);
         s2.VendorModelMap.Keys.Should().BeEquivalentTo(s3.VendorModelMap.Keys);
@@ -139,7 +139,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        using var session = new JccChatSession(
+        await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             config);
@@ -157,7 +157,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        using var session = new JccChatSession(
+        await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             config,
@@ -178,7 +178,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "sensenova-6.7-flash-lite"
             }
         };
-        using var session = new JccChatSession(
+        await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             config,
@@ -195,7 +195,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        using var session = new JccChatSession(
+        await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             config,
@@ -288,7 +288,7 @@ public class JccChatSessionAssemblyTests {
                 ModelId = "gpt-4o"
             }
         };
-        using var session = new JccChatSession(
+        await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             config);
@@ -307,7 +307,7 @@ public class JccChatSessionAssemblyTests {
             null!) {
             EffortLevel = EffortLevel.Medium
         };
-        using var session = new JccChatSession(
+        await using var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
             new WorkflowConfig {

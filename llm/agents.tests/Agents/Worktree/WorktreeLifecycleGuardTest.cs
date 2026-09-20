@@ -32,7 +32,7 @@ public class WorktreeLifecycleGuardTest {
     /// </summary>
     [Fact]
     public void Ctor_WhenDifferent_LocksPath() {
-        using var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs());
+        await using var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs());
 
         guard.WorktreePath.Should().Be(WorktreePath);
         guard.MainPath.Should().Be(MainPath);

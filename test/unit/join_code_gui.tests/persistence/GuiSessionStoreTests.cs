@@ -52,7 +52,7 @@ public class GuiSessionStoreTests {
 
     [Fact]
     public void Delete_RemovesSessionFile() {
-        using var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
         store.Save(new GuiSessionData { Id = "to-delete", Messages = [new GuiSessionMessage { Role = "user", Content = "x" }] });
@@ -64,7 +64,7 @@ public class GuiSessionStoreTests {
 
     [Fact]
     public void Save_WithoutId_Throws() {
-        using var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
         var act = () => store.Save(new GuiSessionData { Messages = [] });

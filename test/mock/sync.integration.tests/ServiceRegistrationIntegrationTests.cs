@@ -83,7 +83,7 @@ public class ServiceRegistrationIntegrationTests {
 
     private static ServiceCollection BuildServiceCollection() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-        using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
+        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
 
@@ -101,7 +101,7 @@ public class ServiceRegistrationIntegrationTests {
 
     private static ServiceCollection BuildAiServiceCollection() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-        using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
+        await using var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
 

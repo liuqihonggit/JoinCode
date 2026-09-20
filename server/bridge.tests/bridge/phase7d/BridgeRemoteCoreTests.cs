@@ -178,8 +178,8 @@ public sealed class BridgeRemoteCoreTests {
     [Fact]
     public void DrainFlushGate_NoPending_NoWrite() {
         var flushGate = new BridgeFlushGate<string>();
-        using var transport = new MockTransport();
-        using var uuidSet = new BoundedUUIDSet(100);
+        await using var transport = new MockTransport();
+        await using var uuidSet = new BoundedUUIDSet(100);
         flushGate.Start();
         var msgs = flushGate.End();
         Assert.Empty(msgs);
@@ -191,8 +191,8 @@ public sealed class BridgeRemoteCoreTests {
     [Fact]
     public void DrainFlushGate_WithPending_SendsAll() {
         var flushGate = new BridgeFlushGate<string>();
-        using var transport = new MockTransport();
-        using var uuidSet = new BoundedUUIDSet(100);
+        await using var transport = new MockTransport();
+        await using var uuidSet = new BoundedUUIDSet(100);
 
         flushGate.Start();
         flushGate.Enqueue("queued1", "queued2");
@@ -207,8 +207,8 @@ public sealed class BridgeRemoteCoreTests {
     [Fact]
     public void DrainFlushGate_WithToSDKMessages_ConvertsAndSends() {
         var flushGate = new BridgeFlushGate<string>();
-        using var transport = new MockTransport();
-        using var uuidSet = new BoundedUUIDSet(100);
+        await using var transport = new MockTransport();
+        await using var uuidSet = new BoundedUUIDSet(100);
         Func<string, string[]> toSDK = msg => [$"sdk_{msg}"];
 
         flushGate.Start();

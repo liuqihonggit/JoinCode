@@ -71,7 +71,7 @@ public sealed class BridgePermissionCallbacksTests {
 
     [Fact]
     public void SendRequest_WritesToTransport() {
-        using var transport = new MockTransport();
+        await using var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 
         service.SendRequest("req1", "ReadFile", new Dictionary<string, JsonElement>(),
@@ -83,7 +83,7 @@ public sealed class BridgePermissionCallbacksTests {
 
     [Fact]
     public void CancelRequest_WritesToTransport() {
-        using var transport = new MockTransport();
+        await using var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 
         service.CancelRequest("req1");

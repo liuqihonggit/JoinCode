@@ -152,7 +152,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime {
     [Fact]
     public void GetTotalStatistics_NoRecords_ShouldReturnEmptyStats() {
         // Arrange - fresh CostTracker with no records
-        using var freshTracker = new CostTracker(_fileOperationServiceMock.Object, storagePath: "/test/empty_costs.json");
+        await using var freshTracker = new CostTracker(_fileOperationServiceMock.Object, storagePath: "/test/empty_costs.json");
 
         // Act
         var stats = freshTracker.GetTotalStatistics();

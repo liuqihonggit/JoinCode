@@ -95,7 +95,7 @@ public sealed class GoalEngineTests {
     [Fact]
     public void Constructor_WithoutPermissionManager_Should_Create_Successfully() {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
-        using var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
+        await using var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
 
         Assert.NotNull(engine);
         Assert.False(engine.IsRunning);
@@ -107,7 +107,7 @@ public sealed class GoalEngineTests {
         var (kernel, evaluator, serviceProvider) = CreateMocks();
         var permissionManager = new Mock<IToolPermissionManager>();
 
-        using var engine = new GoalEngine(kernel.Object, evaluator.Object, permissionManager: permissionManager.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
+        await using var engine = new GoalEngine(kernel.Object, evaluator.Object, permissionManager: permissionManager.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
 
         Assert.NotNull(engine);
         Assert.False(engine.IsRunning);

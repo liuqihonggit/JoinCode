@@ -144,8 +144,8 @@ public class MainViewModelTests {
 
     [Fact]
     public void ModelOptions_AreBoundToSessionRealModels() {
-        using var fake = new FakeSession();
-        using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var fake = new FakeSession();
+        await using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         vm.ModelOptions.Select(m => m.Id).Should().BeEquivalentTo(["fake-model"]);
         vm.SelectedModel.Should().Be("fake-model");
@@ -173,8 +173,8 @@ public class MainViewModelTests {
 
     [Fact]
     public void SelectedModelOptionChange_SyncsSelectedModel() {
-        using var session = new CrossContaminationSession();
-        using var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var session = new CrossContaminationSession();
+        await using var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         var target = vm.ModelOptions.First(m => m.Id == "sensenova-u1-fast");
         vm.SelectedModelOption = target;
@@ -184,8 +184,8 @@ public class MainViewModelTests {
 
     [Fact]
     public void ConnectionOptions_OnlyRealProviders() {
-        using var fake = new FakeSession();
-        using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var fake = new FakeSession();
+        await using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         var options = vm.ConnectionOptions;
         options.Should().NotContain(o => o.IsMock);
@@ -197,8 +197,8 @@ public class MainViewModelTests {
 
     [Fact]
     public void ToggleMock_UpdatesStatusAndModels() {
-        using var fake = new FakeSession();
-        using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var fake = new FakeSession();
+        await using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         vm.ToggleMockCommand.Execute(null);
 
@@ -208,8 +208,8 @@ public class MainViewModelTests {
 
     [Fact]
     public void ToggleMock_ToggleBackRestoresRealSession() {
-        using var fake = new FakeSession();
-        using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var fake = new FakeSession();
+        await using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         vm.ToggleMockCommand.Execute(null);
         vm.ToggleMockCommand.Execute(null);
@@ -221,8 +221,8 @@ public class MainViewModelTests {
 
     [Fact]
     public void SwitchProvider_UpdatesModelListFromVendorModelMap() {
-        using var fake = new FakeSession();
-        using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var fake = new FakeSession();
+        await using var vm = new MainViewModel(fake, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         // 初始默认选 "fake" 真实供应商
         vm.SelectedConnection!.Id.Should().Be("fake");
@@ -232,8 +232,8 @@ public class MainViewModelTests {
     /// <summary>跨供应商切换时，旧供应商的 CurrentModelId 不应污染新供应商的模型列表</summary>
     [Fact]
     public void ModelOptions_DoesNotCrossContaminateModelsFromOtherProviders() {
-        using var session = new CrossContaminationSession();
-        using var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var session = new CrossContaminationSession();
+        await using var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
         // 初始选 sensenova，模型列表应包含 sensenova 模型
         vm.SelectedConnection!.Id.Should().Be("sensenova");
@@ -271,10 +271,10 @@ public class MainViewModelTests {
     [Fact]
     public void AttachRealSession_HotSwapsPlaceholderToRealEngine() {
         // 异步启动路径：VM 先以占位会话显示，引擎组装完成后再热切换
-        using var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
         vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
 
-        using var fake = new FakeSession();
+        await using var fake = new FakeSession();
         vm.AttachRealSession(fake);
 
         vm.IsMockConnection.Should().BeFalse("热切换后应替换为真实引擎会话");
@@ -288,7 +288,7 @@ public class MainViewModelTests {
     [Fact]
     public void PlaceholderMode_ShowsLoadingStatus() {
         // 注入 fixture 目录 loader — 占位会话从 VM 的 _modelConfigLoader 构建供应商预览（B8 密闭化）
-        using var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"), JoinCode.Gui.Tests.Hosting.JccChatSessionAssemblyTests.CreateFedLoader());
+        await using var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"), JoinCode.Gui.Tests.Hosting.JccChatSessionAssemblyTests.CreateFedLoader());
         vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
         vm.StatusText.Should().Be("正在加载引擎…");
         vm.IsEngineLoaded.Should().BeFalse("引擎未加载完成");
@@ -1572,7 +1572,7 @@ public class MainViewModelTests {
 public sealed class AllMessagesTextToolResultTests {
     [Fact]
     public void ToolResultText_AppearsInAllMessagesText() {
-        using var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
         vm.Messages.Add(new ChatUiMessage {
             Role = MessageRole.User,
             Content = "帮我运行 echo hello",

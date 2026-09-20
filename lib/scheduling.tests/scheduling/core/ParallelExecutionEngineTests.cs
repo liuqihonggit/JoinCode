@@ -69,7 +69,7 @@ public class ParallelExecutionEngineTests {
     public void Constructor_WithAgentCoordinator_ShouldInitializeCorrectly() {
         var agentCoordinator = CreateAgentCoordinator();
 
-        using var engine = new ParallelExecutionEngine(
+        await using var engine = new ParallelExecutionEngine(
             agentCoordinator,
             NullLogger<ParallelExecutionEngine>.Instance);
 
@@ -92,7 +92,7 @@ public class ParallelExecutionEngineTests {
     /// </summary>
     [Fact]
     public void Constructor_SimulationMode_ShouldInitializeCorrectly() {
-        using var engine = new ParallelExecutionEngine(simulationMode: true, NullLogger<ParallelExecutionEngine>.Instance);
+        await using var engine = new ParallelExecutionEngine(simulationMode: true, NullLogger<ParallelExecutionEngine>.Instance);
 
         engine.Should().NotBeNull();
     }
@@ -104,7 +104,7 @@ public class ParallelExecutionEngineTests {
     public void Constructor_WithNullLogger_ShouldInitializeCorrectly() {
         var agentCoordinator = CreateAgentCoordinator();
 
-        using var engine = new ParallelExecutionEngine(agentCoordinator, null);
+        await using var engine = new ParallelExecutionEngine(agentCoordinator, null);
 
         engine.Should().NotBeNull();
     }

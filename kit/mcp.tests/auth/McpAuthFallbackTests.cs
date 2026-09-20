@@ -63,7 +63,7 @@ public sealed class McpAuthFallbackTests {
         };
 
         // Act — 不传 httpClient，触发 fallback 路径
-        using var provider = new McpPkceAuthProvider(options, fs);
+        await using var provider = new McpPkceAuthProvider(options, fs);
 
         // Assert
         var httpClient = GetPrivateHttpClientField(provider);
@@ -89,7 +89,7 @@ public sealed class McpAuthFallbackTests {
         };
 
         // Act
-        using var provider = new OAuth2AuthProvider(options);
+        await using var provider = new OAuth2AuthProvider(options);
 
         // Assert
         var httpClient = GetPrivateHttpClientField(provider);

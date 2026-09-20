@@ -3,7 +3,7 @@
 public sealed class SystemPromptDumpTests {
     [Fact]
     public void Dump_AllSections_ToFile() {
-        using var fs = new IO.FileSystem.InMemoryFileSystem();
+        await using var fs = new IO.FileSystem.InMemoryFileSystem();
         var options = new SystemPromptProviderOptions {
             EnabledTools = ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "Task"],
             ModelId = "deepseek-v4-flash",

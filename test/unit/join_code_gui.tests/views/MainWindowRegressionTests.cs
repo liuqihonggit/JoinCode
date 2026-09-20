@@ -18,7 +18,7 @@ public sealed class MainWindowRegressionTests {
 
     [AvaloniaFact]
     public void SendOnRealWindow_NoNre_AndCompletes() {
-        using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -32,7 +32,7 @@ public sealed class MainWindowRegressionTests {
 
     [AvaloniaFact]
     public void CtrlEnterKey_SendsMessage() {
-        using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -48,7 +48,7 @@ public sealed class MainWindowRegressionTests {
     /// <summary>F3 新默认键位：裸 Enter=换行不发送（EnterSends=false）</summary>
     [AvaloniaFact]
     public void PlainEnterKey_InsertsNewline_DoesNotSend_ByDefault() {
-        using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -65,7 +65,7 @@ public sealed class MainWindowRegressionTests {
 
     [AvaloniaFact]
     public void ShiftEnterKey_InsertsNewline_DoesNotSend() {
-        using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -86,7 +86,7 @@ public sealed class MainWindowRegressionTests {
 
     [AvaloniaFact]
     public void SessionError_ShowsErrorToast_OnRealWindow() {
-        using var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -102,7 +102,7 @@ public sealed class MainWindowRegressionTests {
 
     [AvaloniaFact]
     public void ToastAutoHide_AfterFiveSeconds_StopsTimer() {
-        using var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -133,7 +133,7 @@ public sealed class MainWindowRegressionTests {
 
     [AvaloniaFact]
     public void ToastHover_PausesTimer_LeaveResumes() {
-        using var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var vm = new MainViewModel(new ThrowingSession(), new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -170,8 +170,8 @@ public sealed class MainWindowRegressionTests {
     /// </summary>
     [AvaloniaFact]
     public void FontSizeSlider_Change_UpdatesMessageTextEditor() {
-        using var session = new StaticReplySession();
-        using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var session = new StaticReplySession();
+        await using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -195,8 +195,8 @@ public sealed class MainWindowRegressionTests {
     /// </summary>
     [AvaloniaFact]
     public void MessageRemoveButton_RemovesMessage() {
-        using var session = new StaticReplySession();
-        using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var session = new StaticReplySession();
+        await using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -218,8 +218,8 @@ public sealed class MainWindowRegressionTests {
     /// <summary>G3 单条消息操作接线 — 点击 📋 按钮触发 CopyMessageCommand 置已复制反馈态</summary>
     [AvaloniaFact]
     public void MessageCopyButton_TriggersCopyFeedback() {
-        using var session = new StaticReplySession();
-        using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var session = new StaticReplySession();
+        await using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
@@ -239,8 +239,8 @@ public sealed class MainWindowRegressionTests {
     /// <summary>G3 Markdown 渲染冒烟 — 非流式助手消息经 MarkdownView 渲染出控件树（标题/段落）</summary>
     [AvaloniaFact]
     public void AssistantMarkdownMessage_RendersViaMarkdownView() {
-        using var session = new StaticReplySession();
-        using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        await using var session = new StaticReplySession();
+        await using var vm = new MainViewModel(session, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
         win.Show();
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();

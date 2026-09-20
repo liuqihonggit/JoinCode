@@ -4,7 +4,7 @@ namespace Bridge.Tests.Phase7B;
 public sealed class BridgeTokenRefreshSchedulerTests {
     [Fact]
     public void ScheduleFromExpiresIn_ValidSeconds_SchedulesRefresh() {
-        using var scheduler = new BridgeTokenRefreshScheduler(
+        await using var scheduler = new BridgeTokenRefreshScheduler(
             new TokenRefreshOptions {
                 GetAccessToken = () => "test-token",
                 OnRefresh = (sessionId, token) => { },
@@ -46,7 +46,7 @@ public sealed class BridgeTokenRefreshSchedulerTests {
 
     [Fact]
     public void CancelAll_StopsAllScheduledRefreshes() {
-        using var scheduler = new BridgeTokenRefreshScheduler(
+        await using var scheduler = new BridgeTokenRefreshScheduler(
             new TokenRefreshOptions {
                 GetAccessToken = () => "test-token",
                 OnRefresh = (sessionId, token) => { },
@@ -64,7 +64,7 @@ public sealed class BridgeTokenRefreshSchedulerTests {
 
     [Fact]
     public void Schedule_SameSession_ReplacesPrevious() {
-        using var scheduler = new BridgeTokenRefreshScheduler(
+        await using var scheduler = new BridgeTokenRefreshScheduler(
             new TokenRefreshOptions {
                 GetAccessToken = () => "test-token",
                 OnRefresh = (sessionId, token) => { },

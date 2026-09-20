@@ -63,7 +63,7 @@ internal static class TuiModeRunner {
             : null;
         if (sessionStore is not null) {
             try {
-                await sessionStore.SaveMetaAsync(config, cancellationToken).ConfigureAwait(false);
+                await sessionStore.SaveMetaAsync(config, cancellationToken);
             } catch (Exception ex) {
                 WriteDiag($"[TUI] SaveMetaAsync failed: {ex.Message}");
             }
@@ -115,7 +115,7 @@ internal static class TuiModeRunner {
                                 var mgr = services.GetService<IChatContextManager>();
                                 var chat = services.GetService<Abstractions.Interfaces.IChatService>();
                                 if (mgr is not null && chat is not null)
-                                    await sessionStore.SwitchToAsync(mgr, chat, freshId).ConfigureAwait(false);
+                                    await sessionStore.SwitchToAsync(mgr, chat, freshId);
                             } catch (Exception switchEx) {
                                 WriteDiag($"[T7] New session switch failed: {switchEx.Message}");
                             }
@@ -126,8 +126,8 @@ internal static class TuiModeRunner {
                     case ToolBarAction.Pause:
                     outputView.AppendLine("⏸ 暂停/恢复 — 轮询切换");
                     _ = Task.Run(async () => {
-                        await polling.StopAsync().ConfigureAwait(false);
-                        await Task.Delay(100).ConfigureAwait(false);
+                        await polling.StopAsync();
+                        await Task.Delay(100);
                         polling.Start();
                     });
                     break;
@@ -251,8 +251,8 @@ internal static class TuiModeRunner {
             WriteDiag("[TUI] app.Run returned");
         } finally {
             processingCts.Cancel();
-            await polling.StopAsync().ConfigureAwait(false);
-            try { await processingTask.ConfigureAwait(false); } catch (OperationCanceledException) { }
+            await polling.StopAsync();
+            try { await processingTask; } catch (OperationCanceledException) { }
         }
     }
 
@@ -275,13 +275,13 @@ internal static class TuiModeRunner {
         while (!cancellationToken.IsCancellationRequested) {
             var cmd = queue.Dequeue();
             if (cmd is null) {
-                await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(50, cancellationToken);
                 continue;
             }
 
             // 斜杠命令 — 转发到共享 SlashCommandRunner（与 GUI 同一执行链路）
             if (cmd.Content.Length > 0 && cmd.Content[0] == '/') {
-                await HandleSlashCommandAsync(cmd.Content, services, outputView, chatHistory, requestStop, painter, permissionDialog, sessionStore, cancellationToken).ConfigureAwait(false);
+                await HandleSlashCommandAsync(cmd.Content, services, outputView, chatHistory, requestStop, painter, permissionDialog, sessionStore, cancellationToken);
                 continue;
             }
 
@@ -312,7 +312,7 @@ internal static class TuiModeRunner {
                 var chunkCount = 0;
                 long totalTokens = 0;
                 var chunkSw = System.Diagnostics.Stopwatch.StartNew();
-                await foreach (var chunk in queryEngine.QueryAsync(cmd.Content, chatHistory, cmdCts.Token).ConfigureAwait(false)) {
+                await foreach (var chunk in queryEngine.QueryAsync(cmd.Content, chatHistory, cmdCts.Token)) {
                     chunkCount++;
                     var text = ChunkFormatter.ChunkToText(chunk);
                     if (!string.IsNullOrEmpty(text)) {
@@ -423,7 +423,7 @@ internal static class TuiModeRunner {
         CancellationToken cancellationToken) {
         // T7：/sessions 会话切换 — 引擎桶 SwitchSession + 历史灌入 + 本地重绘
         if (sessionStore is not null && input.TrimStart().StartsWith("/sessions", StringComparison.OrdinalIgnoreCase)) {
-            await HandleSessionsCommandAsync(input, sessionStore, services, outputView, history, painter, cancellationToken).ConfigureAwait(false);
+            await HandleSessionsCommandAsync(input, sessionStore, services, outputView, history, painter, cancellationToken);
             return;
         }
 
@@ -441,7 +441,7 @@ internal static class TuiModeRunner {
             prompt: _ => null,
             readPassword: _ => string.Empty,
             onExitRequested: requestStop,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+            cancellationToken: cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(result.Output))
             outputView.AppendLine(result.Output);
@@ -452,7 +452,7 @@ internal static class TuiModeRunner {
             try {
                 var chat = services.GetService<Abstractions.Interfaces.IChatService>();
                 if (chat is not null) {
-                    var records = await chat.GetMessageListAsync(cancellationToken).ConfigureAwait(false);
+                    var records = await chat.GetMessageListAsync(cancellationToken);
                     painter.Invoke(() => SyncHistoryFromEngine(history, records));
                 }
             } catch (Exception syncEx) {
@@ -475,7 +475,7 @@ internal static class TuiModeRunner {
         TerminalPainter painter,
         CancellationToken cancellationToken) {
         var argument = input.TrimStart()["/sessions".Length..].Trim();
-        var summaries = await sessionStore.ListSessionsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var summaries = await sessionStore.ListSessionsAsync(cancellationToken: cancellationToken);
 
         if (string.IsNullOrEmpty(argument) || argument is "list" or "ls") {
             outputView.AppendLine("=== 最近会话 ===");
@@ -508,15 +508,15 @@ internal static class TuiModeRunner {
         }
 
         // 1. 读目标会话历史（过滤元数据条目，对齐 SessionResumeStep 过滤规则）
-        var entries = await transcriptService.LoadTranscriptAsync(targetId, cancellationToken).ConfigureAwait(false);
+        var entries = await transcriptService.LoadTranscriptAsync(targetId, cancellationToken);
         var records = entries
             .Where(e => string.IsNullOrEmpty(e.Type) && (e.Role == "user" || e.Role == "assistant"))
             .Select(e => new ApiMessageRecord { Role = e.Role, Content = e.Content })
             .ToList();
 
         // 2. 切引擎桶 → 灌入历史 → 本地重建（顺序对齐 SessionResumeStep：先切桶再灌入）
-        await sessionStore.SwitchToAsync(ctxMgr, chat, targetId, cancellationToken).ConfigureAwait(false);
-        await chat.LoadSessionMessagesAsync(records, cancellationToken).ConfigureAwait(false);
+        await sessionStore.SwitchToAsync(ctxMgr, chat, targetId, cancellationToken);
+        await chat.LoadSessionMessagesAsync(records, cancellationToken);
         painter.Invoke(() => {
             SyncHistoryFromEngine(history, records);
             outputView.Clear();

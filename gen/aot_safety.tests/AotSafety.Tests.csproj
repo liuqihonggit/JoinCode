@@ -1,14 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>AotSafety.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>AotSafety.Tests</RootNamespace>
     <AssemblyName>JoinCode.AotSafety.Tests</AssemblyName>
     <Description>AotSafety 分析器单元测试</Description>
     <IsAotCompatible>false</IsAotCompatible>
     <EnableAotAnalyzer>false</EnableAotAnalyzer>
     <PublishAot>false</PublishAot>
     <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
-    <NoWarn>$(NoWarn);NU1701;NU1608;JCC3007</NoWarn>
+    <NoWarn>$(NoWarn);NU1701;NU1608;JCC3007;RS1041;RS1038</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

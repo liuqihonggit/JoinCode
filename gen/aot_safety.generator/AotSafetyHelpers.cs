@@ -1,6 +1,7 @@
-namespace AotSafety.Generator; 
+namespace AotSafety.Generator;
+
 /// <summary>
-/// AOT 安全分析器共享辅助方法
+/// AOT 安全分析器共享辅助方法 — 供所有规则类调用。
 /// </summary>
 public static class AotSafetyHelpers {
     /// <summary>
@@ -14,44 +15,6 @@ public static class AotSafetyHelpers {
             current = current.Parent;
         }
         return false;
-    }
-
-    /// <summary>
-    /// 判断是否在测试方法内
-    /// </summary>
-    public static bool IsInsideTestMethod(SyntaxNode node) {
-        var current = node.Parent;
-        var foundTestClass = false;
-        while (current is not null) {
-            if (current is MethodDeclarationSyntax methodDecl) {
-                if (methodDecl.AttributeLists.Any(al =>
-                    al.Attributes.Any(a => {
-                        var name = a.Name.ToString();
-                        return name == "Fact" || name == "Theory" || name == "TestMethod" ||
-                               name == "Test" || name == "InlineData" ||
-                               name.Contains("Fact", StringComparison.Ordinal) ||
-                               name.Contains("Test", StringComparison.Ordinal);
-                    })))
-                    return true;
-            }
-
-            if (current is ClassDeclarationSyntax classDecl) {
-                var className = classDecl.Identifier.ValueText;
-                if (className.EndsWith("Tests", StringComparison.Ordinal) ||
-                    className.EndsWith("Test", StringComparison.Ordinal))
-                    foundTestClass = true;
-            }
-
-            if (current is BaseNamespaceDeclarationSyntax nsDecl) {
-                var nsName = nsDecl.Name.ToString();
-                if (nsName.EndsWith(".Tests", StringComparison.Ordinal) ||
-                    nsName.EndsWith(".Test", StringComparison.Ordinal))
-                    foundTestClass = true;
-            }
-
-            current = current.Parent;
-        }
-        return foundTestClass;
     }
 
     /// <summary>
@@ -98,9 +61,6 @@ public static class AotSafetyHelpers {
     /// 从 Dispose 方法出发，BFS 跟踪方法调用链，检查是否有任意方法满足条件。
     /// 支持 partial class（合并所有 partial 声明的方法）、this.Method() 调用、方法过载。
     /// </summary>
-    /// <param name="type">要检查的类型符号</param>
-    /// <param name="check">对每个方法执行的检查，返回 true 表示条件满足</param>
-    /// <returns>如果调用链中任意方法满足条件，返回 true</returns>
     public static bool CheckInDisposeCallChain(
         INamedTypeSymbol type,
         Func<MethodDeclarationSyntax, bool> check) {
@@ -113,9 +73,6 @@ public static class AotSafetyHelpers {
         return CheckInDisposeCallChainCore(allMethods, check);
     }
 
-    /// <summary>
-    /// BFS 核心逻辑：从 Dispose 方法出发，跟踪同类型方法调用链
-    /// </summary>
     private static bool CheckInDisposeCallChainCore(
         List<MethodDeclarationSyntax> allMethods,
         Func<MethodDeclarationSyntax, bool> check) {
@@ -148,9 +105,6 @@ public static class AotSafetyHelpers {
         return false;
     }
 
-    /// <summary>
-    /// 获取方法体中调用的同类型方法名（支持直接调用 Method() 和 this.Method()）
-    /// </summary>
     private static IEnumerable<string> GetCalledMethodNamesInSameType(MethodDeclarationSyntax method) {
         SyntaxNode? body = method.Body;
         if (body is null && method.ExpressionBody is not null)
@@ -212,9 +166,6 @@ public static class AotSafetyHelpers {
             .Any(inv => IsAtomicNullWriteToField(inv, fieldName));
     }
 
-    /// <summary>
-    /// 判断调用是否是 Interlocked.Exchange(ref field, null) 或 Volatile.Write(ref field, null)
-    /// </summary>
     private static bool IsAtomicNullWriteToField(InvocationExpressionSyntax invocation, string fieldName) {
         if (invocation.Expression is not MemberAccessExpressionSyntax ma) return false;
         if (ma.Expression is not IdentifierNameSyntax typeId) return false;
@@ -252,6 +203,479 @@ public static class AotSafetyHelpers {
             operandLiteral.IsKind(SyntaxKind.NullLiteralExpression))
             return true;
 
+        return false;
+    }
+
+    public static bool HasConfigureAwaitFalse(AwaitExpressionSyntax awaitExpr) {
+        if (awaitExpr.Expression is InvocationExpressionSyntax configureAwaitInvocation) {
+            if (configureAwaitInvocation.Expression is MemberAccessExpressionSyntax memberAccess &&
+                memberAccess.Name.Identifier.ValueText == "ConfigureAwait") {
+                var args = configureAwaitInvocation.ArgumentList.Arguments;
+                if (args.Count == 1) {
+                    var arg = args[0].Expression;
+                    if (arg is LiteralExpressionSyntax literal &&
+                        literal.Token.IsKind(SyntaxKind.FalseKeyword)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public static bool HasConfigureAwaitAny(AwaitExpressionSyntax awaitExpr) {
+        if (awaitExpr.Expression is InvocationExpressionSyntax configureAwaitInvocation) {
+            if (configureAwaitInvocation.Expression is MemberAccessExpressionSyntax memberAccess &&
+                memberAccess.Name.Identifier.ValueText == "ConfigureAwait") {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static bool IsTaskYield(AwaitExpressionSyntax awaitExpr) {
+        if (awaitExpr.Expression is InvocationExpressionSyntax invocation) {
+            if (invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
+                memberAccess.Name.Identifier.ValueText == "Yield") {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ============================================================
+    // 交互输入辅助方法 (JCC2001/2002/2003 共享)
+    // ============================================================
+
+    public static bool IsInsideIsInputRedirectedCheck(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is IfStatementSyntax ifStatement) {
+                if (ContainsIsInputRedirectedCheck(ifStatement.Condition)) {
+                    if (IsInProtectedBranch(node, ifStatement))
+                        return true;
+                }
+            } else if (current is ConditionalExpressionSyntax conditional) {
+                if (ContainsIsInputRedirectedCheck(conditional.Condition))
+                    return true;
+            }
+
+            if (current is BlockSyntax block) {
+                if (IsProtectedByEarlyReturnInBlock(node, block))
+                    return true;
+            }
+
+            current = current.Parent;
+        }
+        return false;
+    }
+
+    private static bool IsInProtectedBranch(SyntaxNode node, IfStatementSyntax ifStatement) {
+        var condition = ifStatement.Condition;
+        var isTopLevelNegated = IsNegatedCondition(condition);
+        var containsInnerNegation = ContainsNegatedIsInputRedirected(condition);
+
+        if (isTopLevelNegated) {
+            if (ifStatement.Statement is not null && IsDescendantOf(node, ifStatement.Statement))
+                return true;
+        } else if (containsInnerNegation) {
+            if (ifStatement.Statement is not null && IsDescendantOf(node, ifStatement.Statement))
+                return true;
+        } else {
+            if (ifStatement.Else is not null && IsDescendantOf(node, ifStatement.Else))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool ContainsNegatedIsInputRedirected(ExpressionSyntax condition) {
+        foreach (var descendant in condition.DescendantNodesAndSelf()) {
+            if (descendant is PrefixUnaryExpressionSyntax prefix
+                && prefix.OperatorToken.IsKind(SyntaxKind.ExclamationToken)) {
+                var innerText = prefix.Operand.ToString().Replace(" ", "");
+                if (innerText.Contains("Console.IsInputRedirected") || innerText.Contains("System.Console.IsInputRedirected"))
+                    return true;
+                if (innerText.Contains("TestEnvironmentDetector.IsNonInteractive"))
+                    return true;
+                if (innerText.Contains("TestEnvironmentDetector.IsTestEnvironment"))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool IsNegatedCondition(ExpressionSyntax condition) {
+        if (condition is PrefixUnaryExpressionSyntax prefix && prefix.OperatorToken.IsKind(SyntaxKind.ExclamationToken))
+            return true;
+        return false;
+    }
+
+    private static bool IsProtectedByEarlyReturnInBlock(SyntaxNode node, BlockSyntax block) {
+        var statement = FindAncestorStatement(node);
+        if (statement is null) return false;
+
+        var nodeIndex = block.Statements.IndexOf(statement);
+        if (nodeIndex < 0) return false;
+
+        for (var i = 0; i < nodeIndex; i++) {
+            var stmt = block.Statements[i];
+            if (stmt is IfStatementSyntax ifStmt && ContainsIsInputRedirectedCheck(ifStmt.Condition)) {
+                if (IfStatementExitsEarly(ifStmt))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static StatementSyntax? FindAncestorStatement(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is StatementSyntax statement)
+                return statement;
+            current = current.Parent;
+        }
+        return null;
+    }
+
+    private static bool IfStatementExitsEarly(IfStatementSyntax ifStmt) {
+        return BlockContainsExit(ifStmt.Statement);
+    }
+
+    private static bool BlockContainsExit(StatementSyntax statement) {
+        switch (statement) {
+            case ReturnStatementSyntax:
+            case ThrowStatementSyntax:
+            case BreakStatementSyntax:
+            case ContinueStatementSyntax:
+            return true;
+            case BlockSyntax block:
+            foreach (var stmt in block.Statements) {
+                if (BlockContainsExit(stmt))
+                    return true;
+            }
+            return false;
+            default:
+            return false;
+        }
+    }
+
+    private static bool IsDescendantOf(SyntaxNode node, SyntaxNode ancestor) {
+        var current = node;
+        while (current is not null) {
+            if (current == ancestor) return true;
+            current = current.Parent;
+        }
+        return false;
+    }
+
+    public static bool ContainsIsInputRedirectedCheck(ExpressionSyntax condition) {
+        foreach (var descendant in condition.DescendantNodesAndSelf()) {
+            if (descendant is MemberAccessExpressionSyntax memberAccess) {
+                var text = memberAccess.ToString().Replace(" ", "");
+                if (text.Contains("Console.IsInputRedirected") || text.Contains("System.Console.IsInputRedirected"))
+                    return true;
+                if (text.Contains("TestEnvironmentDetector.IsNonInteractive"))
+                    return true;
+                if (text.Contains("TestEnvironmentDetector.IsTestEnvironment"))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    public static bool IsInsideIfDebugDirective(SyntaxNode node) {
+        var current = node;
+        while (current is not null) {
+            foreach (var trivia in current.GetLeadingTrivia()) {
+                if (trivia.IsKind(SyntaxKind.IfDirectiveTrivia)) {
+                    var text = trivia.ToString();
+                    if (text.Contains("DEBUG"))
+                        return true;
+                }
+            }
+            current = current.Parent;
+        }
+
+        if (node.Parent is not null) {
+            foreach (var trivia in node.Parent.GetLeadingTrivia()) {
+                if (trivia.IsKind(SyntaxKind.IfDirectiveTrivia)) {
+                    var text = trivia.ToString();
+                    if (text.Contains("DEBUG"))
+                        return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // ============================================================
+    // async void 辅助方法 (JCC3005)
+    // ============================================================
+
+    public static bool IsUiEventHandler(string methodName) {
+        var eventSuffixes = new[] {
+            "_Click", "_Changed", "_Loaded", "_Closing", "_Closed",
+            "_Activated", "_Deactivated", "_GotFocus", "_LostFocus",
+            "_KeyDown", "_KeyUp", "_KeyPress", "_MouseEnter", "_MouseLeave",
+            "_SelectedIndexChanged", "_TextChanged", "_CheckedChanged",
+            "OnClick", "OnChanged", "OnLoaded", "OnClosing", "OnClosed",
+        };
+
+        foreach (var suffix in eventSuffixes) {
+            if (methodName.EndsWith(suffix, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    public static bool IsTimerCallbackPattern(string methodName) {
+        var callbackPrefixes = new[] { "Process", "Handle", "OnTimer", "TimerCallback" };
+        foreach (var prefix in callbackPrefixes) {
+            if (methodName.StartsWith(prefix, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    // ============================================================
+    // 阻塞调用辅助方法 (JCC3006)
+    // ============================================================
+
+    public static bool IsInsideMainMethod(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is MethodDeclarationSyntax methodDecl &&
+                methodDecl.Identifier.ValueText == "Main")
+                return true;
+            current = current.Parent;
+        }
+        return false;
+    }
+
+    public static bool IsInsideConstructor(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is ConstructorDeclarationSyntax)
+                return true;
+            current = current.Parent;
+        }
+        return false;
+    }
+
+    public static bool IsInsideSyncMethod(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is MethodDeclarationSyntax methodDecl) {
+                if (!methodDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.AsyncKeyword)))
+                    return true;
+                return false;
+            }
+            if (current is LambdaExpressionSyntax lambda) {
+                if (!lambda.AsyncKeyword.IsKind(SyntaxKind.AsyncKeyword))
+                    return true;
+                return false;
+            }
+            if (current is ConstructorDeclarationSyntax)
+                return false;
+            if (current is MethodDeclarationSyntax { Identifier.ValueText: "Dispose" or "DisposeAsync" })
+                return false;
+            current = current.Parent;
+        }
+        return false;
+    }
+
+    public static bool IsInsideDisposeMethod(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is MethodDeclarationSyntax methodDecl) {
+                var name = methodDecl.Identifier.ValueText;
+                if (name is "Dispose" or "DisposeAsync")
+                    return true;
+                return false;
+            }
+            current = current.Parent;
+        }
+        return false;
+    }
+
+    // ============================================================
+    // Process deadlock 辅助方法 (JCC3003)
+    // ============================================================
+
+    public static InvocationExpressionSyntax? FindMethodInvocation(ExpressionSyntax expr, string methodName) {
+        if (expr is InvocationExpressionSyntax inv) {
+            if (inv.Expression is MemberAccessExpressionSyntax directAccess &&
+                directAccess.Name.Identifier.ValueText == methodName) {
+                return inv;
+            }
+
+            if (inv.Expression is MemberAccessExpressionSyntax chainAccess &&
+                chainAccess.Expression is InvocationExpressionSyntax innerInv) {
+                var result = FindMethodInvocation(innerInv, methodName);
+                if (result is not null) return result;
+            }
+        }
+
+        return null;
+    }
+
+    public static string? GetProcessVariableName(InvocationExpressionSyntax invocation) {
+        if (invocation.Expression is MemberAccessExpressionSyntax memberAccess) {
+            return memberAccess.Expression?.ToString();
+        }
+        return null;
+    }
+
+    public static InvocationExpressionSyntax? FindReadToEndAsyncCall(SyntaxNode node, string processVariableName) {
+        foreach (var descendant in node.DescendantNodesAndSelf()) {
+            if (descendant is InvocationExpressionSyntax invocation) {
+                var symbolInfo = invocation.Expression;
+                if (symbolInfo is MemberAccessExpressionSyntax memberAccess) {
+                    if (memberAccess.Name.Identifier.ValueText == "ReadToEndAsync") {
+                        var leftStr = memberAccess.Expression?.ToString() ?? "";
+                        if ((leftStr.Contains("StandardOutput") || leftStr.Contains("StandardError")) &&
+                            leftStr.StartsWith(processVariableName, StringComparison.Ordinal)) {
+                            return invocation;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    // ============================================================
+    // Sequential await in loop 辅助方法 (JCC3007)
+    // ============================================================
+
+    public static SyntaxNode? FindInnermostLoop(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is ForEachStatementSyntax or ForEachVariableStatementSyntax or
+                ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax)
+                return current;
+            current = current.Parent;
+        }
+        return null;
+    }
+
+    public static bool ContainsCancellationTokenCondition(SyntaxNode? condition) {
+        if (condition is null) return false;
+        foreach (var desc in condition.DescendantNodesAndSelf()) {
+            if (desc is IdentifierNameSyntax identifier) {
+                var name = identifier.Identifier.ValueText;
+                if (name.Contains("Cancellation", StringComparison.Ordinal) ||
+                    name.Contains("cancellationToken", StringComparison.Ordinal) ||
+                    name == "ct" || name == "token")
+                    return true;
+            }
+
+            if (desc is MemberAccessExpressionSyntax memberAccess) {
+                var name = memberAccess.Name.Identifier.ValueText;
+                if (name.Contains("Cancellation", StringComparison.Ordinal) ||
+                    name == "IsRunning" || name == "IsConnected")
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    public static bool LoopHasEarlyExit(SyntaxNode loop) {
+        SyntaxNode body = loop switch {
+            ForEachStatementSyntax f => f.Statement,
+            ForEachVariableStatementSyntax f => f.Statement,
+            ForStatementSyntax f => f.Statement,
+            WhileStatementSyntax w => w.Statement,
+            DoStatementSyntax d => d.Statement,
+            _ => throw new InvalidOperationException(),
+        };
+
+        foreach (var desc in body.DescendantNodes()) {
+            if (desc is BreakStatementSyntax or ReturnStatementSyntax or ThrowStatementSyntax)
+                return true;
+        }
+        return false;
+    }
+
+    // ============================================================
+    // Unread stderr 辅助方法 (JCC3004)
+    // ============================================================
+
+    public static SyntaxNode? FindEnclosingClassBlock(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is ClassDeclarationSyntax or StructDeclarationSyntax or RecordDeclarationSyntax) {
+                return current;
+            }
+            current = current.Parent;
+        }
+        return null;
+    }
+
+    public static bool HasRedirectStandardErrorTrue(ObjectCreationExpressionSyntax objectCreation, SyntaxNodeAnalysisContext ctx) {
+        if (objectCreation.Initializer is not null) {
+            foreach (var initializer in objectCreation.Initializer.Expressions) {
+                if (initializer is AssignmentExpressionSyntax assignment) {
+                    var left = assignment.Left.ToString().Replace(" ", "");
+                    if (left == "RedirectStandardError") {
+                        var right = assignment.Right.ToString().Trim();
+                        if (right == "true") return true;
+                    }
+                }
+            }
+        }
+
+        var variableName = GetProcessStartInfoVariableName(objectCreation);
+        if (variableName is not null) {
+            var enclosingBlock = FindEnclosingClassBlock(objectCreation);
+            if (enclosingBlock is not null) {
+                foreach (var descendant in enclosingBlock.DescendantNodes()) {
+                    if (descendant is AssignmentExpressionSyntax assignment) {
+                        var left = assignment.Left.ToString().Replace(" ", "");
+                        if (left == $"{variableName}.RedirectStandardError") {
+                            var right = assignment.Right.ToString().Trim();
+                            if (right == "true") return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public static string? GetProcessStartInfoVariableName(ObjectCreationExpressionSyntax objectCreation) {
+        if (objectCreation.Parent is EqualsValueClauseSyntax equalsValue &&
+            equalsValue.Parent is VariableDeclaratorSyntax variableDeclarator) {
+            return variableDeclarator.Identifier.ValueText;
+        }
+
+        return null;
+    }
+
+    public static bool HasStandardErrorConsumption(SyntaxNode block) {
+        foreach (var descendant in block.DescendantNodes()) {
+            if (descendant is MemberAccessExpressionSyntax memberAccess) {
+                var name = memberAccess.Name.Identifier.ValueText;
+                if (name == "StandardError") return true;
+            }
+
+            if (descendant is InvocationExpressionSyntax invocation) {
+                if (invocation.Expression is MemberAccessExpressionSyntax invMemberAccess) {
+                    if (invMemberAccess.Name.Identifier.ValueText == "BeginErrorReadLine") return true;
+                }
+            }
+
+            if (descendant is AssignmentExpressionSyntax eventAssignment) {
+                var left = eventAssignment.Left.ToString().Replace(" ", "");
+                if (left.Contains("ErrorDataReceived")) return true;
+            }
+        }
         return false;
     }
 }

@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+        <ProjectType>app</ProjectType>
+  <OutputType>Exe</OutputType>
     <RootNamespace>JoinCode</RootNamespace>
     <AssemblyName>jcc</AssemblyName>
     <Description>JoinCode 命令行工具</Description>

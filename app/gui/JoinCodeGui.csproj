@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+        <ProjectType>ui</ProjectType>
+  <OutputType>WinExe</OutputType>
     <RootNamespace>JoinCode.Gui</RootNamespace>
     <AssemblyName>JoinCode.Gui</AssemblyName>
     <Description>JoinCode Ava GUI</Description>

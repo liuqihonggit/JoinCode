@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Plugins.Contracts</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Plugins.Contracts</RootNamespace>
     <AssemblyName>JoinCode.Plugins.Contracts</AssemblyName>
     <AllowPack>true</AllowPack>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

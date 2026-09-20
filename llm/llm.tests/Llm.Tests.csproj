@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Llm.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Llm.Tests</RootNamespace>
     <AssemblyName>JoinCode.Llm.Tests</AssemblyName>
     <Description>JoinCode LLM 适配器单元测试</Description>
   </PropertyGroup>

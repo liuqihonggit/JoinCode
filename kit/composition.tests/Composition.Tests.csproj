@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Composition.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Composition.Tests</RootNamespace>
     <AssemblyName>JoinCode.Composition.Tests</AssemblyName>
     <Description>JoinCode Composition 子系统单元测试（Agents + MCP Protocol）</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>

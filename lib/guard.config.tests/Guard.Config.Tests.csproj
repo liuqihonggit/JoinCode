@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Guard.Config.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Guard.Config.Tests</RootNamespace>
     <AssemblyName>JoinCode.Guard.Config.Tests</AssemblyName>
     <Description>JoinCode Guard Config 子系统单元测试（Configuration + Policy + Plugins + 枚举扩展）</Description>
     <RunSettingsFilePath>$(MSBuildProjectDirectory)\.runsettings</RunSettingsFilePath>

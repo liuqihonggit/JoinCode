@@ -1,5 +1,7 @@
 global using AotSafety.Generator;
+global using AotSafety.Generator.Infrastructure;
 global using Microsoft.CodeAnalysis;
+global using System.Collections.Immutable;
 global using Microsoft.CodeAnalysis.CSharp.Testing;
 global using Microsoft.CodeAnalysis.Diagnostics;
 global using Microsoft.CodeAnalysis.Testing;

@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Vision.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Vision.Tests</RootNamespace>
     <AssemblyName>JoinCode.Vision.Tests</AssemblyName>
     <Description>JoinCode.Vision 单元测试</Description>
   </PropertyGroup>

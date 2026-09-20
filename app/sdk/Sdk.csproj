@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Sdk</RootNamespace>
+        <ProjectType>app</ProjectType>
+  <RootNamespace>JoinCode.Sdk</RootNamespace>
     <AssemblyName>JoinCode.Sdk</AssemblyName>
     <PackageId>JoinCode.Sdk</PackageId>
     <Description>JoinCode SDK 聚合包 — 一行代码启动 AI Coding 助手</Description>

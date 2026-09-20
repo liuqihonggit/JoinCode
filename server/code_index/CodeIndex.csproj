@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.CodeIndex</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.CodeIndex</RootNamespace>
     <AssemblyName>CodeIndex</AssemblyName>
     <PackageId>JoinCode.CodeIndex</PackageId>
     <AllowPack>true</AllowPack>

@@ -102,13 +102,13 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
             return;
         }
         IsOpen = true;
-        await RefreshAsync().ConfigureAwait(true);
+        await RefreshAsync();
     }
 
     /// <summary>拉取引擎运行列表并重建行集合</summary>
     [RelayCommand]
     public async Task RefreshAsync() {
-        var snapshot = await _fetcher(CancellationToken.None).ConfigureAwait(true);
+        var snapshot = await _fetcher(CancellationToken.None);
         ApplySnapshot(snapshot);
     }
 
@@ -117,9 +117,9 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject {
     public async Task StopAsync(string? agentId) {
         if (string.IsNullOrEmpty(agentId))
             return;
-        var stopped = await _stopper(agentId, CancellationToken.None).ConfigureAwait(true);
+        var stopped = await _stopper(agentId, CancellationToken.None);
         if (stopped)
-            await RefreshAsync().ConfigureAwait(true);
+            await RefreshAsync();
     }
 
     /// <summary>面板快照应用事件 — MainViewModel 据此同步 RunStatus 后台计数</summary>

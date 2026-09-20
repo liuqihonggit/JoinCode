@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Hands.Shell.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Hands.Shell.Tests</RootNamespace>
     <AssemblyName>JoinCode.Hands.Shell.Tests</AssemblyName>
     <Description>JoinCode Hands Shell+Voice+FileOps 单元测试</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>

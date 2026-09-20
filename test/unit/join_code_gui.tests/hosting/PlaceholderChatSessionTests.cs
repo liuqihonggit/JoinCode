@@ -10,7 +10,7 @@ public class PlaceholderChatSessionTests {
         await using var session = new PlaceholderChatSession();
         var events = new List<ChatStreamEvent>();
 
-        await foreach (var evt in session.StreamAsync("hello").ConfigureAwait(false)) {
+        await foreach (var evt in session.StreamAsync("hello")) {
             events.Add(evt);
         }
 

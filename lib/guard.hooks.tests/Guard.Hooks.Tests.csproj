@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Guard.Hooks.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Guard.Hooks.Tests</RootNamespace>
     <AssemblyName>JoinCode.Guard.Hooks.Tests</AssemblyName>
     <Description>JoinCode Guard Hooks 子系统单元测试（Hooks + Permission）</Description>
     <RunSettingsFilePath>$(MSBuildProjectDirectory)\.runsettings</RunSettingsFilePath>

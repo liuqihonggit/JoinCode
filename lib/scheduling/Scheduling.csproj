@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Scheduling</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Scheduling</RootNamespace>
     <AssemblyName>JoinCode.Scheduling</AssemblyName>
     <PackageId>JoinCode.Scheduling</PackageId>
     <Description>JoinCode Scheduling 子系统 — 任务调度、Cron 管理、文件持久化</Description>

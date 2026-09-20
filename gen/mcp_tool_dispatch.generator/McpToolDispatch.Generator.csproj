@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <NoWarn>$(NoWarn);RS2007</NoWarn>
+        <ProjectType>generator</ProjectType>
+  <NoWarn>$(NoWarn);RS2007</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Llm</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Llm</RootNamespace>
     <AssemblyName>JoinCode.Llm</AssemblyName>
     <PackageId>JoinCode.Llm</PackageId>
     <Description>JoinCode LLM 适配器 — OpenAI/Anthropic/Azure/Pipe 查询服务</Description>

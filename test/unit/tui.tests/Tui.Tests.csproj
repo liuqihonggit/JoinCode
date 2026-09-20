@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Tui.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Tui.Tests</RootNamespace>
     <AssemblyName>JoinCode.Tui.Tests</AssemblyName>
     <Description>JoinCode TUI 子系统单元测试</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>

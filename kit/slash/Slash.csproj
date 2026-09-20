@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.ChatCommands</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.ChatCommands</RootNamespace>
     <AssemblyName>JoinCode.Slash</AssemblyName>
     <PackageId>JoinCode.Slash</PackageId>
     <Description>JoinCode 斜杠命令子系统 — 所有 /xxx 命令的实现与注册</Description>

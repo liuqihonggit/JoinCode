@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Hands.Api.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Hands.Api.Tests</RootNamespace>
     <AssemblyName>JoinCode.Hands.Api.Tests</AssemblyName>
     <Description>JoinCode Hands Api+Web+Network 单元测试</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>

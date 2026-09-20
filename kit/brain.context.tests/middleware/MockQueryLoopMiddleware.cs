@@ -49,7 +49,7 @@ public sealed class MockQueryLoopMiddleware : IChatMiddleware {
         context.FinalUsage = new TokenUsage(10, 20);
         context.FinalModelId = "mock-model";
 
-        await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
+        await foreach (var evt in next(context, ct)) {
             yield return evt;
         }
 

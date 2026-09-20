@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Vault.Memdir.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Vault.Memdir.Tests</RootNamespace>
     <AssemblyName>JoinCode.Vault.Memdir.Tests</AssemblyName>
     <Description>JoinCode Vault Memdir 单元测试</Description>
     <RunSettingsFilePath>$(MSBuildProjectDirectory)\.runsettings</RunSettingsFilePath>

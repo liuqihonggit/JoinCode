@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Integration.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Integration.Tests</RootNamespace>
     <AssemblyName>JoinCode.Integration.Tests</AssemblyName>
     <Description>JoinCode 集成测试（跨子系统、真实文件系统、Shell 执行等）</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;CS0618</NoWarn>

@@ -74,7 +74,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
                     static void Main() => BadMethod();
                     static async {|#0:void|} BadMethod()
                     {
-                        await Task.Delay(100).ConfigureAwait(false);
+                        await Task.Delay(100);
                     }
                 }
                 """,
@@ -97,7 +97,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
                 {
                     async Task GoodMethod()
                     {
-                        await Task.Delay(100).ConfigureAwait(false);
+                        await Task.Delay(100);
                     }
                 }
                 """,
@@ -116,7 +116,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
                 {
                     async void Button_Click(object sender, System.EventArgs e)
                     {
-                        await Task.Delay(100).ConfigureAwait(false);
+                        await Task.Delay(100);
                     }
                 }
                 """,
@@ -338,7 +338,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
                     {
                         foreach (var item in items)
                         {
-                            {|#0:await ProcessAsync(item).ConfigureAwait(false)|};
+                            {|#0:await ProcessAsync(item)|};
                         }
                     }
 
@@ -364,7 +364,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
                 {
                     async Task MethodAsync()
                     {
-                        await Task.Delay(100).ConfigureAwait(false);
+                        await Task.Delay(100);
                     }
                 }
                 """,
@@ -386,7 +386,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
                     {
                         foreach (var item in items)
                         {
-                            var result = await ProcessAsync(item).ConfigureAwait(false);
+                            var result = await ProcessAsync(item);
                             UseResult(result);
                         }
                     }
@@ -402,13 +402,14 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
 
     [Fact]
     public async Task AwaitWithoutConfigureAwaitInLib_ReportsJCC3008() {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+        TestAsyncSafetyRules.ProjectType = ProjectType.Library;
+        var test = new CSharpAnalyzerTest<TestAsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestState =
             {
                 Sources =
                 {
-                    ("infrastructure/SomeService.cs", """
+                    ("SomeService.cs", """
                         {|#1:using System.Threading.Tasks;|}
                         class SomeService
                         {
@@ -443,7 +444,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
                         {
                             async Task MethodAsync()
                             {
-                                await Task.Delay(100).ConfigureAwait(false);
+                                await Task.Delay(100);
                             }
                         }
                         """),
@@ -472,7 +473,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
                         {
                             static async Task Main()
                             {
-                                await Task.Delay(100).ConfigureAwait(false);
+                                await Task.Delay(100);
                             }
                         }
                         """),

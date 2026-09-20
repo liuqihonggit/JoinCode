@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Sync.Integration.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Sync.Integration.Tests</RootNamespace>
     <AssemblyName>JoinCode.Sync.Integration.Tests</AssemblyName>
     <Description>JoinCode Sync 子系统集成测试</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>

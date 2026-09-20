@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Abs.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Abs.Tests</RootNamespace>
     <AssemblyName>JoinCode.Abs.Tests</AssemblyName>
     <Description>JoinCode Abstractions 库单元测试（枚举 + DTO + 契约）</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>

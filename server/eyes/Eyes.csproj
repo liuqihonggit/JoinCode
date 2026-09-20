@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Eyes</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Eyes</RootNamespace>
     <AssemblyName>JoinCode.Eyes</AssemblyName>
     <Description>JoinCode Eyes 子系统 — 代码索引服务、LSP 语言服务</Description>
   </PropertyGroup>

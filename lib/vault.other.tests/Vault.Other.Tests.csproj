@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Vault.Other.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Vault.Other.Tests</RootNamespace>
     <AssemblyName>JoinCode.Vault.Other.Tests</AssemblyName>
     <Description>JoinCode Vault Other(State+LLM+Services+Todo) 单元测试</Description>
     <RunSettingsFilePath>$(MSBuildProjectDirectory)\.runsettings</RunSettingsFilePath>

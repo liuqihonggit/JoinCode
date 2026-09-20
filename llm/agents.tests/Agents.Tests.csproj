@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Agents.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>JoinCode.Agents.Tests</RootNamespace>
     <AssemblyName>JoinCode.Agents.Tests</AssemblyName>
     <Description>JoinCode Agents 子系统单元测试</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>

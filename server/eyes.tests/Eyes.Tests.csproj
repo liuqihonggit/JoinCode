@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Eyes.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Eyes.Tests</RootNamespace>
     <AssemblyName>JoinCode.Eyes.Tests</AssemblyName>
     <Description>JoinCode.Eyes 单元测试</Description>
     <NoWarn>$(NoWarn);JCC3007</NoWarn>

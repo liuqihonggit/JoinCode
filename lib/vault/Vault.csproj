@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Vault</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Vault</RootNamespace>
     <AssemblyName>JoinCode.Vault</AssemblyName>
     <Description>JoinCode Vault 子系统 — 记忆目录、状态持久化、待办事项、通知、用户交互</Description>
   </PropertyGroup>

@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Plugins.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>JoinCode.Plugins.Tests</RootNamespace>
     <AssemblyName>JoinCode.Plugins.Tests</AssemblyName>
     <Description>JoinCode Plugins 系统测试 — 契约+实现+native DLL E2E</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>

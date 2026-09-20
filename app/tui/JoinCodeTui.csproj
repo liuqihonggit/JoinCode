@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+        <ProjectType>ui</ProjectType>
+  <OutputType>Exe</OutputType>
     <RootNamespace>JoinCode.Tui</RootNamespace>
     <AssemblyName>jcctui</AssemblyName>
     <Description>JoinCode TUI 终端界面（独立 exe，不走 CLI 管道）</Description>

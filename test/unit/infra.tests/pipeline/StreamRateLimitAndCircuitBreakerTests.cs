@@ -140,7 +140,7 @@ public sealed class StreamRateLimitAndCircuitBreakerTests {
             [EnumeratorCancellation] CancellationToken ct) {
             context.Log.Add(label);
             yield return label;
-            await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
+            await foreach (var evt in next(context, ct)) {
                 yield return evt;
             }
         }

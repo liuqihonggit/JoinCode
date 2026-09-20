@@ -563,7 +563,7 @@ public class DisposableConsistencyRulesTests {
                     public async ValueTask DisposeAsync()
                     {
                         if (_disposed) return; _disposed = true;
-                        await _inner.DisposeAsync().ConfigureAwait(false);
+                        await _inner.DisposeAsync();
                     }
                 }
                 class AsyncDisposable : IAsyncDisposable

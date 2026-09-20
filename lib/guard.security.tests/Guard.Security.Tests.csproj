@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Guard.Security.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Guard.Security.Tests</RootNamespace>
     <AssemblyName>JoinCode.Guard.Security.Tests</AssemblyName>
     <Description>JoinCode Guard Security 子系统单元测试（Security + BashAst + Sandbox）</Description>
     <RunSettingsFilePath>$(MSBuildProjectDirectory)\.runsettings</RunSettingsFilePath>

@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Tests.Context.Compression;
 
 public class CompressionStrategyFactoryTests {
@@ -140,7 +140,7 @@ method AnotherMethod";
 
     [Fact]
     public void RegisterStrategies_MultipleStrategies_ShouldRegisterAll() {
-        var factory = new CompressionStrategyFactory();
+        using var factory = new CompressionStrategyFactory();
         var strategies = new[]
         {
             new TestCompressionStrategy("Strategy1"),

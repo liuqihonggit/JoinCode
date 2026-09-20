@@ -1,16 +1,16 @@
-namespace Core.Context;
+﻿namespace Core.Context;
 
 public sealed class ChatUsageProcessorTests {
     [Fact]
     public async Task ProcessUsageAsync_PassesCacheBreakResultToRecordTurn() {
-        var stats = new SessionStats();
+        await using var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CacheBreakResult.Break(CacheBreakKind.ToolSpecsChanged, "tools changed"));
         contextManager.Setup(cm => cm.DecideAfterUsage(It.IsAny<TokenUsage>()))
             .Returns(ContextFoldDecision.None);
 
-        var sut = new ChatUsageProcessor(stats, contextManager.Object);
+        await using var sut = new ChatUsageProcessor(stats, contextManager.Object);
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var snapshot = new PromptStateSnapshot {
             SystemPromptHash = "abc",
@@ -28,14 +28,14 @@ public sealed class ChatUsageProcessorTests {
 
     [Fact]
     public async Task ProcessUsageAsync_NoCacheBreak_NoSectionBreakIncrement() {
-        var stats = new SessionStats();
+        await using var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CacheBreakResult.NoBreak());
         contextManager.Setup(cm => cm.DecideAfterUsage(It.IsAny<TokenUsage>()))
             .Returns(ContextFoldDecision.None);
 
-        var sut = new ChatUsageProcessor(stats, contextManager.Object);
+        await using var sut = new ChatUsageProcessor(stats, contextManager.Object);
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 80, CacheCreationInputTokens = 20 };
         var snapshot = new PromptStateSnapshot {
             SystemPromptHash = "abc",
@@ -56,14 +56,14 @@ public sealed class ChatUsageProcessorTests {
 
     [Fact]
     public async Task ProcessUsageAsync_SystemPromptBreak_IncrementSystemSection() {
-        var stats = new SessionStats();
+        await using var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CacheBreakResult.Break(CacheBreakKind.SystemPromptChanged, "system changed"));
         contextManager.Setup(cm => cm.DecideAfterUsage(It.IsAny<TokenUsage>()))
             .Returns(ContextFoldDecision.None);
 
-        var sut = new ChatUsageProcessor(stats, contextManager.Object);
+        await using var sut = new ChatUsageProcessor(stats, contextManager.Object);
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var snapshot = new PromptStateSnapshot {
             SystemPromptHash = "abc",
@@ -81,14 +81,14 @@ public sealed class ChatUsageProcessorTests {
 
     [Fact]
     public async Task ProcessUsageAsync_CacheEvictionBreak_IncrementEvictionSection() {
-        var stats = new SessionStats();
+        await using var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CacheBreakResult.Break(CacheBreakKind.CacheEviction, "eviction"));
         contextManager.Setup(cm => cm.DecideAfterUsage(It.IsAny<TokenUsage>()))
             .Returns(ContextFoldDecision.None);
 
-        var sut = new ChatUsageProcessor(stats, contextManager.Object);
+        await using var sut = new ChatUsageProcessor(stats, contextManager.Object);
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var snapshot = new PromptStateSnapshot {
             SystemPromptHash = "abc",

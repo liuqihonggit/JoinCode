@@ -1,4 +1,4 @@
-namespace Core.Context;
+﻿namespace Core.Context;
 
 /// <summary>
 /// 对抗性测试 — 从死循环的字面量出发，验证检测器在边界条件下不会误杀合法迭代
@@ -302,7 +302,7 @@ public sealed class LoopDetectorAdversarialTests {
 
     [Fact]
     public void Funnel_Level1_ShouldOnlyInjectPrompt() {
-        var options = new LoopInterventionOptions();
+        using var options = new LoopInterventionOptions();
         Assert.Equal(3, options.HardTruncateThreshold);
         Assert.Equal(5, options.CompactThreshold);
         Assert.Equal(1, options.ProgressDiscount);
@@ -310,7 +310,7 @@ public sealed class LoopDetectorAdversarialTests {
 
     [Fact]
     public void Funnel_ProgressDiscount_ShouldReduceEffectiveCount() {
-        var options = new LoopInterventionOptions();
+        using var options = new LoopInterventionOptions();
         var effectiveCount = Math.Max(1, 3 - options.ProgressDiscount);
 
         Assert.Equal(2, effectiveCount);
@@ -319,7 +319,7 @@ public sealed class LoopDetectorAdversarialTests {
 
     [Fact]
     public void Funnel_NoProgress_NoDiscount() {
-        var options = new LoopInterventionOptions();
+        using var options = new LoopInterventionOptions();
         var triggerCount = 3;
         var hasProgressed = false;
         var effectiveCount = hasProgressed

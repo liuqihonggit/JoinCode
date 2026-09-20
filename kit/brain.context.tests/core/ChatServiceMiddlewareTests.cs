@@ -1,4 +1,4 @@
-namespace Brain.Tests.Context;
+﻿namespace Brain.Tests.Context;
 
 /// <summary>
 /// ChatService 中间件管道单元测试 — 验证管道构建、排序、短路、清理、ToolUseContext 共享
@@ -184,11 +184,11 @@ public sealed class ChatServiceMiddlewareTests {
         contextManagerMock.Setup(c => c.SaveContextAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var processUsage = new ProcessUsageMiddleware(
+        await using var processUsage = new ProcessUsageMiddleware(
             usageMock.Object, NullLogger<ProcessUsageMiddleware>.Instance);
-        var cleanupInjections = new CleanupInjectionsMiddleware(
+        await using var cleanupInjections = new CleanupInjectionsMiddleware(
             preprocessorMock.Object, NullLogger<CleanupInjectionsMiddleware>.Instance);
-        var saveContext = new SaveContextMiddleware(
+        await using var saveContext = new SaveContextMiddleware(
             contextManagerMock.Object, NullLogger<SaveContextMiddleware>.Instance);
 
         var service = CreateService([
@@ -218,11 +218,11 @@ public sealed class ChatServiceMiddlewareTests {
         contextManagerMock.Setup(c => c.SaveContextAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var processUsage = new ProcessUsageMiddleware(
+        await using var processUsage = new ProcessUsageMiddleware(
             usageMock.Object, NullLogger<ProcessUsageMiddleware>.Instance);
-        var cleanupInjections = new CleanupInjectionsMiddleware(
+        await using var cleanupInjections = new CleanupInjectionsMiddleware(
             preprocessorMock.Object, NullLogger<CleanupInjectionsMiddleware>.Instance);
-        var saveContext = new SaveContextMiddleware(
+        await using var saveContext = new SaveContextMiddleware(
             contextManagerMock.Object, NullLogger<SaveContextMiddleware>.Instance);
 
         var service = CreateService([

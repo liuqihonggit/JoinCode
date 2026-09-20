@@ -1,9 +1,9 @@
-namespace Core.Context.Tests;
+﻿namespace Core.Context.Tests;
 
 public sealed class IdleToolDetectorTests {
     [Fact]
     public void OnLlmResponse_WithTool_Should_Reset_Counter() {
-        var detector = new IdleToolDetector(maxIdleRounds: 3);
+        using var detector = new IdleToolDetector(maxIdleRounds: 3);
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -15,7 +15,7 @@ public sealed class IdleToolDetectorTests {
 
     [Fact]
     public void OnLlmResponse_WithoutTool_Should_Increment_Counter() {
-        var detector = new IdleToolDetector(maxIdleRounds: 3);
+        using var detector = new IdleToolDetector(maxIdleRounds: 3);
 
         detector.OnLlmResponse(usedTool: false);
 
@@ -24,7 +24,7 @@ public sealed class IdleToolDetectorTests {
 
     [Fact]
     public void ShouldInjectReminder_Should_Return_True_When_Threshold_Reached() {
-        var detector = new IdleToolDetector(maxIdleRounds: 2);
+        using var detector = new IdleToolDetector(maxIdleRounds: 2);
 
         detector.OnLlmResponse(usedTool: false);
         Assert.False(detector.ShouldInjectReminder());
@@ -35,7 +35,7 @@ public sealed class IdleToolDetectorTests {
 
     [Fact]
     public void ShouldInjectReminder_Should_Return_False_When_Below_Threshold() {
-        var detector = new IdleToolDetector(maxIdleRounds: 5);
+        using var detector = new IdleToolDetector(maxIdleRounds: 5);
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -45,7 +45,7 @@ public sealed class IdleToolDetectorTests {
 
     [Fact]
     public void Reset_Should_Clear_Counter() {
-        var detector = new IdleToolDetector(maxIdleRounds: 2);
+        using var detector = new IdleToolDetector(maxIdleRounds: 2);
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -59,7 +59,7 @@ public sealed class IdleToolDetectorTests {
 
     [Fact]
     public void GetReminderMessage_Should_Contain_Round_Count() {
-        var detector = new IdleToolDetector(maxIdleRounds: 2);
+        using var detector = new IdleToolDetector(maxIdleRounds: 2);
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -71,7 +71,7 @@ public sealed class IdleToolDetectorTests {
 
     [Fact]
     public void GetReminderMessage_WithCustomContent_Should_Use_Template() {
-        var detector = new IdleToolDetector(maxIdleRounds: 2, reminderContent: "Custom: {0} rounds idle");
+        using var detector = new IdleToolDetector(maxIdleRounds: 2, reminderContent: "Custom: {0} rounds idle");
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -88,7 +88,7 @@ public sealed class IdleToolDetectorTests {
 
     [Fact]
     public void Tool_Usage_Should_Break_Consecutive_Streak() {
-        var detector = new IdleToolDetector(maxIdleRounds: 3);
+        using var detector = new IdleToolDetector(maxIdleRounds: 3);
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -101,7 +101,7 @@ public sealed class IdleToolDetectorTests {
 
     [Fact]
     public void MaxIdleRounds_Should_Return_Configured_Value() {
-        var detector = new IdleToolDetector(maxIdleRounds: 5);
+        using var detector = new IdleToolDetector(maxIdleRounds: 5);
         Assert.Equal(5, detector.MaxIdleRounds);
     }
 }

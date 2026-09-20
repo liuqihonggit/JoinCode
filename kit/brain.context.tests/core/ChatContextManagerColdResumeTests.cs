@@ -1,4 +1,4 @@
-namespace Core.Tests.Context;
+﻿namespace Core.Tests.Context;
 
 /// <summary>
 /// ChatContextManager 冷恢复剪裁测试 — 对齐 Reasonix Go 版 maybeColdResumePrune：
@@ -114,7 +114,7 @@ public sealed class ChatContextManagerColdResumeTests {
             Clock = _clock.Object,
             ProviderBaseUrl = "https://api.deepseek.com"
         };
-        var sut = new ChatContextManager(_stateService.Object, _logger, options);
+        await using var sut = new ChatContextManager(_stateService.Object, _logger, options);
 
         await sut.LoadContextAsync().ConfigureAwait(true);
 
@@ -132,7 +132,7 @@ public sealed class ChatContextManagerColdResumeTests {
             Clock = _clock.Object,
             ProviderBaseUrl = "https://api.deepseek.com"
         };
-        var sut = new ChatContextManager(_stateService.Object, _logger, options);
+        await using var sut = new ChatContextManager(_stateService.Object, _logger, options);
         await sut.AddUserMessageAsync("hello").ConfigureAwait(true);
 
         await sut.SaveContextAsync().ConfigureAwait(true);

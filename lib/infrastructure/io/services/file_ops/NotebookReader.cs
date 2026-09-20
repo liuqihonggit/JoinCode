@@ -127,19 +127,22 @@ public static class NotebookReader {
             sb.AppendLine($"<cell id=\"{cellId}\">{string.Join("", metadata)}{sourceText}</cell id=\"{cellId}\">");
 
             // 对齐 TS: 处理 code cell 的输出
-            if (cell.Type == NotebookCellType.Code && cell.Outputs is { Count: > 0 }) {
-                var includeLargeOutputs = !IsLargeOutputs(cell.Outputs);
-                if (!includeLargeOutputs) {
-                    sb.AppendLine("  Outputs are too large to include. Use the notebook_edit tool to view outputs.");
-                } else {
-                    foreach (var output in cell.Outputs) {
-                        var (outputText, outputImages) = ProcessOutput(output);
-                        if (!string.IsNullOrEmpty(outputText)) {
-                            sb.AppendLine(outputText);
-                        }
-                        if (outputImages is not null) {
-                            images.AddRange(outputImages);
-                        }
+            if (cell.Type != NotebookCellType.Code || cell.Outputs is not { Count: > 0 }) {
+                sb.AppendLine();
+                continue;
+            }
+
+            var includeLargeOutputs = !IsLargeOutputs(cell.Outputs);
+            if (!includeLargeOutputs) {
+                sb.AppendLine("  Outputs are too large to include. Use the notebook_edit tool to view outputs.");
+            } else {
+                foreach (var output in cell.Outputs) {
+                    var (outputText, outputImages) = ProcessOutput(output);
+                    if (!string.IsNullOrEmpty(outputText)) {
+                        sb.AppendLine(outputText);
+                    }
+                    if (outputImages is not null) {
+                        images.AddRange(outputImages);
                     }
                 }
             }

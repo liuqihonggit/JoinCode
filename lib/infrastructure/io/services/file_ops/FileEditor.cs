@@ -32,42 +32,7 @@ public sealed class FileEditor {
         CancellationToken cancellationToken = default) {
         // Empty old_string with non-empty new_string means creating a new file (TS behavior)
         if (string.IsNullOrEmpty(oldString)) {
-            if (string.IsNullOrEmpty(newString)) {
-                return FileEditResult.FailureResult(filePath, oldString, newString, "old_string and new_string are both empty");
-            }
-
-            var normalizedPath = NormalizePath(filePath);
-            try {
-                if (_fs.FileExists(normalizedPath)) {
-                    var (existingContent, _) = await ReadFileWithEncodingAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
-                    if (existingContent.Trim() != string.Empty) {
-                        return FileEditResult.FailureResult(normalizedPath, oldString, newString,
-                            "Cannot create new file - file already exists and is not empty");
-                    }
-                    // Empty file with empty old_string is valid - replacing empty with content
-                }
-
-                // Ensure parent directory exists
-                var dir = Path.GetDirectoryName(normalizedPath);
-                if (!string.IsNullOrEmpty(dir) && !_fs.DirectoryExists(dir)) {
-                    _fs.CreateDirectory(dir);
-                }
-
-                var normalizedNew = newString.Replace("\r\n", "\n");
-                await WriteFileWithLockAsync(normalizedPath, normalizedNew, cancellationToken).ConfigureAwait(false);
-
-                _logger?.LogInformation("File created via edit: {FilePath}", normalizedPath);
-
-                return FileEditResult.SuccessResult(normalizedPath, oldString, newString, string.Empty, normalizedNew, 1,
-                    StructuredPatchGenerator.Generate(normalizedPath, string.Empty, normalizedNew, cancellationToken: cancellationToken));
-            } catch (Exception ex) {
-                _logger?.LogError(ex, "Create file via edit failed: {FilePath}", normalizedPath);
-                var diagnostic = ToolDiagnostic.Create("EditFailed",
-                    $"创建文件失败: {ex.Message}",
-                    [new DiagnosticDetail("filePath", normalizedPath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
-                    ["检查文件路径是否有效、目录是否存在、是否有写入权限。"]);
-                return FileEditResult.FailureResult(normalizedPath, oldString, newString, diagnostic);
-            }
+            return await CreateNewFileViaEditAsync(filePath, oldString, newString, cancellationToken).ConfigureAwait(false);
         }
 
         if (oldString == newString) {
@@ -105,17 +70,10 @@ public sealed class FileEditor {
 
             if (actualOldString is null) {
                 // Try desanitizing the old_string (reverse API sanitization of XML tags)
-                var (desanitizedOld, appliedReplacements) = DesanitizeMatchString(normalizedOld);
-                if (desanitizedOld != normalizedOld) {
-                    actualOldString = FindActualString(normalizedContent, desanitizedOld);
-                    if (actualOldString is not null) {
-                        normalizedOld = desanitizedOld;
-                        // Apply same desanitization to new_string
-                        foreach (var (from, to) in appliedReplacements) {
-                            normalizedNew = normalizedNew.Replace(from, to);
-                        }
-                    }
-                }
+                var (actual, old, newStr) = TryDesanitizeMatch(normalizedContent, normalizedOld, normalizedNew);
+                actualOldString = actual;
+                normalizedOld = old;
+                normalizedNew = newStr;
             }
 
             if (actualOldString is null) {
@@ -192,6 +150,68 @@ public sealed class FileEditor {
                 ["检查文件权限、是否被其他进程锁定。"]);
             return FileEditResult.FailureResult(normalizedPath2, oldString, newString, diagnostic);
         }
+    }
+
+    /// <summary>
+    /// 通过 edit 创建新文件（old_string 为空时的分支，提取以扁平化嵌套）
+    /// </summary>
+    private async Task<FileEditResult> CreateNewFileViaEditAsync(
+        string filePath, string oldString, string newString, CancellationToken cancellationToken) {
+        if (string.IsNullOrEmpty(newString)) {
+            return FileEditResult.FailureResult(filePath, oldString, newString, "old_string and new_string are both empty");
+        }
+
+        var normalizedPath = NormalizePath(filePath);
+        try {
+            if (_fs.FileExists(normalizedPath)) {
+                var (existingContent, _) = await ReadFileWithEncodingAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
+                if (existingContent.Trim() != string.Empty)
+                    return FileEditResult.FailureResult(normalizedPath, oldString, newString,
+                        "Cannot create new file - file already exists and is not empty");
+                // Empty file with empty old_string is valid - replacing empty with content
+            }
+
+            // Ensure parent directory exists
+            var dir = Path.GetDirectoryName(normalizedPath);
+            if (!string.IsNullOrEmpty(dir) && !_fs.DirectoryExists(dir)) {
+                _fs.CreateDirectory(dir);
+            }
+
+            var normalizedNew = newString.Replace("\r\n", "\n");
+            await WriteFileWithLockAsync(normalizedPath, normalizedNew, cancellationToken).ConfigureAwait(false);
+
+            _logger?.LogInformation("File created via edit: {FilePath}", normalizedPath);
+
+            return FileEditResult.SuccessResult(normalizedPath, oldString, newString, string.Empty, normalizedNew, 1,
+                StructuredPatchGenerator.Generate(normalizedPath, string.Empty, normalizedNew, cancellationToken: cancellationToken));
+        } catch (Exception ex) {
+            _logger?.LogError(ex, "Create file via edit failed: {FilePath}", normalizedPath);
+            var diagnostic = ToolDiagnostic.Create("EditFailed",
+                $"创建文件失败: {ex.Message}",
+                [new DiagnosticDetail("filePath", normalizedPath), new DiagnosticDetail("exceptionType", ex.GetType().Name)],
+                ["检查文件路径是否有效、目录是否存在、是否有写入权限。"]);
+            return FileEditResult.FailureResult(normalizedPath, oldString, newString, diagnostic);
+        }
+    }
+
+    /// <summary>
+    /// 尝试反规范化匹配 old_string（提取以扁平化嵌套）
+    /// </summary>
+    /// <returns>(匹配到的实际字符串, 更新后的 normalizedOld, 更新后的 normalizedNew)</returns>
+    private static (string? ActualOldString, string NormalizedOld, string NormalizedNew) TryDesanitizeMatch(
+        string normalizedContent, string normalizedOld, string normalizedNew) {
+        var (desanitizedOld, appliedReplacements) = DesanitizeMatchString(normalizedOld);
+        if (desanitizedOld == normalizedOld)
+            return (null, normalizedOld, normalizedNew);
+
+        var actualOldString = FindActualString(normalizedContent, desanitizedOld);
+        if (actualOldString is null)
+            return (null, normalizedOld, normalizedNew);
+
+        foreach (var (from, to) in appliedReplacements) {
+            normalizedNew = normalizedNew.Replace(from, to);
+        }
+        return (actualOldString, desanitizedOld, normalizedNew);
     }
 
     /// <summary>

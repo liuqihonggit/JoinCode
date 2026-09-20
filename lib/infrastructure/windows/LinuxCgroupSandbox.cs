@@ -101,13 +101,13 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable {
             }
 
             var procsPath = Path.Combine(_cgroupPath, "cgroup.procs");
-            if (File.Exists(procsPath)) {
-                var pidsText = SafeFileIO.ReadAllText(procsPath).Trim();
-                if (pidsText.Length > 0) {
-                    foreach (var pidStr in pidsText.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
-                        if (int.TryParse(pidStr, out var pid) && pid != Environment.ProcessId) {
-                            try { System.Diagnostics.Process.GetProcessById(pid).Kill(); } catch (Exception killEx) { _logger?.LogDebug(killEx, "[LinuxCgroup] 终止进程 {Pid} 失败，可能已退出", pid); }
-                        }
+            if (!File.Exists(procsPath)) return true;
+
+            var pidsText = SafeFileIO.ReadAllText(procsPath).Trim();
+            if (pidsText.Length > 0) {
+                foreach (var pidStr in pidsText.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
+                    if (int.TryParse(pidStr, out var pid) && pid != Environment.ProcessId) {
+                        try { System.Diagnostics.Process.GetProcessById(pid).Kill(); } catch (Exception killEx) { _logger?.LogDebug(killEx, "[LinuxCgroup] 终止进程 {Pid} 失败，可能已退出", pid); }
                     }
                 }
             }

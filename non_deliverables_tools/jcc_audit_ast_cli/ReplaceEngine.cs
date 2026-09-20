@@ -200,30 +200,28 @@ public sealed class ReplaceEngine {
                 var fixedSolution = await TryApplyCodeFix(
                     currentProject, provider, diagnostic, dryRun, ct);
 
-                if (fixedSolution is not null) {
-                    currentSolution = fixedSolution;
-                    totalFixes++;
-                    wasFixed = true;
+                if (fixedSolution is null) continue;
+                currentSolution = fixedSolution;
+                totalFixes++;
+                wasFixed = true;
 
-                    if (dryRun) {
-                        // DryRun 模式下记录将修改的文件
-                        var changes = currentSolution.GetChanges(project.Solution);
-                        foreach (var projectChange in changes.GetProjectChanges()) {
-                            foreach (var docId in projectChange.GetChangedDocuments()) {
-                                var doc = currentSolution.GetDocument(docId);
-                                if (doc?.FilePath is not null) {
-                                    result.ModifiedFiles.Add(doc.FilePath);
-                                    Console.WriteLine($"    [DryRun] 将修改: {doc.FilePath}");
-                                }
-                            }
+                if (dryRun) {
+                    // DryRun 模式下记录将修改的文件
+                    var changes = currentSolution.GetChanges(project.Solution);
+                    foreach (var projectChange in changes.GetProjectChanges()) {
+                        foreach (var docId in projectChange.GetChangedDocuments()) {
+                            var doc = currentSolution.GetDocument(docId);
+                            if (doc?.FilePath is null) continue;
+                            result.ModifiedFiles.Add(doc.FilePath);
+                            Console.WriteLine($"    [DryRun] 将修改: {doc.FilePath}");
                         }
-                    } else {
-                        var lineSpan = diagnostic.Location.GetLineSpan();
-                        Console.WriteLine($"    已修复: {lineSpan.Path}:{lineSpan.StartLinePosition.Line + 1}");
                     }
-
-                    break;
+                } else {
+                    var lineSpan = diagnostic.Location.GetLineSpan();
+                    Console.WriteLine($"    已修复: {lineSpan.Path}:{lineSpan.StartLinePosition.Line + 1}");
                 }
+
+                break;
             }
 
             if (!wasFixed) {

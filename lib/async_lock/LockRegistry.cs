@@ -101,9 +101,9 @@ public static class LockRegistry {
     internal static void Unregister(int id) {
         if (!_locks.TryRemove(id, out var info)) return;
         if (info.HoldingFlowId != 0) {
-            var acquiredAt = info.AcquiredAt;
-            var heldFor = acquiredAt.HasValue
-                ? DateTimeOffset.UtcNow - acquiredAt.Value
+            var acquiredTicks = info.AcquiredTicks;
+            var heldFor = acquiredTicks != 0
+                ? TimeSpan.FromTicks(DateTimeOffset.UtcNow.Ticks - acquiredTicks)
                 : TimeSpan.Zero;
             if (heldFor > _holdTooLongThreshold) {
                 Emit(
@@ -123,7 +123,7 @@ public static class LockRegistry {
         if (!IsEnabled) return;
         if (_locks.TryGetValue(id, out var info)) {
             info.WaitingFlowId = ResolveFlowId();
-            info.WaitStartedAt = DateTimeOffset.UtcNow;
+            info.WaitStartedTicks = DateTimeOffset.UtcNow.Ticks;
             info.WaitStack = CaptureStackTrace(skipFrames: 3);
             Emit($"[LOCK-WAIT-START] 锁 '{name}' (#{id}) 流 {ResolveFlowId()} 开始等待。");
             var currentFlowId = ResolveFlowId();
@@ -142,8 +142,9 @@ public static class LockRegistry {
     /// </summary>
     internal static void OnWaitEnd(int id, string name) {
         if (_locks.TryGetValue(id, out var info)) {
-            var waited = info.WaitStartedAt.HasValue
-                ? DateTimeOffset.UtcNow - info.WaitStartedAt.Value
+            var waitTicks = info.WaitStartedTicks;
+            var waited = waitTicks != 0
+                ? TimeSpan.FromTicks(DateTimeOffset.UtcNow.Ticks - waitTicks)
                 : TimeSpan.Zero;
             if (waited > _waitTimeoutThreshold && IsEnabled) {
                 Emit(
@@ -151,7 +152,7 @@ public static class LockRegistry {
                     $"流: {ResolveFlowId()}");
             }
             info.WaitingFlowId = 0;
-            info.WaitStartedAt = null;
+            info.WaitStartedTicks = 0;
             info.WaitStack = null;
         }
     }
@@ -173,8 +174,9 @@ public static class LockRegistry {
     internal static void OnAcquired(int id, string name) {
         if (!IsEnabled) return;
         if (_locks.TryGetValue(id, out var info)) {
-            var waited = info.WaitStartedAt.HasValue
-                ? DateTimeOffset.UtcNow - info.WaitStartedAt.Value
+            var waitTicks = info.WaitStartedTicks;
+            var waited = waitTicks != 0
+                ? TimeSpan.FromTicks(DateTimeOffset.UtcNow.Ticks - waitTicks)
                 : TimeSpan.Zero;
             if (waited > _waitTimeoutThreshold) {
                 Emit(
@@ -186,10 +188,10 @@ public static class LockRegistry {
                 $"[LOCK-ACQUIRED] 锁 '{name}' (#{id}) 流 {ResolveFlowId()} " +
                 $"获取成功,等待 {waited.TotalSeconds:F3}s。");
             info.HoldingFlowId = ResolveFlowId();
-            info.AcquiredAt = DateTimeOffset.UtcNow;
+            info.AcquiredTicks = DateTimeOffset.UtcNow.Ticks;
             info.AcquireStack = CaptureStackTrace(skipFrames: 3);
             info.WaitingFlowId = 0;
-            info.WaitStartedAt = null;
+            info.WaitStartedTicks = 0;
             info.WaitStack = null;
         }
     }
@@ -199,9 +201,9 @@ public static class LockRegistry {
     /// </summary>
     internal static void OnReleased(int id, string name) {
         if (_locks.TryGetValue(id, out var info)) {
-            var acquiredAt = info.AcquiredAt;
-            var heldFor = acquiredAt.HasValue
-                ? DateTimeOffset.UtcNow - acquiredAt.Value
+            var acquiredTicks = info.AcquiredTicks;
+            var heldFor = acquiredTicks != 0
+                ? TimeSpan.FromTicks(DateTimeOffset.UtcNow.Ticks - acquiredTicks)
                 : TimeSpan.Zero;
             if (heldFor > _holdTooLongThreshold && IsEnabled) {
                 Emit(
@@ -214,7 +216,7 @@ public static class LockRegistry {
                     $"[LOCK-RELEASED] 锁 '{name}' (#{id}) 流 {ResolveFlowId()} " +
                     $"释放,持有 {heldFor.TotalSeconds:F3}s。");
             info.HoldingFlowId = 0;
-            info.AcquiredAt = null;
+            info.AcquiredTicks = 0;
             info.AcquireStack = null;
         }
     }
@@ -263,12 +265,12 @@ public static class LockRegistry {
         foreach (var info in _locks.Values.OrderBy(x => x.Id)) {
             string status;
             if (info.HoldingFlowId != 0) {
-                var acquiredAt = info.AcquiredAt;
-                var held = acquiredAt.HasValue ? now - acquiredAt.Value : TimeSpan.Zero;
+                var acquiredTicks = info.AcquiredTicks;
+                var held = acquiredTicks != 0 ? TimeSpan.FromTicks(now.Ticks - acquiredTicks) : TimeSpan.Zero;
                 status = $"持有中(流 {info.HoldingFlowId}, 已持有 {held.TotalSeconds:F1}s)";
             } else if (info.WaitingFlowId != 0) {
-                var waitStartedAt = info.WaitStartedAt;
-                var waited = waitStartedAt.HasValue ? now - waitStartedAt.Value : TimeSpan.Zero;
+                var waitTicks = info.WaitStartedTicks;
+                var waited = waitTicks != 0 ? TimeSpan.FromTicks(now.Ticks - waitTicks) : TimeSpan.Zero;
                 status = $"等待中(流 {info.WaitingFlowId}, 已等 {waited.TotalSeconds:F1}s)";
             } else {
                 status = "空闲";
@@ -291,7 +293,7 @@ public static class LockRegistry {
     public static void StartBackgroundScan(TimeSpan? interval = null) {
         if (interval.HasValue) _scanInterval = interval.Value;
         _scanTimer?.Dispose();
-        _scanTimer = new Timer(static _ => ScanHolds(), null, _scanInterval, _scanInterval);
+        _scanTimer = new Timer(static _ => ScanHoldsSafe(), null, _scanInterval, _scanInterval);
         Interlocked.Exchange(ref _scanStarted, 1);
         if (IsEnabled)
             Emit($"[LOCK-SCAN-START] 后台扫描启动,间隔 {_scanInterval.TotalSeconds:F1}s。");
@@ -315,28 +317,37 @@ public static class LockRegistry {
         }
     }
 
+    /// <summary>
+    /// 后台扫描入口 — 吞掉所有异常,保证 Timer 回调永不抛出(否则终止进程)。
+    /// 这是纵深防御的兜底层:即使 ScanHolds 内部出现任何未预见异常,也只记日志不崩进程。
+    /// </summary>
+    private static void ScanHoldsSafe() {
+        try {
+            ScanHolds();
+        } catch (Exception ex) {
+            Emit($"[LOCK-SCAN-ERROR] 后台扫描异常,已吞并以继续: {ex}");
+        }
+    }
+
     private static void ScanHolds() {
         if (!IsEnabled) return;
         var now = DateTimeOffset.UtcNow;
         foreach (var info in _locks.Values) {
             var holdingFlowId = info.HoldingFlowId;
-            if (holdingFlowId != 0 && info.AcquiredAt.HasValue) {
-                var acquiredAt = info.AcquiredAt.Value;
-                var held = now - acquiredAt;
-                if (held > _holdTooLongThreshold) {
-                    Emit(
-                        $"[LOCK-SCAN-HOLD] 锁 '{info.Name}' (#{info.Id}) 持有 {held.TotalSeconds:F1}s " +
-                        $"超过阈值(流 {holdingFlowId})。\n{info.AcquireStack}");
-                }
+            var acquiredTicks = info.AcquiredTicks;
+            var held = acquiredTicks != 0 ? TimeSpan.FromTicks(now.Ticks - acquiredTicks) : TimeSpan.Zero;
+            if (holdingFlowId != 0 && held > _holdTooLongThreshold) {
+                Emit(
+                    $"[LOCK-SCAN-HOLD] 锁 '{info.Name}' (#{info.Id}) 持有 {held.TotalSeconds:F1}s " +
+                    $"超过阈值(流 {holdingFlowId})。\n{info.AcquireStack}");
             }
             var waitingFlowId = info.WaitingFlowId;
-            if (waitingFlowId != 0 && info.WaitStartedAt.HasValue) {
-                var waited = now - info.WaitStartedAt.Value;
-                if (waited > _waitTimeoutThreshold) {
-                    Emit(
-                        $"[LOCK-SCAN-WAIT] 锁 '{info.Name}' (#{info.Id}) 等待 {waited.TotalSeconds:F1}s " +
-                        $"超过阈值(流 {waitingFlowId})。\n{info.WaitStack}");
-                }
+            var waitTicks = info.WaitStartedTicks;
+            var waited = waitTicks != 0 ? TimeSpan.FromTicks(now.Ticks - waitTicks) : TimeSpan.Zero;
+            if (waitingFlowId != 0 && waited > _waitTimeoutThreshold) {
+                Emit(
+                    $"[LOCK-SCAN-WAIT] 锁 '{info.Name}' (#{info.Id}) 等待 {waited.TotalSeconds:F1}s " +
+                    $"超过阈值(流 {waitingFlowId})。\n{info.WaitStack}");
             }
         }
         DetectDeadlock();
@@ -356,7 +367,8 @@ public static class LockRegistry {
             var holdingFlowId = info.HoldingFlowId;
             if (waitingFlowId == 0 || holdingFlowId == 0)
                 continue;
-            if (info.WaitStartedAt is not { } waitStart || now - waitStart < _waitTimeoutThreshold)
+            var waitStart = info.WaitStartedTicks;
+            if (waitStart == 0 || now.Ticks - waitStart < _waitTimeoutThreshold.Ticks)
                 continue;
             waitEdges[waitingFlowId] = (holdingFlowId, info);
         }
@@ -433,9 +445,9 @@ internal sealed class LockInfo {
     public int Id;
     public string Name = "";
     public int HoldingFlowId;
-    public DateTimeOffset? AcquiredAt;
+    public long AcquiredTicks;
     public string? AcquireStack;
     public int WaitingFlowId;
-    public DateTimeOffset? WaitStartedAt;
+    public long WaitStartedTicks;
     public string? WaitStack;
 }

@@ -24,7 +24,7 @@ public class NoContentionBench {
     }
 
     [Benchmark(Description = "AsyncLock 无竞争(sync)")]
-    public void AsyncLock_NoContention_Sync() {
+    public async Task AsyncLock_NoContention_Sync() {
         using var guard = await _asyncLock.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{_asyncLock.Name}' 等待超时");
     }
 

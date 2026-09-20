@@ -178,16 +178,16 @@ public static class PreapprovedDomains {
             return true;
 
         // 再查路径前缀映射
-        if (PathPrefixes.TryGetValue(hostname, out var prefixes) ||
-            PathPrefixes.TryGetValue(parsed.Host, out prefixes)) {
-            var path = parsed.AbsolutePath;
-            foreach (var prefix in prefixes) {
-                // 强制路径段边界：/anthropics 不匹配 /anthropics-evil/malware
-                if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
-                    if (path.Length == prefix.Length || path[prefix.Length] == '/')
-                        return true;
-                }
-            }
+        if (!PathPrefixes.TryGetValue(hostname, out var prefixes) &&
+            !PathPrefixes.TryGetValue(parsed.Host, out prefixes))
+            return false;
+
+        var path = parsed.AbsolutePath;
+        foreach (var prefix in prefixes) {
+            // 强制路径段边界：/anthropics 不匹配 /anthropics-evil/malware
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+                (path.Length == prefix.Length || path[prefix.Length] == '/'))
+                return true;
         }
 
         return false;

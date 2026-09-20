@@ -183,36 +183,38 @@ internal static class JsonRepairPipeline {
                 continue;
             }
 
-            if (json[i] == '{' || json[i] == ',') {
+            if (json[i] != '{' && json[i] != ',') {
                 result.Append(json[i]);
                 i++;
-                while (i < json.Length && char.IsWhiteSpace(json[i])) { result.Append(json[i]); i++; }
-
-                if (i < json.Length && json[i] == '"') {
-                    continue;
-                }
-
-                if (i < json.Length && (char.IsLetter(json[i]) || json[i] == '_')) {
-                    var keyStart = i;
-                    while (i < json.Length && (char.IsLetterOrDigit(json[i]) || json[i] == '_')) i++;
-
-                    var j = i;
-                    while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
-
-                    if (j < json.Length && json[j] == ':') {
-                        result.Append('"');
-                        result.Append(json.AsSpan(keyStart, i - keyStart));
-                        result.Append('"');
-                        changed = true;
-                        continue;
-                    }
-                }
-
                 continue;
             }
 
             result.Append(json[i]);
             i++;
+            while (i < json.Length && char.IsWhiteSpace(json[i])) { result.Append(json[i]); i++; }
+
+            if (i < json.Length && json[i] == '"')
+                continue;
+
+            if (i < json.Length && (char.IsLetter(json[i]) || json[i] == '_')) {
+                var keyStart = i;
+                while (i < json.Length && (char.IsLetterOrDigit(json[i]) || json[i] == '_')) i++;
+
+                var j = i;
+                while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
+
+                if (j >= json.Length || json[j] != ':') {
+                    result.Append(json.AsSpan(keyStart, i - keyStart));
+                } else {
+                    result.Append('"');
+                    result.Append(json.AsSpan(keyStart, i - keyStart));
+                    result.Append('"');
+                    changed = true;
+                }
+                continue;
+            }
+
+            continue;
         }
 
         if (changed)
@@ -266,60 +268,61 @@ internal static class JsonRepairPipeline {
                 continue;
             }
 
-            if (json[i] == ':') {
+            if (json[i] != ':') {
                 result.Append(json[i]);
                 i++;
-
-                while (i < json.Length && char.IsWhiteSpace(json[i])) { result.Append(json[i]); i++; }
-                if (i >= json.Length) continue;
-
-                var c = json[i];
-                if (c == '"' || c == '\'' || c == '{' || c == '[') continue;
-                if (char.IsDigit(c) || c == '-' || c == '+') continue;
-                if (IsLiteralAt(json, i, "true") || IsLiteralAt(json, i, "false") || IsLiteralAt(json, i, "null"))
-                    continue;
-
-                var valueStart = i;
-                // 保守收集: 到空格/逗号/}/] 停(值不含空格的快速路径)
-                while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ']' && !char.IsWhiteSpace(json[i]))
-                    i++;
-
-                if (i > valueStart) {
-                    var j = i;
-                    while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
-                    if (j < json.Length && (json[j] == ',' || json[j] == '}' || json[j] == ']')) {
-                        AppendQuotedValue(result, json, valueStart, i);
-                        changed = true;
-                        continue;
-                    }
-                }
-
-                // 保守收集失败(值含空格,如 PowerShell 剥引号后的 {prompt:echo hello})
-                // → 激进收集: 允许空格,到 ,/}/]/{/[ 停,整体加引号
-                i = valueStart;
-                while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ']' && json[i] != '{' && json[i] != '[')
-                    i++;
-
-                // 去掉尾部空白(避免 "echo hello " 带尾部空格在引号内)
-                var valueEnd = i;
-                while (valueEnd > valueStart && char.IsWhiteSpace(json[valueEnd - 1])) valueEnd--;
-
-                if (valueEnd > valueStart) {
-                    AppendQuotedValue(result, json, valueStart, valueEnd);
-                    // 尾部空白在引号外原样输出
-                    for (var k = valueEnd; k < i; k++)
-                        result.Append(json[k]);
-                    changed = true;
-                    continue;
-                }
-
-                // 激进收集也失败(值为空或首字符即分隔符),原样输出
-                result.Append(json.AsSpan(valueStart, i - valueStart));
                 continue;
             }
 
             result.Append(json[i]);
             i++;
+
+            while (i < json.Length && char.IsWhiteSpace(json[i])) { result.Append(json[i]); i++; }
+            if (i >= json.Length) continue;
+
+            var c = json[i];
+            if (c == '"' || c == '\'' || c == '{' || c == '[') continue;
+            if (char.IsDigit(c) || c == '-' || c == '+') continue;
+            if (IsLiteralAt(json, i, "true") || IsLiteralAt(json, i, "false") || IsLiteralAt(json, i, "null"))
+                continue;
+
+            var valueStart = i;
+            // 保守收集: 到空格/逗号/}/] 停(值不含空格的快速路径)
+            while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ']' && !char.IsWhiteSpace(json[i]))
+                i++;
+
+            if (i > valueStart) {
+                var j = i;
+                while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
+                if (j < json.Length && (json[j] == ',' || json[j] == '}' || json[j] == ']')) {
+                    AppendQuotedValue(result, json, valueStart, i);
+                    changed = true;
+                    continue;
+                }
+            }
+
+            // 保守收集失败(值含空格,如 PowerShell 套引号后的 {prompt:echo hello})
+            // → 激进收集: 允许空格,到 ,/}/]/{/[ 停,整体加引号
+            i = valueStart;
+            while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ']' && json[i] != '{' && json[i] != '[')
+                i++;
+
+            // 去掉尾部空白(避免 "echo hello " 带尾部空格在引号内)
+            var valueEnd = i;
+            while (valueEnd > valueStart && char.IsWhiteSpace(json[valueEnd - 1])) valueEnd--;
+
+            if (valueEnd > valueStart) {
+                AppendQuotedValue(result, json, valueStart, valueEnd);
+                // 尾部空白在引号外原样输出
+                for (var k = valueEnd; k < i; k++)
+                    result.Append(json[k]);
+                changed = true;
+                continue;
+            }
+
+            // 激进收集也失败(值为空或首字符即分隔符),原样输出
+            result.Append(json.AsSpan(valueStart, i - valueStart));
+            continue;
         }
 
         if (changed)
@@ -449,61 +452,62 @@ internal static class JsonRepairPipeline {
         var i = 0;
 
         while (i < json.Length) {
-            if (json[i] == '"') {
-                var start = i;
+            if (json[i] != '"') {
+                result.Append(json[i]);
                 i++;
-                while (i < json.Length) {
-                    if (json[i] == '\\' && i + 1 < json.Length) {
-                        var next = json[i + 1];
-                        if (next == '\'') {
-                            result.Append(json.AsSpan(start, i - start));
-                            result.Append('\'');
-                            changed = true;
-                            i += 2;
-                            start = i;
-                            continue;
-                        }
+                continue;
+            }
 
-                        if (next is not ('"' or '\\' or '/' or 'b' or 'f' or 'n' or 'r' or 't' or 'u')) {
-                            result.Append(json.AsSpan(start, i - start));
-                            result.Append("\\\\");
-                            changed = true;
-                            i++;
-                            start = i;
-                            continue;
-                        }
-
+            var start = i;
+            i++;
+            while (i < json.Length) {
+                if (json[i] == '\\' && i + 1 < json.Length) {
+                    var next = json[i + 1];
+                    if (next == '\'') {
+                        result.Append(json.AsSpan(start, i - start));
+                        result.Append('\'');
+                        changed = true;
                         i += 2;
+                        start = i;
                         continue;
                     }
 
-                    if (json[i] == '"') { i++; break; }
-
-                    if (json[i] < 0x20) {
+                    if (next is not ('"' or '\\' or '/' or 'b' or 'f' or 'n' or 'r' or 't' or 'u')) {
                         result.Append(json.AsSpan(start, i - start));
-                        result.Append(json[i] switch {
-                            '\n' => "\\n",
-                            '\r' => "\\r",
-                            '\t' => "\\t",
-                            '\b' => "\\b",
-                            '\f' => "\\f",
-                            _ => $"\\u{((int)json[i]):x4}"
-                        });
+                        result.Append("\\\\");
                         changed = true;
                         i++;
                         start = i;
                         continue;
                     }
 
-                    i++;
+                    i += 2;
+                    continue;
                 }
 
-                result.Append(json.AsSpan(start, i - start));
-                continue;
+                if (json[i] == '"') { i++; break; }
+
+                if (json[i] < 0x20) {
+                    result.Append(json.AsSpan(start, i - start));
+                    result.Append(json[i] switch {
+                        '\n' => "\\n",
+                        '\r' => "\\r",
+                        '\t' => "\\t",
+                        '\b' => "\\b",
+                        '\f' => "\\f",
+                        _ => $"\\u{((int)json[i]):x4}"
+                    });
+                    changed = true;
+                    i++;
+                    start = i;
+                    continue;
+                }
+
+                i++;
             }
 
-            result.Append(json[i]);
-            i++;
+            result.Append(json.AsSpan(start, i - start));
+            continue;
         }
 
         if (changed)

@@ -224,13 +224,10 @@ public static class SedValidation {
             // -i/--in-place 标志
             if (token is "-i" or "--in-place") {
                 hasInPlace = true;
-                // -i 可选参数 (如 -i.bak)
-                if (i + 1 < tokens.Count && !tokens[i + 1].StartsWith('-')) {
-                    // 检查是否是 -i 的可选后缀 (如 .bak)
-                    var next = tokens[i + 1];
-                    if (next.StartsWith('.') || char.IsLetter(next[0])) {
-                        i++; // 跳过后缀
-                    }
+                // -i 可选参数 (如 -i.bak): 检查后缀
+                if (i + 1 < tokens.Count && !tokens[i + 1].StartsWith('-') &&
+                    (tokens[i + 1].StartsWith('.') || char.IsLetter(tokens[i + 1][0]))) {
+                    i++; // 跳过后缀
                 }
                 i++;
                 continue;
@@ -583,15 +580,11 @@ public static class SedValidation {
         }
 
         // 6. 偏执检查: 以 s 开头但以 w/W/e/E 结尾
-        if (expr.StartsWith('s') && expr.Length > 1) {
-            var lastChar = expr[^1];
-            if (lastChar is 'w' or 'W' or 'e' or 'E') {
-                // 验证是否是格式正确的替换命令
-                var parseResult = ParseSubstitution(expr);
-                if (!parseResult.Success) {
-                    return true; // 无法解析且以危险字符结尾
-                }
-            }
+        if (expr.StartsWith('s') && expr.Length > 1 &&
+            expr[^1] is 'w' or 'W' or 'e' or 'E') {
+            var parseResult = ParseSubstitution(expr);
+            if (!parseResult.Success)
+                return true; // 无法解析且以危险字符结尾
         }
 
         return false;

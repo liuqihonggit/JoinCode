@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Integration.Desktop.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Integration.Desktop.Tests</AssemblyName>
+    <Description>JoinCode 桌面集成测试（需要桌面环境，CI 默认不触发，仅 [Desktop] label PR 触发）</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;CS0618</NoWarn>
+  </PropertyGroup>
+
+  <!-- 聚合所有子系统的依赖 -->
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)kit/brain/Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/hands/Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/composition/Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/pipelines/Pipelines.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/clock/Clock.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
+
+    <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/mcp/Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/dream/Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/eyes/Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/code_index/CodeIndex.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="$(MicrosoftExtensionsTimeProviderTestingVersion)" />
+  </ItemGroup>
+
+</Project>

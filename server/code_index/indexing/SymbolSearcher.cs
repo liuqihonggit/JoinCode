@@ -35,11 +35,9 @@ public sealed class SymbolSearcher : ISymbolSearcher {
             if (tokens.Count > 0) {
                 foreach (var symbol in _store.SymbolsByFqn.Values) {
                     if (ct.IsCancellationRequested) break;
-
-                    if (MatchTokens(symbol, tokens)) {
-                        items.Add(symbol);
-                        if (items.Count >= 200) break;
-                    }
+                    if (!MatchTokens(symbol, tokens)) continue;
+                    items.Add(symbol);
+                    if (items.Count >= 200) break;
                 }
             }
         }

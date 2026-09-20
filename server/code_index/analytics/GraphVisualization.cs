@@ -222,17 +222,7 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
             }
 
             if (c.ExternalEdges > 0) {
-                var deps = new Dictionary<int, int>();
-                foreach (var m in c.Members) {
-                    if (store.CallsByCaller.TryGetValue(m, out var outEdges)) {
-                        foreach (var e in outEdges) {
-                            if (communityOf.TryGetValue(e.CalleeSymbol, out var targetCid) && targetCid != c.CommunityId) {
-                                deps.TryGetValue(targetCid, out var count);
-                                deps[targetCid] = count + 1;
-                            }
-                        }
-                    }
-                }
+                var deps = BuildExternalDeps(c, store, communityOf);
 
                 if (deps.Count > 0) {
                     sb.AppendLine("**Dependencies on other communities:**");
@@ -260,5 +250,22 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
         if (idx >= 0) return filePath[(idx + 6)..];
         var sep = filePath.LastIndexOfAny(['/', '\\']);
         return sep >= 0 ? filePath[(sep + 1)..] : filePath;
+    }
+
+    /// <summary>
+    /// 构建社区外部依赖字典（提取以扁平化嵌套）
+    /// </summary>
+    private static Dictionary<int, int> BuildExternalDeps(
+        CommunityInfo c, InMemoryIndexStore store, Dictionary<string, int> communityOf) {
+        var deps = new Dictionary<int, int>();
+        foreach (var m in c.Members) {
+            if (!store.CallsByCaller.TryGetValue(m, out var outEdges)) continue;
+            foreach (var e in outEdges) {
+                if (!communityOf.TryGetValue(e.CalleeSymbol, out var targetCid) || targetCid == c.CommunityId) continue;
+                deps.TryGetValue(targetCid, out var count);
+                deps[targetCid] = count + 1;
+            }
+        }
+        return deps;
     }
 }

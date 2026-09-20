@@ -7,7 +7,7 @@
 public class EditFileAsyncTests {
     [Fact]
     public async Task EditFileAsync_ConcurrentSameFile_NoLostUpdates() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var path = "/test/concurrent.txt";
         fs.WriteAllText(path, "");
 
@@ -54,7 +54,7 @@ public class EditFileAsyncTests {
 
     [Fact]
     public async Task EditFileAsync_FileNotFound_ThrowsFileNotFoundException() {
-        var fs = new InMemoryFileSystem();
+        await using var fs = new InMemoryFileSystem();
         var path = "/test/nonexistent.txt";
 
         await Assert.ThrowsAsync<FileNotFoundException>(async () =>

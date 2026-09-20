@@ -11,7 +11,7 @@ public static class Program {
     /// <returns>进程退出码 — 0 表示成功</returns>
     public static async Task<int> Main(string[] args) {
         var fs = new IO.FileSystem.PhysicalFileSystem();
-        var host = new SandboxSatelliteHost(fs);
+        await using var host = new SandboxSatelliteHost(fs);
         await host.RunAsync().ConfigureAwait(false);
         return 0;
     }

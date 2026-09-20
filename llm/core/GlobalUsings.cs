@@ -7,6 +7,7 @@ global using Api.LLM.QueryServices;
 global using Api.LLM.QueryServices.Agnes;
 global using Api.LLM.QueryServices.Anthropic;
 global using Api.LLM.QueryServices.Azure;
+global using Api.LLM.QueryServices.Jev;
 global using Api.LLM.QueryServices.OpenAI;
 global using Api.LLM.QueryServices.Responses;
 global using Infrastructure.Configuration;

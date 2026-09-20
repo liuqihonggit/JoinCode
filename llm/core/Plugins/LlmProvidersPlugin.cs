@@ -34,6 +34,8 @@ public sealed partial class LlmProvidersPlugin : WorkflowPluginBase {
             (config, http, logger, fs, executor) => new AgnesQueryService(config, http, logger, fs, executor));
         factory.RegisterProvider(ProtocolKind.OpenAiResponses,
             (config, http, logger, fs, executor) => new ResponsesQueryService(config, http, logger, fs, executor));
+        factory.RegisterProvider(ProtocolKind.Jev,
+            (config, http, logger, fs, executor) => new JevQueryService(config, http, logger, fs, executor));
         factory.RegisterDefault(
             (config, http, logger, fs, executor) => new OpenAIQueryService(config, http, logger, fs, executor));
 
@@ -47,5 +49,6 @@ public sealed partial class LlmProvidersPlugin : WorkflowPluginBase {
         factory.UnregisterProvider(ProtocolKind.Azure);
         factory.UnregisterProvider(ProtocolKind.Agnes);
         factory.UnregisterProvider(ProtocolKind.OpenAiResponses);
+        factory.UnregisterProvider(ProtocolKind.Jev);
     }
 }

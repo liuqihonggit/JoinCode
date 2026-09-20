@@ -66,6 +66,8 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
                         => (IProviderDefinition)new AnthropicCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar, anthropicBeta),
                     var p when string.Equals(p, ProtocolKindEnumConstants.Azure, StringComparison.OrdinalIgnoreCase)
                         => new AzureProviderDefinition(modelConfigLoader),
+                    var p when string.Equals(p, ProtocolKindEnumConstants.Jev, StringComparison.OrdinalIgnoreCase)
+                        => new JevProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar),
                     _ => new OpenAiCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar),
                 };
             }

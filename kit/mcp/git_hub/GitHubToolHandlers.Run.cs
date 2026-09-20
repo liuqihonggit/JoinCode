@@ -93,26 +93,14 @@ public partial class GitHubToolHandlers {
             // 解析 /section:Type 后缀
             string? sectionType = null;
             if (expandStep is not null) {
-                var sectionIdx = expandStep.IndexOf("/section:", StringComparison.OrdinalIgnoreCase);
-                if (sectionIdx >= 0) {
-                    sectionType = expandStep[(sectionIdx + 9)..].Trim();
-                    expandStep = expandStep[..sectionIdx].Trim();
-                }
+                var (parsedStep, parsedType) = TryParseSectionType(expandStep);
+                expandStep = parsedStep;
+                sectionType = parsedType;
             }
 
             // expand=step:Name/section:Type: 从 Level2 内容缓存读取(ADR 0067)
             if (expandStep is not null && sectionType is not null) {
-                var sectionLines = await GetOrFetchSectionAsync(owner, repoName, run_id, job_id, expandStep, sectionType, working_dir, wantRefresh, cancellationToken).ConfigureAwait(false);
-                if (sectionLines is null)
-                    return Ok($"未找到步骤 '{expandStep}' 或 section '{sectionType}'，建议先 expand=step:{expandStep} 查看 section 摘要");
-
-                var (secText, secHasMore) = GitHubRunLogFilter.SkipAndTruncate(sectionLines, maxLines, skip);
-                if (secHasMore)
-                    secText += GitHubRunLogHints.TruncatedHint;
-                if (GitHubRunLogFilter.HasNoStackTrace(secText))
-                    secText += GitHubRunLogHints.NoStackTraceHint;
-                var secPrefix = GitHubRunLogFilter.BuildPrefix(run_id, $"步骤:{expandStep}/section:{sectionType}", filterLevel, sectionLines.Count);
-                return Ok(secText, secPrefix);
+                return await GetSectionContentAsync(owner, repoName, run_id, job_id, expandStep, sectionType, working_dir, wantRefresh, filterLevel, maxLines, skip, cancellationToken).ConfigureAwait(false);
             }
 
             // 其余情况(expand=steps 或 expand=step:Name): 从 Level1 摘要缓存读取
@@ -133,15 +121,8 @@ public partial class GitHubToolHandlers {
             }
 
             // expand=step:Name: 返回 section 摘要(Level 2,ADR 0067)
-            if (expandStep is not null) {
-                if (!summary.SectionCounts.TryGetValue(expandStep, out var secs))
-                    return Ok($"未找到步骤 '{expandStep}'，可用步骤: {string.Join(", ", summary.SectionCounts.Keys)}");
-
-                var summaryText = secs
-                    .OrderBy(kvp => GitHubRunLogFilter.SectionOrder(kvp.Key))
-                    .Select(kvp => $"  {kvp.Key,-8} {kvp.Value,5} 行  (用 expand=step:{expandStep}/section:{kvp.Key} 查看)");
-                return Ok(string.Join('\n', summaryText) + GitHubRunLogHints.SectionHint, $"Run {run_id} 步骤:{expandStep} sections({secs.Count} 类):");
-            }
+            if (expandStep is not null)
+                return BuildStepSectionResult(summary, expandStep, run_id);
         }
 
         // === 常规模式: log=false 看详情, log=true 拉日志 ===
@@ -155,6 +136,44 @@ public partial class GitHubToolHandlers {
         // log=false: 获取 run 详情 JSON
         var detailResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
         return detailResult.Success ? Ok(detailResult.Body) : Fail(detailResult.Error);
+    }
+
+    /// <summary>
+    /// 解析 expandStep 中的 /section:Type 后缀 — 返回 (不含后缀的 expandStep, sectionType)
+    /// </summary>
+    private ToolResult BuildStepSectionResult(RunLogSummary summary, string expandStep, string run_id) {
+        if (!summary.SectionCounts.TryGetValue(expandStep, out var secs))
+            return Ok($"未找到步骤 '{expandStep}'，可用步骤: {string.Join(", ", summary.SectionCounts.Keys)}");
+        var summaryText = secs
+            .OrderBy(kvp => GitHubRunLogFilter.SectionOrder(kvp.Key))
+            .Select(kvp => $"  {kvp.Key,-8} {kvp.Value,5} 行  (用 expand=step:{expandStep}/section:{kvp.Key} 查看)");
+        return Ok(string.Join('\n', summaryText) + GitHubRunLogHints.SectionHint, $"Run {run_id} 步骤:{expandStep} sections({secs.Count} 类):");
+    }
+
+    private static (string? ExpandStep, string? SectionType) TryParseSectionType(string expandStep) {
+        var sectionIdx = expandStep.IndexOf("/section:", StringComparison.OrdinalIgnoreCase);
+        if (sectionIdx < 0) return (expandStep, null);
+        var sectionType = expandStep[(sectionIdx + 9)..].Trim();
+        return (expandStep[..sectionIdx].Trim(), sectionType);
+    }
+
+    /// <summary>
+    /// 获取指定步骤 section 的日志内容 — 从 Level2 内容缓存读取,应用过滤/分页/提示
+    /// </summary>
+    private async Task<ToolResult> GetSectionContentAsync(
+        string owner, string repo, string runId, string? jobId, string expandStep, string sectionType,
+        string? workingDir, bool wantRefresh, GitHubLogFilter filterLevel, int maxLines, int skip, CancellationToken ct) {
+        var sectionLines = await GetOrFetchSectionAsync(owner, repo, runId, jobId, expandStep, sectionType, workingDir, wantRefresh, ct).ConfigureAwait(false);
+        if (sectionLines is null)
+            return Ok($"未找到步骤 '{expandStep}' 或 section '{sectionType}'，建议先 expand=step:{expandStep} 查看 section 摘要");
+
+        var (secText, secHasMore) = GitHubRunLogFilter.SkipAndTruncate(sectionLines, maxLines, skip);
+        if (secHasMore)
+            secText += GitHubRunLogHints.TruncatedHint;
+        if (GitHubRunLogFilter.HasNoStackTrace(secText))
+            secText += GitHubRunLogHints.NoStackTraceHint;
+        var secPrefix = GitHubRunLogFilter.BuildPrefix(runId, $"步骤:{expandStep}/section:{sectionType}", filterLevel, sectionLines.Count);
+        return Ok(secText, secPrefix);
     }
 
     /// <summary>

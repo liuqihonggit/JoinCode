@@ -69,10 +69,10 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase {
             if (p is not null) {
                 var output = p.StandardOutput.ReadToEnd();
                 p.WaitForExit(5000);
-                if (p.ExitCode == 0) {
-                    var paths = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
-                    if (paths.Length > 0) return paths[0].Trim();
-                }
+                var paths = p.ExitCode == 0
+                    ? output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                    : [];
+                if (paths.Length > 0) return paths[0].Trim();
             }
         } catch (Exception ex) { logger?.LogDebug(ex, "where.exe pwsh.exe failed"); }
 

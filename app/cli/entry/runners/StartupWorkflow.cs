@@ -57,9 +57,7 @@ internal sealed class StartupWorkflow {
                     Cli.TerminalHelper.WriteLine();
                     Cli.TerminalHelper.WriteLine(errorMessage);
                     Cli.TerminalHelper.WriteLine("按任意键继续...");
-                    if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
-                        Cli.TerminalHelper.ReadKey(intercept: true);
-                    }
+                    WaitForKeyPress();
                     await onboardingService.CompleteAsync().ConfigureAwait(false);
                     return;
                 } else if (!success) {
@@ -276,5 +274,10 @@ internal sealed class StartupWorkflow {
         sb.AppendLine("  //   DEEPSEEK_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY / AZURE_OPENAI_API_KEY");
         sb.Append('}');
         return sb.ToString();
+    }
+
+    private static void WaitForKeyPress() {
+        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
+            Cli.TerminalHelper.ReadKey(intercept: true);
     }
 }

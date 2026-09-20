@@ -33,7 +33,7 @@ public sealed partial class BashAstSecurityWalker {
                     result.Append(cmd[i + 1]);
                     i++;
                 } else {
-                    if (c == '"') inDouble = false;
+                    inDouble = c != '"';
                     result.Append(c == '{' ? ' ' : c);
                 }
             } else {
@@ -42,8 +42,8 @@ public sealed partial class BashAstSecurityWalker {
                     result.Append(cmd[i + 1]);
                     i++;
                 } else {
-                    if (c == '\'') inSingle = true;
-                    else if (c == '"') inDouble = true;
+                    inSingle = c == '\'';
+                    inDouble = c == '"';
                     result.Append(c);
                 }
             }

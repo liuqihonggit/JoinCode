@@ -40,12 +40,9 @@ internal sealed class ConnectionDropdownManager {
                 !string.Equals(kvp.Key, provider, StringComparison.OrdinalIgnoreCase)
                 && kvp.Value is not null
                 && kvp.Value.Contains(current, StringComparer.OrdinalIgnoreCase));
-            if (!ownedByOtherVendor) {
-                var modelProvider = configLoader.FindProviderByModelId(current);
-                if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase)) {
-                    source.Add(current);
-                }
-            }
+            var modelProvider = configLoader.FindProviderByModelId(current);
+            if (!ownedByOtherVendor && (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase)))
+                source.Add(current);
         }
         ModelOptions.Clear();
         foreach (var id in source) {

@@ -59,38 +59,11 @@ internal sealed class LspMessageRouter {
 
             if (obj.TryGetPropertyValue("id", out var idNode) && idNode is not null) {
                 if (obj.TryGetPropertyValue("method", out var methodNode) && methodNode is not null) {
-                    var id = idNode.GetValue<string>();
-                    var method = methodNode.GetValue<string>();
-                    var @params = obj.TryGetPropertyValue("params", out var p) ? p : null;
-
-                    if (_handlers.TryGetValue(method, out var entry) && entry.Request is not null) {
-                        try {
-                            var result = await entry.Request(id, @params, cancellationToken).ConfigureAwait(false);
-                            await SendResponseAsync(id, result, null, cancellationToken, sendJsonAsync).ConfigureAwait(false);
-                        } catch (Exception ex) {
-                            await SendResponseAsync(id, null, new LspJsonRpcError { Code = -32603, Message = ex.Message }, cancellationToken, sendJsonAsync).ConfigureAwait(false);
-                        }
-                    } else {
-                        await SendResponseAsync(id, null, new LspJsonRpcError { Code = -32601, Message = $"Method not found: {method}" }, cancellationToken, sendJsonAsync).ConfigureAwait(false);
-                    }
+                    await DispatchRequestAsync(obj, idNode, methodNode, cancellationToken, sendJsonAsync).ConfigureAwait(false);
                     return;
                 }
 
-                {
-                    var id = idNode.GetValue<string>();
-
-                    if (_pendingRequests.TryGetValue(id, out var tcs)) {
-                        if (obj.TryGetPropertyValue("result", out var resultNode)) {
-                            tcs.TrySetResult(resultNode);
-                        } else if (obj.TryGetPropertyValue("error", out var errorNode)) {
-                            tcs.TrySetException(new InvalidOperationException($"LSP错误: {errorNode?.ToJsonString()}"));
-                        } else {
-                            tcs.TrySetResult(null);
-                        }
-
-                        _pendingRequests.TryRemove(id, out _);
-                    }
-                }
+                await DispatchResponseAsync(obj, idNode).ConfigureAwait(false);
             } else if (obj.TryGetPropertyValue("method", out var notifMethodNode) && notifMethodNode is not null) {
                 var method = notifMethodNode.GetValue<string>();
                 var @params = obj.TryGetPropertyValue("params", out var p) ? p : null;
@@ -104,6 +77,54 @@ internal sealed class LspMessageRouter {
         } catch (Exception ex) {
             logger?.LogError(ex, "处理LSP消息失败: {Json}", json[..Math.Min(200, json.Length)]);
         }
+    }
+
+    /// <summary>
+    /// 分发 JSON-RPC 请求到已注册的请求处理器，并回写响应或错误
+    /// </summary>
+    /// <param name="obj">JSON-RPC 消息对象</param>
+    /// <param name="idNode">请求 ID 节点</param>
+    /// <param name="methodNode">方法名节点</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="sendJsonAsync">发送 JSON 字符串的回调</param>
+    private async Task DispatchRequestAsync(JsonObject obj, JsonNode idNode, JsonNode methodNode, CancellationToken cancellationToken, Func<string, CancellationToken, Task> sendJsonAsync) {
+        var id = idNode.GetValue<string>();
+        var method = methodNode.GetValue<string>();
+        var @params = obj.TryGetPropertyValue("params", out var p) ? p : null;
+
+        if (_handlers.TryGetValue(method, out var entry) && entry.Request is not null) {
+            try {
+                var result = await entry.Request(id, @params, cancellationToken).ConfigureAwait(false);
+                await SendResponseAsync(id, result, null, cancellationToken, sendJsonAsync).ConfigureAwait(false);
+            } catch (Exception ex) {
+                await SendResponseAsync(id, null, new LspJsonRpcError { Code = -32603, Message = ex.Message }, cancellationToken, sendJsonAsync).ConfigureAwait(false);
+            }
+        } else {
+            await SendResponseAsync(id, null, new LspJsonRpcError { Code = -32601, Message = $"Method not found: {method}" }, cancellationToken, sendJsonAsync).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// 分发 JSON-RPC 响应到匹配的 pending 请求，完成 TaskCompletionSource
+    /// </summary>
+    /// <param name="obj">JSON-RPC 消息对象</param>
+    /// <param name="idNode">响应 ID 节点</param>
+    private Task DispatchResponseAsync(JsonObject obj, JsonNode idNode) {
+        var id = idNode.GetValue<string>();
+
+        if (_pendingRequests.TryGetValue(id, out var tcs)) {
+            if (obj.TryGetPropertyValue("result", out var resultNode)) {
+                tcs.TrySetResult(resultNode);
+            } else if (obj.TryGetPropertyValue("error", out var errorNode)) {
+                tcs.TrySetException(new InvalidOperationException($"LSP错误: {errorNode?.ToJsonString()}"));
+            } else {
+                tcs.TrySetResult(null);
+            }
+
+            _pendingRequests.TryRemove(id, out _);
+        }
+
+        return Task.CompletedTask;
     }
 
     private static async Task SendResponseAsync(string id, JsonNode? result, LspJsonRpcError? error, CancellationToken cancellationToken, Func<string, CancellationToken, Task> sendJsonAsync) {

@@ -45,13 +45,13 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
             var existingTodo = existingNode?.Payload;
 
             if (todoInput.Status.Equals("deleted", StringComparison.OrdinalIgnoreCase)) {
-                if (existingTodo != null) {
-                    _todoDag.RemoveNode(todoId);
-                    deletedCount++;
+                if (existingTodo == null) continue;
 
-                    if (_taskRuntime != null) {
-                        pendingTasks.Add(_taskRuntime.UpdateTaskAsync(todoId, new RuntimeTaskUpdate { Status = TaskExecutionStatus.Cancelled }, cancellationToken));
-                    }
+                _todoDag.RemoveNode(todoId);
+                deletedCount++;
+
+                if (_taskRuntime != null) {
+                    pendingTasks.Add(_taskRuntime.UpdateTaskAsync(todoId, new RuntimeTaskUpdate { Status = TaskExecutionStatus.Cancelled }, cancellationToken));
                 }
 
                 continue;
@@ -72,18 +72,11 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
             if (existingTodo == null) {
                 createdCount++;
                 var addResult = _todoDag.AddNode(new DagNode<TodoItem> { Id = todoId, Payload = todo });
-                if (addResult.Success && todo.DependsOn is { Count: > 0 }) {
-                    foreach (var depId in todo.DependsOn) {
-                        if (_todoDag.Nodes.ContainsKey(depId)) {
-                            var edgeResult = _todoDag.AddEdge(new DagEdge { FromId = depId, ToId = todoId, Label = "depends-on" });
-                            if (edgeResult.CyclePath.Count > 0) {
-                                _todoDag.RemoveNode(todoId);
-                                createdCount--;
-                                deletedCount++;
-                                goto NextItem;
-                            }
-                        }
-                    }
+                if (addResult.Success && todo.DependsOn is { Count: > 0 } && HasCycleDependency(todoId, todo.DependsOn)) {
+                    _todoDag.RemoveNode(todoId);
+                    createdCount--;
+                    deletedCount++;
+                    goto NextItem;
                 }
 
                 if (_taskRuntime != null) {
@@ -100,11 +93,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
                 _todoDag.RemoveNode(todoId);
                 _todoDag.AddNode(new DagNode<TodoItem> { Id = todoId, Payload = todo });
                 if (todo.DependsOn is { Count: > 0 }) {
-                    foreach (var depId in todo.DependsOn) {
-                        if (_todoDag.Nodes.ContainsKey(depId)) {
-                            _todoDag.AddEdge(new DagEdge { FromId = depId, ToId = todoId, Label = "depends-on" });
-                        }
-                    }
+                    AddDependencyEdges(todoId, todo.DependsOn);
                 }
 
                 if (_taskRuntime != null) {
@@ -297,6 +286,28 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
     private void RecordTodoMetrics(string operation, int count) {
         _telemetryService?.RecordCount("todo.operation.count", new Dictionary<string, string> { ["operation"] = operation }, "count", "Todo operation count");
         _telemetryService?.RecordHistogram("todo.operation.items", count, new Dictionary<string, string> { ["operation"] = operation }, "items", "Todo items affected");
+    }
+
+    /// <summary>
+    /// 检查添加依赖边是否产生环（提取以扁平化嵌套）
+    /// </summary>
+    private bool HasCycleDependency(string todoId, IReadOnlyList<string> dependsOn) {
+        foreach (var depId in dependsOn) {
+            if (!_todoDag.Nodes.ContainsKey(depId)) continue;
+            var edgeResult = _todoDag.AddEdge(new DagEdge { FromId = depId, ToId = todoId, Label = "depends-on" });
+            if (edgeResult.CyclePath.Count > 0) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 添加依赖边（提取以扁平化嵌套）
+    /// </summary>
+    private void AddDependencyEdges(string todoId, IReadOnlyList<string> dependsOn) {
+        foreach (var depId in dependsOn) {
+            if (!_todoDag.Nodes.ContainsKey(depId)) continue;
+            _todoDag.AddEdge(new DagEdge { FromId = depId, ToId = todoId, Label = "depends-on" });
+        }
     }
 
     /// <summary>

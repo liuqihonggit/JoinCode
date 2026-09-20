@@ -99,22 +99,21 @@ public static class LockRegistry {
     /// 注销锁实例（Dispose 时调用）。
     /// </summary>
     internal static void Unregister(int id) {
-        if (_locks.TryRemove(id, out var info)) {
-            if (info.HoldingFlowId != 0) {
-                var acquiredAt = info.AcquiredAt;
-                var heldFor = acquiredAt.HasValue
-                    ? DateTimeOffset.UtcNow - acquiredAt.Value
-                    : TimeSpan.Zero;
-                if (heldFor > _holdTooLongThreshold) {
-                    Emit(
-                        $"[LOCK-HOLD-TOO-LONG] 锁 '{info.Name}' (#{id}) 释放时已持有 " +
-                        $"{heldFor.TotalSeconds:F1}s 超过阈值 {_holdTooLongThreshold.TotalSeconds:F1}s。" +
-                        $"持有流: {info.HoldingFlowId}");
-                }
+        if (!_locks.TryRemove(id, out var info)) return;
+        if (info.HoldingFlowId != 0) {
+            var acquiredAt = info.AcquiredAt;
+            var heldFor = acquiredAt.HasValue
+                ? DateTimeOffset.UtcNow - acquiredAt.Value
+                : TimeSpan.Zero;
+            if (heldFor > _holdTooLongThreshold) {
+                Emit(
+                    $"[LOCK-HOLD-TOO-LONG] 锁 '{info.Name}' (#{id}) 释放时已持有 " +
+                    $"{heldFor.TotalSeconds:F1}s 超过阈值 {_holdTooLongThreshold.TotalSeconds:F1}s。" +
+                    $"持有流: {info.HoldingFlowId}");
             }
-            if (IsEnabled)
-                Emit($"[LOCK-DISPOSED] 锁 '{info.Name}' (#{id}) 注销。");
         }
+        if (IsEnabled)
+            Emit($"[LOCK-DISPOSED] 锁 '{info.Name}' (#{id}) 注销。");
     }
 
     /// <summary>

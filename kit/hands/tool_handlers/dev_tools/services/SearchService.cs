@@ -405,12 +405,8 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
             // 对齐 ripgrep --type: 使用预定义的文件类型扩展名映射
             // 当 glob 和 type 同时存在时，ripgrep 是 AND 逻辑
             if (FileTypeExtensionMap.TryGetValue(fileType, out var extensions)) {
-                foreach (var ext in extensions) {
-                    if (ext.StartsWith('.'))
-                        matcher.AddInclude($"**/*{ext}");
-                    else
-                        matcher.AddInclude($"**/{ext}");
-                }
+                foreach (var ext in extensions)
+                    matcher.AddInclude(ext.StartsWith('.') ? $"**/*{ext}" : $"**/{ext}");
             } else {
                 // 未知类型，回退到简单扩展名匹配
                 matcher.AddInclude($"**/*.{fileType}");
@@ -452,10 +448,9 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                 : normalizedFile;
 
             if (matcher.Match(relativePath).HasMatches) {
-                if (needsAndFilter && typeExtensions is not null) {
-                    var ext = Path.GetExtension(filePath).TrimStart('.');
-                    if (!typeExtensions.Contains(ext))
-                        continue;
+                if (needsAndFilter && typeExtensions is not null
+                    && !typeExtensions.Contains(Path.GetExtension(filePath).TrimStart('.'))) {
+                    continue;
                 }
 
                 // 跳过二进制文件（对齐 ripgrep 自动跳过二进制文件行为）

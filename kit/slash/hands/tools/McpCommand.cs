@@ -82,27 +82,7 @@ public sealed class McpCommand : ChatCommandBase {
             if (remoteClients.Count > 0) {
                 connectedContent.AppendLine("已连接的服务器:");
                 foreach (var (clientId, client) in remoteClients) {
-                    var status = client.IsConnected ? "已连接" : "未连接";
-                    var statusColor = client.IsConnected ? TerminalColors.Success : TerminalColors.Error;
-                    var serverName = client.ServerInfo?.Name ?? clientId;
-
-                    connectedContent.AppendLine($"  {serverName}");
-                    connectedContent.AppendLine($"{statusColor}    状态: {status}{AnsiStyleEnumConstants.Reset}");
-
-                    if (client.ServerInfo is not null) {
-                        connectedContent.AppendLine($"    版本: {client.ServerInfo.Version ?? "unknown"}");
-                    }
-
-                    try {
-                        var tools = await client.ListToolsAsync(context.CancellationToken).ConfigureAwait(false);
-                        if (tools.Success && tools.GetData().Count > 0) {
-                            connectedContent.AppendLine($"    工具数: {tools.GetData().Count}");
-                        }
-                    } catch {
-                        connectedContent.AppendLine("    工具数: (无法获取)");
-                    }
-
-                    connectedContent.AppendLine();
+                    await AppendConnectedClientAsync(connectedContent, clientId, client, context.CancellationToken).ConfigureAwait(false);
                 }
             } else if (allServers.Count == 0) {
                 connectedContent.AppendLine("  当前无已配置或已连接的 MCP 服务器");
@@ -124,6 +104,33 @@ public sealed class McpCommand : ChatCommandBase {
             });
 
         await panel.ShowAsync(context.CancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 追加单个已连接客户端的信息到 StringBuilder。
+    /// </summary>
+    private static async Task AppendConnectedClientAsync(StringBuilder connectedContent, string clientId, IMcpClient client, CancellationToken ct) {
+        var status = client.IsConnected ? "已连接" : "未连接";
+        var statusColor = client.IsConnected ? TerminalColors.Success : TerminalColors.Error;
+        var serverName = client.ServerInfo?.Name ?? clientId;
+
+        connectedContent.AppendLine($"  {serverName}");
+        connectedContent.AppendLine($"{statusColor}    状态: {status}{AnsiStyleEnumConstants.Reset}");
+
+        if (client.ServerInfo is not null) {
+            connectedContent.AppendLine($"    版本: {client.ServerInfo.Version ?? "unknown"}");
+        }
+
+        try {
+            var tools = await client.ListToolsAsync(ct).ConfigureAwait(false);
+            if (tools.Success && tools.GetData().Count > 0) {
+                connectedContent.AppendLine($"    工具数: {tools.GetData().Count}");
+            }
+        } catch {
+            connectedContent.AppendLine("    工具数: (无法获取)");
+        }
+
+        connectedContent.AppendLine();
     }
 
     private static async Task ShowStatusAsync(ChatCommandContext context) {

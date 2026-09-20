@@ -54,20 +54,20 @@ internal static class InputSchemaValidationFormatter {
     private static bool TryParseUnexpectedKey(string msg, out string paramName) {
         paramName = string.Empty;
 
-        if (msg.Contains("unexpected", StringComparison.OrdinalIgnoreCase) ||
-            msg.Contains("unrecognized", StringComparison.OrdinalIgnoreCase) ||
-            msg.Contains("additional", StringComparison.OrdinalIgnoreCase)) {
-            var idx = msg.IndexOf('\'');
-            if (idx >= 0) {
-                var endIdx = msg.IndexOf('\'', idx + 1);
-                if (endIdx > idx) {
-                    paramName = msg.Substring(idx + 1, endIdx - idx - 1);
-                    return true;
-                }
-            }
+        if (!msg.Contains("unexpected", StringComparison.OrdinalIgnoreCase) &&
+            !msg.Contains("unrecognized", StringComparison.OrdinalIgnoreCase) &&
+            !msg.Contains("additional", StringComparison.OrdinalIgnoreCase)) {
+            return false;
         }
 
-        return false;
+        var idx = msg.IndexOf('\'');
+        if (idx < 0) return false;
+
+        var endIdx = msg.IndexOf('\'', idx + 1);
+        if (endIdx <= idx) return false;
+
+        paramName = msg.Substring(idx + 1, endIdx - idx - 1);
+        return true;
     }
 
     private static bool TryParseTypeMismatch(string msg, string path, out string paramName, out string expected, out string received) {
@@ -75,24 +75,24 @@ internal static class InputSchemaValidationFormatter {
         expected = string.Empty;
         received = string.Empty;
 
-        if (msg.Contains("type", StringComparison.OrdinalIgnoreCase) &&
-            (msg.Contains("expected", StringComparison.OrdinalIgnoreCase) ||
-             msg.Contains("but got", StringComparison.OrdinalIgnoreCase))) {
-            paramName = ExtractParamName(msg, path);
-
-            var expectedIdx = msg.IndexOf("expected", StringComparison.OrdinalIgnoreCase);
-            if (expectedIdx >= 0) {
-                var sub = msg[expectedIdx..];
-                var butIdx = sub.IndexOf("but", StringComparison.OrdinalIgnoreCase);
-                if (butIdx > 0) {
-                    expected = sub[..butIdx].Replace("expected", "").Trim(' ', '`');
-                    received = sub[butIdx..].Replace("but got", "").Replace("but", "").Trim(' ', '`');
-                    return true;
-                }
-            }
+        if (!msg.Contains("type", StringComparison.OrdinalIgnoreCase) ||
+            (!msg.Contains("expected", StringComparison.OrdinalIgnoreCase) &&
+             !msg.Contains("but got", StringComparison.OrdinalIgnoreCase))) {
+            return false;
         }
 
-        return false;
+        paramName = ExtractParamName(msg, path);
+
+        var expectedIdx = msg.IndexOf("expected", StringComparison.OrdinalIgnoreCase);
+        if (expectedIdx < 0) return false;
+
+        var sub = msg[expectedIdx..];
+        var butIdx = sub.IndexOf("but", StringComparison.OrdinalIgnoreCase);
+        if (butIdx <= 0) return false;
+
+        expected = sub[..butIdx].Replace("expected", "").Trim(' ', '`');
+        received = sub[butIdx..].Replace("but got", "").Replace("but", "").Trim(' ', '`');
+        return true;
     }
 
     private static string ExtractParamName(string msg, string path) {

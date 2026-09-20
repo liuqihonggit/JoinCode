@@ -122,9 +122,7 @@ public sealed class StructuredTaskMarkdownReader {
                     currentTask = currentTask with { Status = statusVal };
                 } else {
                     var resultVal = TryExtractPrefixed(line, ResultPrefixes);
-                    if (resultVal != null) {
-                        currentTask = currentTask with { Result = resultVal };
-                    }
+                    currentTask = resultVal is not null ? currentTask with { Result = resultVal } : currentTask;
                 }
             } else if (currentTask != null && line.TrimStart().Length > 2
                        && char.IsDigit(line.TrimStart()[0])
@@ -136,16 +134,7 @@ public sealed class StructuredTaskMarkdownReader {
                 var contentSpan = trimmed[(dotIdx + 1)..].TrimStart();
 
                 var excluded = contentSpan.StartsWith("~~");
-                string? exclusionReason = null;
-
-                if (excluded) {
-                    var endIdx = contentSpan[2..].IndexOf("~~".AsSpan(), StringComparison.Ordinal);
-                    if (endIdx >= 0) {
-                        endIdx += 2; // 调整切片偏移
-                        var afterStrike = contentSpan[(endIdx + 2)..].TrimStart();
-                        exclusionReason = TryExtractPrefixedSpan(afterStrike, ExclusionReasonPrefixes);
-                    }
-                }
+                var exclusionReason = TryExtractExclusionReason(contentSpan, excluded);
 
                 string desc;
                 if (excluded) {
@@ -198,6 +187,15 @@ public sealed class StructuredTaskMarkdownReader {
     private static string ExtractDescription(ReadOnlySpan<char> header) {
         var colonIdx = header.IndexOf(':');
         return colonIdx >= 0 ? header[(colonIdx + 1)..].Trim().ToString() : header.Trim().ToString();
+    }
+
+    private static string? TryExtractExclusionReason(ReadOnlySpan<char> contentSpan, bool excluded) {
+        if (!excluded) return null;
+        var endIdx = contentSpan[2..].IndexOf("~~".AsSpan(), StringComparison.Ordinal);
+        if (endIdx < 0) return null;
+        endIdx += 2;
+        var afterStrike = contentSpan[(endIdx + 2)..].TrimStart();
+        return TryExtractPrefixedSpan(afterStrike, ExclusionReasonPrefixes);
     }
 
     private static string? TryExtractPrefixedSpan(ReadOnlySpan<char> line, string[] prefixes) {

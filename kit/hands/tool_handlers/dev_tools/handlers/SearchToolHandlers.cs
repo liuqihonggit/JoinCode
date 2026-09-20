@@ -190,9 +190,7 @@ public class SearchToolHandlers : OneShotCommandGroup {
                 } else {
                     var suggestion = _fileOperationService.SuggestPathUnderCwd(fullPath);
                     var message = $"Directory does not exist: {path}. Note: Current working directory is {_fileOperationService.GetCurrentDirectory()}.";
-                    if (suggestion is not null) {
-                        message += $" Did you mean {suggestion}?";
-                    }
+                    message += suggestion is not null ? $" Did you mean {suggestion}?" : "";
                     var diag = BuildDirectoryNotFoundDiagnostic(path, message, suggestion);
                     return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
                 }
@@ -287,9 +285,7 @@ public class SearchToolHandlers : OneShotCommandGroup {
                 if (!_fileOperationService.DirectoryExists(fullPath) && !_fileOperationService.FileExists(fullPath)) {
                     var suggestion = _fileOperationService.SuggestPathUnderCwd(fullPath);
                     var message = $"Path does not exist: {path}. Note: Current working directory is {_fileOperationService.GetCurrentDirectory()}.";
-                    if (suggestion is not null) {
-                        message += $" Did you mean {suggestion}?";
-                    }
+                    message += suggestion is not null ? $" Did you mean {suggestion}?" : "";
                     var diag = BuildGrepPathNotFoundDiagnostic(path, message, suggestion);
                     return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
                 }
@@ -372,16 +368,13 @@ public class SearchToolHandlers : OneShotCommandGroup {
 
                 response.Append($"Found {occurrences} total {occurrenceWord} across {files} {fileWord}.");
 
-                if (result.AppliedLimit.HasValue || (result.AppliedOffset.HasValue && result.AppliedOffset.Value > 0)) {
-                    var paginationParts = new List<string>(2);
-                    if (result.AppliedLimit.HasValue) {
-                        paginationParts.Add($"limit: {result.AppliedLimit.Value}");
-                    }
-                    if (result.AppliedOffset.HasValue && result.AppliedOffset.Value > 0) {
-                        paginationParts.Add($"offset: {result.AppliedOffset.Value}");
-                    }
-                    response.Append($" with pagination = {string.Join(", ", paginationParts)}");
-                }
+                var countPaginationParts = new List<string>(2);
+                if (result.AppliedLimit.HasValue)
+                    countPaginationParts.Add($"limit: {result.AppliedLimit.Value}");
+                if (result.AppliedOffset.HasValue && result.AppliedOffset.Value > 0)
+                    countPaginationParts.Add($"offset: {result.AppliedOffset.Value}");
+                if (countPaginationParts.Count > 0)
+                    response.Append($" with pagination = {string.Join(", ", countPaginationParts)}");
             } else {
                 var fileWord = result.NumFiles == 1 ? "file" : "files";
                 response.Append($"Found {result.NumFiles} {fileWord}");

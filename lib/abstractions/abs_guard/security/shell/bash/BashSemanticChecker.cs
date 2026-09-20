@@ -136,12 +136,11 @@ public static class BashSemanticChecker {
             }
             if (arg.Length > 2 && arg[0] == '-' && arg[1] != '-' && !arg.Contains('[')) {
                 foreach (var flag in dangerFlags) {
-                    if (flag.Length == 2 && arg.Contains(flag[1])) {
-                        if (i + 1 < a.Length && a[i + 1].Contains('[')) {
-                            return new BashSemanticCheckResult(false,
-                                $"'{name} {flag}' (组合在 '{arg}' 中) 操作数包含数组下标",
-                                BashSecurityCheckId.SubscriptEvalFlags);
-                        }
+                    if (flag.Length == 2 && arg.Contains(flag[1]) &&
+                        i + 1 < a.Length && a[i + 1].Contains('[')) {
+                        return new BashSemanticCheckResult(false,
+                            $"'{name} {flag}' (组合在 '{arg}' 中) 操作数包含数组下标",
+                            BashSecurityCheckId.SubscriptEvalFlags);
                     }
                 }
             }
@@ -173,27 +172,26 @@ public static class BashSemanticChecker {
             var arg = a[i];
             if (skipNext) { skipNext = false; continue; }
 
-            if (arg.StartsWith('-')) {
-                if (name.Equals("read", StringComparison.OrdinalIgnoreCase)) {
-                    if (BashSecurityConstants.ReadDataFlags.Contains(arg)) {
-                        skipNext = true;
-                    } else if (arg.Length > 2 && arg[1] != '-') {
-                        for (var j = 1; j < arg.Length; j++) {
-                            if (BashSecurityConstants.ReadDataFlags.Contains($"-{arg[j]}")) {
-                                if (j == arg.Length - 1) skipNext = true;
-                                break;
-                            }
-                        }
-                    }
+            if (!arg.StartsWith('-')) {
+                if (arg.Contains('[')) {
+                    return new BashSemanticCheckResult(false,
+                        $"'{name}' 位置参数 '{arg}' 包含数组下标 — bash 会在下标中求值 $(cmd)",
+                        BashSecurityCheckId.SubscriptEvalFlags);
                 }
                 continue;
             }
 
-            if (arg.Contains('[')) {
-                return new BashSemanticCheckResult(false,
-                    $"'{name}' 位置参数 '{arg}' 包含数组下标 — bash 会在下标中求值 $(cmd)",
-                    BashSecurityCheckId.SubscriptEvalFlags);
+            if (!name.Equals("read", StringComparison.OrdinalIgnoreCase)) continue;
+            if (BashSecurityConstants.ReadDataFlags.Contains(arg)) {
+                skipNext = true;
+            } else if (arg.Length > 2 && arg[1] != '-') {
+                for (var j = 1; j < arg.Length; j++) {
+                    if (!BashSecurityConstants.ReadDataFlags.Contains($"-{arg[j]}")) continue;
+                    if (j == arg.Length - 1) skipNext = true;
+                    break;
+                }
             }
+            continue;
         }
 
         return new BashSemanticCheckResult(true);

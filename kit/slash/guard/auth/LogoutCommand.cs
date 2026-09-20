@@ -25,29 +25,8 @@ public sealed class LogoutCommand : ChatCommandBase {
         if (provider == "all") {
             // 对齐 TS: Dialog 确认框 — 登出前确认
             var confirmed = await Confirmation.ConfirmAsync("确定要登出所有服务吗？", context.CancellationToken).ConfigureAwait(false);
-            if (confirmed) {
-                // 删除 API Key 文件 — 对齐 TS removeApiKey
-                if (services.FileSystem.FileExists(AuthPath)) {
-                    services.FileSystem.DeleteFile(AuthPath);
-                }
-
-                // 清除 OAuth Token 存储 — 对齐 TS secureStorage.delete
-                if (services.TokenStorage is not null) {
-                    var providers = await services.TokenStorage.GetStoredProvidersAsync(context.CancellationToken).ConfigureAwait(false);
-                    foreach (var p in providers) {
-                        await services.TokenStorage.DeleteTokenAsync(p, context.CancellationToken).ConfigureAwait(false);
-                    }
-                }
-
-                // 清除认证相关缓存 — 对齐 TS clearAuthRelatedCaches
-                await PostLogoutRefreshAsync(context).ConfigureAwait(false);
-
-                TerminalHelper.WriteLine($"{TerminalColors.Success}已登出所有服务{AnsiStyleEnumConstants.Reset}");
-
-                // 登出后退出 — 对齐 TS gracefulShutdownSync(0, 'logout')
-                TerminalHelper.WriteLine($"{TerminalColors.Muted}登出后将退出应用...{AnsiStyleEnumConstants.Reset}");
-                return ChatCommandResult.Exit();
-            }
+            if (confirmed)
+                return await PerformLogoutAllAsync(context).ConfigureAwait(false);
         } else {
             // 清除指定 Provider 的 OAuth Token
             if (services.TokenStorage is not null && await services.TokenStorage.HasTokenAsync(provider, context.CancellationToken).ConfigureAwait(false)) {
@@ -59,39 +38,66 @@ public sealed class LogoutCommand : ChatCommandBase {
             }
 
             // 清除指定 Provider 的 API Key
+            var removed = false;
             if (services.FileSystem.FileExists(AuthPath)) {
-                var removed = false;
                 try {
-                    removed = await services.FileSystem.EditFileAsync<bool>(AuthPath, async (bytes, ct) => {
-                        var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
-                        Dictionary<string, string> authData;
-                        try {
-                            authData = RelaxedJsonSerializer.Deserialize(content, CliJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
-                        } catch {
-                            authData = new Dictionary<string, string>();
-                        }
-                        if (authData.Remove(provider)) {
-                            var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
-                            var newBytes = FileEncodingDetector.EncodeString(json, encoding);
-                            return (newBytes, true);
-                        }
-                        return (null, false);
-                    }, context.CancellationToken).ConfigureAwait(false);
+                    removed = await services.FileSystem.EditFileAsync<bool>(AuthPath, (bytes, ct) => Task.FromResult(RemoveProviderFromAuthData(bytes, provider)), context.CancellationToken).ConfigureAwait(false);
                 } catch (FileNotFoundException) {
                     removed = false;
                 }
+            }
 
-                if (removed) {
-                    TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider}{AnsiStyleEnumConstants.Reset}");
-                    await PostLogoutRefreshAsync(context).ConfigureAwait(false);
-                    return ChatCommandResult.Continue();
-                }
+            if (removed) {
+                TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider}{AnsiStyleEnumConstants.Reset}");
+                await PostLogoutRefreshAsync(context).ConfigureAwait(false);
+                return ChatCommandResult.Continue();
             }
 
             TerminalHelper.WriteLine($"未登录 {provider}");
         }
 
         return ChatCommandResult.Continue();
+    }
+
+    /// <summary>
+    /// 执行登出全部服务 — 删除 API Key、清除 OAuth Token、刷新缓存后返回 Exit
+    /// </summary>
+    private static (byte[]? NewBytes, bool Success) RemoveProviderFromAuthData(byte[] bytes, string provider) {
+        var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+        Dictionary<string, string> authData;
+        try {
+            authData = RelaxedJsonSerializer.Deserialize(content, CliJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
+        } catch {
+            authData = new Dictionary<string, string>();
+        }
+        if (!authData.Remove(provider)) return (null, false);
+        var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
+        var newBytes = FileEncodingDetector.EncodeString(json, encoding);
+        return (newBytes, true);
+    }
+
+    private static async Task<ChatCommandResult> PerformLogoutAllAsync(ChatCommandContext context) {
+        var services = context.GetCommandServices();
+
+        // 删除 API Key 文件 — 对齐 TS removeApiKey
+        if (services.FileSystem.FileExists(AuthPath))
+            services.FileSystem.DeleteFile(AuthPath);
+
+        // 清除 OAuth Token 存储 — 对齐 TS secureStorage.delete
+        if (services.TokenStorage is not null) {
+            var providers = await services.TokenStorage.GetStoredProvidersAsync(context.CancellationToken).ConfigureAwait(false);
+            foreach (var p in providers)
+                await services.TokenStorage.DeleteTokenAsync(p, context.CancellationToken).ConfigureAwait(false);
+        }
+
+        // 清除认证相关缓存 — 对齐 TS clearAuthRelatedCaches
+        await PostLogoutRefreshAsync(context).ConfigureAwait(false);
+
+        TerminalHelper.WriteLine($"{TerminalColors.Success}已登出所有服务{AnsiStyleEnumConstants.Reset}");
+
+        // 登出后退出 — 对齐 TS gracefulShutdownSync(0, 'logout')
+        TerminalHelper.WriteLine($"{TerminalColors.Muted}登出后将退出应用...{AnsiStyleEnumConstants.Reset}");
+        return ChatCommandResult.Exit();
     }
 
     /// <summary>

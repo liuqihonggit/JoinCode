@@ -521,36 +521,37 @@ public sealed class ToolPromptValidator {
         // * paramName - description
         // paramName: type - description
 
-        if (trimmed.StartsWith("-") || trimmed.StartsWith("*") || trimmed.StartsWith("•")) {
-            var content = trimmed[1..].Trim();
-            var colonIndex = content.IndexOf(':');
-            var parenIndex = content.IndexOf('(');
+        if (!trimmed.StartsWith("-") && !trimmed.StartsWith("*") && !trimmed.StartsWith("•"))
+            return null;
 
-            if (colonIndex > 0 || parenIndex > 0) {
-                var nameEnd = colonIndex > 0 && (parenIndex < 0 || colonIndex < parenIndex)
-                    ? colonIndex
-                    : parenIndex > 0 ? parenIndex : content.IndexOf(' ');
+        var content = trimmed[1..].Trim();
+        var colonIndex = content.IndexOf(':');
+        var parenIndex = content.IndexOf('(');
 
-                if (nameEnd > 0) {
-                    var name = content[..nameEnd].Trim();
-                    var rest = content[nameEnd..].Trim();
+        if (colonIndex <= 0 && parenIndex <= 0)
+            return null;
 
-                    // 提取类型
-                    string? type = null;
-                    if (rest.StartsWith("(") && rest.Contains(')')) {
-                        var typeEnd = rest.IndexOf(')');
-                        type = rest[1..typeEnd].Trim();
-                        rest = rest[(typeEnd + 1)..].Trim();
-                    }
+        var nameEnd = colonIndex > 0 && (parenIndex < 0 || colonIndex < parenIndex)
+            ? colonIndex
+            : parenIndex > 0 ? parenIndex : content.IndexOf(' ');
 
-                    // 清理描述
-                    var description = rest.TrimStart(':', '-', ' ').Trim();
+        if (nameEnd <= 0)
+            return null;
 
-                    return new ToolParameter(name, type, false, description);
-                }
-            }
+        var name = content[..nameEnd].Trim();
+        var rest = content[nameEnd..].Trim();
+
+        // 提取类型
+        string? type = null;
+        if (rest.StartsWith("(") && rest.Contains(')')) {
+            var typeEnd = rest.IndexOf(')');
+            type = rest[1..typeEnd].Trim();
+            rest = rest[(typeEnd + 1)..].Trim();
         }
 
-        return null;
+        // 清理描述
+        var description = rest.TrimStart(':', '-', ' ').Trim();
+
+        return new ToolParameter(name, type, false, description);
     }
 }

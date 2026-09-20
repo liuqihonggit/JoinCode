@@ -212,32 +212,24 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 
     /// <inheritdoc />
     public Task<string> GetTaskOutputAsync(string taskId, CancellationToken cancellationToken = default) {
-        if (_tasks.TryGetValue(taskId, out var entry)) {
-            var output = new StringBuilder();
-
-            if (entry.Context is not null) {
-                var stdout = entry.Context.GetCurrentStdout();
-                var stderr = entry.Context.GetCurrentStderr();
-
-                if (!string.IsNullOrEmpty(stdout))
-                    output.AppendLine(stdout);
-
-                if (!string.IsNullOrEmpty(stderr)) {
-                    output.AppendLine("[stderr]");
-                    output.AppendLine(stderr);
-                }
-            } else if (!string.IsNullOrEmpty(entry.Stdout)) {
-                output.AppendLine(entry.Stdout);
-                if (!string.IsNullOrEmpty(entry.Stderr)) {
-                    output.AppendLine("[stderr]");
-                    output.AppendLine(entry.Stderr);
-                }
-            }
-
-            return Task.FromResult(output.ToString());
-        }
-
+        if (_tasks.TryGetValue(taskId, out var entry))
+            return Task.FromResult(BuildTaskOutput(entry));
         return Task.FromResult(string.Empty);
+    }
+
+    private string BuildTaskOutput(SystemActuatorBackgroundTaskEntry entry) {
+        var output = new StringBuilder();
+        if (entry.Context is not null) {
+            var stdout = entry.Context.GetCurrentStdout();
+            var stderr = entry.Context.GetCurrentStderr();
+            if (!string.IsNullOrEmpty(stdout))
+                output.AppendLine(stdout);
+            AppendStderrIfPresent(output, stderr);
+        } else if (!string.IsNullOrEmpty(entry.Stdout)) {
+            output.AppendLine(entry.Stdout);
+            AppendStderrIfPresent(output, entry.Stderr);
+        }
+        return output.ToString();
     }
 
     /// <inheritdoc />
@@ -322,6 +314,14 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 
     private void RecordBackgroundTaskMetrics(string status, bool isSuccess)
         => _telemetryService?.RecordCount("systemactuator.background.count", new Dictionary<string, string> { ["status"] = status, ["success"] = isSuccess.ToString() }, description: "SystemActuator background task count");
+
+    /// <summary>将 stderr 追加到输出缓冲区(非空时追加 [stderr] 标记 + 内容)</summary>
+    private static void AppendStderrIfPresent(StringBuilder output, string? stderr) {
+        if (!string.IsNullOrEmpty(stderr)) {
+            output.AppendLine("[stderr]");
+            output.AppendLine(stderr);
+        }
+    }
 
     private static SystemActuatorBackgroundTaskInfo ToInfo(SystemActuatorBackgroundTaskEntry entry) {
         return new SystemActuatorBackgroundTaskInfo {

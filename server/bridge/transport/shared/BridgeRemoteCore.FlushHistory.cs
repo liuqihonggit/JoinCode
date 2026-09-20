@@ -50,27 +50,7 @@ public static partial class BridgeRemoteCore {
                     events.Add(BridgeMessaging.InjectSessionId(sdkMsg, sessionId));
                 }
             }
-
-            if (events.Count > 0) {
-                // 对齐 TS 端: snapshot droppedBatchCount before writeBatch
-                var dropsBefore = transport.DroppedBatchCount;
-                await transport.WriteBatchAsync(events, ct).ConfigureAwait(false);
-
-                // 对齐 TS 端: 如果批次被丢弃，不标记 UUID — 保持可重发
-                if (transport.DroppedBatchCount > dropsBefore) {
-                    return;
-                }
-
-                // 对齐 TS 端: flush 成功后标记 UUID — 防止重连时重复发送
-                if (previouslyFlushedUUIDs is not null) {
-                    foreach (var evt in events) {
-                        var uuid = BridgeMessaging.ExtractUuid(evt);
-                        if (uuid is not null) {
-                            previouslyFlushedUUIDs.Add(uuid);
-                        }
-                    }
-                }
-            }
+            await FlushEventsAsync(events).ConfigureAwait(false);
         } else {
             var events = new string[eligible.Length];
             for (var i = 0; i < eligible.Length; i++) {
@@ -86,13 +66,24 @@ public static partial class BridgeRemoteCore {
             }
 
             // 对齐 TS 端: flush 成功后标记 UUID
-            if (previouslyFlushedUUIDs is not null) {
-                foreach (var evt in events) {
-                    var uuid = BridgeMessaging.ExtractUuid(evt);
-                    if (uuid is not null) {
-                        previouslyFlushedUUIDs.Add(uuid);
-                    }
-                }
+            MarkFlushedUuids(events, previouslyFlushedUUIDs);
+        }
+
+        async Task FlushEventsAsync(List<string> events) {
+            if (events.Count == 0) return;
+            var dropsBefore = transport.DroppedBatchCount;
+            await transport.WriteBatchAsync(events, ct).ConfigureAwait(false);
+            if (transport.DroppedBatchCount > dropsBefore) return;
+            MarkFlushedUuids(events, previouslyFlushedUUIDs);
+        }
+
+        // 标记已刷新的 UUID — 防止重连时重复发送
+        static void MarkFlushedUuids(IEnumerable<string> events, HashSet<string>? flushed) {
+            if (flushed is null) return;
+            foreach (var evt in events) {
+                var uuid = BridgeMessaging.ExtractUuid(evt);
+                if (uuid is not null)
+                    flushed.Add(uuid);
             }
         }
     }

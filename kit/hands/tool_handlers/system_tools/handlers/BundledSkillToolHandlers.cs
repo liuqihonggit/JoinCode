@@ -443,13 +443,10 @@ public partial class BundledSkillToolHandlers {
             }
 
             // C# 特定建议
-            if (extension == ".cs") {
-                if (type is CodeSimplifyType.All or CodeSimplifyType.Performance) {
-                    // 检测 string concatenation in loop
-                    if (line.Contains("for") && line.Contains("+") && line.Contains("\"")) {
-                        suggestions.Add(("Performance", lineNum, "String concatenation in loop, consider using StringBuilder"));
-                    }
-                }
+            if (extension == ".cs"
+                && type is CodeSimplifyType.All or CodeSimplifyType.Performance
+                && line.Contains("for") && line.Contains("+") && line.Contains("\"")) {
+                suggestions.Add(("Performance", lineNum, "String concatenation in loop, consider using StringBuilder"));
             }
         }
 

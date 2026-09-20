@@ -26,22 +26,19 @@ public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePre
 
     /// <inheritdoc/>
     public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct) {
-        if (_lspDiagnosticProvider is not null) {
-            var pendingDiagnostics = _lspDiagnosticProvider.CheckPendingDiagnostics();
-            if (pendingDiagnostics.Count > 0) {
-                var diagnosticText = FormatLspDiagnostics(pendingDiagnostics);
-                context.LspDiagnosticText = diagnosticText;
+        if (_lspDiagnosticProvider is not null && _lspDiagnosticProvider.CheckPendingDiagnostics() is { Count: > 0 } pendingDiagnostics) {
+            var diagnosticText = FormatLspDiagnostics(pendingDiagnostics);
+            context.LspDiagnosticText = diagnosticText;
 
-                await _reminderManager.AddReminderAsync(
-                    "lsp-diagnostics",
-                    diagnosticText,
-                    priority: 60,
-                    ct: ct).ConfigureAwait(false);
+            await _reminderManager.AddReminderAsync(
+                "lsp-diagnostics",
+                diagnosticText,
+                priority: 60,
+                ct: ct).ConfigureAwait(false);
 
-                var updatedReminders = await _reminderManager.FormatAsSystemRemindersAsync().ConfigureAwait(false);
-                if (!string.IsNullOrWhiteSpace(updatedReminders)) {
-                    await _contextManager.AddDynamicSystemMessageAsync(updatedReminders, ct).ConfigureAwait(false);
-                }
+            var updatedReminders = await _reminderManager.FormatAsSystemRemindersAsync().ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(updatedReminders)) {
+                await _contextManager.AddDynamicSystemMessageAsync(updatedReminders, ct).ConfigureAwait(false);
             }
         }
 

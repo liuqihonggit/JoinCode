@@ -37,57 +37,61 @@ public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShel
     /// 优先使用 Guard 的 ICommandClassifier（AST 解析），回退到 DestructiveCommandAnalyzer（正则）
     /// </summary>
     private ToolResult? ClassifyCommand(string command, string? workingDirectory) {
-        if (_commandClassifier is not null) {
-            var shellCommand = ShellCommand.Parse(command);
-            var classification = _commandClassifier.Classify(shellCommand, workingDirectory ?? string.Empty);
+        if (_commandClassifier is null) return ClassifyWithFallbackAnalyzer(command);
 
-            if (classification.Category == CommandCategory.Destructive) {
-                var warning = new StringBuilder();
-                warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Potentially dangerous command detected");
-                warning.AppendLine();
-                if (!string.IsNullOrEmpty(classification.Details)) {
-                    warning.AppendLine(classification.Details);
-                }
-                if (classification.Risks.Count > 0) {
-                    warning.AppendLine($"Risks: {string.Join(", ", classification.Risks)}");
-                }
-                warning.AppendLine();
-                warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
+        var shellCommand = ShellCommand.Parse(command);
+        var classification = _commandClassifier.Classify(shellCommand, workingDirectory ?? string.Empty);
 
-                var diag = BuildDestructiveCommandDiagnostic(command, classification.Details, classification.Risks.Select(r => r.ToString()).ToList());
-                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        if (classification.Category == CommandCategory.Destructive) {
+            var warning = new StringBuilder();
+            warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Potentially dangerous command detected");
+            warning.AppendLine();
+            if (!string.IsNullOrEmpty(classification.Details)) {
+                warning.AppendLine(classification.Details);
             }
-
-            if (classification.Category == CommandCategory.PathViolation) {
-                var warning = new StringBuilder();
-                warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Path violation detected");
-                if (!string.IsNullOrEmpty(classification.Details)) {
-                    warning.AppendLine(classification.Details);
-                }
-                var diag = BuildPathViolationDiagnostic(command, classification.Details);
-                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            if (classification.Risks.Count > 0) {
+                warning.AppendLine($"Risks: {string.Join(", ", classification.Risks)}");
             }
+            warning.AppendLine();
+            warning.AppendLine("If you are sure you want to execute this command, re-invoke and confirm you understand the risks.");
 
-            if (classification.Category == CommandCategory.ExcessiveSearchScope) {
-                var warning = new StringBuilder();
-                warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Search scope too large — command may hang or take very long");
-                warning.AppendLine();
-                if (!string.IsNullOrEmpty(classification.Details)) {
-                    warning.AppendLine(classification.Details);
-                }
-                warning.AppendLine();
-                warning.AppendLine("Please restrict the search scope to a specific project directory.");
-                warning.AppendLine("Avoid flags like --no-ignore/-u (rg) that bypass .gitignore rules.");
-                warning.AppendLine("Avoid searching system root paths like C:\\, /, /home, etc.");
-
-                var diag = BuildExcessiveSearchScopeDiagnostic(command, classification.Details);
-                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
-            }
-
-            return null; // 安全命令
+            var diag = BuildDestructiveCommandDiagnostic(command, classification.Details, classification.Risks.Select(r => r.ToString()).ToList());
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
-        // 回退：使用 DestructiveCommandAnalyzer（正则匹配，无 AST 解析）
+        if (classification.Category == CommandCategory.PathViolation) {
+            var warning = new StringBuilder();
+            warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Path violation detected");
+            if (!string.IsNullOrEmpty(classification.Details)) {
+                warning.AppendLine(classification.Details);
+            }
+            var diag = BuildPathViolationDiagnostic(command, classification.Details);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
+
+        if (classification.Category == CommandCategory.ExcessiveSearchScope) {
+            var warning = new StringBuilder();
+            warning.AppendLine($"{StatusSymbol.Warning.ToValue()} Search scope too large — command may hang or take very long");
+            warning.AppendLine();
+            if (!string.IsNullOrEmpty(classification.Details)) {
+                warning.AppendLine(classification.Details);
+            }
+            warning.AppendLine();
+            warning.AppendLine("Please restrict the search scope to a specific project directory.");
+            warning.AppendLine("Avoid flags like --no-ignore/-u (rg) that bypass .gitignore rules.");
+            warning.AppendLine("Avoid searching system root paths like C:\\, /, /home, etc.");
+
+            var diag = BuildExcessiveSearchScopeDiagnostic(command, classification.Details);
+            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+        }
+
+        return null; // 安全命令
+    }
+
+    /// <summary>
+    /// 回退分类器：使用 DestructiveCommandAnalyzer（正则匹配，无 AST 解析）— 提取自 ClassifyCommand,消除嵌套 if
+    /// </summary>
+    private ToolResult? ClassifyWithFallbackAnalyzer(string command) {
         var dangerAnalysis = DestructiveCommandAnalyzer.Analyze(command);
         if (dangerAnalysis.IsDangerous) {
             var warning = new StringBuilder();

@@ -448,13 +448,10 @@ public static class JsonLenientCoercer {
     private static CoerceAction CoerceToDateTime(string name, Type effective, JsonElement value, JsonValueKind kind) {
         if (kind == JsonValueKind.String) {
             var s = value.GetString()?.Trim();
-            if (s is not null) {
-                if (IsNullLikeString(s))
-                    return new CoerceAction(default, true, true, null);
-
-                if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt))
-                    return new CoerceAction(JsonElementHelper.FromString(dt.ToString("o", CultureInfo.InvariantCulture)), true, false, null);
-            }
+            if (s is not null && IsNullLikeString(s))
+                return new CoerceAction(default, true, true, null);
+            if (s is not null && DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt))
+                return new CoerceAction(JsonElementHelper.FromString(dt.ToString("o", CultureInfo.InvariantCulture)), true, false, null);
         }
 
         if (kind == JsonValueKind.Number) {
@@ -481,13 +478,10 @@ public static class JsonLenientCoercer {
     private static CoerceAction CoerceToDateTimeOffset(string name, Type effective, JsonElement value, JsonValueKind kind) {
         if (kind == JsonValueKind.String) {
             var s = value.GetString()?.Trim();
-            if (s is not null) {
-                if (IsNullLikeString(s))
-                    return new CoerceAction(default, true, true, null);
-
-                if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dto))
-                    return new CoerceAction(JsonElementHelper.FromString(dto.ToString("o", CultureInfo.InvariantCulture)), true, false, null);
-            }
+            if (s is not null && IsNullLikeString(s))
+                return new CoerceAction(default, true, true, null);
+            if (s is not null && DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dto))
+                return new CoerceAction(JsonElementHelper.FromString(dto.ToString("o", CultureInfo.InvariantCulture)), true, false, null);
         }
 
         if (kind == JsonValueKind.Number) {

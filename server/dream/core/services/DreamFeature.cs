@@ -80,13 +80,8 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature {
                 sessionIds = request.SessionIds;
             } else {
                 // 2. 检查门控条件（除非强制触发）
-                if (!request.Force) {
-                    var gateResult = await CheckGatesAsync(cancellationToken).ConfigureAwait(false);
-                    if (!gateResult.IsPassed) {
-                        _logger?.LogDebug("[DreamFeature] 门控检查未通过: {Reason}", gateResult.Reason);
-                        return DreamResult.Skipped($"门控未通过: {gateResult.Reason}");
-                    }
-                }
+                var skipResult = await CheckGateSkipResultAsync(request, cancellationToken).ConfigureAwait(false);
+                if (skipResult is not null) return skipResult;
 
                 // 自动扫描会话
                 var lastConsolidationTime = DateTime.UtcNow.AddHours(-_config.MinHours).Ticks / TimeSpan.TicksPerMillisecond;
@@ -156,6 +151,20 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature {
             _logger?.LogError(ex, "[DreamFeature] 梦境整合失败");
             return DreamResult.Failure($"梦境整合失败: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 检查门控条件，返回应跳过的结果（null 表示门控通过，可继续执行）
+    /// </summary>
+    /// <param name="request">梦境请求（含 Force 标志）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>应跳过的 DreamResult（Skipped），或 null 表示门控通过</returns>
+    private async Task<DreamResult?> CheckGateSkipResultAsync(DreamRequest request, CancellationToken cancellationToken) {
+        if (request.Force) return null;
+        var gateResult = await CheckGatesAsync(cancellationToken).ConfigureAwait(false);
+        if (gateResult.IsPassed) return null;
+        _logger?.LogDebug("[DreamFeature] 门控检查未通过: {Reason}", gateResult.Reason);
+        return DreamResult.Skipped($"门控未通过: {gateResult.Reason}");
     }
 
     /// <inheritdoc />

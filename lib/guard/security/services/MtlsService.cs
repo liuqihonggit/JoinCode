@@ -112,40 +112,49 @@ public sealed partial class MtlsService : ServiceEntity, IMtlsService {
             }
 
             if (!string.IsNullOrEmpty(config.ServerCaThumbprint)) {
-                handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => {
-                    if (cert is null) return false;
-
-                    if (_caCertificateService is not null && chain is not null) {
-                        foreach (var element in chain.ChainElements) {
-                            if (element.Certificate is not null &&
-                                _caCertificateService.ValidateCertificate(element.Certificate)) {
-                                return true;
-                            }
-                        }
-
-                        _logger?.LogWarning("[MtlsService] 服务器证书验证失败: CA 证书链验证未通过");
-                        return false;
-                    }
-
-                    var elements = chain?.ChainElements;
-                    if (elements is null) return false;
-
-                    foreach (var ca in elements) {
-                        if (string.Equals(ca.Certificate?.Thumbprint, config.ServerCaThumbprint,
-                                StringComparison.OrdinalIgnoreCase)) {
-                            return true;
-                        }
-                    }
-
-                    _logger?.LogWarning("[MtlsService] 服务器证书验证失败: CA 指纹不匹配");
-                    return false;
-                };
+                var serverCaThumbprint = config.ServerCaThumbprint;
+                handler.ServerCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                    ValidateServerCertificate(cert, chain, serverCaThumbprint);
             }
         } catch (Exception ex) {
             _logger?.LogError(ex, "[MtlsService] 创建 mTLS Handler 失败");
         }
 
         return handler;
+    }
+
+    /// <summary>
+    /// 校验服务器证书 — 优先用 CA 证书服务验证链,回退到 CA 指纹匹配
+    /// </summary>
+    /// <param name="cert">服务器证书</param>
+    /// <param name="chain">证书链</param>
+    /// <param name="serverCaThumbprint">服务器 CA 指纹</param>
+    /// <returns>验证通过返回 true,否则 false</returns>
+    private bool ValidateServerCertificate(X509Certificate2? cert, X509Chain? chain, string serverCaThumbprint) {
+        if (cert is null) return false;
+
+        if (_caCertificateService is not null && chain is not null) {
+            foreach (var element in chain.ChainElements) {
+                if (element.Certificate is not null && _caCertificateService.ValidateCertificate(element.Certificate)) {
+                    return true;
+                }
+            }
+
+            _logger?.LogWarning("[MtlsService] 服务器证书验证失败: CA 证书链验证未通过");
+            return false;
+        }
+
+        var elements = chain?.ChainElements;
+        if (elements is null) return false;
+
+        foreach (var ca in elements) {
+            if (string.Equals(ca.Certificate?.Thumbprint, serverCaThumbprint, StringComparison.OrdinalIgnoreCase)) {
+                return true;
+            }
+        }
+
+        _logger?.LogWarning("[MtlsService] 服务器证书验证失败: CA 指纹不匹配");
+        return false;
     }
 
     private void RecordMtlsMetrics(string operation, bool isSuccess)

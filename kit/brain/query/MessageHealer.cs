@@ -36,11 +36,7 @@ public static class MessageHealer {
                 var nextIsToolResult = !isLast && messages[i + 1].Role == MessageRole.Tool;
 
                 if (isLast || !nextIsToolResult) {
-                    if (!string.IsNullOrWhiteSpace(msg.Content)) {
-                        result.Add(new ApiMessage(MessageRole.Assistant, msg.Content));
-                    } else {
-                        result.Add(new ApiMessage(MessageRole.Assistant, "[Tool use interrupted]"));
-                    }
+                    result.Add(new ApiMessage(MessageRole.Assistant, !string.IsNullOrWhiteSpace(msg.Content) ? msg.Content : "[Tool use interrupted]"));
 
                     foreach (var id in toolCallIds) {
                         pendingToolCallIds.Remove(id);
@@ -99,27 +95,27 @@ public static class MessageHealer {
 
         if (msg.Metadata != null && msg.Metadata.TryGetValue("AllToolCalls", out var allToolCallsObj) && allToolCallsObj.ValueKind == JsonValueKind.Array) {
             foreach (var item in allToolCallsObj.EnumerateArray()) {
-                if (item.ValueKind == JsonValueKind.Object &&
-                    item.TryGetProperty("Id", out var tcIdProp) &&
-                    tcIdProp.ValueKind == JsonValueKind.String) {
-                    var tcIdStr = tcIdProp.GetString();
-                    if (tcIdStr != null && seen.Add(tcIdStr))
-                        ids.Add(tcIdStr);
+                if (item.ValueKind != JsonValueKind.Object ||
+                    !item.TryGetProperty("Id", out var tcIdProp) ||
+                    tcIdProp.ValueKind != JsonValueKind.String) {
+                    continue;
                 }
+                var tcIdStr = tcIdProp.GetString();
+                if (tcIdStr != null && seen.Add(tcIdStr))
+                    ids.Add(tcIdStr);
             }
         }
 
-        if (msg.Metadata != null && msg.Metadata.TryGetValue("ToolCalls", out var toolCallsObj)) {
-            if (toolCallsObj.ValueKind == JsonValueKind.Array) {
-                foreach (var item in toolCallsObj.EnumerateArray()) {
-                    if (item.ValueKind == JsonValueKind.Object &&
-                        item.TryGetProperty("Id", out var tcIdProp) &&
-                        tcIdProp.ValueKind == JsonValueKind.String) {
-                        var tcIdStr = tcIdProp.GetString();
-                        if (tcIdStr != null && seen.Add(tcIdStr)) {
-                            ids.Add(tcIdStr);
-                        }
-                    }
+        if (msg.Metadata != null && msg.Metadata.TryGetValue("ToolCalls", out var toolCallsObj) && toolCallsObj.ValueKind == JsonValueKind.Array) {
+            foreach (var item in toolCallsObj.EnumerateArray()) {
+                if (item.ValueKind != JsonValueKind.Object ||
+                    !item.TryGetProperty("Id", out var tcIdProp) ||
+                    tcIdProp.ValueKind != JsonValueKind.String) {
+                    continue;
+                }
+                var tcIdStr = tcIdProp.GetString();
+                if (tcIdStr != null && seen.Add(tcIdStr)) {
+                    ids.Add(tcIdStr);
                 }
             }
         }

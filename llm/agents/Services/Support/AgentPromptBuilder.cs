@@ -79,19 +79,7 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
         }
 
         if (_subAgentContextAccessor.Current is not null && ResolvedTeammateInitService is not null) {
-            var currentCtx = _subAgentContextAccessor.Current;
-            if (!string.IsNullOrWhiteSpace(currentCtx.SessionId) && currentCtx.SessionId != global::Core.Utils.SessionIdFactory.DefaultSessionId) {
-                try {
-                    var initContext = await ResolvedTeammateInitService.BuildInitContextAsync(currentCtx.SessionId, currentCtx.AgentId, cancellationToken).ConfigureAwait(false);
-                    if (initContext is not null) {
-                        sb.AppendLine();
-                        sb.AppendLine("=== 团队上下文 ===");
-                        sb.AppendLine(initContext.BuildContextSummary());
-                    }
-                } catch (Exception ex) {
-                    _logger?.LogWarning(ex, "[AgentPromptBuilder] 构建团队上下文失败: {AgentId}", currentCtx.AgentId);
-                }
-            }
+            await AppendTeamContextAsync(sb, cancellationToken).ConfigureAwait(false);
         }
 
         if (definition?.ModelName is not null) {
@@ -108,6 +96,23 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// 追加团队上下文到提示词（提取以扁平化嵌套）
+    /// </summary>
+    private async Task AppendTeamContextAsync(StringBuilder sb, CancellationToken cancellationToken) {
+        var currentCtx = _subAgentContextAccessor.Current!;
+        if (string.IsNullOrWhiteSpace(currentCtx.SessionId) || currentCtx.SessionId == global::Core.Utils.SessionIdFactory.DefaultSessionId) return;
+        try {
+            var initContext = await ResolvedTeammateInitService!.BuildInitContextAsync(currentCtx.SessionId, currentCtx.AgentId, cancellationToken).ConfigureAwait(false);
+            if (initContext is null) return;
+            sb.AppendLine();
+            sb.AppendLine("=== 团队上下文 ===");
+            sb.AppendLine(initContext.BuildContextSummary());
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "[AgentPromptBuilder] 构建团队上下文失败: {AgentId}", currentCtx.AgentId);
+        }
     }
 
     /// <summary>

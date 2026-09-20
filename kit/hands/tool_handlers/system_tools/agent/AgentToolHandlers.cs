@@ -354,27 +354,26 @@ public partial class AgentToolHandlers {
 
         var agent = await _agentService.GetAgentAsync(agent_id, cancellationToken).ConfigureAwait(false);
 
-        if (agent == null) {
-            var dryState = TryLoadDryRunState(agent_id);
-            if (dryState is not null) {
-                var dryResponse = new System.Text.StringBuilder();
-                dryResponse.AppendLine($"Agent status: {dryState.Status}");
-                dryResponse.AppendLine($"Agent ID: {dryState.Id}");
-                dryResponse.AppendLine($"Description: {dryState.Description}");
-                dryResponse.AppendLine($"Started at: {dryState.StartedAt:yyyy-MM-dd HH:mm:ss}");
-                if (dryState.CompletedAt.HasValue)
-                    dryResponse.AppendLine($"Completed at: {dryState.CompletedAt.Value:yyyy-MM-dd HH:mm:ss}");
-                if (!string.IsNullOrEmpty(dryState.Prompt))
-                    dryResponse.AppendLine($"Prompt: {dryState.Prompt}");
-                if (!string.IsNullOrEmpty(dryState.IsolationMode))
-                    dryResponse.AppendLine($"Isolation: {dryState.IsolationMode}");
-                if (!string.IsNullOrEmpty(dryState.WorktreePath))
-                    dryResponse.AppendLine($"WorktreePath: {dryState.WorktreePath}");
-                if (!string.IsNullOrEmpty(dryState.WorktreeBranch))
-                    dryResponse.AppendLine($"WorktreeBranch: {dryState.WorktreeBranch}");
-                return ToolResultBuilder.Success().WithText(dryResponse.ToString()).Build();
-            }
+        if (agent == null && TryLoadDryRunState(agent_id) is { } dryState) {
+            var dryResponse = new System.Text.StringBuilder();
+            dryResponse.AppendLine($"Agent status: {dryState.Status}");
+            dryResponse.AppendLine($"Agent ID: {dryState.Id}");
+            dryResponse.AppendLine($"Description: {dryState.Description}");
+            dryResponse.AppendLine($"Started at: {dryState.StartedAt:yyyy-MM-dd HH:mm:ss}");
+            if (dryState.CompletedAt.HasValue)
+                dryResponse.AppendLine($"Completed at: {dryState.CompletedAt.Value:yyyy-MM-dd HH:mm:ss}");
+            if (!string.IsNullOrEmpty(dryState.Prompt))
+                dryResponse.AppendLine($"Prompt: {dryState.Prompt}");
+            if (!string.IsNullOrEmpty(dryState.IsolationMode))
+                dryResponse.AppendLine($"Isolation: {dryState.IsolationMode}");
+            if (!string.IsNullOrEmpty(dryState.WorktreePath))
+                dryResponse.AppendLine($"WorktreePath: {dryState.WorktreePath}");
+            if (!string.IsNullOrEmpty(dryState.WorktreeBranch))
+                dryResponse.AppendLine($"WorktreeBranch: {dryState.WorktreeBranch}");
+            return ToolResultBuilder.Success().WithText(dryResponse.ToString()).Build();
+        }
 
+        if (agent == null) {
             var notFoundDiag = BuildAgentNotFoundDiagnostic(agent_id);
             return ToolResultBuilder.Error()
                 .WithText(notFoundDiag.FormattedMessage)
@@ -434,14 +433,11 @@ public partial class AgentToolHandlers {
                 dryState.CompletedAt = _clock.GetUtcNow();
                 TrySaveDryRunState(dryState);
 
-                if (dryState.IsolationMode == AgentIsolationMode.Worktree.ToValue()) {
-                    return ToolResultBuilder.Success()
-                        .WithText($"Agent {agent_id} stopped (dry-run, worktree kept — use worktree_remove to clean up)")
-                        .Build();
-                }
-
+                var stopMessage = dryState.IsolationMode == AgentIsolationMode.Worktree.ToValue()
+                    ? $"Agent {agent_id} stopped (dry-run, worktree kept — use worktree_remove to clean up)"
+                    : $"Agent {agent_id} stopped (dry-run)";
                 return ToolResultBuilder.Success()
-                    .WithText($"Agent {agent_id} stopped (dry-run)")
+                    .WithText(stopMessage)
                     .Build();
             }
 

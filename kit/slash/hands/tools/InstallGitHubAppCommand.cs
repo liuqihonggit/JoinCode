@@ -135,8 +135,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
             if (parts.Length > 1) {
                 var path = parts[1].TrimStart(':', '/', '.');
                 path = path.TrimEnd('.', 'g', 'i', 't'); // 移除 .git
-                if (path.EndsWith('/')) path = path[..^1];
-                return path;
+                return path.EndsWith('/') ? path[..^1] : path;
             }
         }
 
@@ -183,23 +182,23 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
         // 非交互模式或测试环境返回 null，避免无限等待
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             return null;
-        } else {
-            TerminalHelper.WriteRaw("输入仓库名 (owner/repo): ");
-            var input = TerminalHelper.ReadLine()?.Trim();
-            if (string.IsNullOrEmpty(input)) return null;
-
-            // 支持 URL 格式提取
-            if (input.Contains("github.com")) {
-                var parts = input.Split("github.com");
-                if (parts.Length > 1) {
-                    input = parts[1].TrimStart('/', ':');
-                    input = input.TrimEnd('.', 'g', 'i', 't');
-                    if (input.EndsWith('/')) input = input[..^1];
-                }
-            }
-
-            return input;
         }
+
+        TerminalHelper.WriteRaw("输入仓库名 (owner/repo): ");
+        var input = TerminalHelper.ReadLine()?.Trim();
+        if (string.IsNullOrEmpty(input)) return null;
+
+        // 支持 URL 格式提取
+        if (input.Contains("github.com")) {
+            var parts = input.Split("github.com");
+            if (parts.Length > 1) {
+                input = parts[1].TrimStart('/', ':');
+                input = input.TrimEnd('.', 'g', 'i', 't');
+                input = input.EndsWith('/') ? input[..^1] : input;
+            }
+        }
+
+        return input;
     }
 
     /// <summary>
@@ -285,26 +284,26 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase {
     private static string ReadMaskedInput() {
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             return string.Empty;
-        } else {
-            var input = new StringBuilder();
-            while (true) {
-                var key = TerminalHelper.ReadKey(true);
-                if (key.Key == ConsoleKey.Enter) break;
-                if (key.Key == ConsoleKey.Backspace) {
-                    if (input.Length > 0) {
-                        input.Remove(input.Length - 1, 1);
-                        TerminalHelper.WriteRaw("\b \b");
-                    }
-                } else if (key.Key == ConsoleKey.Escape) {
-                    return string.Empty;
-                } else if (!char.IsControl(key.KeyChar)) {
-                    input.Append(key.KeyChar);
-                    TerminalHelper.WriteRaw('*');
-                }
-            }
-            TerminalHelper.NewLine();
-            return input.ToString();
         }
+
+        var input = new StringBuilder();
+        while (true) {
+            var key = TerminalHelper.ReadKey(true);
+            if (key.Key == ConsoleKey.Enter) break;
+            if (key.Key == ConsoleKey.Backspace) {
+                if (input.Length > 0) {
+                    input.Remove(input.Length - 1, 1);
+                    TerminalHelper.WriteRaw("\b \b");
+                }
+            } else if (key.Key == ConsoleKey.Escape) {
+                return string.Empty;
+            } else if (!char.IsControl(key.KeyChar)) {
+                input.Append(key.KeyChar);
+                TerminalHelper.WriteRaw('*');
+            }
+        }
+        TerminalHelper.NewLine();
+        return input.ToString();
     }
 
     /// <summary>

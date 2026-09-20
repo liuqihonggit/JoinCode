@@ -84,51 +84,52 @@ public sealed class IdeCommand : ChatCommandBase {
     }
 
     private static async Task HandleConnectionAsync(IIdeIntegrationService ideService, ToggleAction action) {
-        if (action == ToggleAction.On) {
-            var ides = ideService.DetectInstalledIdes();
-
-            if (ides.Count == 0) {
-                TerminalHelper.WriteLine(L.T(StringKey.IdeNoInstalled));
-                return;
-            }
-
-            // 交互模式：使用 Selector 组件
-            // 对齐 TS: RunningIDESelector — 上下键选择IDE+Enter连接+Esc取消
-            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
-                var selector = new Selector<IdeInfo>(
-                    "选择要连接的 IDE",
-                    [.. ides],
-                    ide => ide.Name,
-                    ide => ide.ExtensionInstalled ? "扩展已安装" : "扩展未安装",
-                    enableSearch: false);
-
-                var result = await selector.ShowAsync(CancellationToken.None).ConfigureAwait(false);
-
-                if (result.Cancelled || result.Selected is null) {
-                    TerminalHelper.WriteLine(L.T(StringKey.IdeCancelled));
-                    return;
-                }
-
-                var connected = await ideService.ConnectAsync(result.Selected.Type).ConfigureAwait(false);
-
-                if (connected)
-                    TerminalHelper.WriteLine(L.T(StringKey.IdeConnected, result.Selected.Name));
-                else
-                    TerminalHelper.WriteLine(L.T(StringKey.IdeConnectFailed, result.Selected.Name));
-                return;
-            }
-
-            // 非交互模式回退
-            TerminalHelper.WriteLine(L.T(StringKey.IdeDetectedList));
-            for (var i = 0; i < ides.Count; i++) {
-                TerminalHelper.WriteLine(L.T(StringKey.IdeDetectedItem, i + 1, ides[i].Name));
-            }
-            TerminalHelper.NewLine();
-            TerminalHelper.WriteLine(L.T(StringKey.IdeNonInteractive));
-        } else {
+        if (action != ToggleAction.On) {
             await ideService.DisconnectAsync().ConfigureAwait(false);
             TerminalHelper.WriteLine(L.T(StringKey.IdeDisconnected));
+            return;
         }
+
+        var ides = ideService.DetectInstalledIdes();
+
+        if (ides.Count == 0) {
+            TerminalHelper.WriteLine(L.T(StringKey.IdeNoInstalled));
+            return;
+        }
+
+        // 交互模式：使用 Selector 组件
+        // 对齐 TS: RunningIDESelector — 上下键选择IDE+Enter连接+Esc取消
+        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
+            var selector = new Selector<IdeInfo>(
+                "选择要连接的 IDE",
+                [.. ides],
+                ide => ide.Name,
+                ide => ide.ExtensionInstalled ? "扩展已安装" : "扩展未安装",
+                enableSearch: false);
+
+            var result = await selector.ShowAsync(CancellationToken.None).ConfigureAwait(false);
+
+            if (result.Cancelled || result.Selected is null) {
+                TerminalHelper.WriteLine(L.T(StringKey.IdeCancelled));
+                return;
+            }
+
+            var connected = await ideService.ConnectAsync(result.Selected.Type).ConfigureAwait(false);
+
+            if (connected)
+                TerminalHelper.WriteLine(L.T(StringKey.IdeConnected, result.Selected.Name));
+            else
+                TerminalHelper.WriteLine(L.T(StringKey.IdeConnectFailed, result.Selected.Name));
+            return;
+        }
+
+        // 非交互模式回退
+        TerminalHelper.WriteLine(L.T(StringKey.IdeDetectedList));
+        for (var i = 0; i < ides.Count; i++) {
+            TerminalHelper.WriteLine(L.T(StringKey.IdeDetectedItem, i + 1, ides[i].Name));
+        }
+        TerminalHelper.NewLine();
+        TerminalHelper.WriteLine(L.T(StringKey.IdeNonInteractive));
     }
 
     private static async Task HandleOpenAsync(IIdeIntegrationService ideService, string args) {

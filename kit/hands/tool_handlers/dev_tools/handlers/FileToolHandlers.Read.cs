@@ -69,22 +69,20 @@ public partial class FileToolHandlers {
         // 对齐 TS: readFileState dedup — 检查文件是否已读取且未修改
         // 约 18% 的 Read 调用是同文件碰撞，去重可节省 cache_creation token
         var existingState = _ctx.FileStateCache?.GetReadState(file_path);
-        if (existingState is not null && !existingState.IsPartialView && existingState.Offset.HasValue) {
-            var rangeMatch = existingState.Offset == (offset.HasValue ? offset.Value - 1 : (int?)null)
-                && existingState.Limit == limit;
-            if (rangeMatch) {
-                try {
-                    var currentMtimeMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(file_path)).ToUnixTimeMilliseconds();
-                    if (currentMtimeMs == existingState.TimestampMs) {
-                        RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
-                        return ToolResultBuilder.Success()
-                            .WithText("File unchanged since last read. The content from the earlier Read tool_result in this conversation is still current — refer to that instead of re-reading.")
-                            .Build();
-                    }
-                } catch (Exception ex) {
-                    // stat 失败（文件可能被删除），降级为完整读取
-                    _logger?.LogWarning(ex, "文件 stat 检查失败，降级为完整读取");
+        if (existingState is not null && !existingState.IsPartialView && existingState.Offset.HasValue
+            && existingState.Offset == (offset.HasValue ? offset.Value - 1 : (int?)null)
+            && existingState.Limit == limit) {
+            try {
+                var currentMtimeMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(file_path)).ToUnixTimeMilliseconds();
+                if (currentMtimeMs == existingState.TimestampMs) {
+                    RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
+                    return ToolResultBuilder.Success()
+                        .WithText("File unchanged since last read. The content from the earlier Read tool_result in this conversation is still current — refer to that instead of re-reading.")
+                        .Build();
                 }
+            } catch (Exception ex) {
+                // stat 失败（文件可能被删除），降级为完整读取
+                _logger?.LogWarning(ex, "文件 stat 检查失败，降级为完整读取");
             }
         }
 

@@ -361,9 +361,7 @@ public sealed class McpCliCommand {
                         TerminalHelper.WriteError($"  修复后: {repairResult.RepairedJson}");
                     }
                 } else {
-                    TerminalHelper.WriteError(FormatJsonError(ex, value, keyName, "JSON value 解析失败"));
-                    if (repairResult.RepairHint is not null)
-                        TerminalHelper.WriteError($"  修复提示: {repairResult.RepairHint}");
+                    ReportJsonParseFailure(ex, value, keyName, repairResult.RepairHint);
                 }
             }
         }
@@ -396,10 +394,7 @@ public sealed class McpCliCommand {
             var hasOutput = false;
             foreach (var c in result.Content) {
                 if (!string.IsNullOrEmpty(c.Text)) {
-                    if (result.IsError)
-                        TerminalHelper.WriteError(c.Text);
-                    else
-                        TerminalHelper.WriteLine(c.Text);
+                    WriteTextOrError(c.Text, result.IsError);
                     hasOutput = true;
                 } else if (!string.IsNullOrEmpty(c.Data)) {
                     // 图片内容: 输出摘要信息(base64 太长不直接输出到控制台)
@@ -409,13 +404,8 @@ public sealed class McpCliCommand {
                     hasOutput = true;
                 }
             }
-            if (!hasOutput) {
-                var fallback = "(无文本输出)";
-                if (result.IsError)
-                    TerminalHelper.WriteError(fallback);
-                else
-                    TerminalHelper.WriteLine(fallback);
-            }
+            if (!hasOutput)
+                WriteTextOrError("(无文本输出)", result.IsError);
         }
         return result.IsError ? 1 : 0;
     }
@@ -446,5 +436,18 @@ public sealed class McpCliCommand {
                 break;
             }
         }
+    }
+
+    private static void ReportJsonParseFailure(System.Text.Json.JsonException ex, string value, string keyName, string? repairHint) {
+        TerminalHelper.WriteError(FormatJsonError(ex, value, keyName, "JSON value 解析失败"));
+        if (repairHint is not null)
+            TerminalHelper.WriteError($"  修复提示: {repairHint}");
+    }
+
+    private static void WriteTextOrError(string text, bool isError) {
+        if (isError)
+            TerminalHelper.WriteError(text);
+        else
+            TerminalHelper.WriteLine(text);
     }
 }

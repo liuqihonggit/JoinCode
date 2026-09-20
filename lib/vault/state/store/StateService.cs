@@ -109,15 +109,14 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
                 if (!string.IsNullOrEmpty(content) && seenContent.Contains(content)) {
                     var replaced = false;
                     for (var i = 0; i < chatHistory.Count; i++) {
-                        if ((chatHistory[i].Content ?? string.Empty) == content) {
-                            var existingPriority = rolePriority.GetValueOrDefault(chatHistory[i].Role, 0);
-                            var newPriority = rolePriority.GetValueOrDefault(role, 0);
-                            if (newPriority > existingPriority) {
-                                chatHistory[i] = new ApiMessage(role, content, metadata);
-                                replaced = true;
-                            }
-                            break;
+                        if ((chatHistory[i].Content ?? string.Empty) != content) continue;
+                        var existingPriority = rolePriority.GetValueOrDefault(chatHistory[i].Role, 0);
+                        var newPriority = rolePriority.GetValueOrDefault(role, 0);
+                        if (newPriority > existingPriority) {
+                            chatHistory[i] = new ApiMessage(role, content, metadata);
+                            replaced = true;
                         }
+                        break;
                     }
                     if (!isToolMessage || replaced)
                         continue;

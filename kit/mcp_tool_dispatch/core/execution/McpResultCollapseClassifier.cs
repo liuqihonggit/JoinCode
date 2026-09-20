@@ -281,19 +281,16 @@ public static class McpResultCollapseClassifier {
 
         // 手动遍历行，避免 Split 分配
         for (var i = 0; i <= textSpan.Length && lineCount < 3; i++) {
-            if (i == textSpan.Length || textSpan[i] == '\n') {
-                var lineSpan = textSpan.Slice(start, i - start).Trim();
+            if (i != textSpan.Length && textSpan[i] != '\n') continue;
 
-                if (!lineSpan.IsEmpty) {
-                    if (builder.Length > 0) {
-                        builder.Append(' ');
-                    }
-                    builder.Append(lineSpan);
-                    lineCount++;
-                }
+            var lineSpan = textSpan.Slice(start, i - start).Trim();
+            start = i + 1;
 
-                start = i + 1;
-            }
+            if (lineSpan.IsEmpty) continue;
+
+            if (builder.Length > 0) builder.Append(' ');
+            builder.Append(lineSpan);
+            lineCount++;
         }
 
         if (builder.Length > maxLength) {

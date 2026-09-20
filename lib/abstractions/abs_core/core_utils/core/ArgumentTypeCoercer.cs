@@ -123,24 +123,24 @@ internal static class ArgumentTypeCoercer {
     }
 
     private static (JsonElement Converted, bool WasConverted) TryConvertToArray(JsonElement value) {
-        if (value.ValueKind == JsonValueKind.String) {
-            var str = value.GetString()!;
-            if (str.StartsWith('[')) {
-                try {
-                    var arr = JsonDocument.Parse(str);
-                    if (arr.RootElement.ValueKind == JsonValueKind.Array)
-                        return (arr.RootElement.Clone(), true);
-                } catch (JsonException) {
-                    System.Diagnostics.Debug.WriteLine($"ArgumentTypeCoercer: failed to parse string as JSON array");
-                }
-            } else if (str.StartsWith('{')) {
-                try {
-                    var obj = JsonDocument.Parse(str);
-                    if (obj.RootElement.ValueKind == JsonValueKind.Object)
-                        return (JsonDocument.Parse($"[{str}]").RootElement.Clone(), true);
-                } catch (JsonException) {
-                    System.Diagnostics.Debug.WriteLine($"ArgumentTypeCoercer: failed to parse string as JSON object for array wrap");
-                }
+        if (value.ValueKind != JsonValueKind.String) return (value, false);
+
+        var str = value.GetString()!;
+        if (str.StartsWith('[')) {
+            try {
+                var arr = JsonDocument.Parse(str);
+                if (arr.RootElement.ValueKind == JsonValueKind.Array)
+                    return (arr.RootElement.Clone(), true);
+            } catch (JsonException) {
+                System.Diagnostics.Debug.WriteLine($"ArgumentTypeCoercer: failed to parse string as JSON array");
+            }
+        } else if (str.StartsWith('{')) {
+            try {
+                var obj = JsonDocument.Parse(str);
+                if (obj.RootElement.ValueKind == JsonValueKind.Object)
+                    return (JsonDocument.Parse($"[{str}]").RootElement.Clone(), true);
+            } catch (JsonException) {
+                System.Diagnostics.Debug.WriteLine($"ArgumentTypeCoercer: failed to parse string as JSON object for array wrap");
             }
         }
 

@@ -62,43 +62,41 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
 
     /// <inheritdoc />
     public void CompleteExecution(string executionId, bool success, string? resultSummary = null, string? errorMessage = null) {
-        if (_executions.TryGetValue(executionId, out var summary)) {
-            var completedAt = _clock.GetUtcNow();
-            var status = success ? TaskExecutionStatus.Completed :
-                        errorMessage != null ? TaskExecutionStatus.Failed :
-                        TaskExecutionStatus.Cancelled;
+        if (!_executions.TryGetValue(executionId, out var summary)) return;
 
-            _executions[executionId] = summary with {
-                Status = status,
-                ResultSummary = resultSummary ?? summary.ResultSummary,
-                ErrorMessage = errorMessage,
-                LastUpdatedAt = completedAt,
-                Metrics = summary.Metrics with {
-                    CompletedAt = completedAt
-                }
-            };
+        var completedAt = _clock.GetUtcNow();
+        var status = success ? TaskExecutionStatus.Completed :
+                    errorMessage != null ? TaskExecutionStatus.Failed :
+                    TaskExecutionStatus.Cancelled;
 
-            if (_metrics.TryGetValue(summary.AgentName, out var accumulator)) {
-                accumulator.TotalExecutions++;
-                if (success) accumulator.SuccessfulExecutions++;
-                else accumulator.FailedExecutions++;
-                accumulator.LastExecutionAt = completedAt;
-
-                if (summary.Metrics.Duration.HasValue) {
-                    accumulator.TotalExecutionTime += summary.Metrics.Duration.Value;
-                }
-
-                accumulator.TotalToolCalls += summary.Metrics.ToolCallsCount;
+        _executions[executionId] = summary with {
+            Status = status,
+            ResultSummary = resultSummary ?? summary.ResultSummary,
+            ErrorMessage = errorMessage,
+            LastUpdatedAt = completedAt,
+            Metrics = summary.Metrics with {
+                CompletedAt = completedAt
             }
+        };
 
-            _logger?.LogInformation(
-                "执行完成 {ExecutionId}: {Status}, 持续时间: {Duration}",
-                executionId,
-                status,
-                summary.Metrics.Duration);
+        if (_metrics.TryGetValue(summary.AgentName, out var accumulator)) {
+            accumulator.TotalExecutions++;
+            if (success) accumulator.SuccessfulExecutions++;
+            else accumulator.FailedExecutions++;
+            accumulator.LastExecutionAt = completedAt;
 
-            RecordAgentCompletionMetrics(summary.AgentName, status, summary.Metrics.Duration);
+            accumulator.TotalExecutionTime += summary.Metrics.Duration.GetValueOrDefault();
+
+            accumulator.TotalToolCalls += summary.Metrics.ToolCallsCount;
         }
+
+        _logger?.LogInformation(
+            "执行完成 {ExecutionId}: {Status}, 持续时间: {Duration}",
+            executionId,
+            status,
+            summary.Metrics.Duration);
+
+        RecordAgentCompletionMetrics(summary.AgentName, status, summary.Metrics.Duration);
     }
 
     /// <inheritdoc />

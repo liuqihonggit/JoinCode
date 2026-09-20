@@ -324,42 +324,7 @@ public abstract class McpClientBase : IMcpClient {
         try {
             if (progressToken.HasValue && onProgress is not null) {
                 var token = progressToken.Value;
-                progressHandler = (_, args) => {
-                    if (args.Method == McpMethod.NotificationProgress.ToValue() && args.Params.HasValue) {
-                        try {
-                            var progressParams = args.Params.Value;
-                            double? progress = null;
-                            double? total = null;
-                            string? message = null;
-
-                            if (progressParams.TryGetProperty("progressToken", out var tokenEl) && tokenEl.ValueKind == JsonValueKind.Number && tokenEl.GetInt32() != token) {
-                                return;
-                            }
-
-                            if (progressParams.TryGetProperty("progress", out var progressEl) && progressEl.ValueKind == JsonValueKind.Number) {
-                                progress = progressEl.GetDouble();
-                            }
-
-                            if (progressParams.TryGetProperty("total", out var totalEl) && totalEl.ValueKind == JsonValueKind.Number) {
-                                total = totalEl.GetDouble();
-                            }
-
-                            if (progressParams.TryGetProperty("message", out var msgEl) && msgEl.ValueKind == JsonValueKind.String) {
-                                message = msgEl.GetString();
-                            }
-
-                            onProgress(new McpToolProgress {
-                                Type = "mcp_progress",
-                                Status = McpProgressStatusEnumConstants.Progress,
-                                Progress = progress,
-                                Total = total,
-                                ProgressMessage = message
-                            });
-                        } catch (Exception ex) {
-                            _logger?.LogWarning(ex, "解析进度通知失败");
-                        }
-                    }
-                };
+                progressHandler = (_, args) => TryDispatchProgressNotification(args, token, onProgress);
 
                 NotificationReceived += progressHandler;
             }
@@ -396,6 +361,47 @@ public abstract class McpClientBase : IMcpClient {
             if (progressHandler is not null) {
                 NotificationReceived -= progressHandler;
             }
+        }
+    }
+
+    /// <summary>
+    /// 解析并分发 MCP 进度通知 — 从 NotificationProgress 通知中提取 progress/total/message 并回调 onProgress
+    /// </summary>
+    private void TryDispatchProgressNotification(McpNotificationReceivedEventArgs args, int token, McpProgressCallback onProgress) {
+        if (args.Method != McpMethod.NotificationProgress.ToValue() || !args.Params.HasValue) {
+            return;
+        }
+        try {
+            var progressParams = args.Params.Value;
+            double? progress = null;
+            double? total = null;
+            string? message = null;
+
+            if (progressParams.TryGetProperty("progressToken", out var tokenEl) && tokenEl.ValueKind == JsonValueKind.Number && tokenEl.GetInt32() != token) {
+                return;
+            }
+
+            if (progressParams.TryGetProperty("progress", out var progressEl) && progressEl.ValueKind == JsonValueKind.Number) {
+                progress = progressEl.GetDouble();
+            }
+
+            if (progressParams.TryGetProperty("total", out var totalEl) && totalEl.ValueKind == JsonValueKind.Number) {
+                total = totalEl.GetDouble();
+            }
+
+            if (progressParams.TryGetProperty("message", out var msgEl) && msgEl.ValueKind == JsonValueKind.String) {
+                message = msgEl.GetString();
+            }
+
+            onProgress(new McpToolProgress {
+                Type = "mcp_progress",
+                Status = McpProgressStatusEnumConstants.Progress,
+                Progress = progress,
+                Total = total,
+                ProgressMessage = message
+            });
+        } catch (Exception ex) {
+            _logger?.LogWarning(ex, "解析进度通知失败");
         }
     }
 

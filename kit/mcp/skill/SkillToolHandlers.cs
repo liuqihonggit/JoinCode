@@ -366,23 +366,30 @@ public class SkillToolHandlers {
                 promptBuilder.AppendLine();
                 promptBuilder.AppendLine("## Instructions");
                 foreach (var step in skillDef.Steps) {
-                    if (!string.IsNullOrWhiteSpace(step.Prompt)) {
-                        var substitutedPrompt = _argumentSubstitutor.Substitute(
-                            step.Prompt, args,
-                            skillDirectory: skillDef.SourcePath is not null
-                                ? System.IO.Path.GetDirectoryName(skillDef.SourcePath)
-                                : null,
-                            sessionId: null,
-                            appendIfNoPlaceholder: false);
-                        promptBuilder.AppendLine(substitutedPrompt);
-                    } else if (!string.IsNullOrWhiteSpace(step.Description)) {
-                        promptBuilder.AppendLine($"- {step.Description}");
-                    }
+                    AppendStepPrompt(promptBuilder, skillDef, step, args);
                 }
             }
         }
 
         return promptBuilder.ToString();
+    }
+
+    /// <summary>
+    /// 追加单个步骤的 prompt 内容到 promptBuilder — 优先用 Prompt(变量替换),fallback 用 Description
+    /// </summary>
+    private void AppendStepPrompt(StringBuilder promptBuilder, SkillDefinition skillDef, SkillStep step, string? args) {
+        if (!string.IsNullOrWhiteSpace(step.Prompt)) {
+            var substitutedPrompt = _argumentSubstitutor.Substitute(
+                step.Prompt, args,
+                skillDirectory: skillDef.SourcePath is not null
+                    ? System.IO.Path.GetDirectoryName(skillDef.SourcePath)
+                    : null,
+                sessionId: null,
+                appendIfNoPlaceholder: false);
+            promptBuilder.AppendLine(substitutedPrompt);
+        } else if (!string.IsNullOrWhiteSpace(step.Description)) {
+            promptBuilder.AppendLine($"- {step.Description}");
+        }
     }
 
     /// <summary>

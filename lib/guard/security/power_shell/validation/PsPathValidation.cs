@@ -136,9 +136,9 @@ public static partial class PsPathValidation {
         // 1. 反引号 — PS 转义字符，无法静态验证
         if (path.Contains('`')) {
             var stripped = StripBackticks(path);
-            if (!string.IsNullOrEmpty(stripped)) {
-                var denyResult = CheckDenyRuleForGuessedPath(stripped, denyDirectories, workingDirectory);
-                if (denyResult is not null) return denyResult;
+            if (!string.IsNullOrEmpty(stripped)
+                && CheckDenyRuleForGuessedPath(stripped, denyDirectories, workingDirectory) is { } denyResult) {
+                return denyResult;
             }
             return PsSecurityResult.Ask($"Path contains backtick escape characters that cannot be statically validated: {path}");
         }
@@ -146,9 +146,9 @@ public static partial class PsPathValidation {
         // 2. :: 提供程序路径 — FileSystem::/etc/passwd 等
         if (path.Contains("::")) {
             var afterProvider = ExtractAfterProvider(path);
-            if (!string.IsNullOrEmpty(afterProvider)) {
-                var denyResult = CheckDenyRuleForGuessedPath(afterProvider, denyDirectories, workingDirectory);
-                if (denyResult is not null) return denyResult;
+            if (!string.IsNullOrEmpty(afterProvider)
+                && CheckDenyRuleForGuessedPath(afterProvider, denyDirectories, workingDirectory) is { } providerDenyResult) {
+                return providerDenyResult;
             }
             return PsSecurityResult.Ask($"Path uses provider-qualified syntax which cannot be fully validated: {path}");
         }

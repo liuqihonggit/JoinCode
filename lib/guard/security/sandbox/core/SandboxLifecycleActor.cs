@@ -168,11 +168,10 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
     private (ISandboxProvider Provider, bool FallbackUsed) ResolveProviderWithFallback(SandboxType type) {
         if (type == SandboxType.None) {
             var envType = Environment.GetEnvironmentVariable(JccEnvVar.SandboxMode.ToValue());
-            if (!string.IsNullOrEmpty(envType)) {
-                var parsed = SandboxTypeExtensions.FromValue(envType);
-                if (parsed is not null && parsed.Value != SandboxType.None) {
-                    type = parsed.Value;
-                }
+            if (!string.IsNullOrEmpty(envType) &&
+                SandboxTypeExtensions.FromValue(envType) is { } parsed &&
+                parsed != SandboxType.None) {
+                type = parsed;
             }
 
             if (type == SandboxType.None) {

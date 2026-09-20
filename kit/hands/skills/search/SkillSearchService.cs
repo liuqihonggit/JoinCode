@@ -189,9 +189,7 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
 
             if (query.FuzzyMatch && score == 0) {
                 var fuzzyScore = CalculateFuzzyScore(skill.Name, keyword);
-                if (fuzzyScore > 0.5) {
-                    score += fuzzyScore * 0.4;
-                }
+                score += fuzzyScore > 0.5 ? fuzzyScore * 0.4 : 0;
             }
         }
 

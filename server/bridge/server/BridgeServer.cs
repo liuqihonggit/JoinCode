@@ -194,18 +194,16 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable {
             _logger?.LogInformation("[BridgeServer] 客户端 {ClientId} 已连接", clientId);
 
             // Verify JWT token if available
-            if (_jwtService != null) {
-                var token = context.Request.Headers["Authorization"]?.Replace("Bearer ", "");
-                if (!string.IsNullOrEmpty(token)) {
-                    var validationResult = _jwtService.ValidateToken(token);
-                    if (!validationResult.IsValid) {
-                        _logger?.LogWarning("[BridgeServer] 客户端 JWT 验证失败: {Error}", validationResult.Error);
-                        await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Authentication failed", cancellationToken).ConfigureAwait(false);
-                        return;
-                    }
-                    clientId = validationResult.Payload?.Sub ?? clientId;
-                    _logger?.LogInformation("[BridgeServer] 客户端 JWT 验证通过: {ClientId}", clientId);
+            var token = _jwtService is null ? null : context.Request.Headers["Authorization"]?.Replace("Bearer ", "");
+            if (!string.IsNullOrEmpty(token)) {
+                var validationResult = _jwtService!.ValidateToken(token);
+                if (!validationResult.IsValid) {
+                    _logger?.LogWarning("[BridgeServer] 客户端 JWT 验证失败: {Error}", validationResult.Error);
+                    await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Authentication failed", cancellationToken).ConfigureAwait(false);
+                    return;
                 }
+                clientId = validationResult.Payload?.Sub ?? clientId;
+                _logger?.LogInformation("[BridgeServer] 客户端 JWT 验证通过: {ClientId}", clientId);
             }
 
             // Check device trust if available

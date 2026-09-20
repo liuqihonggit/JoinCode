@@ -154,22 +154,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable {
         if (_httpProxyService != null && _httpProxyService.IsProxyConfigured) {
             var proxyHandler = _httpProxyService.CreateProxyHandler();
             if (handler is HttpClientHandler mtlsHandler) {
-                var proxySettings = _httpProxyService.GetCurrentProxySettings();
-                if (!string.IsNullOrEmpty(proxySettings.ProxyUrl)) {
-                    var proxyUri = new Uri(proxySettings.ProxyUrl);
-                    var proxy = new WebProxy(proxyUri);
-                    if (!string.IsNullOrEmpty(proxySettings.ProxyUsername)) {
-                        proxy.Credentials = new System.Net.NetworkCredential(
-                            proxySettings.ProxyUsername, proxySettings.ProxyPassword ?? string.Empty);
-                    } else if (proxySettings.UseDefaultCredentials) {
-                        proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
-                    }
-                    if (proxySettings.BypassHosts is { Count: > 0 }) {
-                        proxy.BypassList = proxySettings.BypassHosts.ToArray();
-                    }
-                    mtlsHandler.Proxy = proxy;
-                    mtlsHandler.UseProxy = true;
-                }
+                ConfigureProxyOnMtlsHandler(mtlsHandler, _httpProxyService);
             } else {
                 handler = proxyHandler;
             }
@@ -187,6 +172,28 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable {
         }
 
         return client;
+    }
+
+    /// <summary>
+    /// 在 mTLS handler 上配置代理 — 提取自 BuildHttpClient,消除嵌套 if
+    /// </summary>
+    private void ConfigureProxyOnMtlsHandler(HttpClientHandler mtlsHandler, IHttpProxyService proxyService) {
+        var proxySettings = proxyService.GetCurrentProxySettings();
+        if (string.IsNullOrEmpty(proxySettings.ProxyUrl)) return;
+
+        var proxyUri = new Uri(proxySettings.ProxyUrl);
+        var proxy = new WebProxy(proxyUri);
+        if (!string.IsNullOrEmpty(proxySettings.ProxyUsername)) {
+            proxy.Credentials = new System.Net.NetworkCredential(
+                proxySettings.ProxyUsername, proxySettings.ProxyPassword ?? string.Empty);
+        } else if (proxySettings.UseDefaultCredentials) {
+            proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
+        }
+        if (proxySettings.BypassHosts is { Count: > 0 }) {
+            proxy.BypassList = proxySettings.BypassHosts.ToArray();
+        }
+        mtlsHandler.Proxy = proxy;
+        mtlsHandler.UseProxy = true;
     }
 
     /// <summary>

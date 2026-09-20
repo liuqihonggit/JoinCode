@@ -35,12 +35,9 @@ public static class SedEditParser {
 
             if (token is "-i" or "--in-place") {
                 hasInPlaceFlag = true;
-                // macOS 备份后缀: -i '' 或 -i.bak
-                if (i + 1 < tokens.Count) {
-                    var next = tokens[i + 1];
-                    if (string.IsNullOrEmpty(next) || next.StartsWith('.')) {
-                        i++; // 跳过备份后缀参数
-                    }
+                // macOS 备份后缀: -i '' 或 -i.bak — 合并条件消除嵌套 if
+                if (i + 1 < tokens.Count && (string.IsNullOrEmpty(tokens[i + 1]) || tokens[i + 1].StartsWith('.'))) {
+                    i++; // 跳过备份后缀参数
                 }
             } else if (token.StartsWith("-i.") || token.StartsWith("--in-place=")) {
                 hasInPlaceFlag = true;

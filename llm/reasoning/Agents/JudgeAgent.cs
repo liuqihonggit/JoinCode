@@ -77,12 +77,9 @@ public sealed class JudgeAgent : ReasoningAgent {
 
             var (llmResponse, usage, promptTokens) = await CallLlmAsync(userPrompt, temperature: context.Options.JudgeTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
             if (llmResponse is not null) {
-                foreach (var v in ParseVerdictsFromLlmResponse(llmResponse, pending)) {
-                    var existing = action.Verdicts.FirstOrDefault(x => x.ClaimId == v.ClaimId);
-                    if (existing is null) {
-                        action.Verdicts.Add(v);
-                    }
-                }
+                foreach (var v in ParseVerdictsFromLlmResponse(llmResponse, pending)
+                    .Where(v => action.Verdicts.All(x => x.ClaimId != v.ClaimId)))
+                    action.Verdicts.Add(v);
             }
 
             if (usage is not null) {

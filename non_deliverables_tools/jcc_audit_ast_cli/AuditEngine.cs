@@ -290,11 +290,7 @@ public sealed class AuditEngine {
 
                 var fullPath = Path.GetFullPath(projectPath);
                 if (loadedPaths.Contains(fullPath)) {
-                    var existing = workspace.CurrentSolution.Projects
-                        .FirstOrDefault(p => p.FilePath is not null &&
-                            string.Equals(Path.GetFullPath(p.FilePath), fullPath, StringComparison.OrdinalIgnoreCase));
-                    if (existing is not null)
-                        projects.Add(existing);
+                    AddLoadedProjectIfExists(workspace, fullPath, projects);
                     continue;
                 }
 
@@ -367,6 +363,18 @@ public sealed class AuditEngine {
             TotalFatCtors = allFatCtors.Count,
             Constructors = allFatCtors.OrderByDescending(c => c.ParameterCount).ToList(),
         };
+    }
+
+    /// <summary>
+    /// 从已加载的工作区中查找并复用匹配的项目（按文件路径全路径比较）。
+    /// 若找到匹配项目则加入结果列表，否则跳过。
+    /// </summary>
+    private static void AddLoadedProjectIfExists(MSBuildWorkspace workspace, string fullPath, List<Project> projects) {
+        var existing = workspace.CurrentSolution.Projects
+            .FirstOrDefault(p => p.FilePath is not null &&
+                string.Equals(Path.GetFullPath(p.FilePath), fullPath, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
+            projects.Add(existing);
     }
 
     /// <summary>

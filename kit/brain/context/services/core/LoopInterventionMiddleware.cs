@@ -162,13 +162,13 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
                 _logger?.LogInformation("[LoopInterventionMiddleware] 重连成功，循环已打破(温度={T})", temperature);
                 retrySucceeded = true;
 
-                if (iterState.ToolCallName is null) {
-                    var aiResponse = iterState.FullResponse.ToString();
-                    if (!string.IsNullOrEmpty(aiResponse)) {
-                        await _contextManager.AddAssistantMessageAsync(aiResponse, ct).ConfigureAwait(false);
-                    }
+                if (iterState.ToolCallName is not null) {
+                    yield break;
                 }
-
+                var aiResponse = iterState.FullResponse.ToString();
+                if (!string.IsNullOrEmpty(aiResponse)) {
+                    await _contextManager.AddAssistantMessageAsync(aiResponse, ct).ConfigureAwait(false);
+                }
                 yield break;
             }
         }

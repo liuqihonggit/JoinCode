@@ -226,12 +226,10 @@ public sealed class BridgeMainCommand {
                 var token = await _tokenStorage
                     .LoadTokenAsync(TokenProviderAnthropic, ct)
                     .ConfigureAwait(false);
-                if (token is not null) {
-                    if (!token.IsExpired) {
-                        return token.AccessToken;
-                    }
+                if (token is not null && !token.IsExpired)
+                    return token.AccessToken;
+                if (token is not null)
                     _logger?.LogDebug("OAuth Token 已过期，回退到环境变量。");
-                }
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "加载 OAuth Token 失败，回退到环境变量。");
             }

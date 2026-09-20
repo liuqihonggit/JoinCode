@@ -212,11 +212,11 @@ internal static class RgEngine {
             var seen = new HashSet<int>();
             var matches = regex.Matches(content);
             foreach (Match m in matches) {
-                if (m.Success) {
-                    var lineIdx = LineSpanIndexer.FindLineIndex(lineRanges, m.Index);
-                    if (lineIdx >= 0 && seen.Add(lineIdx))
-                        matchedLines.Add(lineIdx);
-                }
+                if (!m.Success)
+                    continue;
+                var lineIdx = LineSpanIndexer.FindLineIndex(lineRanges, m.Index);
+                if (lineIdx >= 0 && seen.Add(lineIdx))
+                    matchedLines.Add(lineIdx);
             }
         } else {
             for (var i = 0; i < lineRanges.Count; i++) {

@@ -100,21 +100,10 @@ public sealed partial class InputBarView : UserControl {
             var shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
             var sendPressed = vm.EnterSends ? !shift : ctrl;
 
-            if (sendPressed) {
-                if (!vm.IsBusy) {
-                    e.Handled = true;
-                    // 用户发送消息取消空闲倒计时 — 主动接管，立即恢复子代理
-                    vm.StopIdleTimer();
-                    vm.SendCommand.Execute(null);
-                }
-            } else {
-                e.Handled = true;
-                if (sender is TextBox textBox) {
-                    var caret = textBox.CaretIndex;
-                    vm.InputText = textBox.Text!.Insert(caret, "\n");
-                    textBox.CaretIndex = caret + 1;
-                }
-            }
+            if (sendPressed)
+                HandleEnterSend(e, vm);
+            else
+                HandleEnterNewLine(e, vm, sender);
         } else if (e.Key == Key.Up && !vm.IsSlashPopupOpen) {
             e.Handled = true;
             vm.NavigateHistoryCommand.Execute(-1);
@@ -123,6 +112,24 @@ public sealed partial class InputBarView : UserControl {
             vm.NavigateHistoryCommand.Execute(1);
         } else if (e.Key == Key.Left || e.Key == Key.Right) {
             StartSlashDebounce();
+        }
+    }
+
+    private static void HandleEnterSend(KeyEventArgs e, MainViewModel vm) {
+        if (vm.IsBusy)
+            return;
+        e.Handled = true;
+        // 用户发送消息取消空闲倒计时 — 主动接管，立即恢复子代理
+        vm.StopIdleTimer();
+        vm.SendCommand.Execute(null);
+    }
+
+    private static void HandleEnterNewLine(KeyEventArgs e, MainViewModel vm, object? sender) {
+        e.Handled = true;
+        if (sender is TextBox textBox) {
+            var caret = textBox.CaretIndex;
+            vm.InputText = textBox.Text!.Insert(caret, "\n");
+            textBox.CaretIndex = caret + 1;
         }
     }
 

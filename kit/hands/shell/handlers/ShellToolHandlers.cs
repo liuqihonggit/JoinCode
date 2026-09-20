@@ -80,35 +80,31 @@ public partial class ShellToolHandlers : ShellToolBase {
 
             var result = context.Result ?? ToolResultBuilder.PipelineNoResult();
 
-            if (ShellPathRetryHelper.IsPathError(result)) {
-                var normalizedCommand = ShellPathRetryHelper.TryNormalizeCommand(command, toForwardSlash: true);
-                if (normalizedCommand is not null) {
-                    var retryContext = new ShellPipelineContext {
-                        Command = normalizedCommand,
-                        Provider = actuator,
-                        Description = description,
-                        Timeout = timeout,
-                        TimeoutPolicy = TimeoutPolicy,
-                        WorkingDirectory = workDir,
-                        Background = background,
-                        AutoBackground = auto_background,
-                        DangerouslyDisableSandbox = dangerously_disable_sandbox,
-                        ConfirmedCommand = confirmed_command,
-                        ArgvHash = argv_hash,
-                        CancellationToken = cancellationToken,
-                        OnProgress = onProgress,
-                    };
+            if (!ShellPathRetryHelper.IsPathError(result)) return result;
 
-                    await _pipeline.ExecuteAsync(retryContext, cancellationToken).ConfigureAwait(false);
+            var normalizedCommand = ShellPathRetryHelper.TryNormalizeCommand(command, toForwardSlash: true);
+            if (normalizedCommand is null) return result;
 
-                    var retryResult = retryContext.Result;
-                    if (retryResult is not null && !retryResult.IsError) {
-                        return retryResult;
-                    }
-                }
-            }
+            var retryContext = new ShellPipelineContext {
+                Command = normalizedCommand,
+                Provider = actuator,
+                Description = description,
+                Timeout = timeout,
+                TimeoutPolicy = TimeoutPolicy,
+                WorkingDirectory = workDir,
+                Background = background,
+                AutoBackground = auto_background,
+                DangerouslyDisableSandbox = dangerously_disable_sandbox,
+                ConfirmedCommand = confirmed_command,
+                ArgvHash = argv_hash,
+                CancellationToken = cancellationToken,
+                OnProgress = onProgress,
+            };
 
-            return result;
+            await _pipeline.ExecuteAsync(retryContext, cancellationToken).ConfigureAwait(false);
+
+            var retryResult = retryContext.Result;
+            return retryResult is not null && !retryResult.IsError ? retryResult : result;
         } catch (Exception ex) when (ex is not OperationCanceledException) {
             return ToolExceptionDiagnosticHelper.BuildErrorResult("bash", ex, _logger, "command", command);
         }

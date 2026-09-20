@@ -14,15 +14,13 @@ public static class TokenEstimator {
             }
         }
 
-        if (request.TryGetProperty("system", out var system)) {
-            if (system.ValueKind == JsonValueKind.Array) {
-                foreach (var block in system.EnumerateArray()) {
-                    if (block.TryGetProperty("text", out var text))
-                        totalChars += text.GetString()?.Length ?? 0;
-                }
-            } else if (system.ValueKind == JsonValueKind.String) {
-                totalChars += system.GetString()?.Length ?? 0;
+        if (request.TryGetProperty("system", out var system) && system.ValueKind == JsonValueKind.Array) {
+            foreach (var block in system.EnumerateArray()) {
+                if (block.TryGetProperty("text", out var text))
+                    totalChars += text.GetString()?.Length ?? 0;
             }
+        } else if (request.TryGetProperty("system", out var systemStr) && systemStr.ValueKind == JsonValueKind.String) {
+            totalChars += systemStr.GetString()?.Length ?? 0;
         }
 
         if (request.TryGetProperty("instructions", out var instructions) &&
@@ -50,14 +48,12 @@ public static class TokenEstimator {
     }
 
     public static string ExtractSystemPrefix(JsonElement request) {
-        if (request.TryGetProperty("system", out var system)) {
-            if (system.ValueKind == JsonValueKind.Array && system.GetArrayLength() > 0) {
-                var firstBlock = system[0];
-                if (firstBlock.TryGetProperty("text", out var text))
-                    return text.GetString() ?? "";
-            } else if (system.ValueKind == JsonValueKind.String) {
-                return system.GetString() ?? "";
-            }
+        if (request.TryGetProperty("system", out var system) && system.ValueKind == JsonValueKind.Array && system.GetArrayLength() > 0) {
+            var firstBlock = system[0];
+            if (firstBlock.TryGetProperty("text", out var text))
+                return text.GetString() ?? "";
+        } else if (request.TryGetProperty("system", out var systemStr) && systemStr.ValueKind == JsonValueKind.String) {
+            return systemStr.GetString() ?? "";
         }
 
         if (request.TryGetProperty("messages", out var messages)) {
@@ -156,19 +152,17 @@ public static class TokenEstimator {
             return instructions.GetString() ?? "";
         }
 
-        if (request.TryGetProperty("system", out var system)) {
-            if (system.ValueKind == JsonValueKind.Array) {
-                var sb = new StringBuilder();
-                foreach (var block in system.EnumerateArray()) {
-                    if (block.TryGetProperty("text", out var text)) {
-                        sb.Append(text.GetString() ?? "");
-                    }
+        if (request.TryGetProperty("system", out var system) && system.ValueKind == JsonValueKind.Array) {
+            var sb = new StringBuilder();
+            foreach (var block in system.EnumerateArray()) {
+                if (block.TryGetProperty("text", out var text)) {
+                    sb.Append(text.GetString() ?? "");
                 }
-                return sb.ToString();
             }
-            if (system.ValueKind == JsonValueKind.String) {
-                return system.GetString() ?? "";
-            }
+            return sb.ToString();
+        }
+        if (request.TryGetProperty("system", out var systemStr) && systemStr.ValueKind == JsonValueKind.String) {
+            return systemStr.GetString() ?? "";
         }
 
         if (request.TryGetProperty("messages", out var messages)) {

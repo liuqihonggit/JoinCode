@@ -133,32 +133,42 @@ public sealed class CSharpCallExtractor {
 
     private static void CollectVariableTypes(Node node, HashSet<string> classNameSet, Dictionary<string, string> map) {
         if (node.Type == "parameter") {
-            var nameNode = node.GetChildForField("name");
-            var typeNode = node.GetChildForField("type");
-
-            if (nameNode is not null && typeNode is not null) {
-                var typeName = typeNode.Text;
-                if (classNameSet.Contains(typeName) || (typeName.Length > 0 && char.IsUpper(typeName[0]))) {
-                    map[nameNode.Text] = typeName;
-                }
-            }
+            CollectParameterVariableType(node, classNameSet, map);
         } else if (node.Type == "variable_declaration") {
-            var typeNode = node.GetChildForField("type");
-            if (typeNode is not null) {
-                var typeName = typeNode.Text;
-                foreach (var child in node.NamedChildren) {
-                    if (child.Type == "variable_declarator") {
-                        var nameNode = child.GetChildForField("name");
-                        if (nameNode is not null) {
-                            map[nameNode.Text] = typeName;
-                        }
-                    }
-                }
-            }
+            CollectVariableDeclarationTypes(node, map);
         }
 
         foreach (var child in node.NamedChildren) {
             CollectVariableTypes(child, classNameSet, map);
+        }
+    }
+
+    /// <summary>
+    /// 收集 parameter 变量类型（提取以扁平化嵌套）
+    /// </summary>
+    private static void CollectParameterVariableType(Node node, HashSet<string> classNameSet, Dictionary<string, string> map) {
+        var nameNode = node.GetChildForField("name");
+        var typeNode = node.GetChildForField("type");
+        if (nameNode is null || typeNode is null) return;
+        var typeName = typeNode.Text;
+        if (classNameSet.Contains(typeName) || (typeName.Length > 0 && char.IsUpper(typeName[0]))) {
+            map[nameNode.Text] = typeName;
+        }
+    }
+
+    /// <summary>
+    /// 收集 variable_declaration 变量类型（提取以扁平化嵌套）
+    /// </summary>
+    private static void CollectVariableDeclarationTypes(Node node, Dictionary<string, string> map) {
+        var typeNode = node.GetChildForField("type");
+        if (typeNode is null) return;
+        var typeName = typeNode.Text;
+        foreach (var child in node.NamedChildren) {
+            if (child.Type != "variable_declarator") continue;
+            var nameNode = child.GetChildForField("name");
+            if (nameNode is not null) {
+                map[nameNode.Text] = typeName;
+            }
         }
     }
 
@@ -396,62 +406,13 @@ public sealed class CSharpCallExtractor {
         var funcNode = invocationNode.GetChildForField("function");
 
         if (funcNode?.Type == "member_access_expression") {
-            var expressionNode = funcNode.GetChildForField("expression");
-            if (expressionNode is not null) {
-                var expressionText = expressionNode.Text;
-
-                if (expressionText is "base" or "this") {
-                    var parentClassFqn = ExtractParentClassFqn(callerFqn);
-                    if (parentClassFqn is not null) {
-                        if (expressionText == "base") {
-                            var baseClassName = FindBaseClassNameFromAst(invocationNode);
-                            if (baseClassName is not null) {
-                                var baseClassFqn = FindSymbolFqn(baseClassName, symbols);
-                                return $"{baseClassFqn}.{calleeName}";
-                            }
-                        }
-
-                        return $"{parentClassFqn}.{calleeName}";
-                    }
-                }
-
-                if (expressionNode.Type == "identifier") {
-                    if (variableTypeMap.TryGetValue(expressionText, out var typeName)) {
-                        var typeFqn = FindSymbolFqn(typeName, symbols);
-                        return $"{typeFqn}.{calleeName}";
-                    }
-
-                    if (classNameSet.Contains(expressionText)) {
-                        var classFqn = FindSymbolFqn(expressionText, symbols);
-                        return $"{classFqn}.{calleeName}";
-                    }
-
-                    if (interfaceNameSet.Contains(expressionText)) {
-                        var interfaceFqn = FindSymbolFqn(expressionText, symbols);
-                        return $"{interfaceFqn}.{calleeName}";
-                    }
-                }
-            }
+            var resolved = ResolveMemberAccessCallee(funcNode, calleeName, callerFqn, classNameSet, interfaceNameSet, variableTypeMap, symbols, invocationNode);
+            if (resolved is not null) return resolved;
         }
 
         if (funcNode?.Type == "identifier") {
-            var parentClassFqn = ExtractParentClassFqn(callerFqn);
-            if (parentClassFqn is not null) {
-                var candidateFqn = $"{parentClassFqn}.{calleeName}";
-                if (symbols.TryGetByFqn(candidateFqn, out var match)) {
-                    return candidateFqn;
-                }
-            }
-
-            var callerAsParentFqn = $"{callerFqn}.{calleeName}";
-            if (symbols.TryGetByFqn(callerAsParentFqn, out var callerMatch)) {
-                return callerAsParentFqn;
-            }
-
-            var globalMatch = symbols.GetByName(calleeName).FirstOrDefault(s => s.Kind is SymbolKind.Method or SymbolKind.LocalFunction);
-            if (globalMatch is not null) {
-                return globalMatch.FullyQualifiedName;
-            }
+            var resolved = ResolveIdentifierCallee(calleeName, callerFqn, symbols);
+            if (resolved is not null) return resolved;
         }
 
         if (extensionMethodMap.TryGetValue(calleeName, out var parentClass)) {
@@ -460,6 +421,84 @@ public sealed class CSharpCallExtractor {
         }
 
         return calleeName;
+    }
+
+    /// <summary>
+    /// 解析 member_access_expression 的被调用方 FQN（提取以扁平化嵌套）
+    /// </summary>
+    private static string? ResolveMemberAccessCallee(
+        Node funcNode, string calleeName, string callerFqn,
+        HashSet<string> classNameSet, HashSet<string> interfaceNameSet,
+        Dictionary<string, string> variableTypeMap, SymbolIndex symbols, Node invocationNode) {
+        var expressionNode = funcNode.GetChildForField("expression");
+        if (expressionNode is null) return null;
+        var expressionText = expressionNode.Text;
+
+        if (expressionText is "base" or "this") {
+            return ResolveBaseOrThisCallee(expressionText, calleeName, callerFqn, symbols, invocationNode);
+        }
+
+        if (expressionNode.Type != "identifier") return null;
+
+        if (variableTypeMap.TryGetValue(expressionText, out var typeName)) {
+            var typeFqn = FindSymbolFqn(typeName, symbols);
+            return $"{typeFqn}.{calleeName}";
+        }
+
+        if (classNameSet.Contains(expressionText)) {
+            var classFqn = FindSymbolFqn(expressionText, symbols);
+            return $"{classFqn}.{calleeName}";
+        }
+
+        if (interfaceNameSet.Contains(expressionText)) {
+            var interfaceFqn = FindSymbolFqn(expressionText, symbols);
+            return $"{interfaceFqn}.{calleeName}";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 解析 base/this 的被调用方 FQN（提取以扁平化嵌套）
+    /// </summary>
+    private static string? ResolveBaseOrThisCallee(string expressionText, string calleeName, string callerFqn, SymbolIndex symbols, Node invocationNode) {
+        var parentClassFqn = ExtractParentClassFqn(callerFqn);
+        if (parentClassFqn is null) return null;
+
+        if (expressionText == "base") {
+            var baseClassName = FindBaseClassNameFromAst(invocationNode);
+            if (baseClassName is not null) {
+                var baseClassFqn = FindSymbolFqn(baseClassName, symbols);
+                return $"{baseClassFqn}.{calleeName}";
+            }
+        }
+
+        return $"{parentClassFqn}.{calleeName}";
+    }
+
+    /// <summary>
+    /// 解析 identifier 的被调用方 FQN（提取以扁平化嵌套）
+    /// </summary>
+    private static string? ResolveIdentifierCallee(string calleeName, string callerFqn, SymbolIndex symbols) {
+        var parentClassFqn = ExtractParentClassFqn(callerFqn);
+        if (parentClassFqn is not null) {
+            var candidateFqn = $"{parentClassFqn}.{calleeName}";
+            if (symbols.TryGetByFqn(candidateFqn, out var match)) {
+                return candidateFqn;
+            }
+        }
+
+        var callerAsParentFqn = $"{callerFqn}.{calleeName}";
+        if (symbols.TryGetByFqn(callerAsParentFqn, out var callerMatch)) {
+            return callerAsParentFqn;
+        }
+
+        var globalMatch = symbols.GetByName(calleeName).FirstOrDefault(s => s.Kind is SymbolKind.Method or SymbolKind.LocalFunction);
+        if (globalMatch is not null) {
+            return globalMatch.FullyQualifiedName;
+        }
+
+        return null;
     }
 
     private static string? ExtractParentClassFqn(string methodFqn) {
@@ -529,34 +568,32 @@ public sealed class CSharpCallExtractor {
         }
 
         if (funcNode?.Type == "member_access_expression") {
-            var expressionNode = funcNode.GetChildForField("expression");
-            if (expressionNode is not null) {
-                var expressionText = expressionNode.Text;
+            return DetermineMemberAccessCallKind(funcNode, classNameSet, interfaceNameSet, variableTypeMap);
+        }
 
-                if (expressionText is "base" or "this") {
-                    return CallKind.Virtual;
-                }
+        return CallKind.Direct;
+    }
 
-                if (expressionNode.Type == "identifier") {
-                    if (interfaceNameSet.Contains(expressionText)) {
-                        return CallKind.Virtual;
-                    }
+    /// <summary>
+    /// 判断 member_access_expression 的调用类型（提取以扁平化嵌套）
+    /// </summary>
+    private static CallKind DetermineMemberAccessCallKind(Node funcNode, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap) {
+        var expressionNode = funcNode.GetChildForField("expression");
+        if (expressionNode is null) return CallKind.Direct;
+        var expressionText = expressionNode.Text;
 
-                    if (variableTypeMap.ContainsKey(expressionText)) {
-                        return CallKind.Virtual;
-                    }
+        if (expressionText is "base" or "this") {
+            return CallKind.Virtual;
+        }
 
-                    if (classNameSet.Contains(expressionText) || (expressionText.Length > 0 && char.IsUpper(expressionText[0]))) {
-                        return CallKind.Static;
-                    }
-                }
+        if (expressionNode.Type == "identifier") {
+            if (interfaceNameSet.Contains(expressionText)) return CallKind.Virtual;
+            if (variableTypeMap.ContainsKey(expressionText)) return CallKind.Virtual;
+            if (classNameSet.Contains(expressionText) || (expressionText.Length > 0 && char.IsUpper(expressionText[0]))) return CallKind.Static;
+        }
 
-                if (expressionNode.Type is "member_access_expression" or "invocation_expression" or "object_creation_expression") {
-                    return CallKind.Static;
-                }
-            }
-
-            return CallKind.Direct;
+        if (expressionNode.Type is "member_access_expression" or "invocation_expression" or "object_creation_expression") {
+            return CallKind.Static;
         }
 
         return CallKind.Direct;

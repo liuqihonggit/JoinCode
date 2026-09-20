@@ -134,30 +134,28 @@ public sealed class StructuredOutputToolHandler {
             response.AppendLine($"Schema: {schema_name}");
             response.AppendLine($"Validation result: {(result.IsValid ? "Passed" : "Failed")}");
 
-            if (result.IsValid) {
-                if (!validate_only) {
-                    // 格式化输出
-                    try {
-                        var jsonNode = JsonNode.Parse(content);
-                        string formattedJson;
-                        if (jsonNode is not null) {
-                            using var stream = new MemoryStream();
-                            using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
-                            jsonNode.WriteTo(writer);
-                            writer.Flush();
-                            formattedJson = System.Text.Encoding.UTF8.GetString(stream.ToArray());
-                        } else {
-                            formattedJson = content;
-                        }
-                        response.AppendLine();
-                        response.AppendLine("[Formatted output]");
-                        response.AppendLine(formattedJson);
-                    } catch (JsonException) {
-                        response.AppendLine("[Formatting failed, returning raw content]");
-                        response.AppendLine(content);
+            if (result.IsValid && !validate_only) {
+                // 格式化输出
+                try {
+                    var jsonNode = JsonNode.Parse(content);
+                    string formattedJson;
+                    if (jsonNode is not null) {
+                        using var stream = new MemoryStream();
+                        using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
+                        jsonNode.WriteTo(writer);
+                        writer.Flush();
+                        formattedJson = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+                    } else {
+                        formattedJson = content;
                     }
+                    response.AppendLine();
+                    response.AppendLine("[Formatted output]");
+                    response.AppendLine(formattedJson);
+                } catch (JsonException) {
+                    response.AppendLine("[Formatting failed, returning raw content]");
+                    response.AppendLine(content);
                 }
-            } else {
+            } else if (!result.IsValid) {
                 response.AppendLine();
                 response.AppendLine($"[Validation errors] ({result.Errors.Count})");
                 foreach (var error in result.Errors) {

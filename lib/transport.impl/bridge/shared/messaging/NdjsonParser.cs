@@ -187,41 +187,32 @@ public static class NdjsonParser {
         foreach (var block in contentEl.EnumerateArray()) {
             if (block.ValueKind != JsonValueKind.Object) continue;
 
-            if (block.TryGetProperty("type", out var blockTypeEl) && blockTypeEl.ValueKind == JsonValueKind.String) {
-                var blockType = blockTypeEl.GetString();
+            if (!block.TryGetProperty("type", out var blockTypeEl) || blockTypeEl.ValueKind != JsonValueKind.String) continue;
+            var blockType = blockTypeEl.GetString();
 
-                if (blockType == "tool_use") {
-                    // 对齐 TS 端: tool_use → tool_start activity
-                    var name = block.TryGetProperty("name", out var nameEl) && nameEl.ValueKind == JsonValueKind.String
-                        ? nameEl.GetString()! : "Tool";
+            if (blockType == "tool_use") {
+                // 对齐 TS 端: tool_use → tool_start activity
+                var name = block.TryGetProperty("name", out var nameEl) && nameEl.ValueKind == JsonValueKind.String
+                    ? nameEl.GetString()! : "Tool";
 
-                    var input = new Dictionary<string, JsonElement>();
-                    if (block.TryGetProperty("input", out var inputEl) && inputEl.ValueKind == JsonValueKind.Object) {
-                        foreach (var prop in inputEl.EnumerateObject()) {
-                            input[prop.Name] = prop.Value;
-                        }
-                    }
-
-                    var summary = ToolSummary(name, input);
-                    activities.Add(new NdjsonActivity {
-                        Type = NdjsonActivityType.ToolStart,
-                        Summary = summary,
-                        Timestamp = now,
-                    });
-                } else if (blockType == "text") {
-                    // 对齐 TS 端: text block → text activity
-                    if (block.TryGetProperty("text", out var textEl) && textEl.ValueKind == JsonValueKind.String) {
-                        var text = textEl.GetString() ?? "";
-                        if (text.Length > 0) {
-                            var summary = text.Length > MaxSummaryLen ? text[..MaxSummaryLen] : text;
-                            activities.Add(new NdjsonActivity {
-                                Type = NdjsonActivityType.Text,
-                                Summary = summary,
-                                Timestamp = now,
-                            });
-                        }
-                    }
-                }
+                var input = ExtractToolInput(block);
+                var summary = ToolSummary(name, input);
+                activities.Add(new NdjsonActivity {
+                    Type = NdjsonActivityType.ToolStart,
+                    Summary = summary,
+                    Timestamp = now,
+                });
+            } else if (blockType == "text") {
+                // 对齐 TS 端: text block → text activity
+                if (!block.TryGetProperty("text", out var textEl) || textEl.ValueKind != JsonValueKind.String) continue;
+                var text = textEl.GetString() ?? "";
+                if (text.Length == 0) continue;
+                var summary = text.Length > MaxSummaryLen ? text[..MaxSummaryLen] : text;
+                activities.Add(new NdjsonActivity {
+                    Type = NdjsonActivityType.Text,
+                    Summary = summary,
+                    Timestamp = now,
+                });
             }
         }
     }
@@ -242,17 +233,7 @@ public static class NdjsonParser {
             });
         } else if (subtype is not null) {
             // 对齐 TS 端: errors?.[0] ?? `Error: ${subtype}`
-            var errorSummary = "Error";
-            if (json.TryGetValue("errors", out var errorsEl) && errorsEl.ValueKind == JsonValueKind.Array) {
-                foreach (var err in errorsEl.EnumerateArray()) {
-                    if (err.ValueKind == JsonValueKind.String) {
-                        errorSummary = err.GetString() ?? $"Error: {subtype}";
-                        break;
-                    }
-                }
-            }
-
-            if (errorSummary == "Error") errorSummary = $"Error: {subtype}";
+            var errorSummary = ExtractErrorSummary(json, subtype);
 
             activities.Add(new NdjsonActivity {
                 Type = NdjsonActivityType.Error,
@@ -260,5 +241,33 @@ public static class NdjsonParser {
                 Timestamp = now,
             });
         }
+    }
+
+    /// <summary>
+    /// 提取 tool_use block 的 input 字典（提取以扁平化嵌套）
+    /// </summary>
+    private static Dictionary<string, JsonElement> ExtractToolInput(JsonElement block) {
+        var input = new Dictionary<string, JsonElement>();
+        if (block.TryGetProperty("input", out var inputEl) && inputEl.ValueKind == JsonValueKind.Object) {
+            foreach (var prop in inputEl.EnumerateObject()) {
+                input[prop.Name] = prop.Value;
+            }
+        }
+        return input;
+    }
+
+    /// <summary>
+    /// 提取错误摘要（提取以扁平化嵌套）
+    /// </summary>
+    private static string ExtractErrorSummary(Dictionary<string, JsonElement> json, string subtype) {
+        var errorSummary = "Error";
+        if (json.TryGetValue("errors", out var errorsEl) && errorsEl.ValueKind == JsonValueKind.Array) {
+            foreach (var err in errorsEl.EnumerateArray()) {
+                if (err.ValueKind != JsonValueKind.String) continue;
+                errorSummary = err.GetString() ?? $"Error: {subtype}";
+                break;
+            }
+        }
+        return errorSummary == "Error" ? $"Error: {subtype}" : errorSummary;
     }
 }

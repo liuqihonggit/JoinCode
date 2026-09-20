@@ -189,16 +189,8 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable {
         if (_store.SymbolsByFile.TryGetValue(filePath, out var symbolsInFile)) {
             foreach (var sym in symbolsInFile) {
                 _store.SymbolsByFqn.Remove(sym.FullyQualifiedName);
-
-                if (_store.SymbolsByName.TryGetValue(sym.Name, out var nameList)) {
-                    nameList.Remove(sym);
-                    if (nameList.Count == 0) _store.SymbolsByName.Remove(sym.Name);
-                }
-
-                if (_store.SymbolsByKind.TryGetValue(sym.Kind, out var kindList)) {
-                    kindList.Remove(sym);
-                    if (kindList.Count == 0) _store.SymbolsByKind.Remove(sym.Kind);
-                }
+                RemoveFromListIndex(_store.SymbolsByName, sym.Name, sym);
+                RemoveFromListIndex(_store.SymbolsByKind, sym.Kind, sym);
             }
             _store.SymbolsByFile.Remove(filePath);
         }
@@ -207,14 +199,8 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable {
         if (_store.CallsByFile.TryGetValue(filePath, out var callsInFile)) {
             foreach (var edge in callsInFile) {
                 _store.CallEdges.Remove(edge);
-                if (_store.CallsByCaller.TryGetValue(edge.CallerSymbol, out var callerList)) {
-                    callerList.Remove(edge);
-                    if (callerList.Count == 0) _store.CallsByCaller.Remove(edge.CallerSymbol);
-                }
-                if (_store.CallsByCallee.TryGetValue(edge.CalleeSymbol, out var calleeList)) {
-                    calleeList.Remove(edge);
-                    if (calleeList.Count == 0) _store.CallsByCallee.Remove(edge.CalleeSymbol);
-                }
+                RemoveFromListIndex(_store.CallsByCaller, edge.CallerSymbol, edge);
+                RemoveFromListIndex(_store.CallsByCallee, edge.CalleeSymbol, edge);
             }
             _store.CallsByFile.Remove(filePath);
         }
@@ -223,17 +209,21 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable {
         if (_store.DepsByFile.TryGetValue(filePath, out var depsInFile)) {
             foreach (var edge in depsInFile) {
                 _store.DepEdges.Remove(edge);
-                if (_store.DepsBySource.TryGetValue(edge.SourceSymbol, out var srcList)) {
-                    srcList.Remove(edge);
-                    if (srcList.Count == 0) _store.DepsBySource.Remove(edge.SourceSymbol);
-                }
-                if (_store.DepsByTarget.TryGetValue(edge.TargetSymbol, out var tgtList)) {
-                    tgtList.Remove(edge);
-                    if (tgtList.Count == 0) _store.DepsByTarget.Remove(edge.TargetSymbol);
-                }
+                RemoveFromListIndex(_store.DepsBySource, edge.SourceSymbol, edge);
+                RemoveFromListIndex(_store.DepsByTarget, edge.TargetSymbol, edge);
             }
             _store.DepsByFile.Remove(filePath);
         }
+    }
+
+    /// <summary>
+    /// 从 List 索引中移除元素,列表空时移除键（提取以扁平化嵌套）
+    /// </summary>
+    private static void RemoveFromListIndex<TKey, TSymbol>(Dictionary<TKey, List<TSymbol>> index, TKey key, TSymbol symbol)
+        where TKey : notnull {
+        if (!index.TryGetValue(key, out var list)) return;
+        list.Remove(symbol);
+        if (list.Count == 0) index.Remove(key);
     }
 
     private void InsertSymbolsInternal(IReadOnlyList<SymbolInfo> symbols) {
@@ -241,18 +231,9 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable {
             // FQN 相同则覆盖(等价 ON CONFLICT)
             if (_store.SymbolsByFqn.TryGetValue(symbol.FullyQualifiedName, out var existing)) {
                 // 从所有索引中移除旧符号
-                if (_store.SymbolsByName.TryGetValue(existing.Name, out var nameList)) {
-                    nameList.Remove(existing);
-                    if (nameList.Count == 0) _store.SymbolsByName.Remove(existing.Name);
-                }
-                if (_store.SymbolsByFile.TryGetValue(existing.FilePath, out var fileList)) {
-                    fileList.Remove(existing);
-                    if (fileList.Count == 0) _store.SymbolsByFile.Remove(existing.FilePath);
-                }
-                if (_store.SymbolsByKind.TryGetValue(existing.Kind, out var kindList)) {
-                    kindList.Remove(existing);
-                    if (kindList.Count == 0) _store.SymbolsByKind.Remove(existing.Kind);
-                }
+                RemoveFromListIndex(_store.SymbolsByName, existing.Name, existing);
+                RemoveFromListIndex(_store.SymbolsByFile, existing.FilePath, existing);
+                RemoveFromListIndex(_store.SymbolsByKind, existing.Kind, existing);
             }
 
             _store.SymbolsByFqn[symbol.FullyQualifiedName] = symbol;

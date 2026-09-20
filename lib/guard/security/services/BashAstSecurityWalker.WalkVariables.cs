@@ -103,6 +103,11 @@ public sealed partial class BashAstSecurityWalker {
         varScope[ev.Name] = ContainsAnyPlaceholder(combined) ? VarPlaceholder : combined;
     }
 
+    private static StringOrTooComplex ResolvePlaceholderExpansion(Node node, bool insideString)
+        => insideString
+            ? new StringOrTooComplex(VarPlaceholder)
+            : new StringOrTooComplex(TooComplexNode(node));
+
     private static StringOrTooComplex ResolveSimpleExpansion(
         Node node, Dictionary<string, string> varScope, bool insideString) {
         string? varName = null;
@@ -125,18 +130,12 @@ public sealed partial class BashAstSecurityWalker {
             return new StringOrTooComplex(TooComplexNode(node));
 
         if (varScope.TryGetValue(varName, out var trackedValue)) {
-            if (ContainsAnyPlaceholder(trackedValue)) {
-                if (!insideString)
-                    return new StringOrTooComplex(TooComplexNode(node));
-                return new StringOrTooComplex(VarPlaceholder);
-            }
-
-            if (!insideString) {
-                if (trackedValue.Length == 0)
-                    return new StringOrTooComplex(TooComplexNode(node));
-                if (BashSecurityRegex.BareVarUnsafeRegex().IsMatch(trackedValue))
-                    return new StringOrTooComplex(TooComplexNode(node));
-            }
+            if (ContainsAnyPlaceholder(trackedValue))
+                return ResolvePlaceholderExpansion(node, insideString);
+            if (!insideString && trackedValue.Length == 0)
+                return new StringOrTooComplex(TooComplexNode(node));
+            if (!insideString && BashSecurityRegex.BareVarUnsafeRegex().IsMatch(trackedValue))
+                return new StringOrTooComplex(TooComplexNode(node));
             return new StringOrTooComplex(trackedValue);
         }
 

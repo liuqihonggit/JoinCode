@@ -17,16 +17,10 @@ public sealed partial class BridgeMain {
     /// 从 gitRepoUrl 提取仓库名 — 对齐 TS 端 parseGitHubRepository + basename 回退
     /// </summary>
     internal static string ExtractRepoName(string? gitRepoUrl, string workingDirectory) {
+        // 尝试从 GitHub URL 提取 owner/repo
         if (gitRepoUrl is not null) {
-            // 尝试从 GitHub URL 提取 owner/repo
-            var lastSlash = gitRepoUrl.LastIndexOf('/');
-            var lastDot = gitRepoUrl.LastIndexOf('.');
-            if (lastSlash >= 0) {
-                var repo = lastDot > lastSlash
-                    ? gitRepoUrl.Substring(lastSlash + 1, lastDot - lastSlash - 1)
-                    : gitRepoUrl.Substring(lastSlash + 1);
-                if (repo.Length > 0) return repo;
-            }
+            var repo = ExtractRepoFromUrl(gitRepoUrl);
+            if (repo.Length > 0) return repo;
         }
 
         // 回退到工作目录名
@@ -35,6 +29,16 @@ public sealed partial class BridgeMain {
         } catch {
             return "unknown";
         }
+    }
+
+    /// <summary>从 GitHub URL 提取仓库名 — 提取辅助方法消除嵌套 if</summary>
+    private static string ExtractRepoFromUrl(string gitRepoUrl) {
+        var lastSlash = gitRepoUrl.LastIndexOf('/');
+        if (lastSlash < 0) return string.Empty;
+        var lastDot = gitRepoUrl.LastIndexOf('.');
+        return lastDot > lastSlash
+            ? gitRepoUrl.Substring(lastSlash + 1, lastDot - lastSlash - 1)
+            : gitRepoUrl.Substring(lastSlash + 1);
     }
 
     /// <summary>

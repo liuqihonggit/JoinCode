@@ -77,12 +77,8 @@ public sealed partial class MainViewModel {
         if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
             _assistantMessageCount = Messages.Count(m => m.Role == MessageRole.Assistant);
         else {
-            if (e.OldItems is not null)
-                foreach (ChatUiMessage m in e.OldItems)
-                    if (m.Role == MessageRole.Assistant) _assistantMessageCount--;
-            if (e.NewItems is not null)
-                foreach (ChatUiMessage m in e.NewItems)
-                    if (m.Role == MessageRole.Assistant) _assistantMessageCount++;
+            AdjustAssistantCount(e.OldItems, -1);
+            AdjustAssistantCount(e.NewItems, 1);
         }
 
         // G4 内存防护：超出上限裁剪最旧消息。RemoveAt 触发的 Remove 事件同步重入本处理器，
@@ -103,6 +99,14 @@ public sealed partial class MainViewModel {
         if (e.OldItems is not null)
             foreach (ChatUiMessage m in e.OldItems)
                 m.PropertyChanged -= OnMessagePropertyChanged;
+    }
+
+    private void AdjustAssistantCount(System.Collections.IList? items, int delta) {
+        if (items is null)
+            return;
+        foreach (ChatUiMessage m in items)
+            if (m.Role == MessageRole.Assistant)
+                _assistantMessageCount += delta;
     }
 
     /// <summary>单条消息属性变化（流式输出 Content 变化）时刷新 AllMessagesText</summary>

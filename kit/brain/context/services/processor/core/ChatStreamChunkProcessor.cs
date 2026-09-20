@@ -163,24 +163,24 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
         ChatStreamEvent[] events = [];
         var shouldBreak = false;
 
-        if (chunk.Content is not null) {
-            if (isThinking) {
-                state.ThinkingResponse.Append(chunk.Content);
-                events = [ChatStreamEvent.Thinking(chunk.Content)];
-            } else {
-                state.FullResponse.Append(chunk.Content);
+        if (chunk.Content is not null && isThinking) {
+            state.ThinkingResponse.Append(chunk.Content);
+            events = [ChatStreamEvent.Thinking(chunk.Content)];
+        }
 
-                var loopResult = _loopDetector.Detect(state.FullResponse);
-                if (loopResult.IsLoopDetected) {
-                    _logger?.LogWarning("[ChatStreamChunkProcessor] 检测到LLM循环输出，第{N}次触发，重复模式长度: {Len}, 重复次数: {Count}",
-                        loopResult.LoopTriggerCount, loopResult.RepeatedPattern?.Length ?? 0, loopResult.RepeatCount);
-                    events = [
-                        ChatStreamEvent.Text(chunk.Content),
-                        ChatStreamEvent.LoopDetected(loopResult.LoopTriggerCount, loopResult.LoopStartIndex, loopResult.RepeatedPattern)
-                    ];
-                } else {
-                    events = [ChatStreamEvent.Text(chunk.Content)];
-                }
+        if (chunk.Content is not null && !isThinking) {
+            state.FullResponse.Append(chunk.Content);
+
+            var loopResult = _loopDetector.Detect(state.FullResponse);
+            if (loopResult.IsLoopDetected) {
+                _logger?.LogWarning("[ChatStreamChunkProcessor] 检测到LLM循环输出，第{N}次触发，重复模式长度: {Len}, 重复次数: {Count}",
+                    loopResult.LoopTriggerCount, loopResult.RepeatedPattern?.Length ?? 0, loopResult.RepeatCount);
+                events = [
+                    ChatStreamEvent.Text(chunk.Content),
+                    ChatStreamEvent.LoopDetected(loopResult.LoopTriggerCount, loopResult.LoopStartIndex, loopResult.RepeatedPattern)
+                ];
+            } else {
+                events = [ChatStreamEvent.Text(chunk.Content)];
             }
         }
 

@@ -118,9 +118,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
                 session = await _worktreeManager.CreateWorktreeForAgentAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
             } else {
                 var worktreeCreated = await _worktreeManager.CreateWorktreeAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
-                if (worktreeCreated) {
-                    session = await _worktreeManager.GetWorktreeSessionAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
-                }
+                session = worktreeCreated ? await _worktreeManager.GetWorktreeSessionAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false) : null;
             }
 
             if (session is not null) {

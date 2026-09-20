@@ -70,23 +70,25 @@ public static class ImageResizer {
             var isPng = mediaType == "image/png";
 
             // 尺寸在限制内但文件过大，先尝试压缩
-            if (!needsDimensionResize && originalSize > FileOperationConfig.ImageTargetRawSize) {
-                // PNG 先尝试 PNG 调色板压缩（保留透明度）
-                if (isPng) {
-                    var pngCompressed = await EncodeToPngPaletteAsync(image).ConfigureAwait(false);
-                    if (pngCompressed.Length <= FileOperationConfig.ImageTargetRawSize) {
-                        return new ImageResizeResult {
-                            Buffer = pngCompressed,
-                            MediaType = "image/png",
-                            OriginalWidth = originalWidth,
-                            OriginalHeight = originalHeight,
-                            DisplayWidth = originalWidth,
-                            DisplayHeight = originalHeight,
-                        };
-                    }
-                }
+            var needsCompressOnly = !needsDimensionResize && originalSize > FileOperationConfig.ImageTargetRawSize;
 
-                // 渐进 JPEG 压缩
+            // PNG 先尝试 PNG 调色板压缩（保留透明度）
+            if (needsCompressOnly && isPng) {
+                var pngCompressed = await EncodeToPngPaletteAsync(image).ConfigureAwait(false);
+                if (pngCompressed.Length <= FileOperationConfig.ImageTargetRawSize) {
+                    return new ImageResizeResult {
+                        Buffer = pngCompressed,
+                        MediaType = "image/png",
+                        OriginalWidth = originalWidth,
+                        OriginalHeight = originalHeight,
+                        DisplayWidth = originalWidth,
+                        DisplayHeight = originalHeight,
+                    };
+                }
+            }
+
+            // 渐进 JPEG 压缩
+            if (needsCompressOnly) {
                 foreach (var quality in new[] { 80, 60, 40, 20 }) {
                     var compressed = await EncodeToJpegAsync(image, quality).ConfigureAwait(false);
                     if (compressed.Length <= FileOperationConfig.ImageTargetRawSize) {
@@ -128,22 +130,22 @@ public static class ImageResizer {
             var resizedBuffer = await EncodeToBufferAsync(resizedImage, format).ConfigureAwait(false);
 
             // 缩放后仍过大，尝试压缩
-            if (resizedBuffer.Length > FileOperationConfig.ImageTargetRawSize) {
-                if (isPng) {
-                    var pngCompressed = await EncodeToPngPaletteAsync(resizedImage).ConfigureAwait(false);
-                    if (pngCompressed.Length <= FileOperationConfig.ImageTargetRawSize) {
-                        return new ImageResizeResult {
-                            Buffer = pngCompressed,
-                            MediaType = "image/png",
-                            OriginalWidth = originalWidth,
-                            OriginalHeight = originalHeight,
-                            DisplayWidth = width,
-                            DisplayHeight = height,
-                        };
-                    }
+            if (resizedBuffer.Length > FileOperationConfig.ImageTargetRawSize && isPng) {
+                var pngCompressed = await EncodeToPngPaletteAsync(resizedImage).ConfigureAwait(false);
+                if (pngCompressed.Length <= FileOperationConfig.ImageTargetRawSize) {
+                    return new ImageResizeResult {
+                        Buffer = pngCompressed,
+                        MediaType = "image/png",
+                        OriginalWidth = originalWidth,
+                        OriginalHeight = originalHeight,
+                        DisplayWidth = width,
+                        DisplayHeight = height,
+                    };
                 }
+            }
 
-                // 渐进 JPEG 压缩
+            // 渐进 JPEG 压缩
+            if (resizedBuffer.Length > FileOperationConfig.ImageTargetRawSize) {
                 foreach (var quality in new[] { 80, 60, 40, 20 }) {
                     var compressed = await EncodeToJpegAsync(resizedImage, quality).ConfigureAwait(false);
                     if (compressed.Length <= FileOperationConfig.ImageTargetRawSize) {

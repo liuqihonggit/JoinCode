@@ -267,11 +267,9 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
         if (_status is SystemActuatorCommandStatus.Backgrounded && _outputCollector.SpillFilePath is null) {
             var currentLen = _outputCollector.GetCurrentStdoutLength();
-            if (currentLen > SystemActuatorExecutionResult.PreviewSizeBytes) {
-                _outputCollector.SpillToDisk();
-                if (_outputCollector.SpillFilePath is null) {
-                    _outputCollector.TruncateStdout(SystemActuatorExecutionResult.PreviewSizeBytes);
-                }
+            if (currentLen > SystemActuatorExecutionResult.PreviewSizeBytes) _outputCollector.SpillToDisk();
+            if (currentLen > SystemActuatorExecutionResult.PreviewSizeBytes && _outputCollector.SpillFilePath is null) {
+                _outputCollector.TruncateStdout(SystemActuatorExecutionResult.PreviewSizeBytes);
             }
         }
 

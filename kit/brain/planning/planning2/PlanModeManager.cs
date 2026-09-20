@@ -302,14 +302,10 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
             // 对齐 TS Auto模式断路器: 如果之前是 Auto 模式，检查是否仍可恢复
             // TS 版 isAutoModeGateEnabled: 如果断路器触发，回退到 Default 而非 Auto
-            if (restoreMode == PermissionMode.Auto) {
-                // 检查 auto mode gate 是否仍然开启
-                // 如果用户在 plan 模式期间手动关闭了 auto mode，则回退到 Default
-                var autoModeEnabled = await IsAutoModeGateEnabledAsync(cancellationToken).ConfigureAwait(false);
-                if (!autoModeEnabled) {
-                    restoreMode = PermissionMode.Auto;
-                    _logger?.LogWarning("计划模式期间 auto mode gate 被禁用，回退到 Auto 模式");
-                }
+            // 检查 auto mode gate 是否仍然开启
+            // 如果用户在 plan 模式期间手动关闭了 auto mode，则回退到 Default
+            if (restoreMode == PermissionMode.Auto && !await IsAutoModeGateEnabledAsync(cancellationToken).ConfigureAwait(false)) {
+                _logger?.LogWarning("计划模式期间 auto mode gate 被禁用，回退到 Auto 模式");
             }
 
             await _permissionManager.SetPermissionModeAsync(restoreMode, cancellationToken).ConfigureAwait(false);
@@ -768,11 +764,9 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         if (response.Approved) {
             // 恢复权限模式 — 对齐 TS applyPermissionUpdate
-            if (_permissionManager is not null && !string.IsNullOrEmpty(response.PermissionMode)) {
-                var mode = PermissionModeExtensions.FromValue(response.PermissionMode);
-                if (mode is not null) {
-                    await _permissionManager.SetPermissionModeAsync(mode.Value, cancellationToken).ConfigureAwait(false);
-                }
+            if (_permissionManager is not null && !string.IsNullOrEmpty(response.PermissionMode) &&
+                PermissionModeExtensions.FromValue(response.PermissionMode) is { } mode) {
+                await _permissionManager.SetPermissionModeAsync(mode, cancellationToken).ConfigureAwait(false);
             }
 
             // 恢复之前剥离的危险权限规则

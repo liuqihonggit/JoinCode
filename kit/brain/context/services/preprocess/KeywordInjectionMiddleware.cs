@@ -41,33 +41,35 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
             var keywordResult = UserPromptKeywordAnalyzer.AnalyzeInput(context.Message);
             context.KeywordResult = keywordResult;
 
-            if (keywordResult.HasPromptInjection) {
-                _logger?.LogDebug("[UserPromptInjection] 检测到关键词 '{Keyword}'，类型: {Type}",
-                    keywordResult.MatchedKeyword, keywordResult.Type);
-
-                var injectionId = $"user-prompt-injection-{keywordResult.Type}";
-                await _reminderManager.AddReminderAsync(
-                    injectionId,
-                    keywordResult.SuggestedPrompt,
-                    priority: 100,
-                    ct: ct).ConfigureAwait(false);
-
-                var sectionContent = KeywordSectionMapper.GetSectionContentForKeywordType(keywordResult.Type);
-                if (sectionContent != null) {
-                    var sectionId = $"section-injection-{keywordResult.Type}";
-                    await _reminderManager.AddReminderAsync(
-                        sectionId,
-                        sectionContent,
-                        priority: 90,
-                        ct: ct).ConfigureAwait(false);
-                }
-
-                _logger?.LogInformation("[UserPromptInjection] 已注入 {Type} 提示词", keywordResult.Type);
-
-                context.KeywordPromptInjectionInfo = $"[系统提示: 检测到 '{keywordResult.MatchedKeyword}' 关键词，已自动注入 {keywordResult.Type} 提示词]";
-            } else {
+            if (!keywordResult.HasPromptInjection) {
                 RecordKeywordMiss(context.Message);
+                await next(context, ct).ConfigureAwait(false);
+                return;
             }
+
+            _logger?.LogDebug("[UserPromptInjection] 检测到关键词 '{Keyword}'，类型: {Type}",
+                keywordResult.MatchedKeyword, keywordResult.Type);
+
+            var injectionId = $"user-prompt-injection-{keywordResult.Type}";
+            await _reminderManager.AddReminderAsync(
+                injectionId,
+                keywordResult.SuggestedPrompt,
+                priority: 100,
+                ct: ct).ConfigureAwait(false);
+
+            var sectionContent = KeywordSectionMapper.GetSectionContentForKeywordType(keywordResult.Type);
+            if (sectionContent != null) {
+                var sectionId = $"section-injection-{keywordResult.Type}";
+                await _reminderManager.AddReminderAsync(
+                    sectionId,
+                    sectionContent,
+                    priority: 90,
+                    ct: ct).ConfigureAwait(false);
+            }
+
+            _logger?.LogInformation("[UserPromptInjection] 已注入 {Type} 提示词", keywordResult.Type);
+
+            context.KeywordPromptInjectionInfo = $"[系统提示: 检测到 '{keywordResult.MatchedKeyword}' 关键词，已自动注入 {keywordResult.Type} 提示词]";
         }
 
         await next(context, ct).ConfigureAwait(false);

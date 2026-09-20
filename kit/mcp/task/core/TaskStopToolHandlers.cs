@@ -151,10 +151,7 @@ public partial class TaskStopToolHandlers {
                 foreach (var task in tasks) {
                     sb.AppendLine($"- {task.Id}: {task.Description}");
                     sb.AppendLine($"  Status: {task.Status}");
-                    if (task.StartedAt.HasValue) {
-                        var duration = DateTime.UtcNow - task.StartedAt.Value;
-                        sb.AppendLine($"  Duration: {duration.TotalMinutes:F1} min");
-                    }
+                    AppendDuration(sb, task.StartedAt);
                     sb.AppendLine();
                 }
             }
@@ -170,10 +167,7 @@ public partial class TaskStopToolHandlers {
                     sb.AppendLine($"- {agent.Id}: {agent.Description}");
                     var typeStr = agent.Variant.HasValue ? agent.Variant.Value.ToValue() : agent.Role.ToValue();
                     sb.AppendLine($"  Type: {typeStr ?? "general"}");
-                    if (agent.StartedAt.HasValue) {
-                        var duration = DateTime.UtcNow - agent.StartedAt.Value;
-                        sb.AppendLine($"  Duration: {duration.TotalMinutes:F1} min");
-                    }
+                    AppendDuration(sb, agent.StartedAt);
                     sb.AppendLine();
                 }
             }
@@ -183,6 +177,15 @@ public partial class TaskStopToolHandlers {
             sb.AppendLine("No running tasks or agents");
 
         return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
+    }
+
+    /// <summary>
+    /// 追加任务/Agent 的运行时长到输出 — 仅当 StartedAt 有值时输出
+    /// </summary>
+    private static void AppendDuration(System.Text.StringBuilder sb, DateTimeOffset? startedAt) {
+        if (!startedAt.HasValue) return;
+        var duration = DateTime.UtcNow - startedAt.Value;
+        sb.AppendLine($"  Duration: {duration.TotalMinutes:F1} min");
     }
 }
 

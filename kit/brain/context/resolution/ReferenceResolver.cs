@@ -466,53 +466,10 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                     }
                 }
 
-                if (!found) {
-                    // 尝试直接匹配
-                    var directPath = _fileOperationService.CombinePath(currentPath, part);
-                    if (_fileOperationService.DirectoryExists(directPath)) {
-                        currentPath = directPath;
-                        matchedParts.Add(part);
-                    } else {
-                        // 尝试模糊匹配目录名
-                        var fuzzyDir = await FindFuzzyDirectoryAsync(currentPath, part, cancellationToken).ConfigureAwait(false);
-                        if (fuzzyDir != null) {
-                            currentPath = fuzzyDir;
-                            matchedParts.Add(Path.GetFileName(fuzzyDir));
-                        }
-                    }
-                }
+                if (!found)
+                    currentPath = await TryDirectOrFuzzyDirMatchAsync(currentPath, part, matchedParts, cancellationToken).ConfigureAwait(false) ?? currentPath;
             } else {
-                // 尝试直接匹配
-                var directPath = _fileOperationService.CombinePath(currentPath, part);
-                if (_fileOperationService.DirectoryExists(directPath)) {
-                    currentPath = directPath;
-                    matchedParts.Add(part);
-                } else if (_fileOperationService.FileExists(directPath)) {
-                    allMatches.Add(FileMatch.Create(
-                        directPath,
-                        ReferenceMatchType.Fuzzy,
-                        CalculateRelevanceScore(directPath, reference),
-                        "模糊匹配"));
-                } else {
-                    // 尝试作为 Glob 模式
-                    var searchResult = await _searchService.GlobSearchAsync(
-                        $"**/{part}",
-                        currentPath,
-                        cancellationToken).ConfigureAwait(false);
-
-                    if (searchResult.Success) {
-                        foreach (var file in searchResult.Filenames) {
-                            var score = CalculateRelevanceScore(file, part);
-                            if (score >= opts.FuzzyMatchThreshold) {
-                                allMatches.Add(FileMatch.Create(
-                                    file,
-                                    ReferenceMatchType.Fuzzy,
-                                    score,
-                                    "模糊匹配"));
-                            }
-                        }
-                    }
-                }
+                currentPath = await TryNonAliasPartMatchAsync(currentPath, part, reference, matchedParts, allMatches, opts, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -541,6 +498,44 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         }
 
         return null;
+    }
+
+    private async Task<string?> TryDirectOrFuzzyDirMatchAsync(
+        string currentPath, string part, List<string> matchedParts, CancellationToken ct) {
+        var directPath = _fileOperationService.CombinePath(currentPath, part);
+        if (_fileOperationService.DirectoryExists(directPath)) {
+            matchedParts.Add(part);
+            return directPath;
+        }
+        if (await FindFuzzyDirectoryAsync(currentPath, part, ct).ConfigureAwait(false) is { } fuzzyDir) {
+            matchedParts.Add(Path.GetFileName(fuzzyDir));
+            return fuzzyDir;
+        }
+        return null;
+    }
+
+    private async Task<string> TryNonAliasPartMatchAsync(
+        string currentPath, string part, string reference,
+        List<string> matchedParts, List<FileMatch> allMatches,
+        ReferenceResolutionOptions opts, CancellationToken ct) {
+        var directPath = _fileOperationService.CombinePath(currentPath, part);
+        if (_fileOperationService.DirectoryExists(directPath)) {
+            matchedParts.Add(part);
+            return directPath;
+        }
+        if (_fileOperationService.FileExists(directPath)) {
+            allMatches.Add(FileMatch.Create(directPath, ReferenceMatchType.Fuzzy, CalculateRelevanceScore(directPath, reference), "模糊匹配"));
+            return currentPath;
+        }
+        var searchResult = await _searchService.GlobSearchAsync($"**/{part}", currentPath, ct).ConfigureAwait(false);
+        if (searchResult.Success) {
+            foreach (var file in searchResult.Filenames) {
+                var score = CalculateRelevanceScore(file, part);
+                if (score >= opts.FuzzyMatchThreshold)
+                    allMatches.Add(FileMatch.Create(file, ReferenceMatchType.Fuzzy, score, "模糊匹配"));
+            }
+        }
+        return currentPath;
     }
 
     private async Task<CodeReference?> TryPartialMatchAsync(

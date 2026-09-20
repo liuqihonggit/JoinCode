@@ -232,23 +232,29 @@ public sealed class CSharpDependencyExtractor {
 
     private static void ExtractGenericConstraintDependencies(Node typeDeclNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
         foreach (var child in typeDeclNode.Children) {
-            if (child.Type == "type_parameter_constraints_clause") {
-                foreach (var constraint in child.NamedChildren) {
-                    if (constraint.Type == "type_parameter_constraint") {
-                        foreach (var typeNode in constraint.NamedChildren) {
-                            if (typeNode.Type == "identifier" || typeNode.Type == "type_identifier") {
-                                AddTypeDependency(typeNode.Text, sourceFqn, filePath, deps, typeFqnMap);
-                            } else if (typeNode.Type == "generic_name") {
-                                var genericName = GetGenericNameIdentifier(typeNode);
-                                if (genericName is not null) {
-                                    AddTypeDependency(genericName, sourceFqn, filePath, deps, typeFqnMap);
-                                }
-                                ExtractGenericTypeArguments(typeNode, sourceFqn, filePath, deps, typeFqnMap);
-                            }
-                        }
-                    }
-                }
+            if (child.Type != "type_parameter_constraints_clause") continue;
+            foreach (var constraint in child.NamedChildren) {
+                if (constraint.Type != "type_parameter_constraint") continue;
+                ExtractConstraintTypeDependencies(constraint, sourceFqn, filePath, deps, typeFqnMap);
             }
+        }
+    }
+
+    /// <summary>
+    /// 提取约束类型依赖（提取以扁平化嵌套）
+    /// </summary>
+    private static void ExtractConstraintTypeDependencies(Node constraint, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
+        foreach (var typeNode in constraint.NamedChildren) {
+            if (typeNode.Type == "identifier" || typeNode.Type == "type_identifier") {
+                AddTypeDependency(typeNode.Text, sourceFqn, filePath, deps, typeFqnMap);
+                continue;
+            }
+            if (typeNode.Type != "generic_name") continue;
+            var genericName = GetGenericNameIdentifier(typeNode);
+            if (genericName is not null) {
+                AddTypeDependency(genericName, sourceFqn, filePath, deps, typeFqnMap);
+            }
+            ExtractGenericTypeArguments(typeNode, sourceFqn, filePath, deps, typeFqnMap);
         }
     }
 
@@ -258,23 +264,30 @@ public sealed class CSharpDependencyExtractor {
 
     private static void CollectAttributeDependencies(Node node, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
         foreach (var child in node.Children) {
-            if (child.Type == "attribute_list") {
-                foreach (var attr in child.NamedChildren) {
-                    if (attr.Type == "attribute") {
-                        var attrNameNode = attr.NamedChildren.FirstOrDefault();
-                        if (attrNameNode is not null) {
-                            var attrName = attrNameNode.Text;
-                            if (attrName.EndsWith("Attribute", StringComparison.Ordinal)) {
-                                attrName = attrName[..^"Attribute".Length];
-                            }
-                            AddTypeDependency(attrName, sourceFqn, filePath, deps, typeFqnMap);
-                        }
-                    }
+            if (child.Type != "attribute_list") {
+                if (!TypeDeclNodeTypes.Contains(child.Type)) {
+                    CollectAttributeDependencies(child, sourceFqn, filePath, deps, typeFqnMap);
                 }
-            } else if (!TypeDeclNodeTypes.Contains(child.Type)) {
-                CollectAttributeDependencies(child, sourceFqn, filePath, deps, typeFqnMap);
+                continue;
+            }
+            foreach (var attr in child.NamedChildren) {
+                if (attr.Type != "attribute") continue;
+                ExtractAttributeDependency(attr, sourceFqn, filePath, deps, typeFqnMap);
             }
         }
+    }
+
+    /// <summary>
+    /// 提取单个特性的类型依赖（提取以扁平化嵌套）
+    /// </summary>
+    private static void ExtractAttributeDependency(Node attr, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
+        var attrNameNode = attr.NamedChildren.FirstOrDefault();
+        if (attrNameNode is null) return;
+        var attrName = attrNameNode.Text;
+        if (attrName.EndsWith("Attribute", StringComparison.Ordinal)) {
+            attrName = attrName[..^"Attribute".Length];
+        }
+        AddTypeDependency(attrName, sourceFqn, filePath, deps, typeFqnMap);
     }
 
     private static void ExtractContainsDependencies(Node typeDeclNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {

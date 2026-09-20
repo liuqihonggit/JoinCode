@@ -38,9 +38,7 @@ public sealed class StatuslineCommand : ChatCommandBase {
                 TerminalHelper.WriteLine("用法: /statusline format <template>");
                 TerminalHelper.WriteLine("  可用变量: {model}, {tokens}, {cost}, {mode}, {time}");
             } else {
-                if (configService is not null)
-                    await configService.SetAsync("statusline.format", formatValue, context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"状态栏格式: {formatValue}");
+                await ApplyFormatTemplateAsync(configService, formatValue, context.CancellationToken).ConfigureAwait(false);
             }
         } else {
             var enabled = await GetSettingAsync(configService, "statusline.enabled", "true", context.CancellationToken).ConfigureAwait(false);
@@ -56,6 +54,15 @@ public sealed class StatuslineCommand : ChatCommandBase {
         }
 
         return ChatCommandResult.Continue();
+    }
+
+    /// <summary>
+    /// 应用状态栏格式模板并输出结果提示
+    /// </summary>
+    private static async Task ApplyFormatTemplateAsync(IConfigurationService? configService, string formatValue, CancellationToken ct) {
+        if (configService is not null)
+            await configService.SetAsync("statusline.format", formatValue, ct).ConfigureAwait(false);
+        TerminalHelper.WriteLine($"状态栏格式: {formatValue}");
     }
 
     private static async Task<string> GetSettingAsync(IConfigurationService? configService, string key, string defaultValue, CancellationToken ct) {

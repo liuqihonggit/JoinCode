@@ -152,19 +152,15 @@ public sealed class StdioProcessManager : IAsyncDisposable {
                     using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
                     var root = doc.RootElement;
 
-                    if (method != null) {
-                        if (root.TryGetProperty("method", out var methodProp)) {
-                            if (methodProp.GetString() == method) return true;
-                        }
-                    }
+                    if (method != null && root.TryGetProperty("method", out var methodProp) &&
+                        methodProp.GetString() == method)
+                        return true;
 
-                    if (id != null) {
-                        if (root.TryGetProperty("id", out var idProp)) {
-                            var idMatch = idProp.ValueKind == System.Text.Json.JsonValueKind.Number
-                                ? idProp.GetInt64().Equals(id)
-                                : idProp.GetString()?.Equals(id.ToString()) == true;
-                            if (idMatch) return true;
-                        }
+                    if (id != null && root.TryGetProperty("id", out var idProp)) {
+                        var idMatch = idProp.ValueKind == System.Text.Json.JsonValueKind.Number
+                            ? idProp.GetInt64().Equals(id)
+                            : idProp.GetString()?.Equals(id.ToString()) == true;
+                        if (idMatch) return true;
                     }
 
                     if (root.TryGetProperty("result", out _) || root.TryGetProperty("error", out _))

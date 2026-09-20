@@ -21,10 +21,8 @@ public static class ToolReferenceExtractor {
                 msg.Metadata.TryGetValue("ToolReferences", out var refsEl) &&
                 refsEl.ValueKind == JsonValueKind.Array) {
                 foreach (var item in refsEl.EnumerateArray()) {
-                    if (item.ValueKind == JsonValueKind.String) {
-                        var name = item.GetString();
-                        if (name is not null)
-                            discovered.Add(name);
+                    if (item.ValueKind == JsonValueKind.String && item.GetString() is { } name) {
+                        discovered.Add(name);
                     }
                 }
             }
@@ -50,10 +48,8 @@ public static class ToolReferenceExtractor {
                 msg.Metadata.TryGetValue("ToolReferences", out var refsEl) &&
                 refsEl.ValueKind == JsonValueKind.Array) {
                 foreach (var item in refsEl.EnumerateArray()) {
-                    if (item.ValueKind == JsonValueKind.String) {
-                        var name = item.GetString();
-                        if (name is not null)
-                            discovered.Add(name);
+                    if (item.ValueKind == JsonValueKind.String && item.GetString() is { } name) {
+                        discovered.Add(name);
                     }
                 }
             }

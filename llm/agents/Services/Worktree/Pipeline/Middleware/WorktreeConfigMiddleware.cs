@@ -132,28 +132,7 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
             }
 
             if (collapsedDirs.Count > 0) {
-                var dirsToExpand = collapsedDirs.Where(dir => {
-                    var dirNoSlash = dir[..^1];
-                    if (patterns.Any(p => PatternTargetsCollapsedDir(p, dir))) return true;
-                    if (patterns.Any(p => WorktreeIncludePatternMatcher.Matches(dirNoSlash, p.TrimStart('/')))) return true;
-                    return false;
-                }).ToList();
-
-                if (dirsToExpand.Count > 0) {
-                    var expandArgs = "ls-files --others --ignored --exclude-standard -- " +
-                                     string.Join(" ", dirsToExpand.Select(d => $"\"{d}\""));
-                    var expandedResult = await _worktreeService.Value.ExecuteGitCommandAsync(
-                        gitRoot, expandArgs, ct).ConfigureAwait(false);
-
-                    if (expandedResult.Success && !string.IsNullOrWhiteSpace(expandedResult.Output)) {
-                        foreach (var f in expandedResult.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
-                            var trimmed = f.Trim();
-                            if (patterns.Any(p => WorktreeIncludePatternMatcher.Matches(trimmed, p.TrimStart('/')))) {
-                                files.Add(trimmed);
-                            }
-                        }
-                    }
-                }
+                await ExpandCollapsedDirsAsync(collapsedDirs, patterns, files, gitRoot, ct).ConfigureAwait(false);
             }
 
             foreach (var relativePath in files) {
@@ -243,6 +222,33 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "创建符号链接失败: {Directory}", dir);
             }
+        }
+    }
+
+    /// <summary>
+    /// 展开折叠目录中的匹配文件（提取以扁平化嵌套）
+    /// </summary>
+    private async Task ExpandCollapsedDirsAsync(List<string> collapsedDirs, List<string> patterns, List<string> files, string gitRoot, CancellationToken ct) {
+        var dirsToExpand = collapsedDirs.Where(dir => {
+            var dirNoSlash = dir[..^1];
+            if (patterns.Any(p => PatternTargetsCollapsedDir(p, dir))) return true;
+            if (patterns.Any(p => WorktreeIncludePatternMatcher.Matches(dirNoSlash, p.TrimStart('/')))) return true;
+            return false;
+        }).ToList();
+
+        if (dirsToExpand.Count == 0) return;
+
+        var expandArgs = "ls-files --others --ignored --exclude-standard -- " +
+                         string.Join(" ", dirsToExpand.Select(d => $"\"{d}\""));
+        var expandedResult = await _worktreeService.Value.ExecuteGitCommandAsync(
+            gitRoot, expandArgs, ct).ConfigureAwait(false);
+
+        if (!expandedResult.Success || string.IsNullOrWhiteSpace(expandedResult.Output)) return;
+
+        foreach (var f in expandedResult.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
+            var trimmed = f.Trim();
+            if (!patterns.Any(p => WorktreeIncludePatternMatcher.Matches(trimmed, p.TrimStart('/')))) continue;
+            files.Add(trimmed);
         }
     }
 

@@ -41,15 +41,15 @@ public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktree
             var fetchResult = await _worktreeService.Value.ExecuteGitCommandAsync(
                 gitRoot, $"fetch origin pull/{opts.PrNumber.Value}/head", ct).ConfigureAwait(false);
 
-            if (fetchResult.Success) {
-                context.BaseBranch = "FETCH_HEAD";
-                var fetchHeadSha = await _worktreeService.Value.ResolveRefAsync(gitRoot, "FETCH_HEAD").ConfigureAwait(false);
-                if (fetchHeadSha is not null) {
-                    context.BaseCommitSha = fetchHeadSha;
-                }
-            } else {
+            if (!fetchResult.Success) {
                 context.Fail($"无法 fetch PR #{opts.PrNumber.Value}: {fetchResult.Error}");
                 return;
+            }
+
+            context.BaseBranch = "FETCH_HEAD";
+            var fetchHeadSha = await _worktreeService.Value.ResolveRefAsync(gitRoot, "FETCH_HEAD").ConfigureAwait(false);
+            if (fetchHeadSha is not null) {
+                context.BaseCommitSha = fetchHeadSha;
             }
         } else if (!string.IsNullOrEmpty(opts.BaseBranch)) {
             var baseSha = await _worktreeService.Value.ResolveRefAsync(gitRoot, opts.BaseBranch).ConfigureAwait(false);

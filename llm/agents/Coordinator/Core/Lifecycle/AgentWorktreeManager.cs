@@ -148,22 +148,30 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
 
             await foreach (var result in hookOrchestrator.ExecuteHooksAsync(
                 HookEvent.WorktreeCreate, payload, cancellationToken: cancellationToken).ConfigureAwait(false)) {
-                if (result.Outcome == HookOutcome.Success && result.Message is not null) {
-                    using var doc = System.Text.Json.JsonDocument.Parse(result.Message);
-                    if (doc.RootElement.TryGetProperty("worktree_path", out var pathElem)) {
-                        var path = pathElem.GetString();
-                        if (!string.IsNullOrEmpty(path)) return path;
-                    }
-                    if (doc.RootElement.TryGetProperty("worktreePath", out var pathElem2)) {
-                        var path = pathElem2.GetString();
-                        if (!string.IsNullOrEmpty(path)) return path;
-                    }
-                }
+                if (result.Outcome != HookOutcome.Success || result.Message is null) continue;
+                using var doc = System.Text.Json.JsonDocument.Parse(result.Message);
+                var path = TryGetWorktreePath(doc);
+                if (path is not null) return path;
             }
         } catch (Exception ex) {
             _logger?.LogDebug(ex, "WorktreeCreate hook execution failed for agent {AgentId}", agentId);
         }
 
+        return null;
+    }
+
+    /// <summary>
+    /// 从 hook 返回的 JSON 中提取 worktree 路径（提取以扁平化嵌套）
+    /// </summary>
+    private static string? TryGetWorktreePath(System.Text.Json.JsonDocument doc) {
+        if (doc.RootElement.TryGetProperty("worktree_path", out var pathElem)) {
+            var path = pathElem.GetString();
+            if (!string.IsNullOrEmpty(path)) return path;
+        }
+        if (doc.RootElement.TryGetProperty("worktreePath", out var pathElem2)) {
+            var path = pathElem2.GetString();
+            if (!string.IsNullOrEmpty(path)) return path;
+        }
         return null;
     }
 

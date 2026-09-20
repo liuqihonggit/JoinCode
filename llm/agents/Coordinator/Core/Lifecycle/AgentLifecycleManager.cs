@@ -218,14 +218,13 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     public Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         if (_subAgents.TryRemove(agentId, out var agent)) {
             // L3 抢塞：已完成/失败的 agent 回池等待复用，否则直接 Dispose
-            if (_agentPool is not null && agent.Status is TaskExecutionStatus.Completed or TaskExecutionStatus.Failed) {
-                if (_agentPool.Return(agent))
-                    _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池等待复用", agentId);
-                else
-                    _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池失败（池满/禁用），已 Dispose", agentId);
-            } else {
+            if (_agentPool is null || agent.Status is not (TaskExecutionStatus.Completed or TaskExecutionStatus.Failed)) {
                 _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 状态 {State}，直接 Dispose", agentId, agent.Status);
                 agent.Dispose();
+            } else if (_agentPool.Return(agent)) {
+                _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池等待复用", agentId);
+            } else {
+                _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池失败（池满/禁用），已 Dispose", agentId);
             }
         }
         _results.TryRemove(agentId, out _);

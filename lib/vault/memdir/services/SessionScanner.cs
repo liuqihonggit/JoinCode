@@ -129,15 +129,11 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
                     toolCounts[toolName] = count + 1;
 
                     // 检测特殊工具使用
-                    if (toolName.StartsWith("mcp__", StringComparison.OrdinalIgnoreCase))
-                        usesMcp = true;
-                    if (string.Equals(toolName, WebToolNameEnumConstants.WebSearch, StringComparison.OrdinalIgnoreCase))
-                        usesWebSearch = true;
-                    if (string.Equals(toolName, WebToolNameEnumConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
-                        usesWebFetch = true;
-                    if (string.Equals(toolName, AgentToolNameEnumConstants.Agent, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(toolName, "Task", StringComparison.OrdinalIgnoreCase))
-                        usesTaskAgent = true;
+                    usesMcp |= toolName.StartsWith("mcp__", StringComparison.OrdinalIgnoreCase);
+                    usesWebSearch |= string.Equals(toolName, WebToolNameEnumConstants.WebSearch, StringComparison.OrdinalIgnoreCase);
+                    usesWebFetch |= string.Equals(toolName, WebToolNameEnumConstants.WebFetch, StringComparison.OrdinalIgnoreCase);
+                    usesTaskAgent |= string.Equals(toolName, AgentToolNameEnumConstants.Agent, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(toolName, "Task", StringComparison.OrdinalIgnoreCase);
                 }
             }
 
@@ -150,10 +146,10 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
                 if (isHumanMessage) {
                     userMessageCount++;
                     firstPrompt ??= entry.Content.Length > 200 ? entry.Content[..200] : entry.Content;
+                }
 
-                    if (entry.Timestamp != default) {
-                        userMessageTimestamps.Add(entry.Timestamp);
-                    }
+                if (isHumanMessage && entry.Timestamp != default) {
+                    userMessageTimestamps.Add(entry.Timestamp);
                 }
 
                 // 检测中断

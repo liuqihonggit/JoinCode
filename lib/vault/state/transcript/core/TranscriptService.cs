@@ -87,18 +87,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                         using var stream = _fs.CreateStream(transcriptPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                         using var reader = new StreamReader(stream);
                         var json = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-                        if (!string.IsNullOrWhiteSpace(json)) {
-                            var entries = RelaxedJsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
-                            if (entries is not null) {
-                                entryCount = entries.Count;
-                                if (entries.Count > 0) {
-                                    preview = entries[^1].Content;
-                                    if (preview is not null && preview.Length > 80) {
-                                        preview = preview[..80] + "...";
-                                    }
-                                }
-                            }
-                        }
+                        (entryCount, preview) = ExtractPreview(json);
                     } catch (Exception ex) {
                         // preview extraction 非关键，保留日志可见性
                         _logger?.LogDebug(ex, "TranscriptService: 会话摘要读取失败");
@@ -127,6 +116,24 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
             _logger?.LogError(ex, "Failed to list transcripts");
             return Array.Empty<TranscriptSummary>();
         }
+    }
+
+    /// <summary>
+    /// 从转录 JSON 中提取条目数与最后一条消息预览(截断至 80 字符)。
+    /// </summary>
+    /// <param name="json">转录文件 JSON 文本。</param>
+    /// <returns>(条目数, 预览文本);JSON 为空或反序列化失败时返回 (0, null)。</returns>
+    private static (int EntryCount, string? Preview) ExtractPreview(string json) {
+        if (string.IsNullOrWhiteSpace(json)) return (0, null);
+        var entries = RelaxedJsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
+        if (entries is null) return (0, null);
+        var entryCount = entries.Count;
+        if (entryCount is 0) return (entryCount, null);
+        var preview = entries[^1].Content;
+        if (preview is not null && preview.Length > 80) {
+            preview = preview[..80] + "...";
+        }
+        return (entryCount, preview);
     }
 
     /// <inheritdoc />

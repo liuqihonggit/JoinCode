@@ -1,6 +1,6 @@
 # 0115. 类型化决策抽象层 — ITypedDecision
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-21
 - 决策者：用户 + AI
 

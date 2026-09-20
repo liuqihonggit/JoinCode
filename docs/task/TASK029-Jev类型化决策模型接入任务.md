@@ -243,7 +243,7 @@ lib/abstractions/abs_ai.tests/decision/
 
 | 任务 | 状态 | 提交 |
 |------|------|------|
-| 任务J0: 类型化决策抽象层 | ⏳ 待开始(前置: ADR 0115 accepted) | - |
+| 任务J0: 类型化决策抽象层 | ✅ 完成(9 测试通过) | 待提交 |
 | 任务J1: 枚举扩展 | ⏳ 待开始 | - |
 | 任务J2: DTO + JsonContext | ⏳ 待开始 | - |
 | 任务J3: JevProviderDefinition | ⏳ 待开始 | - |

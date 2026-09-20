@@ -82,54 +82,52 @@ public sealed class AnthropicQueryService : QueryServiceBase {
             };
         }
 
-        if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null) {
-            var (allTools, toolGroups) = BuildAnthropicToolsFromKernel(kernel);
-            if (allTools.Count > 0 || toolGroups.Count > 0) {
-                var deferredToolInfos = settings.DeferredTools;
-                var discoveredTools = settings.DiscoveredTools;
+        if (settings?.ToolChoice != ToolChoice.AutoInvoke || kernel == null)
+            return request;
 
-                if (deferredToolInfos is { Count: > 0 } && discoveredTools != null) {
-                    var deferredNames = new HashSet<string>(
-                        deferredToolInfos.Select(t => t.Name), StringComparer.Ordinal);
+        var (allTools, toolGroups) = BuildAnthropicToolsFromKernel(kernel);
+        if (allTools.Count == 0 && toolGroups.Count == 0)
+            return request;
 
-                    var snapshot = await discoveredTools.SnapshotAsync().ConfigureAwait(false);
-                    var discoveredSet = new HashSet<string>(snapshot, StringComparer.Ordinal);
+        var deferredToolInfos = settings.DeferredTools;
+        var discoveredTools = settings.DiscoveredTools;
 
-                    var filteredTools = new List<AnthropicToolDefinition>();
-                    var deferredNotDiscovered = new List<DeferredToolInfo>();
+        if (deferredToolInfos is { Count: > 0 } && discoveredTools != null) {
+            var deferredNames = new HashSet<string>(
+                deferredToolInfos.Select(t => t.Name), StringComparer.Ordinal);
 
-                    foreach (var tool in allTools) {
-                        if (deferredNames.Contains(tool.Name)) {
-                            if (discoveredSet.Contains(tool.Name)) {
-                                filteredTools.Add(tool);
-                            } else {
-                                var info = deferredToolInfos.First(t => t.Name == tool.Name);
-                                deferredNotDiscovered.Add(info);
-                            }
-                        } else {
-                            filteredTools.Add(tool);
-                        }
-                    }
+            var snapshot = await discoveredTools.SnapshotAsync().ConfigureAwait(false);
+            var discoveredSet = new HashSet<string>(snapshot, StringComparer.Ordinal);
 
-                    if (deferredNotDiscovered.Count > 0) {
-                        var deferredDefs = BuildDeferredToolDefinitions(deferredNotDiscovered);
-                        filteredTools.AddRange(deferredDefs);
+            var filteredTools = new List<AnthropicToolDefinition>();
+            var deferredNotDiscovered = new List<DeferredToolInfo>();
 
-                        filteredTools.Add(BuildToolSearchToolDefinition());
-                    }
-
-                    request.Tools = filteredTools;
-                } else {
-                    request.Tools = allTools;
+            foreach (var tool in allTools) {
+                if (!deferredNames.Contains(tool.Name) || discoveredSet.Contains(tool.Name)) {
+                    filteredTools.Add(tool);
+                    continue;
                 }
-
-                if (toolGroups.Count > 0) {
-                    request.ToolGroups = toolGroups;
-                }
-
-                request.ToolChoice = AnthropicToolChoice.Auto;
+                var info = deferredToolInfos.First(t => t.Name == tool.Name);
+                deferredNotDiscovered.Add(info);
             }
+
+            if (deferredNotDiscovered.Count > 0) {
+                var deferredDefs = BuildDeferredToolDefinitions(deferredNotDiscovered);
+                filteredTools.AddRange(deferredDefs);
+
+                filteredTools.Add(BuildToolSearchToolDefinition());
+            }
+
+            request.Tools = filteredTools;
+        } else {
+            request.Tools = allTools;
         }
+
+        if (toolGroups.Count > 0) {
+            request.ToolGroups = toolGroups;
+        }
+
+        request.ToolChoice = AnthropicToolChoice.Auto;
 
         if (settings?.ExtensionData != null &&
             settings.ExtensionData.TryGetValue("web_search_tool", out var webSearchToolJson)) {
@@ -515,21 +513,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                 case AnthropicContentBlockType.ServerToolUse:
                 break;
                 case AnthropicContentBlockType.WebSearchToolResult:
-                if (block.Content is JsonElement contentEl) {
-                    if (contentEl.ValueKind == JsonValueKind.Array) {
-                        foreach (var item in contentEl.EnumerateArray()) {
-                            var title = item.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null;
-                            var url = item.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
-                            if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(url)) {
-                                textParts.Append($"[{title}]({url})\n");
-                            }
-                        }
-                        webSearchResults.Add(contentEl.GetRawText());
-                    } else {
-                        var errorCode = contentEl.TryGetProperty("error_code", out var ec) ? ec.GetString() : "unknown";
-                        textParts.Append($"Web search error: {errorCode}\n");
-                    }
-                }
+                ProcessWebSearchToolResult(block, textParts, webSearchResults);
                 break;
             }
         }
@@ -671,32 +655,7 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                         };
                         yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, metadata);
                     } else if (evt.ContentBlock.Type == AnthropicContentBlockType.WebSearchToolResult) {
-                        var searchMetadata = new Dictionary<string, JsonElement> {
-                            ["Id"] = JsonElementHelper.FromString(messageId),
-                            ["Model"] = JsonElementHelper.FromString(modelName),
-                            ["web_search_result"] = JsonElementHelper.FromBoolean(true),
-                            ["tool_use_id"] = JsonElementHelper.FromString(evt.ContentBlock.Id ?? "")
-                        };
-
-                        if (evt.ContentBlock.Content is JsonElement contentEl) {
-                            if (contentEl.ValueKind == JsonValueKind.Array) {
-                                var links = new StringBuilder();
-                                foreach (var item in contentEl.EnumerateArray()) {
-                                    var title = item.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null;
-                                    var url = item.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
-                                    if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(url)) {
-                                        links.Append($"[{title}]({url})\n");
-                                    }
-                                }
-                                if (links.Length > 0) {
-                                    searchMetadata["search_links"] = JsonElementHelper.FromString(links.ToString());
-                                }
-                            } else if (contentEl.ValueKind == JsonValueKind.Object) {
-                                var errorCode = contentEl.TryGetProperty("error_code", out var ec) ? ec.GetString() : "unknown";
-                                searchMetadata["search_error"] = JsonElementHelper.FromString(errorCode);
-                            }
-                        }
-
+                        var searchMetadata = BuildWebSearchResultMetadata(evt.ContentBlock, messageId, modelName);
                         yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, searchMetadata);
                     }
                 }
@@ -718,38 +677,10 @@ public sealed class AnthropicQueryService : QueryServiceBase {
                         }
                         yield return new StreamEvent(MessageRole.Assistant, delta.Text, modelName, textDeltaMetadata);
                     } else if (delta.Type == AnthropicDeltaType.InputJsonDelta && delta.PartialJson != null) {
-                        if (toolCallAccumulator.TryGetValue(idx, out var existing)) {
-                            existing.Arguments.Append(delta.PartialJson);
-                        }
-
-                        if (serverToolUseTracker.TryGetValue(idx, out var tracker)) {
-                            tracker.JsonBuilder.Append(delta.PartialJson);
-
-                            if (tracker.JsonBuilder.Length - tracker.LastExtractionLength >= 50) {
-                                var partialJson = tracker.JsonBuilder.ToString();
-
-                                var queryMatch = System.Text.RegularExpressions.Regex.Match(
-                                    partialJson, @"""query""\s*:\s*""((?:[^""\\]|\\.)*)""");
-                                if (queryMatch.Success) {
-                                    var extractedQuery = queryMatch.Groups[1].Value;
-                                    extractedQuery = extractedQuery.Replace("\\\"", "\"")
-                                        .Replace("\\\\", "\\")
-                                        .Replace("\\n", "\n");
-
-                                    if (extractedQuery != tracker.LastQuery) {
-                                        serverToolUseTracker[idx] = (tracker.ToolUseId, extractedQuery, tracker.JsonBuilder, tracker.JsonBuilder.Length);
-                                        var queryUpdateMetadata = new Dictionary<string, JsonElement> {
-                                            ["Id"] = JsonElementHelper.FromString(messageId),
-                                            ["Model"] = JsonElementHelper.FromString(modelName),
-                                            ["server_tool_use"] = JsonElementHelper.FromBoolean(true),
-                                            ["tool_use_id"] = JsonElementHelper.FromString(tracker.ToolUseId),
-                                            ["tool_name"] = JsonElementHelper.FromString("web_search"),
-                                            ["query_update"] = JsonElementHelper.FromString(extractedQuery)
-                                        };
-                                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, queryUpdateMetadata);
-                                    }
-                                }
-                            }
+                        var queryUpdateEvent = TryBuildQueryUpdateStreamEvent(
+                            idx, delta, toolCallAccumulator, serverToolUseTracker, messageId, modelName);
+                        if (queryUpdateEvent is not null) {
+                            yield return queryUpdateEvent;
                         }
                     }
                 }
@@ -802,6 +733,100 @@ public sealed class AnthropicQueryService : QueryServiceBase {
     }
 
     #endregion
+
+    /// <summary>处理非流式 WebSearchToolResult 块: 提取搜索链接/错误信息写入 textParts,原始 JSON 写入 webSearchResults</summary>
+    private static void ProcessWebSearchToolResult(AnthropicResponseContentBlock block, StringBuilder textParts, List<string> webSearchResults) {
+        if (block.Content is not JsonElement contentEl) return;
+        if (contentEl.ValueKind == JsonValueKind.Array) {
+            foreach (var item in contentEl.EnumerateArray()) {
+                var title = item.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null;
+                var url = item.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
+                if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(url)) {
+                    textParts.Append($"[{title}]({url})\n");
+                }
+            }
+            webSearchResults.Add(contentEl.GetRawText());
+        } else {
+            var errorCode = contentEl.TryGetProperty("error_code", out var ec) ? ec.GetString() : "unknown";
+            textParts.Append($"Web search error: {errorCode}\n");
+        }
+    }
+
+    /// <summary>构建流式 WebSearchToolResult 的 metadata: 包含搜索链接或错误信息</summary>
+    private static Dictionary<string, JsonElement> BuildWebSearchResultMetadata(
+        AnthropicResponseContentBlock contentBlock, string messageId, string modelName) {
+        var searchMetadata = new Dictionary<string, JsonElement> {
+            ["Id"] = JsonElementHelper.FromString(messageId),
+            ["Model"] = JsonElementHelper.FromString(modelName),
+            ["web_search_result"] = JsonElementHelper.FromBoolean(true),
+            ["tool_use_id"] = JsonElementHelper.FromString(contentBlock.Id ?? "")
+        };
+
+        if (contentBlock.Content is not JsonElement contentEl) return searchMetadata;
+        if (contentEl.ValueKind == JsonValueKind.Array) {
+            var links = new StringBuilder();
+            foreach (var item in contentEl.EnumerateArray()) {
+                var title = item.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : null;
+                var url = item.TryGetProperty("url", out var urlProp) ? urlProp.GetString() : null;
+                if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(url)) {
+                    links.Append($"[{title}]({url})\n");
+                }
+            }
+            if (links.Length > 0) {
+                searchMetadata["search_links"] = JsonElementHelper.FromString(links.ToString());
+            }
+        } else if (contentEl.ValueKind == JsonValueKind.Object) {
+            var errorCode = contentEl.TryGetProperty("error_code", out var ec) ? ec.GetString() : "unknown";
+            searchMetadata["search_error"] = JsonElementHelper.FromString(errorCode);
+        }
+        return searchMetadata;
+    }
+
+    /// <summary>处理流式 InputJsonDelta: 累积 partial json,当检测到 query 更新时返回 StreamEvent(否则 null)</summary>
+    private static StreamEvent? TryBuildQueryUpdateStreamEvent(
+        int idx,
+        AnthropicStreamingDelta delta,
+        Dictionary<int, (string Id, string Name, StringBuilder Arguments)> toolCallAccumulator,
+        Dictionary<int, (string ToolUseId, string? LastQuery, StringBuilder JsonBuilder, int LastExtractionLength)> serverToolUseTracker,
+        string messageId,
+        string modelName) {
+        if (toolCallAccumulator.TryGetValue(idx, out var existing)) {
+            existing.Arguments.Append(delta.PartialJson);
+        }
+
+        if (!serverToolUseTracker.TryGetValue(idx, out var tracker))
+            return null;
+
+        tracker.JsonBuilder.Append(delta.PartialJson);
+
+        if (tracker.JsonBuilder.Length - tracker.LastExtractionLength < 50)
+            return null;
+
+        var partialJson = tracker.JsonBuilder.ToString();
+        var queryMatch = System.Text.RegularExpressions.Regex.Match(
+            partialJson, @"""query""\s*:\s*""((?:[^""\\]|\\.)*)""");
+        if (!queryMatch.Success)
+            return null;
+
+        var extractedQuery = queryMatch.Groups[1].Value;
+        extractedQuery = extractedQuery.Replace("\\\"", "\"")
+            .Replace("\\\\", "\\")
+            .Replace("\\n", "\n");
+
+        if (extractedQuery == tracker.LastQuery)
+            return null;
+
+        serverToolUseTracker[idx] = (tracker.ToolUseId, extractedQuery, tracker.JsonBuilder, tracker.JsonBuilder.Length);
+        var queryUpdateMetadata = new Dictionary<string, JsonElement> {
+            ["Id"] = JsonElementHelper.FromString(messageId),
+            ["Model"] = JsonElementHelper.FromString(modelName),
+            ["server_tool_use"] = JsonElementHelper.FromBoolean(true),
+            ["tool_use_id"] = JsonElementHelper.FromString(tracker.ToolUseId),
+            ["tool_name"] = JsonElementHelper.FromString("web_search"),
+            ["query_update"] = JsonElementHelper.FromString(extractedQuery)
+        };
+        return new StreamEvent(MessageRole.Assistant, string.Empty, modelName, queryUpdateMetadata);
+    }
 
     private static TokenUsage BuildTokenUsage(AnthropicUsage usage) {
         return CacheProtocol.MapUsage(usage);

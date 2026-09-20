@@ -86,9 +86,9 @@ public class OpenAIQueryService : QueryServiceBase {
                 var secondFirstChunk = true;
 
                 await foreach (var sc in secondStream) {
+                    if (sc.Choices.Count == 0 && sc.Usage is null) continue;
                     if (sc.Choices.Count == 0) {
-                        if (sc.Usage is null) continue;
-                        var tu = BuildTokenUsage(sc.Usage);
+                        var tu = BuildTokenUsage(sc.Usage!);
                         var um = new Dictionary<string, JsonElement> {
                             ["Id"] = JsonElementHelper.FromString(sc.Id),
                             ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.Stop),
@@ -103,14 +103,12 @@ public class OpenAIQueryService : QueryServiceBase {
                     var scContent = sc2.Delta?.Content?.Text ?? string.Empty;
                     var scRole = ConvertRole(sc2.Delta?.Role);
 
-                    if (sc2.Delta?.ToolCalls != null) {
-                        foreach (var tc in sc2.Delta.ToolCalls) {
-                            var idx = tc.Index ?? 0;
-                            if (!string.IsNullOrEmpty(tc.Id))
-                                secondAccumulator[idx] = (tc.Id, tc.Function?.Name ?? "", new StringBuilder());
-                            if (tc.Function?.Arguments != null && secondAccumulator.TryGetValue(idx, out var ex))
-                                ex.Arguments.Append(tc.Function.Arguments);
-                        }
+                    foreach (var tc in sc2.Delta?.ToolCalls ?? []) {
+                        var idx = tc.Index ?? 0;
+                        if (!string.IsNullOrEmpty(tc.Id))
+                            secondAccumulator[idx] = (tc.Id, tc.Function?.Name ?? "", new StringBuilder());
+                        if (tc.Function?.Arguments != null && secondAccumulator.TryGetValue(idx, out var ex))
+                            ex.Arguments.Append(tc.Function.Arguments);
                     }
 
                     var scMeta = new Dictionary<string, JsonElement> {
@@ -138,10 +136,7 @@ public class OpenAIQueryService : QueryServiceBase {
                     var scStreamContent = sc2.Delta?.ReasoningContent ?? scContent;
                     if (secondFirstChunk) {
                         secondFirstChunk = false;
-                        var rlh = GetLastRateLimitHeaders();
-                        if (rlh != null)
-                            foreach (var kvp in rlh)
-                                scMeta[$"ratelimit_{kvp.Key}"] = JsonElementHelper.FromString(kvp.Value);
+                        AppendRateLimitHeaders(scMeta);
                     }
                     yield return new StreamEvent(scRole, scStreamContent, sc.Model, scMeta);
                 }
@@ -265,9 +260,9 @@ public class OpenAIQueryService : QueryServiceBase {
         if (m.Role == MessageRole.Assistant && m.Metadata != null) {
             if (m.Metadata.TryGetValue("ToolCalls", out var toolCallsObj)) {
                 msg.ToolCalls = ConvertToOpenAIToolCalls(toolCallsObj) ?? [];
-                if (msg.ToolCalls is { Count: > 0 }) {
-                    msg.Content = null;
-                }
+            }
+            if (msg.ToolCalls is { Count: > 0 }) {
+                msg.Content = null;
             }
         } else if (m.Role == MessageRole.Tool && m.Metadata != null) {
             if (m.Metadata.TryGetValue("ToolCallId", out var toolCallIdObj) &&
@@ -490,17 +485,17 @@ public class OpenAIQueryService : QueryServiceBase {
                 continue;
             }
 
-            if (chunk != null) {
-                chunkCount++;
-                if (chunk.Choices.Count > 0) {
-                    var choice = chunk.Choices[0];
-                    if (!string.IsNullOrEmpty(choice.Delta?.Content?.Text)) contentChunks++;
-                    if (choice.Delta?.ToolCalls != null && choice.Delta.ToolCalls.Count > 0) toolCallChunks++;
-                }
-                yield return chunk;
-            } else {
+            if (chunk == null) {
                 Logger?.LogWarning("[WIRE {CallId}] chunk 反序列化为 null, data={Data}", CallTrace.CurrentId, data);
+                continue;
             }
+            chunkCount++;
+            if (chunk.Choices.Count > 0) {
+                var choice = chunk.Choices[0];
+                if (!string.IsNullOrEmpty(choice.Delta?.Content?.Text)) contentChunks++;
+                if (choice.Delta?.ToolCalls != null && choice.Delta.ToolCalls.Count > 0) toolCallChunks++;
+            }
+            yield return chunk;
         }
 
         Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流异常结束(无[DONE]) | chunks={chunkCount}, content={contentChunks}, toolCalls={toolCallChunks}");
@@ -539,5 +534,13 @@ public class OpenAIQueryService : QueryServiceBase {
 
     private static TokenUsage BuildTokenUsage(OpenAIUsage usage) {
         return CacheProtocol.MapUsage(usage);
+    }
+
+    /// <summary>将最近一次响应的 RateLimit header 写入 metadata(ratelimit_ 前缀)</summary>
+    private void AppendRateLimitHeaders(Dictionary<string, JsonElement> meta) {
+        var headers = GetLastRateLimitHeaders();
+        if (headers == null) return;
+        foreach (var kvp in headers)
+            meta[$"ratelimit_{kvp.Key}"] = JsonElementHelper.FromString(kvp.Value);
     }
 }

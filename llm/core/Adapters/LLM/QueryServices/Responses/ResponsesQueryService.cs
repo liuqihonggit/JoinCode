@@ -164,90 +164,89 @@ public class ResponsesQueryService : QueryServiceBase {
         }
 
         // 两阶段工具加载: 检测到 tool_description_request → 构建第二次请求(含 tool_descriptions)
-        if (descRequestContent is not null && kernel != null) {
-            Logger?.LogDebug("[WIRE] Responses 收到 tool_description_request, 发送第二次请求");
-            var secondRequest = CreateSecondResponsesRequestWithDescriptions(request, descRequestContent, kernel);
-            var secondJson = JsonSerializer.Serialize(secondRequest, NativeJsonContext.Default.ResponsesRequest);
-            var secondEndpoint = GetChatEndpoint(Config);
-            var secondResponse = await SendWithResilienceAsync(secondJson, secondEndpoint, "LLM.ResponsesStreaming2", cancellationToken,
-                HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-            secondResponse.EnsureSuccessStatusCode();
-            ExtractRateLimitHeaders(secondResponse);
-            var secondStream = await secondResponse.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            using var secondReader = secondStream.AsUtf8Reader();
-            var secondAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
-            string? secondCurrentEvent = null;
-            string? sLine;
-            while ((sLine = await secondReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null) {
-                if (cancellationToken.IsCancellationRequested) yield break;
-                if (sLine.StartsWith("event: ")) { secondCurrentEvent = sLine[7..].Trim(); continue; }
-                if (!sLine.StartsWith("data: ")) continue;
-                var sData = sLine[6..];
-                if (string.IsNullOrEmpty(sData)) continue;
+        if (descRequestContent is null || kernel is null) yield break;
+        Logger?.LogDebug("[WIRE] Responses 收到 tool_description_request, 发送第二次请求");
+        var secondRequest = CreateSecondResponsesRequestWithDescriptions(request, descRequestContent, kernel);
+        var secondJson = JsonSerializer.Serialize(secondRequest, NativeJsonContext.Default.ResponsesRequest);
+        var secondEndpoint = GetChatEndpoint(Config);
+        var secondResponse = await SendWithResilienceAsync(secondJson, secondEndpoint, "LLM.ResponsesStreaming2", cancellationToken,
+            HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+        secondResponse.EnsureSuccessStatusCode();
+        ExtractRateLimitHeaders(secondResponse);
+        var secondStream = await secondResponse.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var secondReader = secondStream.AsUtf8Reader();
+        var secondAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+        string? secondCurrentEvent = null;
+        string? sLine;
+        while ((sLine = await secondReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null) {
+            if (cancellationToken.IsCancellationRequested) yield break;
+            if (sLine.StartsWith("event: ")) { secondCurrentEvent = sLine[7..].Trim(); continue; }
+            if (!sLine.StartsWith("data: ")) continue;
+            var sData = sLine[6..];
+            if (string.IsNullOrEmpty(sData)) continue;
 
-                JsonElement sEventJson;
-                try { sEventJson = JsonDocument.Parse(sData).RootElement; } catch (Exception ex) when (ex is JsonException or FormatException) { continue; }
+            JsonElement sEventJson;
+            try { sEventJson = JsonDocument.Parse(sData).RootElement; } catch (Exception ex) when (ex is JsonException or FormatException) { continue; }
 
-                // 事件类型解析: 优先 data 内 type 字段(无 event: 前缀的容错), 回退到 event: 前缀
-                if (sEventJson.ValueKind != JsonValueKind.Object) {
-                    continue;
+            // 事件类型解析: 优先 data 内 type 字段(无 event: 前缀的容错), 回退到 event: 前缀
+            if (sEventJson.ValueKind != JsonValueKind.Object) {
+                continue;
+            }
+            if (sEventJson.TryGetProperty("type", out var sEventTypeProp) && sEventTypeProp.ValueKind == JsonValueKind.String) {
+                secondCurrentEvent = sEventTypeProp.GetString();
+            } else if (secondCurrentEvent is null) {
+                continue;
+            }
+
+            var sMeta = new Dictionary<string, JsonElement>();
+            switch (secondCurrentEvent) {
+                case "response.output_text.delta": {
+                    var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
+                    yield return new StreamEvent(MessageRole.Assistant, sDelta, modelId, sMeta);
+                    break;
                 }
-                if (sEventJson.TryGetProperty("type", out var sEventTypeProp) && sEventTypeProp.ValueKind == JsonValueKind.String) {
-                    secondCurrentEvent = sEventTypeProp.GetString();
-                } else if (secondCurrentEvent is null) {
-                    continue;
+                case "response.reasoning_text.delta": {
+                    var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
+                    sMeta["reasoning_content"] = JsonElementHelper.FromBoolean(true);
+                    yield return new StreamEvent(MessageRole.Assistant, sDelta, modelId, sMeta);
+                    break;
                 }
-
-                var sMeta = new Dictionary<string, JsonElement>();
-                switch (secondCurrentEvent) {
-                    case "response.output_text.delta": {
+                case "response.function_call_arguments.delta": {
+                    if (sEventJson.TryGetProperty("item_id", out var itemIdProp)) {
+                        var itemId = itemIdProp.GetString() ?? "";
+                        var idx = itemId.GetHashCode() & 0x7FFFFFFF;
                         var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
-                        yield return new StreamEvent(MessageRole.Assistant, sDelta, modelId, sMeta);
-                        break;
+                        if (secondAccumulator.TryGetValue(idx, out var ex)) ex.Arguments.Append(sDelta);
                     }
-                    case "response.reasoning_text.delta": {
-                        var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
-                        sMeta["reasoning_content"] = JsonElementHelper.FromBoolean(true);
-                        yield return new StreamEvent(MessageRole.Assistant, sDelta, modelId, sMeta);
-                        break;
-                    }
-                    case "response.function_call_arguments.delta": {
-                        if (sEventJson.TryGetProperty("item_id", out var itemIdProp)) {
-                            var itemId = itemIdProp.GetString() ?? "";
-                            var idx = itemId.GetHashCode() & 0x7FFFFFFF;
-                            var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
-                            if (secondAccumulator.TryGetValue(idx, out var ex)) ex.Arguments.Append(sDelta);
+                    break;
+                }
+                case "response.output_item.added": {
+                    if (sEventJson.TryGetProperty("item", out var itemProp) && itemProp.TryGetProperty("type", out var typeProp)) {
+                        if (typeProp.GetString() == "function_call") {
+                            var callId = itemProp.TryGetProperty("call_id", out var c) ? c.GetString() ?? "" : "";
+                            var name = itemProp.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                            var idx = (itemProp.TryGetProperty("id", out var i) ? i.GetString() ?? "" : "").GetHashCode() & 0x7FFFFFFF;
+                            secondAccumulator[idx] = (callId, name, new StringBuilder());
                         }
-                        break;
                     }
-                    case "response.output_item.added": {
-                        if (sEventJson.TryGetProperty("item", out var itemProp) && itemProp.TryGetProperty("type", out var typeProp)) {
-                            if (typeProp.GetString() == "function_call") {
-                                var callId = itemProp.TryGetProperty("call_id", out var c) ? c.GetString() ?? "" : "";
-                                var name = itemProp.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                                var idx = (itemProp.TryGetProperty("id", out var i) ? i.GetString() ?? "" : "").GetHashCode() & 0x7FFFFFFF;
-                                secondAccumulator[idx] = (callId, name, new StringBuilder());
-                            }
-                        }
-                        break;
+                    break;
+                }
+                case "response.completed":
+                case "response.incomplete": {
+                    if (sEventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("usage", out var usageProp)) {
+                        var tu = BuildTokenUsage(usageProp);
+                        sMeta["FinishReason"] = JsonElementHelper.FromString("stop");
+                        sMeta["Usage"] = JsonElementHelper.FromObject(tu, NativeJsonContext.Default.TokenUsage);
                     }
-                    case "response.completed":
-                    case "response.incomplete": {
-                        if (sEventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("usage", out var usageProp)) {
-                            var tu = BuildTokenUsage(usageProp);
-                            sMeta["FinishReason"] = JsonElementHelper.FromString("stop");
-                            sMeta["Usage"] = JsonElementHelper.FromObject(tu, NativeJsonContext.Default.TokenUsage);
-                        }
-                        if (secondAccumulator.Count > 0) {
-                            var entries = secondAccumulator
-                                .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
-                                .ToList();
-                            sMeta["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
-                            sMeta["FinishReason"] = JsonElementHelper.FromString("tool_calls");
-                        }
-                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelId, sMeta);
-                        yield break;
+                    if (secondAccumulator.Count > 0) {
+                        var entries = secondAccumulator
+                            .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
+                            .ToList();
+                        sMeta["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
+                        sMeta["FinishReason"] = JsonElementHelper.FromString("tool_calls");
                     }
+                    yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelId, sMeta);
+                    yield break;
                 }
             }
         }
@@ -276,30 +275,7 @@ public class ResponsesQueryService : QueryServiceBase {
                 continue;
             }
 
-            if (msg.Role == MessageRole.Assistant && msg.Metadata is not null) {
-                if (msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ReasoningText, out var reasoningProp)
-                    && reasoningProp.ValueKind == JsonValueKind.String) {
-                    AppendItem(inputSb, ref firstInput);
-                    inputSb.Append("{\"type\":\"reasoning\",\"content\":[{\"type\":\"reasoning_text\",\"text\":\"")
-                        .Append(EscapeJsonString(reasoningProp.GetString() ?? string.Empty)).Append("\"}]}");
-                }
-
-                if (msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolCalls, out var toolCallsProp)
-                    || msg.Metadata.TryGetValue("AllToolCalls", out toolCallsProp)) {
-                    if (toolCallsProp.ValueKind == JsonValueKind.Array) {
-                        foreach (var tc in toolCallsProp.EnumerateArray()) {
-                            var id = tc.TryGetProperty("Id", out var idProp) ? idProp.GetString() ?? "" : "";
-                            var name = tc.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() ?? "" : "";
-                            var args = tc.TryGetProperty("Arguments", out var argsProp) ? argsProp.GetString() ?? "{}" : "{}";
-                            AppendItem(inputSb, ref firstInput);
-                            inputSb.Append("{\"type\":\"function_call\",\"call_id\":\"").Append(EscapeJsonString(id))
-                                .Append("\",\"name\":\"").Append(EscapeJsonString(name))
-                                .Append("\",\"arguments\":\"").Append(EscapeJsonString(args)).Append("\"}");
-                        }
-                        continue;
-                    }
-                }
-            }
+            if (TryAppendAssistantMetadata(inputSb, ref firstInput, msg)) continue;
 
             if (!firstInput) inputSb.Append(',');
             firstInput = false;
@@ -485,6 +461,35 @@ public class ResponsesQueryService : QueryServiceBase {
         AppendItem(sb, ref firstInput);
         sb.Append("{\"type\":\"function_call_output\",\"call_id\":\"").Append(EscapeJsonString(callId))
             .Append("\",\"output\":\"").Append(EscapeJsonString(msg.Content ?? string.Empty)).Append("\"}");
+    }
+
+    /// <summary>Assistant 消息的 reasoning + tool_calls 元数据 → Responses input items。返回 true 表示已走 tool_calls 分支应 continue</summary>
+    private static bool TryAppendAssistantMetadata(StringBuilder inputSb, ref bool firstInput, ApiMessage msg) {
+        if (msg.Role != MessageRole.Assistant || msg.Metadata is null) return false;
+
+        if (msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ReasoningText, out var reasoningProp)
+            && reasoningProp.ValueKind == JsonValueKind.String) {
+            AppendItem(inputSb, ref firstInput);
+            inputSb.Append("{\"type\":\"reasoning\",\"content\":[{\"type\":\"reasoning_text\",\"text\":\"")
+                .Append(EscapeJsonString(reasoningProp.GetString() ?? string.Empty)).Append("\"}]}");
+        }
+
+        if (msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolCalls, out var toolCallsProp)
+            || msg.Metadata.TryGetValue("AllToolCalls", out toolCallsProp)) {
+            if (toolCallsProp.ValueKind == JsonValueKind.Array) {
+                foreach (var tc in toolCallsProp.EnumerateArray()) {
+                    var id = tc.TryGetProperty("Id", out var idProp) ? idProp.GetString() ?? "" : "";
+                    var name = tc.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() ?? "" : "";
+                    var args = tc.TryGetProperty("Arguments", out var argsProp) ? argsProp.GetString() ?? "{}" : "{}";
+                    AppendItem(inputSb, ref firstInput);
+                    inputSb.Append("{\"type\":\"function_call\",\"call_id\":\"").Append(EscapeJsonString(id))
+                        .Append("\",\"name\":\"").Append(EscapeJsonString(name))
+                        .Append("\",\"arguments\":\"").Append(EscapeJsonString(args)).Append("\"}");
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     #endregion

@@ -143,27 +143,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
                 !requestJson.RootElement.TryGetProperty("tool_descriptions", out _)) {
                 var descRequest = _responseStrategy.BuildToolDescriptionRequest(requestJson.RootElement);
                 if (descRequest is not null) {
-                    Console.WriteLine($"[{_serverName}]   Response: tool_description_request (two-phase loading)");
-                    var isDescStream = requestJson.RootElement.TryGetProperty("stream", out var descStreamProp)
-                        && descStreamProp.ValueKind == JsonValueKind.True;
-
-                    if (isDescStream) {
-                        ctx.Response.StatusCode = 200;
-                        ctx.Response.ContentType = "text/event-stream";
-                        var descId = $"chatcmpl-{Guid.NewGuid():N}";
-                        var preamble = _responseStrategy.BuildStreamPreamble(descId);
-                        if (preamble is not null)
-                            await ctx.Response.WriteAsync(preamble, ctx.RequestAborted);
-                        await ctx.Response.WriteAsync(_responseStrategy.BuildStreamChunk(descId, descRequest, false), ctx.RequestAborted);
-                        var emptyStats = new CacheStats { CacheCreationTokens = 0, CacheReadTokens = 0, InputTokens = 0, OutputTokens = 0 };
-                        await ctx.Response.WriteAsync(_responseStrategy.BuildStreamFinalChunk(descId, emptyStats), ctx.RequestAborted);
-                        await ctx.Response.WriteAsync("data: [DONE]\n\n", ctx.RequestAborted);
-                    } else {
-                        ctx.Response.StatusCode = 200;
-                        ctx.Response.ContentType = "application/json";
-                        await ctx.Response.WriteAsync(descRequest, ctx.RequestAborted);
-                    }
-                    Console.WriteLine($"[{_serverName}] === Request #{requestIndex} complete ===");
+                    await HandleToolDescriptionRequestAsync(ctx, requestJson.RootElement, descRequest, requestIndex);
                     return;
                 }
             }
@@ -305,6 +285,33 @@ public sealed class KestrelMockServer : IHttpMockServer {
     public ValueTask DisposeAsync() {
         _cts.Cancel();
         return new ValueTask(DisposeCoreAsync());
+    }
+
+    /// <summary>
+    /// 处理工具描述请求（两阶段加载，提取以扁平化嵌套）
+    /// </summary>
+    private async Task HandleToolDescriptionRequestAsync(HttpContext ctx, JsonElement requestRoot, string descRequest, int requestIndex) {
+        Console.WriteLine($"[{_serverName}]   Response: tool_description_request (two-phase loading)");
+        var isDescStream = requestRoot.TryGetProperty("stream", out var descStreamProp)
+            && descStreamProp.ValueKind == JsonValueKind.True;
+
+        if (isDescStream) {
+            ctx.Response.StatusCode = 200;
+            ctx.Response.ContentType = "text/event-stream";
+            var descId = $"chatcmpl-{Guid.NewGuid():N}";
+            var preamble = _responseStrategy.BuildStreamPreamble(descId);
+            if (preamble is not null)
+                await ctx.Response.WriteAsync(preamble, ctx.RequestAborted);
+            await ctx.Response.WriteAsync(_responseStrategy.BuildStreamChunk(descId, descRequest, false), ctx.RequestAborted);
+            var emptyStats = new CacheStats { CacheCreationTokens = 0, CacheReadTokens = 0, InputTokens = 0, OutputTokens = 0 };
+            await ctx.Response.WriteAsync(_responseStrategy.BuildStreamFinalChunk(descId, emptyStats), ctx.RequestAborted);
+            await ctx.Response.WriteAsync("data: [DONE]\n\n", ctx.RequestAborted);
+        } else {
+            ctx.Response.StatusCode = 200;
+            ctx.Response.ContentType = "application/json";
+            await ctx.Response.WriteAsync(descRequest, ctx.RequestAborted);
+        }
+        Console.WriteLine($"[{_serverName}] === Request #{requestIndex} complete ===");
     }
 
     private async Task DisposeCoreAsync() {

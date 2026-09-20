@@ -83,11 +83,8 @@ public static class EnvironmentSection {
             var psVersion = TryDetectTool("pwsh", ["-Command", "$PSVersionTable.PSVersion.ToString()"]);
             if (psVersion is not null)
                 tools.Add($"PowerShell 7+ {psVersion}");
-            else {
-                var ps5 = TryDetectTool("powershell", ["-Command", "$PSVersionTable.PSVersion.ToString()"]);
-                if (ps5 is not null)
-                    tools.Add($"Windows PowerShell {ps5}");
-            }
+            else if (TryDetectTool("powershell", ["-Command", "$PSVersionTable.PSVersion.ToString()"]) is { } ps5)
+                tools.Add($"Windows PowerShell {ps5}");
         }
 
         return tools;

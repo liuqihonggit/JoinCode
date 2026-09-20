@@ -705,4 +705,103 @@ public class DisposableConsistencyRulesTests {
         };
         await test.RunAsync().ConfigureAwait(true);
     }
+
+    /// <summary>
+    /// JCC9108: IAsyncDisposable 局部变量传给构造函数参数 = 所有权转移，不应报错。
+    /// 场景: var adapter = new AsyncDisposable(); var mailbox = new Mailbox(adapter);
+    /// adapter 的所有权转移给 mailbox，由 mailbox.DisposeAsync() 负责释放。
+    /// </summary>
+    [Fact]
+    public async Task AsyncDisposable_PassedToConstructor_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task Method()
+                    {
+                        var adapter = new AsyncDisposable();
+                        var mailbox = new Mailbox(adapter);
+                        await mailbox.DisposeAsync();
+                    }
+                }
+                class AsyncDisposable : IAsyncDisposable
+                {
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                }
+                class Mailbox : IAsyncDisposable
+                {
+                    public Mailbox(AsyncDisposable adapter) { }
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// JCC9108: 构造函数多参数场景，IAsyncDisposable 作为其中之一传给构造函数 = 所有权转移。
+    /// </summary>
+    [Fact]
+    public async Task AsyncDisposable_PassedToConstructorWithOtherArgs_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task Method()
+                    {
+                        var actor = new AsyncDisposable();
+                        var mailbox = new Mailbox(actor, "id");
+                        await mailbox.DisposeAsync();
+                    }
+                }
+                class AsyncDisposable : IAsyncDisposable
+                {
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                }
+                class Mailbox : IAsyncDisposable
+                {
+                    public Mailbox(AsyncDisposable actor, string id) { }
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// JCC9108: IAsyncDisposable 未传给构造函数/未转移所有权时仍应报错（防止过度豁免）。
+    /// </summary>
+    [Fact]
+    public async Task AsyncDisposable_NotTransferred_ReportsJCC9108() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task Method()
+                    {
+                        var {|#0:x|} = new AsyncDisposable();
+                        await Task.Delay(1);
+                    }
+                }
+                class AsyncDisposable : IAsyncDisposable
+                {
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC9108", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("x"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
 }

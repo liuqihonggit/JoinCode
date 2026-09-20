@@ -124,75 +124,27 @@ public sealed class AsyncDisposableNotReleasedRule : AnalyzerRuleBase<AsyncDispo
             }
         }
 
+        foreach (var creation in method.DescendantNodes().OfType<ObjectCreationExpressionSyntax>()) {
+            if (creation.ArgumentList is null) continue;
+            if (creation.ArgumentList.Arguments.Any(arg => IsIdentifier(arg.Expression, varName)))
+                return true;
+        }
+
         if (IsReferencedInLambda(method, varName)) return true;
 
         return false;
     }
 
     /// <summary>
-    /// 判断初始化表达式是否为"获取而非新建"——从字段/属性/集合索引/缓存方法获取,不拥有所有权。
+    /// 判断初始化表达式是否为"获取而非新建"——顶层不是 ObjectCreationExpression 即从字段/属性/方法获取,不拥有所有权。
+    /// 只检查顶层,不递归检查方法调用参数中的 new(如 Factory.Create(new Options()) 顶层是方法调用,应跳过)。
+    /// 纯语法结构分析,不依赖方法名前缀,可共享给其他项目。
     /// </summary>
     private static bool IsFetchedNotCreated(SyntaxNode initValue) {
-        if (initValue is MemberAccessExpressionSyntax) return true;
-        if (initValue is ElementAccessExpressionSyntax) return true;
-        if (initValue is IdentifierNameSyntax) return true;
-        if (initValue is CastExpressionSyntax) return true;
+        if (initValue is ObjectCreationExpressionSyntax or ImplicitObjectCreationExpressionSyntax) return false;
+        if (initValue is AwaitExpressionSyntax awaitExpr) return IsFetchedNotCreated(awaitExpr.Expression);
         if (initValue is ParenthesizedExpressionSyntax paren) return IsFetchedNotCreated(paren.Expression);
-
-        if (initValue is BinaryExpressionSyntax binary && binary.IsKind(SyntaxKind.CoalesceExpression)) {
-            if (IsFetchedNotCreated(binary.Left)) return true;
-        }
-
-        if (initValue is InvocationExpressionSyntax syncInv) {
-            string? methodName = null;
-            if (syncInv.Expression is MemberAccessExpressionSyntax syncMA)
-                methodName = syncMA.Name.Identifier.ValueText;
-            else if (syncInv.Expression is IdentifierNameSyntax syncIdent)
-                methodName = syncIdent.Identifier.ValueText;
-
-            if (methodName is not null &&
-                (methodName.StartsWith("Get", StringComparison.Ordinal) ||
-                methodName.StartsWith("TryGet", StringComparison.Ordinal) ||
-                methodName.StartsWith("Acquire", StringComparison.Ordinal) ||
-                methodName.StartsWith("Peek", StringComparison.Ordinal) ||
-                methodName.StartsWith("Borrow", StringComparison.Ordinal) ||
-                methodName.StartsWith("Resolve", StringComparison.Ordinal) ||
-                methodName.StartsWith("Lookup", StringComparison.Ordinal) ||
-                methodName.Contains("GetOrCreate") ||
-                methodName.Contains("GetOrAdd")))
-                return true;
-        }
-
-        if (initValue is AwaitExpressionSyntax awaitExpr) {
-            var inner = awaitExpr.Expression;
-            if (inner is InvocationExpressionSyntax configureAwaitInv &&
-                configureAwaitInv.Expression is MemberAccessExpressionSyntax configureAwaitMA &&
-                configureAwaitMA.Name.Identifier.ValueText == "ConfigureAwait") {
-                inner = configureAwaitMA.Expression;
-            }
-
-            if (inner is InvocationExpressionSyntax inv) {
-                string? methodName = null;
-                if (inv.Expression is MemberAccessExpressionSyntax ma)
-                    methodName = ma.Name.Identifier.ValueText;
-                else if (inv.Expression is IdentifierNameSyntax ident)
-                    methodName = ident.Identifier.ValueText;
-
-                if (methodName is not null &&
-                    (methodName.StartsWith("Get", StringComparison.Ordinal) ||
-                    methodName.StartsWith("TryGet", StringComparison.Ordinal) ||
-                    methodName.StartsWith("Acquire", StringComparison.Ordinal) ||
-                    methodName.StartsWith("Peek", StringComparison.Ordinal) ||
-                    methodName.StartsWith("Borrow", StringComparison.Ordinal) ||
-                    methodName.StartsWith("Resolve", StringComparison.Ordinal) ||
-                    methodName.StartsWith("Lookup", StringComparison.Ordinal) ||
-                    methodName.Contains("GetOrCreate") ||
-                    methodName.Contains("GetOrAdd")))
-                    return true;
-            }
-        }
-
-        return false;
+        return true;
     }
 
     /// <summary>

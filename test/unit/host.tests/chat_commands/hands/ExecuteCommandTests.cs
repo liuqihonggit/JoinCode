@@ -1,6 +1,7 @@
 
 namespace Core.Tests.ChatCommands;
 
+[Collection("ConsoleOutput")]
 public class ExecuteCommandTests {
     private readonly Mock<ILogger<ExecuteCommand>> _loggerMock;
     private readonly Mock<ICodeService> _codeServiceMock;
@@ -131,3 +132,9 @@ public class ExecuteCommandTests {
         Assert.Null(exception);
     }
 }
+
+/// <summary>
+/// Console 输出测试集合定义 — 串行化所有用 Console.SetOut/SetError 的测试类，消除进程级全局状态并行污染。
+/// </summary>
+[CollectionDefinition("ConsoleOutput")]
+public sealed class ConsoleOutputCollectionDefinition;

@@ -67,12 +67,12 @@ public sealed class GitignoreMatcher {
     /// <summary>
     /// 从 .gitignore 文件路径创建匹配器
     /// </summary>
-    public static GitignoreMatcher? FromFile(string gitignorePath, IFileSystem fs) {
+    public static async ValueTask<GitignoreMatcher?> FromFile(string gitignorePath, IFileSystem fs) {
         try {
             if (!fs.FileExists(gitignorePath))
                 return null;
 
-            var content = fs.ReadAllText(gitignorePath);
+            var content = await fs.ReadAllText(gitignorePath).ConfigureAwait(false);
             return Parse(content);
         } catch {
             return null;

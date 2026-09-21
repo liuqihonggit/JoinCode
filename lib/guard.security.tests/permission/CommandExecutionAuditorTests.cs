@@ -12,12 +12,12 @@ public class CommandExecutionAuditorTests {
         await using var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
 
-        auditor.Record(new CommandExecutionAuditEntry(
+        await auditor.Record(new CommandExecutionAuditEntry(
             DateTimeOffset.Parse("2026-09-13T12:00:00Z"),
             "git status",
             CommandDangerLevel.Safe,
             PermissionMode.Unattended,
-            "AutoExecuted"));
+            "AutoExecuted")).ConfigureAwait(false);
 
         fs.DirectoryExists(".audit-test").Should().BeTrue();
         fs.FileExists(".audit-test/command-execution-2026-09-13.jsonl").Should().BeTrue();
@@ -28,15 +28,15 @@ public class CommandExecutionAuditorTests {
         await using var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
 
-        auditor.Record(new CommandExecutionAuditEntry(
+        await auditor.Record(new CommandExecutionAuditEntry(
             DateTimeOffset.Parse("2026-09-13T12:00:00Z"),
             "rm -rf /tmp",
             CommandDangerLevel.Execution,
             PermissionMode.Unattended,
             "AutoExecuted",
-            "Recursive deletion"));
+            "Recursive deletion")).ConfigureAwait(false);
 
-        var content = fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl");
+        var content = await fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl").ConfigureAwait(false);
         content.Should().Contain("rm -rf /tmp");
         content.Should().Contain("Execution");
         content.Should().Contain("Unattended");
@@ -50,10 +50,10 @@ public class CommandExecutionAuditorTests {
         var auditor = CreateAuditor(fs);
         var timestamp = DateTimeOffset.Parse("2026-09-13T12:00:00Z");
 
-        auditor.Record(new CommandExecutionAuditEntry(timestamp, "cmd1", CommandDangerLevel.Safe, PermissionMode.Unattended, "AutoExecuted"));
-        auditor.Record(new CommandExecutionAuditEntry(timestamp, "cmd2", CommandDangerLevel.Execution, PermissionMode.Unattended, "AutoExecuted"));
+        await auditor.Record(new CommandExecutionAuditEntry(timestamp, "cmd1", CommandDangerLevel.Safe, PermissionMode.Unattended, "AutoExecuted")).ConfigureAwait(false);
+        await auditor.Record(new CommandExecutionAuditEntry(timestamp, "cmd2", CommandDangerLevel.Execution, PermissionMode.Unattended, "AutoExecuted")).ConfigureAwait(false);
 
-        var content = fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl");
+        var content = await fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl").ConfigureAwait(false);
         content.Should().Contain("cmd1");
         content.Should().Contain("cmd2");
     }
@@ -70,16 +70,16 @@ public class CommandExecutionAuditorTests {
             new("src/old.txt", FileChangeType.Deleted, 80, null),
         };
 
-        auditor.Record(new CommandExecutionAuditEntry(
+        await auditor.Record(new CommandExecutionAuditEntry(
             DateTimeOffset.Parse("2026-09-13T12:00:00Z"),
             "git checkout .",
             CommandDangerLevel.Execution,
             PermissionMode.Unattended,
             "AutoExecuted",
             "File restoration",
-            changes));
+            changes)).ConfigureAwait(false);
 
-        var content = fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl");
+        var content = await fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl").ConfigureAwait(false);
         content.Should().Contain("src/file.cs");
         content.Should().Contain("Modified");
         content.Should().Contain("src/new.txt");
@@ -93,13 +93,13 @@ public class CommandExecutionAuditorTests {
         await using var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs, "/nonexistent/path/that/should/not/exist");
 
-        var act = () => auditor.Record(new CommandExecutionAuditEntry(
+        var act = async () => await auditor.Record(new CommandExecutionAuditEntry(
             DateTimeOffset.UtcNow,
             "test",
             CommandDangerLevel.Safe,
             PermissionMode.Unattended,
-            "AutoExecuted"));
+            "AutoExecuted")).ConfigureAwait(false);
 
-        act.Should().NotThrow();
+        await act.Should().NotThrowAsync();
     }
 }

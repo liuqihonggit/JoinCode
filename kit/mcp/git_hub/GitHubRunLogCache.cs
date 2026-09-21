@@ -136,7 +136,7 @@ internal sealed class GitHubRunLogCache {
 
         // Level2 仍 miss: Level1 MemoryCache 命中但未填充 Level2,从文件缓存 raw 补填
         if (!refresh) {
-            var fileLines = TryGetSectionFromFileCache(sectionKey, runId, jobId, workingDir);
+            var fileLines = await TryGetSectionFromFileCacheAsync(sectionKey, runId, jobId, workingDir).ConfigureAwait(false);
             if (fileLines is not null) return fileLines;
         }
 
@@ -195,13 +195,13 @@ internal sealed class GitHubRunLogCache {
         var fileAge = DateTimeOffset.Now - _fs.GetLastWriteTime(summaryPath);
         if (fileAge >= TimeSpan.FromHours(24)) return null;
         try {
-            var summaryJson = _fs.ReadAllText(summaryPath);
+            var summaryJson = await _fs.ReadAllText(summaryPath).ConfigureAwait(false);
             var fileSummary = RelaxedJsonSerializer.Deserialize(summaryJson, RunLogSummaryJsonContext.Default.RunLogSummary);
             if (fileSummary is null) return null;
 
             // 5 分钟内跳过 updatedAt 验证(假设 5 分钟内不会 rerun,省 ~1s API 调用)
             if (fileAge < TimeSpan.FromMinutes(5)) {
-                var rawContent = _fs.ReadAllText(rawPath);
+                var rawContent = await _fs.ReadAllText(rawPath).ConfigureAwait(false);
                 FillMemoryCacheFromRaw(runId, jobId, rawContent);
                 _logCache.Add(summaryKey, fileSummary, DateTimeOffset.Now.AddHours(24));
                 _logger?.LogDebug("Level1 摘要缓存命中(文件,<5min 跳过验证): {Path}, {Steps} 步骤", summaryPath, fileSummary.StepLineCounts.Count);
@@ -217,7 +217,7 @@ internal sealed class GitHubRunLogCache {
             }
 
             // 摘要匹配,从 .raw 文件解析填充 MemoryCache
-            var raw = _fs.ReadAllText(rawPath);
+            var raw = await _fs.ReadAllText(rawPath).ConfigureAwait(false);
             FillMemoryCacheFromRaw(runId, jobId, raw);
             _logCache.Add(summaryKey, fileSummary, DateTimeOffset.Now.AddHours(24));
             _logger?.LogDebug("Level1 摘要缓存命中(文件,updatedAt 验证通过): {Path}, {Steps} 步骤", summaryPath, fileSummary.StepLineCounts.Count);
@@ -232,12 +232,12 @@ internal sealed class GitHubRunLogCache {
     /// 从文件缓存 raw 补填 Level2 内容缓存 — Level1 MemoryCache 命中但未填充 Level2 时使用
     /// <para>返回 null 表示补填失败或 section 不存在</para>
     /// </summary>
-    private List<string>? TryGetSectionFromFileCache(string sectionKey, string runId, string? jobId, string? workingDir) {
+    private async Task<List<string>?> TryGetSectionFromFileCacheAsync(string sectionKey, string runId, string? jobId, string? workingDir) {
         var cacheDir = GitHubRunCachePaths.GetCacheDir(_fs, workingDir);
         var rawPath = GitHubRunCachePaths.GetCacheFilePath(cacheDir, runId, jobId, "raw");
         if (!_fs.FileExists(rawPath)) return null;
         try {
-            var rawContent = _fs.ReadAllText(rawPath);
+            var rawContent = await _fs.ReadAllText(rawPath).ConfigureAwait(false);
             FillMemoryCacheFromRaw(runId, jobId, rawContent);
             if (_logCache.Get(sectionKey) is List<string> fileLines) {
                 _logger?.LogDebug("Level2 内容缓存(文件 raw 补填)命中: {Key}, {Lines} 行", sectionKey, fileLines.Count);

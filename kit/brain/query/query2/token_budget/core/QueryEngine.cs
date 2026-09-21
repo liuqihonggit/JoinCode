@@ -266,7 +266,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
                 });
 
                 // 将工具结果添加到对话历史
-                AddToolResultToHistory(context, toolCall, toolResult);
+                await AddToolResultToHistory(context, toolCall, toolResult).ConfigureAwait(false);
 
                 // 工具调用后钩子（内容替换预算检查、递减回报检测、历史裁剪、空闲提醒等）
                 foreach (var hook in context.AfterToolCallHooks) {
@@ -462,7 +462,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         return string.Join("\n", textContents);
     }
 
-    private void AddToolResultToHistory(QueryMiddlewareContext context, ToolCallRequest toolCall, ToolResult result) {
+    private async ValueTask AddToolResultToHistory(QueryMiddlewareContext context, ToolCallRequest toolCall, ToolResult result) {
         // 对齐 TS convertResultContentToContentBlocks — 分离文本和非文本内容
         var textContents = new List<string>();
         var nonTextContents = new List<ToolContent>();
@@ -486,8 +486,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
         // MaybePersistLargeToolResult 是即时持久化（非预算机制），在添加历史时调用
         if (context.ContentReplacementService is not null && !result.IsError && !string.IsNullOrEmpty(toolResultText)) {
             var sessionId = _currentOptions?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
-            var replacement = context.ContentReplacementService.MaybePersistLargeToolResult(
-                toolCall.ToolName, toolCall.ToolCallId ?? string.Empty, toolResultText, sessionId);
+            var replacement = await context.ContentReplacementService.MaybePersistLargeToolResult(
+                toolCall.ToolName, toolCall.ToolCallId ?? string.Empty, toolResultText, sessionId).ConfigureAwait(false);
             if (replacement is not null)
                 toolResultText = replacement;
         }

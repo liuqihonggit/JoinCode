@@ -76,7 +76,7 @@ public sealed class ReplaceEngine {
     /// </summary>
     private async Task<ReplaceResult> ReplaceSlnxAsync(
         string slnxPath, string ruleId, bool fixAll, bool dryRun, CancellationToken ct) {
-        var projectPaths = SlnxParser.ParseProjectPaths(slnxPath);
+        var projectPaths = await SlnxParser.ParseProjectPaths(slnxPath).ConfigureAwait(false);
         Console.WriteLine($"  .slnx 包含 {projectPaths.Count} 个项目");
 
         var result = new ReplaceResult();

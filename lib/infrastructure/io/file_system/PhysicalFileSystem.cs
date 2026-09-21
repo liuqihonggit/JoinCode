@@ -24,12 +24,6 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     public PhysicalFileSystem() => _editActor = new EditFileActor(this);
 
     /// <inheritdoc />
-    public override async ValueTask DisposeAsync() {
-        await _editActor.DisposeAsync().ConfigureAwait(false);
-        await base.DisposeAsync().ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
     public async Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default) {
         await WriteAllTextWithShareAsync(path, contents, s_utf8NoBom, cancellationToken).ConfigureAwait(false);
     }
@@ -40,12 +34,12 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     }
 
     /// <inheritdoc />
-    public void WriteAllText(string path, string contents)
-        => WriteAllTextWithShare(path, contents, s_utf8NoBom);
+    public async ValueTask WriteAllText(string path, string contents)
+        => await WriteAllTextWithShare(path, contents, s_utf8NoBom).ConfigureAwait(false);
 
     /// <inheritdoc />
-    public void WriteAllText(string path, string contents, Encoding encoding)
-        => WriteAllTextWithShare(path, contents, encoding);
+    public async ValueTask WriteAllText(string path, string contents, Encoding encoding)
+        => await WriteAllTextWithShare(path, contents, encoding).ConfigureAwait(false);
 
     /// <inheritdoc />
     public async Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default) {
@@ -54,9 +48,9 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     }
 
     /// <inheritdoc />
-    public void WriteAllBytes(string path, byte[] bytes) {
-        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-        stream.Write(bytes, 0, bytes.Length);
+    public async ValueTask WriteAllBytes(string path, byte[] bytes) {
+        await using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        await stream.WriteAsync(bytes.AsMemory(0, bytes.Length), CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -65,11 +59,11 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     }
 
     /// <inheritdoc />
-    public void AppendAllText(string path, string contents) {
-        using var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
-        using var writer = new StreamWriter(stream);
-        writer.Write(contents);
-        writer.Flush();
+    public async ValueTask AppendAllText(string path, string contents) {
+        await using var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+        await using var writer = new StreamWriter(stream);
+        await writer.WriteAsync(contents.AsMemory(), CancellationToken.None).ConfigureAwait(false);
+        await writer.FlushAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     // === File 读操作 ===
@@ -86,12 +80,12 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     }
 
     /// <inheritdoc />
-    public string ReadAllText(string path)
-        => ReadAllTextWithShare(path, Encoding.UTF8);
+    public async ValueTask<string> ReadAllText(string path)
+        => await ReadAllTextWithShare(path, Encoding.UTF8).ConfigureAwait(false);
 
     /// <inheritdoc />
-    public string ReadAllText(string path, Encoding encoding)
-        => ReadAllTextWithShare(path, encoding);
+    public async ValueTask<string> ReadAllText(string path, Encoding encoding)
+        => await ReadAllTextWithShare(path, encoding).ConfigureAwait(false);
 
     /// <inheritdoc />
     public async Task<string[]> ReadAllLinesAsync(string path, CancellationToken cancellationToken = default) {
@@ -120,10 +114,10 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     }
 
     /// <inheritdoc />
-    public byte[] ReadAllBytes(string path) {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+    public async ValueTask<byte[]> ReadAllBytes(string path) {
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var ms = new MemoryStream();
-        stream.CopyTo(ms);
+        await stream.CopyToAsync(ms, CancellationToken.None).ConfigureAwait(false);
         return ms.ToArray();
     }
 
@@ -278,13 +272,13 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     // 所有辅助方法统一用 FileShare.ReadWrite，允许并发读写，避免跨进程/同进程读-写冲突。
 
     /// <summary>
-    /// 同步写入全部文本 — FileShare.ReadWrite 允许并发读取者
+    /// 异步写入全部文本 — FileShare.ReadWrite 允许并发读取者
     /// </summary>
-    private static void WriteAllTextWithShare(string path, string contents, Encoding encoding) {
-        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-        using var writer = new StreamWriter(stream, encoding);
-        writer.Write(contents);
-        writer.Flush();
+    private static async ValueTask WriteAllTextWithShare(string path, string contents, Encoding encoding) {
+        await using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        await using var writer = new StreamWriter(stream, encoding);
+        await writer.WriteAsync(contents.AsMemory(), CancellationToken.None).ConfigureAwait(false);
+        await writer.FlushAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -298,16 +292,16 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     }
 
     /// <summary>
-    /// 同步读取全部文本 — UTF-8 用 mmap 零拷贝，其他编码走 StreamReader
+    /// 异步读取全部文本 — UTF-8 用 mmap 零拷贝，其他编码走 StreamReader
     /// </summary>
-    private static string ReadAllTextWithShare(string path, Encoding encoding) {
+    private static async ValueTask<string> ReadAllTextWithShare(string path, Encoding encoding) {
         if (encoding is UTF8Encoding) {
             using var mmapReader = new MappedFileReader(path);
             return mmapReader.ReadToEnd();
         }
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var reader = new StreamReader(stream, encoding);
-        return reader.ReadToEnd();
+        return await reader.ReadToEndAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <summary>

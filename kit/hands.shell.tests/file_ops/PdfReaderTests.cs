@@ -21,7 +21,7 @@ public sealed class PdfReaderTests : IDisposable {
 
     [Fact]
     public async Task ReadPdfAsync_EmptyFile_ReturnsFail() {
-        _fileOperationService.FileSystem.WriteAllText("/empty.pdf", string.Empty);
+        await _fileOperationService.FileSystem.WriteAllText("/empty.pdf", string.Empty).ConfigureAwait(false);
 
         var result = await PdfReader.ReadPdfAsync("/empty.pdf", _fileOperationService.FileSystem).ConfigureAwait(true);
 
@@ -39,7 +39,7 @@ public sealed class PdfReaderTests : IDisposable {
         bytes[52] = (byte)'D';
         bytes[53] = (byte)'F';
         bytes[54] = (byte)'-';
-        _fileOperationService.FileSystem.WriteAllBytes("/large.pdf", bytes);
+        await _fileOperationService.FileSystem.WriteAllBytes("/large.pdf", bytes).ConfigureAwait(false);
 
         var result = await PdfReader.ReadPdfAsync("/large.pdf", _fileOperationService.FileSystem).ConfigureAwait(true);
 
@@ -60,7 +60,7 @@ public sealed class PdfReaderTests : IDisposable {
     [Fact]
     public async Task ReadPdfAsync_ValidPdf_ReturnsOk() {
         var pdfBytes = CreateMinimalPdf(3);
-        _fileOperationService.FileSystem.WriteAllBytes("/valid.pdf", pdfBytes);
+        await _fileOperationService.FileSystem.WriteAllBytes("/valid.pdf", pdfBytes).ConfigureAwait(false);
 
         var result = await PdfReader.ReadPdfAsync("/valid.pdf", _fileOperationService.FileSystem).ConfigureAwait(true);
 
@@ -111,18 +111,18 @@ public sealed class PdfReaderTests : IDisposable {
     }
 
     [Fact]
-    public void GetPdfPageCount_FileNotFound_ReturnsNull() {
-        var count = PdfReader.GetPdfPageCount("/missing.pdf", _fileOperationService.FileSystem);
+    public async Task GetPdfPageCount_FileNotFound_ReturnsNull() {
+        var count = await PdfReader.GetPdfPageCount("/missing.pdf", _fileOperationService.FileSystem).ConfigureAwait(false);
 
         count.Should().BeNull();
     }
 
     [Fact]
-    public void GetPdfPageCount_ValidPdf_ReturnsCount() {
+    public async Task GetPdfPageCount_ValidPdf_ReturnsCount() {
         var pdfBytes = CreateMinimalPdf(7);
-        _fileOperationService.FileSystem.WriteAllBytes("/count.pdf", pdfBytes);
+        await _fileOperationService.FileSystem.WriteAllBytes("/count.pdf", pdfBytes).ConfigureAwait(false);
 
-        var count = PdfReader.GetPdfPageCount("/count.pdf", _fileOperationService.FileSystem);
+        var count = await PdfReader.GetPdfPageCount("/count.pdf", _fileOperationService.FileSystem).ConfigureAwait(false);
 
         count.Should().Be(7);
     }

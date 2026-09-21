@@ -226,7 +226,7 @@ public sealed class HostElectionService : IAsyncDisposable {
     /// </summary>
     private async ValueTask<string?> TryDetectHostAsync(CancellationToken ct) {
         try {
-            using var client = NamedPipeFactory.CreateClient(_pipeName);
+            await using var client = NamedPipeFactory.CreateClient(_pipeName);
 
             using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             connectCts.CancelAfter(TimeSpan.FromSeconds(2));

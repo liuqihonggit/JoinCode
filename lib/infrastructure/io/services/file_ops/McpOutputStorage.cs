@@ -33,7 +33,7 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
     /// <param name="mimeType">可选 MIME 类型,用于推断扩展名</param>
     /// <param name="persistId">持久化标识,用于生成文件名</param>
     /// <returns>持久化成功时返回结果对象,失败时返回 null</returns>
-    public JoinCode.Abstractions.LLM.Chat.PersistBinaryResult? PersistBinaryContent(ReadOnlySpan<byte> bytes, string? mimeType, string persistId) {
+    public async ValueTask<JoinCode.Abstractions.LLM.Chat.PersistBinaryResult?> PersistBinaryContent(byte[] bytes, string? mimeType, string persistId) {
         var ext = ExtensionForMimeType(mimeType);
         var dir = _baseDir;
         _fs.CreateDirectory(dir);
@@ -42,7 +42,7 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
         var filepath = Path.Combine(dir, filename);
 
         try {
-            _fs.WriteAllBytes(filepath, bytes.ToArray());
+            await _fs.WriteAllBytes(filepath, bytes).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to persist binary content to {Filepath}", filepath);
             return null;

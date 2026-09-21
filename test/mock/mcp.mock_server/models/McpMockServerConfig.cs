@@ -21,11 +21,11 @@ public sealed class McpMockServerConfig : MockServerConfigBase<McpMockServerConf
     protected override string ConfigNotFoundMessage => "MCP MockServer 配置文件不存在: {0}";
 
     /// <summary>从 JSON 文件加载配置</summary>
-    public static McpMockServerConfig LoadFromFile(string path)
+    public static Task<McpMockServerConfig> LoadFromFile(string path)
         => LoadFromFile(path, McpMockServerJsonContext.Default.McpMockServerConfig, "MCP MockServer 配置文件不存在: {0}");
 
     /// <summary>从 JSON 文件加载配置 — 文件不存在时返回默认配置</summary>
-    public static McpMockServerConfig LoadFromFileOrDefault(string path)
+    public static Task<McpMockServerConfig> LoadFromFileOrDefault(string path)
         => LoadFromFileOrDefault(path, McpMockServerJsonContext.Default.McpMockServerConfig, "[Mcp.MockServer]", "MCP MockServer 配置文件不存在: {0}");
 }
 

@@ -198,12 +198,12 @@ public static class PdfReader {
     /// <param name="filePath">PDF 文件路径</param>
     /// <param name="fs">文件系统抽象</param>
     /// <returns>页数；文件不存在或解析失败时返回 null</returns>
-    public static int? GetPdfPageCount(string filePath, IFileSystem fs) {
+    public static async ValueTask<int?> GetPdfPageCount(string filePath, IFileSystem fs) {
         try {
             if (!fs.FileExists(filePath))
                 return null;
 
-            var bytes = fs.ReadAllBytes(filePath);
+            var bytes = await fs.ReadAllBytes(filePath).ConfigureAwait(false);
             return DetectPageCount(bytes);
         } catch {
             return null;

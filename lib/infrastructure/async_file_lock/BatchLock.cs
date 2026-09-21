@@ -135,7 +135,7 @@ public static class FileLockService {
                 } catch (TimeoutException) {
                     return BatchLockResult.TimeoutResult(filePath, c.GetUtcNow() - startTime);
                 } catch (OperationCanceledException) {
-                    ReleaseAllReverse(acquired);
+                    await ReleaseAllReverse(acquired).ConfigureAwait(false);
                     throw;
                 }
             }
@@ -143,10 +143,10 @@ public static class FileLockService {
             var batchLock = new BatchLock(acquired);
             return BatchLockResult.SuccessResult(batchLock, c.GetUtcNow() - startTime);
         } catch (OperationCanceledException) {
-            ReleaseAllReverse(acquired);
+            await ReleaseAllReverse(acquired).ConfigureAwait(false);
             throw;
         } catch (Exception ex) {
-            ReleaseAllReverse(acquired);
+            await ReleaseAllReverse(acquired).ConfigureAwait(false);
             return BatchLockResult.ErrorResult($"Failed to acquire batch lock: {ex.Message}");
         }
     }
@@ -167,9 +167,9 @@ public static class FileLockService {
         return AcquireBatchAsync([filePath], timeout, cancellationToken, clock);
     }
 
-    private static void ReleaseAllReverse(List<FileLock> acquired, ILogger? logger = null) {
+    private static async ValueTask ReleaseAllReverse(List<FileLock> acquired, ILogger? logger = null) {
         for (var i = acquired.Count - 1; i >= 0; i--) {
-            try { acquired[i].Release(); } catch (Exception ex) { logger?.LogWarning(ex, "BatchLock: failed to release lock during rollback"); }
+            try { await acquired[i].Release().ConfigureAwait(false); } catch (Exception ex) { logger?.LogWarning(ex, "BatchLock: failed to release lock during rollback"); }
         }
     }
 }

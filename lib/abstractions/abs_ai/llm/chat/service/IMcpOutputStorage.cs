@@ -11,7 +11,7 @@ public interface IMcpOutputStorage {
     /// <param name="mimeType">MIME 类型</param>
     /// <param name="persistId">持久化 ID（由 McpOutputStorage.GeneratePersistId 生成）</param>
     /// <returns>持久化结果，失败返回 null</returns>
-    PersistBinaryResult? PersistBinaryContent(ReadOnlySpan<byte> bytes, string? mimeType, string persistId);
+    ValueTask<PersistBinaryResult?> PersistBinaryContent(byte[] bytes, string? mimeType, string persistId);
 }
 
 /// <summary>

@@ -36,8 +36,7 @@ internal sealed class ProjectIndex {
             return;
         }
 
-        var parseResult = CsprojParser.Parse(csprojPath, _fs, workspaceRoot);
-        await Task.CompletedTask.ConfigureAwait(false);
+        var parseResult = await CsprojParser.ParseAsync(csprojPath, _fs, workspaceRoot).ConfigureAwait(false);
 
         using var scope = _store.EnterWriteLock();
         RemoveProjectInternal(csprojPath);
@@ -60,8 +59,8 @@ internal sealed class ProjectIndex {
 
         var workspaceRoot = Path.GetDirectoryName(solutionPath) ?? string.Empty;
         var parseResult = solutionPath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase)
-            ? SolutionParser.ParseSlnx(solutionPath, _fs)
-            : SolutionParser.ParseSln(solutionPath, _fs);
+            ? await SolutionParser.ParseSlnxAsync(solutionPath, _fs).ConfigureAwait(false)
+            : await SolutionParser.ParseSlnAsync(solutionPath, _fs).ConfigureAwait(false);
 
         foreach (var entry in parseResult.Projects) {
             if (_fs.FileExists(entry.RelativePath)) {
@@ -112,8 +111,7 @@ internal sealed class ProjectIndex {
             return;
         }
 
-        var parseResult = CsprojParser.Parse(csprojPath, _fs, workspaceRoot);
-        await Task.CompletedTask.ConfigureAwait(false);
+        var parseResult = await CsprojParser.ParseAsync(csprojPath, _fs, workspaceRoot).ConfigureAwait(false);
 
         using var scope = _store.EnterWriteLock();
         RemoveProjectInternal(csprojPath);

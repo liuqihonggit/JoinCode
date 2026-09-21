@@ -99,7 +99,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
         _ = Task.Run(() => EnsureDirectoryExists(memoryDir), ct);
 
         var entrypointPath = Path.Combine(memoryDir, MemoryEntrypointFile);
-        var entrypointContent = ReadEntrypointContent(entrypointPath);
+        var entrypointContent = await ReadEntrypointContentAsync(entrypointPath, ct).ConfigureAwait(false);
 
         return BuildMemoryPrompt(agentType, memoryDir, scopeNote, entrypointContent);
     }
@@ -255,12 +255,12 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 读取 MEMORY.md 入口文件内容
     /// </summary>
-    private string? ReadEntrypointContent(string entrypointPath) {
+    private async ValueTask<string?> ReadEntrypointContentAsync(string entrypointPath, CancellationToken ct) {
         try {
             if (!_fs.FileExists(entrypointPath))
                 return null;
 
-            return _fs.ReadAllText(entrypointPath);
+            return await _fs.ReadAllText(entrypointPath).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger.LogDebug(ex, "读取记忆入口文件失败: {Path}", entrypointPath);
             return null;

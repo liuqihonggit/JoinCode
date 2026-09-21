@@ -83,8 +83,22 @@ public sealed class InMemoryFileSystem : IFileSystem {
     }
 
     /// <inheritdoc />
+    ValueTask IFileSystem.WriteAllText(string path, string contents) {
+        WriteAllText(path, contents);
+        return default;
+    }
+
+    /// <summary>
+    /// 写入文件内容(指定编码)
+    /// </summary>
     public void WriteAllText(string path, string contents, Encoding encoding)
         => WriteAllText(path, contents);
+
+    /// <inheritdoc />
+    ValueTask IFileSystem.WriteAllText(string path, string contents, Encoding encoding) {
+        WriteAllText(path, contents);
+        return default;
+    }
 
     /// <inheritdoc />
     public Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default) {
@@ -92,7 +106,9 @@ public sealed class InMemoryFileSystem : IFileSystem {
         return Task.CompletedTask;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// 写入文件字节内容
+    /// </summary>
     public void WriteAllBytes(string path, byte[] bytes) {
         var normalizedPath = NormalizePath(path);
         var directory = Path.GetDirectoryName(normalizedPath) ?? string.Empty;
@@ -104,12 +120,20 @@ public sealed class InMemoryFileSystem : IFileSystem {
     }
 
     /// <inheritdoc />
+    ValueTask IFileSystem.WriteAllBytes(string path, byte[] bytes) {
+        WriteAllBytes(path, bytes);
+        return default;
+    }
+
+    /// <inheritdoc />
     public Task AppendAllTextAsync(string path, string contents, CancellationToken cancellationToken = default) {
         AppendAllText(path, contents);
         return Task.CompletedTask;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// 追加文件文本内容
+    /// </summary>
     public void AppendAllText(string path, string contents) {
         var normalizedPath = NormalizePath(path);
         var directory = Path.GetDirectoryName(normalizedPath) ?? string.Empty;
@@ -118,6 +142,12 @@ public sealed class InMemoryFileSystem : IFileSystem {
         var file = _files.GetOrAdd(normalizedPath, _ => new InMemoryFileEntry { FullPath = normalizedPath });
         file.Content += contents;
         file.LastWriteTime = DateTime.Now;
+    }
+
+    /// <inheritdoc />
+    ValueTask IFileSystem.AppendAllText(string path, string contents) {
+        AppendAllText(path, contents);
+        return default;
     }
 
     // === IFileSystem: File 读操作 ===
@@ -147,8 +177,18 @@ public sealed class InMemoryFileSystem : IFileSystem {
     }
 
     /// <inheritdoc />
+    ValueTask<string> IFileSystem.ReadAllText(string path)
+        => new(ReadAllText(path));
+
+    /// <summary>
+    /// 读取文件内容(指定编码)
+    /// </summary>
     public string ReadAllText(string path, Encoding encoding)
         => ReadAllText(path);
+
+    /// <inheritdoc />
+    ValueTask<string> IFileSystem.ReadAllText(string path, Encoding encoding)
+        => new(ReadAllText(path));
 
     /// <inheritdoc />
     public Task<string[]> ReadAllLinesAsync(string path, CancellationToken cancellationToken = default)
@@ -166,7 +206,9 @@ public sealed class InMemoryFileSystem : IFileSystem {
     public Task<byte[]> ReadAllBytesAsync(string path, CancellationToken cancellationToken = default)
         => Task.FromResult(ReadAllBytes(path));
 
-    /// <inheritdoc />
+    /// <summary>
+    /// 读取文件字节内容
+    /// </summary>
     public byte[] ReadAllBytes(string path) {
         var normalizedPath = NormalizePath(path);
         if (_files.TryGetValue(normalizedPath, out var file)) {
@@ -174,6 +216,10 @@ public sealed class InMemoryFileSystem : IFileSystem {
         }
         throw new FileNotFoundException($"[GEN052] 文件未找到: {path}");
     }
+
+    /// <inheritdoc />
+    ValueTask<byte[]> IFileSystem.ReadAllBytes(string path)
+        => new(ReadAllBytes(path));
 
     // === IFileSystem: File 原子编辑 ===
 

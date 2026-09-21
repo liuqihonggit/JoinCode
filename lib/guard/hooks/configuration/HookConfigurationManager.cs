@@ -276,19 +276,19 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
     }
 
     /// <inheritdoc />
-    public Task<List<SourcedHookConfig>> LoadHooksAsync(CancellationToken cancellationToken = default) {
+    public async Task<List<SourcedHookConfig>> LoadHooksAsync(CancellationToken cancellationToken = default) {
         var hooks = new List<SourcedHookConfig>();
 
         if (!_fs.FileExists(_filePath)) {
-            return Task.FromResult(hooks);
+            return hooks;
         }
 
         try {
-            var json = _fs.ReadAllText(_filePath);
+            var json = await _fs.ReadAllText(_filePath).ConfigureAwait(false);
             var settings = RelaxedJsonSerializer.Deserialize(json, HooksJsonContext.Default.HookSettingsFile);
 
             if (settings?.Hooks == null) {
-                return Task.FromResult(hooks);
+                return hooks;
             }
 
             foreach (var eventEntry in settings.Hooks) {
@@ -313,7 +313,7 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
             _logger?.LogError(ex, "Failed to load hooks from {FilePath}", _filePath);
         }
 
-        return Task.FromResult(hooks);
+        return hooks;
     }
 
     /// <inheritdoc />

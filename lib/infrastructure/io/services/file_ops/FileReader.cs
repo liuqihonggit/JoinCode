@@ -160,7 +160,7 @@ public sealed class FileReader {
     /// </summary>
     private async Task<(bool IsBinary, string Reason)> IsBinaryFileAsync(string filePath, CancellationToken cancellationToken) {
         try {
-            using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            await using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             var buffer = new byte[_config.BinaryDetectionBufferSize];
             var bytesRead = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
 

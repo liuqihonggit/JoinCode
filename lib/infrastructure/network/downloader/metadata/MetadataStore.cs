@@ -20,12 +20,12 @@ internal sealed class MetadataStore {
     /// <summary>
     /// 尝试加载元数据(文件不存在返回 null,损坏 JSON 返回 null)
     /// </summary>
-    internal DownloadMetadata? TryLoad(string filePath) {
+    internal async ValueTask<DownloadMetadata?> TryLoad(string filePath) {
         var metaPath = GetMetadataPath(filePath);
         if (!_fs.FileExists(metaPath)) return null;
 
         try {
-            var json = _fs.ReadAllText(metaPath);
+            var json = await _fs.ReadAllText(metaPath).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, DownloaderJsonContext.Default.DownloadMetadata);
         } catch (JsonException) {
             return null;
@@ -35,14 +35,14 @@ internal sealed class MetadataStore {
     /// <summary>
     /// 保存元数据(覆盖写入,自动更新 UpdatedAt 和 CreatedAt)
     /// </summary>
-    internal void Save(string filePath, DownloadMetadata metadata) {
+    internal async ValueTask Save(string filePath, DownloadMetadata metadata) {
         var metaPath = GetMetadataPath(filePath);
         metadata.UpdatedAt = DateTimeOffset.UtcNow;
         if (metadata.CreatedAt == default)
             metadata.CreatedAt = metadata.UpdatedAt;
 
         var json = JsonSerializer.Serialize(metadata, DownloaderJsonContext.Default.DownloadMetadata);
-        _fs.WriteAllText(metaPath, json);
+        await _fs.WriteAllText(metaPath, json).ConfigureAwait(false);
     }
 
     /// <summary>

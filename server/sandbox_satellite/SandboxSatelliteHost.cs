@@ -145,8 +145,8 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable {
                 Console.Error.WriteLine($"[SandboxSatellite] 将子进程 {process.Id} 加入 JobObject 失败");
             }
         } else if (OperatingSystem.IsLinux()) {
-            EnsureInnerCgroup();
-            if (_innerCgroup is not null && !_innerCgroup.AssignProcess(process.Id)) {
+            await EnsureInnerCgroup().ConfigureAwait(false);
+            if (_innerCgroup is not null && !await _innerCgroup.AssignProcess(process.Id).ConfigureAwait(false)) {
                 Console.Error.WriteLine($"[SandboxSatellite] 将子进程 {process.Id} 加入 cgroup 失败");
             }
         }
@@ -209,14 +209,14 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable {
         }
     }
 
-    private void EnsureInnerCgroup() {
+    private async Task EnsureInnerCgroup() {
         if (_innerCgroup is not null) {
             return;
         }
 
         try {
             _innerCgroup = new LinuxCgroupSandbox();
-            if (!_innerCgroup.CreateCgroup()) {
+            if (!await _innerCgroup.CreateCgroup().ConfigureAwait(false)) {
                 Console.Error.WriteLine("[SandboxSatellite] 创建内部 cgroup 失败，子进程不受 cgroup 隔离");
                 _innerCgroup = null;
             } else {

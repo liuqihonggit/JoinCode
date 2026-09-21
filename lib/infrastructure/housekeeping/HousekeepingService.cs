@@ -55,7 +55,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
         total += await CleanupStaleWorktreesAsync(cancellationToken).ConfigureAwait(false);
 
         if (_entityReaper is not null) {
-            total += _entityReaper.ScanOnce();
+            total += await _entityReaper.ScanOnce().ConfigureAwait(false);
         }
 
         if (total > 0) {

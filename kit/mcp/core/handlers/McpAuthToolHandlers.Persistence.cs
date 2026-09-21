@@ -23,13 +23,13 @@ public sealed partial class McpAuthToolHandlers {
     /// <summary>
     /// 从磁盘加载 MCP 认证配置。文件不存在或读取失败时静默跳过。
     /// </summary>
-    private void LoadAuthState() {
+    private async Task LoadAuthStateAsync() {
         if (_authPersistenceFs is null || _authStateFilePath is null) return;
 
         try {
             if (!_authPersistenceFs.FileExists(_authStateFilePath)) return;
 
-            var json = _authPersistenceFs.ReadAllText(_authStateFilePath);
+            var json = await _authPersistenceFs.ReadAllText(_authStateFilePath).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(json)) return;
 
             var data = RelaxedJsonSerializer.Deserialize(json, McpClientJsonContext.Default.McpAuthStateData);
@@ -91,7 +91,7 @@ public sealed partial class McpAuthToolHandlers {
         if (_authPersistenceFs is null || _authStateFilePath is null) return;
 
         try {
-            var data = LoadAuthStateData() ?? new McpAuthStateData();
+            var data = await LoadAuthStateDataAsync().ConfigureAwait(false) ?? new McpAuthStateData();
             var existing = data.AuthConfigs.FirstOrDefault(x => x.AuthName == entry.AuthName);
             if (existing is not null) {
                 data.AuthConfigs.Remove(existing);
@@ -111,7 +111,7 @@ public sealed partial class McpAuthToolHandlers {
         if (_authPersistenceFs is null || _authStateFilePath is null) return;
 
         try {
-            var data = LoadAuthStateData();
+            var data = await LoadAuthStateDataAsync().ConfigureAwait(false);
             if (data is null) return;
 
             var existing = data.AuthConfigs.FirstOrDefault(x => x.AuthName == authName);
@@ -174,11 +174,11 @@ public sealed partial class McpAuthToolHandlers {
         }
     }
 
-    private McpAuthStateData? LoadAuthStateData() {
+    private async Task<McpAuthStateData?> LoadAuthStateDataAsync() {
         if (_authPersistenceFs is null || _authStateFilePath is null) return null;
         if (!_authPersistenceFs.FileExists(_authStateFilePath)) return null;
 
-        var json = _authPersistenceFs.ReadAllText(_authStateFilePath);
+        var json = await _authPersistenceFs.ReadAllText(_authStateFilePath).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(json)) return null;
 
         return RelaxedJsonSerializer.Deserialize(json, McpClientJsonContext.Default.McpAuthStateData);
@@ -193,7 +193,6 @@ public sealed partial class McpAuthToolHandlers {
             _authPersistenceFs.CreateDirectory(dir);
         }
 
-        _authPersistenceFs.WriteAllText(_authStateFilePath, json);
-        await Task.CompletedTask.ConfigureAwait(false);
+        await _authPersistenceFs.WriteAllText(_authStateFilePath, json).ConfigureAwait(false);
     }
 }

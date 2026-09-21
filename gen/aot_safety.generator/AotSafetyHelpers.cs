@@ -422,6 +422,7 @@ public static class AotSafetyHelpers {
             "_KeyDown", "_KeyUp", "_KeyPress", "_MouseEnter", "_MouseLeave",
             "_SelectedIndexChanged", "_TextChanged", "_CheckedChanged",
             "OnClick", "OnChanged", "OnLoaded", "OnClosing", "OnClosed",
+            "OnCreated", "OnDeleted", "OnRenamed", "OnFileChanged", "OnFileRenamed",
         };
 
         foreach (var suffix in eventSuffixes) {

@@ -347,7 +347,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
                 FilePath = fileChanged.FilePath,
                 Type = SyncEventType.LocalChanged,
                 Timestamp = _clock.GetUtcNow(),
-                ContentHash = SyncFileHash.Compute(_fs, fileChanged.FilePath)
+                ContentHash = await SyncFileHash.ComputeAsync(_fs, fileChanged.FilePath).ConfigureAwait(false)
             });
             if (_options.EnableAutoSync)
                 await SyncSingleFileAsync(fileChanged.FilePath, ct).ConfigureAwait(false);
@@ -370,7 +370,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
                 FilePath = fileRenamed.NewPath,
                 Type = SyncEventType.LocalChanged,
                 Timestamp = _clock.GetUtcNow(),
-                ContentHash = SyncFileHash.Compute(_fs, fileRenamed.NewPath)
+                ContentHash = await SyncFileHash.ComputeAsync(_fs, fileRenamed.NewPath).ConfigureAwait(false)
             });
             break;
         }

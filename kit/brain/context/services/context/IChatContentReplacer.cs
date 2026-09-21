@@ -12,7 +12,7 @@ public interface IChatContentReplacer {
     /// <summary>
     /// 持久化超大工具结果
     /// </summary>
-    string? MaybePersistLargeToolResult(string toolName, string toolUseId, string content, string sessionId);
+    ValueTask<string?> MaybePersistLargeToolResult(string toolName, string toolUseId, string content, string sessionId);
 
     /// <summary>
     /// 应用 per-message 预算

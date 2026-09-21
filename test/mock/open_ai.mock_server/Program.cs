@@ -14,7 +14,7 @@ public sealed class Program {
             var configPath = ParseArgument(args, "--config") ?? "mockserver.json";
             var portArg = ParseArgument(args, "--port");
             LogMain($"[OpenAI.MockServer] configPath={configPath}, portArg={portArg}");
-            var config = MockServerConfig.LoadFromFileOrDefault(configPath);
+            var config = await MockServerConfig.LoadFromFileOrDefault(configPath).ConfigureAwait(true);
 
             var port = int.TryParse(portArg, out var p) ? p : config.Port;
 

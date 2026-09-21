@@ -50,7 +50,7 @@ public sealed partial class MtlsService : ServiceEntity, IMtlsService {
         }
 
         try {
-            var clientCert = LoadCertificateFromFile(options.CertificatePath, options.CertificatePassword);
+            var clientCert = await LoadCertificateFromFile(options.CertificatePath, options.CertificatePassword).ConfigureAwait(false);
             if (clientCert is null) {
                 _logger?.LogError("[MtlsService] 加载客户端证书失败");
                 return new MtlsConfiguration { IsConfigured = false };
@@ -58,13 +58,13 @@ public sealed partial class MtlsService : ServiceEntity, IMtlsService {
 
             string? caThumbprint = null;
             if (_caCertificateService is not null && !string.IsNullOrEmpty(options.CaCertificatePath)) {
-                var caCert = _caCertificateService.LoadCertificate(options.CaCertificatePath);
+                var caCert = await _caCertificateService.LoadCertificate(options.CaCertificatePath).ConfigureAwait(false);
                 caThumbprint = caCert?.Thumbprint;
                 if (caCert is not null) {
                     _caCertificateService.ValidateCertificate(caCert);
                 }
             } else if (!string.IsNullOrEmpty(options.CaCertificatePath) && _fs.FileExists(options.CaCertificatePath)) {
-                var caCert = LoadCertificateFromFile(options.CaCertificatePath, null);
+                var caCert = await LoadCertificateFromFile(options.CaCertificatePath, null).ConfigureAwait(false);
                 caThumbprint = caCert?.Thumbprint;
             }
 
@@ -160,9 +160,9 @@ public sealed partial class MtlsService : ServiceEntity, IMtlsService {
     private void RecordMtlsMetrics(string operation, bool isSuccess)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "mtls.operation.count", operation, isSuccess, "mTLS operation count");
 
-    private X509Certificate2? LoadCertificateFromFile(string path, string? password) {
+    private async ValueTask<X509Certificate2?> LoadCertificateFromFile(string path, string? password) {
         try {
-            var data = _fs.ReadAllBytes(path);
+            var data = await _fs.ReadAllBytes(path).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(password)) {
                 return X509CertificateLoader.LoadPkcs12(data, password);
             }

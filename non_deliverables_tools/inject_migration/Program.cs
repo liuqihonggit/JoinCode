@@ -51,7 +51,7 @@ var primitiveTypes = new HashSet<string>
 
 foreach (var file in csFiles) {
     try {
-        var source = IO.FileSystem.SafeFileIO.ReadAllText(file);
+        var source = await IO.FileSystem.SafeFileIO.ReadAllText(file).ConfigureAwait(false);
         var tree = CSharpSyntaxTree.ParseText(source);
         var root = tree.GetRoot();
 
@@ -67,7 +67,7 @@ foreach (var file in csFiles) {
                 Console.WriteLine($"[DRY-RUN] Would update: {Path.GetRelativePath(rootDir, file)}");
             } else {
                 var newSource = newRoot.ToFullString();
-                IO.FileSystem.SafeFileIO.WriteAllText(file, newSource);
+                await IO.FileSystem.SafeFileIO.WriteAllText(file, newSource).ConfigureAwait(false);
                 Console.WriteLine($"Updated: {Path.GetRelativePath(rootDir, file)}");
             }
             totalUpdated++;

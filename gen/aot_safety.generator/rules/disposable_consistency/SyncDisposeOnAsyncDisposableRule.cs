@@ -42,9 +42,11 @@ public sealed class SyncDisposeOnAsyncDisposableRule : AnalyzerRuleBase<SyncDisp
 
         var implementsIDisposable = receiverType.AllInterfaces.Contains(idisposableType, SymbolEqualityComparer.Default)
             || SymbolEqualityComparer.Default.Equals(receiverType, idisposableType);
+        // 双接口类型(IDisposable + IAsyncDisposable)用同步 Dispose 是合法的
         if (implementsIDisposable) return;
 
         if (IsInsideDisposeMethod(invocation)) return;
+        if (IsInsideLambda(invocation)) return;
 
         var typeName = receiverType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         ctx.ReportDiagnostic(Diagnostic.Create(
@@ -66,11 +68,27 @@ public sealed class SyncDisposeOnAsyncDisposableRule : AnalyzerRuleBase<SyncDisp
         return false;
     }
 
+    private static bool IsInsideLambda(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax) return true;
+            current = current.Parent;
+        }
+        return false;
+    }
+
     private static string GetMemberName(InvocationExpressionSyntax invocation) {
         if (invocation.Expression is MemberAccessExpressionSyntax memberAccess)
             return memberAccess.Name.Identifier.ValueText;
         if (invocation.Expression is IdentifierNameSyntax identifier)
             return identifier.Identifier.ValueText;
         return string.Empty;
+    }
+
+    private static bool IsWhitelistedDualInterface(INamedTypeSymbol type) {
+        var fullName = type.OriginalDefinition.ToDisplayString();
+        return fullName is "System.Threading.CancellationTokenSource"
+            or "System.IO.MemoryStream"
+            or "System.Threading.CancellationTokenRegistration";
     }
 }

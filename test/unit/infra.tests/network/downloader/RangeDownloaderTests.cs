@@ -22,7 +22,7 @@ public sealed class RangeDownloaderTests {
         result.FinalState.Should().Be(DownloadState.Completed);
         result.TotalBytes.Should().Be(1024);
         fs.FileExists(FilePath).Should().BeTrue();
-        fs.ReadAllBytes(FilePath).Should().Equal(data);
+        (await fs.ReadAllBytes(FilePath).ConfigureAwait(false)).Should().Equal(data);
     }
 
     // === 多线程 PLINQ 并发下载 ===
@@ -38,7 +38,7 @@ public sealed class RangeDownloaderTests {
         result.Success.Should().BeTrue();
         result.FinalState.Should().Be(DownloadState.Completed);
         fs.FileExists(FilePath).Should().BeTrue();
-        fs.ReadAllBytes(FilePath).Should().Equal(data);
+        (await fs.ReadAllBytes(FilePath).ConfigureAwait(false)).Should().Equal(data);
     }
 
     // === Cancel(用延迟 handler 确保下载进行中) ===

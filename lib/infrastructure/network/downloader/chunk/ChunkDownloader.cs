@@ -46,7 +46,7 @@ internal sealed class ChunkDownloader {
         var fileStream = _fs.CreateStream(partFilePath, fileMode, FileAccess.Write, FileShare.ReadWrite);
         await using var fileAsync = fileStream.ConfigureAwait(false);
 
-        using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
         var buffer = new byte[BufferSize];
         var totalRead = 0L;

@@ -25,9 +25,9 @@ internal sealed class SyncFileScanner {
         _remoteEntries = remoteEntries;
     }
 
-    internal Task ScanLocalAsync(CancellationToken cancellationToken) {
+    internal async Task ScanLocalAsync(CancellationToken cancellationToken) {
         if (string.IsNullOrEmpty(_options.WatchPath) || !_fs.DirectoryExists(_options.WatchPath)) {
-            return Task.CompletedTask;
+            return;
         }
 
         foreach (var pattern in _options.FilePatterns) {
@@ -35,7 +35,7 @@ internal sealed class SyncFileScanner {
             foreach (var file in files) {
                 var entry = new SyncFileEntry {
                     FilePath = file,
-                    ContentHash = SyncFileHash.Compute(_fs, file),
+                    ContentHash = await SyncFileHash.ComputeAsync(_fs, file).ConfigureAwait(false),
                     LastModified = _fs.GetLastWriteTimeUtc(file),
                     Source = "local"
                 };
@@ -45,7 +45,6 @@ internal sealed class SyncFileScanner {
         }
 
         _logger?.LogDebug(L.T(StringKey.VaultLogScanLocalComplete), _localEntries.Count);
-        return Task.CompletedTask;
     }
 
     internal async Task ScanRemoteAsync(CancellationToken cancellationToken) {

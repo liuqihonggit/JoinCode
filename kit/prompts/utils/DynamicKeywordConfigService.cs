@@ -27,7 +27,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
         _fs = fs;
         _logger = logger;
         _actor = new ReloadActor(this, logger);
-        LoadConfig();
+        _ = LoadConfigAsync();
         StartWatching();
     }
 
@@ -50,7 +50,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     /// <summary>
     /// 加载配置文件，失败时保留旧配置
     /// </summary>
-    private void LoadConfig() {
+    private async ValueTask LoadConfigAsync() {
         try {
             var filePath = GetConfigFilePath();
             if (!_fs.FileExists(filePath)) {
@@ -58,7 +58,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
                 return;
             }
 
-            var json = _fs.ReadAllText(filePath);
+            var json = await _fs.ReadAllText(filePath).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(json))
                 return;
 
@@ -104,8 +104,8 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     /// 重载配置内部实现 — 由 ReloadActor Consumer 串行调用，无锁安全。
     /// <para>TASK001: 原 AsyncLock 保护逻辑迁移到 Actor 邮箱管道，Consumer 单线程串行处理。</para>
     /// </summary>
-    private void ReloadConfigInternal() {
-        LoadConfig();
+    private async ValueTask ReloadConfigInternalAsync() {
+        await LoadConfigAsync().ConfigureAwait(false);
         ConfigChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -141,12 +141,11 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override ValueTask HandleAsync(ReloadConfigCmd cmd, CancellationToken ct) {
+        protected override async ValueTask HandleAsync(ReloadConfigCmd cmd, CancellationToken ct) {
             try {
-                _owner.ReloadConfigInternal();
+                await _owner.ReloadConfigInternalAsync().ConfigureAwait(false);
                 cmd.Reply.SetResult();
             } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.Reply.SetException(ex); }
-            return default;
         }
 
         protected override void OnConsumerError(Exception ex)

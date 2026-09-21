@@ -16,5 +16,5 @@ public interface ICommandExecutionAuditor {
     /// 记录命令执行审计日志
     /// </summary>
     /// <param name="entry">审计日志条目</param>
-    void Record(CommandExecutionAuditEntry entry);
+    ValueTask Record(CommandExecutionAuditEntry entry);
 }

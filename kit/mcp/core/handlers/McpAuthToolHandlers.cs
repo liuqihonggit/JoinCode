@@ -27,7 +27,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
         _httpClientProvider = httpClientProvider;
         _authPersistenceFs = fileSystem;
         _authStateFilePath = fileSystem is not null ? GetAuthStateFilePath() : null;
-        LoadAuthState();
+        _ = LoadAuthStateAsync();
     }
 
     /// <summary>

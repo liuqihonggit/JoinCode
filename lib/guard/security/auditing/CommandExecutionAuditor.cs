@@ -26,11 +26,11 @@ internal sealed partial class CommandAuditJsonContext : JsonSerializerContext;
 /// </para>
 /// </summary>
 [Register(typeof(ICommandExecutionAuditor), ServiceLifetime.Singleton)]
-public sealed class CommandExecutionAuditor : ICommandExecutionAuditor {
+public sealed class CommandExecutionAuditor : ICommandExecutionAuditor, IDisposable {
     private readonly IFileSystem _fs;
     private readonly string _auditDirectory;
     private readonly ILogger<CommandExecutionAuditor>? _logger;
-    private readonly Lock _writeLock = new();
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
 
     /// <summary>
     /// 创建 CommandExecutionAuditor;审计目录默认为 .audit/
@@ -48,17 +48,25 @@ public sealed class CommandExecutionAuditor : ICommandExecutionAuditor {
     }
 
     /// <inheritdoc/>
-    public void Record(CommandExecutionAuditEntry entry) {
+    public async ValueTask Record(CommandExecutionAuditEntry entry) {
         try {
             _fs.CreateDirectory(_auditDirectory);
             var filePath = Path.Combine(_auditDirectory, $"command-execution-{entry.Timestamp:yyyy-MM-dd}.jsonl");
             var json = RelaxedJsonSerializer.Serialize(entry, CommandAuditJsonContext.Default);
 
-            using (_writeLock.EnterScope()) {
-                _fs.AppendAllText(filePath, json + Environment.NewLine);
+            await _writeLock.WaitAsync().ConfigureAwait(false);
+            try {
+                await _fs.AppendAllText(filePath, json + Environment.NewLine).ConfigureAwait(false);
+            } finally {
+                _writeLock.Release();
             }
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "审计日志写入失败: {Command}", entry.Command);
         }
     }
+
+    /// <summary>
+    /// 释放 SemaphoreSlim 资源
+    /// </summary>
+    public void Dispose() => _writeLock.DisposeSafe(_logger);
 }

@@ -11,7 +11,7 @@ public interface IEntityReaper {
     /// 执行一次扫描 — 遍历所有 Entity，回收/超时检测/泄漏检测
     /// </summary>
     /// <returns>本次回收的 Entity 数量</returns>
-    int ScanOnce();
+    ValueTask<int> ScanOnce();
 
     /// <summary>
     /// 获取当前疑似泄漏的 Entity 列表

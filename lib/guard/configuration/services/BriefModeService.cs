@@ -19,7 +19,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
         _clock = clock;
         _fs = fs;
         _logger = logger;
-        LoadFromFile();
+        _ = LoadFromFileAsync();
     }
     private bool _isEnabled;
     private DateTime? _enabledAt;
@@ -80,14 +80,14 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
     /// <summary>
     /// 从文件加载 brief mode 状态 — 跨进程持久化
     /// </summary>
-    private void LoadFromFile() {
+    private async ValueTask LoadFromFileAsync() {
         if (_fs is null) return;
         try {
             var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
             if (root is null) return;
             var path = Path.Combine(Path.Combine(root, ModeSubDir), ModeFileName);
             if (!_fs.FileExists(path)) return;
-            var json = _fs.ReadAllText(path);
+            var json = await _fs.ReadAllText(path).ConfigureAwait(false);
             using var doc = System.Text.Json.JsonDocument.Parse(json);
             _isEnabled = doc.RootElement.TryGetProperty("isEnabled", out var enabledProp) && enabledProp.GetBoolean();
             if (doc.RootElement.TryGetProperty("enabledAt", out var atProp) && atProp.ValueKind == System.Text.Json.JsonValueKind.String)

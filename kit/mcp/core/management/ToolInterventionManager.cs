@@ -23,7 +23,7 @@ public sealed class ToolInterventionManager : ServiceEntity {
         _configPath = Path.Combine(
             JoinCode.Abstractions.Configuration.AppData.AppDataConstants.JccDirectory,
             "tool-interventions.json");
-        LoadFromDisk();
+        _ = LoadFromDiskAsync();
     }
 
     /// <summary>
@@ -46,7 +46,7 @@ public sealed class ToolInterventionManager : ServiceEntity {
             };
         }
 
-        SaveToDisk();
+        await SaveToDiskAsync().ConfigureAwait(false);
         _logger?.LogInformation("已添加工具干预: {ToolName} → {Type} ({Reason})", toolName, type, reason);
 
     }
@@ -62,7 +62,7 @@ public sealed class ToolInterventionManager : ServiceEntity {
             _rules.Remove(toolName);
         }
 
-        SaveToDisk();
+        await SaveToDiskAsync().ConfigureAwait(false);
 
     }
 
@@ -123,10 +123,10 @@ public sealed class ToolInterventionManager : ServiceEntity {
         };
     }
 
-    private void LoadFromDisk() {
+    private async Task LoadFromDiskAsync() {
         try {
             if (!_fs.FileExists(_configPath)) return;
-            var json = _fs.ReadAllText(_configPath);
+            var json = await _fs.ReadAllText(_configPath).ConfigureAwait(false);
             var data = RelaxedJsonSerializer.Deserialize(json, ToolInterventionJsonContext.Default.DictionaryStringInterventionRule);
             if (data is null) return;
             foreach (var kvp in data)
@@ -136,12 +136,12 @@ public sealed class ToolInterventionManager : ServiceEntity {
         }
     }
 
-    private void SaveToDisk() {
+    private async Task SaveToDiskAsync() {
         try {
             var dir = Path.GetDirectoryName(_configPath)!;
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
             var json = RelaxedJsonSerializer.Serialize(_rules, ToolInterventionJsonContext.Default);
-            _fs.WriteAllText(_configPath, json);
+            await _fs.WriteAllText(_configPath, json).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "保存工具干预配置失败");
         }

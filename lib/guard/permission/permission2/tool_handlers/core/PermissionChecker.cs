@@ -30,8 +30,9 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         _pipeline = pipeline;
         _logger = logger;
         _config = configOptions.Value;
-        _currentMode = TryGetPermissionModeFromEnv(fs) ?? PermissionMode.Auto;
+        _currentMode = PermissionMode.Auto;
         _fs = fs;
+        _ = InitializeModeAsync(fs);
 
         // 确保列表不为 null
         _config.AutoApprovedTools ??= [];
@@ -77,7 +78,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     /// 2. 用 PermissionModeExtensions.FromValue 解析（支持 "bypass"/"plan"/"auto" 等）
     /// 3. 若解析结果为 Bypass 且 settings.json 中 disableBypassPermissionsMode 为真，则返回 null（忽略环境变量，回退 Default）
     /// </remarks>
-    internal static PermissionMode? TryGetPermissionModeFromEnv(IFileSystem? fs) {
+    internal static async Task<PermissionMode?> TryGetPermissionModeFromEnvAsync(IFileSystem? fs) {
         var envValue = Environment.GetEnvironmentVariable(JccEnvVar.PermissionMode.ToValue());
         if (string.IsNullOrWhiteSpace(envValue))
             return null;
@@ -87,7 +88,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
             return null;
 
         // 安全闸: settings.json 显式禁用 bypass 模式时，忽略 bypass 环境变量
-        if (parsed.Value == PermissionMode.Bypass && IsDisableBypassPermissionsMode(fs)) {
+        if (parsed.Value == PermissionMode.Bypass && await IsDisableBypassPermissionsModeAsync(fs).ConfigureAwait(false)) {
             return null;
         }
 
@@ -95,14 +96,21 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     }
 
     /// <summary>
+    /// 异步初始化权限模式 — IFileSystem 异步化后从构造函数 fire-and-forget 启动；PhysicalFileSystem UTF-8 走 mmap 同步完成
+    /// </summary>
+    private async Task InitializeModeAsync(IFileSystem? fs) {
+        _currentMode = await TryGetPermissionModeFromEnvAsync(fs).ConfigureAwait(false) ?? PermissionMode.Auto;
+    }
+
+    /// <summary>
     /// 检查 settings.json 中是否显式禁用 bypass 权限模式
     /// </summary>
-    private static bool IsDisableBypassPermissionsMode(IFileSystem? fs) {
+    private static async Task<bool> IsDisableBypassPermissionsModeAsync(IFileSystem? fs) {
         if (fs is null)
             return false;
 
         try {
-            var settings = SettingsLoader.LoadUserSettings(fs);
+            var settings = await SettingsLoader.LoadUserSettings(fs).ConfigureAwait(false);
             var flag = settings?.Current?.Permissions?.DisableBypassPermissionsMode;
             if (string.IsNullOrWhiteSpace(flag))
                 return false;

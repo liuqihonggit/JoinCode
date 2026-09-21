@@ -153,7 +153,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
                 yield break;
             }
 
-            using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            await using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await foreach (var line in ReadLogStreamLinesAsync(stream, $"run {runId}", ct).ConfigureAwait(false)) {
                 yield return line;
             }
@@ -198,7 +198,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
                 yield break;
             }
 
-            using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            await using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await foreach (var line in ReadLogStreamLinesAsync(stream, $"job {jobId}", ct).ConfigureAwait(false)) {
                 yield return line;
             }
@@ -232,11 +232,11 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
             List<string>? zipLines = null;
             string? zipErrorMsg = null;
             try {
-                using var archive = new System.IO.Compression.ZipArchive(memStream, System.IO.Compression.ZipArchiveMode.Read);
+                await using var archive = new System.IO.Compression.ZipArchive(memStream, System.IO.Compression.ZipArchiveMode.Read);
                 zipLines = new List<string>();
                 foreach (var entry in archive.Entries) {
                     if (entry.Length == 0) continue;
-                    using var entryStream = entry.Open();
+                    await using var entryStream = entry.Open();
                     using var reader = new StreamReader(entryStream);
                     string? line;
                     while ((line = await reader.ReadLineAsync(ct).ConfigureAwait(false)) is not null) {

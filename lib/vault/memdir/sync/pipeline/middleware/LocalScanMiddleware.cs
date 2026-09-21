@@ -18,9 +18,10 @@ public sealed partial class LocalScanMiddleware : ServiceEntity, ISyncStartMiddl
 
 
     /// <inheritdoc />
-    public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct) {
+    public async Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct) {
         if (string.IsNullOrEmpty(ctx.Options.WatchPath) || !ctx.FileSystem.DirectoryExists(ctx.Options.WatchPath)) {
-            return next(ctx, ct);
+            await next(ctx, ct).ConfigureAwait(false);
+            return;
         }
 
         foreach (var pattern in ctx.Options.FilePatterns) {
@@ -28,7 +29,7 @@ public sealed partial class LocalScanMiddleware : ServiceEntity, ISyncStartMiddl
             foreach (var file in files) {
                 var entry = new SyncFileEntry {
                     FilePath = file,
-                    ContentHash = ComputeFileHash(ctx.FileSystem, file),
+                    ContentHash = await ComputeFileHashAsync(ctx.FileSystem, file).ConfigureAwait(false),
                     LastModified = ctx.FileSystem.GetLastWriteTimeUtc(file),
                     Source = "local"
                 };
@@ -38,14 +39,14 @@ public sealed partial class LocalScanMiddleware : ServiceEntity, ISyncStartMiddl
         }
 
         _logger?.LogDebug(L.T(StringKey.VaultLogScanLocalComplete), ctx.LocalEntries.Count);
-        return next(ctx, ct);
+        await next(ctx, ct).ConfigureAwait(false);
     }
 
-    private static string ComputeFileHash(IFileSystem fs, string filePath) {
+    private static async ValueTask<string> ComputeFileHashAsync(IFileSystem fs, string filePath) {
         try {
             if (!fs.FileExists(filePath)) return string.Empty;
 
-            var content = fs.ReadAllText(filePath);
+            var content = await fs.ReadAllText(filePath).ConfigureAwait(false);
             var hash = 0;
             foreach (var c in content) {
                 hash = ((hash << 5) - hash) + c;

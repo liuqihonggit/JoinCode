@@ -35,7 +35,15 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _approvedTools = new ConcurrentDictionary<string, DateTimeOffset>();
-        _currentMode = PermissionChecker.TryGetPermissionModeFromEnv(fs) ?? PermissionMode.Auto;
+        _currentMode = PermissionMode.Auto;
+        _ = InitializeModeAsync(fs);
+    }
+
+    /// <summary>
+    /// 异步初始化权限模式 — IFileSystem 异步化后从构造函数 fire-and-forget 启动；PhysicalFileSystem UTF-8 走 mmap 同步完成
+    /// </summary>
+    private async Task InitializeModeAsync(IFileSystem? fs) {
+        _currentMode = await PermissionChecker.TryGetPermissionModeFromEnvAsync(fs).ConfigureAwait(false) ?? PermissionMode.Auto;
     }
 
     /// <inheritdoc />

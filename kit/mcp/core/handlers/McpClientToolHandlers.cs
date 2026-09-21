@@ -26,11 +26,19 @@ public partial class McpClientToolHandlers : ServiceEntity {
         _persistenceFs = fileSystem;
         _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;
 
-        var entries = LoadState();
-        if (entries is not null && entries.Count > 0) {
+        if (_persistenceFs is not null) {
             _restoreCts = new CancellationTokenSource();
-            _restoreTask = RestoreConnectionsAsync(entries);
+            _restoreTask = LoadAndRestoreAsync();
         }
+    }
+
+    /// <summary>
+    /// 加载持久化连接配置并异步恢复连接 — 构造函数 fire-and-forget 启动，GetClientAsync 通过 WaitForRestoreAsync 等待完成。
+    /// </summary>
+    private async Task LoadAndRestoreAsync() {
+        var entries = await LoadStateAsync().ConfigureAwait(false);
+        if (entries is null || entries.Count == 0) return;
+        await RestoreConnectionsAsync(entries).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -562,7 +570,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
 
             if (_deps.OutputStorage is not null) {
                 var persistId = McpBinaryHelper.GeneratePersistId(serverName);
-                var result = _deps.OutputStorage.PersistBinaryContent(bytes, mimeType, persistId);
+                var result = await _deps.OutputStorage.PersistBinaryContent(bytes, mimeType, persistId).ConfigureAwait(false);
                 if (result is not null) {
                     return McpBinaryHelper.GetBinaryBlobSavedMessage(result.Filepath, mimeType, result.Size, sourceDescription);
                 }

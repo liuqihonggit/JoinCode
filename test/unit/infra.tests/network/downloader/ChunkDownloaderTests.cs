@@ -51,7 +51,7 @@ public sealed class ChunkDownloaderTests {
         await downloader.DownloadAsync(Url, chunk, PartPath);
 
         fs.FileExists(PartPath).Should().BeTrue();
-        var written = fs.ReadAllBytes(PartPath);
+        var written = await fs.ReadAllBytes(PartPath).ConfigureAwait(false);
         written.Should().Equal(data);
     }
 

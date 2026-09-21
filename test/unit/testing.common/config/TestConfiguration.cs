@@ -43,7 +43,9 @@ public static class TestConfiguration {
             return _cachedApiKey = MockServer.MockServerOptions.DefaultApiKey;
 
         try {
-            var json = FileSystem.ReadAllText(authPath);
+            using var stream = FileSystem.OpenRead(authPath);
+            using var reader = new StreamReader(stream);
+            var json = reader.ReadToEnd();
             var authData = System.Text.Json.JsonSerializer.Deserialize(json, TestConfigurationJsonContext.Default.DictionaryStringString);
             if (authData is null || authData.Count == 0)
                 return _cachedApiKey = MockServer.MockServerOptions.DefaultApiKey;

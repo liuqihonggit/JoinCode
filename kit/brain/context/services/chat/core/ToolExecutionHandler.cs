@@ -113,8 +113,11 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
         var effectiveToolResult = toolResultText;
         if (!toolError && !string.IsNullOrEmpty(toolResultText)) {
             var sessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
-            var replacement = _services?.ContentReplacer?.MaybePersistLargeToolResult(
-                toolName, toolCallId ?? string.Empty, toolResultText, sessionId);
+            var replacer = _services?.ContentReplacer;
+            var replacement = replacer is not null
+                ? await replacer.MaybePersistLargeToolResult(
+                    toolName, toolCallId ?? string.Empty, toolResultText, sessionId).ConfigureAwait(false)
+                : null;
             if (replacement is not null) {
                 effectiveToolResult = replacement;
             }

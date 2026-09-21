@@ -30,11 +30,11 @@ internal static class SolutionParser {
     /// <param name="filePath">.sln 文件路径</param>
     /// <param name="fs">文件系统抽象</param>
     /// <returns>解决方案解析结果</returns>
-    internal static SolutionParseResult ParseSln(string filePath, IFileSystem fs) {
+    internal static async Task<SolutionParseResult> ParseSlnAsync(string filePath, IFileSystem fs) {
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(fs);
 
-        var content = fs.ReadAllText(filePath);
+        var content = await fs.ReadAllText(filePath).ConfigureAwait(false);
         var solutionDir = Path.GetDirectoryName(filePath) ?? string.Empty;
         var projects = new List<SolutionProjectEntry>();
 
@@ -59,11 +59,11 @@ internal static class SolutionParser {
     /// <param name="filePath">.slnx 文件路径</param>
     /// <param name="fs">文件系统抽象</param>
     /// <returns>解决方案解析结果</returns>
-    internal static SolutionParseResult ParseSlnx(string filePath, IFileSystem fs) {
+    internal static async Task<SolutionParseResult> ParseSlnxAsync(string filePath, IFileSystem fs) {
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(fs);
 
-        var doc = XDocument.Parse(fs.ReadAllText(filePath));
+        var doc = XDocument.Parse(await fs.ReadAllText(filePath).ConfigureAwait(false));
         var solutionDir = Path.GetDirectoryName(filePath) ?? string.Empty;
         var projects = new List<SolutionProjectEntry>();
 

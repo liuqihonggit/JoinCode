@@ -75,7 +75,7 @@ internal sealed class DownloadSession : IDownloadSession {
         }
 
         if (_chunks.Count > 0)
-            _metadataStore.Save(_filePath, BuildMetadata());
+            await _metadataStore.Save(_filePath, BuildMetadata()).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -128,7 +128,7 @@ internal sealed class DownloadSession : IDownloadSession {
             _probeResult = probeResult;
             _totalLength = probeResult.ContentLength ?? 0;
 
-            if (!LoadOrPlanChunks(probeResult))
+            if (!await LoadOrPlanChunks(probeResult).ConfigureAwait(false))
                 return FailureResult("[DOWN009] 无法确定文件长度或分片规划失败");
 
             var pendingChunks = _chunks.Where(c => !c.Completed).ToList();
@@ -176,9 +176,9 @@ internal sealed class DownloadSession : IDownloadSession {
         return await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
-    private bool LoadOrPlanChunks(RangeSupportResult probe) {
+    private async Task<bool> LoadOrPlanChunks(RangeSupportResult probe) {
         if (_options.Resume) {
-            var existing = _metadataStore.TryLoad(_filePath);
+            var existing = await _metadataStore.TryLoad(_filePath).ConfigureAwait(false);
             if (existing is not null && MetadataStore.Matches(existing, _url, probe.ETag, probe.LastModified)) {
                 _chunks = existing.Chunks;
                 return true;
@@ -204,11 +204,10 @@ internal sealed class DownloadSession : IDownloadSession {
             .Where(p => _fs.FileExists(p))
             .ToArray();
 
-        using var destStream = _fs.CreateStream(_filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-        await using var dest = destStream.ConfigureAwait(false);
+        await using var destStream = _fs.CreateStream(_filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
 
         foreach (var partPath in partPaths) {
-            using var partStream = _fs.OpenRead(partPath);
+            await using var partStream = _fs.OpenRead(partPath);
             await partStream.CopyToAsync(destStream, ct).ConfigureAwait(false);
         }
 

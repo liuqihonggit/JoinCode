@@ -11,5 +11,5 @@ public interface IScanStrategy {
     /// <summary>
     /// 扫描指定会话作用域 — 只扫描该会话的 Entity, 不扫全局
     /// </summary>
-    void Scan(SessionScope scope);
+    ValueTask Scan(SessionScope scope);
 }

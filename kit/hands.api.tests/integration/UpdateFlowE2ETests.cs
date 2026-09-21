@@ -14,7 +14,7 @@ public sealed class UpdateFlowE2ETests {
 
         var contentRoot = fs.CombinePath(Path.GetTempPath(), $"update_e2e_{Guid.NewGuid():N}");
         var server = new UpdateServer(fs, port: 0, contentRoot: contentRoot);
-        server.GenerateContent("999.0.0", sha256, exeContent);
+        await server.GenerateContent("999.0.0", sha256, exeContent).ConfigureAwait(false);
 
         try {
             await server.StartAsync();
@@ -57,7 +57,7 @@ public sealed class UpdateFlowE2ETests {
 
         var contentRoot = fs.CombinePath(Path.GetTempPath(), $"update_e2e_{Guid.NewGuid():N}");
         var server = new UpdateServer(fs, port: 0, contentRoot: contentRoot);
-        server.GenerateContent("999.0.0", wrongSha256, exeContent);
+        await server.GenerateContent("999.0.0", wrongSha256, exeContent).ConfigureAwait(false);
 
         try {
             await server.StartAsync();
@@ -85,7 +85,7 @@ public sealed class UpdateFlowE2ETests {
         await using var fs = new IO.FileSystem.PhysicalFileSystem();
         var contentRoot = fs.CombinePath(Path.GetTempPath(), $"update_e2e_{Guid.NewGuid():N}");
         var server = new UpdateServer(fs, port: 0, contentRoot: contentRoot);
-        server.GenerateContent("1.0.0", "abc", "exe"u8.ToArray());
+        await server.GenerateContent("1.0.0", "abc", "exe"u8.ToArray()).ConfigureAwait(false);
 
         try {
             await server.StartAsync();
@@ -108,7 +108,7 @@ public sealed class UpdateFlowE2ETests {
         var sha256 = await ComputeSha256Async(exeContent);
         var contentRoot = fs.CombinePath(Path.GetTempPath(), $"update_e2e_{Guid.NewGuid():N}");
         var server = new UpdateServer(fs, port: 0, contentRoot: contentRoot);
-        server.GenerateContent("2.0.0", sha256, exeContent);
+        await server.GenerateContent("2.0.0", sha256, exeContent).ConfigureAwait(false);
 
         try {
             await server.StartAsync();

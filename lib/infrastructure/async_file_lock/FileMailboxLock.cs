@@ -61,7 +61,7 @@ public sealed class FileMailboxLock : IAsyncDisposable {
                 logger?.LogDebug("FileMailboxLock acquired: {FilePath} -> {LockFile}", fullPath, lockFilePath);
                 return new FileMailboxLock(stream, lockFilePath, fullPath, logger);
             } catch (IOException) when (DateTimeOffset.UtcNow < deadline) {
-                TryCleanupStaleLock(fs, lockFilePath, logger);
+                await TryCleanupStaleLock(fs, lockFilePath, logger).ConfigureAwait(false);
                 attempt++;
                 var remaining = deadline - DateTimeOffset.UtcNow;
                 var delayMs = Math.Min(50 * attempt, (int)remaining.TotalMilliseconds);
@@ -73,10 +73,10 @@ public sealed class FileMailboxLock : IAsyncDisposable {
         throw new TimeoutException($"Failed to acquire lock for '{filePath}' within {timeout.TotalSeconds}s");
     }
 
-    private static void TryCleanupStaleLock(IFileSystem fs, string lockFilePath, ILogger? logger) {
+    private static async ValueTask TryCleanupStaleLock(IFileSystem fs, string lockFilePath, ILogger? logger) {
         try {
             if (!fs.FileExists(lockFilePath)) return;
-            var content = fs.ReadAllText(lockFilePath);
+            var content = await fs.ReadAllText(lockFilePath).ConfigureAwait(false);
             var pipeIndex = content.IndexOf('|');
             if (pipeIndex > 0 && DateTimeOffset.TryParse(content[(pipeIndex + 1)..], out var timestamp)) {
                 if (DateTimeOffset.UtcNow - timestamp > TimeSpan.FromMinutes(5))
@@ -90,19 +90,18 @@ public sealed class FileMailboxLock : IAsyncDisposable {
     /// <summary>
     /// 异步释放锁 — 关闭流并删除锁文件
     /// </summary>
-    public ValueTask DisposeAsync() {
-        Release();
-        return ValueTask.CompletedTask;
+    public async ValueTask DisposeAsync() {
+        await Release().ConfigureAwait(false);
     }
 
     /// <summary>
     /// 同步释放锁，语义与 DisposeAsync 等价
     /// </summary>
-    internal void Release() {
+    internal async ValueTask Release() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         try {
-            _lockStream.Dispose();
+            await _lockStream.DisposeAsync().ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "FileMailboxLock: failed to dispose lock stream for {FilePath}", FilePath);
         }

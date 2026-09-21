@@ -42,6 +42,8 @@ public sealed class SyncUsingOnAsyncDisposableRule : AnalyzerRuleBase<SyncUsingO
             var implementsIAsyncDisposable = type.AllInterfaces.Contains(iasyncDisposableType, SymbolEqualityComparer.Default);
             var implementsIDisposable = type.AllInterfaces.Contains(idisposableType, SymbolEqualityComparer.Default);
 
+            // 只报告纯 IAsyncDisposable(不实现 IDisposable)的类型
+            // 双接口类型(IDisposable + IAsyncDisposable)用同步 using 是合法的
             if (implementsIAsyncDisposable && !implementsIDisposable) {
                 var typeName = type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                 ctx.ReportDiagnostic(Diagnostic.Create(
@@ -50,5 +52,12 @@ public sealed class SyncUsingOnAsyncDisposableRule : AnalyzerRuleBase<SyncUsingO
                     typeName));
             }
         }
+    }
+
+    private static bool IsWhitelistedDualInterface(INamedTypeSymbol type) {
+        var fullName = type.OriginalDefinition.ToDisplayString();
+        return fullName is "System.Threading.CancellationTokenSource"
+            or "System.IO.MemoryStream"
+            or "System.Threading.CancellationTokenRegistration";
     }
 }

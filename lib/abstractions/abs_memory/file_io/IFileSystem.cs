@@ -14,23 +14,23 @@ public interface IFileSystem {
     /// <summary>异步写入文件全部文本(指定编码) — 对齐 File.WriteAllTextAsync</summary>
     Task WriteAllTextAsync(string path, string contents, Encoding encoding, CancellationToken cancellationToken = default);
 
-    /// <summary>同步写入文件全部文本 — 对齐 File.WriteAllText</summary>
-    void WriteAllText(string path, string contents);
+    /// <summary>异步写入文件全部文本 — 对齐 File.WriteAllText</summary>
+    ValueTask WriteAllText(string path, string contents);
 
-    /// <summary>同步写入文件全部文本(指定编码) — 对齐 File.WriteAllText</summary>
-    void WriteAllText(string path, string contents, Encoding encoding);
+    /// <summary>异步写入文件全部文本(指定编码) — 对齐 File.WriteAllText</summary>
+    ValueTask WriteAllText(string path, string contents, Encoding encoding);
 
     /// <summary>异步写入文件全部字节 — 对齐 File.WriteAllBytesAsync</summary>
     Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default);
 
-    /// <summary>同步写入文件全部字节 — 对齐 File.WriteAllBytes</summary>
-    void WriteAllBytes(string path, byte[] bytes);
+    /// <summary>异步写入文件全部字节 — 对齐 File.WriteAllBytes</summary>
+    ValueTask WriteAllBytes(string path, byte[] bytes);
 
     /// <summary>异步追加文本 — 对齐 File.AppendAllTextAsync</summary>
     Task AppendAllTextAsync(string path, string contents, CancellationToken cancellationToken = default);
 
-    /// <summary>同步追加文本 — 对齐 File.AppendAllText</summary>
-    void AppendAllText(string path, string contents);
+    /// <summary>异步追加文本 — 对齐 File.AppendAllText</summary>
+    ValueTask AppendAllText(string path, string contents);
 
     // === File 读操作 ===
 
@@ -40,11 +40,11 @@ public interface IFileSystem {
     /// <summary>异步读取文件全部文本(指定编码) — 对齐 File.ReadAllTextAsync</summary>
     Task<string> ReadAllTextAsync(string path, Encoding encoding, CancellationToken cancellationToken = default);
 
-    /// <summary>同步读取文件全部文本 — 对齐 File.ReadAllText</summary>
-    string ReadAllText(string path);
+    /// <summary>异步读取文件全部文本 — 对齐 File.ReadAllText</summary>
+    ValueTask<string> ReadAllText(string path);
 
-    /// <summary>同步读取文件全部文本(指定编码) — 对齐 File.ReadAllText</summary>
-    string ReadAllText(string path, Encoding encoding);
+    /// <summary>异步读取文件全部文本(指定编码) — 对齐 File.ReadAllText</summary>
+    ValueTask<string> ReadAllText(string path, Encoding encoding);
 
     /// <summary>异步读取文件全部行 — 对齐 File.ReadAllLinesAsync</summary>
     Task<string[]> ReadAllLinesAsync(string path, CancellationToken cancellationToken = default);
@@ -55,8 +55,8 @@ public interface IFileSystem {
     /// <summary>异步读取文件全部字节 — 对齐 File.ReadAllBytesAsync</summary>
     Task<byte[]> ReadAllBytesAsync(string path, CancellationToken cancellationToken = default);
 
-    /// <summary>同步读取文件全部字节 — 对齐 File.ReadAllBytes</summary>
-    byte[] ReadAllBytes(string path);
+    /// <summary>异步读取文件全部字节 — 对齐 File.ReadAllBytes</summary>
+    ValueTask<byte[]> ReadAllBytes(string path);
 
     // === File 原子编辑 ===
 

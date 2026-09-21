@@ -24,14 +24,14 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
     }
 
     /// <inheritdoc/>
-    public TerminalSnapshot CaptureScreen() {
+    public async ValueTask<TerminalSnapshot> CaptureScreen() {
         var (width, height) = GetTerminalDimensions(_logger);
 
         string content;
         try {
             content = OperatingSystem.IsWindows()
                 ? CaptureWindowsScreen(width, height)
-                : CaptureUnixScreen(width, height, _fs, _logger);
+                : await CaptureUnixScreen(width, height, _fs, _logger).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "终端屏幕捕获失败，返回元数据");
             content = FormatMetadataFallback(width, height, _logger);
@@ -46,7 +46,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
     }
 
     /// <inheritdoc/>
-    public TerminalSnapshot? CaptureBuffer(int maxLines = 50) {
+    public async ValueTask<TerminalSnapshot?> CaptureBuffer(int maxLines = 50) {
         var (width, height) = GetTerminalBufferDimensions(_logger);
 
         if (Console.IsOutputRedirected) {
@@ -57,7 +57,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         try {
             content = OperatingSystem.IsWindows()
                 ? CaptureWindowsBuffer(width, maxLines)
-                : CaptureUnixBuffer(width, maxLines, _fs, _logger);
+                : await CaptureUnixBuffer(width, maxLines, _fs, _logger).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "终端缓冲区捕获失败");
             return null;
@@ -165,13 +165,13 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
     #region Unix Implementation
 
-    private static string CaptureUnixScreen(int width, int height, IFileSystem fs, ILogger? logger = null) {
+    private static async ValueTask<string> CaptureUnixScreen(int width, int height, IFileSystem fs, ILogger? logger = null) {
         var tmuxContent = TryTmuxCapture();
         if (tmuxContent != null) {
             return tmuxContent;
         }
 
-        var screenContent = TryScreenCapture(fs, null, logger);
+        var screenContent = await TryScreenCapture(fs, null, logger).ConfigureAwait(false);
         if (screenContent != null) {
             return screenContent;
         }
@@ -184,13 +184,13 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         return FormatMetadataFallback(width, height, logger);
     }
 
-    private static string CaptureUnixBuffer(int width, int maxLines, IFileSystem fs, ILogger? logger = null) {
+    private static async ValueTask<string> CaptureUnixBuffer(int width, int maxLines, IFileSystem fs, ILogger? logger = null) {
         var tmuxContent = TryTmuxCapture(maxLines);
         if (tmuxContent != null) {
             return tmuxContent;
         }
 
-        var screenContent = TryScreenCapture(fs, maxLines, logger);
+        var screenContent = await TryScreenCapture(fs, maxLines, logger).ConfigureAwait(false);
         if (screenContent != null) {
             return screenContent;
         }
@@ -233,7 +233,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         }
     }
 
-    private static string? TryScreenCapture(IFileSystem fs, int? maxLines = null, ILogger? logger = null) {
+    private static async ValueTask<string?> TryScreenCapture(IFileSystem fs, int? maxLines = null, ILogger? logger = null) {
         try {
             using var tmpFileScope = TempFileScope.Create(fs, "jcc_screen_", ".txt");
             var tmpFile = tmpFileScope.Path;
@@ -253,7 +253,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
             if (!fs.FileExists(tmpFile)) return null;
 
-            var content = fs.ReadAllText(tmpFile);
+            var content = await fs.ReadAllText(tmpFile).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(content)) return null;
 
             return maxLines.HasValue

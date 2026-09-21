@@ -42,7 +42,7 @@ public sealed class DownloadSessionStateTransitionTests {
 
         result.Success.Should().BeTrue();
         result.FinalState.Should().Be(DownloadState.Completed);
-        fs.ReadAllBytes(FilePath).Should().Equal(data);
+        (await fs.ReadAllBytes(FilePath).ConfigureAwait(false)).Should().Equal(data);
     }
 
     // === 资源变更:ETag 不匹配 → 重新下载 ===
@@ -74,7 +74,7 @@ public sealed class DownloadSessionStateTransitionTests {
 
         result.Success.Should().BeTrue();
         result.FinalState.Should().Be(DownloadState.Completed);
-        fs.ReadAllBytes(FilePath).Should().Equal(data);
+        (await fs.ReadAllBytes(FilePath).ConfigureAwait(false)).Should().Equal(data);
     }
 
     // === 大文件多线程并发 ===
@@ -89,7 +89,7 @@ public sealed class DownloadSessionStateTransitionTests {
 
         result.Success.Should().BeTrue();
         result.TotalBytes.Should().Be(256 * 1024);
-        fs.ReadAllBytes(FilePath).Should().Equal(data);
+        (await fs.ReadAllBytes(FilePath).ConfigureAwait(false)).Should().Equal(data);
     }
 
     // === Pause 后元数据已保存 ===

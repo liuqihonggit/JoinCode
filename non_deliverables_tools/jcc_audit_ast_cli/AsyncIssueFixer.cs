@@ -129,18 +129,12 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
     }
 
     public override SyntaxNode? VisitAssignmentExpression(AssignmentExpressionSyntax node) {
-        // 修复3b：对 x = obj.Method() 加 await（用原始 node 查询 SemanticModel）
-        var fixedNode = TryAddAwaitToAssignment(node);
-        if (fixedNode is not null) { FixedIssues++; return fixedNode; }
+        // 安全起见：不在赋值语句中加 await（无法区分"需要 Task 本身"和"需要 await Task"）
         return base.VisitAssignmentExpression(node);
     }
 
     public override SyntaxNode? VisitVariableDeclarator(VariableDeclaratorSyntax node) {
-        // 修复3：对 var x = obj.Method() 加 await（用原始 node 查询 SemanticModel）
-        if (node.Initializer is not null) {
-            var fixedNode = TryAddAwaitToInitializer(node);
-            if (fixedNode is not null) { FixedIssues++; return fixedNode; }
-        }
+        // 安全起见：不在变量声明中加 await（无法区分"需要 Task 本身"和"需要 await Task"）
         return base.VisitVariableDeclarator(node);
     }
 

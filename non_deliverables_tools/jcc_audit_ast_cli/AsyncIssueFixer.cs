@@ -200,7 +200,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
             var discard = SyntaxFactory.AssignmentExpression(
                 SyntaxKind.SimpleAssignmentExpression,
                 SyntaxFactory.IdentifierName("_").WithTrailingTrivia(SyntaxFactory.Whitespace(" ")),
-                newInvocation);
+                newInvocation.WithLeadingTrivia(SyntaxFactory.Whitespace(" ")));
             return discard
                 .WithLeadingTrivia(invocation.GetLeadingTrivia())
                 .WithTrailingTrivia(invocation.GetTrailingTrivia());

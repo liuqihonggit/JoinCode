@@ -6,7 +6,7 @@ namespace JoinCode.Vision.Tests;
 public sealed class CellCropperTests {
     [Fact]
     public async Task CropAsync_ReturnsCroppedDimensions() {
-        var bytes = CreateTestImage(100, 100, Color.Red);
+        var bytes = await CreateTestImage(100, 100, Color.Red);
 
         var cropped = await CellCropper.CropAsync(bytes, 0, 0, 50, 50);
 
@@ -17,7 +17,7 @@ public sealed class CellCropperTests {
 
     [Fact]
     public async Task CropAsync_PreservesPixelColor() {
-        var bytes = CreateTestImage(100, 100, Color.Blue);
+        var bytes = await CreateTestImage(100, 100, Color.Blue);
 
         var cropped = await CellCropper.CropAsync(bytes, 25, 25, 50, 50);
 
@@ -28,7 +28,7 @@ public sealed class CellCropperTests {
 
     [Fact]
     public async Task CropAsync_CropsBottomRightQuadrant() {
-        var bytes = CreateTestImage(100, 100, Color.Green);
+        var bytes = await CreateTestImage(100, 100, Color.Green);
 
         var cropped = await CellCropper.CropAsync(bytes, 50, 50, 50, 50);
 
@@ -39,7 +39,7 @@ public sealed class CellCropperTests {
 
     [Fact]
     public async Task CropToBase64Async_ReturnsValidBase64Png() {
-        var bytes = CreateTestImage(100, 100, Color.Red);
+        var bytes = await CreateTestImage(100, 100, Color.Red);
 
         var base64 = await CellCropper.CropToBase64Async(bytes, 0, 0, 50, 50);
 
@@ -57,14 +57,14 @@ public sealed class CellCropperTests {
 
     [Fact]
     public async Task CropAsync_NegativeDimensions_Throws() {
-        var bytes = CreateTestImage(100, 100, Color.Red);
+        var bytes = await CreateTestImage(100, 100, Color.Red);
         var act = async () => await CellCropper.CropAsync(bytes, 0, 0, -10, 10);
         await act.Should().ThrowAsync<ArgumentException>();
     }
 
-    private static byte[] CreateTestImage(int width, int height, Color color) {
+    private static async Task<byte[]> CreateTestImage(int width, int height, Color color) {
         using var img = new Image<Rgba32>(width, height, color);
-        using var ms = new MemoryStream();
+        await using var ms = new MemoryStream();
         img.Save(ms, PngFormat.Instance);
         return ms.ToArray();
     }

@@ -4,9 +4,9 @@ namespace Vision.Tests.ToolHandlers;
 /// TemporalMetaphorToolHandlers 单元测试 — 验证 M3 的 2 个 MCP 工具
 /// </summary>
 public sealed class TemporalMetaphorToolHandlersTests {
-    private static string CreateTestImageBase64(int width = 4, int height = 4, byte r = 100, byte g = 150, byte b = 200) {
+    private static async Task<string> CreateTestImageBase64(int width = 4, int height = 4, byte r = 100, byte g = 150, byte b = 200) {
         using var image = new Image<Rgb24>(width, height, new Rgb24(r, g, b));
-        using var ms = new MemoryStream();
+        await using var ms = new MemoryStream();
         image.Save(ms, PngFormat.Instance);
         return Convert.ToBase64String(ms.ToArray());
     }
@@ -24,8 +24,8 @@ public sealed class TemporalMetaphorToolHandlersTests {
 
     [Fact]
     public async Task TemporalAggregate_ValidFrames_ShouldReturnAnalysis() {
-        var frame1 = CreateTestImageBase64(r: 100);
-        var frame2 = CreateTestImageBase64(r: 200);
+        var frame1 = await CreateTestImageBase64(r: 100);
+        var frame2 = await CreateTestImageBase64(r: 200);
         var framesJson = CreateFramesJson(frame1, frame2);
         var mock = CreateQueryServiceMock("物体从左侧移动到右侧");
         var handlers = new TemporalMetaphorToolHandlers(mock.Object);
@@ -50,7 +50,7 @@ public sealed class TemporalMetaphorToolHandlersTests {
 
     [Fact]
     public async Task TemporalAggregate_TooManyFrames_ShouldReturnError() {
-        var frame = CreateTestImageBase64();
+        var frame = await CreateTestImageBase64();
         var frames = new string[11].Select(_ => frame).ToList();
         var framesJson = JsonSerializer.Serialize(frames);
         var mock = new Mock<IQueryService>();
@@ -64,8 +64,8 @@ public sealed class TemporalMetaphorToolHandlersTests {
 
     [Fact]
     public async Task TemporalStableContour_ValidFrames_ShouldReturnMaskImage() {
-        var frame1 = CreateTestImageBase64(r: 100);
-        var frame2 = CreateTestImageBase64(r: 100);
+        var frame1 = await CreateTestImageBase64(r: 100);
+        var frame2 = await CreateTestImageBase64(r: 100);
         var framesJson = CreateFramesJson(frame1, frame2);
         var handlers = new TemporalMetaphorToolHandlers(new Mock<IQueryService>().Object);
 
@@ -79,7 +79,7 @@ public sealed class TemporalMetaphorToolHandlersTests {
 
     [Fact]
     public async Task TemporalStableContour_SingleFrame_ShouldReturnError() {
-        var frame = CreateTestImageBase64();
+        var frame = await CreateTestImageBase64();
         var framesJson = CreateFramesJson(frame);
         var handlers = new TemporalMetaphorToolHandlers(new Mock<IQueryService>().Object);
 
@@ -91,8 +91,8 @@ public sealed class TemporalMetaphorToolHandlersTests {
 
     [Fact]
     public async Task TemporalStableContour_InvalidThreshold_ShouldReturnError() {
-        var frame1 = CreateTestImageBase64();
-        var frame2 = CreateTestImageBase64();
+        var frame1 = await CreateTestImageBase64();
+        var frame2 = await CreateTestImageBase64();
         var framesJson = CreateFramesJson(frame1, frame2);
         var handlers = new TemporalMetaphorToolHandlers(new Mock<IQueryService>().Object);
 
@@ -104,8 +104,8 @@ public sealed class TemporalMetaphorToolHandlersTests {
 
     [Fact]
     public async Task TemporalStableContour_DifferentFrames_ShouldReturnMaskWithUnstableRegions() {
-        var frame1 = CreateTestImageBase64(r: 0);
-        var frame2 = CreateTestImageBase64(r: 255);
+        var frame1 = await CreateTestImageBase64(r: 0);
+        var frame2 = await CreateTestImageBase64(r: 255);
         var framesJson = CreateFramesJson(frame1, frame2);
         var handlers = new TemporalMetaphorToolHandlers(new Mock<IQueryService>().Object);
 
@@ -117,8 +117,8 @@ public sealed class TemporalMetaphorToolHandlersTests {
 
     [Fact]
     public async Task TemporalStableContour_InconsistentFrameSizes_ShouldReturnErrorNotCrash() {
-        var frame1 = CreateTestImageBase64(width: 4, height: 4);
-        var frame2 = CreateTestImageBase64(width: 8, height: 8);
+        var frame1 = await CreateTestImageBase64(width: 4, height: 4);
+        var frame2 = await CreateTestImageBase64(width: 8, height: 8);
         var framesJson = CreateFramesJson(frame1, frame2);
         var handlers = new TemporalMetaphorToolHandlers(new Mock<IQueryService>().Object);
 
@@ -150,7 +150,7 @@ public sealed class TemporalMetaphorToolHandlersTests {
 
     [Fact]
     public async Task TemporalStableContour_InvalidFrameBase64_ShouldReturnErrorNotCrash() {
-        var frame1 = CreateTestImageBase64();
+        var frame1 = await CreateTestImageBase64();
         var framesJson = CreateFramesJson(frame1, "not-valid-base64!!!");
         var handlers = new TemporalMetaphorToolHandlers(new Mock<IQueryService>().Object);
 

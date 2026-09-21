@@ -190,11 +190,13 @@ public class AsyncLockDiagnosisTests : IDisposable {
 
     [Fact]
     public async Task 死锁检测_两个线程互相等待时自动检测() {
+        var originalWaitThreshold = LockRegistry.WaitTimeoutThreshold;
+        LockRegistry.WaitTimeoutThreshold = TimeSpan.FromMilliseconds(100);
         LockRegistry.StartBackgroundScan(TimeSpan.FromMilliseconds(50));
         var messages = new ConcurrentQueue<string>();
         LockRegistry.DiagnosticSink = messages.Enqueue;
-        using var lockA = new AsyncLock("deadlock-A", TimeSpan.FromMilliseconds(500));
-        using var lockB = new AsyncLock("deadlock-B", TimeSpan.FromMilliseconds(500));
+        using var lockA = new AsyncLock("deadlock-A", TimeSpan.FromSeconds(3));
+        using var lockB = new AsyncLock("deadlock-B", TimeSpan.FromSeconds(3));
 
         var barrier = new Barrier(2);
         var t1Done = new ManualResetEventSlim();
@@ -226,11 +228,58 @@ public class AsyncLockDiagnosisTests : IDisposable {
         LockRegistry.LastDeadlockReport.Should().Contain("deadlock-B");
         messages.Should().Contain(m => m.Contains("DEADLOCK-DETECTED"));
 
-        t1Done.Wait(5000);
-        t2Done.Wait(5000);
+        t1Done.Wait(8000);
+        t2Done.Wait(8000);
 
         LockRegistry.StopBackgroundScan();
+        LockRegistry.WaitTimeoutThreshold = originalWaitThreshold;
         LockRegistry.DiagnosticSink = null;
+    }
+
+    /// <summary>
+    /// 根因修复验证:CI 高负载下后台 Timer 回调可能严重延迟,在死锁窗口内未执行 DetectDeadlock,
+    /// 导致偶发漏检(run 35649777572 attempt#1 失败、attempt#2 通过)。
+    /// OnWaitStart 即时检测应不依赖后台扫描即可发现死锁,消除对 Timer 调度及时性的依赖。
+    /// </summary>
+    [Fact]
+    public async Task 死锁检测_OnWaitStart即时检测_不依赖后台扫描() {
+        var messages = new ConcurrentQueue<string>();
+        LockRegistry.DiagnosticSink = messages.Enqueue;
+        using var lockA = new AsyncLock("imm-deadlock-A", TimeSpan.FromSeconds(5));
+        using var lockB = new AsyncLock("imm-deadlock-B", TimeSpan.FromSeconds(5));
+        LockRegistry.StopBackgroundScan(); // 模拟 CI 高负载:后台扫描不执行
+
+        var barrier = new Barrier(2);
+        var t1Done = new ManualResetEventSlim();
+        var t2Done = new ManualResetEventSlim();
+
+        var t1 = new Thread(() => {
+            using (lockA.TryLock() ?? throw new System.TimeoutException($"锁 '{lockA.Name}' 等待超时")) {
+                barrier.SignalAndWait();
+                using var g = lockB.TryLock();
+            }
+            t1Done.Set();
+        }) { IsBackground = true };
+
+        var t2 = new Thread(() => {
+            using (lockB.TryLock() ?? throw new System.TimeoutException($"锁 '{lockB.Name}' 等待超时")) {
+                barrier.SignalAndWait();
+                using var g = lockA.TryLock();
+            }
+            t2Done.Set();
+        }) { IsBackground = true };
+
+        t1.Start();
+        t2.Start();
+
+        var detected = System.Threading.SpinWait.SpinUntil(() => LockRegistry.DeadlockDetected, TimeSpan.FromSeconds(2));
+        detected.Should().BeTrue("OnWaitStart 即时检测应在不依赖后台扫描的情况下检测到死锁(根因修复:消除 Timer 调度延迟导致的偶发漏检)");
+
+        t1Done.Wait(8000);
+        t2Done.Wait(8000);
+
+        LockRegistry.DiagnosticSink = null;
+        await Task.CompletedTask;
     }
 
     [Fact]

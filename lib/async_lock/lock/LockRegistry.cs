@@ -134,6 +134,9 @@ public static class LockRegistry {
                         $"已持有锁 #{other.Id} '{other.Name}', 现在获取锁 #{id} '{name}' (ID 更小)。" +
                         $"按锁 ID 升序获取可避免死锁。");
             }
+            // 即时死锁检测:当前流刚加入等待边,沿边走若回到起点则死锁。
+            // 不依赖后台扫描调度,消除 CI 高负载下 Timer 回调延迟导致的偶发漏检。
+            DetectDeadlockFromCurrentFlow(currentFlowId);
         }
     }
 
@@ -360,34 +363,67 @@ public static class LockRegistry {
     /// </summary>
     internal static void DetectDeadlock() {
         if (!IsEnabled) return;
+        var waitEdges = BuildWaitEdges(exemptThreshold: false);
+        if (waitEdges.Count == 0) return;
+        Emit($"[LOCK-DEADLOCK-SCAN] 检查 {waitEdges.Count} 条等待边: {string.Join(", ", waitEdges.Select(e => $"F{e.Key}→F{e.Value.holderFlowId}(#{e.Value.lk.Id})"))}");
+        foreach (var startId in waitEdges.Keys) {
+            if (FindCycleFrom(waitEdges, startId, out var chain)) {
+                EmitDeadlockReport(chain);
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 即时死锁检测 — 在 <see cref="OnWaitStart"/> 时从当前流出发沿等待边走,若回到起点则死锁。
+    /// 豁免等待门槛(刚加入的边等待时间≈0,且环上所有边均为"正在等待"的活跃状态),
+    /// 不依赖后台扫描调度,消除 CI 高负载下 Timer 回调延迟导致的偶发漏检。
+    /// </summary>
+    internal static void DetectDeadlockFromCurrentFlow(int startFlowId) {
+        if (!IsEnabled || startFlowId == 0) return;
+        var waitEdges = BuildWaitEdges(exemptThreshold: true);
+        if (waitEdges.Count == 0) return;
+        if (FindCycleFrom(waitEdges, startFlowId, out var chain))
+            EmitDeadlockReport(chain);
+    }
+
+    /// <summary>
+    /// 构建 wait-for graph 的等待边集合。<paramref name="exemptThreshold"/> 为 true 时豁免等待门槛(即时检测用),
+    /// 为 false 时仅纳入等待超过 <see cref="_waitTimeoutThreshold"/> 的边(后台扫描用,避免 FlowId 复用下 stale 误报)。
+    /// </summary>
+    private static Dictionary<int, (int holderFlowId, LockInfo lk)> BuildWaitEdges(bool exemptThreshold) {
         var now = DateTimeOffset.UtcNow;
-        var waitEdges = new Dictionary<int, (int holderFlowId, LockInfo lk)>();
+        var edges = new Dictionary<int, (int holderFlowId, LockInfo lk)>();
         foreach (var info in _locks.Values) {
             var waitingFlowId = info.WaitingFlowId;
             var holdingFlowId = info.HoldingFlowId;
             if (waitingFlowId == 0 || holdingFlowId == 0)
                 continue;
-            var waitStart = info.WaitStartedTicks;
-            if (waitStart == 0 || now.Ticks - waitStart < _waitTimeoutThreshold.Ticks)
-                continue;
-            waitEdges[waitingFlowId] = (holdingFlowId, info);
-        }
-        if (waitEdges.Count == 0) return;
-        Emit($"[LOCK-DEADLOCK-SCAN] 检查 {waitEdges.Count} 条等待边: {string.Join(", ", waitEdges.Select(e => $"F{e.Key}→F{e.Value.holderFlowId}(#{e.Value.lk.Id})"))}");
-        foreach (var startId in waitEdges.Keys) {
-            var chain = new List<(int flowId, LockInfo lk)>();
-            var current = startId;
-            for (var step = 0; step <= waitEdges.Count; step++) {
-                if (!waitEdges.TryGetValue(current, out var edge))
-                    break;
-                chain.Add((current, edge.lk));
-                current = edge.holderFlowId;
-                if (current == startId) {
-                    EmitDeadlockReport(chain);
-                    return;
-                }
+            if (!exemptThreshold) {
+                var waitStart = info.WaitStartedTicks;
+                if (waitStart == 0 || now.Ticks - waitStart < _waitTimeoutThreshold.Ticks)
+                    continue;
             }
+            edges[waitingFlowId] = (holdingFlowId, info);
         }
+        return edges;
+    }
+
+    /// <summary>
+    /// 从 <paramref name="startId"/> 出发沿等待边走,若回到起点则找到死锁环。
+    /// </summary>
+    private static bool FindCycleFrom(Dictionary<int, (int holderFlowId, LockInfo lk)> waitEdges, int startId, out List<(int flowId, LockInfo lk)> chain) {
+        chain = new List<(int flowId, LockInfo lk)>();
+        var current = startId;
+        for (var step = 0; step <= waitEdges.Count; step++) {
+            if (!waitEdges.TryGetValue(current, out var edge))
+                return false;
+            chain.Add((current, edge.lk));
+            current = edge.holderFlowId;
+            if (current == startId)
+                return true;
+        }
+        return false;
     }
 
     private static void EmitDeadlockReport(List<(int flowId, LockInfo lk)> chain) {

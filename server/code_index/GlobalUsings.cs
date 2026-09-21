@@ -22,6 +22,7 @@ global using Structura.Dag;
 global using System.Collections.Frozen;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Text.RegularExpressions;
+global using System.Threading;
 global using System.Xml.Linq;
 global using TreeSitter;
 global using Range = System.Range;

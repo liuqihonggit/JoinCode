@@ -1,4 +1,5 @@
 global using Api;
+global using System.Threading;
 global using Core.Bridge;
 global using Core.Bridge.Init;
 global using Core.Bridge.Init.V1;

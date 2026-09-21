@@ -1,5 +1,3 @@
-using SkiaSharp;
-
 var bmp = new SKBitmap(100, 100);
 using var canvas = new SKCanvas(bmp);
 canvas.Clear(SKColors.White);

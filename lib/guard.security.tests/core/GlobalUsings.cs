@@ -66,3 +66,6 @@ global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using ToolPermissionCheckResult = JoinCode.Abstractions.Security.Permission.ToolPermissionCheckResult;
 global using UtilsPermissionCheckResult = JoinCode.Abstractions.Security.Permission.PermissionCheckResult;
 global using ValidationResult = Structura.Primitives.ValidationResult;
+global using Core.Hooks.Execution.Interception;
+global using Core.Hooks.Execution.Interception.Defense;
+global using Core.Hooks.Execution.Interception.Guards;

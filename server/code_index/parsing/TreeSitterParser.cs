@@ -1,4 +1,3 @@
-using System.Threading;
 namespace JoinCode.CodeIndex.Ast;
 
 /// <summary>

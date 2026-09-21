@@ -15,3 +15,4 @@ global using System.Collections.Frozen;
 global using System.Text.Encodings.Web;
 global using System.Text.Json;
 global using Testing.Common;
+global using Testing.Common.Services;

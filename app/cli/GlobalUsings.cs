@@ -1,4 +1,5 @@
 // PipelineComposition 需要的命名空间
+global using System.Threading;
 global using Core.Agents;
 global using Core.Agents.Coordinator;
 global using Core.Bridge;

@@ -1,6 +1,4 @@
 
-using JoinCode.CliCommands;
-
 namespace Host.Tests.Cli;
 public sealed class RgSubCommandTests {
     [Theory]

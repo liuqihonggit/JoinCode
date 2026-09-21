@@ -25,6 +25,7 @@ global using Infrastructure.Network.Downloader.Probing;
 global using Infrastructure.Network.Downloader.StateMachine;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Pipeline.Middlewares;
+global using Infrastructure.Shell;
 global using Infrastructure.Subprocess;
 global using Infrastructure.Time;
 global using Infrastructure.Utils.Diagnostics;

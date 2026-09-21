@@ -1,3 +1,5 @@
+[assembly: CollectionBehavior(CollectionBehavior.CollectionPerAssembly)]
+
 namespace Host.Tests;
 
 /// <summary>

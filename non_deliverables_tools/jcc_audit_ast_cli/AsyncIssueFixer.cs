@@ -32,6 +32,7 @@ public static class AsyncIssueFixer {
                 ct.ThrowIfCancellationRequested();
                 if (tree.FilePath is null || !tree.FilePath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
                     continue;
+                if (ShouldSkipPath(tree.FilePath)) { skippedFiles++; continue; }
                 if (processedFiles.Contains(tree.FilePath)) { skippedFiles++; continue; }
                 processedFiles.Add(tree.FilePath);
 
@@ -56,6 +57,14 @@ public static class AsyncIssueFixer {
         }
         return (fixedFiles, fixedIssues, skippedFiles);
     }
+
+    private static bool ShouldSkipPath(string path) {
+        var normalized = path.Replace('\\', '/');
+        return normalized.Contains("/obj/") ||
+               normalized.Contains("/bin/") ||
+               normalized.Contains("/artifacts/") ||
+               normalized.Contains("/.xxx/");
+    }
 }
 
 /// <summary>
@@ -65,6 +74,9 @@ public static class AsyncIssueFixer {
 /// 3. 加 await 到未 await 的 Task/ValueTask 方法调用
 /// 4. using → await using（IAsyncDisposable 类型）
 /// 5. 修复 await xxx.Should() → (await xxx).Should()
+///
+/// 关键：所有 SemanticModel 查询必须在 base.Visit 之前用原始节点做，
+/// 因为 base.Visit 返回的新节点不在原始语法树中，SemanticModel 查询会失败。
 /// </summary>
 internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
     private readonly SemanticModel _model;
@@ -79,72 +91,76 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
     }
 
     public override SyntaxNode? VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node) {
-        var visited = (LocalDeclarationStatementSyntax)base.VisitLocalDeclarationStatement(node)!;
-        if (visited.UsingKeyword.IsKind(SyntaxKind.None) || visited.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword))
-            return visited;
-        if (!IsAsyncDisposableDeclaration(visited))
-            return visited;
-        FixedIssues++;
-        return visited.WithAwaitKeyword(
-            SyntaxFactory.Token(SyntaxKind.AwaitKeyword).WithTrailingTrivia(SyntaxFactory.Whitespace(" ")));
+        // 修复4：using → await using（用原始 node 查询 SemanticModel）
+        if (node.UsingKeyword.IsKind(SyntaxKind.UsingKeyword) && !node.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword)) {
+            if (IsAsyncDisposableDeclaration(node)) {
+                FixedIssues++;
+                var visited = (LocalDeclarationStatementSyntax)base.VisitLocalDeclarationStatement(node)!;
+                return visited.WithAwaitKeyword(
+                    SyntaxFactory.Token(SyntaxKind.AwaitKeyword).WithTrailingTrivia(SyntaxFactory.Whitespace(" ")));
+            }
+        }
+        return base.VisitLocalDeclarationStatement(node);
     }
 
     public override SyntaxNode? VisitUsingStatement(UsingStatementSyntax node) {
-        var visited = (UsingStatementSyntax)base.VisitUsingStatement(node)!;
-        if (visited.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword))
-            return visited;
-        if (!IsAsyncDisposableUsing(visited))
-            return visited;
-        FixedIssues++;
-        return visited.WithAwaitKeyword(
-            SyntaxFactory.Token(SyntaxKind.AwaitKeyword).WithTrailingTrivia(SyntaxFactory.Whitespace(" ")));
+        // 修复4：using → await using（用原始 node 查询 SemanticModel）
+        if (!node.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword) && IsAsyncDisposableUsing(node)) {
+            FixedIssues++;
+            var visited = (UsingStatementSyntax)base.VisitUsingStatement(node)!;
+            return visited.WithAwaitKeyword(
+                SyntaxFactory.Token(SyntaxKind.AwaitKeyword).WithTrailingTrivia(SyntaxFactory.Whitespace(" ")));
+        }
+        return base.VisitUsingStatement(node);
     }
 
     public override SyntaxNode? VisitAwaitExpression(AwaitExpressionSyntax node) {
-        var visited = (AwaitExpressionSyntax)base.VisitAwaitExpression(node)!;
-        var fixedNode = TryFixAwaitShouldPattern(visited);
+        // 修复5：await xxx.Should() → (await xxx).Should()（用原始 node 查询 SemanticModel）
+        var fixedNode = TryFixAwaitShouldPattern(node);
         if (fixedNode is not null) { FixedIssues++; return fixedNode; }
-        return visited;
+        return base.VisitAwaitExpression(node);
     }
 
     public override SyntaxNode? VisitExpressionStatement(ExpressionStatementSyntax node) {
-        var visited = (ExpressionStatementSyntax)base.VisitExpressionStatement(node)!;
-        var fixedExpr = TryAddAwaitToStatement(visited);
+        // 修复3c：对 obj.Method() 语句加 await（用原始 node 查询 SemanticModel）
+        var fixedExpr = TryAddAwaitToStatement(node);
         if (fixedExpr is not null) { FixedIssues++; return fixedExpr; }
-        return visited;
+        return base.VisitExpressionStatement(node);
     }
 
     public override SyntaxNode? VisitAssignmentExpression(AssignmentExpressionSyntax node) {
-        var visited = (AssignmentExpressionSyntax)base.VisitAssignmentExpression(node)!;
-        var fixedNode = TryAddAwaitToAssignment(visited);
+        // 修复3b：对 x = obj.Method() 加 await（用原始 node 查询 SemanticModel）
+        var fixedNode = TryAddAwaitToAssignment(node);
         if (fixedNode is not null) { FixedIssues++; return fixedNode; }
-        return visited;
+        return base.VisitAssignmentExpression(node);
     }
 
     public override SyntaxNode? VisitVariableDeclarator(VariableDeclaratorSyntax node) {
-        var visited = (VariableDeclaratorSyntax)base.VisitVariableDeclarator(node)!;
-        if (visited.Initializer is null) return visited;
-        var fixedNode = TryAddAwaitToInitializer(visited);
-        if (fixedNode is not null) { FixedIssues++; return fixedNode; }
-        return visited;
+        // 修复3：对 var x = obj.Method() 加 await（用原始 node 查询 SemanticModel）
+        if (node.Initializer is not null) {
+            var fixedNode = TryAddAwaitToInitializer(node);
+            if (fixedNode is not null) { FixedIssues++; return fixedNode; }
+        }
+        return base.VisitVariableDeclarator(node);
     }
 
     public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
-        var visited = (InvocationExpressionSyntax)base.VisitInvocationExpression(node)!;
-        var renamed = TryRenameMethod(visited);
+        // 修复1：方法重命名（纯语法匹配，不需要 SemanticModel）
+        var renamed = TryRenameMethod(node);
         if (renamed is not null) { FixedIssues++; return renamed; }
+        // 修复2：移除 ConfigureAwait(false)（纯语法匹配）
         if (_isTestFile) {
-            var withoutCa = TryRemoveConfigureAwait(visited);
+            var withoutCa = TryRemoveConfigureAwait(node);
             if (withoutCa is not null) { FixedIssues++; return withoutCa; }
         }
-        return visited;
+        return base.VisitInvocationExpression(node);
     }
 
     /// <summary>
     /// 修复1：SessionRouter.Clear() → await SessionRouter.ClearAsync()
     ///        SessionRouter.RemoveScope(x) → await SessionRouter.RemoveScopeAsync(x)
     /// </summary>
-    private SyntaxNode? TryRenameMethod(InvocationExpressionSyntax invocation) {
+    private static SyntaxNode? TryRenameMethod(InvocationExpressionSyntax invocation) {
         if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
             return null;
         if (memberAccess.Expression is not IdentifierNameSyntax receiver)
@@ -159,12 +175,11 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
             _ => null
         };
         if (newMethodName is null) return null;
+        if (IsAlreadyAwaited(invocation)) return null;
 
         var newMemberAccess = memberAccess.WithName(
             SyntaxFactory.IdentifierName(newMethodName).WithTriviaFrom(memberAccess.Name));
         var newInvocation = invocation.WithExpression(newMemberAccess);
-
-        if (IsAlreadyAwaited(invocation)) return null;
         return SyntaxFactory.AwaitExpression(newInvocation)
             .WithLeadingTrivia(invocation.GetLeadingTrivia())
             .WithTrailingTrivia(invocation.GetTrailingTrivia());
@@ -173,7 +188,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
     /// <summary>
     /// 修复2：移除 ConfigureAwait(false) — await xxx.ConfigureAwait(false) → await xxx
     /// </summary>
-    private SyntaxNode? TryRemoveConfigureAwait(InvocationExpressionSyntax invocation) {
+    private static SyntaxNode? TryRemoveConfigureAwait(InvocationExpressionSyntax invocation) {
         if (invocation.Expression is not MemberAccessExpressionSyntax ma)
             return null;
         if (ma.Name.Identifier.ValueText != "ConfigureAwait")
@@ -195,8 +210,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         var value = initializer.Value;
         if (IsAlreadyAwaited(value)) return null;
         if (!ReturnsTaskOrValueTask(value)) return null;
-        var awaited = SyntaxFactory.AwaitExpression(value)
-            .WithTriviaFrom(value);
+        var awaited = SyntaxFactory.AwaitExpression(value).WithTriviaFrom(value);
         return declarator.WithInitializer(initializer.WithValue(awaited));
     }
 
@@ -220,7 +234,6 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         if (expr is not InvocationExpressionSyntax invocation) return null;
         if (IsAlreadyAwaited(invocation)) return null;
         if (!ReturnsTaskOrValueTask(invocation)) return null;
-        if (IsFireAndForgetContext(stmt)) return null;
         var awaited = SyntaxFactory.AwaitExpression(invocation).WithTriviaFrom(invocation);
         return stmt.WithExpression(awaited);
     }
@@ -238,7 +251,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         if (!ReturnsTaskOrValueTask(innerCall)) return null;
         var awaitedInner = SyntaxFactory.AwaitExpression(innerCall).WithTriviaFrom(innerCall);
         var parenthesized = SyntaxFactory.ParenthesizedExpression(awaitedInner);
-        var newInner = ReplaceShouldReceiver(inner, innerCall, parenthesized);
+        var newInner = inner.ReplaceNode(innerCall, parenthesized);
         return awaitExpr.WithExpression((ExpressionSyntax)newInner);
     }
 
@@ -248,10 +261,6 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
                 return ma;
         }
         return null;
-    }
-
-    private static SyntaxNode ReplaceShouldReceiver(SyntaxNode root, SyntaxNode oldNode, SyntaxNode newNode) {
-        return root.ReplaceNode(oldNode, newNode);
     }
 
     /// <summary>
@@ -297,9 +306,5 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
 
     private static bool IsAlreadyAwaited(SyntaxNode node) {
         return node.Parent is AwaitExpressionSyntax;
-    }
-
-    private static bool IsFireAndForgetContext(SyntaxNode node) {
-        return node.Parent is not null && node.Parent.IsKind(SyntaxKind.ExpressionStatement);
     }
 }

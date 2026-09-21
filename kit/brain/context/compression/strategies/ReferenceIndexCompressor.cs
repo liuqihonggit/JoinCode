@@ -265,8 +265,11 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase {
     }
 
     private class ReferenceEntry {
+        /// <summary>获取或设置文件路径。</summary>
         public string FilePath { get; set; } = string.Empty;
+        /// <summary>获取或设置标识符列表。</summary>
         public List<string> Identifiers { get; set; } = new();
+        /// <summary>获取或设置引用列表。</summary>
         public List<string> References { get; set; } = new();
     }
 }

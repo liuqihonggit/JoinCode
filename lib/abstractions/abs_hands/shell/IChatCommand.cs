@@ -84,16 +84,22 @@ public sealed class ChatCommandResult {
 /// 聊天命令接口
 /// </summary>
 public interface IChatCommand {
+    /// <summary>获取命令名称。</summary>
     string Name { get; }
 
+    /// <summary>获取命令描述。</summary>
     string Description { get; }
 
+    /// <summary>获取用法说明。</summary>
     string Usage { get; }
 
+    /// <summary>获取命令别名。</summary>
     string[] Aliases { get; }
 
+    /// <summary>获取参数提示。</summary>
     string ArgumentHint { get; }
 
+    /// <summary>获取是否隐藏。</summary>
     bool IsHidden { get; }
 
     /// <summary>
@@ -103,5 +109,6 @@ public interface IChatCommand {
     /// </summary>
     bool IsEnabled => true;
 
+    /// <summary>异步执行命令。</summary>
     Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context);
 }

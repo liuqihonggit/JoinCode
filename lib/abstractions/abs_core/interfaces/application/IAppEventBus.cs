@@ -23,6 +23,7 @@ public sealed record AppEvent {
     /// <summary>会话 ID（可选）</summary>
     public string? SessionId { get; init; }
 
+    /// <summary>创建应用事件。</summary>
     public static AppEvent Create(ServiceMessageType kind, string? detail = null, object? data = null, string? sender = null, string? sessionId = null) => new() {
         Kind = kind,
         Detail = detail,

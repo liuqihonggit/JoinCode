@@ -5,6 +5,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// </summary>
 [ToolPrompt(ToolName = SearchToolName.Grep, Category = ToolPromptCategory.Search)]
 public static class GrepToolPrompt {
+    /// <summary>获取 Grep 工具描述文本。</summary>
     public static string GetDescription() => $$"""
         基于ripgrep的强大搜索工具。
 

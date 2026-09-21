@@ -55,9 +55,14 @@ public interface IFileStateCache {
 /// Represents the state of a file that has been read.
 /// </summary>
 public sealed record FileReadState {
+    /// <summary>获取文件内容。</summary>
     public required string Content { get; init; }
+    /// <summary>获取读取时间戳（毫秒）。</summary>
     public required long TimestampMs { get; init; }
+    /// <summary>获取偏移量。</summary>
     public int? Offset { get; init; }
+    /// <summary>获取读取限制。</summary>
     public int? Limit { get; init; }
+    /// <summary>获取是否为部分视图。</summary>
     public bool IsPartialView { get; init; }
 }

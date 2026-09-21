@@ -294,11 +294,17 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver 
 /// </summary>
 [DebuggerDisplay("{Name}, Expression={IsExpression}, HasDefault={HasDefaultValue}")]
 internal sealed record ParsedVariable {
+    /// <summary>获取或设置原始内容。</summary>
     public string OriginalContent { get; set; } = string.Empty;
+    /// <summary>获取或设置变量名。</summary>
     public string Name { get; set; } = string.Empty;
+    /// <summary>获取或设置是否为表达式。</summary>
     public bool IsExpression { get; set; }
+    /// <summary>获取或设置表达式文本。</summary>
     public string Expression { get; set; } = string.Empty;
+    /// <summary>获取或设置是否有默认值。</summary>
     public bool HasDefaultValue { get; set; }
+    /// <summary>获取或设置默认值。</summary>
     public string DefaultValue { get; set; } = string.Empty;
 }
 

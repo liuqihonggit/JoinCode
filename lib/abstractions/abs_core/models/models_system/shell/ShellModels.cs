@@ -19,12 +19,19 @@ public sealed record ShellExecutionResult {
     /// </summary>
     public const int PreviewSizeBytes = 2048;
 
+    /// <summary>获取标准输出。</summary>
     public required string Stdout { get; init; }
+    /// <summary>获取标准错误。</summary>
     public required string Stderr { get; init; }
+    /// <summary>获取退出码。</summary>
     public int? ExitCode { get; init; }
+    /// <summary>获取进程标识。</summary>
     public int? ProcessId { get; init; }
+    /// <summary>获取是否被中断。</summary>
     public bool Interrupted { get; init; }
+    /// <summary>获取是否成功。</summary>
     public bool Success => ExitCode == 0 && !Interrupted;
+    /// <summary>获取错误信息。</summary>
     public string? ErrorMessage { get; init; }
 
     /// <summary>
@@ -82,6 +89,7 @@ public sealed record ShellExecutionResult {
         return ContentReplacementConstants.BuildPersistedOutputMessage(result);
     }
 
+    /// <summary>创建成功结果。</summary>
     public static ShellExecutionResult SuccessResult(string stdout, string stderr, int? exitCode = 0)
         => new() {
             Stdout = stdout,
@@ -90,6 +98,7 @@ public sealed record ShellExecutionResult {
             Interrupted = false
         };
 
+    /// <summary>创建失败结果。</summary>
     public static ShellExecutionResult FailureResult(string errorMessage, string stdout = "", string stderr = "")
         => new() {
             Stdout = stdout,
@@ -99,6 +108,7 @@ public sealed record ShellExecutionResult {
             ErrorMessage = errorMessage
         };
 
+    /// <summary>创建超时结果。</summary>
     public static ShellExecutionResult TimeoutResult(int timeoutMs)
         => new() {
             Stdout = string.Empty,

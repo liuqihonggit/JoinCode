@@ -21,11 +21,13 @@ public interface IPersistentStore<TCommand> {
 public sealed class InMemoryPersistentStore<TCommand> : IPersistentStore<TCommand> {
     private readonly ConcurrentQueue<TCommand> _pending = new();
 
+    /// <summary>将命令入队持久化(内存实现仅入队,不真正落盘)。</summary>
     public ValueTask PersistAsync(string actorId, TCommand command, CancellationToken ct) {
         _pending.Enqueue(command);
         return ValueTask.CompletedTask;
     }
 
+    /// <summary>加载未确认的命令 — 从内存队列出队并逐条返回。</summary>
     public async IAsyncEnumerable<TCommand> LoadPendingAsync(string actorId, [EnumeratorCancellation] CancellationToken ct) {
         while (_pending.TryDequeue(out var cmd)) {
             yield return cmd;
@@ -33,6 +35,7 @@ public sealed class InMemoryPersistentStore<TCommand> : IPersistentStore<TComman
         }
     }
 
+    /// <summary>确认命令已处理(内存实现无操作,出队即确认)。</summary>
     public ValueTask AckAsync(string actorId, TCommand command, CancellationToken ct) => ValueTask.CompletedTask;
 }
 
@@ -99,6 +102,7 @@ public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable {
         }
     }
 
+    /// <summary>代理到底层 Actor 的输出流,透传输出消息。</summary>
     public IAsyncEnumerable<TOut> OutputAsync(CancellationToken cancellationToken = default) {
         return _actor.OutputAsync(cancellationToken);
     }
@@ -108,6 +112,7 @@ public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable {
             throw new ObjectDisposedException(nameof(PersistentMailbox<TCommand, TOut>));
     }
 
+    /// <summary>异步释放资源。</summary>
     public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         return _actor.DisposeAsync();

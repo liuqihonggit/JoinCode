@@ -9,6 +9,7 @@ internal static class RgSubCommand {
     private const int DefaultTimeoutSeconds = 30;
     private const int MaxTimeoutSeconds = 300;
 
+    /// <summary>执行 ripgrep 兼容搜索子命令：解析参数、修复转义、校验路径并调用 RgEngine 输出结果。</summary>
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var parsed = ParseArgs(args);
         if (parsed is null)

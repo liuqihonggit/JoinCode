@@ -11,6 +11,12 @@ internal sealed class TeammateCleanupHelper {
     private readonly IAgentWorktreeManager? _worktreeManager;
     private readonly ILogger? _logger;
 
+    /// <summary>构造 Teammate 清理助手。</summary>
+    /// <param name="agentLifecycleManager">代理生命周期管理器。</param>
+    /// <param name="messageBroker">消息邮箱。</param>
+    /// <param name="mailboxPoller">邮箱轮询器。</param>
+    /// <param name="worktreeManager">工作树管理器。</param>
+    /// <param name="logger">日志记录器。</param>
     public TeammateCleanupHelper(
         IAgentLifecycleManager agentLifecycleManager,
         IMailbox messageBroker,
@@ -63,6 +69,7 @@ internal sealed class TeammateCleanupHelper {
         }
     }
 
+    /// <summary>按需停止邮箱轮询。</summary>
     public void StopMailboxPollingIfNeeded(string teammateId) {
         if (_mailboxPoller == null) return;
         var sessionId = _messageBroker.GetSessionId(teammateId);
@@ -74,6 +81,7 @@ internal sealed class TeammateCleanupHelper {
         }
     }
 
+    /// <summary>按需启动邮箱轮询。</summary>
     public void StartMailboxPollingIfNeeded(string teammateId) {
         if (_mailboxPoller == null) return;
         var sessionId = _messageBroker.GetSessionId(teammateId);

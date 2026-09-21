@@ -25,15 +25,21 @@ public static class Diag {
     /// </summary>
     public static event EventHandler<string>? DiagnosticLineWritten;
 
+    /// <summary>获取是否启用调试日志。</summary>
     public static bool IsDebugLog => _envEnabled || _runtimeEnabled;
 
+    /// <summary>启用运行时调试日志。</summary>
     public static void EnableDebugLog() => _runtimeEnabled = true;
 
+    /// <summary>输出生命周期诊断消息。</summary>
+    /// <param name="message">消息内容。</param>
     public static void WriteLifecycle(string message) {
         WriteToTargets(message);
         DiagnosticLineWritten?.Invoke(null, message);
     }
 
+    /// <summary>输出诊断行。</summary>
+    /// <param name="message">消息内容。</param>
     public static void WriteLine(string? message = null) {
         if (message is null) {
             if (IsDebugLog) WriteToTargets(string.Empty);
@@ -44,12 +50,16 @@ public static class Diag {
         }
     }
 
+    /// <summary>输出插值字符串诊断行。</summary>
+    /// <param name="message">插值消息。</param>
     public static void WriteLine(FormattableString message) {
         var formatted = message.ToString();
         if (IsDebugLog) WriteToTargets(formatted);
         DiagnosticLineWritten?.Invoke(null, formatted);
     }
 
+    /// <summary>输出 DI 追踪消息。</summary>
+    /// <param name="message">消息内容。</param>
     public static void WriteDiTrace(string message) {
         if (!_diTraceEnabled) return;
         WriteToTargets(message);

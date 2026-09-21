@@ -108,6 +108,8 @@ public enum HookEvent {
 /// HookEvent 扩展方法
 /// </summary>
 public static class HookEventDisplayExtensions {
+    /// <summary>将 HookEvent 转换为事件名称字符串。</summary>
+    /// <param name="hookEvent">钩子事件。</param>
     public static string ToEventName(this HookEvent hookEvent) {
         return hookEvent.ToString();
     }

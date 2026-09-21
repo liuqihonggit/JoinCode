@@ -6,15 +6,25 @@ namespace JoinCode.Abstractions.Entity;
 /// ObjectId + 目标描述 + 创建时间 + 独立注册器 + 静态属性暴露
 /// </summary>
 public sealed class Goal : Entity {
+    /// <summary>获取目标描述。</summary>
     public string Objective { get; }
+    /// <summary>获取或设置目标状态。</summary>
     public GoalStatus Status { get; set; } = GoalStatus.Pursuing;
+    /// <summary>获取约束条件列表。</summary>
     public List<string> Constraints { get; init; } = [];
+    /// <summary>获取 Token 预算。</summary>
     public int? TokenBudget { get; init; }
+    /// <summary>获取或设置已用 Token 数。</summary>
     public int TokensUsed { get; set; }
+    /// <summary>获取或设置已完成回合数。</summary>
     public int TurnsCompleted { get; set; }
+    /// <summary>获取或设置暂停时间。</summary>
     public DateTime? PausedAt { get; set; }
+    /// <summary>获取或设置达成时间。</summary>
     public DateTime? AchievedAt { get; set; }
+    /// <summary>获取或设置最后评估结果。</summary>
     public GoalEvaluationResult? LastEvaluation { get; set; }
+    /// <summary>获取或设置停滞告警时间。</summary>
     public DateTime? StagnationAlertedAt { get; set; }
 
     /// <summary>
@@ -22,6 +32,12 @@ public sealed class Goal : Entity {
     /// </summary>
     public static GoalRegistry Registry { get; } = new();
 
+    /// <summary>构造目标实体。</summary>
+    /// <param name="objective">目标描述。</param>
+    /// <param name="constraints">约束条件列表。</param>
+    /// <param name="tokenBudget">Token 预算。</param>
+    /// <param name="displayName">显示名称。</param>
+    /// <param name="sessionId">会话标识。</param>
     public Goal(
         string objective,
         List<string>? constraints = null,

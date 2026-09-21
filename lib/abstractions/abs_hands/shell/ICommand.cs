@@ -106,7 +106,10 @@ public interface ICommandContext {
 /// </summary>
 [AttributeUsage(AttributeTargets.Class)]
 public sealed class CommandAttribute : Attribute {
+    /// <summary>获取命令名称。</summary>
     public required string Name { get; init; }
+    /// <summary>获取命令描述。</summary>
     public string Description { get; init; } = string.Empty;
+    /// <summary>获取命令用法。</summary>
     public string Usage { get; init; } = string.Empty;
 }

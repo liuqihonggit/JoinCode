@@ -3,6 +3,7 @@ namespace Anthropic.MockServer;
 public sealed class Program {
     private static readonly ManualResetEventSlim ShutdownEvent = new(false);
 
+    /// <summary>程序入口点 — 加载配置、启动 Mock 服务器并等待关闭信号</summary>
     public static async Task Main(string[] args) {
         var configPath = ParseArgument(args, "--config") ?? "mockserver.json";
         var portArg = ParseArgument(args, "--port");

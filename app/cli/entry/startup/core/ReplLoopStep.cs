@@ -12,6 +12,12 @@ namespace JoinCode.Entry;
 internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupContext> {
     private static readonly TimeSpan AliveInterval = TimeSpan.FromSeconds(2);
 
+    /// <summary>
+    /// 中间件入口 — 进入 REPL 主循环：读取用户输入、转发给子代理或会话处理，输出 AI 响应，直到 EOF 或取消
+    /// </summary>
+    /// <param name="context">启动上下文</param>
+    /// <param name="next">下一中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var p = context.Config.Provider;
         using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray)) {
@@ -287,6 +293,11 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         /// <summary>是否因单步(Ctrl+C)取消而非外层取消 — 用于 catch when 区分中断来源</summary>
         public bool IsStepCancellation => _stepCts.IsCancellationRequested;
 
+        /// <summary>
+        /// 构造单步作用域 — 创建链接 CTS、注册 Ctrl+C 处理、启动心跳任务、标记处理中
+        /// </summary>
+        /// <param name="loopCt">外层循环取消令牌</param>
+        /// <param name="setProcessing">处理中状态设置回调</param>
         public ReplStepScope(CancellationToken loopCt, Action<int> setProcessing) {
             _setProcessing = setProcessing;
             _stepCts = CancellationTokenSource.CreateLinkedTokenSource(loopCt);
@@ -297,6 +308,9 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             _setProcessing(1);
         }
 
+        /// <summary>
+        /// 异步释放 — 还原处理状态、注销 Ctrl+C、取消心跳、刷新输出、收尾 UI、释放 CTS
+        /// </summary>
         public async ValueTask DisposeAsync() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _setProcessing(0);

@@ -37,16 +37,19 @@ public sealed record GoalUserDecision {
     /// <summary>决策原因</summary>
     public string? Reason { get; init; }
 
+    /// <summary>创建继续循环的决策。</summary>
     public static GoalUserDecision Continue(string? reason = null) => new() {
         ShouldContinue = true,
         Reason = reason ?? "User chose to continue",
     };
 
+    /// <summary>创建停止循环的决策。</summary>
     public static GoalUserDecision Stop(string? reason = null) => new() {
         ShouldContinue = false,
         Reason = reason ?? "User chose to stop",
     };
 
+    /// <summary>创建协调者接管的决策。</summary>
     public static GoalUserDecision CoordinatorTakeover(string? reason = null) => new() {
         ShouldContinue = false,
         CoordinatorTakenOver = true,

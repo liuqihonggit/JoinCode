@@ -4,6 +4,7 @@ namespace Core.Utils;
 /// HostElectionService 单元测试 — 验证主机选举、角色判定、心跳监控。
 /// </summary>
 public class HostElectionServiceTest {
+    /// <summary>验证进程标识返回当前 PID</summary>
     [Fact]
     public async Task ProcessId_ReturnsCurrentPid() {
         await using var service = new HostElectionService(pipeName: $"test-pipe-{Guid.NewGuid():N}");

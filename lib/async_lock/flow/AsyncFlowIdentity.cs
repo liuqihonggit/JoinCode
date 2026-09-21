@@ -11,7 +11,9 @@ namespace Core.Utils;
 /// </para>
 /// </summary>
 public sealed class AsyncFlowIdentity {
+    /// <summary>获取异步流标识(0 表示未注册)。</summary>
     public int FlowId { get; init; }
+    /// <summary>获取 Actor 标识(null 表示非 Actor 上下文)。</summary>
     public string? ActorId { get; init; }
 
     private static readonly AsyncLocal<AsyncFlowIdentity?> _current = new();
@@ -52,6 +54,7 @@ public sealed class AsyncFlowIdentity {
 
     /// <summary>Actor 作用域 — Dispose 时恢复原 AsyncFlowIdentity(正确处理嵌套 Actor)</summary>
     private sealed class ActorScope(AsyncLocal<AsyncFlowIdentity?> store, AsyncFlowIdentity? previous) : IDisposable {
+        /// <summary>释放资源。</summary>
         public void Dispose() => store.Value = previous;
     }
 

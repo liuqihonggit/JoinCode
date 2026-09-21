@@ -156,11 +156,20 @@ public readonly struct PluginInvokeResult {
 /// 运行中的插件实例 — 绑定 Package + ALC + handler 表
 /// </summary>
 internal sealed class RunningPluginInstance {
+    /// <summary>获取插件包标识。</summary>
     public PluginPackageId PackageId { get; }
+    /// <summary>获取插件的可卸载程序集加载上下文。</summary>
     public PluginAlc Alc { get; }
+    /// <summary>获取插件已注册的处理器映射表。</summary>
     public FrozenDictionary<string, Func<object?[], object?>> Handlers { get; }
+    /// <summary>获取插件启动时间。</summary>
     public DateTimeOffset StartedAt { get; }
 
+    /// <summary>构造运行中的插件实例。</summary>
+    /// <param name="packageId">插件包标识。</param>
+    /// <param name="alc">可卸载程序集加载上下文。</param>
+    /// <param name="handlers">已注册的处理器映射表。</param>
+    /// <param name="startedAt">启动时间。</param>
     public RunningPluginInstance(
         PluginPackageId packageId,
         PluginAlc alc,

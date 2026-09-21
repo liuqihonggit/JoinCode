@@ -169,8 +169,11 @@ public sealed partial class SkillExecutionMiddleware : ServiceEntity, ISkillMidd
     }
 
     private sealed class StepExecutionResult {
+        /// <summary>获取是否执行成功。</summary>
         public bool IsSuccess { get; init; }
+        /// <summary>获取输出内容（可为 null）。</summary>
         public string? Output { get; init; }
+        /// <summary>获取错误信息（可为 null）。</summary>
         public string? Error { get; init; }
     }
 }

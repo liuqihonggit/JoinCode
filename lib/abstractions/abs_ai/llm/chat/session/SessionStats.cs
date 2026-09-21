@@ -2,25 +2,42 @@ namespace JoinCode.Abstractions.LLM.Chat;
 
 [Register(typeof(ISessionStats), ServiceLifetime.Singleton)]
 public sealed partial class SessionStats : ServiceEntity, ISessionStats {
+    /// <summary>获取结转缓存命中 Token 数。</summary>
     public long CarryoverCacheHitTokens { get; private set; }
+    /// <summary>获取结转缓存未命中 Token 数。</summary>
     public long CarryoverCacheMissTokens { get; private set; }
+    /// <summary>获取提示词 Token 总数。</summary>
     public long TotalPromptTokens { get; private set; }
+    /// <summary>获取补全 Token 总数。</summary>
     public long TotalCompletionTokens { get; private set; }
+    /// <summary>获取缓存命中 Token 总数。</summary>
     public long TotalCacheHitTokens { get; private set; }
+    /// <summary>获取缓存未命中 Token 总数。</summary>
     public long TotalCacheMissTokens { get; private set; }
+    /// <summary>获取对话轮数。</summary>
     public int TurnCount { get; private set; }
+    /// <summary>获取系统提示词缓存中断次数。</summary>
     public int SystemPromptCacheBreaks { get; private set; }
+    /// <summary>获取工具规格缓存中断次数。</summary>
     public int ToolSpecsCacheBreaks { get; private set; }
+    /// <summary>获取动态内容缓存中断次数。</summary>
     public int DynamicContentCacheBreaks { get; private set; }
+    /// <summary>获取缓存驱逐中断次数。</summary>
     public int CacheEvictionBreaks { get; private set; }
+    /// <summary>获取压缩进入中断次数。</summary>
     public int CompactionEnteredBreaks { get; private set; }
+    /// <summary>获取 5 分钟 TTL 过期中断次数。</summary>
     public int TtlExpiration5MinBreaks { get; private set; }
+    /// <summary>获取 1 小时 TTL 过期中断次数。</summary>
     public int TtlExpiration1HourBreaks { get; private set; }
+    /// <summary>获取服务端路由中断次数。</summary>
     public int ServerSideRoutingBreaks { get; private set; }
+    /// <summary>获取总成本（美元）。</summary>
     public decimal TotalCostUsd => _carryoverCostUsd + _turnsCostUsd;
     private decimal _carryoverCostUsd;
     private decimal _turnsCostUsd;
 
+    /// <summary>获取聚合缓存命中率。</summary>
     public double AggregateCacheHitRatio {
         get {
             var hit = CarryoverCacheHitTokens + TotalCacheHitTokens;
@@ -30,12 +47,14 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats {
         }
     }
 
+    /// <summary>种子结转缓存数据。</summary>
     public void SeedCarryover(long cacheHitTokens, long cacheMissTokens, decimal totalCostUsd = 0) {
         CarryoverCacheHitTokens = cacheHitTokens;
         CarryoverCacheMissTokens = cacheMissTokens;
         _carryoverCostUsd = totalCostUsd;
     }
 
+    /// <summary>记录一轮对话的 Token 用量和缓存中断情况。</summary>
     public void RecordTurn(TokenUsage usage, decimal costUsd = 0, CacheBreakResult? cacheBreak = null) {
         ArgumentNullException.ThrowIfNull(usage);
 
@@ -76,6 +95,7 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats {
         }
     }
 
+    /// <summary>重置所有统计信息。</summary>
     public void Reset() {
         CarryoverCacheHitTokens = 0;
         CarryoverCacheMissTokens = 0;
@@ -96,6 +116,7 @@ public sealed partial class SessionStats : ServiceEntity, ISessionStats {
         ServerSideRoutingBreaks = 0;
     }
 
+    /// <summary>转换为会话元数据。</summary>
     public SessionMeta ToMeta(long updatedAtUtcTicks = 0) {
         return new SessionMeta {
             CacheHitTokens = CarryoverCacheHitTokens + TotalCacheHitTokens,

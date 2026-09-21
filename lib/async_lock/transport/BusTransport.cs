@@ -263,8 +263,15 @@ internal sealed class BusClientConnection : IAsyncDisposable {
     private readonly Task _writeLoop;
     private int _disposed;
 
+    /// <summary>获取从机进程标识。</summary>
     public string ProcessId { get; }
 
+    /// <summary>
+    /// 构造总线客户端连接。
+    /// </summary>
+    /// <param name="processId">从机进程标识</param>
+    /// <param name="stream">命名管道服务端流</param>
+    /// <param name="logger">日志记录器(可选)</param>
     public BusClientConnection(string processId, NamedPipeServerStream stream, ILogger? logger) {
         ProcessId = processId;
         _stream = stream;
@@ -276,6 +283,7 @@ internal sealed class BusClientConnection : IAsyncDisposable {
         _writeLoop = Task.Run(WriteLoopAsync);
     }
 
+    /// <summary>异步写入数据 — 投递到内部写入通道,由后台写循环串行化发出。</summary>
     public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct) {
         if (Volatile.Read(ref _disposed) != 0) return ValueTask.CompletedTask;
         return _writeQueue.Writer.WriteAsync(data, ct);
@@ -295,6 +303,7 @@ internal sealed class BusClientConnection : IAsyncDisposable {
         } catch (OperationCanceledException) { }
     }
 
+    /// <summary>异步读取消息 — 从管道流解码二进制协议消息并逐条返回。</summary>
     public async IAsyncEnumerable<DecodedMessage> ReadMessagesAsync(
         [EnumeratorCancellation] CancellationToken ct) {
         await foreach (var msg in BinaryProtocol.ReadStreamAsync(_stream, ct).ConfigureAwait(false)) {
@@ -302,6 +311,7 @@ internal sealed class BusClientConnection : IAsyncDisposable {
         }
     }
 
+    /// <summary>异步释放资源。</summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _writeQueue.Writer.TryComplete();

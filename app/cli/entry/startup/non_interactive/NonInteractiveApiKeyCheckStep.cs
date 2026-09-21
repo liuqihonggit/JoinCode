@@ -2,6 +2,10 @@ namespace JoinCode.Entry;
 
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class NonInteractiveApiKeyCheckStep : ServiceEntity, IMiddleware<StartupContext> {
+    /// <summary>执行非交互模式 API Key 检查中间件 — 未配置 API Key 时输出错误并短路终止管道，已配置则传递给下一个中间件</summary>
+    /// <param name="context">启动上下文，包含供应商配置</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         Diag.WriteLine("[STEP] ApiKeyCheck start");
         if (string.IsNullOrEmpty(context.Config.Provider.ApiKey)) {

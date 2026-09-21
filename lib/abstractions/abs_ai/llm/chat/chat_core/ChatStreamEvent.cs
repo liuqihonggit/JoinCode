@@ -15,15 +15,25 @@ public enum ChatStreamEventType {
 }
 
 public sealed class ChatStreamEvent {
+    /// <summary>获取事件类型。</summary>
     public ChatStreamEventType Type { get; init; }
+    /// <summary>获取文本内容。</summary>
     public string? Content { get; init; }
+    /// <summary>获取思考内容。</summary>
     public string? ThinkingContent { get; init; }
+    /// <summary>获取工具名称。</summary>
     public string? ToolName { get; init; }
+    /// <summary>获取工具调用标识。</summary>
     public string? ToolCallId { get; init; }
+    /// <summary>获取工具调用参数。</summary>
     public string? ToolArguments { get; init; }
+    /// <summary>获取工具结果文本。</summary>
     public string? ToolResultText { get; init; }
+    /// <summary>获取是否为工具错误。</summary>
     public bool IsToolError { get; init; }
+    /// <summary>获取令牌使用情况。</summary>
     public TokenUsage? Usage { get; init; }
+    /// <summary>获取模型标识。</summary>
     public string? ModelId { get; init; }
 
     /// <summary>
@@ -78,16 +88,19 @@ public sealed class ChatStreamEvent {
     /// <summary>是否为子代理活动事件（AgentId 非 null 即是，含 Started/Finished 与中间活动）</summary>
     public bool IsSubAgentActivity => AgentId is not null;
 
+    /// <summary>创建文本内容事件。</summary>
     public static ChatStreamEvent Text(string content) => new() {
         Type = ChatStreamEventType.Content,
         Content = content
     };
 
+    /// <summary>创建思考内容事件。</summary>
     public static ChatStreamEvent Thinking(string thinkingContent) => new() {
         Type = ChatStreamEventType.Thinking,
         ThinkingContent = thinkingContent
     };
 
+    /// <summary>创建工具调用开始事件。</summary>
     public static ChatStreamEvent ToolStart(string toolName, string? toolCallId = null, string? arguments = null) => new() {
         Type = ChatStreamEventType.ToolCallStart,
         ToolName = toolName,
@@ -95,6 +108,7 @@ public sealed class ChatStreamEvent {
         ToolArguments = arguments
     };
 
+    /// <summary>创建工具调用结束事件。</summary>
     public static ChatStreamEvent ToolEnd(string toolName, string? resultText = null, string? toolCallId = null, bool isError = false, StructuredPatchHunk[]? structuredPatch = null) => new() {
         Type = ChatStreamEventType.ToolCallEnd,
         ToolName = toolName,
@@ -116,6 +130,7 @@ public sealed class ChatStreamEvent {
         ProgressMessage = progressMessage
     };
 
+    /// <summary>创建循环检测事件。</summary>
     public static ChatStreamEvent LoopDetected(int triggerCount, int loopStartIndex, string? repeatedPattern = null) => new() {
         Type = ChatStreamEventType.LoopDetected,
         LoopTriggerCount = triggerCount,
@@ -123,11 +138,13 @@ public sealed class ChatStreamEvent {
         Content = repeatedPattern
     };
 
+    /// <summary>创建计时摘要事件。</summary>
     public static ChatStreamEvent TimingSummary(string summary) => new() {
         Type = ChatStreamEventType.TimingSummary,
         Content = summary
     };
 
+    /// <summary>创建完成事件。</summary>
     public static ChatStreamEvent Done(TokenUsage? usage = null, string? modelId = null) => new() {
         Type = ChatStreamEventType.Complete,
         Usage = usage,
@@ -158,6 +175,7 @@ public sealed class ChatStreamEvent {
             Content = finalOutput
         };
 
+    /// <summary>按事件类型匹配并返回结果。</summary>
     public T Match<T>(
         Func<string, T> onText,
         Func<string, T> onThinking,
@@ -188,6 +206,7 @@ public sealed class ChatStreamEvent {
         };
     }
 
+    /// <summary>按事件类型执行对应回调。</summary>
     public void Switch(
         Action<string> onText,
         Action<string> onThinking,

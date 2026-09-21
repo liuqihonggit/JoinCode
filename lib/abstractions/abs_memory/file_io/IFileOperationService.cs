@@ -125,12 +125,19 @@ public interface IFileOperationService {
 
 // Result records
 public sealed record FileReadResult {
+    /// <summary>获取文件路径。</summary>
     public required string FilePath { get; init; }
+    /// <summary>获取文件内容。</summary>
     public required string Content { get; init; }
+    /// <summary>获取读取的行数。</summary>
     public required int NumLines { get; init; }
+    /// <summary>获取起始行号。</summary>
     public required int StartLine { get; init; }
+    /// <summary>获取文件总行数。</summary>
     public required int TotalLines { get; init; }
+    /// <summary>获取一个值，指示读取是否成功。</summary>
     public bool Success { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? ErrorMessage { get; init; }
 
     /// <summary>
@@ -138,6 +145,7 @@ public sealed record FileReadResult {
     /// </summary>
     public ToolDiagnostic? Diagnostic { get; init; }
 
+    /// <summary>创建读取成功结果。</summary>
     public static FileReadResult SuccessResult(string filePath, string content, int numLines, int startLine, int totalLines)
         => new() {
             FilePath = filePath,
@@ -148,6 +156,7 @@ public sealed record FileReadResult {
             Success = true
         };
 
+    /// <summary>创建读取失败结果（错误消息）。</summary>
     public static FileReadResult FailureResult(string filePath, string errorMessage)
         => new() {
             FilePath = filePath,
@@ -159,6 +168,7 @@ public sealed record FileReadResult {
             ErrorMessage = errorMessage
         };
 
+    /// <summary>创建读取失败结果（结构化诊断）。</summary>
     public static FileReadResult FailureResult(string filePath, ToolDiagnostic diagnostic)
         => new() {
             FilePath = filePath,
@@ -173,11 +183,17 @@ public sealed record FileReadResult {
 }
 
 public sealed record FileWriteResult {
+    /// <summary>获取文件路径。</summary>
     public required string FilePath { get; init; }
+    /// <summary>获取写入的内容。</summary>
     public required string Content { get; init; }
+    /// <summary>获取操作类型。</summary>
     public required string Operation { get; init; }
+    /// <summary>获取原始文件内容。</summary>
     public string? OriginalContent { get; init; }
+    /// <summary>获取一个值，指示写入是否成功。</summary>
     public bool Success { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? ErrorMessage { get; init; }
 
     /// <summary>
@@ -191,6 +207,7 @@ public sealed record FileWriteResult {
     /// </summary>
     public IEnumerable<StructuredPatchHunk> StructuredPatch { get; init; } = Array.Empty<StructuredPatchHunk>();
 
+    /// <summary>创建写入成功结果。</summary>
     public static FileWriteResult SuccessResult(
         string filePath,
         string content,
@@ -206,6 +223,7 @@ public sealed record FileWriteResult {
             StructuredPatch = structuredPatch ?? []
         };
 
+    /// <summary>创建写入失败结果（错误消息）。</summary>
     public static FileWriteResult FailureResult(string filePath, string errorMessage)
         => new() {
             FilePath = filePath,
@@ -215,6 +233,7 @@ public sealed record FileWriteResult {
             ErrorMessage = errorMessage
         };
 
+    /// <summary>创建写入失败结果（结构化诊断）。</summary>
     public static FileWriteResult FailureResult(string filePath, ToolDiagnostic diagnostic)
         => new() {
             FilePath = filePath,
@@ -227,13 +246,21 @@ public sealed record FileWriteResult {
 }
 
 public sealed record FileEditResult {
+    /// <summary>获取文件路径。</summary>
     public required string FilePath { get; init; }
+    /// <summary>获取被替换的旧字符串。</summary>
     public required string OldString { get; init; }
+    /// <summary>获取替换后的新字符串。</summary>
     public required string NewString { get; init; }
+    /// <summary>获取原始文件内容。</summary>
     public required string OriginalContent { get; init; }
+    /// <summary>获取更新后的文件内容。</summary>
     public required string UpdatedContent { get; init; }
+    /// <summary>获取替换次数。</summary>
     public required int ReplaceCount { get; init; }
+    /// <summary>获取一个值，指示编辑是否成功。</summary>
     public bool Success { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? ErrorMessage { get; init; }
 
     /// <summary>
@@ -247,6 +274,7 @@ public sealed record FileEditResult {
     /// </summary>
     public IEnumerable<StructuredPatchHunk> StructuredPatch { get; init; } = Array.Empty<StructuredPatchHunk>();
 
+    /// <summary>创建编辑成功结果。</summary>
     public static FileEditResult SuccessResult(
         string filePath,
         string oldString,
@@ -266,6 +294,7 @@ public sealed record FileEditResult {
             StructuredPatch = structuredPatch ?? []
         };
 
+    /// <summary>创建编辑失败结果（错误消息）。</summary>
     public static FileEditResult FailureResult(string filePath, string oldString, string newString, string errorMessage)
         => new() {
             FilePath = filePath,
@@ -278,6 +307,7 @@ public sealed record FileEditResult {
             ErrorMessage = errorMessage
         };
 
+    /// <summary>创建编辑失败结果（结构化诊断）。</summary>
     public static FileEditResult FailureResult(string filePath, string oldString, string newString, ToolDiagnostic diagnostic)
         => new() {
             FilePath = filePath,
@@ -293,11 +323,16 @@ public sealed record FileEditResult {
 }
 
 public sealed record LineRangeEditRequest {
+    /// <summary>获取文件路径。</summary>
     public string FilePath { get; }
+    /// <summary>获取起始行号。</summary>
     public int StartLine { get; }
+    /// <summary>获取结束行号。</summary>
     public int EndLine { get; }
+    /// <summary>获取新内容。</summary>
     public string NewContent { get; }
 
+    /// <summary>构造行号范围编辑请求。</summary>
     public LineRangeEditRequest(string filePath, int startLine, int endLine, string newContent) {
         FilePath = filePath;
         StartLine = startLine;
@@ -307,14 +342,23 @@ public sealed record LineRangeEditRequest {
 }
 
 public sealed record FileLineEditResult {
+    /// <summary>获取文件路径。</summary>
     public required string FilePath { get; init; }
+    /// <summary>获取起始行号。</summary>
     public required int StartLine { get; init; }
+    /// <summary>获取结束行号。</summary>
     public required int EndLine { get; init; }
+    /// <summary>获取原始内容。</summary>
     public required string OriginalContent { get; init; }
+    /// <summary>获取新内容。</summary>
     public required string NewContent { get; init; }
+    /// <summary>获取更新后的文件内容。</summary>
     public required string UpdatedFileContent { get; init; }
+    /// <summary>获取替换的行数。</summary>
     public required int ReplacedLinesCount { get; init; }
+    /// <summary>获取一个值，指示编辑是否成功。</summary>
     public bool Success { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? ErrorMessage { get; init; }
 
     /// <summary>
@@ -322,6 +366,7 @@ public sealed record FileLineEditResult {
     /// </summary>
     public ToolDiagnostic? Diagnostic { get; init; }
 
+    /// <summary>创建行号编辑成功结果。</summary>
     public static FileLineEditResult SuccessResult(
         string filePath,
         int startLine,
@@ -341,6 +386,7 @@ public sealed record FileLineEditResult {
             Success = true
         };
 
+    /// <summary>创建行号编辑失败结果（错误消息）。</summary>
     public static FileLineEditResult FailureResult(
         string filePath,
         int startLine,
@@ -358,6 +404,7 @@ public sealed record FileLineEditResult {
             ErrorMessage = errorMessage
         };
 
+    /// <summary>创建行号编辑失败结果（结构化诊断）。</summary>
     public static FileLineEditResult FailureResult(
         string filePath,
         int startLine,
@@ -378,10 +425,15 @@ public sealed record FileLineEditResult {
 }
 
 public sealed record DirectoryListResult {
+    /// <summary>获取目录路径。</summary>
     public required string DirectoryPath { get; init; }
+    /// <summary>获取文件列表。</summary>
     public required IReadOnlyList<FileEntry> Files { get; init; }
+    /// <summary>获取子目录列表。</summary>
     public required IReadOnlyList<DirectoryEntry> Directories { get; init; }
+    /// <summary>获取一个值，指示列目录是否成功。</summary>
     public bool Success { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? ErrorMessage { get; init; }
 
     /// <summary>
@@ -389,6 +441,7 @@ public sealed record DirectoryListResult {
     /// </summary>
     public ToolDiagnostic? Diagnostic { get; init; }
 
+    /// <summary>创建列目录成功结果。</summary>
     public static DirectoryListResult SuccessResult(
         string directoryPath,
         IReadOnlyList<FileEntry> files,
@@ -400,6 +453,7 @@ public sealed record DirectoryListResult {
             Success = true
         };
 
+    /// <summary>创建列目录失败结果（错误消息）。</summary>
     public static DirectoryListResult FailureResult(string directoryPath, string errorMessage)
         => new() {
             DirectoryPath = directoryPath,
@@ -409,6 +463,7 @@ public sealed record DirectoryListResult {
             ErrorMessage = errorMessage
         };
 
+    /// <summary>创建列目录失败结果（结构化诊断）。</summary>
     public static DirectoryListResult FailureResult(string directoryPath, ToolDiagnostic diagnostic)
         => new() {
             DirectoryPath = directoryPath,
@@ -421,15 +476,22 @@ public sealed record DirectoryListResult {
 }
 
 public sealed record FileEntry {
+    /// <summary>获取文件名。</summary>
     public required string Name { get; init; }
+    /// <summary>获取完整路径。</summary>
     public required string FullPath { get; init; }
+    /// <summary>获取文件大小（字节）。</summary>
     public required long Size { get; init; }
+    /// <summary>获取最后修改时间。</summary>
     public required DateTime LastModified { get; init; }
 }
 
 public sealed record DirectoryEntry {
+    /// <summary>获取目录名。</summary>
     public required string Name { get; init; }
+    /// <summary>获取完整路径。</summary>
     public required string FullPath { get; init; }
+    /// <summary>获取最后修改时间。</summary>
     public required DateTime LastModified { get; init; }
 }
 
@@ -437,7 +499,9 @@ public sealed record DirectoryEntry {
 /// 文件元数据读取结果 — 对齐 TS: readFileSyncWithMetadata 返回值
 /// </summary>
 public sealed record FileMetadataResult {
+    /// <summary>获取文件路径。</summary>
     public required string FilePath { get; init; }
+    /// <summary>获取文件内容。</summary>
     public required string Content { get; init; }
     /// <summary>
     /// 检测到的文件编码 — 对齐 TS: encoding (BufferEncoding)
@@ -447,7 +511,9 @@ public sealed record FileMetadataResult {
     /// 检测到的换行符类型 — "LF" 或 "CRLF"，对齐 TS: LineEndingType
     /// </summary>
     public required string LineEndings { get; init; }
+    /// <summary>获取一个值，指示读取是否成功。</summary>
     public bool Success { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? ErrorMessage { get; init; }
 
     /// <summary>
@@ -455,6 +521,7 @@ public sealed record FileMetadataResult {
     /// </summary>
     public ToolDiagnostic? Diagnostic { get; init; }
 
+    /// <summary>创建元数据读取成功结果。</summary>
     public static FileMetadataResult SuccessResult(
         string filePath,
         string content,
@@ -468,6 +535,7 @@ public sealed record FileMetadataResult {
             Success = true
         };
 
+    /// <summary>创建元数据读取失败结果（错误消息）。</summary>
     public static FileMetadataResult FailureResult(string filePath, string errorMessage)
         => new() {
             FilePath = filePath,
@@ -478,6 +546,7 @@ public sealed record FileMetadataResult {
             ErrorMessage = errorMessage
         };
 
+    /// <summary>创建元数据读取失败结果（结构化诊断）。</summary>
     public static FileMetadataResult FailureResult(string filePath, ToolDiagnostic diagnostic)
         => new() {
             FilePath = filePath,

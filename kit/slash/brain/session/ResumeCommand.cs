@@ -475,8 +475,11 @@ public sealed class ResumeCommand : ChatCommandBase {
 /// 对齐 TS: CrossProjectResumeResult
 /// </summary>
 internal sealed record CrossProjectResumeResult {
+    /// <summary>获取是否为跨项目恢复。</summary>
     public bool IsCrossProject { get; init; }
+    /// <summary>获取是否为同一仓库的工作树。</summary>
     public bool IsSameRepoWorktree { get; init; }
+    /// <summary>获取项目路径。</summary>
     public string ProjectPath { get; init; } = string.Empty;
 
     internal static CrossProjectResumeResult SameProject() => new() { IsCrossProject = false };

@@ -5,10 +5,14 @@ namespace JoinCode.Abstractions.Entity;
 /// 额外字段: Url, HttpStatusCode, ContentLength
 /// </summary>
 public sealed class WebFetchEntity : ToolExecutionEntity {
+    /// <summary>获取或设置请求 URL。</summary>
     public string? Url { get; init; }
+    /// <summary>获取或设置 HTTP 状态码。</summary>
     public int? HttpStatusCode { get; set; }
+    /// <summary>获取或设置内容长度。</summary>
     public long? ContentLength { get; set; }
 
+    /// <summary>构造 Web 请求实体。</summary>
     public WebFetchEntity(
         string? url = null,
         string? toolUseId = null,

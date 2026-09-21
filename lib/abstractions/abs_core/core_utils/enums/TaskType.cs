@@ -46,6 +46,7 @@ public static class TaskIdPrefixes {
         [TaskType.Dream] = 'd'
     };
 
+    /// <summary>获取任务类型对应的标识前缀。</summary>
     public static char GetPrefix(TaskType type) =>
         Prefixes.TryGetValue(type, out var prefix) ? prefix : 'x';
 }

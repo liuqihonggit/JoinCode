@@ -13,6 +13,14 @@ internal sealed class TaskExecutor {
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
 
+    /// <summary>构造任务执行器。</summary>
+    /// <param name="agentCoordinator">子代理协调器。</param>
+    /// <param name="scheduler">工具调度器。</param>
+    /// <param name="logger">日志记录器。</param>
+    /// <param name="cts">取消令牌源。</param>
+    /// <param name="executionRecords">执行记录字典。</param>
+    /// <param name="subAgentContextAccessor">子代理上下文访问器。</param>
+    /// <param name="clock">时钟服务。</param>
     public TaskExecutor(
         ISubAgentCoordinator? agentCoordinator,
         ToolPortingScheduler scheduler,

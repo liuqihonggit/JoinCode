@@ -35,6 +35,7 @@ public class ToolExecutionEntity : Entity {
     /// <summary>全局注册器 — 查询所有活跃/超时/僵尸的工具执行</summary>
     public static ToolExecutionEntityRegistry Registry { get; } = new();
 
+    /// <summary>构造 ToolExecutionEntity 实例并注册到全局注册器。</summary>
     public ToolExecutionEntity(
         string toolName,
         string? toolUseId = null,
@@ -109,8 +110,12 @@ public class ToolExecutionEntity : Entity {
 public sealed class ToolExecutionEntityRegistry : MapRegistry<ObjectId, ToolExecutionEntity> {
     internal void Add(ObjectId id, ToolExecutionEntity entity) => AddCore(id, entity);
     internal bool Remove(ObjectId id) => RemoveCore(id);
+    /// <summary>获取所有处于活跃状态的工具执行实体。</summary>
     public IEnumerable<ToolExecutionEntity> GetActive() => Where(e => e.LifecycleState == EntityLifecycle.Active);
+    /// <summary>获取所有已完成状态的工具执行实体。</summary>
     public IEnumerable<ToolExecutionEntity> GetCompleted() => Where(e => e.LifecycleState == EntityLifecycle.Completed);
+    /// <summary>获取所有超时的工具执行实体。</summary>
     public IEnumerable<ToolExecutionEntity> GetTimedOut() => Where(e => e.IsTimedOut);
+    /// <summary>按工具名称获取工具执行实体列表。</summary>
     public IEnumerable<ToolExecutionEntity> GetByToolName(string toolName) => Where(e => string.Equals(e.ToolName, toolName, StringComparison.OrdinalIgnoreCase));
 }

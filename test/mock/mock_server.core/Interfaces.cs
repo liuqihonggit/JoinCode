@@ -1,13 +1,18 @@
 namespace MockServer.Core;
 
 public interface ICacheSimulator {
+    /// <summary>计算缓存统计信息。</summary>
     CacheStats ComputeCacheStats(JsonElement request);
+    /// <summary>重置缓存。</summary>
     void ResetCache();
 }
 
 public interface IResponseStrategy {
+    /// <summary>构建非流式响应。</summary>
     string BuildResponse(JsonElement request, CacheStats cacheStats);
+    /// <summary>获取是否支持流式响应。</summary>
     bool SupportsStreaming { get; }
+    /// <summary>构建流式响应分片。</summary>
     string BuildStreamChunk(string id, string content, bool isLast);
 
     /// <summary>
@@ -74,11 +79,18 @@ public interface IResponseStrategy {
 }
 
 public interface IHttpMockServer : IAsyncDisposable {
+    /// <summary>启动 Mock 服务器。</summary>
     Task StartAsync(int port = 0);
+    /// <summary>停止 Mock 服务器。</summary>
     Task StopAsync();
+    /// <summary>获取服务器 URL。</summary>
     string Url { get; }
+    /// <summary>获取服务器统计信息。</summary>
     MockServerStats Stats { get; }
+    /// <summary>按索引获取捕获的请求。</summary>
     CapturedRequest GetRequest(int index);
+    /// <summary>获取所有捕获的请求列表。</summary>
     IReadOnlyList<CapturedRequest> GetAllRequests();
+    /// <summary>清除所有捕获的请求和统计。</summary>
     void Clear();
 }

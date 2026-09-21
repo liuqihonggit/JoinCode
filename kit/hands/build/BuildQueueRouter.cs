@@ -163,6 +163,11 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent> 
     private readonly IPreventSleepService? _preventSleepService;
     private readonly ILogger? _logger;
 
+    /// <summary>构造构建工作器。</summary>
+    /// <param name="workerId">工作器 ID。</param>
+    /// <param name="actuatorRegistry">系统执行器注册表。</param>
+    /// <param name="preventSleepService">防止休眠服务（可选）。</param>
+    /// <param name="logger">日志记录器（可选）。</param>
     public BuildWorker(
         string workerId,
         ISystemActuatorRegistry actuatorRegistry,
@@ -175,6 +180,8 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent> 
         _logger = logger;
     }
 
+    /// <summary>提交命令到工作器异步处理。</summary>
+    /// <param name="command">要提交的命令。</param>
     public ValueTask SubmitAsync(ICommand command) => SendAsync(command);
 
     protected override async ValueTask HandleAsync(ICommand command, CancellationToken ct) {

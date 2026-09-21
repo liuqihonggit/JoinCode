@@ -31,9 +31,14 @@ public interface IReflexionMemory {
 /// 反思记忆规则统计
 /// </summary>
 public sealed record ReflexionRuleStats {
+    /// <summary>获取规则标识。</summary>
     public required string RuleId { get; init; }
+    /// <summary>获取总尝试次数。</summary>
     public required int TotalAttempts { get; init; }
+    /// <summary>获取成功修复次数。</summary>
     public required int SuccessfulPatches { get; init; }
+    /// <summary>获取失败修复次数。</summary>
     public required int FailedPatches { get; init; }
+    /// <summary>获取最近尝试时间。</summary>
     public required DateTimeOffset LastAttemptAt { get; init; }
 }

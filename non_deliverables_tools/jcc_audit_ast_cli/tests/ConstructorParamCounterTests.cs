@@ -28,6 +28,7 @@ public sealed class ConstructorParamCounterTests {
         return ConstructorParamCounter.Extract(compilation, threshold);
     }
 
+    /// <summary>验证含 9 个参数的类在阈值为 8 时被检出</summary>
     [Fact]
     public void Extract_ClassWith9Parameters_FoundWhenThresholdIs8() {
         var source = """
@@ -45,6 +46,7 @@ public sealed class ConstructorParamCounterTests {
         results[0].ParameterTypes.Should().HaveCount(9);
     }
 
+    /// <summary>验证含 8 个参数的类在阈值为 8 时不被检出</summary>
     [Fact]
     public void Extract_ClassWith8Parameters_NotFoundWhenThresholdIs8() {
         var source = """
@@ -59,6 +61,7 @@ public sealed class ConstructorParamCounterTests {
         results.Should().BeEmpty();
     }
 
+    /// <summary>验证基础设施类型参数被过滤</summary>
     [Fact]
     public void Extract_InfrastructureTypesFiltered() {
         var source = """
@@ -85,6 +88,7 @@ public sealed class ConstructorParamCounterTests {
         results[0].ParameterTypes.Should().NotContain(t => t.StartsWith("IOptions", StringComparison.Ordinal));
     }
 
+    /// <summary>验证多构造函数类选取参数最多的构造函数</summary>
     [Fact]
     public void Extract_MultipleConstructors_PicksFattest() {
         var source = """
@@ -102,6 +106,7 @@ public sealed class ConstructorParamCounterTests {
         results[0].ParameterCount.Should().Be(10);
     }
 
+    /// <summary>验证静态类被跳过</summary>
     [Fact]
     public void Extract_StaticClass_Skipped() {
         var source = """
@@ -116,6 +121,7 @@ public sealed class ConstructorParamCounterTests {
         results.Should().BeEmpty();
     }
 
+    /// <summary>验证抽象类被跳过</summary>
     [Fact]
     public void Extract_AbstractClass_Skipped() {
         var source = """
@@ -130,6 +136,7 @@ public sealed class ConstructorParamCounterTests {
         results.Should().BeEmpty();
     }
 
+    /// <summary>验证测试类被跳过</summary>
     [Fact]
     public void Extract_TestClass_Skipped() {
         var source = """
@@ -144,6 +151,7 @@ public sealed class ConstructorParamCounterTests {
         results.Should().BeEmpty();
     }
 
+    /// <summary>验证自定义阈值生效</summary>
     [Fact]
     public void Extract_CustomThreshold() {
         var source = """
@@ -159,6 +167,7 @@ public sealed class ConstructorParamCounterTests {
         results[0].ParameterCount.Should().Be(3);
     }
 
+    /// <summary>验证构造函数签名包含全部参数</summary>
     [Fact]
     public void Extract_ConstructorSignature_ContainsAllParams() {
         var source = """
@@ -179,6 +188,7 @@ public sealed class ConstructorParamCounterTests {
         results[0].ConstructorSignature.Should().StartWith("SigService(");
     }
 
+    /// <summary>验证无构造函数的类返回空结果</summary>
     [Fact]
     public void Extract_NoConstructors_EmptyResult() {
         var source = """
@@ -192,6 +202,7 @@ public sealed class ConstructorParamCounterTests {
         results.Should().BeEmpty();
     }
 
+    /// <summary>验证多个胖类全部被检出</summary>
     [Fact]
     public void Extract_MultipleFatClasses_AllFound() {
         var source = """

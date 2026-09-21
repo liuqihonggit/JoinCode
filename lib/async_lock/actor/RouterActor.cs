@@ -19,6 +19,10 @@ public interface IRouterStrategy<TMessage> {
 public sealed class RoundRobinStrategy<TMessage> : IRouterStrategy<TMessage> {
     private int _index;
 
+    /// <summary>选择目标 Worker 索引。</summary>
+    /// <param name="workerCount">当前 Worker 数量。</param>
+    /// <param name="message">待路由消息。</param>
+    /// <returns>Worker 索引(0 到 workerCount-1)。</returns>
     public int Select(int workerCount, TMessage message) {
         if (workerCount <= 0) return 0;
         return Interlocked.Increment(ref _index) % workerCount;
@@ -31,6 +35,10 @@ public sealed class RoundRobinStrategy<TMessage> : IRouterStrategy<TMessage> {
 public sealed class RandomRouteStrategy<TMessage> : IRouterStrategy<TMessage> {
     private readonly Random _random = new();
 
+    /// <summary>选择目标 Worker 索引。</summary>
+    /// <param name="workerCount">当前 Worker 数量。</param>
+    /// <param name="message">待路由消息。</param>
+    /// <returns>Worker 索引(0 到 workerCount-1)。</returns>
     public int Select(int workerCount, TMessage message) {
         if (workerCount <= 0) return 0;
         lock (_random) {

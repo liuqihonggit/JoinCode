@@ -47,6 +47,7 @@ public sealed class ChatCommandArgAttribute : Attribute {
     /// </summary>
     public string? ItemsDescription { get; init; }
 
+    /// <summary>构造斜杠命令参数声明特性。</summary>
     public ChatCommandArgAttribute(string name) {
         Name = name;
     }

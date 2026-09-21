@@ -6,11 +6,16 @@ namespace JoinCode.Abstractions.Utils;
 /// 供上层报告给 LLM 以便下一轮自我修正。
 /// </summary>
 public sealed class JsonCoercionIssue {
+    /// <summary>获取字段路径。</summary>
     public required string PropertyPath { get; init; }
+    /// <summary>获取期望类型。</summary>
     public required string ExpectedType { get; init; }
+    /// <summary>获取实际值类型。</summary>
     public required string ActualValueKind { get; init; }
+    /// <summary>获取失败原因。</summary>
     public required string Reason { get; init; }
 
+    /// <summary>返回问题摘要字符串。</summary>
     public override string ToString() {
         return $"字段 '{PropertyPath}': 期望 {ExpectedType}, 实际 {ActualValueKind} ({Reason})";
     }

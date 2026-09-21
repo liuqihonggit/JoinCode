@@ -4,9 +4,13 @@ namespace JoinCode.Abstractions.Models.Goal;
 /// Goal Graph 节点 Payload — 携带执行所需的所有信息
 /// </summary>
 public sealed class GoalNodePayload {
+    /// <summary>获取节点类型。</summary>
     public required GoalNodeKind Kind { get; init; }
+    /// <summary>获取节点名称。</summary>
     public required string Name { get; init; }
+    /// <summary>获取或设置执行 Agent 标识。</summary>
     public string? AgentId { get; set; }
+    /// <summary>获取 Agent 角色。</summary>
     public AgentRole Role { get; init; } = AgentRole.Executor;
 
     /// <summary>
@@ -16,6 +20,7 @@ public sealed class GoalNodePayload {
     /// </summary>
     public ExecutorVariant? Variant { get; init; }
 
+    /// <summary>获取 Agent 隔离模式。</summary>
     public AgentIsolationMode IsolationMode { get; init; } = AgentIsolationMode.None;
 
     /// <summary>
@@ -24,21 +29,37 @@ public sealed class GoalNodePayload {
     /// </summary>
     public string[]? OwnedFiles { get; init; }
 
+    /// <summary>获取或设置系统提示词。</summary>
     public string? SystemPrompt { get; init; }
+    /// <summary>获取或设置执行指令。</summary>
     public string? Instruction { get; init; }
+    /// <summary>获取是否使用全新上下文。</summary>
     public bool FreshContext { get; init; }
+    /// <summary>获取或设置节点执行状态。</summary>
     public GoalNodeStatus Status { get; set; } = GoalNodeStatus.Pending;
+    /// <summary>获取或设置输入内容。</summary>
     public string? Input { get; set; }
+    /// <summary>获取或设置输出内容。</summary>
     public string? Output { get; set; }
+    /// <summary>获取或设置路由目标列表。</summary>
     public string[]? Routes { get; set; }
+    /// <summary>获取路由匹配模式。</summary>
     public RouteMatchMode RouteMatchMode { get; init; } = RouteMatchMode.ConditionalOnly;
+    /// <summary>获取或设置错误信息。</summary>
     public string? ErrorMessage { get; set; }
+    /// <summary>获取超时秒数。</summary>
     public int TimeoutSeconds { get; init; } = 300;
+    /// <summary>获取 Token 预算。</summary>
     public int? TokenBudget { get; init; }
+    /// <summary>获取最少成功输入数。</summary>
     public int MinSuccessfulInputs { get; init; }
+    /// <summary>获取或设置开始时间。</summary>
     public DateTime? StartedAt { get; set; }
+    /// <summary>获取或设置完成时间。</summary>
     public DateTime? CompletedAt { get; set; }
+    /// <summary>获取或设置已使用 Token 数。</summary>
     public int TokensUsed { get; set; }
+    /// <summary>获取或设置已完成轮数。</summary>
     public int TurnsCompleted { get; set; }
 
     /// <summary>

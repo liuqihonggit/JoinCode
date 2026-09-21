@@ -29,6 +29,10 @@ public sealed class StreamingFallbackDecorator : IQueryService {
     /// </summary>
     public bool LastRequestFellBack { get; private set; }
 
+    /// <summary>构造流式 fallback 装饰器。</summary>
+    /// <param name="inner">内部查询服务。</param>
+    /// <param name="config">fallback 配置。</param>
+    /// <param name="logger">日志器。</param>
     public StreamingFallbackDecorator(
         IQueryService inner,
         StreamingFallbackConfig? config = null,
@@ -243,7 +247,9 @@ public sealed class StreamingFallbackDecorator : IQueryService {
     /// 流式收集结果 — 事件列表 + 是否触发过 fallback
     /// </summary>
     private sealed class StreamingResult(List<StreamEvent> events, bool fellBack) {
+        /// <summary>获取流式事件列表。</summary>
         public List<StreamEvent> Events { get; } = events;
+        /// <summary>获取是否触发了 fallback。</summary>
         public bool FellBack { get; } = fellBack;
     }
 }
@@ -278,8 +284,13 @@ public enum FallbackCause {
 /// 当看门狗超时或不完整流时抛出，触发非流式 fallback
 /// </summary>
 public sealed class StreamingFallbackTriggeredException : Exception {
+    /// <summary>获取 fallback 触发原因。</summary>
     public FallbackCause Cause { get; }
 
+    /// <summary>构造流式 fallback 触发异常。</summary>
+    /// <param name="message">异常消息。</param>
+    /// <param name="cause">触发原因。</param>
+    /// <param name="innerException">内部异常。</param>
     public StreamingFallbackTriggeredException(string message, FallbackCause cause, Exception? innerException = null)
         : base(message, innerException) {
         Cause = cause;

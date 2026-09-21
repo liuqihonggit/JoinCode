@@ -16,6 +16,9 @@ internal sealed class WorkflowStateActor : ActorBase<IWorkflowStateCommand, Unit
     private readonly WorkflowStateStore _owner;
     private readonly ILogger<WorkflowStateStore>? _logger;
 
+    /// <summary>构造工作流状态 Actor。</summary>
+    /// <param name="owner">所属状态存储。</param>
+    /// <param name="logger">日志记录器。</param>
     public WorkflowStateActor(WorkflowStateStore owner, ILogger<WorkflowStateStore>? logger)
         : base() {
         _owner = owner;
@@ -23,12 +26,14 @@ internal sealed class WorkflowStateActor : ActorBase<IWorkflowStateCommand, Unit
     }
 
 
+    /// <summary>异步保存工作流快照。</summary>
     public async Task SaveSnapshotAsync(string workflowId, WorkflowSnapshot snapshot, CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new SaveSnapshotCmd(workflowId, snapshot, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
+    /// <summary>异步加载工作流快照。</summary>
     public async Task<WorkflowSnapshot?> LoadSnapshotAsync(string workflowId, CancellationToken ct) {
         var tcs = TcsFactory.Create<WorkflowSnapshot?>();
         await SendAsync(new LoadSnapshotCmd(workflowId, ct, tcs), ct).ConfigureAwait(false);

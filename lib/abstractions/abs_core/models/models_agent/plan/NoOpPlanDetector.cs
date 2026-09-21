@@ -41,6 +41,7 @@ public static class NoOpPlanDetector {
         "运行", "测试", "构建", "修复", "实现", "重构",
     ];
 
+    /// <summary>判断给定计划是否为空操作计划。</summary>
     public static bool IsNoOpPlan(string plan) {
         if (string.IsNullOrWhiteSpace(plan)) return false;
 

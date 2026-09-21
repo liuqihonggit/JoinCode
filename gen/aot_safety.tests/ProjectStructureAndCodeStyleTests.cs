@@ -97,6 +97,57 @@ public class ProjectStructureAndCodeStyleAnalyzerTests {
     }
 
     [Fact]
+    public async Task PublicProperty_WithInheritDoc_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+
+                interface IBase
+                {
+                    /// <summary>Base value.</summary>
+                    int Value { get; }
+                }
+
+                class TestClass : IBase
+                {
+                    /// <inheritdoc/>
+                    public int Value => 42;
+                }
+                """,
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task PublicProperty_WithSummaryDoc_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+
+                [AttributeUsage(AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
+                public sealed class EnumValueAttribute : Attribute
+                {
+                    /// <summary>
+                    /// 枚举成员对应的字符串值
+                    /// </summary>
+                    public string Value { get; }
+
+                    public EnumValueAttribute(string value) => Value = value;
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC10004", DiagnosticSeverity.Warning).WithSpan(11, 12, 11, 30).WithArguments("EnumValueAttribute.EnumValueAttribute(string)"),
+            },
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
     public async Task SwitchExpressionOnString_ReportsJCC10005() {
         var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,

@@ -8,12 +8,14 @@ namespace SampleNativePlugin;
 public static class PluginEntry {
     private static bool s_isLoaded;
 
+    /// <summary>加载插件,接收配置字节并标记插件已加载。</summary>
     [UnmanagedCallersOnly(EntryPoint = "plugin_load")]
     public static unsafe int PluginLoad(byte* configPtr, int configLen) {
         s_isLoaded = true;
         return 0;
     }
 
+    /// <summary>调用插件方法,读取请求 JSON 并将响应 JSON 写入输出缓冲区。</summary>
     [UnmanagedCallersOnly(EntryPoint = "plugin_invoke")]
     public static unsafe int PluginInvoke(byte* reqPtr, int reqLen, byte* respPtr, int respCap) {
         if (!s_isLoaded) return (int)NativePluginError.NotLoaded;
@@ -32,12 +34,14 @@ public static class PluginEntry {
         return respBytes.Length;
     }
 
+    /// <summary>卸载插件,清除加载状态。</summary>
     [UnmanagedCallersOnly(EntryPoint = "plugin_unload")]
     public static int PluginUnload() {
         s_isLoaded = false;
         return 0;
     }
 
+    /// <summary>获取插件信息(名称、版本、支持方法列表),写入输出缓冲区。</summary>
     [UnmanagedCallersOnly(EntryPoint = "plugin_info")]
     public static unsafe int PluginInfo(byte* respPtr, int respCap) {
         var infoJson = """{"name":"SampleNativePlugin","version":"1.0.0","methods":["echo","ping"]}""";

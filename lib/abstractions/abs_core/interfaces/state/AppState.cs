@@ -143,10 +143,13 @@ public sealed record AgentState {
     /// </summary>
     public string AgentType { get; init; } = string.Empty;
 
+    /// <summary>获取代理角色。</summary>
     public AgentRole Role { get; init; }
 
+    /// <summary>获取执行器变体。</summary>
     public ExecutorVariant? Variant { get; init; }
 
+    /// <summary>获取代理状态。</summary>
     public AgentStatus Status { get; init; } = AgentStatus.Idle;
 
     /// <summary>
@@ -655,6 +658,8 @@ public enum PermissionRequestStatus {
 }
 
 public static class TaskExecutionStatusSymbolExtensions {
+    /// <summary>将任务执行状态转换为状态符号。</summary>
+    /// <param name="status">任务执行状态。</param>
     public static StatusSymbol ToStatusSymbol(this TaskExecutionStatus status)
         => status switch {
             TaskExecutionStatus.Running => StatusSymbol.Refresh,

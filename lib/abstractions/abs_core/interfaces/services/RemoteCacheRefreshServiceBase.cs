@@ -49,6 +49,8 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         }
     }
 
+    /// <summary>异步刷新缓存。</summary>
+    /// <param name="ct">取消令牌。</param>
     public virtual async Task RefreshAsync(CancellationToken ct = default) {
         if (string.IsNullOrEmpty(RefreshOptions.ApiEndpoint)) {
             Logger?.LogDebug("未配置{Label} API 端点，跳过刷新", RefreshLogLabel);
@@ -126,5 +128,6 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
 }
 
 public sealed class RemoteRefreshResult<TItem> {
+    /// <summary>获取刷新得到的条目字典。</summary>
     public Dictionary<string, TItem> Items { get; init; } = [];
 }

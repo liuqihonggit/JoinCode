@@ -7,6 +7,7 @@ namespace Api.LLM;
 /// 与 OpenAI Chat Completions 根本不同:state+questions 替代 messages,返回类型化决策而非文本
 /// </summary>
 internal sealed class JevRequest {
+    /// <summary>获取或设置模型标识。</summary>
     [JsonPropertyName("model")]
     public string Model { get; set; } = string.Empty;
 
@@ -40,10 +41,12 @@ internal sealed class JevQuestion {
 /// Jev API 响应 DTO
 /// </summary>
 internal sealed class JevResponse {
+    /// <summary>获取或设置响应标识。</summary>
     [JsonPropertyName("id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Id { get; set; }
 
+    /// <summary>获取或设置模型标识。</summary>
     [JsonPropertyName("model")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Model { get; set; }
@@ -52,6 +55,7 @@ internal sealed class JevResponse {
     [JsonPropertyName("answers")]
     public Dictionary<string, JevAnswer> Answers { get; set; } = new();
 
+    /// <summary>获取或设置 token 用量。</summary>
     [JsonPropertyName("usage")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JevUsage? Usage { get; set; }
@@ -86,6 +90,7 @@ internal sealed class JevAnswer {
 /// Jev token 用量
 /// </summary>
 internal sealed class JevUsage {
+    /// <summary>获取或设置输入令牌数。</summary>
     [JsonPropertyName("input_tokens")]
     public int InputTokens { get; set; }
 }

@@ -7,6 +7,7 @@ public sealed class MessageList : IList<ApiMessage>, IReadOnlyList<ApiMessage> {
         _messages = [];
     }
 
+    /// <summary>构造消息列表。</summary>
     public MessageList(IEnumerable<ApiMessage> messages) {
         _messages = [.. messages];
     }
@@ -28,11 +29,16 @@ public sealed class MessageList : IList<ApiMessage>, IReadOnlyList<ApiMessage> {
         set => _messages[index] = value;
     }
 
+    /// <summary>获取消息数量。</summary>
     public int Count => _messages.Count;
+    /// <summary>获取是否只读。</summary>
     public bool IsReadOnly => false;
 
+    /// <summary>添加消息。</summary>
     public void Add(ApiMessage item) => _messages.Add(item);
+    /// <summary>添加消息范围。</summary>
     public void AddRange(IEnumerable<ApiMessage> items) => _messages.AddRange(items);
+    /// <summary>清空所有消息。</summary>
     public void Clear() => _messages.Clear();
 
     /// <summary>
@@ -45,18 +51,29 @@ public sealed class MessageList : IList<ApiMessage>, IReadOnlyList<ApiMessage> {
         _messages.EnsureCapacity(newMessages.Count);
         _messages.AddRange(newMessages);
     }
+    /// <summary>判断是否包含指定消息。</summary>
     public bool Contains(ApiMessage item) => _messages.Contains(item);
+    /// <summary>复制消息到数组。</summary>
     public void CopyTo(ApiMessage[] array, int arrayIndex) => _messages.CopyTo(array, arrayIndex);
+    /// <summary>获取指定消息的索引。</summary>
     public int IndexOf(ApiMessage item) => _messages.IndexOf(item);
+    /// <summary>在指定位置插入消息。</summary>
     public void Insert(int index, ApiMessage item) => _messages.Insert(index, item);
+    /// <summary>移除指定消息。</summary>
     public bool Remove(ApiMessage item) => _messages.Remove(item);
+    /// <summary>移除指定位置的消息。</summary>
     public void RemoveAt(int index) => _messages.RemoveAt(index);
 
+    /// <summary>添加系统消息。</summary>
     public void AddSystemMessage(string content) => _messages.Add(new ApiMessage(MessageRole.System, content));
+    /// <summary>添加用户消息。</summary>
     public void AddUserMessage(string content) => _messages.Add(new ApiMessage(MessageRole.User, content));
+    /// <summary>添加助手消息。</summary>
     public void AddAssistantMessage(string content) => _messages.Add(new ApiMessage(MessageRole.Assistant, content));
+    /// <summary>添加工具消息。</summary>
     public void AddToolMessage(string content) => _messages.Add(new ApiMessage(MessageRole.Tool, content));
 
+    /// <summary>获取枚举器。</summary>
     public IEnumerator<ApiMessage> GetEnumerator() => _messages.GetEnumerator();
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => _messages.GetEnumerator();
 }

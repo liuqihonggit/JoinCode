@@ -7,6 +7,8 @@ public sealed class AuditEngine {
     private readonly List<DiagnosticAnalyzer> _analyzers;
     private const int MaxConcurrency = 8;
 
+    /// <summary>构造审计引擎。</summary>
+    /// <param name="analyzers">诊断分析器列表。</param>
     public AuditEngine(List<DiagnosticAnalyzer> analyzers) {
         _analyzers = analyzers;
     }

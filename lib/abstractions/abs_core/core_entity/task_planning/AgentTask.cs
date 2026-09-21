@@ -6,15 +6,25 @@ namespace JoinCode.Abstractions.Entity;
 /// 替代 TaskItem record（TaskItem 仍保留为 ITaskService 的 DTO，AgentTask 是运行时实体）
 /// </summary>
 public sealed class AgentTask : Entity {
+    /// <summary>获取任务标题。</summary>
     public string Title { get; }
+    /// <summary>获取或设置任务描述。</summary>
     public string? Description { get; init; }
+    /// <summary>获取或设置任务类型。</summary>
     public TaskType Type { get; init; }
+    /// <summary>获取或设置任务执行状态。</summary>
     public TaskExecutionStatus Status { get; set; }
+    /// <summary>获取或设置指派对象的标识。</summary>
     public ObjectId? AssigneeObjectId { get; init; }
+    /// <summary>获取或设置父任务标识。</summary>
     public ObjectId? ParentTaskObjectId { get; init; }
+    /// <summary>获取或设置优先级。</summary>
     public TodoPriority Priority { get; init; }
+    /// <summary>获取或设置指派人。</summary>
     public string? Assignee { get; init; }
+    /// <summary>获取或设置截止日期。</summary>
     public DateTime? DueDate { get; init; }
+    /// <summary>获取或设置标签列表。</summary>
     public IEnumerable<string> Tags { get; init; } = Array.Empty<string>();
 
     /// <summary>
@@ -22,6 +32,7 @@ public sealed class AgentTask : Entity {
     /// </summary>
     public static TaskRegistry Registry { get; } = new();
 
+    /// <summary>构造任务实体。</summary>
     public AgentTask(
         string title,
         TaskType type = TaskType.LocalAgent,

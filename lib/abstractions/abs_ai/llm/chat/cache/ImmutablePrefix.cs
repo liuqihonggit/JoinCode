@@ -1,15 +1,19 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
 public sealed class ImmutablePrefix {
+    /// <summary>获取系统提示词。</summary>
     public string System { get; }
     private readonly Dictionary<string, ToolSpec> _toolSpecs = new(StringComparer.Ordinal);
     private readonly List<string> _toolSpecsOrder = [];
     private readonly ApiMessage[] _fewShots;
     private string? _fingerprintCache;
 
+    /// <summary>获取工具规格列表。</summary>
     public IEnumerable<ToolSpec> ToolSpecs => _toolSpecsOrder.Select(name => _toolSpecs[name]);
+    /// <summary>获取 FewShot 示例消息列表。</summary>
     public IEnumerable<ApiMessage> FewShots => _fewShots;
 
+    /// <summary>构造 ImmutablePrefix 实例。</summary>
     public ImmutablePrefix(string system, IEnumerable<ToolSpec> toolSpecs, IEnumerable<ApiMessage> fewShots) {
         System = system ?? throw new ArgumentNullException(nameof(system));
         if (toolSpecs != null) {
@@ -21,6 +25,7 @@ public sealed class ImmutablePrefix {
         _fewShots = fewShots != null ? [.. fewShots] : [];
     }
 
+    /// <summary>获取当前前缀的指纹。</summary>
     public string Fingerprint {
         get {
             if (_fingerprintCache is not null) return _fingerprintCache;
@@ -29,6 +34,7 @@ public sealed class ImmutablePrefix {
         }
     }
 
+    /// <summary>添加或更新工具规格。</summary>
     public void AddTool(ToolSpec tool) {
         ArgumentNullException.ThrowIfNull(tool);
         if (!_toolSpecs.ContainsKey(tool.Name))
@@ -37,6 +43,7 @@ public sealed class ImmutablePrefix {
         _fingerprintCache = null;
     }
 
+    /// <summary>移除指定名称的工具规格。</summary>
     public void RemoveTool(string toolName) {
         if (_toolSpecs.Remove(toolName)) {
             _toolSpecsOrder.Remove(toolName);
@@ -44,6 +51,7 @@ public sealed class ImmutablePrefix {
         }
     }
 
+    /// <summary>校验指纹一致性,返回最新指纹。</summary>
     public string VerifyFingerprint() {
         var fresh = ComputeFingerprint();
         if (_fingerprintCache is not null && _fingerprintCache != fresh) {
@@ -55,6 +63,7 @@ public sealed class ImmutablePrefix {
         return fresh;
     }
 
+    /// <summary>转换为消息列表,包含系统消息与 FewShot 示例。</summary>
     public IEnumerable<ApiMessage> ToMessages() {
         var messages = new List<ApiMessage>(_fewShots.Length + 1);
         messages.Add(new ApiMessage(MessageRole.System, System));

@@ -184,6 +184,7 @@ public sealed class AsyncLock : IDisposable {
 
     private sealed class Releaser(AsyncLock owner) : IDisposable {
         private int _disposed;
+        /// <summary>释放资源。</summary>
         public void Dispose() {
             if (Interlocked.Exchange(ref _disposed, 1) == 0) {
                 LockRegistry.OnReleased(owner._registryId, owner._name);

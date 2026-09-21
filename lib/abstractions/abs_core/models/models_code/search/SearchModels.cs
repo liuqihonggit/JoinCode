@@ -4,13 +4,23 @@ namespace JoinCode.Abstractions.Models.Search;
 /// Glob 搜索结果
 /// </summary>
 public sealed record GlobSearchResult {
+    /// <summary>获取耗时(毫秒)。</summary>
     public required long DurationMs { get; init; }
+    /// <summary>获取匹配文件数。</summary>
     public required int NumFiles { get; init; }
+    /// <summary>获取匹配文件名列表。</summary>
     public required IReadOnlyList<string> Filenames { get; init; }
+    /// <summary>获取结果是否被截断。</summary>
     public required bool Truncated { get; init; }
+    /// <summary>获取是否成功。</summary>
     public bool Success { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? ErrorMessage { get; init; }
 
+    /// <summary>创建成功结果。</summary>
+    /// <param name="durationMs">耗时(毫秒)。</param>
+    /// <param name="filenames">匹配文件名列表。</param>
+    /// <param name="truncated">是否被截断。</param>
     public static GlobSearchResult SuccessResult(
         long durationMs,
         IReadOnlyList<string> filenames,
@@ -23,6 +33,8 @@ public sealed record GlobSearchResult {
             Success = true
         };
 
+    /// <summary>创建失败结果。</summary>
+    /// <param name="errorMessage">错误信息。</param>
     public static GlobSearchResult FailureResult(string errorMessage)
         => new() {
             DurationMs = 0,
@@ -124,17 +136,35 @@ public sealed record GrepSearchInput {
 /// Grep 搜索结果
 /// </summary>
 public sealed record GrepSearchResult {
+    /// <summary>获取输出模式。</summary>
     public string? Mode { get; init; }
+    /// <summary>获取匹配文件数。</summary>
     public required int NumFiles { get; init; }
+    /// <summary>获取匹配文件名列表。</summary>
     public required IReadOnlyList<string> Filenames { get; init; }
+    /// <summary>获取匹配内容文本。</summary>
     public string? Content { get; init; }
+    /// <summary>获取匹配行数。</summary>
     public int? NumLines { get; init; }
+    /// <summary>获取匹配次数。</summary>
     public int? NumMatches { get; init; }
+    /// <summary>获取应用的限制数。</summary>
     public int? AppliedLimit { get; init; }
+    /// <summary>获取应用的偏移量。</summary>
     public int? AppliedOffset { get; init; }
+    /// <summary>获取是否成功。</summary>
     public bool Success { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? ErrorMessage { get; init; }
 
+    /// <summary>创建成功结果。</summary>
+    /// <param name="mode">输出模式。</param>
+    /// <param name="filenames">匹配文件名列表。</param>
+    /// <param name="content">匹配内容文本。</param>
+    /// <param name="numLines">匹配行数。</param>
+    /// <param name="numMatches">匹配次数。</param>
+    /// <param name="appliedLimit">应用的限制数。</param>
+    /// <param name="appliedOffset">应用的偏移量。</param>
     public static GrepSearchResult SuccessResult(
         string? mode,
         IReadOnlyList<string> filenames,
@@ -155,6 +185,8 @@ public sealed record GrepSearchResult {
             Success = true
         };
 
+    /// <summary>创建失败结果。</summary>
+    /// <param name="errorMessage">错误信息。</param>
     public static GrepSearchResult FailureResult(string errorMessage)
         => new() {
             Mode = null,

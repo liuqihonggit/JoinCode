@@ -5,6 +5,7 @@ internal sealed class OpenAICacheProtocol : CacheProtocol {
 
     public override string? DefaultCacheScope => null;
 
+    /// <summary>将 OpenAI 用量映射为统一 TokenUsage。</summary>
     public TokenUsage MapUsage(OpenAIUsage usage) {
         var cacheRead = usage.PromptTokensDetails?.CachedTokens ?? 0;
         var cacheCreation = 0;

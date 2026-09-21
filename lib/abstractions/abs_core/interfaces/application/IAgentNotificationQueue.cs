@@ -28,7 +28,10 @@ public interface IAgentNotificationQueue {
 /// 队列中的通知条目
 /// </summary>
 public sealed record QueuedNotification {
+    /// <summary>获取通知 XML 内容。</summary>
     public required string Xml { get; init; }
+    /// <summary>获取目标代理标识。</summary>
     public string? TargetAgentId { get; init; }
+    /// <summary>获取入队时间。</summary>
     public DateTime EnqueuedAt { get; init; } = DateTime.UtcNow;
 }

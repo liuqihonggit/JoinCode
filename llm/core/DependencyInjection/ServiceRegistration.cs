@@ -26,6 +26,9 @@ public static partial class ServiceRegistration {
             (config, http, logger, fs, executor) => new OpenAIQueryService(config, http, logger, fs, executor));
     }
 
+    /// <summary>添加 LLM 服务到 DI 容器。</summary>
+    /// <param name="services">服务集合。</param>
+    /// <param name="providerConfig">供应商配置。</param>
     public static IServiceCollection AddLlmServices(
         this IServiceCollection services,
         ProviderConfig providerConfig) {
@@ -35,6 +38,9 @@ public static partial class ServiceRegistration {
         return services;
     }
 
+    /// <summary>添加 LLM 服务到 DI 容器（使用自定义查询服务）。</summary>
+    /// <param name="services">服务集合。</param>
+    /// <param name="customService">自定义查询服务实例。</param>
     public static IServiceCollection AddLlmServicesWithCustomQuery(
         this IServiceCollection services,
         IQueryService customService) {
@@ -43,6 +49,7 @@ public static partial class ServiceRegistration {
         return services;
     }
 
+    /// <summary>创建空内核（使用空查询服务）。</summary>
     public static IChatClient CreateEmptyKernel() {
         return new ChatClient(new EmptyQueryService());
     }

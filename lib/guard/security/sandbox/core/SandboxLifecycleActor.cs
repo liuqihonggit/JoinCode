@@ -22,6 +22,11 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
     private volatile string? _activeSandboxId;
     private volatile SandboxHealthState _healthState = SandboxHealthState.Healthy;
 
+    /// <summary>
+    /// 构造沙箱生命周期 Actor。
+    /// </summary>
+    /// <param name="providers">沙箱提供者字典。</param>
+    /// <param name="logger">日志记录器，可选。</param>
     public SandboxLifecycleActor(
         ConcurrentDictionary<SandboxType, ISandboxProvider> providers,
         ILogger<SandboxManager>? logger)
@@ -30,11 +35,16 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
         _logger = logger;
     }
 
+    /// <summary>获取当前活跃的沙箱提供者。</summary>
     public ISandboxProvider? ActiveProvider => _activeProvider;
+    /// <summary>获取当前活跃的沙箱标识。</summary>
     public string? ActiveSandboxId => _activeSandboxId;
+    /// <summary>获取沙箱健康状态。</summary>
     public SandboxHealthState HealthState => _healthState;
 
+    /// <summary>获取是否处于沙箱中。</summary>
     public bool IsInSandbox => _activeProvider is not null && _activeSandboxId is not null && _activeProvider.GetSandboxInfo(_activeSandboxId) is not null;
+    /// <summary>获取当前沙箱信息。</summary>
     public SandboxInfo? CurrentSandbox => _activeSandboxId is not null ? _activeProvider?.GetSandboxInfo(_activeSandboxId) : null;
 
     /// <summary>

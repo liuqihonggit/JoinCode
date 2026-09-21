@@ -155,12 +155,17 @@ public sealed class ServiceMessageBus : IDisposable {
         private readonly ServiceMessageBus _bus;
         private int _disposed;
 
+        /// <summary>构造 SubscriptionDisposable。</summary>
+        /// <param name="messageType">消息类型</param>
+        /// <param name="handler">消息处理委托</param>
+        /// <param name="bus">所属消息总线</param>
         public SubscriptionDisposable(string messageType, Func<ServiceMessage, Task> handler, ServiceMessageBus bus) {
             _messageType = messageType;
             _handler = handler;
             _bus = bus;
         }
 
+        /// <summary>异步释放资源。</summary>
         public ValueTask DisposeAsync() {
             if (Interlocked.Exchange(ref _disposed, 1) == 0) {
                 _bus.Unsubscribe(_messageType, _handler);

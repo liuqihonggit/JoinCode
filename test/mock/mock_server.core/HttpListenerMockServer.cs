@@ -13,10 +13,17 @@ public sealed class HttpListenerMockServer : IHttpMockServer {
     private readonly ICacheSimulator _cacheSimulator;
     private readonly ILogger? _logger;
 
+    /// <summary>获取服务器 URL。</summary>
     public string Url => _url;
+    /// <summary>获取服务器统计信息。</summary>
     public MockServerStats Stats { get; } = new();
     public event Action? ShutdownRequested;
 
+    /// <summary>构造 HttpListener Mock 服务器。</summary>
+    /// <param name="responseStrategy">响应策略。</param>
+    /// <param name="cacheSimulator">缓存模拟器。</param>
+    /// <param name="port">监听端口（0 表示自动分配）。</param>
+    /// <param name="logger">可选的日志记录器。</param>
     public HttpListenerMockServer(
         IResponseStrategy responseStrategy,
         ICacheSimulator cacheSimulator,
@@ -45,6 +52,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer {
         return port;
     }
 
+    /// <summary>启动 Mock 服务器。</summary>
     public Task StartAsync(int port = 0) {
         try {
             _listener.Start();
@@ -59,6 +67,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer {
         return Task.CompletedTask;
     }
 
+    /// <summary>停止 Mock 服务器。</summary>
     public Task StopAsync() {
         _cts.Cancel();
         _listener.Stop();
@@ -178,18 +187,21 @@ public sealed class HttpListenerMockServer : IHttpMockServer {
         }
     }
 
+    /// <summary>按索引获取捕获的请求。</summary>
     public CapturedRequest GetRequest(int index) {
         if (!_lock.Wait(5000))
             throw new TimeoutException("[GEN012] [E2E001] 获取请求超时：锁被 ListenLoop 持有");
         try { return _capturedRequests[index]; } finally { _lock.Release(); }
     }
 
+    /// <summary>获取所有捕获的请求列表。</summary>
     public IReadOnlyList<CapturedRequest> GetAllRequests() {
         if (!_lock.Wait(5000))
             throw new TimeoutException("[GEN013] [E2E002] 获取请求列表超时：锁被 ListenLoop 持有");
         try { return _capturedRequests.ToList(); } finally { _lock.Release(); }
     }
 
+    /// <summary>清除所有捕获的请求和统计。</summary>
     public void Clear() {
         if (!_lock.Wait(5000))
             throw new TimeoutException("[GEN014] [E2E003] 清除请求超时：锁被 ListenLoop 持有");
@@ -205,6 +217,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer {
         _cacheSimulator.ResetCache();
     }
 
+    /// <summary>异步释放资源。</summary>
     public ValueTask DisposeAsync() {
         _cts.Cancel();
         try { _listener.Stop(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Listener stop failed: {ex.Message}"); }

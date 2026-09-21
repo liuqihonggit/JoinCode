@@ -6,14 +6,24 @@ namespace JoinCode.Abstractions.Shell;
 /// 值为 ANSI 24位前景色转义序列 (\x1b[38;2;R;G;Bm)，与 CLI TerminalColors 对齐。
 /// </summary>
 public static class CommandTerminalColors {
+    /// <summary>获取错误色。</summary>
     public static string Error => "\x1b[38;2;255;107;128m";
+    /// <summary>获取成功色。</summary>
     public static string Success => "\x1b[38;2;78;186;101m";
+    /// <summary>获取警告色。</summary>
     public static string Warning => "\x1b[38;2;255;193;7m";
+    /// <summary>获取主色。</summary>
     public static string Primary => "\x1b[38;2;215;119;87m";
+    /// <summary>获取弱化色。</summary>
     public static string Muted => "\x1b[38;2;153;153;153m";
+    /// <summary>获取强调色。</summary>
     public static string Accent => "\x1b[38;2;177;185;249m";
+    /// <summary>获取次要色。</summary>
     public static string Secondary => "\x1b[38;2;177;185;249m";
+    /// <summary>获取信息色。</summary>
     public static string Info => "\x1b[38;2;72;150;140m";
+    /// <summary>获取非活跃色。</summary>
     public static string Inactive => "\x1b[38;2;153;153;153m";
+    /// <summary>获取分隔线色。</summary>
     public static string Divider => "\x1b[38;2;80;80;80m";
 }

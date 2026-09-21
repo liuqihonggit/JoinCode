@@ -8,6 +8,10 @@ namespace JoinCode.Entry;
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class SystemPromptApplyStep : ServiceEntity, IMiddleware<StartupContext> {
 
+    /// <summary>执行系统提示词应用中间件 — 根据 --system-prompt/--append-system-prompt 参数覆盖或追加系统提示词后传递给下一个中间件</summary>
+    /// <param name="context">启动上下文，包含 CLI 选项</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var options = context.Options;
 

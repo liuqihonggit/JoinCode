@@ -1,14 +1,24 @@
 namespace JoinCode.Abstractions.LLM;
 
+/// <summary>聊天请求选项。</summary>
 public sealed class ChatOptions {
+    /// <summary>获取或设置采样温度。</summary>
     public float? Temperature { get; init; }
+    /// <summary>获取或设置最大生成 token 数。</summary>
     public int? MaxTokens { get; init; }
+    /// <summary>获取或设置核采样概率。</summary>
     public float? TopP { get; init; }
+    /// <summary>获取或设置频率惩罚。</summary>
     public float? FrequencyPenalty { get; init; }
+    /// <summary>获取或设置存在惩罚。</summary>
     public float? PresencePenalty { get; init; }
+    /// <summary>获取或设置工具选择策略。</summary>
     public ToolChoice ToolChoice { get; init; }
+    /// <summary>获取或设置已发现的工具集。</summary>
     public DiscoveredToolSet? DiscoveredTools { get; init; }
+    /// <summary>获取或设置延迟加载的工具列表。</summary>
     public IReadOnlyList<DeferredToolInfo> DeferredTools { get; init; } = [];
+    /// <summary>获取或设置扩展数据字典。</summary>
     public IReadOnlyDictionary<string, JsonElement> ExtensionData { get; init; } = new Dictionary<string, JsonElement>();
 
     /// <summary>
@@ -41,6 +51,7 @@ public sealed class ChatOptions {
     /// </summary>
     public ContextManagementConfig? ContextManagement { get; init; }
 
+    /// <summary>获取默认聊天选项。</summary>
     public static ChatOptions Default => new() {
         Temperature = 0.7f,
         MaxTokens = 4000,

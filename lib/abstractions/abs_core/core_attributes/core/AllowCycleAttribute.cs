@@ -11,5 +11,6 @@ public sealed class AllowCycleAttribute : Attribute {
     /// </summary>
     public string Reason { get; }
 
+    /// <summary>构造允许循环特性。</summary>
     public AllowCycleAttribute(string reason = "") => Reason = reason;
 }

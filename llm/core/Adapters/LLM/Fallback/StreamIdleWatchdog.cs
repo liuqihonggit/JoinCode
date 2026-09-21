@@ -105,6 +105,7 @@ public sealed class StreamIdleWatchdog : IDisposable {
         }
     }
 
+    /// <summary>释放资源。</summary>
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;

@@ -16,6 +16,10 @@ public sealed class FsmStateMachineAttribute : Attribute {
     /// <summary>初始状态值</summary>
     public object InitialState { get; }
 
+    /// <summary>构造状态机特性。</summary>
+    /// <param name="stateType">状态枚举类型。</param>
+    /// <param name="eventType">事件枚举类型。</param>
+    /// <param name="initialState">初始状态值。</param>
     public FsmStateMachineAttribute(Type stateType, Type eventType, object initialState) {
         StateType = stateType;
         EventType = eventType;
@@ -39,6 +43,10 @@ public sealed class TransitionAttribute : Attribute {
     /// <summary>目标状态</summary>
     public object To { get; }
 
+    /// <summary>构造状态转换特性。</summary>
+    /// <param name="from">源状态。</param>
+    /// <param name="evt">触发事件。</param>
+    /// <param name="to">目标状态。</param>
     public TransitionAttribute(object from, object evt, object to) {
         From = from;
         Event = evt;
@@ -58,6 +66,9 @@ public sealed class GuardAttribute : Attribute {
     /// <summary>触发事件</summary>
     public object Event { get; }
 
+    /// <summary>构造转换守卫特性。</summary>
+    /// <param name="from">源状态。</param>
+    /// <param name="evt">触发事件。</param>
     public GuardAttribute(object from, object evt) {
         From = from;
         Event = evt;
@@ -76,6 +87,9 @@ public sealed class TransitionActionAttribute : Attribute {
     /// <summary>触发事件</summary>
     public object Event { get; }
 
+    /// <summary>构造转换动作特性。</summary>
+    /// <param name="from">源状态。</param>
+    /// <param name="evt">触发事件。</param>
     public TransitionActionAttribute(object from, object evt) {
         From = from;
         Event = evt;

@@ -17,7 +17,9 @@ public static class ReaderWriterLockSlimScope {
     private sealed class WriteScope : IDisposable {
         private readonly ReaderWriterLockSlim _lock;
         private int _disposed;
+        /// <summary>构造写锁 scope 并进入写锁。</summary>
         public WriteScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterWriteLock(); }
+        /// <summary>释放资源并退出写锁。</summary>
         public void Dispose() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _lock.ExitWriteLock();
@@ -27,7 +29,9 @@ public static class ReaderWriterLockSlimScope {
     private sealed class ReadScope : IDisposable {
         private readonly ReaderWriterLockSlim _lock;
         private int _disposed;
+        /// <summary>构造读锁 scope 并进入读锁。</summary>
         public ReadScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterReadLock(); }
+        /// <summary>释放资源并退出读锁。</summary>
         public void Dispose() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _lock.ExitReadLock();
@@ -37,7 +41,9 @@ public static class ReaderWriterLockSlimScope {
     private sealed class UpgradeableReadScope : IDisposable {
         private readonly ReaderWriterLockSlim _lock;
         private int _disposed;
+        /// <summary>构造可升级读锁 scope 并进入可升级读锁。</summary>
         public UpgradeableReadScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterUpgradeableReadLock(); }
+        /// <summary>释放资源并退出可升级读锁。</summary>
         public void Dispose() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _lock.ExitUpgradeableReadLock();

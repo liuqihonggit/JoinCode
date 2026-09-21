@@ -179,6 +179,9 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable {
         private readonly SubprocessIoChannels _owner;
         private readonly ILogger? _logger;
 
+        /// <summary>构造 stdin 写入 Actor。</summary>
+        /// <param name="owner">所属的子进程 IO 通道。</param>
+        /// <param name="logger">可选的日志记录器。</param>
         public StdinActor(SubprocessIoChannels owner, ILogger? logger) : base() {
             _owner = owner;
             _logger = logger;

@@ -100,7 +100,9 @@ public sealed class DeferredMailService : IDeferredMailService {
     private AsyncLock GetLock(string agentId) => _locks.GetOrAdd(agentId, _ => new AsyncLock(nameof(DeferredMailService)));
 
     private sealed class DeferredMailEntry {
+        /// <summary>获取延迟邮件。</summary>
         public required DeferredMail Mail { get; init; }
+        /// <summary>获取或设置剩余轮次。</summary>
         public int RemainingTurns { get; set; }
     }
 }

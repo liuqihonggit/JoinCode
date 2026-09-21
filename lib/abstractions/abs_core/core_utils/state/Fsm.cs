@@ -9,6 +9,7 @@ public readonly record struct TransitionKey<TState, TEvent>(TState From, TEvent 
     : IComparable<TransitionKey<TState, TEvent>>
     where TState : struct, Enum
     where TEvent : struct, Enum {
+    /// <summary>比较两个转换键的顺序（先按 FromState 再按 Event 排序）。</summary>
     public int CompareTo(TransitionKey<TState, TEvent> other) {
         var fromCmp = Comparer<TState>.Default.Compare(From, other.From);
         return fromCmp != 0 ? fromCmp : Comparer<TEvent>.Default.Compare(Event, other.Event);

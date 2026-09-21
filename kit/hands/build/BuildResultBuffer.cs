@@ -49,8 +49,11 @@ internal sealed class BuildResultBuffer {
     }
 
     internal sealed class BuildBufferEntry {
+        /// <summary>获取构建结果。</summary>
         public required BuildQueueResult Result { get; init; }
+        /// <summary>获取工作目录。</summary>
         public string? WorkingDirectory { get; init; }
+        /// <summary>获取源码指纹。</summary>
         public long SourceFingerprint { get; init; }
     }
 }

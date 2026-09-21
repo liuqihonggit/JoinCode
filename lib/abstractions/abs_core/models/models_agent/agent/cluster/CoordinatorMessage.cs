@@ -9,10 +9,15 @@ namespace JoinCode.Abstractions.Models.Agent;
 public sealed class CoordinatorMessage {
     /// <summary>消息唯一标识 — 自动生成 GUID，跨进程去重的唯一依据</summary>
     public string MessageId { get; init; } = Guid.NewGuid().ToString("N");
+    /// <summary>获取发送方智能体标识。</summary>
     public required string FromAgentId { get; init; }
+    /// <summary>获取接收方智能体标识。</summary>
     public required string ToAgentId { get; init; }
+    /// <summary>获取消息类型。</summary>
     public required string MessageType { get; init; }
+    /// <summary>获取消息内容。</summary>
     public required string Content { get; init; }
+    /// <summary>获取消息时间戳。</summary>
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 
     /// <summary>会话标识 — 文件邮箱层用于定位 JSONL 文件，进程内邮箱层可为 null</summary>

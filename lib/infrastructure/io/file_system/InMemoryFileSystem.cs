@@ -575,10 +575,15 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
     /// 内存文件条目
     /// </summary>
     private sealed class InMemoryFileEntry {
+        /// <summary>获取或设置完整路径。</summary>
         public string FullPath { get; set; } = string.Empty;
+        /// <summary>获取或设置文本内容。</summary>
         public string? TextContent { get; set; }
+        /// <summary>获取或设置字节内容。</summary>
         public byte[]? ByteContent { get; set; }
+        /// <summary>获取或设置最后写入时间。</summary>
         public DateTime LastWriteTime { get; set; }
+        /// <summary>获取或设置创建时间。</summary>
         public DateTime CreationTime { get; set; }
     }
 
@@ -586,6 +591,7 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
     /// 内存目录条目
     /// </summary>
     private sealed class InMemoryDirectoryEntry {
+        /// <summary>获取或设置完整路径。</summary>
         public string FullPath { get; set; } = string.Empty;
     }
 
@@ -599,6 +605,13 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
         private readonly MemoryStream _inner;
         private int _disposed;
 
+        /// <summary>
+        /// 初始化 <see cref="InMemoryFileStream"/> 的新实例。
+        /// </summary>
+        /// <param name="fs">所属的内存文件系统。</param>
+        /// <param name="path">文件路径。</param>
+        /// <param name="mode">文件打开模式。</param>
+        /// <param name="exists">文件是否已存在。</param>
         public InMemoryFileStream(InMemoryFileSystem fs, string path, FileMode mode, bool exists) {
             _fs = fs;
             _path = path;
@@ -663,6 +676,10 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
     private sealed class EditFileActor : ActorBase<EditFileCmd, Unit> {
         private readonly InMemoryFileSystem _owner;
 
+        /// <summary>
+        /// 初始化 <see cref="EditFileActor"/> 的新实例。
+        /// </summary>
+        /// <param name="owner">所属的内存文件系统。</param>
         public EditFileActor(InMemoryFileSystem owner) : base() => _owner = owner;
 
         /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 InMemoryFileSystem 调用</summary>

@@ -620,17 +620,31 @@ jobs:
     }
 
     private sealed record ShellResult(bool Success, string Output, string Error) {
+        /// <summary>构造执行成功的 ShellResult。</summary>
+        /// <param name="output">执行输出。</param>
         public static ShellResult Ok(string output) => new(true, output, "");
+        /// <summary>构造执行失败的 ShellResult。</summary>
+        /// <param name="error">错误信息。</param>
         public static ShellResult Fail(string error) => new(false, "", error);
     }
 
     private sealed record GitHubCheckResult(bool Success, string? ErrorMessage, string? FixHint, string CurrentRepo, List<string> Warnings) {
+        /// <summary>构造检查通过的 GitHubCheckResult。</summary>
+        /// <param name="currentRepo">当前仓库名。</param>
+        /// <param name="warnings">警告信息列表。</param>
         public static GitHubCheckResult Ok(string currentRepo, List<string> warnings) => new(true, null, null, currentRepo, warnings);
+        /// <summary>构造检查失败的 GitHubCheckResult。</summary>
+        /// <param name="errorMessage">错误信息。</param>
+        /// <param name="fixHint">修复提示。</param>
         public static GitHubCheckResult Fail(string errorMessage, string fixHint) => new(false, errorMessage, fixHint, "", []);
     }
 
     private sealed record GitHubSetupResult(bool Success, string? ErrorMessage, string? FixHint) {
+        /// <summary>构造设置成功的 GitHubSetupResult。</summary>
         public static GitHubSetupResult Ok() => new(true, null, null);
+        /// <summary>构造设置失败的 GitHubSetupResult。</summary>
+        /// <param name="errorMessage">错误信息。</param>
+        /// <param name="fixHint">修复提示。</param>
         public static GitHubSetupResult Fail(string errorMessage, string fixHint) => new(false, errorMessage, fixHint);
     }
 }

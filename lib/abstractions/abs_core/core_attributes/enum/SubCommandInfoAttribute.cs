@@ -36,6 +36,11 @@ public sealed class SubCommandInfoAttribute : Attribute {
     /// </summary>
     public bool IsDeprecated { get; init; }
 
+    /// <summary>
+    /// 构造子命令信息特性。
+    /// </summary>
+    /// <param name="description">中文描述。</param>
+    /// <param name="category">子命令分类。</param>
     public SubCommandInfoAttribute(string description, string category) {
         Description = description ?? throw new ArgumentNullException(nameof(description));
         Category = category ?? throw new ArgumentNullException(nameof(category));

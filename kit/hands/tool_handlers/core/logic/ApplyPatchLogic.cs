@@ -253,8 +253,11 @@ public sealed partial class ApplyPatchLogic : ServiceEntity {
     private static partial Regex HunkHeaderRegex();
 
     internal sealed class PatchHunk {
+        /// <summary>获取补丁目标文件路径。</summary>
         public required string FilePath { get; init; }
+        /// <summary>获取补丁起始行号。</summary>
         public required int StartLine { get; init; }
+        /// <summary>获取补丁行内容列表。</summary>
         public List<string> Lines { get; } = [];
     }
 }

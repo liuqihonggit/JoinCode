@@ -371,12 +371,19 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     private sealed class QueuedTool {
+        /// <summary>获取工具调用条目</summary>
         public required ToolCallEntry Entry { get; init; }
+        /// <summary>获取原始调用索引</summary>
         public required int OriginalIndex { get; init; }
+        /// <summary>获取或设置是否并发安全</summary>
         public bool IsConcurrencySafe { get; set; }
+        /// <summary>获取或设置是否已确定并发安全性</summary>
         public bool IsConcurrencySafeDetermined { get; set; }
+        /// <summary>获取或设置工具状态</summary>
         public required ToolStatus Status { get; set; }
+        /// <summary>获取任务完成源</summary>
         public required TaskCompletionSource<StreamingToolResult> CompletionSource { get; init; }
+        /// <summary>获取或设置已解析的参数字典</summary>
         public Dictionary<string, JsonElement> ParsedArguments { get; set; } = [];
     }
 }

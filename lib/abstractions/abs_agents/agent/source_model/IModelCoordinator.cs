@@ -46,6 +46,7 @@ public sealed class ModelPlanResult {
     /// <summary>Planner 使用的 token 用量</summary>
     public TokenUsage? Usage { get; init; }
 
+    /// <summary>创建成功的规划结果。</summary>
     public static ModelPlanResult Success(string plan, bool isNoOp = false, TokenUsage? usage = null) => new() {
         Succeeded = true,
         Plan = plan,
@@ -53,6 +54,7 @@ public sealed class ModelPlanResult {
         Usage = usage
     };
 
+    /// <summary>创建失败的规划结果。</summary>
     public static ModelPlanResult Fail(string errorMessage) => new() {
         Succeeded = false,
         ErrorMessage = errorMessage
@@ -75,12 +77,14 @@ public sealed class ModelExecutionResult {
     /// <summary>Executor 使用的 token 用量</summary>
     public TokenUsage? Usage { get; init; }
 
+    /// <summary>创建成功的执行结果。</summary>
     public static ModelExecutionResult Success(string output, TokenUsage? usage = null) => new() {
         Succeeded = true,
         Output = output,
         Usage = usage
     };
 
+    /// <summary>创建失败的执行结果。</summary>
     public static ModelExecutionResult Fail(string errorMessage) => new() {
         Succeeded = false,
         ErrorMessage = errorMessage
@@ -100,11 +104,13 @@ public sealed class ModelCoordinationResult {
     /// <summary>整体是否成功</summary>
     public bool Succeeded => Plan.Succeeded && (Plan.IsNoOp || Execution?.Succeeded == true);
 
+    /// <summary>从规划结果创建协调结果（无执行）。</summary>
     public static ModelCoordinationResult FromPlanOnly(ModelPlanResult plan) => new() {
         Plan = plan,
         Execution = null
     };
 
+    /// <summary>从规划和执行结果创建协调结果。</summary>
     public static ModelCoordinationResult FromPlanAndExecution(ModelPlanResult plan, ModelExecutionResult execution) => new() {
         Plan = plan,
         Execution = execution

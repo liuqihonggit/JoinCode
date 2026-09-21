@@ -7,6 +7,11 @@ public sealed class ReplaceEngine {
     private readonly List<DiagnosticAnalyzer> _analyzers;
     private readonly List<CodeFixProvider> _codeFixProviders;
 
+    /// <summary>
+    /// 构造替换引擎。
+    /// </summary>
+    /// <param name="analyzers">诊断分析器列表。</param>
+    /// <param name="codeFixProviders">代码修复提供者列表。</param>
     public ReplaceEngine(List<DiagnosticAnalyzer> analyzers, List<CodeFixProvider> codeFixProviders) {
         _analyzers = analyzers;
         _codeFixProviders = codeFixProviders;
@@ -289,10 +294,15 @@ public sealed class ReplaceEngine {
 /// 替换结果
 /// </summary>
 public sealed class ReplaceResult {
+    /// <summary>获取项目替换结果列表。</summary>
     public List<ProjectReplaceResult> ProjectResults { get; init; } = [];
+    /// <summary>获取或设置修改后的解决方案。</summary>
     public Solution? ModifiedSolution { get; set; }
+    /// <summary>获取或设置是否应用成功。</summary>
     public bool? ApplySuccess { get; set; }
+    /// <summary>获取是否有变更。</summary>
     public bool HasChanges => ProjectResults.Any(r => r.FixesApplied > 0 || r.ModifiedFiles.Count > 0);
+    /// <summary>获取已应用修复总数。</summary>
     public int TotalFixesApplied => ProjectResults.Sum(r => r.FixesApplied);
 }
 
@@ -300,9 +310,14 @@ public sealed class ReplaceResult {
 /// 项目替换结果
 /// </summary>
 public sealed class ProjectReplaceResult {
+    /// <summary>获取项目名称。</summary>
     public string ProjectName { get; init; } = string.Empty;
+    /// <summary>获取项目路径。</summary>
     public string ProjectPath { get; init; } = string.Empty;
+    /// <summary>获取或设置发现的诊断数。</summary>
     public int DiagnosticsFound { get; set; }
+    /// <summary>获取或设置已应用修复数。</summary>
     public int FixesApplied { get; set; }
+    /// <summary>获取已修改文件列表。</summary>
     public List<string> ModifiedFiles { get; init; } = [];
 }

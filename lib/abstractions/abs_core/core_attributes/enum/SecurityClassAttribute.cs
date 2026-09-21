@@ -49,5 +49,7 @@ public sealed class SecurityClassAttribute : Attribute {
     /// </summary>
     public bool AgentDestructive { get; init; }
 
+    /// <summary>构造安全分类特性。</summary>
+    /// <param name="classification">安全分类名称。</param>
     public SecurityClassAttribute(string classification) => Classification = classification ?? throw new ArgumentNullException(nameof(classification));
 }

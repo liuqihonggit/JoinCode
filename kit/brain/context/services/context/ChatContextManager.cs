@@ -5,6 +5,7 @@ namespace Core.Context;
 /// 返回固定默认值 200K（对齐 TS MODEL_CONTEXT_WINDOW_DEFAULT）
 /// </summary>
 internal sealed class DefaultContextWindowResolver : IContextWindowResolver {
+    /// <summary>解析当前上下文窗口大小，返回默认值 200K。</summary>
     public int ResolveCurrentContextWindow() => 200_000;
 }
 
@@ -891,6 +892,9 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
         private readonly ChatContextManager _owner;
         private readonly ILogger<ChatContextManager> _logger;
 
+        /// <summary>构造聊天上下文 Actor。</summary>
+        /// <param name="owner">所属聊天上下文管理器</param>
+        /// <param name="logger">日志记录器</param>
         public ChatContextActor(ChatContextManager owner, ILogger<ChatContextManager> logger) : base() {
             _owner = owner;
             _logger = logger;

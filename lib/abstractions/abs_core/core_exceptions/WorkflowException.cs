@@ -55,6 +55,7 @@ public class WorkflowException : Exception {
         Context = context ?? new ExceptionContext();
     }
 
+    /// <summary>配置异常上下文并返回当前实例。</summary>
     public WorkflowException WithContext(Action<ExceptionContext> configure) {
         configure(Context);
         return this;

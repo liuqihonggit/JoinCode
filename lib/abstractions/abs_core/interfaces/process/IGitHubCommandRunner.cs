@@ -4,9 +4,13 @@ namespace JoinCode.Abstractions.Interfaces;
 /// GitHub CLI 命令执行结果
 /// </summary>
 public sealed class GitHubCommandResult {
+    /// <summary>获取是否成功。</summary>
     public required bool Success { get; init; }
+    /// <summary>获取标准输出。</summary>
     public string Output { get; init; } = string.Empty;
+    /// <summary>获取错误输出。</summary>
     public string Error { get; init; } = string.Empty;
+    /// <summary>获取退出码。</summary>
     public int ExitCode { get; init; }
 }
 
@@ -14,9 +18,13 @@ public sealed class GitHubCommandResult {
 /// PR 创建结果
 /// </summary>
 public sealed class PrCreateResult {
+    /// <summary>获取是否成功。</summary>
     public required bool Success { get; init; }
+    /// <summary>获取 PR 地址。</summary>
     public string? PrUrl { get; init; }
+    /// <summary>获取 PR 编号。</summary>
     public string? PrNumber { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string Error { get; init; } = string.Empty;
 }
 
@@ -24,10 +32,15 @@ public sealed class PrCreateResult {
 /// PR 列表项
 /// </summary>
 public sealed class PrListItem {
+    /// <summary>获取 PR 编号。</summary>
     public string Number { get; init; } = string.Empty;
+    /// <summary>获取 PR 标题。</summary>
     public string Title { get; init; } = string.Empty;
+    /// <summary>获取分支名称。</summary>
     public string Branch { get; init; } = string.Empty;
+    /// <summary>获取 PR 状态。</summary>
     public string State { get; init; } = string.Empty;
+    /// <summary>获取 PR 地址。</summary>
     public string Url { get; init; } = string.Empty;
 }
 
@@ -35,8 +48,11 @@ public sealed class PrListItem {
 /// PR 列表结果
 /// </summary>
 public sealed class PrListResult {
+    /// <summary>获取是否成功。</summary>
     public required bool Success { get; init; }
+    /// <summary>获取 PR 列表项。</summary>
     public IReadOnlyList<PrListItem> Items { get; init; } = [];
+    /// <summary>获取错误信息。</summary>
     public string Error { get; init; } = string.Empty;
 }
 

@@ -18,5 +18,6 @@ public interface IBinaryContentStorage {
         string persistId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>生成持久化 ID。</summary>
     string GeneratePersistId();
 }

@@ -51,11 +51,17 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     }
 
     private sealed class SessionPlanState {
+        /// <summary>获取或设置当前会话 slug</summary>
         public string? CurrentSessionSlug { get; set; }
+        /// <summary>获取或设置进入计划模式前的权限模式</summary>
         public PermissionMode? PrePlanMode { get; set; }
+        /// <summary>获取或设置已剥离的危险权限规则数</summary>
         public int StrippedRuleCount { get; set; }
+        /// <summary>获取或设置本次会话是否已退出过计划模式</summary>
         public bool HasExitedPlanMode { get; set; }
+        /// <summary>获取或设置退出计划模式后是否需要发送一次性通知</summary>
         public bool NeedsPlanModeExitAttachment { get; set; }
+        /// <summary>获取或设置当前计划标识</summary>
         public string? CurrentPlanId { get; set; }
     }
 
@@ -803,6 +809,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         private readonly PlanModeManager _owner;
         private readonly ILogger<PlanModeManager>? _logger;
 
+        /// <summary>
+        /// 初始化计划历史 Actor
+        /// </summary>
+        /// <param name="owner">所属计划模式管理器</param>
+        /// <param name="logger">日志记录器（可选）</param>
         public PlanHistoryActor(PlanModeManager owner, ILogger<PlanModeManager>? logger) : base() {
             _owner = owner;
             _logger = logger;

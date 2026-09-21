@@ -11,11 +11,13 @@ public class NamedPipeFactoryTest {
         acceptTask.Wait(5000);
     }
 
+    /// <summary>验证管道缓冲区大小为 65536</summary>
     [Fact]
     public void PipeBufferSize_应为65536() {
         NamedPipeFactory.PipeBufferSize.Should().Be(65536, "65536字节缓冲区足够容纳多条消息,避免写阻塞");
     }
 
+    /// <summary>验证创建服务端返回未连接的管道</summary>
     [Fact]
     public void CreateServer_应返回未连接的管道() {
         var pipeName = $"test-factory-{Guid.NewGuid():N}";
@@ -24,6 +26,7 @@ public class NamedPipeFactoryTest {
         server.IsConnected.Should().BeFalse("刚创建尚未接受连接");
     }
 
+    /// <summary>验证客户端写入服务端应立即收到不阻塞</summary>
     [Fact]
     public async Task CreateServer_客户端写入服务端应立即收到_不阻塞() {
         var pipeName = $"test-factory-recv-{Guid.NewGuid():N}";
@@ -46,6 +49,7 @@ public class NamedPipeFactoryTest {
         Encoding.UTF8.GetString(buf).Should().Be("factory-test-msg");
     }
 
+    /// <summary>验证服务端写入客户端应立即收到不阻塞</summary>
     [Fact]
     public async Task CreateServer_服务端写入客户端应立即收到_不阻塞() {
         var pipeName = $"test-factory-write-{Guid.NewGuid():N}";
@@ -87,6 +91,7 @@ public class NamedPipeFactoryTest {
         await server.FlushAsync();
     }
 
+    /// <summary>验证客户端能连接到 CreateServer 创建的管道</summary>
     [Fact]
     public void CreateClient_应能连接到CreateServer创建的管道() {
         var pipeName = $"test-factory-connect-{Guid.NewGuid():N}";
@@ -98,6 +103,7 @@ public class NamedPipeFactoryTest {
         server.IsConnected.Should().BeTrue("服务端应接受客户端连接");
     }
 
+    /// <summary>验证多消息连续写入不阻塞</summary>
     [Fact]
     public async Task CreateServer_多消息连续写入不阻塞() {
         var pipeName = $"test-factory-multi-{Guid.NewGuid():N}";

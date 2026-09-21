@@ -34,6 +34,13 @@ public sealed class QueryServiceFactory : IQueryServiceFactory {
     IQueryService IQueryServiceFactory.Create(ProviderConfig config, HttpClient? httpClient, ILogger? logger, IFileSystem? fileSystem)
         => Create(config, httpClient, logger, fileSystem, resilientExecutor: null);
 
+    /// <summary>按协议类型创建查询服务。</summary>
+    /// <param name="config">供应商配置。</param>
+    /// <param name="httpClient">HTTP 客户端。</param>
+    /// <param name="logger">日志器。</param>
+    /// <param name="fileSystem">文件系统抽象。</param>
+    /// <param name="resilientExecutor">弹性 HTTP 执行器。</param>
+    /// <returns>查询服务实例。</returns>
     public IQueryService Create(
         ProviderConfig config,
         HttpClient? httpClient = null,

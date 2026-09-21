@@ -13,6 +13,7 @@ internal sealed partial class ChatTimingMiddleware : ServiceEntity, Core.Context
         _debugLog = Diag.IsDebugLog;
     }
 
+    /// <summary>执行中间件。</summary>
     public async IAsyncEnumerable<JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> InvokeAsync(
         Core.Context.ChatMiddlewareContext context,
         JoinCode.Abstractions.Pipeline.StreamMiddlewareDelegate<Core.Context.ChatMiddlewareContext, JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> next,

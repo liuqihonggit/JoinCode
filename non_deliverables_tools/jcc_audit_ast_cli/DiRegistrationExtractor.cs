@@ -11,6 +11,9 @@ namespace JccAuditCli;
 ///  4. [Register] 特性 — 特性标记
 /// </summary>
 public static class DiRegistrationExtractor {
+    /// <summary>从编译中提取 DI 注册信息和构造函数依赖。</summary>
+    /// <param name="compilation">Roslyn 编译。</param>
+    /// <returns>注册信息和依赖的元组。</returns>
     public static (List<ServiceRegistration> Registrations, List<ConstructorDependency> Dependencies) Extract(Compilation compilation) {
         var registrations = new List<ServiceRegistration>();
         var dependencies = new List<ConstructorDependency>();

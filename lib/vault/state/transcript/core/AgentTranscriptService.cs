@@ -178,6 +178,9 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         private readonly AgentTranscriptService _owner;
         private readonly ILogger<AgentTranscriptService>? _logger;
 
+        /// <summary>构造 Agent 转录 Actor。</summary>
+        /// <param name="owner">所属的转录服务。</param>
+        /// <param name="logger">可选的日志记录器。</param>
         public AgentTranscriptActor(AgentTranscriptService owner, ILogger<AgentTranscriptService>? logger) : base() {
             _owner = owner;
             _logger = logger;

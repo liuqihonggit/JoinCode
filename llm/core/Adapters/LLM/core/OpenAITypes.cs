@@ -2,12 +2,15 @@
 namespace Api.LLM;
 
 internal sealed class OpenAIChatRequest {
+    /// <summary>获取或设置模型名称。</summary>
     [JsonPropertyName("model")]
     public string Model { get; set; } = string.Empty;
 
+    /// <summary>获取或设置消息列表。</summary>
     [JsonPropertyName("messages")]
     public List<OpenAIApiMessage> Messages { get; set; } = new();
 
+    /// <summary>获取或设置是否启用流式响应。</summary>
     [JsonPropertyName("stream")]
     public bool Stream { get; set; }
 
@@ -19,30 +22,37 @@ internal sealed class OpenAIChatRequest {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenAIStreamOptions? StreamOptions { get; set; }
 
+    /// <summary>获取或设置采样温度。</summary>
     [JsonPropertyName("temperature")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public float? Temperature { get; set; }
 
+    /// <summary>获取或设置最大生成 token 数。</summary>
     [JsonPropertyName("max_tokens")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? MaxTokens { get; set; }
 
+    /// <summary>获取或设置核采样概率。</summary>
     [JsonPropertyName("top_p")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public float? TopP { get; set; }
 
+    /// <summary>获取或设置频率惩罚。</summary>
     [JsonPropertyName("frequency_penalty")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public float? FrequencyPenalty { get; set; }
 
+    /// <summary>获取或设置存在惩罚。</summary>
     [JsonPropertyName("presence_penalty")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public float? PresencePenalty { get; set; }
 
+    /// <summary>获取或设置工具列表。</summary>
     [JsonPropertyName("tools")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public List<OpenAITool> Tools { get; set; } = [];
 
+    /// <summary>获取或设置工具选择策略。</summary>
     [JsonPropertyName("tool_choice")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ToolChoice { get; set; }
@@ -62,6 +72,7 @@ internal sealed class OpenAIChatRequest {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public List<OpenAITool> ToolDescriptions { get; set; } = [];
 
+    /// <summary>获取或设置推理努力级别。</summary>
     [JsonPropertyName("reasoning_effort")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ReasoningEffort { get; set; }
@@ -79,6 +90,7 @@ internal sealed class OpenAIChatRequest {
 /// 真实 API: stream_options.include_usage=true 时, 最后一个 chunk 包含 usage 字段。
 /// </summary>
 internal sealed class OpenAIStreamOptions {
+    /// <summary>获取或设置是否在最后一个 chunk 包含 usage 字段。</summary>
     [JsonPropertyName("include_usage")]
     public bool IncludeUsage { get; set; }
 }
@@ -90,7 +102,9 @@ internal sealed class OpenAIStreamOptions {
 /// </summary>
 [JsonConverter(typeof(OpenAIMessageContentConverter))]
 internal sealed class OpenAIMessageContent {
+    /// <summary>获取文本内容。</summary>
     public string? Text { get; init; }
+    /// <summary>获取多模态内容块列表。</summary>
     public List<OpenAIContentPart> Parts { get; init; } = [];
 
     public static implicit operator OpenAIMessageContent?(string? text) =>
@@ -105,13 +119,16 @@ internal sealed class OpenAIMessageContent {
 /// 对齐 OpenAI Chat Completions content block 格式（DeepSeek vision 兼容）
 /// </summary>
 internal sealed class OpenAIContentPart {
+    /// <summary>获取或设置内容块类型。</summary>
     [JsonPropertyName("type")]
     public string Type { get; set; } = "text";
 
+    /// <summary>获取或设置文本内容。</summary>
     [JsonPropertyName("text")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Text { get; set; }
 
+    /// <summary>获取或设置图片 URL。</summary>
     [JsonPropertyName("image_url")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenAIImageUrl? ImageUrl { get; set; }
@@ -121,6 +138,7 @@ internal sealed class OpenAIContentPart {
 /// OpenAI image_url — url 为 data:image/xxx;base64,... 内联格式或 http(s) 外链
 /// </summary>
 internal sealed class OpenAIImageUrl {
+    /// <summary>获取或设置图片 URL。</summary>
     [JsonPropertyName("url")]
     public string Url { get; set; } = string.Empty;
 
@@ -131,46 +149,58 @@ internal sealed class OpenAIImageUrl {
 }
 
 internal sealed class OpenAIApiMessage {
+    /// <summary>获取或设置消息角色。</summary>
     [JsonPropertyName("role")]
     public string Role { get; set; } = string.Empty;
 
+    /// <summary>获取或设置消息内容。</summary>
     [JsonPropertyName("content")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenAIMessageContent? Content { get; set; }
 
+    /// <summary>获取或设置推理内容。</summary>
     [JsonPropertyName("reasoning_content")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ReasoningContent { get; set; }
 
+    /// <summary>获取或设置工具调用列表。</summary>
     [JsonPropertyName("tool_calls")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public List<OpenAIToolCall> ToolCalls { get; set; } = [];
 
+    /// <summary>获取或设置工具调用 ID。</summary>
     [JsonPropertyName("tool_call_id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ToolCallId { get; set; }
 
+    /// <summary>获取或设置名称。</summary>
     [JsonPropertyName("name")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Name { get; set; }
 }
 
 internal sealed class OpenAIChatResponse {
+    /// <summary>获取或设置响应 ID。</summary>
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
+    /// <summary>获取或设置对象类型。</summary>
     [JsonPropertyName("object")]
     public string Object { get; set; } = string.Empty;
 
+    /// <summary>获取或设置创建时间戳。</summary>
     [JsonPropertyName("created")]
     public long Created { get; set; }
 
+    /// <summary>获取或设置模型名称。</summary>
     [JsonPropertyName("model")]
     public string Model { get; set; } = string.Empty;
 
+    /// <summary>获取或设置选项列表。</summary>
     [JsonPropertyName("choices")]
     public List<OpenAIChoice> Choices { get; set; } = new();
 
+    /// <summary>获取或设置 token 用量。</summary>
     [JsonPropertyName("usage")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenAIUsage? Usage { get; set; }
@@ -182,60 +212,76 @@ internal sealed class OpenAIChatResponse {
 /// PromptCacheHitTokens + PromptCacheMissTokens → CacheCreationInputTokens/CacheReadInputTokens
 /// </summary>
 internal sealed class OpenAIUsage {
+    /// <summary>获取或设置提示 token 数。</summary>
     [JsonPropertyName("prompt_tokens")]
     public int PromptTokens { get; set; }
 
+    /// <summary>获取或设置完成 token 数。</summary>
     [JsonPropertyName("completion_tokens")]
     public int CompletionTokens { get; set; }
 
+    /// <summary>获取或设置总 token 数。</summary>
     [JsonPropertyName("total_tokens")]
     public int TotalTokens { get; set; }
 
+    /// <summary>获取或设置提示 token 详情。</summary>
     [JsonPropertyName("prompt_tokens_details")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenAIPromptTokensDetails? PromptTokensDetails { get; set; }
 
+    /// <summary>获取或设置提示缓存命中 token 数。</summary>
     [JsonPropertyName("prompt_cache_hit_tokens")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? PromptCacheHitTokens { get; set; }
 
+    /// <summary>获取或设置提示缓存未命中 token 数。</summary>
     [JsonPropertyName("prompt_cache_miss_tokens")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? PromptCacheMissTokens { get; set; }
 }
 
 internal sealed class OpenAIPromptTokensDetails {
+    /// <summary>获取或设置缓存 token 数。</summary>
     [JsonPropertyName("cached_tokens")]
     public int CachedTokens { get; set; }
 }
 
 internal sealed class OpenAIChoice {
+    /// <summary>获取或设置选项索引。</summary>
     [JsonPropertyName("index")]
     public int Index { get; set; }
 
+    /// <summary>获取或设置消息。</summary>
     [JsonPropertyName("message")]
     public OpenAIApiMessage Message { get; set; } = new();
 
+    /// <summary>获取或设置增量消息。</summary>
     [JsonPropertyName("delta")]
     public OpenAIApiMessage? Delta { get; set; }
 
+    /// <summary>获取或设置结束原因。</summary>
     [JsonPropertyName("finish_reason")]
     public string? FinishReason { get; set; }
 }
 
 internal sealed class OpenAIChatChunk {
+    /// <summary>获取或设置 chunk ID。</summary>
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
+    /// <summary>获取或设置对象类型。</summary>
     [JsonPropertyName("object")]
     public string Object { get; set; } = string.Empty;
 
+    /// <summary>获取或设置创建时间戳。</summary>
     [JsonPropertyName("created")]
     public long Created { get; set; }
 
+    /// <summary>获取或设置模型名称。</summary>
     [JsonPropertyName("model")]
     public string Model { get; set; } = string.Empty;
 
+    /// <summary>获取或设置选项列表。</summary>
     [JsonPropertyName("choices")]
     public List<OpenAIChoice> Choices { get; set; } = new();
 
@@ -251,61 +297,74 @@ internal sealed class OpenAIChatChunk {
 }
 
 internal sealed class OpenAITool {
+    /// <summary>获取或设置工具类型。</summary>
     [JsonPropertyName("type")]
     public string Type { get; set; } = "function";
 
+    /// <summary>获取或设置函数定义。</summary>
     [JsonPropertyName("function")]
     public OpenAIFunctionDefinition Function { get; set; } = new();
 }
 
 internal sealed class OpenAIFunctionDefinition {
+    /// <summary>获取或设置函数名称。</summary>
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>获取或设置函数描述。</summary>
     [JsonPropertyName("description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; set; }
 
+    /// <summary>获取或设置函数参数。</summary>
     [JsonPropertyName("parameters")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenAIFunctionParameters? Parameters { get; set; }
 }
 
 internal sealed class OpenAIFunctionParameters : InputSchemaBase {
+    /// <summary>获取或设置参数属性字典。</summary>
     [JsonPropertyName("properties")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, OpenAIParameterProperty> Properties { get; set; } = [];
 }
 
 internal sealed class OpenAIParameterProperty : SchemaProperty {
+    /// <summary>获取或设置枚举值列表。</summary>
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public List<string> Enum { get; set; } = [];
 }
 
 internal sealed class OpenAIToolCall {
+    /// <summary>获取或设置工具调用索引。</summary>
     [JsonPropertyName("index")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Index { get; set; }
 
+    /// <summary>获取或设置工具调用 ID。</summary>
     [JsonPropertyName("id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Id { get; set; }
 
+    /// <summary>获取或设置工具调用类型。</summary>
     [JsonPropertyName("type")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Type { get; set; }
 
+    /// <summary>获取或设置工具调用函数。</summary>
     [JsonPropertyName("function")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public OpenAIToolCallFunction? Function { get; set; }
 }
 
 internal sealed class OpenAIToolCallFunction {
+    /// <summary>获取或设置函数名称。</summary>
     [JsonPropertyName("name")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Name { get; set; }
 
+    /// <summary>获取或设置函数参数 JSON 字符串。</summary>
     [JsonPropertyName("arguments")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Arguments { get; set; }
@@ -315,6 +374,7 @@ internal sealed class OpenAIToolCallFunction {
 /// DeepSeek V4 思考模式选项 — thinking:{"type":"enabled"} 开启思考模式
 /// </summary>
 internal sealed class OpenAIThinkingOptions {
+    /// <summary>获取或设置思考类型。</summary>
     [JsonPropertyName("type")]
     public string Type { get; set; } = string.Empty;
 }
@@ -323,9 +383,11 @@ internal sealed class OpenAIThinkingOptions {
 /// 两阶段工具加载 — MCP 工具分组（只有组名+工具名，不含完整 schema）
 /// </summary>
 internal sealed class OpenAIToolGroup {
+    /// <summary>获取或设置分组名称。</summary>
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>获取或设置工具名称列表。</summary>
     [JsonPropertyName("tools")]
     public List<string> Tools { get; set; } = new();
 }

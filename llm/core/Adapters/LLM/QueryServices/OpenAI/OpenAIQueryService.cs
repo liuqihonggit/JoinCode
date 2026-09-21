@@ -9,6 +9,12 @@ namespace Api.LLM.QueryServices.OpenAI;
 public class OpenAIQueryService : QueryServiceBase {
     private static readonly OpenAICacheProtocol CacheProtocol = new();
 
+    /// <summary>构造 OpenAI 查询服务。</summary>
+    /// <param name="config">供应商配置。</param>
+    /// <param name="httpClient">HTTP 客户端。</param>
+    /// <param name="logger">日志记录器。</param>
+    /// <param name="fs">文件系统。</param>
+    /// <param name="resilientExecutor">弹性 HTTP 执行器。</param>
     public OpenAIQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
         : base(config, httpClient, logger, fs, resilientExecutor) {
     }

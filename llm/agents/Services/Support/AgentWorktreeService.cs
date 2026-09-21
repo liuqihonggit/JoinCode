@@ -662,6 +662,9 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         private readonly AgentWorktreeService _owner;
         private readonly ILogger<AgentWorktreeService>? _logger;
 
+        /// <summary>构造 WorktreeSessionActor。</summary>
+        /// <param name="owner">所属工作树服务。</param>
+        /// <param name="logger">日志器。</param>
         public WorktreeSessionActor(AgentWorktreeService owner, ILogger<AgentWorktreeService>? logger) : base() {
             _owner = owner;
             _logger = logger;

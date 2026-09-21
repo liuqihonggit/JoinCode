@@ -1,15 +1,22 @@
 namespace JoinCode.Abstractions.Models.Agent;
 
 public sealed record TeamAllowedPath {
+    /// <summary>获取允许的路径。</summary>
     public required string Path { get; init; }
+    /// <summary>获取访问级别。</summary>
     public AccessLevel AccessLevel { get; init; } = AccessLevel.Read;
 }
 
 public sealed record TeamMemberInfo {
+    /// <summary>获取 Agent 标识。</summary>
     public required string AgentId { get; init; }
+    /// <summary>获取角色。</summary>
     public string? Role { get; init; }
+    /// <summary>获取是否活跃。</summary>
     public bool IsActive { get; init; } = true;
+    /// <summary>获取加入时间。</summary>
     public DateTime JoinedAt { get; init; } = DateTime.UtcNow;
+    /// <summary>获取颜色标识。</summary>
     public string? Color { get; init; }
 }
 

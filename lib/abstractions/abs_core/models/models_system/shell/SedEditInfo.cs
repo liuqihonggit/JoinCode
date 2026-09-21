@@ -35,7 +35,13 @@ public sealed record SedEditInfo {
 /// sed 验证结果 — 对齐 TS sedValidation
 /// </summary>
 public sealed record SedValidationResult : ShellPermissionCheckResult {
+    /// <summary>构造默认 sed 验证结果。</summary>
     public SedValidationResult() : base(PermissionBehavior.Passthrough) { }
 
+    /// <summary>
+    /// 构造 sed 验证结果。
+    /// </summary>
+    /// <param name="behavior">权限行为。</param>
+    /// <param name="message">消息。</param>
     public SedValidationResult(PermissionBehavior behavior, string? message = null) : base(behavior, message) { }
 }

@@ -7,16 +7,22 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [AttributeUsage(AttributeTargets.Class)]
 public sealed class ChatCommandAttribute : Attribute {
+    /// <summary>获取命令名称。</summary>
     public required string Name { get; init; }
 
+    /// <summary>获取命令描述。</summary>
     public string Description { get; init; } = string.Empty;
 
+    /// <summary>获取命令用法说明。</summary>
     public string Usage { get; init; } = string.Empty;
 
+    /// <summary>获取命令别名数组。</summary>
     public string[] Aliases { get; init; } = Array.Empty<string>();
 
+    /// <summary>获取参数提示。</summary>
     public string ArgumentHint { get; init; } = string.Empty;
 
+    /// <summary>获取命令是否隐藏。</summary>
     public bool IsHidden { get; init; }
 
     /// <summary>

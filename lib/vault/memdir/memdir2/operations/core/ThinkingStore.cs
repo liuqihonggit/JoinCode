@@ -162,6 +162,9 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         private readonly ThinkingStore _owner;
         private readonly ILogger<ThinkingStore>? _logger;
 
+        /// <summary>构造思考记录存储 Actor。</summary>
+        /// <param name="owner">所属 ThinkingStore 实例。</param>
+        /// <param name="logger">日志记录器。</param>
         public ThinkingStoreActor(ThinkingStore owner, ILogger<ThinkingStore>? logger) : base() {
             _owner = owner;
             _logger = logger;
@@ -186,5 +189,6 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
 }
 
 internal sealed class ThinkingStoreData {
+    /// <summary>获取或设置思考记录条目字典（按会话 ID 分组）。</summary>
     public Dictionary<string, List<ThinkingEntry>> Entries { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }

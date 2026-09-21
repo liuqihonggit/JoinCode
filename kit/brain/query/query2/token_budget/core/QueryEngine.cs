@@ -626,9 +626,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine {
 /// 工具调用请求
 /// </summary>
 internal sealed class ToolCallRequest {
+    /// <summary>获取或设置工具名称</summary>
     public string ToolName { get; set; } = string.Empty;
+    /// <summary>获取或设置工具调用 ID</summary>
     public string? ToolCallId { get; set; }
+    /// <summary>获取或设置原始参数字符串</summary>
     public string? RawArguments { get; set; }
+    /// <summary>获取或设置解析后的参数字典</summary>
     public Dictionary<string, JsonElement> Arguments { get; set; } = new();
 }
 
@@ -636,11 +640,17 @@ internal sealed class ToolCallRequest {
 /// 迭代执行结果
 /// </summary>
 internal sealed class QueryIterationResult {
+    /// <summary>获取迭代输出内容</summary>
     public string? Content { get; init; }
+    /// <summary>获取首个工具调用（存在时）</summary>
     public ToolCallRequest? ToolCall => ToolCalls.Count > 0 ? ToolCalls[0] : null;
+    /// <summary>获取本轮所有工具调用列表</summary>
     public List<ToolCallRequest> ToolCalls { get; init; } = new();
+    /// <summary>获取本轮产生的流式块列表</summary>
     public List<QueryStreamChunk> Chunks { get; init; } = new();
+    /// <summary>获取输入 Token 数</summary>
     public int InputTokens { get; init; }
+    /// <summary>获取输出 Token 数</summary>
     public int OutputTokens { get; init; }
 }
 

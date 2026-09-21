@@ -629,7 +629,9 @@ public class PowerShellToolHandlers : ShellToolBase {
     }
 
     private record ConstrainedLanguageModeCheck {
+        /// <summary>获取是否处于约束语言模式。</summary>
         public bool IsConstrained { get; init; }
+        /// <summary>获取警告信息。</summary>
         public string? Warning { get; init; }
     }
 }

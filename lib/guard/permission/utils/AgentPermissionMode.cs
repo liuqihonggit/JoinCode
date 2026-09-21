@@ -298,6 +298,9 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
         private readonly AgentPermissionManager _owner;
         private readonly ILogger<AgentPermissionManager>? _logger;
 
+        /// <summary>构造 Agent 权限管理 Actor。</summary>
+        /// <param name="owner">所属 AgentPermissionManager 实例。</param>
+        /// <param name="logger">日志记录器。</param>
         public PermissionActor(AgentPermissionManager owner, ILogger<AgentPermissionManager>? logger) : base() {
             _owner = owner;
             _logger = logger;

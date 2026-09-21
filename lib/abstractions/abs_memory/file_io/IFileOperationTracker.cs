@@ -5,8 +5,11 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 文件操作记录
 /// </summary>
 public sealed class FileOperationEntry {
+    /// <summary>获取文件路径。</summary>
     public required string FilePath { get; init; }
+    /// <summary>获取操作类型。</summary>
     public required FileOperationType OperationType { get; init; }
+    /// <summary>获取时间戳。</summary>
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 

@@ -8,11 +8,22 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
     private readonly IProviderDefinitionRegistry _registry;
     private readonly IConsoleOutput _console;
 
+    /// <summary>
+    /// 构造供应商配置中间件 — 注入供应商注册表和控制台输出
+    /// </summary>
+    /// <param name="registry">供应商定义注册表</param>
+    /// <param name="console">控制台输出（用于掩码读取 API Key）</param>
     public ProviderSetupStep(IProviderDefinitionRegistry registry, IConsoleOutput console) {
         _registry = registry;
         _console = console;
     }
 
+    /// <summary>
+    /// 中间件入口 — 检测 API Key 是否已配置，未配置时展示供应商菜单引导用户完成配置后调用下一环节
+    /// </summary>
+    /// <param name="context">启动上下文</param>
+    /// <param name="next">下一中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         context.HasApiKey = !string.IsNullOrEmpty(context.Config.Provider.ApiKey);
         if (context.HasApiKey) {

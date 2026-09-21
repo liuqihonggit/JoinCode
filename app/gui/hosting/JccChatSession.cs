@@ -223,6 +223,7 @@ internal sealed class JccChatSession : IJccChatSession {
         return new JccChatSession(result.Services, result.ChatService, result.Config, executionSettings, disposeAsync: disposeAsync);
     }
 
+    /// <summary>会话是否就绪 — 引擎会话始终返回 true</summary>
     public bool IsReady => true;
 
     /// <inheritdoc />
@@ -399,6 +400,7 @@ internal sealed class JccChatSession : IJccChatSession {
         }
     }
 
+    /// <summary>初始化会话 — 引擎会话无需额外初始化，空实现</summary>
     public Task InitializeAsync(CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
@@ -432,6 +434,7 @@ internal sealed class JccChatSession : IJccChatSession {
         return Task.CompletedTask;
     }
 
+    /// <summary>流式发送用户消息 — 委托带权限确认重试的事件流实现</summary>
     public IAsyncEnumerable<ChatStreamEvent> StreamAsync(
         string message,
         CancellationToken cancellationToken = default)
@@ -443,8 +446,10 @@ internal sealed class JccChatSession : IJccChatSession {
     /// </summary>
     public Func<string, bool>? SlashConfirmHandler { get; set; }
 
+    /// <summary>退出请求事件 — 斜杠命令触发 /exit 时上浮到 UI 关闭窗口</summary>
     public event Action? ExitRequested;
 
+    /// <summary>执行斜杠命令 — 委托共享 SlashCommandRunner，确认回调与退出请求经注入上浮</summary>
     public async Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default) {
         var result = await SlashCommandRunner.RunAsync(
             input,
@@ -528,6 +533,7 @@ internal sealed class JccChatSession : IJccChatSession {
         }
     }
 
+    /// <summary>获取底层对话消息记录 — 委托引擎 IChatService.GetMessageListAsync</summary>
     public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
         => _chat.GetMessageListAsync(cancellationToken);
 
@@ -560,9 +566,11 @@ internal sealed class JccChatSession : IJccChatSession {
             await configService.SetAsync(ConfigKeyEnumConstants.Theme, theme.ToValue(), cancellationToken);
     }
 
+    /// <summary>清空当前会话历史 — 委托引擎 IChatService.ClearHistoryAsync</summary>
     public Task ClearHistoryAsync(CancellationToken cancellationToken = default)
         => _chat.ClearHistoryAsync(cancellationToken);
 
+    /// <summary>回退上一轮对话 — 委托引擎 IChatService.RewindLastTurnAsync</summary>
     public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
         => _chat.RewindLastTurnAsync(cancellationToken);
 
@@ -610,6 +618,7 @@ internal sealed class JccChatSession : IJccChatSession {
         return list;
     }
 
+    /// <summary>异步释放会话资源 — 释放底层引擎 Host</summary>
     public async ValueTask DisposeAsync() {
         if (_disposeAsync is not null) {
             await _disposeAsync();

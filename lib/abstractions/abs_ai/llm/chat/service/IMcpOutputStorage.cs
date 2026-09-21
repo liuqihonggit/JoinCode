@@ -18,7 +18,10 @@ public interface IMcpOutputStorage {
 /// MCP 二进制内容持久化结果 — 对齐 TS mcpOutputStorage PersistBinaryResult
 /// </summary>
 public sealed class PersistBinaryResult {
+    /// <summary>获取持久化文件路径。</summary>
     public required string Filepath { get; init; }
+    /// <summary>获取内容大小（字节）。</summary>
     public required int Size { get; init; }
+    /// <summary>获取文件扩展名。</summary>
     public required string Ext { get; init; }
 }

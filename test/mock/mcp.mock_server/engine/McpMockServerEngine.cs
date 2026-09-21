@@ -13,6 +13,11 @@ public sealed class McpMockServerEngine {
     private int _requestCount;
     private int _toolCallCount;
 
+    /// <summary>
+    /// 初始化 MCP Mock 服务器引擎
+    /// </summary>
+    /// <param name="config">服务器配置</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public McpMockServerEngine(McpMockServerConfig config, ILogger? logger = null) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;

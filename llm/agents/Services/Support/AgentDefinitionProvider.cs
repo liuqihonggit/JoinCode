@@ -676,6 +676,9 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         private readonly AgentDefinitionProvider _owner;
         private readonly ILogger<AgentDefinitionProvider>? _logger;
 
+        /// <summary>构造代理定义加载 Actor。</summary>
+        /// <param name="owner">所属的代理定义提供者。</param>
+        /// <param name="logger">可选的日志记录器。</param>
         public DefinitionLoaderActor(AgentDefinitionProvider owner, ILogger<AgentDefinitionProvider>? logger) : base() {
             _owner = owner;
             _logger = logger;

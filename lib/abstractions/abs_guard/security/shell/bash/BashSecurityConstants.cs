@@ -60,6 +60,8 @@ public static class BashSecurityConstants {
         StringComparer.OrdinalIgnoreCase,
         "export", "local", "readonly", "declare", "typeset", "nameref");
 
+    /// <summary>检查参数数组是否包含 exec 标志（-e 或 -s）。</summary>
+    /// <param name="a">参数数组。</param>
     public static bool HasExecFlag(string[] a) {
         for (var i = 1; i < a.Length; i++) {
             if (a[i].StartsWith('-') && a[i].Length > 1) {
@@ -71,6 +73,8 @@ public static class BashSecurityConstants {
         return false;
     }
 
+    /// <summary>检查 compgen 命令是否包含危险标志（-C/-F/-W，会执行命令）。</summary>
+    /// <param name="a">参数数组。</param>
     public static bool HasCompgenDangerFlag(string[] a) {
         for (var i = 1; i < a.Length; i++) {
             if (a[i].StartsWith('-') && a[i].Length > 1 && a[i][1] != '-') {

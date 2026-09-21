@@ -1,10 +1,15 @@
 namespace JoinCode.Abstractions.Interfaces.Scheduling;
 
 public sealed record CronFields {
+    /// <summary>获取分钟字段取值数组。</summary>
     public required int[] Minute { get; init; }
+    /// <summary>获取小时字段取值数组。</summary>
     public required int[] Hour { get; init; }
+    /// <summary>获取月份中的天字段取值数组。</summary>
     public required int[] DayOfMonth { get; init; }
+    /// <summary>获取月份字段取值数组。</summary>
     public required int[] Month { get; init; }
+    /// <summary>获取星期中的天字段取值数组。</summary>
     public required int[] DayOfWeek { get; init; }
 }
 
@@ -24,6 +29,7 @@ public static class CronExpressionParser {
     private static readonly Regex RangePattern = new(@"^(\d+)-(\d+)(?:/(\d+))?$", RegexOptions.Compiled);
     private static readonly Regex SinglePattern = new(@"^(\d+)$", RegexOptions.Compiled);
 
+    /// <summary>解析 cron 表达式为 CronFields,失败返回 null。</summary>
     public static CronFields? Parse(string expression) {
         var parts = expression.Trim().Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 5) return null;
@@ -44,6 +50,7 @@ public static class CronExpressionParser {
         };
     }
 
+    /// <summary>判断 cron 表达式是否合法。</summary>
     public static bool IsValid(string expression) {
         return Parse(expression) != null;
     }

@@ -5,9 +5,12 @@ namespace JoinCode.Abstractions.Entity;
 /// 额外字段: Language, IsEnabled
 /// </summary>
 public sealed class ReplSessionEntity : ToolExecutionEntity {
+    /// <summary>获取 REPL 语言。</summary>
     public string Language { get; init; } = "csharp";
+    /// <summary>获取或设置是否启用。</summary>
     public bool IsEnabled { get; set; }
 
+    /// <summary>构造 ReplSessionEntity 实例。</summary>
     public ReplSessionEntity(
         string language = "csharp",
         string? toolUseId = null,

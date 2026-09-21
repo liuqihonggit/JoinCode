@@ -163,6 +163,7 @@ internal sealed class DesktopPulseOverlay : IDisposable {
         }
     }
 
+    /// <summary>释放资源。</summary>
     public void Dispose() {
         if (_disposed)
             return;

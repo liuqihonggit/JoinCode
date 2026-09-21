@@ -85,13 +85,21 @@ public sealed partial class BashAstSecurityWalker {
     }
 
     private sealed class StringOrTooComplex {
+        /// <summary>获取字符串值。</summary>
         public string Value { get; }
+        /// <summary>获取过于复杂的结果（为 null 表示非复杂）。</summary>
         public BashAstSecurityResult? TooComplex { get; }
+        /// <summary>获取是否过于复杂。</summary>
         public bool IsTooComplex => TooComplex is not null;
 
+        /// <summary>构造字符串结果。</summary>
+        /// <param name="value">字符串值。</param>
         public StringOrTooComplex(string value) { Value = value; TooComplex = null; }
+        /// <summary>构造过于复杂的结果。</summary>
+        /// <param name="tooComplex">过于复杂的安全结果。</param>
         public StringOrTooComplex(BashAstSecurityResult tooComplex) { Value = ""; TooComplex = tooComplex; }
 
+        /// <summary>获取过于复杂的结果，若不存在则抛出异常。</summary>
         public BashAstSecurityResult GetTooComplex() =>
             TooComplex ?? throw new InvalidOperationException("TooComplex is null when IsTooComplex is false.");
     }
@@ -99,13 +107,21 @@ public sealed partial class BashAstSecurityWalker {
     private sealed record VarAssignmentResult(string Name, string Value, bool IsAppend);
 
     private sealed class VarAssignmentOrTooComplex {
+        /// <summary>获取变量赋值结果（为 null 表示过于复杂）。</summary>
         public VarAssignmentResult? Result { get; }
+        /// <summary>获取过于复杂的结果（为 null 表示非复杂）。</summary>
         public BashAstSecurityResult? TooComplex { get; }
+        /// <summary>获取是否过于复杂。</summary>
         public bool IsTooComplex => TooComplex is not null;
 
+        /// <summary>构造变量赋值结果。</summary>
+        /// <param name="result">变量赋值结果。</param>
         public VarAssignmentOrTooComplex(VarAssignmentResult result) { Result = result; TooComplex = null; }
+        /// <summary>构造过于复杂的结果。</summary>
+        /// <param name="tooComplex">过于复杂的安全结果。</param>
         public VarAssignmentOrTooComplex(BashAstSecurityResult tooComplex) { Result = null; TooComplex = tooComplex; }
 
+        /// <summary>获取变量赋值结果，若不存在则抛出异常。</summary>
         public VarAssignmentResult GetResult() =>
             Result ?? throw new InvalidOperationException("Result is null when IsTooComplex is true.");
     }
@@ -113,13 +129,21 @@ public sealed partial class BashAstSecurityWalker {
     private sealed record RedirectResult(string Op, string Target);
 
     private sealed class RedirectOrTooComplex {
+        /// <summary>获取重定向结果（为 null 表示过于复杂）。</summary>
         public RedirectResult? Result { get; }
+        /// <summary>获取过于复杂的结果（为 null 表示非复杂）。</summary>
         public BashAstSecurityResult? TooComplex { get; }
+        /// <summary>获取是否过于复杂。</summary>
         public bool IsTooComplex => TooComplex is not null;
 
+        /// <summary>构造重定向结果。</summary>
+        /// <param name="result">重定向结果。</param>
         public RedirectOrTooComplex(RedirectResult result) { Result = result; TooComplex = null; }
+        /// <summary>构造过于复杂的结果。</summary>
+        /// <param name="tooComplex">过于复杂的安全结果。</param>
         public RedirectOrTooComplex(BashAstSecurityResult tooComplex) { Result = null; TooComplex = tooComplex; }
 
+        /// <summary>获取重定向结果，若不存在则抛出异常。</summary>
         public RedirectResult GetResult() =>
             Result ?? throw new InvalidOperationException("Result is null when IsTooComplex is true.");
     }

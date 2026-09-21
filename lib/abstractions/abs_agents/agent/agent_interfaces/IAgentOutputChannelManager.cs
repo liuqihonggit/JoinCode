@@ -42,7 +42,9 @@ public enum AgentOutputChunkType {
 /// 活跃 Agent 输出信息
 /// </summary>
 public sealed record AgentOutputInfo {
+    /// <summary>获取 Agent 标识。</summary>
     public required string AgentId { get; init; }
+    /// <summary>获取显示名称。</summary>
     public string? DisplayName { get; init; }
 }
 

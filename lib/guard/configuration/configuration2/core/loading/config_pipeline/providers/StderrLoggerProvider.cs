@@ -36,10 +36,22 @@ internal sealed class StderrLogger : ILogger {
         _minLevel = minLevel;
     }
 
+    /// <summary>开始日志作用域。</summary>
+    /// <param name="state">作用域状态。</param>
+    /// <returns>作用域 disposable，本实现返回 null。</returns>
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
+    /// <summary>判断指定日志级别是否启用。</summary>
+    /// <param name="logLevel">日志级别。</param>
+    /// <returns>启用返回 true。</returns>
     public bool IsEnabled(LogLevel logLevel) => logLevel >= _minLevel;
 
+    /// <summary>写入日志到 stderr。</summary>
+    /// <param name="logLevel">日志级别。</param>
+    /// <param name="eventId">事件 ID。</param>
+    /// <param name="state">日志状态。</param>
+    /// <param name="exception">异常对象。</param>
+    /// <param name="formatter">格式化函数。</param>
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) {
         if (!IsEnabled(logLevel)) return;
 

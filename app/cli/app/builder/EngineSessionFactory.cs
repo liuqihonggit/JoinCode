@@ -14,11 +14,17 @@ public interface IAsyncHost : IHost, IAsyncDisposable;
 /// </summary>
 internal sealed class AsyncHostWrapper : IAsyncHost {
     private readonly IHost _inner;
+    /// <summary>构造函数 — 包装指定的 <paramref name="inner"/> Host 实例</summary>
     public AsyncHostWrapper(IHost inner) => _inner = inner;
+    /// <summary>获取 DI 服务提供者 — 透传到内部 Host</summary>
     public IServiceProvider Services => _inner.Services;
+    /// <summary>启动 Host — 透传到内部 Host</summary>
     public Task StartAsync(CancellationToken cancellationToken = default) => _inner.StartAsync(cancellationToken);
+    /// <summary>停止 Host — 透传到内部 Host</summary>
     public Task StopAsync(CancellationToken cancellationToken = default) => _inner.StopAsync(cancellationToken);
+    /// <summary>同步释放 — 透传到内部 Host</summary>
     public void Dispose() => _inner.Dispose();
+    /// <summary>异步释放 — 优先用内部 Host 的 DisposeAsync,回退到同步 Dispose</summary>
     public async ValueTask DisposeAsync() {
         if (_inner is IAsyncDisposable ad)
             await ad.DisposeAsync().ConfigureAwait(false);

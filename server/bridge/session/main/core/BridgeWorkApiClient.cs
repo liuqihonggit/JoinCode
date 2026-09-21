@@ -8,6 +8,11 @@ internal sealed class BridgeWorkApiClient {
     private readonly BridgeApiClient _apiClient;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// 构造 Bridge 工作 API 客户端。
+    /// </summary>
+    /// <param name="apiClient">Bridge API 客户端。</param>
+    /// <param name="logger">日志记录器，可选。</param>
     public BridgeWorkApiClient(BridgeApiClient apiClient, ILogger? logger) {
         _apiClient = apiClient;
         _logger = logger;

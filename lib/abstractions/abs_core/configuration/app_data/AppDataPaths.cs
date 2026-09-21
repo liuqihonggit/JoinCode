@@ -106,6 +106,7 @@ public sealed record AppDataPaths(
     /// </summary>
     public string SettingsFilePath => Path.Combine(JccDirectory, SettingsFileName);
 
+    /// <summary>获取全局配置文件的完整路径。</summary>
     public string GlobalConfigFilePath => Path.Combine(JccDirectory, GlobalConfigFileName);
 
     /// <summary>

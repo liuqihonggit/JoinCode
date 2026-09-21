@@ -222,6 +222,12 @@ public sealed partial class MemoryIndex {
 /// ConcurrentDictionary 扩展
 /// </summary>
 internal static class ConcurrentDictionaryExtensions {
+    /// <summary>添加或更新字典中的值。</summary>
+    /// <param name="dictionary">目标字典。</param>
+    /// <param name="key">键。</param>
+    /// <param name="addValue">键不存在时添加的值。</param>
+    /// <param name="updateValueFactory">键存在时更新值的工厂函数。</param>
+    /// <returns>添加或更新后的值。</returns>
     public static TValue AddOrUpdate<TKey, TValue>(
         this ConcurrentDictionary<TKey, TValue> dictionary,
         TKey key,

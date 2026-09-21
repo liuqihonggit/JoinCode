@@ -322,10 +322,15 @@ public partial class ChatService : IChatService {
 internal sealed class FileReadTracker : IFileReadListener {
     private readonly ToolUseContext _toolUseContext;
 
+    /// <summary>
+    /// 初始化文件读取追踪器
+    /// </summary>
+    /// <param name="toolUseContext">工具使用上下文</param>
     public FileReadTracker(ToolUseContext toolUseContext) {
         _toolUseContext = toolUseContext;
     }
 
+    /// <summary>记录文件读取事件,追踪最近读取的文件路径</summary>
     public void OnFileRead(FileReadEventArgs e) {
         _toolUseContext.RecordFileRead(e.FilePath);
     }

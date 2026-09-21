@@ -194,9 +194,13 @@ public sealed class ToolUseContext {
 /// 已调用的技能条目 — 对齐 TS STATE.invokedSkills Map entry
 /// </summary>
 public sealed class InvokedSkillEntry {
+    /// <summary>获取技能名称。</summary>
     public required string Name { get; init; }
+    /// <summary>获取技能路径。</summary>
     public string? Path { get; init; }
+    /// <summary>获取技能内容。</summary>
     public string? Content { get; init; }
+    /// <summary>获取调用时间。</summary>
     public DateTime InvokedAt { get; init; }
 }
 

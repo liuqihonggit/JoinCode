@@ -13,7 +13,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors />
     <WarningsNotAsErrors />
-    <NoWarn>$(NoWarn);CS1591;VSTHRD002;VSTHRD100;VSTHRD101;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200;JCC10004;JCC10007</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;VSTHRD002;VSTHRD100;VSTHRD101;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200;JCC10007</NoWarn>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SatelliteResourceLanguages>zh-CN</SatelliteResourceLanguages>
     <!-- 分析器开关：/p:JccAnalyzers=false 禁用自定义分析器(AotSafety+CodeFixes)，加速迭代编译 -->

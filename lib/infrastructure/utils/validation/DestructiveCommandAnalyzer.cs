@@ -103,11 +103,17 @@ public static class DestructiveCommandAnalyzer {
     /// 内部使用的命令定义，包含预编译的正则表达式
     /// </summary>
     private sealed record CompiledCommandDefinition {
+        /// <summary>获取命令模式字符串。</summary>
         public required string Pattern { get; init; }
+        /// <summary>获取危险等级。</summary>
         public required DangerLevel Level { get; init; }
+        /// <summary>获取命令描述。</summary>
         public required string Description { get; init; }
+        /// <summary>获取警告消息。</summary>
         public required string WarningMessage { get; init; }
+        /// <summary>获取建议提示。</summary>
         public string? Suggestion { get; init; }
+        /// <summary>获取预编译的正则表达式。</summary>
         public Regex? CompiledRegex { get; init; }
     }
 

@@ -15,6 +15,7 @@ public sealed class RegisterAttribute : Attribute {
     /// </summary>
     public ServiceLifetime Lifetime { get; }
 
+    /// <summary>构造 RegisterAttribute 实例。</summary>
     public RegisterAttribute(Type interfaceType, ServiceLifetime lifetime) {
         InterfaceType = interfaceType ?? throw new ArgumentNullException(nameof(interfaceType));
         Lifetime = lifetime;

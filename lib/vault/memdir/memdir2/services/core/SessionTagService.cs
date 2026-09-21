@@ -139,6 +139,9 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
         private readonly SessionTagService _owner;
         private readonly ILogger<SessionTagService>? _logger;
 
+        /// <summary>构造会话标签 Actor。</summary>
+        /// <param name="owner">所属的会话标签服务。</param>
+        /// <param name="logger">可选的日志记录器。</param>
         public SessionTagActor(SessionTagService owner, ILogger<SessionTagService>? logger) : base() {
             _owner = owner;
             _logger = logger;
@@ -158,5 +161,6 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
 }
 
 internal sealed class SessionTagData {
+    /// <summary>获取或设置会话标签条目字典。</summary>
     public Dictionary<string, List<string>> Entries { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }

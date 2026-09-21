@@ -1,6 +1,7 @@
 namespace JoinCode.Abstractions.Services;
 
 public static class OAuth2TokenExchange {
+    /// <summary>交换 OAuth2 令牌。</summary>
     public static async Task<OAuth2TokenResponse> ExchangeTokenAsync(
         HttpClient httpClient,
         string tokenEndpoint,

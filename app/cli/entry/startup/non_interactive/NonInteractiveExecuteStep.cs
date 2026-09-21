@@ -3,6 +3,10 @@ namespace JoinCode.Entry;
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddleware<StartupContext> {
 
+    /// <summary>执行非交互模式用户输入处理中间件 — 将提示词送入会话处理并捕获超时/取消/通用异常，正常完成后传递给下一个中间件</summary>
+    /// <param name="context">启动上下文，包含会话、配置与输出契约</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         Diag.WriteLine("[STEP] ExecuteStep start");
         var session = context.Session;

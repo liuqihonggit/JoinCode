@@ -16,6 +16,9 @@ internal sealed class BridgePointerManager : IDisposable {
     /// <summary>当前刷新定时器 — 供管道上下文传递</summary>
     public Timer? RefreshTimer => _refreshTimer;
 
+    /// <summary>构造 BridgePointerManager。</summary>
+    /// <param name="pointerService">指针服务。</param>
+    /// <param name="logger">日志器。</param>
     public BridgePointerManager(BridgePointerService pointerService, ILogger? logger) {
         _pointerService = pointerService;
         _logger = logger;
@@ -61,6 +64,7 @@ internal sealed class BridgePointerManager : IDisposable {
         _refreshTimer = null;
     }
 
+    /// <summary>释放资源。</summary>
     public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _refreshTimer?.Dispose();

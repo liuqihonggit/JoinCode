@@ -8,6 +8,9 @@ internal sealed class BridgeRequestExecutor {
     private readonly BridgeApiOptions _options;
     private readonly ILogger? _logger;
 
+    /// <summary>构造 Bridge 请求执行器。</summary>
+    /// <param name="options">Bridge API 选项。</param>
+    /// <param name="logger">日志记录器。</param>
     public BridgeRequestExecutor(BridgeApiOptions options, ILogger? logger) {
         _options = options;
         _logger = logger;

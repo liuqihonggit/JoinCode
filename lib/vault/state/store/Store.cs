@@ -190,11 +190,15 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
         private readonly StateChangedHandler<TState> _handler;
         private int _disposed;
 
+        /// <summary>构造订阅可释放对象。</summary>
+        /// <param name="store">状态存储。</param>
+        /// <param name="handler">状态变更处理器。</param>
         public SubscriptionDisposable(Store<TState> store, StateChangedHandler<TState> handler) {
             _store = store;
             _handler = handler;
         }
 
+        /// <summary>释放资源。</summary>
         public void Dispose() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _store.Unsubscribe(_handler);

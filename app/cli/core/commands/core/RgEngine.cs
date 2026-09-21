@@ -337,12 +337,15 @@ internal sealed record RgOutcome(
     int? AppliedOffset,
     bool Success,
     string? Error) {
+    /// <summary>构造搜索成功结果，自动汇总所有文件的匹配总数。</summary>
     public static RgOutcome Ok(IReadOnlyList<RgFileResult> results, int? limit, int? offset)
         => new(results, results.Sum(r => r.MatchCount), limit, offset, true, null);
 
+    /// <summary>构造空结果（无匹配文件），表示搜索成功但未命中。</summary>
     public static RgOutcome Empty()
         => new(Array.Empty<RgFileResult>(), 0, null, null, true, null);
 
+    /// <summary>构造搜索失败结果，携带错误信息。</summary>
     public static RgOutcome Failure(string error)
         => new(Array.Empty<RgFileResult>(), 0, null, null, false, error);
 }

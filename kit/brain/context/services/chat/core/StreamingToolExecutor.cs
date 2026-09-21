@@ -341,12 +341,19 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor {
     }
 
     private sealed class QueuedTool {
+        /// <summary>获取工具调用条目</summary>
         public required ToolCallEntry Entry { get; init; }
+        /// <summary>获取原始顺序索引</summary>
         public required int OriginalIndex { get; init; }
+        /// <summary>获取或设置是否并发安全</summary>
         public bool IsConcurrencySafe { get; set; }
+        /// <summary>获取或设置是否已确定并发安全性</summary>
         public bool IsConcurrencySafeDetermined { get; set; }
+        /// <summary>获取或设置工具执行状态</summary>
         public required ToolStatus Status { get; set; }
+        /// <summary>获取任务完成源</summary>
         public required TaskCompletionSource<StreamingToolResult> CompletionSource { get; init; }
+        /// <summary>获取或设置解析后的参数字典</summary>
         public Dictionary<string, JsonElement> ParsedArguments { get; set; } = [];
     }
 }

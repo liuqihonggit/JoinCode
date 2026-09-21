@@ -7,6 +7,10 @@ namespace JoinCode.Entry;
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class StartupLoggingMiddleware : ServiceEntity, IMiddleware<StartupContext> {
 
+    /// <summary>执行启动日志中间件 — 记录启动总耗时并统一捕获异常（用户取消/通用异常）后传递给下一个中间件</summary>
+    /// <param name="context">启动上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var sw = System.Diagnostics.Stopwatch.StartNew();
 

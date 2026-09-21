@@ -4,9 +4,13 @@ namespace JoinCode.Abstractions.Prompts;
 /// 系统提示词部分 - 表示系统提示词的一个可组合部分
 /// </summary>
 public sealed class SystemPromptSection {
+    /// <summary>获取名称。</summary>
     public string Name { get; }
+    /// <summary>获取同步计算函数。</summary>
     public Func<string?> Compute { get; }
+    /// <summary>获取异步计算函数。</summary>
     public Func<Task<string?>>? ComputeAsync { get; }
+    /// <summary>获取是否破坏缓存。</summary>
     public bool CacheBreak { get; }
 
     private SystemPromptSection(string name, Func<string?> compute, Func<Task<string?>>? computeAsync, bool cacheBreak) {

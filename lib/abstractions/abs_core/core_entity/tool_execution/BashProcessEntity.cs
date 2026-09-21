@@ -5,12 +5,18 @@ namespace JoinCode.Abstractions.Entity;
 /// 超时检测+强制终止，避免僵尸进程
 /// </summary>
 public sealed class BashProcessEntity : ToolExecutionEntity {
+    /// <summary>获取或设置进程标识。</summary>
     public int? ProcessId { get; set; }
+    /// <summary>获取命令。</summary>
     public string? Command { get; init; }
+    /// <summary>获取工作目录。</summary>
     public string? WorkingDirectory { get; init; }
+    /// <summary>获取或设置进程状态。</summary>
     public BashProcessStatus Status { get; set; } = BashProcessStatus.Running;
+    /// <summary>获取或设置退出码。</summary>
     public int? ExitCode { get; set; }
 
+    /// <summary>构造 Shell 命令进程实体。</summary>
     public BashProcessEntity(
         int? processId = null,
         string? command = null,

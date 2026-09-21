@@ -5,6 +5,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// </summary>
 [ToolPrompt(ToolName = CodeToolName.LSP, Category = ToolPromptCategory.System)]
 public static class LSPToolPrompt {
+    /// <summary>获取 LSP 工具描述。</summary>
     public static string GetDescription() => """
         与语言服务器协议（LSP）服务器交互以获取代码智能功能。
 

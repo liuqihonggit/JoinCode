@@ -36,6 +36,7 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
 
     /// <summary>应用设置变更命令 — 带 TaskCompletionSource 让调用方等待处理完成</summary>
     private sealed record ApplySettingsCmd : SettingsChangeCommand {
+        /// <summary>获取任务完成源。</summary>
         public TaskCompletionSource<bool> Tcs { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 

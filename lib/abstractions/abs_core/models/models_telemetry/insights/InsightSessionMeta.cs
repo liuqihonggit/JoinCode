@@ -5,9 +5,13 @@ namespace JoinCode.Abstractions.Insights;
 /// 注意: 与 LLM/Chat/Session/SessionMeta 不同，后者用于上下文压缩缓存
 /// </summary>
 public sealed class InsightSessionMeta {
+    /// <summary>获取会话标识。</summary>
     public string SessionId { get; init; } = string.Empty;
+    /// <summary>获取项目路径。</summary>
     public string ProjectPath { get; init; } = string.Empty;
+    /// <summary>获取开始时间。</summary>
     public DateTime StartTime { get; init; }
+    /// <summary>获取持续时长(分钟)。</summary>
     public double DurationMinutes { get; init; }
 
     /// <summary>用户消息数（仅人类消息，不含 tool_result）</summary>

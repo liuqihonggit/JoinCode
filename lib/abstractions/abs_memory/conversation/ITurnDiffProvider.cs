@@ -33,10 +33,16 @@ public interface ITurnDiffProvider {
 /// Turn Diff 快照 — 用于跨层传递（不依赖 Host 层类型）
 /// </summary>
 public sealed record TurnDiffSnapshot {
+    /// <summary>获取轮次索引。</summary>
     public required int TurnIndex { get; init; }
+    /// <summary>获取用户提示预览。</summary>
     public required string? UserPromptPreview { get; init; }
+    /// <summary>获取时间戳。</summary>
     public required DateTimeOffset Timestamp { get; init; }
+    /// <summary>获取涉及文件数。</summary>
     public required int FilesCount { get; init; }
+    /// <summary>获取新增行数。</summary>
     public required int LinesAdded { get; init; }
+    /// <summary>获取删除行数。</summary>
     public required int LinesRemoved { get; init; }
 }

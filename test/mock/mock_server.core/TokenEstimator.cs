@@ -1,6 +1,7 @@
 namespace MockServer.Core;
 
 public static class TokenEstimator {
+    /// <summary>从消息请求估算 Token 数量。</summary>
     public static int EstimateFromMessages(JsonElement request) {
         var totalChars = 0;
 
@@ -47,6 +48,7 @@ public static class TokenEstimator {
         return totalChars / 4;
     }
 
+    /// <summary>提取系统前缀文本。</summary>
     public static string ExtractSystemPrefix(JsonElement request) {
         if (request.TryGetProperty("system", out var system) && system.ValueKind == JsonValueKind.Array && system.GetArrayLength() > 0) {
             var firstBlock = system[0];

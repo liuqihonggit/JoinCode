@@ -14,9 +14,13 @@ public static class MessageRoles {
 /// HTTP 请求信息
 /// </summary>
 public sealed class HttpRequestInfo {
+    /// <summary>获取 HTTP 方法</summary>
     public string Method { get; init; } = string.Empty;
+    /// <summary>获取请求路径</summary>
     public string Path { get; init; } = string.Empty;
+    /// <summary>获取请求头字典</summary>
     public Dictionary<string, string> Headers { get; init; } = new();
+    /// <summary>获取请求体</summary>
     public string Body { get; init; } = string.Empty;
 }
 
@@ -24,10 +28,15 @@ public sealed class HttpRequestInfo {
 /// 聊天完成请求
 /// </summary>
 public sealed class ChatCompletionRequest {
+    /// <summary>获取模型名称</summary>
     public string Model { get; init; } = string.Empty;
+    /// <summary>获取消息列表</summary>
     public List<ApiMessage> Messages { get; init; } = new();
+    /// <summary>获取采样温度</summary>
     public double? Temperature { get; init; }
+    /// <summary>获取最大令牌数</summary>
     public int? MaxTokens { get; init; }
+    /// <summary>获取是否流式输出</summary>
     public bool? Stream { get; init; }
 }
 
@@ -35,7 +44,9 @@ public sealed class ChatCompletionRequest {
 /// 聊天消息
 /// </summary>
 public sealed class ApiMessage {
+    /// <summary>获取角色类型</summary>
     public string Role { get; init; } = string.Empty;
+    /// <summary>获取文本内容</summary>
     public string Content { get; init; } = string.Empty;
 }
 
@@ -43,11 +54,17 @@ public sealed class ApiMessage {
 /// 记录的 HTTP 请求
 /// </summary>
 public sealed class RecordedRequest {
+    /// <summary>获取请求时间戳</summary>
     public DateTimeOffset Timestamp { get; init; }
+    /// <summary>获取 HTTP 方法</summary>
     public string Method { get; init; } = string.Empty;
+    /// <summary>获取请求路径</summary>
     public string Path { get; init; } = string.Empty;
+    /// <summary>获取请求头字典</summary>
     public Dictionary<string, string> Headers { get; init; } = new();
+    /// <summary>获取请求体</summary>
     public string Body { get; init; } = string.Empty;
+    /// <summary>获取解析后的请求对象</summary>
     public ChatCompletionRequest? ParsedRequest { get; init; }
 
     /// <summary>

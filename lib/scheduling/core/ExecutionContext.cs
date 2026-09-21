@@ -10,6 +10,9 @@ internal sealed class ExecutionContext : IAsyncDisposable {
     private readonly AsyncLock _runningTasksLock = new();
     private int _isDisposed;
 
+    /// <summary>构造执行上下文。</summary>
+    /// <param name="options">执行选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public ExecutionContext(ExecutionOptions options, CancellationToken cancellationToken) {
         Options = options;
         CancellationToken = cancellationToken;
@@ -18,8 +21,11 @@ internal sealed class ExecutionContext : IAsyncDisposable {
         _completedTaskIds = new ConcurrentDictionary<string, byte>();
     }
 
+    /// <summary>获取执行选项。</summary>
     public ExecutionOptions Options { get; }
+    /// <summary>获取取消令牌。</summary>
     public CancellationToken CancellationToken { get; }
+    /// <summary>获取并发锁。</summary>
     public AsyncLock ConcurrencyLock { get; }
 
     /// <summary>

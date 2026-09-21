@@ -5,45 +5,59 @@ namespace JoinCode.Abstractions.Models.Skill;
 /// 技能定义
 /// </summary>
 public sealed record SkillDefinition {
+    /// <summary>获取技能名称。</summary>
     [JsonPropertyName("name")]
     public required string Name { get; init; }
 
+    /// <summary>获取技能描述。</summary>
     [JsonPropertyName("description")]
     public required string Description { get; init; }
 
+    /// <summary>获取技能版本。</summary>
     [JsonPropertyName("version")]
     public string Version { get; init; } = "1.0";
 
+    /// <summary>获取技能参数字典。</summary>
     [JsonPropertyName("parameters")]
     public Dictionary<string, SkillParameter> Parameters { get; init; } = new();
 
+    /// <summary>获取技能执行步骤列表。</summary>
     [JsonPropertyName("steps")]
     public required List<SkillStep> Steps { get; init; }
 
+    /// <summary>获取是否需要用户确认。</summary>
     [JsonPropertyName("requires_confirmation")]
     public bool RequiresConfirmation { get; init; } = false;
 
+    /// <summary>获取技能超时时间(秒)。</summary>
     [JsonPropertyName("timeout_seconds")]
     public int TimeoutSeconds { get; init; } = 300;
 
+    /// <summary>获取技能作者。</summary>
     [JsonPropertyName("author")]
     public string? Author { get; init; }
 
+    /// <summary>获取技能标签列表。</summary>
     [JsonPropertyName("tags")]
     public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
 
+    /// <summary>获取技能所需权限列表。</summary>
     [JsonPropertyName("permissions")]
     public IReadOnlyList<string> Permissions { get; init; } = Array.Empty<string>();
 
+    /// <summary>获取技能依赖列表。</summary>
     [JsonPropertyName("dependencies")]
     public IReadOnlyList<string> Dependencies { get; init; } = Array.Empty<string>();
 
+    /// <summary>获取技能命名空间。</summary>
     [JsonPropertyName("namespace")]
     public string? Namespace { get; init; }
 
+    /// <summary>获取内容模板。</summary>
     [JsonPropertyName("content_template")]
     public string? ContentTemplate { get; init; }
 
+    /// <summary>获取扩展数据字典。</summary>
     [JsonPropertyName("extra")]
     public Dictionary<string, JsonElement> Extra { get; init; } = new();
 
@@ -101,12 +115,15 @@ public sealed record SkillDefinition {
     [JsonPropertyName("isolation")]
     public AgentIsolationMode Isolation { get; init; } = AgentIsolationMode.None;
 
+    /// <summary>获取技能源文件路径。</summary>
     [JsonIgnore]
     public string? SourcePath { get; init; }
 
+    /// <summary>获取技能源格式。</summary>
     [JsonIgnore]
     public SkillSourceFormat SourceFormat { get; init; } = SkillSourceFormat.Json;
 
+    /// <summary>获取最后修改时间。</summary>
     [JsonIgnore]
     public DateTime LastModified { get; init; } = DateTime.UtcNow;
 
@@ -138,38 +155,49 @@ public enum SkillExecutionMode {
 }
 
 public sealed class SkillParameter {
+    /// <summary>获取参数类型。</summary>
     [JsonPropertyName("type")]
     public required string Type { get; init; }
 
+    /// <summary>获取参数描述。</summary>
     [JsonPropertyName("description")]
     public required string Description { get; init; }
 
+    /// <summary>获取是否必填。</summary>
     [JsonPropertyName("required")]
     public bool Required { get; init; } = true;
 
+    /// <summary>获取参数默认值。</summary>
     [JsonPropertyName("default")]
     public object? DefaultValue { get; init; }
 
+    /// <summary>获取参数验证规则。</summary>
     [JsonPropertyName("validation")]
     public ParameterValidation? Validation { get; init; }
 }
 
 public sealed class ParameterValidation {
+    /// <summary>获取最小值。</summary>
     [JsonPropertyName("min")]
     public double? Min { get; init; }
 
+    /// <summary>获取最大值。</summary>
     [JsonPropertyName("max")]
     public double? Max { get; init; }
 
+    /// <summary>获取最小长度。</summary>
     [JsonPropertyName("min_length")]
     public int? MinLength { get; init; }
 
+    /// <summary>获取最大长度。</summary>
     [JsonPropertyName("max_length")]
     public int? MaxLength { get; init; }
 
+    /// <summary>获取正则模式。</summary>
     [JsonPropertyName("pattern")]
     public string? Pattern { get; init; }
 
+    /// <summary>获取枚举值列表。</summary>
     [JsonPropertyName("enum")]
     public IReadOnlyList<string> EnumValues { get; init; } = [];
 }
@@ -185,68 +213,88 @@ public enum SkillStepType {
 }
 
 public sealed class SkillStep {
+    /// <summary>获取步骤标识。</summary>
     [JsonPropertyName("id")]
     public required string Id { get; init; }
 
+    /// <summary>获取步骤类型。</summary>
     [JsonPropertyName("type")]
     [JsonConverter(typeof(SkillStepTypeConverter))]
     public required SkillStepType Type { get; init; }
 
+    /// <summary>获取步骤描述。</summary>
     [JsonPropertyName("description")]
     public string Description { get; init; } = string.Empty;
 
+    /// <summary>获取工具名称。</summary>
     [JsonPropertyName("tool")]
     public string? Tool { get; init; }
 
+    /// <summary>获取提示文本。</summary>
     [JsonPropertyName("prompt")]
     public string? Prompt { get; init; }
 
+    /// <summary>获取条件表达式。</summary>
     [JsonPropertyName("condition")]
     public string? Condition { get; init; }
 
+    /// <summary>获取循环配置。</summary>
     [JsonPropertyName("loop")]
     public LoopConfig? Loop { get; init; }
 
+    /// <summary>获取下一步步骤标识。</summary>
     [JsonPropertyName("next")]
     public string? Next { get; init; }
 
+    /// <summary>获取错误处理步骤标识。</summary>
     [JsonPropertyName("on_error")]
     public string? OnError { get; init; }
 
+    /// <summary>获取分支步骤字典。</summary>
     [JsonPropertyName("branches")]
     public Dictionary<string, List<SkillStep>> Branches { get; init; } = [];
 
+    /// <summary>获取步骤超时时间(秒)。</summary>
     [JsonPropertyName("timeout_seconds")]
     public int? TimeoutSeconds { get; init; }
 
+    /// <summary>获取重试配置。</summary>
     [JsonPropertyName("retry")]
     public RetryConfig? Retry { get; init; }
 }
 
 public sealed class LoopConfig {
+    /// <summary>获取循环次数。</summary>
     [JsonPropertyName("count")]
     public int? Count { get; init; }
 
+    /// <summary>获取循环条件表达式。</summary>
     [JsonPropertyName("condition")]
     public string? Condition { get; init; }
 
+    /// <summary>获取循环变量名。</summary>
     [JsonPropertyName("variable")]
     public string? Variable { get; init; }
 
+    /// <summary>获取循环体步骤列表。</summary>
     [JsonPropertyName("body")]
     public List<SkillStep> Body { get; init; } = [];
 
+    /// <summary>获取最大迭代次数。</summary>
     [JsonPropertyName("max_iterations")]
     public int MaxIterations { get; init; } = 100;
 }
 
 public sealed class RetryConfig {
+    /// <summary>获取最大重试次数。</summary>
     [JsonPropertyName("max_attempts")]
     public int MaxAttempts { get; init; } = 3;
 
+    /// <summary>获取重试延迟(毫秒)。</summary>
     [JsonPropertyName("delay_ms")]
     public int DelayMs { get; init; } = 1000;
 
+    /// <summary>获取是否启用指数退避。</summary>
     [JsonPropertyName("exponential_backoff")]
     public bool ExponentialBackoff { get; init; } = false;
 }

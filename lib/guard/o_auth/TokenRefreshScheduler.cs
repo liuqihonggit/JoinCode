@@ -163,7 +163,10 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
 /// Token 监控信息
 /// </summary>
 internal sealed class TokenMonitor {
+    /// <summary>获取 OAuth 提供商名称。</summary>
     public required string Provider { get; init; }
+    /// <summary>获取刷新定时器。</summary>
     public required System.Timers.Timer Timer { get; init; }
+    /// <summary>获取当前 Token。</summary>
     public required OAuthToken Token { get; init; }
 }

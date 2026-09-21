@@ -36,6 +36,16 @@ internal sealed class TeammateLoopRunner {
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly ITeammateRuntime _runtime;
 
+    /// <summary>
+    /// 初始化 Teammate 循环执行器
+    /// </summary>
+    /// <param name="agentLifecycleManager">Agent 生命周期管理器</param>
+    /// <param name="messageBroker">消息邮箱</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="telemetryService">遥测服务（可选）</param>
+    /// <param name="planModeManager">计划模式管理器（可选）</param>
+    /// <param name="subAgentContextAccessor">子 Agent 上下文访问器</param>
+    /// <param name="runtime">Teammate 运行时回调</param>
     public TeammateLoopRunner(
         IAgentLifecycleManager agentLifecycleManager,
         IMailbox messageBroker,
@@ -285,6 +295,12 @@ internal sealed class TeammateLoopRunner {
         /// <summary>单轮工作取消令牌 — 传给 ExecuteAsync,Interrupt 时 cancel</summary>
         public CancellationToken Token => _workCts.Token;
 
+        /// <summary>
+        /// 初始化 Teammate 单轮工作作用域
+        /// </summary>
+        /// <param name="runtime">Teammate 运行时回调</param>
+        /// <param name="teammateId">Teammate 标识</param>
+        /// <param name="lifecycleCt">生命周期取消令牌</param>
         public TeammateWorkScope(ITeammateRuntime runtime, string teammateId, CancellationToken lifecycleCt) {
             _runtime = runtime;
             _teammateId = teammateId;
@@ -294,6 +310,7 @@ internal sealed class TeammateLoopRunner {
         /// <summary>注册 workCts 到 state,供 InterruptTeammateAsync 读取并 cancel</summary>
         public Task EnterAsync(CancellationToken lifecycleCt) => _runtime.SetCurrentWorkCtsAsync(_teammateId, _workCts, lifecycleCt);
 
+        /// <summary>释放资源 — 反注册 workCts 并释放取消令牌源</summary>
         public ValueTask DisposeAsync() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
             var task = _runtime.ClearCurrentWorkCtsAsync(_teammateId);

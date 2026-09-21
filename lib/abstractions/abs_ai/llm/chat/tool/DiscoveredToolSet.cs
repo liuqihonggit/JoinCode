@@ -4,6 +4,7 @@ public sealed class DiscoveredToolSet {
     private readonly HashSet<string> _discoveredNames = new(StringComparer.Ordinal);
     private readonly AsyncLock _lock = new();
 
+    /// <summary>获取已发现工具名称集合。</summary>
     public async Task<IReadOnlySet<string>> GetNamesAsync(CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -11,6 +12,7 @@ public sealed class DiscoveredToolSet {
 
     }
 
+    /// <summary>获取已发现工具数量。</summary>
     public async Task<int> GetCountAsync(CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -18,6 +20,7 @@ public sealed class DiscoveredToolSet {
 
     }
 
+    /// <summary>判断指定工具是否已发现。</summary>
     public async Task<bool> IsDiscoveredAsync(string toolName, CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -25,6 +28,7 @@ public sealed class DiscoveredToolSet {
 
     }
 
+    /// <summary>发现指定工具。</summary>
     public async Task<bool> DiscoverAsync(string toolName, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -33,6 +37,7 @@ public sealed class DiscoveredToolSet {
 
     }
 
+    /// <summary>批量发现工具。</summary>
     public async Task<int> DiscoverRangeAsync(IEnumerable<string> toolNames, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(toolNames);
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -46,6 +51,7 @@ public sealed class DiscoveredToolSet {
 
     }
 
+    /// <summary>遗忘指定工具。</summary>
     public async Task<bool> ForgetAsync(string toolName, CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -53,6 +59,7 @@ public sealed class DiscoveredToolSet {
 
     }
 
+    /// <summary>清空已发现工具集合。</summary>
     public async Task ClearAsync(CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -60,6 +67,7 @@ public sealed class DiscoveredToolSet {
 
     }
 
+    /// <summary>创建已发现工具名称快照。</summary>
     public async Task<string[]> SnapshotAsync(CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -67,6 +75,7 @@ public sealed class DiscoveredToolSet {
 
     }
 
+    /// <summary>从快照恢复已发现工具集合。</summary>
     public async Task RestoreFromSnapshotAsync(string[] names, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(names);
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");

@@ -46,8 +46,11 @@ public interface ICodeIndexerRegistry : IRegistry {
 /// 仓库注册事件参数
 /// </summary>
 public sealed class RepoRegisteredEventArgs : EventArgs {
+    /// <summary>获取仓库标识。</summary>
     public required string RepoId { get; init; }
+    /// <summary>获取工作区根路径。</summary>
     public required string WorkspaceRoot { get; init; }
+    /// <summary>获取代码索引器实例。</summary>
     public required ICodeIndexer Indexer { get; init; }
 }
 
@@ -55,5 +58,6 @@ public sealed class RepoRegisteredEventArgs : EventArgs {
 /// 仓库注销事件参数
 /// </summary>
 public sealed class RepoUnregisteredEventArgs : EventArgs {
+    /// <summary>获取仓库标识。</summary>
     public required string RepoId { get; init; }
 }

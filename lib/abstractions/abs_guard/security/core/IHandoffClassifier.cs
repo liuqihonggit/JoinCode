@@ -44,9 +44,13 @@ public sealed partial class HandoffClassificationRequest {
 /// 子智能体工具调用记录
 /// </summary>
 public sealed partial class AgentToolInvocation {
+    /// <summary>获取工具名称。</summary>
     public required string ToolName { get; init; }
+    /// <summary>获取操作类型。</summary>
     public required OperationType OperationType { get; init; }
+    /// <summary>获取工具调用参数。</summary>
     public Dictionary<string, JsonElement> Parameters { get; init; } = [];
+    /// <summary>获取是否被自动批准。</summary>
     public bool WasAutoApproved { get; init; }
 }
 

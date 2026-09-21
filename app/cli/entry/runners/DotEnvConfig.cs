@@ -5,10 +5,15 @@ namespace JoinCode.Entry;
 /// 解析 JoinCode 格式的 JSON 配置，映射到 JoinCode 配置系统
 /// </summary>
 internal sealed class DotEnvConfig {
+    /// <summary>API Key</summary>
     public string? ApiKey { get; set; }
+    /// <summary>供应商名称</summary>
     public string? Vendor { get; set; }
+    /// <summary>API 端点地址</summary>
     public string? Endpoint { get; set; }
+    /// <summary>模型 ID</summary>
     public string? ModelId { get; set; }
+    /// <summary>推理努力级别</summary>
     public string? EffortLevel { get; set; }
 
     /// <summary>
@@ -127,6 +132,11 @@ internal sealed class DotEnvConfig {
         ApplyToMemory(config, new Core.Configuration.Providers.ProviderDefinitionRegistry(new ModelConfigLoader()));
     }
 
+    /// <summary>
+    /// 将配置应用到内存中的 WorkflowConfig — 使用指定供应商注册表解析定义
+    /// </summary>
+    /// <param name="config">目标 WorkflowConfig 实例</param>
+    /// <param name="registry">供应商定义注册表</param>
     public void ApplyToMemory(WorkflowConfig config, IProviderDefinitionRegistry registry) {
         if (ApiKey is not null)
             config.Provider.ApiKey = ApiKey;

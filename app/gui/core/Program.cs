@@ -4,6 +4,7 @@ namespace JoinCode.Gui;
 /// Programm entry — Avalonia desktop host.
 /// </summary>
 internal static class Program {
+    /// <summary>程序主入口 — 启动 Avalonia 桌面生命周期</summary>
     [STAThread]
     public static void Main(string[] args) {
         App.LogDiag($"[Main] entry");

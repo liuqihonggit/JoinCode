@@ -5,6 +5,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// </summary>
 [ToolPrompt(ToolName = FileToolName.FileEdit, Category = ToolPromptCategory.File)]
 public static class FileEditToolPrompt {
+    /// <summary>获取文件编辑工具描述。</summary>
     public static string GetDescription() => $"""
         对文件执行精确的字符串替换。
 

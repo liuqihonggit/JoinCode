@@ -372,6 +372,10 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     private sealed class EditFileActor : ActorBase<EditFileCmd, Unit> {
         private readonly PhysicalFileSystem _owner;
 
+        /// <summary>
+        /// 初始化 <see cref="EditFileActor"/> 的新实例。
+        /// </summary>
+        /// <param name="owner">所属的物理文件系统。</param>
         public EditFileActor(PhysicalFileSystem owner) : base() => _owner = owner;
 
         /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 PhysicalFileSystem 调用</summary>

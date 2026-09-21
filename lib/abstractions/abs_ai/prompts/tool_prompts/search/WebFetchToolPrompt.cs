@@ -5,6 +5,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// </summary>
 [ToolPrompt(ToolName = WebToolName.WebFetch, Category = ToolPromptCategory.Search, HasParameters = true)]
 public static class WebFetchToolPrompt {
+    /// <summary>获取 WebFetch 工具描述。</summary>
     public static string GetDescription() => """
         - 从指定URL获取内容并使用AI模型处理它
         - 将URL和提示词作为输入
@@ -25,6 +26,10 @@ public static class WebFetchToolPrompt {
           - 对于GitHub URL，优先使用gh CLI通过Bash（例如，gh pr view、gh issue view、gh api）。
         """;
 
+    /// <summary>构建副模型处理提示词。</summary>
+    /// <param name="markdownContent">Markdown 内容。</param>
+    /// <param name="prompt">用户提示词。</param>
+    /// <param name="isPreapprovedDomain">是否为预批准域名。</param>
     public static string MakeSecondaryModelPrompt(
         string markdownContent,
         string prompt,

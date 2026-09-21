@@ -3,6 +3,10 @@
 internal sealed class StartupWorkflow {
     private readonly IModelConfigLoader? _modelConfigLoader;
 
+    /// <summary>
+    /// 构造 StartupWorkflow — 注入可选的模型配置加载器
+    /// </summary>
+    /// <param name="modelConfigLoader">模型配置加载器，用于生成默认配置模板的模型 ID；null 时使用回退默认值</param>
     public StartupWorkflow(IModelConfigLoader? modelConfigLoader = null) {
         _modelConfigLoader = modelConfigLoader;
     }

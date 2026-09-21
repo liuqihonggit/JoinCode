@@ -215,22 +215,39 @@ assistant: ""我将使用 {AgentToolNameEnumConstants.Agent} 工具启动 greeti
 /// 代理定义
 /// </summary>
 public class AgentDefinition {
+    /// <summary>获取或设置代理角色。</summary>
     public required AgentRole Role { get; set; }
+    /// <summary>获取或设置执行器变体。</summary>
     public ExecutorVariant? Variant { get; set; }
+    /// <summary>获取或设置使用时机描述。</summary>
     public required string WhenToUse { get; set; }
+    /// <summary>获取或设置允许使用的工具列表。</summary>
     public List<string> Tools { get; set; } = [];
+    /// <summary>获取或设置禁止使用的工具列表。</summary>
     public List<string> DisallowedTools { get; set; } = [];
+    /// <summary>获取或设置代理描述。</summary>
     public string? Description { get; set; }
+    /// <summary>获取或设置系统提示词。</summary>
     public string? SystemPrompt { get; set; }
+    /// <summary>获取或设置模型名称。</summary>
     public string? ModelName { get; set; }
+    /// <summary>获取或设置采样温度。</summary>
     public float? Temperature { get; set; }
+    /// <summary>获取或设置最大生成令牌数。</summary>
     public int? MaxTokens { get; set; }
+    /// <summary>获取或设置是否为后台代理。</summary>
     public bool IsBackground { get; set; }
+    /// <summary>获取或设置代理定义源文件路径。</summary>
     public string? SourcePath { get; set; }
+    /// <summary>获取或设置技能列表。</summary>
     public List<string> Skills { get; set; } = [];
+    /// <summary>获取或设置权限模式。</summary>
     public string? PermissionMode { get; set; }
+    /// <summary>获取或设置钩子配置。</summary>
     public Dictionary<string, List<AgentHookMatcher>> Hooks { get; set; } = [];
+    /// <summary>获取或设置 MCP 服务器规格列表。</summary>
     public List<AgentMcpServerSpec> McpServers { get; set; } = [];
+    /// <summary>获取或设置必需的 MCP 服务器名称列表。</summary>
     public List<string> RequiredMcpServers { get; set; } = [];
 
     /// <summary>
@@ -269,7 +286,9 @@ public class AgentDefinition {
 /// Agent Hook 匹配器配置 - frontmatter 中的 hooks 定义
 /// </summary>
 public sealed class AgentHookMatcher {
+    /// <summary>获取或设置匹配器表达式。</summary>
     public string? Matcher { get; set; }
+    /// <summary>获取或设置钩子命令列表。</summary>
     public required List<AgentHookCommand> Hooks { get; set; }
 }
 
@@ -277,30 +296,48 @@ public sealed class AgentHookMatcher {
 /// Agent Hook 命令配置
 /// </summary>
 public sealed class AgentHookCommand {
+    /// <summary>获取或设置钩子类型。</summary>
     public required string Type { get; set; }
+    /// <summary>获取或设置要执行的命令。</summary>
     public string? Command { get; set; }
+    /// <summary>获取或设置提示词。</summary>
     public string? Prompt { get; set; }
+    /// <summary>获取或设置执行条件表达式。</summary>
     public string? If { get; set; }
+    /// <summary>获取或设置超时时间(毫秒)。</summary>
     public int? Timeout { get; set; }
 }
 
 public sealed class AgentMcpServerSpec {
+    /// <summary>获取服务器名称引用。</summary>
     public string? ServerNameRef { get; init; }
+    /// <summary>获取内联服务器配置。</summary>
     public AgentMcpServerInlineConfig? InlineConfig { get; init; }
 
+    /// <summary>从服务器名称引用创建规格。</summary>
+    /// <param name="serverName">服务器名称。</param>
     public static AgentMcpServerSpec FromReference(string serverName) =>
         new() { ServerNameRef = serverName };
 
+    /// <summary>从内联配置创建规格。</summary>
+    /// <param name="name">服务器名称。</param>
+    /// <param name="config">内联配置。</param>
     public static AgentMcpServerSpec FromInline(string name, AgentMcpServerInlineConfig config) =>
         new() { ServerNameRef = name, InlineConfig = config };
 }
 
 public sealed class AgentMcpServerInlineConfig {
+    /// <summary>获取启动命令。</summary>
     public string? Command { get; init; }
+    /// <summary>获取命令参数列表。</summary>
     public List<string> Args { get; init; } = [];
+    /// <summary>获取环境变量字典。</summary>
     public Dictionary<string, string> Env { get; init; } = [];
+    /// <summary>获取服务器 URL。</summary>
     public string? Url { get; init; }
+    /// <summary>获取传输类型。</summary>
     public string? TransportType { get; init; }
+    /// <summary>获取请求头字典。</summary>
     public Dictionary<string, string> Headers { get; init; } = [];
     /// <summary>
     /// 认证配置名称 — 引用 mcp_auth_* 工具配置的认证

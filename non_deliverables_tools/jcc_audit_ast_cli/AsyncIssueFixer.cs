@@ -97,8 +97,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
             if (IsAsyncDisposableDeclaration(node)) {
                 FixedIssues++;
                 var visited = (LocalDeclarationStatementSyntax)base.VisitLocalDeclarationStatement(node)!;
-                return visited.WithAwaitKeyword(
-                    SyntaxFactory.Token(SyntaxKind.AwaitKeyword).WithTrailingTrivia(SyntaxFactory.Whitespace(" ")));
+                return AddAwaitToUsing(visited);
             }
         }
         return base.VisitLocalDeclarationStatement(node);
@@ -109,10 +108,30 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         if (!node.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword) && IsAsyncDisposableUsing(node)) {
             FixedIssues++;
             var visited = (UsingStatementSyntax)base.VisitUsingStatement(node)!;
-            return visited.WithAwaitKeyword(
-                SyntaxFactory.Token(SyntaxKind.AwaitKeyword).WithTrailingTrivia(SyntaxFactory.Whitespace(" ")));
+            return AddAwaitToUsing(visited);
         }
         return base.VisitUsingStatement(node);
+    }
+
+    /// <summary>
+    /// 把 using 的 leading trivia 移到 await 前面，避免 "await     using" 多余空格
+    /// </summary>
+    private static LocalDeclarationStatementSyntax AddAwaitToUsing(LocalDeclarationStatementSyntax node) {
+        var usingLeading = node.UsingKeyword.LeadingTrivia;
+        var awaitToken = SyntaxFactory.Token(SyntaxKind.AwaitKeyword)
+            .WithLeadingTrivia(usingLeading)
+            .WithTrailingTrivia(SyntaxFactory.Whitespace(" "));
+        var newUsing = node.UsingKeyword.WithLeadingTrivia(SyntaxTriviaList.Empty);
+        return node.WithAwaitKeyword(awaitToken).WithUsingKeyword(newUsing);
+    }
+
+    private static UsingStatementSyntax AddAwaitToUsing(UsingStatementSyntax node) {
+        var usingLeading = node.UsingKeyword.LeadingTrivia;
+        var awaitToken = SyntaxFactory.Token(SyntaxKind.AwaitKeyword)
+            .WithLeadingTrivia(usingLeading)
+            .WithTrailingTrivia(SyntaxFactory.Whitespace(" "));
+        var newUsing = node.UsingKeyword.WithLeadingTrivia(SyntaxTriviaList.Empty);
+        return node.WithAwaitKeyword(awaitToken).WithUsingKeyword(newUsing);
     }
 
     public override SyntaxNode? VisitAwaitExpression(AwaitExpressionSyntax node) {
@@ -174,6 +193,19 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
             SyntaxFactory.IdentifierName(newMethodName).WithTriviaFrom(memberAccess.Name));
         var newInvocation = invocation.WithExpression(newMemberAccess)
             .WithoutLeadingTrivia();
+
+        // 构造函数中不能 await，用 fire-and-forget: _ = SessionRouter.ClearAsync()
+        var isInConstructor = invocation.Ancestors().Any(a => a is ConstructorDeclarationSyntax);
+        if (isInConstructor) {
+            var discard = SyntaxFactory.AssignmentExpression(
+                SyntaxKind.SimpleAssignmentExpression,
+                SyntaxFactory.IdentifierName("_"),
+                newInvocation);
+            return discard
+                .WithLeadingTrivia(invocation.GetLeadingTrivia())
+                .WithTrailingTrivia(invocation.GetTrailingTrivia());
+        }
+
         return CreateAwait(newInvocation)
             .WithLeadingTrivia(invocation.GetLeadingTrivia())
             .WithTrailingTrivia(invocation.GetTrailingTrivia());
@@ -246,7 +278,8 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         var awaitedInner = CreateAwait(innerCall).WithTriviaFrom(innerCall);
         var parenthesized = SyntaxFactory.ParenthesizedExpression(awaitedInner);
         var newInner = inner.ReplaceNode(innerCall, parenthesized);
-        return awaitExpr.WithExpression((ExpressionSyntax)newInner);
+        // 去掉最外层 await — .Should().Be() 返回 AndConstraint 不是 Task，不需要 await
+        return newInner;
     }
 
     private static MemberAccessExpressionSyntax? FindShouldMemberAccess(SyntaxNode node) {

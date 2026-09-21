@@ -36,6 +36,7 @@ public sealed class BomStripperTests {
         }
     }
 
+    /// <summary>验证带 BOM 文件检测返回 true</summary>
     [Fact]
     public void HasUtf8Bom_WithBom_ReturnsTrue() {
         var dir = CreateTempDir();
@@ -49,6 +50,7 @@ public sealed class BomStripperTests {
         }
     }
 
+    /// <summary>验证不带 BOM 文件检测返回 false</summary>
     [Fact]
     public void HasUtf8Bom_WithoutBom_ReturnsFalse() {
         var dir = CreateTempDir();
@@ -62,6 +64,7 @@ public sealed class BomStripperTests {
         }
     }
 
+    /// <summary>验证空文件检测返回 false</summary>
     [Fact]
     public void HasUtf8Bom_EmptyFile_ReturnsFalse() {
         var dir = CreateTempDir();
@@ -75,6 +78,7 @@ public sealed class BomStripperTests {
         }
     }
 
+    /// <summary>验证带 BOM 文件移除 BOM 并保留内容</summary>
     [Fact]
     public void Strip_WithBomFiles_RemovesBomAndPreservesContent() {
         var dir = CreateTempDir();
@@ -96,6 +100,7 @@ public sealed class BomStripperTests {
         }
     }
 
+    /// <summary>验证不带 BOM 文件不做任何操作</summary>
     [Fact]
     public void Strip_WithoutBomFiles_DoesNothing() {
         var dir = CreateTempDir();
@@ -114,6 +119,7 @@ public sealed class BomStripperTests {
         }
     }
 
+    /// <summary>验证空运行模式不修改文件</summary>
     [Fact]
     public void Strip_DryRun_DoesNotModifyFiles() {
         var dir = CreateTempDir();
@@ -133,6 +139,7 @@ public sealed class BomStripperTests {
         }
     }
 
+    /// <summary>验证混合文件场景仅移除带 BOM 的文件</summary>
     [Fact]
     public void Strip_MixedFiles_OnlyStripsBomFiles() {
         var dir = CreateTempDir();
@@ -154,6 +161,7 @@ public sealed class BomStripperTests {
         }
     }
 
+    /// <summary>验证跳过排除目录</summary>
     [Fact]
     public void Strip_SkipsExcludedDirectories() {
         var dir = CreateTempDir();
@@ -178,6 +186,7 @@ public sealed class BomStripperTests {
         }
     }
 
+    /// <summary>验证跳过 nuget 目录</summary>
     [Fact]
     public void Strip_SkipsNugetDirectory() {
         var dir = CreateTempDir();
@@ -200,6 +209,7 @@ public sealed class BomStripperTests {
         }
     }
 
+    /// <summary>验证不存在目录抛出 ArgumentException</summary>
     [Fact]
     public void Strip_NonExistentDirectory_ThrowsArgumentException() {
         var nonExistent = Path.Combine(Path.GetTempPath(), "DefinitelyDoesNotExist_" + Guid.NewGuid().ToString("N"));
@@ -209,6 +219,7 @@ public sealed class BomStripperTests {
         act.Should().Throw<ArgumentException>();
     }
 
+    /// <summary>验证保留非 ASCII 内容</summary>
     [Fact]
     public void Strip_PreservesNonAsciiContent() {
         var dir = CreateTempDir();

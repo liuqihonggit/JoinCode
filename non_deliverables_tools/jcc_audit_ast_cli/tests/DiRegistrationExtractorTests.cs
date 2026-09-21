@@ -36,6 +36,7 @@ public sealed class DiRegistrationExtractorTests {
         return DiRegistrationExtractor.Extract(compilation);
     }
 
+    /// <summary>验证语法树调用提取与 Extract 联合工作,能找到一个调用并提取注册信息</summary>
     [Fact]
     public void InvocationAndExtract_ShouldFindOneInvocationAndExtractRegistration() {
         var source = """
@@ -70,6 +71,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式1: AddSingleton<TInterface, TImpl>() — 双泛型无工厂 ====================
 
+    /// <summary>验证双泛型参数无工厂的 AddSingleton 能提取注册信息</summary>
     [Fact]
     public void AddSingleton_TwoTypeArgs_NoFactory_ShouldExtractRegistration() {
         var source = """
@@ -99,6 +101,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式2: AddSingleton<T>() — 单泛型无工厂 ====================
 
+    /// <summary>验证单泛型参数无工厂的 AddSingleton 能提取自注册</summary>
     [Fact]
     public void AddSingleton_SingleTypeArg_NoFactory_ShouldExtractSelfRegistration() {
         var source = """
@@ -126,6 +129,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式3: AddSingleton<TInterface, TImpl>(sp => new TImpl()) — 双泛型+lambda工厂 ====================
 
+    /// <summary>验证双泛型参数+lambda工厂的 AddSingleton 能提取注册信息</summary>
     [Fact]
     public void AddSingleton_TwoTypeArgs_LambdaFactory_ShouldExtractRegistration() {
         var source = """
@@ -154,6 +158,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式4: AddSingleton<T>(sp => new T(...)) — 单泛型+lambda工厂（无工厂参数） ====================
 
+    /// <summary>验证单泛型参数+lambda工厂无依赖的 AddSingleton 能提取注册信息</summary>
     [Fact]
     public void AddSingleton_SingleTypeArgs_LambdaFactory_NoDeps_ShouldExtractRegistration() {
         var source = """
@@ -181,6 +186,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式5: AddSingleton<T>(sp => new T(sp.GetRequiredService<X>())) — lambda工厂+隐式依赖 ====================
 
+    /// <summary>验证lambda工厂+GetRequiredService 能提取隐式构造函数依赖</summary>
     [Fact]
     public void AddSingleton_LambdaFactory_GetRequiredService_ShouldExtractImplicitDependency() {
         var source = """
@@ -210,6 +216,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式6: AddSingleton<TInterface>(sp => sp.GetRequiredService<TImpl>()) — 转型工厂 ====================
 
+    /// <summary>验证lambda工厂+GetRequiredService 转型场景能提取注册信息</summary>
     [Fact]
     public void AddSingleton_LambdaFactory_GetRequiredService_Transform_ShouldExtractRegistration() {
         var source = """
@@ -238,6 +245,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式7: AddSingleton<TInterface>(sp => (TInterface)sp.GetRequiredService<TImpl>()) — 转型工厂 ====================
 
+    /// <summary>验证带显式转型工厂+GetRequiredService 能提取注册信息</summary>
     [Fact]
     public void AddSingleton_CastFactory_GetRequiredService_ShouldExtractRegistration() {
         var source = """
@@ -266,6 +274,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式8: AddSingleton<T>(sp => new T { 复杂构造 }) — Block体lambda ====================
 
+    /// <summary>验证Block体lambda的 AddSingleton 能提取注册信息</summary>
     [Fact]
     public void AddSingleton_BlockBodyLambda_ShouldExtractRegistration() {
         var source = """
@@ -294,6 +303,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式9: AddSingleton<T>(sp => new T(复杂参数列表)) — Block体+GetRequiredService ====================
 
+    /// <summary>验证Block体lambda+GetRequiredService 能提取构造函数依赖</summary>
     [Fact]
     public void AddSingleton_BlockBodyLambda_GetRequiredService_ShouldExtractDependency() {
         var source = """
@@ -323,6 +333,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式10: AddScoped / AddTransient ====================
 
+    /// <summary>验证 AddScoped 能提取 Scoped 生命周期</summary>
     [Fact]
     public void AddScoped_ShouldExtractScopedLifetime() {
         var source = """
@@ -347,6 +358,7 @@ public sealed class DiRegistrationExtractorTests {
         Assert.Equal("Scoped", regs[0].Lifetime);
     }
 
+    /// <summary>验证 AddTransient 能提取 Transient 生命周期</summary>
     [Fact]
     public void AddTransient_ShouldExtractTransientLifetime() {
         var source = """
@@ -373,6 +385,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式11: AddHostedService<T> ====================
 
+    /// <summary>验证 AddHostedService 能提取为 Singleton 生命周期</summary>
     [Fact]
     public void AddHostedService_ShouldExtractAsSingleton() {
         var source = """
@@ -405,6 +418,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式12: 复杂工厂 — new T(sp.GetRequiredService<X>(), sp.GetService<Y>()) ====================
 
+    /// <summary>验证复杂工厂+多个依赖参数能提取全部依赖</summary>
     [Fact]
     public void AddSingleton_ComplexFactory_MultipleDeps_ShouldExtractAllDependencies() {
         var source = """
@@ -437,6 +451,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式13: ILogger/IOptions 应该被跳过 ====================
 
+    /// <summary>验证 ILogger 依赖应被跳过,不提取为硬依赖</summary>
     [Fact]
     public void AddSingleton_LoggerDep_ShouldBeSkipped() {
         var source = """
@@ -465,6 +480,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式14: 特性标记 [Register] ====================
 
+    /// <summary>验证 Register 特性标记的类能提取注册信息</summary>
     [Fact]
     public void RegisterAttribute_ShouldExtractRegistration() {
         var source = """
@@ -498,6 +514,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式15: 构造函数参数分析（Class Declaration 级别） ====================
 
+    /// <summary>验证带构造函数依赖的类能提取全部依赖</summary>
     [Fact]
     public void ClassWithConstructorDeps_ShouldExtractDependencies() {
         var source = """
@@ -535,6 +552,7 @@ public sealed class DiRegistrationExtractorTests {
 
     // ==================== 模式16: 可选构造函数参数不应该被提取为硬依赖 ====================
 
+    /// <summary>验证带可选参数的构造函数不提取为硬依赖</summary>
     [Fact]
     public void ClassWithOptionalParam_ShouldNotExtractHardDependency() {
         var source = """

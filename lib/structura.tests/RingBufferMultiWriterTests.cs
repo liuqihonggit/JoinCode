@@ -8,6 +8,7 @@ namespace Structura.Tests;
 /// 即快照中不应出现重复元素(每个槽位是唯一的最新写入)。
 /// </summary>
 public sealed class RingBufferMultiWriterTests {
+    /// <summary>验证多写者并发下快照不应出现重复元素。</summary>
     [Fact]
     public void MultiWriter_ToArraySnapshot_NoDuplicates() {
         const int capacity = 256;

@@ -4,6 +4,7 @@ namespace Core.Utils;
 /// GatewayActor 单元测试 — 验证限流、重试、熔断。
 /// </summary>
 public class GatewayActorTest {
+    /// <summary>验证 LlmGateway 默认配置值正确</summary>
     [Fact]
     public void GatewayOptions_LlmGateway_HasCorrectValues() {
         GatewayOptions.LlmGateway.MaxConcurrency.Should().Be(10);
@@ -11,6 +12,7 @@ public class GatewayActorTest {
         GatewayOptions.LlmGateway.CircuitBreakerThreshold.Should().Be(5);
     }
 
+    /// <summary>验证有效延迟具有默认值</summary>
     [Fact]
     public void GatewayOptions_EffectiveDelays_HaveDefaults() {
         var opts = new GatewayOptions();
@@ -18,6 +20,7 @@ public class GatewayActorTest {
         opts.EffectiveRecoveryDelay.Should().Be(TimeSpan.FromSeconds(30));
     }
 
+    /// <summary>验证调用成功时返回响应</summary>
     [Fact]
     public async Task CallAsync_Success_ReturnsResponse() {
         var gateway = new GatewayActor<string, string>(
@@ -29,6 +32,7 @@ public class GatewayActorTest {
         result.Should().Be("echo:hello");
     }
 
+    /// <summary>验证失败时重试后成功</summary>
     [Fact]
     public async Task CallAsync_RetriesOnFailure_ThenSucceeds() {
         var callCount = 0;
@@ -46,6 +50,7 @@ public class GatewayActorTest {
         callCount.Should().Be(3);
     }
 
+    /// <summary>验证全部重试失败时抛出异常</summary>
     [Fact]
     public async Task CallAsync_AllRetriesFail_ThrowsException() {
         var gateway = new GatewayActor<string, string>(
@@ -57,6 +62,7 @@ public class GatewayActorTest {
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
+    /// <summary>验证达到阈值失败数后熔断器开启</summary>
     [Fact]
     public async Task CircuitBreaker_OpensAfterThresholdFailures() {
         var gateway = new GatewayActor<string, string>(
@@ -71,6 +77,7 @@ public class GatewayActorTest {
         gateway.BreakerState.Should().Be(GatewayCircuitState.Open);
     }
 
+    /// <summary>验证熔断开启时拒绝调用</summary>
     [Fact]
     public async Task CircuitBreaker_RejectsCallWhenOpen() {
         var gateway = new GatewayActor<string, string>(
@@ -84,6 +91,7 @@ public class GatewayActorTest {
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*熔断*");
     }
 
+    /// <summary>验证成功后熔断器复位</summary>
     [Fact]
     public async Task CircuitBreaker_ResetsOnSuccess() {
         var callCount = 0;

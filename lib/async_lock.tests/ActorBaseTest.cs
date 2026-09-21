@@ -4,6 +4,7 @@ namespace Core.Utils;
 /// ActorBase 单元测试 — 验证命令串行处理、异常容错、生命周期、背压、输出流。
 /// </summary>
 public class ActorBaseTest {
+    /// <summary>验证命令发送后被正确处理并产生输出</summary>
     [Fact]
     public async Task SendAsync_CommandProcessed_OutputReceived() {
         await using var actor = new TestActor();
@@ -15,6 +16,7 @@ public class ActorBaseTest {
         actor.ProcessedCommands.Should().Equal("hello", "world");
     }
 
+    /// <summary>验证尝试发送命令后返回 true</summary>
     [Fact]
     public async Task TrySend_CommandProcessed_ReturnsTrue() {
         await using var actor = new TestActor();
@@ -23,6 +25,7 @@ public class ActorBaseTest {
         actor.ProcessedCommands.Should().Contain("test");
     }
 
+    /// <summary>验证多个命令按顺序串行处理</summary>
     [Fact]
     public async Task MultipleCommands_ProcessedSerially_InOrder() {
         await using var actor = new TestActor();
@@ -36,6 +39,7 @@ public class ActorBaseTest {
             actor.ProcessedCommands[i].Should().Be($"msg-{i}");
     }
 
+    /// <summary>验证并发发送时所有命令都被处理无丢失</summary>
     [Fact]
     public async Task ConcurrentSend_AllCommandsProcessed_NoLoss() {
         await using var actor = new TestActor();
@@ -49,6 +53,7 @@ public class ActorBaseTest {
         actor.ProcessedCommands.Should().HaveCount(500);
     }
 
+    /// <summary>验证命令抛出异常后消费者继续处理下一条命令</summary>
     [Fact]
     public async Task CommandThrows_ConsumerContinues_NextCommandSucceeds() {
         await using var actor = new TestActor();
@@ -61,6 +66,7 @@ public class ActorBaseTest {
         actor.ErrorCount.Should().Be(1);
     }
 
+    /// <summary>验证异步释放后尝试发送返回 false</summary>
     [Fact]
     public async Task DisposeAsync_TrySendReturnsFalse() {
         var actor = new TestActor();
@@ -69,6 +75,7 @@ public class ActorBaseTest {
         actor.TrySend("test").Should().BeFalse();
     }
 
+    /// <summary>验证释放后发送命令抛出 ObjectDisposedException</summary>
     [Fact]
     public async Task SendAsync_AfterDispose_ThrowsObjectDisposed() {
         var actor = new TestActor();
@@ -78,6 +85,7 @@ public class ActorBaseTest {
         await act.Should().ThrowAsync<ObjectDisposedException>();
     }
 
+    /// <summary>验证输出流接收已发布的消息</summary>
     [Fact]
     public async Task OutputAsync_ReceivesPublishedMessages() {
         await using var actor = new TestActor();
@@ -89,6 +97,7 @@ public class ActorBaseTest {
         output.Should().Be("processed-hello");
     }
 
+    /// <summary>验证有界通道处理所有命令无丢失</summary>
     [Fact]
     public async Task BoundedChannel_ProcessesAllCommandsNoLoss() {
         await using var actor = new TestActor(boundedCapacity: 4);
@@ -102,6 +111,7 @@ public class ActorBaseTest {
         actor.ProcessedCommands.Should().HaveCount(100);
     }
 
+    /// <summary>验证异步释放等待消费者退出</summary>
     [Fact]
     public async Task DisposeAsync_WaitsForConsumerExit() {
         var actor = new TestActor();
@@ -113,6 +123,7 @@ public class ActorBaseTest {
         actor.ConsumerTask.IsCompleted.Should().BeTrue();
     }
 
+    /// <summary>验证背压模式下触发水位事件</summary>
     [Fact]
     public async Task SendAsync_WithBackpressure_WatermarkEventTriggered() {
         var bp = new ActorBackpressure(Capacity: 2, SendTimeout: TimeSpan.FromSeconds(1));
@@ -127,6 +138,7 @@ public class ActorBaseTest {
         events.Should().Contain(e => e.Level == WatermarkLevel.High || e.Level == WatermarkLevel.Critical);
     }
 
+    /// <summary>验证输出计数反映已发布的消息数</summary>
     [Fact]
     public async Task OutputCount_ReflectsPublishedMessages() {
         await using var actor = new TestActor();
@@ -138,6 +150,7 @@ public class ActorBaseTest {
         actor.OutputCount.Should().Be(1);
     }
 
+    /// <summary>验证取消令牌能取消输出流</summary>
     [Fact]
     public async Task OutputAsync_CancellationToken_CancelsStream() {
         await using var actor = new TestActor();
@@ -147,6 +160,7 @@ public class ActorBaseTest {
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
+    /// <summary>验证单消费者接收所有输出消息</summary>
     [Fact]
     public async Task OutputAsync_SingleConsumer_ReceivesAllMessages() {
         await using var actor = new TestActor();
@@ -158,6 +172,7 @@ public class ActorBaseTest {
         consumer.Current.Should().Be("processed-test");
     }
 
+    /// <summary>验证发送超时抛出 TimeoutException</summary>
     [Fact]
     public async Task SendAsync_Timeout_ThrowsTimeoutException() {
         var bp = new ActorBackpressure(Capacity: 1, SendTimeout: TimeSpan.FromMilliseconds(100));
@@ -172,6 +187,7 @@ public class ActorBaseTest {
         await act.Should().ThrowAsync<TimeoutException>();
     }
 
+    /// <summary>验证通过 IActor 接口发送命令被正确处理</summary>
     [Fact]
     public async Task IActorInterface_SendAsync_CommandProcessed() {
         await using IActor<string> actor = new TestActor();
@@ -181,6 +197,7 @@ public class ActorBaseTest {
         concrete.ProcessedCommands.Should().Contain("via-interface");
     }
 
+    /// <summary>验证 IActor 接口的 Id 和 InputCount 可访问</summary>
     [Fact]
     public async Task IActorInterface_TrySend_Id_InputCount_Accessible() {
         await using IActor<string> actor = new TestActor();
@@ -204,13 +221,18 @@ public class ActorBaseTest {
 /// </summary>
 internal sealed class TestActor : ActorBase<string, string> {
     public readonly List<string> ProcessedCommands = new();
+    /// <summary>获取错误计数</summary>
     public int ErrorCount { get; private set; }
     public TaskCompletionSource? Gate;
 
+    /// <summary>初始化测试 Actor</summary>
+    /// <param name="boundedCapacity">有界容量（可选）</param>
     public TestActor(int? boundedCapacity = null)
         : base(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value)) {
     }
 
+    /// <summary>初始化测试 Actor</summary>
+    /// <param name="backpressure">背压配置（可选）</param>
     public TestActor(ActorBackpressure? backpressure)
         : base(backpressure) {
     }

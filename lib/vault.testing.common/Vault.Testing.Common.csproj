@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-        <ProjectType>library</ProjectType>
+        <ProjectType>test</ProjectType>
   <RootNamespace>Vault.Testing.Common</RootNamespace>
     <AssemblyName>JoinCode.Vault.Testing.Common</AssemblyName>
     <Description>JoinCode Vault 测试共享辅助类</Description>

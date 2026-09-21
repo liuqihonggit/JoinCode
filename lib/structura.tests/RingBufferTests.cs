@@ -1,6 +1,7 @@
 namespace Structura.Tests;
 
 public class RingBufferTests {
+    /// <summary>验证容量非 2 的幂时构造函数抛出异常。</summary>
     [Fact]
     public void Constructor_CapacityNotPowerOfTwo_Throws() {
         var act0 = () => new RingBuffer<int>(0);
@@ -11,6 +12,7 @@ public class RingBufferTests {
         act5.Should().Throw<ArgumentException>();
     }
 
+    /// <summary>验证新缓冲区计数为零且未满。</summary>
     [Fact]
     public void NewBuffer_CountIsZero_IsFullFalse() {
         var buf = new RingBuffer<int>(8);
@@ -20,6 +22,7 @@ public class RingBufferTests {
         buf.IsEmpty.Should().BeTrue();
     }
 
+    /// <summary>验证未满时添加元素计数递增。</summary>
     [Fact]
     public void Add_NotFull_CountIncrements() {
         var buf = new RingBuffer<int>(8);
@@ -31,6 +34,7 @@ public class RingBufferTests {
         buf[1].Should().Be(20);
     }
 
+    /// <summary>验证满时添加元素覆盖最旧元素。</summary>
     [Fact]
     public void Add_Full_OverwritesOldest() {
         var buf = new RingBuffer<int>(4);
@@ -48,6 +52,7 @@ public class RingBufferTests {
         buf[^1].Should().Be(999);
     }
 
+    /// <summary>验证多次覆盖后元素顺序正确。</summary>
     [Fact]
     public void Add_MultipleOverwrites_MaintainsOrder() {
         var buf = new RingBuffer<int>(4);
@@ -59,6 +64,7 @@ public class RingBufferTests {
             buf[i].Should().Be(cap + 4 - cap + i);
     }
 
+    /// <summary>验证索引越界时抛出异常。</summary>
     [Fact]
     public void Indexer_OutOfRange_Throws() {
         var buf = new RingBuffer<int>(4);
@@ -69,6 +75,7 @@ public class RingBufferTests {
         actOver.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    /// <summary>验证 Latest 和 Oldest 返回正确元素。</summary>
     [Fact]
     public void Latest_Oldest_ReturnsCorrectElements() {
         var buf = new RingBuffer<int>(4);
@@ -82,6 +89,7 @@ public class RingBufferTests {
         buf.Latest.Should().Be(999);
     }
 
+    /// <summary>验证 Clear 重置缓冲区。</summary>
     [Fact]
     public void Clear_ResetsBuffer() {
         var buf = new RingBuffer<int>(4);
@@ -93,6 +101,7 @@ public class RingBufferTests {
         buf.IsEmpty.Should().BeTrue();
     }
 
+    /// <summary>验证枚举按从旧到新顺序产出元素。</summary>
     [Fact]
     public void Enumeration_YieldsOldestToLatest() {
         var buf = new RingBuffer<int>(4);
@@ -107,6 +116,7 @@ public class RingBufferTests {
         items[^1].Should().Be(cap + 2);
     }
 
+    /// <summary>验证 Slice 返回正确范围。</summary>
     [Fact]
     public void Slice_ReturnsCorrectRange() {
         var buf = new RingBuffer<int>(4);
@@ -119,6 +129,7 @@ public class RingBufferTests {
         slice[2].Should().Be(buf[3]);
     }
 
+    /// <summary>验证从起始位置切片。</summary>
     [Fact]
     public void Slice_FromStart() {
         var buf = new RingBuffer<string>(8);
@@ -128,6 +139,7 @@ public class RingBufferTests {
         buf.Slice(0, 3).Should().Equal("a", "b", "c");
     }
 
+    /// <summary>验证无效范围切片抛出异常。</summary>
     [Fact]
     public void Slice_InvalidRange_Throws() {
         var buf = new RingBuffer<int>(4);
@@ -141,6 +153,7 @@ public class RingBufferTests {
         actOver.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    /// <summary>验证引用类型元素正确工作。</summary>
     [Fact]
     public void Add_WithReferenceType_WorksCorrectly() {
         var buf = new RingBuffer<string>(4);
@@ -153,6 +166,7 @@ public class RingBufferTests {
         buf[0].Should().Be("item1");
     }
 
+    /// <summary>验证回绕后索引访问正确元素。</summary>
     [Fact]
     public void Indexer_AfterWraparound_AccessCorrectElement() {
         var buf = new RingBuffer<double>(4);
@@ -164,6 +178,7 @@ public class RingBufferTests {
         buf[^1].Should().Be((cap + 1) * 1.1);
     }
 
+    /// <summary>验证 ToArray 返回一致快照。</summary>
     [Fact]
     public void ToArray_ReturnsConsistentSnapshot() {
         var buf = new RingBuffer<int>(4);
@@ -178,6 +193,7 @@ public class RingBufferTests {
         snap[0].Should().Be(2);
     }
 
+    /// <summary>验证 TryEnqueue/TryDequeue 先进先出顺序。</summary>
     [Fact]
     public void TryEnqueue_TryDequeue_FifoOrder() {
         var buf = new RingBuffer<int>(8);
@@ -196,6 +212,7 @@ public class RingBufferTests {
         buf.TryDequeue(out _).Should().BeFalse();
     }
 
+    /// <summary>验证满时 TryEnqueue 返回 false。</summary>
     [Fact]
     public void TryEnqueue_Full_ReturnsFalse() {
         var buf = new RingBuffer<int>(4);
@@ -206,6 +223,7 @@ public class RingBufferTests {
         buf.TryEnqueue(999).Should().BeFalse();
     }
 
+    /// <summary>验证批量入队与批量出队正确工作。</summary>
     [Fact]
     public void EnqueueBatch_DequeueBatch_WorkCorrectly() {
         var buf = new RingBuffer<int>(8);
@@ -220,6 +238,7 @@ public class RingBufferTests {
         buf.Count.Should().Be(2);
     }
 
+    /// <summary>验证多线程并发添加不抛出异常。</summary>
     [Fact]
     public void MultiThread_ConcurrentAdd_NoException() {
         var buf = new RingBuffer<int>(512);

@@ -63,7 +63,8 @@ public static class AsyncIssueFixer {
         return normalized.Contains("/obj/") ||
                normalized.Contains("/bin/") ||
                normalized.Contains("/artifacts/") ||
-               normalized.Contains("/.xxx/");
+               normalized.Contains("/.xxx/") ||
+               normalized.Contains("/bcl_bridge/");
     }
 }
 
@@ -93,8 +94,9 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
 
     public override SyntaxNode? VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node) {
         // 修复4：using → await using（用原始 node 查询 SemanticModel）
+        // 只在 async 方法中加 await using（非 async 方法加 await using 会编译失败）
         if (node.UsingKeyword.IsKind(SyntaxKind.UsingKeyword) && !node.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword)) {
-            if (IsAsyncDisposableDeclaration(node)) {
+            if (IsInAsyncMethod(node) && IsAsyncDisposableDeclaration(node)) {
                 FixedIssues++;
                 var visited = (LocalDeclarationStatementSyntax)base.VisitLocalDeclarationStatement(node)!;
                 return AddAwaitToUsing(visited);
@@ -105,12 +107,28 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
 
     public override SyntaxNode? VisitUsingStatement(UsingStatementSyntax node) {
         // 修复4：using → await using（用原始 node 查询 SemanticModel）
-        if (!node.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword) && IsAsyncDisposableUsing(node)) {
+        // 只在 async 方法中加 await using
+        if (!node.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword) && IsInAsyncMethod(node) && IsAsyncDisposableUsing(node)) {
             FixedIssues++;
             var visited = (UsingStatementSyntax)base.VisitUsingStatement(node)!;
             return AddAwaitToUsing(visited);
         }
         return base.VisitUsingStatement(node);
+    }
+
+    /// <summary>
+    /// 判断节点是否在 async 方法内（非 async 方法加 await using 会编译失败）
+    /// </summary>
+    private static bool IsInAsyncMethod(SyntaxNode node) {
+        foreach (var ancestor in node.Ancestors()) {
+            if (ancestor is MethodDeclarationSyntax method)
+                return method.Modifiers.Any(SyntaxKind.AsyncKeyword);
+            if (ancestor is ParenthesizedLambdaExpressionSyntax or SimpleLambdaExpressionSyntax or AnonymousFunctionExpressionSyntax)
+                return true;
+            if (ancestor is LocalFunctionStatementSyntax localFunc)
+                return localFunc.Modifiers.Any(SyntaxKind.AsyncKeyword);
+        }
+        return false;
     }
 
     /// <summary>

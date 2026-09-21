@@ -160,7 +160,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
     /// 修复1：SessionRouter.Clear() → await SessionRouter.ClearAsync()
     ///        SessionRouter.RemoveScope(x) → await SessionRouter.RemoveScopeAsync(x)
     /// </summary>
-    private static SyntaxNode? TryRenameMethod(InvocationExpressionSyntax invocation) {
+    private SyntaxNode? TryRenameMethod(InvocationExpressionSyntax invocation) {
         if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
             return null;
         if (memberAccess.Expression is not IdentifierNameSyntax receiver)
@@ -308,9 +308,26 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         return node.Parent is AwaitExpressionSyntax;
     }
 
-    private static AwaitExpressionSyntax CreateAwait(ExpressionSyntax expression) {
+    /// <summary>
+    /// 创建 await 表达式。库代码加 ConfigureAwait(false)，测试代码不加。
+    /// </summary>
+    private AwaitExpressionSyntax CreateAwait(ExpressionSyntax expression) {
         var awaitToken = SyntaxFactory.Token(SyntaxKind.AwaitKeyword)
             .WithTrailingTrivia(SyntaxFactory.Whitespace(" "));
-        return SyntaxFactory.AwaitExpression(awaitToken, expression);
+        var awaitedExpr = expression;
+        if (!_isTestFile) {
+            var configureAwait = SyntaxFactory.InvocationExpression(
+                SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    expression,
+                    SyntaxFactory.Token(SyntaxKind.DotToken),
+                    SyntaxFactory.IdentifierName("ConfigureAwait")),
+                SyntaxFactory.ArgumentList(
+                    SyntaxFactory.SingletonSeparatedList(
+                        SyntaxFactory.Argument(
+                            SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression)))));
+            awaitedExpr = configureAwait;
+        }
+        return SyntaxFactory.AwaitExpression(awaitToken, awaitedExpr);
     }
 }

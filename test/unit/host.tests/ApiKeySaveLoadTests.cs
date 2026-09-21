@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Host.Tests;
+namespace JoinCode.Host.Tests;
 
 
 public class ApiKeySaveLoadTests {
@@ -22,23 +22,21 @@ public class ApiKeySaveLoadTests {
     [Fact]
     public async Task SaveApiKey_AndLoad_ShouldUpdateProviderConfig() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
-        var originalPaths = AppDataConstants.Paths;
+        var paths = AppDataPaths.FromEnvironment() with {
+            AppDataFolder = tempDir
+        };
         await using var fs = new PhysicalFileSystem();
 
         try {
-            AppDataConstants.Paths = AppDataPaths.FromEnvironment() with {
-                AppDataFolder = tempDir
-            };
-
             var provider = "agnes";
             var apiKey = "test-api-key-12345";
 
-            await ConfigLoader.SaveApiKeyToJccAsync(provider, apiKey, fs).ConfigureAwait(true);
+            await ConfigLoader.SaveApiKeyToJccAsync(provider, apiKey, fs, paths: paths).ConfigureAwait(true);
 
-            var authPath = AppDataConstants.Paths.AuthFilePath;
+            var authPath = paths.AuthFilePath;
             fs.FileExists(authPath).Should().BeTrue($"auth.json should exist at {authPath}");
 
-            var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs).ConfigureAwait(true);
+            var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs, paths: paths).ConfigureAwait(true);
             loadedKey.Should().Be(apiKey, "Loaded API key should match saved key");
 
             WorkflowConfig config;
@@ -61,7 +59,6 @@ public class ApiKeySaveLoadTests {
             config.Provider.ApiKey.Should().Be(apiKey);
             config.Provider.Definition.Should().NotBeNull();
         } finally {
-            AppDataConstants.Paths = originalPaths;
             if (fs.DirectoryExists(tempDir)) {
                 fs.DeleteDirectory(tempDir, recursive: true);
             }
@@ -71,24 +68,21 @@ public class ApiKeySaveLoadTests {
     [Fact]
     public async Task SaveApiKey_WithDifferentProvider_ShouldLoadCorrectProvider() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
-        var originalPaths = AppDataConstants.Paths;
+        var paths = AppDataPaths.FromEnvironment() with {
+            AppDataFolder = tempDir
+        };
         await using var fs = new PhysicalFileSystem();
 
         try {
-            AppDataConstants.Paths = AppDataPaths.FromEnvironment() with {
-                AppDataFolder = tempDir
-            };
+            await ConfigLoader.SaveApiKeyToJccAsync("openai", "openai-key", fs, paths: paths).ConfigureAwait(true);
+            await ConfigLoader.SaveApiKeyToJccAsync("anthropic", "anthropic-key", fs, paths: paths).ConfigureAwait(true);
 
-            await ConfigLoader.SaveApiKeyToJccAsync("openai", "openai-key", fs).ConfigureAwait(true);
-            await ConfigLoader.SaveApiKeyToJccAsync("anthropic", "anthropic-key", fs).ConfigureAwait(true);
-
-            var openaiKey = await Loader.LoadApiKeyFromJccAsync("openai", fs).ConfigureAwait(true);
-            var anthropicKey = await Loader.LoadApiKeyFromJccAsync("anthropic", fs).ConfigureAwait(true);
+            var openaiKey = await Loader.LoadApiKeyFromJccAsync("openai", fs, paths: paths).ConfigureAwait(true);
+            var anthropicKey = await Loader.LoadApiKeyFromJccAsync("anthropic", fs, paths: paths).ConfigureAwait(true);
 
             openaiKey.Should().Be("openai-key");
             anthropicKey.Should().Be("anthropic-key");
         } finally {
-            AppDataConstants.Paths = originalPaths;
             if (fs.DirectoryExists(tempDir)) {
                 fs.DeleteDirectory(tempDir, recursive: true);
             }
@@ -98,32 +92,29 @@ public class ApiKeySaveLoadTests {
     [Fact]
     public async Task SaveApiKey_OverwriteExisting_ShouldUpdateValue() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
-        var originalPaths = AppDataConstants.Paths;
+        var paths = AppDataPaths.FromEnvironment() with {
+            AppDataFolder = tempDir
+        };
         await using var fs = new PhysicalFileSystem();
 
         try {
-            AppDataConstants.Paths = AppDataPaths.FromEnvironment() with {
-                AppDataFolder = tempDir
-            };
-
             var provider = "agnes";
 
-            await ConfigLoader.SaveApiKeyToJccAsync(provider, "old-key", fs).ConfigureAwait(true);
+            await ConfigLoader.SaveApiKeyToJccAsync(provider, "old-key", fs, paths: paths).ConfigureAwait(true);
 
-            var authPath = AppDataConstants.Paths.AuthFilePath;
+            var authPath = paths.AuthFilePath;
             var json1 = await fs.ReadAllTextAsync(authPath).ConfigureAwait(true);
             json1.Should().Contain("old-key");
 
-            await ConfigLoader.SaveApiKeyToJccAsync(provider, "new-key-123", fs).ConfigureAwait(true);
+            await ConfigLoader.SaveApiKeyToJccAsync(provider, "new-key-123", fs, paths: paths).ConfigureAwait(true);
 
             var json2 = await fs.ReadAllTextAsync(authPath).ConfigureAwait(true);
             json2.Should().Contain("new-key-123");
             json2.Should().NotContain("old-key");
 
-            var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs).ConfigureAwait(true);
+            var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs, paths: paths).ConfigureAwait(true);
             loadedKey.Should().Be("new-key-123", "Should load the new key after overwrite");
         } finally {
-            AppDataConstants.Paths = originalPaths;
             if (fs.DirectoryExists(tempDir)) {
                 fs.DeleteDirectory(tempDir, recursive: true);
             }
@@ -137,24 +128,22 @@ public class ApiKeySaveLoadTests {
     [InlineData("agnes", "agnes-key-test-abc")]
     public async Task SaveApiKey_ForEachProvider_ShouldSaveAndLoadCorrectly(string provider, string apiKey) {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
-        var originalPaths = AppDataConstants.Paths;
+        var paths = AppDataPaths.FromEnvironment() with {
+            AppDataFolder = tempDir
+        };
         await using var fs = new PhysicalFileSystem();
 
         try {
-            AppDataConstants.Paths = AppDataPaths.FromEnvironment() with {
-                AppDataFolder = tempDir
-            };
+            await ConfigLoader.SaveApiKeyToJccAsync(provider, apiKey, fs, paths: paths).ConfigureAwait(true);
 
-            await ConfigLoader.SaveApiKeyToJccAsync(provider, apiKey, fs).ConfigureAwait(true);
-
-            var authPath = AppDataConstants.Paths.AuthFilePath;
+            var authPath = paths.AuthFilePath;
             fs.FileExists(authPath).Should().BeTrue();
 
             var json = await fs.ReadAllTextAsync(authPath).ConfigureAwait(true);
             json.Should().Contain(provider);
             json.Should().Contain(apiKey);
 
-            var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs).ConfigureAwait(true);
+            var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs, paths: paths).ConfigureAwait(true);
             loadedKey.Should().Be(apiKey, $"Loaded key for {provider} should match");
 
             WorkflowConfig config;
@@ -176,7 +165,6 @@ public class ApiKeySaveLoadTests {
             config.Provider.Vendor.Should().Be(provider);
             config.Provider.ApiKey.Should().Be(apiKey);
         } finally {
-            AppDataConstants.Paths = originalPaths;
             if (fs.DirectoryExists(tempDir)) {
                 fs.DeleteDirectory(tempDir, recursive: true);
             }

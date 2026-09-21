@@ -243,8 +243,8 @@ public class ConfigLoader {
     /// <summary>
     /// 读取 auth.json 文件内容 — 供并行预加载使用，与 settings/rules 并行避免串行 I/O
     /// </summary>
-    private static async Task<Dictionary<string, string>?> LoadAuthFileAsync(IFileSystem fs, CancellationToken cancellationToken) {
-        var authPath = AppDataConstants.Paths.AuthFilePath;
+    private static async Task<Dictionary<string, string>?> LoadAuthFileAsync(IFileSystem fs, CancellationToken cancellationToken, AppDataPaths? paths = null) {
+        var authPath = (paths ?? AppDataConstants.Paths).AuthFilePath;
         if (!fs.FileExists(authPath)) return null;
         try {
             var json = await fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
@@ -277,16 +277,16 @@ public class ConfigLoader {
     /// <summary>
     /// 从 ~/.jcc/auth.json 加载指定 provider 的 API Key
     /// </summary>
-    public async Task<string> LoadApiKeyFromJccAsync(string provider, IFileSystem fs, CancellationToken cancellationToken = default) {
-        var authData = await LoadAuthFileAsync(fs, cancellationToken).ConfigureAwait(false);
+    public async Task<string> LoadApiKeyFromJccAsync(string provider, IFileSystem fs, CancellationToken cancellationToken = default, AppDataPaths? paths = null) {
+        var authData = await LoadAuthFileAsync(fs, cancellationToken, paths).ConfigureAwait(false);
         return ResolveApiKeyFromAuth(authData, provider);
     }
 
     /// <summary>
     /// 保存 API Key 到 ~/.jcc/auth.json
     /// </summary>
-    public static async Task SaveApiKeyToJccAsync(string provider, string apiKey, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null) {
-        var authPath = AppDataConstants.Paths.AuthFilePath;
+    public static async Task SaveApiKeyToJccAsync(string provider, string apiKey, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null, AppDataPaths? paths = null) {
+        var authPath = (paths ?? AppDataConstants.Paths).AuthFilePath;
         var directory = Path.GetDirectoryName(authPath);
 
         if (!string.IsNullOrEmpty(directory) && !fs.DirectoryExists(directory))

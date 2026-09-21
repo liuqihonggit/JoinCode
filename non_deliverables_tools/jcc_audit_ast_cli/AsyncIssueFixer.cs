@@ -199,7 +199,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         if (isInConstructor) {
             var discard = SyntaxFactory.AssignmentExpression(
                 SyntaxKind.SimpleAssignmentExpression,
-                SyntaxFactory.IdentifierName("_"),
+                SyntaxFactory.IdentifierName("_").WithTrailingTrivia(SyntaxFactory.Whitespace(" ")),
                 newInvocation);
             return discard
                 .WithLeadingTrivia(invocation.GetLeadingTrivia())
@@ -279,7 +279,10 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         var parenthesized = SyntaxFactory.ParenthesizedExpression(awaitedInner);
         var newInner = inner.ReplaceNode(innerCall, parenthesized);
         // 去掉最外层 await — .Should().Be() 返回 AndConstraint 不是 Task，不需要 await
-        return newInner;
+        // 保留原始 awaitExpr 的 leading/trailing trivia（缩进、空行等）
+        return ((ExpressionSyntax)newInner)
+            .WithLeadingTrivia(awaitExpr.GetLeadingTrivia())
+            .WithTrailingTrivia(awaitExpr.GetTrailingTrivia());
     }
 
     private static MemberAccessExpressionSyntax? FindShouldMemberAccess(SyntaxNode node) {

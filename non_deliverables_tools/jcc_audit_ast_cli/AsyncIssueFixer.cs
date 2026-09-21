@@ -87,7 +87,8 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
 
     internal AsyncIssueRewriter(SemanticModel model, string filePath) {
         _model = model;
-        _isTestFile = filePath.Contains(".tests/") || filePath.Contains("/test/");
+        var normalized = filePath.Replace('\\', '/');
+        _isTestFile = normalized.Contains(".tests/") || normalized.Contains("/test/");
     }
 
     public override SyntaxNode? VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node) {
@@ -122,9 +123,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
     }
 
     public override SyntaxNode? VisitExpressionStatement(ExpressionStatementSyntax node) {
-        // 修复3c：对 obj.Method() 语句加 await（用原始 node 查询 SemanticModel）
-        var fixedExpr = TryAddAwaitToStatement(node);
-        if (fixedExpr is not null) { FixedIssues++; return fixedExpr; }
+        // 安全起见：不在语句表达式中加 await（Interlocked.CompareExchange 等返回 Task 但不需要 await）
         return base.VisitExpressionStatement(node);
     }
 
@@ -173,7 +172,8 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
 
         var newMemberAccess = memberAccess.WithName(
             SyntaxFactory.IdentifierName(newMethodName).WithTriviaFrom(memberAccess.Name));
-        var newInvocation = invocation.WithExpression(newMemberAccess);
+        var newInvocation = invocation.WithExpression(newMemberAccess)
+            .WithoutLeadingTrivia();
         return CreateAwait(newInvocation)
             .WithLeadingTrivia(invocation.GetLeadingTrivia())
             .WithTrailingTrivia(invocation.GetTrailingTrivia());

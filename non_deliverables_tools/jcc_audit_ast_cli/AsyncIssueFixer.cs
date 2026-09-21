@@ -180,7 +180,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         var newMemberAccess = memberAccess.WithName(
             SyntaxFactory.IdentifierName(newMethodName).WithTriviaFrom(memberAccess.Name));
         var newInvocation = invocation.WithExpression(newMemberAccess);
-        return SyntaxFactory.AwaitExpression(newInvocation)
+        return CreateAwait(newInvocation)
             .WithLeadingTrivia(invocation.GetLeadingTrivia())
             .WithTrailingTrivia(invocation.GetTrailingTrivia());
     }
@@ -210,7 +210,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         var value = initializer.Value;
         if (IsAlreadyAwaited(value)) return null;
         if (!ReturnsTaskOrValueTask(value)) return null;
-        var awaited = SyntaxFactory.AwaitExpression(value).WithTriviaFrom(value);
+        var awaited = CreateAwait(value).WithTriviaFrom(value);
         return declarator.WithInitializer(initializer.WithValue(awaited));
     }
 
@@ -222,7 +222,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         var value = assignment.Right;
         if (IsAlreadyAwaited(value)) return null;
         if (!ReturnsTaskOrValueTask(value)) return null;
-        var awaited = SyntaxFactory.AwaitExpression(value).WithTriviaFrom(value);
+        var awaited = CreateAwait(value).WithTriviaFrom(value);
         return assignment.WithRight(awaited);
     }
 
@@ -234,7 +234,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         if (expr is not InvocationExpressionSyntax invocation) return null;
         if (IsAlreadyAwaited(invocation)) return null;
         if (!ReturnsTaskOrValueTask(invocation)) return null;
-        var awaited = SyntaxFactory.AwaitExpression(invocation).WithTriviaFrom(invocation);
+        var awaited = CreateAwait(invocation).WithTriviaFrom(invocation);
         return stmt.WithExpression(awaited);
     }
 
@@ -249,7 +249,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         var innerCall = shouldAccess.Expression;
         if (IsAlreadyAwaited(innerCall)) return null;
         if (!ReturnsTaskOrValueTask(innerCall)) return null;
-        var awaitedInner = SyntaxFactory.AwaitExpression(innerCall).WithTriviaFrom(innerCall);
+        var awaitedInner = CreateAwait(innerCall).WithTriviaFrom(innerCall);
         var parenthesized = SyntaxFactory.ParenthesizedExpression(awaitedInner);
         var newInner = inner.ReplaceNode(innerCall, parenthesized);
         return awaitExpr.WithExpression((ExpressionSyntax)newInner);
@@ -306,5 +306,11 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
 
     private static bool IsAlreadyAwaited(SyntaxNode node) {
         return node.Parent is AwaitExpressionSyntax;
+    }
+
+    private static AwaitExpressionSyntax CreateAwait(ExpressionSyntax expression) {
+        var awaitToken = SyntaxFactory.Token(SyntaxKind.AwaitKeyword)
+            .WithTrailingTrivia(SyntaxFactory.Whitespace(" "));
+        return SyntaxFactory.AwaitExpression(awaitToken, expression);
     }
 }

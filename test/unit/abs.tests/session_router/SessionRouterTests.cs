@@ -3,7 +3,7 @@ namespace Abs.Tests.SessionRouterTests;
 [Collection(nameof(SessionRouterCollection))]
 public sealed class SessionRouterTests {
     public SessionRouterTests() {
-        SessionRouter.Clear();
+        _ = SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public sealed class SessionRouterTests {
         var resolved = SessionRouter.Resolve<Goal>(sessionId, goal.ObjectId);
         resolved.Should().BeSameAs(goal);
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class SessionRouterTests {
         // 会话A 可以获取
         SessionRouter.Resolve<Goal>(sessionIdA, goalA.ObjectId).Should().BeSameAs(goalA);
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -77,16 +77,16 @@ public sealed class SessionRouterTests {
         scope.Register(goal1);
         scope.Register(goal2);
 
-        SessionRouter.RemoveScope(sessionId).Should().BeTrue();
+        await SessionRouter.RemoveScopeAsync(sessionId).Should().BeTrue();
         SessionRouter.ScopeCount.Should().Be(0);
         goal1.LifecycleState.Should().Be(EntityLifecycle.Disposed);
         goal2.LifecycleState.Should().Be(EntityLifecycle.Disposed);
     }
 
     [Fact]
-    public void RemoveScope_不存在_返回False() {
+    public async Task RemoveScope_不存在_返回False() {
         var sessionId = new ObjectId(ObjectType.Session);
-        SessionRouter.RemoveScope(sessionId).Should().BeFalse();
+        await SessionRouter.RemoveScopeAsync(sessionId).Should().BeFalse();
     }
 
     [Fact]

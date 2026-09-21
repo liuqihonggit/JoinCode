@@ -96,7 +96,7 @@ public sealed partial class SnipLogic : ServiceEntity {
             throw new FileNotFoundException(L.T(StringKey.SnipFileNotFound, filePath), filePath);
 
         long fileSize;
-        using (var sizeStream = _fs.OpenRead(filePath)) {
+        await using (var sizeStream = _fs.OpenRead(filePath)) {
             fileSize = sizeStream.Length;
         }
 

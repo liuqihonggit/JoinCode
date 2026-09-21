@@ -19,7 +19,7 @@ public sealed class ObjectTypeAndObjectIdManagerTests {
         await using var entity = new TestEntity(ObjectType.Plugin, "test-plugin");
 
         ObjectIdManager.IsRegistered(entity.ObjectId).Should().BeTrue();
-        await entity.DisposeAsync().ConfigureAwait(false);
+        await entity.DisposeAsync();
         ObjectIdManager.IsRegistered(entity.ObjectId).Should().BeFalse();
     }
 

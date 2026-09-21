@@ -84,7 +84,7 @@ public sealed class McpTcpServer : ServiceEntity {
     private async Task HandleClientAsync(TcpClient client, CancellationToken ct) {
         try {
             using (client)
-            using (var stream = client.GetStream()) {
+            await using (var stream = client.GetStream()) {
                 while (!ct.IsCancellationRequested && client.Connected) {
                     HttpRequestInfo? request;
                     try {

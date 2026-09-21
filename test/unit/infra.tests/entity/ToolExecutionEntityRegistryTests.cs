@@ -17,7 +17,7 @@ public sealed class ToolExecutionEntityRegistryTests {
         await using var entity = new ToolExecutionEntity("test");
         var objectId = entity.ObjectId;
         ToolExecutionEntity.Registry.Get(objectId).Should().BeSameAs(entity);
-        await entity.DisposeAsync().ConfigureAwait(false);
+        await entity.DisposeAsync();
         ToolExecutionEntity.Registry.Get(objectId).Should().BeNull();
     }
 

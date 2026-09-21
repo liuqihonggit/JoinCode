@@ -142,7 +142,7 @@ public sealed class ToolExecutionEntityCloneTests {
         var cloned = (BashProcessEntity)source.Clone(context);
 
         ToolExecutionEntity.Registry.Get(cloned.ObjectId).Should().BeSameAs(cloned);
-        await cloned.DisposeAsync().ConfigureAwait(false);
+        await cloned.DisposeAsync();
         ToolExecutionEntity.Registry.Get(cloned.ObjectId).Should().BeNull();
 
     }
@@ -273,9 +273,9 @@ public sealed class ToolExecutionEntityCloneTests {
                 }
             } finally {
                 foreach (var clone in clones)
-                    await clone.DisposeAsync().ConfigureAwait(false);
+                    await clone.DisposeAsync();
             }
-        } finally { await source.DisposeAsync().ConfigureAwait(false); }
+        } finally { await source.DisposeAsync(); }
     }
 
     [Fact]

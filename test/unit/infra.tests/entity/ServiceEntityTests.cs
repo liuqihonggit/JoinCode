@@ -48,7 +48,7 @@ public sealed class ServiceEntityTests {
     public async Task ServiceEntity_Dispose_InvokesOverriddenOnDispose() {
         await using var service = new TestServiceWithDispose();
         service.OnDisposeCalled.Should().BeFalse();
-        await service.DisposeAsync().ConfigureAwait(false);
+        await service.DisposeAsync();
         service.OnDisposeCalled.Should().BeTrue();
     }
 

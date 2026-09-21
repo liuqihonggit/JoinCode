@@ -5,10 +5,10 @@ public sealed class SessionRouterCollection : ICollectionFixture<SessionRouterCo
 
 public sealed class SessionRouterCollectionFixture : IDisposable {
     public SessionRouterCollectionFixture() {
-        SessionRouter.Clear();
+        _ = SessionRouter.ClearAsync();
     }
 
-    public void Dispose() {
-        SessionRouter.Clear();
+    public async Task Dispose() {
+        await SessionRouter.ClearAsync();
     }
 }

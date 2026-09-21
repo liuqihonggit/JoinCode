@@ -90,7 +90,7 @@ public sealed class LspIntegrationTests {
     [Fact]
     public async Task OnDocumentChangedAsync_AfterDispose_ThrowsObjectDisposedException() {
         await using var integration = new LspIntegration(_indexer, _lspService);
-        await integration.DisposeAsync().ConfigureAwait(false);
+        await integration.DisposeAsync();
 
         await Assert.ThrowsAsync<ObjectDisposedException>(() =>
             integration.OnDocumentChangedAsync("/src/Test.cs", CancellationToken.None)).ConfigureAwait(true);
@@ -155,7 +155,7 @@ public sealed class LspIntegrationTests {
     [Fact]
     public async Task TryFindDefinitionAsync_AfterDispose_ThrowsObjectDisposedException() {
         await using var integration = new LspIntegration(_indexer, _lspService);
-        await integration.DisposeAsync().ConfigureAwait(false);
+        await integration.DisposeAsync();
 
         await Assert.ThrowsAsync<ObjectDisposedException>(() =>
             integration.TryFindDefinitionAsync("/src/Test.cs", 1, 1, CancellationToken.None)).ConfigureAwait(true);

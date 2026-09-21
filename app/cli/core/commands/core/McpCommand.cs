@@ -377,7 +377,7 @@ public sealed class McpCliCommand {
             return JsonDocument.Parse("null").RootElement.Clone();
         // 字符串值 — 用 Utf8JsonWriter 写入（AOT 兼容）
         await using var ms = new System.IO.MemoryStream();
-        using (var writer = new System.Text.Json.Utf8JsonWriter(ms))
+        await using (var writer = new System.Text.Json.Utf8JsonWriter(ms))
             writer.WriteStringValue(value);
         ms.Position = 0;
         return JsonDocument.Parse(ms).RootElement.Clone();

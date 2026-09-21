@@ -178,7 +178,7 @@ public sealed partial class SwarmWorkerHandler : ServiceEntity {
         _logger?.LogInformation("等待 Leader 批准: Tool={ToolName}, RequestId={RequestId}",
             ctx.ToolName, request.Id);
 
-        using (ctx.CancellationToken.Register(() => {
+        await using (ctx.CancellationToken.Register(() => {
             if (resolveOnce.Claim()) {
                 ctx.LogCancelled();
                 resolveOnce.Resolve(ctx.CancelAndAbort());

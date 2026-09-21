@@ -244,7 +244,7 @@ internal static class TuiModeRunner {
 
         polling.Start();
         try {
-            using var ctReg = cancellationToken.Register(() => app.RequestStop());
+            await using var ctReg = cancellationToken.Register(() => app.RequestStop());
             WriteDiag("[TUI] app.Run start");
             app.Run(top);
             WriteDiag("[TUI] app.Run returned");

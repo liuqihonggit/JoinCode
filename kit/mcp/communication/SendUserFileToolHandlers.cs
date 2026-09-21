@@ -48,7 +48,7 @@ public partial class SendUserFileToolHandlers {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.SendUserFileNotFound, file_path)).Build();
 
             long fileSize;
-            using (var sizeStream = _fs.OpenRead(file_path)) {
+            await using (var sizeStream = _fs.OpenRead(file_path)) {
                 fileSize = sizeStream.Length;
             }
             var lastWriteTime = _fs.GetLastWriteTime(file_path);

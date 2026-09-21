@@ -32,7 +32,7 @@ public sealed class ToolExecutionEntityTests {
         await using var entity = new ToolExecutionEntity("test");
         var objectId = entity.ObjectId;
         ToolExecutionEntity.Registry.Get(objectId).Should().BeSameAs(entity);
-        await entity.DisposeAsync().ConfigureAwait(false);
+        await entity.DisposeAsync();
         ToolExecutionEntity.Registry.Get(objectId).Should().BeNull();
     }
 
@@ -40,7 +40,7 @@ public sealed class ToolExecutionEntityTests {
     public async Task Dispose_SetsLifecycleToDisposed() {
         await using var entity = new ToolExecutionEntity("test");
         entity.LifecycleState = EntityLifecycle.Active;
-        await entity.DisposeAsync().ConfigureAwait(false);
+        await entity.DisposeAsync();
         entity.LifecycleState.Should().Be(EntityLifecycle.Disposed);
     }
 

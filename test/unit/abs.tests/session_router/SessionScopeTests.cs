@@ -3,7 +3,7 @@ namespace Abs.Tests.SessionRouterTests;
 [Collection(nameof(SessionRouterCollection))]
 public sealed class SessionScopeTests {
     public SessionScopeTests() {
-        SessionRouter.Clear();
+        _ = SessionRouter.ClearAsync();
     }
     [Fact]
     public async Task Register_ThenResolve_可获取() {
@@ -15,7 +15,7 @@ public sealed class SessionScopeTests {
         scope.Count.Should().Be(1);
         scope.Resolve<Goal>(goal.ObjectId).Should().BeSameAs(goal);
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public sealed class SessionScopeTests {
         scope.Count.Should().Be(0);
         scope.Resolve<Goal>(goal.ObjectId).Should().BeNull();
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class SessionScopeTests {
         scope.Register(goal);
         scope.Resolve<Session>(goal.ObjectId).Should().BeNull();
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class SessionScopeTests {
         scope.GetAll(ObjectType.Session).Should().HaveCount(1);
         scope.GetAll(ObjectType.Agent).Should().BeEmpty();
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class SessionScopeTests {
         goals.Should().Contain(goal1);
         goals.Should().Contain(goal2);
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public sealed class SessionScopeTests {
         scope.Unregister(goal.ObjectId);
         scope.Contains(goal.ObjectId).Should().BeFalse();
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public sealed class SessionScopeTests {
         goal1.LifecycleState.Should().Be(EntityLifecycle.Disposed);
         goal2.LifecycleState.Should().Be(EntityLifecycle.Disposed);
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -124,14 +124,14 @@ public sealed class SessionScopeTests {
         var act = () => scope.Register(new Goal("测试"));
         act.Should().Throw<ObjectDisposedException>();
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
-    public void GetOrCreateScope_空SessionId_抛ArgumentException() {
+    public async Task GetOrCreateScope_空SessionId_抛ArgumentException() {
         var act = () => SessionRouter.GetOrCreateScope(ObjectId.Empty);
         act.Should().Throw<ArgumentException>();
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 }

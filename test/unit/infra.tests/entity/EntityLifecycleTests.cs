@@ -69,7 +69,7 @@ public sealed class EntityLifecycleTests {
     public async Task Entity_Dispose_SetsLifecycleToDisposed() {
         await using var entity = new TestEntity();
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
-        await entity.DisposeAsync().ConfigureAwait(false);
+        await entity.DisposeAsync();
         entity.LifecycleState.Should().Be(EntityLifecycle.Disposed);
     }
 }

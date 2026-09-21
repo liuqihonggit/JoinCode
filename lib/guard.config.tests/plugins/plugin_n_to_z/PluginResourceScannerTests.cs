@@ -12,8 +12,8 @@ public sealed class PluginResourceScannerTests {
         await using var e1 = new TestEntity("res1");
         await using var e2 = new TestEntity("res2");
         var ids = new[] { e1.ObjectId, e2.ObjectId };
-        await e1.DisposeAsync().ConfigureAwait(false);
-        await e2.DisposeAsync().ConfigureAwait(false);
+        await e1.DisposeAsync();
+        await e2.DisposeAsync();
 
         var report = scanner.ScanPluginResources("pluginA", ids);
 
@@ -27,7 +27,7 @@ public sealed class PluginResourceScannerTests {
         await using var e1 = new TestEntity("res1");
         await using var e2 = new TestEntity("res2");
         var ids = new[] { e1.ObjectId, e2.ObjectId };
-        await e1.DisposeAsync().ConfigureAwait(false);
+        await e1.DisposeAsync();
 
         var report = scanner.ScanPluginResources("pluginA", ids);
 

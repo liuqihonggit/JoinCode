@@ -115,7 +115,7 @@ public static class PdfReader {
             }
 
             long originalSize;
-            using (var sizeStream = fs.OpenRead(filePath)) {
+            await using (var sizeStream = fs.OpenRead(filePath)) {
                 originalSize = sizeStream.Length;
             }
 

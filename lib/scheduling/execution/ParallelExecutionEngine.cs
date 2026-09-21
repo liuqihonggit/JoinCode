@@ -110,7 +110,7 @@ public sealed partial class ParallelExecutionEngine : IAsyncDisposable {
 
             // 创建取消任务用于协作式取消
             var cancellationTask = new TaskCompletionSource<object?>();
-            using (context.CancellationToken.Register(() => cancellationTask.TrySetResult(null))) {
+            await using (context.CancellationToken.Register(() => cancellationTask.TrySetResult(null))) {
                 // 使用 WhenAny 等待任一任务完成或取消令牌触发
                 var completedTask = await Task.WhenAny(
                     Task.WhenAny(runningTasks),

@@ -112,7 +112,7 @@ public static class BomStripper {
     /// </summary>
     private static async Task RemoveBomFromFile(string filePath) {
         byte[] allBytes;
-        using (var readStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
+        await using (var readStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
             allBytes = new byte[readStream.Length];
             var totalRead = 0;
             while (totalRead < allBytes.Length) {

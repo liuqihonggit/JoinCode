@@ -48,8 +48,8 @@ public class EditFileAsyncTests {
 
         await Task.WhenAll(task1, task2);
 
-        await fs.ReadAllText(path1).Should().Be("a1");
-        await fs.ReadAllText(path2).Should().Be("b2");
+        (await fs.ReadAllText(path1)).Should().Be("a1");
+        (await fs.ReadAllText(path2)).Should().Be("b2");
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class EditFileAsyncTests {
         var result = await fs.EditFileAsync<int>(path, async (bytes, ct) => (null, 42), default);
 
         result.Should().Be(42);
-        await fs.ReadAllText(path).Should().Be("original");
+        (await fs.ReadAllText(path)).Should().Be("original");
     }
 
     [Fact]
@@ -108,6 +108,6 @@ public class EditFileAsyncTests {
             return (Encoding.UTF8.GetBytes(content + "3"), 3);
         }, default);
 
-        await fs.ReadAllText(path).Should().Be("0123");
+        (await fs.ReadAllText(path)).Should().Be("0123");
     }
 }

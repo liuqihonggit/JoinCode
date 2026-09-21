@@ -84,16 +84,17 @@ internal class AsyncMethodRewriter : CSharpSyntaxRewriter {
         if (node.Body is null && node.ExpressionBody is null)
             return base.VisitMethodDeclaration(node);
 
-        // 检测 body 是否含 await 表达式
-        var hasAwait = ContainsAwait(node);
+        // 检测 body 是否含 await 表达式（排除 lambda/local function 内的 await）
+        var hasAwait = ContainsDirectAwait(node);
         if (!hasAwait)
             return base.VisitMethodDeclaration(node);
 
-        // 添加 async 修饰符
-        var asyncModifier = SyntaxFactory.Token(SyntaxKind.AsyncKeyword);
+        // 添加 async 修饰符（带 trailing whitespace 防止与返回类型合并）
+        var asyncModifier = SyntaxFactory.Token(SyntaxKind.AsyncKeyword)
+            .WithTrailingTrivia(SyntaxFactory.Whitespace(" "));
         var newModifiers = node.Modifiers.Add(asyncModifier);
 
-        // 调整返回类型
+        // 调整返回类型（保留原始 leading trivia）
         var newReturnType = WrapInTask(node.ReturnType);
 
         var newNode = node
@@ -105,13 +106,34 @@ internal class AsyncMethodRewriter : CSharpSyntaxRewriter {
     }
 
     /// <summary>
-    /// 检测方法 body 或 expression body 是否含 AwaitExpressionSyntax
+    /// 检测方法 body 是否含直接 await（排除 lambda/local function 内的 await）
     /// </summary>
-    private static bool ContainsAwait(MethodDeclarationSyntax node) {
-        if (node.Body is not null)
-            return node.Body.DescendantNodes().Any(n => n.IsKind(SyntaxKind.AwaitExpression));
-        if (node.ExpressionBody is not null)
-            return node.ExpressionBody.DescendantNodes().Any(n => n.IsKind(SyntaxKind.AwaitExpression));
+    private static bool ContainsDirectAwait(MethodDeclarationSyntax node) {
+        var bodyNode = node.Body ?? (SyntaxNode?)node.ExpressionBody;
+        if (bodyNode is null)
+            return false;
+
+        foreach (var descendant in bodyNode.DescendantNodes()) {
+            if (!descendant.IsKind(SyntaxKind.AwaitExpression))
+                continue;
+            if (!IsInsideLambdaOrLocalFunction(descendant, bodyNode))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 判断 await 是否在 lambda 或 local function 内部
+    /// </summary>
+    private static bool IsInsideLambdaOrLocalFunction(SyntaxNode node, SyntaxNode bodyBoundary) {
+        var current = node.Parent;
+        while (current is not null && current != bodyBoundary) {
+            if (current is ParenthesizedLambdaExpressionSyntax or
+                SimpleLambdaExpressionSyntax or
+                LocalFunctionStatementSyntax)
+                return true;
+            current = current.Parent;
+        }
         return false;
     }
 
@@ -128,9 +150,13 @@ internal class AsyncMethodRewriter : CSharpSyntaxRewriter {
             name.StartsWith("System.Threading.Tasks.Task", StringComparison.Ordinal))
             return returnType;
 
+        // 保留原始 leading trivia（方法修饰符与返回类型之间的空格）
+        var leadingTrivia = returnType.GetLeadingTrivia();
+
         // void → Task
         if (name == "void")
             return SyntaxFactory.IdentifierName("Task")
+                .WithLeadingTrivia(leadingTrivia)
                 .WithTrailingTrivia(returnType.GetTrailingTrivia());
 
         // T → Task<T>
@@ -138,6 +164,7 @@ internal class AsyncMethodRewriter : CSharpSyntaxRewriter {
             SyntaxFactory.Identifier("Task"),
             SyntaxFactory.TypeArgumentList(
                 SyntaxFactory.SingletonSeparatedList(returnType)))
+            .WithLeadingTrivia(leadingTrivia)
             .WithTrailingTrivia(returnType.GetTrailingTrivia());
     }
 }

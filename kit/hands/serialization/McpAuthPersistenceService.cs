@@ -148,6 +148,9 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
         private readonly McpAuthPersistenceService _owner;
         private readonly ILogger<McpAuthPersistenceService>? _logger;
 
+        /// <summary>构造 MCP 认证持久化 Actor。</summary>
+        /// <param name="owner">所属认证持久化服务。</param>
+        /// <param name="logger">日志记录器（可选）。</param>
         public McpAuthPersistenceActor(McpAuthPersistenceService owner, ILogger<McpAuthPersistenceService>? logger) : base() {
             _owner = owner;
             _logger = logger;

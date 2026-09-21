@@ -144,9 +144,13 @@ public static class SedValidation {
     /// sed 表达式提取结果
     /// </summary>
     private sealed class SedExtractionResult {
+        /// <summary>获取是否解析成功。</summary>
         public bool Success { get; init; }
+        /// <summary>获取 sed 表达式列表。</summary>
         public List<string> Expressions { get; init; } = [];
+        /// <summary>获取文件参数列表。</summary>
         public List<string> FileArgs { get; init; } = [];
+        /// <summary>获取是否启用就地编辑。</summary>
         public bool HasInPlace { get; init; }
     }
 
@@ -465,9 +469,13 @@ public static class SedValidation {
     /// 替换命令解析结果
     /// </summary>
     private sealed class SubstitutionParseResult {
+        /// <summary>获取是否解析成功。</summary>
         public bool Success { get; init; }
+        /// <summary>获取匹配模式。</summary>
         public string Pattern { get; init; } = string.Empty;
+        /// <summary>获取替换文本。</summary>
         public string Replacement { get; init; } = string.Empty;
+        /// <summary>获取替换标志。</summary>
         public string Flags { get; init; } = string.Empty;
     }
 

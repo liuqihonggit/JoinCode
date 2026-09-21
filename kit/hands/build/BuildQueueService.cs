@@ -248,19 +248,26 @@ public sealed partial class BuildQueueService : BuildQueueBase {
         private bool _lockAcquired;
         private int _disposed;
 
+        /// <summary>构造构建执行作用域。</summary>
+        /// <param name="owner">所属构建队列服务。</param>
+        /// <param name="externalCt">外部取消令牌。</param>
         public BuildExecutionScope(BuildQueueService owner, CancellationToken externalCt) {
             _owner = owner;
             _cts = CancellationTokenSource.CreateLinkedTokenSource(externalCt);
             _owner._currentBuildCts = _cts;
         }
 
+        /// <summary>获取关联的取消令牌。</summary>
         public CancellationToken Token => _cts.Token;
 
+        /// <summary>异步获取跨进程构建锁。</summary>
+        /// <param name="ct">取消令牌。</param>
         public async Task AcquireLockAsync(CancellationToken ct) {
             await _owner._crossProcessLock.AcquireAsync(ct).ConfigureAwait(false);
             _lockAcquired = true;
         }
 
+        /// <summary>异步释放资源。</summary>
         public ValueTask DisposeAsync() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return default;
 

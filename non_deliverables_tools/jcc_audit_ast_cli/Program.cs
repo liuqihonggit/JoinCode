@@ -7,6 +7,10 @@ namespace JccAuditCli;
 ///   替换: jcc-audit replace &lt;csproj-or-slnx-path&gt; --rule &lt;JCC规则ID&gt; [--fix-all] [--dry-run]
 /// </summary>
 public static class Program {
+    /// <summary>
+    /// 程序入口。
+    /// </summary>
+    /// <param name="args">命令行参数。</param>
     public static async Task<int> Main(string[] args) {
         // 注册 MSBuild，确保 MSBuildWorkspace 能找到正确的构建工具
         Microsoft.Build.Locator.MSBuildLocator.RegisterDefaults();

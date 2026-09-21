@@ -8,10 +8,13 @@ namespace JoinCode.Pipelines.Middlewares;
 internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.Context.IChatMiddleware {
     private readonly ILogger<ChatErrorHandlingMiddleware> _logger;
 
+    /// <summary>构造 ChatErrorHandlingMiddleware。</summary>
+    /// <param name="logger">日志记录器</param>
     public ChatErrorHandlingMiddleware(ILogger<ChatErrorHandlingMiddleware> logger) {
         _logger = logger;
     }
 
+    /// <summary>执行中间件。</summary>
     public async IAsyncEnumerable<JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> InvokeAsync(
         Core.Context.ChatMiddlewareContext context,
         JoinCode.Abstractions.Pipeline.StreamMiddlewareDelegate<Core.Context.ChatMiddlewareContext, JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> next,

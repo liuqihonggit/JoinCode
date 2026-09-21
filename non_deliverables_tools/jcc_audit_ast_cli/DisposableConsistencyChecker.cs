@@ -13,6 +13,9 @@ public static class DisposableConsistencyChecker {
     private static readonly string IDisposableFullName = typeof(IDisposable).FullName!;
     private static readonly string IAsyncDisposableFullName = typeof(IAsyncDisposable).FullName!;
 
+    /// <summary>从编译中提取 IDisposable/IAsyncDisposable 一致性问题。</summary>
+    /// <param name="compilation">Roslyn 编译。</param>
+    /// <returns>检测结果列表。</returns>
     public static List<DisposableConsistencyInfo> Extract(Compilation compilation) {
         var results = new List<DisposableConsistencyInfo>();
 
@@ -97,10 +100,16 @@ public static class DisposableConsistencyChecker {
 /// IDisposable/IAsyncDisposable 一致性检测结果
 /// </summary>
 public sealed record DisposableConsistencyInfo {
+    /// <summary>获取类型名称。</summary>
     public string TypeName { get; init; } = string.Empty;
+    /// <summary>获取文件路径。</summary>
     public string FilePath { get; init; } = string.Empty;
+    /// <summary>获取行号。</summary>
     public int Line { get; init; }
+    /// <summary>获取规则 ID。</summary>
     public string RuleId { get; init; } = string.Empty;
+    /// <summary>获取严重级别。</summary>
     public string Severity { get; init; } = string.Empty;
+    /// <summary>获取检测消息。</summary>
     public string Message { get; init; } = string.Empty;
 }

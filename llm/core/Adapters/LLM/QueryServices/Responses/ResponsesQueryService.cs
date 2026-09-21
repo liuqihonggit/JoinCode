@@ -5,6 +5,12 @@ namespace Api.LLM.QueryServices.Responses;
 /// 用 input + instructions 请求,output 数组响应,流式 event SSE(无 [DONE])
 /// </summary>
 public class ResponsesQueryService : QueryServiceBase {
+    /// <summary>构造 Responses API 查询服务。</summary>
+    /// <param name="config">供应商配置。</param>
+    /// <param name="httpClient">HTTP 客户端。</param>
+    /// <param name="logger">日志记录器。</param>
+    /// <param name="fs">文件系统。</param>
+    /// <param name="resilientExecutor">弹性 HTTP 执行器。</param>
     public ResponsesQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
         : base(config, httpClient, logger, fs, resilientExecutor) {
     }

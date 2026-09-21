@@ -1,6 +1,8 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
+/// <summary>Bash 安全包装剥离器。</summary>
 public static class BashSafeWrapperStripper {
+    /// <summary>从参数数组中剥离安全包装命令（time/nohup/timeout/nice/env/stdbuf）。</summary>
     public static string[] StripSafeWrappers(string[] argv) {
         var a = argv;
         for (; ; )
@@ -75,6 +77,7 @@ public static class BashSafeWrapperStripper {
         return a;
     }
 
+    /// <summary>从命令字符串中剥离安全包装命令及安全环境变量赋值。</summary>
     public static string StripSafeWrappersString(string command, FrozenSet<string> safeEnvVars) {
         var result = command.TrimStart();
 

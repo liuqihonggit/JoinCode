@@ -39,13 +39,21 @@ public interface IGoalNodeInspector {
 /// 循环观察上下文 — 传递给检查器的循环状态快照
 /// </summary>
 public sealed record LoopObservationContext {
+    /// <summary>获取目标标识。</summary>
     public required string GoalId { get; init; }
+    /// <summary>获取节点标识。</summary>
     public required string NodeId { get; init; }
+    /// <summary>获取循环迭代次数。</summary>
     public required int LoopIteration { get; init; }
+    /// <summary>获取负面评审次数。</summary>
     public required int NegativeReviewCount { get; init; }
+    /// <summary>获取总消耗 Token 数。</summary>
     public required int TotalTokensConsumed { get; init; }
+    /// <summary>获取已完成回合数。</summary>
     public required int TotalTurnsCompleted { get; init; }
+    /// <summary>获取最后节点输出。</summary>
     public string? LastNodeOutput { get; init; }
+    /// <summary>获取负面评审任务标识。</summary>
     public string? NegativeReviewTaskId { get; init; }
 }
 
@@ -53,9 +61,13 @@ public sealed record LoopObservationContext {
 /// 节点质量评分结果
 /// </summary>
 public sealed class NodeQualityScore {
+    /// <summary>获取总体评分。</summary>
     public double Overall { get; init; }
+    /// <summary>获取各维度评分字典。</summary>
     public IReadOnlyDictionary<string, double> Dimensions { get; init; } = new Dictionary<string, double>();
+    /// <summary>获取评分原因。</summary>
     public string Reason { get; init; } = string.Empty;
 
+    /// <summary>获取默认评分。</summary>
     public static NodeQualityScore Default => new() { Overall = 0.5, Reason = "默认评分" };
 }

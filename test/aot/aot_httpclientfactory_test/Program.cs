@@ -39,5 +39,6 @@ Console.WriteLine($"Typed HttpClient BaseAddress: {typedClient.HttpClient.BaseAd
 Console.WriteLine("All IHttpClientFactory checks passed.");
 
 public sealed class TestTypedClient(HttpClient httpClient) {
+    /// <summary>获取类型化客户端封装的 HttpClient 实例。</summary>
     public HttpClient HttpClient { get; } = httpClient;
 }

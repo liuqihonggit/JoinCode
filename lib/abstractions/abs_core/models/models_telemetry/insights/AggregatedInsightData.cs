@@ -4,15 +4,25 @@ namespace JoinCode.Abstractions.Insights;
 /// 聚合洞察数据 — 对齐 TS insights.ts AggregatedData
 /// </summary>
 public sealed class AggregatedInsightData {
+    /// <summary>获取总会话数。</summary>
     public int TotalSessions { get; init; }
+    /// <summary>获取已扫描的会话数。</summary>
     public int TotalSessionsScanned { get; init; }
+    /// <summary>获取起始日期。</summary>
     public DateOnly? StartDate { get; init; }
+    /// <summary>获取结束日期。</summary>
     public DateOnly? EndDate { get; init; }
+    /// <summary>获取总消息数。</summary>
     public int TotalMessages { get; init; }
+    /// <summary>获取总时长（小时）。</summary>
     public double TotalDurationHours { get; init; }
+    /// <summary>获取总输入 token 数。</summary>
     public long TotalInputTokens { get; init; }
+    /// <summary>获取总输出 token 数。</summary>
     public long TotalOutputTokens { get; init; }
+    /// <summary>获取 Git 提交数。</summary>
     public int GitCommits { get; init; }
+    /// <summary>获取 Git 推送数。</summary>
     public int GitPushes { get; init; }
 
     /// <summary>工具使用统计 (工具名 → 使用次数)</summary>
@@ -24,18 +34,27 @@ public sealed class AggregatedInsightData {
     /// <summary>项目分布 (项目路径 → 会话数)</summary>
     public IReadOnlyDictionary<string, int> Projects { get; init; } = new Dictionary<string, int>();
 
+    /// <summary>获取新增代码行数。</summary>
     public int TotalLinesAdded { get; init; }
+    /// <summary>获取删除代码行数。</summary>
     public int TotalLinesRemoved { get; init; }
+    /// <summary>获取修改文件数。</summary>
     public int TotalFilesModified { get; init; }
+    /// <summary>获取中断次数。</summary>
     public int TotalInterruptions { get; init; }
+    /// <summary>获取工具错误总数。</summary>
     public int TotalToolErrors { get; init; }
 
     /// <summary>工具错误分类聚合</summary>
     public IReadOnlyDictionary<string, int> ToolErrorCategories { get; init; } = new Dictionary<string, int>();
 
+    /// <summary>获取使用任务代理的会话数。</summary>
     public int SessionsUsingTaskAgent { get; init; }
+    /// <summary>获取使用 MCP 的会话数。</summary>
     public int SessionsUsingMcp { get; init; }
+    /// <summary>获取使用 Web 搜索的会话数。</summary>
     public int SessionsUsingWebSearch { get; init; }
+    /// <summary>获取使用 Web 抓取的会话数。</summary>
     public int SessionsUsingWebFetch { get; init; }
 
     /// <summary>活跃天数</summary>
@@ -76,8 +95,12 @@ public sealed class AggregatedInsightData {
 /// 每日活动数据 — 对齐 TS stats DailyActivity
 /// </summary>
 public sealed class DailyActivity {
+    /// <summary>获取日期。</summary>
     public DateOnly Date { get; init; }
+    /// <summary>获取消息数。</summary>
     public int MessageCount { get; init; }
+    /// <summary>获取会话数。</summary>
     public int SessionCount { get; init; }
+    /// <summary>获取工具调用数。</summary>
     public int ToolCallCount { get; init; }
 }

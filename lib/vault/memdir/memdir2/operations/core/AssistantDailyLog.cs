@@ -369,6 +369,9 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         private readonly AssistantDailyLogService _owner;
         private readonly ILogger<AssistantDailyLogService>? _logger;
 
+        /// <summary>构造助手日志 Actor。</summary>
+        /// <param name="owner">所属助手日志服务。</param>
+        /// <param name="logger">日志记录器。</param>
         public DailyLogActor(AssistantDailyLogService owner, ILogger<AssistantDailyLogService>? logger) : base() {
             _owner = owner;
             _logger = logger;

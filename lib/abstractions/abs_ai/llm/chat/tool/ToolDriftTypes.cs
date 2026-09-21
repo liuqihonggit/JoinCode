@@ -14,13 +14,20 @@ public enum ToolDriftKind {
 }
 
 public sealed class ToolDriftReport {
+    /// <summary>获取漂移类型。</summary>
     public ToolDriftKind Kind { get; init; }
+    /// <summary>获取新增工具名称列表。</summary>
     public IReadOnlyList<string> AddedNames { get; init; } = [];
+    /// <summary>获取移除工具名称列表。</summary>
     public IReadOnlyList<string> RemovedNames { get; init; } = [];
+    /// <summary>获取编辑工具名称列表。</summary>
     public IReadOnlyList<string> EditedNames { get; init; } = [];
+    /// <summary>获取重排序工具名称列表。</summary>
     public IReadOnlyList<string> ReorderedNames { get; init; } = [];
+    /// <summary>获取漂移摘要。</summary>
     public string Summary { get; init; } = string.Empty;
 
+    /// <summary>获取是否缓存安全。</summary>
     public bool IsCacheSafe => Kind is ToolDriftKind.Identity or ToolDriftKind.Append;
 
     /// <summary>

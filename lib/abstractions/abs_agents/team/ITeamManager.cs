@@ -5,18 +5,31 @@ namespace JoinCode.Abstractions.Interfaces;
 /// Teammate 运行时状态 - 聚合团队信息和运行时状态
 /// </summary>
 public sealed record TeammateStatus {
+    /// <summary>获取代理标识。</summary>
     public required string AgentId { get; init; }
+    /// <summary>获取团队标识。</summary>
     public required string TeamId { get; init; }
+    /// <summary>获取团队名称。</summary>
     public string? TeamName { get; init; }
+    /// <summary>获取代理类型。</summary>
     public string? AgentType { get; init; }
+    /// <summary>获取显示名称。</summary>
     public string? DisplayName { get; init; }
+    /// <summary>获取代理状态。</summary>
     public AgentStatus Status { get; init; } = AgentStatus.Pending;
+    /// <summary>获取角色。</summary>
     public string? Role { get; init; }
+    /// <summary>获取颜色十六进制值。</summary>
     public string? ColorHex { get; init; }
+    /// <summary>获取工作树路径。</summary>
     public string? WorktreePath { get; init; }
+    /// <summary>获取权限模式。</summary>
     public string? PermissionMode { get; init; }
+    /// <summary>获取启动时间。</summary>
     public DateTime? StartedAt { get; init; }
+    /// <summary>获取最后活动。</summary>
     public string? LastActivity { get; init; }
+    /// <summary>获取是否活跃。</summary>
     public bool IsActive { get; init; } = true;
 
     /// <summary>投影为 AgentCoreIdentity（Role 从 string 转换为枚举）</summary>

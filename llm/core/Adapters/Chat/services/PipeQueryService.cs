@@ -7,6 +7,13 @@ public sealed partial class PipeQueryService : IQueryService {
     private readonly HttpClient _httpClient;
     private readonly ResilientHttpExecutor? _resilientExecutor;
 
+    /// <summary>
+    /// 构造管道查询服务。
+    /// </summary>
+    /// <param name="config">管道传输配置。</param>
+    /// <param name="apiKey">API 密钥，可选。</param>
+    /// <param name="logger">日志记录器，可选。</param>
+    /// <param name="resilientExecutor">弹性 HTTP 执行器，可选。</param>
     public PipeQueryService(PipeTransportConfig config, string? apiKey = null, ILogger<PipeQueryService>? logger = null, ResilientHttpExecutor? resilientExecutor = null) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
@@ -14,6 +21,7 @@ public sealed partial class PipeQueryService : IQueryService {
         _resilientExecutor = resilientExecutor;
     }
 
+    /// <summary>获取非流式聊天响应消息列表。</summary>
     public async Task<IReadOnlyList<ApiMessage>> GetApiMessageContentsAsync(
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
@@ -25,6 +33,7 @@ public sealed partial class PipeQueryService : IQueryService {
         return response.Choices.Select(ConvertToApiMessage).ToList();
     }
 
+    /// <summary>获取流式聊天事件枚举。</summary>
     public async IAsyncEnumerable<StreamEvent> GetStreamEventContentsAsync(
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
@@ -242,19 +251,24 @@ public sealed partial class PipeQueryService : IQueryService {
 
 
     internal sealed class ChatRequest {
+        /// <summary>获取或设置模型名称。</summary>
         [JsonPropertyName("model")]
         public string Model { get; set; } = string.Empty;
 
+        /// <summary>获取或设置消息列表。</summary>
         [JsonPropertyName("messages")]
         public List<OpenAIApiMessage> Messages { get; set; } = new();
 
+        /// <summary>获取或设置是否流式。</summary>
         [JsonPropertyName("stream")]
         public bool Stream { get; set; }
 
+        /// <summary>获取或设置温度参数。</summary>
         [JsonPropertyName("temperature")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public float? Temperature { get; set; }
 
+        /// <summary>获取或设置最大 Token 数。</summary>
         [JsonPropertyName("max_tokens")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public int? MaxTokens { get; set; }

@@ -357,15 +357,28 @@ internal sealed partial class MonitorSession : IAsyncDisposable {
     private readonly Fsm<MonitorState, MonitorSessionEvent> _fsm;
     private int _disposed;
 
+    /// <summary>获取监控标识</summary>
     public string MonitorId { get; }
+    /// <summary>获取监控配置</summary>
     public McpMonitorConfig Config { get; }
+    /// <summary>获取当前状态</summary>
     public MonitorState State => _fsm.CurrentState;
+    /// <summary>获取启动时间</summary>
     public DateTime StartedAt { get; } = DateTime.UtcNow;
+    /// <summary>获取已接收事件数字段</summary>
     public int EventsReceivedField;
+    /// <summary>获取已接收事件数</summary>
     public int EventsReceived => Volatile.Read(ref EventsReceivedField);
+    /// <summary>获取或设置最后事件时间</summary>
     public DateTime? LastEventAt { get; set; }
+    /// <summary>获取取消令牌源</summary>
     public CancellationTokenSource Cts { get; } = new();
 
+    /// <summary>
+    /// 构造监控会话
+    /// </summary>
+    /// <param name="monitorId">监控标识</param>
+    /// <param name="config">监控配置</param>
     public MonitorSession(string monitorId, McpMonitorConfig config) {
         MonitorId = monitorId;
         Config = config;
@@ -376,6 +389,7 @@ internal sealed partial class MonitorSession : IAsyncDisposable {
     /// <summary>触发事件 — 查转换表合法则转,非法静默忽略(保持原直接赋值语义)</summary>
     public void Trigger(MonitorSessionEvent evt) => _fsm.TryTrigger(evt);
 
+    /// <summary>转换为监控状态快照</summary>
     public McpMonitorStatus ToStatus() {
         return new McpMonitorStatus {
             MonitorId = MonitorId,
@@ -387,6 +401,7 @@ internal sealed partial class MonitorSession : IAsyncDisposable {
         };
     }
 
+    /// <summary>释放资源</summary>
     public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         Cts.Cancel();

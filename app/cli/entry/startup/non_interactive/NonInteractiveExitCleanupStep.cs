@@ -2,6 +2,10 @@ namespace JoinCode.Entry;
 
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class NonInteractiveExitCleanupStep : ServiceEntity, IMiddleware<StartupContext> {
+    /// <summary>执行非交互模式退出清理中间件 — 打印成本摘要并触发停止钩子后传递给下一个中间件</summary>
+    /// <param name="context">启动上下文，包含宿主与服务容器</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var host = context.Host;
 

@@ -9,6 +9,9 @@ internal sealed partial class TokenBudgetMiddleware : ServiceEntity, Core.Contex
     private readonly JoinCode.Abstractions.Interfaces.ITokenBudgetManager _budgetManager;
     private readonly ILogger<TokenBudgetMiddleware> _logger;
 
+    /// <summary>构造 TokenBudgetMiddleware。</summary>
+    /// <param name="budgetManager">Token 预算管理器</param>
+    /// <param name="logger">日志记录器</param>
     public TokenBudgetMiddleware(
         JoinCode.Abstractions.Interfaces.ITokenBudgetManager budgetManager,
         ILogger<TokenBudgetMiddleware> logger) {
@@ -16,6 +19,7 @@ internal sealed partial class TokenBudgetMiddleware : ServiceEntity, Core.Contex
         _logger = logger;
     }
 
+    /// <summary>执行中间件。</summary>
     public async IAsyncEnumerable<JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> InvokeAsync(
         Core.Context.ChatMiddlewareContext context,
         JoinCode.Abstractions.Pipeline.StreamMiddlewareDelegate<Core.Context.ChatMiddlewareContext, JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> next,

@@ -97,18 +97,31 @@ public interface IAgentService {
 /// 代理完成事件参数
 /// </summary>
 public sealed class AgentCompletedEventArgs : EventArgs {
+    /// <summary>获取代理标识。</summary>
     public required string AgentId { get; init; }
+    /// <summary>获取代理完成状态。</summary>
     public required AgentStatus Status { get; init; }
+    /// <summary>获取代理描述。</summary>
     public required string Description { get; init; }
+    /// <summary>获取代理输出。</summary>
     public string? Output { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? Error { get; init; }
+    /// <summary>获取执行耗时（毫秒）。</summary>
     public long? ExecutionTimeMs { get; init; }
+    /// <summary>获取代理角色。</summary>
     public AgentRole Role { get; init; }
+    /// <summary>获取执行器变体。</summary>
     public ExecutorVariant? Variant { get; init; }
+    /// <summary>获取工具使用标识。</summary>
     public string? ToolUseId { get; init; }
+    /// <summary>获取工作树路径。</summary>
     public string? WorktreePath { get; init; }
+    /// <summary>获取工作树分支。</summary>
     public string? WorktreeBranch { get; init; }
+    /// <summary>获取工具使用次数。</summary>
     public int? ToolUseCount { get; init; }
+    /// <summary>获取 Token 总数。</summary>
     public long? TokenCount { get; init; }
 }
 
@@ -116,20 +129,34 @@ public sealed class AgentCompletedEventArgs : EventArgs {
 /// 代理任务通知（注入LLM对话的结构化XML通知）
 /// </summary>
 public sealed class AgentTaskNotification {
+    /// <summary>获取任务标识。</summary>
     public required string TaskId { get; init; }
+    /// <summary>获取任务状态。</summary>
     public required string Status { get; init; }
+    /// <summary>获取任务描述。</summary>
     public required string Description { get; init; }
+    /// <summary>获取工具使用标识。</summary>
     public string? ToolUseId { get; init; }
+    /// <summary>获取任务输出。</summary>
     public string? Output { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? Error { get; init; }
+    /// <summary>获取执行耗时（毫秒）。</summary>
     public long? ExecutionTimeMs { get; init; }
+    /// <summary>获取代理角色。</summary>
     public AgentRole Role { get; init; }
+    /// <summary>获取执行器变体。</summary>
     public ExecutorVariant? Variant { get; init; }
+    /// <summary>获取工具使用次数。</summary>
     public int? ToolUseCount { get; init; }
+    /// <summary>获取 Token 总数。</summary>
     public int? TokenCount { get; init; }
+    /// <summary>获取工作树路径。</summary>
     public string? WorktreePath { get; init; }
+    /// <summary>获取工作树分支。</summary>
     public string? WorktreeBranch { get; init; }
 
+    /// <summary>生成任务通知的 XML 表示。</summary>
     public string ToXml() {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("<task-notification>");
@@ -173,14 +200,23 @@ public sealed class AgentTaskNotification {
 /// 代理信息
 /// </summary>
 public sealed record AgentInfo {
+    /// <summary>获取代理标识。</summary>
     public required string Id { get; init; }
+    /// <summary>获取代理描述。</summary>
     public required string Description { get; init; }
+    /// <summary>获取代理角色。</summary>
     public AgentRole Role { get; init; }
+    /// <summary>获取执行器变体。</summary>
     public ExecutorVariant? Variant { get; init; }
+    /// <summary>获取或设置代理状态。</summary>
     public AgentStatus Status { get; init; } = AgentStatus.Pending;
+    /// <summary>获取隔离模式。</summary>
     public AgentIsolationMode IsolationMode { get; init; } = AgentIsolationMode.None;
+    /// <summary>获取启动时间。</summary>
     public DateTime? StartedAt { get; init; }
+    /// <summary>获取完成时间。</summary>
     public DateTime? CompletedAt { get; init; }
+    /// <summary>获取代理输出。</summary>
     public string? Output { get; init; }
 }
 
@@ -188,9 +224,13 @@ public sealed record AgentInfo {
 /// 代理执行结果
 /// </summary>
 public sealed record AgentResult {
+    /// <summary>获取代理标识。</summary>
     public required string AgentId { get; init; }
+    /// <summary>获取是否成功。</summary>
     public required bool Success { get; init; }
+    /// <summary>获取代理输出。</summary>
     public required string Output { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? Error { get; init; }
 }
 
@@ -198,11 +238,17 @@ public sealed record AgentResult {
 /// 代理创建选项
 /// </summary>
 public sealed record AgentSpawnOptions {
+    /// <summary>获取代理描述。</summary>
     public required string Description { get; init; }
+    /// <summary>获取代理提示词。</summary>
     public required string Prompt { get; init; }
+    /// <summary>获取代理角色。</summary>
     public AgentRole Role { get; init; } = AgentRole.Executor;
+    /// <summary>获取执行器变体。</summary>
     public ExecutorVariant? Variant { get; init; }
+    /// <summary>获取是否在后台运行。</summary>
     public bool RunInBackground { get; init; }
+    /// <summary>获取隔离模式。</summary>
     public AgentIsolationMode IsolationMode { get; init; } = AgentIsolationMode.None;
 
     /// <summary>
@@ -270,9 +316,13 @@ public sealed record AgentSpawnOptions {
 /// 代理恢复选项 - 从已有 transcript 恢复代理执行
 /// </summary>
 public sealed record AgentResumeOptions {
+    /// <summary>获取代理标识。</summary>
     public required string AgentId { get; init; }
+    /// <summary>获取新提示词。</summary>
     public required string NewPrompt { get; init; }
+    /// <summary>获取会话标识。</summary>
     public string? SessionId { get; init; }
+    /// <summary>获取是否在后台运行。</summary>
     public bool RunInBackground { get; init; }
 }
 
@@ -280,8 +330,11 @@ public sealed record AgentResumeOptions {
 /// 代理类型信息
 /// </summary>
 public sealed record AgentTypeInfo {
+    /// <summary>获取代理类型名称。</summary>
     public required string Name { get; init; }
+    /// <summary>获取代理类型描述。</summary>
     public required string Description { get; init; }
+    /// <summary>获取可用工具列表。</summary>
     public List<string>? AvailableTools { get; init; }
 }
 
@@ -289,16 +342,27 @@ public sealed record AgentTypeInfo {
 /// 正在运行的代理信息
 /// </summary>
 public sealed record RunningAgentInfo {
+    /// <summary>获取代理标识。</summary>
     public required string Id { get; init; }
+    /// <summary>获取代理描述。</summary>
     public required string Description { get; init; }
+    /// <summary>获取代理角色。</summary>
     public AgentRole Role { get; init; }
+    /// <summary>获取执行器变体。</summary>
     public ExecutorVariant? Variant { get; init; }
+    /// <summary>获取启动时间。</summary>
     public DateTime? StartedAt { get; init; }
+    /// <summary>获取显示名称。</summary>
     public string? DisplayName { get; init; }
+    /// <summary>获取颜色十六进制值。</summary>
     public string? ColorHex { get; init; }
+    /// <summary>获取旋转动词。</summary>
     public string? SpinnerVerb { get; init; }
+    /// <summary>获取代理状态。</summary>
     public AgentStatus State { get; init; }
+    /// <summary>获取 Token 总数。</summary>
     public long TokenCount { get; init; }
+    /// <summary>获取工具使用次数。</summary>
     public int ToolUseCount { get; init; }
 }
 
@@ -315,32 +379,51 @@ public enum AgentIsolationMode {
 /// 代理消息信息
 /// </summary>
 public sealed record AgentMessageInfo {
+    /// <summary>获取来源代理标识。</summary>
     public required string FromAgentId { get; init; }
+    /// <summary>获取消息类型。</summary>
     public required string MessageType { get; init; }
+    /// <summary>获取消息内容。</summary>
     public required string Content { get; init; }
+    /// <summary>获取时间戳。</summary>
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
 public sealed record ToolActivity {
+    /// <summary>获取工具名称。</summary>
     public required string ToolName { get; init; }
+    /// <summary>获取活动描述。</summary>
     public string? ActivityDescription { get; init; }
+    /// <summary>获取是否为搜索活动。</summary>
     public bool IsSearch { get; init; }
+    /// <summary>获取是否为读取活动。</summary>
     public bool IsRead { get; init; }
+    /// <summary>获取工具输入参数。</summary>
     public Dictionary<string, string>? Input { get; init; }
+    /// <summary>获取时间戳。</summary>
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
 public sealed record AgentProgress {
+    /// <summary>获取工具使用次数。</summary>
     public required int ToolUseCount { get; init; }
+    /// <summary>获取 Token 总数。</summary>
     public required int TokenCount { get; init; }
+    /// <summary>获取最近一次工具活动。</summary>
     public ToolActivity? LastActivity { get; init; }
+    /// <summary>获取最近活动集合。</summary>
     public IEnumerable<ToolActivity>? RecentActivities { get; init; }
+    /// <summary>获取进度摘要。</summary>
     public string? Summary { get; init; }
 }
 
 public interface IProgressTracker {
+    /// <summary>记录工具使用。</summary>
     void RecordToolUse(string toolName, string? activityDescription = null, Dictionary<string, string>? input = null);
+    /// <summary>记录 Token 用量。</summary>
     void RecordTokenUsage(int tokenCount);
+    /// <summary>更新进度摘要。</summary>
     void UpdateSummary(string summary);
+    /// <summary>转换为代理进度信息。</summary>
     AgentProgress ToProgress();
 }

@@ -5,6 +5,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// </summary>
 [ToolPrompt(ToolName = ShellToolName.Bash, Category = ToolPromptCategory.Shell)]
 public static class BashToolPrompt {
+    /// <summary>获取 Bash 工具描述文本。</summary>
     public static string GetDescription() => $"""
         执行 shell 命令。工作目录在命令之间持久化；shell 状态（变量、函数）不会。
 

@@ -123,6 +123,7 @@ public sealed class InvariantRegistry {
     private sealed class RegistrationDisposer(Action unsubscribe) : IDisposable {
         private int _disposed;
 
+        /// <summary>释放资源。</summary>
         public void Dispose() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             unsubscribe();

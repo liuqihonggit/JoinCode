@@ -108,12 +108,19 @@ public static class LayerDependencyAuditor {
 /// 层依赖违规信息
 /// </summary>
 public sealed record LayerViolationInfo {
+    /// <summary>获取规则标识。</summary>
     public string RuleId { get; init; } = string.Empty;
+    /// <summary>获取严重级别。</summary>
     public string Severity { get; init; } = string.Empty;
+    /// <summary>获取源层名称。</summary>
     public string FromLayer { get; init; } = string.Empty;
+    /// <summary>获取目标层名称。</summary>
     public string ToLayer { get; init; } = string.Empty;
+    /// <summary>获取源项目名称。</summary>
     public string FromProject { get; init; } = string.Empty;
+    /// <summary>获取目标项目名称。</summary>
     public string ToProject { get; init; } = string.Empty;
+    /// <summary>获取违规消息。</summary>
     public string Message { get; init; } = string.Empty;
 }
 
@@ -121,10 +128,16 @@ public sealed record LayerViolationInfo {
 /// 层依赖审计报告
 /// </summary>
 public sealed record LayerAuditReport {
+    /// <summary>获取目标路径。</summary>
     public string TargetPath { get; init; } = string.Empty;
+    /// <summary>获取时间戳。</summary>
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    /// <summary>获取项目总数。</summary>
     public int TotalProjects { get; init; }
+    /// <summary>获取违规总数。</summary>
     public int TotalViolations { get; init; }
+    /// <summary>获取错误数。</summary>
     public int ErrorCount { get; init; }
+    /// <summary>获取违规列表。</summary>
     public List<LayerViolationInfo> Violations { get; init; } = [];
 }

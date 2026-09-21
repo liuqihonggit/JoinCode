@@ -13,9 +13,13 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId> {
     /// <summary>未分配标记 — Type=None, SequenceId=0, UniqueId="", DisplayName=""</summary>
     public static readonly ObjectId Empty;
 
+    /// <summary>获取对象类型。</summary>
     public ObjectType Type { get; }
+    /// <summary>获取序列标识。</summary>
     public long SequenceId { get; }
+    /// <summary>获取唯一标识。</summary>
     public string UniqueId { get; }
+    /// <summary>获取显示名称。</summary>
     public string DisplayName { get; }
 
     /// <summary>是否未分配 — Type == None 且 SequenceId == 0</summary>
@@ -48,8 +52,12 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId> {
 
     public override bool Equals(object? obj) => obj is ObjectId other && Equals(other);
 
+    /// <summary>判断是否等于另一个 ObjectId。</summary>
+    /// <param name="other">另一个 ObjectId。</param>
     public bool Equals(ObjectId other) => Type == other.Type && SequenceId == other.SequenceId;
 
+    /// <summary>与另一个 ObjectId 比较。</summary>
+    /// <param name="other">另一个 ObjectId。</param>
     public int CompareTo(ObjectId other) {
         var typeCompare = Type.CompareTo(other.Type);
         return typeCompare != 0 ? typeCompare : SequenceId.CompareTo(other.SequenceId);
@@ -83,6 +91,9 @@ public readonly struct ObjectId : IEquatable<ObjectId>, IComparable<ObjectId> {
         return new ObjectId(type, uniqueId);
     }
 
+    /// <summary>尝试从字符串解析 ObjectId。</summary>
+    /// <param name="s">输入字符串。</param>
+    /// <param name="result">解析结果。</param>
     public static bool TryParse(string s, out ObjectId result) {
         result = default;
         if (string.IsNullOrEmpty(s)) return false;

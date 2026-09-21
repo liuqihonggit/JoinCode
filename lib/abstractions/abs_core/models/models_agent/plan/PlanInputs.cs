@@ -61,6 +61,7 @@ public sealed record PlanOperationResult {
     /// </summary>
     public string? ApprovalRequestId { get; init; }
 
+    /// <summary>构造计划操作结果。</summary>
     public PlanOperationResult(bool success, PlanState? planState = null, string? errorMessage = null, string? executionResult = null, string? planFileContent = null) {
         Success = success;
         PlanState = planState;

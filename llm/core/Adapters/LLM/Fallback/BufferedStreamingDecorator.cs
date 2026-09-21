@@ -19,6 +19,9 @@ public sealed class BufferedStreamingDecorator : IQueryService {
     private readonly IQueryService _inner;
     private readonly ILogger? _logger;
 
+    /// <summary>构造缓冲流式装饰器。</summary>
+    /// <param name="inner">内部查询服务。</param>
+    /// <param name="logger">可选的日志记录器。</param>
     public BufferedStreamingDecorator(IQueryService inner, ILogger? logger = null) {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _logger = logger;

@@ -2,8 +2,11 @@ namespace JoinCode.Abstractions.Attributes;
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
 public sealed class McpToolAttribute : Attribute {
+    /// <summary>获取工具名称。</summary>
     public string Name { get; }
+    /// <summary>获取工具描述。</summary>
     public string Description { get; }
+    /// <summary>获取工具分类。</summary>
     public string Category { get; }
 
     /// <summary>
@@ -25,6 +28,7 @@ public sealed class McpToolAttribute : Attribute {
     /// </summary>
     public string? GroupName { get; set; }
 
+    /// <summary>构造 McpToolAttribute 实例。</summary>
     public McpToolAttribute(string name, string description, string category = "other") {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         Description = description ?? throw new ArgumentNullException(nameof(description));

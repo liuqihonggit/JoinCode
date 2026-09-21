@@ -15,6 +15,11 @@ internal sealed class TaskPersistActor : ActorBase<ITaskPersistCommand, Unit> {
     private readonly TaskRuntime _owner;
     private readonly ILogger<TaskRuntime>? _logger;
 
+    /// <summary>
+    /// 初始化 TaskRuntime 持久化 Actor
+    /// </summary>
+    /// <param name="owner">所属任务运行时</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public TaskPersistActor(TaskRuntime owner, ILogger<TaskRuntime>? logger)
         : base() {
         _owner = owner;
@@ -22,12 +27,14 @@ internal sealed class TaskPersistActor : ActorBase<ITaskPersistCommand, Unit> {
     }
 
 
+    /// <summary>持久化当前任务运行时状态</summary>
     public async Task PersistAsync(CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new PersistCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
+    /// <summary>从持久化存储恢复任务列表</summary>
     public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId, CancellationToken ct) {
         var tcs = TcsFactory.Create<IReadOnlyList<RuntimeTask>>();
         await SendAsync(new RecoverCmd(goalId, ct, tcs), ct).ConfigureAwait(false);

@@ -1,17 +1,21 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
 public sealed class ThinkingModeStampResult {
+    /// <summary>获取处理后的消息列表。</summary>
     public IReadOnlyList<ApiMessage> Messages { get; init; } = [];
+    /// <summary>获取已加盖思维模式标记的消息数。</summary>
     public int StampedCount { get; init; }
 }
 
 public sealed class ThinkingModeStamp {
     private readonly IModelConfigLoader _modelConfigLoader;
 
+    /// <summary>构造思维模式标记器。</summary>
     public ThinkingModeStamp(IModelConfigLoader modelConfigLoader) {
         _modelConfigLoader = modelConfigLoader;
     }
 
+    /// <summary>为消息列表加盖思维模式标记。</summary>
     public ThinkingModeStampResult Stamp(IReadOnlyList<ApiMessage> messages, bool isThinkingMode) {
         ArgumentNullException.ThrowIfNull(messages);
 
@@ -50,10 +54,12 @@ public sealed class ThinkingModeStamp {
         return new ThinkingModeStampResult { Messages = result, StampedCount = stampedCount };
     }
 
+    /// <summary>根据模型 ID 为消息列表加盖思维模式标记。</summary>
     public ThinkingModeStampResult Stamp(IReadOnlyList<ApiMessage> messages, string modelId) {
         return Stamp(messages, IsThinkingModeModel(modelId));
     }
 
+    /// <summary>判断指定模型是否支持思维模式。</summary>
     public bool IsThinkingModeModel(string modelId) {
         if (string.IsNullOrWhiteSpace(modelId)) return false;
 

@@ -165,6 +165,10 @@ public sealed class FileHistoryService : IAsyncDisposable {
     private sealed class FileHistoryActor : ActorBase<FileHistoryCommand, Unit> {
         private readonly FileHistoryService _owner;
 
+        /// <summary>
+        /// 初始化文件历史 Actor
+        /// </summary>
+        /// <param name="owner">所属文件历史服务</param>
         public FileHistoryActor(FileHistoryService owner) : base() => _owner = owner;
 
         /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 FileHistoryService 调用</summary>

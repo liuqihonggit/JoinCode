@@ -24,6 +24,9 @@ public sealed class PrefixCacheSimulator : ICacheSimulator {
     private readonly Func<JsonElement, int> _tokenEstimator;
     private readonly object _lock = new();
 
+    /// <summary>构造前缀缓存模拟器。</summary>
+    /// <param name="prefixExtractor">前缀提取函数。</param>
+    /// <param name="tokenEstimator">token 估算函数。</param>
     public PrefixCacheSimulator(
         Func<JsonElement, string> prefixExtractor,
         Func<JsonElement, int> tokenEstimator) {
@@ -33,6 +36,8 @@ public sealed class PrefixCacheSimulator : ICacheSimulator {
         _tokenEstimator = tokenEstimator;
     }
 
+    /// <summary>计算缓存统计信息。</summary>
+    /// <param name="request">请求 JSON 元素。</param>
     public CacheStats ComputeCacheStats(JsonElement request) {
         var prefix = _prefixExtractor(request);
         var inputTokens = _tokenEstimator(request);
@@ -88,6 +93,7 @@ public sealed class PrefixCacheSimulator : ICacheSimulator {
         return best;
     }
 
+    /// <summary>重置缓存。</summary>
     public void ResetCache() {
         lock (_lock) { _seenPrefixes.Clear(); }
     }

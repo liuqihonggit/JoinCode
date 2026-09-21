@@ -6,6 +6,12 @@
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<StartupContext> {
 
+    /// <summary>
+    /// 中间件入口 — 清理旧文件、迁移历史 transcript、激活子代理防护与代码索引、创建并初始化 CliSession 后调用下一环节
+    /// </summary>
+    /// <param name="context">启动上下文</param>
+    /// <param name="next">下一中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var host = context.Host;
 

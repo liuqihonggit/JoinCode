@@ -25,6 +25,12 @@ namespace Api.LLM.QueryServices.Agnes;
 ///   但部分小型 OpenAI 兼容供应商可能对请求体大小有限制，需注意。
 /// </summary>
 public sealed class AgnesQueryService : OpenAIQueryService {
+    /// <summary>构造 Agnes 查询服务。</summary>
+    /// <param name="config">供应商配置。</param>
+    /// <param name="httpClient">HTTP 客户端。</param>
+    /// <param name="logger">日志记录器。</param>
+    /// <param name="fs">文件系统。</param>
+    /// <param name="resilientExecutor">弹性 HTTP 执行器。</param>
     public AgnesQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
         : base(config, httpClient, logger, fs, resilientExecutor) { }
 

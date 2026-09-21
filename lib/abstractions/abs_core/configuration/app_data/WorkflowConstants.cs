@@ -63,6 +63,7 @@ public static class WorkflowConstants {
     /// </summary>
     public static class Worktree {
         public const int StaleTimeoutDays = 30;
+        /// <summary>获取默认 worktree 目录路径。</summary>
         public static string DefaultWorktreesDirectory => AppDataConstants.AppDataFolder + "/" + AppDataConstants.WorktreesFolderName;
     }
 

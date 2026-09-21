@@ -225,7 +225,10 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature {
     /// 门控结果
     /// </summary>
     private readonly record struct GateResult(bool IsPassed, string Reason) {
+        /// <summary>创建门控通过结果。</summary>
         public static GateResult Success() => new(true, string.Empty);
+        /// <summary>创建门控失败结果。</summary>
+        /// <param name="reason">失败原因</param>
         public static GateResult Failure(string reason) => new(false, reason);
     }
 }

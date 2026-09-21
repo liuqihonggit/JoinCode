@@ -4,8 +4,11 @@ namespace Core.Agents.Coordinator.Pool;
 /// 池化子代理条目 — 记录回池时间和原始任务描述
 /// </summary>
 internal sealed class PooledAgent {
+    /// <summary>获取代理实例。</summary>
     public required AgentBase Agent { get; init; }
+    /// <summary>获取回池时间。</summary>
     public required DateTimeOffset ReturnedAt { get; init; }
+    /// <summary>获取原始任务描述。</summary>
     public required string OriginalTask { get; init; }
 }
 

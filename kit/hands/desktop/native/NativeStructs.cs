@@ -19,7 +19,9 @@ internal struct RECT {
     public int Right;
     public int Bottom;
 
+    /// <summary>获取矩形宽度。</summary>
     public readonly int Width => Right - Left;
+    /// <summary>获取矩形高度。</summary>
     public readonly int Height => Bottom - Top;
 }
 

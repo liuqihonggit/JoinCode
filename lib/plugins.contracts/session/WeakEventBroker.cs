@@ -61,6 +61,9 @@ internal sealed class WeakHandler<TTarget, TArgs> : WeakHandler<TArgs> where TTa
     private readonly WeakReference<TTarget> _targetRef;
     private readonly Action<TTarget, TArgs> _callback;
 
+    /// <summary>构造弱引用事件处理器。</summary>
+    /// <param name="target">目标对象。</param>
+    /// <param name="callback">回调委托。</param>
     public WeakHandler(TTarget target, Action<TTarget, TArgs> callback) {
         _targetRef = new WeakReference<TTarget>(target);
         _callback = callback;

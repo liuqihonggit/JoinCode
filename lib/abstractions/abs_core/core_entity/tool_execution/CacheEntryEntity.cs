@@ -24,8 +24,18 @@ public sealed class CacheEntryEntity<T> : Entity {
     /// <summary>是否已过期</summary>
     public bool IsExpired => ExpiresAt.HasValue && DateTime.UtcNow > ExpiresAt.Value;
 
+    /// <summary>获取缓存项实体注册表。</summary>
     public static CacheEntryEntityRegistry Registry { get; } = new();
 
+    /// <summary>
+    /// 构造缓存项实体。
+    /// </summary>
+    /// <param name="cacheKey">缓存键。</param>
+    /// <param name="value">缓存值。</param>
+    /// <param name="ttl">存活时长。</param>
+    /// <param name="sizeBytes">估算大小（字节）。</param>
+    /// <param name="displayName">显示名称。</param>
+    /// <param name="sessionId">会话 ID。</param>
     public CacheEntryEntity(
         string cacheKey,
         T? value = default,
@@ -41,6 +51,7 @@ public sealed class CacheEntryEntity<T> : Entity {
         Registry.Add(ObjectId, this);
     }
 
+    /// <summary>释放资源。</summary>
     public override void Dispose() {
         Registry.Remove(ObjectId);
         base.Dispose();
@@ -65,5 +76,6 @@ public sealed class CacheEntryEntity<T> : Entity {
 public sealed class CacheEntryEntityRegistry : MapRegistry<ObjectId, Entity> {
     internal void Add(ObjectId id, Entity entry) => AddCore(id, entry);
     internal bool Remove(ObjectId id) => RemoveCore(id);
+    /// <summary>获取所有已过期的缓存项。</summary>
     public IEnumerable<Entity> GetExpired() => Where(e => e is CacheEntryEntity<object> c && c.IsExpired);
 }

@@ -8,22 +8,32 @@ public enum SecretType {
 }
 
 public sealed record SecretFinding {
+    /// <summary>获取文件路径。</summary>
     public required string FilePath { get; init; }
+    /// <summary>获取行号。</summary>
     public int? LineNumber { get; init; }
+    /// <summary>获取匹配的模式。</summary>
     public required string MatchedPattern { get; init; }
+    /// <summary>获取匹配的内容。</summary>
     public required string MatchedContent { get; init; }
+    /// <summary>获取密钥类型。</summary>
     public required SecretType Type { get; init; }
 }
 
 public sealed record ScanResult {
+    /// <summary>获取一个值，指示是否被拦截。</summary>
     public required bool IsBlocked { get; init; }
+    /// <summary>获取扫描发现列表。</summary>
     public required IReadOnlyList<SecretFinding> Findings { get; init; }
 
+    /// <summary>获取安全（无拦截）的扫描结果。</summary>
     public static ScanResult Safe => new() { IsBlocked = false, Findings = [] };
 
+    /// <summary>创建被拦截的扫描结果。</summary>
     public static ScanResult Blocked(IReadOnlyList<SecretFinding> findings) =>
         new() { IsBlocked = true, Findings = findings };
 
+    /// <summary>格式化扫描报告。</summary>
     public string FormatReport() {
         if (!IsBlocked || Findings.Count == 0)
             return string.Empty;

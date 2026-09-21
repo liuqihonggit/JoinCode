@@ -461,9 +461,13 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     }
 
     private sealed class PatternRange {
+        /// <summary>获取重复模式内容。</summary>
         public string Content { get; init; } = string.Empty;
+        /// <summary>获取起始偏移量。</summary>
         public int StartOffset { get; init; }
+        /// <summary>获取结束偏移量。</summary>
         public int EndOffset { get; init; }
+        /// <summary>获取重复次数。</summary>
         public int RepetitionCount { get; init; }
     }
 }

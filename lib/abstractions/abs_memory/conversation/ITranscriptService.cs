@@ -1,16 +1,22 @@
 namespace JoinCode.Abstractions.Interfaces;
 
 public interface ITranscriptService {
+    /// <summary>异步追加单条会话记录。</summary>
     Task AppendEntryAsync(string sessionId, TranscriptEntry entry, CancellationToken cancellationToken = default);
 
+    /// <summary>异步追加多条会话记录。</summary>
     Task AppendEntriesAsync(string sessionId, IReadOnlyList<TranscriptEntry> entries, CancellationToken cancellationToken = default);
 
+    /// <summary>异步加载会话记录列表。</summary>
     Task<IReadOnlyList<TranscriptEntry>> LoadTranscriptAsync(string sessionId, CancellationToken cancellationToken = default);
 
+    /// <summary>异步列出会话摘要列表。</summary>
     Task<IReadOnlyList<TranscriptSummary>> ListTranscriptsAsync(int limit = 20, CancellationToken cancellationToken = default);
 
+    /// <summary>异步删除会话记录。</summary>
     Task<bool> DeleteTranscriptAsync(string sessionId, CancellationToken cancellationToken = default);
 
+    /// <summary>异步判断会话记录是否存在。</summary>
     Task<bool> TranscriptExistsAsync(string sessionId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -58,11 +64,18 @@ public interface ITranscriptService {
 /// CustomTitle 不在此处(通过 transcript entry Type="custom-title" 存储,GetCustomTitleAsync 读取)
 /// </summary>
 public sealed record SessionInfo {
+    /// <summary>获取会话标识。</summary>
     public string Id { get; init; } = string.Empty;
+    /// <summary>获取项目路径。</summary>
     public string ProjectPath { get; init; } = string.Empty;
+    /// <summary>获取项目名称。</summary>
     public string ProjectName { get; init; } = string.Empty;
+    /// <summary>获取分支名称。</summary>
     public string BranchName { get; init; } = string.Empty;
+    /// <summary>获取模型标识。</summary>
     public string ModelId { get; init; } = string.Empty;
+    /// <summary>获取供应商名称。</summary>
     public string Vendor { get; init; } = string.Empty;
+    /// <summary>获取创建时间。</summary>
     public DateTime CreatedAt { get; init; }
 }

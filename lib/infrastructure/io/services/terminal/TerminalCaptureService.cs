@@ -370,6 +370,11 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
     private struct Coord {
         public short X;
         public short Y;
+        /// <summary>
+        /// 初始化 <see cref="Coord"/> 的新实例。
+        /// </summary>
+        /// <param name="x">X 坐标。</param>
+        /// <param name="y">Y 坐标。</param>
         public Coord(short x, short y) { X = x; Y = y; }
     }
 
@@ -379,6 +384,13 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         public short Top;
         public short Right;
         public short Bottom;
+        /// <summary>
+        /// 初始化 <see cref="SmallRect"/> 的新实例。
+        /// </summary>
+        /// <param name="left">左边界。</param>
+        /// <param name="top">上边界。</param>
+        /// <param name="right">右边界。</param>
+        /// <param name="bottom">下边界。</param>
         public SmallRect(short left, short top, short right, short bottom) { Left = left; Top = top; Right = right; Bottom = bottom; }
     }
 
@@ -422,11 +434,13 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         public uint c_ispeed;
         public uint c_ospeed;
 
+        /// <summary>获取或设置 VMIN 控制字符（最小读取字节数）。</summary>
         public byte c_cc_VMIN {
             get => c_cc_4;
             set => c_cc_4 = value;
         }
 
+        /// <summary>获取或设置 VTIME 控制字符（读取超时时间）。</summary>
         public byte c_cc_VTIME {
             get => c_cc_5;
             set => c_cc_5 = value;

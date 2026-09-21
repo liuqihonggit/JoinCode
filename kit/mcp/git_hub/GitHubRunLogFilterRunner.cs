@@ -284,6 +284,9 @@ internal sealed class GitHubRunLogFilterRunner {
             return sb.ToString();
         }
 
+        /// <summary>从测试失败行中提取测试名称。</summary>
+        /// <param name="line">测试失败日志行</param>
+        /// <returns>测试名称，提取失败时返回 null</returns>
         public static string? ExtractTestName(string line) {
             // 先去掉时间戳前缀 "2026-09-07T17:09:52.2828405Z content"
             var content = GitHubRunLogText.StripLogTimestamp(line).TrimStart();

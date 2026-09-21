@@ -5,6 +5,8 @@ namespace JoinCode.Abstractions.Models.ErrorRecovery;
 /// 统一 DiagnoseErrorAsync 和 FixShellErrorAsync 的分类逻辑
 /// </summary>
 public static class ErrorClassifier {
+    /// <summary>从错误消息分类错误类别。</summary>
+    /// <param name="errorMessage">错误消息。</param>
     public static ToolErrorCategory Classify(string errorMessage) {
         if (string.IsNullOrEmpty(errorMessage))
             return ToolErrorCategory.Unknown;

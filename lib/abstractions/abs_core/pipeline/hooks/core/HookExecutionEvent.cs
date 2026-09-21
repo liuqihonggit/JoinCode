@@ -43,7 +43,9 @@ public abstract record HookExecutionEvent {
 /// 钩子开始执行事件
 /// </summary>
 public sealed record HookStartedEvent : HookExecutionEvent {
+    /// <summary>获取事件类型。</summary>
     public override HookExecutionEventType EventType => HookExecutionEventType.Started;
+    /// <summary>获取开始时间。</summary>
     public DateTimeOffset StartTime { get; init; } = DateTimeOffset.UtcNow;
 }
 
@@ -51,10 +53,15 @@ public sealed record HookStartedEvent : HookExecutionEvent {
 /// 钩子进度事件
 /// </summary>
 public sealed record HookProgressEvent : HookExecutionEvent {
+    /// <summary>获取事件类型。</summary>
     public override HookExecutionEventType EventType => HookExecutionEventType.Progress;
+    /// <summary>获取标准输出。</summary>
     public string? Stdout { get; init; }
+    /// <summary>获取标准错误。</summary>
     public string? Stderr { get; init; }
+    /// <summary>获取合并输出。</summary>
     public string? Output => $"{Stdout}{Stderr}";
+    /// <summary>获取时间戳。</summary>
     public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
 }
 
@@ -62,13 +69,21 @@ public sealed record HookProgressEvent : HookExecutionEvent {
 /// 钩子响应事件
 /// </summary>
 public sealed record HookResponseEvent : HookExecutionEvent {
+    /// <summary>获取事件类型。</summary>
     public override HookExecutionEventType EventType => HookExecutionEventType.Response;
+    /// <summary>获取合并输出。</summary>
     public string? Output { get; init; }
+    /// <summary>获取标准输出。</summary>
     public string? Stdout { get; init; }
+    /// <summary>获取标准错误。</summary>
     public string? Stderr { get; init; }
+    /// <summary>获取退出码。</summary>
     public int? ExitCode { get; init; }
+    /// <summary>获取执行结果。</summary>
     public required HookExecutionOutcome Outcome { get; init; }
+    /// <summary>获取结束时间。</summary>
     public DateTimeOffset EndTime { get; init; } = DateTimeOffset.UtcNow;
+    /// <summary>获取执行时长。</summary>
     public TimeSpan Duration { get; init; }
 }
 

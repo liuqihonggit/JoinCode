@@ -43,10 +43,15 @@ public enum EntropyEvent : byte {
 /// 熵减检测器共享上下文 — ADR 0040 FsmContext 强类型子类
 /// </summary>
 internal sealed class EntropyFsmContext : FsmContext {
+    /// <summary>获取或设置首次触发时间。</summary>
     public DateTimeOffset? FirstTriggerTime { get; set; }
+    /// <summary>获取或设置触发次数。</summary>
     public int TriggerCount { get; set; }
+    /// <summary>获取或设置熵值是否在下降。</summary>
     public bool IsDeclining { get; set; }
+    /// <summary>获取或设置当前时间。</summary>
     public DateTimeOffset Now { get; set; }
+    /// <summary>获取或设置确认窗口时长。</summary>
     public TimeSpan Window { get; set; }
 }
 

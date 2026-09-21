@@ -11,14 +11,19 @@ public class WorkflowConfig {
     /// </summary>
     public string CurrentModelId => Provider.ModelId;
 
+    /// <summary>获取或设置状态文件路径。</summary>
     public string StateFilePath { get; set; } = WorkflowConstants.Paths.DefaultStateFilePath;
 
+    /// <summary>获取或设置记忆目录路径。</summary>
     public string? MemdirPath { get; set; }
 
+    /// <summary>获取或设置技能目录。</summary>
     public string SkillsDirectory { get; set; } = string.Empty;
 
+    /// <summary>获取或设置代码执行配置。</summary>
     public CodeExecutionConfig CodeExecution { get; set; } = new CodeExecutionConfig();
 
+    /// <summary>获取或设置桥接配置。</summary>
     public BridgeConfig Bridge { get; set; } = new BridgeConfig();
 
     /// <summary>

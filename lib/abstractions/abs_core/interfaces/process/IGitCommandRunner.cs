@@ -4,10 +4,15 @@ namespace JoinCode.Abstractions.Interfaces;
 /// Git 命令执行结果
 /// </summary>
 public sealed class GitCommandResult : ICommandExecutionResult {
+    /// <summary>获取是否成功。</summary>
     public required bool Success { get; init; }
+    /// <summary>获取标准输出。</summary>
     public string Output { get; init; } = string.Empty;
+    /// <summary>获取标准错误。</summary>
     public string Error { get; init; } = string.Empty;
+    /// <summary>获取退出码。</summary>
     public int ExitCode { get; init; }
+    /// <summary>获取执行耗时。</summary>
     public TimeSpan ExecutionTime { get; init; } = TimeSpan.Zero;
 
     int? ICommandExecutionResult.ExitCode => ExitCode;
@@ -20,9 +25,13 @@ public sealed class GitCommandResult : ICommandExecutionResult {
 /// 合并冲突检测结果 — 基于 git merge-tree --write-tree（只读，不污染工作区）
 /// </summary>
 public sealed class MergeConflictResult {
+    /// <summary>获取是否存在冲突。</summary>
     public required bool HasConflict { get; init; }
+    /// <summary>获取冲突文件列表。</summary>
     public IReadOnlyList<string> ConflictFiles { get; init; } = [];
+    /// <summary>获取合并后树对象 OID。</summary>
     public string MergedTreeOid { get; init; } = string.Empty;
+    /// <summary>获取错误消息。</summary>
     public string Error { get; init; } = string.Empty;
 }
 
@@ -30,8 +39,11 @@ public sealed class MergeConflictResult {
 /// 遗留冲突标记检测结果 — 扫描工作区中是否存在未被清理的 git 冲突标记
 /// </summary>
 public sealed class StaleConflictMarkerResult {
+    /// <summary>获取是否存在遗留冲突标记。</summary>
     public required bool HasStaleMarkers { get; init; }
+    /// <summary>获取包含冲突标记的文件列表。</summary>
     public IReadOnlyList<string> Files { get; init; } = [];
+    /// <summary>获取错误消息。</summary>
     public string Error { get; init; } = string.Empty;
 }
 

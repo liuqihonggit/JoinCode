@@ -119,6 +119,7 @@ internal sealed class SyncFileTransfer : IAsyncDisposable {
         }
     }
 
+    /// <summary>异步释放资源。</summary>
     public ValueTask DisposeAsync() {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;

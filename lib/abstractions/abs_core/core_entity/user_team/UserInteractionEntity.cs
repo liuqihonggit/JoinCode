@@ -5,9 +5,17 @@ namespace JoinCode.Abstractions.Entity;
 /// 额外字段: Question, Response
 /// </summary>
 public sealed class UserInteractionEntity : ToolExecutionEntity {
+    /// <summary>获取提问内容。</summary>
     public string? Question { get; init; }
+    /// <summary>获取或设置用户回答。</summary>
     public string? Response { get; set; }
 
+    /// <summary>构造用户交互实体。</summary>
+    /// <param name="question">提问内容。</param>
+    /// <param name="toolUseId">工具使用标识。</param>
+    /// <param name="spanId">跨度标识。</param>
+    /// <param name="displayName">显示名称。</param>
+    /// <param name="sessionId">会话标识。</param>
     public UserInteractionEntity(
         string? question = null,
         string? toolUseId = null,

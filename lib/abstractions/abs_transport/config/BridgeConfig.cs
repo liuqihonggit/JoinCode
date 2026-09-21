@@ -36,11 +36,17 @@ public enum BridgeSpawnModeSource {
 public class BridgeConfig {
     // ===== 服务端配置（CS 独有）=====
 
+    /// <summary>获取或设置是否启用桥接。</summary>
     public bool Enabled { get; set; } = false;
+    /// <summary>获取或设置传输协议。</summary>
     public TransportProtocol Protocol { get; set; } = TransportProtocol.WebSocket;
+    /// <summary>获取或设置 WebSocket 端点。</summary>
     public string WebSocketEndpoint { get; set; } = WorkflowConstants.Paths.DefaultWebSocketEndpoint;
+    /// <summary>获取或设置 SSE 端点。</summary>
     public string SseEndpoint { get; set; } = WorkflowConstants.Paths.DefaultSseEndpoint;
+    /// <summary>获取或设置是否自动重连。</summary>
     public bool AutoReconnect { get; set; } = true;
+    /// <summary>获取或设置最大重连次数。</summary>
     public int MaxReconnectAttempts { get; set; } = WorkflowConstants.Retry.MaxReconnectAttempts;
 
     /// <summary>JWT 签名密钥，为空时自动生成</summary>

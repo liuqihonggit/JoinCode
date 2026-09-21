@@ -16,6 +16,7 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         _aliasToModelId = FrozenDictionary<string, string>.Empty;
     }
 
+    /// <summary>获取当前模型配置根节点。</summary>
     public ModelConfigRoot Config => _config;
 
     /// <summary>
@@ -51,18 +52,22 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         return aliasDict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>按供应商名称获取供应商配置。</summary>
     public ModelProviderConfig? GetProviderConfig(string providerName) {
         return Config.Providers.GetValueOrDefault(providerName);
     }
 
+    /// <summary>获取指定供应商的默认模型 ID。</summary>
     public string GetDefaultModelId(string providerName) {
         return GetProviderConfig(providerName)?.DefaultModelId ?? string.Empty;
     }
 
+    /// <summary>获取指定供应商的默认快速模型 ID。</summary>
     public string GetDefaultFastModelId(string providerName) {
         return GetProviderConfig(providerName)?.DefaultFastModelId ?? string.Empty;
     }
 
+    /// <summary>获取指定供应商的所有模型条目。</summary>
     public ModelEntry[] GetModels(string providerName) {
         var providerConfig = GetProviderConfig(providerName);
         if (providerConfig is null)
@@ -76,6 +81,7 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         return entries;
     }
 
+    /// <summary>解析别名到模型 ID。</summary>
     public string? ResolveAlias(string providerName, string input) {
         var providerConfig = GetProviderConfig(providerName);
         if (providerConfig is null)
@@ -91,36 +97,43 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         return null;
     }
 
+    /// <summary>判断指定模型是否支持快速模式。</summary>
     public bool SupportsFastMode(string providerName, string modelId) {
         var model = FindModel(providerName, modelId);
         return model?.Capabilities.FastMode ?? true;
     }
 
+    /// <summary>判断指定模型是否支持努力级别。</summary>
     public bool SupportsEffort(string providerName, string modelId) {
         var model = FindModel(providerName, modelId);
         return model?.Capabilities.Effort ?? false;
     }
 
+    /// <summary>判断指定模型是否支持最大努力级别。</summary>
     public bool SupportsMaxEffort(string providerName, string modelId) {
         var model = FindModel(providerName, modelId);
         return model?.Capabilities.MaxEffort ?? false;
     }
 
+    /// <summary>判断指定模型是否支持思考模式。</summary>
     public bool SupportsThinkingMode(string providerName, string modelId) {
         var model = FindModel(providerName, modelId);
         return model?.Capabilities.ThinkingMode ?? false;
     }
 
+    /// <summary>判断指定模型是否支持给定模态。</summary>
     public bool SupportsModality(string providerName, string modelId, ModelModalityKind modality) {
         var modalities = GetModalities(providerName, modelId);
         return modalities.HasFlag(modality);
     }
 
+    /// <summary>获取指定模型的模态能力标志。</summary>
     public ModelModalityKind GetModalities(string providerName, string modelId) {
         var model = FindModel(providerName, modelId);
         return model?.Capabilities.Modalities ?? ModelModalityKind.Text;
     }
 
+    /// <summary>根据完整模型名获取规范名称。</summary>
     public string GetCanonicalName(string fullModelName) {
         var name = fullModelName.ToLowerInvariant();
 
@@ -133,6 +146,7 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         return fullModelName;
     }
 
+    /// <summary>按供应商名称和模型 ID 查找模型配置。</summary>
     public ModelItemConfig? FindModel(string providerName, string modelId) {
         var providerConfig = GetProviderConfig(providerName);
         if (providerConfig is null)
@@ -146,10 +160,12 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         return null;
     }
 
+    /// <summary>获取所有模型 ID 集合。</summary>
     public IReadOnlyCollection<string> GetAllModelIds() {
         return _modelById.Keys;
     }
 
+    /// <summary>按模型 ID 查找所属供应商名称。</summary>
     public string? FindProviderByModelId(string modelId) {
         foreach (var provider in Config.Providers) {
             foreach (var model in provider.Value.Models) {
@@ -160,6 +176,7 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         return null;
     }
 
+    /// <summary>按模型 ID 模糊查找模型配置。</summary>
     public ModelItemConfig? FindModelByModelId(string modelId) {
         var lower = modelId.ToLowerInvariant();
         foreach (var provider in Config.Providers) {

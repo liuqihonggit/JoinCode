@@ -11,6 +11,7 @@ public sealed class CloneContext {
     /// <summary>目标会话 ObjectId</summary>
     public ObjectId TargetSessionId { get; }
 
+    /// <summary>构造 CloneContext 实例并指定目标会话。</summary>
     public CloneContext(ObjectId targetSessionId) {
         if (targetSessionId.IsEmpty)
             throw new ArgumentException("目标 SessionId 不能为空", nameof(targetSessionId));

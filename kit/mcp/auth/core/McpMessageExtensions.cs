@@ -2,10 +2,12 @@
 namespace McpClient;
 
 internal static class McpMessageExtensions {
+    /// <summary>将 JSON-RPC 消息序列化为 JSON 字符串。</summary>
     public static string ToJson(this JsonRpcMessage message) {
         return McpJsonSerializer.SerializeObject(message);
     }
 
+    /// <summary>将 JSON 字符串反序列化为 JSON-RPC 消息。</summary>
     public static JsonRpcMessage FromJson(string json) {
         var node = JsonNode.Parse(json);
         if (node is not JsonObject obj)
@@ -28,18 +30,21 @@ internal static class McpMessageExtensions {
         }
     }
 
+    /// <summary>获取响应标识的整数值。</summary>
     public static int GetIdAsInt(this JsonRpcResponse response) {
         if (response.Id.IsNumber)
             return (int)(response.Id.AsNumber ?? 0);
         return 0;
     }
 
+    /// <summary>获取请求标识的整数值。</summary>
     public static int GetIdAsInt(this JsonRpcRequest request) {
         if (request.Id.IsNumber)
             return (int)(request.Id.AsNumber ?? 0);
         return 0;
     }
 
+    /// <summary>反序列化响应结果为指定类型。</summary>
     public static T? DeserializeResult<T>(this JsonRpcResponse response, JsonTypeInfo<T> typeInfo) {
         if (response.Result is JsonElement element)
             return RelaxedJsonSerializer.Deserialize(element.GetRawText(), typeInfo);

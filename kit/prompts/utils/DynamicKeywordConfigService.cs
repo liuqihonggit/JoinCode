@@ -129,6 +129,9 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
         private readonly DynamicKeywordConfigService _owner;
         private readonly ILogger<DynamicKeywordConfigService>? _logger;
 
+        /// <summary>构造配置重载 Actor。</summary>
+        /// <param name="owner">所属 DynamicKeywordConfigService 实例。</param>
+        /// <param name="logger">日志记录器。</param>
         public ReloadActor(DynamicKeywordConfigService owner, ILogger<DynamicKeywordConfigService>? logger) : base() {
             _owner = owner;
             _logger = logger;

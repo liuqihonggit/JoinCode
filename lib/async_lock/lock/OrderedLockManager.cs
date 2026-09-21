@@ -65,8 +65,11 @@ public sealed class OrderedLockManager : IDisposable {
         private readonly List<object> _acquired;
         private int _disposed;
 
+        /// <summary>构造解锁令牌。</summary>
+        /// <param name="acquired">按获取顺序记录的已加锁对象列表。</param>
         public UnlockToken(List<object> acquired) => _acquired = acquired;
 
+        /// <summary>释放资源。</summary>
         public void Dispose() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             for (var i = _acquired.Count - 1; i >= 0; i--) {

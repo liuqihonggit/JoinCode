@@ -203,15 +203,30 @@ public sealed record LongRunningTaskResult {
 
 /// <summary>长时间任务内部记录</summary>
 internal sealed class LongRunningTask {
+    /// <summary>获取任务 ID。</summary>
     public string TaskId { get; }
+    /// <summary>获取命令文本。</summary>
     public string Command { get; }
+    /// <summary>获取原始工具名称。</summary>
     public string OriginalTool { get; }
+    /// <summary>获取工作目录（可为 null）。</summary>
     public string? WorkingDirectory { get; }
+    /// <summary>获取超时分钟数。</summary>
     public int TimeoutMinutes { get; }
+    /// <summary>获取计时器。</summary>
     public Stopwatch Stopwatch { get; }
+    /// <summary>获取或设置续期次数。</summary>
     public int RetryCount { get; set; }
+    /// <summary>获取或设置最近一次实际耗时。</summary>
     public TimeSpan LastElapsed { get; set; }
 
+    /// <summary>构造长时间任务记录。</summary>
+    /// <param name="taskId">任务 ID。</param>
+    /// <param name="command">命令文本。</param>
+    /// <param name="originalTool">原始工具名称。</param>
+    /// <param name="workingDirectory">工作目录（可为 null）。</param>
+    /// <param name="timeoutMinutes">超时分钟数。</param>
+    /// <param name="stopwatch">计时器。</param>
     public LongRunningTask(string taskId, string command, string originalTool, string? workingDirectory, int timeoutMinutes, Stopwatch stopwatch) {
         TaskId = taskId;
         Command = command;

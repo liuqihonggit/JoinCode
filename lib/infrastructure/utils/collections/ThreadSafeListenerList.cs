@@ -71,6 +71,7 @@ public sealed class ThreadSafeListenerList<T> {
     private sealed class UnsubscribeToken(ThreadSafeListenerList<T> owner, T listener) : IDisposable {
         private int _disposed;
 
+        /// <summary>释放资源。</summary>
         public void Dispose() {
             if (Interlocked.Exchange(ref _disposed, 1) == 0)
                 owner.Unsubscribe(listener);

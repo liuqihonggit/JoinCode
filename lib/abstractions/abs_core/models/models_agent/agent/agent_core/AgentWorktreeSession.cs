@@ -193,6 +193,7 @@ public sealed record WorktreeCreateResult {
     /// </summary>
     public bool Existed { get; init; }
 
+    /// <summary>创建 worktree 成功结果。</summary>
     public static WorktreeCreateResult SuccessResult(AgentWorktreeSession session, bool existed = false) {
         return new WorktreeCreateResult {
             Success = true,
@@ -201,6 +202,7 @@ public sealed record WorktreeCreateResult {
         };
     }
 
+    /// <summary>创建 worktree 失败结果。</summary>
     public static WorktreeCreateResult FailureResult(string errorMessage) {
         return new WorktreeCreateResult {
             Success = false,
@@ -233,6 +235,7 @@ public sealed record WorktreeCleanupResult {
     /// </summary>
     public string? ErrorMessage { get; init; }
 
+    /// <summary>创建清理成功结果。</summary>
     public static WorktreeCleanupResult SuccessResult(bool forced = false) {
         return new WorktreeCleanupResult {
             Success = true,
@@ -240,6 +243,7 @@ public sealed record WorktreeCleanupResult {
         };
     }
 
+    /// <summary>创建清理被阻止结果。</summary>
     public static WorktreeCleanupResult BlockedResult(string reason) {
         return new WorktreeCleanupResult {
             Success = false,
@@ -247,6 +251,7 @@ public sealed record WorktreeCleanupResult {
         };
     }
 
+    /// <summary>创建清理失败结果。</summary>
     public static WorktreeCleanupResult FailureResult(string errorMessage) {
         return new WorktreeCleanupResult {
             Success = false,

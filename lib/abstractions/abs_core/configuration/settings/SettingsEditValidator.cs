@@ -147,9 +147,13 @@ public static class SettingsEditValidator {
 /// settings.json 验证结果
 /// </summary>
 internal sealed record SettingsValidationResult {
+    /// <summary>获取是否合法。</summary>
     public bool IsValid { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? Error { get; init; }
 
+    /// <summary>创建合法结果实例。</summary>
     public static SettingsValidationResult Valid() => new() { IsValid = true };
+    /// <summary>创建非法结果实例并指定错误信息。</summary>
     public static SettingsValidationResult Invalid(string error) => new() { IsValid = false, Error = error };
 }

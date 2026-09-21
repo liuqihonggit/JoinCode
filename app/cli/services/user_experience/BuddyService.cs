@@ -85,6 +85,8 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService {
     private sealed class Mulberry32(int seed) {
         private int _state = seed;
 
+        /// <summary>生成下一个伪随机 32 位整数 — 基于 Mulberry32 算法更新内部状态</summary>
+        /// <returns>非负伪随机整数</returns>
         public int Next() {
             _state += 0x6D2B79F5;
             var t = _state;
@@ -93,8 +95,13 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService {
             return Math.Abs(t ^ (t >> 14));
         }
 
+        /// <summary>生成一个 [0,1) 范围内的伪随机双精度浮点数</summary>
+        /// <returns>[0,1) 范围内的伪随机双精度浮点数</returns>
         public double NextDouble() => (Next() & 0x7FFFFFFF) / (double)0x7FFFFFFF;
 
+        /// <summary>生成一个 [0,maxValue) 范围内的伪随机整数</summary>
+        /// <param name="maxValue"> exclusive 上界</param>
+        /// <returns>[0,maxValue) 范围内的伪随机整数</returns>
         public int Next(int maxValue) => Next() % maxValue;
     }
 }

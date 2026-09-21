@@ -189,6 +189,11 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         private readonly MagicDocsManager _owner;
         private readonly ILogger<MagicDocsManager>? _logger;
 
+        /// <summary>
+        /// 构造 MagicDocs Actor。
+        /// </summary>
+        /// <param name="owner">所属 MagicDocs 管理器。</param>
+        /// <param name="logger">日志记录器，可选。</param>
         public MagicDocsActor(MagicDocsManager owner, ILogger<MagicDocsManager>? logger) : base() {
             _owner = owner;
             _logger = logger;

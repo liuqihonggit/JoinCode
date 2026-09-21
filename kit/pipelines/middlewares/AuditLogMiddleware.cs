@@ -9,10 +9,13 @@ internal sealed partial class AuditLogMiddleware : ServiceEntity, Core.Context.I
     private readonly ILogger<AuditLogMiddleware> _logger;
     private const int MaxAuditLength = 200;
 
+    /// <summary>构造 AuditLogMiddleware。</summary>
+    /// <param name="logger">日志记录器</param>
     public AuditLogMiddleware(ILogger<AuditLogMiddleware> logger) {
         _logger = logger;
     }
 
+    /// <summary>执行中间件。</summary>
     public async IAsyncEnumerable<JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> InvokeAsync(
         Core.Context.ChatMiddlewareContext context,
         JoinCode.Abstractions.Pipeline.StreamMiddlewareDelegate<Core.Context.ChatMiddlewareContext, JoinCode.Abstractions.LLM.Chat.ChatStreamEvent> next,

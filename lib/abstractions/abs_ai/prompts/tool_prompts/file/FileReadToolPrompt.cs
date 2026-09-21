@@ -7,6 +7,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 public static class FileReadToolPrompt {
     public const int MaxLinesToRead = 2000;
 
+    /// <summary>获取文件读取工具描述。</summary>
     public static string GetDescription() => $"""
         从本地文件系统读取文件。您可以直接访问任何文件。
 

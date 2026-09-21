@@ -292,6 +292,11 @@ internal sealed record DecodedMessage(
 internal static class BinaryProtocol {
     private const int MaxMessageSize = 16 * 1024 * 1024;
 
+    /// <summary>将消息编码为二进制长度前缀格式。</summary>
+    /// <param name="type">消息类型。</param>
+    /// <param name="sourcePid">源进程ID。</param>
+    /// <param name="targetPid">目标进程ID（广播时为 null）。</param>
+    /// <param name="payload">消息负载。</param>
     public static ReadOnlyMemory<byte> Encode(
         MessageType type,
         string sourcePid,
@@ -318,6 +323,9 @@ internal static class BinaryProtocol {
         return buffer;
     }
 
+    /// <summary>从流异步读取并解码一条完整消息。</summary>
+    /// <param name="stream">数据流。</param>
+    /// <param name="ct">取消令牌。</param>
     public static async ValueTask<DecodedMessage> ReadAsync(Stream stream, CancellationToken ct) {
         var typeByte = await ReadByteAsync(stream, ct).ConfigureAwait(false);
         var type = (MessageType)typeByte;
@@ -347,6 +355,9 @@ internal static class BinaryProtocol {
         return new DecodedMessage(type, sourcePid, targetPid, payload);
     }
 
+    /// <summary>持续从流异步读取消息序列，直到流结束或取消。</summary>
+    /// <param name="stream">数据流。</param>
+    /// <param name="ct">取消令牌。</param>
     public static async IAsyncEnumerable<DecodedMessage> ReadStreamAsync(
         Stream stream,
         [EnumeratorCancellation] CancellationToken ct) {
@@ -419,8 +430,13 @@ internal sealed class PipeConnection : IAsyncDisposable {
     private readonly Task _writeLoop;
     private int _disposed;
 
+    /// <summary>获取从机进程ID。</summary>
     public string ProcessId { get; }
 
+    /// <summary>初始化到指定从机的管道连接。</summary>
+    /// <param name="processId">从机进程ID。</param>
+    /// <param name="stream">命名管道服务端流。</param>
+    /// <param name="logger">可选日志记录器。</param>
     public PipeConnection(string processId, NamedPipeServerStream stream, ILogger? logger) {
         ProcessId = processId;
         _stream = stream;
@@ -432,6 +448,7 @@ internal sealed class PipeConnection : IAsyncDisposable {
         _writeLoop = Task.Run(WriteLoopAsync);
     }
 
+    /// <summary>异步写入数据到从机（写入 Channel 后由后台循环消费）。</summary>
     public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct) {
         if (Volatile.Read(ref _disposed) != 0) return ValueTask.CompletedTask;
         return _writeQueue.Writer.WriteAsync(data, ct);
@@ -451,6 +468,7 @@ internal sealed class PipeConnection : IAsyncDisposable {
         } catch (OperationCanceledException) { }
     }
 
+    /// <summary>异步持续读取从机发送的消息序列。</summary>
     public async IAsyncEnumerable<DecodedMessage> ReadMessagesAsync(
         [EnumeratorCancellation] CancellationToken ct) {
         await foreach (var msg in BinaryProtocol.ReadStreamAsync(_stream, ct).ConfigureAwait(false)) {
@@ -458,6 +476,7 @@ internal sealed class PipeConnection : IAsyncDisposable {
         }
     }
 
+    /// <summary>异步释放资源。</summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _writeQueue.Writer.TryComplete();

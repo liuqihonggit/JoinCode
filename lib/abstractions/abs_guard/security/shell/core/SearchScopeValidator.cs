@@ -28,8 +28,11 @@ public interface ISearchScopeReloadable {
 /// 搜索范围运行时配置 — 从 SearchScopeSettings 转换而来
 /// </summary>
 public sealed class SearchScopeConfig {
+    /// <summary>获取是否启用。</summary>
     public bool Enabled { get; init; } = true;
+    /// <summary>获取额外危险标志字典。</summary>
     public Dictionary<string, FrozenSet<string>> ExtraDangerousFlags { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>获取额外过大路径前缀集合。</summary>
     public FrozenSet<string> ExtraExcessivePathPrefixes { get; init; } = FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase);
 }
 

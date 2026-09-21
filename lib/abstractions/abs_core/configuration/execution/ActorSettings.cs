@@ -120,6 +120,7 @@ public sealed class BackpressurePreset {
 
     public BackpressurePreset() { }
 
+    /// <summary>构造背压预设。</summary>
     public BackpressurePreset(int capacity, double? sendTimeoutSeconds = null) {
         Capacity = capacity;
         SendTimeoutSeconds = sendTimeoutSeconds;

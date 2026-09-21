@@ -5,6 +5,7 @@ namespace JoinCode.Abstractions.Insights;
 /// 由 LLM 从会话转录中提取的结构化洞察
 /// </summary>
 public sealed class SessionFacets {
+    /// <summary>获取会话标识。</summary>
     public string SessionId { get; init; } = string.Empty;
 
     /// <summary>用户根本想达成什么</summary>
@@ -45,7 +46,9 @@ public sealed class SessionFacets {
 /// Facet 提取结果 — 包含提取的 facets 和缓存状态
 /// </summary>
 public sealed class FacetExtractionResult {
+    /// <summary>获取提取的会话 Facet 数据。</summary>
     public required SessionFacets Facets { get; init; }
+    /// <summary>获取是否来自缓存。</summary>
     public bool FromCache { get; init; }
 }
 

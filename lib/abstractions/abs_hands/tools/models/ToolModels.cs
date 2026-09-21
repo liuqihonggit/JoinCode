@@ -5,24 +5,30 @@ namespace JoinCode.Abstractions.Tools;
 /// 工具信息
 /// </summary>
 public class ToolInfo {
+    /// <summary>获取工具名称。</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = string.Empty;
 
+    /// <summary>获取工具描述。</summary>
     [JsonPropertyName("description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; init; }
 
+    /// <summary>获取输入参数模式。</summary>
     [JsonPropertyName("inputSchema")]
     public ToolSchema InputSchema { get; init; } = new();
 
+    /// <summary>获取工具注解。</summary>
     [JsonPropertyName("annotations")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ToolAnnotations? Annotations { get; init; }
 
+    /// <summary>获取工具分类。</summary>
     [JsonPropertyName("category")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Category { get; init; }
 
+    /// <summary>获取工具组名。</summary>
     [JsonPropertyName("groupName")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? GroupName { get; init; }
@@ -32,22 +38,27 @@ public class ToolInfo {
 /// 工具注解
 /// </summary>
 public class ToolAnnotations {
+    /// <summary>获取工具标题。</summary>
     [JsonPropertyName("title")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Title { get; init; }
 
+    /// <summary>获取是否只读提示。</summary>
     [JsonPropertyName("readOnlyHint")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? ReadOnlyHint { get; init; }
 
+    /// <summary>获取是否破坏性提示。</summary>
     [JsonPropertyName("destructiveHint")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? DestructiveHint { get; init; }
 
+    /// <summary>获取是否非并发提示。</summary>
     [JsonPropertyName("nonConcurrentHint")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? NonConcurrentHint { get; init; }
 
+    /// <summary>获取是否需要确认。</summary>
     [JsonPropertyName("confirm")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? Confirm { get; init; }
@@ -57,12 +68,15 @@ public class ToolAnnotations {
 /// 工具参数模式
 /// </summary>
 public class ToolSchema {
+    /// <summary>获取模式类型。</summary>
     [JsonPropertyName("type")]
     public string Type { get; init; } = "object";
 
+    /// <summary>获取属性字典。</summary>
     [JsonPropertyName("properties")]
     public Dictionary<string, ToolSchemaProperty> Properties { get; init; } = new();
 
+    /// <summary>获取必填属性名列表。</summary>
     [JsonPropertyName("required")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string> Required { get; init; } = [];
@@ -72,23 +86,28 @@ public class ToolSchema {
 /// 工具模式属性
 /// </summary>
 public class ToolSchemaProperty {
+    /// <summary>获取属性类型。</summary>
     [JsonPropertyName("type")]
     public string Type { get; init; } = "string";
 
+    /// <summary>获取属性描述。</summary>
     [JsonPropertyName("description")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; init; }
 
+    /// <summary>获取枚举值列表。</summary>
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
 #pragma warning disable JCC11002
     public List<string>? Enum { get; init; }
 #pragma warning restore JCC11002
 
+    /// <summary>获取默认值。</summary>
     [JsonPropertyName("default")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? Default { get; init; }
 
+    /// <summary>获取数组项的模式。</summary>
     [JsonPropertyName("items")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ToolSchemaProperty? Items { get; init; }
@@ -98,9 +117,11 @@ public class ToolSchemaProperty {
 /// 工具调用请求
 /// </summary>
 public class ToolCallRequest {
+    /// <summary>获取或设置工具名称。</summary>
     [JsonPropertyName("toolName")]
     public string ToolName { get; set; } = string.Empty;
 
+    /// <summary>获取或设置调用参数。</summary>
     [JsonPropertyName("arguments")]
     public Dictionary<string, JsonElement> Arguments { get; set; } = new();
 }
@@ -109,18 +130,22 @@ public class ToolCallRequest {
 /// 工具内容
 /// </summary>
 public class ToolContent {
+    /// <summary>获取内容类型。</summary>
     [JsonPropertyName("type")]
     [JsonConverter(typeof(ToolContentTypeJsonConverter))]
     public ToolContentType Type { get; init; } = ToolContentType.Text;
 
+    /// <summary>获取文本内容。</summary>
     [JsonPropertyName("text")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Text { get; init; }
 
+    /// <summary>获取二进制数据（Base64）。</summary>
     [JsonPropertyName("data")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Data { get; init; }
 
+    /// <summary>获取 MIME 类型。</summary>
     [JsonPropertyName("mimeType")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MimeType { get; init; }
@@ -130,9 +155,11 @@ public class ToolContent {
 /// 工具调用结果
 /// </summary>
 public sealed record ToolResult {
+    /// <summary>获取内容列表。</summary>
     [JsonPropertyName("content")]
     public List<ToolContent> Content { get; init; } = new();
 
+    /// <summary>获取是否为错误结果。</summary>
     [JsonPropertyName("isError")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool IsError { get; init; }
@@ -158,6 +185,7 @@ public sealed record ToolResult {
     [JsonIgnore]
     public Action<ToolUseContext>? ContextModifier { get; set; }
 
+    /// <summary>获取首个非空文本内容。</summary>
     public string? GetFirstText() => Content.FirstOrDefault(c => !string.IsNullOrEmpty(c.Text))?.Text;
 
     /// <summary>
@@ -230,7 +258,9 @@ public sealed record ToolResult {
 /// 工具注册事件参数
 /// </summary>
 public class ToolRegisteredEventArgs : EventArgs {
+    /// <summary>获取工具名称。</summary>
     public required string ToolName { get; init; }
+    /// <summary>获取工具描述。</summary>
     public required string Description { get; init; }
 }
 
@@ -238,6 +268,7 @@ public class ToolRegisteredEventArgs : EventArgs {
 /// 工具注销事件参数
 /// </summary>
 public class ToolUnregisteredEventArgs : EventArgs {
+    /// <summary>获取工具名称。</summary>
     public required string ToolName { get; init; }
 }
 
@@ -245,9 +276,13 @@ public class ToolUnregisteredEventArgs : EventArgs {
 /// 扫描到的工具信息
 /// </summary>
 public sealed class ScannedTool {
+    /// <summary>获取工具名称。</summary>
     public required string Name { get; init; }
+    /// <summary>获取工具描述。</summary>
     public required string Description { get; init; }
+    /// <summary>获取输入参数模式。</summary>
     public required ToolSchema InputSchema { get; init; }
+    /// <summary>获取工具处理器。</summary>
     public required ToolHandler Handler { get; init; }
 }
 
@@ -292,14 +327,31 @@ public enum SkillProgressType {
 /// 工具执行实体元数据条目 — AOT 安全的 key-value 对，用于回填子类 Entity 特有字段
 /// </summary>
 public sealed record EntityMetadataEntry {
+    /// <summary>获取元数据键名。</summary>
     public required string Key { get; init; }
+    /// <summary>获取整数值。</summary>
     public int? IntValue { get; init; }
+    /// <summary>获取长整数值。</summary>
     public long? LongValue { get; init; }
+    /// <summary>获取字符串值。</summary>
     public string? StringValue { get; init; }
+    /// <summary>获取布尔值。</summary>
     public bool? BoolValue { get; init; }
 
+    /// <summary>创建整型元数据条目。</summary>
+    /// <param name="key">键名。</param>
+    /// <param name="value">整数值。</param>
     public static EntityMetadataEntry Int(string key, int value) => new() { Key = key, IntValue = value };
+    /// <summary>创建长整型元数据条目。</summary>
+    /// <param name="key">键名。</param>
+    /// <param name="value">长整数值。</param>
     public static EntityMetadataEntry Long(string key, long value) => new() { Key = key, LongValue = value };
+    /// <summary>创建字符串元数据条目。</summary>
+    /// <param name="key">键名。</param>
+    /// <param name="value">字符串值。</param>
     public static EntityMetadataEntry String(string key, string value) => new() { Key = key, StringValue = value };
+    /// <summary>创建布尔元数据条目。</summary>
+    /// <param name="key">键名。</param>
+    /// <param name="value">布尔值。</param>
     public static EntityMetadataEntry Bool(string key, bool value) => new() { Key = key, BoolValue = value };
 }

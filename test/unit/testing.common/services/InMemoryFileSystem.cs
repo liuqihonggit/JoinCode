@@ -4,9 +4,13 @@ namespace Testing.Common.Services;
 /// 内存文件系统条目基类
 /// </summary>
 public abstract class InMemoryFileSystemEntry {
+    /// <summary>获取或设置完整路径</summary>
     public string FullPath { get; set; } = string.Empty;
+    /// <summary>获取条目名称</summary>
     public string Name => Path.GetFileName(FullPath);
+    /// <summary>获取或设置最后写入时间</summary>
     public DateTime LastWriteTime { get; set; } = DateTime.Now;
+    /// <summary>获取或设置创建时间</summary>
     public DateTime CreationTime { get; set; } = DateTime.Now;
 }
 
@@ -14,10 +18,15 @@ public abstract class InMemoryFileSystemEntry {
 /// 内存文件条目
 /// </summary>
 public sealed class InMemoryFileEntry : InMemoryFileSystemEntry {
+    /// <summary>获取或设置文本内容</summary>
     public string Content { get; set; } = string.Empty;
+    /// <summary>获取或设置字节内容</summary>
     public byte[]? ByteContent { get; set; }
+    /// <summary>获取字节形式的内容</summary>
     public byte[] Bytes => ByteContent ?? System.Text.Encoding.UTF8.GetBytes(Content);
+    /// <summary>获取内容字节长度</summary>
     public long Length => Bytes.Length;
+    /// <summary>获取内容行数</summary>
     public int LineCount => Content.Split('\n').Length;
 }
 
@@ -25,6 +34,7 @@ public sealed class InMemoryFileEntry : InMemoryFileSystemEntry {
 /// 内存目录条目
 /// </summary>
 public sealed class InMemoryDirectoryEntry : InMemoryFileSystemEntry {
+    /// <summary>获取目录下的所有条目集合</summary>
     public ConcurrentDictionary<string, InMemoryFileSystemEntry> Entries { get; } = new();
 }
 
@@ -604,17 +614,29 @@ public sealed class InMemoryFileSystem : IFileSystem {
 
     // === IFileSystem: Watch ===
 
+    /// <summary>创建文件系统监视器（空实现，不触发任何事件）</summary>
+    /// <param name="path">监视路径</param>
+    /// <param name="filter">文件名筛选器</param>
+    /// <returns>空监视器实例</returns>
     public IFileSystemWatcher Watch(string path, string filter = "*.*")
         => new NullFileSystemWatcher { Path = path, Filter = filter };
 
     private sealed class NullFileSystemWatcher : IFileSystemWatcher {
+        /// <summary>获取或设置监视路径</summary>
         public string Path { get; set; } = string.Empty;
+        /// <summary>获取或设置文件名筛选器</summary>
         public string Filter { get; set; } = "*.*";
+        /// <summary>获取筛选器集合</summary>
         public ICollection<string> Filters { get; } = new List<string>();
+        /// <summary>获取或设置是否包含子目录</summary>
         public bool IncludeSubdirectories { get; set; }
+        /// <summary>获取或设置通知过滤器</summary>
         public NotifyFilters NotifyFilter { get; set; }
+        /// <summary>获取或设置是否启用事件触发</summary>
         public bool EnableRaisingEvents { get; set; }
+        /// <summary>获取或设置防抖间隔</summary>
         public TimeSpan DebounceInterval { get; set; } = TimeSpan.FromMilliseconds(500);
+        /// <summary>获取或设置内部写入窗口毫秒数</summary>
         public int InternalWriteWindowMs { get; set; } = 5000;
         public event EventHandler<FileChangedEventArgs>? Changed { add { } remove { } }
         public event EventHandler<FileChangedEventArgs>? Created { add { } remove { } }
@@ -624,7 +646,10 @@ public sealed class InMemoryFileSystem : IFileSystem {
         public event EventHandler<FileChangedEventArgs>? DebouncedCreated { add { } remove { } }
         public event EventHandler<FileChangedEventArgs>? DebouncedDeleted { add { } remove { } }
         public event EventHandler<FileRenamedEventArgs>? DebouncedRenamed { add { } remove { } }
+        /// <summary>标记内部写入操作（空实现）</summary>
+        /// <param name="filePath">文件路径</param>
         public void MarkInternalWrite(string filePath) { }
+        /// <summary>释放资源</summary>
         public void Dispose() { }
     }
 }

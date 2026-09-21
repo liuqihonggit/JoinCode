@@ -58,6 +58,10 @@ public sealed class CliOptionAttribute : Attribute {
     /// </summary>
     public string? EnvVar { get; init; }
 
+    /// <summary>构造命令行选项特性。</summary>
+    /// <param name="longName">长参数名（如 "--help"）。</param>
+    /// <param name="shortName">短参数名（如 "-h"），无短参数传空字符串。</param>
+    /// <param name="description">中文描述。</param>
     public CliOptionAttribute(string longName, string shortName, string description) {
         LongName = longName ?? throw new ArgumentNullException(nameof(longName));
         ShortName = shortName ?? string.Empty;

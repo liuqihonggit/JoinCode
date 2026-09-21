@@ -6,8 +6,10 @@ public sealed class ToolResultBuilder {
     private readonly List<EntityMetadataEntry> _entityMetadata = [];
     private ToolDiagnostic? _diagnostic;
 
+    /// <summary>创建成功构建器。</summary>
     public static ToolResultBuilder Success() => new();
 
+    /// <summary>创建错误构建器。</summary>
     public static ToolResultBuilder Error() => new() { _isError = true };
 
     /// <summary>
@@ -46,11 +48,13 @@ public sealed class ToolResultBuilder {
         }
     }
 
+    /// <summary>添加文本内容。</summary>
     public ToolResultBuilder WithText(string text) {
         _content.Add(new ToolContent { Type = ToolContentType.Text, Text = text });
         return this;
     }
 
+    /// <summary>添加图像内容。</summary>
     public ToolResultBuilder WithImage(string base64Data, string mediaType) {
         _content.Add(new ToolContent { Type = ToolContentType.Image, Data = base64Data, MimeType = mediaType });
         return this;
@@ -72,6 +76,7 @@ public sealed class ToolResultBuilder {
         return this;
     }
 
+    /// <summary>设置错误信息。</summary>
     public ToolResultBuilder WithError(string errorMessage) {
         _isError = true;
         _content.Clear();
@@ -103,6 +108,7 @@ public sealed class ToolResultBuilder {
         return this;
     }
 
+    /// <summary>构建工具结果。</summary>
     public ToolResult Build() {
         return new ToolResult {
             Content = _content,

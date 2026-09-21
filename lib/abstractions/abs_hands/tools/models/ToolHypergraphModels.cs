@@ -15,10 +15,15 @@ public interface IHyperedgeReloadable {
 /// 一条超边可包含任意数量的节点（工具），不限于两个
 /// </summary>
 public sealed record ToolHyperedge {
+    /// <summary>获取超边标识。</summary>
     public required string Id { get; init; }
+    /// <summary>获取工具名称集合。</summary>
     public required FrozenSet<string> ToolNames { get; init; }
+    /// <summary>获取或设置共享评分。</summary>
     public int SharedScore { get; set; }
+    /// <summary>获取超边权重。</summary>
     public double Weight { get; init; } = 0.5;
+    /// <summary>获取链式顺序。</summary>
     public string[]? ChainOrder { get; init; }
 }
 
@@ -26,6 +31,8 @@ public sealed record ToolHyperedge {
 /// 工具链有向超图 — 建模工具间依赖/关联关系
 /// </summary>
 public sealed class ToolHypergraph {
+    /// <summary>获取超边列表。</summary>
     public List<ToolHyperedge> Hyperedges { get; init; } = new();
+    /// <summary>获取工具到超边的映射。</summary>
     public FrozenDictionary<string, List<ToolHyperedge>> ToolToEdges { get; init; } = FrozenDictionary<string, List<ToolHyperedge>>.Empty;
 }

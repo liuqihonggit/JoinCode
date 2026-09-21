@@ -243,6 +243,7 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase {
     }
 
     private sealed class DialogueRound {
+        /// <summary>获取该轮对话包含的消息列表。</summary>
         public List<string> Messages { get; } = new();
     }
 

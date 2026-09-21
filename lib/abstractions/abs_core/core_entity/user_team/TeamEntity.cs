@@ -5,9 +5,13 @@ namespace JoinCode.Abstractions.Entity;
 /// 代表运行时团队（区别于 TeamInfo record，后者是数据模型 DTO）
 /// </summary>
 public sealed class TeamEntity : Entity {
+    /// <summary>获取团队名称。</summary>
     public string TeamName { get; }
+    /// <summary>获取或设置团队描述。</summary>
     public string? Description { get; init; }
+    /// <summary>获取或设置队长代理对象 ID。</summary>
     public ObjectId? LeadAgentObjectId { get; init; }
+    /// <summary>获取或设置成员列表。</summary>
     public List<string> Members { get; init; } = [];
 
     /// <summary>
@@ -15,6 +19,14 @@ public sealed class TeamEntity : Entity {
     /// </summary>
     public static TeamEntityRegistry Registry { get; } = new();
 
+    /// <summary>
+    /// 构造团队实体。
+    /// </summary>
+    /// <param name="teamName">团队名称。</param>
+    /// <param name="description">团队描述。</param>
+    /// <param name="leadAgentObjectId">队长代理对象 ID。</param>
+    /// <param name="displayName">显示名称。</param>
+    /// <param name="sessionId">会话 ID。</param>
     public TeamEntity(
         string teamName,
         string? description = null,
@@ -29,11 +41,13 @@ public sealed class TeamEntity : Entity {
         Registry.Add(ObjectId, this);
     }
 
+    /// <summary>释放资源。</summary>
     public override void Dispose() {
         Registry.Remove(ObjectId);
         base.Dispose();
     }
 
+    /// <summary>转换为团队信息 DTO。</summary>
     public TeamInfo ToTeamInfo() => new() {
         TeamId = UniqueId,
         TeamName = TeamName,

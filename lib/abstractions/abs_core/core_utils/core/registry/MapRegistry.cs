@@ -17,6 +17,9 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
     /// <summary>当前注册项总数</summary>
     public int Count => _items.Count;
 
+    /// <summary>构造字典注册器。</summary>
+    /// <param name="comparer">键相等比较器。</param>
+    /// <param name="trackCanonical">是否跟踪正式名/别名。</param>
     public MapRegistry(IEqualityComparer<TKey>? comparer = null, bool trackCanonical = false) {
         var c = comparer ?? EqualityComparer<TKey>.Default;
         _items = new ConcurrentDictionary<TKey, TValue>(c);

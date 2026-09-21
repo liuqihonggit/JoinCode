@@ -3,12 +3,14 @@ namespace JoinCode.Abstractions.LLM.Chat;
 public static class ContentHash {
     private const int HexLength = 16;
 
+    /// <summary>计算字符串内容的 SHA256 哈希(十六进制前16位)。</summary>
     public static string Compute(string content) {
         var hash = global::System.Security.Cryptography.SHA256.HashData(
             global::System.Text.Encoding.UTF8.GetBytes(content));
         return Convert.ToHexString(hash)[..HexLength];
     }
 
+    /// <summary>计算工具规格列表的哈希。</summary>
     public static string ComputeToolSpecs(IEnumerable<ToolSpec> specs) {
         var sortedSpecs = specs
             .OrderBy(t => t.Name, StringComparer.Ordinal)
@@ -19,6 +21,7 @@ public static class ContentHash {
         return Compute(blob);
     }
 
+    /// <summary>计算工具名称列表的哈希。</summary>
     public static string ComputeToolNames(IEnumerable<ToolSpec> specs) {
         var blob = string.Join(",",
             specs.Select(t => t.Name).OrderBy(n => n, StringComparer.Ordinal));

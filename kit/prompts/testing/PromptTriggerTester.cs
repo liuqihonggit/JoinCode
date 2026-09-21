@@ -142,14 +142,25 @@ public sealed class PromptTriggerTester {
     private sealed class TestBriefModeService : IBriefModeService {
         private readonly bool _enabled;
 
+        /// <summary>构造测试简洁模式服务。</summary>
+        /// <param name="enabled">是否启用。</param>
         public TestBriefModeService(bool enabled) => _enabled = enabled;
 
+        /// <summary>获取是否启用。</summary>
         public bool IsEnabled => _enabled;
+        /// <summary>获取启用时间。</summary>
         public DateTime? EnabledAt => _enabled ? DateTime.Now : null;
+        /// <summary>获取或设置用户消息选择启用。</summary>
         public bool UserMsgOptIn { get => _enabled; set { } }
+        /// <summary>启用简洁模式。</summary>
         public void Enable() { }
+        /// <summary>禁用简洁模式。</summary>
         public void Disable() { }
+        /// <summary>切换简洁模式。</summary>
+        /// <returns>当前是否启用。</returns>
         public bool Toggle() => _enabled;
+        /// <summary>获取简洁模式状态。</summary>
+        /// <returns>简洁模式状态。</returns>
         public BriefModeStatus GetStatus() => _enabled ? BriefModeStatus.Enabled(DateTime.Now) : BriefModeStatus.Disabled();
     }
 }

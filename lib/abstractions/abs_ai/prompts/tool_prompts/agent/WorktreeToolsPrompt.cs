@@ -7,6 +7,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 public static class EnterWorktreeToolPrompt {
     public const string ToolName = WorktreeToolNameEnumConstants.EnterWorktree;
 
+    /// <summary>获取 EnterWorktree 工具提示词。</summary>
     public static string Prompt { get; } = $"""
         仅当用户明确要求在工作区中工作时使用此工具。此工具创建一个隔离的 git 工作区并将当前会话切换到其中。
 

@@ -20,6 +20,7 @@ internal abstract class TelemetryPostHook<TContext> : IPipelinePostHook<TContext
         _condition = condition;
     }
 
+    /// <summary>执行遥测记录：满足条件时按指标名和标签记录管道计数。</summary>
     public async Task InvokeAsync(TContext context, CancellationToken ct) {
         if (_telemetryService is not null && (_condition?.Invoke(context) ?? true)) {
             var tags = _tagFactory?.Invoke(context) ?? new Dictionary<string, string> { ["source"] = "pipeline" };

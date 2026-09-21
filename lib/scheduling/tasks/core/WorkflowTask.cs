@@ -609,15 +609,22 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
 }
 
 internal sealed class WorkflowRunState {
+    /// <summary>获取工作流定义。</summary>
     public WorkflowDefinition Definition { get; }
+    /// <summary>获取或设置任务执行状态。</summary>
     public TaskExecutionStatus State { get; set; } = TaskExecutionStatus.Pending;
+    /// <summary>获取各步骤状态字典。</summary>
     public Dictionary<string, StepStatus> StepStatuses { get; } = new();
+    /// <summary>获取取消令牌源。</summary>
     public CancellationTokenSource Cts { get; } = new();
 
+    /// <summary>构造工作流运行状态。</summary>
+    /// <param name="definition">工作流定义。</param>
     public WorkflowRunState(WorkflowDefinition definition) {
         Definition = definition;
     }
 
+    /// <summary>转换为工作流状态。</summary>
     public WorkflowStatus ToStatus() {
         var completedCount = StepStatuses.Values.Count(s => s.State is StepState.Completed or StepState.Skipped);
         return new WorkflowStatus {
@@ -629,6 +636,8 @@ internal sealed class WorkflowRunState {
         };
     }
 
+    /// <summary>转换为工作流快照。</summary>
+    /// <param name="now">当前时间。</param>
     public WorkflowSnapshot ToSnapshot(DateTimeOffset now) {
         return new WorkflowSnapshot {
             WorkflowId = Definition.WorkflowId,

@@ -42,6 +42,8 @@ public sealed class SettingsPropertyAttribute : Attribute {
     /// </summary>
     public string? CustomMergeMethod { get; init; }
 
+    /// <summary>构造 SettingsPropertyAttribute 实例。</summary>
+    /// <param name="strategy">合并策略。</param>
     public SettingsPropertyAttribute(SettingsMergeStrategy strategy) => Strategy = strategy;
 }
 

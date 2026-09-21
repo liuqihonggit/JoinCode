@@ -4,17 +4,26 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 聊天消息记录
 /// </summary>
 public sealed record ApiMessageRecord {
+    /// <summary>获取角色。</summary>
     public required string Role { get; init; }
+    /// <summary>获取内容。</summary>
     public required string Content { get; init; }
+    /// <summary>获取时间戳。</summary>
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
 public interface IChatService : IAsyncDisposable {
+    /// <summary>异步发送消息并返回完整响应。</summary>
     Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default);
+    /// <summary>异步发送消息并返回流式响应。</summary>
     IAsyncEnumerable<string> SendMessageStreamAsync(string message, CancellationToken cancellationToken = default);
+    /// <summary>异步发送消息并以事件流形式返回响应。</summary>
     IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, CancellationToken cancellationToken = default);
+    /// <summary>异步清空对话历史。</summary>
     Task ClearHistoryAsync(CancellationToken cancellationToken = default);
+    /// <summary>异步获取消息列表。</summary>
     Task<IReadOnlyList<ApiMessageRecord>> GetMessageListAsync(CancellationToken cancellationToken = default);
+    /// <summary>异步设置系统提示词。</summary>
     Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default);
 
     /// <summary>

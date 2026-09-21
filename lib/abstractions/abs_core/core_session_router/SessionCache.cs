@@ -8,12 +8,14 @@ public sealed class SessionCache : ISessionCache {
     private readonly ConcurrentDictionary<string, Entity> _entries = new();
     private readonly ObjectId _sessionId;
 
+    /// <summary>获取缓存项数量。</summary>
     public int Count => _entries.Count;
 
     internal SessionCache(ObjectId sessionId) {
         _sessionId = sessionId;
     }
 
+    /// <summary>获取指定键的缓存值。</summary>
     public T? Get<T>(string key) {
         if (!_entries.TryGetValue(key, out var entry))
             return default;
@@ -27,6 +29,7 @@ public sealed class SessionCache : ISessionCache {
         return typed.Value;
     }
 
+    /// <summary>设置指定键的缓存值。</summary>
     public void Set<T>(string key, T value, TimeSpan? ttl = null) {
         if (_entries.TryGetValue(key, out var existing))
             existing.Dispose();
@@ -34,6 +37,7 @@ public sealed class SessionCache : ISessionCache {
         _entries[key] = entry;
     }
 
+    /// <summary>移除指定键的缓存项。</summary>
     public bool Remove(string key) {
         if (!_entries.TryRemove(key, out var entry))
             return false;
@@ -41,6 +45,7 @@ public sealed class SessionCache : ISessionCache {
         return true;
     }
 
+    /// <summary>判断是否包含指定键的缓存项。</summary>
     public bool Contains(string key) {
         if (!_entries.TryGetValue(key, out var entry))
             return false;
@@ -49,6 +54,7 @@ public sealed class SessionCache : ISessionCache {
         return !typed.IsExpired;
     }
 
+    /// <summary>清空所有缓存项。</summary>
     public void Clear() {
         foreach (var entry in _entries.Values) {
             try { entry.Dispose(); } catch (Exception ex) { _ = ex; }

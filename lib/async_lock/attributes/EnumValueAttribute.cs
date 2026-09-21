@@ -11,5 +11,9 @@ public sealed class EnumValueAttribute : Attribute {
     /// </summary>
     public string Value { get; }
 
+    /// <summary>
+    /// 初始化 <see cref="EnumValueAttribute"/> 实例。
+    /// </summary>
+    /// <param name="value">枚举成员对应的字符串值。</param>
     public EnumValueAttribute(string value) => Value = value;
 }

@@ -5,6 +5,7 @@ namespace JoinCode.CliCommands;
 /// <para>ADR: 0069 — 全量暴露，所有斜杠命令都可直调，通过 ISlashCommandRegistry 路由。</para>
 /// </summary>
 internal static class SlashCallExecutor {
+    /// <summary>执行斜杠命令直调：解析命令名与参数 JSON，通过注册表路由到对应命令并执行。</summary>
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var cmdName = FlatSubCommandRouter.GetPositional(args, 0);
         if (string.IsNullOrEmpty(cmdName)) {
@@ -113,6 +114,7 @@ internal static class SlashCallExecutor {
 /// <para>从 GeneratedSlashCommandCatalog 获取命令清单，按分类分组输出。</para>
 /// </summary>
 internal static class SlashListExecutor {
+    /// <summary>列出所有斜杠命令：按分类分组输出，支持 --category 过滤和 --json 结构化输出。</summary>
     public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var category = FlatSubCommandRouter.GetOptionValue(args, JccCliArgEnumConstants.Category);
         var json = FlatSubCommandRouter.ShouldOutputJson(args);
@@ -159,6 +161,7 @@ internal static class SlashListExecutor {
 /// <para>未声明 [ChatCommandArg] 的命令降级输出 ArgumentHint。</para>
 /// </summary>
 internal static class SlashSchemaExecutor {
+    /// <summary>查询指定斜杠命令的参数 schema：输出结构化参数声明或降级参数提示。</summary>
     public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var cmdName = FlatSubCommandRouter.GetPositional(args, 0);
         if (string.IsNullOrEmpty(cmdName)) {

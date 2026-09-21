@@ -15,30 +15,73 @@ public interface IChatContextManager {
     /// <summary>切换会话 — 按 sessionId 隔离对话历史，切回时自动恢复对应桶</summary>
     void SwitchSession(string sessionId);
 
+    /// <summary>加载上下文。</summary>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task LoadContextAsync(CancellationToken cancellationToken = default);
+    /// <summary>添加用户消息。</summary>
+    /// <param name="content">消息内容。</param>
+    /// <param name="originKind">消息来源类型。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task AddUserMessageAsync(string content, MessageOriginKind? originKind = null, CancellationToken cancellationToken = default);
+    /// <summary>添加压缩摘要消息。</summary>
+    /// <param name="content">摘要内容。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task AddCompactSummaryMessageAsync(string content, CancellationToken cancellationToken = default);
+    /// <summary>添加助手消息。</summary>
+    /// <param name="content">消息内容。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task AddAssistantMessageAsync(string content, CancellationToken cancellationToken = default);
+    /// <summary>添加助手工具调用消息。</summary>
+    /// <param name="content">消息内容。</param>
+    /// <param name="metadata">元数据字典。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task AddAssistantToolCallMessageAsync(string? content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken = default);
+    /// <summary>添加工具结果消息。</summary>
+    /// <param name="content">消息内容。</param>
+    /// <param name="metadata">元数据字典。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task AddToolResultMessageAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 添加包含多模态内容的工具结果消息 — 对齐 TS BashTool image output
     /// </summary>
     Task AddToolResultMessageAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, IReadOnlyList<ToolContent>? contentBlocks, CancellationToken cancellationToken = default);
+    /// <summary>添加系统消息。</summary>
+    /// <param name="content">消息内容。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task AddSystemMessageAsync(string content, CancellationToken cancellationToken = default);
+    /// <summary>添加动态系统消息。</summary>
+    /// <param name="content">消息内容。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task AddDynamicSystemMessageAsync(string content, CancellationToken cancellationToken = default);
+    /// <summary>清空动态系统消息。</summary>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task ClearDynamicSystemMessagesAsync(CancellationToken cancellationToken = default);
+    /// <summary>清空所有消息。</summary>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task ClearMessagesAsync(CancellationToken cancellationToken = default);
+    /// <summary>更新系统提示词。</summary>
+    /// <param name="systemPrompt">系统提示词。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task UpdateSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default);
+    /// <summary>获取消息列表。</summary>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task<MessageList> GetMessageListAsync(CancellationToken cancellationToken = default);
+    /// <summary>保存上下文。</summary>
+    /// <param name="cancellationToken">取消令牌。</param>
     Task SaveContextAsync(CancellationToken cancellationToken = default);
+    /// <summary>根据用量决定折叠策略。</summary>
+    /// <param name="usage">Token 用量。</param>
+    /// <param name="alreadyFoldedThisTurn">本轮是否已折叠。</param>
     ContextFoldDecision DecideAfterUsage(TokenUsage usage, bool alreadyFoldedThisTurn = false);
+    /// <summary>预检决策。</summary>
+    /// <param name="toolSpecs">工具规格列表。</param>
     PreflightDecision DecidePreflight(IReadOnlyList<ToolSpec> toolSpecs);
     /// <param name="decision">折叠决策。</param>
     /// <param name="agentId">代理标识，null 表示主代理。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     Task<ContextFoldResult> FoldIfNeededAsync(ContextFoldDecision decision, string? agentId = null, CancellationToken cancellationToken = default);
+    /// <summary>获取上下文最大 Token 数。</summary>
     int GetContextMaxTokens();
 
     /// <summary>

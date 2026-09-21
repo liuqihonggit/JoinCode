@@ -5,13 +5,21 @@ namespace JoinCode.Abstractions.Entity;
 /// 代表运行时计划（区别于 PlanState record，后者是数据模型 DTO）
 /// </summary>
 public sealed class PlanEntity : Entity {
+    /// <summary>获取或设置计划描述。</summary>
     public string? Description { get; init; }
+    /// <summary>获取或设置计划状态。</summary>
     public PlanStatus Status { get; set; } = PlanStatus.Draft;
+    /// <summary>获取计划步骤列表。</summary>
     public List<PlanStep> Steps { get; init; } = [];
+    /// <summary>获取或设置当前步骤索引。</summary>
     public int CurrentStepIndex { get; set; }
+    /// <summary>获取或设置最近更新时间。</summary>
     public DateTime LastUpdatedAt { get; set; }
+    /// <summary>获取或设置是否处于计划模式。</summary>
     public bool IsInPlanMode { get; set; } = true;
+    /// <summary>获取或设置计划文件路径。</summary>
     public string? PlanFilePath { get; set; }
+    /// <summary>获取或设置是否被用户编辑过。</summary>
     public bool WasEditedByUser { get; set; }
 
     /// <summary>
@@ -19,6 +27,7 @@ public sealed class PlanEntity : Entity {
     /// </summary>
     public static PlanEntityRegistry Registry { get; } = new();
 
+    /// <summary>构造 PlanEntity 实例并注册到全局注册器。</summary>
     public PlanEntity(
         string? description = null,
         string? displayName = null,
@@ -29,11 +38,13 @@ public sealed class PlanEntity : Entity {
         Registry.Add(ObjectId, this);
     }
 
+    /// <summary>释放资源。</summary>
     public override void Dispose() {
         Registry.Remove(ObjectId);
         base.Dispose();
     }
 
+    /// <summary>转换为 PlanState 数据模型。</summary>
     public PlanState ToPlanState() => new() {
         PlanId = UniqueId,
         Description = Description,
@@ -48,8 +59,11 @@ public sealed class PlanEntity : Entity {
         WasEditedByUser = WasEditedByUser
     };
 
+    /// <summary>获取已批准步骤数。</summary>
     public int ApprovedStepsCount => Steps.Count(s => s.IsApproved);
+    /// <summary>获取已完成步骤数。</summary>
     public int CompletedStepsCount => Steps.Count(s => s.IsCompleted);
+    /// <summary>获取总步骤数。</summary>
     public int TotalSteps => Steps.Count;
 
     /// <summary>
@@ -79,5 +93,6 @@ public sealed class PlanEntity : Entity {
 public sealed class PlanEntityRegistry : MapRegistry<ObjectId, PlanEntity> {
     internal void Add(ObjectId id, PlanEntity plan) => AddCore(id, plan);
     internal bool Remove(ObjectId id) => RemoveCore(id);
+    /// <summary>按状态获取计划实体列表。</summary>
     public IEnumerable<PlanEntity> GetByStatus(PlanStatus status) => Where(p => p.Status == status);
 }

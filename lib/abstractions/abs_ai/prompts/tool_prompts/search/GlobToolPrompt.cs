@@ -5,6 +5,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// </summary>
 [ToolPrompt(ToolName = SearchToolName.Glob, Category = ToolPromptCategory.Search)]
 public static class GlobToolPrompt {
+    /// <summary>获取 Glob 工具描述文本。</summary>
     public static string GetDescription() => $"""
         快速文件模式匹配工具，适用于任何规模的代码库。
 

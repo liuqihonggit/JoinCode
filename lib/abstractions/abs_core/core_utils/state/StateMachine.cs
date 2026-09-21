@@ -1,8 +1,11 @@
 namespace JoinCode.Abstractions.Utils;
 
 public sealed class TransitionFailedEventArgs<TState> : EventArgs where TState : struct, Enum {
+    /// <summary>获取源状态。</summary>
     public required TState FromState { get; init; }
+    /// <summary>获取目标状态。</summary>
     public required TState ToState { get; init; }
+    /// <summary>获取转换失败时间戳。</summary>
     public DateTime Timestamp { get; init; }
 }
 
@@ -14,6 +17,10 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
     private readonly IClockService? _clock;
     private TState _currentState;
 
+    /// <summary>构造状态机。</summary>
+    /// <param name="transitions">状态转移表。</param>
+    /// <param name="initialState">初始状态。</param>
+    /// <param name="clock">时钟服务。</param>
     public StateMachine(
         FrozenDictionary<TState, FrozenSet<TState>> transitions,
         TState initialState,
@@ -24,6 +31,11 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
         _clock = clock;
     }
 
+    /// <summary>构造状态机（含终态集合）。</summary>
+    /// <param name="transitions">状态转移表。</param>
+    /// <param name="initialState">初始状态。</param>
+    /// <param name="terminalStates">终态集合。</param>
+    /// <param name="clock">时钟服务。</param>
     public StateMachine(
         FrozenDictionary<TState, FrozenSet<TState>> transitions,
         TState initialState,
@@ -67,6 +79,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
         return validNext;
     }
 
+    /// <summary>获取当前状态。</summary>
     public TState CurrentState {
         get {
             using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
@@ -77,6 +90,9 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
 
     public event EventHandler<StateChangedEventArgs<TState>>? StateChanged;
 
+    /// <summary>判断从指定状态是否能转移到目标状态。</summary>
+    /// <param name="from">源状态。</param>
+    /// <param name="to">目标状态。</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool CanTransitionTo(TState from, TState to) {
         if (from.Equals(to)) {
@@ -87,12 +103,16 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
         return fromIdx < _transitionMasks.Length && BitMask.Contains(_transitionMasks[fromIdx], to);
     }
 
+    /// <summary>判断从当前状态是否能转移到目标状态。</summary>
+    /// <param name="to">目标状态。</param>
     public bool CanTransitionTo(TState to) {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             return CanTransitionTo(_currentState, to);
         }
     }
 
+    /// <summary>转移到目标状态，非法转移抛出异常。</summary>
+    /// <param name="target">目标状态。</param>
     public void TransitionTo(TState target) {
         TState oldState;
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
@@ -109,6 +129,8 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
         OnStateChanged(oldState, target);
     }
 
+    /// <summary>尝试转移到目标状态，失败返回 false。</summary>
+    /// <param name="target">目标状态。</param>
     public bool TryTransitionTo(TState target) {
         TState oldState;
         bool changed;
@@ -129,6 +151,8 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
         return true;
     }
 
+    /// <summary>强制转移到目标状态，不校验合法性。</summary>
+    /// <param name="target">目标状态。</param>
     public void ForceTransitionTo(TState target) {
         TState oldState;
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
@@ -139,6 +163,8 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
         OnStateChanged(oldState, target);
     }
 
+    /// <summary>重置到指定初始状态。</summary>
+    /// <param name="initialState">初始状态。</param>
     public void Reset(TState initialState) {
         TState oldState;
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
@@ -153,6 +179,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
         OnStateChanged(oldState, initialState);
     }
 
+    /// <summary>获取当前状态的合法下一状态集合。</summary>
     public IReadOnlySet<TState> GetValidNextStates() {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             var currentIdx = Unsafe.As<TState, int>(ref _currentState);
@@ -162,6 +189,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum {
         }
     }
 
+    /// <summary>判断当前状态是否为终态。</summary>
     public bool IsTerminalState() {
         if (_terminalStates.Count == 0) {
             using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {

@@ -143,18 +143,29 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
 internal sealed class LegacyCommandAdapter : IChatCommand {
     private readonly JoinCode.Abstractions.Interfaces.ICommand _legacyCommand;
 
+    /// <summary>获取命令名称。</summary>
     public string Name => _legacyCommand.Name;
+    /// <summary>获取命令描述。</summary>
     public string Description => _legacyCommand.Description;
+    /// <summary>获取命令用法。</summary>
     public string Usage => _legacyCommand.Usage;
+    /// <summary>获取命令别名数组。</summary>
     public string[] Aliases => [];
+    /// <summary>获取参数提示。</summary>
     public string ArgumentHint => string.Empty;
+    /// <summary>获取命令是否隐藏。</summary>
     public bool IsHidden => false;
+    /// <summary>获取命令是否启用。</summary>
     public bool IsEnabled => true;
 
+    /// <summary>构造 LegacyCommandAdapter。</summary>
+    /// <param name="legacyCommand">被适配的遗留命令实例。</param>
     public LegacyCommandAdapter(JoinCode.Abstractions.Interfaces.ICommand legacyCommand) {
         _legacyCommand = legacyCommand;
     }
 
+    /// <summary>异步执行命令。</summary>
+    /// <param name="context">聊天命令上下文。</param>
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var legacyContext = new LegacyCommandContext(context, _legacyCommand.Name);
         await _legacyCommand.ExecuteAsync(legacyContext, context.CancellationToken).ConfigureAwait(false);
@@ -166,33 +177,69 @@ internal sealed class LegacyCommandContext : JoinCode.Abstractions.Interfaces.IC
     private readonly ChatCommandContext _context;
     private readonly string _commandName;
 
+    /// <summary>构造 LegacyCommandContext。</summary>
+    /// <param name="context">聊天命令上下文。</param>
+    /// <param name="commandName">命令名称。</param>
     public LegacyCommandContext(ChatCommandContext context, string commandName) {
         _context = context;
         _commandName = commandName;
     }
 
+    /// <summary>获取原始输入字符串。</summary>
     public string RawInput => "/" + _commandName + " " + _context.Arguments;
+    /// <summary>获取命令名称。</summary>
     public string CommandName => _commandName;
+    /// <summary>获取参数数组。</summary>
     public string[] Arguments => _context.Arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    /// <summary>获取会话标识。</summary>
     public string SessionId => _context.SessionId;
+    /// <summary>获取日志记录器。</summary>
     public ILogger Logger { get; } = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+    /// <summary>获取控制台输出接口。</summary>
     public JoinCode.Abstractions.Interfaces.IConsoleOutput ConsoleOutput { get; } = new LegacyConsoleOutput();
 
+    /// <summary>输出普通消息。</summary>
+    /// <param name="message">消息内容。</param>
     public void Output(string message) => TerminalHelper.WriteLine(message);
+    /// <summary>输出错误消息。</summary>
+    /// <param name="message">消息内容。</param>
     public void OutputError(string message) => TerminalHelper.WriteLine($"{TerminalColors.Error}{message}{AnsiStyleEnumConstants.Reset}");
+    /// <summary>输出成功消息。</summary>
+    /// <param name="message">消息内容。</param>
     public void OutputSuccess(string message) => TerminalHelper.WriteLine($"{TerminalColors.Success}{message}{AnsiStyleEnumConstants.Reset}");
+    /// <summary>输出警告消息。</summary>
+    /// <param name="message">消息内容。</param>
     public void OutputWarning(string message) => TerminalHelper.WriteLine($"{TerminalColors.Warning}{message}{AnsiStyleEnumConstants.Reset}");
+    /// <summary>提示用户输入。</summary>
+    /// <param name="message">提示信息。</param>
     public string? Prompt(string message) => _context.Prompt?.Invoke(message);
+    /// <summary>请求用户确认。</summary>
+    /// <param name="message">提示信息。</param>
     public bool Confirm(string message) => _context.Confirm?.Invoke(message) ?? false;
+    /// <summary>输出指定颜色的消息。</summary>
+    /// <param name="message">消息内容。</param>
+    /// <param name="color">文本颜色。</param>
     public void Output(string message, ConsoleColor color) => TerminalHelper.WriteLine(message);
+    /// <summary>读取密码输入。</summary>
+    /// <param name="prompt">提示信息。</param>
     public string ReadPassword(string prompt) => _context.ReadPassword?.Invoke(prompt) ?? string.Empty;
 }
 
 internal sealed class LegacyConsoleOutput : JoinCode.Abstractions.Interfaces.IConsoleOutput {
+    /// <summary>输出一行消息。</summary>
+    /// <param name="message">消息内容。</param>
     public void WriteLine(string message) => TerminalHelper.WriteLine(message);
+    /// <summary>输出错误消息。</summary>
+    /// <param name="message">消息内容。</param>
     public void WriteError(string message) => TerminalHelper.WriteLine($"{TerminalColors.Error}{message}{AnsiStyleEnumConstants.Reset}");
+    /// <summary>输出成功消息。</summary>
+    /// <param name="message">消息内容。</param>
     public void WriteSuccess(string message) => TerminalHelper.WriteLine($"{TerminalColors.Success}{message}{AnsiStyleEnumConstants.Reset}");
+    /// <summary>输出警告消息。</summary>
+    /// <param name="message">消息内容。</param>
     public void WriteWarning(string message) => TerminalHelper.WriteLine($"{TerminalColors.Warning}{message}{AnsiStyleEnumConstants.Reset}");
+    /// <summary>提示用户输入。</summary>
+    /// <param name="message">提示信息。</param>
     public string? Prompt(string message) {
         // 非交互模式或测试环境返回 null，避免无限等待
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
@@ -202,6 +249,8 @@ internal sealed class LegacyConsoleOutput : JoinCode.Abstractions.Interfaces.ICo
             return TerminalHelper.ReadLine();
         }
     }
+    /// <summary>请求用户确认。</summary>
+    /// <param name="message">提示信息。</param>
     public bool Confirm(string message) {
         // 非交互模式或测试环境默认拒绝
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
@@ -211,7 +260,12 @@ internal sealed class LegacyConsoleOutput : JoinCode.Abstractions.Interfaces.ICo
             return TerminalHelper.ReadLine()?.ToLowerInvariant() == "y";
         }
     }
+    /// <summary>输出指定颜色的一行消息。</summary>
+    /// <param name="message">消息内容。</param>
+    /// <param name="color">文本颜色。</param>
     public void WriteLine(string message, ConsoleColor color) => TerminalHelper.WriteLine(message);
+    /// <summary>读取密码输入。</summary>
+    /// <param name="prompt">提示信息。</param>
     public string ReadPassword(string prompt) {
         // 非交互模式或测试环境回退：返回空字符串
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {

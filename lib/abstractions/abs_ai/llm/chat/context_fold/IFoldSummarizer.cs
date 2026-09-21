@@ -5,6 +5,7 @@ namespace JoinCode.Abstractions.LLM.Chat;
 /// 关系: 本接口是 IContextCompressor (00-core) 在 dialogue 类型上的特化
 /// </summary>
 public interface IFoldSummarizer {
+    /// <summary>异步为上下文折叠生成摘要。</summary>
     Task<string> SummarizeForFoldAsync(
         IReadOnlyList<ApiMessage> headMessages,
         CancellationToken cancellationToken = default);

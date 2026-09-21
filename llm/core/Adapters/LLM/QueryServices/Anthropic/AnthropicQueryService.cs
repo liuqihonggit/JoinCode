@@ -8,6 +8,12 @@ namespace Api.LLM.QueryServices.Anthropic;
 public sealed class AnthropicQueryService : QueryServiceBase {
     private static readonly AnthropicCacheProtocol CacheProtocol = new();
 
+    /// <summary>构造 AnthropicQueryService。</summary>
+    /// <param name="config">供应商配置。</param>
+    /// <param name="httpClient">HTTP 客户端。</param>
+    /// <param name="logger">日志器。</param>
+    /// <param name="fs">文件系统抽象。</param>
+    /// <param name="resilientExecutor">弹性 HTTP 执行器。</param>
     public AnthropicQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
         : base(config, httpClient, logger, fs, resilientExecutor) {
     }

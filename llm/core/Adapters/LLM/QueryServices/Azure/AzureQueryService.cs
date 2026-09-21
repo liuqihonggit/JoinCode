@@ -8,6 +8,12 @@ namespace Api.LLM.QueryServices.Azure;
 /// 后续若 Azure 引入独立协议行为（如 OAuth Token 注入），可在此覆写。
 /// </summary>
 public sealed class AzureQueryService : OpenAIQueryService {
+    /// <summary>构造 Azure OpenAI 查询服务。</summary>
+    /// <param name="config">供应商配置。</param>
+    /// <param name="httpClient">HTTP 客户端。</param>
+    /// <param name="logger">日志记录器。</param>
+    /// <param name="fs">文件系统。</param>
+    /// <param name="resilientExecutor">弹性 HTTP 执行器。</param>
     public AzureQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
         : base(config, httpClient, logger, fs, resilientExecutor) {
         // 协议层完全继承 OpenAI 实现；URL/端点/认证差异由 AzureProviderDefinition 多态注入

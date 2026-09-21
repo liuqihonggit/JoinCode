@@ -4,14 +4,23 @@ namespace JoinCode.Abstractions.Models.Task;
 /// 任务项
 /// </summary>
 public sealed record TaskItem {
+    /// <summary>获取任务标识。</summary>
     public required string Id { get; init; }
+    /// <summary>获取任务标题。</summary>
     public required string Title { get; init; }
+    /// <summary>获取任务描述。</summary>
     public string? Description { get; init; }
+    /// <summary>获取任务状态。</summary>
     public string Status { get; init; } = TaskExecutionStatusEnumConstants.Pending;
+    /// <summary>获取任务优先级。</summary>
     public TodoPriority Priority { get; init; } = TodoPriority.Medium;
+    /// <summary>获取指派人。</summary>
     public string? Assignee { get; init; }
+    /// <summary>获取截止日期。</summary>
     public DateTime? DueDate { get; init; }
+    /// <summary>获取创建时间。</summary>
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    /// <summary>获取标签列表。</summary>
     public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
 }
 
@@ -64,8 +73,12 @@ public sealed record TaskDependency {
 /// 正在运行的任务信息
 /// </summary>
 public sealed record RunningTaskInfo {
+    /// <summary>获取任务标识。</summary>
     public required string Id { get; init; }
+    /// <summary>获取任务描述。</summary>
     public required string Description { get; init; }
+    /// <summary>获取任务状态。</summary>
     public string Status { get; init; } = TaskExecutionStatusEnumConstants.Running;
+    /// <summary>获取开始时间。</summary>
     public DateTime? StartedAt { get; init; }
 }

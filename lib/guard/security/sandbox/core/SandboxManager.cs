@@ -667,11 +667,18 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
 }
 
 internal sealed class SandboxActiveExecution {
+    /// <summary>获取执行标识。</summary>
     public required string ExecutionId { get; init; }
+    /// <summary>获取进程。</summary>
     public required Process Process { get; init; }
+    /// <summary>获取标准输出构建器。</summary>
     public required StringBuilder StdoutBuilder { get; init; }
+    /// <summary>获取标准错误构建器。</summary>
     public required StringBuilder StderrBuilder { get; init; }
+    /// <summary>获取计时器。</summary>
     public required Stopwatch Stopwatch { get; init; }
+    /// <summary>获取配置超时时间。</summary>
     public required TimeSpan ConfiguredTimeout { get; init; }
+    /// <summary>获取原始命令。</summary>
     public required string OriginalCommand { get; init; }
 }

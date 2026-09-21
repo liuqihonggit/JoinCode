@@ -7,14 +7,21 @@ namespace JoinCode.Abstractions.Entity;
 /// SessionId 为空表示自身即会话根（如 Session 实体），否则为所属会话的 ObjectId
 /// </summary>
 public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity {
+    /// <summary>获取对象标识。</summary>
     public ObjectId ObjectId { get; }
     /// <summary>所属会话 ObjectId — 空表示自身即会话根，所有 Entity 不跨会话</summary>
     public ObjectId SessionId { get; }
+    /// <summary>获取序列标识。</summary>
     public long Id => ObjectId.SequenceId;
+    /// <summary>获取唯一标识。</summary>
     public string UniqueId => ObjectId.UniqueId;
+    /// <summary>获取显示名称。</summary>
     public string DisplayName => ObjectId.DisplayName;
+    /// <summary>获取创建时间。</summary>
     public DateTime CreatedAt { get; }
+    /// <summary>获取或设置开始时间。</summary>
     public DateTime? StartedAt { get; set; }
+    /// <summary>获取或设置完成时间。</summary>
     public DateTime? CompletedAt { get; set; }
 
     /// <summary>

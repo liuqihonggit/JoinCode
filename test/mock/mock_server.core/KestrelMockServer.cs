@@ -15,10 +15,18 @@ public sealed class KestrelMockServer : IHttpMockServer {
     private IHostApplicationLifetime? _appLifetime;
     private string _dumpDir = string.Empty;
 
+    /// <summary>获取服务器 URL。</summary>
     public string Url { get; private set; } = string.Empty;
+    /// <summary>获取服务器统计信息。</summary>
     public MockServerStats Stats { get; } = new();
     public event Action? ShutdownRequested;
 
+    /// <summary>构造 Kestrel 模拟服务器。</summary>
+    /// <param name="responseStrategy">响应策略。</param>
+    /// <param name="cacheSimulator">缓存模拟器。</param>
+    /// <param name="port">监听端口,0 表示自动分配。</param>
+    /// <param name="logger">日志记录器。</param>
+    /// <param name="serverName">服务器名称。</param>
     public KestrelMockServer(
         IResponseStrategy responseStrategy,
         ICacheSimulator cacheSimulator,
@@ -45,6 +53,8 @@ public sealed class KestrelMockServer : IHttpMockServer {
         return port;
     }
 
+    /// <summary>异步启动服务器。</summary>
+    /// <param name="port">监听端口,0 表示使用构造时指定的端口。</param>
     public Task StartAsync(int port = 0) {
         _dumpDir = Path.Combine(Environment.CurrentDirectory, "tests", "MockServers", "MockServer.Core", "dumps", _serverName);
         Directory.CreateDirectory(_dumpDir);
@@ -246,6 +256,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
         return tcs.Task;
     }
 
+    /// <summary>异步停止服务器。</summary>
     public Task StopAsync() {
         // 优先触发 ASP.NET Core 优雅关闭；同时取消 _cts 以唤醒其它等待者
         _appLifetime?.StopApplication();
@@ -253,6 +264,8 @@ public sealed class KestrelMockServer : IHttpMockServer {
         return Task.CompletedTask;
     }
 
+    /// <summary>根据索引获取请求。</summary>
+    /// <param name="index">请求索引。</param>
     public CapturedRequest GetRequest(int index) {
         var releaser = _lock.TryLock()
             ?? throw new TimeoutException("[GEN015] [E2E004] 获取请求超时：锁被持有");
@@ -261,6 +274,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
         }
     }
 
+    /// <summary>获取所有请求。</summary>
     public IReadOnlyList<CapturedRequest> GetAllRequests() {
         var releaser = _lock.TryLock()
             ?? throw new TimeoutException("[GEN016] [E2E005] 获取请求列表超时：锁被持有");
@@ -269,6 +283,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
         }
     }
 
+    /// <summary>清除所有请求。</summary>
     public void Clear() {
         var releaser = _lock.TryLock()
             ?? throw new TimeoutException("[GEN017] [E2E006] 清除请求超时：锁被持有");
@@ -282,6 +297,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
         _cacheSimulator.ResetCache();
     }
 
+    /// <summary>异步释放资源。</summary>
     public ValueTask DisposeAsync() {
         _cts.Cancel();
         return new ValueTask(DisposeCoreAsync());

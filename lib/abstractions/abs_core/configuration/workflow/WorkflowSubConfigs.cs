@@ -1,12 +1,19 @@
 namespace JoinCode.Abstractions.Configuration;
 
 public class CodeExecutionConfig {
+    /// <summary>获取或设置执行超时时间(秒)。</summary>
     public int ExecutionTimeoutSeconds { get; set; } = WorkflowConstants.Timeouts.CodeExecutionTimeoutSeconds;
+    /// <summary>获取或设置最大内存(MB)。</summary>
     public int MaxMemoryMB { get; set; } = WorkflowConstants.CodeExecution.MaxMemoryMB;
+    /// <summary>获取或设置是否允许网络访问。</summary>
     public bool AllowNetworkAccess { get; set; } = false;
+    /// <summary>获取或设置最大进程数。</summary>
     public int MaxProcesses { get; set; } = WorkflowConstants.CodeExecution.MaxProcesses;
+    /// <summary>获取或设置最大打开文件数。</summary>
     public int MaxOpenFiles { get; set; } = WorkflowConstants.CodeExecution.MaxOpenFiles;
+    /// <summary>获取或设置是否只读文件系统。</summary>
     public bool ReadOnlyFilesystem { get; set; } = true;
+    /// <summary>获取或设置允许访问的目录。</summary>
     public string AllowedDirectories { get; set; } = "/tmp";
 }
 

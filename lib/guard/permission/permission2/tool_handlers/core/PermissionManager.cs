@@ -312,14 +312,21 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     /// 缓存的权限结果
     /// </summary>
     private sealed class CachedPermissionResult {
+        /// <summary>获取权限结果。</summary>
         public PermissionResult Result { get; }
+        /// <summary>获取过期时间。</summary>
         public DateTimeOffset ExpirationTime { get; }
 
+        /// <summary>构造缓存权限结果。</summary>
+        /// <param name="result">权限结果。</param>
+        /// <param name="expirationTime">过期时间。</param>
         public CachedPermissionResult(PermissionResult result, DateTimeOffset expirationTime) {
             Result = result;
             ExpirationTime = expirationTime;
         }
 
+        /// <summary>判断缓存是否已过期。</summary>
+        /// <param name="now">当前时间。</param>
         public bool IsExpired(DateTimeOffset now) => now > ExpirationTime;
     }
 }

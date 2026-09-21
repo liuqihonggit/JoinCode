@@ -563,6 +563,7 @@ public sealed class InsightsCommand : ChatCommandBase {
 /// LINQ 风格的字符串连接扩展
 /// </summary>
 static file class InsightsStringExtensions {
+    /// <summary>使用指定分隔符连接字符串序列。</summary>
     public static string Join(this IEnumerable<string> source, string separator) =>
         string.Join(separator, source);
 }

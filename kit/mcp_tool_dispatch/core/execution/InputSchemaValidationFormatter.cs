@@ -1,6 +1,7 @@
 namespace McpToolRegistry;
 
 internal static class InputSchemaValidationFormatter {
+    /// <summary>格式化校验错误为可读信息。</summary>
     public static string FormatErrors(string toolName, IReadOnlyList<ValidationError> errors) {
         if (errors.Count == 0) return string.Empty;
 

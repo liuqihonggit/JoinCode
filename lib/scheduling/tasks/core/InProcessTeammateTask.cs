@@ -578,6 +578,10 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
         /// <summary>lifecycle 取消令牌 — 传给 RunTeammateLoopBackground</summary>
         public CancellationToken LifecycleToken => _lifecycleCts?.Token ?? CancellationToken.None;
 
+        /// <summary>构造 Teammate 直接作用域。</summary>
+        /// <param name="owner">所属执行器。</param>
+        /// <param name="definition">Teammate 定义。</param>
+        /// <param name="externalCt">外部取消令牌。</param>
         public TeammateDirectScope(InProcessTeammateTaskExecutor owner, InProcessTeammateDefinition definition, CancellationToken externalCt) {
             _owner = owner;
             _definition = definition;
@@ -675,6 +679,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
         /// </summary>
         public void Detach() => _detached = true;
 
+        /// <summary>异步释放资源。</summary>
         public async ValueTask DisposeAsync() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 

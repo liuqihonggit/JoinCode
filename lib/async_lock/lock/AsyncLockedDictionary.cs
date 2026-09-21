@@ -21,6 +21,8 @@ public sealed class AsyncLockedDictionary<TKey, TValue> where TKey : notnull {
     private readonly ConcurrentDictionary<TKey, TValue> _dict;
     private readonly ConcurrentDictionary<TKey, AsyncLock> _keyLocks = new();
 
+    /// <summary>构造异步安全字典。</summary>
+    /// <param name="comparer">键的相等比较器,为 null 时使用默认比较器。</param>
     public AsyncLockedDictionary(IEqualityComparer<TKey>? comparer = null) {
         _dict = new ConcurrentDictionary<TKey, TValue>(comparer ?? EqualityComparer<TKey>.Default);
         _keyLocks = new ConcurrentDictionary<TKey, AsyncLock>(comparer ?? EqualityComparer<TKey>.Default);

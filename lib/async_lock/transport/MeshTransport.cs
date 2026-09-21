@@ -223,10 +223,16 @@ internal sealed class MeshPeerConnection : IAsyncDisposable {
     private readonly Task _writeLoop;
     private int _disposed;
 
+    /// <summary>获取对端进程ID。</summary>
     public string PeerProcessId { get; }
 
+    /// <summary>获取连接是否仍然有效。</summary>
     public bool IsConnected => Volatile.Read(ref _disposed) == 0 && _stream.IsConnected;
 
+    /// <summary>初始化到指定对端的网状连接。</summary>
+    /// <param name="peerPid">对端进程ID。</param>
+    /// <param name="stream">命名管道客户端流。</param>
+    /// <param name="logger">可选日志记录器。</param>
     public MeshPeerConnection(string peerPid, NamedPipeClientStream stream, ILogger? logger) {
         PeerProcessId = peerPid;
         _stream = stream;
@@ -238,6 +244,7 @@ internal sealed class MeshPeerConnection : IAsyncDisposable {
         _writeLoop = Task.Run(WriteLoopAsync);
     }
 
+    /// <summary>异步写入数据到对端（写入 Channel 后由后台循环消费）。</summary>
     public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct) {
         if (Volatile.Read(ref _disposed) != 0) return ValueTask.CompletedTask;
         return _writeQueue.Writer.WriteAsync(data, ct);
@@ -260,6 +267,7 @@ internal sealed class MeshPeerConnection : IAsyncDisposable {
         } catch (OperationCanceledException) { }
     }
 
+    /// <summary>异步释放资源。</summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _writeQueue.Writer.TryComplete();

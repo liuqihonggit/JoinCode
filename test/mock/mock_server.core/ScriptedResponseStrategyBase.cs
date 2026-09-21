@@ -112,11 +112,17 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy {
     protected static string GenerateToolCallId(ToolCallConfig config)
         => !string.IsNullOrEmpty(config.ToolCallId) ? config.ToolCallId : $"call_{Guid.NewGuid():N}";
 
+    /// <summary>构建非流式响应（派生类实现）。</summary>
     public abstract string BuildResponse(JsonElement request, CacheStats cacheStats);
+    /// <summary>构建流式响应分片（派生类实现）。</summary>
     public abstract string BuildStreamChunk(string id, string content, bool isLast);
+    /// <summary>构建流式响应前导事件（派生类实现）。</summary>
     public abstract string? BuildStreamPreamble(string id);
+    /// <summary>构建工具调用的非流式响应（派生类实现）。</summary>
     public abstract string BuildToolCallResponse(JsonElement request, CacheStats cacheStats);
+    /// <summary>构建工具调用的流式响应（派生类实现）。</summary>
     public abstract string BuildStreamToolCallResponse(string id, CacheStats cacheStats);
+    /// <summary>构建思考内容的流式响应（派生类实现）。</summary>
     public abstract string BuildStreamThinkingResponse(string id);
 
     /// <summary>

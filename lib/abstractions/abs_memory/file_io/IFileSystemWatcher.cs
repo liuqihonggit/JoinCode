@@ -76,8 +76,11 @@ public interface IFileSystemWatcher : IDisposable {
 /// 文件变更事件参数 — 对齐 System.IO.FileSystemEventArgs
 /// </summary>
 public class FileChangedEventArgs : EventArgs {
+    /// <summary>获取变更类型。</summary>
     public WatcherChangeTypes ChangeType { get; init; }
+    /// <summary>获取完整路径。</summary>
     public string FullPath { get; init; } = string.Empty;
+    /// <summary>获取文件名。</summary>
     public string Name { get; init; } = string.Empty;
 }
 
@@ -85,6 +88,8 @@ public class FileChangedEventArgs : EventArgs {
 /// 文件重命名事件参数 — 对齐 System.IO.RenamedEventArgs
 /// </summary>
 public sealed class FileRenamedEventArgs : FileChangedEventArgs {
+    /// <summary>获取旧完整路径。</summary>
     public string OldFullPath { get; init; } = string.Empty;
+    /// <summary>获取旧文件名。</summary>
     public string OldName { get; init; } = string.Empty;
 }

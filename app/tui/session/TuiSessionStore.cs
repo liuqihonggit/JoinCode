@@ -14,6 +14,7 @@ internal sealed class TuiSessionStore {
     /// <summary>新会话序号偏移 — 同一分钟内连续开新会话时保证 ID 不冲突（T7）</summary>
     internal int NewSessionSequence { get; set; }
 
+    /// <summary>构造 TUI 会话存储 — 生成新会话 ID 并绑定 transcript 服务</summary>
     public TuiSessionStore(
         ITranscriptService transcriptService,
         string? workingDirectory = null,

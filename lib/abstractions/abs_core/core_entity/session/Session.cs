@@ -6,9 +6,13 @@ namespace JoinCode.Abstractions.Entity;
 /// ObjectId + 会话描述 + 创建时间 + 独立注册器 + 静态属性暴露
 /// </summary>
 public sealed class Session : Entity {
+    /// <summary>获取系统提示词。</summary>
     public string? SystemPrompt { get; init; }
+    /// <summary>获取或设置当前模型名称。</summary>
     public string? CurrentModel { get; set; }
+    /// <summary>获取或设置是否为计划模式。</summary>
     public bool IsPlanMode { get; set; }
+    /// <summary>获取或设置当前计划内容。</summary>
     public string? CurrentPlan { get; set; }
 
     /// <summary>
@@ -16,6 +20,11 @@ public sealed class Session : Entity {
     /// </summary>
     public static SessionRegistry Registry { get; } = new();
 
+    /// <summary>构造 Session 实例。</summary>
+    /// <param name="systemPrompt">系统提示词。</param>
+    /// <param name="currentModel">当前模型名称。</param>
+    /// <param name="displayName">显示名称。</param>
+    /// <param name="sessionId">会话标识。</param>
     public Session(
         string? systemPrompt = null,
         string? currentModel = null,

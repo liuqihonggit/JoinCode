@@ -1,6 +1,9 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
 public static class ToolListDriftClassifier {
+    /// <summary>分类工具列表漂移类型。</summary>
+    /// <param name="before">变更前工具规格列表。</param>
+    /// <param name="after">变更后工具规格列表。</param>
     public static ToolDriftReport Classify(IReadOnlyList<ToolSpec> before, IReadOnlyList<ToolSpec> after) {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);

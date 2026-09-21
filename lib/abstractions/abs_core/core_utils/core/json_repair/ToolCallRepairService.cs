@@ -1,13 +1,18 @@
 namespace JoinCode.Abstractions.Utils;
 
 public sealed class ToolCallRepairResult {
+    /// <summary>获取是否修复成功。</summary>
     public required bool Success { get; init; }
+    /// <summary>获取修复后的 JSON。</summary>
     public required string RepairedJson { get; init; }
+    /// <summary>获取修复提示。</summary>
     public string? RepairHint { get; init; }
 }
 
 public sealed class ArgumentRepairResult {
+    /// <summary>获取修复后的参数字典。</summary>
     public required Dictionary<string, JsonElement> RepairedArguments { get; init; }
+    /// <summary>获取修复提示。</summary>
     public string? RepairHint { get; init; }
 }
 

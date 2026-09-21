@@ -365,20 +365,33 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     private class SystemActuatorBackgroundTaskEntry {
+        /// <summary>获取任务 ID。</summary>
         public required string TaskId { get; init; }
+        /// <summary>获取命令文本。</summary>
         public required string Command { get; init; }
+        /// <summary>获取或设置工作目录（可为 null）。</summary>
         public string? WorkingDirectory { get; init; }
+        /// <summary>获取或设置代理 ID（可为 null）。</summary>
         public string? AgentId { get; init; }
+        /// <summary>获取或设置任务执行状态。</summary>
         public TaskExecutionStatus Status { get; set; }
+        /// <summary>获取创建时间。</summary>
         public DateTime CreatedAt { get; init; }
+        /// <summary>获取或设置启动时间（可为 null）。</summary>
         public DateTime? StartedAt { get; set; }
+        /// <summary>获取或设置完成时间（可为 null）。</summary>
         public DateTime? CompletedAt { get; set; }
+        /// <summary>获取或设置标准输出（可为 null）。</summary>
         public string? Stdout { get; set; }
+        /// <summary>获取或设置标准错误（可为 null）。</summary>
         public string? Stderr { get; set; }
+        /// <summary>获取或设置退出码（未执行时为 null）。</summary>
         public int? ExitCode { get; set; }
+        /// <summary>获取或设置错误消息（可为 null）。</summary>
         public string? ErrorMessage { get; set; }
         public int Notified;
 
+        /// <summary>获取或设置执行器命令上下文（可为 null）。</summary>
         public ISystemActuatorCommandContext? Context { get; set; }
     }
 

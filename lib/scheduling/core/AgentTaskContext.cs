@@ -201,6 +201,7 @@ public sealed class AgentTaskContext : IAgentTaskContext {
 }
 
 internal static class CancellationTokenExtensions {
+    /// <summary>将两个取消令牌合并为链接令牌源。</summary>
     public static CancellationTokenSource CombineWith(
         this CancellationToken token1,
         CancellationToken token2) {

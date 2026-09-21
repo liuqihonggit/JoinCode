@@ -9,6 +9,12 @@ namespace JoinCode.Entry;
 /// </summary>
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<StartupContext> {
+    /// <summary>
+    /// 中间件入口 — 根据启动选项决定是否交互询问调试信息类别，写入 context.DebugDumpChoice 后调用下一环节
+    /// </summary>
+    /// <param name="context">启动上下文</param>
+    /// <param name="next">下一中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var options = context.Options;
 

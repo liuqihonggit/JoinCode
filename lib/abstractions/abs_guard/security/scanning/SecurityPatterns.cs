@@ -321,6 +321,7 @@ public static partial class SecurityPatterns {
         .Select(p => new Regex(p, RegexOptions.None, TimeSpan.FromSeconds(5)))
         .ToArray();
 
+    /// <summary>获取已编译的密钥检测正则表达式列表。</summary>
     public static IReadOnlyList<Regex> CompiledSecretRegexes => _compiledSecretRegexes;
 
     #endregion
@@ -480,6 +481,7 @@ public static partial class SecurityPatterns {
         return CredentialFileNames.Contains(name);
     }
 
+    /// <summary>扫描内容中的密钥信息。</summary>
     public static List<SecretFinding> ScanForSecrets(string content, string filePath) {
         var findings = new List<SecretFinding>();
 

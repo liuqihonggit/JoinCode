@@ -103,9 +103,13 @@ public sealed class AppEventBus : IAppEventBus {
 /// AppEvent 内部数据负载 — 序列化到 ServiceMessage.Payload
 /// </summary>
 internal sealed class AppEventPayload {
+    /// <summary>获取事件类型。</summary>
     public ServiceMessageType Kind { get; init; }
+    /// <summary>获取事件详情。</summary>
     public string? Detail { get; init; }
+    /// <summary>获取事件数据。</summary>
     public object? Data { get; init; }
+    /// <summary>获取会话标识。</summary>
     public string? SessionId { get; init; }
 }
 
@@ -115,6 +119,7 @@ internal sealed class AppEventPayload {
 internal sealed class AppEventSubscription(Action unsubscribe) : IAsyncDisposable {
     private int _disposed;
 
+    /// <summary>异步释放资源。</summary>
     public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return default;
         unsubscribe();

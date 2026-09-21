@@ -6,12 +6,14 @@ namespace JoinCode.Abstractions.LLM;
 /// 关系: IQueryEngine (02-brain) 是本接口的门面封装，面向调用方的唯一公开入口
 /// </summary>
 public interface IQueryService {
+    /// <summary>获取 API 消息内容列表。</summary>
     Task<IReadOnlyList<ApiMessage>> GetApiMessageContentsAsync(
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
         CancellationToken cancellationToken = default);
 
+    /// <summary>获取流式事件内容。</summary>
     IAsyncEnumerable<StreamEvent> GetStreamEventContentsAsync(
         MessageList chatHistory,
         ChatOptions? executionSettings = null,

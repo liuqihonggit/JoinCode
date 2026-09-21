@@ -5,11 +5,24 @@ namespace JoinCode.Abstractions.Entity;
 /// 额外字段: DurationSeconds, RemainingSeconds, TickCount, Reason
 /// </summary>
 public sealed class SleepEntity : ToolExecutionEntity {
+    /// <summary>获取睡眠总时长（秒）。</summary>
     public int DurationSeconds { get; init; }
+    /// <summary>获取或设置剩余秒数。</summary>
     public int RemainingSeconds { get; set; }
+    /// <summary>获取或设置心跳计数。</summary>
     public int TickCount { get; set; }
+    /// <summary>获取睡眠原因。</summary>
     public string? Reason { get; init; }
 
+    /// <summary>
+    /// 构造睡眠实体。
+    /// </summary>
+    /// <param name="durationSeconds">睡眠总时长（秒）。</param>
+    /// <param name="reason">睡眠原因。</param>
+    /// <param name="toolUseId">工具使用 ID。</param>
+    /// <param name="spanId">跨度 ID。</param>
+    /// <param name="displayName">显示名称。</param>
+    /// <param name="sessionId">会话 ID。</param>
     public SleepEntity(
         int durationSeconds = 0,
         string? reason = null,

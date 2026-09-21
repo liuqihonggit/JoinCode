@@ -247,6 +247,9 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         private readonly VcrService _owner;
         private readonly ILogger<VcrService>? _logger;
 
+        /// <summary>构造 VCR Actor。</summary>
+        /// <param name="owner">所属 VCR 服务。</param>
+        /// <param name="logger">日志记录器。</param>
         public VcrActor(VcrService owner, ILogger<VcrService>? logger) : base() {
             _owner = owner;
             _logger = logger;

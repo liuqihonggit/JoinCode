@@ -18,6 +18,11 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
 
     private bool? _isFileSystemRestricted;
 
+    /// <summary>构造 Transcript 文件写入器。</summary>
+    /// <param name="fs">文件系统抽象。</param>
+    /// <param name="sessionsDirectory">会话目录。</param>
+    /// <param name="logger">可选的日志记录器。</param>
+    /// <param name="pasteStore">可选的粘贴存储。</param>
     public TranscriptFileWriter(IFileSystem fs, string sessionsDirectory, ILogger? logger = null, IPasteStore? pasteStore = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _sessionsDirectory = sessionsDirectory;
@@ -185,6 +190,7 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
         }
     }
 
+    /// <summary>异步释放资源。</summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await _actor.DisposeAsync().ConfigureAwait(false);
@@ -197,11 +203,15 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
         private readonly TranscriptFileWriter _owner;
         private readonly ILogger? _logger;
 
+        /// <summary>构造 Transcript 文件写入 Actor。</summary>
+        /// <param name="owner">所属的文件写入器。</param>
+        /// <param name="logger">可选的日志记录器。</param>
         public TranscriptFileWriterActor(TranscriptFileWriter owner, ILogger? logger) : base() {
             _owner = owner;
             _logger = logger;
         }
 
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供外部调用。</summary>
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 

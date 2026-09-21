@@ -4,15 +4,25 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 代理元数据 - 保存到 .meta.json sidecar 文件
 /// </summary>
 public sealed class AgentMetadata {
+    /// <summary>获取代理标识。</summary>
     public required string AgentId { get; init; }
+    /// <summary>获取代理角色。</summary>
     public AgentRole Role { get; init; }
+    /// <summary>获取执行器变体。</summary>
     public ExecutorVariant? Variant { get; init; }
+    /// <summary>获取代理类型。</summary>
     public string? AgentType { get; init; }
+    /// <summary>获取代理描述。</summary>
     public string? Description { get; init; }
+    /// <summary>获取工作树路径。</summary>
     public string? WorktreePath { get; init; }
+    /// <summary>获取模型名称。</summary>
     public string? ModelName { get; init; }
+    /// <summary>获取创建时间。</summary>
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    /// <summary>获取完成时间。</summary>
     public DateTime? CompletedAt { get; init; }
+    /// <summary>获取状态。</summary>
     public string? Status { get; init; }
 
     /// <summary>

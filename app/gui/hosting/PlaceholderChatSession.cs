@@ -8,6 +8,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     private readonly IConfigurationService? _configService;
     private readonly IModelConfigLoader _modelConfigLoader;
 
+    /// <summary>构造占位会话 — 从 settings.json 读取当前供应商与模型，无真实引擎连接</summary>
     public PlaceholderChatSession(IConfigurationService? configService = null, IModelConfigLoader? modelConfigLoader = null) {
         _configService = configService;
         _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
@@ -16,6 +17,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
         VendorModelMap = BuildVendorModelMap();
     }
 
+    /// <summary>占位会话始终就绪 — 返回 true</summary>
     public bool IsReady => true;
 
     /// <inheritdoc />
@@ -45,8 +47,10 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
         return !string.IsNullOrEmpty(id) ? id : "";
     }
 
+    /// <summary>配置文件驱动的供应商→模型列表映射（占位会话从 models.json 构建）</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; }
 
+    /// <summary>刷新 VendorModelMap（占位会话热重载入口）</summary>
     public void RefreshVendorModelMap() {
         VendorModelMap = BuildVendorModelMap();
     }
@@ -75,8 +79,10 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     /// <summary>T9：占位会话无确认 UI，默认拒绝；事件不会触发</summary>
     public Func<string, bool>? SlashConfirmHandler { get; set; }
 
+    /// <summary>退出请求事件 — 占位会话永不触发（空 add/remove 避免 CS0067）</summary>
     public event Action? ExitRequested { add { } remove { } }
 
+    /// <summary>占位会话切换模型 — 持久化 model 到 settings.json，引擎可用后重启生效</summary>
     public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) {
         if (_configService is not null)
             await _configService.SetAsync("model", modelId, cancellationToken);
@@ -91,6 +97,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     /// <summary>占位会话固定返回 Auto，不持久化</summary>
     public EffortLevel EffortLevel => EffortLevel.Auto;
 
+    /// <summary>占位会话设置推理力度 — 持久化到 settings.json，auto 移除键</summary>
     public async Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) {
         if (_configService is null) return;
         if (effortLevel is EffortLevel.Auto)
@@ -99,6 +106,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
             await _configService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effortLevel.ToValue(), cancellationToken);
     }
 
+    /// <summary>占位会话无真实引擎，系统提示词设置空实现</summary>
     public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
@@ -130,15 +138,20 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     public Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default)
         => Task.FromResult(false);
 
+    /// <summary>占位会话温度 — 未设置返回 null</summary>
     public float? Temperature => null;
+    /// <summary>占位会话最大长度 — 未设置返回 null</summary>
     public int? MaxTokens => null;
 
+    /// <summary>占位会话设置温度 — 空实现（无真实引擎）</summary>
     public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
+    /// <summary>占位会话设置最大长度 — 空实现（无真实引擎）</summary>
     public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
+    /// <summary>占位会话初始化 — 空实现（无真实引擎）</summary>
     public Task InitializeAsync(CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
@@ -146,6 +159,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
         => Task.FromResult("（Mock 引擎不支持斜杠命令执行，连接真实引擎后可用）");
 
+    /// <summary>占位会话流式回显 — 产出思考/工具/正文示例事件供 UI 渲染验证</summary>
     public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
         string message,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
@@ -194,18 +208,23 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
         yield return ChatStreamEvent.Done();
     }
 
+    /// <summary>占位会话消息记录 — 固定返回空列表</summary>
     public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
         => Task.FromResult((IReadOnlyList<ApiMessageRecord>)[]
 
     );
 
+    /// <summary>占位会话清空历史 — 空实现（无真实引擎）</summary>
     public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+    /// <summary>占位会话回退上一轮 — 固定返回成功</summary>
     public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
         => Task.FromResult(new RewindResult { Success = true });
 
+    /// <summary>占位会话斜杠命令清单 — 固定返回空列表</summary>
     public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
 
+    /// <summary>占位会话工具清单 — 固定返回空列表</summary>
     public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
 
@@ -213,5 +232,6 @@ internal sealed class PlaceholderChatSession : IJccChatSession {
     public Task<IReadOnlyList<SubAgentSummary>> GetAvailableSubAgentsAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<SubAgentSummary>>([]);
 
+    /// <summary>占位会话释放 — 空实现（无真实引擎资源）</summary>
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

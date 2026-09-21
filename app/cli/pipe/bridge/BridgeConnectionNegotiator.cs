@@ -70,6 +70,10 @@ public sealed partial class BridgeConnectionNegotiator : ServiceEntity {
     }
 
     private sealed class VersionComparerComparer : IComparer<string> {
+        /// <summary>比较两个版本字符串 — 优先按语义版本比较，无法解析时回退到序数字字符串比较</summary>
+        /// <param name="x">第一个版本字符串</param>
+        /// <param name="y">第二个版本字符串</param>
+        /// <returns>小于零表示 x 小于 y，零表示相等，大于零表示 x 大于 y</returns>
         public int Compare(string? x, string? y) {
             if (x is null) return y is null ? 0 : -1;
             if (y is null) return 1;

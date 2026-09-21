@@ -32,6 +32,8 @@ public enum AgentMemorySnapshotAction {
 /// Agent 记忆快照检查结果
 /// </summary>
 public sealed record AgentMemorySnapshotCheck {
+    /// <summary>获取快照操作类型。</summary>
     public required AgentMemorySnapshotAction Action { get; init; }
+    /// <summary>获取快照时间戳。</summary>
     public string? SnapshotTimestamp { get; init; }
 }

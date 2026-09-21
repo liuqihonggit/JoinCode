@@ -4,9 +4,13 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 配置变更事件参数
 /// </summary>
 public sealed class SettingChangeEventArgs : EventArgs {
+    /// <summary>获取配置项键名。</summary>
     public required string Key { get; init; }
+    /// <summary>获取旧值。</summary>
     public string? OldValue { get; init; }
+    /// <summary>获取新值。</summary>
     public string? NewValue { get; init; }
+    /// <summary>获取配置源。</summary>
     public SettingSource Source { get; init; } = SettingSource.UserSettings;
 
     /// <summary>

@@ -404,6 +404,9 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         private readonly SkillDiscoveryService _owner;
         private readonly ILogger<SkillDiscoveryService>? _logger;
 
+        /// <summary>构造技能发现 Actor。</summary>
+        /// <param name="owner">所属技能发现服务。</param>
+        /// <param name="logger">日志记录器（可选）。</param>
         public DiscoverActor(SkillDiscoveryService owner, ILogger<SkillDiscoveryService>? logger) : base() {
             _owner = owner;
             _logger = logger;

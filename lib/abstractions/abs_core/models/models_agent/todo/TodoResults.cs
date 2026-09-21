@@ -18,7 +18,10 @@ public sealed record TodoListResult(
     bool Success,
     List<TodoItem> Todos,
     string? ErrorMessage = null) {
+    /// <summary>获取待办总数。</summary>
     public int TotalCount => Todos?.Count ?? 0;
+    /// <summary>获取待处理数量。</summary>
     public int PendingCount => Todos?.Count(t => !t.Status.Equals(TodoStatusEnumConstants.Completed, StringComparison.OrdinalIgnoreCase)) ?? 0;
+    /// <summary>获取已完成数量。</summary>
     public int CompletedCount => Todos?.Count(t => t.Status.Equals(TodoStatusEnumConstants.Completed, StringComparison.OrdinalIgnoreCase)) ?? 0;
 }

@@ -7,10 +7,12 @@ namespace JoinCode.App.Middlewares;
 internal sealed partial class ChatTelemetryPostHook : ServiceEntity, IPipelinePostHook<Core.Context.ChatMiddlewareContext> {
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>构造函数 — 注入遥测服务,用于记录 Chat 管道后置遥测指标</summary>
     public ChatTelemetryPostHook(ITelemetryService? telemetryService) {
         _telemetryService = telemetryService;
     }
 
+    /// <summary>Chat 管道后置钩子 — 设置 Span 标签与状态、释放 Span,并记录消息发送计数与 Token 用量指标</summary>
     public async Task InvokeAsync(Core.Context.ChatMiddlewareContext context, CancellationToken ct) {
         if (_telemetryService is null)
             return;

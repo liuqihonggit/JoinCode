@@ -17,7 +17,9 @@ public sealed class ContentReplacementRecord {
     /// </summary>
     public required ContentReplacementRecordKind Kind { get; init; }
 
+    /// <summary>获取工具使用标识。</summary>
     public required string ToolUseId { get; init; }
+    /// <summary>获取替换内容。</summary>
     public required string Replacement { get; init; }
 }
 

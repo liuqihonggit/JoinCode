@@ -4,6 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 public static class TeamCreateToolPrompt {
     public const string ToolName = TeamToolNameEnumConstants.TeamCreate;
 
+    /// <summary>获取 TeamCreate 工具提示词。</summary>
     public static string Prompt { get; } = $$"""
         # TeamCreate
 
@@ -120,6 +121,7 @@ public static class TeamCreateToolPrompt {
 public static class TeamDeleteToolPrompt {
     public const string ToolName = TeamToolNameEnumConstants.TeamDelete;
 
+    /// <summary>获取 TeamDelete 工具提示词。</summary>
     public static string Prompt { get; } = $$"""
         # TeamDelete
 
@@ -140,6 +142,8 @@ public static class TeamDeleteToolPrompt {
 public static class ToolSearchToolPrompt {
     public const string ToolName = SystemToolNameEnumConstants.ToolSearch;
 
+    /// <summary>获取 ToolSearch 工具提示词。</summary>
+    /// <param name="deltaEnabled">是否启用增量工具模式。</param>
     public static string GetPrompt(bool deltaEnabled = false) {
         var toolLocationHint = deltaEnabled
             ? "延迟工具按名称出现在 <system-reminder> 消息中。"

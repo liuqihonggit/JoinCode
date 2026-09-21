@@ -1,9 +1,15 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
 public static class BashSemanticChecker {
+    /// <summary>检查命令序列的语义安全性。</summary>
+    /// <param name="commands">命令序列。</param>
     public static BashSemanticCheckResult CheckSemantics(BashSimpleCommandInfo[] commands)
         => CheckSemantics(commands, BashSemanticCheckIdMap.Default, null);
 
+    /// <summary>检查命令序列的语义安全性（含自定义检查标识和预检查函数）。</summary>
+    /// <param name="commands">命令序列。</param>
+    /// <param name="checkIds">检查标识映射。</param>
+    /// <param name="preCheck">预检查函数。</param>
     public static BashSemanticCheckResult CheckSemantics(
         BashSimpleCommandInfo[] commands,
         BashSemanticCheckIdMap checkIds,

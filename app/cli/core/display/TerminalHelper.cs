@@ -280,11 +280,18 @@ public static class TerminalHelper {
         private readonly ConsoleColor _prev;
         private bool _disposed;
 
+        /// <summary>
+        /// 构造原始颜色作用域 — 记录当前前景色并设置为新色（直接操作 Console，不经过 ConsoleActor）
+        /// </summary>
+        /// <param name="color">要设置的前景色</param>
         public RawColorScope(ConsoleColor color) {
             _prev = System.Console.ForegroundColor;
             System.Console.ForegroundColor = color;
         }
 
+        /// <summary>
+        /// 释放作用域 — 恢复原始前景色
+        /// </summary>
         public void Dispose() {
             if (_disposed) return; _disposed = true;
             System.Console.ForegroundColor = _prev;
@@ -296,6 +303,11 @@ public static class TerminalHelper {
         private readonly ConsoleActor? _actor;
         private bool _disposed;
 
+        /// <summary>
+        /// 构造颜色作用域 — 通过 ConsoleActor 或直接 Console 设置前景色，记录原色用于恢复
+        /// </summary>
+        /// <param name="color">要设置的前景色</param>
+        /// <param name="actor">ConsoleActor 实例；null 时直接操作 Console</param>
         public ColorScope(ConsoleColor color, ConsoleActor? actor) {
             _actor = actor;
             if (actor is not null)
@@ -306,6 +318,9 @@ public static class TerminalHelper {
             }
         }
 
+        /// <summary>
+        /// 释放作用域 — 通过 ConsoleActor 或直接 Console 恢复原始前景色
+        /// </summary>
         public void Dispose() {
             if (_disposed) return; _disposed = true;
             if (_actor is not null)
@@ -316,7 +331,9 @@ public static class TerminalHelper {
     }
 
     private sealed class NoOpDisposable : IDisposable {
+        /// <summary>单例实例 — 空操作 Dispose</summary>
         public static readonly NoOpDisposable Instance = new();
+        /// <summary>空操作释放 — 不执行任何清理</summary>
         public void Dispose() { }
     }
 

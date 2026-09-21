@@ -4,9 +4,13 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 系统执行器信息快照 — 用于提示词注入，不暴露 ISystemActuator 实例
 /// </summary>
 public sealed record SystemActuatorInfo {
+    /// <summary>获取系统执行器类型。</summary>
     public required SystemActuatorKind Kind { get; init; }
+    /// <summary>获取显示名称。</summary>
     public required string DisplayName { get; init; }
+    /// <summary>获取 Shell 可执行文件路径。</summary>
     public required string ShellPath { get; init; }
+    /// <summary>获取版本号。</summary>
     public required string Version { get; init; }
 }
 
@@ -15,12 +19,19 @@ public sealed record SystemActuatorInfo {
 /// 封装执行器的静态属性：类型、路径、版本、编码、DisplayName
 /// </summary>
 public sealed class SystemActuatorCapability {
+    /// <summary>获取系统执行器类型。</summary>
     public required SystemActuatorKind Kind { get; init; }
+    /// <summary>获取 Shell 可执行文件路径。</summary>
     public string ShellPath { get; init; } = "";
+    /// <summary>获取版本号。</summary>
     public string Version { get; init; } = "unknown";
+    /// <summary>获取显示名称。</summary>
     public string DisplayName { get; init; } = "";
+    /// <summary>获取是否以分离进程方式运行。</summary>
     public bool Detached { get; init; }
+    /// <summary>获取标准输出编码。</summary>
     public Encoding OutputEncoding { get; init; } = Encoding.UTF8;
+    /// <summary>获取标准错误编码。</summary>
     public Encoding ErrorEncoding { get; init; } = Encoding.UTF8;
 
     /// <summary>
@@ -117,12 +128,19 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult {
     /// </summary>
     public const int PreviewSizeBytes = 2048;
 
+    /// <summary>获取标准输出内容。</summary>
     public required string Stdout { get; init; }
+    /// <summary>获取标准错误内容。</summary>
     public required string Stderr { get; init; }
+    /// <summary>获取进程退出码。</summary>
     public int? ExitCode { get; init; }
+    /// <summary>获取进程 ID。</summary>
     public int? ProcessId { get; init; }
+    /// <summary>获取是否被中断。</summary>
     public bool Interrupted { get; init; }
+    /// <summary>获取命令是否执行成功。</summary>
     public bool Success => ExitCode == 0 && !Interrupted;
+    /// <summary>获取错误信息。</summary>
     public string? ErrorMessage { get; init; }
 
     /// <summary>
@@ -245,6 +263,12 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult {
         return ContentReplacementConstants.BuildPersistedOutputMessage(result);
     }
 
+    /// <summary>
+    /// 创建成功执行结果。
+    /// </summary>
+    /// <param name="stdout">标准输出内容。</param>
+    /// <param name="stderr">标准错误内容。</param>
+    /// <param name="exitCode">进程退出码。</param>
     public static SystemActuatorExecutionResult SuccessResult(string stdout, string stderr, int? exitCode = 0)
         => new() {
             Stdout = stdout,
@@ -253,6 +277,12 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult {
             Interrupted = false
         };
 
+    /// <summary>
+    /// 创建失败执行结果。
+    /// </summary>
+    /// <param name="errorMessage">错误信息。</param>
+    /// <param name="stdout">标准输出内容。</param>
+    /// <param name="stderr">标准错误内容。</param>
     public static SystemActuatorExecutionResult FailureResult(string errorMessage, string stdout = "", string stderr = "")
         => new() {
             Stdout = stdout,
@@ -262,6 +292,10 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult {
             ErrorMessage = errorMessage
         };
 
+    /// <summary>
+    /// 创建超时执行结果。
+    /// </summary>
+    /// <param name="timeoutMs">超时时间（毫秒）。</param>
     public static SystemActuatorExecutionResult TimeoutResult(int timeoutMs)
         => new() {
             Stdout = string.Empty,
@@ -277,17 +311,29 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult {
 /// 系统执行器后台任务信息
 /// </summary>
 public sealed record SystemActuatorBackgroundTaskInfo {
+    /// <summary>获取后台任务 ID。</summary>
     public required string TaskId { get; init; }
+    /// <summary>获取命令字符串。</summary>
     public required string Command { get; init; }
+    /// <summary>获取任务执行状态。</summary>
     public required TaskExecutionStatus Status { get; init; }
+    /// <summary>获取任务创建时间。</summary>
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    /// <summary>获取任务启动时间。</summary>
     public DateTime? StartedAt { get; init; }
+    /// <summary>获取任务完成时间。</summary>
     public DateTime? CompletedAt { get; init; }
+    /// <summary>获取标准输出内容。</summary>
     public string? Stdout { get; init; }
+    /// <summary>获取标准错误内容。</summary>
     public string? Stderr { get; init; }
+    /// <summary>获取进程退出码。</summary>
     public int? ExitCode { get; init; }
+    /// <summary>获取错误信息。</summary>
     public string? ErrorMessage { get; init; }
+    /// <summary>获取工作目录。</summary>
     public string? WorkingDirectory { get; init; }
+    /// <summary>获取代理 ID。</summary>
     public string? AgentId { get; init; }
 }
 

@@ -170,6 +170,10 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable {
     private readonly ILogger? _logger;
     private readonly WriteEntryActor _actor;
 
+    /// <summary>构造诊断条目写入器。</summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logPath">日志文件路径</param>
+    /// <param name="logger">可选日志记录器</param>
     public DiagnosticEntryWriter(IFileSystem fs, string logPath, ILogger? logger) {
         _fs = fs;
         _logPath = logPath;
@@ -177,6 +181,9 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable {
         _actor = new WriteEntryActor(fs, logPath, logger);
     }
 
+    /// <summary>异步写入一条诊断日志条目到 JSONL 文件。</summary>
+    /// <param name="entry">诊断日志条目</param>
+    /// <param name="ct">取消令牌</param>
     public async Task WriteEntryAsync(DiagnosticLogEntry entry, CancellationToken ct) {
         var anomalyFlag = entry.IsAnomaly ? ",\"anomaly\":true" : "";
         var dataProps = string.Join(",", entry.Data.Select(kv => $"\"{kv.Key}\":\"{EscapeJsonString(kv.Value)}\""));
@@ -187,6 +194,7 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable {
         await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
+    /// <summary>异步释放资源。</summary>
     public async ValueTask DisposeAsync()
         => await _actor.DisposeAsync().ConfigureAwait(false);
 
@@ -206,12 +214,19 @@ internal sealed class DiagnosticEntryWriter : IAsyncDisposable {
         private readonly string _logPath;
         private readonly ILogger? _logger;
 
+        /// <summary>构造写入条目 Actor。</summary>
+        /// <param name="fs">文件系统抽象</param>
+        /// <param name="logPath">日志文件路径</param>
+        /// <param name="logger">可选日志记录器</param>
         public WriteEntryActor(IFileSystem fs, string logPath, ILogger? logger) : base() {
             _fs = fs;
             _logPath = logPath;
             _logger = logger;
         }
 
+        /// <summary>等待 Actor 处理完成并接收回复。</summary>
+        /// <param name="tcs">任务完成源</param>
+        /// <param name="ct">取消令牌</param>
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 

@@ -9,6 +9,7 @@ internal sealed partial class ChatTelemetryPreHook : ServiceEntity, IPipelinePre
     private readonly IHookOrchestrator? _hookOrchestrator;
     private readonly ILogger<ChatTelemetryPreHook>? _logger;
 
+    /// <summary>构造函数 — 注入遥测服务、Hook 编排器和日志器,用于 Chat 管道前置遥测与 Hook 拦截</summary>
     public ChatTelemetryPreHook(
         ITelemetryService? telemetryService,
         IHookOrchestrator? hookOrchestrator,
@@ -18,6 +19,7 @@ internal sealed partial class ChatTelemetryPreHook : ServiceEntity, IPipelinePre
         _logger = logger;
     }
 
+    /// <summary>Chat 管道前置钩子 — 启动遥测 Span 并执行 UserPromptSubmit Hook 拦截,返回是否继续管道</summary>
     public async Task<bool> InvokeAsync(Core.Context.ChatMiddlewareContext context, CancellationToken ct) {
         // 1. 遥测: StartSpan
         if (_telemetryService is not null) {

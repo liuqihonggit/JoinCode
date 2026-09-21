@@ -20,6 +20,9 @@ internal sealed class MemoryMgmtActor : ActorBase<IMemoryMgmtCommand, Unit> {
     private readonly MemoryManagementService _owner;
     private readonly ILogger<MemoryManagementService>? _logger;
 
+    /// <summary>构造内存管理 Actor。</summary>
+    /// <param name="owner">所属的内存管理服务。</param>
+    /// <param name="logger">可选的日志记录器。</param>
     public MemoryMgmtActor(MemoryManagementService owner, ILogger<MemoryManagementService>? logger)
         : base() {
         _owner = owner;
@@ -27,36 +30,42 @@ internal sealed class MemoryMgmtActor : ActorBase<IMemoryMgmtCommand, Unit> {
     }
 
 
+    /// <summary>异步扫描记忆。</summary>
     public async Task<MemoryScanResult> ScanMemoriesAsync(string query, string? category, int limit, CancellationToken ct) {
         var tcs = TcsFactory.Create<MemoryScanResult>();
         await SendAsync(new ScanMemoriesCmd(query, category, limit, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
+    /// <summary>异步获取记忆年龄信息。</summary>
     public async Task<List<MemoryAgeInfo>> GetMemoryAgeInfoAsync(CancellationToken ct) {
         var tcs = TcsFactory.Create<List<MemoryAgeInfo>>();
         await SendAsync(new GetMemoryAgeInfoCmd(ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
+    /// <summary>异步添加团队记忆路径。</summary>
     public async Task AddTeamMemoryPathAsync(string teamId, string path, bool isShared, List<string>? allowedAgents, CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new AddTeamMemoryPathCmd(teamId, path, isShared, allowedAgents, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
+    /// <summary>异步获取团队记忆路径列表。</summary>
     public async Task<List<TeamMemoryPath>> GetTeamMemoryPathsAsync(string? teamId, CancellationToken ct) {
         var tcs = TcsFactory.Create<List<TeamMemoryPath>>();
         await SendAsync(new GetTeamMemoryPathsCmd(teamId, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
+    /// <summary>异步移除团队记忆路径。</summary>
     public async Task<bool> RemoveTeamMemoryPathAsync(string teamId, string path, CancellationToken ct) {
         var tcs = TcsFactory.Create<bool>();
         await SendAsync(new RemoveTeamMemoryPathCmd(teamId, path, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
+    /// <summary>异步扫描团队记忆。</summary>
     public async Task<MemoryScanResult> ScanTeamMemoriesAsync(string teamId, string query, int limit, CancellationToken ct) {
         var tcs = TcsFactory.Create<MemoryScanResult>();
         await SendAsync(new ScanTeamMemoriesCmd(teamId, query, limit, ct, tcs), ct).ConfigureAwait(false);

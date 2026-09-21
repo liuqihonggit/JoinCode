@@ -52,7 +52,9 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     private int _disposed;
 
     private sealed record BlacklistSnapshot {
+        /// <summary>获取精确匹配黑名单集合。</summary>
         public required FrozenSet<string> Exact { get; init; }
+        /// <summary>获取模式匹配黑名单集合。</summary>
         public required FrozenSet<string> Patterns { get; init; }
     }
 

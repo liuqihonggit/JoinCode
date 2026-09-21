@@ -72,7 +72,9 @@ public sealed class ClearThinkingStrategy : ContextEditStrategy {
 /// 触发条件 — 输入 token 阈值
 /// </summary>
 public sealed class ContextTrigger {
+    /// <summary>获取触发类型。</summary>
     public required string Type { get; init; }
+    /// <summary>获取触发阈值。</summary>
     public required int Value { get; init; }
 }
 
@@ -80,7 +82,9 @@ public sealed class ContextTrigger {
 /// 保留策略 — 工具使用记录数
 /// </summary>
 public sealed class ContextKeep {
+    /// <summary>获取保留类型。</summary>
     public required string Type { get; init; }
+    /// <summary>获取保留数量。</summary>
     public required int Value { get; init; }
 }
 
@@ -88,6 +92,8 @@ public sealed class ContextKeep {
 /// Token 阈值 — 至少清除的 token 数
 /// </summary>
 public sealed class ContextTokenThreshold {
+    /// <summary>获取阈值类型。</summary>
     public required string Type { get; init; }
+    /// <summary>获取阈值数量。</summary>
     public required int Value { get; init; }
 }

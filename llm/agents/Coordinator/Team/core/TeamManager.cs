@@ -699,6 +699,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         private readonly TeamManager _owner;
         private readonly ILogger<TeamManager>? _logger;
 
+        /// <summary>
+        /// 构造团队 Actor。
+        /// </summary>
+        /// <param name="owner">所属团队管理器。</param>
+        /// <param name="logger">日志记录器，可选。</param>
         public TeamActor(TeamManager owner, ILogger<TeamManager>? logger) : base() {
             _owner = owner;
             _logger = logger;

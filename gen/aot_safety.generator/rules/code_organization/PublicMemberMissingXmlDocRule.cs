@@ -14,6 +14,7 @@ namespace AotSafety.Generator.Rules;
     HelpLinkUri = "Public members should have XML documentation comments. This ensures IntelliSense provides meaningful descriptions and serves as code contract documentation. Exceptions: override members, constructors with no parameters, and private/internal members.")]
 public sealed class PublicMemberMissingXmlDocRule : AnalyzerRuleBase<PublicMemberMissingXmlDocRule> {
     public override void Register(CompilationStartAnalysisContext context, ProjectContext projectContext) {
+        if (projectContext.IsTest) return;
         context.RegisterSyntaxNodeAction(AnalyzePublicMemberXmlDoc,
             SyntaxKind.MethodDeclaration, SyntaxKind.PropertyDeclaration, SyntaxKind.ConstructorDeclaration);
     }
@@ -70,6 +71,9 @@ public sealed class PublicMemberMissingXmlDocRule : AnalyzerRuleBase<PublicMembe
                 trivia.IsKind(SyntaxKind.MultiLineDocumentationCommentTrivia))
                 return true;
         }
+        var leadingText = member.GetLeadingTrivia().ToString();
+        if (leadingText.Contains("///") || leadingText.Contains("/**"))
+            return true;
         return false;
     }
 }

@@ -19,8 +19,12 @@ public interface IToolCategoryProvider {
 /// 工具分类条目 — 描述单个工具的分类、类型和分组信息
 /// </summary>
 public sealed record ToolCategoryEntry {
+    /// <summary>获取工具名称。</summary>
     public required string Name { get; init; }
+    /// <summary>获取工具描述。</summary>
     public required string Description { get; init; }
+    /// <summary>获取工具类型。</summary>
     public required ToolKind Kind { get; init; }
+    /// <summary>获取分组名称。</summary>
     public string? GroupName { get; init; }
 }

@@ -38,11 +38,13 @@ public sealed class PropertyChangeGate {
     private sealed class Scope : IDisposable {
         private readonly Action _exit;
 
+        /// <summary>构造作用域 — 立即执行 enter，Dispose 时执行 exit</summary>
         public Scope(Action enter, Action exit) {
             _exit = exit;
             enter();
         }
 
+        /// <summary>退出作用域 — 执行 exit 回调恢复标志位</summary>
         public void Dispose() => _exit();
     }
 }

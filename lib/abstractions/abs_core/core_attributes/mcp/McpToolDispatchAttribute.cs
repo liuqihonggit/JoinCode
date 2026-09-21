@@ -2,6 +2,7 @@ namespace JoinCode.Abstractions.Attributes;
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 public sealed class McpToolDispatchAttribute : Attribute {
+    /// <summary>获取显示名称。</summary>
     public string DisplayName { get; }
 
     /// <summary>
@@ -9,6 +10,7 @@ public sealed class McpToolDispatchAttribute : Attribute {
     /// </summary>
     public ToolCategory? CategoryEnum { get; }
 
+    /// <summary>获取或设置是否可选。</summary>
     public bool Optional { get; set; }
 
     /// <summary>
@@ -23,10 +25,14 @@ public sealed class McpToolDispatchAttribute : Attribute {
     /// </summary>
     public string? GroupName { get; set; }
 
+    /// <summary>构造 MCP 工具分发特性。</summary>
+    /// <param name="displayName">显示名称。</param>
     public McpToolDispatchAttribute(string displayName) {
         DisplayName = displayName ?? throw new ArgumentNullException(nameof(displayName));
     }
 
+    /// <summary>构造 MCP 工具分发特性（按工具分类）。</summary>
+    /// <param name="category">工具分类。</param>
     public McpToolDispatchAttribute(ToolCategory category) {
         CategoryEnum = category;
         DisplayName = category.ToString();

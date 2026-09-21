@@ -10,6 +10,11 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
     private readonly string _currentDirectory = "/test";
     private bool _disposed;
 
+    /// <summary>
+    /// 初始化内存文件操作服务实例
+    /// </summary>
+    /// <param name="fileSystem">内存文件系统实例,未指定时创建新实例</param>
+    /// <param name="logger">日志记录器实例</param>
     public InMemoryFileOperationService(InMemoryFileSystem? fileSystem = null, ILogger<InMemoryFileOperationService>? logger = null) {
         _fileSystem = fileSystem ?? new InMemoryFileSystem();
         _logger = logger;
@@ -17,8 +22,10 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
         _fileSystem.CreateDirectory(_currentDirectory);
     }
 
+    /// <summary>获取内存文件系统实例</summary>
     public InMemoryFileSystem FileSystem => _fileSystem;
 
+    /// <summary>异步读取文件内容,支持按偏移量和行数限制读取</summary>
     public Task<FileReadResult> ReadFileAsync(string filePath, int? offset = null, int? limit = null, CancellationToken cancellationToken = default) {
         try {
             if (!_fileSystem.FileExists(filePath)) {
@@ -44,6 +51,7 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
         }
     }
 
+    /// <summary>异步写入文件内容,若文件已存在则覆盖</summary>
     public Task<FileWriteResult> WriteFileAsync(string filePath, string content, CancellationToken cancellationToken = default) {
         try {
             var exists = _fileSystem.FileExists(filePath);
@@ -62,6 +70,7 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
         }
     }
 
+    /// <summary>异步编辑文件,将 oldString 替换为 newString,支持全部替换或仅替换首处</summary>
     public Task<FileEditResult> EditFileAsync(string filePath, string oldString, string newString, bool replaceAll = false, CancellationToken cancellationToken = default) {
         try {
             if (!_fileSystem.FileExists(filePath)) {
@@ -96,6 +105,7 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
         }
     }
 
+    /// <summary>按行范围异步编辑文件,替换指定起止行之间的内容</summary>
     public Task<FileLineEditResult> EditByLineRangeAsync(LineRangeEditRequest request, CancellationToken cancellationToken = default) {
         if (request == null)
             throw new ArgumentNullException(nameof(request));
@@ -155,10 +165,12 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
         }
     }
 
+    /// <summary>异步删除文件,返回是否删除成功</summary>
     public Task<bool> DeleteFileAsync(string filePath, CancellationToken cancellationToken = default) {
         return Task.FromResult(_fileSystem.DeleteFile(filePath));
     }
 
+    /// <summary>异步列出目录内容,支持递归枚举子目录</summary>
     public Task<DirectoryListResult> ListDirectoryAsync(string directoryPath, bool recursive = false, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(directoryPath);
         try {
@@ -195,28 +207,34 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
         }
     }
 
+    /// <summary>判断文件是否存在</summary>
     public bool FileExists(string filePath) {
         return _fileSystem.FileExists(filePath);
     }
 
+    /// <summary>异步判断文件是否存在</summary>
     public Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default) {
         return Task.FromResult(_fileSystem.FileExists(filePath));
     }
 
+    /// <summary>判断目录是否存在</summary>
     public bool DirectoryExists(string directoryPath) {
         return _fileSystem.DirectoryExists(directoryPath);
     }
 
+    /// <summary>异步判断目录是否存在</summary>
     public Task<bool> DirectoryExistsAsync(string directoryPath, CancellationToken cancellationToken = default) {
         return Task.FromResult(_fileSystem.DirectoryExists(directoryPath));
     }
 
+    /// <summary>创建目录,若已存在则不重复创建</summary>
     public DirectoryInfo CreateDirectory(string directoryPath) {
         _fileSystem.CreateDirectory(directoryPath);
         // 返回一个模拟的 DirectoryInfo
         return new DirectoryInfo(directoryPath);
     }
 
+    /// <summary>异步复制文件,返回是否复制成功</summary>
     public Task<bool> CopyFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default) {
         try {
             if (!_fileSystem.FileExists(sourcePath)) {
@@ -235,6 +253,7 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
         }
     }
 
+    /// <summary>异步移动文件,源文件移动后将被删除</summary>
     public Task<bool> MoveFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(sourcePath);
         ArgumentException.ThrowIfNullOrEmpty(destPath);
@@ -256,6 +275,7 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
         }
     }
 
+    /// <summary>创建符号链接,内存文件系统以复制目标文件内容方式模拟</summary>
     public bool CreateSymbolicLink(string linkPath, string targetPath) {
         // 内存文件系统不支持符号链接，直接复制内容
         try {
@@ -271,24 +291,30 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
         }
     }
 
+    /// <summary>获取目录最后写入时间(UTC)</summary>
     public DateTime GetDirectoryLastWriteTimeUtc(string directoryPath) {
         return DateTime.UtcNow;
     }
 
+    /// <summary>设置目录最后写入时间(UTC),内存文件系统下为空操作</summary>
     public void SetDirectoryLastWriteTimeUtc(string directoryPath, DateTime utcTime) { }
 
+    /// <summary>获取文件最后写入时间</summary>
     public DateTime GetFileLastWriteTime(string filePath) {
         return _fileSystem.GetLastWriteTime(filePath);
     }
 
+    /// <summary>异步获取文件最后写入时间(UTC)</summary>
     public Task<DateTime> GetLastWriteTimeUtcAsync(string filePath, CancellationToken cancellationToken = default) {
         return Task.FromResult(_fileSystem.GetLastWriteTime(filePath).ToUniversalTime());
     }
 
+    /// <summary>获取当前工作目录</summary>
     public string GetCurrentDirectory() {
         return _currentDirectory;
     }
 
+    /// <summary>获取相对路径对应的完整路径</summary>
     public string GetFullPath(string path) {
         if (Path.IsPathFullyQualified(path)) {
             return path;
@@ -297,22 +323,27 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
         return Path.Combine(_currentDirectory, path).Replace('\\', '/');
     }
 
+    /// <summary>合并多个路径为单一路径,统一使用正斜杠分隔符</summary>
     public string CombinePath(params string[] paths) {
         return Path.Combine(paths).Replace('\\', '/');
     }
 
+    /// <summary>按搜索模式枚举目录下的文件</summary>
     public IEnumerable<string> EnumerateFiles(string directoryPath, string searchPattern, SearchOption searchOption) {
         return _fileSystem.EnumerateFiles(directoryPath, searchPattern, searchOption);
     }
 
+    /// <summary>按搜索模式枚举目录下的子目录</summary>
     public IEnumerable<string> EnumerateDirectories(string directoryPath, string searchPattern, SearchOption searchOption) {
         return _fileSystem.EnumerateDirectories(directoryPath, searchPattern, searchOption);
     }
 
+    /// <summary>按搜索模式获取目录下的文件数组</summary>
     public string[] GetFiles(string directoryPath, string searchPattern, SearchOption searchOption) {
         return _fileSystem.EnumerateFiles(directoryPath, searchPattern, searchOption).ToArray();
     }
 
+    /// <summary>按搜索模式获取目录下的子目录数组</summary>
     public string[] GetDirectories(string directoryPath, string searchPattern, SearchOption searchOption) {
         return _fileSystem.EnumerateDirectories(directoryPath, searchPattern, searchOption).ToArray();
     }
@@ -334,6 +365,7 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
     public Task<FileWriteResult> WriteFileWithEncodingAsync(string filePath, string content, System.Text.Encoding? encoding = null, string? lineEndings = null, CancellationToken cancellationToken = default)
         => WriteFileAsync(filePath, content, cancellationToken);
 
+    /// <summary>释放资源,清空内存文件系统</summary>
     public void Dispose() {
         if (_disposed) return;
         _disposed = true;

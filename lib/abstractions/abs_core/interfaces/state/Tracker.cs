@@ -99,19 +99,33 @@ public interface ICostTracker {
 /// 成本统计数据
 /// </summary>
 public sealed class CostStatistics {
+    /// <summary>获取请求次数。</summary>
     public int RequestCount { get; init; }
+    /// <summary>获取 Prompt Token 数。</summary>
     public int PromptTokens { get; init; }
+    /// <summary>获取 Completion Token 数。</summary>
     public int CompletionTokens { get; init; }
+    /// <summary>获取总 Token 数。</summary>
     public int TotalTokens => PromptTokens + CompletionTokens;
+    /// <summary>获取缓存创建 Token 数。</summary>
     public int CacheCreationTokens { get; init; }
+    /// <summary>获取缓存读取 Token 数。</summary>
     public int CacheReadTokens { get; init; }
+    /// <summary>获取缓存节省成本（美元）。</summary>
     public decimal CacheSavingsUsd { get; init; }
+    /// <summary>获取总成本（美元）。</summary>
     public decimal TotalCostUsd { get; init; }
+    /// <summary>获取按模型分解的统计列表。</summary>
     public List<ModelCostStatistics> ModelBreakdown { get; init; } = new();
+    /// <summary>获取 API 调用总时长。</summary>
     public TimeSpan ApiDuration { get; init; }
+    /// <summary>获取墙钟总时长。</summary>
     public TimeSpan WallDuration { get; init; }
+    /// <summary>获取新增代码行数。</summary>
     public int LinesAdded { get; init; }
+    /// <summary>获取删除代码行数。</summary>
     public int LinesRemoved { get; init; }
+    /// <summary>获取是否存在未知模型成本。</summary>
     public bool HasUnknownModelCost { get; init; }
 }
 
@@ -119,12 +133,20 @@ public sealed class CostStatistics {
 /// 模型成本统计
 /// </summary>
 public sealed class ModelCostStatistics {
+    /// <summary>获取模型名称。</summary>
     public required string Model { get; init; }
+    /// <summary>获取请求次数。</summary>
     public int RequestCount { get; init; }
+    /// <summary>获取 Prompt Token 数。</summary>
     public int PromptTokens { get; init; }
+    /// <summary>获取 Completion Token 数。</summary>
     public int CompletionTokens { get; init; }
+    /// <summary>获取总 Token 数。</summary>
     public int TotalTokens => PromptTokens + CompletionTokens;
+    /// <summary>获取缓存创建 Token 数。</summary>
     public int CacheCreationTokens { get; init; }
+    /// <summary>获取缓存读取 Token 数。</summary>
     public int CacheReadTokens { get; init; }
+    /// <summary>获取总成本。</summary>
     public decimal TotalCost { get; init; }
 }

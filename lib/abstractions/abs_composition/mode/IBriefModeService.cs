@@ -4,10 +4,14 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 简要模式状态
 /// </summary>
 public readonly record struct BriefModeStatus {
+    /// <summary>获取是否启用简要模式。</summary>
     public required bool IsEnabled { get; init; }
+    /// <summary>获取状态描述。</summary>
     public required string Description { get; init; }
+    /// <summary>获取启用时间。</summary>
     public DateTime? EnabledAt { get; init; }
 
+    /// <summary>创建启用状态实例。</summary>
     public static BriefModeStatus Enabled(DateTime enabledAt) {
         return new BriefModeStatus {
             IsEnabled = true,
@@ -16,6 +20,7 @@ public readonly record struct BriefModeStatus {
         };
     }
 
+    /// <summary>创建禁用状态实例。</summary>
     public static BriefModeStatus Disabled() {
         return new BriefModeStatus {
             IsEnabled = false,

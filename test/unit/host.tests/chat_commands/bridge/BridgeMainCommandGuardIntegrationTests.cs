@@ -98,89 +98,73 @@ public sealed class BridgeMainCommandGuardIntegrationTests {
 
     [Fact]
     public async Task GetAccessTokenAsync_WhenStoredTokenValid_PrefersStoredOverEnvVar() {
-        Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), "env-token-xxx");
-        Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
-        try {
-            var tokenMock = new Mock<ITokenStorage>();
-            tokenMock.Setup(t => t.LoadTokenAsync(
-                    It.Is<string>(p => p == "anthropic"),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new OAuthToken {
-                    AccessToken = "stored-token",
-                    ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
-                });
-            var command = CreateCommand(tokenStorage: tokenMock.Object);
+        using var env = EnvVarScope.Set(JccEnvVar.SessionAccessToken.ToValue(), "env-token-xxx")
+            .Add(JccEnvVar.OAuthToken.ToValue(), null);
+        var tokenMock = new Mock<ITokenStorage>();
+        tokenMock.Setup(t => t.LoadTokenAsync(
+                It.Is<string>(p => p == "anthropic"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OAuthToken {
+                AccessToken = "stored-token",
+                ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
+            });
+        var command = CreateCommand(tokenStorage: tokenMock.Object);
 
-            var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
+        var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
 
-            result.Should().Be("stored-token");
-        } finally {
-            Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
-        }
+        result.Should().Be("stored-token");
     }
 
     [Fact]
     public async Task GetAccessTokenAsync_WhenNoEnvVar_LoadsFromTokenStorage() {
-        Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
-        Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
-        try {
-            var tokenMock = new Mock<ITokenStorage>();
-            tokenMock.Setup(t => t.LoadTokenAsync(
-                    It.Is<string>(p => p == "anthropic"),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new OAuthToken {
-                    AccessToken = "stored-token-abc",
-                    ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
-                });
-            var command = CreateCommand(tokenStorage: tokenMock.Object);
-
-            var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
-
-            result.Should().Be("stored-token-abc");
-            tokenMock.Verify(t => t.LoadTokenAsync(
+        using var env = EnvVarScope.Set(JccEnvVar.SessionAccessToken.ToValue(), null)
+            .Add(JccEnvVar.OAuthToken.ToValue(), null);
+        var tokenMock = new Mock<ITokenStorage>();
+        tokenMock.Setup(t => t.LoadTokenAsync(
                 It.Is<string>(p => p == "anthropic"),
-                It.IsAny<CancellationToken>()), Times.Once);
-        } finally {
-            Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
-        }
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OAuthToken {
+                AccessToken = "stored-token-abc",
+                ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
+            });
+        var command = CreateCommand(tokenStorage: tokenMock.Object);
+
+        var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
+
+        result.Should().Be("stored-token-abc");
+        tokenMock.Verify(t => t.LoadTokenAsync(
+            It.Is<string>(p => p == "anthropic"),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task GetAccessTokenAsync_WhenTokenExpired_ReturnsNull_Then_FallsBackToOAuthEnv() {
-        Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), "oauth-env-fallback");
-        Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
-        try {
-            var tokenMock = new Mock<ITokenStorage>();
-            tokenMock.Setup(t => t.LoadTokenAsync(
-                    It.Is<string>(p => p == "anthropic"),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new OAuthToken {
-                    AccessToken = "expired-token",
-                    ExpiresAt = DateTimeOffset.UtcNow.AddHours(-1)
-                });
-            var command = CreateCommand(tokenStorage: tokenMock.Object);
+        using var env = EnvVarScope.Set(JccEnvVar.OAuthToken.ToValue(), "oauth-env-fallback")
+            .Add(JccEnvVar.SessionAccessToken.ToValue(), null);
+        var tokenMock = new Mock<ITokenStorage>();
+        tokenMock.Setup(t => t.LoadTokenAsync(
+                It.Is<string>(p => p == "anthropic"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OAuthToken {
+                AccessToken = "expired-token",
+                ExpiresAt = DateTimeOffset.UtcNow.AddHours(-1)
+            });
+        var command = CreateCommand(tokenStorage: tokenMock.Object);
 
-            var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
+        var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
 
-            result.Should().Be("oauth-env-fallback");
-        } finally {
-            Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
-        }
+        result.Should().Be("oauth-env-fallback");
     }
 
     [Fact]
     public async Task GetAccessTokenAsync_WhenTokenStorageNull_FallsBackToOAuthEnvVar() {
-        Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), "fallback-from-env");
-        Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
-        try {
-            var command = CreateCommand(tokenStorage: null);
+        using var env = EnvVarScope.Set(JccEnvVar.OAuthToken.ToValue(), "fallback-from-env")
+            .Add(JccEnvVar.SessionAccessToken.ToValue(), null);
+        var command = CreateCommand(tokenStorage: null);
 
-            var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
+        var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
 
-            result.Should().Be("fallback-from-env");
-        } finally {
-            Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
-        }
+        result.Should().Be("fallback-from-env");
     }
 
     // ============================================================
@@ -248,17 +232,13 @@ public sealed class BridgeMainCommandGuardIntegrationTests {
 
     [Fact]
     public async Task BuildDeps_PassesMarkRemoteDialogSeen_ToBridgeMainDeps() {
-        Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), "test-token-for-deps");
-        try {
-            var configMock = new Mock<IConfigurationService>();
-            var command = CreateCommand(configService: configMock.Object);
+        using var env = EnvVarScope.Set(JccEnvVar.SessionAccessToken.ToValue(), "test-token-for-deps");
+        var configMock = new Mock<IConfigurationService>();
+        var command = CreateCommand(configService: configMock.Object);
 
-            var deps = await command.BuildDepsForTestAsync(new BridgeMainArgs { DebugLog = false });
+        var deps = await command.BuildDepsForTestAsync(new BridgeMainArgs { DebugLog = false });
 
-            deps.Should().NotBeNull();
-            deps!.MarkRemoteDialogSeen.Should().NotBeNull();
-        } finally {
-            Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
-        }
+        deps.Should().NotBeNull();
+        deps!.MarkRemoteDialogSeen.Should().NotBeNull();
     }
 }

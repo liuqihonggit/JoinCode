@@ -31,4 +31,7 @@ runs:
 
     - name: Set Console Encoding to UTF-8
       shell: pwsh
-      run: chcp 65001
+      run: |
+        chcp 65001
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        [Console]::InputEncoding = [System.Text.Encoding]::UTF8

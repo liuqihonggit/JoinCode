@@ -56,8 +56,7 @@ public sealed class GitHubApiClientTest : IDisposable {
 
     [Fact]
     public async Task SendAsync_TokenMissing_ThrowsConfigurationException() {
-        Environment.SetEnvironmentVariable("JCC_GITHUB_TOKEN", null);
-        Environment.SetEnvironmentVariable("GITHUB_TOKEN", null);
+        using var env = EnvVarScope.Set("JCC_GITHUB_TOKEN", null).Add("GITHUB_TOKEN", null);
 
         var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, new InMemoryFileSystem(), ghTokenResolver: () => null);
         var act = async () => await client.SendAsync(HttpMethod.Get, "repos/foo/bar");
@@ -67,8 +66,7 @@ public sealed class GitHubApiClientTest : IDisposable {
 
     [Fact]
     public async Task SendAsync_FallsBackToGITHUB_TOKEN_WhenJCCMissing() {
-        Environment.SetEnvironmentVariable("JCC_GITHUB_TOKEN", null);
-        Environment.SetEnvironmentVariable("GITHUB_TOKEN", "fallback-token");
+        using var env = EnvVarScope.Set("JCC_GITHUB_TOKEN", null).Add("GITHUB_TOKEN", "fallback-token");
         _handler.Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
 
         await _client.SendAsync(HttpMethod.Get, "repos/foo/bar");

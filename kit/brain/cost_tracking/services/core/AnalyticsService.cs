@@ -1,5 +1,3 @@
-using System.Threading;
-
 namespace Core.CostTracking;
 
 /// <summary>

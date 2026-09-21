@@ -1,5 +1,3 @@
-using Core.Summary;
-
 namespace Brain.Other.Tests;
 
 public sealed class AwaySummaryServiceTests {

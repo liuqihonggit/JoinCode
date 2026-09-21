@@ -49,6 +49,7 @@ global using System.Security.Cryptography;
 global using System.Text;
 global using System.Text.Json.Nodes;
 global using System.Text.RegularExpressions;
+global using System.Threading;
 global using BridgeNdjsonActivity = JoinCode.Transport.Bridge.NdjsonActivity;
 // Transport 迁移类型别名（Bridge 前缀 → Transport.Impl 新名）
 global using BridgeNdjsonActivityType = JoinCode.Transport.Bridge.NdjsonActivityType;

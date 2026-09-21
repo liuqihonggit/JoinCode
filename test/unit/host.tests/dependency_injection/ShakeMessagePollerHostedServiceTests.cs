@@ -1,6 +1,4 @@
-﻿using Core.DependencyInjection;
-
-namespace Host.Tests.DependencyInjection;
+﻿namespace Host.Tests.DependencyInjection;
 
 /// <summary>
 /// ShakeMessagePollerHostedService 单元测试 — 验证跨进程 shake 消息轮询行为

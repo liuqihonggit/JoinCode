@@ -1,4 +1,3 @@
-using System.Threading;
 namespace JoinCode.Abstractions.Security.Shell;
 
 /// <summary>

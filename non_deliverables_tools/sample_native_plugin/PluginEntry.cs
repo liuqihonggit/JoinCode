@@ -1,7 +1,3 @@
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.Json;
-
 namespace SampleNativePlugin;
 
 /// <summary>

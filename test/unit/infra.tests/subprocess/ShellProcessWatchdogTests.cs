@@ -1,5 +1,3 @@
-using Infrastructure.Shell;
-
 namespace Infra.Tests.Subprocess;
 
 public sealed class ShellProcessWatchdogTests {

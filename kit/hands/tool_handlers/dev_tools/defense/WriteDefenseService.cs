@@ -1,5 +1,3 @@
-using static Tools.Handlers.FileToolHandlers;
-
 namespace Tools.Handlers;
 
 /// <summary>

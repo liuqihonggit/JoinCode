@@ -102,6 +102,8 @@ public sealed class ProjectStructureRule : IAnalyzerRule {
             var subdirCount = directorySubdirs.TryGetValue(dir, out var subdirs) ? subdirs.Count : 0;
 
             if (fileCount > 0 && subdirCount > 0) {
+                if (files!.All(f => f.StartsWith("GlobalUsings", StringComparison.OrdinalIgnoreCase) || f.Equals("AssemblyInfo.cs", StringComparison.OrdinalIgnoreCase)))
+                    continue;
                 var lastSlash = dir.LastIndexOfAny(new[] { '\\', '/' });
                 var dirName = lastSlash >= 0 ? dir.Substring(lastSlash + 1) : dir;
                 var location = compilation.SyntaxTrees

@@ -1,4 +1,3 @@
-using System.Threading;
 namespace Core.Utils;
 
 public sealed class AsyncLazy<T> : IAsyncLazy<T> {

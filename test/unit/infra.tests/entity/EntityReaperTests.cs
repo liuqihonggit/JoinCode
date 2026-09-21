@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.EntityTests;
+namespace Infra.Tests.EntityTests;
 
 public sealed class EntityReaperTests {
     private sealed class ReclaimableEntity : JoinCode.Abstractions.Entity.Entity {
@@ -20,13 +20,12 @@ public sealed class EntityReaperTests {
         ObjectIdManager.Clear();
         var clock = JoinCode.Abstractions.Clock.SystemClockService.Instance;
         var reaper = new Infrastructure.EntityReaper.EntityReaper(clock, new EntityReaperConfig { EnableAutoReclaim = true, EnableLeakDetection = false });
-
-        using var entity = new ReclaimableEntity();
+        await using var entity = new ReclaimableEntity();
         entity.LifecycleState = EntityLifecycle.Completed;
         entity.CompletedAt = DateTime.UtcNow;
         entity.MarkPersisted();
 
-        var count = await reaper.ScanOnce().ConfigureAwait(false);
+        var count = await reaper.ScanOnce();
         count.Should().Be(1);
         entity.LifecycleState.Should().Be(EntityLifecycle.Disposed);
     }
@@ -36,9 +35,8 @@ public sealed class EntityReaperTests {
         ObjectIdManager.Clear();
         var clock = JoinCode.Abstractions.Clock.SystemClockService.Instance;
         var reaper = new Infrastructure.EntityReaper.EntityReaper(clock, new EntityReaperConfig { EnableAutoReclaim = true, EnableLeakDetection = false });
-
-        using var entity = new ReclaimableEntity();
-        var count = await reaper.ScanOnce().ConfigureAwait(false);
+        await using var entity = new ReclaimableEntity();
+        var count = await reaper.ScanOnce();
         count.Should().Be(0);
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
     }

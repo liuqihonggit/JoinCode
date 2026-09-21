@@ -131,8 +131,8 @@ public partial class GitHubToolHandlers {
     /// 构造 required_status_checks PUT body — AOT 友好(Utf8JsonWriter 流式写, 无 JsonNode.Add)
     /// </summary>
     private static string BuildRequiredStatusChecksBody(bool strict, IReadOnlyList<string> contexts) {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream)) {
+        var bufferWriter = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(bufferWriter)) {
             writer.WriteStartObject();
             writer.WriteBoolean("strict", strict);
             writer.WritePropertyName("contexts");
@@ -143,7 +143,7 @@ public partial class GitHubToolHandlers {
             writer.WriteEndObject();
             writer.Flush();
         }
-        return Encoding.UTF8.GetString(stream.ToArray());
+        return Encoding.UTF8.GetString(bufferWriter.WrittenSpan);
     }
 
     /// <summary>

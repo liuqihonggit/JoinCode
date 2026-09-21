@@ -2,8 +2,8 @@
 
 public sealed class FileOperationTrackerTests {
     [Fact]
-    public void Track_ReadOperation_ShouldRecord() {
-        using var tracker = new FileOperationTracker();
+    public async Task Track_ReadOperation_ShouldRecord() {
+        await using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/file.cs", FileOperationType.Read);
 
@@ -13,8 +13,8 @@ public sealed class FileOperationTrackerTests {
     }
 
     [Fact]
-    public void Track_WriteOperation_ShouldRecord() {
-        using var tracker = new FileOperationTracker();
+    public async Task Track_WriteOperation_ShouldRecord() {
+        await using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/file.cs", FileOperationType.Write);
 
@@ -24,8 +24,8 @@ public sealed class FileOperationTrackerTests {
     }
 
     [Fact]
-    public void Track_EditOperation_ShouldRecord() {
-        using var tracker = new FileOperationTracker();
+    public async Task Track_EditOperation_ShouldRecord() {
+        await using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/file.cs", FileOperationType.Edit);
 
@@ -35,8 +35,8 @@ public sealed class FileOperationTrackerTests {
     }
 
     [Fact]
-    public void Track_MultipleOperationsOnSameFile_ShouldRecordAll() {
-        using var tracker = new FileOperationTracker();
+    public async Task Track_MultipleOperationsOnSameFile_ShouldRecordAll() {
+        await using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/file.cs", FileOperationType.Read);
         tracker.Track("/path/to/file.cs", FileOperationType.Edit);
@@ -55,8 +55,8 @@ public sealed class FileOperationTrackerTests {
     }
 
     [Fact]
-    public void GetOperatedFilePaths_ShouldReturnDistinctPaths() {
-        using var tracker = new FileOperationTracker();
+    public async Task GetOperatedFilePaths_ShouldReturnDistinctPaths() {
+        await using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/a.cs", FileOperationType.Read);
         tracker.Track("/path/to/a.cs", FileOperationType.Edit);
@@ -67,8 +67,8 @@ public sealed class FileOperationTrackerTests {
     }
 
     [Fact]
-    public void GetOperatedFilePaths_ShouldBeSorted() {
-        using var tracker = new FileOperationTracker();
+    public async Task GetOperatedFilePaths_ShouldBeSorted() {
+        await using var tracker = new FileOperationTracker();
 
         tracker.Track("/path/to/z.cs", FileOperationType.Read);
         tracker.Track("/path/to/a.cs", FileOperationType.Read);
@@ -79,8 +79,8 @@ public sealed class FileOperationTrackerTests {
     }
 
     [Fact]
-    public void Clear_ShouldRemoveAllEntries() {
-        using var tracker = new FileOperationTracker();
+    public async Task Clear_ShouldRemoveAllEntries() {
+        await using var tracker = new FileOperationTracker();
         tracker.Track("/path/to/file.cs", FileOperationType.Read);
 
         tracker.Clear();
@@ -90,15 +90,15 @@ public sealed class FileOperationTrackerTests {
     }
 
     [Fact]
-    public void GetAllEntries_EmptyTracker_ShouldReturnEmpty() {
-        using var tracker = new FileOperationTracker();
+    public async Task GetAllEntries_EmptyTracker_ShouldReturnEmpty() {
+        await using var tracker = new FileOperationTracker();
 
         tracker.GetAllEntries().Should().BeEmpty();
     }
 
     [Fact]
-    public void GetOperatedFilePaths_EmptyTracker_ShouldReturnEmpty() {
-        using var tracker = new FileOperationTracker();
+    public async Task GetOperatedFilePaths_EmptyTracker_ShouldReturnEmpty() {
+        await using var tracker = new FileOperationTracker();
 
         tracker.GetOperatedFilePaths().Should().BeEmpty();
     }

@@ -1,4 +1,4 @@
-﻿namespace Guard.Security.Tests;
+namespace Guard.Security.Tests;
 
 /// <summary>
 /// FileSystemSnapshotService 文件系统快照对比测试
@@ -19,8 +19,8 @@ public class FileSystemSnapshotServiceTests {
     public async Task CaptureAsync_Existing_Directory_Captures_Files() {
         await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
-        fs.WriteAllText("/test/dir/file1.txt", "content1");
-        fs.WriteAllText("/test/dir/file2.txt", "content2");
+        await fs.WriteAllText("/test/dir/file1.txt", "content1");
+        await fs.WriteAllText("/test/dir/file2.txt", "content2");
 
         var service = new FileSystemSnapshotService(fs, NullLogger<FileSystemSnapshotService>.Instance);
         var snapshot = await service.CaptureAsync("/test/dir");
@@ -34,12 +34,12 @@ public class FileSystemSnapshotServiceTests {
     public async Task Compare_Detects_Created_Files() {
         await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
-        fs.WriteAllText("/test/dir/existing.txt", "old");
+        await fs.WriteAllText("/test/dir/existing.txt", "old");
 
         var service = new FileSystemSnapshotService(fs, NullLogger<FileSystemSnapshotService>.Instance);
         var before = await service.CaptureAsync("/test/dir");
 
-        fs.WriteAllText("/test/dir/new.txt", "new content");
+        await fs.WriteAllText("/test/dir/new.txt", "new content");
 
         var after = await service.CaptureAsync("/test/dir");
         var changes = service.Compare(before, after);
@@ -51,12 +51,12 @@ public class FileSystemSnapshotServiceTests {
     public async Task Compare_Detects_Modified_Files() {
         await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
-        fs.WriteAllText("/test/dir/file.txt", "original content");
+        await fs.WriteAllText("/test/dir/file.txt", "original content");
 
         var service = new FileSystemSnapshotService(fs, NullLogger<FileSystemSnapshotService>.Instance);
         var before = await service.CaptureAsync("/test/dir");
 
-        fs.WriteAllText("/test/dir/file.txt", "modified content that is longer");
+        await fs.WriteAllText("/test/dir/file.txt", "modified content that is longer");
 
         var after = await service.CaptureAsync("/test/dir");
         var changes = service.Compare(before, after);
@@ -68,8 +68,8 @@ public class FileSystemSnapshotServiceTests {
     public async Task Compare_Detects_Deleted_Files() {
         await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
-        fs.WriteAllText("/test/dir/keep.txt", "keep");
-        fs.WriteAllText("/test/dir/delete.txt", "delete me");
+        await fs.WriteAllText("/test/dir/keep.txt", "keep");
+        await fs.WriteAllText("/test/dir/delete.txt", "delete me");
 
         var service = new FileSystemSnapshotService(fs, NullLogger<FileSystemSnapshotService>.Instance);
         var before = await service.CaptureAsync("/test/dir");
@@ -86,7 +86,7 @@ public class FileSystemSnapshotServiceTests {
     public async Task Compare_No_Changes_Returns_Empty() {
         await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
-        fs.WriteAllText("/test/dir/file.txt", "unchanged");
+        await fs.WriteAllText("/test/dir/file.txt", "unchanged");
 
         var service = new FileSystemSnapshotService(fs, NullLogger<FileSystemSnapshotService>.Instance);
         var before = await service.CaptureAsync("/test/dir");
@@ -99,15 +99,15 @@ public class FileSystemSnapshotServiceTests {
     public async Task Compare_Multiple_Changes_Detected() {
         await using var fs = new InMemoryFileSystem();
         fs.CreateDirectory("/test/dir");
-        fs.WriteAllText("/test/dir/keep.txt", "keep");
-        fs.WriteAllText("/test/dir/modify.txt", "original");
-        fs.WriteAllText("/test/dir/delete.txt", "to delete");
+        await fs.WriteAllText("/test/dir/keep.txt", "keep");
+        await fs.WriteAllText("/test/dir/modify.txt", "original");
+        await fs.WriteAllText("/test/dir/delete.txt", "to delete");
 
         var service = new FileSystemSnapshotService(fs, NullLogger<FileSystemSnapshotService>.Instance);
         var before = await service.CaptureAsync("/test/dir");
 
-        fs.WriteAllText("/test/dir/modify.txt", "modified");
-        fs.WriteAllText("/test/dir/create.txt", "new");
+        await fs.WriteAllText("/test/dir/modify.txt", "modified");
+        await fs.WriteAllText("/test/dir/create.txt", "new");
         fs.DeleteFile("/test/dir/delete.txt");
 
         var after = await service.CaptureAsync("/test/dir");

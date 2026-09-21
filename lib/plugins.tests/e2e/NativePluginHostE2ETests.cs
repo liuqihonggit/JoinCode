@@ -37,7 +37,7 @@ public class NativePluginHostE2ETests {
         echoResult.ResponseJson.Should().Contain("hello world");
         echoResult.ResponseJson.Should().Contain("\"ok\":true");
 
-        host.Unload();
+        await host.UnloadAsync();
         host.IsLoaded.Should().BeFalse();
     }
 
@@ -54,7 +54,7 @@ public class NativePluginHostE2ETests {
         pingResult.IsSuccess.Should().BeTrue();
         pingResult.ResponseJson.Should().Contain("pong");
 
-        host.Unload();
+        await host.UnloadAsync();
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class NativePluginHostE2ETests {
         result.IsSuccess.Should().BeTrue();
         result.ResponseJson.Should().Contain("method not found");
 
-        host.Unload();
+        await host.UnloadAsync();
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class NativePluginHostE2ETests {
         first.IsSuccess.Should().BeTrue();
         second.IsSuccess.Should().BeTrue();
 
-        host.Unload();
+        await host.UnloadAsync();
     }
 
     [Fact]

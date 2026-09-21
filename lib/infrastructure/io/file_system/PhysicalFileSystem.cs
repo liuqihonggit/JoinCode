@@ -108,7 +108,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     /// <inheritdoc />
     public async Task<byte[]> ReadAllBytesAsync(string path, CancellationToken cancellationToken = default) {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var ms = new MemoryStream();
+        await using var ms = new MemoryStream();
         await stream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
         return ms.ToArray();
     }
@@ -116,7 +116,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     /// <inheritdoc />
     public async ValueTask<byte[]> ReadAllBytes(string path) {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var ms = new MemoryStream();
+        await using var ms = new MemoryStream();
         await stream.CopyToAsync(ms, CancellationToken.None).ConfigureAwait(false);
         return ms.ToArray();
     }

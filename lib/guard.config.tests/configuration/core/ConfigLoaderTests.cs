@@ -41,7 +41,7 @@ public class ConfigLoaderTests : IDisposable {
 
         // 在临时目录写入 settings.json，提供 vendor 和 model 配置
         var settingsJson = """{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","model":"gpt-4o","models":[{"id":"gpt-4o","displayName":"GPT-4o","contextWindow":128000,"aliases":["4o","default"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","toolUse"]}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","contextWindow":128000,"aliases":["mini","fast"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","toolUse"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","model":"claude-opus-4-7","models":[{"id":"claude-opus-4-7","displayName":"Claude Opus 4.7","contextWindow":1000000,"aliases":["opus"],"capabilities":{"thinkingMode":true,"modalities":["text","readImage","readPdf","thinking","toolUse"]}},{"id":"claude-sonnet-4-6","displayName":"Claude Sonnet 4.6","contextWindow":1000000,"aliases":["sonnet"],"capabilities":{"fastMode":true,"modalities":["text","readImage","readPdf","thinking","toolUse"]}}]}},"current":{"vendor":"openai","model":"gpt-4o"}}""";
-        _fs.WriteAllText(AppDataConstants.Paths.SettingsFilePath, settingsJson);
+        _ = _fs.WriteAllText(AppDataConstants.Paths.SettingsFilePath, settingsJson);
 
         // 覆盖用户级环境变量（JCC_VENDOR 可能存在于用户级环境变量中）
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.Vendor, VendorKind.OpenAi.ToValue());
@@ -203,7 +203,7 @@ public class ConfigLoaderTests : IDisposable {
         var dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir)) _fs.CreateDirectory(dir);
         var json = JsonSerializer.Serialize(settingsJson, ConfigIndentedJsonContext.Default.SettingsJson);
-        _fs.WriteAllText(path, json);
+        await _fs.WriteAllText(path, json);
 
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.ModelId, "gpt-5-turbo-test-unregistered");
         var realKey = TestConfiguration.GetRealApiKey();

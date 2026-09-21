@@ -66,7 +66,7 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
         }
 
         try {
-            var json = _fs.ReadAllText(_trustedFoldersPath);
+            var json = SyncFileReader.ReadAllText(_fs, _trustedFoldersPath);
             var entries = RelaxedJsonSerializer.Deserialize(json, TrustFoldersContext.Default.TrustFolderEntries);
             if (entries?.Folders is null) {
                 return [];

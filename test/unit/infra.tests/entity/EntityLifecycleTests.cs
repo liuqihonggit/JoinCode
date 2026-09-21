@@ -17,7 +17,7 @@ public sealed class EntityLifecycleTests {
 
     [Fact]
     public void Entity_Created_HasCorrectDefaults() {
-        using var entity = new TestEntity("test");
+        await using var entity = new TestEntity("test");
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
         entity.IsPersisted.Should().BeFalse();
         entity.LastActivityAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
@@ -28,7 +28,7 @@ public sealed class EntityLifecycleTests {
 
     [Fact]
     public void Entity_MarkPersisted_TransitionsToPersisted() {
-        using var entity = new TestEntity();
+        await using var entity = new TestEntity();
         entity.LifecycleState = EntityLifecycle.Completed;
         entity.MarkPersisted();
         entity.IsPersisted.Should().BeTrue();
@@ -37,7 +37,7 @@ public sealed class EntityLifecycleTests {
 
     [Fact]
     public void Entity_CanReclaim_DefaultRequiresPersistedAndCompleted() {
-        using var entity = new TestEntity();
+        await using var entity = new TestEntity();
         entity.CanReclaim().Should().BeFalse();
 
         entity.CompletedAt = DateTime.UtcNow;
@@ -50,7 +50,7 @@ public sealed class EntityLifecycleTests {
 
     [Fact]
     public async Task Entity_Touch_RefreshesLastActivityAt() {
-        using var entity = new TestEntity();
+        await using var entity = new TestEntity();
         var before = entity.LastActivityAt;
         await Task.Delay(10);
         entity.Touch();
@@ -59,18 +59,17 @@ public sealed class EntityLifecycleTests {
 
     [Fact]
     public void Entity_IsTimedOut_WhenExceeded() {
-        using var entity = new TestEntity();
+        await using var entity = new TestEntity();
         entity.IsTimedOut.Should().BeFalse();
-
-        using var timedOutEntity = new TestEntity { TimeoutAt = DateTime.UtcNow.AddSeconds(-1) };
+        await using var timedOutEntity = new TestEntity { TimeoutAt = DateTime.UtcNow.AddSeconds(-1) };
         timedOutEntity.IsTimedOut.Should().BeTrue();
     }
 
     [Fact]
     public void Entity_Dispose_SetsLifecycleToDisposed() {
-        using var entity = new TestEntity();
+        await using var entity = new TestEntity();
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
-        entity.Dispose();
+        await entity.DisposeAsync().ConfigureAwait(false);
         entity.LifecycleState.Should().Be(EntityLifecycle.Disposed);
     }
 }

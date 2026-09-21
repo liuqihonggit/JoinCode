@@ -150,10 +150,8 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
             if (file.TextContent is not null)
                 return file.TextContent;
             if (file.ByteContent is not null) {
-                // 对齐 File.ReadAllText: 使用 StreamReader 自动检测编码并跳过 BOM
-                using var ms = new MemoryStream(file.ByteContent);
-                using var reader = ms.AsUtf8Reader();
-                return reader.ReadToEnd();
+                // 对齐 File.ReadAllText: 使用 BclBridge 隔离区解码（BCL MemoryStream/StreamReader 封装在隔离区）
+                return BclFileIO.Instance.DecodeBytesWithEncoding(file.ByteContent, System.Text.Encoding.UTF8);
             }
             return string.Empty;
         }
@@ -170,10 +168,8 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable {
         var normalizedPath = NormalizePath(path);
         if (_files.TryGetValue(normalizedPath, out var file)) {
             if (file.ByteContent is not null) {
-                // 对齐 File.ReadAllText(path, encoding): 使用指定编码解码，自动跳过 BOM
-                using var ms = new MemoryStream(file.ByteContent);
-                using var reader = new StreamReader(ms, encoding);
-                return reader.ReadToEnd();
+                // 对齐 File.ReadAllText(path, encoding): 使用 BclBridge 隔离区解码
+                return BclFileIO.Instance.DecodeBytesWithEncoding(file.ByteContent, encoding);
             }
             return file.TextContent ?? string.Empty;
         }

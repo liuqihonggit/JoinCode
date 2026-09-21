@@ -177,7 +177,7 @@ public sealed class CommandInterceptionDispatcherTests {
     public void Constructor_GuardsSortedByPriorityDescending() {
         var low = new StubGuard("low", priority: 10, new CommandDecision.Allow());
         var high = new StubGuard("high", priority: 100, new CommandDecision.Allow());
-        using var dispatcher = new CommandInterceptionDispatcher([low, high], []);
+        await using var dispatcher = new CommandInterceptionDispatcher([low, high], []);
 
         dispatcher.GetGuards()[0].Should().BeSameAs(high);
         dispatcher.GetGuards()[1].Should().BeSameAs(low);

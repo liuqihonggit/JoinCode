@@ -80,22 +80,21 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
     /// <param name="repoId">仓库标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>注销成功返回 true，仓库不存在返回 false</returns>
-    public Task<bool> UnregisterAsync(string repoId, CancellationToken ct) {
+    public async Task<bool> UnregisterAsync(string repoId, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(repoId);
 
         using (_lock.EnterWriteScope()) {
             if (!_repos.Remove(repoId, out var repo))
-                return Task.FromResult(false);
-
-            repo.Indexer.Dispose();
-            repo.Store.Dispose();
+                return false;
+            await repo.Indexer.DisposeAsync().ConfigureAwait(false);
+            await repo.Store.DisposeAsync().ConfigureAwait(false);
         }
 
         RepoUnregistered?.Invoke(this, new RepoUnregisteredEventArgs {
             RepoId = repoId,
         });
 
-        return Task.FromResult(true);
+        return true;
     }
 
     /// <summary>

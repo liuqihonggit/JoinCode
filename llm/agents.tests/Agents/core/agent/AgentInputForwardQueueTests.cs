@@ -6,14 +6,14 @@
 public class AgentInputForwardQueueTests {
     [Fact]
     public void TryDrain_UnregisteredAgent_ReturnsEmpty() {
-        using var queue = new AgentInputForwardQueue();
+        await using var queue = new AgentInputForwardQueue();
         var result = queue.TryDrain("agent-nonexistent");
         Assert.Empty(result);
     }
 
     [Fact]
     public void TryDrain_EmptyQueue_ReturnsEmpty() {
-        using var queue = new AgentInputForwardQueue();
+        await using var queue = new AgentInputForwardQueue();
         queue.Register("agent-1");
         var result = queue.TryDrain("agent-1");
         Assert.Empty(result);

@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Plugins;
+namespace Core.Tests.Plugins;
 
 /// <summary>
 /// 跨插件链路验证 — 修复断裂点 #3(AddReference)、#4(EnsureAlive)、#8(PrepareUnloadAsync)
@@ -38,8 +38,8 @@ public sealed class CrossPluginLinkTests {
 
     [Fact]
     public void AddReference_CrossPlugin_RefCountIncremented() {
-        using var pluginA = new PluginA();
-        using var pluginB = new PluginB();
+        await using var pluginA = new PluginA();
+        await using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
 
         var handle = cmdA.AddReference(pluginB.Name);
@@ -52,8 +52,8 @@ public sealed class CrossPluginLinkTests {
 
     [Fact]
     public void EnsureAlive_CrossPlugin_DetectsProviderDeath() {
-        using var pluginA = new PluginA();
-        using var pluginB = new PluginB();
+        await using var pluginA = new PluginA();
+        await using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
         var handle = cmdA.AddReference(pluginB.Name);
 
@@ -72,10 +72,10 @@ public sealed class CrossPluginLinkTests {
     [Fact]
     public void PrepareUnload_ReferenceGraph_ConsumersNotified() {
         var graph = new ResourceReferenceGraph();
-        using var pluginA = new PluginA();
-        using var pluginB = new PluginB();
+        await using var pluginA = new PluginA();
+        await using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
-        using var cmdB = new CommandResourceA(pluginB.Name, "cmdB");
+        await using var cmdB = new CommandResourceA(pluginB.Name, "cmdB");
         pluginB.RegisterResource(cmdB);
 
         var reference = new ResourceReference(
@@ -101,7 +101,7 @@ public sealed class CrossPluginLinkTests {
 
     [Fact]
     public void TwoPhaseUnload_ResourceIdsCollectedAndScanned() {
-        using var pluginA = new PluginA();
+        await using var pluginA = new PluginA();
         var cmdA = pluginA.CreateCommandResource();
         var resourceIds = pluginA.Resources.Select(r => r.ObjectId).ToList();
         resourceIds.Should().HaveCount(1);
@@ -109,7 +109,7 @@ public sealed class CrossPluginLinkTests {
         var scanner = new PluginResourceScanner();
         ObjectIdManager.IsRegistered(resourceIds[0]).Should().BeTrue();
 
-        pluginA.Unload();
+        await pluginA.UnloadAsync();
 
         var report = scanner.ScanPluginResources(pluginA.Name, resourceIds);
         report.HasLeaks.Should().BeFalse();
@@ -117,8 +117,8 @@ public sealed class CrossPluginLinkTests {
 
     [Fact]
     public void PluginDeath_CascadesToDependents() {
-        using var pluginA = new PluginA();
-        using var pluginB = new PluginB();
+        await using var pluginA = new PluginA();
+        await using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
         var handle = cmdA.AddReference(pluginB.Name);
 
@@ -140,8 +140,8 @@ public sealed class CrossPluginLinkTests {
 
     [Fact]
     public void ResourceReferenceHandle_UsingPattern_AutoRelease() {
-        using var pluginA = new PluginA();
-        using var pluginB = new PluginB();
+        await using var pluginA = new PluginA();
+        await using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
 
         using (cmdA.AddReference(pluginB.Name)) {

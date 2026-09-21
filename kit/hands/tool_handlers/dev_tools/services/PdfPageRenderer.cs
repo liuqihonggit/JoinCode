@@ -192,8 +192,8 @@ public static class PdfPageRenderer {
     private static byte[] BgraToJpeg(byte[] bgraData, int width, int height) {
         using var image = Image.LoadPixelData<Bgra32>(bgraData, width, height);
 
-        using var ms = new MemoryStream();
-        image.SaveAsJpeg(ms, new JpegEncoder { Quality = JpegQuality });
-        return ms.ToArray();
+        var bufferWriter = new ArrayBufferWriter<byte>();
+        image.SaveAsJpeg(bufferWriter, new JpegEncoder { Quality = JpegQuality });
+        return bufferWriter.WrittenSpan.ToArray();
     }
 }

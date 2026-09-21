@@ -16,11 +16,10 @@ public sealed class ObjectTypeAndObjectIdManagerTests {
     [Fact]
     public void ObjectIdManager_IsRegistered_ReturnsTrueForRegistered() {
         ObjectIdManager.Clear();
-        using var entity = new TestEntity(ObjectType.Plugin, "test-plugin");
+        await using var entity = new TestEntity(ObjectType.Plugin, "test-plugin");
 
         ObjectIdManager.IsRegistered(entity.ObjectId).Should().BeTrue();
-
-        entity.Dispose();
+        await entity.DisposeAsync().ConfigureAwait(false);
         ObjectIdManager.IsRegistered(entity.ObjectId).Should().BeFalse();
     }
 

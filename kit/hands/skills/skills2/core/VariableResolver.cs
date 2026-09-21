@@ -101,7 +101,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver 
         };
     }
 
-    private static IEnumerable<string> FindMissingVariables(Match match, ParsedVariable parsedVariable, Dictionary<string, JsonElement> variables) {
+    private IEnumerable<string> FindMissingVariables(Match match, ParsedVariable parsedVariable, Dictionary<string, JsonElement> variables) {
         var nameToCheck = parsedVariable.Name.Contains("{{")
             ? ResolveNestedName(parsedVariable.Name, variables)
             : parsedVariable.Name;
@@ -115,11 +115,10 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver 
             : Enumerable.Empty<string>();
     }
 
-    private static string ResolveNestedName(string name, Dictionary<string, JsonElement> variables) {
-        using var resolver = new VariableResolver();
+    private string ResolveNestedName(string name, Dictionary<string, JsonElement> variables) {
         var result = name;
         for (var i = 0; i < 10 && result.Contains("{{"); i++) {
-            result = resolver.Resolve(result, variables, false);
+            result = Resolve(result, variables, false);
         }
         return result;
     }

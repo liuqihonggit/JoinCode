@@ -335,7 +335,7 @@ public class SettingsLoaderTests : IDisposable {
             }
         }
         var json = JsonSerializer.Serialize(settings, ConfigIndentedJsonContext.Default.SettingsJson);
-        _fs.WriteAllText(path, json);
+        await _fs.WriteAllText(path, json);
     }
 
     private async Task WriteProjectSettingsAsync(SettingsJson settings) {

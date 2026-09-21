@@ -33,7 +33,7 @@ public static class BomStripper {
     /// <param name="skipTests">是否跳过测试项目</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>BOM 移除报告</returns>
-    public static BomStripReport Strip(
+    public static async Task<BomStripReport> Strip(
         string rootPath, bool dryRun = false, bool skipTests = false,
         CancellationToken ct = default) {
         var rootDir = Path.GetFullPath(rootPath);
@@ -59,7 +59,7 @@ public static class BomStripper {
 
             scannedFiles++;
 
-            if (!HasUtf8Bom(filePath))
+            if (!await HasUtf8Bom(filePath).ConfigureAwait(false))
                 continue;
 
             withBomCount++;
@@ -71,8 +71,7 @@ public static class BomStripper {
             });
 
             if (!dryRun) {
-                RemoveBomFromFile(filePath);
-                strippedCount++;
+                await RemoveBomFromFile(filePath);                strippedCount++;
             }
         }
 
@@ -94,8 +93,8 @@ public static class BomStripper {
     /// 检测文件是否以 UTF-8 BOM 开头
     /// 用字节级读取，避免 StreamReader 自动吞掉 BOM
     /// </summary>
-    public static bool HasUtf8Bom(string filePath) {
-        using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+    public static async Task<bool> HasUtf8Bom(string filePath) {
+        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         if (stream.Length < Utf8Bom.Length)
             return false;
 
@@ -111,7 +110,7 @@ public static class BomStripper {
     /// 从文件中移除 UTF-8 BOM：读取全部字节，跳过前3字节，覆盖写回
     /// 用 FileShare.ReadWrite 避免跨进程读-写冲突
     /// </summary>
-    private static void RemoveBomFromFile(string filePath) {
+    private static async Task RemoveBomFromFile(string filePath) {
         byte[] allBytes;
         using (var readStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
             allBytes = new byte[readStream.Length];
@@ -128,8 +127,7 @@ public static class BomStripper {
 
         if (allBytes[0] != Utf8Bom[0] || allBytes[1] != Utf8Bom[1] || allBytes[2] != Utf8Bom[2])
             return;
-
-        using var writeStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        await using var writeStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         writeStream.Write(allBytes, Utf8Bom.Length, allBytes.Length - Utf8Bom.Length);
         writeStream.Flush();
     }

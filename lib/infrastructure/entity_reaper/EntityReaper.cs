@@ -27,7 +27,7 @@ public sealed partial class EntityReaper : IEntityReaper, IScanStrategy {
     /// 执行一次全量扫描，回收可回收 Entity 并报告超时/泄漏
     /// </summary>
     /// <returns>本次回收的 Entity 数量</returns>
-    public ValueTask<int> ScanOnce() {
+    public async ValueTask<int> ScanOnce() {
         var reclaimedCount = 0;
         var now = _clock.GetUtcNow();
 
@@ -49,7 +49,7 @@ public sealed partial class EntityReaper : IEntityReaper, IScanStrategy {
 
             if (_config.EnableAutoReclaim && entity.CanReclaim()) {
                 try {
-                    entity.Dispose();
+                    await entity.DisposeAsync().ConfigureAwait(false);
                     reclaimedCount++;
                     OnEntityReclaimed(entity);
                 } catch (Exception ex) {
@@ -62,7 +62,7 @@ public sealed partial class EntityReaper : IEntityReaper, IScanStrategy {
             _logger?.LogDebug("EntityReaper 扫描完成: 回收 {Count} 个 Entity", reclaimedCount);
         }
 
-        return ValueTask.FromResult(reclaimedCount);
+        return reclaimedCount;
     }
 
     /// <summary>
@@ -141,7 +141,7 @@ public sealed partial class EntityReaper : IEntityReaper, IScanStrategy {
     /// <summary>
     /// IScanStrategy.Scan — 按会话隔离扫描, 只扫描该会话的 Entity
     /// </summary>
-    public ValueTask Scan(SessionScope scope) {
+    public async ValueTask Scan(SessionScope scope) {
         var now = _clock.GetUtcNow();
         foreach (var entity in scope.GetAll()) {
             if (entity.LifecycleState == EntityLifecycle.Disposed)
@@ -155,13 +155,13 @@ public sealed partial class EntityReaper : IEntityReaper, IScanStrategy {
 
             if (_config.EnableAutoReclaim && entity.CanReclaim()) {
                 try {
-                    entity.Dispose();
+                    await entity.DisposeAsync().ConfigureAwait(false);
                     OnEntityReclaimed(entity);
                 } catch (Exception ex) {
                     _logger?.LogWarning(ex, "回收 Entity {ObjectId} 失败", entity.ObjectId);
                 }
             }
         }
-        return ValueTask.CompletedTask;
+        return;
     }
 }

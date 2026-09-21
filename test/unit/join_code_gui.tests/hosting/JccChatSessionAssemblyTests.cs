@@ -217,10 +217,7 @@ public class JccChatSessionAssemblyTests {
 
     [Fact]
     public void EngineAssembly_ExecutionSettings_DefaultsToAuto() {
-        // 无持久化设置时，EffortLevel 默认 Auto（模型默认级别）— 对齐 CLI ShowCurrentEffort。
-        // 直接构造 ExecutionSettingsProvider + InMemoryFileSystem，隔离真实磁盘，保证确定性
-        // （物理磁盘 ~/.jcc/settings.json 可能含用户 effortLevel=low）。
-        using var provider = new ExecutionSettingsProvider(
+        await using var provider = new ExecutionSettingsProvider(
             new WorkflowConfig {
                 Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },
@@ -298,8 +295,7 @@ public class JccChatSessionAssemblyTests {
 
     [Fact]
     public async Task Session_EffortLevel_ReflectsRegisteredProviderValue() {
-        // 注册 IExecutionSettingsProvider 后，门面读取其当前 EffortLevel
-        using var provider = new ExecutionSettingsProvider(
+        await using var provider = new ExecutionSettingsProvider(
             new WorkflowConfig {
                 Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }
             },

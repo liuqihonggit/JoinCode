@@ -37,7 +37,7 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime {
 
     private ServiceProvider CreateServiceProvider() {
         if (_serviceProvider != null) {
-            _serviceProvider.Dispose();
+            await _serviceProvider.DisposeAsync().ConfigureAwait(false);
             _serviceProvider = null;
         }
 

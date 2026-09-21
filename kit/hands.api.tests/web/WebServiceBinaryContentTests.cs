@@ -30,8 +30,8 @@ public class WebServiceBinaryContentTests {
 
     private WebService CreateService(Mock<IApiClient> apiClient) {
         var cache = new WebFetchCache();
-        using var domainChecker = new DomainBlocklistChecker(apiClient.Object, cache);
-        using var binaryStorage = new BinaryContentStorage(_fs);
+        await using var domainChecker = new DomainBlocklistChecker(apiClient.Object, cache);
+        await using var binaryStorage = new BinaryContentStorage(_fs);
 
         var middlewares = new IMiddleware<WebContext>[]
         {

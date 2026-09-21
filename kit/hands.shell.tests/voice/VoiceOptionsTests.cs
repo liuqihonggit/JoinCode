@@ -3,7 +3,7 @@
 public sealed class VoiceOptionsTests {
     [Fact]
     public void DefaultValues_ShouldMatchExpected() {
-        using var options = new VoiceOptions();
+        await using var options = new VoiceOptions();
 
         options.Backend.Should().Be(SttBackend.WhisperApi);
         options.WhisperApiEndpoint.Should().Be("https://api.openai.com/v1/audio/transcriptions");

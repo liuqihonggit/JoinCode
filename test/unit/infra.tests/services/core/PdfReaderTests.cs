@@ -101,7 +101,7 @@ public sealed class PdfReaderTests {
 
     [Fact]
     public async Task GetPdfPageCount_NonExistentFile_ReturnsNull() {
-        (await PdfReader.GetPdfPageCount($"/test/nonexistent_{Guid.NewGuid()}.pdf", Fs).ConfigureAwait(false))
+        (await PdfReader.GetPdfPageCount($"/test/nonexistent_{Guid.NewGuid()}.pdf", Fs))
             .Should().BeNull();
     }
 
@@ -110,9 +110,9 @@ public sealed class PdfReaderTests {
         var tempFile = $"/test/pages_{Guid.NewGuid():N}.pdf";
         // 创建包含 /Type /Pages + /Count 42 的最小 PDF
         var pdf = "%PDF-1.4\n1 0 obj\n<< /Type /Pages /Count 42 /Kids [] >>\nendobj\n%%EOF"u8;
-        await Fs.WriteAllBytes(tempFile, pdf.ToArray()).ConfigureAwait(false);
+        await Fs.WriteAllBytes(tempFile, pdf.ToArray());
 
-        (await PdfReader.GetPdfPageCount(tempFile, Fs).ConfigureAwait(false)).Should().Be(42);
+        (await PdfReader.GetPdfPageCount(tempFile, Fs)).Should().Be(42);
     }
 
     [Fact]
@@ -120,9 +120,9 @@ public sealed class PdfReaderTests {
         var tempFile = $"/test/spaced_{Guid.NewGuid():N}.pdf";
         // /Type /Pages 带空格
         var pdf = "%PDF-1.4\n1 0 obj\n<< /Type /Pages /Count 7 /Kids [] >>\nendobj\n%%EOF"u8;
-        await Fs.WriteAllBytes(tempFile, pdf.ToArray()).ConfigureAwait(false);
+        await Fs.WriteAllBytes(tempFile, pdf.ToArray());
 
-        (await PdfReader.GetPdfPageCount(tempFile, Fs).ConfigureAwait(false)).Should().Be(7);
+        (await PdfReader.GetPdfPageCount(tempFile, Fs)).Should().Be(7);
     }
 
     [Fact]
@@ -130,9 +130,9 @@ public sealed class PdfReaderTests {
         var tempFile = $"/test/nopages_{Guid.NewGuid():N}.pdf";
         // 只有 /Type /Catalog，没有 /Pages
         var pdf = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF"u8;
-        await Fs.WriteAllBytes(tempFile, pdf.ToArray()).ConfigureAwait(false);
+        await Fs.WriteAllBytes(tempFile, pdf.ToArray());
 
-        (await PdfReader.GetPdfPageCount(tempFile, Fs).ConfigureAwait(false)).Should().BeNull();
+        (await PdfReader.GetPdfPageCount(tempFile, Fs)).Should().BeNull();
     }
 
     [Fact]

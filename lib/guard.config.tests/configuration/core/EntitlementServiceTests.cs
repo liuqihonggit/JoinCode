@@ -3,16 +3,15 @@
 public sealed class EntitlementServiceTests {
     [Fact]
     public void IsBriefEntitled_Default_Should_Be_True() {
-        // 开源项目默认允许
-        using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
-        using var service = new EntitlementService(briefMode);
+        await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new EntitlementService(briefMode);
         Assert.True(service.IsBriefEntitled);
     }
 
     [Fact]
     public void IsBriefEntitled_EnvVar_True_Should_Be_True() {
-        using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
-        using var service = new EntitlementService(briefMode);
+        await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new EntitlementService(briefMode);
         // JCC_BRIEF=1 应该允许
         using var envScope1 = EnvVarScope.Set(JccEnvVarEnumConstants.Brief, "1");
         Assert.True(service.IsBriefEntitled);
@@ -20,8 +19,8 @@ public sealed class EntitlementServiceTests {
 
     [Fact]
     public void IsBriefEntitled_EnvVar_False_Should_Be_False() {
-        using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
-        using var service = new EntitlementService(briefMode);
+        await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new EntitlementService(briefMode);
         // JCC_BRIEF=false 应该拒绝
         using var envScope2 = EnvVarScope.Set(JccEnvVarEnumConstants.Brief, "false");
         Assert.False(service.IsBriefEntitled);
@@ -29,8 +28,8 @@ public sealed class EntitlementServiceTests {
 
     [Fact]
     public void IsBriefEntitled_EnvVar_Zero_Should_Be_False() {
-        using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
-        using var service = new EntitlementService(briefMode);
+        await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new EntitlementService(briefMode);
         // JCC_BRIEF=0 应该拒绝
         using var envScope3 = EnvVarScope.Set(JccEnvVarEnumConstants.Brief, "0");
         Assert.False(service.IsBriefEntitled);
@@ -38,9 +37,8 @@ public sealed class EntitlementServiceTests {
 
     [Fact]
     public void IsBriefEnabled_Requires_Entitlement_And_OptIn() {
-        // 对齐 TS: (getKairosActive() || getUserMsgOptIn()) && isBriefEntitled()
-        using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
-        using var service = new EntitlementService(briefMode);
+        await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new EntitlementService(briefMode);
 
         // 默认: entitlement=true, optIn=false → enabled=false
         Assert.False(service.IsBriefEnabled);
@@ -52,9 +50,8 @@ public sealed class EntitlementServiceTests {
 
     [Fact]
     public void IsBriefEnabled_EnvVar_False_Overrides_OptIn() {
-        // JCC_BRIEF=false 即使 optIn=true 也应该拒绝
-        using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
-        using var service = new EntitlementService(briefMode);
+        await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new EntitlementService(briefMode);
         briefMode.Enable();
 
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.Brief, "false");
@@ -74,7 +71,7 @@ public sealed class EntitlementServiceTests {
 public sealed class BriefModeServiceTests {
     [Fact]
     public void Initial_State_Should_Be_Disabled() {
-        using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         Assert.False(service.IsEnabled);
         Assert.Null(service.EnabledAt);
         Assert.False(service.UserMsgOptIn);
@@ -82,8 +79,7 @@ public sealed class BriefModeServiceTests {
 
     [Fact]
     public void Enable_Should_Set_IsEnabled_And_UserMsgOptIn() {
-        // 对齐 TS: setUserMsgOptIn(true)
-        using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.Enable();
         Assert.True(service.IsEnabled);
         Assert.True(service.UserMsgOptIn);
@@ -92,8 +88,7 @@ public sealed class BriefModeServiceTests {
 
     [Fact]
     public void Disable_Should_Clear_IsEnabled_And_UserMsgOptIn() {
-        // 对齐 TS: setUserMsgOptIn(false)
-        using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.Enable();
         service.Disable();
         Assert.False(service.IsEnabled);
@@ -103,7 +98,7 @@ public sealed class BriefModeServiceTests {
 
     [Fact]
     public void Toggle_Should_Switch_Both_States() {
-        using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         Assert.False(service.IsEnabled);
         Assert.False(service.UserMsgOptIn);
 
@@ -118,8 +113,7 @@ public sealed class BriefModeServiceTests {
 
     [Fact]
     public void UserMsgOptIn_Can_Be_Set_Independently() {
-        // 对齐 TS: userMsgOptIn 可独立于 isBriefOnly 设置
-        using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.UserMsgOptIn = true;
         Assert.True(service.UserMsgOptIn);
         Assert.False(service.IsEnabled); // IsEnabled 不受 UserMsgOptIn 影响
@@ -127,7 +121,7 @@ public sealed class BriefModeServiceTests {
 
     [Fact]
     public void GetStatus_Enabled_Should_Return_EnabledStatus() {
-        using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.Enable();
         var status = service.GetStatus();
         Assert.True(status.IsEnabled);
@@ -136,7 +130,7 @@ public sealed class BriefModeServiceTests {
 
     [Fact]
     public void GetStatus_Disabled_Should_Return_DisabledStatus() {
-        using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var status = service.GetStatus();
         Assert.False(status.IsEnabled);
         Assert.Null(status.EnabledAt);
@@ -148,17 +142,15 @@ public sealed class BriefModeServiceTests {
         var cwd = fs.GetCurrentDirectory();
         fs.CreateDirectory(Path.Combine(cwd, ".git"));
         var clock = JoinCode.Abstractions.Clock.SystemClockService.Instance;
-
-        using var serviceA = new BriefModeService(clock, fs);
+        await using var serviceA = new BriefModeService(clock, fs);
         serviceA.Enable();
         Assert.True(serviceA.IsEnabled);
-
-        using var serviceB = new BriefModeService(clock, fs);
+        await using var serviceB = new BriefModeService(clock, fs);
         Assert.True(serviceB.IsEnabled, "新实例应从文件加载 enabled 状态");
         Assert.NotNull(serviceB.EnabledAt);
 
         serviceB.Disable();
-        using var serviceC = new BriefModeService(clock, fs);
+        await using var serviceC = new BriefModeService(clock, fs);
         Assert.False(serviceC.IsEnabled, "新实例应从文件加载 disabled 状态");
     }
 }

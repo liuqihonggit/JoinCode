@@ -83,7 +83,7 @@ public sealed class ToolTemplateServiceTest : IAsyncLifetime {
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".jcc", "tool-templates");
         _fs.CreateDirectory(templatesDir!);
-        _fs.WriteAllText(Path.Combine(templatesDir, "bad.json"), "not valid json {{{");
+        await _fs.WriteAllText(Path.Combine(templatesDir, "bad.json"), "not valid json {{{");
 
         var templates = await _service.LoadTemplatesAsync();
         templates.Should().BeEmpty();

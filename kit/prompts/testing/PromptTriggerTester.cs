@@ -18,14 +18,14 @@ public sealed class PromptTriggerTester {
     /// <summary>
     /// 测试所有Section的触发情况
     /// </summary>
-    public PromptTriggerReport TestTriggers(PromptTestContext context) {
+    public async Task<PromptTriggerReport> TestTriggers(PromptTestContext context) {
         var report = new PromptTriggerReport();
 
         // 创建不同配置的Provider实例进行测试
         var scenarios = CreateTestScenarios(context);
 
         foreach (var scenario in scenarios) {
-            var scenarioResults = TestScenario(scenario, context);
+            var scenarioResults = await TestScenario(scenario, context).ConfigureAwait(false);
             report.AddResults(scenarioResults);
         }
 
@@ -35,12 +35,10 @@ public sealed class PromptTriggerTester {
     /// <summary>
     /// 测试单个场景
     /// </summary>
-    private List<PromptTriggerResult> TestScenario(TestScenario scenario, PromptTestContext baseContext) {
+    private async Task<List<PromptTriggerResult>> TestScenario(TestScenario scenario, PromptTestContext baseContext) {
         var results = new List<PromptTriggerResult>();
         var scenarioContext = new PromptTestContext(scenario.Config);
-
-        // 创建Provider实例
-        using var provider = CreateProvider(scenario.Config);
+        await using var provider = CreateProvider(scenario.Config);
 
         // 获取所有Section
         var sections = provider.GetSections().ToList();

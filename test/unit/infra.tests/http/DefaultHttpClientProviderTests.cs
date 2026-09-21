@@ -21,9 +21,7 @@ public sealed class DefaultHttpClientProviderTests {
     public void GetClient_WhenFactoryInjected_ShouldUseFactoryCreateClient() {
         // Arrange
         var spyFactory = new SpyHttpClientFactory();
-
-        // Act
-        using var provider = new DefaultHttpClientProvider(spyFactory);
+        await using var provider = new DefaultHttpClientProvider(spyFactory);
         var client = provider.GetClient();
 
         // Assert
@@ -39,9 +37,7 @@ public sealed class DefaultHttpClientProviderTests {
     public void GetClient_With_Name_WhenFactoryInjected_ShouldUseFactoryCreateClientWithName() {
         // Arrange
         var spyFactory = new SpyHttpClientFactory();
-
-        // Act
-        using var provider = new DefaultHttpClientProvider(spyFactory);
+        await using var provider = new DefaultHttpClientProvider(spyFactory);
         _ = provider.GetClient("PolicyClient");
 
         // Assert
@@ -60,7 +56,7 @@ public sealed class DefaultHttpClientProviderTests {
     public void GetClient_WhenFactoryInjected_MultipleCalls_ShouldCreateMultipleClients() {
         // Arrange
         var spyFactory = new SpyHttpClientFactory();
-        using var provider = new DefaultHttpClientProvider(spyFactory);
+        await using var provider = new DefaultHttpClientProvider(spyFactory);
 
         // Act
         var client1 = provider.GetClient();
@@ -83,8 +79,7 @@ public sealed class DefaultHttpClientProviderTests {
     /// </summary>
     [Fact]
     public void GetClient_WhenFactoryNull_ShouldFallbackToSharedHttpClient() {
-        // Arrange — 无参构造函数（HttpClientProviderFactory.Create() 路径）
-        using var provider = new DefaultHttpClientProvider();
+        await using var provider = new DefaultHttpClientProvider();
 
         // Act
         var client1 = provider.GetClient();
@@ -100,8 +95,7 @@ public sealed class DefaultHttpClientProviderTests {
     /// </summary>
     [Fact]
     public void DefaultHttpClientProvider_ParameterlessConstructor_ShouldNotThrow() {
-        // Act
-        using var provider = new DefaultHttpClientProvider();
+        await using var provider = new DefaultHttpClientProvider();
 
         // Assert
         provider.Should().NotBeNull("无参构造函数必须能正常工作 — HttpClientProviderFactory.Create() 依赖此路径");

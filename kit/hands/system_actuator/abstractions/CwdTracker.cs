@@ -14,13 +14,13 @@ internal sealed class CwdTracker : IAsyncDisposable {
         _workingDirectory = workingDirectory;
     }
 
-    internal bool TryUpdateCwdFromTrackingFile() {
+    internal async Task<bool> TryUpdateCwdFromTrackingFileAsync() {
         if (string.IsNullOrEmpty(_cwdFilePath)) return false;
 
         try {
             if (!_fs.FileExists(_cwdFilePath)) return false;
 
-            var newCwd = _fs.ReadAllText(_cwdFilePath).Trim();
+            var newCwd = (await _fs.ReadAllText(_cwdFilePath).ConfigureAwait(false)).Trim();
             if (string.IsNullOrEmpty(newCwd)) return false;
 
             try { _fs.DeleteFile(_cwdFilePath); } catch (Exception ex) { _logger?.LogDebug(ex, "清理 CWD 追踪文件失败: {Path}", _cwdFilePath); }

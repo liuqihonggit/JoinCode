@@ -145,8 +145,8 @@ public sealed class SimpleModeServiceTests {
 
     [Fact]
     public void Enable_Should_Also_Enable_BriefMode() {
-        using var briefModeService = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
-        using var service = new SimpleModeService(briefModeService: briefModeService);
+        await using var briefModeService = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new SimpleModeService(briefModeService: briefModeService);
 
         service.Enable();
 
@@ -155,8 +155,8 @@ public sealed class SimpleModeServiceTests {
 
     [Fact]
     public void Disable_Should_Also_Disable_BriefMode() {
-        using var briefModeService = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
-        using var service = new SimpleModeService(briefModeService: briefModeService);
+        await using var briefModeService = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        await using var service = new SimpleModeService(briefModeService: briefModeService);
 
         service.Enable();
         service.Disable();

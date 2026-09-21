@@ -147,5 +147,6 @@
     <Project Path="../../non_deliverables_tools/skia_sharp_aot_test/SkiaSharpAotTest.csproj" />
     <Project Path="../../non_deliverables_tools/terminal_gui_aot_probe/TerminalGuiAotProbe.csproj" />
   </Folder>
+  <Project Path="../../lib/bcl_bridge/BclBridge.csproj" />
   <Project Path="../../test/integration/integration.desktop.tests/Integration.Desktop.Tests.csproj" />
 </Solution>

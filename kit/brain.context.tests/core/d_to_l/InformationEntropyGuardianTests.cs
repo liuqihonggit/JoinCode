@@ -39,8 +39,8 @@ public sealed class InformationEntropyGuardianTests {
     }
 
     [Fact]
-    public void CheckTextLoop_LogicFingerprintTriggered_ReturnsInterventionResult() {
-        using var guardian = new InformationEntropyGuardian(
+    public async Task CheckTextLoop_LogicFingerprintTriggered_ReturnsInterventionResult() {
+        await using var guardian = new InformationEntropyGuardian(
             logicFingerprintDetector: new LogicFingerprintDetector(
                 fingerprintPrefixLen: 50, fingerprintSuffixLen: 50, windowSize: 5, hitThreshold: 3));
 
@@ -64,8 +64,8 @@ public sealed class InformationEntropyGuardianTests {
     }
 
     [Fact]
-    public void CheckToolCallLoop_RepeatedPattern_ReturnsInterventionResult() {
-        using var guardian = new InformationEntropyGuardian(
+    public async Task CheckToolCallLoop_RepeatedPattern_ReturnsInterventionResult() {
+        await using var guardian = new InformationEntropyGuardian(
             toolCallSequenceDetector: new ToolCallSequenceDetector(
                 windowSize: 6, minPatternLength: 2, requiredRepeats: 3));
 
@@ -96,8 +96,8 @@ public sealed class InformationEntropyGuardianTests {
     }
 
     [Fact]
-    public void Reset_ClearsAllDetectorState() {
-        using var guardian = new InformationEntropyGuardian(
+    public async Task Reset_ClearsAllDetectorState() {
+        await using var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 5, checkInterval: 1, requiredRepeats: 3, cooldownChars: 0));
 
@@ -115,8 +115,8 @@ public sealed class InformationEntropyGuardianTests {
     }
 
     [Fact]
-    public void Detect_OutputLoopPriority_WhenBothTrigger_OutputLoopWins() {
-        using var guardian = new InformationEntropyGuardian(
+    public async Task Detect_OutputLoopPriority_WhenBothTrigger_OutputLoopWins() {
+        await using var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 5, checkInterval: 1, requiredRepeats: 3, cooldownChars: 0),
             logicFingerprintDetector: new LogicFingerprintDetector(
@@ -132,8 +132,8 @@ public sealed class InformationEntropyGuardianTests {
     }
 
     [Fact]
-    public void CheckTextLoop_OutputLoopAlsoChecked_WhenTextHasRepetition() {
-        using var guardian = new InformationEntropyGuardian(
+    public async Task CheckTextLoop_OutputLoopAlsoChecked_WhenTextHasRepetition() {
+        await using var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 5, checkInterval: 1, requiredRepeats: 3, cooldownChars: 0));
 
@@ -157,8 +157,8 @@ public sealed class InformationEntropyGuardianTests {
     }
 
     [Fact]
-    public void CheckToolCallLoop_WithArguments_ExtractsFingerprint() {
-        using var guardian = new InformationEntropyGuardian(
+    public async Task CheckToolCallLoop_WithArguments_ExtractsFingerprint() {
+        await using var guardian = new InformationEntropyGuardian(
             toolCallSequenceDetector: new ToolCallSequenceDetector(
                 windowSize: 6, minPatternLength: 2, requiredRepeats: 3));
 
@@ -180,8 +180,8 @@ public sealed class InformationEntropyGuardianTests {
     }
 
     [Fact]
-    public void CheckTextLoop_ShannonEntropyTriggered_ReturnsInterventionResult() {
-        using var guardian = new InformationEntropyGuardian(
+    public async Task CheckTextLoop_ShannonEntropyTriggered_ReturnsInterventionResult() {
+        await using var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 100, checkInterval: 100, requiredRepeats: 100, cooldownChars: 0),
             shannonEntropyDetector: new ShannonEntropyDetector(
@@ -206,8 +206,8 @@ public sealed class InformationEntropyGuardianTests {
     }
 
     [Fact]
-    public void Reset_ClearsShannonEntropyState() {
-        using var guardian = new InformationEntropyGuardian(
+    public async Task Reset_ClearsShannonEntropyState() {
+        await using var guardian = new InformationEntropyGuardian(
             shannonEntropyDetector: new ShannonEntropyDetector(
                 windowSize: 10, declineThreshold: 3, minEntropyDelta: 0.001,
                 confirmationWindow: TimeSpan.FromSeconds(5)));

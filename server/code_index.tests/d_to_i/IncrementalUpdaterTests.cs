@@ -59,14 +59,13 @@ public sealed class IncrementalUpdaterTests : IDisposable {
         fs.CreateDirectory(Path.Combine(root, "sub", "bin"));
         fs.CreateDirectory(Path.Combine(root, ".x"));
 
-        fs.WriteAllText(Path.Combine(root, "A.cs"), "public class A { }");
-        fs.WriteAllText(Path.Combine(root, "bin", "B.cs"), "public class B { }");
-        fs.WriteAllText(Path.Combine(root, "obj", "C.cs"), "public class C { }");
-        fs.WriteAllText(Path.Combine(root, "sub", "D.cs"), "public class D { }");
-        fs.WriteAllText(Path.Combine(root, "sub", "bin", "E.cs"), "public class E { }");
-        fs.WriteAllText(Path.Combine(root, ".x", "F.cs"), "public class F { }");
-
-        using var store = new InMemoryIndexStore();
+        await fs.WriteAllText(Path.Combine(root, "A.cs"), "public class A { }");
+        await fs.WriteAllText(Path.Combine(root, "bin", "B.cs"), "public class B { }");
+        await fs.WriteAllText(Path.Combine(root, "obj", "C.cs"), "public class C { }");
+        await fs.WriteAllText(Path.Combine(root, "sub", "D.cs"), "public class D { }");
+        await fs.WriteAllText(Path.Combine(root, "sub", "bin", "E.cs"), "public class E { }");
+        await fs.WriteAllText(Path.Combine(root, ".x", "F.cs"), "public class F { }");
+        await using var store = new InMemoryIndexStore();
         using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
         using var updater = new IncrementalUpdater(index, store, fs, () => new CSharpSymbolExtractor());
 

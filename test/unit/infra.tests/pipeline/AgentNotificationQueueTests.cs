@@ -3,7 +3,7 @@
 public sealed class AgentNotificationQueueTests {
     [Fact]
     public void Enqueue_DequeueAll_ReturnsAllNotifications() {
-        using var queue = new AgentNotificationQueue();
+        await using var queue = new AgentNotificationQueue();
         queue.Enqueue(null, "<task-notification>test1</task-notification>");
         queue.Enqueue(null, "<task-notification>test2</task-notification>");
 
@@ -19,7 +19,7 @@ public sealed class AgentNotificationQueueTests {
 
     [Fact]
     public void DequeueAll_WithAgentId_FiltersByTarget() {
-        using var queue = new AgentNotificationQueue();
+        await using var queue = new AgentNotificationQueue();
         queue.Enqueue("agent-1", "notification-for-1");
         queue.Enqueue("agent-2", "notification-for-2");
         queue.Enqueue(null, "notification-for-main");
@@ -33,14 +33,14 @@ public sealed class AgentNotificationQueueTests {
 
     [Fact]
     public void DequeueAll_EmptyQueue_ReturnsEmpty() {
-        using var queue = new AgentNotificationQueue();
+        await using var queue = new AgentNotificationQueue();
         queue.HasPendingNotifications.Should().BeFalse();
         queue.DequeueAll().Should().BeEmpty();
     }
 
     [Fact]
     public void DequeueAll_DrainsQueue_SecondCallReturnsEmpty() {
-        using var queue = new AgentNotificationQueue();
+        await using var queue = new AgentNotificationQueue();
         queue.Enqueue(null, "test");
 
         queue.DequeueAll().Should().HaveCount(1);
@@ -49,7 +49,7 @@ public sealed class AgentNotificationQueueTests {
 
     [Fact]
     public void Enqueue_NullTargetAgentId_AcceptedByAll() {
-        using var queue = new AgentNotificationQueue();
+        await using var queue = new AgentNotificationQueue();
         queue.Enqueue(null, "main-notification");
 
         var forMain = queue.DequeueAll(null);
@@ -62,7 +62,7 @@ public sealed class AgentNotificationQueueTests {
 
     [Fact]
     public void QueuedNotification_HasEnqueuedAt() {
-        using var queue = new AgentNotificationQueue();
+        await using var queue = new AgentNotificationQueue();
         var before = DateTime.UtcNow.AddSeconds(-1);
         queue.Enqueue(null, "test");
         var after = DateTime.UtcNow.AddSeconds(1);

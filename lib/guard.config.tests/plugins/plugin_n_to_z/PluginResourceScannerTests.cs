@@ -9,11 +9,11 @@ public sealed class PluginResourceScannerTests {
     [Fact]
     public void ScanPluginResources_AllUnregistered_NoLeaks() {
         var scanner = new PluginResourceScanner();
-        using var e1 = new TestEntity("res1");
-        using var e2 = new TestEntity("res2");
+        await using var e1 = new TestEntity("res1");
+        await using var e2 = new TestEntity("res2");
         var ids = new[] { e1.ObjectId, e2.ObjectId };
-        e1.Dispose();
-        e2.Dispose();
+        await e1.DisposeAsync().ConfigureAwait(false);
+        await e2.DisposeAsync().ConfigureAwait(false);
 
         var report = scanner.ScanPluginResources("pluginA", ids);
 
@@ -24,10 +24,10 @@ public sealed class PluginResourceScannerTests {
     [Fact]
     public void ScanPluginResources_WithLeak_DetectsLeak() {
         var scanner = new PluginResourceScanner();
-        using var e1 = new TestEntity("res1");
-        using var e2 = new TestEntity("res2");
+        await using var e1 = new TestEntity("res1");
+        await using var e2 = new TestEntity("res2");
         var ids = new[] { e1.ObjectId, e2.ObjectId };
-        e1.Dispose();
+        await e1.DisposeAsync().ConfigureAwait(false);
 
         var report = scanner.ScanPluginResources("pluginA", ids);
 

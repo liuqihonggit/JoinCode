@@ -58,7 +58,7 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable {
     private async Task ProcessConnectionsAsync(CancellationToken ct) {
         try {
             while (!ct.IsCancellationRequested) {
-                using var pipeServer = NamedPipeFactory.CreateServer(_options.PipeName);
+                await using var pipeServer = NamedPipeFactory.CreateServer(_options.PipeName);
 
                 _logger.LogInformation("[MockServer] 等待客户端连接...");
                 await pipeServer.WaitForConnectionAsync(ct).ConfigureAwait(true);
@@ -105,7 +105,7 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable {
 
         try {
             var buffer = new byte[ReadBufferSize];
-            using var ms = new MemoryStream();
+            await using var ms = new MemoryStream();
 
             while (!ct.IsCancellationRequested) {
                 var readTask = pipeServer.ReadAsync(buffer, ct).AsTask();

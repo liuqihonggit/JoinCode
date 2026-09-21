@@ -7,8 +7,7 @@ public sealed class DefaultSessionScannerTests {
     [Fact]
     public void Constructor_NullConfig_UsesCurrentDirectory() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
-
-        using var scanner = new DefaultSessionScanner(null!, fs);
+        await using var scanner = new DefaultSessionScanner(null!, fs);
 
         Assert.Equal(fs.GetCurrentDirectory(), scanner.GetProjectDir());
     }
@@ -17,8 +16,7 @@ public sealed class DefaultSessionScannerTests {
     public void GetProjectDir_ReturnsConfigProjectDir() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
-
-        using var scanner = new DefaultSessionScanner(config, fs);
+        await using var scanner = new DefaultSessionScanner(config, fs);
 
         Assert.Equal("/project", scanner.GetProjectDir());
     }

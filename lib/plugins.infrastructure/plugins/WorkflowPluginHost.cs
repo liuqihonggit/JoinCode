@@ -132,7 +132,7 @@ public sealed class WorkflowPluginHost : PluginResourceBase, IPluginHost {
     /// <summary>
     /// 卸载插件 — 撤销命令注册(可逆效应) + 释放插件容器
     /// </summary>
-    public PluginUnloadResult Unload() {
+    public async Task<PluginUnloadResult> UnloadAsync() {
         EnsureAlive();
 
         try {
@@ -142,7 +142,7 @@ public sealed class WorkflowPluginHost : PluginResourceBase, IPluginHost {
                 try { hook.UnregisterCommands(_sharedCommandRegistry); } catch (Exception ex) { _logger?.LogWarning(ex, "插件 {PluginName} 命令撤销失败", _plugin.Name); }
             }
 
-            var result = _plugin.Unload();
+            var result = await _plugin.UnloadAsync().ConfigureAwait(false);
 
             if (_pluginServiceProvider is IDisposable disposable) {
                 disposable.Dispose();

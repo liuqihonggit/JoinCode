@@ -159,7 +159,7 @@ public class AnthropicEnumsTests {
 
     private static string Write<T>(T value, JsonConverter<T> converter) {
         using var stream = new MemoryStream();
-        using var writer = new Utf8JsonWriter(stream);
+        await using var writer = new Utf8JsonWriter(stream);
         converter.Write(writer, value, null!);
         writer.Flush();
         return Encoding.UTF8.GetString(stream.ToArray());

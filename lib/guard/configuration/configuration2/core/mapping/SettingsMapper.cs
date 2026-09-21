@@ -260,8 +260,15 @@ public sealed partial class SettingsMapper : ServiceEntity {
     /// </summary>
     private static void ApplyProfileFromVendor(string vendor, WorkflowConfig config, SettingsJson? settings) {
         if (settings is null) {
-            using var fs = new IO.FileSystem.PhysicalFileSystem();
-            settings = ConfigLoader.LoadSettingsJsonAsync(fs).GetAwaiter().GetResult();
+            var settingsPath = Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
+            if (BclFileIO.Instance.FileExists(settingsPath)) {
+                try {
+                    var json = BclFileIO.Instance.ReadAllText(settingsPath);
+                    settings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+                } catch {
+                    settings = null;
+                }
+            }
         }
 
         if (settings?.Vendor is null || !settings.Vendor.TryGetValue(vendor, out var profile))
@@ -282,8 +289,15 @@ public sealed partial class SettingsMapper : ServiceEntity {
     /// <summary>从 settings.json 的 vendor 节点读取指定供应商的 protocol 配置</summary>
     private static string? GetProfileProtocol(string vendor, SettingsJson? settings) {
         if (settings is null) {
-            using var fs = new IO.FileSystem.PhysicalFileSystem();
-            settings = ConfigLoader.LoadSettingsJsonAsync(fs).GetAwaiter().GetResult();
+            var settingsPath = Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
+            if (BclFileIO.Instance.FileExists(settingsPath)) {
+                try {
+                    var json = BclFileIO.Instance.ReadAllText(settingsPath);
+                    settings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+                } catch {
+                    settings = null;
+                }
+            }
         }
 
         if (settings?.Vendor is null || !settings.Vendor.TryGetValue(vendor, out var profile))

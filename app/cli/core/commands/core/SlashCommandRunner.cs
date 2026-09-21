@@ -85,7 +85,7 @@ public static class SlashCommandRunner {
         // 捕获命令输出 — 重定向 Console.Out 到 StringBuilder（对齐 CLI/TUI 既有行为）
         var commandOutput = new StringBuilder();
         var originalOut = System.Console.Out;
-        using var commandWriter = new System.IO.StringWriter(commandOutput);
+        await using var commandWriter = new System.IO.StringWriter(commandOutput);
         var shouldContinue = true;
         try {
             System.Console.SetOut(commandWriter);

@@ -53,7 +53,7 @@ public class SnipLogicTests {
     [Fact]
     public async Task SnipLinesAsync_EmptyFile_ReturnsEmpty() {
         var filePath = "/test/empty.txt";
-        _fs.WriteAllText(filePath, "");
+        await _fs.WriteAllText(filePath, "");
 
         var result = await _snipLogic.SnipLinesAsync(filePath, startLine: 0, lineCount: 5).ConfigureAwait(true);
 
@@ -122,7 +122,7 @@ public class SnipLogicTests {
     public async Task GetPreviewAsync_ReturnsFileInfoAndPreview() {
         var content = GenerateContent(20);
         var filePath = "/test/preview.txt";
-        _fs.WriteAllText(filePath, content);
+        await _fs.WriteAllText(filePath, content);
 
         var preview = await _snipLogic.GetPreviewAsync(filePath, maxPreviewLines: 5).ConfigureAwait(true);
 
@@ -149,7 +149,7 @@ public class SnipLogicTests {
         var sb = new StringBuilder();
         for (var i = 0; i < 10000; i++)
             sb.AppendLine($"Line {i + 1}: " + new string('x', 100));
-        _fs.WriteAllText(filePath, sb.ToString());
+        await _fs.WriteAllText(filePath, sb.ToString());
 
         var result = await _snipLogic.SnipLinesAsync(filePath, startLine: 9990, lineCount: 5).ConfigureAwait(true);
 
@@ -178,7 +178,7 @@ public class SnipLogicTests {
 
     private string CreateTempFile(int lineCount) {
         var filePath = $"/test/test_{Guid.NewGuid():N}.txt";
-        _fs.WriteAllText(filePath, GenerateContent(lineCount));
+        await _fs.WriteAllText(filePath, GenerateContent(lineCount));
         return filePath;
     }
 

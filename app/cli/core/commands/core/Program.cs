@@ -44,7 +44,7 @@ class Program {
         App.ErrorConsole.IsQuiet = isQuiet;
         if (isQuiet)
             Environment.SetEnvironmentVariable("JCC_LOG_LEVEL", "Error");
-        using var earlyAwaitTimer = StartEarlyAwaitTimer(args);
+        await using var earlyAwaitTimer = StartEarlyAwaitTimer(args);
 
         Cli.TerminalHelper.Init();
         JoinCode.Abstractions.Shell.CommandTerminal.SetConsole(new CliCommandConsole());
@@ -70,8 +70,7 @@ class Program {
             if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(GetHelpTopic(args)); return 0; }
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
-            // 3.5 --await N: 启动超时计时器，N秒后强制退出返回 ExitCode.AwaitTimeout（用于诊断卡死）
-            using var awaitTimer = StartAwaitTimer(options, logger);
+            await using var awaitTimer = StartAwaitTimer(options, logger);
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
 

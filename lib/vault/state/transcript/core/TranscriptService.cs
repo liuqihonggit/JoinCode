@@ -84,7 +84,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                     string? preview = null;
 
                     try {
-                        using var stream = _fs.CreateStream(transcriptPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        await using var stream = _fs.CreateStream(transcriptPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                         using var reader = new StreamReader(stream);
                         var json = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
                         (entryCount, preview) = ExtractPreview(json);

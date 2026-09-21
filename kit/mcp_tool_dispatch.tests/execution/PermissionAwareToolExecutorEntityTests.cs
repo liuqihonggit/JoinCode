@@ -3,7 +3,7 @@
 public sealed class PermissionAwareToolExecutorEntityTests {
     [Fact]
     public void ToolExecutionContext_HasExecutionEntity_AfterCreation() {
-        using var entity = new ToolExecutionEntity("read_file");
+        await using var entity = new ToolExecutionEntity("read_file");
         var context = new ToolExecutionContext {
             ToolName = "read_file",
             Arguments = [],
@@ -26,7 +26,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
 
     [Fact]
     public void ToolExecutionEntity_LifecycleFlow_MirrorsExecutorFlow() {
-        using var entity = new ToolExecutionEntity("bash");
+        await using var entity = new ToolExecutionEntity("bash");
 
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
 
@@ -45,7 +45,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
 
     [Fact]
     public void ToolExecutionEntity_ErrorFlow_SetsIsError() {
-        using var entity = new ToolExecutionEntity("grep");
+        await using var entity = new ToolExecutionEntity("grep");
 
         entity.LifecycleState = EntityLifecycle.Active;
         entity.StartedAt = DateTime.UtcNow;
@@ -61,7 +61,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
 
     [Fact]
     public void ToolExecutionEntity_RegisteredInGlobalRegistry() {
-        using var entity = new ToolExecutionEntity("web_fetch");
+        await using var entity = new ToolExecutionEntity("web_fetch");
         ToolExecutionEntity.Registry.Get(entity.ObjectId).Should().BeSameAs(entity);
         ToolExecutionEntity.Registry.GetByToolName("web_fetch").Should().Contain(entity);
 
@@ -69,14 +69,14 @@ public sealed class PermissionAwareToolExecutorEntityTests {
 
     [Fact]
     public void ToolExecutionEntity_SpanId_LinkedToTelemetry() {
-        using var entity = new ToolExecutionEntity("bash", spanId: "span_abc123");
+        await using var entity = new ToolExecutionEntity("bash", spanId: "span_abc123");
         entity.SpanId.Should().Be("span_abc123");
 
     }
 
     [Fact]
     public void BackfillEntityMetadata_BashProcessEntity_SetsExitCode() {
-        using var bash = new BashProcessEntity(command: "ls");
+        await using var bash = new BashProcessEntity(command: "ls");
         var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
             IsError = false,
@@ -99,7 +99,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
 
     [Fact]
     public void BackfillEntityMetadata_BashProcessEntity_Interrupted_SetsTimedOut() {
-        using var bash = new BashProcessEntity(command: "sleep 999");
+        await using var bash = new BashProcessEntity(command: "sleep 999");
         var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "timeout" }],
             IsError = true,
@@ -126,7 +126,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
 
     [Fact]
     public void BackfillEntityMetadata_WebFetchEntity_SetsHttpStatusCode() {
-        using var web = new WebFetchEntity(url: "https://example.com");
+        await using var web = new WebFetchEntity(url: "https://example.com");
         var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
             IsError = false,
@@ -153,7 +153,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
 
     [Fact]
     public void BackfillEntityMetadata_NoMetadata_DoesNotThrow() {
-        using var entity = new ToolExecutionEntity("read_file");
+        await using var entity = new ToolExecutionEntity("read_file");
         var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
             IsError = false,
@@ -173,7 +173,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
 
     [Fact]
     public void BackfillEntityMetadata_EmptyMetadata_DoesNotThrow() {
-        using var entity = new ToolExecutionEntity("read_file");
+        await using var entity = new ToolExecutionEntity("read_file");
         var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
             IsError = false,

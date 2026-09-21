@@ -454,7 +454,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                 }
 
                 // 跳过二进制文件（对齐 ripgrep 自动跳过二进制文件行为）
-                if (IsBinaryFile(filePath))
+                if (await IsBinaryFileAsync(filePath).ConfigureAwait(false))
                     continue;
 
                 // 跳过 .gitignore 忽略的文件（对齐 ripgrep 默认行为）
@@ -562,7 +562,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
     /// 检测文件是否为二进制文件
     /// 对齐 ripgrep 行为：先检查扩展名白名单，再采样前 8KB 检测 null 字节和非打印字符
     /// </summary>
-    private bool IsBinaryFile(string filePath) {
+    private async Task<bool> IsBinaryFileAsync(string filePath) {
         // 快速路径：已知二进制扩展名直接跳过
         if (BinaryFileDetector.IsBinaryByExtension(filePath)) {
             return true;
@@ -574,7 +574,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
         }
 
         try {
-            using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            await using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             var buffer = new byte[BinaryDetectionBufferSize];
             var bytesRead = stream.Read(buffer);
 

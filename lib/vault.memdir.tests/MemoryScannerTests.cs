@@ -24,7 +24,7 @@ public sealed class MemoryScannerTests {
     public async Task ScanDirectoryAsync_ValidJsonFiles_ReturnsMemories() {
         var sut = CreateSut();
         var entry = MemoryEntry.Create(MemoryType.User, "hello world", now: DateTime.UtcNow) with { Id = "abc" };
-        _fs.WriteAllText("/mem/user/abc.json", MemoryJson(entry));
+        await _fs.WriteAllText("/mem/user/abc.json", MemoryJson(entry));
 
         var result = await sut.ScanDirectoryAsync("/mem/user").ConfigureAwait(true);
 
@@ -34,7 +34,7 @@ public sealed class MemoryScannerTests {
     [Fact]
     public async Task ScanDirectoryAsync_InvalidJson_IsIgnoredAndReturnsEmpty() {
         var sut = CreateSut();
-        _fs.WriteAllText("/mem/user/bad.json", "not json");
+        await _fs.WriteAllText("/mem/user/bad.json", "not json");
 
         var result = await sut.ScanDirectoryAsync("/mem/user").ConfigureAwait(true);
 
@@ -45,7 +45,7 @@ public sealed class MemoryScannerTests {
     public async Task ScanDirectoryAsync_IdMismatch_ReturnsMemory() {
         var sut = CreateSut();
         var entry = MemoryEntry.Create(MemoryType.User, "content", now: DateTime.UtcNow) with { Id = "realid" };
-        _fs.WriteAllText("/mem/user/wrongname.json", MemoryJson(entry));
+        await _fs.WriteAllText("/mem/user/wrongname.json", MemoryJson(entry));
 
         var result = await sut.ScanDirectoryAsync("/mem/user").ConfigureAwait(true);
 
@@ -57,7 +57,7 @@ public sealed class MemoryScannerTests {
         var sut = CreateSut();
         _pathsMock.Setup(p => p.GetMemoryDirectoryByType(MemoryType.Project, null)).Returns("/mem/project");
         var entry = MemoryEntry.Create(MemoryType.Project, "project memory", now: DateTime.UtcNow) with { Id = "p1" };
-        _fs.WriteAllText("/mem/project/p1.json", MemoryJson(entry));
+        await _fs.WriteAllText("/mem/project/p1.json", MemoryJson(entry));
 
         var result = await sut.ScanByTypeAsync(MemoryType.Project).ConfigureAwait(true);
 
@@ -71,8 +71,8 @@ public sealed class MemoryScannerTests {
             .Returns<MemoryType, string?>((type, _) => $"/mem/{type.ToString().ToLowerInvariant()}");
         var userEntry = MemoryEntry.Create(MemoryType.User, "user memory", now: DateTime.UtcNow) with { Id = "u1" };
         var refEntry = MemoryEntry.Create(MemoryType.Reference, "reference memory", now: DateTime.UtcNow) with { Id = "r1" };
-        _fs.WriteAllText("/mem/user/u1.json", MemoryJson(userEntry));
-        _fs.WriteAllText("/mem/reference/r1.json", MemoryJson(refEntry));
+        await _fs.WriteAllText("/mem/user/u1.json", MemoryJson(userEntry));
+        await _fs.WriteAllText("/mem/reference/r1.json", MemoryJson(refEntry));
 
         var result = await sut.ScanAllAsync().ConfigureAwait(true);
 

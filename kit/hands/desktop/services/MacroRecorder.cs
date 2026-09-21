@@ -111,9 +111,9 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder {
     }
 
     /// <summary>从文件加载宏</summary>
-    public Macro LoadMacro(string filePath) {
+    public async Task<Macro> LoadMacroAsync(string filePath) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-        var json = _fileSystem.ReadAllText(filePath);
+        var json = await _fileSystem.ReadAllText(filePath).ConfigureAwait(false);
         var macro = RelaxedJsonSerializer.Deserialize(json, MacroJsonContext.Default.Macro)
             ?? throw new InvalidOperationException("宏文件解析失败");
         _logger?.LogInformation("加载宏: {Name}, 共 {Count} 步", macro.Name, macro.Operations.Count);

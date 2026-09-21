@@ -185,8 +185,7 @@ internal static class TuiModeRunner {
                 break;
             }
         };
-
-        using var timer = new System.Threading.Timer(_ => {
+        await using var timer = new System.Threading.Timer(_ => {
             painter.Invoke(() => footerTab.SetElapsedTime(DateTime.UtcNow - startTime));
         }, null, 1000, 1000);
 

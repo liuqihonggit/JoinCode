@@ -20,8 +20,8 @@ public sealed class PerformanceBenchmarkTests : IDisposable {
     [Fact]
     public async Task IndexBuild_SmallWorkspace_Under5Seconds() {
         GenerateFiles(10, 50);
-        using var store = new InMemoryIndexStore();
-        using var indexer = new CodeIndexer(store, _fs);
+        await using var store = new InMemoryIndexStore();
+        await using var indexer = new CodeIndexer(store, _fs);
         var options = new CodeIndexOptions { WorkspaceRoot = _workspaceRoot };
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -34,8 +34,8 @@ public sealed class PerformanceBenchmarkTests : IDisposable {
     [Fact]
     public async Task IndexBuild_MediumWorkspace_Under30Seconds() {
         GenerateFiles(100, 100);
-        using var store = new InMemoryIndexStore();
-        using var indexer = new CodeIndexer(store, _fs);
+        await using var store = new InMemoryIndexStore();
+        await using var indexer = new CodeIndexer(store, _fs);
         var options = new CodeIndexOptions { WorkspaceRoot = _workspaceRoot };
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -48,8 +48,8 @@ public sealed class PerformanceBenchmarkTests : IDisposable {
     [Fact]
     public async Task IncrementalUpdate_SingleFile_Under500ms() {
         GenerateFiles(20, 80);
-        using var store = new InMemoryIndexStore();
-        using var indexer = new CodeIndexer(store, _fs);
+        await using var store = new InMemoryIndexStore();
+        await using var indexer = new CodeIndexer(store, _fs);
         var options = new CodeIndexOptions { WorkspaceRoot = _workspaceRoot };
         await indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
 
@@ -66,8 +66,8 @@ public sealed class PerformanceBenchmarkTests : IDisposable {
     [Fact]
     public async Task QueryLatency_SearchUnder50ms() {
         GenerateFiles(50, 100);
-        using var store = new InMemoryIndexStore();
-        using var indexer = new CodeIndexer(store, _fs);
+        await using var store = new InMemoryIndexStore();
+        await using var indexer = new CodeIndexer(store, _fs);
         var options = new CodeIndexOptions { WorkspaceRoot = _workspaceRoot };
         await indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
 
@@ -82,8 +82,8 @@ public sealed class PerformanceBenchmarkTests : IDisposable {
     [Fact]
     public async Task QueryLatency_CallGraphUnder100ms() {
         GenerateFiles(30, 80);
-        using var store = new InMemoryIndexStore();
-        using var indexer = new CodeIndexer(store, _fs);
+        await using var store = new InMemoryIndexStore();
+        await using var indexer = new CodeIndexer(store, _fs);
         var options = new CodeIndexOptions { WorkspaceRoot = _workspaceRoot };
         await indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
 
@@ -97,8 +97,8 @@ public sealed class PerformanceBenchmarkTests : IDisposable {
     [Fact]
     public async Task MemoryUsage_L1L2Under600MB() {
         GenerateFiles(100, 100);
-        using var store = new InMemoryIndexStore();
-        using var indexer = new CodeIndexer(store, _fs);
+        await using var store = new InMemoryIndexStore();
+        await using var indexer = new CodeIndexer(store, _fs);
         var options = new CodeIndexOptions { WorkspaceRoot = _workspaceRoot };
         await indexer.BuildIndexAsync(options, CancellationToken.None).ConfigureAwait(true);
 

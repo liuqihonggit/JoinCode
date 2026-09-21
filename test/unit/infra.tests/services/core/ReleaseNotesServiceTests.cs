@@ -4,7 +4,7 @@ public sealed class ReleaseNotesServiceTests {
     [Fact]
     public void Constructor_Should_Set_Default_Timeout() {
         var httpClient = new HttpClient();
-        using var service = new ReleaseNotesService(httpClient);
+        await using var service = new ReleaseNotesService(httpClient);
 
         service.Should().NotBeNull();
     }
@@ -12,7 +12,7 @@ public sealed class ReleaseNotesServiceTests {
     [Fact]
     public void Constructor_Should_Accept_Custom_Timeout() {
         var httpClient = new HttpClient();
-        using var service = new ReleaseNotesService(httpClient,
+        await using var service = new ReleaseNotesService(httpClient,
             requestTimeout: TimeSpan.FromSeconds(3),
             cacheDuration: TimeSpan.FromMinutes(30));
 

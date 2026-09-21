@@ -67,7 +67,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable {
     /// 这是 E2E 测试中 TranscriptFileWriter.AppendEntriesAsync 抛错的直接原因
     /// </summary>
     [Fact]
-    public void FileModeAppend_FileNotExists_ThrowsFileNotFoundException() {
+    public async Task FileModeAppend_FileNotExists_ThrowsFileNotFoundException() {
         // Arrange — 使用一个绝对不存在的文件路径
         var filePath = Path.Combine(_tempDir, "verify-filemode-append.json");
         _fs.FileExists(filePath).Should().BeFalse("前提: 文件确实不存在");
@@ -75,7 +75,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable {
         Exception? caught = null;
         // Act — 通过 IFileSystem.CreateStream(FileMode.Append),模拟 AppendEntriesAsync 的行为
         try {
-            _fs.CreateStream(filePath, FileMode.Append, FileAccess.Write, FileShare.None).Dispose();
+            await _fs.CreateStream(filePath, FileMode.Append, FileAccess.Write, FileShare.None).DisposeAsync();
         } catch (Exception ex) {
             caught = ex;
         } finally {
@@ -98,7 +98,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable {
     /// 这可能是 E2E 测试中错误的真正根因
     /// </summary>
     [Fact]
-    public void FileModeAppend_DirectoryNotExists_ThrowsDirectoryNotFoundException() {
+    public async Task FileModeAppend_DirectoryNotExists_ThrowsDirectoryNotFoundException() {
         // Arrange — 使用一个不存在的目录路径
         var nonexistentDir = Path.Combine(_tempDir, "nonexistent-dir");
         var filePath = Path.Combine(nonexistentDir, "test.json");
@@ -107,7 +107,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable {
         Exception? caught = null;
         // Act — 直接调用 CreateStream(FileMode.Append),不先创建目录
         try {
-            _fs.CreateStream(filePath, FileMode.Append, FileAccess.Write, FileShare.None).Dispose();
+            await _fs.CreateStream(filePath, FileMode.Append, FileAccess.Write, FileShare.None).DisposeAsync();
         } catch (Exception ex) {
             caught = ex;
         } finally {

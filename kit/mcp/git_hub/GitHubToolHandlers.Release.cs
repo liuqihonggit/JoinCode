@@ -227,7 +227,7 @@ public partial class GitHubToolHandlers {
         foreach (var filePath in filePaths) {
             var fileName = Path.GetFileName(filePath);
             try {
-                using var fileStream = _fs.OpenRead(filePath);
+                await using var fileStream = _fs.OpenRead(filePath);
                 var uploadResult = await _apiClient.UploadAssetAsync(owner, repoName, releaseId, fileName, fileStream, cancellationToken).ConfigureAwait(false);
                 if (uploadResult.Success) {
                     successCount++;

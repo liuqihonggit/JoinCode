@@ -20,9 +20,7 @@ public sealed class StoreAppStateRegistrationTests {
             var initialState = JoinCode.Abstractions.State.AppState.Default;
             return new global::State.Store<JoinCode.Abstractions.State.AppState>(initialState, null, logger);
         });
-
-        // Act
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var store = provider.GetService<global::State.IStore<JoinCode.Abstractions.State.AppState>>();
 
         // Assert
@@ -47,9 +45,7 @@ public sealed class StoreAppStateRegistrationTests {
             .ReturnsAsync((JoinCode.Abstractions.State.AppState?)null);
 
         services.AddSingleton(mockPersistence.Object);
-
-        // Act
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var persistence = provider.GetService<JoinCode.Abstractions.State.IStorePersistence<JoinCode.Abstractions.State.AppState>>();
 
         // Assert
@@ -70,9 +66,7 @@ public sealed class StoreAppStateRegistrationTests {
             var logger = sp.GetService<ILogger<global::State.Store<JoinCode.Abstractions.State.AppState>>>();
             return new global::State.Store<JoinCode.Abstractions.State.AppState>(JoinCode.Abstractions.State.AppState.Default, null, logger);
         });
-
-        // Act
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var store = provider.GetRequiredService<global::State.IStore<JoinCode.Abstractions.State.AppState>>();
 
         // Assert: AppState 是 record，Default 创建新实例，Store 内部可能修改

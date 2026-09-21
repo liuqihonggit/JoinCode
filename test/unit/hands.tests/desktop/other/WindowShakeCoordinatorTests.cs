@@ -6,20 +6,20 @@
 public sealed class WindowShakeCoordinatorTests {
     [Fact]
     public void TryAcquireShakeSlot_FirstCall_ReturnsTrue() {
-        using var coordinator = new WindowShakeCoordinator();
+        await using var coordinator = new WindowShakeCoordinator();
         coordinator.TryAcquireShakeSlot().Should().BeTrue();
     }
 
     [Fact]
     public void TryAcquireShakeSlot_SecondCallWithin1s_ReturnsFalse() {
-        using var coordinator = new WindowShakeCoordinator();
+        await using var coordinator = new WindowShakeCoordinator();
         coordinator.TryAcquireShakeSlot().Should().BeTrue();
         coordinator.TryAcquireShakeSlot().Should().BeFalse();
     }
 
     [Fact]
     public void TryAcquireShakeSlot_MultipleCallsWithin1s_OnlyFirstSucceeds() {
-        using var coordinator = new WindowShakeCoordinator();
+        await using var coordinator = new WindowShakeCoordinator();
         coordinator.TryAcquireShakeSlot().Should().BeTrue();
         coordinator.TryAcquireShakeSlot().Should().BeFalse();
         coordinator.TryAcquireShakeSlot().Should().BeFalse();
@@ -36,33 +36,33 @@ public sealed class WindowShakeCoordinatorTests {
 
     [Fact]
     public void TryAcquireShakeSlot_DifferentInstances_Independent() {
-        using var c1 = new WindowShakeCoordinator();
-        using var c2 = new WindowShakeCoordinator();
+        await using var c1 = new WindowShakeCoordinator();
+        await using var c2 = new WindowShakeCoordinator();
         c1.TryAcquireShakeSlot().Should().BeTrue();
         c2.TryAcquireShakeSlot().Should().BeTrue();
     }
 
     [Fact]
     public void IsShakeEnabled_NoProvider_ReturnsTrue() {
-        using var coordinator = new WindowShakeCoordinator();
+        await using var coordinator = new WindowShakeCoordinator();
         coordinator.IsShakeEnabled.Should().BeTrue();
     }
 
     [Fact]
     public void IsShakeEnabled_ProviderReturnsTrue_ReturnsTrue() {
-        using var coordinator = new WindowShakeCoordinator(shakeEnabledProvider: () => true);
+        await using var coordinator = new WindowShakeCoordinator(shakeEnabledProvider: () => true);
         coordinator.IsShakeEnabled.Should().BeTrue();
     }
 
     [Fact]
     public void IsShakeEnabled_ProviderReturnsFalse_ReturnsFalse() {
-        using var coordinator = new WindowShakeCoordinator(shakeEnabledProvider: () => false);
+        await using var coordinator = new WindowShakeCoordinator(shakeEnabledProvider: () => false);
         coordinator.IsShakeEnabled.Should().BeFalse();
     }
 
     [Fact]
     public void IsShakeEnabled_ProviderReturnsNull_FallsBackToConfigCache() {
-        using var coordinator = new WindowShakeCoordinator(shakeEnabledProvider: () => null);
+        await using var coordinator = new WindowShakeCoordinator(shakeEnabledProvider: () => null);
         coordinator.IsShakeEnabled.Should().BeTrue();
     }
 
@@ -107,8 +107,7 @@ public sealed class WindowShakeCoordinatorTests {
         var configMock = new Mock<IConfigurationService>();
         configMock.Setup(x => x.GetAsync("windowShakeEnabled", It.IsAny<CancellationToken>()))
             .ReturnsAsync("true");
-
-        using var coordinator = new WindowShakeCoordinator(configService: configMock.Object);
+        await using var coordinator = new WindowShakeCoordinator(configService: configMock.Object);
         coordinator.IsShakeEnabled.Should().BeTrue();
 
         configMock.Raise(x => x.SettingChanged += null,
@@ -127,8 +126,7 @@ public sealed class WindowShakeCoordinatorTests {
         var configMock = new Mock<IConfigurationService>();
         configMock.Setup(x => x.GetAsync("windowShakeEnabled", It.IsAny<CancellationToken>()))
             .ReturnsAsync("false");
-
-        using var coordinator = new WindowShakeCoordinator(
+        await using var coordinator = new WindowShakeCoordinator(
             configService: configMock.Object,
             shakeEnabledProvider: () => true);
 
@@ -140,8 +138,7 @@ public sealed class WindowShakeCoordinatorTests {
         var configMock = new Mock<IConfigurationService>();
         configMock.Setup(x => x.GetAsync("windowShakeEnabled", It.IsAny<CancellationToken>()))
             .ReturnsAsync("true");
-
-        using var coordinator = new WindowShakeCoordinator(configService: configMock.Object);
+        await using var coordinator = new WindowShakeCoordinator(configService: configMock.Object);
         coordinator.DisposeSafe();
 
         configMock.VerifyRemove(x => x.SettingChanged -= It.IsAny<EventHandler<SettingChangeEventArgs>>(), Times.Once);

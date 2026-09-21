@@ -42,7 +42,7 @@ public class ChatServiceTests : IAsyncLifetime {
 
     private async Task<ServiceProvider> CreateServiceProviderAsync() {
         if (_serviceProvider != null) {
-            _serviceProvider.Dispose();
+            await _serviceProvider.DisposeAsync().ConfigureAwait(false);
             _serviceProvider = null;
             await Task.Delay(100).ConfigureAwait(true);
         }

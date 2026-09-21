@@ -21,12 +21,12 @@ public sealed partial class PermissionCacheMiddleware : ServiceEntity, ISettings
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public Task InvokeAsync(SettingsContext context, MiddlewareDelegate<SettingsContext> next, CancellationToken ct) {
-        _toolPermissionManager?.ClearCache();
+    public async Task InvokeAsync(SettingsContext context, MiddlewareDelegate<SettingsContext> next, CancellationToken ct) {
         if (_toolPermissionManager is not null) {
+            await _toolPermissionManager.ClearCacheAsync().ConfigureAwait(false);
             context.Logger?.LogDebug("权限规则缓存已清除");
         }
 
-        return next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace Infra.Services.Tests.Network.Downloader;
+namespace Infra.Services.Tests.Network.Downloader;
 
 /// <summary>
 /// DownloadSession 状态流转测试 — 验证 Pause/Resume/资源变更/大文件并发
@@ -42,7 +42,7 @@ public sealed class DownloadSessionStateTransitionTests {
 
         result.Success.Should().BeTrue();
         result.FinalState.Should().Be(DownloadState.Completed);
-        (await fs.ReadAllBytes(FilePath).ConfigureAwait(false)).Should().Equal(data);
+        (await fs.ReadAllBytes(FilePath)).Should().Equal(data);
     }
 
     // === 资源变更:ETag 不匹配 → 重新下载 ===
@@ -74,7 +74,7 @@ public sealed class DownloadSessionStateTransitionTests {
 
         result.Success.Should().BeTrue();
         result.FinalState.Should().Be(DownloadState.Completed);
-        (await fs.ReadAllBytes(FilePath).ConfigureAwait(false)).Should().Equal(data);
+        (await fs.ReadAllBytes(FilePath)).Should().Equal(data);
     }
 
     // === 大文件多线程并发 ===
@@ -89,7 +89,7 @@ public sealed class DownloadSessionStateTransitionTests {
 
         result.Success.Should().BeTrue();
         result.TotalBytes.Should().Be(256 * 1024);
-        (await fs.ReadAllBytes(FilePath).ConfigureAwait(false)).Should().Equal(data);
+        (await fs.ReadAllBytes(FilePath)).Should().Equal(data);
     }
 
     // === Pause 后元数据已保存 ===

@@ -183,7 +183,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable {
     public async Task WebSocket_SetSelection_WithoutIdeService_ShouldReturnFailure() {
         // Arrange — 启动一个无 IDE 服务的 BridgeServer 实例
         var port = Random.Shared.Next(9800, 9999);
-        using var serverNoIde = new BridgeServer(
+        await using var serverNoIde = new BridgeServer(
             CreateFileOpMock().Object,
             port: port,
             logger: NullLogger<BridgeServer>.Instance,

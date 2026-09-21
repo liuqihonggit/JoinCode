@@ -60,7 +60,7 @@ public class MacroToolHandlers {
         CancellationToken ct = default) {
         Macro macro;
         try {
-            macro = _recorder.LoadMacro(filePath);
+            macro = await _recorder.LoadMacroAsync(filePath).ConfigureAwait(false);
         } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"加载宏失败: {ex.Message}").Build();
         }

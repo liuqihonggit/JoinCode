@@ -33,7 +33,7 @@ public sealed class SessionRouterTests {
     public void Resolve_跨会话跳转_可获取() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        using var goal = new Goal("测试目标");
+        await using var goal = new Goal("测试目标");
         scope.Register(goal);
 
         var resolved = SessionRouter.Resolve<Goal>(sessionId, goal.ObjectId);
@@ -48,8 +48,7 @@ public sealed class SessionRouterTests {
         var sessionIdB = new ObjectId(ObjectType.Session);
         var scopeA = SessionRouter.GetOrCreateScope(sessionIdA);
         var scopeB = SessionRouter.GetOrCreateScope(sessionIdB);
-
-        using var goalA = new Goal("会话A的目标");
+        await using var goalA = new Goal("会话A的目标");
         scopeA.Register(goalA);
 
         // 会话B 无法通过 goalA 的 ObjectId 获取到它
@@ -73,8 +72,8 @@ public sealed class SessionRouterTests {
     public void RemoveScope_清理其所有Entity() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        using var goal1 = new Goal("目标1", sessionId: sessionId);
-        using var goal2 = new Goal("目标2", sessionId: sessionId);
+        await using var goal1 = new Goal("目标1", sessionId: sessionId);
+        await using var goal2 = new Goal("目标2", sessionId: sessionId);
         scope.Register(goal1);
         scope.Register(goal2);
 

@@ -1,4 +1,4 @@
-﻿namespace Infra.Services.Tests.Network.Downloader;
+namespace Infra.Services.Tests.Network.Downloader;
 
 /// <summary>
 /// ChunkDownloader 单元测试 — 验证单分片下载:Range头/续传偏移/写入.part/更新Downloaded/HTTP错误/完成标记
@@ -51,7 +51,7 @@ public sealed class ChunkDownloaderTests {
         await downloader.DownloadAsync(Url, chunk, PartPath);
 
         fs.FileExists(PartPath).Should().BeTrue();
-        var written = await fs.ReadAllBytes(PartPath).ConfigureAwait(false);
+        var written = await fs.ReadAllBytes(PartPath);
         written.Should().Equal(data);
     }
 

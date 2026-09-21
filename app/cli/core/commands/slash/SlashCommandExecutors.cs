@@ -56,7 +56,7 @@ internal static class SlashCallExecutor {
         var argsStdin = FlatSubCommandRouter.HasFlag(args, ToolCallArgCliOptionConstants.ArgsStdinLongName);
 
         if (argsStdin) {
-            using var stream = System.Console.OpenStandardInput();
+            await using var stream = System.Console.OpenStandardInput();
             using var ms = new System.IO.MemoryStream();
             await stream.CopyToAsync(ms, ct).ConfigureAwait(false);
             var bytes = ms.ToArray();

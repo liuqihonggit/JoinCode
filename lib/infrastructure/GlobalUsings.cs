@@ -21,6 +21,7 @@ global using IO.Configuration;
 global using IO.FileSystem;
 global using IO.Services;
 global using JoinCode.Abstractions.Attributes;
+global using JoinCode.BclBridge;
 global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Configuration.AppData;

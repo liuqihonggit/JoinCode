@@ -12,9 +12,8 @@ public sealed class SystemPromptDumpTests {
             BuildTime = "2026-06-24",
             LanguagePreference = "简体中文"
         };
-
-        using var provider = new DefaultSystemPromptProvider(fs, options);
-        using var builder = new SystemPromptBuilder();
+        await using var provider = new DefaultSystemPromptProvider(fs, options);
+        await using var builder = new SystemPromptBuilder();
         builder.AddFromProvider(provider);
 
         var (staticPrefix, dynamicSuffix) = builder.BuildPartitioned();

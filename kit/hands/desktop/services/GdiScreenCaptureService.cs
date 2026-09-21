@@ -76,9 +76,9 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
             for (var i = 3; i < bytes.Length; i += 4) bytes[i] = 255;
 
             using var image = Image.LoadPixelData<Bgra32>(bytes, width, height);
-            using var ms = new MemoryStream();
-            image.Save(ms, new PngEncoder());
-            return Convert.ToBase64String(ms.ToArray());
+            var bufferWriter = new ArrayBufferWriter<byte>();
+            image.Save(bufferWriter, new PngEncoder());
+            return Convert.ToBase64String(bufferWriter.WrittenSpan);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "截图失败: ({X},{Y},{W},{H})", x, y, width, height);
             return string.Empty;

@@ -172,7 +172,7 @@ internal static class PipeAcceptLoop {
             while (!ct.IsCancellationRequested) {
                 var server = NamedPipeFactory.CreateServer(pipeName);
                 try {
-                    using var reg = ct.Register(static s => ((NamedPipeServerStream)s!).Dispose(), server);
+                    await using var reg = ct.Register(static s => ((NamedPipeServerStream)s!).Dispose(), server);
                     await server.WaitForConnectionAsync(ct).ConfigureAwait(false);
                     reg.Unregister();
                     TransportDiagnostics.Log("PIPE-ACCEPT", () => $"accepted connection on {pipeName}");

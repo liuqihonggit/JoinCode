@@ -13,7 +13,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void GetProfile_Coordinator_ReturnsCoordinatorProfile() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var profile = registry.GetProfile(AgentRole.Coordinator);
@@ -26,7 +26,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void GetProfile_ExecutorCode_ReturnsCodeProfile() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.Code);
@@ -40,7 +40,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void GetProfile_ExecutorExplore_IsOneShot() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.Explore);
@@ -53,7 +53,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void GetProfile_ExecutorDoctor_IsBackground() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.Doctor);
@@ -65,7 +65,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void GetProfile_UnknownVariant_ReturnsNull() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var profile = registry.GetProfile(AgentRole.Executor, (ExecutorVariant)999);
@@ -86,8 +86,7 @@ public sealed class AgentRoleProfileRegistryTests {
         providerMock
             .Setup(x => x.GetAgentDefinitionsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([customDef]);
-
-        using var registry = new AgentRoleProfileRegistry(providerMock.Object);
+        await using var registry = new AgentRoleProfileRegistry(providerMock.Object);
         registry.RegisterBuiltInProfiles();
 
         var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.Code);
@@ -98,7 +97,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void GetAvailableVariants_ReturnsEightVariants() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var variants = registry.GetAvailableVariants();
@@ -113,7 +112,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void Register_AddsCustomProfile() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var custom = new AgentRoleProfile {
@@ -130,7 +129,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void ClearCache_ResetsToBuiltInProfiles() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var custom = new AgentRoleProfile {
@@ -149,7 +148,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void GetProfilesByRole_ReturnsOnlyExecutorProfiles() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var executorProfiles = registry.GetProfilesByRole(AgentRole.Executor);
@@ -160,7 +159,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void GetProfile_ExecutorVerification_HasCorrectTools() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.Verification);
@@ -173,7 +172,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void GetProfile_ExecutorJoinCodeGuide_HasCorrectTools() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.JoinCodeGuide);
@@ -186,7 +185,7 @@ public sealed class AgentRoleProfileRegistryTests {
 
     [Fact]
     public void GetProfile_ExecutorContextCompression_HasCorrectTools() {
-        using var registry = new AgentRoleProfileRegistry();
+        await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
         var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.ContextCompression);

@@ -110,7 +110,7 @@ public sealed class NetworkConnectivityServiceTest {
     [Fact]
     public void RefreshState_WhenStateChanges_RaisesStateChangedEvent() {
         var interfaces = new List<NetworkInterfaceInfo>();
-        using var sut = new NetworkConnectivityService(
+        await using var sut = new NetworkConnectivityService(
             interfaceProvider: () => interfaces,
             vpnProcessDetector: () => false,
             proxyEnvDetector: () => false);

@@ -167,9 +167,7 @@ public sealed class InMemoryFileSystem : IFileSystem {
         var normalizedPath = NormalizePath(path);
         if (_files.TryGetValue(normalizedPath, out var file)) {
             if (file.ByteContent is not null) {
-                using var ms = new MemoryStream(file.ByteContent, writable: false);
-                using var reader = new StreamReader(ms, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-                return reader.ReadToEnd();
+                return BclFileIO.Instance.DecodeBytes(file.ByteContent).Content;
             }
             return file.Content;
         }

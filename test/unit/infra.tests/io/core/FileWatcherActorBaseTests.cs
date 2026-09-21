@@ -13,7 +13,7 @@ public class FileWatcherActorBaseTests {
         await actor.SendAsync(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
         await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
-        fs.WriteAllText($"{dir}/a.txt", "hello");
+        await fs.WriteAllText($"{dir}/a.txt", "hello");
         var found = await WaitForAsync(
             () => actor.GetChanges().Any(c => c.FilePath.EndsWith("a.txt")),
             TimeSpan.FromSeconds(3)).ConfigureAwait(true);
@@ -30,7 +30,7 @@ public class FileWatcherActorBaseTests {
         await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
         actor.MarkInternalWrite($"{dir}/b.txt");
-        fs.WriteAllText($"{dir}/b.txt", "data");
+        await fs.WriteAllText($"{dir}/b.txt", "data");
         await Task.Delay(300);
 
         var changes = actor.GetChanges();
@@ -60,7 +60,7 @@ public class FileWatcherActorBaseTests {
         await actor.SendAsync(new FileWatcherStopCmd());
         await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
-        fs.WriteAllText($"{dir}/c.txt", "after-stop");
+        await fs.WriteAllText($"{dir}/c.txt", "after-stop");
         await Task.Delay(300);
 
         var changes = actor.GetChanges();

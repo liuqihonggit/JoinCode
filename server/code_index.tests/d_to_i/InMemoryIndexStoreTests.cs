@@ -52,28 +52,28 @@ public sealed class InMemoryIndexStoreTests : IDisposable {
 
     [Fact]
     public void EnterWriteLock_AfterDispose_Throws() {
-        _store.Dispose();
+        await _store.DisposeAsync().ConfigureAwait(false);
 
         Assert.Throws<ObjectDisposedException>(() => _store.EnterWriteLock());
     }
 
     [Fact]
     public void EnterReadLock_AfterDispose_Throws() {
-        _store.Dispose();
+        await _store.DisposeAsync().ConfigureAwait(false);
 
         Assert.Throws<ObjectDisposedException>(() => _store.EnterReadLock());
     }
 
     [Fact]
     public void EnterUpgradeableReadLock_AfterDispose_Throws() {
-        _store.Dispose();
+        await _store.DisposeAsync().ConfigureAwait(false);
 
         Assert.Throws<ObjectDisposedException>(() => _store.EnterUpgradeableReadLock());
     }
 
     [Fact]
     public void Clear_AfterDispose_Throws() {
-        _store.Dispose();
+        await _store.DisposeAsync().ConfigureAwait(false);
 
         Assert.Throws<ObjectDisposedException>(() => _store.Clear());
     }

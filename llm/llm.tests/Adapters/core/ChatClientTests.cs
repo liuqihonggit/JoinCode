@@ -11,14 +11,14 @@ public sealed class ChatClientTests {
     [Fact]
     public void Constructor_ExposesCompletionService() {
         var queryService = new Mock<IQueryService>().Object;
-        using var client = new ChatClient(queryService);
+        await using var client = new ChatClient(queryService);
 
         client.GetChatCompletionService().Should().Be(queryService);
     }
 
     [Fact]
     public void Plugins_ReturnsEmptyCollectionByDefault() {
-        using var client = new ChatClient(new Mock<IQueryService>().Object);
+        await using var client = new ChatClient(new Mock<IQueryService>().Object);
 
         client.Plugins.PluginNames.Should().BeEmpty();
     }

@@ -3,7 +3,7 @@
 public sealed class SessionMetaUpdatedAtTests {
     [Fact]
     public void ToMeta_WithTicks_PersistsUpdatedAt() {
-        using var stats = new SessionStats();
+        await using var stats = new SessionStats();
         stats.RecordTurn(new TokenUsage(100, 200));
         const long ticks = 638400000000000000L;
 
@@ -14,7 +14,7 @@ public sealed class SessionMetaUpdatedAtTests {
 
     [Fact]
     public void ToMeta_WithoutTicks_DefaultsToZero() {
-        using var stats = new SessionStats();
+        await using var stats = new SessionStats();
 
         var meta = stats.ToMeta();
 

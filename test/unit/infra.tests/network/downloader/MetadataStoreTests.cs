@@ -49,7 +49,7 @@ public sealed class MetadataStoreTests {
     [Fact]
     public void TryLoad_CorruptJson_ReturnsNull() {
         var metaPath = MetadataStore.GetMetadataPath(FilePath);
-        _fs.WriteAllText(metaPath, "{ this is not valid json }}}");
+        await _fs.WriteAllText(metaPath, "{ this is not valid json }}}");
 
         var result = _store.TryLoad(FilePath);
         result.Should().BeNull();

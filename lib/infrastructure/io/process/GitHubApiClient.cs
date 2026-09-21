@@ -214,7 +214,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         Stream stream, string scope,
         [EnumeratorCancellation] CancellationToken ct) {
         // 缓冲到 MemoryStream: ZipArchive 需要 seek + 需要读前 2 字节检测格式
-        using var memStream = new MemoryStream();
+        await using var memStream = new MemoryStream();
         await stream.CopyToAsync(memStream, ct).ConfigureAwait(false);
         memStream.Position = 0;
 

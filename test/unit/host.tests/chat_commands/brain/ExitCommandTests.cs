@@ -102,7 +102,7 @@ public class TerminalHelperRealOutTests {
         JoinCode.Cli.TerminalHelper.Init();
         var originalOut = System.Console.Out;
         var sb = new StringBuilder();
-        using var stringWriter = new StringWriter(sb);
+        await using var stringWriter = new StringWriter(sb);
         try {
             JoinCode.Cli.TerminalHelper.SetOut(stringWriter);
             JoinCode.Cli.TerminalHelper.WriteLineReal("确认提示测试");
@@ -117,7 +117,7 @@ public class TerminalHelperRealOutTests {
         JoinCode.Cli.TerminalHelper.Init();
         var originalOut = System.Console.Out;
         var sb = new StringBuilder();
-        using var stringWriter = new StringWriter(sb);
+        await using var stringWriter = new StringWriter(sb);
         try {
             JoinCode.Cli.TerminalHelper.SetOut(stringWriter);
             JoinCode.Cli.TerminalHelper.WriteRawReal("raw提示测试");

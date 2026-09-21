@@ -61,7 +61,7 @@ public sealed partial class ClearCommand : ChatCommandBase {
 
         // 4. 清除会话缓存
         // 对齐 TS: clearSessionCaches
-        ClearSessionCaches(context);
+        await ClearSessionCachesAsync(context).ConfigureAwait(false);
 
         // 5. 异步清除思考存储
         var thinkingStore = context.GetCommandServices().ThinkingStore;
@@ -102,7 +102,7 @@ public sealed partial class ClearCommand : ChatCommandBase {
     /// 清除会话相关缓存
     /// 对齐 TS: clearSessionCaches — 清除上下文缓存、技能缓存、命令缓存等
     /// </summary>
-    private static void ClearSessionCaches(ChatCommandContext context) {
+    private static async Task ClearSessionCachesAsync(ChatCommandContext context) {
         // 1. 通用缓存服务（含工具信息缓存等）
         var cacheService = GetService<ICacheService>(context);
         cacheService?.Clear();
@@ -176,6 +176,7 @@ public sealed partial class ClearCommand : ChatCommandBase {
 
         // 20. 工具权限缓存 — 对齐 TS: IToolPermissionManager.ClearCache
         var toolPermManager = GetService<JoinCode.Abstractions.Security.Permission.IToolPermissionManager>(context);
-        toolPermManager?.ClearCache();
+        if (toolPermManager is not null)
+            await toolPermManager.ClearCacheAsync().ConfigureAwait(false);
     }
 }

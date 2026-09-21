@@ -59,7 +59,7 @@ internal static class NativeDllBootstrapper {
             return true;
 
         try {
-            using var stream = asm.GetManifestResourceStream(resourceName);
+            await using var stream = asm.GetManifestResourceStream(resourceName);
             if (stream is null)
                 return false;
 
@@ -74,7 +74,7 @@ internal static class NativeDllBootstrapper {
     /// 从嵌入资源释放单个 DLL 到目标路径。
     /// </summary>
     private static void ExtractResource(System.Reflection.Assembly asm, string resourceName, string targetPath) {
-        using var stream = asm.GetManifestResourceStream(resourceName);
+        await using var stream = asm.GetManifestResourceStream(resourceName);
         if (stream is null)
             return;
 

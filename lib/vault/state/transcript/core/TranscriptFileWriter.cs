@@ -178,10 +178,10 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
         }
     }
 
-    private void EnsureFileExists(string filePath) {
+    private async Task EnsureFileExists(string filePath) {
         if (!_fs.FileExists(filePath)) {
             try {
-                _fs.CreateStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite).Dispose();
+                await _fs.CreateStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite).DisposeAsync().ConfigureAwait(false);
             } catch (IOException ex) when (_fs.FileExists(filePath)) {
                 _logger?.LogDebug(ex, "Transcript file already exists (created by another process): {FilePath}", filePath);
             } catch (UnauthorizedAccessException) {

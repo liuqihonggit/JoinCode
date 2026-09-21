@@ -72,7 +72,7 @@ public class DownloadToolHandlers {
 
             RecordDownloadMetrics("ok", result.TotalBytes);
             var sizeStr = ContentReplacementConstants.FormatFileSize(result.TotalBytes);
-            var md5 = ComputeFileMd5(file_path);
+            var md5 = await ComputeFileMd5Async(file_path).ConfigureAwait(false);
             var md5Text = md5 is not null ? $", MD5={md5}" : "";
             return ToolResultBuilder.Success()
                 .WithText($"下载完成: {file_path} ({sizeStr}, 耗时 {result.Elapsed.TotalSeconds:F1}s{md5Text})")
@@ -91,13 +91,13 @@ public class DownloadToolHandlers {
         }
     }
 
-    private string? ComputeFileMd5(string filePath) {
+    private async Task<string?> ComputeFileMd5Async(string filePath) {
         if (_fs is null || !_fs.FileExists(filePath))
             return null;
         try {
-            using var stream = _fs.OpenRead(filePath);
+            await using var stream = _fs.OpenRead(filePath);
             using var md5 = System.Security.Cryptography.MD5.Create();
-            var hash = md5.ComputeHash(stream);
+            var hash = await md5.ComputeHashAsync(stream).ConfigureAwait(false);
             return Convert.ToHexString(hash).ToLowerInvariant();
         } catch (Exception ex) {
             System.Diagnostics.Debug.WriteLine($"MD5 计算失败: {ex.Message}");

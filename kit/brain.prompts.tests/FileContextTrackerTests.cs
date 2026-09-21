@@ -3,14 +3,14 @@
 public sealed class FileContextTrackerTests {
     [Fact]
     public void Initial_State_Should_Be_Empty() {
-        using var tracker = new FileContextTracker();
+        await using var tracker = new FileContextTracker();
 
         tracker.CurrentFilePaths.Should().BeEmpty();
     }
 
     [Fact]
     public void UpdateFilePaths_Should_Set_Paths() {
-        using var tracker = new FileContextTracker();
+        await using var tracker = new FileContextTracker();
         var paths = new[] { "file1.cs", "file2.ts" };
 
         tracker.UpdateFilePaths(paths);
@@ -22,7 +22,7 @@ public sealed class FileContextTrackerTests {
 
     [Fact]
     public void UpdateFilePaths_With_Null_Should_Clear() {
-        using var tracker = new FileContextTracker();
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["file1.cs"]);
 
         tracker.UpdateFilePaths(null!);
@@ -32,7 +32,7 @@ public sealed class FileContextTrackerTests {
 
     [Fact]
     public void Clear_Should_Reset_To_Empty() {
-        using var tracker = new FileContextTracker();
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["file1.cs", "file2.ts"]);
 
         tracker.Clear();
@@ -42,7 +42,7 @@ public sealed class FileContextTrackerTests {
 
     [Fact]
     public void UpdateFilePaths_Should_Replace_Previous_Paths() {
-        using var tracker = new FileContextTracker();
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["old.cs"]);
 
         tracker.UpdateFilePaths(["new1.cs", "new2.ts"]);
@@ -54,7 +54,7 @@ public sealed class FileContextTrackerTests {
 
     [Fact]
     public void UpdateFilePaths_With_Empty_Array_Should_Clear() {
-        using var tracker = new FileContextTracker();
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["file1.cs"]);
 
         tracker.UpdateFilePaths(Array.Empty<string>());
@@ -64,7 +64,7 @@ public sealed class FileContextTrackerTests {
 
     [Fact]
     public void UpdateFilePaths_Should_Deduplicate_CaseInsensitive() {
-        using var tracker = new FileContextTracker();
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["File1.cs", "file1.cs"]);
 
         tracker.CurrentFilePaths.Should().HaveCount(1);
@@ -72,14 +72,14 @@ public sealed class FileContextTrackerTests {
 
     [Fact]
     public void Initial_User_Message_Should_Be_Empty() {
-        using var tracker = new FileContextTracker();
+        await using var tracker = new FileContextTracker();
 
         tracker.CurrentUserMessage.Should().BeEmpty();
     }
 
     [Fact]
     public void UpdateUserMessage_Should_Set_Message() {
-        using var tracker = new FileContextTracker();
+        await using var tracker = new FileContextTracker();
 
         tracker.UpdateUserMessage("修复bug");
 
@@ -88,7 +88,7 @@ public sealed class FileContextTrackerTests {
 
     [Fact]
     public void UpdateUserMessage_With_Null_Should_Set_Empty() {
-        using var tracker = new FileContextTracker();
+        await using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
 
         tracker.UpdateUserMessage(null!);
@@ -98,7 +98,7 @@ public sealed class FileContextTrackerTests {
 
     [Fact]
     public void Clear_Should_Reset_User_Message() {
-        using var tracker = new FileContextTracker();
+        await using var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
 
         tracker.Clear();

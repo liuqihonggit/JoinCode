@@ -246,8 +246,7 @@ public sealed class McpCliCommand {
 
         string? json = null;
         if (argsStdin) {
-            // 读取 stdin 原始字节，循环去除所有前导 UTF-8 BOM（PowerShell 管道可能注入多个 BOM）
-            using var stream = System.Console.OpenStandardInput();
+            await using var stream = System.Console.OpenStandardInput();
             using var ms = new System.IO.MemoryStream();
             stream.CopyTo(ms);
             var bytes = ms.ToArray();

@@ -121,7 +121,7 @@ public sealed class ProjectRulesLoaderTests {
         _fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(false);
         _fs.Setup(x => x.GetCurrentDirectory()).Returns(BaseDir);
         _fs.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(false);
-        using var loader = new ProjectRulesLoader(_fs.Object);
+        await using var loader = new ProjectRulesLoader(_fs.Object);
 
         Assert.False(loader.HasRulesFile(BaseDir));
     }
@@ -141,7 +141,7 @@ public sealed class ProjectRulesLoaderTests {
         _fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(false);
         _fs.Setup(x => x.GetCurrentDirectory()).Returns(BaseDir);
         _fs.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(false);
-        using var loader = new ProjectRulesLoader(_fs.Object);
+        await using var loader = new ProjectRulesLoader(_fs.Object);
 
         var path = loader.GetRulesFilePath(BaseDir);
 

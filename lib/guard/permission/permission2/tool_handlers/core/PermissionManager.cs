@@ -70,7 +70,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
 
         if (IsToolTemporarilyApproved(request.ToolName)) {
             var grantedResult = PermissionResult.Granted();
-            CacheResult(cacheKey, grantedResult);
+            await CacheResultAsync(cacheKey, grantedResult).ConfigureAwait(false);
             return grantedResult;
         }
 
@@ -91,7 +91,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
                 request.ToolName, request.RequestId, checkResult.Reason);
         }
 
-        CacheResult(cacheKey, result);
+        await CacheResultAsync(cacheKey, result).ConfigureAwait(false);
 
         return result;
     }
@@ -105,7 +105,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
             _permissionChecker.CurrentMode = mode;
         }
 
-        ClearCache();
+        await ClearCacheAsync().ConfigureAwait(false);
 
         _logger?.LogInformation("权限模式已切换: {Mode}", mode);
     }
@@ -165,9 +165,9 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     /// <summary>
     /// 清除所有缓存
     /// </summary>
-    public void ClearCache() {
+    public async Task ClearCacheAsync() {
         foreach (var scope in SessionRouter.GetAllScopes())
-            scope.Cache.Clear();
+            await scope.Cache.ClearAsync().ConfigureAwait(false);
         _logger?.LogDebug("权限缓存已清除");
     }
 
@@ -290,7 +290,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         return true;
     }
 
-    private void CacheResult(string cacheKey, PermissionResult result) {
+    private async Task CacheResultAsync(string cacheKey, PermissionResult result) {
         if (result.RequiresConfirmation) return;
 
         var sessionId = SessionContext.Current;
@@ -298,7 +298,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
 
         var scope = SessionRouter.GetOrCreateScope(sessionId.Value);
         var cached = new CachedPermissionResult(result, _timeProvider.GetUtcNow().Add(CacheExpiration));
-        scope.Cache.Set(cacheKey, cached, CacheExpiration);
+        await scope.Cache.SetAsync(cacheKey, cached, CacheExpiration).ConfigureAwait(false);
     }
 
     private bool IsToolTemporarilyApproved(string toolName) {

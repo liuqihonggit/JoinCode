@@ -61,7 +61,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable {
         var hash = "ABCDEF0123456789";
         var originalContent = new string('x', 1025);
 
-        _pasteStore.Setup(p => p.RetrievePastedText(hash)).Returns(originalContent);
+        _pasteStore.Setup(p => p.RetrievePastedText(hash)).Returns(ValueTask.FromResult<string?>(originalContent));
 
         var filePath = Path.Combine(_tempDir, "resolve.json");
         var line = $$"""[{"sessionId":"s1","role":"user","content":"","contentHash":"{{hash}}","timestamp":"2026-07-30T00:00:00Z"}]""";
@@ -76,7 +76,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable {
     [Fact]
     public async Task LoadTranscriptAsync_WithContentHash_MissingInPasteStore_ShouldKeepHash() {
         var hash = "MISSINGHASH0000";
-        _pasteStore.Setup(p => p.RetrievePastedText(hash)).Returns((string?)null);
+        _pasteStore.Setup(p => p.RetrievePastedText(hash)).Returns(ValueTask.FromResult<string?>(null));
 
         var filePath = Path.Combine(_tempDir, "missing.json");
         var line = $$"""[{"sessionId":"s1","role":"user","content":"","contentHash":"{{hash}}","timestamp":"2026-07-30T00:00:00Z"}]""";

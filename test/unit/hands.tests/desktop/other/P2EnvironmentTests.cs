@@ -8,7 +8,7 @@ public sealed class P2EnvironmentTests {
 
     [Fact]
     public void UndoStack_PushPop_LifoOrder() {
-        using var stack = new UndoStack();
+        await using var stack = new UndoStack();
         var op1 = new DesktopOperation(DesktopOperationKind.Click, 100, 200, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null);
         var op2 = new DesktopOperation(DesktopOperationKind.KeyPress, 0, 0, "Enter", null, KeyModifier.None, DateTimeOffset.UtcNow, true, null);
 
@@ -25,14 +25,14 @@ public sealed class P2EnvironmentTests {
 
     [Fact]
     public void UndoStack_PopEmpty_ReturnsNull() {
-        using var stack = new UndoStack();
+        await using var stack = new UndoStack();
         stack.Pop().Should().BeNull();
         stack.Count.Should().Be(0);
     }
 
     [Fact]
     public void UndoStack_Peek_DoesNotRemove() {
-        using var stack = new UndoStack();
+        await using var stack = new UndoStack();
         var op = new DesktopOperation(DesktopOperationKind.Click, 10, 20, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null);
 
         stack.Push(op);
@@ -43,13 +43,13 @@ public sealed class P2EnvironmentTests {
 
     [Fact]
     public void UndoStack_PeekEmpty_ReturnsNull() {
-        using var stack = new UndoStack();
+        await using var stack = new UndoStack();
         stack.Peek().Should().BeNull();
     }
 
     [Fact]
     public void UndoStack_GetRecent_ReturnsLatestN() {
-        using var stack = new UndoStack();
+        await using var stack = new UndoStack();
         for (var i = 0; i < 5; i++) {
             stack.Push(new DesktopOperation(DesktopOperationKind.Click, i, 0, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null));
         }
@@ -63,7 +63,7 @@ public sealed class P2EnvironmentTests {
 
     [Fact]
     public void UndoStack_GetRecent_ZeroOrNegative_ReturnsEmpty() {
-        using var stack = new UndoStack();
+        await using var stack = new UndoStack();
         stack.Push(new DesktopOperation(DesktopOperationKind.Click, 0, 0, null, null, null, DateTimeOffset.UtcNow, true, null));
 
         stack.GetRecent(0).Should().BeEmpty();
@@ -72,7 +72,7 @@ public sealed class P2EnvironmentTests {
 
     [Fact]
     public void UndoStack_Clear_EmptiesStack() {
-        using var stack = new UndoStack();
+        await using var stack = new UndoStack();
         stack.Push(new DesktopOperation(DesktopOperationKind.Click, 0, 0, null, null, null, DateTimeOffset.UtcNow, true, null));
         stack.Push(new DesktopOperation(DesktopOperationKind.Click, 1, 0, null, null, null, DateTimeOffset.UtcNow, true, null));
 

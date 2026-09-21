@@ -73,5 +73,5 @@ public interface IToolPermissionManager {
     /// <summary>
     /// 清除权限缓存 — 对齐 TS: IToolPermissionManager.ClearCache
     /// </summary>
-    void ClearCache();
+    Task ClearCacheAsync();
 }

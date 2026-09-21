@@ -40,11 +40,6 @@ public sealed class SyncDisposeOnAsyncDisposableRule : AnalyzerRuleBase<SyncDisp
             || SymbolEqualityComparer.Default.Equals(receiverType, iasyncDisposableType);
         if (!implementsIAsyncDisposable) return;
 
-        var implementsIDisposable = receiverType.AllInterfaces.Contains(idisposableType, SymbolEqualityComparer.Default)
-            || SymbolEqualityComparer.Default.Equals(receiverType, idisposableType);
-        // 双接口类型(IDisposable + IAsyncDisposable)用同步 Dispose 是合法的
-        if (implementsIDisposable) return;
-
         if (IsInsideDisposeMethod(invocation)) return;
         if (IsInsideLambda(invocation)) return;
 
@@ -85,10 +80,6 @@ public sealed class SyncDisposeOnAsyncDisposableRule : AnalyzerRuleBase<SyncDisp
         return string.Empty;
     }
 
-    private static bool IsWhitelistedDualInterface(INamedTypeSymbol type) {
-        var fullName = type.OriginalDefinition.ToDisplayString();
-        return fullName is "System.Threading.CancellationTokenSource"
-            or "System.IO.MemoryStream"
-            or "System.Threading.CancellationTokenRegistration";
-    }
+    /// <summary>BCL 白名单已移除 — BCL 调用通过 lib/bcl_bridge/ 隔离区封装，分析器不扫描隔离区</summary>
+    private static bool IsWhitelistedDualInterface(INamedTypeSymbol type) => false;
 }

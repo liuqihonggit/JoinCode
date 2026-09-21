@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 内部结构: map&lt;ObjectId, Entity&gt; 实际存储 + map&lt;ObjectType, HashSet&lt;ObjectId&gt;&gt; 类型分桶索引
 /// 会话 Dispose 时清理其所有 Entity
 /// </summary>
-public sealed class SessionScope : IDisposable {
+public sealed class SessionScope : IAsyncDisposable {
     private readonly ConcurrentDictionary<ObjectId, Entity> _entities = new();
     private readonly ConcurrentDictionary<ObjectType, HashSet<ObjectId>> _typeIndex = new();
     private readonly AsyncLock _indexLock = new("SessionScope");
@@ -96,17 +96,17 @@ public sealed class SessionScope : IDisposable {
     }
 
     /// <summary>
-    /// 释放此会话作用域 — Dispose 所有注册的 Entity，清空索引
-    /// 单个 Entity Dispose 失败不中断其他 Entity 清理，失败计数记录到 DisposeFailures
+    /// 异步释放此会话作用域 — DisposeAsync 所有注册的 Entity，清空索引
+    /// 单个 Entity DisposeAsync 失败不中断其他 Entity 清理，失败计数记录到 DisposeFailures
     /// </summary>
-    public void Dispose() {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
 
-        Cache.Clear();
+        await Cache.ClearAsync().ConfigureAwait(false);
 
         foreach (var entity in _entities.Values) {
-            try { entity.Dispose(); } catch (Exception) { Interlocked.Increment(ref _disposeFailures); }
+            try { await entity.DisposeAsync().ConfigureAwait(false); } catch (Exception) { Interlocked.Increment(ref _disposeFailures); }
         }
 
         _entities.Clear();

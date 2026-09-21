@@ -76,7 +76,7 @@ public class CommandClassifierSearchScopeTests {
     [Fact]
     public void Classify_DestructiveCommand_StillDetectedAsDestructive() {
         var destructiveDetector = new StubDestructiveCommandDetector(isDestructive: true);
-        using var classifier = new CommandClassifier(
+        await using var classifier = new CommandClassifier(
             new StubPathValidator(),
             destructiveDetector,
             new StubReadOnlyCommandDetector(),
@@ -90,7 +90,7 @@ public class CommandClassifierSearchScopeTests {
 
     [Fact]
     public void Classify_WithoutSearchScopeValidator_ReturnsUnknownForSearchCommands() {
-        using var classifier = new CommandClassifier(
+        await using var classifier = new CommandClassifier(
             new StubPathValidator(),
             new StubDestructiveCommandDetector(),
             new StubReadOnlyCommandDetector(),

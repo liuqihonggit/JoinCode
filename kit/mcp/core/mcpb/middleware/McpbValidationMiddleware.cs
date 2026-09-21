@@ -51,9 +51,8 @@ public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddl
             try {
                 using var response = await context.HttpClient.GetAsync(context.Source, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
-
-                using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                using var fileStream = _fs.CreateStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                await using var fileStream = _fs.CreateStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None);
                 await stream.CopyToAsync(fileStream, ct).ConfigureAwait(false);
 
                 context.LocalFilePath = tempPath;

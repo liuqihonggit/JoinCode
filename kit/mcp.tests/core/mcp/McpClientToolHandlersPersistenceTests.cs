@@ -1,4 +1,4 @@
-﻿namespace Mcp.Tests;
+namespace Mcp.Tests;
 
 /// <summary>
 /// McpClientToolHandlers 持久化测试 — 验证 SaveStateAsync/LoadState 跨进程共享连接配置。
@@ -34,7 +34,7 @@ public sealed class McpClientToolHandlersPersistenceTests {
         result.IsError.Should().BeFalse("连接应成功");
         fs.FileExists(filePath).Should().BeTrue("连接成功后应持久化到 connections.json");
 
-        var json = fs.ReadAllText(filePath);
+        var json = await fs.ReadAllText(filePath);
         json.Should().Contain("testconn", "持久化内容应包含连接名");
         json.Should().Contain("http://localhost:18090/mcp", "持久化内容应包含 endpoint");
         json.Should().Contain("http", "持久化内容应包含 transport_type");
@@ -53,7 +53,7 @@ public sealed class McpClientToolHandlersPersistenceTests {
         var result = await handler.McpDisconnectAsync("testconn", CancellationToken.None);
 
         result.IsError.Should().BeFalse("断开应成功");
-        var json = fs.ReadAllText(filePath);
+        var json = await fs.ReadAllText(filePath);
         json.Should().NotContain("testconn", "断开后 connections.json 应移除该连接");
     }
 
@@ -63,7 +63,7 @@ public sealed class McpClientToolHandlersPersistenceTests {
         var filePath = GetConnectionsFilePath();
         var dir = Path.GetDirectoryName(filePath)!;
         fs.CreateDirectory(dir);
-        fs.WriteAllText(filePath, """{"connections":[{"name":"restored","endpoint":"http://localhost:18090/mcp","transportType":"http","useOAuth":false,"authName":null}]}""");
+        await fs.WriteAllText(filePath, """{"connections":[{"name":"restored","endpoint":"http://localhost:18090/mcp","transportType":"http","useOAuth":false,"authName":null}]}""");
 
         await using var client = new FakeMcpClient();
         var factory = new FakeClientFactory(client);

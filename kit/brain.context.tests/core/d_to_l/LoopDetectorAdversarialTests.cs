@@ -301,16 +301,16 @@ public sealed class LoopDetectorAdversarialTests {
     // ═══════════════════════════════════════════════════════════════════
 
     [Fact]
-    public void Funnel_Level1_ShouldOnlyInjectPrompt() {
-        using var options = new LoopInterventionOptions();
+    public async Task Funnel_Level1_ShouldOnlyInjectPrompt() {
+        await using var options = new LoopInterventionOptions();
         Assert.Equal(3, options.HardTruncateThreshold);
         Assert.Equal(5, options.CompactThreshold);
         Assert.Equal(1, options.ProgressDiscount);
     }
 
     [Fact]
-    public void Funnel_ProgressDiscount_ShouldReduceEffectiveCount() {
-        using var options = new LoopInterventionOptions();
+    public async Task Funnel_ProgressDiscount_ShouldReduceEffectiveCount() {
+        await using var options = new LoopInterventionOptions();
         var effectiveCount = Math.Max(1, 3 - options.ProgressDiscount);
 
         Assert.Equal(2, effectiveCount);
@@ -318,8 +318,8 @@ public sealed class LoopDetectorAdversarialTests {
     }
 
     [Fact]
-    public void Funnel_NoProgress_NoDiscount() {
-        using var options = new LoopInterventionOptions();
+    public async Task Funnel_NoProgress_NoDiscount() {
+        await using var options = new LoopInterventionOptions();
         var triggerCount = 3;
         var hasProgressed = false;
         var effectiveCount = hasProgressed

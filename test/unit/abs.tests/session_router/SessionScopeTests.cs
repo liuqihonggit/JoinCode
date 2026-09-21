@@ -9,7 +9,7 @@ public sealed class SessionScopeTests {
     public void Register_ThenResolve_可获取() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        using var goal = new Goal("测试目标");
+        await using var goal = new Goal("测试目标");
 
         scope.Register(goal);
         scope.Count.Should().Be(1);
@@ -22,7 +22,7 @@ public sealed class SessionScopeTests {
     public void Unregister_移除后不可获取() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        using var goal = new Goal("测试目标");
+        await using var goal = new Goal("测试目标");
 
         scope.Register(goal);
         scope.Unregister(goal.ObjectId).Should().BeTrue();
@@ -36,7 +36,7 @@ public sealed class SessionScopeTests {
     public void Resolve_类型不匹配_返回null() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        using var goal = new Goal("测试目标");
+        await using var goal = new Goal("测试目标");
 
         scope.Register(goal);
         scope.Resolve<Session>(goal.ObjectId).Should().BeNull();
@@ -48,9 +48,9 @@ public sealed class SessionScopeTests {
     public void GetAll_ByObjectType_按类型分桶() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        using var goal1 = new Goal("目标1");
-        using var goal2 = new Goal("目标2");
-        using var session = new Session();
+        await using var goal1 = new Goal("目标1");
+        await using var goal2 = new Goal("目标2");
+        await using var session = new Session();
 
         scope.Register(goal1);
         scope.Register(goal2);
@@ -67,8 +67,8 @@ public sealed class SessionScopeTests {
     public void GetAll_Generic_按CLR类型过滤() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        using var goal1 = new Goal("目标1");
-        using var goal2 = new Goal("目标2");
+        await using var goal1 = new Goal("目标1");
+        await using var goal2 = new Goal("目标2");
 
         scope.Register(goal1);
         scope.Register(goal2);
@@ -85,7 +85,7 @@ public sealed class SessionScopeTests {
     public void Contains_判断是否存在() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        using var goal = new Goal("测试目标");
+        await using var goal = new Goal("测试目标");
 
         scope.Register(goal);
         scope.Contains(goal.ObjectId).Should().BeTrue();
@@ -99,14 +99,13 @@ public sealed class SessionScopeTests {
     public void Dispose_清理所有Entity() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        using var goal1 = new Goal("目标1");
-        using var goal2 = new Goal("目标2");
+        await using var goal1 = new Goal("目标1");
+        await using var goal2 = new Goal("目标2");
 
         scope.Register(goal1);
         scope.Register(goal2);
         scope.Count.Should().Be(2);
-
-        scope.Dispose();
+        await scope.DisposeAsync().ConfigureAwait(false);
 
         scope.IsDisposed.Should().BeTrue();
         scope.Count.Should().Be(0);
@@ -120,7 +119,7 @@ public sealed class SessionScopeTests {
     public void Register_已释放_抛ObjectDisposedException() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        scope.Dispose();
+        await scope.DisposeAsync().ConfigureAwait(false);
 
         var act = () => scope.Register(new Goal("测试"));
         act.Should().Throw<ObjectDisposedException>();

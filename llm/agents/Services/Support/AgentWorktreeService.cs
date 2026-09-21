@@ -461,7 +461,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 ["usedSparsePaths"] = session.SparsePaths?.Count > 0
             };
 
-            var updatedJson = WorktreeJsonFormatting.FormatJsonNode(root);
+            var updatedJson = await WorktreeJsonFormatting.FormatJsonNode(root).ConfigureAwait(false);
 
             var dir = Path.GetDirectoryName(localSettingsPath);
             if (!string.IsNullOrEmpty(dir) && !_fileOperationService.DirectoryExists(dir)) {
@@ -493,7 +493,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
             root.Remove("activeWorktreeSession");
 
-            var updatedJson = WorktreeJsonFormatting.FormatJsonNode(root);
+            var updatedJson = await WorktreeJsonFormatting.FormatJsonNode(root).ConfigureAwait(false);
             await _fileOperationService.WriteFileAsync(localSettingsPath, updatedJson).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogDebug(ex, "清除 worktree 会话持久化失败");

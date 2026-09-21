@@ -43,7 +43,7 @@ public static class Program {
         }
 
         if (args[0] == "strip-bom") {
-            return RunStripBomCommand(args[1..]);
+            return await RunStripBomCommand(args[1..]).ConfigureAwait(false);
         }
 
         // 默认: 审计模式（直接传 slnx/csproj 路径）
@@ -487,7 +487,7 @@ public static class Program {
     /// <summary>
     /// BOM 移除模式：扫描指定目录下所有 .cs 文件，移除 UTF-8 BOM
     /// </summary>
-    private static int RunStripBomCommand(string[] args) {
+    private static async Task<int> RunStripBomCommand(string[] args) {
         if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal) || args.Contains("-h", StringComparer.Ordinal)) {
             PrintStripBomUsage();
             return 0;
@@ -512,12 +512,12 @@ public static class Program {
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
         try {
-            var report = BomStripper.Strip(targetPath, dryRun, skipTests, cts.Token);
+            var report = await BomStripper.Strip(targetPath, dryRun, skipTests, cts.Token).ConfigureAwait(false);
 
             var json = JsonSerializer.Serialize(report, AuditReportContext.Default.BomStripReport);
 
             if (!string.IsNullOrEmpty(outputPath)) {
-                SafeFileIO.WriteAllText(outputPath, json);
+                await SafeFileIO.WriteAllTextAsync(outputPath, json).ConfigureAwait(false);
                 Console.WriteLine($"报告已写入: {outputPath}");
             }
 

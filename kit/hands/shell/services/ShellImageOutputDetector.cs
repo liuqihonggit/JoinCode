@@ -86,15 +86,15 @@ public static class ShellImageOutputDetector {
                 }));
             }
 
-            using var ms = new MemoryStream();
+            var bufferWriter = new ArrayBufferWriter<byte>();
             var encoder = mediaType switch {
                 "image/png" => (SixLabors.ImageSharp.Formats.IImageEncoder)new SixLabors.ImageSharp.Formats.Png.PngEncoder(),
                 "image/gif" => new SixLabors.ImageSharp.Formats.Gif.GifEncoder(),
                 _ => new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 85 },
             };
-            image.Save(ms, encoder);
+            image.Save(bufferWriter, encoder);
 
-            var compressedBase64 = Convert.ToBase64String(ms.ToArray());
+            var compressedBase64 = Convert.ToBase64String(bufferWriter.WrittenSpan);
             var resultMediaType = encoder is SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder ? "image/jpeg" : mediaType;
             return (resultMediaType, compressedBase64);
         } catch {

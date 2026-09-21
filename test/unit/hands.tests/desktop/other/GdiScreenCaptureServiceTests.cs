@@ -6,7 +6,7 @@
 public sealed class GdiScreenCaptureServiceTests {
     [Fact]
     public void CanConstruct_WithNullLogger() {
-        using var service = new GdiScreenCaptureService();
+        await using var service = new GdiScreenCaptureService();
 
         service.Should().NotBeNull();
     }

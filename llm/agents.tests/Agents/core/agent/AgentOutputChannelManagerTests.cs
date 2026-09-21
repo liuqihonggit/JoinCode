@@ -66,7 +66,7 @@ public class AgentOutputChannelManagerTests {
 
     [Fact]
     public void Write_EmptyContent_Skipped() {
-        using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
+        await using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
         manager.Register("agent-001", "explorer");
         manager.Write("agent-001", "explorer", "", JoinCode.Abstractions.Interfaces.AgentOutputChunkType.Text);
 
@@ -76,7 +76,7 @@ public class AgentOutputChannelManagerTests {
 
     [Fact]
     public void GetActiveAgents_AfterRegister_ReturnsAgent() {
-        using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
+        await using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
         manager.Register("agent-001", "explorer");
         manager.Register("agent-002", null);
 
@@ -88,7 +88,7 @@ public class AgentOutputChannelManagerTests {
 
     [Fact]
     public void GetActiveAgents_AfterUnregister_Removed() {
-        using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
+        await using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
         manager.Register("agent-001", "explorer");
         manager.Register("agent-002", "planner");
 
@@ -101,7 +101,7 @@ public class AgentOutputChannelManagerTests {
 
     [Fact]
     public void GetActiveAgents_Empty_ReturnsEmptyList() {
-        using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
+        await using var manager = new Coordinator.Core.Messaging.AgentOutputChannelManager();
         Assert.Empty(manager.GetActiveAgents());
     }
 }

@@ -241,7 +241,7 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable {
 
     [Fact]
     public async Task RecoverTasksAsync_CorruptFile_ShouldNotThrow() {
-        using var runtime = CreateRuntime();
+        await using var runtime = CreateRuntime();
         _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
         _fileOperationService.FileSystem.WriteAllText("/test/runtime-tasks/runtime-tasks.json", "{not valid json");
 
@@ -251,7 +251,7 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable {
 
     [Fact]
     public async Task RecoverTasksAsync_CorruptFile_ShouldReturnEmpty() {
-        using var runtime = CreateRuntime();
+        await using var runtime = CreateRuntime();
         _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
         _fileOperationService.FileSystem.WriteAllText("/test/runtime-tasks/runtime-tasks.json", "{not valid json");
 
@@ -261,7 +261,7 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable {
 
     [Fact]
     public async Task RecoverTasksAsync_CorruptFile_ShouldQuarantineCorruptFile() {
-        using var runtime = CreateRuntime();
+        await using var runtime = CreateRuntime();
         _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
         var originalPath = "/test/runtime-tasks/runtime-tasks.json";
         _fileOperationService.FileSystem.WriteAllText(originalPath, "{not valid json");
@@ -275,18 +275,17 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable {
 
     [Fact]
     public async Task RecoverTasksAsync_ValidFile_ShouldRestoreTasks() {
-        using var runtime = CreateRuntime();
+        await using var runtime = CreateRuntime();
         var created = await runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "persist", IsDurable = true });
         await runtime.PersistAsync();
-
-        using var recoveredRuntime = CreateRuntime();
+        await using var recoveredRuntime = CreateRuntime();
         var recovered = await recoveredRuntime.RecoverTasksAsync();
         recovered.Should().Contain(t => t.Id == created.Data!.Id);
     }
 
     [Fact]
     public async Task PersistAsync_ShouldUseAtomicWrite_WithTempFileMove() {
-        using var runtime = CreateRuntime();
+        await using var runtime = CreateRuntime();
         _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
 
         var tmpPath = "/test/runtime-tasks/runtime-tasks.json.tmp";
@@ -300,7 +299,7 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable {
 
     [Fact]
     public async Task PersistAsync_AtomicWrite_ShouldProduceValidJson() {
-        using var runtime = CreateRuntime();
+        await using var runtime = CreateRuntime();
         _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
 
         await runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "persist-valid", IsDurable = true });

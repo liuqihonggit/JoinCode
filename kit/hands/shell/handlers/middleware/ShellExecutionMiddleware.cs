@@ -44,7 +44,7 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
         _foregroundTaskRegistry?.Register(cmdContext);
 
         var progressType = context.Provider.Kind == SystemActuatorKind.PowerShell ? "ps_progress" : "bash_progress";
-        using var progressTimer = context.OnProgress is not null
+        await using var progressTimer = context.OnProgress is not null
             ? CreateProgressTimer(cmdContext, context.OnProgress, progressType, _logger)
             : null;
 

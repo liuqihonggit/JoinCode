@@ -158,6 +158,14 @@ public sealed unsafe class NativePluginHost : IDisposable, IPluginHost {
         _logger?.LogInformation("[NativePlugin] {Name} 已卸载", _pluginName);
     }
 
+    /// <summary>
+    /// 异步卸载插件 — native 卸载是同步操作,包装为 Task 完成
+    /// </summary>
+    public Task UnloadAsync() {
+        Unload();
+        return Task.CompletedTask;
+    }
+
     /// <summary>析构 — 确保释放 native handle</summary>
     ~NativePluginHost() => Dispose(false);
 

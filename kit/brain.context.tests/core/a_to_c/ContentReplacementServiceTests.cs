@@ -375,7 +375,7 @@ public sealed class ContentReplacementServiceTests {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
-        var result = await service.MaybePersistLargeToolResult("TestTool", "id1", "", "session1").ConfigureAwait(false);
+        var result = await service.MaybePersistLargeToolResult("TestTool", "id1", "", "session1");
 
         result.Should().NotBeNull();
         result.Should().Contain("TestTool");
@@ -391,7 +391,7 @@ public sealed class ContentReplacementServiceTests {
         var service = CreateService();
 
         var smallContent = new string('a', 1000);
-        var result = await service.MaybePersistLargeToolResult("TestTool", "id1", smallContent, "session1").ConfigureAwait(false);
+        var result = await service.MaybePersistLargeToolResult("TestTool", "id1", smallContent, "session1");
 
         result.Should().BeNull();
     }
@@ -406,7 +406,7 @@ public sealed class ContentReplacementServiceTests {
         var service = CreateService();
 
         var largeContent = new string('x', 250_000);
-        var result = await service.MaybePersistLargeToolResult("TestTool", "id1", largeContent, "session1").ConfigureAwait(false);
+        var result = await service.MaybePersistLargeToolResult("TestTool", "id1", largeContent, "session1");
 
         result.Should().NotBeNull();
         result.Should().Contain("<persisted-output>");
@@ -438,7 +438,7 @@ public sealed class ContentReplacementServiceTests {
 
         // read 工具的阈值为 -1 (Infinity)，永不持久化
         var largeContent = new string('x', 250_000);
-        var result = await service.MaybePersistLargeToolResult("read", "id1", largeContent, "session1").ConfigureAwait(false);
+        var result = await service.MaybePersistLargeToolResult("read", "id1", largeContent, "session1");
 
         result.Should().BeNull();
     }
@@ -482,7 +482,7 @@ public sealed class ContentReplacementServiceTests {
         }
 
         public async Task<PersistedToolResult> PersistToolResultAsync(string sessionId, string toolUseId, string content, CancellationToken cancellationToken = default) {
-            return await PersistToolResult(sessionId, toolUseId, content).ConfigureAwait(false);
+            return await PersistToolResult(sessionId, toolUseId, content);
         }
 
         public ValueTask<string?> ReadToolResult(string sessionId, string toolUseId) => ValueTask.FromResult<string?>(null);

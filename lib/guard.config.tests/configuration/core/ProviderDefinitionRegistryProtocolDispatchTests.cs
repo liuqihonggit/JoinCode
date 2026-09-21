@@ -13,7 +13,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests {
     private static IFileSystem CreateFs(string json) {
         var mock = new Mock<IFileSystem>();
         mock.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
-        mock.Setup(x => x.ReadAllText(It.IsAny<string>())).Returns(json);
+        mock.Setup(x => x.ReadAllText(It.IsAny<string>())).Returns(ValueTask.FromResult(json));
         return mock.Object;
     }
 

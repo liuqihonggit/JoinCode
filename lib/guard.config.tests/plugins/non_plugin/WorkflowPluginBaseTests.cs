@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Plugins;
+namespace Core.Tests.Plugins;
 
 public sealed class WorkflowPluginBaseTests {
     private sealed class TestPlugin : WorkflowPluginBase {
@@ -26,13 +26,13 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void WorkflowPluginBase_HasObjectIdWithTypePlugin() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
         plugin.ObjectId.Type.Should().Be(ObjectType.Plugin);
     }
 
     [Fact]
     public void RegisterResource_AddsToResourcesCollection() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
         var resource = plugin.RegisterResource(new TestResource("test-plugin", "cmd1"));
 
         plugin.Resources.Should().Contain(resource);
@@ -41,7 +41,7 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void Unload_ReleasesAllResources() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
         var r1 = plugin.RegisterResource(new TestResource("test-plugin", "cmd1"));
         var r2 = plugin.RegisterResource(new TestResource("test-plugin", "cmd2"));
         var r1Id = r1.ObjectId;
@@ -50,7 +50,7 @@ public sealed class WorkflowPluginBaseTests {
         ObjectIdManager.IsRegistered(r1Id).Should().BeTrue();
         ObjectIdManager.IsRegistered(r2Id).Should().BeTrue();
 
-        var result = plugin.Unload();
+        var result = await plugin.UnloadAsync();
 
         result.IsSuccess.Should().BeTrue();
         plugin.Resources.Should().BeEmpty();
@@ -60,29 +60,29 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void Unload_MarksDead() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
 
-        plugin.Unload();
+        await plugin.UnloadAsync();
 
         plugin.IsAlive.Should().BeFalse();
     }
 
     [Fact]
     public void Unload_CallsOnUnload() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
 
-        plugin.Unload();
+        await plugin.UnloadAsync();
 
         plugin.OnUnloadCallCount.Should().Be(1);
     }
 
     [Fact]
     public void Unload_ReleasesUnmanagedResources() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
         var handle = new TestSafeHandle();
         plugin.UnmanagedResources.Register("buf1", handle, 1024);
 
-        plugin.Unload();
+        await plugin.UnloadAsync();
 
         handle.IsClosed.Should().BeTrue();
         plugin.UnmanagedResources.Count.Should().Be(0);
@@ -90,7 +90,7 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void Touch_UpdatesHeartbeat() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
 
         plugin.Touch();
         plugin.LastHeartbeatAt.Should().BeOnOrAfter(plugin.CreatedAt);
@@ -99,7 +99,7 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void MarkDead_TriggersOnDeathEvent() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
         var deathCount = 0;
         plugin.OnDeath += (_, _) => deathCount++;
 
@@ -109,7 +109,7 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void MarkDead_IsIdempotent() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
         var deathCount = 0;
         plugin.OnDeath += (_, _) => deathCount++;
 
@@ -120,7 +120,7 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void EnsureAlive_WhenDead_Throws() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
         plugin.MarkDead();
 
         var act = () => plugin.EnsureAlive();
@@ -129,7 +129,7 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void EnsureAlive_WhenAlive_DoesNotThrow() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
 
         var act = () => plugin.EnsureAlive();
         act.Should().NotThrow();
@@ -137,7 +137,7 @@ public sealed class WorkflowPluginBaseTests {
 
     [Fact]
     public void UiResources_Available() {
-        using var plugin = new TestPlugin();
+        await using var plugin = new TestPlugin();
         plugin.UiResources.Register("toolbar.test", new UiResourceEntry("toolbar.test", UiResourceKind.ToolbarButton, "Test", null));
 
         plugin.UiResources.Count.Should().Be(1);

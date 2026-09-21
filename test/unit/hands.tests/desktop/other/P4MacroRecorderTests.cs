@@ -24,7 +24,7 @@ public sealed class P4MacroRecorderTests {
 
     [Fact]
     public void StartRecording_SetsIsRecordingTrue_AndClearsPrevious() {
-        using var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
+        await using var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
 
         recorder.IsRecording.Should().BeFalse();
         recorder.StartRecording("test-macro");
@@ -42,7 +42,7 @@ public sealed class P4MacroRecorderTests {
 
     [Fact]
     public void RecordOperation_WhenNotRecording_DoesNothing() {
-        using var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
+        await using var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
 
         recorder.RecordOperation(SuccessOp());
 
@@ -53,7 +53,7 @@ public sealed class P4MacroRecorderTests {
 
     [Fact]
     public void StopRecording_ReturnsMacroWithRecordedOperations() {
-        using var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
+        await using var recorder = new MacroRecorder(CreateInputMock().Object, new Mock<IFileSystem>().Object);
 
         recorder.StartRecording("my-macro");
         recorder.RecordOperation(new DesktopOperation(DesktopOperationKind.Click, 100, 200, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null));
@@ -135,7 +135,7 @@ public sealed class P4MacroRecorderTests {
     [Fact]
     public void SaveMacro_WritesJsonToFile() {
         var fsMock = new Mock<IFileSystem>();
-        using var recorder = new MacroRecorder(CreateInputMock().Object, fsMock.Object);
+        await using var recorder = new MacroRecorder(CreateInputMock().Object, fsMock.Object);
 
         var macro = new Macro("test", new[]
         {
@@ -148,14 +148,13 @@ public sealed class P4MacroRecorderTests {
     }
 
     [Fact]
-    public void LoadMacro_ReadsJsonFromFile() {
+    public async Task LoadMacro_ReadsJsonFromFile() {
         var json = """{"name":"loaded","operations":[{"kind":1,"x":100,"y":200,"text":null,"mouseAction":1,"modifiers":null,"timestamp":"2026-01-01T00:00:00Z","succeeded":true,"error":null}],"createdAt":"2026-01-01T00:00:00Z"}""";
         var fsMock = new Mock<IFileSystem>();
-        fsMock.Setup(fs => fs.ReadAllText("/tmp/test.json")).Returns(json);
+        fsMock.Setup(fs => fs.ReadAllText("/tmp/test.json")).Returns(ValueTask.FromResult(json));
+        await using var recorder = new MacroRecorder(CreateInputMock().Object, fsMock.Object);
 
-        using var recorder = new MacroRecorder(CreateInputMock().Object, fsMock.Object);
-
-        var macro = recorder.LoadMacro("/tmp/test.json");
+        var macro = await recorder.LoadMacroAsync("/tmp/test.json");
 
         macro.Name.Should().Be("loaded");
         macro.Operations.Should().HaveCount(1);
@@ -209,8 +208,8 @@ public sealed class P4MacroRecorderTests {
     [Fact]
     public async Task PlayMacro_LoadFails_ReturnsError() {
         var recorderMock = new Mock<IMacroRecorder>();
-        recorderMock.Setup(r => r.LoadMacro(It.IsAny<string>()))
-            .Throws(new FileNotFoundException("文件不存在"));
+        recorderMock.Setup(r => r.LoadMacroAsync(It.IsAny<string>()))
+            .ThrowsAsync(new FileNotFoundException("文件不存在"));
         var handler = new MacroToolHandlers(recorderMock.Object, new Mock<IFileSystem>().Object);
 
         var result = await handler.PlayMacroAsync("/nonexistent.json");
@@ -223,7 +222,7 @@ public sealed class P4MacroRecorderTests {
     public async Task PlayMacro_LoadSucceeds_ReturnsPlaybackResult() {
         var macro = new Macro("test", new[] { SuccessOp() }, DateTimeOffset.UtcNow);
         var recorderMock = new Mock<IMacroRecorder>();
-        recorderMock.Setup(r => r.LoadMacro(It.IsAny<string>())).Returns(macro);
+        recorderMock.Setup(r => r.LoadMacroAsync(It.IsAny<string>())).ReturnsAsync(macro);
         recorderMock.Setup(r => r.PlayAsync(It.IsAny<Macro>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MacroPlaybackResult(1, 1, 0, TimeSpan.FromMilliseconds(100)));
         var handler = new MacroToolHandlers(recorderMock.Object, new Mock<IFileSystem>().Object);

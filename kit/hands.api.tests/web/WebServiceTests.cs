@@ -30,8 +30,8 @@ public sealed class WebServiceTests {
 
     private WebService CreateService(bool supportsWebSearch = true) {
         var cache = new WebFetchCache();
-        using var domainChecker = new DomainBlocklistChecker(_apiClientMock.Object, cache);
-        using var binaryStorage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem());
+        await using var domainChecker = new DomainBlocklistChecker(_apiClientMock.Object, cache);
+        await using var binaryStorage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem());
 
         var middlewares = new IMiddleware<WebContext>[]
         {

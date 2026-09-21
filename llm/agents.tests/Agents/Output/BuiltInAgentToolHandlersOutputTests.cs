@@ -20,7 +20,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
 
         var roleMock = new Mock<IAgentRoleRegistry>();
         var fsMock = CreateFsMock();
-        using var truncator = new SubAgentOutputTruncator(fsMock.Object, NullLogger<SubAgentOutputTruncator>.Instance, "X:\\tmp\\subagent");
+        await using var truncator = new SubAgentOutputTruncator(fsMock.Object, NullLogger<SubAgentOutputTruncator>.Instance, "X:\\tmp\\subagent");
         var handler = new BuiltInAgentToolHandlers(svcMock.Object, roleMock.Object, NullLogger<BuiltInAgentToolHandlers>.Instance, null, truncator);
         return (handler, svcMock);
     }
@@ -36,9 +36,9 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
 
         var roleMock = new Mock<IAgentRoleRegistry>();
         var fsMock = CreateFsMock();
-        using var truncator = new SubAgentOutputTruncator(fsMock.Object, NullLogger<SubAgentOutputTruncator>.Instance, "X:\\tmp\\subagent");
+        await using var truncator = new SubAgentOutputTruncator(fsMock.Object, NullLogger<SubAgentOutputTruncator>.Instance, "X:\\tmp\\subagent");
         var summaryClientMock = new Mock<ISubAgentSummaryClient>();
-        using var summaryGenerator = new SubAgentSummaryGenerator(summaryClientMock.Object, subAgentConfig?.Summary, NullLogger<SubAgentSummaryGenerator>.Instance);
+        await using var summaryGenerator = new SubAgentSummaryGenerator(summaryClientMock.Object, subAgentConfig?.Summary, NullLogger<SubAgentSummaryGenerator>.Instance);
         var handler = new BuiltInAgentToolHandlers(svcMock.Object, roleMock.Object, NullLogger<BuiltInAgentToolHandlers>.Instance, null, truncator, summaryGenerator, subAgentConfig);
         return (handler, svcMock, summaryClientMock);
     }

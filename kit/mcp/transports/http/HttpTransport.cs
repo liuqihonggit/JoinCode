@@ -196,7 +196,7 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport {
     /// </summary>
     private async Task ProcessSseResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
         try {
-            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
             await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, cancellationToken).ConfigureAwait(false)) {
                 if (!string.IsNullOrEmpty(sseEvent.Id)) {

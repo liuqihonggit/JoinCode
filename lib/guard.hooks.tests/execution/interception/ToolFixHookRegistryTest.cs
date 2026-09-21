@@ -1,4 +1,4 @@
-﻿namespace Guard.Tests.Hooks.Execution;
+namespace Guard.Tests.Hooks.Execution;
 
 /// <summary>
 /// ToolFixHookRegistry 单元测试 — 验证 TryFixAsync 阈值触发 / Register 注册 / 优先级执行
@@ -33,7 +33,7 @@ public sealed class ToolFixHookRegistryTest {
     // === Register ===
 
     [Fact]
-    public void Register_AddsHook() {
+    public async Task Register_AddsHook() {
         await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
         var hook = new TestFixHook("Test", 100, (_, _) => true, (_, _, _) => Task.FromResult(new ToolFixResult { Success = true }));
 
@@ -52,7 +52,7 @@ public sealed class ToolFixHookRegistryTest {
     }
 
     [Fact]
-    public void Register_MultipleHooks_AllAdded() {
+    public async Task Register_MultipleHooks_AllAdded() {
         await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
         var h1 = new TestFixHook("H1", 100, (_, _) => true, (_, _, _) => Task.FromResult(new ToolFixResult { Success = true }));
         var h2 = new TestFixHook("H2", 200, (_, _) => true, (_, _, _) => Task.FromResult(new ToolFixResult { Success = true }));
@@ -64,7 +64,7 @@ public sealed class ToolFixHookRegistryTest {
     }
 
     [Fact]
-    public void RegisterDefaultFixHooks_RegistersThreeDefaultHooks() {
+    public async Task RegisterDefaultFixHooks_RegistersThreeDefaultHooks() {
         await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         registry.RegisterDefaultFixHooks();
@@ -76,7 +76,7 @@ public sealed class ToolFixHookRegistryTest {
     }
 
     [Fact]
-    public void Unregister_RemovesHookByName() {
+    public async Task Unregister_RemovesHookByName() {
         await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
         registry.RegisterDefaultFixHooks();
 
@@ -87,7 +87,7 @@ public sealed class ToolFixHookRegistryTest {
     }
 
     [Fact]
-    public void Unregister_NonExistentName_ReturnsFalse() {
+    public async Task Unregister_NonExistentName_ReturnsFalse() {
         await using var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         var removed = registry.Unregister("NonExistent");

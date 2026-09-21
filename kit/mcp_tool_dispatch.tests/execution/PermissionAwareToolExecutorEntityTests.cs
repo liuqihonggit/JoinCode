@@ -1,8 +1,8 @@
-﻿namespace McpToolRegistry.Tests;
+namespace McpToolRegistry.Tests;
 
 public sealed class PermissionAwareToolExecutorEntityTests {
     [Fact]
-    public void ToolExecutionContext_HasExecutionEntity_AfterCreation() {
+    public async Task ToolExecutionContext_HasExecutionEntity_AfterCreation() {
         await using var entity = new ToolExecutionEntity("read_file");
         var context = new ToolExecutionContext {
             ToolName = "read_file",
@@ -25,7 +25,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_LifecycleFlow_MirrorsExecutorFlow() {
+    public async Task ToolExecutionEntity_LifecycleFlow_MirrorsExecutorFlow() {
         await using var entity = new ToolExecutionEntity("bash");
 
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
@@ -44,7 +44,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_ErrorFlow_SetsIsError() {
+    public async Task ToolExecutionEntity_ErrorFlow_SetsIsError() {
         await using var entity = new ToolExecutionEntity("grep");
 
         entity.LifecycleState = EntityLifecycle.Active;
@@ -60,7 +60,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_RegisteredInGlobalRegistry() {
+    public async Task ToolExecutionEntity_RegisteredInGlobalRegistry() {
         await using var entity = new ToolExecutionEntity("web_fetch");
         ToolExecutionEntity.Registry.Get(entity.ObjectId).Should().BeSameAs(entity);
         ToolExecutionEntity.Registry.GetByToolName("web_fetch").Should().Contain(entity);
@@ -68,14 +68,14 @@ public sealed class PermissionAwareToolExecutorEntityTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_SpanId_LinkedToTelemetry() {
+    public async Task ToolExecutionEntity_SpanId_LinkedToTelemetry() {
         await using var entity = new ToolExecutionEntity("bash", spanId: "span_abc123");
         entity.SpanId.Should().Be("span_abc123");
 
     }
 
     [Fact]
-    public void BackfillEntityMetadata_BashProcessEntity_SetsExitCode() {
+    public async Task BackfillEntityMetadata_BashProcessEntity_SetsExitCode() {
         await using var bash = new BashProcessEntity(command: "ls");
         var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
@@ -98,7 +98,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
     }
 
     [Fact]
-    public void BackfillEntityMetadata_BashProcessEntity_Interrupted_SetsTimedOut() {
+    public async Task BackfillEntityMetadata_BashProcessEntity_Interrupted_SetsTimedOut() {
         await using var bash = new BashProcessEntity(command: "sleep 999");
         var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "timeout" }],
@@ -125,7 +125,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
     }
 
     [Fact]
-    public void BackfillEntityMetadata_WebFetchEntity_SetsHttpStatusCode() {
+    public async Task BackfillEntityMetadata_WebFetchEntity_SetsHttpStatusCode() {
         await using var web = new WebFetchEntity(url: "https://example.com");
         var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
@@ -152,7 +152,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
     }
 
     [Fact]
-    public void BackfillEntityMetadata_NoMetadata_DoesNotThrow() {
+    public async Task BackfillEntityMetadata_NoMetadata_DoesNotThrow() {
         await using var entity = new ToolExecutionEntity("read_file");
         var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
@@ -172,7 +172,7 @@ public sealed class PermissionAwareToolExecutorEntityTests {
     }
 
     [Fact]
-    public void BackfillEntityMetadata_EmptyMetadata_DoesNotThrow() {
+    public async Task BackfillEntityMetadata_EmptyMetadata_DoesNotThrow() {
         await using var entity = new ToolExecutionEntity("read_file");
         var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],

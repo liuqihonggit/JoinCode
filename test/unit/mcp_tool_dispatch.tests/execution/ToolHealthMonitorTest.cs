@@ -271,7 +271,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     // === 通配符黑名单 ===
 
     [Fact]
-    public void IsBlacklisted_WildcardPattern_MatchesToolName() {
+    public async Task IsBlacklisted_WildcardPattern_MatchesToolName() {
         var fs = new InMemoryFileSystem();
         await using var monitor = new ToolHealthMonitor(fs,
             blacklist: new HashSet<string>(["shell_*"], StringComparer.OrdinalIgnoreCase));
@@ -282,7 +282,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     }
 
     [Fact]
-    public void IsBlacklisted_WildcardPrefixAndSuffix_MatchesToolName() {
+    public async Task IsBlacklisted_WildcardPrefixAndSuffix_MatchesToolName() {
         var fs = new InMemoryFileSystem();
         await using var monitor = new ToolHealthMonitor(fs,
             blacklist: new HashSet<string>(["*_background_*"], StringComparer.OrdinalIgnoreCase));
@@ -295,7 +295,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     // === 通配符降权 ===
 
     [Fact]
-    public void GetPenalty_WildcardPattern_MatchesToolName() {
+    public async Task GetPenalty_WildcardPattern_MatchesToolName() {
         var fs = new InMemoryFileSystem();
         await using var monitor = new ToolHealthMonitor(fs,
             penalties: new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["shell_*"] = -30 });

@@ -1,4 +1,4 @@
-﻿namespace Abs.Tests.SessionRouterTests;
+namespace Abs.Tests.SessionRouterTests;
 
 [Collection(nameof(SessionRouterCollection))]
 public sealed class SessionRouterTests {
@@ -30,7 +30,7 @@ public sealed class SessionRouterTests {
     }
 
     [Fact]
-    public void Resolve_跨会话跳转_可获取() {
+    public async Task Resolve_跨会话跳转_可获取() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         await using var goal = new Goal("测试目标");
@@ -43,7 +43,7 @@ public sealed class SessionRouterTests {
     }
 
     [Fact]
-    public void Resolve_跨会话隔离_不可见() {
+    public async Task Resolve_跨会话隔离_不可见() {
         var sessionIdA = new ObjectId(ObjectType.Session);
         var sessionIdB = new ObjectId(ObjectType.Session);
         var scopeA = SessionRouter.GetOrCreateScope(sessionIdA);
@@ -69,7 +69,7 @@ public sealed class SessionRouterTests {
     }
 
     [Fact]
-    public void RemoveScope_清理其所有Entity() {
+    public async Task RemoveScope_清理其所有Entity() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         await using var goal1 = new Goal("目标1", sessionId: sessionId);

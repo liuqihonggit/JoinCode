@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Permission;
+namespace Core.Tests.Permission;
 
 /// <summary>
 /// PathPermissionChecker 路径存在性检查单元测试 — 验证步骤8.5
@@ -8,7 +8,7 @@ public class PathPermissionCheckerExistenceTests {
     private const string WorkingDir = @"D:\test\project";
 
     [Fact]
-    public void WorkDirOutside_NonExistentPath_ReturnsInvalid() {
+    public async Task WorkDirOutside_NonExistentPath_ReturnsInvalid() {
         var fs = CreateFileSystem(WorkingDir);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -19,7 +19,7 @@ public class PathPermissionCheckerExistenceTests {
     }
 
     [Fact]
-    public void WorkDirOutside_ExistingFile_ReturnsAsk() {
+    public async Task WorkDirOutside_ExistingFile_ReturnsAsk() {
         var existingPath = @"D:\other\existing.txt";
         var fs = CreateFileSystem(WorkingDir);
         fs.Setup(x => x.FileExists(It.Is<string>(p => p.Contains("existing", StringComparison.OrdinalIgnoreCase)))).Returns(true);
@@ -32,7 +32,7 @@ public class PathPermissionCheckerExistenceTests {
     }
 
     [Fact]
-    public void WorkDirInside_NonExistentPath_ReturnsAllow() {
+    public async Task WorkDirInside_NonExistentPath_ReturnsAllow() {
         var fs = CreateFileSystem(WorkingDir);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -42,7 +42,7 @@ public class PathPermissionCheckerExistenceTests {
     }
 
     [Fact]
-    public void GarbledPath_WithReplacementChar_ReturnsInvalid() {
+    public async Task GarbledPath_WithReplacementChar_ReturnsInvalid() {
         var fs = CreateFileSystem(WorkingDir);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -55,7 +55,7 @@ public class PathPermissionCheckerExistenceTests {
     }
 
     [Fact]
-    public void GarbledPath_WithControlChar_ReturnsInvalid() {
+    public async Task GarbledPath_WithControlChar_ReturnsInvalid() {
         var fs = CreateFileSystem(WorkingDir);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -68,7 +68,7 @@ public class PathPermissionCheckerExistenceTests {
     }
 
     [Fact]
-    public void UncPath_NonExistent_ReturnsAsk_Step1Priority() {
+    public async Task UncPath_NonExistent_ReturnsAsk_Step1Priority() {
         var fs = CreateFileSystem(WorkingDir);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -79,7 +79,7 @@ public class PathPermissionCheckerExistenceTests {
     }
 
     [Fact]
-    public void DenyRule_NonExistentPath_ReturnsDeny_Step3Priority() {
+    public async Task DenyRule_NonExistentPath_ReturnsDeny_Step3Priority() {
         var fs = CreateFileSystem(WorkingDir);
         var denyRule = new PathPermissionRule {
             ToolType = PathPermissionToolType.Read,
@@ -95,7 +95,7 @@ public class PathPermissionCheckerExistenceTests {
     }
 
     [Fact]
-    public void WritePermission_NonExistentPath_DoesNotCheckExistence() {
+    public async Task WritePermission_NonExistentPath_DoesNotCheckExistence() {
         var fs = CreateFileSystem(WorkingDir);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -106,7 +106,7 @@ public class PathPermissionCheckerExistenceTests {
     }
 
     [Fact]
-    public void WorkDirOutside_ExistingDirectory_ReturnsAsk() {
+    public async Task WorkDirOutside_ExistingDirectory_ReturnsAsk() {
         var fs = CreateFileSystem(WorkingDir);
         fs.Setup(x => x.DirectoryExists(It.Is<string>(p => p.Contains("existingdir", StringComparison.OrdinalIgnoreCase)))).Returns(true);
         await using var sut = new PathPermissionChecker(fs.Object, WorkingDir);
@@ -117,7 +117,7 @@ public class PathPermissionCheckerExistenceTests {
     }
 
     [Fact]
-    public void AllowRule_NonExistentPath_ReturnsAllow_Step8Priority() {
+    public async Task AllowRule_NonExistentPath_ReturnsAllow_Step8Priority() {
         var fs = CreateFileSystem(WorkingDir);
         var allowRule = new PathPermissionRule {
             ToolType = PathPermissionToolType.Read,

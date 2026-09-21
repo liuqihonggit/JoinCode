@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.EntityTests;
+namespace Infra.Tests.EntityTests;
 
 public sealed class ServiceEntityTests {
     private sealed class TestService : ServiceEntity {
@@ -19,19 +19,19 @@ public sealed class ServiceEntityTests {
     }
 
     [Fact]
-    public void ServiceEntity_ObjectIdType_ShouldBeService() {
+    public async Task ServiceEntity_ObjectIdType_ShouldBeService() {
         await using var service = new TestService();
         service.ObjectId.Type.Should().Be(ObjectType.Service);
     }
 
     [Fact]
-    public void ServiceEntity_UniqueId_ShouldStartWithServicePrefix() {
+    public async Task ServiceEntity_UniqueId_ShouldStartWithServicePrefix() {
         await using var service = new TestService();
         service.UniqueId.Should().StartWith("service-");
     }
 
     [Fact]
-    public void ServiceEntity_DisplayName_Custom() {
+    public async Task ServiceEntity_DisplayName_Custom() {
         await using var service = new TestService("my-service");
         service.DisplayName.Should().Be("my-service");
     }
@@ -45,7 +45,7 @@ public sealed class ServiceEntityTests {
     }
 
     [Fact]
-    public void ServiceEntity_Dispose_InvokesOverriddenOnDispose() {
+    public async Task ServiceEntity_Dispose_InvokesOverriddenOnDispose() {
         await using var service = new TestServiceWithDispose();
         service.OnDisposeCalled.Should().BeFalse();
         await service.DisposeAsync().ConfigureAwait(false);
@@ -53,14 +53,14 @@ public sealed class ServiceEntityTests {
     }
 
     [Fact]
-    public void ServiceEntity_NoExplicitBaseCall_StillRegistersObjectId() {
+    public async Task ServiceEntity_NoExplicitBaseCall_StillRegistersObjectId() {
         await using var service = new TestServiceNoBaseCall(42);
         service.ObjectId.Type.Should().Be(ObjectType.Service);
         service.Id.Should().BeGreaterThan(0);
     }
 
     [Fact]
-    public void ServiceEntity_Created_HasCorrectDefaults() {
+    public async Task ServiceEntity_Created_HasCorrectDefaults() {
         await using var service = new TestService("test");
         service.LifecycleState.Should().Be(EntityLifecycle.Created);
         service.IsPersisted.Should().BeFalse();

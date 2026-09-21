@@ -189,7 +189,7 @@ public sealed class CsprojParserTests : IDisposable {
         Assert.Empty(result.PackageReferences);
     }
 
-    private string WriteCsproj(string content) {
+    private async Task<string > WriteCsproj(string content) {
         var dir = Path.Combine(Path.GetTempPath(), $"csproj_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var path = Path.Combine(dir, "Test.csproj");

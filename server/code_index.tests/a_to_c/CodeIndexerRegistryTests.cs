@@ -166,7 +166,7 @@ public sealed class CodeIndexerRegistryTests : IDisposable {
     }
 
     [Fact]
-    public void Dispose_CalledTwice_DoesNotThrow() {
+    public async Task Dispose_CalledTwice_DoesNotThrow() {
         await _registry.DisposeAsync().ConfigureAwait(false);
         await _registry.DisposeAsync().ConfigureAwait(false);
     }

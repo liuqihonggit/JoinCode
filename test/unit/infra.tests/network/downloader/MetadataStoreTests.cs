@@ -47,7 +47,7 @@ public sealed class MetadataStoreTests {
     // === 损坏 JSON ===
 
     [Fact]
-    public void TryLoad_CorruptJson_ReturnsNull() {
+    public async Task TryLoad_CorruptJson_ReturnsNull() {
         var metaPath = MetadataStore.GetMetadataPath(FilePath);
         await _fs.WriteAllText(metaPath, "{ this is not valid json }}}");
 

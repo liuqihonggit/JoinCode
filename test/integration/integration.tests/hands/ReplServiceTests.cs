@@ -1,4 +1,4 @@
-﻿namespace Integration.Tests.Hands;
+namespace Integration.Tests.Hands;
 
 [Trait("Category", "Integration")]
 public sealed class ReplServiceTests {
@@ -19,7 +19,7 @@ public sealed class ReplServiceTests {
     }
 
     [Fact]
-    public void IsReplModeEnabled_Default_ShouldBeFalse() {
+    public async Task IsReplModeEnabled_Default_ShouldBeFalse() {
         Environment.SetEnvironmentVariable("JCC_REPL_MODE", null);
         await using var service = new ReplService(TestFileSystem.Current, _processService, _loggerMock.Object);
 
@@ -323,7 +323,7 @@ public sealed class ReplServiceTests {
     }
 
     [Fact]
-    public void IsReplModeEnabled_WithEnvVar_ShouldBeEnabled() {
+    public async Task IsReplModeEnabled_WithEnvVar_ShouldBeEnabled() {
         Environment.SetEnvironmentVariable("JCC_REPL_MODE", "1");
         try {
             await using var service = new ReplService(TestFileSystem.Current, _processService, _loggerMock.Object);
@@ -334,7 +334,7 @@ public sealed class ReplServiceTests {
     }
 
     [Fact]
-    public void IsReplModeEnabled_WithEnvVarFalse_ShouldBeDisabled() {
+    public async Task IsReplModeEnabled_WithEnvVarFalse_ShouldBeDisabled() {
         Environment.SetEnvironmentVariable("JCC_REPL_MODE", "false");
         try {
             await using var service = new ReplService(TestFileSystem.Current, _processService, _loggerMock.Object);
@@ -345,7 +345,7 @@ public sealed class ReplServiceTests {
     }
 
     [Fact]
-    public void IsReplModeEnabled_WithEnvVarZero_ShouldBeDisabled() {
+    public async Task IsReplModeEnabled_WithEnvVarZero_ShouldBeDisabled() {
         Environment.SetEnvironmentVariable("JCC_REPL_MODE", "0");
         try {
             await using var service = new ReplService(TestFileSystem.Current, _processService, _loggerMock.Object);

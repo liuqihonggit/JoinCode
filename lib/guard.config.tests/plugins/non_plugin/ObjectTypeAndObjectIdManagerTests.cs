@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Plugins;
+namespace Core.Tests.Plugins;
 
 public sealed class ObjectTypeAndObjectIdManagerTests {
     [Fact]
@@ -14,7 +14,7 @@ public sealed class ObjectTypeAndObjectIdManagerTests {
     }
 
     [Fact]
-    public void ObjectIdManager_IsRegistered_ReturnsTrueForRegistered() {
+    public async Task ObjectIdManager_IsRegistered_ReturnsTrueForRegistered() {
         ObjectIdManager.Clear();
         await using var entity = new TestEntity(ObjectType.Plugin, "test-plugin");
 

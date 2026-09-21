@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.LLM.QueryServices.OpenAI;
+namespace Llm.Tests.Adapters.LLM.QueryServices.OpenAI;
 
 
 public class OpenAIQueryServiceTests {
@@ -94,7 +94,7 @@ public class OpenAIQueryServiceTests {
     }
 
     [Fact]
-    public void CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
+    public async Task CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
         var service = CreateService();
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup("tools", [new ToolDef("TestTool", "A test tool")]));
@@ -275,7 +275,7 @@ public class OpenAIQueryServiceTests {
     #region Two-Phase Tool Loading — BuildToolsFromKernel
 
     [Fact]
-    public void BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
+    public async Task BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file"),
@@ -290,7 +290,7 @@ public class OpenAIQueryServiceTests {
     }
 
     [Fact]
-    public void BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
+    public async Task BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.server1.tool1", "MCP tool 1"),

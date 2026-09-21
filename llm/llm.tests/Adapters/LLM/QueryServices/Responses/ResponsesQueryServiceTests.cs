@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
+namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
 
 
 public class ResponsesQueryServiceTests {
@@ -172,7 +172,7 @@ public class ResponsesQueryServiceTests {
     }
 
     [Fact]
-    public void CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
+    public async Task CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
         var service = CreateService();
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup("tools", [new ToolDef("TestTool", "A test tool")]));

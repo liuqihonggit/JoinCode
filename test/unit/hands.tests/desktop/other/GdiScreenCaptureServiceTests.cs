@@ -1,11 +1,11 @@
-﻿namespace JoinCode.Hands.Desktop.Tests;
+namespace JoinCode.Hands.Desktop.Tests;
 
 /// <summary>
 /// GdiScreenCaptureService 单元测试 — 验证可构造性与边界参数处理
 /// </summary>
 public sealed class GdiScreenCaptureServiceTests {
     [Fact]
-    public void CanConstruct_WithNullLogger() {
+    public async Task CanConstruct_WithNullLogger() {
         await using var service = new GdiScreenCaptureService();
 
         service.Should().NotBeNull();

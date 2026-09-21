@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Plugins;
+namespace Core.Tests.Plugins;
 
 public sealed class PluginResourceBaseTests {
     private sealed class TestResource : PluginResourceBase {
@@ -7,7 +7,7 @@ public sealed class PluginResourceBaseTests {
     }
 
     [Fact]
-    public void AddReference_IncrementsRefCount() {
+    public async Task AddReference_IncrementsRefCount() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         resource.ReferenceCount.Should().Be(0);
@@ -19,7 +19,7 @@ public sealed class PluginResourceBaseTests {
     }
 
     [Fact]
-    public void AddReference_MultipleConsumers_RefCountCorrect() {
+    public async Task AddReference_MultipleConsumers_RefCountCorrect() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         var h1 = resource.AddReference("pluginB");
@@ -34,7 +34,7 @@ public sealed class PluginResourceBaseTests {
     }
 
     [Fact]
-    public void ResourceReferenceHandle_DisposeIsIdempotent() {
+    public async Task ResourceReferenceHandle_DisposeIsIdempotent() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         var handle = resource.AddReference("pluginB");
 
@@ -44,7 +44,7 @@ public sealed class PluginResourceBaseTests {
     }
 
     [Fact]
-    public void EnsureAlive_WhenAlive_DoesNotThrow() {
+    public async Task EnsureAlive_WhenAlive_DoesNotThrow() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         var act = () => resource.EnsureAlive();
@@ -52,7 +52,7 @@ public sealed class PluginResourceBaseTests {
     }
 
     [Fact]
-    public void EnsureAlive_WhenDead_ThrowsPluginDeadException() {
+    public async Task EnsureAlive_WhenDead_ThrowsPluginDeadException() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         resource.MarkDead();
 
@@ -62,7 +62,7 @@ public sealed class PluginResourceBaseTests {
     }
 
     [Fact]
-    public void MarkDead_TriggersOnDeathEvent() {
+    public async Task MarkDead_TriggersOnDeathEvent() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         var deathCount = 0;
         resource.OnDeath += (_, _) => deathCount++;
@@ -72,7 +72,7 @@ public sealed class PluginResourceBaseTests {
     }
 
     [Fact]
-    public void MarkDead_IsIdempotent() {
+    public async Task MarkDead_IsIdempotent() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         var deathCount = 0;
         resource.OnDeath += (_, _) => deathCount++;
@@ -83,7 +83,7 @@ public sealed class PluginResourceBaseTests {
     }
 
     [Fact]
-    public void Touch_UpdatesLastHeartbeatAt() {
+    public async Task Touch_UpdatesLastHeartbeatAt() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         resource.Touch();
@@ -92,7 +92,7 @@ public sealed class PluginResourceBaseTests {
     }
 
     [Fact]
-    public void GetConsumers_ReturnsAllConsumerPluginNames() {
+    public async Task GetConsumers_ReturnsAllConsumerPluginNames() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
 
         var h1 = resource.AddReference("pluginB");
@@ -107,7 +107,7 @@ public sealed class PluginResourceBaseTests {
     }
 
     [Fact]
-    public void Dispose_UnregistersFromObjectIdManager() {
+    public async Task Dispose_UnregistersFromObjectIdManager() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         var objectId = resource.ObjectId;
 
@@ -117,14 +117,14 @@ public sealed class PluginResourceBaseTests {
     }
 
     [Fact]
-    public void Dispose_MarksDead() {
+    public async Task Dispose_MarksDead() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
         await resource.DisposeAsync();
         resource.IsAlive.Should().BeFalse();
     }
 
     [Fact]
-    public void OwnerPluginName_AndKind_Preserved() {
+    public async Task OwnerPluginName_AndKind_Preserved() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Hook, "hookA1");
 
         resource.OwnerPluginName.Should().Be("pluginA");

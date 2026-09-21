@@ -107,16 +107,19 @@ internal class AsyncMethodRewriter : CSharpSyntaxRewriter {
 
     /// <summary>
     /// 检测方法 body 是否含直接 await（排除 lambda/local function 内的 await）
+    /// 遍历所有 await 关键字 token，覆盖 await expr / await using / await foreach
     /// </summary>
     private static bool ContainsDirectAwait(MethodDeclarationSyntax node) {
         var bodyNode = node.Body ?? (SyntaxNode?)node.ExpressionBody;
         if (bodyNode is null)
             return false;
 
-        foreach (var descendant in bodyNode.DescendantNodes()) {
-            if (!descendant.IsKind(SyntaxKind.AwaitExpression))
+        foreach (var token in bodyNode.DescendantTokens()) {
+            if (!token.IsKind(SyntaxKind.AwaitKeyword))
                 continue;
-            if (!IsInsideLambdaOrLocalFunction(descendant, bodyNode))
+            if (token.Parent is null)
+                continue;
+            if (!IsInsideLambdaOrLocalFunction(token.Parent, bodyNode))
                 return true;
         }
         return false;

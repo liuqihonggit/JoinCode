@@ -1,15 +1,15 @@
-﻿namespace Core.Configuration.Tests;
+namespace Core.Configuration.Tests;
 
 public sealed class EntitlementServiceTests {
     [Fact]
-    public void IsBriefEntitled_Default_Should_Be_True() {
+    public async Task IsBriefEntitled_Default_Should_Be_True() {
         await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         await using var service = new EntitlementService(briefMode);
         Assert.True(service.IsBriefEntitled);
     }
 
     [Fact]
-    public void IsBriefEntitled_EnvVar_True_Should_Be_True() {
+    public async Task IsBriefEntitled_EnvVar_True_Should_Be_True() {
         await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         await using var service = new EntitlementService(briefMode);
         // JCC_BRIEF=1 应该允许
@@ -18,7 +18,7 @@ public sealed class EntitlementServiceTests {
     }
 
     [Fact]
-    public void IsBriefEntitled_EnvVar_False_Should_Be_False() {
+    public async Task IsBriefEntitled_EnvVar_False_Should_Be_False() {
         await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         await using var service = new EntitlementService(briefMode);
         // JCC_BRIEF=false 应该拒绝
@@ -27,7 +27,7 @@ public sealed class EntitlementServiceTests {
     }
 
     [Fact]
-    public void IsBriefEntitled_EnvVar_Zero_Should_Be_False() {
+    public async Task IsBriefEntitled_EnvVar_Zero_Should_Be_False() {
         await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         await using var service = new EntitlementService(briefMode);
         // JCC_BRIEF=0 应该拒绝
@@ -36,7 +36,7 @@ public sealed class EntitlementServiceTests {
     }
 
     [Fact]
-    public void IsBriefEnabled_Requires_Entitlement_And_OptIn() {
+    public async Task IsBriefEnabled_Requires_Entitlement_And_OptIn() {
         await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         await using var service = new EntitlementService(briefMode);
 
@@ -49,7 +49,7 @@ public sealed class EntitlementServiceTests {
     }
 
     [Fact]
-    public void IsBriefEnabled_EnvVar_False_Overrides_OptIn() {
+    public async Task IsBriefEnabled_EnvVar_False_Overrides_OptIn() {
         await using var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         await using var service = new EntitlementService(briefMode);
         briefMode.Enable();
@@ -70,7 +70,7 @@ public sealed class EntitlementServiceTests {
 
 public sealed class BriefModeServiceTests {
     [Fact]
-    public void Initial_State_Should_Be_Disabled() {
+    public async Task Initial_State_Should_Be_Disabled() {
         await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         Assert.False(service.IsEnabled);
         Assert.Null(service.EnabledAt);
@@ -78,7 +78,7 @@ public sealed class BriefModeServiceTests {
     }
 
     [Fact]
-    public void Enable_Should_Set_IsEnabled_And_UserMsgOptIn() {
+    public async Task Enable_Should_Set_IsEnabled_And_UserMsgOptIn() {
         await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.Enable();
         Assert.True(service.IsEnabled);
@@ -87,7 +87,7 @@ public sealed class BriefModeServiceTests {
     }
 
     [Fact]
-    public void Disable_Should_Clear_IsEnabled_And_UserMsgOptIn() {
+    public async Task Disable_Should_Clear_IsEnabled_And_UserMsgOptIn() {
         await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.Enable();
         service.Disable();
@@ -97,7 +97,7 @@ public sealed class BriefModeServiceTests {
     }
 
     [Fact]
-    public void Toggle_Should_Switch_Both_States() {
+    public async Task Toggle_Should_Switch_Both_States() {
         await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         Assert.False(service.IsEnabled);
         Assert.False(service.UserMsgOptIn);
@@ -112,7 +112,7 @@ public sealed class BriefModeServiceTests {
     }
 
     [Fact]
-    public void UserMsgOptIn_Can_Be_Set_Independently() {
+    public async Task UserMsgOptIn_Can_Be_Set_Independently() {
         await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.UserMsgOptIn = true;
         Assert.True(service.UserMsgOptIn);
@@ -120,7 +120,7 @@ public sealed class BriefModeServiceTests {
     }
 
     [Fact]
-    public void GetStatus_Enabled_Should_Return_EnabledStatus() {
+    public async Task GetStatus_Enabled_Should_Return_EnabledStatus() {
         await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.Enable();
         var status = service.GetStatus();
@@ -129,7 +129,7 @@ public sealed class BriefModeServiceTests {
     }
 
     [Fact]
-    public void GetStatus_Disabled_Should_Return_DisabledStatus() {
+    public async Task GetStatus_Disabled_Should_Return_DisabledStatus() {
         await using var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var status = service.GetStatus();
         Assert.False(status.IsEnabled);

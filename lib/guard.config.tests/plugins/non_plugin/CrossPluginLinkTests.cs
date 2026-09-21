@@ -37,7 +37,7 @@ public sealed class CrossPluginLinkTests {
     }
 
     [Fact]
-    public void AddReference_CrossPlugin_RefCountIncremented() {
+    public async Task AddReference_CrossPlugin_RefCountIncremented() {
         await using var pluginA = new PluginA();
         await using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
@@ -51,7 +51,7 @@ public sealed class CrossPluginLinkTests {
     }
 
     [Fact]
-    public void EnsureAlive_CrossPlugin_DetectsProviderDeath() {
+    public async Task EnsureAlive_CrossPlugin_DetectsProviderDeath() {
         await using var pluginA = new PluginA();
         await using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
@@ -70,7 +70,7 @@ public sealed class CrossPluginLinkTests {
     }
 
     [Fact]
-    public void PrepareUnload_ReferenceGraph_ConsumersNotified() {
+    public async Task PrepareUnload_ReferenceGraph_ConsumersNotified() {
         var graph = new ResourceReferenceGraph();
         await using var pluginA = new PluginA();
         await using var pluginB = new PluginB();
@@ -100,7 +100,7 @@ public sealed class CrossPluginLinkTests {
     }
 
     [Fact]
-    public void TwoPhaseUnload_ResourceIdsCollectedAndScanned() {
+    public async Task TwoPhaseUnload_ResourceIdsCollectedAndScanned() {
         await using var pluginA = new PluginA();
         var cmdA = pluginA.CreateCommandResource();
         var resourceIds = pluginA.Resources.Select(r => r.ObjectId).ToList();
@@ -116,7 +116,7 @@ public sealed class CrossPluginLinkTests {
     }
 
     [Fact]
-    public void PluginDeath_CascadesToDependents() {
+    public async Task PluginDeath_CascadesToDependents() {
         await using var pluginA = new PluginA();
         await using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
@@ -139,7 +139,7 @@ public sealed class CrossPluginLinkTests {
     }
 
     [Fact]
-    public void ResourceReferenceHandle_UsingPattern_AutoRelease() {
+    public async Task ResourceReferenceHandle_UsingPattern_AutoRelease() {
         await using var pluginA = new PluginA();
         await using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();

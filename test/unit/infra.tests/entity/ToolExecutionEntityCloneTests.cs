@@ -2,7 +2,7 @@ namespace Infra.Tests.EntityTests;
 
 public sealed class ToolExecutionEntityCloneTests {
     [Fact]
-    public void ToolExecutionEntity_Clone_WithValidContext_ReturnsClonedEntity() {
+    public async Task ToolExecutionEntity_Clone_WithValidContext_ReturnsClonedEntity() {
         var sourceSession = new ObjectId(ObjectType.Session, "source-session");
         var targetSession = new ObjectId(ObjectType.Session, "target-session");
         await using var source = new ToolExecutionEntity(
@@ -42,7 +42,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_Clone_SessionObjectId_RemappedToTarget() {
+    public async Task ToolExecutionEntity_Clone_SessionObjectId_RemappedToTarget() {
         var sourceSession = new ObjectId(ObjectType.Session, "src");
         var targetSession = new ObjectId(ObjectType.Session, "tgt");
         var mappedSessionObjectId = new ObjectId(ObjectType.Session, "mapped-session");
@@ -57,7 +57,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_Clone_RegistersInTargetSessionScope() {
+    public async Task ToolExecutionEntity_Clone_RegistersInTargetSessionScope() {
         var sourceSession = new ObjectId(ObjectType.Session, "src-scope");
         var targetSession = new ObjectId(ObjectType.Session, "tgt-scope");
         await using var source = new ToolExecutionEntity("grep", sessionId: sourceSession);
@@ -70,7 +70,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void BashProcessEntity_Clone_PreservesProcessSpecificFields() {
+    public async Task BashProcessEntity_Clone_PreservesProcessSpecificFields() {
         var sourceSession = new ObjectId(ObjectType.Session, "src-bash");
         var targetSession = new ObjectId(ObjectType.Session, "tgt-bash");
         await using var source = new BashProcessEntity(
@@ -112,7 +112,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void BashProcessEntity_Clone_RunningState_PreservesNullExitCode() {
+    public async Task BashProcessEntity_Clone_RunningState_PreservesNullExitCode() {
         var sourceSession = new ObjectId(ObjectType.Session, "src-running");
         var targetSession = new ObjectId(ObjectType.Session, "tgt-running");
         await using var source = new BashProcessEntity(
@@ -134,7 +134,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void BashProcessEntity_Clone_RegistersInToolExecutionRegistry() {
+    public async Task BashProcessEntity_Clone_RegistersInToolExecutionRegistry() {
         var sourceSession = new ObjectId(ObjectType.Session, "src-reg");
         var targetSession = new ObjectId(ObjectType.Session, "tgt-reg");
         await using var source = new BashProcessEntity(command: "echo hello", sessionId: sourceSession);
@@ -148,7 +148,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_Clone_MinimalFields_OnlyToolName() {
+    public async Task ToolExecutionEntity_Clone_MinimalFields_OnlyToolName() {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-minimal");
         await using var source = new ToolExecutionEntity("web_fetch");
         var context = new CloneContext(targetSession);
@@ -167,7 +167,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_Clone_SessionObjectId_Unmapped_ThrowsExposeDanglingReference() {
+    public async Task ToolExecutionEntity_Clone_SessionObjectId_Unmapped_ThrowsExposeDanglingReference() {
         var sourceSession = new ObjectId(ObjectType.Session, "src-unmapped");
         var targetSession = new ObjectId(ObjectType.Session, "tgt-unmapped");
         var unmappedSession = new ObjectId(ObjectType.Session, "never-cloned");
@@ -185,7 +185,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_Clone_PreservesErrorState() {
+    public async Task ToolExecutionEntity_Clone_PreservesErrorState() {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-err");
         await using var source = new ToolExecutionEntity("bash", toolUseId: "tu_err") {
             IsError = true,
@@ -202,7 +202,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_Clone_ModifyingClone_DoesNotAffectSource() {
+    public async Task ToolExecutionEntity_Clone_ModifyingClone_DoesNotAffectSource() {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-indep");
         await using var source = new ToolExecutionEntity("grep") {
             ResultSummary = "original",
@@ -222,7 +222,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_Clone_NestedCloneContext_ChainRemapping() {
+    public async Task ToolExecutionEntity_Clone_NestedCloneContext_ChainRemapping() {
         var sessionA = new ObjectId(ObjectType.Session, "session-a");
         var sessionB = new ObjectId(ObjectType.Session, "session-b");
         await using var source = new ToolExecutionEntity("bash", toolUseId: "tu_chain", sessionId: sessionA) {
@@ -279,7 +279,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void BashProcessEntity_Clone_NullProcessIdAndCommand_PreservesDisplayName() {
+    public async Task BashProcessEntity_Clone_NullProcessIdAndCommand_PreservesDisplayName() {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-null");
         await using var source = new BashProcessEntity(displayName: "empty-bash");
         source.DisplayName.Should().Be("empty-bash");
@@ -296,7 +296,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void BashProcessEntity_Clone_TimedOutStatus_Preserved() {
+    public async Task BashProcessEntity_Clone_TimedOutStatus_Preserved() {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-timeout");
         await using var source = new BashProcessEntity(
             processId: 77777,
@@ -321,7 +321,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void BashProcessEntity_Clone_KilledStatus_WithExitCode_Preserved() {
+    public async Task BashProcessEntity_Clone_KilledStatus_WithExitCode_Preserved() {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-killed");
         await using var source = new BashProcessEntity(
             processId: 55555,
@@ -341,7 +341,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void ToolExecutionEntity_Clone_LifecycleStates_AllPreserved() {
+    public async Task ToolExecutionEntity_Clone_LifecycleStates_AllPreserved() {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-lifecycle");
         var states = new[] { EntityLifecycle.Created, EntityLifecycle.Active, EntityLifecycle.Suspended, EntityLifecycle.Completed, EntityLifecycle.Persisted };
 
@@ -356,7 +356,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void WebFetchEntity_Clone_PreservesUrlAndHttpFields() {
+    public async Task WebFetchEntity_Clone_PreservesUrlAndHttpFields() {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-web");
         await using var source = new WebFetchEntity(
             url: "https://example.com/api",
@@ -382,7 +382,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void UserInteractionEntity_Clone_PreservesQuestionAndResponse() {
+    public async Task UserInteractionEntity_Clone_PreservesQuestionAndResponse() {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-interact");
         await using var source = new UserInteractionEntity(
             question: "Continue with deployment?",
@@ -402,7 +402,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void SleepEntity_Clone_PreservesDurationAndProgress() {
+    public async Task SleepEntity_Clone_PreservesDurationAndProgress() {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-sleep");
         await using var source = new SleepEntity(
             durationSeconds: 30,
@@ -426,7 +426,7 @@ public sealed class ToolExecutionEntityCloneTests {
     }
 
     [Fact]
-    public void ReplSessionEntity_Clone_PreservesLanguageAndEnabled() {
+    public async Task ReplSessionEntity_Clone_PreservesLanguageAndEnabled() {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-repl");
         await using var source = new ReplSessionEntity(
             language: "python",

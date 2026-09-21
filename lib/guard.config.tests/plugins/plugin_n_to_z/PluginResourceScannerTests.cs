@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Plugins;
+namespace Core.Tests.Plugins;
 
 public sealed class PluginResourceScannerTests {
     private sealed class TestEntity : Entity {
@@ -7,7 +7,7 @@ public sealed class PluginResourceScannerTests {
     }
 
     [Fact]
-    public void ScanPluginResources_AllUnregistered_NoLeaks() {
+    public async Task ScanPluginResources_AllUnregistered_NoLeaks() {
         var scanner = new PluginResourceScanner();
         await using var e1 = new TestEntity("res1");
         await using var e2 = new TestEntity("res2");
@@ -22,7 +22,7 @@ public sealed class PluginResourceScannerTests {
     }
 
     [Fact]
-    public void ScanPluginResources_WithLeak_DetectsLeak() {
+    public async Task ScanPluginResources_WithLeak_DetectsLeak() {
         var scanner = new PluginResourceScanner();
         await using var e1 = new TestEntity("res1");
         await using var e2 = new TestEntity("res2");

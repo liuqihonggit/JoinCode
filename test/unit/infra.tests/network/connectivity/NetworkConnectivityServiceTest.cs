@@ -1,4 +1,4 @@
-﻿namespace Infra.Services.Tests.Network;
+namespace Infra.Services.Tests.Network;
 
 /// <summary>
 /// NetworkConnectivityService 单元测试 — 验证状态计算、VPN识别、多流接口、路由判断、事件触发
@@ -108,7 +108,7 @@ public sealed class NetworkConnectivityServiceTest {
     }
 
     [Fact]
-    public void RefreshState_WhenStateChanges_RaisesStateChangedEvent() {
+    public async Task RefreshState_WhenStateChanges_RaisesStateChangedEvent() {
         var interfaces = new List<NetworkInterfaceInfo>();
         await using var sut = new NetworkConnectivityService(
             interfaceProvider: () => interfaces,

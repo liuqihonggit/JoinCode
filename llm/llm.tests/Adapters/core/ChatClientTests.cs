@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters;
+namespace Llm.Tests.Adapters;
 
 public sealed class ChatClientTests {
     [Fact]
@@ -9,7 +9,7 @@ public sealed class ChatClientTests {
     }
 
     [Fact]
-    public void Constructor_ExposesCompletionService() {
+    public async Task Constructor_ExposesCompletionService() {
         var queryService = new Mock<IQueryService>().Object;
         await using var client = new ChatClient(queryService);
 
@@ -17,7 +17,7 @@ public sealed class ChatClientTests {
     }
 
     [Fact]
-    public void Plugins_ReturnsEmptyCollectionByDefault() {
+    public async Task Plugins_ReturnsEmptyCollectionByDefault() {
         await using var client = new ChatClient(new Mock<IQueryService>().Object);
 
         client.Plugins.PluginNames.Should().BeEmpty();

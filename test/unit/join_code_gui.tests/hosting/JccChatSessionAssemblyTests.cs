@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.Hosting;
+namespace JoinCode.Gui.Tests.Hosting;
 
 /// <summary>
 /// 引擎会话组装测试 — 验证 GUI 进程内引擎接入的关键假设：
@@ -216,7 +216,7 @@ public class JccChatSessionAssemblyTests {
     }
 
     [Fact]
-    public void EngineAssembly_ExecutionSettings_DefaultsToAuto() {
+    public async Task EngineAssembly_ExecutionSettings_DefaultsToAuto() {
         await using var provider = new ExecutionSettingsProvider(
             new WorkflowConfig {
                 Provider = new ProviderConfig { Vendor = "openai", ModelId = "gpt-4o" }

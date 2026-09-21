@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.EntityTests;
+namespace Infra.Tests.EntityTests;
 
 public sealed class EntityLifecycleTests {
     private sealed class TestEntity : JoinCode.Abstractions.Entity.Entity {
@@ -16,7 +16,7 @@ public sealed class EntityLifecycleTests {
     }
 
     [Fact]
-    public void Entity_Created_HasCorrectDefaults() {
+    public async Task Entity_Created_HasCorrectDefaults() {
         await using var entity = new TestEntity("test");
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
         entity.IsPersisted.Should().BeFalse();
@@ -27,7 +27,7 @@ public sealed class EntityLifecycleTests {
     }
 
     [Fact]
-    public void Entity_MarkPersisted_TransitionsToPersisted() {
+    public async Task Entity_MarkPersisted_TransitionsToPersisted() {
         await using var entity = new TestEntity();
         entity.LifecycleState = EntityLifecycle.Completed;
         entity.MarkPersisted();
@@ -36,7 +36,7 @@ public sealed class EntityLifecycleTests {
     }
 
     [Fact]
-    public void Entity_CanReclaim_DefaultRequiresPersistedAndCompleted() {
+    public async Task Entity_CanReclaim_DefaultRequiresPersistedAndCompleted() {
         await using var entity = new TestEntity();
         entity.CanReclaim().Should().BeFalse();
 
@@ -58,7 +58,7 @@ public sealed class EntityLifecycleTests {
     }
 
     [Fact]
-    public void Entity_IsTimedOut_WhenExceeded() {
+    public async Task Entity_IsTimedOut_WhenExceeded() {
         await using var entity = new TestEntity();
         entity.IsTimedOut.Should().BeFalse();
         await using var timedOutEntity = new TestEntity { TimeoutAt = DateTime.UtcNow.AddSeconds(-1) };
@@ -66,7 +66,7 @@ public sealed class EntityLifecycleTests {
     }
 
     [Fact]
-    public void Entity_Dispose_SetsLifecycleToDisposed() {
+    public async Task Entity_Dispose_SetsLifecycleToDisposed() {
         await using var entity = new TestEntity();
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
         await entity.DisposeAsync().ConfigureAwait(false);

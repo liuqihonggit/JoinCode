@@ -24,14 +24,14 @@ public sealed class LspIntegrationTests {
     }
 
     [Fact]
-    public void Constructor_WithLspService_SetsIsLspAvailableTrue() {
+    public async Task Constructor_WithLspService_SetsIsLspAvailableTrue() {
         await using var integration = new LspIntegration(_indexer, _lspService);
 
         Assert.True(integration.IsLspAvailable);
     }
 
     [Fact]
-    public void Constructor_WithoutLspService_SetsIsLspAvailableFalse() {
+    public async Task Constructor_WithoutLspService_SetsIsLspAvailableFalse() {
         await using var integration = new LspIntegration(_indexer);
 
         Assert.False(integration.IsLspAvailable);

@@ -90,7 +90,7 @@ public sealed class GitWorkspaceResolverTests {
     }
 
     [Fact]
-    public void FindSolutionRoot_HasSln_ReturnsDirectory() {
+    public async Task FindSolutionRoot_HasSln_ReturnsDirectory() {
         using var tmp = new TempDir(_fs);
         var slnPath = _fs.CombinePath(tmp.Path, "test.sln");
         await _fs.WriteAllText(slnPath, "fake sln content");
@@ -101,7 +101,7 @@ public sealed class GitWorkspaceResolverTests {
     }
 
     [Fact]
-    public void FindSolutionRoot_HasSlnx_ReturnsDirectory() {
+    public async Task FindSolutionRoot_HasSlnx_ReturnsDirectory() {
         using var tmp = new TempDir(_fs);
         var slnxPath = _fs.CombinePath(tmp.Path, "test.slnx");
         await _fs.WriteAllText(slnxPath, "<Solution/>");
@@ -143,7 +143,7 @@ public sealed class GitWorkspaceResolverTests {
     }
 
     [Fact]
-    public void FindGitWorkspaceDir_DotGitIsFile_ReturnsCurrentPath() {
+    public async Task FindGitWorkspaceDir_DotGitIsFile_ReturnsCurrentPath() {
         using var worktree = new TempDir(_fs);
         await _fs.WriteAllText(_fs.CombinePath(worktree.Path, ".git"), "gitdir: /fake");
 

@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Configuration;
+namespace Core.Tests.Configuration;
 
 /// <summary>
 /// 与 SettingsLoaderTests 共享 AppDataConstants 全局状态,需串行执行避免相互污染
@@ -117,7 +117,7 @@ public sealed class ProjectRulesLoaderTests {
     }
 
     [Fact]
-    public void HasRulesFile_WhenNoFileExists_Should_Return_False() {
+    public async Task HasRulesFile_WhenNoFileExists_Should_Return_False() {
         _fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(false);
         _fs.Setup(x => x.GetCurrentDirectory()).Returns(BaseDir);
         _fs.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(false);
@@ -137,7 +137,7 @@ public sealed class ProjectRulesLoaderTests {
     }
 
     [Fact]
-    public void GetRulesFilePath_WhenNoFileExists_Should_Return_Null() {
+    public async Task GetRulesFilePath_WhenNoFileExists_Should_Return_Null() {
         _fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(false);
         _fs.Setup(x => x.GetCurrentDirectory()).Returns(BaseDir);
         _fs.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(false);

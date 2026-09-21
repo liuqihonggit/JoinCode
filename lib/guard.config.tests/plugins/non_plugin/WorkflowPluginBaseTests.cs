@@ -25,13 +25,13 @@ public sealed class WorkflowPluginBaseTests {
     }
 
     [Fact]
-    public void WorkflowPluginBase_HasObjectIdWithTypePlugin() {
+    public async Task WorkflowPluginBase_HasObjectIdWithTypePlugin() {
         await using var plugin = new TestPlugin();
         plugin.ObjectId.Type.Should().Be(ObjectType.Plugin);
     }
 
     [Fact]
-    public void RegisterResource_AddsToResourcesCollection() {
+    public async Task RegisterResource_AddsToResourcesCollection() {
         await using var plugin = new TestPlugin();
         var resource = plugin.RegisterResource(new TestResource("test-plugin", "cmd1"));
 
@@ -40,7 +40,7 @@ public sealed class WorkflowPluginBaseTests {
     }
 
     [Fact]
-    public void Unload_ReleasesAllResources() {
+    public async Task Unload_ReleasesAllResources() {
         await using var plugin = new TestPlugin();
         var r1 = plugin.RegisterResource(new TestResource("test-plugin", "cmd1"));
         var r2 = plugin.RegisterResource(new TestResource("test-plugin", "cmd2"));
@@ -59,7 +59,7 @@ public sealed class WorkflowPluginBaseTests {
     }
 
     [Fact]
-    public void Unload_MarksDead() {
+    public async Task Unload_MarksDead() {
         await using var plugin = new TestPlugin();
 
         await plugin.UnloadAsync();
@@ -68,7 +68,7 @@ public sealed class WorkflowPluginBaseTests {
     }
 
     [Fact]
-    public void Unload_CallsOnUnload() {
+    public async Task Unload_CallsOnUnload() {
         await using var plugin = new TestPlugin();
 
         await plugin.UnloadAsync();
@@ -77,7 +77,7 @@ public sealed class WorkflowPluginBaseTests {
     }
 
     [Fact]
-    public void Unload_ReleasesUnmanagedResources() {
+    public async Task Unload_ReleasesUnmanagedResources() {
         await using var plugin = new TestPlugin();
         var handle = new TestSafeHandle();
         plugin.UnmanagedResources.Register("buf1", handle, 1024);
@@ -89,7 +89,7 @@ public sealed class WorkflowPluginBaseTests {
     }
 
     [Fact]
-    public void Touch_UpdatesHeartbeat() {
+    public async Task Touch_UpdatesHeartbeat() {
         await using var plugin = new TestPlugin();
 
         plugin.Touch();
@@ -98,7 +98,7 @@ public sealed class WorkflowPluginBaseTests {
     }
 
     [Fact]
-    public void MarkDead_TriggersOnDeathEvent() {
+    public async Task MarkDead_TriggersOnDeathEvent() {
         await using var plugin = new TestPlugin();
         var deathCount = 0;
         plugin.OnDeath += (_, _) => deathCount++;
@@ -108,7 +108,7 @@ public sealed class WorkflowPluginBaseTests {
     }
 
     [Fact]
-    public void MarkDead_IsIdempotent() {
+    public async Task MarkDead_IsIdempotent() {
         await using var plugin = new TestPlugin();
         var deathCount = 0;
         plugin.OnDeath += (_, _) => deathCount++;
@@ -119,7 +119,7 @@ public sealed class WorkflowPluginBaseTests {
     }
 
     [Fact]
-    public void EnsureAlive_WhenDead_Throws() {
+    public async Task EnsureAlive_WhenDead_Throws() {
         await using var plugin = new TestPlugin();
         plugin.MarkDead();
 
@@ -128,7 +128,7 @@ public sealed class WorkflowPluginBaseTests {
     }
 
     [Fact]
-    public void EnsureAlive_WhenAlive_DoesNotThrow() {
+    public async Task EnsureAlive_WhenAlive_DoesNotThrow() {
         await using var plugin = new TestPlugin();
 
         var act = () => plugin.EnsureAlive();
@@ -136,7 +136,7 @@ public sealed class WorkflowPluginBaseTests {
     }
 
     [Fact]
-    public void UiResources_Available() {
+    public async Task UiResources_Available() {
         await using var plugin = new TestPlugin();
         plugin.UiResources.Register("toolbar.test", new UiResourceEntry("toolbar.test", UiResourceKind.ToolbarButton, "Test", null));
 

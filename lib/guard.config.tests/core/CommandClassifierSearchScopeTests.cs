@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Tests.Guard;
+namespace JoinCode.Tests.Guard;
 
 public class CommandClassifierSearchScopeTests {
     private readonly CommandClassifier _classifier;
@@ -74,7 +74,7 @@ public class CommandClassifierSearchScopeTests {
     }
 
     [Fact]
-    public void Classify_DestructiveCommand_StillDetectedAsDestructive() {
+    public async Task Classify_DestructiveCommand_StillDetectedAsDestructive() {
         var destructiveDetector = new StubDestructiveCommandDetector(isDestructive: true);
         await using var classifier = new CommandClassifier(
             new StubPathValidator(),
@@ -89,7 +89,7 @@ public class CommandClassifierSearchScopeTests {
     }
 
     [Fact]
-    public void Classify_WithoutSearchScopeValidator_ReturnsUnknownForSearchCommands() {
+    public async Task Classify_WithoutSearchScopeValidator_ReturnsUnknownForSearchCommands() {
         await using var classifier = new CommandClassifier(
             new StubPathValidator(),
             new StubDestructiveCommandDetector(),

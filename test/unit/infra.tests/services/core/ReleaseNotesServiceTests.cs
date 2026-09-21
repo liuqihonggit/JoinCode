@@ -1,8 +1,8 @@
-﻿namespace Infra.Tests.Services;
+namespace Infra.Tests.Services;
 
 public sealed class ReleaseNotesServiceTests {
     [Fact]
-    public void Constructor_Should_Set_Default_Timeout() {
+    public async Task Constructor_Should_Set_Default_Timeout() {
         var httpClient = new HttpClient();
         await using var service = new ReleaseNotesService(httpClient);
 
@@ -10,7 +10,7 @@ public sealed class ReleaseNotesServiceTests {
     }
 
     [Fact]
-    public void Constructor_Should_Accept_Custom_Timeout() {
+    public async Task Constructor_Should_Accept_Custom_Timeout() {
         var httpClient = new HttpClient();
         await using var service = new ReleaseNotesService(httpClient,
             requestTimeout: TimeSpan.FromSeconds(3),

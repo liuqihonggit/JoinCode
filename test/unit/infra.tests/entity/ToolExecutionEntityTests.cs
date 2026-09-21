@@ -1,8 +1,8 @@
-﻿namespace Infra.Tests.EntityTests;
+namespace Infra.Tests.EntityTests;
 
 public sealed class ToolExecutionEntityTests {
     [Fact]
-    public void Constructor_SetsToolNameAndRegistersToRegistry() {
+    public async Task Constructor_SetsToolNameAndRegistersToRegistry() {
         await using var entity = new ToolExecutionEntity("read_file");
         entity.ToolName.Should().Be("read_file");
         entity.ObjectId.Type.Should().Be(ObjectType.Tool);
@@ -12,7 +12,7 @@ public sealed class ToolExecutionEntityTests {
     }
 
     [Fact]
-    public void Constructor_WithOptionalFields_SetsAllProperties() {
+    public async Task Constructor_WithOptionalFields_SetsAllProperties() {
         await using var entity = new ToolExecutionEntity("bash", toolUseId: "tu_123", spanId: "span_456", displayName: "my bash");
         entity.ToolName.Should().Be("bash");
         entity.ToolUseId.Should().Be("tu_123");
@@ -22,13 +22,13 @@ public sealed class ToolExecutionEntityTests {
     }
 
     [Fact]
-    public void Constructor_DefaultDisplayName_IsToolName() {
+    public async Task Constructor_DefaultDisplayName_IsToolName() {
         await using var entity = new ToolExecutionEntity("grep");
         entity.DisplayName.Should().Be("grep");
     }
 
     [Fact]
-    public void Dispose_RemovesFromRegistry() {
+    public async Task Dispose_RemovesFromRegistry() {
         await using var entity = new ToolExecutionEntity("test");
         var objectId = entity.ObjectId;
         ToolExecutionEntity.Registry.Get(objectId).Should().BeSameAs(entity);
@@ -37,7 +37,7 @@ public sealed class ToolExecutionEntityTests {
     }
 
     [Fact]
-    public void Dispose_SetsLifecycleToDisposed() {
+    public async Task Dispose_SetsLifecycleToDisposed() {
         await using var entity = new ToolExecutionEntity("test");
         entity.LifecycleState = EntityLifecycle.Active;
         await entity.DisposeAsync().ConfigureAwait(false);
@@ -45,7 +45,7 @@ public sealed class ToolExecutionEntityTests {
     }
 
     [Fact]
-    public void LifecycleTransition_CreatedToActiveToCompleted() {
+    public async Task LifecycleTransition_CreatedToActiveToCompleted() {
         await using var entity = new ToolExecutionEntity("test");
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
         entity.LifecycleState = EntityLifecycle.Active;
@@ -58,7 +58,7 @@ public sealed class ToolExecutionEntityTests {
     }
 
     [Fact]
-    public void ResultSummary_CanBeSetAfterCompletion() {
+    public async Task ResultSummary_CanBeSetAfterCompletion() {
         await using var entity = new ToolExecutionEntity("test");
         entity.ResultSummary.Should().BeNull();
         entity.ResultSummary = "file content read successfully";
@@ -67,7 +67,7 @@ public sealed class ToolExecutionEntityTests {
     }
 
     [Fact]
-    public void IsError_CanBeSet() {
+    public async Task IsError_CanBeSet() {
         await using var entity = new ToolExecutionEntity("test");
         entity.IsError.Should().BeFalse();
         entity.IsError = true;
@@ -76,7 +76,7 @@ public sealed class ToolExecutionEntityTests {
     }
 
     [Fact]
-    public void TraceId_CapturedFromActivityCurrent() {
+    public async Task TraceId_CapturedFromActivityCurrent() {
         using var activity = new System.Diagnostics.Activity("test-activity");
         activity.Start();
         await using var entity = new ToolExecutionEntity("test");
@@ -84,13 +84,13 @@ public sealed class ToolExecutionEntityTests {
     }
 
     [Fact]
-    public void TraceId_NullWhenNoActivity() {
+    public async Task TraceId_NullWhenNoActivity() {
         await using var entity = new ToolExecutionEntity("test");
         entity.TraceId.Should().BeNull();
     }
 
     [Fact]
-    public void Subclass_BashProcessEntity_RegistersToBaseRegistry() {
+    public async Task Subclass_BashProcessEntity_RegistersToBaseRegistry() {
         await using var entity = new BashProcessEntity(command: "dotnet build");
         entity.ToolName.Should().Be("bash");
         entity.Command.Should().Be("dotnet build");
@@ -100,7 +100,7 @@ public sealed class ToolExecutionEntityTests {
     }
 
     [Fact]
-    public void Subclass_BashProcessEntity_CanReclaim_RequiresExitCode() {
+    public async Task Subclass_BashProcessEntity_CanReclaim_RequiresExitCode() {
         await using var entity = new BashProcessEntity();
         entity.LifecycleState = EntityLifecycle.Completed;
         entity.CompletedAt = DateTime.UtcNow;

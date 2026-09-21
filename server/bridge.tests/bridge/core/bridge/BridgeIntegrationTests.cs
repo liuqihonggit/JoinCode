@@ -118,7 +118,7 @@ public sealed class BridgeIntegrationTests {
     #region BridgeClient + JwtService
 
     [Fact]
-    public void BridgeClient_GeneratesJwtTokenOnStart() {
+    public async Task BridgeClient_GeneratesJwtTokenOnStart() {
         await using var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-integration-test" }, NullLogger.Instance);
 
         // Act - 模拟 BridgeClient 启动时生成 JWT Token
@@ -134,7 +134,7 @@ public sealed class BridgeIntegrationTests {
     }
 
     [Fact]
-    public void BridgeClient_JwtTokenRefreshWorks() {
+    public async Task BridgeClient_JwtTokenRefreshWorks() {
         await using var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-refresh-test" }, NullLogger.Instance);
         // 使用 299 秒过期，使其立即进入刷新窗口（剩余 <= 300 秒）
         var token = jwtService.GenerateToken("bridge-client", 299);

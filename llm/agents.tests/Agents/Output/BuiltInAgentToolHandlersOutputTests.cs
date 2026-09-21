@@ -11,7 +11,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
         return fsMock;
     }
 
-    private static (BuiltInAgentToolHandlers handler, Mock<IAgentService> svc) CreateWithTruncator(string agentId, bool success, string output) {
+    private static async Task<(BuiltInAgentToolHandlers handler, Mock<IAgentService> svc)> CreateWithTruncator(string agentId, bool success, string output) {
         var svcMock = new Mock<IAgentService>();
         svcMock.Setup(x => x.SpawnAgentAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
                .ReturnsAsync(new JoinCode.Abstractions.Interfaces.AgentInfo { Id = agentId, Description = "test" });
@@ -25,7 +25,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
         return (handler, svcMock);
     }
 
-    private static (BuiltInAgentToolHandlers handler, Mock<IAgentService> svc, Mock<ISubAgentSummaryClient> summaryMock) CreateWithSummary(
+    private static async Task<(BuiltInAgentToolHandlers handler, Mock<IAgentService> svc, Mock<ISubAgentSummaryClient> summaryMock)> CreateWithSummary(
         string agentId, bool success, string output,
         SubAgentConfig? subAgentConfig = null) {
         var svcMock = new Mock<IAgentService>();
@@ -45,7 +45,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
 
     [Fact]
     public async Task PlanAgentAsync_SmallOutput_WrappedInXml_NoArchive() {
-        var (handler, _) = CreateWithTruncator("agent-small", true, "计划完成");
+        var (handler, _) = await CreateWithTruncator("agent-small", true, "计划完成");
 
         var result = await handler.PlanAgentAsync("目标");
 
@@ -59,7 +59,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
     [Fact]
     public async Task PlanAgentAsync_HugeOutput_ArchivedPointer_NoCrash() {
         var big = new string('x', 300_000);
-        var (handler, _) = CreateWithTruncator("agent-big", true, big);
+        var (handler, _) = await CreateWithTruncator("agent-big", true, big);
 
         var result = await handler.PlanAgentAsync("目标");
 
@@ -87,7 +87,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
     [Fact]
     public async Task ExploreAgentAsync_HugeOutput_ArchivedPointer_NoCrash() {
         var big = new string('y', 300_000);
-        var (handler, _) = CreateWithTruncator("agent-explore", true, big);
+        var (handler, _) = await CreateWithTruncator("agent-explore", true, big);
 
         var result = await handler.ExploreAgentAsync("src/");
 
@@ -99,7 +99,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
     public async Task PlanAgentAsync_MediumOutput_L2SummarySuccess_PlaceSummary() {
         var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = true } };
         var big = new string('x', 400 * 4);
-        var (handler, _, summaryMock) = CreateWithSummary("agent-med", true, big, config);
+        var (handler, _, summaryMock) = await CreateWithSummary("agent-med", true, big, config);
         var summaryText = new string('s', 50 * 4);
         summaryMock
             .Setup(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -117,7 +117,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
     public async Task PlanAgentAsync_MediumOutput_L2Failed_FallbackToL3Archive() {
         var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = true, MaxRetries = 0 } };
         var big = new string('x', 400 * 4);
-        var (handler, _, summaryMock) = CreateWithSummary("agent-fail", true, big, config);
+        var (handler, _, summaryMock) = await CreateWithSummary("agent-fail", true, big, config);
         summaryMock
             .Setup(c => c.SummarizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string?)null);
@@ -132,7 +132,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
     public async Task PlanAgentAsync_L2Disabled_FallbackToL3Archive() {
         var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = false } };
         var big = new string('x', 400 * 4);
-        var (handler, _, summaryMock) = CreateWithSummary("agent-disabled", true, big, config);
+        var (handler, _, summaryMock) = await CreateWithSummary("agent-disabled", true, big, config);
 
         var result = await handler.PlanAgentAsync("目标");
 
@@ -144,7 +144,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests {
     [Fact]
     public async Task PlanAgentAsync_SmallOutput_WithSummaryGenerator_PlaceOriginal() {
         var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = true } };
-        var (handler, _, summaryMock) = CreateWithSummary("agent-small-l2", true, "小输出", config);
+        var (handler, _, summaryMock) = await CreateWithSummary("agent-small-l2", true, "小输出", config);
 
         var result = await handler.PlanAgentAsync("目标");
 

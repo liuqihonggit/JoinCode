@@ -3,7 +3,7 @@ namespace Core.Tests.Prompts;
 
 public class SynonymAnalyzerTests {
     [Fact]
-    public void Analyze_EmptyInput_ReturnsEmptyList() {
+    public async Task Analyze_EmptyInput_ReturnsEmptyList() {
         await using var map = new SynonymMap(new Dictionary<string, string> {
             ["test"] = "supplementary"
         });
@@ -14,7 +14,7 @@ public class SynonymAnalyzerTests {
     }
 
     [Fact]
-    public void Analyze_NullInput_ReturnsEmptyList() {
+    public async Task Analyze_NullInput_ReturnsEmptyList() {
         await using var map = new SynonymMap(new Dictionary<string, string> {
             ["test"] = "supplementary"
         });
@@ -25,7 +25,7 @@ public class SynonymAnalyzerTests {
     }
 
     [Fact]
-    public void Analyze_EmptyMap_ReturnsEmptyList() {
+    public async Task Analyze_EmptyMap_ReturnsEmptyList() {
         await using var map = new SynonymMap();
 
         var result = SynonymAnalyzer.Analyze("hello world", map);
@@ -34,7 +34,7 @@ public class SynonymAnalyzerTests {
     }
 
     [Fact]
-    public void Analyze_MatchingKey_ReturnsMatch() {
+    public async Task Analyze_MatchingKey_ReturnsMatch() {
         await using var map = new SynonymMap(new Dictionary<string, string> {
             ["deploy"] = "When the user says deploy, they mean deploying the application to the target environment. Please ask for the target environment (staging/production) before proceeding."
         });
@@ -47,7 +47,7 @@ public class SynonymAnalyzerTests {
     }
 
     [Fact]
-    public void Analyze_CaseInsensitiveMatch_ReturnsMatch() {
+    public async Task Analyze_CaseInsensitiveMatch_ReturnsMatch() {
         await using var map = new SynonymMap(new Dictionary<string, string> {
             ["Deploy"] = "supplementary content"
         });
@@ -59,7 +59,7 @@ public class SynonymAnalyzerTests {
     }
 
     [Fact]
-    public void Analyze_NoMatch_ReturnsEmptyList() {
+    public async Task Analyze_NoMatch_ReturnsEmptyList() {
         await using var map = new SynonymMap(new Dictionary<string, string> {
             ["deploy"] = "supplementary content"
         });
@@ -70,7 +70,7 @@ public class SynonymAnalyzerTests {
     }
 
     [Fact]
-    public void Analyze_MultipleMatches_ReturnsAllMatches() {
+    public async Task Analyze_MultipleMatches_ReturnsAllMatches() {
         await using var map = new SynonymMap(new Dictionary<string, string> {
             ["deploy"] = "deployment supplementary",
             ["build"] = "build supplementary"
@@ -82,7 +82,7 @@ public class SynonymAnalyzerTests {
     }
 
     [Fact]
-    public void Analyze_PartialMatch_ReturnsMatch() {
+    public async Task Analyze_PartialMatch_ReturnsMatch() {
         await using var map = new SynonymMap(new Dictionary<string, string> {
             ["git"] = "git operations supplementary"
         });
@@ -94,7 +94,7 @@ public class SynonymAnalyzerTests {
     }
 
     [Fact]
-    public void Analyze_SupplementaryContent_PreservedCorrectly() {
+    public async Task Analyze_SupplementaryContent_PreservedCorrectly() {
         var expectedContent = "When the user mentions k8s, they mean Kubernetes. Please use Kubernetes terminology and provide Kubernetes-specific guidance.";
         await using var map = new SynonymMap(new Dictionary<string, string> {
             ["k8s"] = expectedContent
@@ -109,7 +109,7 @@ public class SynonymAnalyzerTests {
 
 public class SynonymMapTests {
     [Fact]
-    public void DefaultConstructor_CreatesEmptyMap() {
+    public async Task DefaultConstructor_CreatesEmptyMap() {
         await using var map = new SynonymMap();
 
         map.Entries.Should().BeEmpty();
@@ -117,7 +117,7 @@ public class SynonymMapTests {
     }
 
     [Fact]
-    public void CustomMap_CreatesFromDictionary() {
+    public async Task CustomMap_CreatesFromDictionary() {
         var dict = new Dictionary<string, string> {
             ["key1"] = "value1",
             ["key2"] = "value2"
@@ -130,7 +130,7 @@ public class SynonymMapTests {
     }
 
     [Fact]
-    public void TryGetValue_CaseInsensitive() {
+    public async Task TryGetValue_CaseInsensitive() {
         await using var map = new SynonymMap(new Dictionary<string, string> {
             ["Deploy"] = "deployment content"
         });
@@ -143,7 +143,7 @@ public class SynonymMapTests {
     }
 
     [Fact]
-    public void TryGetValue_KeyNotFound_ReturnsFalse() {
+    public async Task TryGetValue_KeyNotFound_ReturnsFalse() {
         await using var map = new SynonymMap(new Dictionary<string, string> {
             ["deploy"] = "content"
         });

@@ -656,7 +656,7 @@ public class ResponsesQueryServiceTests {
     #region Two-Phase Tool Loading — BuildToolsFromKernel
 
     [Fact]
-    public void BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
+    public async Task BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file"),
@@ -671,7 +671,7 @@ public class ResponsesQueryServiceTests {
     }
 
     [Fact]
-    public void BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
+    public async Task BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.server1.tool1", "MCP tool 1"),
@@ -687,7 +687,7 @@ public class ResponsesQueryServiceTests {
     }
 
     [Fact]
-    public void BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
+    public async Task BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file")
@@ -710,7 +710,7 @@ public class ResponsesQueryServiceTests {
     #region Two-Phase Tool Loading — CreateSecondResponsesRequestWithDescriptions
 
     [Fact]
-    public void CreateSecondResponsesRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
+    public async Task CreateSecondResponsesRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1"),
@@ -732,7 +732,7 @@ public class ResponsesQueryServiceTests {
     }
 
     [Fact]
-    public void CreateSecondResponsesRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
+    public async Task CreateSecondResponsesRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
@@ -747,7 +747,7 @@ public class ResponsesQueryServiceTests {
     }
 
     [Fact]
-    public void CreateSecondResponsesRequestWithDescriptions_PreservesOriginalFields() {
+    public async Task CreateSecondResponsesRequestWithDescriptions_PreservesOriginalFields() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")

@@ -12,7 +12,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void GetProfile_Coordinator_ReturnsCoordinatorProfile() {
+    public async Task GetProfile_Coordinator_ReturnsCoordinatorProfile() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -25,7 +25,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void GetProfile_ExecutorCode_ReturnsCodeProfile() {
+    public async Task GetProfile_ExecutorCode_ReturnsCodeProfile() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -39,7 +39,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void GetProfile_ExecutorExplore_IsOneShot() {
+    public async Task GetProfile_ExecutorExplore_IsOneShot() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -52,7 +52,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void GetProfile_ExecutorDoctor_IsBackground() {
+    public async Task GetProfile_ExecutorDoctor_IsBackground() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -64,7 +64,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void GetProfile_UnknownVariant_ReturnsNull() {
+    public async Task GetProfile_UnknownVariant_ReturnsNull() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -74,7 +74,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void GetProfile_CustomDefinitionWithSourcePath_OverridesBuiltIn() {
+    public async Task GetProfile_CustomDefinitionWithSourcePath_OverridesBuiltIn() {
         var customDef = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
             Role = AgentRole.Executor,
             Variant = ExecutorVariant.Code,
@@ -96,7 +96,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void GetAvailableVariants_ReturnsEightVariants() {
+    public async Task GetAvailableVariants_ReturnsEightVariants() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -111,7 +111,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void Register_AddsCustomProfile() {
+    public async Task Register_AddsCustomProfile() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -128,7 +128,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void ClearCache_ResetsToBuiltInProfiles() {
+    public async Task ClearCache_ResetsToBuiltInProfiles() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -147,7 +147,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void GetProfilesByRole_ReturnsOnlyExecutorProfiles() {
+    public async Task GetProfilesByRole_ReturnsOnlyExecutorProfiles() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -158,7 +158,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void GetProfile_ExecutorVerification_HasCorrectTools() {
+    public async Task GetProfile_ExecutorVerification_HasCorrectTools() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -171,7 +171,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void GetProfile_ExecutorJoinCodeGuide_HasCorrectTools() {
+    public async Task GetProfile_ExecutorJoinCodeGuide_HasCorrectTools() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 
@@ -184,7 +184,7 @@ public sealed class AgentRoleProfileRegistryTests {
     }
 
     [Fact]
-    public void GetProfile_ExecutorContextCompression_HasCorrectTools() {
+    public async Task GetProfile_ExecutorContextCompression_HasCorrectTools() {
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();
 

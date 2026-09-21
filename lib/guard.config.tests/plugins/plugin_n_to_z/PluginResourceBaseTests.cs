@@ -112,14 +112,14 @@ public sealed class PluginResourceBaseTests {
         var objectId = resource.ObjectId;
 
         ObjectIdManager.IsRegistered(objectId).Should().BeTrue();
-        await resource.DisposeAsync().ConfigureAwait(false);
+        await resource.DisposeAsync();
         ObjectIdManager.IsRegistered(objectId).Should().BeFalse();
     }
 
     [Fact]
     public void Dispose_MarksDead() {
         await using var resource = new TestResource("pluginA", PluginResourceKind.Command, "cmdA1");
-        await resource.DisposeAsync().ConfigureAwait(false);
+        await resource.DisposeAsync();
         resource.IsAlive.Should().BeFalse();
     }
 

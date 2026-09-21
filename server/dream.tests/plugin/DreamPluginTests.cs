@@ -5,7 +5,7 @@ namespace Dream.Tests.Plugin;
 /// </summary>
 public sealed class DreamPluginTests {
     [Fact]
-    public void Name_Version_Description_AreCorrect() {
+    public async Task Name_Version_Description_AreCorrect() {
         await using var plugin = new DreamPlugin();
 
         Assert.Equal("Dream", plugin.Name);
@@ -56,7 +56,7 @@ public sealed class DreamPluginTests {
     }
 
     [Fact]
-    public void RegisterCommands_RegistersDreamCommands() {
+    public async Task RegisterCommands_RegistersDreamCommands() {
         await using var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
         var services = new ServiceCollection();
@@ -70,7 +70,7 @@ public sealed class DreamPluginTests {
     }
 
     [Fact]
-    public void UnregisterCommands_AfterRegister_UnregistersAll() {
+    public async Task UnregisterCommands_AfterRegister_UnregistersAll() {
         await using var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
         var services = new ServiceCollection();
@@ -95,7 +95,7 @@ public sealed class DreamPluginTests {
     }
 
     [Fact]
-    public void Unload_ReturnsSuccess() {
+    public async Task Unload_ReturnsSuccess() {
         await using var plugin = new DreamPlugin();
 
         var result = await plugin.UnloadAsync();

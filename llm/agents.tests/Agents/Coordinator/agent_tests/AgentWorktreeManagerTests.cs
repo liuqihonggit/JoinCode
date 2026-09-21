@@ -228,7 +228,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
     }
 
     [Fact]
-    public void IsWorktreeIsolationEnabled_ShouldReflectConstructorParameter() {
+    public async Task IsWorktreeIsolationEnabled_ShouldReflectConstructorParameter() {
         await using var enabled = new AgentWorktreeManager(_worktreeServiceMock.Object, enableWorktreeIsolation: true);
         await using var disabled = new AgentWorktreeManager(_worktreeServiceMock.Object, enableWorktreeIsolation: false);
 

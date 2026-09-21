@@ -35,6 +35,7 @@
     <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
     <!-- Hosting 层（JccChatSession）读取 teammate 子会话列表，需直接引用 Scheduling -->
     <ProjectReference Include="$(RepoRoot)lib/scheduling/Scheduling.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/bcl_bridge/BclBridge.csproj" />
   </ItemGroup>
 
   <ItemGroup>

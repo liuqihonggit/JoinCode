@@ -7,7 +7,7 @@
 /// </summary>
 public sealed class CoordinatorModeToolRestrictionTests {
     [Fact]
-    public void GetProfile_CoordinatorModeEnabled_RestrictsToolsToAgentSendMessageTaskStop() {
+    public async Task GetProfile_CoordinatorModeEnabled_RestrictsToolsToAgentSendMessageTaskStop() {
         Environment.SetEnvironmentVariable("JCC_COORDINATOR_MODE", "1");
         try {
             await using var registry = new AgentRoleProfileRegistry();
@@ -26,7 +26,7 @@ public sealed class CoordinatorModeToolRestrictionTests {
     }
 
     [Fact]
-    public void GetProfile_CoordinatorModeDisabled_AllowsAllTools() {
+    public async Task GetProfile_CoordinatorModeDisabled_AllowsAllTools() {
         Environment.SetEnvironmentVariable("JCC_COORDINATOR_MODE", null);
         await using var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();

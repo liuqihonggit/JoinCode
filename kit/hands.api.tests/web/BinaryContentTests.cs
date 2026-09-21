@@ -175,7 +175,7 @@ public class BinaryContentStorageTests {
     }
 
     [Fact]
-    public void GeneratePersistId_StartsWithWebfetch() {
+    public async Task GeneratePersistId_StartsWithWebfetch() {
         await using var storage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem(), null);
         var id = storage.GeneratePersistId();
         id.Should().StartWith("webfetch-");
@@ -183,7 +183,7 @@ public class BinaryContentStorageTests {
     }
 
     [Fact]
-    public void GeneratePersistId_UniqueIds() {
+    public async Task GeneratePersistId_UniqueIds() {
         await using var storage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem(), null);
         var id1 = storage.GeneratePersistId();
         var id2 = storage.GeneratePersistId();

@@ -18,7 +18,7 @@ public sealed class DefaultHttpClientProviderTests {
     /// 这是 P1-5 的核心: 让所有依赖 IHttpClientProvider 的服务间接受益于 Handler 池化
     /// </summary>
     [Fact]
-    public void GetClient_WhenFactoryInjected_ShouldUseFactoryCreateClient() {
+    public async Task GetClient_WhenFactoryInjected_ShouldUseFactoryCreateClient() {
         // Arrange
         var spyFactory = new SpyHttpClientFactory();
         await using var provider = new DefaultHttpClientProvider(spyFactory);
@@ -34,7 +34,7 @@ public sealed class DefaultHttpClientProviderTests {
     /// 验证当注入 IHttpClientFactory 时，GetClient(string name) 应通过 factory.CreateClient(name) 创建命名客户端
     /// </summary>
     [Fact]
-    public void GetClient_With_Name_WhenFactoryInjected_ShouldUseFactoryCreateClientWithName() {
+    public async Task GetClient_With_Name_WhenFactoryInjected_ShouldUseFactoryCreateClientWithName() {
         // Arrange
         var spyFactory = new SpyHttpClientFactory();
         await using var provider = new DefaultHttpClientProvider(spyFactory);
@@ -53,7 +53,7 @@ public sealed class DefaultHttpClientProviderTests {
     ///       但底层 HttpMessageHandler 由 IHttpClientFactory 池化管理
     /// </summary>
     [Fact]
-    public void GetClient_WhenFactoryInjected_MultipleCalls_ShouldCreateMultipleClients() {
+    public async Task GetClient_WhenFactoryInjected_MultipleCalls_ShouldCreateMultipleClients() {
         // Arrange
         var spyFactory = new SpyHttpClientFactory();
         await using var provider = new DefaultHttpClientProvider(spyFactory);
@@ -78,7 +78,7 @@ public sealed class DefaultHttpClientProviderTests {
     /// 这是 P1-5 的向后兼容: HttpClientProviderFactory.Create() 在 DI 容器构建前使用
     /// </summary>
     [Fact]
-    public void GetClient_WhenFactoryNull_ShouldFallbackToSharedHttpClient() {
+    public async Task GetClient_WhenFactoryNull_ShouldFallbackToSharedHttpClient() {
         await using var provider = new DefaultHttpClientProvider();
 
         // Act
@@ -94,7 +94,7 @@ public sealed class DefaultHttpClientProviderTests {
     /// 验证无参构造函数仍能正常工作（向后兼容 HttpClientProviderFactory.Create()）
     /// </summary>
     [Fact]
-    public void DefaultHttpClientProvider_ParameterlessConstructor_ShouldNotThrow() {
+    public async Task DefaultHttpClientProvider_ParameterlessConstructor_ShouldNotThrow() {
         await using var provider = new DefaultHttpClientProvider();
 
         // Assert

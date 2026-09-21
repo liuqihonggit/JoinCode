@@ -1,4 +1,4 @@
-namespace Infrastructure.IO.FileSystem;
+namespace IO.FileSystem;
 
 /// <summary>
 /// 同步文件读取适配器 — 局限 .GetAwaiter().GetResult() 到此 class，防止异步阻塞无限扩展。

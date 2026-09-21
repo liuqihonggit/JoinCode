@@ -5,7 +5,7 @@
 /// </summary>
 public sealed class DefaultSessionScannerTests {
     [Fact]
-    public void Constructor_NullConfig_UsesCurrentDirectory() {
+    public async Task Constructor_NullConfig_UsesCurrentDirectory() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         await using var scanner = new DefaultSessionScanner(null!, fs);
 
@@ -13,7 +13,7 @@ public sealed class DefaultSessionScannerTests {
     }
 
     [Fact]
-    public void GetProjectDir_ReturnsConfigProjectDir() {
+    public async Task GetProjectDir_ReturnsConfigProjectDir() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         await using var scanner = new DefaultSessionScanner(config, fs);

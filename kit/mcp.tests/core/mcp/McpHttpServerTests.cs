@@ -5,21 +5,21 @@ namespace Mcp.Tests;
 /// </summary>
 public class McpHttpServerTests {
     [Fact]
-    public void Constructor_StatelessMode_Default_True() {
+    public async Task Constructor_StatelessMode_Default_True() {
         var server = new McpServer("test");
         await using var httpServer = new McpHttpServer(server, "http://localhost:8080/");
         httpServer.IsStatelessMode.Should().BeTrue();
     }
 
     [Fact]
-    public void Constructor_StatefulMode_WhenFalse() {
+    public async Task Constructor_StatefulMode_WhenFalse() {
         var server = new McpServer("test");
         await using var httpServer = new McpHttpServer(server, "http://localhost:8080/", statelessMode: false);
         httpServer.IsStatelessMode.Should().BeFalse();
     }
 
     [Fact]
-    public void ActiveSessionCount_Initial_Zero() {
+    public async Task ActiveSessionCount_Initial_Zero() {
         var server = new McpServer("test");
         await using var httpServer = new McpHttpServer(server, "http://localhost:8080/");
         httpServer.ActiveSessionCount.Should().Be(0);
@@ -39,7 +39,7 @@ public class McpHttpServerTests {
     }
 
     [Fact]
-    public void Constructor_AllowedOrigins_StoredAsFrozenSet() {
+    public async Task Constructor_AllowedOrigins_StoredAsFrozenSet() {
         var server = new McpServer("test");
         await using var httpServer = new McpHttpServer(server, "http://localhost:8080/", allowedOrigins: ["https://example.com"]);
         httpServer.IsStatelessMode.Should().BeTrue();

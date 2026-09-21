@@ -33,9 +33,9 @@ public class AnthropicEnumsTests {
     [InlineData(AnthropicContentBlockType.ToolResult, "\"tool_result\"")]
     [InlineData(AnthropicContentBlockType.ServerToolUse, "\"server_tool_use\"")]
     [InlineData(AnthropicContentBlockType.WebSearchToolResult, "\"web_search_tool_result\"")]
-    public void ContentBlockTypeConverter_WriteValue_ReturnsExpectedString(AnthropicContentBlockType value, string expected) {
+    public async Task ContentBlockTypeConverter_WriteValue_ReturnsExpectedString(AnthropicContentBlockType value, string expected) {
         var converter = new AnthropicContentBlockTypeConverter();
-        Write(value, converter).Should().Be(expected);
+        (await Write(value, converter)).Should().Be(expected);
     }
 
     #endregion
@@ -64,9 +64,9 @@ public class AnthropicEnumsTests {
     }
 
     [Fact]
-    public void StreamingEventTypeConverter_WriteValue_ReturnsExpectedString() {
+    public async Task StreamingEventTypeConverter_WriteValue_ReturnsExpectedString() {
         var converter = new AnthropicStreamingEventTypeConverter();
-        Write(AnthropicStreamingEventType.ContentBlockDelta, converter).Should().Be("\"content_block_delta\"");
+        (await Write(AnthropicStreamingEventType.ContentBlockDelta, converter)).Should().Be("\"content_block_delta\"");
     }
 
     #endregion
@@ -91,9 +91,9 @@ public class AnthropicEnumsTests {
     }
 
     [Fact]
-    public void DeltaTypeConverter_WriteValue_ReturnsExpectedString() {
+    public async Task DeltaTypeConverter_WriteValue_ReturnsExpectedString() {
         var converter = new AnthropicDeltaTypeConverter();
-        Write(AnthropicDeltaType.InputJsonDelta, converter).Should().Be("\"input_json_delta\"");
+        (await Write(AnthropicDeltaType.InputJsonDelta, converter)).Should().Be("\"input_json_delta\"");
     }
 
     #endregion
@@ -119,9 +119,9 @@ public class AnthropicEnumsTests {
     }
 
     [Fact]
-    public void StopReasonConverter_WriteValue_ReturnsExpectedString() {
+    public async Task StopReasonConverter_WriteValue_ReturnsExpectedString() {
         var converter = new AnthropicStopReasonConverter();
-        Write(AnthropicStopReason.ToolUse, converter).Should().Be("\"tool_use\"");
+        (await Write(AnthropicStopReason.ToolUse, converter)).Should().Be("\"tool_use\"");
     }
 
     #endregion
@@ -157,8 +157,8 @@ public class AnthropicEnumsTests {
         return converter.Read(ref reader, typeof(T), null!)!;
     }
 
-    private static string Write<T>(T value, JsonConverter<T> converter) {
-        using var stream = new MemoryStream();
+    private static async Task<string> Write<T>(T value, JsonConverter<T> converter) {
+        await using var stream = new MemoryStream();
         await using var writer = new Utf8JsonWriter(stream);
         converter.Write(writer, value, null!);
         writer.Flush();

@@ -71,7 +71,7 @@ public static class ShellImageOutputDetector {
     /// <param name="mediaType">图片媒体类型（如 image/png）</param>
     /// <param name="base64Data">图片 base64 编码数据</param>
     /// <returns>压缩后的 (媒体类型, base64 数据)；若未超限或压缩失败则返回原始数据</returns>
-    public static (string MediaType, string Base64Data)? ResizeIfOversized(string mediaType, string base64Data) {
+    public static async Task<(string MediaType, string Base64Data)?> ResizeIfOversizedAsync(string mediaType, string base64Data) {
         var bytes = Convert.FromBase64String(base64Data);
         if (bytes.Length <= MaxImageFileSizeBytes)
             return (mediaType, base64Data);
@@ -86,15 +86,15 @@ public static class ShellImageOutputDetector {
                 }));
             }
 
-            var bufferWriter = new ArrayBufferWriter<byte>();
+            await using var ms = new MemoryStream();
             var encoder = mediaType switch {
                 "image/png" => (SixLabors.ImageSharp.Formats.IImageEncoder)new SixLabors.ImageSharp.Formats.Png.PngEncoder(),
                 "image/gif" => new SixLabors.ImageSharp.Formats.Gif.GifEncoder(),
                 _ => new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 85 },
             };
-            image.Save(bufferWriter, encoder);
+            image.Save(ms, encoder);
 
-            var compressedBase64 = Convert.ToBase64String(bufferWriter.WrittenSpan);
+            var compressedBase64 = Convert.ToBase64String(ms.ToArray());
             var resultMediaType = encoder is SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder ? "image/jpeg" : mediaType;
             return (resultMediaType, compressedBase64);
         } catch {

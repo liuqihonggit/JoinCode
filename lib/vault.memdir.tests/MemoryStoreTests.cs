@@ -388,7 +388,7 @@ public class MemoryStoreTests : IDisposable {
     }
 
     [Fact]
-    public void Constructor_NonExistentFile_ShouldCreateEmptyStore() {
+    public async Task Constructor_NonExistentFile_ShouldCreateEmptyStore() {
         // Arrange
         var newPath = "/test/new_memories.json";
         await using var store = new MemoryStore(Options.Create(new MemdirOptions { StoragePath = newPath }), _fileOperationServiceMock.Object, NullLogger<MemoryStore>.Instance);

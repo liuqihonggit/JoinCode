@@ -2,7 +2,7 @@
 
 public sealed class VoiceOptionsTests {
     [Fact]
-    public void DefaultValues_ShouldMatchExpected() {
+    public async Task DefaultValues_ShouldMatchExpected() {
         await using var options = new VoiceOptions();
 
         options.Backend.Should().Be(SttBackend.WhisperApi);

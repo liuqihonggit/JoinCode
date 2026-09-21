@@ -46,6 +46,10 @@ public static class Program {
             return await RunStripBomCommand(args[1..]).ConfigureAwait(false);
         }
 
+        if (args[0] == "fix-async") {
+            return await RunFixAsyncCommand(args[1..]).ConfigureAwait(false);
+        }
+
         // 默认: 审计模式（直接传 slnx/csproj 路径）
         return await RunAuditCommand(args);
     }
@@ -529,6 +533,54 @@ public static class Program {
             }
 
             return report.StrippedCount > 0 ? 3 : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("扫描超时（5 分钟限制）。");
+            return 2;
+        } catch (ArgumentException ex) {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// fix-async 模式：用 Roslyn AST 检测含 await 的非 async 方法，自动添加 async 修饰符
+    /// </summary>
+    private static async Task<int> RunFixAsyncCommand(string[] args) {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal) || args.Contains("-h", StringComparer.Ordinal)) {
+            Console.WriteLine("用法: jcc-audit fix-async &lt;目录&gt; [--dry-run] [--skip-tests]");
+            Console.WriteLine();
+            Console.WriteLine("选项:");
+            Console.WriteLine("  --dry-run     仅预览，不实际写入文件");
+            Console.WriteLine("  --skip-tests  跳过测试项目目录");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+        var skipTests = args.Contains("--skip-tests", StringComparer.Ordinal);
+
+        if (string.IsNullOrEmpty(targetPath)) {
+            Console.Error.WriteLine("必须指定扫描目录路径。");
+            return 1;
+        }
+
+        Console.WriteLine("=== JccAuditCli fix-async ===");
+        Console.WriteLine($"目录: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+        Console.WriteLine($"跳过测试: {skipTests}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
+        try {
+            var (fixedFiles, fixedMethods, skippedFiles) = await AsyncMethodFixer.FixDirectoryAsync(targetPath, dryRun, skipTests, cts.Token).ConfigureAwait(false);
+
+            Console.WriteLine();
+            Console.WriteLine("=== fix-async 报告 ===");
+            Console.WriteLine($"修复文件: {fixedFiles}");
+            Console.WriteLine($"修复方法: {fixedMethods}");
+            Console.WriteLine($"跳过文件: {skippedFiles}");
+
+            return fixedMethods > 0 ? (dryRun ? 3 : 0) : 0;
         } catch (OperationCanceledException) {
             Console.Error.WriteLine("扫描超时（5 分钟限制）。");
             return 2;

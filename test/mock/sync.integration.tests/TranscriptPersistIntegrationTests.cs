@@ -35,9 +35,9 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime {
         }
     }
 
-    private ServiceProvider CreateServiceProvider() {
+    private async Task<ServiceProvider> CreateServiceProvider() {
         if (_serviceProvider != null) {
-            await _serviceProvider.DisposeAsync().ConfigureAwait(false);
+            await _serviceProvider.DisposeAsync();
             _serviceProvider = null;
         }
 
@@ -64,7 +64,7 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime {
 
     [Fact]
     public async Task SendMessageAsync_PersistsTranscriptDelta() {
-        var sp = CreateServiceProvider();
+        var sp = await CreateServiceProvider();
         await using (sp.ConfigureAwait(true)) {
             var chatService = sp.GetRequiredService<IChatService>();
             var ctxMgr = sp.GetRequiredService<IChatContextManager>();
@@ -87,7 +87,7 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime {
 
     [Fact]
     public async Task SecondTurn_AppendsWithoutDuplication() {
-        var sp = CreateServiceProvider();
+        var sp = await CreateServiceProvider();
         await using (sp.ConfigureAwait(true)) {
             var chatService = sp.GetRequiredService<IChatService>();
 

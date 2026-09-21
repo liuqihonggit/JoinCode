@@ -48,7 +48,7 @@ internal static class SlashCallExecutor {
     /// <summary>
     /// 解析 slash_call 参数为 JSON 字符串 — 支持 key=value / JSON 字符串 / --args-file / --args-stdin 多种格式。
     /// <para>仿 mcp_call 的 ExecuteMcpCallAsync 参数分发: 位置参数第二个以 { 开头视为 JSON,否则视为 key=value 数组。</para>
-    /// <para>key=value 通过 BuildArgsJsonFromKeyValue 组装成 JSON 对象字符串,传给 ChatCommandContext.Arguments。</para>
+    /// <para>key=value 通过 BuildArgsJsonFromKeyValueAsync 组装成 JSON 对象字符串,传给 ChatCommandContext.Arguments。</para>
     /// <para>优先级: key=value / argsJson(位置) > argsFile > argsStdin(与 mcp_call 一致)。</para>
     /// </summary>
     private static async Task<string?> ResolveArgsJsonAsync(string[] args, CancellationToken ct) {
@@ -57,7 +57,7 @@ internal static class SlashCallExecutor {
 
         if (argsStdin) {
             await using var stream = System.Console.OpenStandardInput();
-            using var ms = new System.IO.MemoryStream();
+            await using var ms = new System.IO.MemoryStream();
             await stream.CopyToAsync(ms, ct).ConfigureAwait(false);
             var bytes = ms.ToArray();
             var offset = 0;
@@ -76,16 +76,16 @@ internal static class SlashCallExecutor {
         if (allPositional[1].StartsWith("{"))
             return allPositional[1];
 
-        return BuildArgsJsonFromKeyValue(allPositional[1..]);
+        return await BuildArgsJsonFromKeyValueAsync(allPositional[1..]).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 将 key=value 键值对数组组装成 JSON 对象字符串。
-    /// <para>复用 McpCliCommand.ParseValueToJsonElement 做类型推断(int/double/bool/null/JSON/字符串),</para>
+    /// <para>复用 McpCliCommand.ParseValueToJsonElementAsync 做类型推断(int/double/bool/null/JSON/字符串),</para>
     /// <para>用 JsonElement.GetRawText() 获取各值的 JSON 表示,手动拼接成 {"k1":v1,"k2":v2} 格式。</para>
     /// <para>返回 null 表示格式错误(已输出 Rust 风格报错)。</para>
     /// </summary>
-    internal static string? BuildArgsJsonFromKeyValue(string[] kvArgs) {
+    internal static async Task<string?> BuildArgsJsonFromKeyValueAsync(string[] kvArgs) {
         var sb = new StringBuilder();
         sb.Append('{');
         var first = true;
@@ -98,7 +98,7 @@ internal static class SlashCallExecutor {
             }
             var key = kv[..eqIdx];
             var value = kv[(eqIdx + 1)..];
-            var element = McpCliCommand.ParseValueToJsonElement(value, key);
+            var element = await McpCliCommand.ParseValueToJsonElementAsync(value, key).ConfigureAwait(false);
             if (!first)
                 sb.Append(',');
             first = false;

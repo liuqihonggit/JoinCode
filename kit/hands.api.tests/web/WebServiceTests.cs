@@ -28,7 +28,7 @@ public sealed class WebServiceTests {
         };
     }
 
-    private WebService CreateService(bool supportsWebSearch = true) {
+    private async Task<WebService> CreateService(bool supportsWebSearch = true) {
         var cache = new WebFetchCache();
         await using var domainChecker = new DomainBlocklistChecker(_apiClientMock.Object, cache);
         await using var binaryStorage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem());
@@ -56,7 +56,7 @@ public sealed class WebServiceTests {
 
     [Fact]
     public async Task SearchAsync_EmptyQuery_ReturnsError() {
-        var service = CreateService();
+        var service = await CreateService();
         var result = await service.SearchAsync("").ConfigureAwait(true);
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("cannot be empty");
@@ -64,7 +64,7 @@ public sealed class WebServiceTests {
 
     [Fact]
     public async Task SearchAsync_WhitespaceQuery_ReturnsError() {
-        var service = CreateService();
+        var service = await CreateService();
         var result = await service.SearchAsync("   ").ConfigureAwait(true);
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("cannot be empty");
@@ -72,7 +72,7 @@ public sealed class WebServiceTests {
 
     [Fact]
     public async Task SearchAsync_BothAllowedAndBlockedDomains_ReturnsError() {
-        var service = CreateService();
+        var service = await CreateService();
         var result = await service.SearchAsync("test",
             allowedDomains: ["example.com"],
             blockedDomains: ["bad.com"]).ConfigureAwait(true);
@@ -86,7 +86,7 @@ public sealed class WebServiceTests {
 
     [Fact]
     public async Task SearchAsync_ProviderNotSupportWebSearch_ReturnsError() {
-        var service = CreateService(supportsWebSearch: false);
+        var service = await CreateService(supportsWebSearch: false);
         var result = await service.SearchAsync("test query").ConfigureAwait(true);
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("not available");
@@ -123,7 +123,7 @@ public sealed class WebServiceTests {
                 new(ChatMessageRole.Assistant, "Search results:", metadata)
             });
 
-        var service = CreateService();
+        var service = await CreateService();
         var result = await service.SearchAsync("test query").ConfigureAwait(true);
 
         result.Success.Should().BeTrue();
@@ -148,7 +148,7 @@ public sealed class WebServiceTests {
                 new(ChatMessageRole.Assistant, "Search results:", metadata)
             });
 
-        var service = CreateService();
+        var service = await CreateService();
         var result = await service.SearchAsync("test query").ConfigureAwait(true);
 
         result.Success.Should().BeTrue();
@@ -170,7 +170,7 @@ public sealed class WebServiceTests {
                 new(ChatMessageRole.Assistant, "Here are some results:\n[Example](https://example.com)\n[Another](https://another.com)")
             });
 
-        var service = CreateService();
+        var service = await CreateService();
         var result = await service.SearchAsync("test query").ConfigureAwait(true);
 
         result.Success.Should().BeTrue();
@@ -191,7 +191,7 @@ public sealed class WebServiceTests {
             .Callback<MessageList, ChatOptions, IChatClient, CancellationToken>((history, _, _, _) => capturedHistory = history)
             .ReturnsAsync(new List<ChatApiMessage> { new(ChatMessageRole.Assistant, "No results") });
 
-        var service = CreateService();
+        var service = await CreateService();
         await service.SearchAsync("test query").ConfigureAwait(true);
 
         capturedHistory.Should().NotBeNull();
@@ -217,7 +217,7 @@ public sealed class WebServiceTests {
             .Callback<MessageList, ChatOptions, IChatClient, CancellationToken>((_, options, _, _) => capturedOptions = options)
             .ReturnsAsync(new List<ChatApiMessage> { new(ChatMessageRole.Assistant, "No results") });
 
-        var service = CreateService();
+        var service = await CreateService();
         await service.SearchAsync("test query").ConfigureAwait(true);
 
         capturedOptions.Should().NotBeNull();
@@ -239,7 +239,7 @@ public sealed class WebServiceTests {
             .Callback<MessageList, ChatOptions, IChatClient, CancellationToken>((_, options, _, _) => capturedOptions = options)
             .ReturnsAsync(new List<ChatApiMessage> { new(ChatMessageRole.Assistant, "No results") });
 
-        var service = CreateService();
+        var service = await CreateService();
         await service.SearchAsync("test", allowedDomains: ["example.com"]).ConfigureAwait(true);
 
         var toolJson = capturedOptions!.ExtensionData!["web_search_tool"].GetRawText();
@@ -259,7 +259,7 @@ public sealed class WebServiceTests {
                 It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("API error"));
 
-        var service = CreateService();
+        var service = await CreateService();
         var result = await service.SearchAsync("test query").ConfigureAwait(true);
 
         result.Success.Should().BeFalse();

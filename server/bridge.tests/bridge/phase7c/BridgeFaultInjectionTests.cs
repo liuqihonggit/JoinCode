@@ -51,7 +51,7 @@ public sealed class BridgeFaultInjectionTests {
     }
 
     [Fact]
-    public void FaultInjectionBridgeApiClient_ConstructsSuccessfully() {
+    public async Task FaultInjectionBridgeApiClient_ConstructsSuccessfully() {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         await using var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
         var inner = new BridgeApiClient(http, options);

@@ -98,7 +98,7 @@ public class TerminalHelperRealOutTests {
     }
 
     [Fact]
-    public void WriteLineReal_AfterSetOut_ShouldNotGoToRedirectedWriter() {
+    public async Task WriteLineReal_AfterSetOut_ShouldNotGoToRedirectedWriter() {
         JoinCode.Cli.TerminalHelper.Init();
         var originalOut = System.Console.Out;
         var sb = new StringBuilder();
@@ -113,7 +113,7 @@ public class TerminalHelperRealOutTests {
     }
 
     [Fact]
-    public void WriteRawReal_AfterSetOut_ShouldNotGoToRedirectedWriter() {
+    public async Task WriteRawReal_AfterSetOut_ShouldNotGoToRedirectedWriter() {
         JoinCode.Cli.TerminalHelper.Init();
         var originalOut = System.Console.Out;
         var sb = new StringBuilder();

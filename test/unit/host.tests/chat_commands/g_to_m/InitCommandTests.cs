@@ -74,9 +74,9 @@ public sealed class InitCommandTests {
             "settings.json 应写入 AppDataConstants.AppDataFolder 路径");
 
         // 验证文件内容非空
-        var rulesContent = fs.ReadAllText(expectedRulesFile);
+        var rulesContent = await fs.ReadAllText(expectedRulesFile);
         rulesContent.Should().Contain("项目规则");
-        var settingsContent = fs.ReadAllText(expectedSettingsFile);
+        var settingsContent = await fs.ReadAllText(expectedSettingsFile);
         settingsContent.Should().Contain("deepseek", "应含 deepseek 供应商 profile");
         settingsContent.Should().Contain("deepseek-anthropic", "应含 deepseek-anthropic profile (Anthropic 协议)");
         settingsContent.Should().Contain("modelsEndpoint", "骨架应含 modelsEndpoint 供 AutoFetchModels 拉取");
@@ -152,7 +152,7 @@ public sealed class InitCommandTests {
         await cmd.ExecuteAsync(context).ConfigureAwait(true);
 
         // Assert — 文件内容应保持不变
-        var content = fs.ReadAllText(rulesFile);
+        var content = await fs.ReadAllText(rulesFile);
         content.Should().Be(existingContent, "已存在的 project_rules.md 不应被覆盖");
     }
 

@@ -306,7 +306,7 @@ public class OpenAIQueryServiceTests {
     }
 
     [Fact]
-    public void BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
+    public async Task BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file")
@@ -329,7 +329,7 @@ public class OpenAIQueryServiceTests {
     #region Two-Phase Tool Loading — CreateSecondRequestWithDescriptions
 
     [Fact]
-    public void CreateSecondRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
+    public async Task CreateSecondRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1"),
@@ -352,7 +352,7 @@ public class OpenAIQueryServiceTests {
     }
 
     [Fact]
-    public void CreateSecondRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
+    public async Task CreateSecondRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
@@ -367,7 +367,7 @@ public class OpenAIQueryServiceTests {
     }
 
     [Fact]
-    public void CreateSecondRequestWithDescriptions_PreservesOriginalFields() {
+    public async Task CreateSecondRequestWithDescriptions_PreservesOriginalFields() {
         await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")

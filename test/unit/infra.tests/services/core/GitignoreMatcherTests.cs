@@ -136,8 +136,8 @@ public sealed class GitignoreMatcherTests {
     }
 
     [Fact]
-    public void FromFile_NonExistentPath_ReturnsNull() {
-        var matcher = GitignoreMatcher.FromFile("nonexistent/.gitignore", TestFileSystem.Current);
+    public async Task FromFile_NonExistentPath_ReturnsNull() {
+        var matcher = await GitignoreMatcher.FromFile("nonexistent/.gitignore", TestFileSystem.Current);
         Assert.Null(matcher);
     }
 }

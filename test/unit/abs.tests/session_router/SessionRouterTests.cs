@@ -77,7 +77,7 @@ public sealed class SessionRouterTests {
         scope.Register(goal1);
         scope.Register(goal2);
 
-        await SessionRouter.RemoveScopeAsync(sessionId).Should().BeTrue();
+        (await SessionRouter.RemoveScopeAsync(sessionId)).Should().BeTrue();
         SessionRouter.ScopeCount.Should().Be(0);
         goal1.LifecycleState.Should().Be(EntityLifecycle.Disposed);
         goal2.LifecycleState.Should().Be(EntityLifecycle.Disposed);
@@ -86,7 +86,7 @@ public sealed class SessionRouterTests {
     [Fact]
     public async Task RemoveScope_不存在_返回False() {
         var sessionId = new ObjectId(ObjectType.Session);
-        await SessionRouter.RemoveScopeAsync(sessionId).Should().BeFalse();
+        (await SessionRouter.RemoveScopeAsync(sessionId)).Should().BeFalse();
     }
 
     [Fact]

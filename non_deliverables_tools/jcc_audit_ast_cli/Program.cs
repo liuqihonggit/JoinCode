@@ -54,6 +54,10 @@ public static class Program {
             return await RunFixAsyncIssuesCommand(args[1..]).ConfigureAwait(false);
         }
 
+        if (args[0] == "fix-from-build-errors") {
+            return await RunFixFromBuildErrorsCommand(args[1..]).ConfigureAwait(false);
+        }
+
         // 默认: 审计模式（直接传 slnx/csproj 路径）
         return await RunAuditCommand(args);
     }
@@ -640,6 +644,39 @@ public static class Program {
         } catch (ArgumentException ex) {
             Console.Error.WriteLine(ex.Message);
             return 1;
+        }
+    }
+
+    /// <summary>
+    /// fix-from-build-errors 模式：运行 dotnet build，解析 CS1503/CS1061 错误位置，精确加 await
+    /// </summary>
+    private static async Task<int> RunFixFromBuildErrorsCommand(string[] args) {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
+            Console.WriteLine("用法: jcc-audit fix-from-build-errors &lt;slnx&gt; [--dry-run]");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+
+        Console.WriteLine("=== JccAuditCli fix-from-build-errors ===");
+        Console.WriteLine($"解决方案: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(15));
+
+        try {
+            var (fixedFiles, fixedIssues) = await BuildErrorFixer.FixFromBuildErrorsAsync(targetPath, dryRun, cts.Token).ConfigureAwait(false);
+
+            Console.WriteLine();
+            Console.WriteLine("=== fix-from-build-errors 报告 ===");
+            Console.WriteLine($"修复文件: {fixedFiles}");
+            Console.WriteLine($"修复问题: {fixedIssues}");
+
+            return fixedIssues > 0 ? (dryRun ? 3 : 0) : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("超时。");
+            return 2;
         }
     }
 

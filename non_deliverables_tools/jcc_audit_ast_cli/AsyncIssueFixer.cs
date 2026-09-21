@@ -84,6 +84,9 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
     private readonly bool _isTestFile;
     private static readonly SymbolDisplayFormat TypeFormat = SymbolDisplayFormat.MinimallyQualifiedFormat;
 
+    /// <summary>
+    /// 已修复的问题数
+    /// </summary>
     public int FixedIssues { get; private set; }
 
     internal AsyncIssueRewriter(SemanticModel model, string filePath) {

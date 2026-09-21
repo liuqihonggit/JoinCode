@@ -73,6 +73,9 @@ public static class AsyncMethodFixer {
 /// SyntaxRewriter — 遍历方法声明，检测 body 含 await 但签名非 async
 /// </summary>
 internal class AsyncMethodRewriter : CSharpSyntaxRewriter {
+    /// <summary>
+    /// 已修复的方法数
+    /// </summary>
     public int FixedMethods { get; private set; }
 
     public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node) {

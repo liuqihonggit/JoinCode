@@ -144,7 +144,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         if (script.DumpMessages) {
             var dumpFiles = CollectDumpFiles();
             var analyzer = new PrefixCacheAnalyzer(_fs);
-            var cacheAnalysis = analyzer.Analyze(dumpFiles);
+            var cacheAnalysis = await analyzer.AnalyzeAsync(dumpFiles);
 
             result = result with {
                 DumpFiles = dumpFiles,

@@ -34,6 +34,27 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     #region IStateService Implementation
 
     /// <inheritdoc />
+    public void SaveState(string systemPrompt, MessageList chatHistory) {
+        var chatHistoryList = chatHistory
+            .Select(m => new ApiMessageState {
+                Role = m.Role.ToValue(),
+                Content = m.Content ?? string.Empty,
+                Timestamp = _clock.GetUtcNow(),
+                Metadata = SerializeMetadata(m.Metadata)
+            })
+            .ToImmutableList();
+
+        var state = new SessionState {
+            SystemPrompt = systemPrompt,
+            MessageList = chatHistoryList,
+            LastActivityAt = _clock.GetUtcNow()
+        };
+
+        _fallbackStorage[StateKey] = state;
+        _logger?.LogInformation(L.T(StringKey.VaultLogStateSaveSuccess));
+    }
+
+    /// <inheritdoc />
     public async Task SaveStateAsync(string systemPrompt, MessageList chatHistory, CancellationToken cancellationToken = default) {
         var chatHistoryList = chatHistory
             .Select(m => new ApiMessageState {
@@ -132,6 +153,14 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     /// <inheritdoc />
     public Task<(string SystemPrompt, MessageList MessageList)> LoadStateAsync(CancellationToken cancellationToken = default) {
         return Task.FromResult(LoadState());
+    }
+
+    /// <inheritdoc />
+    public bool ClearState() {
+        var result = _fallbackStorage.TryRemove(StateKey, out _);
+        if (result)
+            _logger?.LogInformation(L.T(StringKey.VaultLogStateClearSuccess));
+        return result;
     }
 
     /// <inheritdoc />

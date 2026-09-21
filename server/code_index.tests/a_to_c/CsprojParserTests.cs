@@ -16,7 +16,7 @@ public sealed class CsprojParserTests : IDisposable {
 
     [Fact]
     public async Task Parse_ExtractsProjectName() {
-        var path = WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+        var path = await WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
 
         var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
@@ -25,7 +25,7 @@ public sealed class CsprojParserTests : IDisposable {
 
     [Fact]
     public async Task Parse_ExtractsTargetFramework() {
-        var path = WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+        var path = await WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
 
         var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
@@ -34,7 +34,7 @@ public sealed class CsprojParserTests : IDisposable {
 
     [Fact]
     public async Task Parse_ExtractsOutputType() {
-        var path = WriteCsproj("<Project><PropertyGroup><OutputType>Exe</OutputType></PropertyGroup></Project>");
+        var path = await WriteCsproj("<Project><PropertyGroup><OutputType>Exe</OutputType></PropertyGroup></Project>");
 
         var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
@@ -58,7 +58,7 @@ public sealed class CsprojParserTests : IDisposable {
 
     [Fact]
     public async Task Parse_ExtractsPackageReferences() {
-        var path = WriteCsproj(
+        var path = await WriteCsproj(
             """
             <Project>
               <ItemGroup>
@@ -77,7 +77,7 @@ public sealed class CsprojParserTests : IDisposable {
 
     [Fact]
     public async Task Parse_PackageReferenceWithMsBuildVersion_SetsVersionToNull() {
-        var path = WriteCsproj(
+        var path = await WriteCsproj(
             """
             <Project>
               <ItemGroup>
@@ -94,7 +94,7 @@ public sealed class CsprojParserTests : IDisposable {
 
     [Fact]
     public async Task Parse_NoProjectReferences_ReturnsEmptyList() {
-        var path = WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+        var path = await WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
 
         var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
@@ -133,7 +133,7 @@ public sealed class CsprojParserTests : IDisposable {
 
     [Fact]
     public async Task Parse_ProjectReferenceWithUnresolvedVariable_IsSkipped() {
-        var path = WriteCsproj(
+        var path = await WriteCsproj(
             """
             <Project>
               <ItemGroup>
@@ -159,7 +159,7 @@ public sealed class CsprojParserTests : IDisposable {
 
     [Fact]
     public async Task Parse_ProjectReferenceWithEmptyInclude_IsSkipped() {
-        var path = WriteCsproj(
+        var path = await WriteCsproj(
             """
             <Project>
               <ItemGroup>
@@ -175,7 +175,7 @@ public sealed class CsprojParserTests : IDisposable {
 
     [Fact]
     public async Task Parse_PackageReferenceWithEmptyInclude_IsSkipped() {
-        var path = WriteCsproj(
+        var path = await WriteCsproj(
             """
             <Project>
               <ItemGroup>

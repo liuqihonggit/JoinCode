@@ -16,7 +16,7 @@ public sealed class MetadataStoreTests {
     // === 保存/加载 ===
 
     [Fact]
-    public void Save_Load_RoundTrip_PreservesData() {
+    public async Task Save_Load_RoundTrip_PreservesData() {
         var metadata = BuildMetadata(url: "https://example.com/file.zip", totalLength: 1024 * 1024, eTag: "\"abc123\"");
         metadata.Chunks =
         [
@@ -24,8 +24,8 @@ public sealed class MetadataStoreTests {
             new() { Index = 1, Start = 512, End = 1023, Downloaded = 100, Completed = false }
         ];
 
-        _store.Save(FilePath, metadata);
-        var loaded = _store.TryLoad(FilePath);
+        await _store.Save(FilePath, metadata);
+        var loaded = await _store.TryLoad(FilePath);
 
         loaded.Should().NotBeNull();
         loaded!.Url.Should().Be("https://example.com/file.zip");
@@ -39,8 +39,8 @@ public sealed class MetadataStoreTests {
     // === 不存在 ===
 
     [Fact]
-    public void TryLoad_NotExists_ReturnsNull() {
-        var result = _store.TryLoad(FilePath);
+    public async Task TryLoad_NotExists_ReturnsNull() {
+        var result = await _store.TryLoad(FilePath);
         result.Should().BeNull();
     }
 
@@ -51,7 +51,7 @@ public sealed class MetadataStoreTests {
         var metaPath = MetadataStore.GetMetadataPath(FilePath);
         await _fs.WriteAllText(metaPath, "{ this is not valid json }}}");
 
-        var result = _store.TryLoad(FilePath);
+        var result = await _store.TryLoad(FilePath);
         result.Should().BeNull();
     }
 

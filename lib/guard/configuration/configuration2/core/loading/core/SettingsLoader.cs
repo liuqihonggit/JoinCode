@@ -318,15 +318,14 @@ public static class SettingsLoader {
             return null;
         }
 
-        try {
-            var json = await fs.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-            var result = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-            logger?.LogDebug("SL OK: {Path} len={Len} profile={Profile}", path, json.Length, result?.Current?.Profile);
-            return result;
-        } catch (Exception ex) {
-            logger?.LogWarning(ex, "SettingsLoader: Failed to load {Path}", path);
-            return null;
-        }
+        var result = await DirtyReadRetry.ReadWithRetryAsync(
+            () => fs.ReadAllTextAsync(path, cancellationToken),
+            json => RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson),
+            path,
+            logger,
+            cancellationToken).ConfigureAwait(false);
+        logger?.LogDebug("SL OK: {Path} profile={Profile}", path, result?.Current?.Profile);
+        return result;
     }
 
     /// <summary>
@@ -336,14 +335,11 @@ public static class SettingsLoader {
         if (!fs.FileExists(path))
             return null;
 
-        try {
-            var json = await fs.ReadAllText(path).ConfigureAwait(false);
-            return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-        } catch (Exception ex) {
-            Diag.WriteLifecycle($"[WARN] 配置文件解析失败，使用默认值: {path} | 错误: {ex.Message}");
-            logger?.LogWarning(ex, "SettingsLoader: Failed to load {Path}", path);
-            return null;
-        }
+        return await DirtyReadRetry.ReadWithRetryAsync(
+            () => fs.ReadAllText(path).AsTask(),
+            json => RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson),
+            path,
+            logger).ConfigureAwait(false);
     }
 
     #endregion

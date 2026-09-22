@@ -152,13 +152,11 @@ public class ConfigLoader {
         if (!fs.FileExists(settingsPath))
             return null;
 
-        try {
-            var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
-            return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-        } catch (Exception ex) {
-            Diag.WriteLifecycle($"[WARN] 全局配置文件解析失败，使用默认值: {settingsPath} | 错误: {ex.Message}");
-            return null;
-        }
+        return await DirtyReadRetry.ReadWithRetryAsync(
+            () => fs.ReadAllTextAsync(settingsPath, cancellationToken),
+            json => RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson),
+            settingsPath,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -324,15 +322,12 @@ public class ConfigLoader {
         if (!fs.FileExists(settingsPath))
             return null;
 
-        try {
-            var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
-            return TryGetSettingFromJson(json, key);
-        } catch (Exception ex) {
-            // 文件损坏或格式错误，忽略
-            logger?.LogWarning(ex, "Failed to load setting '{Key}' from settings.json", key);
-        }
-
-        return null;
+        return await DirtyReadRetry.ReadWithRetryAsync(
+            () => fs.ReadAllTextAsync(settingsPath, cancellationToken),
+            json => TryGetSettingFromJson(json, key),
+            settingsPath,
+            logger,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -347,15 +342,11 @@ public class ConfigLoader {
         if (!fs.FileExists(settingsPath))
             return null;
 
-        try {
-            var json = await fs.ReadAllText(settingsPath).ConfigureAwait(false);
-            return TryGetSettingFromJson(json, key);
-        } catch (Exception ex) {
-            // 文件损坏或格式错误，忽略
-            logger?.LogWarning(ex, "Failed to load setting '{Key}' from settings.json", key);
-        }
-
-        return null;
+        return await DirtyReadRetry.ReadWithRetryAsync(
+            () => fs.ReadAllText(settingsPath).AsTask(),
+            json => TryGetSettingFromJson(json, key),
+            settingsPath,
+            logger).ConfigureAwait(false);
     }
 
     /// <summary>

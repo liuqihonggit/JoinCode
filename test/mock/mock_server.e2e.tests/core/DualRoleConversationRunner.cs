@@ -778,7 +778,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
             sb.AppendLine("    \"tool_calls\": [");
             for (var j = 0; j < toolCalls.Count; j++) {
                 var tc = toolCalls[j];
-                var replacedArguments = ReplacePortPlaceholders(tc.Arguments);
+                var replacedArguments = ReplacePortPlaceholders(tc.ArgumentsToJson());
                 sb.AppendLine("    {");
                 sb.AppendLine($"      \"tool_name\": \"{EscapeJsonString(tc.ToolName)}\",");
                 sb.AppendLine($"      \"arguments\": \"{EscapeJsonString(replacedArguments)}\"");

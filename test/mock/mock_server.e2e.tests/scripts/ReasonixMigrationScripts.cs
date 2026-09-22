@@ -120,7 +120,7 @@ public static class SsrfGuardScripts {
                         new MockToolCallScript
                         {
                             ToolName = "web_fetch",
-                            Arguments = """{"url":"https://example.com/api/data"}"""
+                            Arguments = new { url = "https://example.com/api/data", prompt = "提取页面内容" }
                         }
                     ],
                     FollowUpText = "网页内容已获取。"

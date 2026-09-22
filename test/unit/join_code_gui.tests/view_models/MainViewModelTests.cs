@@ -138,7 +138,7 @@ public class MainViewModelTests {
 
         vm.RemoveSessionCommand.Execute(target);
 
-        store.Load(target.Id).Should().BeNull();
+        (await store.LoadAsync(target.Id)).Should().BeNull();
         vm.Sessions.Should().NotContain(target);
     }
 

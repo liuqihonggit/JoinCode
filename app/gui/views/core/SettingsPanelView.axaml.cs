@@ -33,7 +33,7 @@ public sealed partial class SettingsPanelView : UserControl {
             if ((mods & KeyModifiers.Alt) != 0)
                 sb.Append("Alt+");
             sb.Append(e.Key.ToString());
-            vm.ApplyRecordedHotkey(item, sb.ToString());
+            _ = vm.ApplyRecordedHotkeyAsync(item, sb.ToString());
             return;
         }
     }

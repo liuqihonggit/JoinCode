@@ -32,9 +32,9 @@ public sealed class GuiSessionStore {
     /// <summary>
     /// 列出全部会话摘要（按最后修改时间降序，损坏文件跳过）— 供侧边栏快速加载。
     /// </summary>
-    public IReadOnlyList<GuiSessionSummary> ListSessions() {
+    public async Task<IReadOnlyList<GuiSessionSummary>> ListSessionsAsync() {
         if (_transcriptService is not null)
-            return ListSessionsViaTranscriptService();
+            return await ListSessionsViaTranscriptServiceAsync();
 
         if (!_fs.DirectoryExists(_sessionsDir))
             return [];
@@ -42,7 +42,7 @@ public sealed class GuiSessionStore {
         var summaries = new List<GuiSessionSummary>();
         foreach (var file in _fs.GetFiles(_sessionsDir, "gui.json", SearchOption.AllDirectories)) {
             try {
-                var json = _fs.ReadAllText(file).GetAwaiter().GetResult();
+                var json = await _fs.ReadAllText(file);
                 var data = RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
                 if (data is null || string.IsNullOrWhiteSpace(data.Id))
                     continue;
@@ -64,13 +64,13 @@ public sealed class GuiSessionStore {
     }
 
     /// <summary>通过 ITranscriptService 列出会话(统一入口,.json + 子目录)</summary>
-    private GuiSessionSummary[] ListSessionsViaTranscriptService() {
-        var summaries = _transcriptService!.ListTranscriptsAsync(200).GetAwaiter().GetResult();
+    private async Task<GuiSessionSummary[]> ListSessionsViaTranscriptServiceAsync() {
+        var summaries = await _transcriptService!.ListTranscriptsAsync(200);
         var result = new List<GuiSessionSummary>(summaries.Count);
         foreach (var s in summaries) {
             var title = s.SessionId;
             try {
-                var custom = _transcriptService.GetCustomTitleAsync(s.SessionId).GetAwaiter().GetResult();
+                var custom = await _transcriptService.GetCustomTitleAsync(s.SessionId);
                 if (!string.IsNullOrWhiteSpace(custom))
                     title = custom;
             } catch (Exception ex) {
@@ -88,17 +88,17 @@ public sealed class GuiSessionStore {
     }
 
     /// <summary>读取指定会话的完整数据；不存在或损坏返回 null</summary>
-    public GuiSessionData? Load(string sessionId) {
+    public async Task<GuiSessionData?> LoadAsync(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         if (_transcriptService is not null)
-            return LoadViaTranscriptService(sessionId);
+            return await LoadViaTranscriptServiceAsync(sessionId);
 
         var path = GetSessionPath(sessionId);
         if (!_fs.FileExists(path))
             return null;
 
         try {
-            var json = _fs.ReadAllText(path).GetAwaiter().GetResult();
+            var json = await _fs.ReadAllText(path);
             return RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
         } catch (Exception) {
             return null;
@@ -106,9 +106,9 @@ public sealed class GuiSessionStore {
     }
 
     /// <summary>通过 ITranscriptService 加载会话(统一入口,TranscriptEntry → GuiSessionMessage)</summary>
-    private GuiSessionData? LoadViaTranscriptService(string sessionId) {
+    private async Task<GuiSessionData?> LoadViaTranscriptServiceAsync(string sessionId) {
         try {
-            var entries = _transcriptService!.LoadTranscriptAsync(sessionId).GetAwaiter().GetResult();
+            var entries = await _transcriptService!.LoadTranscriptAsync(sessionId);
             if (entries.Count == 0)
                 return null;
 
@@ -126,10 +126,10 @@ public sealed class GuiSessionStore {
                 });
             }
 
-            var info = _transcriptService.GetSessionInfoAsync(sessionId).GetAwaiter().GetResult();
+            var info = await _transcriptService.GetSessionInfoAsync(sessionId);
             var customTitle = string.Empty;
             try {
-                customTitle = _transcriptService.GetCustomTitleAsync(sessionId).GetAwaiter().GetResult() ?? string.Empty;
+                customTitle = await _transcriptService.GetCustomTitleAsync(sessionId) ?? string.Empty;
             } catch (Exception ex) {
                 System.Diagnostics.Debug.WriteLine($"[GuiSessionStore] Load 读取 CustomTitle 失败 sid={sessionId}: {ex.Message}");
             }
@@ -147,13 +147,13 @@ public sealed class GuiSessionStore {
     }
 
     /// <summary>保存会话到磁盘（目录不存在则创建），写入成功返回 true</summary>
-    public bool Save(GuiSessionData session) {
+    public async Task<bool> SaveAsync(GuiSessionData session) {
         ArgumentNullException.ThrowIfNull(session);
         if (string.IsNullOrWhiteSpace(session.Id))
             throw new ArgumentException("会话 Id 不能为空", nameof(session));
 
         if (_transcriptService is not null)
-            return SaveViaTranscriptService(session);
+            return await SaveViaTranscriptServiceAsync(session);
 
         var path = GetSessionPath(session.Id);
         var dir = Path.GetDirectoryName(path);
@@ -161,7 +161,7 @@ public sealed class GuiSessionStore {
             _fs.CreateDirectory(dir);
 
         var json = RelaxedJsonSerializer.Serialize(session, GuiJsonContext.Default);
-        _fs.WriteAllText(path, json).GetAwaiter().GetResult();
+        await _fs.WriteAllText(path, json);
         return true;
     }
 
@@ -170,20 +170,20 @@ public sealed class GuiSessionStore {
     /// 消息落盘由引擎 TranscriptPersistMiddleware 增量写入 {sessionId}/transcript.json，
     /// 此前本方法的 Delete+Append 全量覆盖与引擎增量并存会产生重复条目（双写根因）。
     /// </summary>
-    private bool SaveViaTranscriptService(GuiSessionData session) {
+    private async Task<bool> SaveViaTranscriptServiceAsync(GuiSessionData session) {
         try {
             // 保存会话元数据
-            _transcriptService!.SaveSessionInfoAsync(session.Id, new SessionInfo {
+            await _transcriptService!.SaveSessionInfoAsync(session.Id, new SessionInfo {
                 Id = session.Id,
                 ProjectPath = session.ProjectPath,
                 ModelId = session.ModelId,
                 Vendor = session.Vendor,
                 CreatedAt = session.CreatedAt == default ? DateTime.UtcNow : session.CreatedAt
-            }).GetAwaiter().GetResult();
+            });
 
             // 保存自定义标题(非空时)
             if (!string.IsNullOrWhiteSpace(session.CustomTitle))
-                _transcriptService.SaveCustomTitleAsync(session.Id, session.CustomTitle).GetAwaiter().GetResult();
+                await _transcriptService.SaveCustomTitleAsync(session.Id, session.CustomTitle);
 
             return true;
         } catch (Exception ex) {
@@ -193,10 +193,10 @@ public sealed class GuiSessionStore {
     }
 
     /// <summary>删除指定会话文件；不存在返回 false</summary>
-    public bool Delete(string sessionId) {
+    public async Task<bool> DeleteAsync(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         if (_transcriptService is not null)
-            return _transcriptService.DeleteTranscriptAsync(sessionId).GetAwaiter().GetResult();
+            return await _transcriptService.DeleteTranscriptAsync(sessionId);
 
         var path = GetSessionPath(sessionId);
         if (!_fs.FileExists(path))

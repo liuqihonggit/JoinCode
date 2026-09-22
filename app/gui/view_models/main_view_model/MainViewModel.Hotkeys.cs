@@ -18,18 +18,18 @@ public sealed partial class MainViewModel {
 
     /// <summary>恢复单个快捷键为默认值</summary>
     [RelayCommand]
-    private void ResetHotkey(HotkeyItemVm? item) {
+    private async Task ResetHotkeyAsync(HotkeyItemVm? item) {
         if (item is null)
             return;
         item.Gesture = HotkeyDefaults.Get(item.ActionKey);
-        SaveHotkeysToPreferences();
+        await SaveHotkeysToPreferencesAsync();
     }
 
     /// <summary>录制完成后由 View 层调用：设置键位并持久化</summary>
-    public void ApplyRecordedHotkey(HotkeyItemVm item, string gesture) {
+    public async Task ApplyRecordedHotkeyAsync(HotkeyItemVm item, string gesture) {
         item.Gesture = gesture;
         item.IsRecording = false;
-        SaveHotkeysToPreferences();
+        await SaveHotkeysToPreferencesAsync();
     }
 
     /// <summary>从 HotkeyItems 获取指定动作的当前键位</summary>
@@ -41,11 +41,11 @@ public sealed partial class MainViewModel {
     }
 
     /// <summary>从 HotkeyItems 写回 GuiPreferences 并持久化</summary>
-    private void SaveHotkeysToPreferences() {
+    private async Task SaveHotkeysToPreferencesAsync() {
         if (!_gate.PreferencesLoaded)
             return;
         try {
-            var existing = _preferencesStore.Load();
+            var existing = await _preferencesStore.LoadAsync();
             foreach (var h in HotkeyItems) {
                 switch (h.ActionKey) {
                     case "Send": existing.HotkeySend = h.Gesture; break;
@@ -56,7 +56,7 @@ public sealed partial class MainViewModel {
                     case "ToggleSettings": existing.HotkeyToggleSettings = h.Gesture; break;
                 }
             }
-            _preferencesStore.Save(existing);
+            await _preferencesStore.SaveAsync(existing);
         } catch (Exception ex) {
             ViewModelDiagnosticsLogger.WriteError(ex);
         }

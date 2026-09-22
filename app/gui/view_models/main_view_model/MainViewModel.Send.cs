@@ -225,7 +225,7 @@ public sealed partial class MainViewModel {
             IsBusy = false;
             RunStatus.EndTurn(stopReason);
             OnPropertyChanged(nameof(CanStop));
-            SaveActiveSession();
+            _ = SaveActiveSessionAsync();
         }
     }
 }

@@ -23,12 +23,12 @@ public sealed class GuiPreferencesStore {
     public IFileSystem FileSystem => _fs;
 
     /// <summary>加载偏好；文件不存在或损坏返回默认值，不抛异常（不阻塞 UI 启动）</summary>
-    public GuiPreferences Load() {
+    public async Task<GuiPreferences> LoadAsync() {
         try {
             if (!_fs.FileExists(_filePath))
                 return new GuiPreferences();
 
-            var json = _fs.ReadAllText(_filePath).GetAwaiter().GetResult();
+            var json = await _fs.ReadAllText(_filePath);
             return RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiPreferences)
                 ?? new GuiPreferences();
         } catch (Exception) {
@@ -37,7 +37,7 @@ public sealed class GuiPreferencesStore {
     }
 
     /// <summary>保存偏好到磁盘（目录不存在则创建）</summary>
-    public void Save(GuiPreferences preferences) {
+    public async Task SaveAsync(GuiPreferences preferences) {
         ArgumentNullException.ThrowIfNull(preferences);
 
         var dir = _fs.GetParentPath(_filePath);
@@ -45,6 +45,6 @@ public sealed class GuiPreferencesStore {
             _fs.CreateDirectory(dir);
 
         var json = RelaxedJsonSerializer.Serialize(preferences, GuiJsonContext.Default);
-        _fs.WriteAllText(_filePath, json).GetAwaiter().GetResult();
+        await _fs.WriteAllText(_filePath, json);
     }
 }

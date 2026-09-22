@@ -32,14 +32,14 @@ public sealed partial class MainViewModel {
 
         _selectedEffort = _session.EffortLevel.ToValue();
         Messages.CollectionChanged += OnMessagesChanged;
-        LoadPersistedSessions();
+        _ = LoadPersistedSessionsAsync();
         NewConversation();
 
         // 注册持久化路由（在 LoadPreferences 之前，加载期门控关闭不触发）
         RegisterPersistActions();
 
         // 加载 GUI 偏好并应用到 UI 属性（启动时恢复上次显示的内容）
-        LoadPreferences();
+        _ = LoadPreferencesAsync();
 
         if (session is not null) {
             RebuildConnectionOptions();
@@ -138,7 +138,7 @@ public sealed partial class MainViewModel {
         if (session.TranscriptService is not null) {
             _sessionStore.SetTranscriptService(session.TranscriptService);
             Sessions.Clear();
-            LoadPersistedSessions();
+            _ = LoadPersistedSessionsAsync();
         }
     }
 

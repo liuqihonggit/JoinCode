@@ -16,8 +16,8 @@ public sealed partial class MainViewModel {
     public SessionItem? SelectedSession => Sessions.FirstOrDefault(s => s.IsSelected);
 
     /// <summary>启动时从同一 sessions 目录恢复历史会话到侧边栏（CLI 与 GUI 共享会话文件）</summary>
-    private void LoadPersistedSessions() {
-        foreach (var summary in _sessionStore.ListSessions()) {
+    private async Task LoadPersistedSessionsAsync() {
+        foreach (var summary in await _sessionStore.ListSessionsAsync()) {
             Sessions.Add(new SessionItem {
                 Id = summary.Id,
                 Title = summary.Title
@@ -42,7 +42,7 @@ public sealed partial class MainViewModel {
     }
 
     /// <summary>将当前会话消息持久化到 ~/.jcc/sessions/{Id}.json（含自动命名标题）</summary>
-    private void SaveActiveSession() {
+    private async Task SaveActiveSessionAsync() {
         if (_activeSession is null)
             return;
 
@@ -61,7 +61,7 @@ public sealed partial class MainViewModel {
         };
 
         try {
-            _sessionStore.Save(data);
+            await _sessionStore.SaveAsync(data);
         } catch (Exception ex) {
             System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话持久化失败: {ex.Message}");
         }
@@ -69,10 +69,10 @@ public sealed partial class MainViewModel {
 
     /// <summary>清空全部会话（会话列表与消息一并重置，持久化文件同步删除）</summary>
     [RelayCommand]
-    private void ClearAllSessions() {
+    private async Task ClearAllSessionsAsync() {
         foreach (var s in Sessions.ToList()) {
             try {
-                _sessionStore.Delete(s.Id);
+                await _sessionStore.DeleteAsync(s.Id);
             } catch (Exception ex) {
                 System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话删除失败: {ex.Message}");
             }
@@ -85,12 +85,12 @@ public sealed partial class MainViewModel {
 
     /// <summary>从会话列表删除指定会话（同步删除持久化文件）</summary>
     [RelayCommand]
-    private void RemoveSession(SessionItem? session) {
+    private async Task RemoveSessionAsync(SessionItem? session) {
         if (session is null)
             return;
         Sessions.Remove(session);
         try {
-            _sessionStore.Delete(session.Id);
+            await _sessionStore.DeleteAsync(session.Id);
         } catch (Exception ex) {
             System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话删除失败: {ex.Message}");
         }
@@ -118,7 +118,7 @@ public sealed partial class MainViewModel {
         }
 
         // 切换会话时从持久化恢复该会话消息到消息区（空会话则清空）
-        var data = _sessionStore.Load(session.Id);
+        var data = await _sessionStore.LoadAsync(session.Id);
         Messages.Clear();
         var historyForEngine = new List<(MessageRole Role, string Content)>();
         if (data is not null) {

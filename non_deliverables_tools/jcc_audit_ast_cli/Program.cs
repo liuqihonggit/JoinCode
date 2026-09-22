@@ -58,6 +58,10 @@ public static class Program {
             return await RunFixFromBuildErrorsCommand(args[1..]).ConfigureAwait(false);
         }
 
+        if (args[0] == "fix-getawaiter-getresult") {
+            return await RunFixGetAwaiterGetResultCommand(args[1..]).ConfigureAwait(false);
+        }
+
         // 默认: 审计模式（直接传 slnx/csproj 路径）
         return await RunAuditCommand(args);
     }
@@ -676,6 +680,40 @@ public static class Program {
             return fixedIssues > 0 ? (dryRun ? 3 : 0) : 0;
         } catch (OperationCanceledException) {
             Console.Error.WriteLine("超时。");
+            return 2;
+        }
+    }
+
+    private static async Task<int> RunFixGetAwaiterGetResultCommand(string[] args) {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
+            Console.WriteLine("用法: jcc-audit fix-getawaiter-getresult <slnx> [--dry-run]");
+            Console.WriteLine();
+            Console.WriteLine("修复: .GetAwaiter().GetResult() → await ... .ConfigureAwait(false)");
+            Console.WriteLine("跳过: SyncFileReader / Main 入口 / 属性 getter / 分析器代码 / bcl_bridge");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+
+        Console.WriteLine("=== JccAuditCli fix-getawaiter-getresult ===");
+        Console.WriteLine($"解决方案: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+
+        try {
+            var (fixedFiles, fixedIssues, skipped) = await GetAwaiterFixer.FixAllAsync(targetPath, dryRun, cts.Token).ConfigureAwait(false);
+
+            Console.WriteLine();
+            Console.WriteLine("=== fix-getawaiter-getresult 报告 ===");
+            Console.WriteLine($"修复文件: {fixedFiles}");
+            Console.WriteLine($"修复问题: {fixedIssues}");
+            Console.WriteLine($"跳过文件: {skipped}");
+
+            return fixedIssues > 0 ? (dryRun ? 3 : 0) : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("扫描超时（10 分钟限制）。");
             return 2;
         }
     }

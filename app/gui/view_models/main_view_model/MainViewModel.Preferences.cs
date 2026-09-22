@@ -55,9 +55,9 @@ public sealed partial class MainViewModel {
     /// 加载 GUI 偏好并应用到 UI 属性 — 启动时恢复上次显示的内容。
     /// 加载期间置 PreferencesLoaded=false 防止 OnXxxChanged 回写磁盘。
     /// </summary>
-    private void LoadPreferences() {
+    private async Task LoadPreferencesAsync() {
         try {
-            var prefs = _preferencesStore.Load();
+            var prefs = await _preferencesStore.LoadAsync();
             _gate.MarkPreferencesLoading();
             Temperature = prefs.Temperature;
             MaxTokens = prefs.MaxTokens;
@@ -153,11 +153,11 @@ public sealed partial class MainViewModel {
     }
 
     /// <summary>保存当前 UI 偏好到磁盘 — 各 OnXxxChanged 调用，门控防止初始化时回写</summary>
-    private void SavePreferences() {
+    private async Task SavePreferencesAsync() {
         if (!_gate.PreferencesLoaded)
             return;
         try {
-            _preferencesStore.Save(new Persistence.GuiPreferences {
+            await _preferencesStore.SaveAsync(new Persistence.GuiPreferences {
                 Temperature = Temperature,
                 MaxTokens = MaxTokens,
                 SystemPrompt = SystemPrompt,

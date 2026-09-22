@@ -38,6 +38,6 @@ public sealed partial class MainViewModel {
             StatusText = "自动检测网络（VPN 优先）";
             break;
         }
-        SavePreferences();
+        _ = SavePreferencesAsync();
     }
 }

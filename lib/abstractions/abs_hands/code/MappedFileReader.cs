@@ -18,7 +18,8 @@ public sealed class MappedFileReader : IDisposable {
 
     /// <summary>
     /// 打开文件并创建 mmap 映射。文件映射到虚拟内存，按需分页，不立即分配物理内存。
-    /// <para>用 FileStream 获取文件大小（只开一次文件），mmap 用 path 重载创建。</para>
+    /// <para>用 FileStream(FileShare.ReadWrite) 打开文件，允许多读并发（独占打开会导致并发读 IOException）。</para>
+    /// <para>mmap 从 FileStream 创建（leaveOpen=false），MemoryMappedFile.Dispose 自动关闭 FileStream。</para>
     /// <para>空文件不创建 mmap（BCL 限制），_mmf/_accessor 为 null，Length=0，ReadToEnd 返回空字符串。</para>
     /// <para>调用方用 <c>using var</c> 释放，编译器展开为 try-finally 调用 Dispose。</para>
     /// </summary>
@@ -26,11 +27,19 @@ public sealed class MappedFileReader : IDisposable {
     /// <exception cref="FileNotFoundException">文件不存在。</exception>
     /// <exception cref="IOException">文件被独占锁定或 IO 错误。</exception>
     public MappedFileReader(string path) {
-        _fileSize = new FileInfo(path).Length;
-        if (_fileSize == 0)
-            return;
-        _mmf = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0L, MemoryMappedFileAccess.Read);
-        _accessor = _mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+        var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        try {
+            _fileSize = fs.Length;
+            if (_fileSize == 0) {
+                fs.Dispose();
+                return;
+            }
+            _mmf = MemoryMappedFile.CreateFromFile(fs, null, _fileSize, MemoryMappedFileAccess.Read, HandleInheritability.None, false);
+            _accessor = _mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+        } catch {
+            fs.Dispose();
+            throw;
+        }
     }
 
     /// <summary>

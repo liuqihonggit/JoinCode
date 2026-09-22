@@ -17,7 +17,7 @@ public interface IGitHubService {
     /// <param name="prRef">PR 引用。</param>
     /// <param name="events">订阅事件类型。</param>
     /// <param name="ct">取消令牌。</param>
-    Task<PRSubscription> SubscribeAsync(string prRef, string events = "all", CancellationToken ct = default);
+    Task<PRSubscription> SubscribeAsync(string prRef, string events = GitHubLogFilterEnumConstants.All, CancellationToken ct = default);
     /// <summary>取消订阅 PR 事件。</summary>
     /// <param name="prRef">PR 引用。</param>
     /// <param name="ct">取消令牌。</param>

@@ -23,12 +23,12 @@ public sealed class SystemActuatorKind {
     /// <summary>
     /// Bash 执行器类型
     /// </summary>
-    public static readonly SystemActuatorKind Bash = new("bash", "Bash");
+    public static readonly SystemActuatorKind Bash = new(ShellToolName.Bash.ToValue(), "Bash");
 
     /// <summary>
     /// PowerShell 执行器类型
     /// </summary>
-    public static readonly SystemActuatorKind PowerShell = new("powershell", "PowerShell");
+    public static readonly SystemActuatorKind PowerShell = new(ShellToolName.Powershell.ToValue(), "PowerShell");
 
     /// <summary>
     /// CMD 执行器类型（Windows 命令提示符）
@@ -38,7 +38,7 @@ public sealed class SystemActuatorKind {
     /// <summary>
     /// Python 执行器类型
     /// </summary>
-    public static readonly SystemActuatorKind Python = new("python", "Python");
+    public static readonly SystemActuatorKind Python = new(ReplLanguage.Python.ToValue(), "Python");
 
     private static readonly FrozenDictionary<string, SystemActuatorKind> _registry =
         new[] { Bash, PowerShell, Cmd, Python }.ToFrozenDictionary(

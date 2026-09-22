@@ -30,7 +30,7 @@ public sealed class SleepEntity : ToolExecutionEntity {
         string? spanId = null,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base("sleep", toolUseId, spanId, displayName ?? $"sleep:{durationSeconds}s", sessionId) {
+        : base(SystemToolName.Sleep.ToValue(), toolUseId, spanId, displayName ?? $"sleep:{durationSeconds}s", sessionId) {
         DurationSeconds = durationSeconds;
         RemainingSeconds = durationSeconds;
         Reason = reason;

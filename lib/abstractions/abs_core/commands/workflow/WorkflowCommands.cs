@@ -21,7 +21,7 @@ public sealed record AnalyzeCodeCommand(
     [StringLength(50000, ErrorMessage = "代码过长")]
     string Code,
     [StringLength(50, ErrorMessage = "分析类型过长")]
-    string AnalysisType = "general");
+    string AnalysisType = AnalysisTypeEnumConstants.General);
 
 public sealed record ChatCommand(
     [Required(ErrorMessage = "message 不能为空")]

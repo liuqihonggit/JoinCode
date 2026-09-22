@@ -47,7 +47,7 @@ public enum NotebookEditMode {
 public sealed record NotebookOutput {
     /// <summary>获取输出类型。</summary>
     [JsonPropertyName("output_type")]
-    public string OutputType { get; init; } = "stream";
+    public string OutputType { get; init; } = global::JoinCode.Abstractions.Models.Notebook.OutputType.Stream.ToValue();
 
     /// <summary>获取输出名称（stream 类型时为 stdout/stderr）。</summary>
     [JsonPropertyName("name")]
@@ -96,7 +96,7 @@ public sealed record NotebookCell {
 
     /// <summary>获取单元格类型（code/markdown/raw）。</summary>
     [JsonPropertyName("cell_type")]
-    public string CellType { get; init; } = "code";
+    public string CellType { get; init; } = NotebookCellType.Code.ToValue();
 
     /// <summary>获取源代码行列表。</summary>
     [JsonPropertyName("source")]
@@ -122,11 +122,16 @@ public sealed record NotebookCell {
 
     /// <summary>获取单元格类型枚举。</summary>
     [JsonIgnore]
-    public NotebookCellType Type => CellType.ToLowerInvariant() switch {
-        "markdown" => NotebookCellType.Markdown,
-        "raw" => NotebookCellType.Raw,
-        _ => NotebookCellType.Code
-    };
+    public NotebookCellType Type {
+        get {
+            var lower = CellType.ToLowerInvariant();
+            if (string.Equals(lower, NotebookCellType.Markdown.ToValue(), StringComparison.Ordinal))
+                return NotebookCellType.Markdown;
+            if (string.Equals(lower, NotebookCellType.Raw.ToValue(), StringComparison.Ordinal))
+                return NotebookCellType.Raw;
+            return NotebookCellType.Code;
+        }
+    }
 }
 
 /// <summary>

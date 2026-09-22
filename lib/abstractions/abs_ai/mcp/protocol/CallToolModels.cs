@@ -26,7 +26,7 @@ public sealed record CallToolResult {
 public sealed record McpToolContent {
     /// <summary>获取或设置内容类型。</summary>
     [JsonPropertyName("type")]
-    public string Type { get; set; } = "text";
+    public string Type { get; set; } = ToolContentType.Text.ToValue();
 
     /// <summary>获取或设置文本内容。</summary>
     [JsonPropertyName("text")]

@@ -164,7 +164,7 @@ public static class SedValidation {
         }
 
         // 第一个 token 应该是 "sed"
-        if (!tokens[0].Equals("sed", StringComparison.OrdinalIgnoreCase)) {
+        if (!tokens[0].Equals(PathCommand.Sed.ToValue(), StringComparison.OrdinalIgnoreCase)) {
             return new SedExtractionResult();
         }
 

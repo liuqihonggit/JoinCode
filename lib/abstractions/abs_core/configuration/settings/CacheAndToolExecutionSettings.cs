@@ -66,9 +66,9 @@ public class ToolExecutionSettings {
     /// </summary>
     public List<string> DangerousTools { get; set; } = new()
     {
-        "shell",
+        ToolCategoryEnumConstants.Shell,
         FileToolNameEnumConstants.FileWrite,
-        "file_delete"
+        FileToolNameEnumConstants.FileDelete
     };
 
     /// <summary>

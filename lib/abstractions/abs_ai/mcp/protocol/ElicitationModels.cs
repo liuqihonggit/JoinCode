@@ -7,7 +7,7 @@ public class ElicitRequestParams {
 
     /// <summary>获取或设置 elicitation 模式（form/url）。</summary>
     [JsonPropertyName("mode")]
-    public string Mode { get; set; } = "form";
+    public string Mode { get; set; } = ElicitMode.Form.ToValue();
 
     /// <summary>获取或设置请求的表单 schema。</summary>
     [JsonPropertyName("requestedSchema")]
@@ -86,7 +86,7 @@ public class ElicitSchemaProperty : SchemaProperty {
 public class ElicitResult {
     /// <summary>获取或设置用户动作（accept/decline/cancel）。</summary>
     [JsonPropertyName("action")]
-    public string Action { get; set; } = "cancel";
+    public string Action { get; set; } = ElicitAction.Cancel.ToValue();
 
     /// <summary>获取或设置表单内容字典。</summary>
     [JsonPropertyName("content")]

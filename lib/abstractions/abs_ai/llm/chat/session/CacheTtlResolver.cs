@@ -30,14 +30,14 @@ public static class CacheTtlResolver {
     /// <param name="baseUrl">provider 的 base_url，可为 null 或空串。</param>
     /// <returns>缓存 TTL 时长。</returns>
     public static TimeSpan DefaultCacheTtl(string? baseUrl) {
-        switch (DetectCacheVendor(baseUrl)) {
-            case "dashscope":
+        var vendor = DetectCacheVendor(baseUrl);
+        if (string.Equals(vendor, "dashscope", StringComparison.Ordinal)) {
             return DashScopeTtl;
-            case "anthropic":
-            return AnthropicTtl;
-            default:
-            return DeepSeekDefaultTtl;
         }
+        if (string.Equals(vendor, VendorKind.Anthropic.ToValue(), StringComparison.Ordinal)) {
+            return AnthropicTtl;
+        }
+        return DeepSeekDefaultTtl;
     }
 
     /// <summary>
@@ -52,9 +52,9 @@ public static class CacheTtlResolver {
             case true when host == "dashscope.aliyuncs.com" || host.EndsWith(".dashscope.aliyuncs.com", StringComparison.Ordinal) || host.EndsWith(".maas.aliyuncs.com", StringComparison.Ordinal):
             return "dashscope";
             case true when host == "api.deepseek.com" || host.EndsWith(".deepseek.com", StringComparison.Ordinal):
-            return "deepseek";
+            return VendorKind.DeepSeek.ToValue();
             case true when host == "api.anthropic.com" || host.EndsWith(".anthropic.com", StringComparison.Ordinal):
-            return "anthropic";
+            return VendorKind.Anthropic.ToValue();
             default:
             return string.Empty;
         }

@@ -73,10 +73,10 @@ public sealed class ChatOptions {
     /// EffortLevel 到 OpenAI reasoning_effort 的映射
     /// </summary>
     public static string EffortToReasoningEffort(EffortLevel effortLevel) => effortLevel switch {
-        JoinCode.Abstractions.LLM.EffortLevel.Low => "low",
-        JoinCode.Abstractions.LLM.EffortLevel.Medium => "medium",
-        JoinCode.Abstractions.LLM.EffortLevel.High => "high",
-        JoinCode.Abstractions.LLM.EffortLevel.Max => "high",
-        _ => "high"
+        JoinCode.Abstractions.LLM.EffortLevel.Low => JoinCode.Abstractions.LLM.EffortLevel.Low.ToValue(),
+        JoinCode.Abstractions.LLM.EffortLevel.Medium => JoinCode.Abstractions.LLM.EffortLevel.Medium.ToValue(),
+        JoinCode.Abstractions.LLM.EffortLevel.High => JoinCode.Abstractions.LLM.EffortLevel.High.ToValue(),
+        JoinCode.Abstractions.LLM.EffortLevel.Max => JoinCode.Abstractions.LLM.EffortLevel.High.ToValue(),
+        _ => JoinCode.Abstractions.LLM.EffortLevel.High.ToValue()
     };
 }

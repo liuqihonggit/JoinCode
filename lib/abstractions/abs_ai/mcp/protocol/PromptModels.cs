@@ -56,7 +56,7 @@ public class McpMessage {
 public class McpMessageContent {
     /// <summary>获取内容类型（text/image 等）。</summary>
     [JsonPropertyName("type")]
-    public string Type { get; init; } = "text";
+    public string Type { get; init; } = ToolContentType.Text.ToValue();
 
     /// <summary>获取文本内容。</summary>
     [JsonPropertyName("text")]

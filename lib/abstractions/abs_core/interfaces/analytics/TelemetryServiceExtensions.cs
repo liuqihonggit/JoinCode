@@ -11,7 +11,7 @@ public static class TelemetryServiceExtensions {
         this ITelemetryService? telemetry,
         string metricName,
         Dictionary<string, string>? tags = null,
-        string? unit = "count",
+        string? unit = SearchOutputModeEnumConstants.Count,
         string? description = null) {
         if (telemetry == null) return;
         var counter = telemetry.GetCounter(metricName, unit, description);

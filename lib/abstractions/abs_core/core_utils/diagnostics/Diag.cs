@@ -8,7 +8,7 @@ namespace JoinCode.Abstractions.Utils.Diagnostics;
 public static class Diag {
     private static readonly bool _envEnabled = IsTruthy(Environment.GetEnvironmentVariable(JccEnvVar.DebugLog.ToValue()));
 
-    private static readonly bool _diTraceEnabled = Environment.GetEnvironmentVariable(JccEnvVar.DiTrace.ToValue()) == "1";
+    private static readonly bool _diTraceEnabled = Environment.GetEnvironmentVariable(JccEnvVar.DiTrace.ToValue()) == DebugDumpSection.Init.ToValue();
 
     private static bool _runtimeEnabled;
 
@@ -17,7 +17,7 @@ public static class Diag {
     /// 默认 stderr，debug 阶段可设为 stdout 或 both 避免管道缓冲问题
     /// </summary>
     private static readonly string _diagTarget =
-        (Environment.GetEnvironmentVariable("JCC_DIAG_TARGET") ?? "stderr").ToLowerInvariant();
+        (Environment.GetEnvironmentVariable("JCC_DIAG_TARGET") ?? TaskOutputType.Stderr.ToValue()).ToLowerInvariant();
 
     /// <summary>
     /// 诊断行输出事件 — 每次 WriteLine/WriteLifecycle 输出时触发
@@ -104,24 +104,20 @@ public static class Diag {
     }
 
     private static void WriteToTargets(string message) {
-        switch (_diagTarget) {
-            case "stdout":
+        if (_diagTarget == TaskOutputType.Stdout.ToValue()) {
             Console.Out.WriteLine(message);
             Console.Out.Flush();
-            break;
-            case "both":
+        } else if (_diagTarget == "both") {
             Console.Error.WriteLine(message);
             Console.Error.Flush();
             Console.Out.WriteLine(message);
             Console.Out.Flush();
-            break;
-            default:
+        } else {
             Console.Error.WriteLine(message);
             Console.Error.Flush();
-            break;
         }
     }
 
     private static bool IsTruthy(string? value)
-        => value is "1" or "true" or "yes" or "TRUE" or "True" or "YES" or "Yes";
+        => string.Equals(value, DebugDumpSection.Init.ToValue(), StringComparison.Ordinal) || value is "true" or "yes" or "TRUE" or "True" or "YES" or "Yes";
 }

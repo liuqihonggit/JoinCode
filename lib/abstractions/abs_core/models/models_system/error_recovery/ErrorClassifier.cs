@@ -11,7 +11,7 @@ public static class ErrorClassifier {
         if (string.IsNullOrEmpty(errorMessage))
             return ToolErrorCategory.Unknown;
 
-        if (errorMessage.Contains("permission", StringComparison.OrdinalIgnoreCase) ||
+        if (errorMessage.Contains(ToolErrorCategory.Permission.ToValue(), StringComparison.OrdinalIgnoreCase) ||
             errorMessage.Contains("权限", StringComparison.OrdinalIgnoreCase))
             return ToolErrorCategory.Permission;
 
@@ -26,7 +26,7 @@ public static class ErrorClassifier {
             errorMessage.Contains("找不到", StringComparison.OrdinalIgnoreCase))
             return ToolErrorCategory.NotFound;
 
-        if (errorMessage.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
+        if (errorMessage.Contains(ToolErrorCategory.Timeout.ToValue(), StringComparison.OrdinalIgnoreCase) ||
             errorMessage.Contains("超时", StringComparison.OrdinalIgnoreCase))
             return ToolErrorCategory.Timeout;
 

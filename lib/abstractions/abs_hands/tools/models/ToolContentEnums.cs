@@ -17,14 +17,12 @@ public enum ToolContentType {
 public sealed class ToolContentTypeJsonConverter : JsonConverter<ToolContentType> {
     public override ToolContentType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
         var value = reader.GetString();
-        return value switch {
-            "text" => ToolContentType.Text,
-            "image" => ToolContentType.Image,
-            "resource" => ToolContentType.Resource,
-            "error" => ToolContentType.Error,
-            "document" => ToolContentType.Document,
-            _ => ToolContentType.Text
-        };
+        if (string.Equals(value, ToolContentType.Text.ToValue(), StringComparison.OrdinalIgnoreCase)) return ToolContentType.Text;
+        if (string.Equals(value, ToolContentType.Image.ToValue(), StringComparison.OrdinalIgnoreCase)) return ToolContentType.Image;
+        if (string.Equals(value, ToolContentType.Resource.ToValue(), StringComparison.OrdinalIgnoreCase)) return ToolContentType.Resource;
+        if (string.Equals(value, ToolContentType.Error.ToValue(), StringComparison.OrdinalIgnoreCase)) return ToolContentType.Error;
+        if (string.Equals(value, ToolContentType.Document.ToValue(), StringComparison.OrdinalIgnoreCase)) return ToolContentType.Document;
+        return ToolContentType.Text;
     }
 
     public override void Write(Utf8JsonWriter writer, ToolContentType value, JsonSerializerOptions options) {

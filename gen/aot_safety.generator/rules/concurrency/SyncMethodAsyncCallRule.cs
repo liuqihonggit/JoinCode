@@ -47,9 +47,24 @@ public sealed class SyncMethodAsyncCallRule : AnalyzerRuleBase<SyncMethodAsyncCa
         var calledSymbol = ctx.SemanticModel.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
         if (!AotSafetyHelpers.ReturnsTaskLike(calledSymbol)) return;
 
+        if (IsGenericMethodInstantiation(calledSymbol)) return;
+
+        if (IsTaskRun(calledSymbol)) return;
+
         var enclosingName = methodSymbol.Name;
         var calledName = calledSymbol!.ContainingType?.Name is { } tn ? $"{tn}.{calledSymbol.Name}" : calledSymbol.Name;
         ctx.ReportDiagnostic(Diagnostic.Create(Descriptor, invocation.GetLocation(), enclosingName, calledName));
+    }
+
+    private static bool IsGenericMethodInstantiation(IMethodSymbol? method) {
+        if (method is null) return false;
+        if (!method.IsGenericMethod) return false;
+        return method.OriginalDefinition.ReturnType is ITypeParameterSymbol;
+    }
+
+    private static bool IsTaskRun(IMethodSymbol? method) {
+        if (method is null) return false;
+        return method.ContainingType?.Name == "Task" && method.Name == "Run";
     }
 
     private static bool IsConsumed(ExpressionStatementSyntax stmt) {

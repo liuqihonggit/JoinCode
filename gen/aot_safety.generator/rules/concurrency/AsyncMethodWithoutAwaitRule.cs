@@ -30,6 +30,8 @@ public sealed class AsyncMethodWithoutAwaitRule : AnalyzerRuleBase<AsyncMethodWi
 
         if (HasAwaitExpression(methodDecl)) return;
 
+        if (HasReturnStatement(methodDecl)) return;
+
         var methodName = methodDecl.Identifier.ValueText;
         ctx.ReportDiagnostic(Diagnostic.Create(Descriptor, methodDecl.Identifier.GetLocation(), methodName));
     }
@@ -42,5 +44,12 @@ public sealed class AsyncMethodWithoutAwaitRule : AnalyzerRuleBase<AsyncMethodWi
             return methodDecl.Body.DescendantNodes().Any(n => n is AwaitExpressionSyntax);
         }
         return false;
+    }
+
+    private static bool HasReturnStatement(MethodDeclarationSyntax methodDecl) {
+        if (methodDecl.Body is not null) {
+            return methodDecl.Body.DescendantNodes().Any(n => n is ReturnStatementSyntax);
+        }
+        return methodDecl.ExpressionBody is not null;
     }
 }

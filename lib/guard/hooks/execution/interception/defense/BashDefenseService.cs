@@ -250,9 +250,10 @@ public sealed class BashDefenseService {
             $"二次确认命令不匹配 — 疑似 MTP 扰动导致命令变形。" +
             $"\n\n第一轮命令：{confirmedCommand}" +
             $"\n第二轮命令：{currentCommand}" +
-            $"\n\n⚠️ 建议丢弃当前命令，完整重新生成，不要在错误字符串上局部修补。",
+            $"\n\n✅ 作废重发：直接输入新命令即可（将被视为新一轮首次确认，无需额外作废指令）" +
+            $"\n⚠️ 不要在错误字符串上局部修补。",
             "第一轮", confirmedCommand,
-            "两轮命令不一致，建议完整重新生成。");
+            "两轮命令不一致。直接输入新命令作废当前命令（视为新一轮首次确认）。");
         return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
     }
 
@@ -265,10 +266,10 @@ public sealed class BashDefenseService {
             $"确认码不匹配 — 防意图反推校验失败。" +
             $"\n\n提供的确认码：{providedHash ?? "(未提供)"}" +
             $"\n期望的确认码：#{expectedHash}" +
-            $"\n\n⚠️ 确认码必须由命令解析结果计算得出。如果不匹配，说明命令在生成过程中被扰动。" +
-            $"\n建议丢弃当前命令，完整重新生成。",
+            $"\n\n✅ 作废重发：直接输入新命令即可（将被视为新一轮首次确认，无需额外作废指令）" +
+            $"\n⚠️ 确认码由命令解析结果计算得出，不匹配说明命令在生成过程中被扰动。",
             "提供", providedHash ?? "(null)",
-            "确认码不匹配，建议完整重新生成命令。");
+            "确认码不匹配。直接输入新命令作废当前命令（视为新一轮首次确认）。");
         return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
     }
 

@@ -679,4 +679,67 @@ public static class AotSafetyHelpers {
         }
         return false;
     }
+
+    /// <summary>
+    /// 判断类型是否为 Task/ValueTask/Task{T}/ValueTask{T} — BCL 异步契约类型，通用判断不依赖项目特定类型。
+    /// </summary>
+    public static bool IsTaskLikeType(ITypeSymbol? type) {
+        if (type is null) return false;
+        var name = type.OriginalDefinition.ToDisplayString();
+        return name is "System.Threading.Tasks.Task" or "System.Threading.Tasks.ValueTask"
+            or "System.Threading.Tasks.Task<T>" or "System.Threading.Tasks.ValueTask<T>";
+    }
+
+    /// <summary>
+    /// 判断方法符号是否返回 Task-like 类型（BCL 异步契约）。
+    /// </summary>
+    public static bool ReturnsTaskLike(IMethodSymbol? method) {
+        if (method is null) return false;
+        return IsTaskLikeType(method.ReturnType);
+    }
+
+    /// <summary>
+    /// 判断表达式语句是否在 await 上下文内（祖先含 AwaitExpressionSyntax）。
+    /// </summary>
+    public static bool IsInsideAwait(SyntaxNode node) {
+        return node.Ancestors().Any(a => a is AwaitExpressionSyntax);
+    }
+
+    /// <summary>
+    /// 判断节点是否在 lambda/本地函数内（非直接方法体）。
+    /// </summary>
+    public static bool IsInsideLambdaOrLocalFunction(SyntaxNode node, SyntaxNode methodBody) {
+        var current = node.Parent;
+        while (current is not null && current != methodBody) {
+            if (current is SimpleLambdaExpressionSyntax or
+                ParenthesizedLambdaExpressionSyntax or
+                LocalFunctionStatementSyntax)
+                return true;
+            current = current.Parent;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 判断方法是否实现 IDisposable.Dispose 或 IAsyncDisposable.DisposeAsync（语义检测，不靠方法名）。
+    /// 检测显式接口实现和 override 链。
+    /// </summary>
+    public static bool IsDisposeInterfaceImplementation(IMethodSymbol method) {
+        if (method is null) return false;
+        for (var m = method; m is not null; m = m.OverriddenMethod) {
+            if (m.ExplicitInterfaceImplementations.Any(i =>
+                i.ContainingType?.Name is "IDisposable" or "IAsyncDisposable")) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 判断方法是否为释放方法 — 语义检测 IDisposable/IAsyncDisposable 实现，或方法名为 Dispose/DisposeAsync（BCL 契约）。
+    /// </summary>
+    public static bool IsDisposeMethod(IMethodSymbol method) {
+        if (method is null) return false;
+        var name = method.Name;
+        if (name is "Dispose" or "DisposeAsync") return true;
+        return IsDisposeInterfaceImplementation(method);
+    }
 }

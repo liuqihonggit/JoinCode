@@ -28,7 +28,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime {
     /// </summary>
     [Fact]
     public async Task ClusterNonInteractive_ShouldCompleteWithoutTimeout() {
-        var configPath = WriteClusterMockServerConfig();
+        var configPath = await WriteClusterMockServerConfigAsync();
         await StartMockServerAsync(configPath).ConfigureAwait(true);
 
         var exePath = ResolveJccExePath();
@@ -58,7 +58,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime {
     /// </summary>
     [Fact]
     public async Task ClusterNonInteractive_MockServerShouldReceiveMultipleRequests() {
-        var configPath = WriteClusterMockServerConfig();
+        var configPath = await WriteClusterMockServerConfigAsync();
         await StartMockServerAsync(configPath).ConfigureAwait(true);
 
         var exePath = ResolveJccExePath();
@@ -79,7 +79,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime {
     /// </summary>
     [Fact]
     public async Task ClusterNonInteractive_OutputShouldContainClusterKeywords() {
-        var configPath = WriteClusterMockServerConfig();
+        var configPath = await WriteClusterMockServerConfigAsync();
         await StartMockServerAsync(configPath).ConfigureAwait(true);
 
         var exePath = ResolveJccExePath();
@@ -109,7 +109,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime {
         int timeoutSeconds = 60) {
         var stateDir = Path.Combine(Path.GetTempPath(), $"jcc_cluster_e2e_{Guid.NewGuid():N}");
         Directory.CreateDirectory(stateDir);
-        E2eSettingsJsonHelper.WriteSettingsJsonToStateDir(stateDir);
+        await E2eSettingsJsonHelper.WriteSettingsJsonToStateDirAsync(stateDir);
 
         var args = $"--trust --debuglog --await {awaitSeconds} -p \"{prompt}\"";
 
@@ -251,7 +251,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime {
         }
     }
 
-    private static string WriteClusterMockServerConfig() {
+    private static async Task<string> WriteClusterMockServerConfigAsync() {
         var configDir = Path.Combine(Path.GetTempPath(), $"jcc_cluster_mock_{Guid.NewGuid():N}");
         Directory.CreateDirectory(configDir);
 
@@ -271,7 +271,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime {
             """;
 
         var configPath = Path.Combine(configDir, "cluster_test.json");
-        IO.FileSystem.SafeFileIO.WriteAllText(configPath, configContent);
+        await IO.FileSystem.SafeFileIO.WriteAllText(configPath, configContent);
         return configPath;
     }
 

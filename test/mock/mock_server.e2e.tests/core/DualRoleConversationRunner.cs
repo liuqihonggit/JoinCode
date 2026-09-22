@@ -71,7 +71,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         var stateDir = _fs.CombinePath(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
         _fs.CreateDirectory(stateDir);
         _stateFilePath = _fs.CombinePath(stateDir, "workflow_state.json");
-        E2eSettingsJsonHelper.WriteSettingsJsonToStateDir(stateDir);
+        await E2eSettingsJsonHelper.WriteSettingsJsonToStateDirAsync(stateDir).ConfigureAwait(true);
 
         var providerValue = _activeProvider switch {
             VendorKind.OpenAi => VendorKind.OpenAi.ToValue(),

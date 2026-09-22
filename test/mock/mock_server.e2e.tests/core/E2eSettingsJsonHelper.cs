@@ -10,7 +10,7 @@ internal static class E2eSettingsJsonHelper {
     /// <para>E2E 隔离的 AppData 目录无用户 settings.json，需测试 setup 提供，否则 registry 只有 azure</para>
     /// <para>模型 ID 必须与 DualRoleConversationRunner 的 ModelId 映射一致，否则 [GRD016] 报错</para>
     /// </summary>
-    public static void WriteSettingsJsonToStateDir(string stateDir) {
+    public static async Task WriteSettingsJsonToStateDirAsync(string stateDir) {
         var settingsJson = """
         {
           "vendor": {
@@ -53,6 +53,6 @@ internal static class E2eSettingsJsonHelper {
           }
         }
         """;
-        IO.FileSystem.SafeFileIO.WriteAllText(System.IO.Path.Combine(stateDir, "settings.json"), settingsJson);
+        await IO.FileSystem.SafeFileIO.WriteAllText(System.IO.Path.Combine(stateDir, "settings.json"), settingsJson);
     }
 }

@@ -62,6 +62,14 @@ public static class Program {
             return await RunFixGetAwaiterGetResultCommand(args[1..]).ConfigureAwait(false);
         }
 
+        if (args[0] == "fix-disposable-async") {
+            return await RunFixDisposableDirectionCommand(args[1..], FixDirection.Async).ConfigureAwait(false);
+        }
+
+        if (args[0] == "fix-disposable-sync") {
+            return await RunFixDisposableDirectionCommand(args[1..], FixDirection.Sync).ConfigureAwait(false);
+        }
+
         // 默认: 审计模式（直接传 slnx/csproj 路径）
         return await RunAuditCommand(args);
     }
@@ -712,6 +720,55 @@ public static class Program {
             Console.WriteLine($"跳过文件: {skipped}");
 
             return fixedIssues > 0 ? (dryRun ? 3 : 0) : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("扫描超时（10 分钟限制）。");
+            return 2;
+        }
+    }
+
+    /// <summary>
+    /// fix-disposable-async / fix-disposable-sync 模式：IDisposable ↔ IAsyncDisposable 双向转换
+    /// </summary>
+    private static async Task<int> RunFixDisposableDirectionCommand(string[] args, FixDirection direction) {
+        var dirName = direction == FixDirection.Async ? "async" : "sync";
+        var dirDesc = direction == FixDirection.Async
+            ? "IDisposable → IAsyncDisposable (异步化)"
+            : "IAsyncDisposable → IDisposable (同步化)";
+
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
+            Console.WriteLine($"用法: jcc-audit fix-disposable-{dirName} <slnx> --target-type <TypeName> [--dry-run]");
+            Console.WriteLine();
+            Console.WriteLine($"方向: {dirDesc}");
+            Console.WriteLine("改动:");
+            Console.WriteLine("  1. 接口声明: IDisposable ↔ IAsyncDisposable");
+            Console.WriteLine("  2. 方法签名: void Dispose() ↔ ValueTask DisposeAsync()");
+            Console.WriteLine("  3. 调用点:   Dispose() ↔ await DisposeAsync()");
+            Console.WriteLine("  4. using 声明: using var ↔ await using var");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var targetType = GetArgValue(args, "--target-type") ?? string.Empty;
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+
+        if (string.IsNullOrEmpty(targetType)) {
+            Console.Error.WriteLine("必须指定 --target-type <TypeName>。");
+            return 1;
+        }
+
+        Console.WriteLine($"=== JccAuditCli fix-disposable-{dirName} ===");
+        Console.WriteLine($"解决方案: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"目标类型: {targetType}");
+        Console.WriteLine($"方向:     {dirDesc}");
+        Console.WriteLine($"模式:     {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+
+        try {
+            var report = await DisposableDirectionFixer.FixAsync(targetPath, targetType, direction, dryRun, cts.Token).ConfigureAwait(false);
+            report.PrintSummary();
+
+            return report.TotalChanges > 0 ? (dryRun ? 3 : 0) : 0;
         } catch (OperationCanceledException) {
             Console.Error.WriteLine("扫描超时（10 分钟限制）。");
             return 2;

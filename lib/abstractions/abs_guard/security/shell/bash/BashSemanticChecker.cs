@@ -230,7 +230,7 @@ public static class BashSemanticChecker {
     }
 
     private static BashSemanticCheckResult CheckJqSecurity(string name, string[] a) {
-        if (!name.Equals("jq", StringComparison.OrdinalIgnoreCase))
+        if (!name.Equals(PathCommand.Jq.ToValue(), StringComparison.OrdinalIgnoreCase))
             return new BashSemanticCheckResult(true);
 
         foreach (var arg in a) {

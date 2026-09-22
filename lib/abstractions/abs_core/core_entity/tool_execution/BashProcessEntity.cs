@@ -25,7 +25,7 @@ public sealed class BashProcessEntity : ToolExecutionEntity {
         string? spanId = null,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base(ObjectType.ShellCommand, "bash", toolUseId, spanId, displayName ?? command ?? $"pid:{processId}", sessionId) {
+        : base(ObjectType.ShellCommand, ShellToolName.Bash.ToValue(), toolUseId, spanId, displayName ?? command ?? $"pid:{processId}", sessionId) {
         ProcessId = processId;
         Command = command;
         WorkingDirectory = workingDirectory;

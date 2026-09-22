@@ -104,7 +104,10 @@ public static class SettingsEditValidator {
                 && mode.ValueKind == JsonValueKind.String) {
                 var validModes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    "plan", "auto", "ask", "bypass"
+                    PermissionMode.Plan.ToValue(),
+                    PermissionMode.Auto.ToValue(),
+                    PermissionMode.Ask.ToValue(),
+                    PermissionMode.Bypass.ToValue()
                 };
                 if (!validModes.Contains(mode.GetString()!))
                     errors.Add($"permissions.defaultMode: 无效的模式 '{mode.GetString()}'，有效值: plan, auto, ask, bypass");

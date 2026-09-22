@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Entity;
 /// </summary>
 public sealed class ReplSessionEntity : ToolExecutionEntity {
     /// <summary>获取 REPL 语言。</summary>
-    public string Language { get; init; } = "csharp";
+    public string Language { get; init; } = ReplLanguage.CSharp.ToValue();
     /// <summary>获取或设置是否启用。</summary>
     public bool IsEnabled { get; set; }
 
@@ -17,7 +17,7 @@ public sealed class ReplSessionEntity : ToolExecutionEntity {
         string? spanId = null,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base("repl", toolUseId, spanId, displayName ?? $"repl:{language}", sessionId) {
+        : base(SystemToolName.Repl.ToValue(), toolUseId, spanId, displayName ?? $"repl:{language}", sessionId) {
         Language = language;
     }
 

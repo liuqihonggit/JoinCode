@@ -94,7 +94,7 @@ public sealed record ShellCommand {
     private static bool DetectPowerShell(string command) {
         var powerShellIndicators = new[]
         {
-            "powershell", "pwsh", "Invoke-", "Get-", "Set-", "New-", "Remove-",
+            ShellToolName.Powershell.ToValue(), "pwsh", "Invoke-", "Get-", "Set-", "New-", "Remove-",
             "Write-", "Read-Host", "Select-Object", "Where-Object", "ForEach-Object"
         };
 
@@ -105,7 +105,7 @@ public sealed record ShellCommand {
     private static bool DetectBash(string command) {
         var bashIndicators = new[]
         {
-            "bash", "sh ", "#!/bin/bash", "#!/bin/sh", "echo ", "grep ", "awk ", "sed "
+            ShellToolName.Bash.ToValue(), "sh ", "#!/bin/bash", "#!/bin/sh", "echo ", "grep ", "awk ", "sed "
         };
 
         return bashIndicators.Any(indicator =>

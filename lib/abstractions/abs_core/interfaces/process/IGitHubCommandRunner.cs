@@ -122,7 +122,7 @@ public interface IGitHubCommandRunner {
     /// <param name="ct">取消令牌</param>
     Task<PrListResult> ListPrsAsync(
         string? repo = null,
-        string state = "open",
+        string state = PlatformActionEnumConstants.Open,
         int limit = 30,
         CancellationToken ct = default);
 }

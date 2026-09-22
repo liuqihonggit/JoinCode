@@ -34,7 +34,7 @@ public interface IReplService {
     /// <summary>禁用 REPL 模式。</summary>
     void DisableReplMode();
     /// <summary>异步执行代码并返回结果。</summary>
-    Task<ReplResult> ExecuteAsync(string code, string language = "csharp", int timeoutSeconds = 30, CancellationToken ct = default);
+    Task<ReplResult> ExecuteAsync(string code, string language = ReplLanguageEnumConstants.CSharp, int timeoutSeconds = 30, CancellationToken ct = default);
     /// <summary>获取 REPL 模式下隐藏的工具列表。</summary>
     IReadOnlyList<string> GetHiddenTools();
     /// <summary>获取可用的 REPL 语言列表。</summary>

@@ -19,7 +19,7 @@ public sealed class WebFetchEntity : ToolExecutionEntity {
         string? spanId = null,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base("web_fetch", toolUseId, spanId, displayName ?? url, sessionId) {
+        : base(WebToolName.WebFetch.ToValue(), toolUseId, spanId, displayName ?? url, sessionId) {
         Url = url;
     }
 

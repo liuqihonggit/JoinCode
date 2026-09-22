@@ -57,9 +57,9 @@ public sealed class SecurityAuditCommand {
     /// <summary>构造安全审计命令。</summary>
     /// <param name="code">要审计的代码。</param>
     /// <param name="auditType">审计类型。</param>
-    public SecurityAuditCommand(string code, string auditType = "general") {
+    public SecurityAuditCommand(string code, string auditType = AnalysisTypeEnumConstants.General) {
         Code = code ?? throw new ArgumentNullException(nameof(code));
         if (code.Length < 10) throw new ArgumentException("[ABS004] 代码至少需要 10 个字符", nameof(code));
-        AuditType = auditType?.ToLowerInvariant() ?? "general";
+        AuditType = auditType?.ToLowerInvariant() ?? AnalysisTypeEnumConstants.General;
     }
 }

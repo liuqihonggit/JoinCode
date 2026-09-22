@@ -112,7 +112,7 @@ public class BridgeConfig {
     public string BridgeId { get; set; } = Guid.NewGuid().ToString();
 
     /// <summary>Worker 类型元数据 — 对齐 TS 端 workerType</summary>
-    public string WorkerType { get; set; } = "bridge";
+    public string WorkerType { get; set; } = ChatCommandName.Bridge.ToValue();
 
     /// <summary>环境注册 UUID — 对齐 TS 端 environmentId</summary>
     public string EnvironmentId { get; set; } = string.Empty;

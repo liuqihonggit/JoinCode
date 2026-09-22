@@ -24,7 +24,7 @@ public sealed class SystemActuatorCapability {
     /// <summary>获取 Shell 可执行文件路径。</summary>
     public string ShellPath { get; init; } = "";
     /// <summary>获取版本号。</summary>
-    public string Version { get; init; } = "unknown";
+    public string Version { get; init; } = CommandDangerLevel.Unknown.ToValue();
     /// <summary>获取显示名称。</summary>
     public string DisplayName { get; init; } = "";
     /// <summary>获取是否以分离进程方式运行。</summary>
@@ -365,6 +365,6 @@ public static class SystemActuatorBackgroundConstants {
     /// <summary>
     /// 禁止自动后台化的命令 — Bash: sleep; PowerShell: start-sleep, sleep
     /// </summary>
-    internal static readonly FrozenSet<string> DisallowedAutoBackgroundCommands = new[] { "sleep", "start-sleep" }
+    internal static readonly FrozenSet<string> DisallowedAutoBackgroundCommands = new[] { SystemToolName.Sleep.ToValue(), "start-sleep" }
         .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 }

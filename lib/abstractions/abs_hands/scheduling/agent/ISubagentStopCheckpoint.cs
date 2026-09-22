@@ -47,5 +47,5 @@ public sealed class CheckpointViolation {
     /// <summary>获取违规消息。</summary>
     public required string Message { get; init; }
     /// <summary>获取严重级别。</summary>
-    public string Severity { get; init; } = "error";
+    public string Severity { get; init; } = DiagnosticSeverity.Error.ToValue();
 }

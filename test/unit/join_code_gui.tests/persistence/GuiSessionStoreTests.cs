@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.Persistence;
+namespace JoinCode.Gui.Tests.Persistence;
 
 /// <summary>
 /// GuiSessionStore 持久化测试 — 验证会话写入/读取/列表/删除，
@@ -23,8 +23,8 @@ public class GuiSessionStoreTests {
             ]
         };
 
-        store.Save(saved);
-        var loaded = await Task.Run(() => store.Load("sess-001")).WaitAsync(Timeout);
+        await store.SaveAsync(saved);
+        var loaded = await store.LoadAsync("sess-001");
 
         loaded.Should().NotBeNull();
         loaded!.Id.Should().Be("sess-001");
@@ -39,10 +39,10 @@ public class GuiSessionStoreTests {
         await using var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
-        store.Save(new GuiSessionData { Id = "a", CustomTitle = "A 会话", Messages = [new GuiSessionMessage { Role = "user", Content = "1" }] });
-        store.Save(new GuiSessionData { Id = "b", CustomTitle = "B 会话", Messages = [new GuiSessionMessage { Role = "user", Content = "1" }] });
+        await store.SaveAsync(new GuiSessionData { Id = "a", CustomTitle = "A 会话", Messages = [new GuiSessionMessage { Role = "user", Content = "1" }] });
+        await store.SaveAsync(new GuiSessionData { Id = "b", CustomTitle = "B 会话", Messages = [new GuiSessionMessage { Role = "user", Content = "1" }] });
 
-        var list = await Task.Run(() => store.ListSessions()).WaitAsync(Timeout);
+        var list = await store.ListSessionsAsync();
 
         list.Should().HaveCount(2);
         list.Select(s => s.Id).Should().BeEquivalentTo(["a", "b"]);
@@ -55,11 +55,11 @@ public class GuiSessionStoreTests {
         await using var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
-        store.Save(new GuiSessionData { Id = "to-delete", Messages = [new GuiSessionMessage { Role = "user", Content = "x" }] });
-        store.Load("to-delete").Should().NotBeNull();
+        await store.SaveAsync(new GuiSessionData { Id = "to-delete", Messages = [new GuiSessionMessage { Role = "user", Content = "x" }] });
+        (await store.LoadAsync("to-delete")).Should().NotBeNull();
 
-        store.Delete("to-delete").Should().BeTrue();
-        store.Load("to-delete").Should().BeNull();
+        (await store.DeleteAsync("to-delete")).Should().BeTrue();
+        (await store.LoadAsync("to-delete")).Should().BeNull();
     }
 
     [Fact]
@@ -67,19 +67,19 @@ public class GuiSessionStoreTests {
         await using var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
-        var act = () => store.Save(new GuiSessionData { Messages = [] });
+        var act = async () => await store.SaveAsync(new GuiSessionData { Messages = [] });
 
-        act.Should().Throw<ArgumentException>();
+        await act.Should().ThrowAsync<ArgumentException>();
     }
 
     // === T8：统一入口收敛 — Save 不再覆盖消息（消息落盘由引擎 TranscriptPersistMiddleware 负责） ===
 
     [Fact]
-    public void TranscriptBacked_Save_PersistsMetaWithoutTouchingMessages() {
+    public async Task TranscriptBacked_Save_PersistsMetaWithoutTouchingMessages() {
         var transcript = new Moq.Mock<JoinCode.Abstractions.Interfaces.ITranscriptService>();
         var store = new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions", transcript.Object);
 
-        var ok = store.Save(new GuiSessionData {
+        var ok = await store.SaveAsync(new GuiSessionData {
             Id = "engine-session",
             CustomTitle = "重命名的标题",
             CreatedAt = DateTime.UtcNow,

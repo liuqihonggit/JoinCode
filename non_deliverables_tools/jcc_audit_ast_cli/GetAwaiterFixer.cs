@@ -94,10 +94,24 @@ internal class GetAwaiterRewriter : CSharpSyntaxRewriter {
 
     public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
         // 检测 pattern: expr.GetAwaiter().GetResult()
-        // node = invocation of "GetResult"
-        // node.Expression = MemberAccessExpression(Name=GetResult, Expression=invocation of "GetAwaiter")
         var innerExpr = TryExtractGetAwaiterPattern(node);
         if (innerExpr is null)
+            return base.VisitInvocationExpression(node);
+
+        // 跳过：在 Main 方法中（AGENTS.md 例外）
+        if (IsInMainMethod(node))
+            return base.VisitInvocationExpression(node);
+
+        // 跳过：在属性 getter 中（AGENTS.md 例外）
+        if (IsInPropertyGetter(node))
+            return base.VisitInvocationExpression(node);
+
+        // 跳过：在 lambda 中（改 async lambda 会改变委托类型）
+        if (IsInLambda(node))
+            return base.VisitInvocationExpression(node);
+
+        // 核心守卫：只在已 async 的方法中替换，避免改变返回类型导致级联错误
+        if (!IsInAsyncMethod(node))
             return base.VisitInvocationExpression(node);
 
         // 跳过：在 Main 方法中
@@ -154,6 +168,26 @@ internal class GetAwaiterRewriter : CSharpSyntaxRewriter {
         while (current is not null) {
             if (current is AccessorDeclarationSyntax accessor && accessor.Kind() == SyntaxKind.GetAccessorDeclaration)
                 return true;
+            current = current.Parent;
+        }
+        return false;
+    }
+
+    private static bool IsInLambda(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax)
+                return true;
+            current = current.Parent;
+        }
+        return false;
+    }
+
+    private static bool IsInAsyncMethod(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is MethodDeclarationSyntax method)
+                return method.Modifiers.Any(SyntaxKind.AsyncKeyword);
             current = current.Parent;
         }
         return false;

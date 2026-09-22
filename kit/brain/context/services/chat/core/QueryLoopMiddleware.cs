@@ -350,7 +350,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             try {
                 // 排空等待已确认任务完成（含异常态），同步读取仅为在原 try/catch 内触发原异常语义
 #pragma warning disable JCC3006
-                toolCallResult = execTask.GetAwaiter().GetResult();
+                toolCallResult = await execTask.ConfigureAwait(false);
 #pragma warning restore JCC3006
             } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                 await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);

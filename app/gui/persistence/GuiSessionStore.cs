@@ -34,7 +34,7 @@ public sealed class GuiSessionStore {
     /// </summary>
     public async Task<IReadOnlyList<GuiSessionSummary>> ListSessionsAsync() {
         if (_transcriptService is not null)
-            return await ListSessionsViaTranscriptServiceAsync().ConfigureAwait(false);
+            return await ListSessionsViaTranscriptServiceAsync();
 
         if (!_fs.DirectoryExists(_sessionsDir))
             return [];
@@ -42,7 +42,7 @@ public sealed class GuiSessionStore {
         var summaries = new List<GuiSessionSummary>();
         foreach (var file in _fs.GetFiles(_sessionsDir, "gui.json", SearchOption.AllDirectories)) {
             try {
-                var json = await _fs.ReadAllText(file).ConfigureAwait(false);
+                var json = await _fs.ReadAllText(file);
                 var data = RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
                 if (data is null || string.IsNullOrWhiteSpace(data.Id))
                     continue;
@@ -65,12 +65,12 @@ public sealed class GuiSessionStore {
 
     /// <summary>通过 ITranscriptService 列出会话(统一入口,.json + 子目录)</summary>
     private async Task<GuiSessionSummary[]> ListSessionsViaTranscriptServiceAsync() {
-        var summaries = await _transcriptService!.ListTranscriptsAsync(200).ConfigureAwait(false);
+        var summaries = await _transcriptService!.ListTranscriptsAsync(200);
         var result = new List<GuiSessionSummary>(summaries.Count);
         foreach (var s in summaries) {
             var title = s.SessionId;
             try {
-                var custom = await _transcriptService.GetCustomTitleAsync(s.SessionId).ConfigureAwait(false);
+                var custom = await _transcriptService.GetCustomTitleAsync(s.SessionId);
                 if (!string.IsNullOrWhiteSpace(custom))
                     title = custom;
             } catch (Exception ex) {
@@ -91,14 +91,14 @@ public sealed class GuiSessionStore {
     public async Task<GuiSessionData?> LoadAsync(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         if (_transcriptService is not null)
-            return await LoadViaTranscriptServiceAsync(sessionId).ConfigureAwait(false);
+            return await LoadViaTranscriptServiceAsync(sessionId);
 
         var path = GetSessionPath(sessionId);
         if (!_fs.FileExists(path))
             return null;
 
         try {
-            var json = await _fs.ReadAllText(path).ConfigureAwait(false);
+            var json = await _fs.ReadAllText(path);
             return RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
         } catch (Exception) {
             return null;
@@ -108,7 +108,7 @@ public sealed class GuiSessionStore {
     /// <summary>通过 ITranscriptService 加载会话(统一入口,TranscriptEntry → GuiSessionMessage)</summary>
     private async Task<GuiSessionData?> LoadViaTranscriptServiceAsync(string sessionId) {
         try {
-            var entries = await _transcriptService!.LoadTranscriptAsync(sessionId).ConfigureAwait(false);
+            var entries = await _transcriptService!.LoadTranscriptAsync(sessionId);
             if (entries.Count == 0)
                 return null;
 
@@ -126,10 +126,10 @@ public sealed class GuiSessionStore {
                 });
             }
 
-            var info = await _transcriptService.GetSessionInfoAsync(sessionId).ConfigureAwait(false);
+            var info = await _transcriptService.GetSessionInfoAsync(sessionId);
             var customTitle = string.Empty;
             try {
-                customTitle = await _transcriptService.GetCustomTitleAsync(sessionId).ConfigureAwait(false) ?? string.Empty;
+                customTitle = await _transcriptService.GetCustomTitleAsync(sessionId) ?? string.Empty;
             } catch (Exception ex) {
                 System.Diagnostics.Debug.WriteLine($"[GuiSessionStore] Load 读取 CustomTitle 失败 sid={sessionId}: {ex.Message}");
             }
@@ -153,7 +153,7 @@ public sealed class GuiSessionStore {
             throw new ArgumentException("会话 Id 不能为空", nameof(session));
 
         if (_transcriptService is not null)
-            return await SaveViaTranscriptServiceAsync(session).ConfigureAwait(false);
+            return await SaveViaTranscriptServiceAsync(session);
 
         var path = GetSessionPath(session.Id);
         var dir = Path.GetDirectoryName(path);
@@ -161,7 +161,7 @@ public sealed class GuiSessionStore {
             _fs.CreateDirectory(dir);
 
         var json = RelaxedJsonSerializer.Serialize(session, GuiJsonContext.Default);
-        await _fs.WriteAllText(path, json).ConfigureAwait(false);
+        await _fs.WriteAllText(path, json);
         return true;
     }
 
@@ -179,11 +179,11 @@ public sealed class GuiSessionStore {
                 ModelId = session.ModelId,
                 Vendor = session.Vendor,
                 CreatedAt = session.CreatedAt == default ? DateTime.UtcNow : session.CreatedAt
-            }).ConfigureAwait(false);
+            });
 
             // 保存自定义标题(非空时)
             if (!string.IsNullOrWhiteSpace(session.CustomTitle))
-                await _transcriptService.SaveCustomTitleAsync(session.Id, session.CustomTitle).ConfigureAwait(false);
+                await _transcriptService.SaveCustomTitleAsync(session.Id, session.CustomTitle);
 
             return true;
         } catch (Exception ex) {
@@ -196,7 +196,7 @@ public sealed class GuiSessionStore {
     public async Task<bool> DeleteAsync(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         if (_transcriptService is not null)
-            return await _transcriptService.DeleteTranscriptAsync(sessionId).ConfigureAwait(false);
+            return await _transcriptService.DeleteTranscriptAsync(sessionId);
 
         var path = GetSessionPath(sessionId);
         if (!_fs.FileExists(path))

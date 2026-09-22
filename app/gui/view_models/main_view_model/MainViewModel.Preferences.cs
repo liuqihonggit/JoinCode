@@ -122,17 +122,17 @@ public sealed partial class MainViewModel {
             if (!string.IsNullOrWhiteSpace(m) && !string.Equals(m, _session.CurrentModelId, StringComparison.Ordinal))
                 PersistSync(() => _session.SetModelAsync(m!));
         };
-        _persistActions[nameof(Temperature)] = SavePreferences;
-        _persistActions[nameof(MaxTokens)] = SavePreferences;
-        _persistActions[nameof(SystemPrompt)] = SavePreferences;
-        _persistActions[nameof(FontSize)] = SavePreferences;
-        _persistActions[nameof(StreamingEnabled)] = SavePreferences;
-        _persistActions[nameof(EnterSends)] = SavePreferences;
-        _persistActions[nameof(DoubleEscStop)] = SavePreferences;
-        _persistActions[nameof(IsUnattendedMode)] = SavePreferences;
-        _persistActions[nameof(IsAntiCharLossConfirm)] = SavePreferences;
-        _persistActions[nameof(WindowShakeEnabled)] = SavePreferences;
-        _persistActions[nameof(ChatRoomEnabled)] = SavePreferences;
+        _persistActions[nameof(Temperature)] = () => _ = SavePreferencesAsync();
+        _persistActions[nameof(MaxTokens)] = () => _ = SavePreferencesAsync();
+        _persistActions[nameof(SystemPrompt)] = () => _ = SavePreferencesAsync();
+        _persistActions[nameof(FontSize)] = () => _ = SavePreferencesAsync();
+        _persistActions[nameof(StreamingEnabled)] = () => _ = SavePreferencesAsync();
+        _persistActions[nameof(EnterSends)] = () => _ = SavePreferencesAsync();
+        _persistActions[nameof(DoubleEscStop)] = () => _ = SavePreferencesAsync();
+        _persistActions[nameof(IsUnattendedMode)] = () => _ = SavePreferencesAsync();
+        _persistActions[nameof(IsAntiCharLossConfirm)] = () => _ = SavePreferencesAsync();
+        _persistActions[nameof(WindowShakeEnabled)] = () => _ = SavePreferencesAsync();
+        _persistActions[nameof(ChatRoomEnabled)] = () => _ = SavePreferencesAsync();
     }
 
     /// <summary>

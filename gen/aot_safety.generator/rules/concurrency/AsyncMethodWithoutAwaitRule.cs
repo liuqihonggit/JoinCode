@@ -37,12 +37,15 @@ public sealed class AsyncMethodWithoutAwaitRule : AnalyzerRuleBase<AsyncMethodWi
     }
 
     private static bool HasAwaitExpression(MethodDeclarationSyntax methodDecl) {
-        if (methodDecl.ExpressionBody is not null) {
-            return methodDecl.ExpressionBody.DescendantNodes().Any(n => n is AwaitExpressionSyntax);
-        }
-        if (methodDecl.Body is not null) {
-            return methodDecl.Body.DescendantNodes().Any(n => n is AwaitExpressionSyntax);
-        }
+        var body = methodDecl.ExpressionBody ?? (SyntaxNode?)methodDecl.Body;
+        if (body is null) return false;
+        if (body.DescendantNodes().Any(n => n is AwaitExpressionSyntax)) return true;
+        if (body.DescendantNodes().Any(n => n switch {
+            ForEachStatementSyntax f => f.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword),
+            ForEachVariableStatementSyntax fv => fv.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword),
+            UsingStatementSyntax u => u.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword),
+            _ => false,
+        })) return true;
         return false;
     }
 

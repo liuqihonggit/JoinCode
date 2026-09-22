@@ -3,7 +3,7 @@ namespace Core.Configuration;
 /// <summary>
 /// 脏读重试辅助 — mmap + FileShare.ReadWrite 允许并发读写，脏读时指数退避重试16次
 /// <para>16次源自二进制指数退避（以太网冲突解决），1,2,4,8...ms 上限1024ms</para>
-/// <para>只对 JsonException 重试（脏读特征），其他异常不重试</para>
+/// <para>对 JsonException（脏读特征）和 IOException（文件锁竞争）重试，其他异常不重试</para>
 /// </summary>
 internal static class DirtyReadRetry {
     /// <summary>
@@ -23,9 +23,9 @@ internal static class DirtyReadRetry {
         for (var attempt = 0; attempt < 16; attempt++) {
             try {
                 return parse(await readAsync().ConfigureAwait(false));
-            } catch (JsonException) {
+            } catch (Exception ex) when (ex is JsonException or IOException) {
                 await Task.Delay(Math.Min(1 << attempt, 1024), cancellationToken).ConfigureAwait(false);
-            } catch (Exception ex) when (ex is not JsonException) {
+            } catch (Exception ex) {
                 logger?.LogWarning(ex, "配置文件读取失败: {Path}", path);
                 return default;
             }

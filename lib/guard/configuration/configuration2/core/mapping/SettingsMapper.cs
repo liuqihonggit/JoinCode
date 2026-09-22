@@ -60,14 +60,14 @@ public sealed partial class SettingsMapper : ServiceEntity {
     /// 环境变量优先级最高，覆盖所有文件配置
     /// 注意: API Key 不在此处理，由 ConfigLoader.ResolveApiKeyAsync 统一解析
     /// </summary>
-    public void ApplyEnvOverrides(WorkflowConfig config, SettingsJson? settings = null) {
+    public async Task ApplyEnvOverridesAsync(WorkflowConfig config, SettingsJson? settings = null) {
         // Provider 环境变量覆盖
         var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue());
         if (!string.IsNullOrEmpty(envProvider) && config.Provider.Vendor != envProvider) {
             config.Provider.Vendor = envProvider;
 
             // --vendor 自动匹配 vendor 字典中的同名预设
-            ApplyProfileFromVendor(envProvider, config, settings);
+            await ApplyProfileFromVendorAsync(envProvider, config, settings).ConfigureAwait(false);
 
             // Provider 变更时，重新应用 Provider 定义的默认值
             var newDefinition = _registry.TryGet(envProvider);
@@ -77,7 +77,7 @@ public sealed partial class SettingsMapper : ServiceEntity {
             }
 
             if (newDefinition is not null) {
-                ApplyProviderDefinitionDefaults(config, newDefinition, envProvider, settings);
+                await ApplyProviderDefinitionDefaultsAsync(config, newDefinition, envProvider, settings).ConfigureAwait(false);
             } else {
                 Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。元命令模式降级运行。");
             }
@@ -123,12 +123,12 @@ public sealed partial class SettingsMapper : ServiceEntity {
     /// <summary>
     /// 应用新 Provider 定义的默认值到 WorkflowConfig — Endpoint/Definition/Protocol/ModelId 回退
     /// </summary>
-    private void ApplyProviderDefinitionDefaults(WorkflowConfig config, IProviderDefinition newDefinition, string envProvider, SettingsJson? settings) {
+    private async Task ApplyProviderDefinitionDefaultsAsync(WorkflowConfig config, IProviderDefinition newDefinition, string envProvider, SettingsJson? settings) {
         config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
         config.Provider.Definition = newDefinition;
-        // Protocol — ApplyProfileFromVendor 已从 settings.json profile 设置(配置大于代码)
+        // Protocol — ApplyProfileFromVendorAsync 已从 settings.json profile 设置(配置大于代码)
         // 仅当 profile 未配 protocol 时回退到 definition 的默认协议
-        var profileProtocol = GetProfileProtocol(envProvider, settings);
+        var profileProtocol = await GetProfileProtocolAsync(envProvider, settings).ConfigureAwait(false);
         if (string.IsNullOrEmpty(profileProtocol))
             config.Provider.Protocol = newDefinition.Protocol.ToValue();
 
@@ -258,16 +258,14 @@ public sealed partial class SettingsMapper : ServiceEntity {
     /// <summary>
     /// --vendor 自动匹配 vendor 字典中的同名预设
     /// </summary>
-    private static void ApplyProfileFromVendor(string vendor, WorkflowConfig config, SettingsJson? settings) {
+    private static async Task ApplyProfileFromVendorAsync(string vendor, WorkflowConfig config, SettingsJson? settings) {
         if (settings is null) {
             var settingsPath = Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
             if (BclFileIO.Instance.FileExists(settingsPath)) {
-                try {
-                    var json = BclFileIO.Instance.ReadAllText(settingsPath);
-                    settings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-                } catch {
-                    settings = null;
-                }
+                settings = await DirtyReadRetry.ReadWithRetryAsync(
+                    () => Task.FromResult(BclFileIO.Instance.ReadAllText(settingsPath)),
+                    json => RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson),
+                    settingsPath).ConfigureAwait(false);
             }
         }
 
@@ -287,16 +285,14 @@ public sealed partial class SettingsMapper : ServiceEntity {
     }
 
     /// <summary>从 settings.json 的 vendor 节点读取指定供应商的 protocol 配置</summary>
-    private static string? GetProfileProtocol(string vendor, SettingsJson? settings) {
+    private static async Task<string?> GetProfileProtocolAsync(string vendor, SettingsJson? settings) {
         if (settings is null) {
             var settingsPath = Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
             if (BclFileIO.Instance.FileExists(settingsPath)) {
-                try {
-                    var json = BclFileIO.Instance.ReadAllText(settingsPath);
-                    settings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-                } catch {
-                    settings = null;
-                }
+                settings = await DirtyReadRetry.ReadWithRetryAsync(
+                    () => Task.FromResult(BclFileIO.Instance.ReadAllText(settingsPath)),
+                    json => RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson),
+                    settingsPath).ConfigureAwait(false);
             }
         }
 

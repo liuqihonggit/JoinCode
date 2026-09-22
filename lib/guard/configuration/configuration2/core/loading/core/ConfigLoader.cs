@@ -113,7 +113,7 @@ public class ConfigLoader {
             var config = _settingsMapper.ToWorkflowConfig(settings);
 
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
-            _settingsMapper.ApplyEnvOverrides(config, settings);
+            await _settingsMapper.ApplyEnvOverridesAsync(config, settings).ConfigureAwait(false);
 
             // Step 5: 统一 API Key 解析（auth.json → Provider 专属变量）— auth.json 已在 Step 1 预读
             config.Provider.ApiKey = await ResolveApiKeyAsync(

@@ -45,16 +45,21 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
             return;
         }
 
-        try {
-            var json = await fileSystem.ReadAllText(settingsPath).ConfigureAwait(false);
-            logger?.LogDebug("PDR ReadAllText OK, len={Len}", json.Length);
-            var node = System.Text.Json.Nodes.JsonNode.Parse(json);
-            var vendorNode = node?["vendor"];
-            if (vendorNode is null) {
-                logger?.LogDebug("PDR vendorNode is null → empty registry");
-                return;
-            }
+        var node = await DirtyReadRetry.ReadWithRetryAsync(
+            () => fileSystem.ReadAllText(settingsPath).AsTask(),
+            json => System.Text.Json.Nodes.JsonNode.Parse(json),
+            settingsPath,
+            logger: logger).ConfigureAwait(false);
 
+        if (node is null) return;
+
+        var vendorNode = node["vendor"];
+        if (vendorNode is null) {
+            logger?.LogDebug("PDR vendorNode is null → empty registry");
+            return;
+        }
+
+        try {
             foreach (var property in vendorNode.AsObject()) {
                 var vendorName = property.Key;
                 var profileNode = property.Value;
@@ -76,7 +81,7 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
             }
             logger?.LogDebug("PDR Registered {Count} vendors: {Vendors}", dict.Count, string.Join(", ", dict.Keys));
         } catch (System.Exception ex) {
-            logger?.LogWarning(ex, "ProviderDefinitionRegistry: settings.json 读取失败");
+            logger?.LogWarning(ex, "ProviderDefinitionRegistry: settings.json 解析失败");
         }
     }
 }

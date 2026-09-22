@@ -12,7 +12,7 @@ namespace AotSafety.Generator.Rules;
     Description = "变量 '{0}' 被赋值为异步调用 '{1}' 的返回值（Task/ValueTask），但从未被 await/读取/return。异步操作结果被丢弃，等价于 fire-and-forget。修复：await 该变量，或移除变量直接 '_ = SomeAsync()' 标注 fire-and-forget 意图。",
     Category = "AsyncSafety",
     Severity = DiagnosticSeverity.Warning,
-    IsEnabledByDefault = true,
+    IsEnabledByDefault = false,
     HelpLinkUri = "A variable is assigned a Task/ValueTask but never consumed (await/read/return). This is a hidden fire-and-forget — the variable declaration obscures the discarded return value. Fix: 1) await the variable; 2) return it; 3) or replace with '_ = SomeAsync()' to explicitly document fire-and-forget intent.")]
 public sealed class TaskVariableUnusedRule : AnalyzerRuleBase<TaskVariableUnusedRule> {
     public override void Register(CompilationStartAnalysisContext context, ProjectContext projectContext) {

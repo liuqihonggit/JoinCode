@@ -12,7 +12,7 @@ namespace AotSafety.Generator.Rules;
     Description = "同步方法 '{0}' 内调用 '{1}' 返回 Task/ValueTask 但未消费（未 await/GetAwaiter().GetResult()/.Wait()/.Result）。异步操作结果被丢弃。修复：改 async + await，或用 .GetAwaiter().GetResult() 显式同步阻塞（需注明理由）。",
     Category = "AsyncSafety",
     Severity = DiagnosticSeverity.Warning,
-    IsEnabledByDefault = true,
+    IsEnabledByDefault = false,
     HelpLinkUri = "A non-async method calls a Task-returning method but does not consume the result. The async operation may not complete. Fix: 1) make enclosing method async and add await; 2) or explicitly block with .GetAwaiter().GetResult() (document why blocking is safe — no SynchronizationContext); 3) or use a synchronous overload if available.")]
 public sealed class SyncMethodAsyncCallRule : AnalyzerRuleBase<SyncMethodAsyncCallRule> {
     public override void Register(CompilationStartAnalysisContext context, ProjectContext projectContext) {

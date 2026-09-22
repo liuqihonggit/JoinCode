@@ -12,7 +12,7 @@ namespace AotSafety.Generator.Rules;
     Description = "方法 '{0}' 标记 async 但方法体内无任何 await 表达式。要么遗漏了 await（异步调用被裸丢弃，见 JCC3015），要么 async 关键字冗余（移除 async 避免生成无用状态机）。",
     Category = "AsyncSafety",
     Severity = DiagnosticSeverity.Warning,
-    IsEnabledByDefault = true,
+    IsEnabledByDefault = false,
     HelpLinkUri = "An async method without any await either: 1) forgot to await a Task-returning call (check JCC3015) — add await; 2) has redundant async keyword — remove it to avoid unnecessary state machine generation. CS1998 is a compiler warning; this rule promotes it to a diagnosable issue with fix guidance.")]
 public sealed class AsyncMethodWithoutAwaitRule : AnalyzerRuleBase<AsyncMethodWithoutAwaitRule> {
     public override void Register(CompilationStartAnalysisContext context, ProjectContext projectContext) {

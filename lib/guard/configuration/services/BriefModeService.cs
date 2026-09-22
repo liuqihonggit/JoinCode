@@ -119,7 +119,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
             var path = Path.Combine(dir, ModeFileName);
             var enabledAtStr = _enabledAt.HasValue ? $"\"{_enabledAt.Value:O}\"" : "null";
             var json = $$"""{"isEnabled":{{_isEnabled.ToString().ToLowerInvariant()}},"enabledAt":{{enabledAtStr}}}""";
-            _fs.WriteAllText(path, json);
+            _fs.WriteAllText(path, json).GetAwaiter().GetResult();
         } catch (Exception ex) {
             _logger?.LogWarning("Brief mode 状态保存失败: {Message}", ex.Message);
         }

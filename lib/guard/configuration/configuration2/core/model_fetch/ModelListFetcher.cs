@@ -100,21 +100,24 @@ public sealed class ModelListFetcher : IModelListFetcher {
         if (!_fs.FileExists(authPath))
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        try {
-            var json = await _fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
-            using var doc = JsonDocument.Parse(json);
-            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var prop in doc.RootElement.EnumerateObject()) {
-                if (prop.Value.ValueKind == JsonValueKind.String) {
-                    var value = prop.Value.GetString();
-                    if (!string.IsNullOrEmpty(value))
-                        dict[prop.Name] = value;
+        var result = await DirtyReadRetry.ReadWithRetryAsync(
+            () => _fs.ReadAllTextAsync(authPath, cancellationToken),
+            json => {
+                using var doc = JsonDocument.Parse(json);
+                var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var prop in doc.RootElement.EnumerateObject()) {
+                    if (prop.Value.ValueKind == JsonValueKind.String) {
+                        var value = prop.Value.GetString();
+                        if (!string.IsNullOrEmpty(value))
+                            dict[prop.Name] = value;
+                    }
                 }
-            }
-            return dict;
-        } catch {
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        }
+                return dict;
+            },
+            authPath,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        return result ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

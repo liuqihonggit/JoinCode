@@ -164,29 +164,29 @@ public sealed partial class ExternalRulesLoader {
     }
 
     private async Task<RuleFile?> TryReadRuleFileAsync(string baseDirPath, string filePath, CancellationToken cancellationToken) {
-        try {
-            if (!_fs.FileExists(filePath)) return null;
-            var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(content)) return null;
+        if (!_fs.FileExists(filePath)) return null;
+        var relativePath = filePath.Length > baseDirPath.Length + 1
+            ? filePath[(baseDirPath.Length + 1)..]
+            : Path.GetFileName(filePath);
+        var name = Path.GetFileNameWithoutExtension(relativePath);
 
-            var (body, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(content ?? string.Empty);
-            var relativePath = filePath.Length > baseDirPath.Length + 1
-                ? filePath[(baseDirPath.Length + 1)..]
-                : Path.GetFileName(filePath);
-            var name = Path.GetFileNameWithoutExtension(relativePath);
-
-            return new RuleFile {
-                Name = name,
-                Content = body.Trim(),
-                SourcePath = filePath,
-                AlwaysApply = alwaysApply,
-                Globs = globs,
-                Description = description
-            };
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "读取规则文件失败: {Path}", filePath);
-            return null;
-        }
+        return await DirtyReadRetry.ReadWithRetryAsync(
+            () => _fs.ReadAllTextAsync(filePath, cancellationToken),
+            content => {
+                if (string.IsNullOrWhiteSpace(content)) return null;
+                var (body, alwaysApply, globs, description) = RuleFrontmatterParser.Parse(content);
+                return new RuleFile {
+                    Name = name,
+                    Content = body.Trim(),
+                    SourcePath = filePath,
+                    AlwaysApply = alwaysApply,
+                    Globs = globs,
+                    Description = description
+                };
+            },
+            filePath,
+            logger: _logger,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     internal static bool MatchesGlobPattern(string input, string pattern)

@@ -17,7 +17,7 @@ public static class ToolCallScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"cd\"}"
+                            Arguments = new { command = "cd" }
                         }
                     ],
                     FollowUpText = "当前工作目录为：/home/user/project"
@@ -47,7 +47,7 @@ public static class ToolCallScripts {
                         new MockToolCallScript
                         {
                             ToolName = "read",
-                            Arguments = "{\"file_path\":\"/test/file.cs\"}"
+                            Arguments = new { file_path = "/test/file.cs" }
                         }
                     ],
                     FollowUpText = "文件内容如下：\nusing System;\n\nclass Program { static void Main() { } }"
@@ -77,12 +77,12 @@ public static class ToolCallScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"ls\"}"
+                            Arguments = new { command = "ls" }
                         },
                         new MockToolCallScript
                         {
                             ToolName = "read",
-                            Arguments = "{\"file_path\":\"README.md\"}"
+                            Arguments = new { file_path = "README.md" }
                         }
                     ],
                     FollowUpText = "目录下有 README.md 文件，内容为：# JoinCode - AI工作流引擎"
@@ -113,7 +113,7 @@ public static class ToolCallScripts {
                         new MockToolCallScript
                         {
                             ToolName = "NonExistentTool",
-                            Arguments = "{\"param\":\"value\"}"
+                            Arguments = new { param = "value" }
                         }
                     ],
                     FollowUpText = "该工具不存在，已返回错误。"
@@ -166,7 +166,7 @@ public static class ToolCallScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"cd\"}"
+                            Arguments = new { command = "cd" }
                         }
                     ],
                     FollowUpText = "当前工作目录为：/home/user/project"
@@ -232,7 +232,7 @@ public static class MultiTurnScripts {
                     TextResponse = "当前工作目录为：/home/user/project",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "bash", Arguments = "{\"command\":\"cd\"}" }
+                        new MockToolCallScript { ToolName = "bash", Arguments = new { command = "cd" } }
                     ],
                     FollowUpText = "当前工作目录为：/home/user/project"
                 },
@@ -486,7 +486,7 @@ public static class ToolIterationScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "bash", Arguments = "{\"command\":\"ls\"}" }
+                        new MockToolCallScript { ToolName = "bash", Arguments = new { command = "ls" } }
                     ],
                     FollowUpText = "目录下有 config.json 文件。让我读取它。"
                 },
@@ -505,7 +505,7 @@ public static class ToolIterationScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "read", Arguments = "{\"file_path\":\"config.json\"}" }
+                        new MockToolCallScript { ToolName = "read", Arguments = new { file_path = "config.json" } }
                     ],
                     FollowUpText = "配置文件内容：{\"version\": \"1.0\", \"debug\": true}"
                 },
@@ -531,7 +531,7 @@ public static class ToolIterationScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "read", Arguments = "{\"file_path\":\"/nonexistent/file.txt\"}" }
+                        new MockToolCallScript { ToolName = "read", Arguments = new { file_path = "/nonexistent/file.txt" } }
                     ],
                     FollowUpText = "文件不存在，读取失败。让我尝试其他方式。"
                 },
@@ -571,7 +571,7 @@ public static class ToolIterationScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "bash", Arguments = "{\"command\":\"ls -la\"}" }
+                        new MockToolCallScript { ToolName = "bash", Arguments = new { command = "ls -la" } }
                     ],
                     FollowUpText = "项目根目录包含 src、tests、docs 三个目录。让我查看 src 目录。"
                 },
@@ -590,7 +590,7 @@ public static class ToolIterationScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "read", Arguments = "{\"file_path\":\"src/Program.cs\"}" }
+                        new MockToolCallScript { ToolName = "read", Arguments = new { file_path = "src/Program.cs" } }
                     ],
                     FollowUpText = "Program.cs 是入口文件，包含 Main 方法。让我看看配置文件。"
                 },
@@ -640,7 +640,7 @@ public static class ToolIterationScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "bash", Arguments = "{\"command\":\"pwd\"}" }
+                        new MockToolCallScript { ToolName = "bash", Arguments = new { command = "pwd" } }
                     ],
                     FollowUpText = "当前目录是 /home/user/project"
                 },
@@ -690,7 +690,7 @@ public static class ToolIterationScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "bash", Arguments = "{\"command\":\"uname -a\"}" }
+                        new MockToolCallScript { ToolName = "bash", Arguments = new { command = "uname -a" } }
                     ],
                     FollowUpText = "系统信息：Linux x86_64, Kernel 6.1.0"
                 },
@@ -719,7 +719,7 @@ public static class ToolIterationScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "read", Arguments = "{\"file_path\":\"README.md\"}" }
+                        new MockToolCallScript { ToolName = "read", Arguments = new { file_path = "README.md" } }
                     ],
                     FollowUpText = "README内容：# My Project - A simple demo"
                 },

@@ -31,7 +31,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "mcp_list_clients",
-                            Arguments = "{}"
+                            Arguments = new { }
                         }
                     ],
                     FollowUpText = "当前没有已连接的 MCP 客户端。"
@@ -65,7 +65,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "execute_csharp_code",
-                            Arguments = """{"code":"Console.WriteLine(\"hello\");"}"""
+                            Arguments = new { code = "Console.WriteLine(\"hello\");" }
                         }
                     ],
                     FollowUpText = "代码已执行,输出: hello"
@@ -103,7 +103,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "snip",
-                            Arguments = """{"mode":"rewind"}"""
+                            Arguments = new { mode = "rewind" }
                         }
                     ],
                     FollowUpText = "已执行历史回退操作。"
@@ -137,7 +137,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "monitor",
-                            Arguments = """{"monitor_type":"status"}"""
+                            Arguments = new { monitor_type = "status" }
                         }
                     ],
                     FollowUpText = "MCP 监控状态已获取。"
@@ -171,7 +171,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "ctx_inspect",
-                            Arguments = """{"inspect_type":"summary"}"""
+                            Arguments = new { inspect_type = "summary" }
                         }
                     ],
                     FollowUpText = "上下文摘要已生成。"
@@ -205,7 +205,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "analytics_report",
-                            Arguments = """{"days":7}"""
+                            Arguments = new { days = 7 }
                         }
                     ],
                     FollowUpText = "已生成 7 天的分析报告。"
@@ -239,7 +239,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "policy_list",
-                            Arguments = "{}"
+                            Arguments = new { }
                         }
                     ],
                     FollowUpText = "策略列表已获取。"
@@ -277,7 +277,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "lsp_document_symbols",
-                            Arguments = """{"file_path":"Program.cs"}"""
+                            Arguments = new { file_path = "Program.cs" }
                         }
                     ],
                     FollowUpText = "文档符号已获取。"
@@ -311,7 +311,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "generate_csharp_code",
-                            Arguments = """{"description":"生成一个字符串工具类"}"""
+                            Arguments = new { description = "生成一个字符串工具类" }
                         }
                     ],
                     FollowUpText = "已生成 C# 代码。"
@@ -345,7 +345,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "analyze_csharp_code",
-                            Arguments = """{"code":"public class Foo {}","focus":"all"}"""
+                            Arguments = new { code = "public class Foo {}", focus = "all" }
                         }
                     ],
                     FollowUpText = "代码分析完成。"
@@ -383,7 +383,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "vcr_status",
-                            Arguments = "{}"
+                            Arguments = new { }
                         }
                     ],
                     FollowUpText = "VCR 状态已获取。"
@@ -417,7 +417,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "terminal_capture",
-                            Arguments = """{"capture_type":"screen","max_lines":50}"""
+                            Arguments = new { capture_type = "screen", max_lines = 50 }
                         }
                     ],
                     FollowUpText = "终端画面已截取。"
@@ -451,7 +451,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "REPL",
-                            Arguments = """{"action":"status"}"""
+                            Arguments = new { action = "status" }
                         }
                     ],
                     FollowUpText = "REPL 状态已获取。"
@@ -489,7 +489,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "subscribe_pr",
-                            Arguments = """{"action":"list"}"""
+                            Arguments = new { action = "list" }
                         }
                     ],
                     FollowUpText = "PR 订阅列表已获取。"
@@ -523,7 +523,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "list_peers",
-                            Arguments = """{"filter":"all"}"""
+                            Arguments = new { filter = "all" }
                         }
                     ],
                     FollowUpText = "对等节点列表已获取。"
@@ -557,7 +557,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "web_browser",
-                            Arguments = """{"target":"https://example.com","action":"open"}"""
+                            Arguments = new { target = "https://example.com", action = "open" }
                         }
                     ],
                     FollowUpText = "网页已打开。"
@@ -591,7 +591,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "voice_status",
-                            Arguments = "{}"
+                            Arguments = new { }
                         }
                     ],
                     FollowUpText = "语音服务状态已获取。"
@@ -625,7 +625,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "RemoteTrigger",
-                            Arguments = """{"action":"list"}"""
+                            Arguments = new { action = "list" }
                         }
                     ],
                     FollowUpText = "远程触发器列表已获取。"
@@ -663,7 +663,7 @@ public static class ToolCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "permission_list_rules",
-                            Arguments = "{}"
+                            Arguments = new { }
                         }
                     ],
                     FollowUpText = "权限规则列表已获取。"

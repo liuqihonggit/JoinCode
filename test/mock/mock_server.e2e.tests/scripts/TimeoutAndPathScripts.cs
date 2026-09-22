@@ -23,7 +23,7 @@ public static class TimeoutAndPathScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"sleep 2; echo done\"}",
+                            Arguments = new { command = "sleep 2; echo done" },
                             ToolResult = "done"
                         }
                     ],
@@ -57,7 +57,7 @@ public static class TimeoutAndPathScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"sleep 5\",\"timeout\":1000}"
+                            Arguments = new { command = "sleep 5", timeout = 1000 }
                         }
                     ],
                     FollowUpText = "命令内含5秒等待，但传入超时1秒不足。"
@@ -93,7 +93,7 @@ public static class TimeoutAndPathScripts {
                         new MockToolCallScript
                         {
                             ToolName = "read",
-                            Arguments = "{\"file_path\":\"D:\\\\other\\\\bad\\uFFFDfile.txt\"}"
+                            Arguments = new { file_path = "D:\\other\\bad\uFFFDfile.txt" }
                         }
                     ],
                     FollowUpText = "路径含乱码字符，直接报错"
@@ -130,7 +130,7 @@ public static class TimeoutAndPathScripts {
                         new MockToolCallScript
                         {
                             ToolName = "read",
-                            Arguments = "{\"file_path\":\"D:\\\\nonexistent\\\\missing_file.txt\"}"
+                            Arguments = new { file_path = @"D:\nonexistent\missing_file.txt" }
                         }
                     ],
                     FollowUpText = "路径不存在，直接报错"

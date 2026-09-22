@@ -17,16 +17,16 @@ public static class BatchFileToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "read", Arguments = """{"file_path":"test.txt"}""" },
-                        new() { ToolName = "write", Arguments = """{"file_path":"test.txt","content":"hello"}""" },
-                        new() { ToolName = "edit", Arguments = """{"file_path":"test.txt","old_string":"hello","new_string":"world"}""" },
-                        new() { ToolName = "file_edit_regex", Arguments = """{"file_path":"test.txt","pattern":"world","replacement":"test"}""" },
-                        new() { ToolName = "file_insert_lines", Arguments = """{"file_path":"test.txt","line":1,"content":"line1"}""" },
-                        new() { ToolName = "file_delete_lines", Arguments = """{"file_path":"test.txt","start":1,"end":1}""" },
-                        new() { ToolName = "file_batch_edit", Arguments = """{"file_path":"test.txt","edits":[{"pattern":"test","replacement":"final"}]}""" },
-                        new() { ToolName = "directory_list", Arguments = """{"path":"."}""" },
-                        new() { ToolName = "file_list", Arguments = """{"pattern":"*.txt"}""" },
-                        new() { ToolName = "file_snip_lines", Arguments = """{"file_path":"test.txt","start":1,"end":5}""" },
+                        new() { ToolName = "read", Arguments = new { file_path = "test.txt" } },
+                        new() { ToolName = "write", Arguments = new { file_path = "test.txt", content = "hello" } },
+                        new() { ToolName = "edit", Arguments = new { file_path = "test.txt", old_string = "hello", new_string = "world" } },
+                        new() { ToolName = "file_edit_regex", Arguments = new { file_path = "test.txt", pattern = "world", replacement = "test" } },
+                        new() { ToolName = "file_insert_lines", Arguments = new { file_path = "test.txt", line = 1, content = "line1" } },
+                        new() { ToolName = "file_delete_lines", Arguments = new { file_path = "test.txt", start = 1, end = 1 } },
+                        new() { ToolName = "file_batch_edit", Arguments = new { file_path = "test.txt", edits = new[] { new { pattern = "test", replacement = "final" } } } },
+                        new() { ToolName = "directory_list", Arguments = new { path = "." } },
+                        new() { ToolName = "file_list", Arguments = new { pattern = "*.txt" } },
+                        new() { ToolName = "file_snip_lines", Arguments = new { file_path = "test.txt", start = 1, end = 5 } },
                     ],
                     FollowUpText = "10个文件操作已全部执行。"
                 },
@@ -66,12 +66,12 @@ public static class BatchShellToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "bash", Arguments = """{"command":"echo hello"}""" },
-                        new() { ToolName = "powershell", Arguments = """{"command":"Get-Process"}""" },
-                        new() { ToolName = "shell_check", Arguments = """{"command":"echo test"}""" },
-                        new() { ToolName = "shell_background_get", Arguments = """{"id":"test-001"}""" },
-                        new() { ToolName = "shell_background_list", Arguments = "{}" },
-                        new() { ToolName = "shell_background_cancel", Arguments = """{"id":"test-001"}""" },
+                        new() { ToolName = "bash", Arguments = new { command = "echo hello" } },
+                        new() { ToolName = "powershell", Arguments = new { command = "Get-Process" } },
+                        new() { ToolName = "shell_check", Arguments = new { command = "echo test" } },
+                        new() { ToolName = "shell_background_get", Arguments = new { id = "test-001" } },
+                        new() { ToolName = "shell_background_list", Arguments = new { } },
+                        new() { ToolName = "shell_background_cancel", Arguments = new { id = "test-001" } },
                     ],
                     FollowUpText = "Shell操作已执行。"
                 },
@@ -107,13 +107,13 @@ public static class BatchGitToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "git_status", Arguments = "{}" },
-                        new() { ToolName = "git_log", Arguments = """{"max_count":3}""" },
-                        new() { ToolName = "git_diff", Arguments = "{}" },
-                        new() { ToolName = "git_branch", Arguments = "{}" },
-                        new() { ToolName = "git_add", Arguments = """{"files":["test.txt"]}""" },
-                        new() { ToolName = "git_reset", Arguments = """{"hard":false}""" },
-                        new() { ToolName = "git_clean", Arguments = """{"dry_run":true}""" },
+                        new() { ToolName = "git_status", Arguments = new { } },
+                        new() { ToolName = "git_log", Arguments = new { max_count = 3 } },
+                        new() { ToolName = "git_diff", Arguments = new { } },
+                        new() { ToolName = "git_branch", Arguments = new { } },
+                        new() { ToolName = "git_add", Arguments = new { files = new[] { "test.txt" } } },
+                        new() { ToolName = "git_reset", Arguments = new { hard = false } },
+                        new() { ToolName = "git_clean", Arguments = new { dry_run = true } },
                     ],
                     FollowUpText = "Git操作已执行。"
                 },
@@ -150,10 +150,10 @@ public static class BatchInteractionToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "config", Arguments = "{}" },
-                        new() { ToolName = "config_get", Arguments = """{"key":"model"}""" },
-                        new() { ToolName = "auth_get_status", Arguments = "{}" },
-                        new() { ToolName = "ask_user", Arguments = """{"question":"请确认？","options":[{"label":"是","description":"确认"}]}""" },
+                        new() { ToolName = "config", Arguments = new { } },
+                        new() { ToolName = "config_get", Arguments = new { key = "model" } },
+                        new() { ToolName = "auth_get_status", Arguments = new { } },
+                        new() { ToolName = "ask_user", Arguments = new { question = "请确认？", options = new[] { new { label = "是", description = "确认" } } } },
                     ],
                     FollowUpText = "配置和权限已查询。"
                 },
@@ -187,14 +187,14 @@ public static class BatchAgentToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "agent_list", Arguments = "{}" },
-                        new() { ToolName = "agent_status", Arguments = """{"agent_id":"test-001"}""" },
-                        new() { ToolName = "agent_get_messages", Arguments = """{"agent_id":"test-001"}""" },
-                        new() { ToolName = "agent_stats", Arguments = "{}" },
-                        new() { ToolName = "agent_history", Arguments = """{"agent_id":"test-001"}""" },
-                        new() { ToolName = "agent_running", Arguments = "{}" },
-                        new() { ToolName = "agent_system_stats", Arguments = "{}" },
-                        new() { ToolName = "list_agents", Arguments = "{}" },
+                        new() { ToolName = "agent_list", Arguments = new { } },
+                        new() { ToolName = "agent_status", Arguments = new { agent_id = "test-001" } },
+                        new() { ToolName = "agent_get_messages", Arguments = new { agent_id = "test-001" } },
+                        new() { ToolName = "agent_stats", Arguments = new { } },
+                        new() { ToolName = "agent_history", Arguments = new { agent_id = "test-001" } },
+                        new() { ToolName = "agent_running", Arguments = new { } },
+                        new() { ToolName = "agent_system_stats", Arguments = new { } },
+                        new() { ToolName = "list_agents", Arguments = new { } },
                     ],
                     FollowUpText = "Agent操作已执行。"
                 },
@@ -232,12 +232,12 @@ public static class BatchSearchToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "search_code", Arguments = """{"query":"class"}""" },
-                        new() { ToolName = "search_text", Arguments = """{"pattern":"TODO"}""" },
-                        new() { ToolName = "search_files", Arguments = """{"pattern":"*.cs"}""" },
-                        new() { ToolName = "search_codebase", Arguments = """{"query":"ChatService"}""" },
-                        new() { ToolName = "code_search", Arguments = """{"query":"interface"}""" },
-                        new() { ToolName = "symbol_search", Arguments = """{"symbol":"Main"}""" },
+                        new() { ToolName = "search_code", Arguments = new { query = "class" } },
+                        new() { ToolName = "search_text", Arguments = new { pattern = "TODO" } },
+                        new() { ToolName = "search_files", Arguments = new { pattern = "*.cs" } },
+                        new() { ToolName = "search_codebase", Arguments = new { query = "ChatService" } },
+                        new() { ToolName = "code_search", Arguments = new { query = "interface" } },
+                        new() { ToolName = "symbol_search", Arguments = new { symbol = "Main" } },
                     ],
                     FollowUpText = "搜索已完成。"
                 },
@@ -273,10 +273,10 @@ public static class BatchPlanToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "plan_mode_status", Arguments = "{}" },
-                        new() { ToolName = "get_plan_status", Arguments = "{}" },
-                        new() { ToolName = "add_plan_step", Arguments = """{"step":"step1"}""" },
-                        new() { ToolName = "get_plan_history", Arguments = "{}" },
+                        new() { ToolName = "plan_mode_status", Arguments = new { } },
+                        new() { ToolName = "get_plan_status", Arguments = new { } },
+                        new() { ToolName = "add_plan_step", Arguments = new { step = "step1" } },
+                        new() { ToolName = "get_plan_history", Arguments = new { } },
                     ],
                     FollowUpText = "Plan操作已执行。"
                 },
@@ -310,14 +310,14 @@ public static class BatchSystemToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "brief", Arguments = "{}" },
-                        new() { ToolName = "brief_status", Arguments = "{}" },
-                        new() { ToolName = "sleep", Arguments = """{"ms":100}""" },
-                        new() { ToolName = "task_output", Arguments = """{"task_id":"test-001"}""" },
-                        new() { ToolName = "tool_search", Arguments = """{"query":"read"}""" },
-                        new() { ToolName = "structured_output", Arguments = """{"schema_name":"test"}""" },
-                        new() { ToolName = "goal_get", Arguments = "{}" },
-                        new() { ToolName = "send_user_file", Arguments = """{"path":"test.txt","content":"test"}""" },
+                        new() { ToolName = "brief", Arguments = new { } },
+                        new() { ToolName = "brief_status", Arguments = new { } },
+                        new() { ToolName = "sleep", Arguments = new { ms = 100 } },
+                        new() { ToolName = "task_output", Arguments = new { task_id = "test-001" } },
+                        new() { ToolName = "tool_search", Arguments = new { query = "read" } },
+                        new() { ToolName = "structured_output", Arguments = new { schema_name = "test" } },
+                        new() { ToolName = "goal_get", Arguments = new { } },
+                        new() { ToolName = "send_user_file", Arguments = new { path = "test.txt", content = "test" } },
                     ],
                     FollowUpText = "系统操作已执行。"
                 },

@@ -17,12 +17,12 @@ public static class BatchCodeToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "grep", Arguments = """{"pattern":"class ChatService"}""" },
-                        new() { ToolName = "glob", Arguments = """{"pattern":"**/*.cs"}""" },
-                        new() { ToolName = "read", Arguments = """{"file_path":"src/Program.cs"}""" },
-                        new() { ToolName = "SearchCodebase", Arguments = """{"query":"ChatService"}""" },
-                        new() { ToolName = "search_code", Arguments = """{"query":"ProcessUserInput"}""" },
-                        new() { ToolName = "search_files", Arguments = """{"pattern":"*.cs"}""" },
+                        new() { ToolName = "grep", Arguments = new { pattern = "class ChatService" } },
+                        new() { ToolName = "glob", Arguments = new { pattern = "**/*.cs" } },
+                        new() { ToolName = "read", Arguments = new { file_path = "src/Program.cs" } },
+                        new() { ToolName = "SearchCodebase", Arguments = new { query = "ChatService" } },
+                        new() { ToolName = "search_code", Arguments = new { query = "ProcessUserInput" } },
+                        new() { ToolName = "search_files", Arguments = new { pattern = "*.cs" } },
                     ],
                     FollowUpText = "代码搜索已完成。"
                 },
@@ -58,11 +58,11 @@ public static class BatchNotebookToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "notebook_create", Arguments = """{"name":"test.ipynb"}""" },
-                        new() { ToolName = "notebook_read", Arguments = """{"path":"test.ipynb"}""" },
-                        new() { ToolName = "notebook_add_cell", Arguments = """{"path":"test.ipynb","cell_type":"code","source":"print(\"hello\")"}""" },
-                        new() { ToolName = "notebook_delete_cell", Arguments = """{"path":"test.ipynb","index":0}""" },
-                        new() { ToolName = "notebook_clear_outputs", Arguments = """{"path":"test.ipynb"}""" },
+                        new() { ToolName = "notebook_create", Arguments = new { name = "test.ipynb" } },
+                        new() { ToolName = "notebook_read", Arguments = new { path = "test.ipynb" } },
+                        new() { ToolName = "notebook_add_cell", Arguments = new { path = "test.ipynb", cell_type = "code", source = "print(\"hello\")" } },
+                        new() { ToolName = "notebook_delete_cell", Arguments = new { path = "test.ipynb", index = 0 } },
+                        new() { ToolName = "notebook_clear_outputs", Arguments = new { path = "test.ipynb" } },
                     ],
                     FollowUpText = "Notebook操作已完成。"
                 },
@@ -97,10 +97,10 @@ public static class BatchWorktreeToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "worktree_list", Arguments = "{}" },
-                        new() { ToolName = "worktree_status", Arguments = "{}" },
-                        new() { ToolName = "worktree_find_git", Arguments = "{}" },
-                        new() { ToolName = "worktree_list_all", Arguments = "{}" },
+                        new() { ToolName = "worktree_list", Arguments = new { } },
+                        new() { ToolName = "worktree_status", Arguments = new { } },
+                        new() { ToolName = "worktree_find_git", Arguments = new { } },
+                        new() { ToolName = "worktree_list_all", Arguments = new { } },
                     ],
                     FollowUpText = "Worktree操作已完成。"
                 },
@@ -134,9 +134,9 @@ public static class BatchWorkflowToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "workflow", Arguments = "{}" },
-                        new() { ToolName = "workflow_status", Arguments = """{"id":"test-001"}""" },
-                        new() { ToolName = "workflow_execute", Arguments = "{}" },
+                        new() { ToolName = "workflow", Arguments = new { } },
+                        new() { ToolName = "workflow_status", Arguments = new { id = "test-001" } },
+                        new() { ToolName = "workflow_execute", Arguments = new { } },
                     ],
                     FollowUpText = "Workflow操作已完成。"
                 },
@@ -169,9 +169,9 @@ public static class BatchSkillToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "skill_list", Arguments = "{}" },
-                        new() { ToolName = "skill_search", Arguments = """{"query":"test"}""" },
-                        new() { ToolName = "skill_execute", Arguments = """{"name":"test-skill"}""" },
+                        new() { ToolName = "skill_list", Arguments = new { } },
+                        new() { ToolName = "skill_search", Arguments = new { query = "test" } },
+                        new() { ToolName = "skill_execute", Arguments = new { name = "test-skill" } },
                     ],
                     FollowUpText = "Skill操作已完成。"
                 },
@@ -204,11 +204,11 @@ public static class BatchTeamToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "team_list", Arguments = "{}" },
-                        new() { ToolName = "team_get", Arguments = """{"team_id":"test-001"}""" },
-                        new() { ToolName = "team_get_messages", Arguments = """{"team_id":"test-001"}""" },
-                        new() { ToolName = "TeamCreate", Arguments = """{"name":"test-team"}""" },
-                        new() { ToolName = "TeamDelete", Arguments = """{"team_id":"test-001"}""" },
+                        new() { ToolName = "team_list", Arguments = new { } },
+                        new() { ToolName = "team_get", Arguments = new { team_id = "test-001" } },
+                        new() { ToolName = "team_get_messages", Arguments = new { team_id = "test-001" } },
+                        new() { ToolName = "TeamCreate", Arguments = new { name = "test-team" } },
+                        new() { ToolName = "TeamDelete", Arguments = new { team_id = "test-001" } },
                     ],
                     FollowUpText = "Team操作已完成。"
                 },
@@ -243,11 +243,11 @@ public static class BatchMemoryToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "memory_scan", Arguments = "{}" },
-                        new() { ToolName = "memory_age", Arguments = "{}" },
-                        new() { ToolName = "memory_cleanup", Arguments = "{}" },
-                        new() { ToolName = "memory_health", Arguments = "{}" },
-                        new() { ToolName = "memory_search_history", Arguments = """{"query":"test"}""" },
+                        new() { ToolName = "memory_scan", Arguments = new { } },
+                        new() { ToolName = "memory_age", Arguments = new { } },
+                        new() { ToolName = "memory_cleanup", Arguments = new { } },
+                        new() { ToolName = "memory_health", Arguments = new { } },
+                        new() { ToolName = "memory_search_history", Arguments = new { query = "test" } },
                     ],
                     FollowUpText = "Memory操作已完成。"
                 },
@@ -282,11 +282,11 @@ public static class BatchTodoToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "todo_list", Arguments = "{}" },
-                        new() { ToolName = "todo_create", Arguments = """{"title":"test-todo"}""" },
-                        new() { ToolName = "todo_read", Arguments = """{"id":"test-001"}""" },
-                        new() { ToolName = "TodoWrite", Arguments = """{"content":"test"}""" },
-                        new() { ToolName = "todo_delete", Arguments = """{"id":"test-001"}""" },
+                        new() { ToolName = "todo_list", Arguments = new { } },
+                        new() { ToolName = "todo_create", Arguments = new { title = "test-todo" } },
+                        new() { ToolName = "todo_read", Arguments = new { id = "test-001" } },
+                        new() { ToolName = "TodoWrite", Arguments = new { content = "test" } },
+                        new() { ToolName = "todo_delete", Arguments = new { id = "test-001" } },
                     ],
                     FollowUpText = "Todo操作已完成。"
                 },
@@ -321,10 +321,10 @@ public static class BatchMcpToolScripts {
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "mcp_list_servers", Arguments = "{}" },
-                        new() { ToolName = "mcp_list_tools", Arguments = "{}" },
-                        new() { ToolName = "mcp_list_clients", Arguments = "{}" },
-                        new() { ToolName = "mcp_auth_status", Arguments = "{}" },
+                        new() { ToolName = "mcp_list_servers", Arguments = new { } },
+                        new() { ToolName = "mcp_list_tools", Arguments = new { } },
+                        new() { ToolName = "mcp_list_clients", Arguments = new { } },
+                        new() { ToolName = "mcp_auth_status", Arguments = new { } },
                     ],
                     FollowUpText = "MCP操作已完成。"
                 },

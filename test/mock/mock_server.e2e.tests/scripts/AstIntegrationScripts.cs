@@ -24,7 +24,7 @@ public static class AstIntegrationScripts {
                         new MockToolCallScript
                         {
                             ToolName = "grep",
-                            Arguments = """{"pattern":"class.*Service"}"""
+                            Arguments = new { pattern = "class.*Service" }
                         }
                     ],
                     FollowUpText = "索引统计已获取,AST 构造完成。"
@@ -47,7 +47,7 @@ public static class AstIntegrationScripts {
                         new MockToolCallScript
                         {
                             ToolName = "grep",
-                            Arguments = """{"pattern":"CodeIndexer"}"""
+                            Arguments = new { pattern = "CodeIndexer" }
                         }
                     ],
                     FollowUpText = "FTS5 全文检索完成。"
@@ -70,7 +70,7 @@ public static class AstIntegrationScripts {
                         new MockToolCallScript
                         {
                             ToolName = "grep",
-                            Arguments = """{"pattern":"BuildIndexAsync"}"""
+                            Arguments = new { pattern = "BuildIndexAsync" }
                         }
                     ],
                     FollowUpText = "引用查询完成。"
@@ -93,7 +93,7 @@ public static class AstIntegrationScripts {
                         new MockToolCallScript
                         {
                             ToolName = "glob",
-                            Arguments = """{"pattern":"**/*.cs"}"""
+                            Arguments = new { pattern = "**/*.cs" }
                         }
                     ],
                     FollowUpText = "调用者查询完成。"

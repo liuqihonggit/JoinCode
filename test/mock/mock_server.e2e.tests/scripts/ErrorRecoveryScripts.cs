@@ -149,7 +149,7 @@ public static class ApiErrorRecoveryScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"pwd\"}"
+                            Arguments = new { command = "pwd" }
                         }
                     ],
                     FollowUpText = "当前目录为 /home/user/project"
@@ -205,7 +205,7 @@ public static class StreamInterruptionScripts {
                         new MockToolCallScript
                         {
                             ToolName = "read",
-                            Arguments = "{\"file_path\":\"/nonexistent/file.txt\"}"
+                            Arguments = new { file_path = "/nonexistent/file.txt" }
                         }
                     ],
                     FollowUpText = "文件不存在，读取失败。让我尝试其他方式。"
@@ -249,7 +249,7 @@ public static class StreamInterruptionScripts {
                         new MockToolCallScript
                         {
                             ToolName = "NonExistentTool",
-                            Arguments = "{\"param\":\"value\"}"
+                            Arguments = new { param = "value" }
                         }
                     ],
                     FollowUpText = "该工具不可用，我将用其他方式完成。"
@@ -280,12 +280,12 @@ public static class StreamInterruptionScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"ls\"}"
+                            Arguments = new { command = "ls" }
                         },
                         new MockToolCallScript
                         {
                             ToolName = "read",
-                            Arguments = "{\"file_path\":\"/nonexistent.txt\"}"
+                            Arguments = new { file_path = "/nonexistent.txt" }
                         }
                     ],
                     FollowUpText = "目录查看成功，但文件读取失败。"
@@ -367,7 +367,7 @@ public static class PermissionDenialScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"pwd\"}"
+                            Arguments = new { command = "pwd" }
                         }
                     ],
                     FollowUpText = "权限被拒绝，无法执行该操作。"
@@ -400,7 +400,7 @@ public static class PermissionDenialScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"pwd\"}"
+                            Arguments = new { command = "pwd" }
                         }
                     ],
                     FollowUpText = "当前目录为 /home/user/project"
@@ -432,12 +432,12 @@ public static class AnthropicDeepCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"ls\"}"
+                            Arguments = new { command = "ls" }
                         },
                         new MockToolCallScript
                         {
                             ToolName = "read",
-                            Arguments = "{\"file_path\":\"README.md\"}"
+                            Arguments = new { file_path = "README.md" }
                         }
                     ],
                     FollowUpText = "目录下有 README.md，内容为项目说明。"
@@ -469,7 +469,7 @@ public static class AnthropicDeepCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"ls -la\"}"
+                            Arguments = new { command = "ls -la" }
                         }
                     ],
                     FollowUpText = "当前目录包含 src、tests、docs 等子目录。"
@@ -537,7 +537,7 @@ public static class AnthropicDeepCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"ls\"}"
+                            Arguments = new { command = "ls" }
                         }
                     ],
                     FollowUpText = "项目结构如下：包含src、tests、docs目录。"
@@ -567,12 +567,12 @@ public static class AnthropicDeepCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"ls\"}"
+                            Arguments = new { command = "ls" }
                         },
                         new MockToolCallScript
                         {
                             ToolName = "read",
-                            Arguments = "{\"file_path\":\"config.json\"}"
+                            Arguments = new { file_path = "config.json" }
                         }
                     ],
                     FollowUpText = "目录下有配置文件，内容为项目配置。"
@@ -718,7 +718,7 @@ public static class McpProtocolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "mcp_list_clients",
-                            Arguments = "{}"
+                            Arguments = new { }
                         }
                     ],
                     FollowUpText = "MCP工具列表：mcp_list_clients、mcp_resource。"
@@ -748,7 +748,7 @@ public static class McpProtocolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "mcp_client",
-                            Arguments = "{\"action\":\"status\"}"
+                            Arguments = new { action = "status" }
                         }
                     ],
                     FollowUpText = "MCP客户端状态已获取。"
@@ -778,7 +778,7 @@ public static class McpProtocolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "mcp_list_clients",
-                            Arguments = "{}"
+                            Arguments = new { }
                         }
                     ],
                     FollowUpText = "当前有2个MCP客户端连接。"
@@ -869,7 +869,7 @@ public static class ConcurrentRequestScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"ls\"}"
+                            Arguments = new { command = "ls" }
                         }
                     ],
                     FollowUpText = "目录内容已列出。"
@@ -904,7 +904,7 @@ public static class ConcurrentRequestScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"ls\"}"
+                            Arguments = new { command = "ls" }
                         }
                     ],
                     FollowUpText = "目录内容同上。"

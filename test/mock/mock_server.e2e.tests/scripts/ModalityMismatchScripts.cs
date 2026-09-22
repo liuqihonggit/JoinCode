@@ -25,7 +25,7 @@ public static class ModalityMismatchScripts {
                         new MockToolCallScript
                         {
                             ToolName = "model_search",
-                            Arguments = """{"query":"map[generateImage]"}"""
+                            Arguments = new { query = "map[generateImage]" }
                         }
                     ],
                     FollowUpText = "已找到支持图片生成的模型，将创建子代理执行。"
@@ -59,7 +59,7 @@ public static class ModalityMismatchScripts {
                         new MockToolCallScript
                         {
                             ToolName = "model_search",
-                            Arguments = """{"query":"map[readVideo]"}"""
+                            Arguments = new { query = "map[readVideo]" }
                         }
                     ],
                     FollowUpText = "已找到支持视频识别的模型，将创建子代理执行。"
@@ -94,7 +94,7 @@ public static class ModalityMismatchScripts {
                         new MockToolCallScript
                         {
                             ToolName = "model_search",
-                            Arguments = """{"query":"map[readImage]"}"""
+                            Arguments = new { query = "map[readImage]" }
                         }
                     ],
                     FollowUpText = "已找到支持图片识别的模型，将创建子代理执行。"
@@ -130,7 +130,7 @@ public static class ModalityMismatchScripts {
                         new MockToolCallScript
                         {
                             ToolName = "model_search",
-                            Arguments = """{"query":"map[generateImage]"}"""
+                            Arguments = new { query = "map[generateImage]" }
                         }
                     ],
                     FollowUpText = null
@@ -155,7 +155,7 @@ public static class ModalityMismatchScripts {
                         new MockToolCallScript
                         {
                             ToolName = "agent",
-                            Arguments = """{"description":"生成猫的图片","prompt":"画一张可爱的猫咪图片","model":"dall-e-3"}"""
+                            Arguments = new { description = "生成猫的图片", prompt = "画一张可爱的猫咪图片", model = "dall-e-3" }
                         }
                     ],
                     FollowUpText = null
@@ -197,7 +197,7 @@ public static class ModalityMismatchScripts {
                         new MockToolCallScript
                         {
                             ToolName = "model_search",
-                            Arguments = """{"query":"map[readImage]"}"""
+                            Arguments = new { query = "map[readImage]" }
                         }
                     ],
                     FollowUpText = null
@@ -222,7 +222,7 @@ public static class ModalityMismatchScripts {
                         new MockToolCallScript
                         {
                             ToolName = "agent",
-                            Arguments = """{"description":"识别图片内容","prompt":"看这张图片里有什么","model":"agnes-image-2.0-flash"}"""
+                            Arguments = new { description = "识别图片内容", prompt = "看这张图片里有什么", model = "agnes-image-2.0-flash" }
                         }
                     ],
                     FollowUpText = null

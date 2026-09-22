@@ -24,7 +24,7 @@ public static class MissingCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "write",
-                            Arguments = """{"file_path":"test_hello.txt","content":"Hello, World!"}"""
+                            Arguments = new { file_path = "test_hello.txt", content = "Hello, World!" }
                         }
                     ],
                     FollowUpText = "文件 test_hello.txt 已创建，内容为 Hello, World!"
@@ -57,7 +57,7 @@ public static class MissingCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "edit",
-                            Arguments = """{"file_path":"test_config.txt","old_string":"version: 1.0","new_string":"version: 2.0"}"""
+                            Arguments = new { file_path = "test_config.txt", old_string = "version: 1.0", new_string = "version: 2.0" }
                         }
                     ],
                     FollowUpText = "配置文件版本号已从 1.0 更新为 2.0"
@@ -90,7 +90,7 @@ public static class MissingCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "grep",
-                            Arguments = """{"pattern":"TODO","include":"*.cs"}"""
+                            Arguments = new { pattern = "TODO", include = "*.cs" }
                         }
                     ],
                     FollowUpText = "在 3 个文件中找到 5 个 TODO 标记"
@@ -123,7 +123,7 @@ public static class MissingCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "glob",
-                            Arguments = """{"pattern":"**/*.json"}"""
+                            Arguments = new { pattern = "**/*.json" }
                         }
                     ],
                     FollowUpText = "找到 12 个 JSON 配置文件"
@@ -156,7 +156,7 @@ public static class MissingCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "agent",
-                            Arguments = """{"name":"check-readme","description":"检查README","prompt":"检查当前目录下README文件，返回其内容概要"}"""
+                            Arguments = new { name = "check-readme", description = "检查README", prompt = "检查当前目录下README文件，返回其内容概要" }
                         }
                     ],
                     // Agent spawn 不需要 follow_up — subagent 的输出通过 ToolResult 返回
@@ -197,7 +197,7 @@ public static class MissingCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "agent_spawn",
-                            Arguments = """{"name":"code-search","description":"搜索代码","prompt":"搜索代码中的所有类定义，列出5个主要类名"}"""
+                            Arguments = new { name = "code-search", description = "搜索代码", prompt = "搜索代码中的所有类定义，列出5个主要类名" }
                         }
                     ],
                     FollowUpText = null
@@ -235,7 +235,7 @@ public static class MissingCoverageScripts {
                         new MockToolCallScript
                         {
                             ToolName = "agent",
-                            Arguments = """{"name":"spell-check","description":"拼写检查","prompt":"检查README.md中的拼写问题","isolation":"worktree"}"""
+                            Arguments = new { name = "spell-check", description = "拼写检查", prompt = "检查README.md中的拼写问题", isolation = "worktree" }
                         }
                     ],
                     FollowUpText = null
@@ -330,7 +330,7 @@ public static class TaskToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "task_create",
-                            Arguments = """{"title":"测试任务","description":"这是一个E2E测试任务"}"""
+                            Arguments = new { title = "测试任务", description = "这是一个E2E测试任务" }
                         }
                     ],
                     FollowUpText = "任务『测试任务』已创建。"
@@ -365,7 +365,7 @@ public static class InfrastructureToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "structured_output_register",
-                            Arguments = """{"schema_name":"test_schema","schema_json":"{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}","description":"测试Schema"}"""
+                            Arguments = new { schema_name = "test_schema", schema_json = "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}", description = "测试Schema" }
                         }
                     ],
                     FollowUpText = "Schema 'test_schema' 已注册。"
@@ -400,7 +400,7 @@ public static class SchedulingToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "cron_list",
-                            Arguments = "{}"
+                            Arguments = new { }
                         }
                     ],
                     FollowUpText = "当前没有定时任务。"
@@ -435,7 +435,7 @@ public static class WebToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "web_search",
-                            Arguments = """{"query":"JoinCode AI workflow engine"}"""
+                            Arguments = new { query = "JoinCode AI workflow engine" }
                         }
                     ],
                     FollowUpText = "搜索结果：JoinCode是一个AI工作流引擎..."

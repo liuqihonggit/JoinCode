@@ -14,7 +14,7 @@ public class PriorityMailboxTest {
         await actor.SendAsync(2, MessagePriority.High);
         await actor.SendAsync(3, MessagePriority.Low);
 
-        actor.StartConsumer();
+        _ = actor.StartConsumerAsync();
         gateTcs.SetResult();
         await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromSeconds(5));
 
@@ -31,7 +31,7 @@ public class PriorityMailboxTest {
         await actor.SendAsync(2, MessagePriority.Normal);
         await actor.SendAsync(3, MessagePriority.Low);
 
-        actor.StartConsumer();
+        _ = actor.StartConsumerAsync();
         gateTcs.SetResult();
         await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromSeconds(5));
 
@@ -48,7 +48,7 @@ public class PriorityMailboxTest {
         await actor.SendAsync(2, MessagePriority.High);
         await actor.SendAsync(3, MessagePriority.Normal);
 
-        actor.StartConsumer();
+        _ = actor.StartConsumerAsync();
         gateTcs.SetResult();
         await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromSeconds(5));
 
@@ -65,7 +65,7 @@ public class PriorityMailboxTest {
             await actor.SendAsync(i, MessagePriority.Normal);
         }
 
-        actor.StartConsumer();
+        _ = actor.StartConsumerAsync();
         gateTcs.SetResult();
         await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 5, TimeSpan.FromSeconds(5));
 
@@ -85,7 +85,7 @@ public class PriorityMailboxTest {
         await actor.SendAsync(21, MessagePriority.Normal);
         await actor.SendAsync(31, MessagePriority.High);
 
-        actor.StartConsumer();
+        _ = actor.StartConsumerAsync();
         gateTcs.SetResult();
         await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 6, TimeSpan.FromSeconds(5));
 
@@ -285,7 +285,7 @@ internal sealed class PriorityTestActor : PriorityMailbox<int> {
         : base(highBackpressure, normalBackpressure, lowBackpressure, startConsuming) {
     }
 
-    public void StartConsumer() => StartConsuming();
+    public Task StartConsumerAsync() => StartConsumingAsync();
 
     public void SetGate(TaskCompletionSource gate) => _gate = gate;
 

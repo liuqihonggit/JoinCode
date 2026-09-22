@@ -44,6 +44,7 @@ public sealed class AsyncMethodWithoutAwaitRule : AnalyzerRuleBase<AsyncMethodWi
             ForEachStatementSyntax f => f.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword),
             ForEachVariableStatementSyntax fv => fv.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword),
             UsingStatementSyntax u => u.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword),
+            LocalDeclarationStatementSyntax l => l.AwaitKeyword.IsKind(SyntaxKind.AwaitKeyword),
             _ => false,
         })) return true;
         return false;

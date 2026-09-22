@@ -57,7 +57,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable {
     /// <param name="highBackpressure">高优先级背压(用户交互)</param>
     /// <param name="normalBackpressure">普通优先级背压(LLM 请求)</param>
     /// <param name="lowBackpressure">低优先级背压(后台编译)</param>
-    /// <param name="startConsuming">是否在构造时立即启动 Consumer 循环(默认 true,生产行为;测试传 false 后显式调 <see cref="StartConsuming"/> 控制启动时机,以验证贪心优先级排序)</param>
+    /// <param name="startConsuming">已废弃:构造时不再启动 Consumer 循环,需构造后显式调 <see cref="StartConsumingAsync"/></param>
     protected PriorityMailbox(
         ActorBackpressure? highBackpressure = null,
         ActorBackpressure? normalBackpressure = null,
@@ -73,20 +73,19 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable {
             SingleReader = true,
             SingleWriter = true
         });
-        if (startConsuming) StartConsuming();
+        if (startConsuming) {
+            _ = StartConsumingAsync();
+        }
     }
 
     /// <summary>
-    /// 显式启动 Consumer 循环 — 用于构造时传 <c>startConsuming: false</c> 的场景(如测试需先批量入队再启动消费,以验证贪心优先级排序)。
+    /// 显式启动 Consumer 循环 — 需构造后显式调用,返回的 Task 代表循环生命周期。
     /// <para>幂等:多次调用只启动一次。</para>
+    /// <para>调用方不应 await 返回值(让循环后台运行),需要等待完成时 await <see cref="ConsumerTask"/>。</para>
     /// </summary>
-    protected void StartConsuming() {
-        if (Interlocked.Exchange(ref _consumingStarted, 1) != 0) return;
-        _consumerTask = Task.Factory.StartNew(
-            ConsumeLoopAsync,
-            CancellationToken.None,
-            TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-            TaskScheduler.Default).Unwrap();
+    protected Task StartConsumingAsync() {
+        if (Interlocked.Exchange(ref _consumingStarted, 1) != 0) return _consumerTask ?? Task.CompletedTask;
+        return _consumerTask = ConsumeLoopAsync();
     }
 
     private static Channel<TCommand> CreateChannel(ActorBackpressure? bp) {

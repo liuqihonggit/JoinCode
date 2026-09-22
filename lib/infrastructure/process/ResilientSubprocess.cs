@@ -15,6 +15,7 @@ public sealed class ResilientSubprocess : IAsyncDisposable {
     private ProcessRestartManager? _restartManager;
     private readonly UnifiedCircuitBreaker? _circuitBreaker;
     private readonly CancellationTokenSource _disposeCts = new();
+    private readonly ConcurrentBag<Task> _pendingRestart = new();
     private int _disposed;
 
     /// <summary>获取进程是否健康（未配置健康监控时视为健康）</summary>
@@ -134,11 +135,16 @@ public sealed class ResilientSubprocess : IAsyncDisposable {
         Unhealthy?.Invoke(this, e);
 
         if (e.Action == UnhealthyAction.KillAndRestart && _restartManager is not null && _restartManager.CanRestart) {
-            _ = RestartAsync(_disposeCts.Token);
+            _pendingRestart.Add(RestartAsync(_disposeCts.Token));
         } else if (e.Action == UnhealthyAction.Kill) {
             Kill();
         }
     }
+
+    /// <summary>
+    /// 等待所有 pending 重启任务完成 — 调用方可选 await 以确保重启落定
+    /// </summary>
+    public Task WaitForPendingRestartAsync() => Task.WhenAll(_pendingRestart);
 
     private void OnProcessRestarted(object? sender, ProcessRestartedEventArgs e) {
         Restarted?.Invoke(this, e);

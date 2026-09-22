@@ -127,9 +127,10 @@ public sealed class BusTransport : ITransportTopology {
     /// <inheritdoc/>
     public IReadOnlyCollection<string> GetConnectedProcesses() => _clientConnections.Keys.ToArray();
 
-    private async Task StartHostAsync(CancellationToken ct) {
+    private Task StartHostAsync(CancellationToken ct) {
         _logger?.LogInformation("BusTransport: HOST started on pipe {Pipe} (pid={Pid})", _pipeName, ProcessId);
         _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(_pipeName, HandleBusConnectionAsync, _cts.Token));
+        return Task.CompletedTask;
     }
 
     private async Task StartSlaveAsync(CancellationToken ct) {

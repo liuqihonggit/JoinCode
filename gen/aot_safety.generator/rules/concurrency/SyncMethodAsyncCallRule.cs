@@ -72,10 +72,14 @@ public sealed class SyncMethodAsyncCallRule : AnalyzerRuleBase<SyncMethodAsyncCa
 
         var expr = stmt.Expression;
         if (expr is AssignmentExpressionSyntax assign) {
-            var right = assign.Right;
-            if (IsBlockingConsumption(right)) return true;
+            if (!IsDiscard(assign.Left)) return true;
+            if (IsBlockingConsumption(assign.Right)) return true;
         }
         return false;
+    }
+
+    private static bool IsDiscard(ExpressionSyntax expr) {
+        return expr is IdentifierNameSyntax id && id.Identifier.ValueText == "_";
     }
 
     private static bool IsBlockingConsumption(ExpressionSyntax expr) {

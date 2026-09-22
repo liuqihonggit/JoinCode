@@ -52,7 +52,7 @@ public sealed class BackgroundHousekeepingService : PeriodicBackgroundServiceBas
 
         try {
             var count = await _housekeeping.RunAllCleanupAsync(currentSessionId: "", cancellationToken).ConfigureAwait(false);
-            WriteMarkerFile();
+            await WriteMarkerFileAsync().ConfigureAwait(false);
 
             if (count > 0) {
                 _logger?.LogDebug("后台家政清理执行完成，清理 {Count} 项", count);
@@ -73,13 +73,13 @@ public sealed class BackgroundHousekeepingService : PeriodicBackgroundServiceBas
         }
     }
 
-    private void WriteMarkerFile() {
+    private async Task WriteMarkerFileAsync() {
         try {
             if (!_fs.DirectoryExists(JccDir)) {
                 _fs.CreateDirectory(JccDir);
             }
 
-            _fs.WriteAllText(MarkerFilePath, _clock.GetUtcNow().ToString("O"));
+            await _fs.WriteAllText(MarkerFilePath, _clock.GetUtcNow().ToString("O")).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogDebug(ex, "写入家政清理标记文件失败");
         }

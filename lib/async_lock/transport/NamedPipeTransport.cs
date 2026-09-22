@@ -127,10 +127,11 @@ public sealed class NamedPipeTransport : ITransportTopology {
     /// <summary>获取底层选举服务 — 外部可订阅选举变更。</summary>
     public HostElectionService Election => _election;
 
-    private async Task StartHostAsync(CancellationToken ct) {
+    private Task StartHostAsync(CancellationToken ct) {
         _logger?.LogInformation("NamedPipeTransport: HOST started on pipe {Pipe} (pid={Pid})", _pipeName, ProcessId);
 
         _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(_pipeName, HandleHostConnectionAsync, _cts.Token));
+        return Task.CompletedTask;
     }
 
     private async Task StartSlaveAsync(CancellationToken ct) {

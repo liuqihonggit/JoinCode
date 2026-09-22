@@ -15,6 +15,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
     private readonly IClockService _clock;
     private CancellationTokenSource? _leaderCts;
     private Task? _leaderRoutingTask;
+    private readonly ConcurrentBag<Task> _pendingTeammateRouting = new();
 
     /// <summary>初始化计划审批消息路由器</summary>
     /// <param name="messageBroker">消息邮箱，用于订阅/发布审批消息</param>
@@ -51,8 +52,13 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity {
     /// 启动 Teammate 侧路由：监听 plan_approval_response 并调用 HandlePlanApprovalResponseAsync
     /// </summary>
     public void StartTeammateRouting(string teammateAgentId) {
-        _ = RouteTeammateResponsesAsync(teammateAgentId);
+        _pendingTeammateRouting.Add(RouteTeammateResponsesAsync(teammateAgentId));
     }
+
+    /// <summary>
+    /// 等待所有 pending Teammate 路由任务完成 — 调用方可选 await 以确保路由落定
+    /// </summary>
+    public Task WaitForPendingTeammateRoutingAsync() => Task.WhenAll(_pendingTeammateRouting);
 
     /// <summary>
     /// 停止 Leader 侧路由

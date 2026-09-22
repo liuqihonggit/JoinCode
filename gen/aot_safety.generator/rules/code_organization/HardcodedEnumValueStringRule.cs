@@ -15,6 +15,7 @@ namespace AotSafety.Generator.Rules;
 public sealed class HardcodedEnumValueStringRule : AnalyzerRuleBase<HardcodedEnumValueStringRule> {
     public override void Register(CompilationStartAnalysisContext context, ProjectContext projectContext) {
         var enumValueStrings = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
+        var allEnumNames = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
 
         foreach (var tree in context.Compilation.SyntaxTrees) {
             if (context.CancellationToken.IsCancellationRequested) return;
@@ -39,11 +40,28 @@ public sealed class HardcodedEnumValueStringRule : AnalyzerRuleBase<HardcodedEnu
                     var enumType = enumMember.Parent as EnumDeclarationSyntax;
                     var enumName = enumType?.Identifier.ValueText ?? "Unknown";
                     enumValueStrings.TryAdd(stringValue, enumName);
+                    allEnumNames.TryAdd(enumName, 0);
                 }
             }
         }
 
         if (enumValueStrings.IsEmpty) return;
+
+        var treeReferencedEnums = new ConcurrentDictionary<SyntaxTree, HashSet<string>>();
+
+        context.RegisterSyntaxTreeAction(treeCtx => {
+            if (treeCtx.CancellationToken.IsCancellationRequested) return;
+            var root = treeCtx.Tree.GetRoot();
+            var referencedEnums = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var identifier in root.DescendantNodes().OfType<IdentifierNameSyntax>()) {
+                var name = identifier.Identifier.ValueText;
+                if (allEnumNames.ContainsKey(name))
+                    referencedEnums.Add(name);
+            }
+
+            treeReferencedEnums[treeCtx.Tree] = referencedEnums;
+        });
 
         context.RegisterSyntaxNodeAction(nodeCtx => {
             if (nodeCtx.CancellationToken.IsCancellationRequested) return;
@@ -57,6 +75,12 @@ public sealed class HardcodedEnumValueStringRule : AnalyzerRuleBase<HardcodedEnu
             if (!enumValueStrings.TryGetValue(stringValue, out var enumName)) return;
 
             if (IsInEnumDefinition(literal)) return;
+            if (IsLikelyFalsePositive(literal, stringValue)) return;
+            if (!IsAssignmentContext(literal)) return;
+
+            if (treeReferencedEnums.TryGetValue(nodeCtx.Node.SyntaxTree, out var referencedEnums) &&
+                !referencedEnums.Contains(enumName))
+                return;
 
             var location = literal.GetLocation();
             nodeCtx.ReportDiagnostic(Diagnostic.Create(Descriptor, location, stringValue, enumName));
@@ -74,6 +98,49 @@ public sealed class HardcodedEnumValueStringRule : AnalyzerRuleBase<HardcodedEnu
                 return true;
             current = current.Parent;
         }
+        return false;
+    }
+
+    private static bool IsLikelyFalsePositive(LiteralExpressionSyntax literal, string value) {
+        if (value.Length <= 2) return true;
+
+        var parent = literal.Parent;
+
+        if (parent is ArgumentSyntax arg) {
+            var invocation = arg.FirstAncestorOrSelf<InvocationExpressionSyntax>();
+            if (invocation is not null) {
+                var methodName = invocation.Expression.ToString();
+                if (methodName.EndsWith("ToString", StringComparison.Ordinal))
+                    return true;
+                if (methodName.EndsWith("Regex", StringComparison.Ordinal) || methodName.Contains("Regex"))
+                    return true;
+            }
+
+            if (arg.Parent is BracketedArgumentListSyntax)
+                return true;
+        }
+
+        if (parent is InterpolatedStringExpressionSyntax)
+            return true;
+
+        return false;
+    }
+
+    private static bool IsAssignmentContext(LiteralExpressionSyntax literal) {
+        var parent = literal.Parent;
+
+        if (parent is EqualsValueClauseSyntax)
+            return true;
+
+        if (parent is ReturnStatementSyntax)
+            return true;
+
+        if (parent is ArrowExpressionClauseSyntax)
+            return true;
+
+        if (parent is ArgumentSyntax arg && arg.Parent is BaseExpressionSyntax)
+            return true;
+
         return false;
     }
 }

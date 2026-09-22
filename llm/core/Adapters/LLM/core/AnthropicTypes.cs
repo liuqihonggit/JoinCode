@@ -84,7 +84,7 @@ internal sealed class AnthropicThinkingConfig {
 internal sealed class AnthropicSystemContentBlock {
     /// <summary>获取或设置内容块类型。</summary>
     [JsonPropertyName("type")]
-    public string Type { get; set; } = "text";
+    public string Type { get; set; } = AnthropicContentBlockTypeEnumConstants.Text;
 
     /// <summary>获取或设置文本内容。</summary>
     [JsonPropertyName("text")]

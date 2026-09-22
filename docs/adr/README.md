@@ -470,4 +470,4 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0113](0113-mtp-perturbation-bash-defense.md) | MTP 扰动防御 | Agent 层 BashDefense node 链兜住 MTP 单字符扰动，不依赖供应商关 MTP |
 | [0114](0114-config-template-source-generator.md) | 配置模板源码生成器 | 源码生成器驱动配置模板 |
 | [0115](0115-typed-decision-abstraction-layer.md) | 类型化决策抽象层 | ITypedDecision 统一决策类型 |
-| [0116](0116-getawaiter-getresult-allowed-scenarios.md) | .GetAwaiter().GetResult() 允许场景 | 构造函数/Lazy<T>/ThreadStart/同步委托中允许，已 async 方法中禁止，工具保守策略避免异步污染 |
+| [0116](0116-getawaiter-getresult-allowed-scenarios.md) | .GetAwaiter().GetResult() 允许场景 + Entity BCL 双向继承 | 构造函数/Lazy<T>/ThreadStart/同步委托中允许；Entity 保留 IDisposable+IAsyncDisposable 双接口学 BCL Stream 模式 |

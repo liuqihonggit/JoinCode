@@ -59,3 +59,21 @@ AGENTS.md 规定"禁止 .GetAwaiter().GetResult() — 全部用 async/await，�
 - 正面：明确了 .GetAwaiter().GetResult() 的合法边界，减少未来重复踩坑；工具保守策略避免异步污染
 - 负面：约 40 处 .GetAwaiter().GetResult() 保留在代码库中，无法完全消除
 - 中性：未来如果重构架构（如 async factory pattern），可以逐步消除这些例外
+
+## Entity BCL 双向继承模式（IDisposable + IAsyncDisposable）
+
+Entity 抽象基类同时实现 `IDisposable` 和 `IAsyncDisposable`，`DisposeAsync()` 默认委托 `Dispose()`。JCC9103 分析器对抽象类跳过。
+
+项目中有 94 个子类 override Dispose()（同步），68 个子类 override DisposeAsync()（异步，如 `await _stream.DisposeAsync()`）。
+
+评估了三个方案：
+
+| 方案 | 受影响文件 | 总变更量 | 核心问题 |
+|------|-----------|---------|---------|
+| 纯异步化（→IAsyncDisposable） | 636 | 2088 | BCL 类型不实现 IAsyncDisposable，`await using` 无效 |
+| 纯同步化（→IDisposable） | 613 | 2807 | 68 个子类丢失异步释放能力 |
+| BCL 双向继承 | 0 | 0 | Entity 已是此模式 |
+
+**决策：采用 BCL 双向继承模式**，与 .NET BCL 的 `Stream`/`TextReader` 一致。消费方按需选 `using` 或 `await using`，子类按需 override。
+
+ast_cli `fix-disposable-async`/`fix-disposable-sync` 工具保留供未来使用（需加语义过滤），位于 `DisposableDirectionFixer.cs`。

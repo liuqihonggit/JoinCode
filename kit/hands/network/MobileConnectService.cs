@@ -87,7 +87,7 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
 
     private static async Task HandleClientAsync(System.Net.Sockets.TcpClient client, CancellationToken ct, ILogger<MobileConnectService>? logger = null) {
         try {
-            using var stream = client.GetStream();
+            await using var stream = client.GetStream();
             var buffer = new byte[4096];
             var bytesRead = await stream.ReadAsync(buffer, ct).ConfigureAwait(false);
 

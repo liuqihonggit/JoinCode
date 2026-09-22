@@ -1,12 +1,12 @@
-﻿namespace Dream.Tests.Plugin;
+namespace Dream.Tests.Plugin;
 
 /// <summary>
 /// Dream 插件入口单元测试
 /// </summary>
 public sealed class DreamPluginTests {
     [Fact]
-    public void Name_Version_Description_AreCorrect() {
-        using var plugin = new DreamPlugin();
+    public async Task Name_Version_Description_AreCorrect() {
+        await using var plugin = new DreamPlugin();
 
         Assert.Equal("Dream", plugin.Name);
         Assert.Equal("1.0.0", plugin.Version);
@@ -56,8 +56,8 @@ public sealed class DreamPluginTests {
     }
 
     [Fact]
-    public void RegisterCommands_RegistersDreamCommands() {
-        using var plugin = new DreamPlugin();
+    public async Task RegisterCommands_RegistersDreamCommands() {
+        await using var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
         var services = new ServiceCollection();
         services.AddSingleton<IDreamFeature>(Mock.Of<IDreamFeature>());
@@ -70,8 +70,8 @@ public sealed class DreamPluginTests {
     }
 
     [Fact]
-    public void UnregisterCommands_AfterRegister_UnregistersAll() {
-        using var plugin = new DreamPlugin();
+    public async Task UnregisterCommands_AfterRegister_UnregistersAll() {
+        await using var plugin = new DreamPlugin();
         var registry = new Mock<ICommandRegistry>();
         var services = new ServiceCollection();
         services.AddSingleton<IDreamFeature>(Mock.Of<IDreamFeature>());
@@ -95,10 +95,10 @@ public sealed class DreamPluginTests {
     }
 
     [Fact]
-    public void Unload_ReturnsSuccess() {
-        using var plugin = new DreamPlugin();
+    public async Task Unload_ReturnsSuccess() {
+        await using var plugin = new DreamPlugin();
 
-        var result = plugin.Unload();
+        var result = await plugin.UnloadAsync();
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Dream", result.PluginName);

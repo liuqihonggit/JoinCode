@@ -2,8 +2,8 @@
 
 public sealed class SessionStatsSectionBreakTests {
     [Fact]
-    public void RecordTurn_WithCacheBreak_IncrementsSectionBreakCount() {
-        using var stats = new SessionStats();
+    public async Task RecordTurn_WithCacheBreak_IncrementsSectionBreakCount() {
+        await using var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var breakResult = CacheBreakResult.Break(CacheBreakKind.SystemPromptChanged, "system changed");
 
@@ -15,8 +15,8 @@ public sealed class SessionStatsSectionBreakTests {
     }
 
     [Fact]
-    public void RecordTurn_WithToolSpecsBreak_IncrementsToolSpecsBreakCount() {
-        using var stats = new SessionStats();
+    public async Task RecordTurn_WithToolSpecsBreak_IncrementsToolSpecsBreakCount() {
+        await using var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var breakResult = CacheBreakResult.Break(CacheBreakKind.ToolSpecsChanged, "tools changed");
 
@@ -27,8 +27,8 @@ public sealed class SessionStatsSectionBreakTests {
     }
 
     [Fact]
-    public void RecordTurn_WithDynamicBreak_IncrementsDynamicBreakCount() {
-        using var stats = new SessionStats();
+    public async Task RecordTurn_WithDynamicBreak_IncrementsDynamicBreakCount() {
+        await using var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var breakResult = CacheBreakResult.Break(CacheBreakKind.DynamicContentChanged, "dynamic changed");
 
@@ -38,8 +38,8 @@ public sealed class SessionStatsSectionBreakTests {
     }
 
     [Fact]
-    public void RecordTurn_WithoutCacheBreak_NoIncrement() {
-        using var stats = new SessionStats();
+    public async Task RecordTurn_WithoutCacheBreak_NoIncrement() {
+        await using var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 80, CacheCreationInputTokens = 20 };
 
         stats.RecordTurn(usage, 0, null);
@@ -50,8 +50,8 @@ public sealed class SessionStatsSectionBreakTests {
     }
 
     [Fact]
-    public void RecordTurn_MultipleBreaks_Accumulate() {
-        using var stats = new SessionStats();
+    public async Task RecordTurn_MultipleBreaks_Accumulate() {
+        await using var stats = new SessionStats();
         var usage1 = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var usage2 = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
 
@@ -64,8 +64,8 @@ public sealed class SessionStatsSectionBreakTests {
     }
 
     [Fact]
-    public void RecordTurn_CacheEviction_CountsAsBreak() {
-        using var stats = new SessionStats();
+    public async Task RecordTurn_CacheEviction_CountsAsBreak() {
+        await using var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var breakResult = CacheBreakResult.Break(CacheBreakKind.CacheEviction, "eviction");
 
@@ -75,8 +75,8 @@ public sealed class SessionStatsSectionBreakTests {
     }
 
     [Fact]
-    public void Reset_ClearsAllSectionBreaks() {
-        using var stats = new SessionStats();
+    public async Task Reset_ClearsAllSectionBreaks() {
+        await using var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
 
         stats.RecordTurn(usage, 0, CacheBreakResult.Break(CacheBreakKind.SystemPromptChanged, "s1"));
@@ -90,8 +90,8 @@ public sealed class SessionStatsSectionBreakTests {
     }
 
     [Fact]
-    public void RecordTurn_ExistingOverload_StillWorks() {
-        using var stats = new SessionStats();
+    public async Task RecordTurn_ExistingOverload_StillWorks() {
+        await using var stats = new SessionStats();
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 80, CacheCreationInputTokens = 20 };
 
         stats.RecordTurn(usage, 0.01m);

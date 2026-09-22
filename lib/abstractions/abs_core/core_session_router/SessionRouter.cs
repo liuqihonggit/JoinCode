@@ -50,19 +50,19 @@ public static class SessionRouter {
     public static IEnumerable<SessionScope> GetAllScopes() => _scopes.Values;
 
     /// <summary>
-    /// 移除会话作用域 — Dispose 其所有 Entity，返回是否移除成功
+    /// 移除会话作用域 — DisposeAsync 其所有 Entity，返回是否移除成功
     /// </summary>
-    public static bool RemoveScope(ObjectId sessionId) {
+    public static async Task<bool> RemoveScopeAsync(ObjectId sessionId) {
         if (!_scopes.TryRemove(sessionId, out var scope))
             return false;
-        scope.Dispose();
+        await scope.DisposeAsync().ConfigureAwait(false);
         return true;
     }
 
-    /// <summary>清空所有会话作用域（测试用）— Dispose 每个作用域的所有 Entity</summary>
-    public static void Clear() {
+    /// <summary>清空所有会话作用域（测试用）— DisposeAsync 每个作用域的所有 Entity</summary>
+    public static async Task ClearAsync() {
         foreach (var scope in _scopes.Values) {
-            try { scope.Dispose(); } catch (Exception ex) { _ = ex; }
+            try { await scope.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { _ = ex; }
         }
         _scopes.Clear();
     }

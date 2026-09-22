@@ -81,7 +81,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         _configPath = Path.Combine(
             JoinCode.Abstractions.Configuration.AppData.AppDataConstants.JccDirectory,
             "tool-health.json");
-        LoadFromDisk();
+        _ = LoadFromDiskAsync();
 
         _decayTimer = new Timer(_ => TrySend(new DecayTickCmd()), null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
     }
@@ -314,10 +314,10 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         SaveToDisk();
     }
 
-    private void LoadFromDisk() {
+    private async Task LoadFromDiskAsync() {
         try {
             if (!_fs.FileExists(_configPath)) return;
-            var json = _fs.ReadAllText(_configPath);
+            var json = await _fs.ReadAllText(_configPath).ConfigureAwait(false);
             var data = RelaxedJsonSerializer.Deserialize(json, ToolHealthJsonContext.Default.DictionaryStringToolHealthRecord);
             if (data is null) return;
 

@@ -3,12 +3,12 @@ namespace Abs.Tests.SessionRouterTests;
 [CollectionDefinition(nameof(SessionRouterCollection))]
 public sealed class SessionRouterCollection : ICollectionFixture<SessionRouterCollectionFixture>;
 
-public sealed class SessionRouterCollectionFixture : IDisposable {
+public sealed class SessionRouterCollectionFixture : IAsyncDisposable {
     public SessionRouterCollectionFixture() {
-        SessionRouter.Clear();
+        _ = SessionRouter.ClearAsync();
     }
 
-    public void Dispose() {
-        SessionRouter.Clear();
+    public async ValueTask DisposeAsync() {
+        await SessionRouter.ClearAsync();
     }
 }

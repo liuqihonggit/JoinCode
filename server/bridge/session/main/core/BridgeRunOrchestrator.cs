@@ -79,7 +79,7 @@ internal sealed class BridgeRunOrchestrator {
             _owner._deps.BridgeLogger?.SetRepoInfo(repoName, config.Branch ?? "");
         }
 
-        using var statusTimer = new Timer(_ => _owner.UpdateStatusDisplay(config), null,
+        await using var statusTimer = new Timer(_ => _owner.UpdateStatusDisplay(config), null,
             TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
 
         _owner._loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -308,9 +308,7 @@ internal sealed class BridgeRunOrchestrator {
             _owner._deps.BridgeLogger?.SetRepoInfo(repoName, config.Branch ?? "");
         }
 
-        // 11. 启动状态显示更新定时器 — 对齐 TS 端 startStatusUpdates
-        // 每秒推送会话计数、活动、工具轨迹到 logger
-        using var statusTimer = new Timer(_ => _owner.UpdateStatusDisplay(config), null,
+        await using var statusTimer = new Timer(_ => _owner.UpdateStatusDisplay(config), null,
             TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
 
         // 12. 启动主循环

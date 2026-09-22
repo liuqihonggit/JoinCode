@@ -10,7 +10,7 @@ public class SnipLogicTests {
 
     [Fact]
     public async Task SnipLinesAsync_ValidRange_ReturnsCorrectContent() {
-        var filePath = CreateTempFile(10);
+        var filePath = await CreateTempFile(10);
 
         var result = await _snipLogic.SnipLinesAsync(filePath, startLine: 3, lineCount: 4).ConfigureAwait(true);
 
@@ -22,7 +22,7 @@ public class SnipLogicTests {
 
     [Fact]
     public async Task SnipLinesAsync_FromStart_ReturnsFirstLines() {
-        var filePath = CreateTempFile(10);
+        var filePath = await CreateTempFile(10);
 
         var result = await _snipLogic.SnipLinesAsync(filePath, startLine: 0, lineCount: 3).ConfigureAwait(true);
 
@@ -33,7 +33,7 @@ public class SnipLogicTests {
 
     [Fact]
     public async Task SnipLinesAsync_ToEnd_LimitsCorrectly() {
-        var filePath = CreateTempFile(5);
+        var filePath = await CreateTempFile(5);
 
         var result = await _snipLogic.SnipLinesAsync(filePath, startLine: 3, lineCount: 100).ConfigureAwait(true);
 
@@ -43,7 +43,7 @@ public class SnipLogicTests {
 
     [Fact]
     public async Task SnipLinesAsync_StartLineOutOfRange_ReturnsEmpty() {
-        var filePath = CreateTempFile(3);
+        var filePath = await CreateTempFile(3);
 
         var result = await _snipLogic.SnipLinesAsync(filePath, startLine: 100, lineCount: 2).ConfigureAwait(true);
 
@@ -53,7 +53,7 @@ public class SnipLogicTests {
     [Fact]
     public async Task SnipLinesAsync_EmptyFile_ReturnsEmpty() {
         var filePath = "/test/empty.txt";
-        _fs.WriteAllText(filePath, "");
+        await _fs.WriteAllText(filePath, "");
 
         var result = await _snipLogic.SnipLinesAsync(filePath, startLine: 0, lineCount: 5).ConfigureAwait(true);
 
@@ -70,7 +70,7 @@ public class SnipLogicTests {
 
     [Fact]
     public async Task SnipLinesAsync_NegativeStartLine_ReturnsFromBeginning() {
-        var filePath = CreateTempFile(5);
+        var filePath = await CreateTempFile(5);
 
         var result = await _snipLogic.SnipLinesAsync(filePath, startLine: -1, lineCount: 2).ConfigureAwait(true);
 
@@ -80,7 +80,7 @@ public class SnipLogicTests {
 
     [Fact]
     public async Task SnipLinesAsync_ZeroLineCount_ReturnsEmpty() {
-        var filePath = CreateTempFile(5);
+        var filePath = await CreateTempFile(5);
 
         var result = await _snipLogic.SnipLinesAsync(filePath, startLine: 0, lineCount: 0).ConfigureAwait(true);
 
@@ -89,7 +89,7 @@ public class SnipLogicTests {
 
     [Fact]
     public async Task SnipOffsetAsync_ValidRange_ReturnsCorrectContent() {
-        var filePath = CreateTempFile(10);
+        var filePath = await CreateTempFile(10);
 
         var result = await _snipLogic.SnipOffsetAsync(filePath, offset: 2, limit: 4).ConfigureAwait(true);
 
@@ -101,7 +101,7 @@ public class SnipLogicTests {
 
     [Fact]
     public async Task SnipOffsetAsync_FromStart_ReturnsFirstLines() {
-        var filePath = CreateTempFile(10);
+        var filePath = await CreateTempFile(10);
 
         var result = await _snipLogic.SnipOffsetAsync(filePath, offset: 0, limit: 3).ConfigureAwait(true);
 
@@ -111,7 +111,7 @@ public class SnipLogicTests {
 
     [Fact]
     public async Task SnipOffsetAsync_OutOfRange_ReturnsEmpty() {
-        var filePath = CreateTempFile(3);
+        var filePath = await CreateTempFile(3);
 
         var result = await _snipLogic.SnipOffsetAsync(filePath, offset: 100, limit: 2).ConfigureAwait(true);
 
@@ -122,7 +122,7 @@ public class SnipLogicTests {
     public async Task GetPreviewAsync_ReturnsFileInfoAndPreview() {
         var content = GenerateContent(20);
         var filePath = "/test/preview.txt";
-        _fs.WriteAllText(filePath, content);
+        await _fs.WriteAllText(filePath, content);
 
         var preview = await _snipLogic.GetPreviewAsync(filePath, maxPreviewLines: 5).ConfigureAwait(true);
 
@@ -135,7 +135,7 @@ public class SnipLogicTests {
 
     [Fact]
     public async Task GetPreviewAsync_ShortFile_ReturnsAllLines() {
-        var filePath = CreateTempFile(3);
+        var filePath = await CreateTempFile(3);
 
         var preview = await _snipLogic.GetPreviewAsync(filePath, maxPreviewLines: 10).ConfigureAwait(true);
 
@@ -149,7 +149,7 @@ public class SnipLogicTests {
         var sb = new StringBuilder();
         for (var i = 0; i < 10000; i++)
             sb.AppendLine($"Line {i + 1}: " + new string('x', 100));
-        _fs.WriteAllText(filePath, sb.ToString());
+        await _fs.WriteAllText(filePath, sb.ToString());
 
         var result = await _snipLogic.SnipLinesAsync(filePath, startLine: 9990, lineCount: 5).ConfigureAwait(true);
 
@@ -168,7 +168,7 @@ public class SnipLogicTests {
 
     [Fact]
     public async Task SnipLinesAsync_PreservesOriginalLineNumbers() {
-        var filePath = CreateTempFile(5);
+        var filePath = await CreateTempFile(5);
 
         var result = await _snipLogic.SnipLinesAsync(filePath, startLine: 1, lineCount: 2).ConfigureAwait(true);
 
@@ -176,9 +176,9 @@ public class SnipLogicTests {
         Assert.Contains("Line 3", result);
     }
 
-    private string CreateTempFile(int lineCount) {
+    private async Task<string> CreateTempFile(int lineCount) {
         var filePath = $"/test/test_{Guid.NewGuid():N}.txt";
-        _fs.WriteAllText(filePath, GenerateContent(lineCount));
+        await _fs.WriteAllText(filePath, GenerateContent(lineCount));
         return filePath;
     }
 

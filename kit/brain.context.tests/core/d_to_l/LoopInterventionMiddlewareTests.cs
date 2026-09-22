@@ -481,8 +481,8 @@ public sealed class LoopInterventionMiddlewareTests {
     }
 
     [Fact]
-    public void Options_SecondChanceTemperature_DefaultIsLower() {
-        using var options = new LoopInterventionOptions();
+    public async Task Options_SecondChanceTemperature_DefaultIsLower() {
+        await using var options = new LoopInterventionOptions();
         options.SecondChanceTemperature.Should().Be(0.3f);
         options.SecondChanceTemperature.Should().BeLessThan(options.RetryTemperature);
     }

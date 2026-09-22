@@ -90,10 +90,10 @@ public sealed class GitWorkspaceResolverTests {
     }
 
     [Fact]
-    public void FindSolutionRoot_HasSln_ReturnsDirectory() {
+    public async Task FindSolutionRoot_HasSln_ReturnsDirectory() {
         using var tmp = new TempDir(_fs);
         var slnPath = _fs.CombinePath(tmp.Path, "test.sln");
-        _fs.WriteAllText(slnPath, "fake sln content");
+        await _fs.WriteAllText(slnPath, "fake sln content");
 
         var result = GitWorkspaceResolver.FindSolutionRoot(tmp.Path, _fs);
 
@@ -101,10 +101,10 @@ public sealed class GitWorkspaceResolverTests {
     }
 
     [Fact]
-    public void FindSolutionRoot_HasSlnx_ReturnsDirectory() {
+    public async Task FindSolutionRoot_HasSlnx_ReturnsDirectory() {
         using var tmp = new TempDir(_fs);
         var slnxPath = _fs.CombinePath(tmp.Path, "test.slnx");
-        _fs.WriteAllText(slnxPath, "<Solution/>");
+        await _fs.WriteAllText(slnxPath, "<Solution/>");
 
         var result = GitWorkspaceResolver.FindSolutionRoot(tmp.Path, _fs);
 
@@ -123,7 +123,7 @@ public sealed class GitWorkspaceResolverTests {
     [Fact]
     public async Task FindWorkspaceRoot_SlnFound_PrioritizesOverGit() {
         using var tmp = new TempDir(_fs);
-        _fs.WriteAllText(_fs.CombinePath(tmp.Path, "test.sln"), "fake");
+        await _fs.WriteAllText(_fs.CombinePath(tmp.Path, "test.sln"), "fake");
         _fs.CreateDirectory(_fs.CombinePath(tmp.Path, ".git"));
 
         var result = await GitWorkspaceResolver.FindWorkspaceRootAsync(tmp.Path, _fs);
@@ -143,9 +143,9 @@ public sealed class GitWorkspaceResolverTests {
     }
 
     [Fact]
-    public void FindGitWorkspaceDir_DotGitIsFile_ReturnsCurrentPath() {
+    public async Task FindGitWorkspaceDir_DotGitIsFile_ReturnsCurrentPath() {
         using var worktree = new TempDir(_fs);
-        _fs.WriteAllText(_fs.CombinePath(worktree.Path, ".git"), "gitdir: /fake");
+        await _fs.WriteAllText(_fs.CombinePath(worktree.Path, ".git"), "gitdir: /fake");
 
         var result = GitWorkspaceResolver.FindGitWorkspaceDir(worktree.Path, _fs);
 

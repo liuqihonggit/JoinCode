@@ -17,7 +17,7 @@ public interface ICaCertificateService {
     /// <param name="path">证书文件路径</param>
     /// <param name="password">证书密码(可选,仅 PKCS12 格式需要)</param>
     /// <returns>加载成功的证书实例;失败时返回 null</returns>
-    X509Certificate2? LoadCertificate(string path, string? password = null);
+    ValueTask<X509Certificate2?> LoadCertificate(string path, string? password = null);
 
     /// <summary>
     /// 验证证书是否可信 — 基于已加载的 CA 证书构建证书链并校验
@@ -73,13 +73,13 @@ public sealed partial class CaCertificateService : ServiceEntity, ICaCertificate
         }
 
         if (!string.IsNullOrEmpty(options.CaBundlePath) && _fs.FileExists(options.CaBundlePath)) {
-            LoadCaBundle(options.CaBundlePath);
+            await LoadCaBundleAsync(options.CaBundlePath).ConfigureAwait(false);
         }
 
         if (options.AdditionalCaPaths is not null) {
             foreach (var caPath in options.AdditionalCaPaths) {
                 if (_fs.FileExists(caPath)) {
-                    LoadSingleCertificate(caPath);
+                    await LoadSingleCertificateAsync(caPath).ConfigureAwait(false);
                 } else {
                     _logger?.LogWarning("[CaCertificateService] CA 证书文件不存在: {Path}", caPath);
                 }
@@ -93,7 +93,7 @@ public sealed partial class CaCertificateService : ServiceEntity, ICaCertificate
     }
 
     /// <inheritdoc/>
-    public X509Certificate2? LoadCertificate(string path, string? password = null) {
+    public async ValueTask<X509Certificate2?> LoadCertificate(string path, string? password = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         if (!_fs.FileExists(path)) {
@@ -102,7 +102,7 @@ public sealed partial class CaCertificateService : ServiceEntity, ICaCertificate
         }
 
         try {
-            var data = _fs.ReadAllBytes(path);
+            var data = await _fs.ReadAllBytes(path).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(password)) {
                 return X509CertificateLoader.LoadPkcs12(data, password);
             }
@@ -163,9 +163,9 @@ public sealed partial class CaCertificateService : ServiceEntity, ICaCertificate
         }
     }
 
-    private void LoadCaBundle(string bundlePath) {
+    private async ValueTask LoadCaBundleAsync(string bundlePath) {
         try {
-            var content = _fs.ReadAllText(bundlePath);
+            var content = await _fs.ReadAllText(bundlePath).ConfigureAwait(false);
             var pemBlocks = ExtractPemBlocks(content, "CERTIFICATE");
 
             foreach (var pemBlock in pemBlocks) {
@@ -184,8 +184,8 @@ public sealed partial class CaCertificateService : ServiceEntity, ICaCertificate
         }
     }
 
-    private void LoadSingleCertificate(string path) {
-        var cert = LoadCertificate(path);
+    private async ValueTask LoadSingleCertificateAsync(string path) {
+        var cert = await LoadCertificate(path).ConfigureAwait(false);
         if (cert is not null) {
             _loadedCertificates.Add(cert);
         }

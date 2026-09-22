@@ -77,7 +77,7 @@ public static class HttpRequestParser {
     /// 从字符串解析 HTTP 请求（用于测试）
     /// </summary>
     public static async Task<HttpRequestParseResult> ParseFromStringAsync(string request) {
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(request));
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(request));
         using var reader = new StreamReader(stream);
         return await ParseAsync(reader).ConfigureAwait(true);
     }

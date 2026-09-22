@@ -2,7 +2,7 @@ namespace JoinCode.Entry.Startup;
 
 /// <summary>
 /// 原生 DLL 引导器 — 从嵌入资源释放原生 DLL 到临时目录，并通过 SetDllDirectory 添加搜索路径。
-/// 必须在 Main 最开始、任何 P-Invoke 调用之前调用 <see cref="Initialize"/>。
+/// 必须在 Main 最开始、任何 P-Invoke 调用之前调用 <see cref="InitializeAsync"/>。
 /// </summary>
 /// <remarks>
 /// NativeAOT 编译时，原生 C/C++ DLL（SkiaSharp/pdfium/tree-sitter）无法静态链接进 exe，
@@ -18,7 +18,7 @@ internal static class NativeDllBootstrapper {
     /// <summary>
     /// 从嵌入资源释放原生 DLL 到临时目录并注册 DLL 搜索路径。幂等，多次调用安全。
     /// </summary>
-    public static void Initialize() {
+    public static async Task InitializeAsync() {
         if (Interlocked.Exchange(ref _initialized, 1) != 0)
             return;
 
@@ -40,8 +40,8 @@ internal static class NativeDllBootstrapper {
                 var fileName = resourceName[ResourcePrefix.Length..];
                 var targetPath = Path.Combine(targetDir, fileName);
 
-                if (ShouldExtract(asm, resourceName, targetPath))
-                    ExtractResource(asm, resourceName, targetPath);
+                if (await ShouldExtractAsync(asm, resourceName, targetPath).ConfigureAwait(false))
+                    await ExtractResourceAsync(asm, resourceName, targetPath).ConfigureAwait(false);
             }
 
             SetDllDirectory(targetDir);
@@ -54,12 +54,12 @@ internal static class NativeDllBootstrapper {
     /// <summary>
     /// 判断是否需要释放：目标文件不存在或大小不匹配时释放。
     /// </summary>
-    private static bool ShouldExtract(System.Reflection.Assembly asm, string resourceName, string targetPath) {
+    private static async Task<bool> ShouldExtractAsync(System.Reflection.Assembly asm, string resourceName, string targetPath) {
         if (!File.Exists(targetPath))
             return true;
 
         try {
-            using var stream = asm.GetManifestResourceStream(resourceName);
+            await using var stream = asm.GetManifestResourceStream(resourceName);
             if (stream is null)
                 return false;
 
@@ -73,8 +73,8 @@ internal static class NativeDllBootstrapper {
     /// <summary>
     /// 从嵌入资源释放单个 DLL 到目标路径。
     /// </summary>
-    private static void ExtractResource(System.Reflection.Assembly asm, string resourceName, string targetPath) {
-        using var stream = asm.GetManifestResourceStream(resourceName);
+    private static async Task ExtractResourceAsync(System.Reflection.Assembly asm, string resourceName, string targetPath) {
+        await using var stream = asm.GetManifestResourceStream(resourceName);
         if (stream is null)
             return;
 

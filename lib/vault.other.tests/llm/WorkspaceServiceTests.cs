@@ -2,8 +2,8 @@
 
 public sealed class WorkspaceServiceTests {
     [Fact]
-    public void AddDirectory_ShouldAddPath() {
-        using var service = new WorkspaceService();
+    public async Task AddDirectory_ShouldAddPath() {
+        await using var service = new WorkspaceService();
         var tempPath = Path.GetTempPath();
 
         var added = service.AddDirectory(tempPath);
@@ -13,8 +13,8 @@ public sealed class WorkspaceServiceTests {
     }
 
     [Fact]
-    public void AddDirectory_SamePathTwice_ShouldReturnFalse() {
-        using var service = new WorkspaceService();
+    public async Task AddDirectory_SamePathTwice_ShouldReturnFalse() {
+        await using var service = new WorkspaceService();
         var tempPath = Path.GetTempPath();
 
         service.AddDirectory(tempPath);
@@ -34,8 +34,8 @@ public sealed class WorkspaceServiceTests {
     }
 
     [Fact]
-    public void RemoveDirectory_ShouldRemovePath() {
-        using var service = new WorkspaceService();
+    public async Task RemoveDirectory_ShouldRemovePath() {
+        await using var service = new WorkspaceService();
         var tempPath = Path.GetTempPath();
         service.AddDirectory(tempPath);
 
@@ -46,8 +46,8 @@ public sealed class WorkspaceServiceTests {
     }
 
     [Fact]
-    public void RemoveDirectory_NonExistent_ShouldReturnFalse() {
-        using var service = new WorkspaceService();
+    public async Task RemoveDirectory_NonExistent_ShouldReturnFalse() {
+        await using var service = new WorkspaceService();
 
         var removed = service.RemoveDirectory(Path.GetTempPath());
 
@@ -55,8 +55,8 @@ public sealed class WorkspaceServiceTests {
     }
 
     [Fact]
-    public void GetAdditionalDirectories_ShouldReturnFullPath() {
-        using var service = new WorkspaceService();
+    public async Task GetAdditionalDirectories_ShouldReturnFullPath() {
+        await using var service = new WorkspaceService();
         var tempPath = Path.GetTempPath();
         var expected = Path.GetFullPath(tempPath);
 
@@ -66,8 +66,8 @@ public sealed class WorkspaceServiceTests {
     }
 
     [Fact]
-    public void Clear_ShouldRemoveAllDirectories() {
-        using var service = new WorkspaceService();
+    public async Task Clear_ShouldRemoveAllDirectories() {
+        await using var service = new WorkspaceService();
         service.AddDirectory(Path.GetTempPath());
 
         service.Clear();
@@ -76,8 +76,8 @@ public sealed class WorkspaceServiceTests {
     }
 
     [Fact]
-    public void AddDirectory_MultiplePaths_ShouldReturnAll() {
-        using var service = new WorkspaceService();
+    public async Task AddDirectory_MultiplePaths_ShouldReturnAll() {
+        await using var service = new WorkspaceService();
         var temp1 = Path.GetTempPath();
         var temp2 = Path.Combine(Path.GetTempPath(), "..");
 

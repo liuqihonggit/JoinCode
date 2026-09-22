@@ -117,6 +117,13 @@ public sealed class ExternalPluginHost : PluginResourceBase, IPluginHost {
     }
 
     /// <summary>
+    /// 异步卸载插件 — 外部进程停止是同步操作,包装为 Task 完成
+    /// </summary>
+    public Task<PluginUnloadResult> UnloadAsync() {
+        return Task.FromResult(Unload());
+    }
+
+    /// <summary>
     /// 资源释放回调 — 若尚未卸载则执行卸载，并关闭进程句柄
     /// </summary>
     protected override void OnResourceDispose() {

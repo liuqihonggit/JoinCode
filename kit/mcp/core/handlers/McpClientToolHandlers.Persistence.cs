@@ -29,13 +29,13 @@ public sealed partial class McpClientToolHandlers {
     /// 从磁盘加载 MCP 连接配置。文件不存在或读取失败时静默跳过（不影响启动）。
     /// 只读取配置到内存列表，不建立连接 — 连接由 RestoreConnectionsAsync 异步完成。
     /// </summary>
-    private List<McpConnectionEntry>? LoadState() {
+    private async Task<List<McpConnectionEntry>?> LoadStateAsync() {
         if (_persistenceFs is null || _stateFilePath is null) return null;
 
         try {
             if (!_persistenceFs.FileExists(_stateFilePath)) return null;
 
-            var json = _persistenceFs.ReadAllText(_stateFilePath);
+            var json = await _persistenceFs.ReadAllText(_stateFilePath).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(json)) return null;
 
             var data = RelaxedJsonSerializer.Deserialize(json, McpClientJsonContext.Default.McpConnectionStateData);

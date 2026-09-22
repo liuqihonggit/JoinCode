@@ -78,7 +78,7 @@ public sealed class SubAgentEventStreamE2ETests {
         var configDir = fs.CombinePath(Path.GetTempPath(), $"jcc_subagent_e2e_{Guid.NewGuid():N}");
         fs.CreateDirectory(configDir);
         var configPath = fs.CombinePath(configDir, "mockserver.json");
-        fs.WriteAllText(configPath, BuildMockConfig(toolCallArguments));
+        await fs.WriteAllText(configPath, BuildMockConfig(toolCallArguments));
 
         using var mockServer = StartMockServer(fs, configPath, _output, out var readyTask);
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);

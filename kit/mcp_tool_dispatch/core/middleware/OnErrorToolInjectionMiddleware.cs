@@ -179,8 +179,8 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
     /// 构建工具完整 schema JSON — 格式对齐 OpenAI function calling tool 定义
     /// </summary>
     private static string BuildToolSchemaJson(IToolHandler tool) {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false })) {
+        var bufferWriter = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(bufferWriter, new JsonWriterOptions { Indented = false })) {
             writer.WriteStartObject();
             writer.WriteString("type", "function");
             writer.WritePropertyName("function");
@@ -192,7 +192,7 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
             writer.WriteEndObject();
             writer.WriteEndObject();
         }
-        return Encoding.UTF8.GetString(stream.ToArray());
+        return Encoding.UTF8.GetString(bufferWriter.WrittenSpan);
     }
 
     private static Dictionary<string, IToolHandler> FindRelevantOnErrorTools(

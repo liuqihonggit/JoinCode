@@ -184,12 +184,12 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 同步加载用户全局设置 — 用于 Configure 回调等不支持 async 的场景
+    /// 异步加载用户全局设置 — IFileSystem 异步化后原同步入口改为 async
     /// 文件不存在或为空(0字节)时自动创建默认骨架
     /// </summary>
-    public static SettingsJson? LoadUserSettings(IFileSystem fs) {
+    public static async Task<SettingsJson?> LoadUserSettings(IFileSystem fs) {
         var path = GetUserSettingsPath();
-        var result = LoadSettingsFileSync(fs, path);
+        var result = await LoadSettingsFileSync(fs, path).ConfigureAwait(false);
         if (result is not null)
             return result;
 
@@ -205,7 +205,7 @@ public static class SettingsLoader {
         if (!string.IsNullOrEmpty(directory))
             DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
-        fs.WriteAllText(path, skeletonJson);
+        await fs.WriteAllText(path, skeletonJson).ConfigureAwait(false);
         return skeleton;
     }
 
@@ -330,14 +330,14 @@ public static class SettingsLoader {
     }
 
     /// <summary>
-    /// 同步加载设置文件 — 用于 Configure 回调等不支持 async 的场景
+    /// 异步加载设置文件 — IFileSystem 异步化后原同步入口改为 async
     /// </summary>
-    private static SettingsJson? LoadSettingsFileSync(IFileSystem fs, string path, ILogger? logger = null) {
+    private static async Task<SettingsJson?> LoadSettingsFileSync(IFileSystem fs, string path, ILogger? logger = null) {
         if (!fs.FileExists(path))
             return null;
 
         try {
-            var json = fs.ReadAllText(path);
+            var json = await fs.ReadAllText(path).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         } catch (Exception ex) {
             Diag.WriteLifecycle($"[WARN] 配置文件解析失败，使用默认值: {path} | 错误: {ex.Message}");

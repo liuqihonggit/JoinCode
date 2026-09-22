@@ -7,7 +7,7 @@ public sealed class PrefixCacheAnalyzer {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
     }
 
-    public PrefixCacheAnalysis Analyze(IReadOnlyList<string> dumpFiles) {
+    public async Task<PrefixCacheAnalysis> AnalyzeAsync(IReadOnlyList<string> dumpFiles) {
         ArgumentNullException.ThrowIfNull(dumpFiles);
 
         if (dumpFiles.Count < 2) {
@@ -33,8 +33,8 @@ public sealed class PrefixCacheAnalyzer {
             var earlierTurn = ParseTurnIndex(earlier.Name);
             var laterTurn = ParseTurnIndex(later.Name);
 
-            var earlierContent = _fs.ReadAllText(earlier.Path);
-            var laterContent = _fs.ReadAllText(later.Path);
+            var earlierContent = await _fs.ReadAllText(earlier.Path);
+            var laterContent = await _fs.ReadAllText(later.Path);
 
             var (stable, reason) = ComparePrefix(earlierContent, laterContent);
 

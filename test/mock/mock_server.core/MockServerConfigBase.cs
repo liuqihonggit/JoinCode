@@ -18,12 +18,12 @@ public abstract class MockServerConfigBase<TSelf> where TSelf : MockServerConfig
     protected abstract string ConfigNotFoundMessage { get; }
 
     /// <summary>从 JSON 文件加载配置</summary>
-    public static TSelf LoadFromFile(string path, JsonTypeInfo<TSelf> jsonTypeInfo, string configNotFoundMessage) {
+    public static async Task<TSelf> LoadFromFile(string path, JsonTypeInfo<TSelf> jsonTypeInfo, string configNotFoundMessage) {
         ArgumentException.ThrowIfNullOrEmpty(path);
         if (!File.Exists(path))
             throw new FileNotFoundException(string.Format(configNotFoundMessage, path), path);
 
-        var json = IO.FileSystem.SafeFileIO.ReadAllText(path);
+        var json = await IO.FileSystem.SafeFileIO.ReadAllText(path);
         var config = JsonSerializer.Deserialize(json, jsonTypeInfo)
             ?? throw new InvalidOperationException($"[GEN018] 配置文件反序列化失败: {path}");
         return config;
@@ -33,12 +33,12 @@ public abstract class MockServerConfigBase<TSelf> where TSelf : MockServerConfig
     /// <remarks>
     /// 查找顺序：1) 指定路径 2) exe 所在目录下的同名文件（应对工作目录不在 exe 目录的场景）
     /// </remarks>
-    public static TSelf LoadFromFileOrDefault(string path, JsonTypeInfo<TSelf> jsonTypeInfo, string logPrefix, string configNotFoundMessage) {
+    public static async Task<TSelf> LoadFromFileOrDefault(string path, JsonTypeInfo<TSelf> jsonTypeInfo, string logPrefix, string configNotFoundMessage) {
         var actualPath = ResolveConfigPath(path);
         if (actualPath is null)
             return new TSelf();
         try {
-            return LoadFromFile(actualPath, jsonTypeInfo, configNotFoundMessage);
+            return await LoadFromFile(actualPath, jsonTypeInfo, configNotFoundMessage);
         } catch (Exception ex) {
             Console.Error.WriteLine($"{logPrefix} 加载配置文件失败，使用默认配置: {ex.Message}");
             return new TSelf();

@@ -22,7 +22,7 @@ public sealed class ProjectIndexTests : IDisposable {
     public async Task IndexProjectAsync_ExistingFile_AddsProject() {
         var dir = CreateTempDir();
         var csproj = Path.Combine(dir, "Core.csproj");
-        _fs.WriteAllText(csproj,
+        await _fs.WriteAllText(csproj,
             """
             <Project>
               <PropertyGroup>
@@ -65,9 +65,9 @@ public sealed class ProjectIndexTests : IDisposable {
         var appProj = Path.Combine(dir, "App", "App.csproj");
         _fs.CreateDirectory(Path.GetDirectoryName(coreProj)!);
         _fs.CreateDirectory(Path.GetDirectoryName(appProj)!);
-        _fs.WriteAllText(coreProj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
-        _fs.WriteAllText(appProj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
-        _fs.WriteAllText(slnPath,
+        await _fs.WriteAllText(coreProj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+        await _fs.WriteAllText(appProj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+        await _fs.WriteAllText(slnPath,
             """
             Microsoft Visual Studio Solution File, Format Version 12.00
             Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core\Core.csproj", "{A1B2C3D4-1234-5678-90AB-CDEF12345678}"
@@ -91,9 +91,9 @@ public sealed class ProjectIndexTests : IDisposable {
         var appProj = Path.Combine(dir, "App", "App.csproj");
         _fs.CreateDirectory(Path.GetDirectoryName(coreProj)!);
         _fs.CreateDirectory(Path.GetDirectoryName(appProj)!);
-        _fs.WriteAllText(coreProj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
-        _fs.WriteAllText(appProj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
-        _fs.WriteAllText(slnxPath,
+        await _fs.WriteAllText(coreProj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+        await _fs.WriteAllText(appProj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+        await _fs.WriteAllText(slnxPath,
             """
             <Solution>
               <Project Path="Core\Core.csproj" Id="A1B2C3D4-1234-5678-90AB-CDEF12345678" />
@@ -123,7 +123,7 @@ public sealed class ProjectIndexTests : IDisposable {
     public async Task RemoveProjectAsync_RemovesProjectAndReferences() {
         var dir = CreateTempDir();
         var csproj = Path.Combine(dir, "Core.csproj");
-        _fs.WriteAllText(csproj,
+        await _fs.WriteAllText(csproj,
             """
             <Project>
               <ItemGroup>
@@ -146,7 +146,7 @@ public sealed class ProjectIndexTests : IDisposable {
     public async Task ClearAsync_RemovesAllProjects() {
         var dir = CreateTempDir();
         var csproj = Path.Combine(dir, "Core.csproj");
-        _fs.WriteAllText(csproj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+        await _fs.WriteAllText(csproj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
         await _projectIndex.IndexProjectAsync(csproj, dir, CancellationToken.None).ConfigureAwait(true);
 
         await _projectIndex.ClearAsync(CancellationToken.None).ConfigureAwait(true);
@@ -160,7 +160,7 @@ public sealed class ProjectIndexTests : IDisposable {
     public async Task GetProjectCountAsync_ReturnsCount() {
         var dir = CreateTempDir();
         var csproj = Path.Combine(dir, "Core.csproj");
-        _fs.WriteAllText(csproj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+        await _fs.WriteAllText(csproj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
         await _projectIndex.IndexProjectAsync(csproj, dir, CancellationToken.None).ConfigureAwait(true);
 
         var count = await _projectIndex.GetProjectCountAsync(CancellationToken.None).ConfigureAwait(true);

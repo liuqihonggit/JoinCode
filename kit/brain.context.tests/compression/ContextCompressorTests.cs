@@ -13,16 +13,16 @@ public class ContextCompressorTests {
     }
 
     [Fact]
-    public void Constructor_WithDefaultOptions_ShouldUseDefaultOptions() {
-        using var compressor = new ContextCompressor(_factory);
+    public async Task Constructor_WithDefaultOptions_ShouldUseDefaultOptions() {
+        await using var compressor = new ContextCompressor(_factory);
 
         compressor.Should().NotBeNull();
     }
 
     [Fact]
-    public void Constructor_WithCustomOptions_ShouldUseCustomOptions() {
+    public async Task Constructor_WithCustomOptions_ShouldUseCustomOptions() {
         var customOptions = new CompressionOptions { TargetCompressionRatio = 0.3 };
-        using var compressor = new ContextCompressor(_factory, customOptions);
+        await using var compressor = new ContextCompressor(_factory, customOptions);
 
         compressor.Should().NotBeNull();
     }
@@ -153,8 +153,8 @@ public class Test
     }
 
     [Fact]
-    public void CanCompress_ValidContent_ShouldReturnTrue() {
-        using var compressor = new ContextCompressor(_factory, new CompressionOptions {
+    public async Task CanCompress_ValidContent_ShouldReturnTrue() {
+        await using var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = "public class Test { public void Method() { var x = 1; var y = 2; Console.WriteLine(x + y); } }";
@@ -165,8 +165,8 @@ public class Test
     }
 
     [Fact]
-    public void CanCompress_EmptyContent_ShouldReturnFalse() {
-        using var compressor = new ContextCompressor(_factory);
+    public async Task CanCompress_EmptyContent_ShouldReturnFalse() {
+        await using var compressor = new ContextCompressor(_factory);
 
         var canCompress = compressor.CanCompress("", ContentType.Code);
 
@@ -174,8 +174,8 @@ public class Test
     }
 
     [Fact]
-    public void CanCompress_UnsupportedType_ShouldReturnFalse() {
-        using var compressor = new ContextCompressor(_factory);
+    public async Task CanCompress_UnsupportedType_ShouldReturnFalse() {
+        await using var compressor = new ContextCompressor(_factory);
 
         var canCompress = compressor.CanCompress("Some content", ContentType.Text);
 
@@ -183,8 +183,8 @@ public class Test
     }
 
     [Fact]
-    public void GetCompressionRatio_CodeContent_ShouldReturnEstimatedRatio() {
-        using var compressor = new ContextCompressor(_factory, new CompressionOptions {
+    public async Task GetCompressionRatio_CodeContent_ShouldReturnEstimatedRatio() {
+        await using var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = @"
@@ -213,8 +213,8 @@ public class Test
     }
 
     [Fact]
-    public void GetCompressionRatio_UnsupportedType_ShouldReturnOne() {
-        using var compressor = new ContextCompressor(_factory);
+    public async Task GetCompressionRatio_UnsupportedType_ShouldReturnOne() {
+        await using var compressor = new ContextCompressor(_factory);
 
         var ratio = compressor.GetCompressionRatio("content", ContentType.Text);
 

@@ -43,7 +43,7 @@ internal static class GhSubCommand {
 
             var argDict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (var (key, value) in bound)
-                argDict[key] = McpCliCommand.ParseValueToJsonElement(value, key);
+                argDict[key] = await McpCliCommand.ParseValueToJsonElementAsync(value, key).ConfigureAwait(false);
 
             var result = await registry.ExecuteToolAsync(resolved.ToolName, argDict, ct).ConfigureAwait(false);
             return McpCliCommand.OutputResult(result, resolved.Json);

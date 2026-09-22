@@ -34,14 +34,14 @@ public sealed partial class PasteStore : ServiceEntity, JoinCode.Abstractions.In
     /// 将粘贴文本持久化到磁盘 — 对齐 TS storePastedText
     /// 内容寻址：相同哈希 = 相同内容，覆盖写入是安全的
     /// </summary>
-    public void StorePastedText(string hash, string content) {
+    public async ValueTask StorePastedText(string hash, string content) {
         try {
             if (!_fs.DirectoryExists(PasteCacheDir)) {
                 _fs.CreateDirectory(PasteCacheDir);
             }
 
             var pastePath = GetPastePath(hash);
-            _fs.WriteAllText(pastePath, content);
+            await _fs.WriteAllText(pastePath, content).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogDebug(ex, "存储粘贴内容失败: {Hash}", hash);
         }
@@ -51,11 +51,11 @@ public sealed partial class PasteStore : ServiceEntity, JoinCode.Abstractions.In
     /// 从磁盘读取粘贴文本 — 对齐 TS retrievePastedText
     /// 不存在时返回 null
     /// </summary>
-    public string? RetrievePastedText(string hash) {
+    public async ValueTask<string?> RetrievePastedText(string hash) {
         try {
             var pastePath = GetPastePath(hash);
             if (!_fs.FileExists(pastePath)) return null;
-            return _fs.ReadAllText(pastePath);
+            return await _fs.ReadAllText(pastePath).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogDebug(ex, "读取粘贴内容失败: {Hash}", hash);
             return null;

@@ -37,7 +37,7 @@ internal sealed class SyncFileTransfer : IAsyncDisposable {
 
         try {
             var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            var hash = SyncFileHash.Compute(_fs, filePath);
+            var hash = await SyncFileHash.ComputeAsync(_fs, filePath).ConfigureAwait(false);
             var lastModified = _fs.GetLastWriteTimeUtc(filePath);
 
             var entry = new SyncFileEntry {

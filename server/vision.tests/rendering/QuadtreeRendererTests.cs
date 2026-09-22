@@ -8,7 +8,7 @@ public sealed class QuadtreeRendererTests {
 
     [Fact]
     public async Task RenderAsync_AllCellsHidden_ReturnsValidSameSizeImage() {
-        var base64 = CreateTestImageBase64(100, 100, Color.Red);
+        var base64 = await CreateTestImageBase64(100, 100, Color.Red);
         var grid = new QuadtreeEncoder().BuildGrid(100, 100, 1);
 
         var result = await _renderer.RenderAsync(base64, grid);
@@ -22,7 +22,7 @@ public sealed class QuadtreeRendererTests {
 
     [Fact]
     public async Task RenderAsync_PaintedCell_ReturnsOverlayImage() {
-        var base64 = CreateTestImageBase64(100, 100, Color.White);
+        var base64 = await CreateTestImageBase64(100, 100, Color.White);
         var encoder = new QuadtreeEncoder();
         var grid = encoder.BuildGrid(100, 100, 1);
         var painted = encoder.PaintCells(grid, new Dictionary<string, double> { ["L0.2"] = 0.8 });
@@ -37,7 +37,7 @@ public sealed class QuadtreeRendererTests {
 
     [Fact]
     public async Task RenderAsync_MultiplePaintedCells_Succeeds() {
-        var base64 = CreateTestImageBase64(100, 100, Color.White);
+        var base64 = await CreateTestImageBase64(100, 100, Color.White);
         var encoder = new QuadtreeEncoder();
         var grid = encoder.BuildGrid(100, 100, 2);
         var painted = encoder.PaintCells(grid, new Dictionary<string, double> { ["L0.2.1"] = 0.5, ["L0.1.0"] = 1.0 });
@@ -49,7 +49,7 @@ public sealed class QuadtreeRendererTests {
 
     [Fact]
     public async Task ZoomAsync_ReturnsCroppedSubimageAndNewGrid() {
-        var base64 = CreateTestImageBase64(100, 100, Color.Red);
+        var base64 = await CreateTestImageBase64(100, 100, Color.Red);
 
         var result = await _renderer.ZoomAsync(base64, "L0.2", 100, 100, 1, 1);
 
@@ -67,7 +67,7 @@ public sealed class QuadtreeRendererTests {
 
     [Fact]
     public async Task ZoomAsync_Depth2_CropsQuarterRegion() {
-        var base64 = CreateTestImageBase64(100, 100, Color.Blue);
+        var base64 = await CreateTestImageBase64(100, 100, Color.Blue);
 
         var result = await _renderer.ZoomAsync(base64, "L0.2", 100, 100, 2, 1);
 
@@ -86,9 +86,9 @@ public sealed class QuadtreeRendererTests {
         await act.Should().ThrowAsync<ArgumentException>().WithMessage("*VIS020*");
     }
 
-    private static string CreateTestImageBase64(int width, int height, Color color) {
+    private static async Task<string> CreateTestImageBase64(int width, int height, Color color) {
         using var img = new Image<Rgba32>(width, height, color);
-        using var ms = new MemoryStream();
+        await using var ms = new MemoryStream();
         img.Save(ms, PngFormat.Instance);
         return Convert.ToBase64String(ms.ToArray());
     }

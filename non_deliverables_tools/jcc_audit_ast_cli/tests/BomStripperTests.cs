@@ -38,13 +38,13 @@ public sealed class BomStripperTests {
 
     /// <summary>验证带 BOM 文件检测返回 true</summary>
     [Fact]
-    public void HasUtf8Bom_WithBom_ReturnsTrue() {
+    public async Task HasUtf8Bom_WithBom_ReturnsTrue() {
         var dir = CreateTempDir();
         try {
             var path = Path.Combine(dir, "Test.cs");
             WriteCsFile(path, "namespace Foo;", withBom: true);
 
-            BomStripper.HasUtf8Bom(path).Should().BeTrue();
+            (await BomStripper.HasUtf8Bom(path)).Should().BeTrue();
         } finally {
             Directory.Delete(dir, true);
         }
@@ -52,13 +52,13 @@ public sealed class BomStripperTests {
 
     /// <summary>验证不带 BOM 文件检测返回 false</summary>
     [Fact]
-    public void HasUtf8Bom_WithoutBom_ReturnsFalse() {
+    public async Task HasUtf8Bom_WithoutBom_ReturnsFalse() {
         var dir = CreateTempDir();
         try {
             var path = Path.Combine(dir, "Test.cs");
             WriteCsFile(path, "namespace Foo;", withBom: false);
 
-            BomStripper.HasUtf8Bom(path).Should().BeFalse();
+            (await BomStripper.HasUtf8Bom(path)).Should().BeFalse();
         } finally {
             Directory.Delete(dir, true);
         }
@@ -66,13 +66,13 @@ public sealed class BomStripperTests {
 
     /// <summary>验证空文件检测返回 false</summary>
     [Fact]
-    public void HasUtf8Bom_EmptyFile_ReturnsFalse() {
+    public async Task HasUtf8Bom_EmptyFile_ReturnsFalse() {
         var dir = CreateTempDir();
         try {
             var path = Path.Combine(dir, "Empty.cs");
             File.WriteAllBytes(path, []);
 
-            BomStripper.HasUtf8Bom(path).Should().BeFalse();
+            (await BomStripper.HasUtf8Bom(path)).Should().BeFalse();
         } finally {
             Directory.Delete(dir, true);
         }
@@ -80,18 +80,18 @@ public sealed class BomStripperTests {
 
     /// <summary>验证带 BOM 文件移除 BOM 并保留内容</summary>
     [Fact]
-    public void Strip_WithBomFiles_RemovesBomAndPreservesContent() {
+    public async Task Strip_WithBomFiles_RemovesBomAndPreservesContent() {
         var dir = CreateTempDir();
         try {
             var path = Path.Combine(dir, "WithBom.cs");
             const string content = "namespace Foo;\npublic class Bar { }\n";
             WriteCsFile(path, content, withBom: true);
 
-            var report = BomStripper.Strip(dir);
+            var report = await BomStripper.Strip(dir);
 
             report.StrippedCount.Should().Be(1);
             report.WithBomCount.Should().Be(1);
-            BomStripper.HasUtf8Bom(path).Should().BeFalse();
+            (await BomStripper.HasUtf8Bom(path)).Should().BeFalse();
 
             var actualContent = File.ReadAllText(path);
             actualContent.Should().Be(content);
@@ -102,14 +102,14 @@ public sealed class BomStripperTests {
 
     /// <summary>验证不带 BOM 文件不做任何操作</summary>
     [Fact]
-    public void Strip_WithoutBomFiles_DoesNothing() {
+    public async Task Strip_WithoutBomFiles_DoesNothing() {
         var dir = CreateTempDir();
         try {
             var path = Path.Combine(dir, "NoBom.cs");
             const string content = "namespace Foo;";
             WriteCsFile(path, content, withBom: false);
 
-            var report = BomStripper.Strip(dir);
+            var report = await BomStripper.Strip(dir);
 
             report.StrippedCount.Should().Be(0);
             report.WithBomCount.Should().Be(0);
@@ -121,19 +121,19 @@ public sealed class BomStripperTests {
 
     /// <summary>验证空运行模式不修改文件</summary>
     [Fact]
-    public void Strip_DryRun_DoesNotModifyFiles() {
+    public async Task Strip_DryRun_DoesNotModifyFiles() {
         var dir = CreateTempDir();
         try {
             var path = Path.Combine(dir, "WithBom.cs");
             WriteCsFile(path, "namespace Foo;", withBom: true);
 
-            var report = BomStripper.Strip(dir, dryRun: true);
+            var report = await BomStripper.Strip(dir, dryRun: true);
 
             report.DryRun.Should().BeTrue();
             report.WithBomCount.Should().Be(1);
             report.StrippedCount.Should().Be(0);
             report.ScannedFiles.Should().Be(1);
-            BomStripper.HasUtf8Bom(path).Should().BeTrue();
+            (await BomStripper.HasUtf8Bom(path)).Should().BeTrue();
         } finally {
             Directory.Delete(dir, true);
         }
@@ -141,7 +141,7 @@ public sealed class BomStripperTests {
 
     /// <summary>验证混合文件场景仅移除带 BOM 的文件</summary>
     [Fact]
-    public void Strip_MixedFiles_OnlyStripsBomFiles() {
+    public async Task Strip_MixedFiles_OnlyStripsBomFiles() {
         var dir = CreateTempDir();
         try {
             var withBomPath = Path.Combine(dir, "WithBom.cs");
@@ -149,13 +149,13 @@ public sealed class BomStripperTests {
             WriteCsFile(withBomPath, "namespace A;", withBom: true);
             WriteCsFile(noBomPath, "namespace B;", withBom: false);
 
-            var report = BomStripper.Strip(dir);
+            var report = await BomStripper.Strip(dir);
 
             report.StrippedCount.Should().Be(1);
             report.TotalCsFiles.Should().Be(2);
             report.ScannedFiles.Should().Be(2);
-            BomStripper.HasUtf8Bom(withBomPath).Should().BeFalse();
-            BomStripper.HasUtf8Bom(noBomPath).Should().BeFalse();
+            (await BomStripper.HasUtf8Bom(withBomPath)).Should().BeFalse();
+            (await BomStripper.HasUtf8Bom(noBomPath)).Should().BeFalse();
         } finally {
             Directory.Delete(dir, true);
         }
@@ -163,7 +163,7 @@ public sealed class BomStripperTests {
 
     /// <summary>验证跳过排除目录</summary>
     [Fact]
-    public void Strip_SkipsExcludedDirectories() {
+    public async Task Strip_SkipsExcludedDirectories() {
         var dir = CreateTempDir();
         try {
             var srcPath = Path.Combine(dir, "Src.cs");
@@ -173,14 +173,14 @@ public sealed class BomStripperTests {
             WriteCsFile(srcPath, "namespace A;", withBom: true);
             WriteCsFile(binPath, "namespace B;", withBom: true);
 
-            var report = BomStripper.Strip(dir);
+            var report = await BomStripper.Strip(dir);
 
             report.StrippedCount.Should().Be(1);
             report.TotalCsFiles.Should().Be(2);
             report.SkippedFiles.Should().Be(1);
             report.ScannedFiles.Should().Be(1);
-            BomStripper.HasUtf8Bom(srcPath).Should().BeFalse();
-            BomStripper.HasUtf8Bom(binPath).Should().BeTrue();
+            (await BomStripper.HasUtf8Bom(srcPath)).Should().BeFalse();
+            (await BomStripper.HasUtf8Bom(binPath)).Should().BeTrue();
         } finally {
             Directory.Delete(dir, true);
         }
@@ -188,7 +188,7 @@ public sealed class BomStripperTests {
 
     /// <summary>验证跳过 nuget 目录</summary>
     [Fact]
-    public void Strip_SkipsNugetDirectory() {
+    public async Task Strip_SkipsNugetDirectory() {
         var dir = CreateTempDir();
         try {
             var srcPath = Path.Combine(dir, "Src.cs");
@@ -198,12 +198,12 @@ public sealed class BomStripperTests {
             WriteCsFile(srcPath, "namespace A;", withBom: true);
             WriteCsFile(nugetPath, "namespace B;", withBom: true);
 
-            var report = BomStripper.Strip(dir);
+            var report = await BomStripper.Strip(dir);
 
             report.StrippedCount.Should().Be(1);
             report.SkippedFiles.Should().Be(1);
-            BomStripper.HasUtf8Bom(srcPath).Should().BeFalse();
-            BomStripper.HasUtf8Bom(nugetPath).Should().BeTrue();
+            (await BomStripper.HasUtf8Bom(srcPath)).Should().BeFalse();
+            (await BomStripper.HasUtf8Bom(nugetPath)).Should().BeTrue();
         } finally {
             Directory.Delete(dir, true);
         }
@@ -211,27 +211,27 @@ public sealed class BomStripperTests {
 
     /// <summary>验证不存在目录抛出 ArgumentException</summary>
     [Fact]
-    public void Strip_NonExistentDirectory_ThrowsArgumentException() {
+    public async Task Strip_NonExistentDirectory_ThrowsArgumentException() {
         var nonExistent = Path.Combine(Path.GetTempPath(), "DefinitelyDoesNotExist_" + Guid.NewGuid().ToString("N"));
 
-        var act = () => BomStripper.Strip(nonExistent);
+        var act = async () => await BomStripper.Strip(nonExistent);
 
-        act.Should().Throw<ArgumentException>();
+        await act.Should().ThrowAsync<ArgumentException>();
     }
 
     /// <summary>验证保留非 ASCII 内容</summary>
     [Fact]
-    public void Strip_PreservesNonAsciiContent() {
+    public async Task Strip_PreservesNonAsciiContent() {
         var dir = CreateTempDir();
         try {
             var path = Path.Combine(dir, "Chinese.cs");
             const string content = "// 中文注释\nnamespace 测试;\npublic class 中文类 { }\n";
             WriteCsFile(path, content, withBom: true);
 
-            var report = BomStripper.Strip(dir);
+            var report = await BomStripper.Strip(dir);
 
             report.StrippedCount.Should().Be(1);
-            BomStripper.HasUtf8Bom(path).Should().BeFalse();
+            (await BomStripper.HasUtf8Bom(path)).Should().BeFalse();
             File.ReadAllText(path).Should().Be(content);
         } finally {
             Directory.Delete(dir, true);

@@ -22,12 +22,12 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
+    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
         var result = context.ExecutionResult;
         if (result is null) {
             var diag = BuildNoExecutionResultDiagnostic();
             context.Result = ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
-            return Task.CompletedTask;
+            return;
         }
 
         var shellType = context.Provider.Kind.Id;
@@ -42,20 +42,20 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
                 .WithEntityMetadata(EntityMetadataEntry.Bool("interrupted", true))
                 .WithEntityMetadata(EntityMetadataEntry.Long("execution_time_ms", (long)result.ExecutionTime.TotalMilliseconds))
                 .Build();
-            return Task.CompletedTask;
+            return;
         }
 
         if (ShellImageOutputDetector.IsImageOutput(result.Stdout)) {
             var parsed = ShellImageOutputDetector.ParseDataUri(result.Stdout);
             if (parsed is { } img) {
-                var (resizedMediaType, resizedBase64Data) = ShellImageOutputDetector.ResizeIfOversized(img.MediaType, img.Base64Data) ?? img;
+                var (resizedMediaType, resizedBase64Data) = (await ShellImageOutputDetector.ResizeIfOversizedAsync(img.MediaType, img.Base64Data).ConfigureAwait(false)) ?? img;
                 ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "execute", ["result"] = "ok" });
                 context.Result = new ToolResult {
                     Content = [new ToolContent { Type = ToolContentType.Image, Data = resizedBase64Data, MimeType = resizedMediaType }],
                     IsImage = true,
                     EntityMetadata = BuildShellEntityMetadata(result),
                 };
-                return Task.CompletedTask;
+                return;
             }
         }
 
@@ -77,7 +77,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
                 .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
                 .WithEntityMetadata(EntityMetadataEntry.Long("execution_time_ms", (long)result.ExecutionTime.TotalMilliseconds))
                 .Build();
-            return Task.CompletedTask;
+            return;
         }
 
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "shell.execution.count", new Dictionary<string, string> { ["shell"] = shellType, ["operation"] = "execute", ["result"] = "ok" });
@@ -86,7 +86,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
             .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? 0))
             .WithEntityMetadata(EntityMetadataEntry.Long("execution_time_ms", (long)result.ExecutionTime.TotalMilliseconds))
             .Build();
-        return Task.CompletedTask;
+        return;
     }
 
     /// <summary>

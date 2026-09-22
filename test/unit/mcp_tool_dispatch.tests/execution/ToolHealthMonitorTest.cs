@@ -199,8 +199,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     public async Task RecordSuccessAsync_PersistsToDisk() {
         await _monitor.RecordSuccessAsync("tool_a");
         _monitor.DisposeSafe();
-
-        using var monitor2 = new ToolHealthMonitor(_fs, config: new ToolScoreConfig());
+        await using var monitor2 = new ToolHealthMonitor(_fs, config: new ToolScoreConfig());
         var record = await monitor2.GetRecordAsync("tool_a");
         record.Should().NotBeNull();
         record!.Score.Should().Be(1);
@@ -272,9 +271,9 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     // === 通配符黑名单 ===
 
     [Fact]
-    public void IsBlacklisted_WildcardPattern_MatchesToolName() {
+    public async Task IsBlacklisted_WildcardPattern_MatchesToolName() {
         var fs = new InMemoryFileSystem();
-        using var monitor = new ToolHealthMonitor(fs,
+        await using var monitor = new ToolHealthMonitor(fs,
             blacklist: new HashSet<string>(["shell_*"], StringComparer.OrdinalIgnoreCase));
 
         monitor.IsBlacklisted("shell_check").Should().BeTrue();
@@ -283,9 +282,9 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     }
 
     [Fact]
-    public void IsBlacklisted_WildcardPrefixAndSuffix_MatchesToolName() {
+    public async Task IsBlacklisted_WildcardPrefixAndSuffix_MatchesToolName() {
         var fs = new InMemoryFileSystem();
-        using var monitor = new ToolHealthMonitor(fs,
+        await using var monitor = new ToolHealthMonitor(fs,
             blacklist: new HashSet<string>(["*_background_*"], StringComparer.OrdinalIgnoreCase));
 
         monitor.IsBlacklisted("shell_background_get").Should().BeTrue();
@@ -296,9 +295,9 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime {
     // === 通配符降权 ===
 
     [Fact]
-    public void GetPenalty_WildcardPattern_MatchesToolName() {
+    public async Task GetPenalty_WildcardPattern_MatchesToolName() {
         var fs = new InMemoryFileSystem();
-        using var monitor = new ToolHealthMonitor(fs,
+        await using var monitor = new ToolHealthMonitor(fs,
             penalties: new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["shell_*"] = -30 });
 
         monitor.GetPenalty("shell_check").Should().Be(-30);

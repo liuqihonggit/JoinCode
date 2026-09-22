@@ -22,7 +22,7 @@ public sealed class SessionCache : ISessionCache {
         if (entry is not CacheEntryEntity<T> typed)
             return default;
         if (typed.IsExpired) {
-            Remove(key);
+            _ = RemoveAsync(key);
             return default;
         }
         typed.OnHit();
@@ -30,18 +30,18 @@ public sealed class SessionCache : ISessionCache {
     }
 
     /// <summary>设置指定键的缓存值。</summary>
-    public void Set<T>(string key, T value, TimeSpan? ttl = null) {
+    public async Task SetAsync<T>(string key, T value, TimeSpan? ttl = null) {
         if (_entries.TryGetValue(key, out var existing))
-            existing.Dispose();
+            await existing.DisposeAsync().ConfigureAwait(false);
         var entry = new CacheEntryEntity<T>(key, value, ttl, sessionId: _sessionId);
         _entries[key] = entry;
     }
 
     /// <summary>移除指定键的缓存项。</summary>
-    public bool Remove(string key) {
+    public async Task<bool> RemoveAsync(string key) {
         if (!_entries.TryRemove(key, out var entry))
             return false;
-        entry.Dispose();
+        await entry.DisposeAsync().ConfigureAwait(false);
         return true;
     }
 
@@ -55,9 +55,9 @@ public sealed class SessionCache : ISessionCache {
     }
 
     /// <summary>清空所有缓存项。</summary>
-    public void Clear() {
+    public async Task ClearAsync() {
         foreach (var entry in _entries.Values) {
-            try { entry.Dispose(); } catch (Exception ex) { _ = ex; }
+            try { await entry.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { _ = ex; }
         }
         _entries.Clear();
     }

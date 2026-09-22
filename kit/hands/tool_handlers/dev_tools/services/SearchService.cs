@@ -167,7 +167,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
             var context = input.Context ?? 0;
 
             // Collect files to search
-            var filesToSearch = CollectSearchFiles(basePath, input.Glob, input.FileType, input.DenyPatterns, cancellationToken);
+            var filesToSearch = await CollectSearchFiles(basePath, input.Glob, input.FileType, input.DenyPatterns, cancellationToken).ConfigureAwait(false);
 
             // Search files in parallel
             var searchTasks = filesToSearch.Select(async filePath => {
@@ -376,7 +376,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
     // 二进制检测缓冲区大小（对齐 ripgrep 的 8KB 采样窗口）
     private const int BinaryDetectionBufferSize = 8192;
 
-    private IReadOnlyList<string> CollectSearchFiles(string basePath, string? globFilter, string? fileType, IReadOnlyList<string>? denyPatterns = null, CancellationToken cancellationToken = default) {
+    private async Task<IReadOnlyList<string>> CollectSearchFiles(string basePath, string? globFilter, string? fileType, IReadOnlyList<string>? denyPatterns = null, CancellationToken cancellationToken = default) {
         if (_fileOperationService.FileExists(basePath)) {
             return [basePath];
         }
@@ -388,7 +388,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
         // 加载 .gitignore 规则（对齐 ripgrep 默认遵守 .gitignore 行为）
         // 注意：GlobTool 不遵守 .gitignore（对齐 TS CLAUDE_CODE_GLOB_NO_IGNORE=true）
         // 但 GrepTool 需要遵守（对齐 TS ripgrep 默认行为）
-        var gitignoreMatcher = LoadGitignoreMatchers(basePath);
+        var gitignoreMatcher = await LoadGitignoreMatchers(basePath).ConfigureAwait(false);
 
         // 使用 Matcher 收集文件，支持完整 glob 模式
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
@@ -454,7 +454,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                 }
 
                 // 跳过二进制文件（对齐 ripgrep 自动跳过二进制文件行为）
-                if (IsBinaryFile(filePath))
+                if (await IsBinaryFileAsync(filePath).ConfigureAwait(false))
                     continue;
 
                 // 跳过 .gitignore 忽略的文件（对齐 ripgrep 默认行为）
@@ -476,7 +476,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
     /// 加载搜索路径及其父目录中的 .gitignore 匹配器
     /// 对齐 ripgrep 行为：从搜索目录向上查找到仓库根目录，收集所有 .gitignore
     /// </summary>
-    private List<GitignoreMatcher> LoadGitignoreMatchers(string searchPath) {
+    private async Task<List<GitignoreMatcher>> LoadGitignoreMatchers(string searchPath) {
         var matchers = new List<GitignoreMatcher>();
 
         // 内存文件系统路径（非 Windows 绝对路径）无法使用 File.Exists/Directory.Exists
@@ -488,7 +488,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
         // 向上查找 .gitignore，最多 20 层（防止无限循环）
         for (var i = 0; i < 20; i++) {
             var gitignorePath = Path.Combine(currentDir, ".gitignore");
-            var matcher = GitignoreMatcher.FromFile(gitignorePath, _fs);
+            var matcher = await GitignoreMatcher.FromFile(gitignorePath, _fs).ConfigureAwait(false);
             if (matcher is not null) {
                 matchers.Add(matcher);
             }
@@ -562,7 +562,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
     /// 检测文件是否为二进制文件
     /// 对齐 ripgrep 行为：先检查扩展名白名单，再采样前 8KB 检测 null 字节和非打印字符
     /// </summary>
-    private bool IsBinaryFile(string filePath) {
+    private async Task<bool> IsBinaryFileAsync(string filePath) {
         // 快速路径：已知二进制扩展名直接跳过
         if (BinaryFileDetector.IsBinaryByExtension(filePath)) {
             return true;
@@ -574,7 +574,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
         }
 
         try {
-            using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            await using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             var buffer = new byte[BinaryDetectionBufferSize];
             var bytesRead = stream.Read(buffer);
 

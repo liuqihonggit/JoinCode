@@ -64,8 +64,8 @@ public sealed class SettingsJsonModelWriter {
     /// 用 FileShare.ReadWrite 写入 — 允许其他线程同时读取，避免与 jcc 内部并发冲突
     /// </summary>
     private async Task WriteWithSharedAccessAsync(string path, string content, CancellationToken cancellationToken) {
-        using var stream = _fs.CreateStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-        using var writer = new StreamWriter(stream);
+        await using var stream = _fs.CreateStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        await using var writer = new StreamWriter(stream);
         await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
         await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
     }

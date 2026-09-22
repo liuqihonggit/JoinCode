@@ -46,9 +46,8 @@ public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddl
         }
 
         _fs.CreateDirectory(extractPath);
-
-        using var archiveStream = _fs.CreateStream(mcpbPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var archive = new System.IO.Compression.ZipArchive(archiveStream, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: false);
+        await using var archiveStream = _fs.CreateStream(mcpbPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        await using var archive = new System.IO.Compression.ZipArchive(archiveStream, System.IO.Compression.ZipArchiveMode.Read, leaveOpen: false);
         long totalExtractedSize = 0;
 
         foreach (var entry in archive.Entries) {
@@ -72,8 +71,8 @@ public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddl
                 continue;
             }
 
-            using var entryStream = entry.Open();
-            using var fileStream = _fs.CreateStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            await using var entryStream = entry.Open();
+            await using var fileStream = _fs.CreateStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
             await entryStream.CopyToAsync(fileStream, ct).ConfigureAwait(false);
 
             totalExtractedSize += _fs.GetFileLength(destinationPath);

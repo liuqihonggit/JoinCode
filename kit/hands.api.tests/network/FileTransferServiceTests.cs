@@ -18,7 +18,7 @@ public sealed class FileTransferServiceTests {
     [Fact]
     public async Task SendFileAsync_WithDescription_IncludesDescription() {
         var path = "/test/file.txt";
-        _fs.WriteAllText(path, "hello");
+        await _fs.WriteAllText(path, "hello");
 
         var result = await _service.SendFileAsync(path, "important file").ConfigureAwait(true);
 
@@ -30,7 +30,7 @@ public sealed class FileTransferServiceTests {
     [Fact]
     public async Task SendFileAsync_WithoutDescription_OmitsDescription() {
         var path = "/test/file.txt";
-        _fs.WriteAllText(path, "hello");
+        await _fs.WriteAllText(path, "hello");
 
         var result = await _service.SendFileAsync(path).ConfigureAwait(true);
 
@@ -48,7 +48,7 @@ public sealed class FileTransferServiceTests {
     [Fact]
     public async Task GenerateDownloadLinkAsync_FileExists_GeneratesLocalLink() {
         var path = "/test/file.txt";
-        _fs.WriteAllText(path, "hello");
+        await _fs.WriteAllText(path, "hello");
 
         var result = await _service.GenerateDownloadLinkAsync(path).ConfigureAwait(true);
 

@@ -22,13 +22,13 @@ public sealed partial class TeamManager {
     /// <summary>
     /// 从磁盘加载团队状态。文件不存在或读取失败时静默跳过（不影响启动）。
     /// </summary>
-    private void LoadState() {
+    private async Task LoadStateAsync() {
         if (_persistenceFs is null || _stateFilePath is null) return;
 
         try {
             if (!_persistenceFs.FileExists(_stateFilePath)) return;
 
-            var json = _persistenceFs.ReadAllText(_stateFilePath);
+            var json = await _persistenceFs.ReadAllText(_stateFilePath).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(json)) return;
 
             var data = RelaxedJsonSerializer.Deserialize(json, TeamPersistenceJsonContext.Default.TeamStateData);

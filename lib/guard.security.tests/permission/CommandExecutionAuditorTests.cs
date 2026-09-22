@@ -1,4 +1,4 @@
-﻿namespace Guard.Security.Tests;
+namespace Guard.Security.Tests;
 
 /// <summary>
 /// CommandExecutionAuditor 审计日志测试 — 验证 JSONL 写入和结构化记录
@@ -12,7 +12,7 @@ public class CommandExecutionAuditorTests {
         await using var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
 
-        auditor.Record(new CommandExecutionAuditEntry(
+        await auditor.Record(new CommandExecutionAuditEntry(
             DateTimeOffset.Parse("2026-09-13T12:00:00Z"),
             "git status",
             CommandDangerLevel.Safe,
@@ -28,7 +28,7 @@ public class CommandExecutionAuditorTests {
         await using var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs);
 
-        auditor.Record(new CommandExecutionAuditEntry(
+        await auditor.Record(new CommandExecutionAuditEntry(
             DateTimeOffset.Parse("2026-09-13T12:00:00Z"),
             "rm -rf /tmp",
             CommandDangerLevel.Execution,
@@ -36,7 +36,7 @@ public class CommandExecutionAuditorTests {
             "AutoExecuted",
             "Recursive deletion"));
 
-        var content = fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl");
+        var content = await fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl");
         content.Should().Contain("rm -rf /tmp");
         content.Should().Contain("Execution");
         content.Should().Contain("Unattended");
@@ -50,10 +50,10 @@ public class CommandExecutionAuditorTests {
         var auditor = CreateAuditor(fs);
         var timestamp = DateTimeOffset.Parse("2026-09-13T12:00:00Z");
 
-        auditor.Record(new CommandExecutionAuditEntry(timestamp, "cmd1", CommandDangerLevel.Safe, PermissionMode.Unattended, "AutoExecuted"));
-        auditor.Record(new CommandExecutionAuditEntry(timestamp, "cmd2", CommandDangerLevel.Execution, PermissionMode.Unattended, "AutoExecuted"));
+        await auditor.Record(new CommandExecutionAuditEntry(timestamp, "cmd1", CommandDangerLevel.Safe, PermissionMode.Unattended, "AutoExecuted"));
+        await auditor.Record(new CommandExecutionAuditEntry(timestamp, "cmd2", CommandDangerLevel.Execution, PermissionMode.Unattended, "AutoExecuted"));
 
-        var content = fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl");
+        var content = await fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl");
         content.Should().Contain("cmd1");
         content.Should().Contain("cmd2");
     }
@@ -70,7 +70,7 @@ public class CommandExecutionAuditorTests {
             new("src/old.txt", FileChangeType.Deleted, 80, null),
         };
 
-        auditor.Record(new CommandExecutionAuditEntry(
+        await auditor.Record(new CommandExecutionAuditEntry(
             DateTimeOffset.Parse("2026-09-13T12:00:00Z"),
             "git checkout .",
             CommandDangerLevel.Execution,
@@ -79,7 +79,7 @@ public class CommandExecutionAuditorTests {
             "File restoration",
             changes));
 
-        var content = fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl");
+        var content = await fs.ReadAllText(".audit-test/command-execution-2026-09-13.jsonl");
         content.Should().Contain("src/file.cs");
         content.Should().Contain("Modified");
         content.Should().Contain("src/new.txt");
@@ -93,13 +93,13 @@ public class CommandExecutionAuditorTests {
         await using var fs = new InMemoryFileSystem();
         var auditor = CreateAuditor(fs, "/nonexistent/path/that/should/not/exist");
 
-        var act = () => auditor.Record(new CommandExecutionAuditEntry(
+        var act = async () => await auditor.Record(new CommandExecutionAuditEntry(
             DateTimeOffset.UtcNow,
             "test",
             CommandDangerLevel.Safe,
             PermissionMode.Unattended,
             "AutoExecuted"));
 
-        act.Should().NotThrow();
+        await act.Should().NotThrowAsync();
     }
 }

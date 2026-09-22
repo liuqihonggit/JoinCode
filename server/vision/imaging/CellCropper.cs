@@ -27,7 +27,7 @@ public static class CellCropper {
         using var image = Image.Load(imageBytes);
         image.Mutate(ctx => ctx.Crop(new Rectangle(x, y, width, height)));
 
-        using var ms = new MemoryStream();
+        await using var ms = new MemoryStream();
         await image.SaveAsync(ms, PngFormat.Instance, cancellationToken).ConfigureAwait(false);
         return ms.ToArray();
     }

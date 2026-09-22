@@ -45,6 +45,7 @@ public sealed class SyncDisposeOnAsyncDisposableRule : AnalyzerRuleBase<SyncDisp
         if (implementsIDisposable) return;
 
         if (IsInsideDisposeMethod(invocation)) return;
+        if (IsInsideLambda(invocation)) return;
 
         var typeName = receiverType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         ctx.ReportDiagnostic(Diagnostic.Create(
@@ -66,6 +67,15 @@ public sealed class SyncDisposeOnAsyncDisposableRule : AnalyzerRuleBase<SyncDisp
         return false;
     }
 
+    private static bool IsInsideLambda(SyntaxNode node) {
+        var current = node.Parent;
+        while (current is not null) {
+            if (current is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax) return true;
+            current = current.Parent;
+        }
+        return false;
+    }
+
     private static string GetMemberName(InvocationExpressionSyntax invocation) {
         if (invocation.Expression is MemberAccessExpressionSyntax memberAccess)
             return memberAccess.Name.Identifier.ValueText;
@@ -73,4 +83,7 @@ public sealed class SyncDisposeOnAsyncDisposableRule : AnalyzerRuleBase<SyncDisp
             return identifier.Identifier.ValueText;
         return string.Empty;
     }
+
+    /// <summary>BCL 白名单已移除 — BCL 调用通过 lib/bcl_bridge/ 隔离区封装，分析器不扫描隔离区</summary>
+    private static bool IsWhitelistedDualInterface(INamedTypeSymbol type) => false;
 }

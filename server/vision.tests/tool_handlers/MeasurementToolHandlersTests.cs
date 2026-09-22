@@ -4,9 +4,9 @@ namespace Vision.Tests.ToolHandlers;
 /// MeasurementToolHandlers 单元测试 — 验证 M4 的 3 个 MCP 工具
 /// </summary>
 public sealed class MeasurementToolHandlersTests {
-    private static string CreateTestImageBase64(int width = 8, int height = 8) {
+    private static async Task<string> CreateTestImageBase64(int width = 8, int height = 8) {
         using var image = new Image<Rgb24>(width, height, new Rgb24(100, 150, 200));
-        using var ms = new MemoryStream();
+        await using var ms = new MemoryStream();
         image.Save(ms, PngFormat.Instance);
         return Convert.ToBase64String(ms.ToArray());
     }
@@ -42,7 +42,7 @@ public sealed class MeasurementToolHandlersTests {
 
     [Fact]
     public async Task MeasureDepth_ValidRegion_ShouldReturnAnalysis() {
-        var base64 = CreateTestImageBase64();
+        var base64 = await CreateTestImageBase64();
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureDepthAsync(base64, 0, 0, 4, 4);
 
@@ -64,7 +64,7 @@ public sealed class MeasurementToolHandlersTests {
 
     [Fact]
     public async Task MeasureDepth_RegionOutOfRange_ShouldReturnError() {
-        var base64 = CreateTestImageBase64(8, 8);
+        var base64 = await CreateTestImageBase64(8, 8);
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureDepthAsync(base64, 0, 0, 100, 100);
 

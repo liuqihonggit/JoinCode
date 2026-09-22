@@ -50,9 +50,30 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
             LastActivityAt = _clock.GetUtcNow()
         };
 
+        _fallbackStorage[StateKey] = state;
+        _logger?.LogInformation(L.T(StringKey.VaultLogStateSaveSuccess));
+    }
+
+    /// <inheritdoc />
+    public async Task SaveStateAsync(string systemPrompt, MessageList chatHistory, CancellationToken cancellationToken = default) {
+        var chatHistoryList = chatHistory
+            .Select(m => new ApiMessageState {
+                Role = m.Role.ToValue(),
+                Content = m.Content ?? string.Empty,
+                Timestamp = _clock.GetUtcNow(),
+                Metadata = SerializeMetadata(m.Metadata)
+            })
+            .ToImmutableList();
+
+        var state = new SessionState {
+            SystemPrompt = systemPrompt,
+            MessageList = chatHistoryList,
+            LastActivityAt = _clock.GetUtcNow()
+        };
+
         var cache = GetCurrentCache();
         if (cache is not null)
-            cache.Set(StateKey, state);
+            await cache.SetAsync(StateKey, state).ConfigureAwait(false);
         else
             _fallbackStorage[StateKey] = state;
         _logger?.LogInformation(L.T(StringKey.VaultLogStateSaveSuccess));
@@ -75,12 +96,6 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
         foreach (var kvp in stored)
             dict[kvp.Key] = JsonDocument.Parse(kvp.Value).RootElement.Clone();
         return dict;
-    }
-
-    /// <inheritdoc />
-    public Task SaveStateAsync(string systemPrompt, MessageList chatHistory, CancellationToken cancellationToken = default) {
-        SaveState(systemPrompt, chatHistory);
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -142,16 +157,21 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
 
     /// <inheritdoc />
     public bool ClearState() {
-        var cache = GetCurrentCache();
-        var result = cache?.Remove(StateKey) ?? _fallbackStorage.TryRemove(StateKey, out _);
+        var result = _fallbackStorage.TryRemove(StateKey, out _);
         if (result)
             _logger?.LogInformation(L.T(StringKey.VaultLogStateClearSuccess));
         return result;
     }
 
     /// <inheritdoc />
-    public Task<bool> ClearStateAsync(CancellationToken cancellationToken = default) {
-        return Task.FromResult(ClearState());
+    public async Task<bool> ClearStateAsync(CancellationToken cancellationToken = default) {
+        var cache = GetCurrentCache();
+        var result = cache is not null
+            ? await cache.RemoveAsync(StateKey).ConfigureAwait(false)
+            : _fallbackStorage.TryRemove(StateKey, out _);
+        if (result)
+            _logger?.LogInformation(L.T(StringKey.VaultLogStateClearSuccess));
+        return result;
     }
 
     #endregion

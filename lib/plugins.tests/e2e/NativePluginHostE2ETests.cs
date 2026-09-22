@@ -23,7 +23,7 @@ public class NativePluginHostE2ETests {
     }
 
     [Fact]
-    public void Load_Echo_Unload_FullLifecycle() {
+    public async Task Load_Echo_Unload_FullLifecycle() {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布,请先执行: dotnet publish tools/SampleNativePlugin -c Release -o tools/SampleNativePlugin/publish");
 
@@ -37,12 +37,12 @@ public class NativePluginHostE2ETests {
         echoResult.ResponseJson.Should().Contain("hello world");
         echoResult.ResponseJson.Should().Contain("\"ok\":true");
 
-        host.Unload();
+        await host.UnloadAsync();
         host.IsLoaded.Should().BeFalse();
     }
 
     [Fact]
-    public void Ping_ReturnsPong() {
+    public async Task Ping_ReturnsPong() {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布");
 
@@ -54,11 +54,11 @@ public class NativePluginHostE2ETests {
         pingResult.IsSuccess.Should().BeTrue();
         pingResult.ResponseJson.Should().Contain("pong");
 
-        host.Unload();
+        await host.UnloadAsync();
     }
 
     [Fact]
-    public void UnknownMethod_ReturnsMethodNotFound() {
+    public async Task UnknownMethod_ReturnsMethodNotFound() {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布");
 
@@ -70,11 +70,11 @@ public class NativePluginHostE2ETests {
         result.IsSuccess.Should().BeTrue();
         result.ResponseJson.Should().Contain("method not found");
 
-        host.Unload();
+        await host.UnloadAsync();
     }
 
     [Fact]
-    public void Load_Idempotent_ReturnsSuccessOnSecondLoad() {
+    public async Task Load_Idempotent_ReturnsSuccessOnSecondLoad() {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布");
 
@@ -86,7 +86,7 @@ public class NativePluginHostE2ETests {
         first.IsSuccess.Should().BeTrue();
         second.IsSuccess.Should().BeTrue();
 
-        host.Unload();
+        await host.UnloadAsync();
     }
 
     [Fact]

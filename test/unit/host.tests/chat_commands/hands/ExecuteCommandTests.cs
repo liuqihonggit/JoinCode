@@ -49,7 +49,7 @@ public class ExecuteCommandTests {
         // Arrange - 捕获 Console 输出验证 TerminalHelper.WriteLine 被调用
         // 修复 bug: E2E 环境下 logger 为 null,LogWarning 不执行,需 TerminalHelper.WriteLine 保证 stdout 有内容
         var originalOut = System.Console.Out;
-        using var stringWriter = new System.IO.StringWriter();
+        await using var stringWriter = new System.IO.StringWriter();
         System.Console.SetOut(stringWriter);
 
         try {

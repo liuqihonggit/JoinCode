@@ -1,9 +1,9 @@
-﻿namespace Abs.Tests.SessionRouterTests;
+namespace Abs.Tests.SessionRouterTests;
 
 [Collection(nameof(SessionRouterCollection))]
 public sealed class SessionRouterTests {
     public SessionRouterTests() {
-        SessionRouter.Clear();
+        _ = SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -30,26 +30,25 @@ public sealed class SessionRouterTests {
     }
 
     [Fact]
-    public void Resolve_跨会话跳转_可获取() {
+    public async Task Resolve_跨会话跳转_可获取() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        using var goal = new Goal("测试目标");
+        await using var goal = new Goal("测试目标");
         scope.Register(goal);
 
         var resolved = SessionRouter.Resolve<Goal>(sessionId, goal.ObjectId);
         resolved.Should().BeSameAs(goal);
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
-    public void Resolve_跨会话隔离_不可见() {
+    public async Task Resolve_跨会话隔离_不可见() {
         var sessionIdA = new ObjectId(ObjectType.Session);
         var sessionIdB = new ObjectId(ObjectType.Session);
         var scopeA = SessionRouter.GetOrCreateScope(sessionIdA);
         var scopeB = SessionRouter.GetOrCreateScope(sessionIdB);
-
-        using var goalA = new Goal("会话A的目标");
+        await using var goalA = new Goal("会话A的目标");
         scopeA.Register(goalA);
 
         // 会话B 无法通过 goalA 的 ObjectId 获取到它
@@ -58,7 +57,7 @@ public sealed class SessionRouterTests {
         // 会话A 可以获取
         SessionRouter.Resolve<Goal>(sessionIdA, goalA.ObjectId).Should().BeSameAs(goalA);
 
-        SessionRouter.Clear();
+        await SessionRouter.ClearAsync();
     }
 
     [Fact]
@@ -70,24 +69,24 @@ public sealed class SessionRouterTests {
     }
 
     [Fact]
-    public void RemoveScope_清理其所有Entity() {
+    public async Task RemoveScope_清理其所有Entity() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        using var goal1 = new Goal("目标1", sessionId: sessionId);
-        using var goal2 = new Goal("目标2", sessionId: sessionId);
+        await using var goal1 = new Goal("目标1", sessionId: sessionId);
+        await using var goal2 = new Goal("目标2", sessionId: sessionId);
         scope.Register(goal1);
         scope.Register(goal2);
 
-        SessionRouter.RemoveScope(sessionId).Should().BeTrue();
+        (await SessionRouter.RemoveScopeAsync(sessionId)).Should().BeTrue();
         SessionRouter.ScopeCount.Should().Be(0);
         goal1.LifecycleState.Should().Be(EntityLifecycle.Disposed);
         goal2.LifecycleState.Should().Be(EntityLifecycle.Disposed);
     }
 
     [Fact]
-    public void RemoveScope_不存在_返回False() {
+    public async Task RemoveScope_不存在_返回False() {
         var sessionId = new ObjectId(ObjectType.Session);
-        SessionRouter.RemoveScope(sessionId).Should().BeFalse();
+        (await SessionRouter.RemoveScopeAsync(sessionId)).Should().BeFalse();
     }
 
     [Fact]

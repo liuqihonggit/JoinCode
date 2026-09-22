@@ -29,8 +29,8 @@ public sealed class PluginAgentLoaderTests {
     }
 
     [Fact]
-    public void LoadFromPlugin_SafeAgent_AvailableInGetAll() {
-        using var loader = new PluginAgentLoader();
+    public async Task LoadFromPlugin_SafeAgent_AvailableInGetAll() {
+        await using var loader = new PluginAgentLoader();
         var provider = new SimpleProvider([CreateDef()]);
 
         loader.LoadFromPlugin("pluginA", provider);
@@ -51,8 +51,8 @@ public sealed class PluginAgentLoaderTests {
     }
 
     [Fact]
-    public void LoadFromPlugin_ReturnedUndo_RemovesAgent() {
-        using var loader = new PluginAgentLoader();
+    public async Task LoadFromPlugin_ReturnedUndo_RemovesAgent() {
+        await using var loader = new PluginAgentLoader();
         var provider = new SimpleProvider([CreateDef()]);
 
         var undo = loader.LoadFromPlugin("pluginA", provider);
@@ -64,8 +64,8 @@ public sealed class PluginAgentLoaderTests {
     }
 
     [Fact]
-    public void LoadFromPlugin_ChangedEvent_FiresOnLoadAndUnload() {
-        using var loader = new PluginAgentLoader();
+    public async Task LoadFromPlugin_ChangedEvent_FiresOnLoadAndUnload() {
+        await using var loader = new PluginAgentLoader();
         var eventCount = 0;
         loader.Changed += (_, _) => eventCount++;
 
@@ -77,8 +77,8 @@ public sealed class PluginAgentLoaderTests {
     }
 
     [Fact]
-    public void LoadFromPlugin_TwoPluginsSameAgentName_LastWins() {
-        using var loader = new PluginAgentLoader();
+    public async Task LoadFromPlugin_TwoPluginsSameAgentName_LastWins() {
+        await using var loader = new PluginAgentLoader();
         var def1 = CreateDef();
         def1.SystemPrompt = "from plugin A";
         var def2 = CreateDef();
@@ -92,8 +92,8 @@ public sealed class PluginAgentLoaderTests {
     }
 
     [Fact]
-    public void LoadFromPlugin_UndoOnlyRemovesOwnPlugin() {
-        using var loader = new PluginAgentLoader();
+    public async Task LoadFromPlugin_UndoOnlyRemovesOwnPlugin() {
+        await using var loader = new PluginAgentLoader();
         var def1 = CreateDef();
         def1.SystemPrompt = "A";
         var def2 = CreateDef();
@@ -108,8 +108,8 @@ public sealed class PluginAgentLoaderTests {
     }
 
     [Fact]
-    public void UnloadWithCascade_ConsumerDependingOnProvider_IsUnloadedFirst() {
-        using var loader = new PluginAgentLoader();
+    public async Task UnloadWithCascade_ConsumerDependingOnProvider_IsUnloadedFirst() {
+        await using var loader = new PluginAgentLoader();
 
         var providerDef = CreateDef("executor:code");
         var consumerDef = CreateDef("executor:doctor");
@@ -128,8 +128,8 @@ public sealed class PluginAgentLoaderTests {
     }
 
     [Fact]
-    public void UnloadWithCascade_IndependentPlugin_NotAffected() {
-        using var loader = new PluginAgentLoader();
+    public async Task UnloadWithCascade_IndependentPlugin_NotAffected() {
+        await using var loader = new PluginAgentLoader();
 
         var providerDef = CreateDef("executor:code");
         var independentDef = CreateDef("executor:doctor");
@@ -147,8 +147,8 @@ public sealed class PluginAgentLoaderTests {
     }
 
     [Fact]
-    public void UnloadWithCascade_ToolsDependency_ConsumerUnloadedFirst() {
-        using var loader = new PluginAgentLoader();
+    public async Task UnloadWithCascade_ToolsDependency_ConsumerUnloadedFirst() {
+        await using var loader = new PluginAgentLoader();
 
         var providerDef = CreateDef("executor:code");
         var consumerDef = CreateDef("executor:doctor");
@@ -165,8 +165,8 @@ public sealed class PluginAgentLoaderTests {
     }
 
     [Fact]
-    public void UnloadWithCascade_ChainDependency_AllUnloadedInReverseOrder() {
-        using var loader = new PluginAgentLoader();
+    public async Task UnloadWithCascade_ChainDependency_AllUnloadedInReverseOrder() {
+        await using var loader = new PluginAgentLoader();
 
         var defA = CreateDef("executor:code");
         var defB = CreateDef("executor:doctor");
@@ -189,8 +189,8 @@ public sealed class PluginAgentLoaderTests {
     }
 
     [Fact]
-    public void UnloadWithCascade_ChangedEventFiresOnce() {
-        using var loader = new PluginAgentLoader();
+    public async Task UnloadWithCascade_ChangedEventFiresOnce() {
+        await using var loader = new PluginAgentLoader();
         var eventCount = 0;
         loader.Changed += (_, _) => eventCount++;
 

@@ -13,9 +13,9 @@ internal static class WorktreeJsonFormatting {
     /// </summary>
     /// <param name="node">待格式化的 JSON 节点</param>
     /// <returns>缩进格式的 JSON 字符串</returns>
-    public static string FormatJsonNode(JsonNode node) {
-        using var stream = new MemoryStream();
-        using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
+    public static async Task<string> FormatJsonNode(JsonNode node) {
+        await using var stream = new MemoryStream();
+        await using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
         node.WriteTo(writer);
         writer.Flush();
         return System.Text.Encoding.UTF8.GetString(stream.ToArray());

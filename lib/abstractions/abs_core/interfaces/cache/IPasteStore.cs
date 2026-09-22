@@ -15,11 +15,11 @@ public interface IPasteStore : IStore {
     /// 将粘贴文本持久化到磁盘 — 对齐 TS storePastedText
     /// 内容寻址：相同哈希 = 相同内容，覆盖写入是安全的
     /// </summary>
-    void StorePastedText(string hash, string content);
+    ValueTask StorePastedText(string hash, string content);
 
     /// <summary>
     /// 从磁盘读取粘贴文本 — 对齐 TS retrievePastedText
     /// 不存在时返回 null
     /// </summary>
-    string? RetrievePastedText(string hash);
+    ValueTask<string?> RetrievePastedText(string hash);
 }

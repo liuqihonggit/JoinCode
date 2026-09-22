@@ -96,7 +96,7 @@ public static class PdfPageRenderer {
     public static Task<PdfExtractResult> ExtractPagesAsync(
         string filePath, IFileSystem fs, int? firstPage = null, int? lastPage = null,
         CancellationToken cancellationToken = default) {
-        return Task.Run(() => ExtractPagesCore(filePath, fs, firstPage, lastPage), cancellationToken);
+        return Task.Run(() => ExtractPagesCoreAsync(filePath, fs, firstPage, lastPage), cancellationToken);
     }
 
     /// <summary>
@@ -112,14 +112,14 @@ public static class PdfPageRenderer {
         }
     }
 
-    private static PdfExtractResult ExtractPagesCore(string filePath, IFileSystem fs, int? firstPage, int? lastPage) {
+    private static async Task<PdfExtractResult> ExtractPagesCoreAsync(string filePath, IFileSystem fs, int? firstPage, int? lastPage) {
         try {
             if (!fs.FileExists(filePath)) {
                 return PdfExtractResult.Fail("not_found", $"PDF file not found: {filePath}");
             }
 
             long originalSize;
-            using (var sizeStream = fs.OpenRead(filePath)) {
+            await using (var sizeStream = fs.OpenRead(filePath)) {
                 originalSize = sizeStream.Length;
             }
 
@@ -160,7 +160,7 @@ public static class PdfPageRenderer {
                 var rawBytes = pageReader.GetImage(); // BGRA 格式
 
                 // 将 BGRA 原始像素转换为 JPEG
-                var jpegBytes = BgraToJpeg(rawBytes, width, height);
+                var jpegBytes = await BgraToJpegAsync(rawBytes, width, height).ConfigureAwait(false);
 
                 pages.Add(new PdfPageImage {
                     PageNumber = i + 1, // 1-indexed
@@ -189,11 +189,10 @@ public static class PdfPageRenderer {
     /// Docnet.Core 返回 BGRA 格式（4字节/像素：Blue, Green, Red, Alpha）
     /// ImageSharp 的 Bgra32 格式正好匹配
     /// </summary>
-    private static byte[] BgraToJpeg(byte[] bgraData, int width, int height) {
+    private static async Task<byte[]> BgraToJpegAsync(byte[] bgraData, int width, int height) {
         using var image = Image.LoadPixelData<Bgra32>(bgraData, width, height);
-
-        using var ms = new MemoryStream();
-        image.SaveAsJpeg(ms, new JpegEncoder { Quality = JpegQuality });
+        await using var ms = new MemoryStream();
+        await image.SaveAsJpegAsync(ms, new JpegEncoder { Quality = JpegQuality }).ConfigureAwait(false);
         return ms.ToArray();
     }
 }

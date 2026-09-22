@@ -43,8 +43,8 @@ internal sealed class FileLock : System.IAsyncDisposable {
     /// <summary>
     /// 同步释放文件锁，语义与 DisposeAsync 等价
     /// </summary>
-    internal void Release() {
+    internal async ValueTask Release() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _inner.Release();
+        await _inner.Release().ConfigureAwait(false);
     }
 }

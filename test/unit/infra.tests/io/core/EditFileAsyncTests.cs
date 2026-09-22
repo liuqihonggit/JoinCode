@@ -1,4 +1,4 @@
-﻿namespace Infra.IO.Tests;
+namespace Infra.IO.Tests;
 
 /// <summary>
 /// IFileSystem.EditFileAsync 并发安全与原子性测试。
@@ -9,7 +9,7 @@ public class EditFileAsyncTests {
     public async Task EditFileAsync_ConcurrentSameFile_NoLostUpdates() {
         await using var fs = new InMemoryFileSystem();
         var path = "/test/concurrent.txt";
-        fs.WriteAllText(path, "");
+        await fs.WriteAllText(path, "");
 
         const int taskCount = 50;
         var tasks = new Task[taskCount];
@@ -24,7 +24,7 @@ public class EditFileAsyncTests {
         }
         await Task.WhenAll(tasks);
 
-        var finalContent = fs.ReadAllText(path);
+        var finalContent = await fs.ReadAllText(path);
         var lines = finalContent.Split('\n');
         lines.Length.Should().Be(taskCount);
     }
@@ -34,8 +34,8 @@ public class EditFileAsyncTests {
         await using var fs = new InMemoryFileSystem();
         var path1 = "/test/file1.txt";
         var path2 = "/test/file2.txt";
-        fs.WriteAllText(path1, "a");
-        fs.WriteAllText(path2, "b");
+        await fs.WriteAllText(path1, "a");
+        await fs.WriteAllText(path2, "b");
 
         var task1 = fs.EditFileAsync<int>(path1, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
@@ -48,8 +48,8 @@ public class EditFileAsyncTests {
 
         await Task.WhenAll(task1, task2);
 
-        fs.ReadAllText(path1).Should().Be("a1");
-        fs.ReadAllText(path2).Should().Be("b2");
+        (await fs.ReadAllText(path1)).Should().Be("a1");
+        (await fs.ReadAllText(path2)).Should().Be("b2");
     }
 
     [Fact]
@@ -65,19 +65,19 @@ public class EditFileAsyncTests {
     public async Task EditFileAsync_TransformReturnsNull_NoWrite() {
         await using var fs = new InMemoryFileSystem();
         var path = "/test/skip.txt";
-        fs.WriteAllText(path, "original");
+        await fs.WriteAllText(path, "original");
 
         var result = await fs.EditFileAsync<int>(path, async (bytes, ct) => (null, 42), default);
 
         result.Should().Be(42);
-        fs.ReadAllText(path).Should().Be("original");
+        (await fs.ReadAllText(path)).Should().Be("original");
     }
 
     [Fact]
     public async Task EditFileAsync_TransformReceivesCurrentContent() {
         await using var fs = new InMemoryFileSystem();
         var path = "/test/receive.txt";
-        fs.WriteAllText(path, "hello world");
+        await fs.WriteAllText(path, "hello world");
 
         var receivedContent = await fs.EditFileAsync<string>(path, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
@@ -91,7 +91,7 @@ public class EditFileAsyncTests {
     public async Task EditFileAsync_SequentialEdits_ComposeCorrectly() {
         await using var fs = new InMemoryFileSystem();
         var path = "/test/sequential.txt";
-        fs.WriteAllText(path, "0");
+        await fs.WriteAllText(path, "0");
 
         await fs.EditFileAsync<int>(path, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
@@ -108,6 +108,6 @@ public class EditFileAsyncTests {
             return (Encoding.UTF8.GetBytes(content + "3"), 3);
         }, default);
 
-        fs.ReadAllText(path).Should().Be("0123");
+        (await fs.ReadAllText(path)).Should().Be("0123");
     }
 }

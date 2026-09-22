@@ -151,11 +151,11 @@ public static class FrontmatterParser {
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器</param>
     /// <returns>解析结果</returns>
-    public static FrontmatterParseResult ParseFile(string filePath, IFileSystem fs, ILogger? logger = null) {
+    public static async ValueTask<FrontmatterParseResult> ParseFile(string filePath, IFileSystem fs, ILogger? logger = null) {
         if (!fs.FileExists(filePath))
             throw new FileNotFoundException($"[INF045] 文件不存在: {filePath}");
 
-        var content = fs.ReadAllText(filePath, Encoding.UTF8);
+        var content = await fs.ReadAllText(filePath, Encoding.UTF8).ConfigureAwait(false);
         return Parse(content, logger);
     }
 

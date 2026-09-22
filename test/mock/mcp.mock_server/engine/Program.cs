@@ -11,7 +11,7 @@ public sealed class Program {
     public static async Task Main(string[] args) {
         var configPath = ParseArgument(args, "--config") ?? "mockserver.json";
         var portArg = ParseArgument(args, "--port");
-        var config = McpMockServerConfig.LoadFromFileOrDefault(configPath);
+        var config = await McpMockServerConfig.LoadFromFileOrDefault(configPath).ConfigureAwait(true);
 
         var port = int.TryParse(portArg, out var p) ? p : config.Port;
         if (port == 0) {

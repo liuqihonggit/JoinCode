@@ -8,9 +8,9 @@ public static class SlnxParser {
     /// <summary>
     /// 从 .slnx 文件中提取所有 .csproj 路径（相对于 .slnx 所在目录）
     /// </summary>
-    public static List<string> ParseProjectPaths(string slnxPath) {
+    public static async Task<List<string>> ParseProjectPaths(string slnxPath) {
         var slnxDir = Path.GetDirectoryName(Path.GetFullPath(slnxPath))!;
-        var content = SafeFileIO.ReadAllText(slnxPath);
+        var content = await SafeFileIO.ReadAllText(slnxPath).ConfigureAwait(false);
         var paths = new List<string>();
 
         // 简单 XML 解析：提取所有 <Project Path="..." /> 节点

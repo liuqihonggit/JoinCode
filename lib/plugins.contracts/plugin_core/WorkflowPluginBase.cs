@@ -83,7 +83,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// <para>4. 子类清理(OnUnload)</para>
     /// <para>UI 资源事件由 PluginManager 负责广播</para>
     /// </summary>
-    public PluginUnloadResult Unload() {
+    public async Task<PluginUnloadResult> UnloadAsync() {
         if (!Fiber.TryTransitionTo(PluginFiberState.Unloading)) {
             return PluginUnloadResult.AlreadyUnloaded(Name);
         }
@@ -98,7 +98,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
                 _resources.Clear();
             }
             foreach (var resource in snapshot) {
-                resource.Dispose();
+                await resource.DisposeAsync().ConfigureAwait(false);
             }
 
             UnmanagedResources.ReleaseAll();

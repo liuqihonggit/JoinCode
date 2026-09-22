@@ -33,8 +33,7 @@ public sealed class PipeHttpMessageHandler : HttpMessageHandler {
         ArgumentNullException.ThrowIfNull(request);
 
         _logger?.LogDebug("{Method} Sending HTTP request via pipe: {PipeName}", nameof(SendAsync), _pipeName);
-
-        using var pipeClient = new NamedPipeClientStream(
+        await using var pipeClient = new NamedPipeClientStream(
             ".",
             _pipeName,
             PipeDirection.InOut,
@@ -70,7 +69,7 @@ public sealed class PipeHttpMessageHandler : HttpMessageHandler {
     }
 
     private static async Task<string> ReadResponseAsync(NamedPipeClientStream pipeClient, CancellationToken cancellationToken) {
-        using var memoryStream = new MemoryStream();
+        await using var memoryStream = new MemoryStream();
         var buffer = new byte[ReadBufferSize];
 
         int bytesRead;

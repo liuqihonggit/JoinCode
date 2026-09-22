@@ -371,11 +371,11 @@ public sealed class ContentReplacementServiceTests {
     /// 对齐 TS: isToolResultContentEmpty — 空结果替换为标记文本
     /// </summary>
     [Fact]
-    public void MaybePersistLargeToolResult_EmptyContent_ReturnsNoOutputTemplate() {
+    public async Task MaybePersistLargeToolResult_EmptyContent_ReturnsNoOutputTemplate() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
-        var result = service.MaybePersistLargeToolResult("TestTool", "id1", "", "session1");
+        var result = await service.MaybePersistLargeToolResult("TestTool", "id1", "", "session1");
 
         result.Should().NotBeNull();
         result.Should().Contain("TestTool");
@@ -386,12 +386,12 @@ public sealed class ContentReplacementServiceTests {
     /// 对齐 TS: content.Length &lt;= threshold → 不持久化
     /// </summary>
     [Fact]
-    public void MaybePersistLargeToolResult_BelowThreshold_ReturnsNull() {
+    public async Task MaybePersistLargeToolResult_BelowThreshold_ReturnsNull() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
         var smallContent = new string('a', 1000);
-        var result = service.MaybePersistLargeToolResult("TestTool", "id1", smallContent, "session1");
+        var result = await service.MaybePersistLargeToolResult("TestTool", "id1", smallContent, "session1");
 
         result.Should().BeNull();
     }
@@ -401,12 +401,12 @@ public sealed class ContentReplacementServiceTests {
     /// 对齐 TS: content.Length > threshold → 持久化并返回 persisted-output
     /// </summary>
     [Fact]
-    public void MaybePersistLargeToolResult_ExceedsThreshold_ReturnsReplacement() {
+    public async Task MaybePersistLargeToolResult_ExceedsThreshold_ReturnsReplacement() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
         var largeContent = new string('x', 250_000);
-        var result = service.MaybePersistLargeToolResult("TestTool", "id1", largeContent, "session1");
+        var result = await service.MaybePersistLargeToolResult("TestTool", "id1", largeContent, "session1");
 
         result.Should().NotBeNull();
         result.Should().Contain("<persisted-output>");
@@ -432,13 +432,13 @@ public sealed class ContentReplacementServiceTests {
     /// 对齐 TS: getPersistenceThreshold 返回 Infinity(-1) 的工具永不持久化
     /// </summary>
     [Fact]
-    public void MaybePersistLargeToolResult_NeverPersistTool_ReturnsNull() {
+    public async Task MaybePersistLargeToolResult_NeverPersistTool_ReturnsNull() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
         // read 工具的阈值为 -1 (Infinity)，永不持久化
         var largeContent = new string('x', 250_000);
-        var result = service.MaybePersistLargeToolResult("read", "id1", largeContent, "session1");
+        var result = await service.MaybePersistLargeToolResult("read", "id1", largeContent, "session1");
 
         result.Should().BeNull();
     }
@@ -470,22 +470,22 @@ public sealed class ContentReplacementServiceTests {
     /// Mock IToolResultFileService — 模拟持久化到磁盘
     /// </summary>
     private sealed class MockToolResultFileService : IToolResultFileService {
-        public PersistedToolResult PersistToolResult(string sessionId, string toolUseId, string content) {
+        public ValueTask<PersistedToolResult> PersistToolResult(string sessionId, string toolUseId, string content) {
             var (preview, hasMore) = GeneratePreview(content, ContentReplacementConstants.PreviewSizeChars);
-            return new PersistedToolResult {
+            return ValueTask.FromResult(new PersistedToolResult {
                 Filepath = $"/mock/tool-results/{sessionId}/{SanitizeFilename(toolUseId)}.txt",
                 OriginalSize = content.Length,
                 IsJson = false,
                 Preview = preview,
                 HasMore = hasMore
-            };
+            });
         }
 
-        public Task<PersistedToolResult> PersistToolResultAsync(string sessionId, string toolUseId, string content, CancellationToken cancellationToken = default) {
-            return Task.FromResult(PersistToolResult(sessionId, toolUseId, content));
+        public async Task<PersistedToolResult> PersistToolResultAsync(string sessionId, string toolUseId, string content, CancellationToken cancellationToken = default) {
+            return await PersistToolResult(sessionId, toolUseId, content);
         }
 
-        public string? ReadToolResult(string sessionId, string toolUseId) => null;
+        public ValueTask<string?> ReadToolResult(string sessionId, string toolUseId) => ValueTask.FromResult<string?>(null);
 
         private static (string Preview, bool HasMore) GeneratePreview(string content, int maxChars) {
             if (content.Length <= maxChars) return (content, false);

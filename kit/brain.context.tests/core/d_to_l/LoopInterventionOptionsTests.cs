@@ -5,8 +5,8 @@
 /// </summary>
 public sealed class LoopInterventionOptionsTests {
     [Fact]
-    public void Defaults_AreExpectedValues() {
-        using var options = new LoopInterventionOptions();
+    public async Task Defaults_AreExpectedValues() {
+        await using var options = new LoopInterventionOptions();
 
         options.HardTruncateThreshold.Should().Be(3);
         options.CompactThreshold.Should().Be(5);

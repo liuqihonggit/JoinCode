@@ -32,7 +32,7 @@ public interface IMacroRecorder {
     void SaveMacro(Macro macro, string filePath);
 
     /// <summary>从文件加载宏</summary>
-    Macro LoadMacro(string filePath);
+    Task<Macro> LoadMacroAsync(string filePath);
 }
 
 /// <summary>

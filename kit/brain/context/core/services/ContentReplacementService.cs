@@ -14,7 +14,7 @@ public interface IContentReplacementService {
     /// <param name="content">工具结果内容</param>
     /// <param name="sessionId">会话 ID</param>
     /// <returns>替换字符串；未超限或持久化失败时返回 null</returns>
-    string? MaybePersistLargeToolResult(string toolName, string toolUseId, string content, string sessionId);
+    ValueTask<string?> MaybePersistLargeToolResult(string toolName, string toolUseId, string content, string sessionId);
 
     /// <summary>
     /// 对齐 TS applyToolResultBudget — 返回处理后的消息和新产生的替换记录
@@ -117,7 +117,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
     /// <param name="content">工具结果内容</param>
     /// <param name="sessionId">会话 ID</param>
     /// <returns>替换字符串；未超限或持久化失败时返回 null</returns>
-    public string? MaybePersistLargeToolResult(
+    public async ValueTask<string?> MaybePersistLargeToolResult(
         string toolName,
         string toolUseId,
         string content,
@@ -146,7 +146,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         // 对齐 TS: 持久化失败时返回 null（保留原始内容）
         PersistedToolResult? persisted = null;
         try {
-            persisted = _fileService.PersistToolResult(sessionId, toolUseId, content);
+            persisted = await _fileService.PersistToolResult(sessionId, toolUseId, content).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to persist tool result: Tool={ToolName}, Id={ToolUseId}", toolName, toolUseId);
             return null;

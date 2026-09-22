@@ -42,20 +42,21 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     }
 
     /// <inheritdoc />
-    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
+    public async Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         // Bypass 模式：仍需拦截 Dangerous 级（黑灯），其余放行
         // 安全红线: rm -rf /、mkfs、format c: 等整盘/系统级不可逆操作即使在 Bypass 下也必须拒绝
         if (context.CurrentMode == PermissionMode.Bypass) {
             if (TryRejectDangerousInBypass(context))
-                return Task.CompletedTask;
-            return next(context, ct);
+                return;
+            await next(context, ct).ConfigureAwait(false);
+            return;
         }
 
         // 1. 检查非 Shell 工具的删除操作（如 file_delete）
         var deleteInfo = DetectDeleteOperation(context);
         if (deleteInfo is not null) {
             HandleDeleteOperation(context, deleteInfo);
-            return Task.CompletedTask;
+            return;
         }
 
         // 2. 检查敏感路径写入（Auto 模式下，对齐原 AutoSafetyMiddleware 逻辑）
@@ -68,18 +69,22 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
             if (PermissionCheckContext.IsSensitivePath(path, context.Config.SensitivePathPatterns)) {
                 context.Result = ToolPermissionCheckResult.PendingConfirmation(
                     $"工具 '{context.ToolName}' 尝试写入敏感路径 '{path}'，是否批准？");
-                return Task.CompletedTask;
+                return;
             }
         }
 
         // 3. 检查 Shell 工具的危险命令
-        if (!context.IsShellOperation(context.ToolName))
-            return next(context, ct);
+        if (!context.IsShellOperation(context.ToolName)) {
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
 
         if (context.Arguments is null ||
             !context.Arguments.TryGetValue("command", out var cmdEl) ||
-            cmdEl.ValueKind != JsonValueKind.String)
-            return next(context, ct);
+            cmdEl.ValueKind != JsonValueKind.String) {
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
 
         var command = cmdEl.GetString()!;
         var (riskContext, dangerResult) = DetectRisks(context.ToolName, command);
@@ -94,8 +99,10 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
                 dr.Details);
         }
 
-        if (riskContext is null || riskContext.Risks.Count == 0)
-            return next(context, ct);
+        if (riskContext is null || riskContext.Risks.Count == 0) {
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
 
         // 路径大小写守卫 — 删除命令的路径大小写与文件系统不一致时拦截(防御 Windows 大小写不敏感误删)
         if (_realPathResolver is not null &&
@@ -104,18 +111,19 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
             var guardResult = _caseGuard.Check(shellCmd, _realPathResolver);
             if (guardResult.Blocked) {
                 context.Result = ToolPermissionCheckResult.Rejected(guardResult.Reason!);
-                return Task.CompletedTask;
+                return;
             }
         }
 
         // 同级别自动通过 — 用户已确认该等级，会话级非持久化，自动放行到 next
         // Dangerous 级永不自动通过（即使已批准也拒绝，安全红线）
         var preLevel = dangerResult?.Level ?? DangerousCommandCatalog.InferLevel(SelectPrimaryRisk(riskContext.Risks) ?? CommandRisk.None);
-        if (preLevel != CommandDangerLevel.Dangerous && context.ApprovedLevels.Contains(preLevel))
-            return next(context, ct);
+        if (preLevel != CommandDangerLevel.Dangerous && context.ApprovedLevels.Contains(preLevel)) {
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
 
-        HandleRisks(context, riskContext, dangerResult);
-        return Task.CompletedTask;
+        await HandleRisks(context, riskContext, dangerResult).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -254,7 +262,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// Execution（红灯ask/不可撤回）: Auto拒绝/Ask确认/Plan拒绝
     /// LightValidation（绿灯ask/可撤回）: Auto拒绝/Ask确认/Plan放行(只读性质)
     /// </summary>
-    private void HandleRisks(PermissionCheckContext context, CommandRiskContext riskContext, DangerClassificationResult? dangerResult) {
+    private async ValueTask HandleRisks(PermissionCheckContext context, CommandRiskContext riskContext, DangerClassificationResult? dangerResult) {
         // 按优先级选择最关键的风险
         var primaryRisk = SelectPrimaryRisk(riskContext.Risks);
         var handler = primaryRisk is not null ? _riskHandlers.GetValueOrDefault(primaryRisk.Value) : null;
@@ -305,13 +313,15 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
             _logger?.LogInformation(
                 "无人值守模式自动执行: {Level} {Tool} ({Details})",
                 level, context.ToolName, riskContext.Details);
-            _auditor?.Record(new CommandExecutionAuditEntry(
-                DateTimeOffset.UtcNow,
-                riskContext.ShellCommand?.ToString() ?? "",
-                level,
-                context.CurrentMode,
-                "AutoExecuted",
-                riskContext.Details));
+            if (_auditor is not null) {
+                await _auditor.Record(new CommandExecutionAuditEntry(
+                    DateTimeOffset.UtcNow,
+                    riskContext.ShellCommand?.ToString() ?? "",
+                    level,
+                    context.CurrentMode,
+                    "AutoExecuted",
+                    riskContext.Details)).ConfigureAwait(false);
+            }
             break;
 
             default:

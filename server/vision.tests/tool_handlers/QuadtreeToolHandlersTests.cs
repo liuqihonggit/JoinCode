@@ -14,16 +14,16 @@ public sealed class QuadtreeToolHandlersTests {
         _handlers = new QuadtreeToolHandlers(annotator, renderer);
     }
 
-    private static string CreateTestImageBase64(int width = TestWidth, int height = TestHeight) {
+    private static async Task<string> CreateTestImageBase64(int width = TestWidth, int height = TestHeight) {
         using var image = new Image<Rgb24>(width, height, new Rgb24(100, 150, 200));
-        using var ms = new MemoryStream();
+        await using var ms = new MemoryStream();
         image.Save(ms, PngFormat.Instance);
         return Convert.ToBase64String(ms.ToArray());
     }
 
     [Fact]
     public async Task QuadtreeBuild_ShouldReturnGridWithAllCells() {
-        var base64 = CreateTestImageBase64();
+        var base64 = await CreateTestImageBase64();
         var result = await _handlers.QuadtreeBuildAsync(base64, depth: 1);
 
         result.IsError.Should().BeFalse();
@@ -40,7 +40,7 @@ public sealed class QuadtreeToolHandlersTests {
 
     [Fact]
     public async Task QuadtreeBuild_Depth2_ShouldReturn16Cells() {
-        var base64 = CreateTestImageBase64();
+        var base64 = await CreateTestImageBase64();
         var result = await _handlers.QuadtreeBuildAsync(base64, depth: 2);
 
         result.IsError.Should().BeFalse();
@@ -59,7 +59,7 @@ public sealed class QuadtreeToolHandlersTests {
 
     [Fact]
     public async Task QuadtreeBuild_NegativeDepth_ShouldReturnError() {
-        var base64 = CreateTestImageBase64();
+        var base64 = await CreateTestImageBase64();
         var result = await _handlers.QuadtreeBuildAsync(base64, depth: -1);
         result.IsError.Should().BeTrue();
         result.Content[0].Text.Should().Contain("[VIS101]");
@@ -74,7 +74,7 @@ public sealed class QuadtreeToolHandlersTests {
 
     [Fact]
     public async Task QuadtreeZoom_ShouldReturnSubImageAndNewGrid() {
-        var base64 = CreateTestImageBase64();
+        var base64 = await CreateTestImageBase64();
         var result = await _handlers.QuadtreeZoomAsync(base64, "L0.0", sourceDepth: 1, targetDepth: 1);
 
         result.IsError.Should().BeFalse();
@@ -87,7 +87,7 @@ public sealed class QuadtreeToolHandlersTests {
 
     [Fact]
     public async Task QuadtreeZoom_EmptyCellCode_ShouldReturnError() {
-        var base64 = CreateTestImageBase64();
+        var base64 = await CreateTestImageBase64();
         var result = await _handlers.QuadtreeZoomAsync(base64, "", sourceDepth: 1);
         result.IsError.Should().BeTrue();
         result.Content[0].Text.Should().Contain("[VIS111]");
@@ -95,7 +95,7 @@ public sealed class QuadtreeToolHandlersTests {
 
     [Fact]
     public async Task QuadtreeZoom_CellCodeExceedsSourceDepth_ShouldReturnErrorNotCrash() {
-        var base64 = CreateTestImageBase64();
+        var base64 = await CreateTestImageBase64();
         var result = await _handlers.QuadtreeZoomAsync(base64, "L0.3.3", sourceDepth: 1, targetDepth: 1);
 
         result.IsError.Should().BeTrue();
@@ -145,7 +145,7 @@ public sealed class QuadtreeToolHandlersTests {
 
     [Fact]
     public async Task QuadtreeRender_WithPaints_ShouldReturnRenderedImage() {
-        var base64 = CreateTestImageBase64();
+        var base64 = await CreateTestImageBase64();
         var paintsJson = """{"L0.0":0.5}""";
         var result = await _handlers.QuadtreeRenderAsync(base64, TestWidth, TestHeight, depth: 1, paintsJson);
 
@@ -157,7 +157,7 @@ public sealed class QuadtreeToolHandlersTests {
 
     [Fact]
     public async Task QuadtreeRender_NoPaints_ShouldShowAllGrid() {
-        var base64 = CreateTestImageBase64();
+        var base64 = await CreateTestImageBase64();
         var result = await _handlers.QuadtreeRenderAsync(base64, TestWidth, TestHeight, depth: 1);
 
         result.IsError.Should().BeFalse();
@@ -175,7 +175,7 @@ public sealed class QuadtreeToolHandlersTests {
 
     [Fact]
     public async Task QuadtreeRender_InvalidPaintsJson_ShouldReturnErrorNotThrow() {
-        var base64 = CreateTestImageBase64();
+        var base64 = await CreateTestImageBase64();
         var result = await _handlers.QuadtreeRenderAsync(base64, TestWidth, TestHeight, depth: 1, "not-valid-json");
 
         result.IsError.Should().BeTrue();
@@ -219,7 +219,7 @@ public sealed class QuadtreeToolHandlersTests {
 
     [Fact]
     public async Task ScreenIndicate_ShouldReturnHighlightedImage() {
-        var base64 = CreateTestImageBase64();
+        var base64 = await CreateTestImageBase64();
         var result = await _handlers.ScreenIndicateAsync(base64, "L0.0", TestWidth, TestHeight, depth: 1);
 
         result.IsError.Should().BeFalse();

@@ -503,7 +503,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             if (_store.SymbolsByFqn.Count == 0) {
                 _logger?.LogInformation("CodeIndexer: 索引为空,自动构建工作区 {Root}", root);
                 await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
-            } else if (IsIndexStale(root)) {
+            } else if (await IsIndexStaleAsync(root).ConfigureAwait(false)) {
                 _logger?.LogInformation("CodeIndexer: 索引已过时(git HEAD 比 LastUpdated 新),自动重建工作区 {Root}", root);
                 await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
             }
@@ -529,7 +529,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 检查索引是否过时 — 自动适配主仓库(.git/目录)和 worktree(.git/文件)，对笨蛋用户透明
     /// </summary>
-    private bool IsIndexStale(string workspaceRoot) {
+    private async Task<bool> IsIndexStaleAsync(string workspaceRoot) {
         try {
             var gitPath = _fs.CombinePath(workspaceRoot, ".git");
 
@@ -538,7 +538,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             }
 
             if (_fs.FileExists(gitPath)) {
-                var gitDir = ParseGitFile(gitPath);
+                var gitDir = await ParseGitFileAsync(gitPath).ConfigureAwait(false);
                 if (gitDir is not null) {
                     return IsFileStale(_fs.CombinePath(gitDir, "HEAD"));
                 }
@@ -559,9 +559,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 解析 worktree .git 指针文件内容 — 格式: "gitdir: /path/to/main/.git/worktrees/w1"
     /// </summary>
-    private string? ParseGitFile(string gitFilePath) {
+    private async Task<string?> ParseGitFileAsync(string gitFilePath) {
         try {
-            var content = _fs.ReadAllText(gitFilePath).Trim();
+            var content = (await _fs.ReadAllText(gitFilePath).ConfigureAwait(false)).Trim();
             const string prefix = "gitdir:";
             if (content.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
                 var gitDir = content[prefix.Length..].Trim();

@@ -87,32 +87,40 @@ public sealed class PhysicalFileSystemWatcher : IFileSystemWatcher {
     /// <inheritdoc/>
     public void MarkInternalWrite(string filePath) => _debounce.MarkInternalWrite(filePath);
 
-    private void OnChanged(object sender, FileSystemEventArgs e) {
-        if (_debounce.ConsumeInternalWrite(e.FullPath)) return;
-        var args = FromArgs(e);
-        Changed?.Invoke(this, args);
-        _debounce.ScheduleDebounce(e.FullPath, () => DebouncedChanged?.Invoke(this, args));
+    private async void OnChanged(object sender, FileSystemEventArgs e) {
+        try {
+            if (_debounce.ConsumeInternalWrite(e.FullPath)) return;
+            var args = FromArgs(e);
+            Changed?.Invoke(this, args);
+            await _debounce.ScheduleDebounce(e.FullPath, () => DebouncedChanged?.Invoke(this, args)).ConfigureAwait(false);
+        } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[PhysicalFileSystemWatcher] {ex}"); }
     }
 
-    private void OnCreated(object sender, FileSystemEventArgs e) {
-        if (_debounce.ConsumeInternalWrite(e.FullPath)) return;
-        var args = FromArgs(e);
-        Created?.Invoke(this, args);
-        _debounce.ScheduleDebounce(e.FullPath, () => DebouncedCreated?.Invoke(this, args));
+    private async void OnCreated(object sender, FileSystemEventArgs e) {
+        try {
+            if (_debounce.ConsumeInternalWrite(e.FullPath)) return;
+            var args = FromArgs(e);
+            Created?.Invoke(this, args);
+            await _debounce.ScheduleDebounce(e.FullPath, () => DebouncedCreated?.Invoke(this, args)).ConfigureAwait(false);
+        } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[PhysicalFileSystemWatcher] {ex}"); }
     }
 
-    private void OnDeleted(object sender, FileSystemEventArgs e) {
-        if (_debounce.ConsumeInternalWrite(e.FullPath)) return;
-        var args = FromArgs(e);
-        Deleted?.Invoke(this, args);
-        _debounce.ScheduleDebounce(e.FullPath, () => DebouncedDeleted?.Invoke(this, args));
+    private async void OnDeleted(object sender, FileSystemEventArgs e) {
+        try {
+            if (_debounce.ConsumeInternalWrite(e.FullPath)) return;
+            var args = FromArgs(e);
+            Deleted?.Invoke(this, args);
+            await _debounce.ScheduleDebounce(e.FullPath, () => DebouncedDeleted?.Invoke(this, args)).ConfigureAwait(false);
+        } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[PhysicalFileSystemWatcher] {ex}"); }
     }
 
-    private void OnRenamed(object sender, RenamedEventArgs e) {
-        if (_debounce.ConsumeInternalWrite(e.FullPath)) return;
-        var args = FromRenamedArgs(e);
-        Renamed?.Invoke(this, args);
-        _debounce.ScheduleDebounce(e.FullPath, () => DebouncedRenamed?.Invoke(this, args));
+    private async void OnRenamed(object sender, RenamedEventArgs e) {
+        try {
+            if (_debounce.ConsumeInternalWrite(e.FullPath)) return;
+            var args = FromRenamedArgs(e);
+            Renamed?.Invoke(this, args);
+            await _debounce.ScheduleDebounce(e.FullPath, () => DebouncedRenamed?.Invoke(this, args)).ConfigureAwait(false);
+        } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[PhysicalFileSystemWatcher] {ex}"); }
     }
 
     private static FileChangedEventArgs FromArgs(FileSystemEventArgs e)

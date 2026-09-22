@@ -1,4 +1,4 @@
-﻿namespace JoinCode.CodeIndex.Tests;
+namespace JoinCode.CodeIndex.Tests;
 
 public sealed class SymbolIndexTests : IDisposable {
     private readonly InMemoryIndexStore _store;
@@ -22,7 +22,7 @@ public sealed class SymbolIndexTests : IDisposable {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
         var path = "test.cs";
-        fs.WriteAllText(path, "public class Foo { public void Bar() { } }");
+        await fs.WriteAllText(path, "public class Foo { public void Bar() { } }");
 
         await index.IndexFileAsync(path, CancellationToken.None).ConfigureAwait(true);
 
@@ -34,8 +34,8 @@ public sealed class SymbolIndexTests : IDisposable {
     public async Task IndexFileAsync_MultipleFiles_StoresAllSymbols() {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
-        fs.WriteAllText("a.cs", "public class A { }");
-        fs.WriteAllText("b.cs", "public class B { }");
+        await fs.WriteAllText("a.cs", "public class A { }");
+        await fs.WriteAllText("b.cs", "public class B { }");
 
         await index.IndexFileAsync("a.cs", CancellationToken.None).ConfigureAwait(true);
         await index.IndexFileAsync("b.cs", CancellationToken.None).ConfigureAwait(true);
@@ -68,11 +68,11 @@ public sealed class SymbolIndexTests : IDisposable {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
         var path = "test.cs";
-        fs.WriteAllText(path, "public class Old { }");
+        await fs.WriteAllText(path, "public class Old { }");
         await index.IndexFileAsync(path, CancellationToken.None).ConfigureAwait(true);
         var firstCount = _store.SymbolsByFqn.Count;
 
-        fs.WriteAllText(path, "public class New { }");
+        await fs.WriteAllText(path, "public class New { }");
         await index.IndexFileAsync(path, CancellationToken.None).ConfigureAwait(true);
 
         Assert.Equal(firstCount, _store.SymbolsByFqn.Count);
@@ -118,8 +118,8 @@ public sealed class SymbolIndexTests : IDisposable {
     public async Task IndexFilesAsync_IndexesMultipleFiles() {
         await using var fs = new IO.FileSystem.InMemoryFileSystem();
         var index = new SymbolIndex(_store, fs, new CSharpSymbolExtractor());
-        fs.WriteAllText("a.cs", "public class A { }");
-        fs.WriteAllText("b.cs", "public class B { }");
+        await fs.WriteAllText("a.cs", "public class A { }");
+        await fs.WriteAllText("b.cs", "public class B { }");
 
         await index.IndexFilesAsync(["a.cs", "b.cs"], CancellationToken.None).ConfigureAwait(true);
 

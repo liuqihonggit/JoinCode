@@ -43,7 +43,19 @@ public static class Program {
         }
 
         if (args[0] == "strip-bom") {
-            return RunStripBomCommand(args[1..]);
+            return await RunStripBomCommand(args[1..]).ConfigureAwait(false);
+        }
+
+        if (args[0] == "fix-async") {
+            return await RunFixAsyncCommand(args[1..]).ConfigureAwait(false);
+        }
+
+        if (args[0] == "fix-async-issues") {
+            return await RunFixAsyncIssuesCommand(args[1..]).ConfigureAwait(false);
+        }
+
+        if (args[0] == "fix-from-build-errors") {
+            return await RunFixFromBuildErrorsCommand(args[1..]).ConfigureAwait(false);
         }
 
         // 默认: 审计模式（直接传 slnx/csproj 路径）
@@ -487,7 +499,7 @@ public static class Program {
     /// <summary>
     /// BOM 移除模式：扫描指定目录下所有 .cs 文件，移除 UTF-8 BOM
     /// </summary>
-    private static int RunStripBomCommand(string[] args) {
+    private static async Task<int> RunStripBomCommand(string[] args) {
         if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal) || args.Contains("-h", StringComparer.Ordinal)) {
             PrintStripBomUsage();
             return 0;
@@ -512,12 +524,12 @@ public static class Program {
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
         try {
-            var report = BomStripper.Strip(targetPath, dryRun, skipTests, cts.Token);
+            var report = await BomStripper.Strip(targetPath, dryRun, skipTests, cts.Token).ConfigureAwait(false);
 
             var json = JsonSerializer.Serialize(report, AuditReportContext.Default.BomStripReport);
 
             if (!string.IsNullOrEmpty(outputPath)) {
-                SafeFileIO.WriteAllText(outputPath, json);
+                await SafeFileIO.WriteAllTextAsync(outputPath, json).ConfigureAwait(false);
                 Console.WriteLine($"报告已写入: {outputPath}");
             }
 
@@ -535,6 +547,136 @@ public static class Program {
         } catch (ArgumentException ex) {
             Console.Error.WriteLine(ex.Message);
             return 1;
+        }
+    }
+
+    /// <summary>
+    /// fix-async 模式：用 Roslyn AST 检测含 await 的非 async 方法，自动添加 async 修饰符
+    /// </summary>
+    private static async Task<int> RunFixAsyncCommand(string[] args) {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal) || args.Contains("-h", StringComparer.Ordinal)) {
+            Console.WriteLine("用法: jcc-audit fix-async &lt;目录&gt; [--dry-run] [--skip-tests]");
+            Console.WriteLine();
+            Console.WriteLine("选项:");
+            Console.WriteLine("  --dry-run     仅预览，不实际写入文件");
+            Console.WriteLine("  --skip-tests  跳过测试项目目录");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+        var skipTests = args.Contains("--skip-tests", StringComparer.Ordinal);
+
+        if (string.IsNullOrEmpty(targetPath)) {
+            Console.Error.WriteLine("必须指定扫描目录路径。");
+            return 1;
+        }
+
+        Console.WriteLine("=== JccAuditCli fix-async ===");
+        Console.WriteLine($"目录: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+        Console.WriteLine($"跳过测试: {skipTests}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
+        try {
+            var (fixedFiles, fixedMethods, skippedFiles) = await AsyncMethodFixer.FixDirectoryAsync(targetPath, dryRun, skipTests, cts.Token).ConfigureAwait(false);
+
+            Console.WriteLine();
+            Console.WriteLine("=== fix-async 报告 ===");
+            Console.WriteLine($"修复文件: {fixedFiles}");
+            Console.WriteLine($"修复方法: {fixedMethods}");
+            Console.WriteLine($"跳过文件: {skippedFiles}");
+
+            return fixedMethods > 0 ? (dryRun ? 3 : 0) : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("扫描超时（5 分钟限制）。");
+            return 2;
+        } catch (ArgumentException ex) {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// fix-async-issues 模式：用 MSBuildWorkspace 语义模型一次性修复所有异步相关问题
+    /// </summary>
+    private static async Task<int> RunFixAsyncIssuesCommand(string[] args) {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal) || args.Contains("-h", StringComparer.Ordinal)) {
+            Console.WriteLine("用法: jcc-audit fix-async-issues &lt;slnx&gt; [--dry-run]");
+            Console.WriteLine();
+            Console.WriteLine("修复类型:");
+            Console.WriteLine("  1. 方法重命名 Clear→ClearAsync + 加 await");
+            Console.WriteLine("  2. 移除测试代码中 ConfigureAwait(false)");
+            Console.WriteLine("  3. 加 await 到未 await 的 Task/ValueTask 调用");
+            Console.WriteLine("  4. using → await using（IAsyncDisposable）");
+            Console.WriteLine("  5. 修复 await xxx.Should() → (await xxx).Should()");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+
+        if (string.IsNullOrEmpty(targetPath)) {
+            Console.Error.WriteLine("必须指定解决方案路径。");
+            return 1;
+        }
+
+        Console.WriteLine("=== JccAuditCli fix-async-issues ===");
+        Console.WriteLine($"解决方案: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+
+        try {
+            var (fixedFiles, fixedIssues, skippedFiles) = await AsyncIssueFixer.FixAllAsync(targetPath, dryRun, cts.Token).ConfigureAwait(false);
+
+            Console.WriteLine();
+            Console.WriteLine("=== fix-async-issues 报告 ===");
+            Console.WriteLine($"修复文件: {fixedFiles}");
+            Console.WriteLine($"修复问题: {fixedIssues}");
+            Console.WriteLine($"跳过文件: {skippedFiles}");
+
+            return fixedIssues > 0 ? (dryRun ? 3 : 0) : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("扫描超时（10 分钟限制）。");
+            return 2;
+        } catch (ArgumentException ex) {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// fix-from-build-errors 模式：运行 dotnet build，解析 CS1503/CS1061 错误位置，精确加 await
+    /// </summary>
+    private static async Task<int> RunFixFromBuildErrorsCommand(string[] args) {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
+            Console.WriteLine("用法: jcc-audit fix-from-build-errors &lt;slnx&gt; [--dry-run]");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+
+        Console.WriteLine("=== JccAuditCli fix-from-build-errors ===");
+        Console.WriteLine($"解决方案: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(15));
+
+        try {
+            var (fixedFiles, fixedIssues) = await BuildErrorFixer.FixFromBuildErrorsAsync(targetPath, dryRun, cts.Token).ConfigureAwait(false);
+
+            Console.WriteLine();
+            Console.WriteLine("=== fix-from-build-errors 报告 ===");
+            Console.WriteLine($"修复文件: {fixedFiles}");
+            Console.WriteLine($"修复问题: {fixedIssues}");
+
+            return fixedIssues > 0 ? (dryRun ? 3 : 0) : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("超时。");
+            return 2;
         }
     }
 

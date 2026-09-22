@@ -140,8 +140,8 @@ public sealed class StructuredOutputToolHandler {
                     var jsonNode = JsonNode.Parse(content);
                     string formattedJson;
                     if (jsonNode is not null) {
-                        using var stream = new MemoryStream();
-                        using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
+                        await using var stream = new MemoryStream();
+                        await using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
                         jsonNode.WriteTo(writer);
                         writer.Flush();
                         formattedJson = System.Text.Encoding.UTF8.GetString(stream.ToArray());

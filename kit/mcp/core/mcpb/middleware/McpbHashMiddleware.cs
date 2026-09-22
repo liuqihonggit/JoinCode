@@ -25,8 +25,7 @@ public sealed partial class McpbHashMiddleware : ServiceEntity, IMcpbMiddleware 
     /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct) {
         var filePath = context.LocalFilePath;
-
-        using var stream = _fs.OpenRead(filePath);
+        await using var stream = _fs.OpenRead(filePath);
         var hash = await SHA256.HashDataAsync(stream, ct).ConfigureAwait(false);
         context.ContentHash = Convert.ToHexString(hash).AsSpan(0, 16).ToString().ToLowerInvariant();
         context.ExtractPath = Path.Combine(context.ExtractBasePath, context.ContentHash);

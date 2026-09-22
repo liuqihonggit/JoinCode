@@ -346,7 +346,7 @@ public sealed class CliSession {
 
         var originalOut = TerminalHelper.Out;
         var commandOutput = new StringBuilder();
-        using var commandWriter = new System.IO.StringWriter(commandOutput);
+        await using var commandWriter = new System.IO.StringWriter(commandOutput);
         TerminalHelper.SetOut(commandWriter);
 
         ChatCommandResult result;

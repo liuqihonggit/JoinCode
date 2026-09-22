@@ -54,7 +54,7 @@ public sealed class McpTcpServer : ServiceEntity {
         _listener.Start();
 
         // 取消时 Stop listener,中断 AcceptTcpClientAsync 阻塞
-        using var registration = _cts.Token.Register(static state => {
+        await using var registration = _cts.Token.Register(static state => {
             var self = (McpTcpServer)state!;
             try { self._listener.Stop(); } catch (Exception ex) { Console.WriteLine($"McpTcpServer: Stop 失败: {ex.Message}"); }
         }, this);
@@ -84,7 +84,7 @@ public sealed class McpTcpServer : ServiceEntity {
     private async Task HandleClientAsync(TcpClient client, CancellationToken ct) {
         try {
             using (client)
-            using (var stream = client.GetStream()) {
+            await using (var stream = client.GetStream()) {
                 while (!ct.IsCancellationRequested && client.Connected) {
                     HttpRequestInfo? request;
                     try {

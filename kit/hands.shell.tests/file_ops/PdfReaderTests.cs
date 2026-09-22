@@ -111,18 +111,18 @@ public sealed class PdfReaderTests : IDisposable {
     }
 
     [Fact]
-    public void GetPdfPageCount_FileNotFound_ReturnsNull() {
-        var count = PdfReader.GetPdfPageCount("/missing.pdf", _fileOperationService.FileSystem);
+    public async Task GetPdfPageCount_FileNotFound_ReturnsNull() {
+        var count = await PdfReader.GetPdfPageCount("/missing.pdf", _fileOperationService.FileSystem);
 
         count.Should().BeNull();
     }
 
     [Fact]
-    public void GetPdfPageCount_ValidPdf_ReturnsCount() {
+    public async Task GetPdfPageCount_ValidPdf_ReturnsCount() {
         var pdfBytes = CreateMinimalPdf(7);
         _fileOperationService.FileSystem.WriteAllBytes("/count.pdf", pdfBytes);
 
-        var count = PdfReader.GetPdfPageCount("/count.pdf", _fileOperationService.FileSystem);
+        var count = await PdfReader.GetPdfPageCount("/count.pdf", _fileOperationService.FileSystem);
 
         count.Should().Be(7);
     }

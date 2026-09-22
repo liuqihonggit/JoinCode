@@ -133,9 +133,7 @@ public sealed class BridgeBuilderGuardServicesTests {
     public async Task BuildBridgeGuardServices_ShouldReturnDisposableServiceProvider() {
         // Arrange
         var fs = new IO.FileSystem.PhysicalFileSystem();
-
-        // Act
-        using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
 
         // Assert
         services.Should().BeAssignableTo<IDisposable>("ServiceProvider 必须实现 IDisposable 以支持 using 语句");

@@ -2,8 +2,8 @@
 
 public sealed class GlobRulesSectionTests {
     [Fact]
-    public void Create_With_Null_Rules_Should_Return_Null_Content() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_With_Null_Rules_Should_Return_Null_Content() {
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["test.cs"]);
         PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
 
@@ -13,8 +13,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_With_Empty_Rules_Should_Return_Null_Content() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_With_Empty_Rules_Should_Return_Null_Content() {
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["test.cs"]);
         PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
 
@@ -24,8 +24,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_With_No_File_Context_Should_Return_Null_Content() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_With_No_File_Context_Should_Return_Null_Content() {
+        await using var tracker = new FileContextTracker();
         var rules = new List<ExternalRuleEntry>
         {
             new() { Name = "test", Content = "rule content", Globs = "*.cs" }
@@ -38,8 +38,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_With_Matching_Glob_Should_Return_Content() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_With_Matching_Glob_Should_Return_Content() {
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["Program.cs"]);
 
         var rules = new List<ExternalRuleEntry>
@@ -57,8 +57,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_With_Non_Matching_Glob_Should_Return_Null() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_With_Non_Matching_Glob_Should_Return_Null() {
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["README.md"]);
 
         var rules = new List<ExternalRuleEntry>
@@ -73,8 +73,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_With_Multiple_Patterns_Should_Match_Any() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_With_Multiple_Patterns_Should_Match_Any() {
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["app.ts"]);
 
         var rules = new List<ExternalRuleEntry>
@@ -91,8 +91,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_With_Description_Should_Include_Description() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_With_Description_Should_Include_Description() {
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["test.cs"]);
 
         var rules = new List<ExternalRuleEntry>
@@ -108,8 +108,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_With_Rule_Without_Globs_Should_Be_Skipped() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_With_Rule_Without_Globs_Should_Be_Skipped() {
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["test.cs"]);
 
         var rules = new List<ExternalRuleEntry>
@@ -128,8 +128,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_Should_Match_Full_Path() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_Should_Match_Full_Path() {
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["src/core/Program.cs"]);
 
         var rules = new List<ExternalRuleEntry>
@@ -146,8 +146,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_Should_Be_Dynamic_Section() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_Should_Be_Dynamic_Section() {
+        await using var tracker = new FileContextTracker();
         PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
 
         var section = GlobRulesSection.Create();
@@ -156,8 +156,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_Should_Reflect_Updated_File_Context() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_Should_Reflect_Updated_File_Context() {
+        await using var tracker = new FileContextTracker();
         var rules = new List<ExternalRuleEntry>
         {
             new() { Name = "C# 规则", Content = "规则内容", Globs = "*.cs" }
@@ -176,8 +176,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_With_Exact_Name_Match_Should_Work() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_With_Exact_Name_Match_Should_Work() {
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["Program.cs"]);
 
         var rules = new List<ExternalRuleEntry>
@@ -194,8 +194,8 @@ public sealed class GlobRulesSectionTests {
     }
 
     [Fact]
-    public void Create_With_Question_Mark_Wildcard_Should_Work() {
-        using var tracker = new FileContextTracker();
+    public async Task Create_With_Question_Mark_Wildcard_Should_Work() {
+        await using var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["test.cs"]);
 
         var rules = new List<ExternalRuleEntry>

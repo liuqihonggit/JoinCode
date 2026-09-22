@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.LLM.QueryServices.Anthropic;
+namespace Llm.Tests.Adapters.LLM.QueryServices.Anthropic;
 
 public sealed class AnthropicQueryServiceTests {
     #region ConvertToAnthropicMessages
@@ -226,8 +226,8 @@ public sealed class AnthropicQueryServiceTests {
     #region Two-Phase Tool Loading — BuildAnthropicToolsFromKernel
 
     [Fact]
-    public void BuildAnthropicToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task BuildAnthropicToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file"),
             new ToolDef("write", "Write a file")
@@ -241,8 +241,8 @@ public sealed class AnthropicQueryServiceTests {
     }
 
     [Fact]
-    public void BuildAnthropicToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task BuildAnthropicToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.server1.tool1", "MCP tool 1"),
             new ToolDef("mcp.server2.tool2", "MCP tool 2")
@@ -257,8 +257,8 @@ public sealed class AnthropicQueryServiceTests {
     }
 
     [Fact]
-    public void BuildAnthropicToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task BuildAnthropicToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file")
         ]));
@@ -280,8 +280,8 @@ public sealed class AnthropicQueryServiceTests {
     #region Two-Phase Tool Loading — CreateSecondAnthropicRequestWithDescriptions
 
     [Fact]
-    public void CreateSecondAnthropicRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task CreateSecondAnthropicRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1"),
             new ToolDef("mcp.tool2", "MCP tool 2")
@@ -303,8 +303,8 @@ public sealed class AnthropicQueryServiceTests {
     }
 
     [Fact]
-    public void CreateSecondAnthropicRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task CreateSecondAnthropicRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));
@@ -318,8 +318,8 @@ public sealed class AnthropicQueryServiceTests {
     }
 
     [Fact]
-    public void CreateSecondAnthropicRequestWithDescriptions_PreservesOriginalFields() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task CreateSecondAnthropicRequestWithDescriptions_PreservesOriginalFields() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));

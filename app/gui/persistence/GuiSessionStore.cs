@@ -42,7 +42,7 @@ public sealed class GuiSessionStore {
         var summaries = new List<GuiSessionSummary>();
         foreach (var file in _fs.GetFiles(_sessionsDir, "gui.json", SearchOption.AllDirectories)) {
             try {
-                var json = _fs.ReadAllText(file);
+                var json = _fs.ReadAllText(file).GetAwaiter().GetResult();
                 var data = RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
                 if (data is null || string.IsNullOrWhiteSpace(data.Id))
                     continue;
@@ -98,7 +98,7 @@ public sealed class GuiSessionStore {
             return null;
 
         try {
-            var json = _fs.ReadAllText(path);
+            var json = _fs.ReadAllText(path).GetAwaiter().GetResult();
             return RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
         } catch (Exception) {
             return null;
@@ -161,7 +161,7 @@ public sealed class GuiSessionStore {
             _fs.CreateDirectory(dir);
 
         var json = RelaxedJsonSerializer.Serialize(session, GuiJsonContext.Default);
-        _fs.WriteAllText(path, json);
+        _fs.WriteAllText(path, json).GetAwaiter().GetResult();
         return true;
     }
 

@@ -1,4 +1,4 @@
-﻿namespace Guard.Tests.Hooks.Execution.Interception;
+namespace Guard.Tests.Hooks.Execution.Interception;
 
 /// <summary>
 /// CommandInterceptionDispatcher 单元测试 — 验证守卫链/拦截器链/链式改写/优先级/短路/异常跳过
@@ -174,10 +174,10 @@ public sealed class CommandInterceptionDispatcherTests {
     }
 
     [Fact]
-    public void Constructor_GuardsSortedByPriorityDescending() {
+    public async Task Constructor_GuardsSortedByPriorityDescending() {
         var low = new StubGuard("low", priority: 10, new CommandDecision.Allow());
         var high = new StubGuard("high", priority: 100, new CommandDecision.Allow());
-        using var dispatcher = new CommandInterceptionDispatcher([low, high], []);
+        await using var dispatcher = new CommandInterceptionDispatcher([low, high], []);
 
         dispatcher.GetGuards()[0].Should().BeSameAs(high);
         dispatcher.GetGuards()[1].Should().BeSameAs(low);

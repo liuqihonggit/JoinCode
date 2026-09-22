@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.LLM;
+namespace Llm.Tests.Adapters.LLM;
 
 public class ChatClientTests {
     [Fact]
@@ -8,22 +8,22 @@ public class ChatClientTests {
     }
 
     [Fact]
-    public void GetChatCompletionService_ReturnsInjectedService() {
+    public async Task GetChatCompletionService_ReturnsInjectedService() {
         var mockService = new Mock<IQueryService>();
-        using var client = new ChatClient(mockService.Object);
+        await using var client = new ChatClient(mockService.Object);
 
         client.GetChatCompletionService().Should().BeSameAs(mockService.Object);
     }
 
     [Fact]
-    public void Plugins_IsNotNull() {
-        using var client = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task Plugins_IsNotNull() {
+        await using var client = new ChatClient(new Mock<IQueryService>().Object);
         client.Plugins.Should().NotBeNull();
     }
 
     [Fact]
-    public void ToolCollection_AddAndGetPlugin_ReturnsPlugin() {
-        using var client = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task ToolCollection_AddAndGetPlugin_ReturnsPlugin() {
+        await using var client = new ChatClient(new Mock<IQueryService>().Object);
         var plugin = new ToolGroup("test", [new ToolDef("fn", "desc")]);
 
         client.Plugins.Add(plugin);
@@ -33,8 +33,8 @@ public class ChatClientTests {
     }
 
     [Fact]
-    public void ToolCollection_Remove_RemovesPlugin() {
-        using var client = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task ToolCollection_Remove_RemovesPlugin() {
+        await using var client = new ChatClient(new Mock<IQueryService>().Object);
         client.Plugins.Add(new ToolGroup("test", []));
 
         var removed = client.Plugins.Remove("test");
@@ -44,8 +44,8 @@ public class ChatClientTests {
     }
 
     [Fact]
-    public void ToolCollection_GetMissingPlugin_ReturnsNull() {
-        using var client = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task ToolCollection_GetMissingPlugin_ReturnsNull() {
+        await using var client = new ChatClient(new Mock<IQueryService>().Object);
         client.Plugins.GetPlugin("missing").Should().BeNull();
     }
 

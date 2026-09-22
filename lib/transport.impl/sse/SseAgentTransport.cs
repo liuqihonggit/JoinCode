@@ -211,8 +211,7 @@ public sealed partial class SseAgentTransport : IAgentTransport {
                 response.EnsureSuccessStatusCode();
 
                 _reconnectAttempts = 0;
-
-                using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
 
                 await ParseSseStreamAsync(stream, ct).ConfigureAwait(false);
             } catch (OperationCanceledException) {

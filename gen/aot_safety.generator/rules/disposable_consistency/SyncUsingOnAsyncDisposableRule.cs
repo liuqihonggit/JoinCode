@@ -40,9 +40,8 @@ public sealed class SyncUsingOnAsyncDisposableRule : AnalyzerRuleBase<SyncUsingO
             if (idisposableType is null) return;
 
             var implementsIAsyncDisposable = type.AllInterfaces.Contains(iasyncDisposableType, SymbolEqualityComparer.Default);
-            var implementsIDisposable = type.AllInterfaces.Contains(idisposableType, SymbolEqualityComparer.Default);
 
-            if (implementsIAsyncDisposable && !implementsIDisposable) {
+            if (implementsIAsyncDisposable && !IsBclWhitelisted(type)) {
                 var typeName = type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                 ctx.ReportDiagnostic(Diagnostic.Create(
                     Descriptor,
@@ -51,4 +50,7 @@ public sealed class SyncUsingOnAsyncDisposableRule : AnalyzerRuleBase<SyncUsingO
             }
         }
     }
+
+    /// <summary>BCL 白名单已移除 — BCL 调用通过 lib/bcl_bridge/ 隔离区封装，分析器不扫描隔离区</summary>
+    private static bool IsBclWhitelisted(INamedTypeSymbol type) => false;
 }

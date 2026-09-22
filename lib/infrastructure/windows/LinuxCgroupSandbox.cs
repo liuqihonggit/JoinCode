@@ -27,7 +27,7 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable {
     /// <param name="memoryLimitBytes">内存上限（字节），null 或 &lt;=0 表示不限制</param>
     /// <param name="pidsMax">进程数上限，null 或 &lt;=0 表示不限制</param>
     /// <returns>创建成功返回 true；非 Linux 或无可写 cgroup 路径返回 false</returns>
-    public bool CreateCgroup(string? name = null, long? memoryLimitBytes = null, int? pidsMax = null) {
+    public async ValueTask<bool> CreateCgroup(string? name = null, long? memoryLimitBytes = null, int? pidsMax = null) {
         if (!OperatingSystem.IsLinux()) {
             return false;
         }
@@ -46,11 +46,11 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable {
             _ownsCgroup = true;
 
             if (memoryLimitBytes.HasValue && memoryLimitBytes.Value > 0) {
-                SafeFileIO.WriteAllText(Path.Combine(_cgroupPath, "memory.max"), memoryLimitBytes.Value.ToString());
+                await SafeFileIO.WriteAllText(Path.Combine(_cgroupPath, "memory.max"), memoryLimitBytes.Value.ToString()).ConfigureAwait(false);
             }
 
             if (pidsMax.HasValue && pidsMax.Value > 0) {
-                SafeFileIO.WriteAllText(Path.Combine(_cgroupPath, "pids.max"), pidsMax.Value.ToString());
+                await SafeFileIO.WriteAllText(Path.Combine(_cgroupPath, "pids.max"), pidsMax.Value.ToString()).ConfigureAwait(false);
             }
 
             _logger?.LogInformation("[LinuxCgroup] cgroup 已创建: {Path}", _cgroupPath);
@@ -68,13 +68,13 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable {
     /// </summary>
     /// <param name="processId">进程 ID</param>
     /// <returns>加入成功返回 true；非 Linux 或未创建 cgroup 返回 false</returns>
-    public bool AssignProcess(int processId) {
+    public async ValueTask<bool> AssignProcess(int processId) {
         if (!OperatingSystem.IsLinux() || _cgroupPath is null) {
             return false;
         }
 
         try {
-            SafeFileIO.WriteAllText(Path.Combine(_cgroupPath, "cgroup.procs"), processId.ToString());
+            await SafeFileIO.WriteAllText(Path.Combine(_cgroupPath, "cgroup.procs"), processId.ToString()).ConfigureAwait(false);
             _logger?.LogInformation("[LinuxCgroup] 进程 {Pid} 已加入 cgroup", processId);
             return true;
         } catch (Exception ex) {
@@ -87,7 +87,7 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable {
     /// 终止当前 cgroup 中的所有进程
     /// </summary>
     /// <returns>终止成功返回 true；非 Linux 或未创建 cgroup 返回 false</returns>
-    public bool KillAllProcesses() {
+    public async ValueTask<bool> KillAllProcesses() {
         if (!OperatingSystem.IsLinux() || _cgroupPath is null) {
             return false;
         }
@@ -95,7 +95,7 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable {
         try {
             var killPath = Path.Combine(_cgroupPath, "cgroup.kill");
             if (File.Exists(killPath)) {
-                SafeFileIO.WriteAllText(killPath, "1");
+                await SafeFileIO.WriteAllText(killPath, "1").ConfigureAwait(false);
                 _logger?.LogInformation("[LinuxCgroup] 已通过 cgroup.kill 终止所有进程");
                 return true;
             }
@@ -103,7 +103,7 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable {
             var procsPath = Path.Combine(_cgroupPath, "cgroup.procs");
             if (!File.Exists(procsPath)) return true;
 
-            var pidsText = SafeFileIO.ReadAllText(procsPath).Trim();
+            var pidsText = (await SafeFileIO.ReadAllText(procsPath).ConfigureAwait(false)).Trim();
             if (pidsText.Length > 0) {
                 foreach (var pidStr in pidsText.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
                     if (int.TryParse(pidStr, out var pid) && pid != Environment.ProcessId) {
@@ -147,9 +147,9 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable {
     /// 异步释放资源 — 终止 cgroup 内所有进程并删除 cgroup 目录
     /// </summary>
     /// <returns>表示异步操作的任务</returns>
-    public ValueTask DisposeAsync() {
+    public async ValueTask DisposeAsync() {
         if (_cgroupPath is not null && _ownsCgroup) {
-            KillAllProcesses();
+            await KillAllProcesses().ConfigureAwait(false);
 
             try {
                 if (Directory.Exists(_cgroupPath)) {
@@ -162,7 +162,5 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable {
             _cgroupPath = null;
             _ownsCgroup = false;
         }
-
-        return ValueTask.CompletedTask;
     }
 }

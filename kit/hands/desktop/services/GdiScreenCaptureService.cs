@@ -26,15 +26,15 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
     }
 
     /// <summary>指定屏幕区域截图</summary>
-    public Task<string> CaptureRegionAsync(int x, int y, int width, int height, CancellationToken cancellationToken = default) {
-        if (width <= 0 || height <= 0) return Task.FromResult(string.Empty);
-        return Task.FromResult(CaptureRegionCore(x, y, width, height));
+    public async Task<string> CaptureRegionAsync(int x, int y, int width, int height, CancellationToken cancellationToken = default) {
+        if (width <= 0 || height <= 0) return string.Empty;
+        return await CaptureRegionCoreAsync(x, y, width, height).ConfigureAwait(false);
     }
 
     /// <summary>释放屏幕截图服务资源 — 无外部资源需释放。</summary>
     public override void Dispose() => base.Dispose();
 
-    private string CaptureRegionCore(int x, int y, int width, int height) {
+    private async Task<string> CaptureRegionCoreAsync(int x, int y, int width, int height) {
         var hdcScreen = User32NativeMethods.GetDC(IntPtr.Zero);
         if (hdcScreen == IntPtr.Zero) return string.Empty;
 
@@ -76,7 +76,7 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
             for (var i = 3; i < bytes.Length; i += 4) bytes[i] = 255;
 
             using var image = Image.LoadPixelData<Bgra32>(bytes, width, height);
-            using var ms = new MemoryStream();
+            await using var ms = new MemoryStream();
             image.Save(ms, new PngEncoder());
             return Convert.ToBase64String(ms.ToArray());
         } catch (Exception ex) {

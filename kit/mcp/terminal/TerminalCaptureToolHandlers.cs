@@ -37,7 +37,7 @@ public partial class TerminalCaptureToolHandlers {
             var effectiveMaxLines = max_lines ?? 50;
 
             if (_captureService != null) {
-                return CaptureWithService(captureType, effectiveMaxLines);
+                return await CaptureWithService(captureType, effectiveMaxLines).ConfigureAwait(false);
             }
 
             return CaptureFallback(captureType, effectiveMaxLines);
@@ -47,12 +47,12 @@ public partial class TerminalCaptureToolHandlers {
         }
     }
 
-    private ToolResult CaptureWithService(CaptureType captureType, int maxLines) {
+    private async Task<ToolResult> CaptureWithService(CaptureType captureType, int maxLines) {
         var response = new System.Text.StringBuilder();
 
         if (captureType == CaptureType.Buffer) {
             var captureService = _captureService ?? throw new InvalidOperationException("CaptureService is not available");
-            var snapshot = captureService.CaptureBuffer(maxLines);
+            var snapshot = await captureService.CaptureBuffer(maxLines).ConfigureAwait(false);
             if (snapshot == null) {
                 response.AppendLine(L.T(StringKey.TerminalBufferCapture));
                 response.AppendLine();
@@ -68,7 +68,7 @@ public partial class TerminalCaptureToolHandlers {
             response.AppendLine(snapshot.Content);
         } else {
             var captureService = _captureService ?? throw new InvalidOperationException("CaptureService is not available");
-            var snapshot = captureService.CaptureScreen();
+            var snapshot = await captureService.CaptureScreen().ConfigureAwait(false);
             response.AppendLine(L.T(StringKey.TerminalScreenCapture));
             response.AppendLine(L.T(StringKey.TerminalLabelSize, snapshot.Width, snapshot.Height));
             response.AppendLine(L.T(StringKey.TerminalLabelCaptureTime, snapshot.CapturedAt.ToString("yyyy-MM-dd HH:mm:ss")));

@@ -93,10 +93,9 @@ public partial class ContextCompressionIntegrationTests {
     }
 
     [Fact]
-    public void CanCompress_WithValidContent_ShouldReturnTrue() {
-        // Arrange
-        using var factory = new CompressionStrategyFactory();
-        using var compressor = new ContextCompressor(factory);
+    public async Task CanCompress_WithValidContent_ShouldReturnTrue() {
+        await using var factory = new CompressionStrategyFactory();
+        await using var compressor = new ContextCompressor(factory);
         var longContent = new string('x', 1000);
 
         // Act & Assert
@@ -107,10 +106,9 @@ public partial class ContextCompressionIntegrationTests {
     }
 
     [Fact]
-    public void CanCompress_WithShortContent_ShouldReturnFalse() {
-        // Arrange
-        using var factory = new CompressionStrategyFactory();
-        using var compressor = new ContextCompressor(factory);
+    public async Task CanCompress_WithShortContent_ShouldReturnFalse() {
+        await using var factory = new CompressionStrategyFactory();
+        await using var compressor = new ContextCompressor(factory);
         var shortContent = "短内容";
 
         // Act & Assert
@@ -118,10 +116,9 @@ public partial class ContextCompressionIntegrationTests {
     }
 
     [Fact]
-    public void GetCompressionRatio_ShouldReturnEstimatedRatio() {
-        // Arrange
-        using var factory = new CompressionStrategyFactory();
-        using var compressor = new ContextCompressor(factory);
+    public async Task GetCompressionRatio_ShouldReturnEstimatedRatio() {
+        await using var factory = new CompressionStrategyFactory();
+        await using var compressor = new ContextCompressor(factory);
         var codeContent = GenerateLargeCodeContent(50);
 
         // Act
@@ -332,9 +329,8 @@ public partial class ContextCompressionIntegrationTests {
     }
 
     [Fact]
-    public void CompressionStrategyFactory_RegisterAndRetrieve_ShouldWork() {
-        // Arrange
-        using var factory = new CompressionStrategyFactory();
+    public async Task CompressionStrategyFactory_RegisterAndRetrieve_ShouldWork() {
+        await using var factory = new CompressionStrategyFactory();
 
         // Act & Assert - 验证默认策略已注册
         factory.HasStrategyFor(ContentType.Code).Should().BeTrue();

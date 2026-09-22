@@ -172,7 +172,7 @@ internal static class PipeAcceptLoop {
             while (!ct.IsCancellationRequested) {
                 var server = NamedPipeFactory.CreateServer(pipeName);
                 try {
-                    using var reg = ct.Register(static s => ((NamedPipeServerStream)s!).Dispose(), server);
+                    await using var reg = ct.Register(static s => ((NamedPipeServerStream)s!).Dispose(), server);
                     await server.WaitForConnectionAsync(ct).ConfigureAwait(false);
                     reg.Unregister();
                     TransportDiagnostics.Log("PIPE-ACCEPT", () => $"accepted connection on {pipeName}");
@@ -180,7 +180,7 @@ internal static class PipeAcceptLoop {
                     connectionTasks.Add(Task.Run(() => handleConnection(server, ct)));
                 } catch (OperationCanceledException) { return; } catch (ObjectDisposedException) { return; } catch (Exception ex) {
                     TransportDiagnostics.Log("PIPE-ACCEPT", () => $"连接错误: {ex.Message}");
-                    try { server.Dispose(); } catch (Exception) { TransportDiagnostics.Log("PIPE-ACCEPT", "server Dispose 失败"); }
+                    try { await server.DisposeAsync().ConfigureAwait(false); } catch (Exception) { TransportDiagnostics.Log("PIPE-ACCEPT", "server Dispose 失败"); }
                 }
             }
         } finally {

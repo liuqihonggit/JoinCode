@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/bcl_bridge/BclBridge.csproj" />
     <ProjectReference Include="$(RepoRoot)gen/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(RepoRoot)gen/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(RepoRoot)gen/danger_command.generator/DangerCommand.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

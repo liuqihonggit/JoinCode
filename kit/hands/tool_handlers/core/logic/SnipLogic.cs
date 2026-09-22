@@ -59,7 +59,7 @@ public sealed partial class SnipLogic : ServiceEntity {
 
         var result2 = new StringBuilder();
         var currentLine = 0;
-        using var stream = _fs.OpenRead(filePath);
+        await using var stream = _fs.OpenRead(filePath);
         using var reader = new StreamReader(stream, encoding);
         while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line) {
             if (currentLine >= startLine) {
@@ -96,7 +96,7 @@ public sealed partial class SnipLogic : ServiceEntity {
             throw new FileNotFoundException(L.T(StringKey.SnipFileNotFound, filePath), filePath);
 
         long fileSize;
-        using (var sizeStream = _fs.OpenRead(filePath)) {
+        await using (var sizeStream = _fs.OpenRead(filePath)) {
             fileSize = sizeStream.Length;
         }
 
@@ -119,7 +119,7 @@ public sealed partial class SnipLogic : ServiceEntity {
         var totalLines = 0;
         var previewContent2 = new StringBuilder();
         var previewLinesCollected2 = 0;
-        using var stream = _fs.OpenRead(filePath);
+        await using var stream = _fs.OpenRead(filePath);
         using var reader = new StreamReader(stream, encoding);
         while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line) {
             totalLines++;

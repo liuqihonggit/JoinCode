@@ -55,7 +55,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         _persistenceFs = fileSystem;
         _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;
         _actor = new TeamActor(this, logger);
-        LoadState();
+        _ = LoadStateAsync();
     }
 
     /// <summary>

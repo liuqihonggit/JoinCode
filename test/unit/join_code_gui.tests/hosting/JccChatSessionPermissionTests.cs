@@ -190,7 +190,6 @@ public class JccChatSessionPermissionTests {
         public void RemoveTemporaryApproval(string toolName) {
         }
 
-        public void ClearCache() {
-        }
+        public Task ClearCacheAsync() => Task.CompletedTask;
     }
 }

@@ -336,10 +336,10 @@ public class ConfigLoader {
     }
 
     /// <summary>
-    /// 从 ~/.jcc/settings.json 同步读取指定键的值（兼容旧版扁平 KV 格式）
-    /// P1-3: 为 Lazy&lt;T&gt; 加载场景提供同步入口，避免 sync-over-async 阻塞
+    /// 从 ~/.jcc/settings.json 读取指定键的值（兼容旧版扁平 KV 格式）
+    /// <para>P1-3: 原 Lazy&lt;T&gt; 同步入口；IFileSystem 异步化后改为 async，PhysicalFileSystem UTF-8 走 mmap 同步完成，实际不阻塞。</para>
     /// </summary>
-    public static string? LoadSettingFromSettingsJson(string key, IFileSystem fs, ILogger? logger = null) {
+    public static async Task<string?> LoadSettingFromSettingsJson(string key, IFileSystem fs, ILogger? logger = null) {
         var settingsPath = Path.Combine(
             AppDataConstants.Paths.JccDirectory,
             AppDataConstants.SettingsFileName);
@@ -348,7 +348,7 @@ public class ConfigLoader {
             return null;
 
         try {
-            var json = fs.ReadAllText(settingsPath);
+            var json = await fs.ReadAllText(settingsPath).ConfigureAwait(false);
             return TryGetSettingFromJson(json, key);
         } catch (Exception ex) {
             // 文件损坏或格式错误，忽略

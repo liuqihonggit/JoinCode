@@ -57,11 +57,11 @@ public sealed partial class ReaperScheduler : IDisposable {
     /// <summary>
     /// 手动触发一次全量扫描 — 遍历所有会话, 所有策略
     /// </summary>
-    public int ScanOnce() {
+    public async ValueTask<int> ScanOnce() {
         var count = 0;
         foreach (var scope in SessionRouter.GetAllScopes()) {
             foreach (var strategy in _strategies) {
-                try { strategy.Scan(scope); count++; } catch (Exception ex) { _logger?.LogWarning(ex, "策略 {Name} 扫描会话 {SessionId} 失败", strategy.Name, scope.SessionId); }
+                try { await strategy.Scan(scope).ConfigureAwait(false); count++; } catch (Exception ex) { _logger?.LogWarning(ex, "策略 {Name} 扫描会话 {SessionId} 失败", strategy.Name, scope.SessionId); }
             }
         }
         Interlocked.Increment(ref _totalScans);
@@ -73,7 +73,7 @@ public sealed partial class ReaperScheduler : IDisposable {
         while (!_cts.IsCancellationRequested) {
             try {
                 _signals.Take(_cts.Token);
-                ScanOnce();
+                ScanOnce().GetAwaiter().GetResult();
             } catch (OperationCanceledException) { break; } catch (Exception ex) { _logger?.LogWarning(ex, "ReaperScheduler 扫描循环异常"); }
         }
         _logger?.LogDebug("ReaperScheduler 后台线程退出");

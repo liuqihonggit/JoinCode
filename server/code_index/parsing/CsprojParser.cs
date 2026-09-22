@@ -30,15 +30,15 @@ internal sealed class CsprojParser {
     /// <param name="workspaceRoot">工作区根目录（可选）</param>
     /// <param name="logger">日志记录器（可选）</param>
     /// <returns>解析结果</returns>
-    internal static CsprojParseResult Parse(string filePath, IFileSystem fs, string? workspaceRoot = null, ILogger? logger = null) {
+    internal static async Task<CsprojParseResult> ParseAsync(string filePath, IFileSystem fs, string? workspaceRoot = null, ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(fs);
 
-        var doc = XDocument.Parse(fs.ReadAllText(filePath));
+        var doc = XDocument.Parse(await fs.ReadAllText(filePath).ConfigureAwait(false));
         var projectDir = Path.GetDirectoryName(filePath) ?? string.Empty;
         var name = Path.GetFileNameWithoutExtension(filePath);
 
-        var msbuildProps = LoadMsBuildProperties(projectDir, fs, workspaceRoot, logger);
+        var msbuildProps = await LoadMsBuildPropertiesAsync(projectDir, fs, workspaceRoot, logger).ConfigureAwait(false);
 
         var targetFramework = ExtractProperty(doc, "TargetFramework");
         var outputType = ExtractProperty(doc, "OutputType");
@@ -141,7 +141,7 @@ internal sealed class CsprojParser {
         return result;
     }
 
-    private static Dictionary<string, string> LoadMsBuildProperties(string projectDir, IFileSystem fs, string? workspaceRoot, ILogger? logger = null) {
+    private static async Task<Dictionary<string, string>> LoadMsBuildPropertiesAsync(string projectDir, IFileSystem fs, string? workspaceRoot, ILogger? logger = null) {
         var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         var searchRoot = workspaceRoot ?? projectDir;
@@ -155,7 +155,7 @@ internal sealed class CsprojParser {
             props["MSBuildThisFileDirectory"] = thisFileDir;
 
             try {
-                var doc = XDocument.Parse(fs.ReadAllText(propsFile));
+                var doc = XDocument.Parse(await fs.ReadAllText(propsFile).ConfigureAwait(false));
                 foreach (var pg in doc.Descendants("PropertyGroup")) {
                     foreach (var elem in pg.Elements()) {
                         var value = elem.Value.Trim();

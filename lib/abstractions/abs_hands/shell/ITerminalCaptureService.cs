@@ -13,7 +13,7 @@ public sealed class TerminalSnapshot {
 
 public interface ITerminalCaptureService {
     /// <summary>捕获当前屏幕快照。</summary>
-    TerminalSnapshot CaptureScreen();
+    ValueTask<TerminalSnapshot> CaptureScreen();
     /// <summary>捕获缓冲区快照。</summary>
-    TerminalSnapshot? CaptureBuffer(int maxLines = 50);
+    ValueTask<TerminalSnapshot?> CaptureBuffer(int maxLines = 50);
 }

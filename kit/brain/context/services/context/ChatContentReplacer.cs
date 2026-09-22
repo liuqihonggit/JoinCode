@@ -55,9 +55,9 @@ public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentRep
     /// 对齐 TS maybePersistLargeToolResult — 即时持久化超大工具结果
     /// 纯函数：不修改 state，仅返回替换字符串
     /// </summary>
-    public string? MaybePersistLargeToolResult(string toolName, string toolUseId, string content, string sessionId) {
+    public async ValueTask<string?> MaybePersistLargeToolResult(string toolName, string toolUseId, string content, string sessionId) {
         if (_contentReplacementService is null) return null;
-        return _contentReplacementService.MaybePersistLargeToolResult(toolName, toolUseId, content, sessionId);
+        return await _contentReplacementService.MaybePersistLargeToolResult(toolName, toolUseId, content, sessionId).ConfigureAwait(false);
     }
 
     /// <summary>

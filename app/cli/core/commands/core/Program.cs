@@ -6,7 +6,7 @@ namespace JoinCode;
 class Program {
     static async Task<int> Main(string[] args) {
         // 原生 DLL 引导 — 从嵌入资源释放到临时目录并注册搜索路径（必须在任何 P/Invoke 之前）
-        Entry.Startup.NativeDllBootstrapper.Initialize();
+        await Entry.Startup.NativeDllBootstrapper.InitializeAsync().ConfigureAwait(false);
 
         // 启动时捕获前台窗口 — 此时前台窗口最可能是 jcc 自己的终端窗口
         Hands.Desktop.Win32WindowShakeService.CaptureStartupWindow();
@@ -44,7 +44,7 @@ class Program {
         App.ErrorConsole.IsQuiet = isQuiet;
         if (isQuiet)
             Environment.SetEnvironmentVariable("JCC_LOG_LEVEL", "Error");
-        using var earlyAwaitTimer = StartEarlyAwaitTimer(args);
+        await using var earlyAwaitTimer = StartEarlyAwaitTimer(args);
 
         Cli.TerminalHelper.Init();
         JoinCode.Abstractions.Shell.CommandTerminal.SetConsole(new CliCommandConsole());
@@ -70,8 +70,7 @@ class Program {
             if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(GetHelpTopic(args)); return 0; }
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
-            // 3.5 --await N: 启动超时计时器，N秒后强制退出返回 ExitCode.AwaitTimeout（用于诊断卡死）
-            using var awaitTimer = StartAwaitTimer(options, logger);
+            await using var awaitTimer = StartAwaitTimer(options, logger);
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
 

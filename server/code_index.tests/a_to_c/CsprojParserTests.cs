@@ -15,50 +15,50 @@ public sealed class CsprojParserTests : IDisposable {
     }
 
     [Fact]
-    public void Parse_ExtractsProjectName() {
-        var path = WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+    public async Task Parse_ExtractsProjectName() {
+        var path = await WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
 
-        var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
+        var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
         Assert.Equal("Test", result.Name);
     }
 
     [Fact]
-    public void Parse_ExtractsTargetFramework() {
-        var path = WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+    public async Task Parse_ExtractsTargetFramework() {
+        var path = await WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
 
-        var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
+        var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
         Assert.Equal("net10.0", result.TargetFramework);
     }
 
     [Fact]
-    public void Parse_ExtractsOutputType() {
-        var path = WriteCsproj("<Project><PropertyGroup><OutputType>Exe</OutputType></PropertyGroup></Project>");
+    public async Task Parse_ExtractsOutputType() {
+        var path = await WriteCsproj("<Project><PropertyGroup><OutputType>Exe</OutputType></PropertyGroup></Project>");
 
-        var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
+        var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
         Assert.Equal("Exe", result.OutputType);
     }
 
     [Fact]
-    public void Parse_ExtractsProjectReferences() {
+    public async Task Parse_ExtractsProjectReferences() {
         var dir = Path.Combine(Path.GetTempPath(), $"csproj_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var path = Path.Combine(dir, "Test.csproj");
         var refPath = Path.Combine("..", "Lib", "Lib.csproj");
-        _fs.WriteAllText(path,
+        await _fs.WriteAllText(path,
             $"<Project><ItemGroup><ProjectReference Include=\"{refPath}\" /></ItemGroup></Project>");
 
-        var result = CsprojParser.Parse(path, _fs, dir);
+        var result = await CsprojParser.ParseAsync(path, _fs, dir);
 
         Assert.Single(result.ProjectReferences);
         Assert.EndsWith("Lib.csproj", result.ProjectReferences[0]);
     }
 
     [Fact]
-    public void Parse_ExtractsPackageReferences() {
-        var path = WriteCsproj(
+    public async Task Parse_ExtractsPackageReferences() {
+        var path = await WriteCsproj(
             """
             <Project>
               <ItemGroup>
@@ -68,7 +68,7 @@ public sealed class CsprojParserTests : IDisposable {
             </Project>
             """);
 
-        var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
+        var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
         Assert.Equal(2, result.PackageReferences.Count);
         Assert.Contains(result.PackageReferences, p => p.Name == "Newtonsoft.Json" && p.Version == "13.0.3");
@@ -76,8 +76,8 @@ public sealed class CsprojParserTests : IDisposable {
     }
 
     [Fact]
-    public void Parse_PackageReferenceWithMsBuildVersion_SetsVersionToNull() {
-        var path = WriteCsproj(
+    public async Task Parse_PackageReferenceWithMsBuildVersion_SetsVersionToNull() {
+        var path = await WriteCsproj(
             """
             <Project>
               <ItemGroup>
@@ -86,27 +86,27 @@ public sealed class CsprojParserTests : IDisposable {
             </Project>
             """);
 
-        var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
+        var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
         Assert.Single(result.PackageReferences);
         Assert.Null(result.PackageReferences[0].Version);
     }
 
     [Fact]
-    public void Parse_NoProjectReferences_ReturnsEmptyList() {
-        var path = WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+    public async Task Parse_NoProjectReferences_ReturnsEmptyList() {
+        var path = await WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
 
-        var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
+        var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
         Assert.Empty(result.ProjectReferences);
     }
 
     [Fact]
-    public void Parse_ResolvesMsBuildVariablesFromDirectoryBuildProps() {
+    public async Task Parse_ResolvesMsBuildVariablesFromDirectoryBuildProps() {
         var dir = Path.Combine(Path.GetTempPath(), $"csproj_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var propsPath = Path.Combine(dir, "Directory.Build.props");
-        _fs.WriteAllText(propsPath,
+        await _fs.WriteAllText(propsPath,
             """
             <Project>
               <PropertyGroup>
@@ -115,7 +115,7 @@ public sealed class CsprojParserTests : IDisposable {
             </Project>
             """);
         var csprojPath = Path.Combine(dir, "Test.csproj");
-        _fs.WriteAllText(csprojPath,
+        await _fs.WriteAllText(csprojPath,
             """
             <Project>
               <ItemGroup>
@@ -124,7 +124,7 @@ public sealed class CsprojParserTests : IDisposable {
             </Project>
             """);
 
-        var result = CsprojParser.Parse(csprojPath, _fs, dir);
+        var result = await CsprojParser.ParseAsync(csprojPath, _fs, dir);
 
         Assert.Single(result.ProjectReferences);
         Assert.EndsWith("Lib.csproj", result.ProjectReferences[0]);
@@ -132,8 +132,8 @@ public sealed class CsprojParserTests : IDisposable {
     }
 
     [Fact]
-    public void Parse_ProjectReferenceWithUnresolvedVariable_IsSkipped() {
-        var path = WriteCsproj(
+    public async Task Parse_ProjectReferenceWithUnresolvedVariable_IsSkipped() {
+        var path = await WriteCsproj(
             """
             <Project>
               <ItemGroup>
@@ -142,24 +142,24 @@ public sealed class CsprojParserTests : IDisposable {
             </Project>
             """);
 
-        var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
+        var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
         Assert.Empty(result.ProjectReferences);
     }
 
     [Fact]
-    public void Parse_NullFilePath_Throws() {
-        Assert.Throws<ArgumentNullException>(() => CsprojParser.Parse(null!, _fs, ""));
+    public async Task Parse_NullFilePath_Throws() {
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await CsprojParser.ParseAsync(null!, _fs, ""));
     }
 
     [Fact]
-    public void Parse_NullFileSystem_Throws() {
-        Assert.Throws<ArgumentNullException>(() => CsprojParser.Parse("test.csproj", null!, ""));
+    public async Task Parse_NullFileSystem_Throws() {
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => await CsprojParser.ParseAsync("test.csproj", null!, ""));
     }
 
     [Fact]
-    public void Parse_ProjectReferenceWithEmptyInclude_IsSkipped() {
-        var path = WriteCsproj(
+    public async Task Parse_ProjectReferenceWithEmptyInclude_IsSkipped() {
+        var path = await WriteCsproj(
             """
             <Project>
               <ItemGroup>
@@ -168,14 +168,14 @@ public sealed class CsprojParserTests : IDisposable {
             </Project>
             """);
 
-        var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
+        var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
         Assert.Empty(result.ProjectReferences);
     }
 
     [Fact]
-    public void Parse_PackageReferenceWithEmptyInclude_IsSkipped() {
-        var path = WriteCsproj(
+    public async Task Parse_PackageReferenceWithEmptyInclude_IsSkipped() {
+        var path = await WriteCsproj(
             """
             <Project>
               <ItemGroup>
@@ -184,16 +184,16 @@ public sealed class CsprojParserTests : IDisposable {
             </Project>
             """);
 
-        var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
+        var result = await CsprojParser.ParseAsync(path, _fs, Path.GetDirectoryName(path));
 
         Assert.Empty(result.PackageReferences);
     }
 
-    private string WriteCsproj(string content) {
+    private async Task<string > WriteCsproj(string content) {
         var dir = Path.Combine(Path.GetTempPath(), $"csproj_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var path = Path.Combine(dir, "Test.csproj");
-        _fs.WriteAllText(path, content);
+        await _fs.WriteAllText(path, content);
         return path;
     }
 }

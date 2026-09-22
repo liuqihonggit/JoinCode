@@ -15,7 +15,7 @@ public static class MemorySection {
         var dailyLogPromptBuilder = PromptConfigSnapshot.Current.DailyLogPromptBuilder;
         var searchHistoryPromptBuilder = PromptConfigSnapshot.Current.SearchHistoryPromptBuilder;
 
-        var memories = LoadMemories(fs);
+        var memories = await LoadMemoriesAsync(fs).ConfigureAwait(false);
         var memoryContent = string.IsNullOrEmpty(memories)
             ? "[暂无记忆]"
             : memories;
@@ -86,7 +86,7 @@ public static class MemorySection {
     /// <summary>
     /// 从持久化存储加载记忆
     /// </summary>
-    private static string LoadMemories(IFileSystem fs) {
+    private static async Task<string> LoadMemoriesAsync(IFileSystem fs) {
         var memoryPaths = new[]
         {
             Path.Combine(Environment.CurrentDirectory, "MEMORY.md"),
@@ -96,7 +96,7 @@ public static class MemorySection {
         foreach (var path in memoryPaths) {
             try {
                 if (fs.FileExists(path)) {
-                    var content = fs.ReadAllText(path);
+                    var content = await fs.ReadAllText(path).ConfigureAwait(false);
                     if (!string.IsNullOrWhiteSpace(content)) {
                         return $"""
 以下信息是从之前的对话中提取的相关记忆：

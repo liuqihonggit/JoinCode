@@ -20,7 +20,7 @@ public class McpHttpServerE2ETests {
     public async Task PostInitialize_StatelessMode_NoSessionIdHeader() {
         var server = new McpServer("test");
         var port = GetFreePort();
-        using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: true);
+        await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: true);
         var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
@@ -43,7 +43,7 @@ public class McpHttpServerE2ETests {
     public async Task PostInitialize_StatefulMode_ReturnsSessionId_AndDeleteTerminates() {
         var server = new McpServer("test");
         var port = GetFreePort();
-        using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
+        await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
         var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
@@ -76,7 +76,7 @@ public class McpHttpServerE2ETests {
     public async Task PostWithInvalidSession_StatefulMode_Returns404() {
         var server = new McpServer("test");
         var port = GetFreePort();
-        using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
+        await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
         var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
@@ -100,7 +100,7 @@ public class McpHttpServerE2ETests {
     public async Task Get_StatelessMode_Returns405() {
         var server = new McpServer("test");
         var port = GetFreePort();
-        using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: true);
+        await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: true);
         var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
@@ -119,7 +119,7 @@ public class McpHttpServerE2ETests {
     public async Task Get_StatefulMode_SseStream_PushesNotifications() {
         var server = new McpServer("test");
         var port = GetFreePort();
-        using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
+        await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
         var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
@@ -147,8 +147,7 @@ public class McpHttpServerE2ETests {
             notificationRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
             var notificationResponse = await client.SendAsync(notificationRequest);
             notificationResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
-
-            using var stream = await getResponse.Content.ReadAsStreamAsync();
+            await using var stream = await getResponse.Content.ReadAsStreamAsync();
             using var reader = stream.AsUtf8Reader();
             var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var receivedData = string.Empty;
@@ -170,7 +169,7 @@ public class McpHttpServerE2ETests {
     public async Task Get_SseStream_EventsHaveId_ForLastEventIdReconnect() {
         var server = new McpServer("test");
         var port = GetFreePort();
-        using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
+        await using var httpServer = new McpHttpServer(server, $"http://localhost:{port}/mcp/", statelessMode: false);
         var cts = new CancellationTokenSource();
         var runTask = Task.Run(() => httpServer.RunAsync(cts.Token));
 
@@ -194,8 +193,7 @@ public class McpHttpServerE2ETests {
             };
             notificationRequest.Headers.TryAddWithoutValidation("Mcp-Session-Id", sessionId);
             await client.SendAsync(notificationRequest);
-
-            using var stream = await getResponse.Content.ReadAsStreamAsync();
+            await using var stream = await getResponse.Content.ReadAsStreamAsync();
             using var reader = stream.AsUtf8Reader();
             var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var receivedId = string.Empty;

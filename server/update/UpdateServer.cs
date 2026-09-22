@@ -98,13 +98,13 @@ public sealed class UpdateServer {
     /// <param name="version">版本号</param>
     /// <param name="sha256">SHA256 校验和</param>
     /// <param name="exeContent">exe 二进制内容</param>
-    public void GenerateContent(string version, string sha256, byte[] exeContent) {
+    public async ValueTask GenerateContent(string version, string sha256, byte[] exeContent) {
         _fs.CreateDirectory(_contentRoot);
         var releasesDir = _fs.CombinePath(_contentRoot, "releases", version);
         _fs.CreateDirectory(releasesDir);
 
         var exePath = _fs.CombinePath(releasesDir, "jcc.exe");
-        _fs.WriteAllBytes(exePath, exeContent);
+        await _fs.WriteAllBytes(exePath, exeContent).ConfigureAwait(false);
 
         var manifest = $$"""
         {
@@ -122,6 +122,6 @@ public sealed class UpdateServer {
           ]
         }
         """;
-        _fs.WriteAllText(_fs.CombinePath(_contentRoot, "manifest.json"), manifest);
+        await _fs.WriteAllText(_fs.CombinePath(_contentRoot, "manifest.json"), manifest).ConfigureAwait(false);
     }
 }

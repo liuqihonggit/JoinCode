@@ -23,7 +23,7 @@ internal sealed class DotEnvConfig {
         if (!System.IO.File.Exists(filePath)) return null;
 
         try {
-            var content = SafeFileIO.ReadAllText(filePath);
+            var content = SyncFileReader.RunValueTask(SafeFileIO.ReadAllText(filePath));
             var json = System.Text.Json.JsonDocument.Parse(content);
 
             if (!json.RootElement.TryGetProperty("env", out var envObj))

@@ -39,11 +39,11 @@ public static class TestConfiguration {
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".jcc", "auth.json");
 
-        if (!FileSystem.FileExists(authPath))
+        if (!BclFileIO.Instance.FileExists(authPath))
             return _cachedApiKey = MockServer.MockServerOptions.DefaultApiKey;
 
         try {
-            var json = FileSystem.ReadAllText(authPath);
+            var json = BclFileIO.Instance.ReadAllText(authPath);
             var authData = System.Text.Json.JsonSerializer.Deserialize(json, TestConfigurationJsonContext.Default.DictionaryStringString);
             if (authData is null || authData.Count == 0)
                 return _cachedApiKey = MockServer.MockServerOptions.DefaultApiKey;

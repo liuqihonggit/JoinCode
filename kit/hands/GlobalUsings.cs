@@ -132,3 +132,4 @@ global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using ValidationHelper = Core.Utils.ValidationHelper;
 global using ValidationResult = Structura.Primitives.ValidationResult;
+global using System.Buffers;

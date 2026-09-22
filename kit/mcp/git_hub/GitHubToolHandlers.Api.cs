@@ -30,7 +30,7 @@ public partial class GitHubToolHandlers {
             return Fail("body_file 指定的文件不存在或无法读取");
         }
 
-        var resolvedBody = ResolveRequestBody(body, body_file);
+        var resolvedBody = await ResolveRequestBodyAsync(body, body_file).ConfigureAwait(false);
 
         var httpMethod = string.IsNullOrWhiteSpace(method) ? HttpMethod.Get : new HttpMethod(method.ToUpperInvariant());
         var query = ParseFieldsToQuery(fields);
@@ -48,13 +48,13 @@ public partial class GitHubToolHandlers {
     /// <para>body 直接传 JSON 字符串,可能被 Shell 转义破坏,通过 LlmJsonHelper.RepairJson 统一修复</para>
     /// <para>返回 null 表示 body_file 指定但文件不可读</para>
     /// </summary>
-    private string? ResolveRequestBody(string? body, string? body_file) {
+    private async Task<string?> ResolveRequestBodyAsync(string? body, string? body_file) {
         if (!string.IsNullOrWhiteSpace(body_file)) {
             if (!_fs.FileExists(body_file)) {
                 _logger?.LogWarning("body_file 指定的文件不存在: {FilePath}", body_file);
                 return null;
             }
-            return _fs.ReadAllText(body_file);
+            return await _fs.ReadAllText(body_file).ConfigureAwait(false);
         }
 
         if (string.IsNullOrWhiteSpace(body)) {

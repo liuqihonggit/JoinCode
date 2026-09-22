@@ -139,8 +139,8 @@ method AnotherMethod";
     }
 
     [Fact]
-    public void RegisterStrategies_MultipleStrategies_ShouldRegisterAll() {
-        using var factory = new CompressionStrategyFactory();
+    public async Task RegisterStrategies_MultipleStrategies_ShouldRegisterAll() {
+        await using var factory = new CompressionStrategyFactory();
         var strategies = new[]
         {
             new TestCompressionStrategy("Strategy1"),

@@ -150,7 +150,7 @@ public sealed class DotEnvConfigTests {
     private string WriteTempFile(string content) {
         Directory.CreateDirectory(TempDir);
         var path = Path.Combine(TempDir, $"test_{Guid.NewGuid():N}.json");
-        IO.FileSystem.SafeFileIO.WriteAllText(path, content);
+        IO.FileSystem.SafeFileIO.WriteAllText(path, content).GetAwaiter().GetResult();
         return path;
     }
 

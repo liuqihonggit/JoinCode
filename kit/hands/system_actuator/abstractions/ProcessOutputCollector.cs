@@ -21,7 +21,7 @@ internal sealed class ProcessOutputCollector : IAsyncDisposable {
 
     internal void OnOutputDataReceived(string data) {
         if (_spillFilePath is not null) {
-            try { _fs.AppendAllText(_spillFilePath, data + Environment.NewLine); } catch (Exception ex) { _logger?.LogDebug(ex, "追加溢出输出失败"); }
+            try { _fs.AppendAllText(_spillFilePath, data + Environment.NewLine).GetAwaiter().GetResult(); } catch (Exception ex) { _logger?.LogDebug(ex, "追加溢出输出失败"); }
         } else {
             _stdoutBuilder.AppendLine(data);
             if (_stdoutBuilder.Length > SpillThresholdChars) {
@@ -44,7 +44,7 @@ internal sealed class ProcessOutputCollector : IAsyncDisposable {
             _spillFilePath = Path.Combine(tempDir, $"spill-{_taskId}.txt");
 
             if (_stdoutBuilder.Length > 0) {
-                _fs.WriteAllText(_spillFilePath, _stdoutBuilder.ToString());
+                _fs.WriteAllText(_spillFilePath, _stdoutBuilder.ToString()).GetAwaiter().GetResult();
                 _stdoutBuilder.Clear();
             }
 
@@ -56,7 +56,7 @@ internal sealed class ProcessOutputCollector : IAsyncDisposable {
 
     internal string GetCurrentStdout() {
         if (_spillFilePath is not null && _fs.FileExists(_spillFilePath)) {
-            try { return _fs.ReadAllText(_spillFilePath); } catch { return _stdoutBuilder.ToString(); }
+            try { return _fs.ReadAllText(_spillFilePath).GetAwaiter().GetResult(); } catch { return _stdoutBuilder.ToString(); }
         }
         return _stdoutBuilder.ToString();
     }

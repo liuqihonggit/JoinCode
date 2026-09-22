@@ -2,8 +2,8 @@
 
 public sealed class IdleToolDetectorTests {
     [Fact]
-    public void OnLlmResponse_WithTool_Should_Reset_Counter() {
-        using var detector = new IdleToolDetector(maxIdleRounds: 3);
+    public async Task OnLlmResponse_WithTool_Should_Reset_Counter() {
+        await using var detector = new IdleToolDetector(maxIdleRounds: 3);
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -14,8 +14,8 @@ public sealed class IdleToolDetectorTests {
     }
 
     [Fact]
-    public void OnLlmResponse_WithoutTool_Should_Increment_Counter() {
-        using var detector = new IdleToolDetector(maxIdleRounds: 3);
+    public async Task OnLlmResponse_WithoutTool_Should_Increment_Counter() {
+        await using var detector = new IdleToolDetector(maxIdleRounds: 3);
 
         detector.OnLlmResponse(usedTool: false);
 
@@ -23,8 +23,8 @@ public sealed class IdleToolDetectorTests {
     }
 
     [Fact]
-    public void ShouldInjectReminder_Should_Return_True_When_Threshold_Reached() {
-        using var detector = new IdleToolDetector(maxIdleRounds: 2);
+    public async Task ShouldInjectReminder_Should_Return_True_When_Threshold_Reached() {
+        await using var detector = new IdleToolDetector(maxIdleRounds: 2);
 
         detector.OnLlmResponse(usedTool: false);
         Assert.False(detector.ShouldInjectReminder());
@@ -34,8 +34,8 @@ public sealed class IdleToolDetectorTests {
     }
 
     [Fact]
-    public void ShouldInjectReminder_Should_Return_False_When_Below_Threshold() {
-        using var detector = new IdleToolDetector(maxIdleRounds: 5);
+    public async Task ShouldInjectReminder_Should_Return_False_When_Below_Threshold() {
+        await using var detector = new IdleToolDetector(maxIdleRounds: 5);
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -44,8 +44,8 @@ public sealed class IdleToolDetectorTests {
     }
 
     [Fact]
-    public void Reset_Should_Clear_Counter() {
-        using var detector = new IdleToolDetector(maxIdleRounds: 2);
+    public async Task Reset_Should_Clear_Counter() {
+        await using var detector = new IdleToolDetector(maxIdleRounds: 2);
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -58,8 +58,8 @@ public sealed class IdleToolDetectorTests {
     }
 
     [Fact]
-    public void GetReminderMessage_Should_Contain_Round_Count() {
-        using var detector = new IdleToolDetector(maxIdleRounds: 2);
+    public async Task GetReminderMessage_Should_Contain_Round_Count() {
+        await using var detector = new IdleToolDetector(maxIdleRounds: 2);
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -70,8 +70,8 @@ public sealed class IdleToolDetectorTests {
     }
 
     [Fact]
-    public void GetReminderMessage_WithCustomContent_Should_Use_Template() {
-        using var detector = new IdleToolDetector(maxIdleRounds: 2, reminderContent: "Custom: {0} rounds idle");
+    public async Task GetReminderMessage_WithCustomContent_Should_Use_Template() {
+        await using var detector = new IdleToolDetector(maxIdleRounds: 2, reminderContent: "Custom: {0} rounds idle");
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -87,8 +87,8 @@ public sealed class IdleToolDetectorTests {
     }
 
     [Fact]
-    public void Tool_Usage_Should_Break_Consecutive_Streak() {
-        using var detector = new IdleToolDetector(maxIdleRounds: 3);
+    public async Task Tool_Usage_Should_Break_Consecutive_Streak() {
+        await using var detector = new IdleToolDetector(maxIdleRounds: 3);
 
         detector.OnLlmResponse(usedTool: false);
         detector.OnLlmResponse(usedTool: false);
@@ -100,8 +100,8 @@ public sealed class IdleToolDetectorTests {
     }
 
     [Fact]
-    public void MaxIdleRounds_Should_Return_Configured_Value() {
-        using var detector = new IdleToolDetector(maxIdleRounds: 5);
+    public async Task MaxIdleRounds_Should_Return_Configured_Value() {
+        await using var detector = new IdleToolDetector(maxIdleRounds: 5);
         Assert.Equal(5, detector.MaxIdleRounds);
     }
 }

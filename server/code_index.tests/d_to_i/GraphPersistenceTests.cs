@@ -70,8 +70,7 @@ public sealed class GraphPersistenceTests : IDisposable {
         const string dir = "graph-roundtrip";
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
-
-        using var loadStore = new InMemoryIndexStore();
+        await using var loadStore = new InMemoryIndexStore();
         await using var loadPersistence = new GraphPersistence(loadStore, _fs);
         var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
         Assert.True(loaded, "LoadAsync 应返回 true 表示成功加载");

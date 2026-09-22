@@ -73,28 +73,30 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher {
     /// </summary>
     /// <param name="fullPath">文件完整路径</param>
     /// <param name="changeType">变更类型</param>
-    internal void OnFileChanged(string fullPath, WatcherChangeTypes changeType) {
-        if (!EnableRaisingEvents || _disposed != 0) return;
-        if (!MatchesWatch(fullPath)) return;
-        if (_debounce.ConsumeInternalWrite(fullPath)) return;
+    internal async void OnFileChanged(string fullPath, WatcherChangeTypes changeType) {
+        try {
+            if (!EnableRaisingEvents || _disposed != 0) return;
+            if (!MatchesWatch(fullPath)) return;
+            if (_debounce.ConsumeInternalWrite(fullPath)) return;
 
-        var name = System.IO.Path.GetFileName(fullPath);
-        var args = new FileChangedEventArgs { ChangeType = changeType, FullPath = fullPath, Name = name };
+            var name = System.IO.Path.GetFileName(fullPath);
+            var args = new FileChangedEventArgs { ChangeType = changeType, FullPath = fullPath, Name = name };
 
-        switch (changeType) {
-            case WatcherChangeTypes.Changed:
-            Changed?.Invoke(this, args);
-            _debounce.ScheduleDebounce(fullPath, () => DebouncedChanged?.Invoke(this, args));
-            break;
-            case WatcherChangeTypes.Created:
-            Created?.Invoke(this, args);
-            _debounce.ScheduleDebounce(fullPath, () => DebouncedCreated?.Invoke(this, args));
-            break;
-            case WatcherChangeTypes.Deleted:
-            Deleted?.Invoke(this, args);
-            _debounce.ScheduleDebounce(fullPath, () => DebouncedDeleted?.Invoke(this, args));
-            break;
-        }
+            switch (changeType) {
+                case WatcherChangeTypes.Changed:
+                Changed?.Invoke(this, args);
+                await _debounce.ScheduleDebounce(fullPath, () => DebouncedChanged?.Invoke(this, args)).ConfigureAwait(false);
+                break;
+                case WatcherChangeTypes.Created:
+                Created?.Invoke(this, args);
+                await _debounce.ScheduleDebounce(fullPath, () => DebouncedCreated?.Invoke(this, args)).ConfigureAwait(false);
+                break;
+                case WatcherChangeTypes.Deleted:
+                Deleted?.Invoke(this, args);
+                await _debounce.ScheduleDebounce(fullPath, () => DebouncedDeleted?.Invoke(this, args)).ConfigureAwait(false);
+                break;
+            }
+        } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[InMemoryFileSystemWatcher] {ex}"); }
     }
 
     /// <summary>
@@ -102,21 +104,23 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher {
     /// </summary>
     /// <param name="oldFullPath">原文件完整路径</param>
     /// <param name="newFullPath">新文件完整路径</param>
-    internal void OnFileRenamed(string oldFullPath, string newFullPath) {
-        if (!EnableRaisingEvents || _disposed != 0) return;
-        if (!MatchesWatch(newFullPath)) return;
-        if (_debounce.ConsumeInternalWrite(newFullPath)) return;
+    internal async void OnFileRenamed(string oldFullPath, string newFullPath) {
+        try {
+            if (!EnableRaisingEvents || _disposed != 0) return;
+            if (!MatchesWatch(newFullPath)) return;
+            if (_debounce.ConsumeInternalWrite(newFullPath)) return;
 
-        var args = new FileRenamedEventArgs {
-            ChangeType = WatcherChangeTypes.Renamed,
-            FullPath = newFullPath,
-            Name = System.IO.Path.GetFileName(newFullPath),
-            OldFullPath = oldFullPath,
-            OldName = System.IO.Path.GetFileName(oldFullPath)
-        };
+            var args = new FileRenamedEventArgs {
+                ChangeType = WatcherChangeTypes.Renamed,
+                FullPath = newFullPath,
+                Name = System.IO.Path.GetFileName(newFullPath),
+                OldFullPath = oldFullPath,
+                OldName = System.IO.Path.GetFileName(oldFullPath)
+            };
 
-        Renamed?.Invoke(this, args);
-        _debounce.ScheduleDebounce(newFullPath, () => DebouncedRenamed?.Invoke(this, args));
+            Renamed?.Invoke(this, args);
+            await _debounce.ScheduleDebounce(newFullPath, () => DebouncedRenamed?.Invoke(this, args)).ConfigureAwait(false);
+        } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[InMemoryFileSystemWatcher] {ex}"); }
     }
 
     private bool MatchesWatch(string fullPath) {

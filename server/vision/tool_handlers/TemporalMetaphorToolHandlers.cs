@@ -137,7 +137,7 @@ public class TemporalMetaphorToolHandlers {
                 }
             }
 
-            using var ms = new MemoryStream();
+            await using var ms = new MemoryStream();
             await mask.SaveAsync(ms, PngFormat.Instance, ct).ConfigureAwait(false);
             return Convert.ToBase64String(ms.ToArray());
         } finally {

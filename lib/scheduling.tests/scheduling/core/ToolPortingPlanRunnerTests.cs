@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Tests.Scheduling;
 
 /// <summary>
@@ -16,9 +16,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试 GenerateAssignmentPlan 应返回有效的任务分配计划
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_ShouldReturnValidPlan() {
+    public async Task GenerateAssignmentPlan_ShouldReturnValidPlan() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
 
         plan.Should().NotBeNull();
@@ -31,9 +31,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试 GenerateAssignmentPlan 应正确计算第一波任务数量
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_ShouldCalculateFirstWaveCount() {
+    public async Task GenerateAssignmentPlan_ShouldCalculateFirstWaveCount() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
 
         plan.FirstWaveCount.Should().BeGreaterThan(0);
@@ -44,9 +44,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试 GenerateAssignmentPlan 应正确计算第二波任务数量
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_ShouldCalculateSecondWaveCount() {
+    public async Task GenerateAssignmentPlan_ShouldCalculateSecondWaveCount() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
 
         plan.SecondWaveCount.Should().BeGreaterThanOrEqualTo(0);
@@ -57,9 +57,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试 GenerateAssignmentPlan 应正确计算所需 Agent 总数
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_ShouldCalculateTotalAgentsRequired() {
+    public async Task GenerateAssignmentPlan_ShouldCalculateTotalAgentsRequired() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
 
         plan.TotalAgentsRequired.Should().BeGreaterThan(0);
@@ -70,9 +70,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试 GenerateAssignmentPlan 应包含执行顺序信息
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_ShouldContainExecutionOrder() {
+    public async Task GenerateAssignmentPlan_ShouldContainExecutionOrder() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
 
         plan.ExecutionOrder.Should().NotBeNull();
@@ -83,9 +83,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试任务分配应包含完整的任务信息
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_AssignmentsShouldContainCompleteInfo() {
+    public async Task GenerateAssignmentPlan_AssignmentsShouldContainCompleteInfo() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
         var assignment = plan.Assignments.First();
 
@@ -101,9 +101,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试第一波任务的依赖列表应为空
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_FirstWaveTasksShouldHaveNoDependencies() {
+    public async Task GenerateAssignmentPlan_FirstWaveTasksShouldHaveNoDependencies() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
         var firstWaveAssignments = plan.Assignments.Where(a => a.IsFirstWave);
 
@@ -116,9 +116,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试第二波任务应包含依赖信息
     /// </summary>
     [Fact]
-    public void GenerateAssignmentPlan_SecondWaveTasksShouldHaveDependencies() {
+    public async Task GenerateAssignmentPlan_SecondWaveTasksShouldHaveDependencies() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var plan = runner.GenerateAssignmentPlan();
         var secondWaveAssignments = plan.Assignments.Where(a => !a.IsFirstWave);
 
@@ -135,9 +135,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试 ExportPlanToJson 应返回有效的 JSON 字符串
     /// </summary>
     [Fact]
-    public void ExportPlanToJson_ShouldReturnValidJson() {
+    public async Task ExportPlanToJson_ShouldReturnValidJson() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var json = runner.ExportPlanToJson();
 
         json.Should().NotBeNullOrEmpty();
@@ -150,9 +150,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试导出的 JSON 应包含计划的关键字段
     /// </summary>
     [Fact]
-    public void ExportPlanToJson_ShouldContainKeyFields() {
+    public async Task ExportPlanToJson_ShouldContainKeyFields() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var json = runner.ExportPlanToJson();
 
         json.Should().Contain("totalTasks");
@@ -167,9 +167,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试导出的 JSON 应使用 camelCase 命名策略
     /// </summary>
     [Fact]
-    public void ExportPlanToJson_ShouldUseCamelCaseNaming() {
+    public async Task ExportPlanToJson_ShouldUseCamelCaseNaming() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var json = runner.ExportPlanToJson();
 
         json.Should().Contain("totalTasks");
@@ -180,9 +180,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试导出的 JSON 应格式化为缩进形式
     /// </summary>
     [Fact]
-    public void ExportPlanToJson_ShouldBeIndented() {
+    public async Task ExportPlanToJson_ShouldBeIndented() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var json = runner.ExportPlanToJson();
 
         json.Should().Contain("\n");
@@ -193,9 +193,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试导出的 JSON 可以被反序列化
     /// </summary>
     [Fact]
-    public void ExportPlanToJson_ShouldBeDeserializable() {
+    public async Task ExportPlanToJson_ShouldBeDeserializable() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var json = runner.ExportPlanToJson();
 
         var options = new JsonSerializerOptions {
@@ -217,9 +217,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试 ExportPlanToMarkdown 应返回有效的 Markdown 字符串
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldReturnValidMarkdown() {
+    public async Task ExportPlanToMarkdown_ShouldReturnValidMarkdown() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
 
         markdown.Should().NotBeNullOrEmpty();
@@ -230,9 +230,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试导出的 Markdown 应包含概览部分
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainOverviewSection() {
+    public async Task ExportPlanToMarkdown_ShouldContainOverviewSection() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
 
         markdown.Should().Contain(L.T(StringKey.SectionOverview));
@@ -248,9 +248,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试导出的 Markdown 应包含第一波任务部分
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainFirstWaveSection() {
+    public async Task ExportPlanToMarkdown_ShouldContainFirstWaveSection() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
 
         markdown.Should().Contain(L.T(StringKey.FirstWaveImmediateStart));
@@ -261,9 +261,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试导出的 Markdown 应包含第二波任务部分
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainSecondWaveSection() {
+    public async Task ExportPlanToMarkdown_ShouldContainSecondWaveSection() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
 
         markdown.Should().Contain(L.T(StringKey.SecondWaveConditionalTrigger));
@@ -274,9 +274,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试导出的 Markdown 应包含执行顺序部分
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainExecutionOrderSection() {
+    public async Task ExportPlanToMarkdown_ShouldContainExecutionOrderSection() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
 
         markdown.Should().Contain(L.T(StringKey.SectionExecutionOrder));
@@ -286,9 +286,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试导出的 Markdown 应包含依赖关系图部分
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainDependencyGraphSection() {
+    public async Task ExportPlanToMarkdown_ShouldContainDependencyGraphSection() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
 
         markdown.Should().Contain(L.T(StringKey.SectionDependencyGraph));
@@ -299,9 +299,9 @@ public class ToolPortingPlanRunnerTests {
     /// 测试导出的 Markdown 应包含优先级图标
     /// </summary>
     [Fact]
-    public void ExportPlanToMarkdown_ShouldContainPriorityIcons() {
+    public async Task ExportPlanToMarkdown_ShouldContainPriorityIcons() {
         var executionEngine = CreateSimulatedExecutionEngine();
-        using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
+        await using var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
 
         markdown.Should().ContainAny(PrioritySymbolEnumConstants.Critical, PrioritySymbolEnumConstants.High, PrioritySymbolEnumConstants.Medium, PrioritySymbolEnumConstants.Low);

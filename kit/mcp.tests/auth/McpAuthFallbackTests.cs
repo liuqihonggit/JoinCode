@@ -53,8 +53,7 @@ public sealed class McpAuthFallbackTests {
     /// </summary>
     [Fact]
     public async Task McpPkceAuthProvider_WhenHttpClientNull_ShouldInitializeViaFactory() {
-        // Arrange
-        using var fs = new PhysicalFileSystem();
+        await using var fs = new PhysicalFileSystem();
         var options = new McpOAuthOptions {
             ClientId = "test-client-id",
             AuthorizationUrl = "https://example.com/auth",

@@ -91,7 +91,7 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
     protected override async ValueTask HandleAsync(IBridgeTokenRefreshCommand command, CancellationToken ct) {
         switch (command) {
             case ScheduleFromDelayCmd sched:
-            ScheduleFromDelayCore(sched.SessionId, sched.DelayMs);
+            await ScheduleFromDelayCore(sched.SessionId, sched.DelayMs).ConfigureAwait(false);
             break;
 
             case DoRefreshCmd refresh:
@@ -100,14 +100,14 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
 
             case CancelCmd cancel:
             if (_timers.Remove(cancel.SessionId, out var timer))
-                timer.Dispose();
+                await timer.DisposeAsync().ConfigureAwait(false);
             _generations.Remove(cancel.SessionId);
             _failureCounts.Remove(cancel.SessionId);
             break;
 
             case CancelAllCmd:
             foreach (var t in _timers.Values)
-                t.Dispose();
+                await t.DisposeAsync().ConfigureAwait(false);
             _timers.Clear();
             _generations.Clear();
             _failureCounts.Clear();
@@ -123,16 +123,16 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
         _options.Logger?.LogWarning(ex, "[{Label}] BridgeTokenRefresh 消费者异常", _options.Label);
     }
 
-    private void ScheduleFromDelayCore(string sessionId, long delayMs) {
+    private async Task ScheduleFromDelayCore(string sessionId, long delayMs) {
         ref var generation = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(_generations, sessionId, out _);
         generation++;
+        var currentGeneration = generation;
 
         if (_timers.Remove(sessionId, out var oldTimer))
-            oldTimer.Dispose();
+            await oldTimer.DisposeAsync().ConfigureAwait(false);
 
         _failureCounts.Remove(sessionId);
 
-        var currentGeneration = generation;
         _timers[sessionId] = _timeProvider.CreateTimer(_ => {
             if (_generations.TryGetValue(sessionId, out var gen) && gen == currentGeneration) {
                 TrySend(new DoRefreshCmd(sessionId));
@@ -168,9 +168,9 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
                 _options.Logger?.LogError("[{Label}] Token 刷新连续失败 {Count} 次，{DelayMs}ms 后重试: {SessionId}",
                     _options.Label, failures, FailureRetryDelayMs, sessionId);
                 _failureCounts[sessionId] = 0;
-                ScheduleFromDelayCore(sessionId, FailureRetryDelayMs);
+                await ScheduleFromDelayCore(sessionId, FailureRetryDelayMs).ConfigureAwait(false);
             } else {
-                ScheduleFromDelayCore(sessionId, FallbackRefreshIntervalMs);
+                await ScheduleFromDelayCore(sessionId, FallbackRefreshIntervalMs).ConfigureAwait(false);
             }
         }
     }

@@ -215,13 +215,13 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 释放Agent资源 — 如果有代理池且 agent 已完成，回池而非 Dispose（ADR 0106 L3 抢塞）
     /// </summary>
-    public Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default) {
+    public async Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         if (_subAgents.TryRemove(agentId, out var agent)) {
             // L3 抢塞：已完成/失败的 agent 回池等待复用，否则直接 Dispose
             if (_agentPool is null || agent.Status is not (TaskExecutionStatus.Completed or TaskExecutionStatus.Failed)) {
                 _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 状态 {State}，直接 Dispose", agentId, agent.Status);
-                agent.Dispose();
-            } else if (_agentPool.Return(agent)) {
+                await agent.DisposeAsync().ConfigureAwait(false);
+            } else if (await _agentPool.Return(agent).ConfigureAwait(false)) {
                 _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池等待复用", agentId);
             } else {
                 _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池失败（池满/禁用），已 Dispose", agentId);
@@ -229,7 +229,6 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
         }
         _results.TryRemove(agentId, out _);
         _stateMachine.RemoveAgent(agentId);
-        return Task.CompletedTask;
     }
 
     /// <summary>

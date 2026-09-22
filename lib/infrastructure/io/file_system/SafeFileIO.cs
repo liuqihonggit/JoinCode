@@ -7,10 +7,10 @@ namespace IO.FileSystem;
 #pragma warning disable JCC9002 // 静态上下文无法注入 IFileSystem，此处直接使用 FileStream 是设计意图
 public static class SafeFileIO {
     /// <summary>读取全部文本 — FileShare.ReadWrite 允许并发写入者</summary>
-    public static string ReadAllText(string path) {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+    public static async ValueTask<string> ReadAllText(string path, CancellationToken cancellationToken = default) {
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
+        return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>打开文件流用于读取 — FileShare.ReadWrite 允许并发写入者</summary>
@@ -18,11 +18,11 @@ public static class SafeFileIO {
         => new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
     /// <summary>写入全部文本 — FileShare.ReadWrite 允许并发读取者</summary>
-    public static void WriteAllText(string path, string content) {
-        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-        using var writer = new StreamWriter(stream);
-        writer.Write(content);
-        writer.Flush();
+    public static async ValueTask WriteAllText(string path, string content, CancellationToken cancellationToken = default) {
+        await using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        await using var writer = new StreamWriter(stream);
+        await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
+        await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>异步写入全部文本 — FileShare.ReadWrite 允许并发读取者</summary>
@@ -34,11 +34,11 @@ public static class SafeFileIO {
     }
 
     /// <summary>追加文本 — FileShare.ReadWrite 允许并发读取/写入者</summary>
-    public static void AppendAllText(string path, string content) {
-        using var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
-        using var writer = new StreamWriter(stream);
-        writer.Write(content);
-        writer.Flush();
+    public static async ValueTask AppendAllText(string path, string content, CancellationToken cancellationToken = default) {
+        await using var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+        await using var writer = new StreamWriter(stream);
+        await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
+        await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>异步追加文本 — FileShare.ReadWrite 允许并发读取/写入者</summary>

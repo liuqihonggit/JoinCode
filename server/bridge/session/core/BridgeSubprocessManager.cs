@@ -446,7 +446,7 @@ public sealed class BridgeSubprocessSpawner {
                 // 需要先确保文件存在
                 if (!_fs.FileExists(transcriptPath)) {
                     try {
-                        _fs.Open(transcriptPath, FileMode.CreateNew).Dispose();
+                        await _fs.Open(transcriptPath, FileMode.CreateNew).DisposeAsync().ConfigureAwait(false);
                     } catch (IOException ex) when (_fs.FileExists(transcriptPath)) {
                         // TOCTOU 竞态：其他进程在我们检查和创建之间已创建了文件 — 安全忽略
                         _logger?.LogDebug(ex, "Transcript file already exists (created by another process): {Path}", transcriptPath);

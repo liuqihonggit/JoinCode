@@ -34,7 +34,7 @@ public interface IWorkflowPlugin {
     /// <summary>
     /// 卸载插件 - 释放资源
     /// </summary>
-    PluginUnloadResult Unload();
+    Task<PluginUnloadResult> UnloadAsync();
 }
 
 /// <summary>

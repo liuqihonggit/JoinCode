@@ -19,9 +19,9 @@ public class NamedPipeFactoryTest {
 
     /// <summary>验证创建服务端返回未连接的管道</summary>
     [Fact]
-    public void CreateServer_应返回未连接的管道() {
+    public async Task CreateServer_应返回未连接的管道() {
         var pipeName = $"test-factory-{Guid.NewGuid():N}";
-        using var server = NamedPipeFactory.CreateServer(pipeName);
+        await using var server = NamedPipeFactory.CreateServer(pipeName);
         server.Should().NotBeNull();
         server.IsConnected.Should().BeFalse("刚创建尚未接受连接");
     }
@@ -30,8 +30,8 @@ public class NamedPipeFactoryTest {
     [Fact]
     public async Task CreateServer_客户端写入服务端应立即收到_不阻塞() {
         var pipeName = $"test-factory-recv-{Guid.NewGuid():N}";
-        using var server = NamedPipeFactory.CreateServer(pipeName);
-        using var client = NamedPipeFactory.CreateClient(pipeName);
+        await using var server = NamedPipeFactory.CreateServer(pipeName);
+        await using var client = NamedPipeFactory.CreateClient(pipeName);
         ConnectPair(server, client);
 
         var data = Encoding.UTF8.GetBytes("factory-test-msg");
@@ -53,8 +53,8 @@ public class NamedPipeFactoryTest {
     [Fact]
     public async Task CreateServer_服务端写入客户端应立即收到_不阻塞() {
         var pipeName = $"test-factory-write-{Guid.NewGuid():N}";
-        using var server = NamedPipeFactory.CreateServer(pipeName);
-        using var client = NamedPipeFactory.CreateClient(pipeName);
+        await using var server = NamedPipeFactory.CreateServer(pipeName);
+        await using var client = NamedPipeFactory.CreateClient(pipeName);
         ConnectPair(server, client);
 
         var data = Encoding.UTF8.GetBytes("server-to-client");
@@ -79,8 +79,8 @@ public class NamedPipeFactoryTest {
     [Fact]
     public async Task 回归_服务端写入客户端不读_不阻塞_缓冲区足够() {
         var pipeName = $"test-factory-noread-{Guid.NewGuid():N}";
-        using var server = NamedPipeFactory.CreateServer(pipeName);
-        using var client = NamedPipeFactory.CreateClient(pipeName);
+        await using var server = NamedPipeFactory.CreateServer(pipeName);
+        await using var client = NamedPipeFactory.CreateClient(pipeName);
         ConnectPair(server, client);
 
         var data = Encoding.UTF8.GetBytes("client-never-reads-this");
@@ -93,10 +93,10 @@ public class NamedPipeFactoryTest {
 
     /// <summary>验证客户端能连接到 CreateServer 创建的管道</summary>
     [Fact]
-    public void CreateClient_应能连接到CreateServer创建的管道() {
+    public async Task CreateClient_应能连接到CreateServer创建的管道() {
         var pipeName = $"test-factory-connect-{Guid.NewGuid():N}";
-        using var server = NamedPipeFactory.CreateServer(pipeName);
-        using var client = NamedPipeFactory.CreateClient(pipeName);
+        await using var server = NamedPipeFactory.CreateServer(pipeName);
+        await using var client = NamedPipeFactory.CreateClient(pipeName);
         ConnectPair(server, client);
 
         client.IsConnected.Should().BeTrue("客户端应成功连接到工厂创建的服务端");
@@ -107,8 +107,8 @@ public class NamedPipeFactoryTest {
     [Fact]
     public async Task CreateServer_多消息连续写入不阻塞() {
         var pipeName = $"test-factory-multi-{Guid.NewGuid():N}";
-        using var server = NamedPipeFactory.CreateServer(pipeName);
-        using var client = NamedPipeFactory.CreateClient(pipeName);
+        await using var server = NamedPipeFactory.CreateServer(pipeName);
+        await using var client = NamedPipeFactory.CreateClient(pipeName);
         ConnectPair(server, client);
 
         var messages = new List<byte[]>();

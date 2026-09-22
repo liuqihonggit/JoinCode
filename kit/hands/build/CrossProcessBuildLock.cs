@@ -8,7 +8,7 @@ internal sealed class CrossProcessBuildLock : IAsyncDisposable {
 
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
-    private readonly string _lockPath;
+    private string _lockPath;
     private Stream? _lockFile;
     private int _disposed;
 
@@ -17,10 +17,13 @@ internal sealed class CrossProcessBuildLock : IAsyncDisposable {
     internal CrossProcessBuildLock(IFileSystem fs, ILogger? logger, string? lockPath = null) {
         _fs = fs;
         _logger = logger;
-        _lockPath = lockPath ?? ResolveDefaultLockPath(fs);
+        _lockPath = lockPath ?? string.Empty;
     }
 
     internal async Task AcquireAsync(CancellationToken ct) {
+        if (string.IsNullOrEmpty(_lockPath))
+            _lockPath = await ResolveDefaultLockPathAsync(_fs).ConfigureAwait(false);
+
         while (true) {
             ct.ThrowIfCancellationRequested();
             try {
@@ -45,7 +48,7 @@ internal sealed class CrossProcessBuildLock : IAsyncDisposable {
         _lockFile = null;
     }
 
-    private static string ResolveDefaultLockPath(IFileSystem fs) {
+    private static async Task<string> ResolveDefaultLockPathAsync(IFileSystem fs) {
         var currentDir = fs.GetCurrentDirectory();
         while (!string.IsNullOrEmpty(currentDir)) {
             var gitPath = fs.CombinePath(currentDir, GitDirName);
@@ -54,7 +57,7 @@ internal sealed class CrossProcessBuildLock : IAsyncDisposable {
                 return fs.CombinePath(gitPath, DefaultLockFileName);
 
             if (fs.FileExists(gitPath)) {
-                var commonGitDir = ResolveCommonGitDir(fs, gitPath, currentDir);
+                var commonGitDir = await ResolveCommonGitDirAsync(fs, gitPath, currentDir).ConfigureAwait(false);
                 if (commonGitDir is not null && fs.DirectoryExists(commonGitDir))
                     return fs.CombinePath(commonGitDir, DefaultLockFileName);
             }
@@ -67,9 +70,9 @@ internal sealed class CrossProcessBuildLock : IAsyncDisposable {
         return fs.CombinePath(Path.GetTempPath(), DefaultLockFileName);
     }
 
-    private static string? ResolveCommonGitDir(IFileSystem fs, string gitFilePath, string worktreePath) {
+    private static async Task<string?> ResolveCommonGitDirAsync(IFileSystem fs, string gitFilePath, string worktreePath) {
         try {
-            var content = fs.ReadAllText(gitFilePath).Trim();
+            var content = (await fs.ReadAllText(gitFilePath).ConfigureAwait(false)).Trim();
             const string prefix = "gitdir:";
             if (!content.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 return null;

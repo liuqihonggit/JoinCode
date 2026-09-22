@@ -131,7 +131,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable {
         await sut.ClearTokenAsync().ConfigureAwait(true);
 
         // 验证 auth.json 中 device_token 已被删除
-        var content = _fs.ReadAllText(_authPath);
+        var content = await _fs.ReadAllText(_authPath);
         content.Should().NotContain("old-token", "device_token值应已从文件中删除");
         content.Should().Contain("api_key");
 
@@ -158,7 +158,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable {
         token.Should().Be("enrolled-token-abc");
 
         // 验证持久化
-        var content = _fs.ReadAllText(_authPath);
+        var content = await _fs.ReadAllText(_authPath);
         content.Should().Contain("enrolled-token-abc");
     }
 
@@ -227,7 +227,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable {
 
         await sut.EnrollTrustedDeviceAsync("access-token").ConfigureAwait(true);
 
-        var content = _fs.ReadAllText(_authPath);
+        var content = await _fs.ReadAllText(_authPath);
         content.Should().Contain("new-tok");
         content.Should().Contain("api_key");
         content.Should().Contain("org_id");

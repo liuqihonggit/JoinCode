@@ -166,17 +166,16 @@ public sealed class CodeIndexerRegistryTests : IDisposable {
     }
 
     [Fact]
-    public void Dispose_CalledTwice_DoesNotThrow() {
-        _registry.Dispose();
-        _registry.Dispose();
+    public async Task Dispose_CalledTwice_DoesNotThrow() {
+        await _registry.DisposeAsync();
+        await _registry.DisposeAsync();
     }
 
     [Fact]
     public async Task Dispose_DisposesAllRegisteredIndexers() {
         await _registry.RegisterAsync("repo1", "/workspace/repo1", CancellationToken.None);
         await _registry.RegisterAsync("repo2", "/workspace/repo2", CancellationToken.None);
-
-        _registry.Dispose();
+        await _registry.DisposeAsync();
 
         Assert.Throws<ObjectDisposedException>(() => _registry.GetIndexer("repo1"));
     }

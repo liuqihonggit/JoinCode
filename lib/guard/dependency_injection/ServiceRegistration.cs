@@ -54,7 +54,8 @@ public static partial class ServiceRegistration {
                 options.SensitivePathPatterns = defaultConfig.SensitivePathPatterns;
                 options.DangerousCommandPatterns = defaultConfig.DangerousCommandPatterns;
 
-                LoadPermissionsFromSettings(options, fs, logger);
+                // IFileSystem 异步化后 fire-and-forget 加载；PhysicalFileSystem UTF-8 走 mmap 同步完成，实际不阻塞
+                _ = LoadPermissionsFromSettingsAsync(options, fs, logger);
             });
 
         return services;
@@ -102,9 +103,9 @@ public static partial class ServiceRegistration {
         return services;
     }
 
-    private static void LoadPermissionsFromSettings(PermissionConfig options, IFileSystem fs, ILogger? logger = null) {
+    private static async Task LoadPermissionsFromSettingsAsync(PermissionConfig options, IFileSystem fs, ILogger? logger = null) {
         try {
-            var settings = SettingsLoader.LoadUserSettings(fs);
+            var settings = await SettingsLoader.LoadUserSettings(fs).ConfigureAwait(false);
             if (settings?.Current?.Permissions is null)
                 return;
 

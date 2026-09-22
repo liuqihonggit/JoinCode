@@ -68,7 +68,7 @@ public sealed class AuditEngine {
     /// </summary>
     private async Task<AuditReport> AuditSlnxAsync(string slnxPath, bool skipTests, CancellationToken ct) {
         var totalSw = System.Diagnostics.Stopwatch.StartNew();
-        var projectPaths = SlnxParser.ParseProjectPaths(slnxPath);
+        var projectPaths = await SlnxParser.ParseProjectPaths(slnxPath).ConfigureAwait(false);
         Console.WriteLine($"  .slnx 包含 {projectPaths.Count} 个项目");
 
         // 过滤掉 Generator 项目和测试项目
@@ -212,7 +212,7 @@ public sealed class AuditEngine {
         workspace.SkipUnrecognizedProjects = true;
         workspace.LoadMetadataForReferencedProjects = false;
 
-        var projectPaths = SlnxParser.ParseProjectPaths(solutionPath);
+        var projectPaths = await SlnxParser.ParseProjectPaths(solutionPath).ConfigureAwait(false);
         var filteredPaths = projectPaths
             .Where(p => !skipTests || !IsTestProjectPath(p))
             .ToList();
@@ -272,7 +272,7 @@ public sealed class AuditEngine {
         workspace.LoadMetadataForReferencedProjects = false;
 
         if (ext == ".slnx" || ext == ".sln") {
-            var projectPaths = SlnxParser.ParseProjectPaths(solutionPath);
+            var projectPaths = await SlnxParser.ParseProjectPaths(solutionPath).ConfigureAwait(false);
             var filteredPaths = projectPaths
                 .Where(p => !p.Contains("Generator", StringComparison.Ordinal))
                 .Where(p => !skipTests || !IsTestProjectPath(p))

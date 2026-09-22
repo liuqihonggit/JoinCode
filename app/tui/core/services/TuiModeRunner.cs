@@ -185,8 +185,7 @@ internal static class TuiModeRunner {
                 break;
             }
         };
-
-        using var timer = new System.Threading.Timer(_ => {
+        await using var timer = new System.Threading.Timer(_ => {
             painter.Invoke(() => footerTab.SetElapsedTime(DateTime.UtcNow - startTime));
         }, null, 1000, 1000);
 
@@ -245,7 +244,7 @@ internal static class TuiModeRunner {
 
         polling.Start();
         try {
-            using var ctReg = cancellationToken.Register(() => app.RequestStop());
+            await using var ctReg = cancellationToken.Register(() => app.RequestStop());
             WriteDiag("[TUI] app.Run start");
             app.Run(top);
             WriteDiag("[TUI] app.Run returned");

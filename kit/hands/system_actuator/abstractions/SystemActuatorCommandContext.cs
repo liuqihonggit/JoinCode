@@ -331,7 +331,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             stdout = stdout[..Math.Min(stdout.Length, SystemActuatorExecutionResult.PreviewSizeBytes)];
         }
 
-        var cwdWasReset = _isForeground ? _cwdTracker.TryUpdateCwdFromTrackingFile() : _cwdTracker.CleanupCwdTrackingFile();
+        var cwdWasReset = _isForeground ? await _cwdTracker.TryUpdateCwdFromTrackingFileAsync().ConfigureAwait(false) : _cwdTracker.CleanupCwdTrackingFile();
 
         var result = SystemActuatorExecutionResult.SuccessResult(stdout, stderr, _process.ExitCode) with {
             ProcessId = _process.Id,

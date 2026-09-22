@@ -3,6 +3,7 @@ global using Core.Configuration.ConfigPipeline;
 global using Core.Configuration.Providers;
 global using Core.Configuration.Remote;
 global using Core.Hooks;
+global using JoinCode.BclBridge;
 global using Core.Hooks.Configuration;
 global using Core.Hooks.Events;
 global using Core.Hooks.Execution;

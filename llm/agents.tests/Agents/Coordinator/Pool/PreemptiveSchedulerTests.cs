@@ -34,7 +34,7 @@ public sealed class PreemptiveSchedulerTests {
     public async Task TryPreemptAsync_WindowSufficient_SucceedsWithoutCompression() {
         await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser", tokenBudget: 128000, tokensUsed: 1000);
-        pool.Return(agent);
+        await pool.Return(agent);
         var ctxMock = new Mock<IChatContextManager>();
         var scheduler = new PreemptiveScheduler(pool, ctxMock.Object, DefaultOptions());
 
@@ -50,7 +50,7 @@ public sealed class PreemptiveSchedulerTests {
     public async Task TryPreemptAsync_WindowInsufficient_CompressesThenSucceeds() {
         await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser", tokenBudget: 1000, tokensUsed: 900);
-        pool.Return(agent);
+        await pool.Return(agent);
         var ctxMock = new Mock<IChatContextManager>();
         ctxMock
             .Setup(x => x.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -68,7 +68,7 @@ public sealed class PreemptiveSchedulerTests {
     public async Task TryPreemptAsync_WindowInsufficient_FoldNotExecuted_StillSucceeds() {
         await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser", tokenBudget: 1000, tokensUsed: 900);
-        pool.Return(agent);
+        await pool.Return(agent);
         var ctxMock = new Mock<IChatContextManager>();
         ctxMock
             .Setup(x => x.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -85,7 +85,7 @@ public sealed class PreemptiveSchedulerTests {
     public async Task TryPreemptAsync_InjectsNewTaskPrompt() {
         await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser");
-        pool.Return(agent);
+        await pool.Return(agent);
         var ctxMock = new Mock<IChatContextManager>();
         var scheduler = new PreemptiveScheduler(pool, ctxMock.Object, DefaultOptions());
 

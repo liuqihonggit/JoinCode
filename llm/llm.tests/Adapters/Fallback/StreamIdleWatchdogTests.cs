@@ -42,7 +42,7 @@ public class StreamIdleWatchdogTests {
         using var watchdog = new StreamIdleWatchdog(1, CancellationToken.None);
 
         using var signal = new SemaphoreSlim(0, 1);
-        using var registration = watchdog.CombinedToken.Register(() => signal.Release());
+        await using var registration = watchdog.CombinedToken.Register(() => signal.Release());
 
         await signal.WaitAsync(TimeSpan.FromSeconds(5));
 

@@ -81,7 +81,7 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
 
             // 获取文件
             foreach (var file in _fs.EnumerateFiles(normalizedPath, "*", searchOption)) {
-                using var stream = _fs.OpenRead(file);
+                await using var stream = _fs.OpenRead(file);
                 files.Add(new FileEntry {
                     Name = Path.GetFileName(file),
                     FullPath = file,
@@ -245,7 +245,7 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
             // 对齐 TS: readFileSyncWithMetadata — 检测编码 + 换行符
             var encoding = await FileEncodingDetector.DetectFromFileAsync(normalizedPath, _fs, cancellationToken, _logger).ConfigureAwait(false);
 
-            using var stream = _fs.OpenRead(normalizedPath);
+            await using var stream = _fs.OpenRead(normalizedPath);
             using var reader = new StreamReader(stream, encoding);
             var content = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
 

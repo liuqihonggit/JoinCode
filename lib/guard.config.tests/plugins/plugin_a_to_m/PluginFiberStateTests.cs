@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Plugins;
+namespace Core.Tests.Plugins;
 
 public sealed class PluginFiberStateTests {
     [Fact]
@@ -45,18 +45,18 @@ public sealed class PluginFiberStateTests {
     }
 
     [Fact]
-    public void WorkflowPluginBase_Fiber_InitialStatePending() {
-        using var plugin = new FiberTestPlugin();
+    public async Task WorkflowPluginBase_Fiber_InitialStatePending() {
+        await using var plugin = new FiberTestPlugin();
         Assert.Equal(PluginFiberState.Pending, plugin.Fiber.State);
     }
 
     [Fact]
-    public void WorkflowPluginBase_UnloadTwice_SecondReturnsAlreadyUnloaded() {
-        using var plugin = new FiberTestPlugin();
-        var r1 = plugin.Unload();
+    public async Task WorkflowPluginBase_UnloadTwice_SecondReturnsAlreadyUnloaded() {
+        await using var plugin = new FiberTestPlugin();
+        var r1 = await plugin.UnloadAsync();
         Assert.True(r1.IsSuccess);
         Assert.Equal(PluginFiberState.Unloaded, plugin.Fiber.State);
-        var r2 = plugin.Unload();
+        var r2 = await plugin.UnloadAsync();
         Assert.Equal(PluginUnloadStatus.AlreadyUnloaded, r2.Status);
     }
 

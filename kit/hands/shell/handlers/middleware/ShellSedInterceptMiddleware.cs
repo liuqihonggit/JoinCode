@@ -79,8 +79,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
         if (pending is not null && !pending.IsExpired) {
             // 验证 sed 信息匹配（防止模型伪造不同编辑）
             if (pending.SedPattern == sedInfo.Pattern && pending.SedReplacement == sedInfo.Replacement) {
-                cache?.Remove(filePath);
-                _fallbackEdits.TryRemove(filePath, out _);
+                await ClearPendingAsync(cache, filePath).ConfigureAwait(false);
 
                 // 用 EditFileAsync 原子编辑：重新读→替换→写，基于最新内容应用 sed
                 try {
@@ -102,8 +101,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
             }
 
             // sed 信息不匹配，清除旧的 pending 并重新预览
-            cache?.Remove(filePath);
-            _fallbackEdits.TryRemove(filePath, out _);
+            await ClearPendingAsync(cache, filePath).ConfigureAwait(false);
         }
 
         // 首次调用：读取文件→模拟替换→返回预览
@@ -141,7 +139,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
             sedInfo.Pattern,
             sedInfo.Replacement);
         if (cache is not null)
-            cache.Set(filePath, confirmation, SedConfirmationWindow);
+            await cache.SetAsync(filePath, confirmation, SedConfirmationWindow).ConfigureAwait(false);
         else
             _fallbackEdits[filePath] = confirmation;
 
@@ -211,6 +209,15 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
                 new DiagnosticDetail("file_path", filePath),
                 new DiagnosticDetail("error", errorMessage)
             ]);
+
+    /// <summary>
+    /// 清除待确认的 sed 编辑缓存项
+    /// </summary>
+    private async Task ClearPendingAsync(ISessionCache? cache, string filePath) {
+        if (cache is not null)
+            await cache.RemoveAsync(filePath).ConfigureAwait(false);
+        _fallbackEdits.TryRemove(filePath, out _);
+    }
 
     /// <summary>
     /// 待确认的 sed 编辑 — 对齐 TS _simulatedSedEdit

@@ -118,9 +118,8 @@ public sealed class BridgeIntegrationTests {
     #region BridgeClient + JwtService
 
     [Fact]
-    public void BridgeClient_GeneratesJwtTokenOnStart() {
-        // Arrange
-        using var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-integration-test" }, NullLogger.Instance);
+    public async Task BridgeClient_GeneratesJwtTokenOnStart() {
+        await using var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-integration-test" }, NullLogger.Instance);
 
         // Act - 模拟 BridgeClient 启动时生成 JWT Token
         var token = jwtService.GenerateToken("bridge-client", 3600);
@@ -135,9 +134,8 @@ public sealed class BridgeIntegrationTests {
     }
 
     [Fact]
-    public void BridgeClient_JwtTokenRefreshWorks() {
-        // Arrange
-        using var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-refresh-test" }, NullLogger.Instance);
+    public async Task BridgeClient_JwtTokenRefreshWorks() {
+        await using var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-refresh-test" }, NullLogger.Instance);
         // 使用 299 秒过期，使其立即进入刷新窗口（剩余 <= 300 秒）
         var token = jwtService.GenerateToken("bridge-client", 299);
 
@@ -356,7 +354,7 @@ public sealed class BridgeIntegrationTests {
             new HttpResponseMessage(System.Net.HttpStatusCode.OK));
 
         var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
-        using var apiClient = new BridgeApiClient(
+        await using var apiClient = new BridgeApiClient(
             httpClient,
             new BridgeApiOptions { BaseUrl = "http://localhost:3456" },
             NullLogger<BridgeApiClient>.Instance);
@@ -373,7 +371,7 @@ public sealed class BridgeIntegrationTests {
         // Arrange - 使用抛出异常的模拟 Handler
         var handler = new MockFailingHttpMessageHandler();
         var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
-        using var apiClient = new BridgeApiClient(
+        await using var apiClient = new BridgeApiClient(
             httpClient,
             new BridgeApiOptions { BaseUrl = "http://localhost:3456" },
             NullLogger<BridgeApiClient>.Instance);

@@ -98,11 +98,11 @@ public class TerminalHelperRealOutTests {
     }
 
     [Fact]
-    public void WriteLineReal_AfterSetOut_ShouldNotGoToRedirectedWriter() {
+    public async Task WriteLineReal_AfterSetOut_ShouldNotGoToRedirectedWriter() {
         JoinCode.Cli.TerminalHelper.Init();
         var originalOut = System.Console.Out;
         var sb = new StringBuilder();
-        using var stringWriter = new StringWriter(sb);
+        await using var stringWriter = new StringWriter(sb);
         try {
             JoinCode.Cli.TerminalHelper.SetOut(stringWriter);
             JoinCode.Cli.TerminalHelper.WriteLineReal("确认提示测试");
@@ -113,11 +113,11 @@ public class TerminalHelperRealOutTests {
     }
 
     [Fact]
-    public void WriteRawReal_AfterSetOut_ShouldNotGoToRedirectedWriter() {
+    public async Task WriteRawReal_AfterSetOut_ShouldNotGoToRedirectedWriter() {
         JoinCode.Cli.TerminalHelper.Init();
         var originalOut = System.Console.Out;
         var sb = new StringBuilder();
-        using var stringWriter = new StringWriter(sb);
+        await using var stringWriter = new StringWriter(sb);
         try {
             JoinCode.Cli.TerminalHelper.SetOut(stringWriter);
             JoinCode.Cli.TerminalHelper.WriteRawReal("raw提示测试");

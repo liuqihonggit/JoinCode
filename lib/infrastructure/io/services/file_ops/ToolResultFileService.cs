@@ -31,7 +31,7 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
     /// <param name="toolUseId">工具调用标识,作为文件名</param>
     /// <param name="content">工具结果内容</param>
     /// <returns>持久化结果,包含文件路径、原始大小、预览与是否截断标志</returns>
-    public JoinCode.Abstractions.LLM.Chat.PersistedToolResult PersistToolResult(string sessionId, string toolUseId, string content) {
+    public async ValueTask<JoinCode.Abstractions.LLM.Chat.PersistedToolResult> PersistToolResult(string sessionId, string toolUseId, string content) {
         var dir = Path.Combine(_baseDir, sessionId);
         _fs.CreateDirectory(dir);
 
@@ -42,8 +42,8 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
         // TS: writeFile(filepath, contentStr, { flag: 'wx' }) — 原子性排他创建
         // C#: 使用 FileMode.CreateNew 替代 File.Exists + File.WriteAllText（消除 TOCTOU 竞态）
         try {
-            using var stream = _fs.CreateStream(filepath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
-            using var writer = new StreamWriter(stream);
+            await using var stream = _fs.CreateStream(filepath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
+            await using var writer = new StreamWriter(stream);
             writer.Write(content);
         } catch (IOException ex) when (_fs.FileExists(filepath)) {
             // 已存在 — 对齐 TS EEXIST 处理：跳过写入
@@ -81,8 +81,8 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
         var filepath = Path.Combine(dir, filename);
 
         try {
-            using var stream = _fs.CreateStream(filepath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
-            using var writer = new StreamWriter(stream);
+            await using var stream = _fs.CreateStream(filepath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
+            await using var writer = new StreamWriter(stream);
             await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
         } catch (IOException ex) when (_fs.FileExists(filepath)) {
             // 已存在 — 对齐 TS EEXIST 处理：跳过写入
@@ -108,7 +108,7 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
     /// <param name="sessionId">会话标识</param>
     /// <param name="toolUseId">工具调用标识</param>
     /// <returns>工具结果内容;文件不存在或读取失败返回 null</returns>
-    public string? ReadToolResult(string sessionId, string toolUseId) {
+    public async ValueTask<string?> ReadToolResult(string sessionId, string toolUseId) {
         var dir = Path.Combine(_baseDir, sessionId);
         var filename = SanitizeFilename(toolUseId) + ".txt";
         var filepath = Path.Combine(dir, filename);
@@ -117,7 +117,7 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
             return null;
 
         try {
-            return _fs.ReadAllText(filepath);
+            return await _fs.ReadAllText(filepath).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to read persisted tool result from {Filepath}", filepath);
             return null;

@@ -253,7 +253,7 @@ public sealed class FileEditor {
                     allLines.Add(content.Substring(start, length));
             } else {
                 allLines = new List<string>();
-                using var stream = _fs.CreateStream(normalizedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                await using var stream = _fs.CreateStream(normalizedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 using var reader = new StreamReader(stream, fileEncoding);
                 string? line;
                 while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)

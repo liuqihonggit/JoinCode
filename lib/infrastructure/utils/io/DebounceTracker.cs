@@ -56,7 +56,7 @@ public sealed class DebounceTracker : IDisposable {
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <param name="fireAction">防抖到期触发的回调</param>
-    public void ScheduleDebounce(string filePath, Action fireAction) {
+    public async ValueTask ScheduleDebounce(string filePath, Action fireAction) {
         var interval = DebounceInterval;
         if (interval <= TimeSpan.Zero) {
             fireAction();
@@ -64,7 +64,7 @@ public sealed class DebounceTracker : IDisposable {
         }
 
         if (_timers.TryRemove(filePath, out var existingTimer))
-            existingTimer.Dispose();
+            await existingTimer.DisposeAsync().ConfigureAwait(false);
 
         _timers[filePath] = new Timer(_ => {
             try {

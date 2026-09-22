@@ -7,16 +7,19 @@ namespace Core.Configuration.Providers;
 /// Azure 始终保留（OAuth + 复合认证特殊逻辑）
 /// </summary>
 public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
-    private readonly FrozenDictionary<string, IProviderDefinition> _definitions;
+    private FrozenDictionary<string, IProviderDefinition> _definitions = new Dictionary<string, IProviderDefinition>(0, StringComparer.OrdinalIgnoreCase).ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 构造供应商定义注册表 — 从 settings.json 的 vendor 节点构建，并始终保留 Azure 供应商
+    /// <para>IFileSystem 异步化后构造函数 fire-and-forget 异步初始化；PhysicalFileSystem UTF-8 走 mmap 同步完成，实际不阻塞。</para>
     /// </summary>
     public ProviderDefinitionRegistry(IModelConfigLoader modelConfigLoader, IFileSystem? fs = null, ILogger? logger = null) {
+        _ = InitializeAsync(modelConfigLoader, fs, logger);
+    }
+
+    private async Task InitializeAsync(IModelConfigLoader modelConfigLoader, IFileSystem? fs, ILogger? logger) {
         var dict = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase);
-
-        ApplyVendorFromSettings(dict, modelConfigLoader, fs, logger);
-
+        await ApplyVendorFromSettingsAsync(dict, modelConfigLoader, fs, logger).ConfigureAwait(false);
         _definitions = dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -32,7 +35,7 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
     /// </summary>
     public IReadOnlyCollection<string> RegisteredProviders => _definitions.Keys;
 
-    private static void ApplyVendorFromSettings(Dictionary<string, IProviderDefinition> dict, IModelConfigLoader modelConfigLoader, IFileSystem? fs, ILogger? logger) {
+    private static async ValueTask ApplyVendorFromSettingsAsync(Dictionary<string, IProviderDefinition> dict, IModelConfigLoader modelConfigLoader, IFileSystem? fs, ILogger? logger) {
         var settingsPath = Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
         logger?.LogDebug("PDR settingsPath={Path} JccDirectory={Dir} UserProfile={Profile}", settingsPath, AppDataConstants.Paths.JccDirectory, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
 
@@ -43,7 +46,7 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry {
         }
 
         try {
-            var json = fileSystem.ReadAllText(settingsPath);
+            var json = await fileSystem.ReadAllText(settingsPath).ConfigureAwait(false);
             logger?.LogDebug("PDR ReadAllText OK, len={Len}", json.Length);
             var node = System.Text.Json.Nodes.JsonNode.Parse(json);
             var vendorNode = node?["vendor"];

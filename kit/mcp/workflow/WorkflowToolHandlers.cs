@@ -43,7 +43,7 @@ public class WorkflowToolHandlers {
         _logger = logger;
     }
 
-    private bool CheckHasAiKey() {
+    private async Task<bool> CheckHasAiKeyAsync() {
         var apiKey = _configuration["Workflow:Provider:ApiKey"];
         if (!string.IsNullOrWhiteSpace(apiKey)) return true;
 
@@ -59,7 +59,7 @@ public class WorkflowToolHandlers {
         try {
             var fs = _fileSystem ?? new IO.FileSystem.PhysicalFileSystem();
             if (fs.FileExists(authFilePath)) {
-                var json = fs.ReadAllText(authFilePath);
+                var json = await fs.ReadAllText(authFilePath).ConfigureAwait(false);
                 using var doc = System.Text.Json.JsonDocument.Parse(json);
                 foreach (var prop in doc.RootElement.EnumerateObject()) {
                     if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.String &&
@@ -75,9 +75,9 @@ public class WorkflowToolHandlers {
         return false;
     }
 
-    private bool IsPromptOnlyMode() {
+    private async Task<bool> IsPromptOnlyModeAsync() {
         var modeConfig = _configuration?["McpServer:OperationMode"]?.ToLowerInvariant();
-        var hasAiKey = CheckHasAiKey();
+        var hasAiKey = await CheckHasAiKeyAsync().ConfigureAwait(false);
         var hasRequiredServices = _planService != null && _chatService != null && _codeService != null;
 
         return modeConfig == "promptonly" ||
@@ -209,7 +209,7 @@ public class WorkflowToolHandlers {
     /// <returns>工具执行结果</returns>
     [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowClearHistory, "Clear chat history", "chat")]
     public async Task<ToolResult> WorkflowClearHistoryAsync(CancellationToken cancellationToken = default) {
-        if (IsPromptOnlyMode()) {
+        if (await IsPromptOnlyModeAsync().ConfigureAwait(false)) {
             // 在提示词模式下，清空内存历史
             await ClearInMemoryHistoryAsync(cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowPromptModeHistoryCleared)).Build();
@@ -230,7 +230,7 @@ public class WorkflowToolHandlers {
     /// <returns>包含聊天历史的工具执行结果</returns>
     [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowGetHistory, "Get chat history records", "chat")]
     public async Task<ToolResult> WorkflowGetHistoryAsync(CancellationToken cancellationToken = default) {
-        if (IsPromptOnlyMode()) {
+        if (await IsPromptOnlyModeAsync().ConfigureAwait(false)) {
             // 在提示词模式下，返回内存中的历史
             var history = await GetInMemoryHistoryAsync(cancellationToken).ConfigureAwait(false);
             if (history.Count == 0) {
@@ -285,7 +285,7 @@ public class WorkflowToolHandlers {
             return validationResult;
         }
 
-        if (IsPromptOnlyMode()) {
+        if (await IsPromptOnlyModeAsync().ConfigureAwait(false)) {
             var prompt = await promptGenerator(command, cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(prompt).Build();
         }

@@ -42,7 +42,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
             context.KeywordResult = keywordResult;
 
             if (!keywordResult.HasPromptInjection) {
-                RecordKeywordMiss(context.Message);
+                await RecordKeywordMiss(context.Message).ConfigureAwait(false);
                 await next(context, ct).ConfigureAwait(false);
                 return;
             }
@@ -107,7 +107,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
     /// <summary>
     /// 记录关键词未命中事件 — 供后台 Agent 分析优化词表
     /// </summary>
-    private void RecordKeywordMiss(string input) {
+    private async ValueTask RecordKeywordMiss(string input) {
         if (string.IsNullOrWhiteSpace(input) || input.Length > 200)
             return;
 
@@ -122,7 +122,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
                 return;
 
             var entry = $"{{\"timestamp\":\"{DateTime.UtcNow:O}\",\"input\":\"{JsonEncode(input)}\"}}\n";
-            _fs.AppendAllText(filePath, entry);
+            await _fs.AppendAllText(filePath, entry).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogDebug(ex, "记录关键词 miss 失败");
         }

@@ -1,9 +1,9 @@
-﻿namespace PrefixCache.Unit;
+namespace PrefixCache.Unit;
 
 public sealed class SessionMetaUpdatedAtTests {
     [Fact]
-    public void ToMeta_WithTicks_PersistsUpdatedAt() {
-        using var stats = new SessionStats();
+    public async Task ToMeta_WithTicks_PersistsUpdatedAt() {
+        await using var stats = new SessionStats();
         stats.RecordTurn(new TokenUsage(100, 200));
         const long ticks = 638400000000000000L;
 
@@ -13,8 +13,8 @@ public sealed class SessionMetaUpdatedAtTests {
     }
 
     [Fact]
-    public void ToMeta_WithoutTicks_DefaultsToZero() {
-        using var stats = new SessionStats();
+    public async Task ToMeta_WithoutTicks_DefaultsToZero() {
+        await using var stats = new SessionStats();
 
         var meta = stats.ToMeta();
 

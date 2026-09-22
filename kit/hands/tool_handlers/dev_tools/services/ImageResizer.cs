@@ -273,7 +273,7 @@ public static class ImageResizer {
     /// 按原始格式编码到字节数组
     /// </summary>
     private static async Task<byte[]> EncodeToBufferAsync(Image image, IImageFormat? format) {
-        using var ms = new MemoryStream();
+        await using var ms = new MemoryStream();
         if (format is JpegFormat)
             await image.SaveAsJpegAsync(ms, new JpegEncoder { Quality = 80 }).ConfigureAwait(false);
         else if (format is PngFormat)
@@ -290,7 +290,7 @@ public static class ImageResizer {
     /// PNG 调色板压缩（对齐 TS: png({ compressionLevel: 9, palette: true })）
     /// </summary>
     private static async Task<byte[]> EncodeToPngPaletteAsync(Image image) {
-        using var ms = new MemoryStream();
+        await using var ms = new MemoryStream();
         await image.SaveAsPngAsync(ms, new PngEncoder {
             CompressionLevel = PngCompressionLevel.BestCompression,
             ColorType = PngColorType.Palette,
@@ -302,7 +302,7 @@ public static class ImageResizer {
     /// JPEG 压缩（对齐 TS: jpeg({ quality })）
     /// </summary>
     private static async Task<byte[]> EncodeToJpegAsync(Image image, int quality) {
-        using var ms = new MemoryStream();
+        await using var ms = new MemoryStream();
         await image.SaveAsJpegAsync(ms, new JpegEncoder { Quality = quality }).ConfigureAwait(false);
         return ms.ToArray();
     }
@@ -382,7 +382,7 @@ public static class ImageResizer {
                         Sampler = KnownResamplers.Lanczos3,
                     }));
 
-                using var ms = new MemoryStream();
+                await using var ms = new MemoryStream();
                 await paletteImage.SaveAsPngAsync(ms, new PngEncoder {
                     CompressionLevel = PngCompressionLevel.BestCompression,
                     ColorType = PngColorType.Palette,

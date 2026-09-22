@@ -78,8 +78,7 @@ public sealed class ModelCoordinator : IModelCoordinator {
             InitialMessageList = _plannerSession,
             SessionId = SessionIdFactory.DefaultSessionId,
         };
-
-        using var planner = AgentFactory.Create(
+        await using var planner = AgentFactory.Create(
             objective,
             plannerOptions,
             _queryEngine,
@@ -117,8 +116,7 @@ public sealed class ModelCoordinator : IModelCoordinator {
             SystemPrompt = "You are the executor in a two-model coding agent. Carry out the plan using your available tools.",
             SessionId = SessionIdFactory.DefaultSessionId,
         };
-
-        using var executor = AgentFactory.Create(
+        await using var executor = AgentFactory.Create(
             handoff,
             executorOptions,
             _queryEngine,

@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
+namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
 
 
 public class ResponsesQueryServiceTests {
@@ -172,9 +172,9 @@ public class ResponsesQueryServiceTests {
     }
 
     [Fact]
-    public void CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
+    public async Task CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
         var service = CreateService();
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup("tools", [new ToolDef("TestTool", "A test tool")]));
         var options = new ChatOptions { ToolChoice = ToolChoice.AutoInvoke };
 
@@ -656,8 +656,8 @@ public class ResponsesQueryServiceTests {
     #region Two-Phase Tool Loading — BuildToolsFromKernel
 
     [Fact]
-    public void BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file"),
             new ToolDef("write", "Write a file")
@@ -671,8 +671,8 @@ public class ResponsesQueryServiceTests {
     }
 
     [Fact]
-    public void BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.server1.tool1", "MCP tool 1"),
             new ToolDef("mcp.server2.tool2", "MCP tool 2")
@@ -687,8 +687,8 @@ public class ResponsesQueryServiceTests {
     }
 
     [Fact]
-    public void BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file")
         ]));
@@ -710,8 +710,8 @@ public class ResponsesQueryServiceTests {
     #region Two-Phase Tool Loading — CreateSecondResponsesRequestWithDescriptions
 
     [Fact]
-    public void CreateSecondResponsesRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task CreateSecondResponsesRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1"),
             new ToolDef("mcp.tool2", "MCP tool 2")
@@ -732,8 +732,8 @@ public class ResponsesQueryServiceTests {
     }
 
     [Fact]
-    public void CreateSecondResponsesRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task CreateSecondResponsesRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));
@@ -747,8 +747,8 @@ public class ResponsesQueryServiceTests {
     }
 
     [Fact]
-    public void CreateSecondResponsesRequestWithDescriptions_PreservesOriginalFields() {
-        using var kernel = new ChatClient(new Mock<IQueryService>().Object);
+    public async Task CreateSecondResponsesRequestWithDescriptions_PreservesOriginalFields() {
+        await using var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));

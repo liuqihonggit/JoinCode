@@ -45,7 +45,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         var state = scope.Cache.Get<SessionPlanState>(PlanStateKey);
         if (state is null) {
             state = new SessionPlanState();
-            scope.Cache.Set(PlanStateKey, state);
+            _ = scope.Cache.SetAsync(PlanStateKey, state);
         }
         return state;
     }

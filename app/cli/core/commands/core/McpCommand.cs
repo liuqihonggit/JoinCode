@@ -7,14 +7,14 @@ namespace JoinCode.CliCommands;
 public sealed class McpCliCommand {
     private static readonly Cli.Output.CliOutputJsonContext JsonCtx = Cli.Output.CliOutputJsonContext.Default;
 
-    internal static Task<int> ExecuteCallAsync(
+    internal static async Task<int> ExecuteCallAsync(
         string toolName, string? args, string[]? kvArgs, string? argsFile, bool argsStdin, bool json,
         string? vendor = null, string? model = null, CancellationToken ct = default) {
-        var argDict = ParseArgs(args, kvArgs, argsFile, argsStdin);
+        var argDict = await ParseArgsAsync(args, kvArgs, argsFile, argsStdin).ConfigureAwait(false);
         if (argDict is null)
-            return Task.FromResult(OutputError("参数解析失败", json));
+            return OutputError("参数解析失败", json);
 
-        return WithHostAsync(async services => {
+        return await WithHostAsync(async services => {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
             if (!await registry.ContainsToolAsync(toolName, ct).ConfigureAwait(false)) {
                 var allTools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
@@ -26,7 +26,7 @@ public sealed class McpCliCommand {
             }
             var result = await registry.ExecuteToolAsync(toolName, argDict, ct).ConfigureAwait(false);
             return OutputResult(result, json);
-        }, vendor, model, ct);
+        }, vendor, model, ct).ConfigureAwait(false);
     }
 
     internal static Task<int> ExecuteListAsync(string? category, bool json, CancellationToken ct = default)
@@ -226,7 +226,7 @@ public sealed class McpCliCommand {
         return await action(host.Services).ConfigureAwait(false);
     }
 
-    private static Dictionary<string, JsonElement>? ParseArgs(string? args, string[]? kvArgs, string? argsFile, bool argsStdin) {
+    private static async Task<Dictionary<string, JsonElement>?> ParseArgsAsync(string? args, string[]? kvArgs, string? argsFile, bool argsStdin) {
         // 优先级: kvArgs (key=value) > argsJson (JSON) > argsFile > argsStdin
         if (kvArgs is { Length: > 0 }) {
             var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
@@ -239,16 +239,15 @@ public sealed class McpCliCommand {
                 }
                 var key = kv[..eqIdx];
                 var value = kv[(eqIdx + 1)..];
-                dict[key] = ParseValueToJsonElement(value, key);
+                dict[key] = await ParseValueToJsonElementAsync(value, key).ConfigureAwait(false);
             }
             return dict;
         }
 
         string? json = null;
         if (argsStdin) {
-            // 读取 stdin 原始字节，循环去除所有前导 UTF-8 BOM（PowerShell 管道可能注入多个 BOM）
-            using var stream = System.Console.OpenStandardInput();
-            using var ms = new System.IO.MemoryStream();
+            await using var stream = System.Console.OpenStandardInput();
+            await using var ms = new System.IO.MemoryStream();
             stream.CopyTo(ms);
             var bytes = ms.ToArray();
             var offset = 0;
@@ -347,7 +346,7 @@ public sealed class McpCliCommand {
     /// <para>当 value 以 { 或 [ 开头时，尝试解析为 JSON 对象或数组；解析失败时调用 LlmJsonHelper.RepairJson 修复（处理 PowerShell 引号剥离等问题）。</para>
     /// </summary>
     /// <summary>将字符串值按类型推断转换为 JsonElement（int/double/bool/null/JSON/字符串）</summary>
-    internal static JsonElement ParseValueToJsonElement(string value, string keyName) {
+    internal static async Task<JsonElement> ParseValueToJsonElementAsync(string value, string keyName) {
         if (value.Length > 0 && (value[0] == '{' || value[0] == '[')) {
             try {
                 return JsonDocument.Parse(value).RootElement.Clone();
@@ -377,8 +376,8 @@ public sealed class McpCliCommand {
         if (string.Equals(value, "null", StringComparison.OrdinalIgnoreCase))
             return JsonDocument.Parse("null").RootElement.Clone();
         // 字符串值 — 用 Utf8JsonWriter 写入（AOT 兼容）
-        using var ms = new System.IO.MemoryStream();
-        using (var writer = new System.Text.Json.Utf8JsonWriter(ms))
+        await using var ms = new System.IO.MemoryStream();
+        await using (var writer = new System.Text.Json.Utf8JsonWriter(ms))
             writer.WriteStringValue(value);
         ms.Position = 0;
         return JsonDocument.Parse(ms).RootElement.Clone();

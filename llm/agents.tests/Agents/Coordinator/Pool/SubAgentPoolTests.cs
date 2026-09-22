@@ -19,7 +19,7 @@ public sealed class SubAgentPoolTests {
         await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
 
-        var result = pool.Return(agent);
+        var result = await pool.Return(agent);
 
         result.Should().BeTrue();
         pool.Count.Should().Be(1);
@@ -33,8 +33,8 @@ public sealed class SubAgentPoolTests {
         var agent1 = CreateAgent("task A");
         var agent2 = CreateAgent("task B");
 
-        pool.Return(agent1);
-        var result = pool.Return(agent2);
+        await pool.Return(agent1);
+        var result = await pool.Return(agent2);
 
         result.Should().BeFalse();
         pool.Count.Should().Be(1);
@@ -47,7 +47,7 @@ public sealed class SubAgentPoolTests {
         await using var pool = new SubAgentPool(options);
         var agent = CreateAgent();
 
-        var result = pool.Return(agent);
+        var result = await pool.Return(agent);
 
         result.Should().BeFalse();
         pool.Count.Should().Be(0);
@@ -68,7 +68,7 @@ public sealed class SubAgentPoolTests {
         await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser");
         agent.Status = TaskExecutionStatus.Completed;
-        pool.Return(agent);
+        await pool.Return(agent);
 
         var acquired = pool.TryAcquire("fix bug in parser");
 
@@ -82,7 +82,7 @@ public sealed class SubAgentPoolTests {
         await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
         agent.Status = TaskExecutionStatus.Running;
-        pool.Return(agent);
+        await pool.Return(agent);
 
         var acquired = pool.TryAcquire("task A");
 
@@ -96,8 +96,8 @@ public sealed class SubAgentPoolTests {
         agent1.Status = TaskExecutionStatus.Completed;
         var agent2 = CreateAgent("refactor code module");
         agent2.Status = TaskExecutionStatus.Completed;
-        pool.Return(agent1);
-        pool.Return(agent2);
+        await pool.Return(agent1);
+        await pool.Return(agent2);
 
         var acquired = pool.TryAcquire("fix bug in parser");
 
@@ -109,9 +109,9 @@ public sealed class SubAgentPoolTests {
     public async Task Remove_ExistingAgent_DisposesAndRemoves() {
         await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
-        pool.Return(agent);
+        await pool.Return(agent);
 
-        var result = pool.Remove(agent.ObjectId.UniqueId);
+        var result = await pool.Remove(agent.ObjectId.UniqueId);
 
         result.Should().BeTrue();
         pool.Count.Should().Be(0);
@@ -121,7 +121,7 @@ public sealed class SubAgentPoolTests {
     public async Task Remove_NonExistingAgent_ReturnsFalse() {
         await using var pool = new SubAgentPool(DefaultOptions());
 
-        var result = pool.Remove("nonexistent-id");
+        var result = await pool.Remove("nonexistent-id");
 
         result.Should().BeFalse();
     }
@@ -132,10 +132,10 @@ public sealed class SubAgentPoolTests {
         options.PoolMaxSize = 2;
         await using var pool = new SubAgentPool(options);
 
-        pool.Return(CreateAgent("task A"));
+        await pool.Return(CreateAgent("task A"));
         pool.IsFull.Should().BeFalse();
 
-        pool.Return(CreateAgent("task B"));
+        await pool.Return(CreateAgent("task B"));
         pool.IsFull.Should().BeTrue();
     }
 
@@ -144,8 +144,8 @@ public sealed class SubAgentPoolTests {
         var pool = new SubAgentPool(DefaultOptions());
         var agent1 = CreateAgent("task A");
         var agent2 = CreateAgent("task B");
-        pool.Return(agent1);
-        pool.Return(agent2);
+        await pool.Return(agent1);
+        await pool.Return(agent2);
 
         await pool.DisposeAsync();
 
@@ -157,8 +157,8 @@ public sealed class SubAgentPoolTests {
         await using var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
 
-        pool.Return(agent);
-        var result = pool.Return(agent);
+        await pool.Return(agent);
+        var result = await pool.Return(agent);
 
         result.Should().BeFalse();
         pool.Count.Should().Be(1);

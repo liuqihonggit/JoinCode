@@ -20,11 +20,11 @@ public sealed class StateServiceTests : IDisposable {
     }
 
     [Fact]
-    public void SaveState_ShouldCreateState() {
+    public async Task SaveState_ShouldCreateState() {
         var chatHistory = new MessageList();
         chatHistory.AddUserMessage("Test message");
 
-        _stateService.SaveState("Test system prompt", chatHistory);
+        await _stateService.SaveStateAsync("Test system prompt", chatHistory);
 
         var (systemPrompt, loadedMessageList) = _stateService.LoadState();
         Assert.Equal("Test system prompt", systemPrompt);
@@ -32,12 +32,12 @@ public sealed class StateServiceTests : IDisposable {
     }
 
     [Fact]
-    public void LoadState_ExistingState_ShouldRestoreMessageList() {
+    public async Task LoadState_ExistingState_ShouldRestoreMessageList() {
         var systemPrompt = "Test system prompt";
         var chatHistory = new MessageList();
         chatHistory.AddUserMessage("Test message");
         chatHistory.AddAssistantMessage("Test response");
-        _stateService.SaveState(systemPrompt, chatHistory);
+        await _stateService.SaveStateAsync(systemPrompt, chatHistory);
 
         var (loadedSystemPrompt, loadedMessageList) = _stateService.LoadState();
 
@@ -55,12 +55,12 @@ public sealed class StateServiceTests : IDisposable {
     }
 
     [Fact]
-    public void ClearState_ExistingState_ShouldReturnTrue() {
+    public async Task ClearState_ExistingState_ShouldReturnTrue() {
         var chatHistory = new MessageList();
         chatHistory.AddUserMessage("Test message");
-        _stateService.SaveState("Test prompt", chatHistory);
+        await _stateService.SaveStateAsync("Test prompt", chatHistory);
 
-        var cleared = _stateService.ClearState();
+        var cleared = await _stateService.ClearStateAsync();
 
         Assert.True(cleared);
 
@@ -70,8 +70,8 @@ public sealed class StateServiceTests : IDisposable {
     }
 
     [Fact]
-    public void ClearState_NonExistingState_ShouldReturnFalse() {
-        var cleared = _stateService.ClearState();
+    public async Task ClearState_NonExistingState_ShouldReturnFalse() {
+        var cleared = await _stateService.ClearStateAsync();
 
         Assert.False(cleared);
     }
@@ -117,13 +117,13 @@ public sealed class StateServiceTests : IDisposable {
     }
 
     [Fact]
-    public void SaveState_WithDifferentMessageTypes_ShouldPreserveAll() {
+    public async Task SaveState_WithDifferentMessageTypes_ShouldPreserveAll() {
         var chatHistory = new MessageList();
         chatHistory.AddSystemMessage("System message");
         chatHistory.AddUserMessage("User message");
         chatHistory.AddAssistantMessage("Assistant message");
 
-        _stateService.SaveState("System prompt", chatHistory);
+        await _stateService.SaveStateAsync("System prompt", chatHistory);
         var (_, loadedMessageList) = _stateService.LoadState();
 
         Assert.True(loadedMessageList.Count >= 3);
@@ -134,7 +134,7 @@ public sealed class StateServiceTests : IDisposable {
     /// 加载能完整恢复 Metadata。
     /// </summary>
     [Fact]
-    public void SaveState_WithToolCallMetadata_ShouldPreserveToolCalls() {
+    public async Task SaveState_WithToolCallMetadata_ShouldPreserveToolCalls() {
         var toolCalls = new List<ToolCallEntry>
         {
             new() { Id = "call_001", Name = "Read", Arguments = "{\"file_path\":\"README.md\"}" }
@@ -146,7 +146,7 @@ public sealed class StateServiceTests : IDisposable {
             new(MessageRole.Assistant, null, assistantMetadata)
         };
 
-        _stateService.SaveState("System prompt", chatHistory);
+        await _stateService.SaveStateAsync("System prompt", chatHistory);
         var (_, loadedMessageList) = _stateService.LoadState();
 
         Assert.True(loadedMessageList.Count >= 2);
@@ -165,7 +165,7 @@ public sealed class StateServiceTests : IDisposable {
     /// 加载能完整恢复 Metadata。
     /// </summary>
     [Fact]
-    public void SaveState_WithToolResultMetadata_ShouldPreserveToolCallIdAndName() {
+    public async Task SaveState_WithToolResultMetadata_ShouldPreserveToolCallIdAndName() {
         var toolMetadata = ToolCallEntry.BuildToolResultMetadata("call_001", "Read");
         var chatHistory = new MessageList
         {
@@ -175,7 +175,7 @@ public sealed class StateServiceTests : IDisposable {
             new(MessageRole.Tool, "File content here", toolMetadata)
         };
 
-        _stateService.SaveState("System prompt", chatHistory);
+        await _stateService.SaveStateAsync("System prompt", chatHistory);
         var (_, loadedMessageList) = _stateService.LoadState();
 
         var loadedTool = loadedMessageList.FirstOrDefault(m => m.Role == MessageRole.Tool);
@@ -190,7 +190,7 @@ public sealed class StateServiceTests : IDisposable {
     /// 验证多轮工具调用对话保存加载后，消息顺序和 Metadata 完整。
     /// </summary>
     [Fact]
-    public void SaveLoad_WithMultiTurnToolConversation_ShouldPreserveOrderAndMetadata() {
+    public async Task SaveLoad_WithMultiTurnToolConversation_ShouldPreserveOrderAndMetadata() {
         var chatHistory = new MessageList
         {
             new(MessageRole.User, "读取 README.md"),
@@ -205,7 +205,7 @@ public sealed class StateServiceTests : IDisposable {
             new(MessageRole.Assistant, "已读取 CLAUDE.md")
         };
 
-        _stateService.SaveState("System prompt", chatHistory);
+        await _stateService.SaveStateAsync("System prompt", chatHistory);
         var (_, loadedMessageList) = _stateService.LoadState();
 
         Assert.Equal(8, loadedMessageList.Count);
@@ -240,7 +240,7 @@ public sealed class StateServiceTests : IDisposable {
     /// 验证 LoadState 对重复消息去重。
     /// </summary>
     [Fact]
-    public void LoadState_WithDuplicateContentDifferentRole_ShouldDeduplicateKeepTool() {
+    public async Task LoadState_WithDuplicateContentDifferentRole_ShouldDeduplicateKeepTool() {
         var chatHistory = new MessageList
         {
             new(MessageRole.User, "读取文件"),
@@ -251,7 +251,7 @@ public sealed class StateServiceTests : IDisposable {
             new(MessageRole.Assistant, "已读取文件")
         };
 
-        _stateService.SaveState("System prompt", chatHistory);
+        await _stateService.SaveStateAsync("System prompt", chatHistory);
 
         var (_, loadedMessageList) = _stateService.LoadState();
 
@@ -267,7 +267,7 @@ public sealed class StateServiceTests : IDisposable {
     /// 验证 LoadState 对完全相同的消息（Role + Content）去重。
     /// </summary>
     [Fact]
-    public void LoadState_WithExactDuplicateMessages_ShouldDeduplicate() {
+    public async Task LoadState_WithExactDuplicateMessages_ShouldDeduplicate() {
         var chatHistory = new MessageList
         {
             new(MessageRole.User, "Hello"),
@@ -276,7 +276,7 @@ public sealed class StateServiceTests : IDisposable {
             new(MessageRole.Assistant, "Hi there")
         };
 
-        _stateService.SaveState("System prompt", chatHistory);
+        await _stateService.SaveStateAsync("System prompt", chatHistory);
 
         var (_, loadedMessageList) = _stateService.LoadState();
 
@@ -291,7 +291,7 @@ public sealed class StateServiceTests : IDisposable {
     /// 验证同内容不同 tool_call_id 的 Tool 结果消息不被去重丢弃。
     /// </summary>
     [Fact]
-    public void LoadState_WithSameContentDifferentToolCallId_ShouldPreserveBothToolResults() {
+    public async Task LoadState_WithSameContentDifferentToolCallId_ShouldPreserveBothToolResults() {
         var chatHistory = new MessageList
         {
             new(MessageRole.User, "读取两个文件"),
@@ -304,7 +304,7 @@ public sealed class StateServiceTests : IDisposable {
             new(MessageRole.Tool, "Hello World", ToolCallEntry.BuildToolResultMetadata("call_002", "Read")),
         };
 
-        _stateService.SaveState("System prompt", chatHistory);
+        await _stateService.SaveStateAsync("System prompt", chatHistory);
 
         var (_, loadedMessageList) = _stateService.LoadState();
 

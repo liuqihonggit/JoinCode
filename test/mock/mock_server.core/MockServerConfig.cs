@@ -26,11 +26,11 @@ public sealed class MockServerConfig : MockServerConfigBase<MockServerConfig> {
     protected override string ConfigNotFoundMessage => "MockServer 配置文件不存在: {0}";
 
     /// <summary>从 JSON 文件加载配置</summary>
-    public static MockServerConfig LoadFromFile(string path)
+    public static Task<MockServerConfig> LoadFromFile(string path)
         => LoadFromFile(path, MockServerJsonContext.Default.MockServerConfig, "MockServer 配置文件不存在: {0}");
 
     /// <summary>从 JSON 文件加载配置 — 文件不存在时返回默认配置</summary>
-    public static MockServerConfig LoadFromFileOrDefault(string path)
+    public static Task<MockServerConfig> LoadFromFileOrDefault(string path)
         => LoadFromFileOrDefault(path, MockServerJsonContext.Default.MockServerConfig, "[MockServer]", "MockServer 配置文件不存在: {0}");
 }
 

@@ -61,7 +61,7 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
     }
 
     private async Task AppendEntryInternalAsync(string filePath, TranscriptEntry entry, CancellationToken cancellationToken) {
-        var entryToWrite = MaybeOffloadToPasteStore(entry);
+        var entryToWrite = await MaybeOffloadToPasteStore(entry).ConfigureAwait(false);
         try {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
             var entries = await ReadJsonAsync(filePath, cancellationToken).ConfigureAwait(false);
@@ -93,7 +93,7 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
             var existing = await ReadJsonAsync(filePath, cancellationToken).ConfigureAwait(false);
             foreach (var entry in entries) {
-                existing.Add(MaybeOffloadToPasteStore(entry));
+                existing.Add(await MaybeOffloadToPasteStore(entry).ConfigureAwait(false));
             }
             await WriteJsonAsync(filePath, existing, cancellationToken).ConfigureAwait(false);
             _logger?.LogDebug("{Count} transcript entries appended to {FilePath}", entries.Count, filePath);
@@ -133,7 +133,7 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
 
         var result = new List<TranscriptEntry>(entries.Count);
         foreach (var e in entries) {
-            result.Add(ResolveFromPasteStore(e));
+            result.Add(await ResolveFromPasteStore(e).ConfigureAwait(false));
         }
         return result;
     }
@@ -178,10 +178,10 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
         }
     }
 
-    private void EnsureFileExists(string filePath) {
+    private async Task EnsureFileExists(string filePath) {
         if (!_fs.FileExists(filePath)) {
             try {
-                _fs.CreateStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite).Dispose();
+                await _fs.CreateStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite).DisposeAsync().ConfigureAwait(false);
             } catch (IOException ex) when (_fs.FileExists(filePath)) {
                 _logger?.LogDebug(ex, "Transcript file already exists (created by another process): {FilePath}", filePath);
             } catch (UnauthorizedAccessException) {
@@ -243,14 +243,14 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
     /// <summary>
     /// 序列化前：大文本(>1024字符)存到 paste-cache，Content 置空，设 ContentHash — 对齐 TS addToPromptHistory
     /// </summary>
-    private TranscriptEntry MaybeOffloadToPasteStore(TranscriptEntry entry) {
+    private async Task<TranscriptEntry> MaybeOffloadToPasteStore(TranscriptEntry entry) {
         if (_pasteStore is null || string.IsNullOrEmpty(entry.Content) || entry.Content.Length <= MaxPastedContentLength) {
             return entry;
         }
 
         try {
             var hash = _pasteStore.HashPastedText(entry.Content);
-            _pasteStore.StorePastedText(hash, entry.Content);
+            await _pasteStore.StorePastedText(hash, entry.Content).ConfigureAwait(false);
             return entry with { Content = string.Empty, ContentHash = hash };
         } catch (Exception ex) {
             _logger?.LogDebug(ex, "粘贴内容卸载到 paste-cache 失败，将内联存储");
@@ -261,13 +261,13 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable {
     /// <summary>
     /// 反序列化后：如果有 ContentHash 引用，从 paste-cache 还原 Content — 对齐 TS resolveStoredPastedContent
     /// </summary>
-    private TranscriptEntry ResolveFromPasteStore(TranscriptEntry entry) {
+    private async Task<TranscriptEntry> ResolveFromPasteStore(TranscriptEntry entry) {
         if (_pasteStore is null || string.IsNullOrEmpty(entry.ContentHash)) {
             return entry;
         }
 
         try {
-            var content = _pasteStore.RetrievePastedText(entry.ContentHash);
+            var content = await _pasteStore.RetrievePastedText(entry.ContentHash).ConfigureAwait(false);
             if (content is not null) {
                 return entry with { Content = content, ContentHash = null };
             }

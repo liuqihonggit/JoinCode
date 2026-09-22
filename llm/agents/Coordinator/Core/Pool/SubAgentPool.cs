@@ -57,20 +57,20 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
     /// <summary>
     /// 子代理完成后回池 — 池满则直接 Dispose
     /// </summary>
-    public bool Return(AgentBase agent) {
+    public async Task<bool> Return(AgentBase agent) {
         ArgumentNullException.ThrowIfNull(agent);
 
         if (_options.PoolMaxSize == 0) {
             _logger?.LogDebug("[SubAgentPool] 代理池已禁用（PoolMaxSize=0），直接 Dispose Agent {AgentId}",
                 agent.ObjectId.UniqueId);
-            agent.Dispose();
+            await agent.DisposeAsync().ConfigureAwait(false);
             return false;
         }
 
         if (_pool.Count >= _options.PoolMaxSize) {
             _logger?.LogDebug("[SubAgentPool] 池满（{Count}/{Max}），直接 Dispose Agent {AgentId}",
                 _pool.Count, _options.PoolMaxSize, agent.ObjectId.UniqueId);
-            agent.Dispose();
+            await agent.DisposeAsync().ConfigureAwait(false);
             return false;
         }
 
@@ -88,7 +88,7 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
 
         _logger?.LogDebug("[SubAgentPool] Agent {AgentId} 回池失败（TryAdd 竞争），直接 Dispose",
             agent.ObjectId.UniqueId);
-        agent.Dispose();
+        await agent.DisposeAsync().ConfigureAwait(false);
         return false;
     }
 
@@ -127,10 +127,10 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
     /// <summary>
     /// 从池中移除并 Dispose 指定代理
     /// </summary>
-    public bool Remove(string agentId) {
+    public async Task<bool> Remove(string agentId) {
         if (_pool.TryRemove(agentId, out var entry)) {
             _logger?.LogDebug("[SubAgentPool] Agent {AgentId} 从池中移除并 Dispose", agentId);
-            entry.Agent.Dispose();
+            await entry.Agent.DisposeAsync().ConfigureAwait(false);
             return true;
         }
         return false;
@@ -166,7 +166,7 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
                     var idleSeconds = (now - entry.ReturnedAt).TotalSeconds;
                     if (idleSeconds > _options.PoolIdleTimeoutSeconds) {
                         if (_pool.TryRemove(id, out var removed)) {
-                            removed.Agent.Dispose();
+                            await removed.Agent.DisposeAsync().ConfigureAwait(false);
                             _logger?.LogDebug("[SubAgentPool] Agent {AgentId} 空闲超时（{Seconds:F0}s）已 Dispose",
                                 id, idleSeconds);
                         }

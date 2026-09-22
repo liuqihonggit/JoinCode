@@ -169,7 +169,7 @@ public sealed class McpHttpServer : ServiceEntity {
 
         _server.NotificationReceived += OnNotification;
         try {
-            using var writer = ctx.Response.OutputStream.AsUtf8Writer();
+            await using var writer = ctx.Response.OutputStream.AsUtf8Writer();
             writer.AutoFlush = true;
             await writer.WriteLineAsync("retry: 3000").ConfigureAwait(false);
             await writer.FlushAsync(ct).ConfigureAwait(false);

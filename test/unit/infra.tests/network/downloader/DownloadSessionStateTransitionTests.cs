@@ -12,13 +12,13 @@ public sealed class DownloadSessionStateTransitionTests {
 
     [Fact]
     public async Task Pause_FromDownloading_ToPaused() {
-        var handler = CreateDelayedHandler(1024, delayMs: 500, etag: "\"etag1\"");
+        var getStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = CreateDelayedHandler(1024, delayMs: 2000, etag: "\"etag1\"", getStarted);
         await using var fs = new InMemoryFileSystem();
         await using var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
         var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
-        await Task.Delay(50);
-        await session.PauseAsync();
+        await WaitDownloadingAndPauseAsync(session, getStarted);
 
         session.State.Should().Be(DownloadState.Paused);
     }
@@ -28,13 +28,13 @@ public sealed class DownloadSessionStateTransitionTests {
     [Fact]
     public async Task Resume_FromPaused_ToCompleted() {
         var data = Enumerable.Range(0, 1024).Select(i => (byte)i).ToArray();
-        var handler = CreateDelayedHandlerWithData(data, delayMs: 300, etag: "\"etag1\"");
+        var getStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = CreateDelayedHandlerWithData(data, delayMs: 2000, etag: "\"etag1\"", getStarted);
         await using var fs = new InMemoryFileSystem();
         await using var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
         var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
-        await Task.Delay(50);
-        await session.PauseAsync();
+        await WaitDownloadingAndPauseAsync(session, getStarted);
         session.State.Should().Be(DownloadState.Paused);
 
         await session.ResumeAsync();
@@ -51,21 +51,22 @@ public sealed class DownloadSessionStateTransitionTests {
     public async Task Resume_ResourceChanged_RetDownloadsAndCompletes() {
         var data = Enumerable.Range(0, 512).Select(i => (byte)i).ToArray();
         var etag = "\"etag1\"";
+        var getStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var handler = new DelayedStubHandler(async (req, ct) => {
             if (req.Method == HttpMethod.Head)
                 return new HttpResponseMessage(HttpStatusCode.OK) {
                     Headers = { AcceptRanges = { "bytes" }, ETag = new EntityTagHeaderValue(etag) },
                     Content = new ByteArrayContent([]) { Headers = { ContentLength = data.Length } }
                 };
-            await Task.Delay(200, ct);
+            getStarted.TrySetResult();
+            await Task.Delay(2000, ct);
             return RangeResponseFromData(req, data);
         });
         await using var fs = new InMemoryFileSystem();
         await using var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
         var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
-        await Task.Delay(50);
-        await session.PauseAsync();
+        await WaitDownloadingAndPauseAsync(session, getStarted);
 
         etag = "\"etag2\"";
 
@@ -96,19 +97,38 @@ public sealed class DownloadSessionStateTransitionTests {
 
     [Fact]
     public async Task Pause_PersistsMetadata() {
-        var handler = CreateDelayedHandler(1024, delayMs: 500, etag: "\"etag1\"");
+        var getStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = CreateDelayedHandler(1024, delayMs: 2000, etag: "\"etag1\"", getStarted);
         await using var fs = new InMemoryFileSystem();
         await using var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
         var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
-        await Task.Delay(50);
-        await session.PauseAsync();
+        await WaitDownloadingAndPauseAsync(session, getStarted);
 
         var metaPath = MetadataStore.GetMetadataPath(FilePath);
         fs.FileExists(metaPath).Should().BeTrue("Pause 后应持久化 .meta.json 供 Resume 恢复");
     }
 
     // === 辅助 ===
+
+    /// <summary>
+    /// 纵深防御组合拳 — 确定性等待下载进入 Downloading 状态后 Pause
+    /// <para>第一层：信号确认 GET 请求已发出（不依赖 Task.Delay 时序赛跑）</para>
+    /// <para>第二层：状态轮询 + 二进制指数退避重试16次（1,2,4,8...ms），容错 ThreadPool 调度抖动</para>
+    /// <para>第三层：16次仍非 Downloading → 明确报错（以太网冲突退避语义，不挂死不静默通过）</para>
+    /// <para>第四层：信号 10s 超时保护，GET 永不发出时明确报错而非挂死</para>
+    /// </summary>
+    private static async Task WaitDownloadingAndPauseAsync(IDownloadSession session, TaskCompletionSource getStarted) {
+        await getStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var backoffMs = 1;
+        for (var attempt = 0; attempt < 16; attempt++) {
+            if (session.State == DownloadState.Downloading) break;
+            await Task.Delay(backoffMs);
+            backoffMs = Math.Min(backoffMs * 2, 1024);
+        }
+        session.State.Should().Be(DownloadState.Downloading, "GET 已发出但16次指数退避后状态仍非 Downloading，疑似状态机 bug");
+        await session.PauseAsync();
+    }
 
     private static (RangeDownloader downloader, InMemoryFileSystem fs) CreateDownloaderWithData(byte[] data) {
         var handler = new StubHandler(req => {
@@ -123,7 +143,7 @@ public sealed class DownloadSessionStateTransitionTests {
         return (new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs), fs);
     }
 
-    private static DelayedStubHandler CreateDelayedHandler(int length, int delayMs, string etag) {
+    private static DelayedStubHandler CreateDelayedHandler(int length, int delayMs, string etag, TaskCompletionSource? getStarted = null) {
         var data = new byte[length];
         return new DelayedStubHandler(async (req, ct) => {
             if (req.Method == HttpMethod.Head)
@@ -131,18 +151,20 @@ public sealed class DownloadSessionStateTransitionTests {
                     Headers = { AcceptRanges = { "bytes" }, ETag = new EntityTagHeaderValue(etag) },
                     Content = new ByteArrayContent([]) { Headers = { ContentLength = length } }
                 };
+            getStarted?.TrySetResult();
             await Task.Delay(delayMs, ct);
             return RangeResponseFromData(req, data);
         });
     }
 
-    private static DelayedStubHandler CreateDelayedHandlerWithData(byte[] data, int delayMs, string etag) {
+    private static DelayedStubHandler CreateDelayedHandlerWithData(byte[] data, int delayMs, string etag, TaskCompletionSource? getStarted = null) {
         return new DelayedStubHandler(async (req, ct) => {
             if (req.Method == HttpMethod.Head)
                 return new HttpResponseMessage(HttpStatusCode.OK) {
                     Headers = { AcceptRanges = { "bytes" }, ETag = new EntityTagHeaderValue(etag) },
                     Content = new ByteArrayContent([]) { Headers = { ContentLength = data.Length } }
                 };
+            getStarted?.TrySetResult();
             await Task.Delay(delayMs, ct);
             return RangeResponseFromData(req, data);
         });

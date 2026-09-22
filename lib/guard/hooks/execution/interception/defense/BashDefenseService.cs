@@ -233,10 +233,11 @@ public sealed class BashDefenseService {
             $"防丢字符二次确认 — MTP 加速推理可能丢字符/乱入字符导致命令变形。" +
             $"\n\n解析结果：{command}" +
             $"\n确认码：#{expectedHash}" +
-            $"\n\n请再次输入完全相同的命令，并附带确认码 #{expectedHash} 以确认执行。" +
+            $"\n\n✅ 确认执行：再次输入完全相同的命令，并附带确认码 #{expectedHash}" +
+            $"\n✅ 作废重发：直接输入新命令即可（将被视为新一轮首次确认，无需额外作废指令）" +
             $"\n⚠️ 确认码由命令解析结果计算得出，无法从意图反推。",
             "命令", command,
-            "请再次输入同样命令并附带确认码。确认码由解析结果计算，防意图反推。");
+            "请再次输入同样命令并附带确认码以确认；或直接输入新命令作废当前命令（视为新一轮首次确认）。确认码由解析结果计算，防意图反推。");
         return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
     }
 

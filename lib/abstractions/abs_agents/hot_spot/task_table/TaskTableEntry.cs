@@ -21,5 +21,5 @@ public sealed record TaskTableEntry {
     /// <summary>获取或设置热点标注。</summary>
     public string HotSpotAnnotation { get; init; } = string.Empty;
     /// <summary>获取任务状态。</summary>
-    public required string Status { get; init; } = "pending";
+    public required string Status { get; init; } = DreamTaskStatus.Pending.ToValue();
 }

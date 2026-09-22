@@ -97,7 +97,7 @@ public sealed record TeamMessage {
     /// <summary>
     /// 消息类型
     /// </summary>
-    public string MessageType { get; init; } = "text";
+    public string MessageType { get; init; } = AgentOutputChunkType.Text.ToValue();
 
     /// <summary>
     /// 发送时间

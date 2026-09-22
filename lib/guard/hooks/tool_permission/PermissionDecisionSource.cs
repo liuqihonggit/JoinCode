@@ -108,7 +108,7 @@ public sealed record HookDecisionReason : PermissionDecisionReason {
     /// <summary>
     /// 决策类型标识 — 固定为 "hook"
     /// </summary>
-    public override string Type => "hook";
+    public override string Type => PermissionDecisionSourceType.Hook.ToValue();
 
     /// <summary>
     /// Hook 名称
@@ -128,7 +128,7 @@ public sealed record ClassifierPermissionDecisionReason : PermissionDecisionReas
     /// <summary>
     /// 决策类型标识 — 固定为 "classifier"
     /// </summary>
-    public override string Type => "classifier";
+    public override string Type => PermissionDecisionSourceType.Classifier.ToValue();
 
     /// <summary>
     /// 分类器类型

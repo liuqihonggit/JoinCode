@@ -40,7 +40,7 @@ public sealed class BuildQueueSettings {
     /// 编译队列模式: "serial"(串行,BuildQueueService)或 "parallel"(并行,BuildQueueRouter)。
     /// 默认 "serial",向后兼容。
     /// </summary>
-    public string Mode { get; set; } = "serial";
+    public string Mode { get; set; } = EventDispatchMode.Serial.ToValue();
 
     /// <summary>
     /// 并行模式 Worker 数量(仅 parallel 模式生效)。

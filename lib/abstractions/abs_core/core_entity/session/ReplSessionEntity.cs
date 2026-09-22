@@ -12,7 +12,7 @@ public sealed class ReplSessionEntity : ToolExecutionEntity {
 
     /// <summary>构造 ReplSessionEntity 实例。</summary>
     public ReplSessionEntity(
-        string language = "csharp",
+        string language = ReplLanguageEnumConstants.CSharp,
         string? toolUseId = null,
         string? spanId = null,
         string? displayName = null,

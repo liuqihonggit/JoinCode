@@ -447,3 +447,4 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0080](0080-manual-exe-testing-guide.md) | 测试执行 | 手动测试规范 + 全局测试命令 + 卡死排查 + throw 探针法 + 子智能体禁止全量测试 |
 | [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 工具统一入口 | ⛔ 禁止系统/宿主 gh/rg，统一用 `jcc rg` / `jcc mcp_call gh_*` / `jcc gh` |
 | [0113](0113-mtp-perturbation-bash-defense.md) | MTP 扰动防御 | Agent 层 BashDefense node 链兜住 MTP 单字符扰动，不依赖供应商关 MTP |
+| [0116](0116-getawaiter-getresult-allowed-scenarios.md) | .GetAwaiter().GetResult() 允许场景 | 构造函数/Lazy<T>/ThreadStart/同步委托中允许，已 async 方法中禁止，工具保守策略避免异步污染 |

@@ -37,10 +37,10 @@ public sealed class PasteStoreTests {
     }
 
     [Fact]
-    public void StorePastedText_ShouldWriteFileToDisk() {
+    public async Task StorePastedText_ShouldWriteFileToDisk() {
         var sut = CreateSut();
         var hash = sut.HashPastedText("stored content");
-        sut.StorePastedText(hash, "stored content");
+        await sut.StorePastedText(hash, "stored content");
 
         var filePath = Path.Combine(PasteCacheDir, $"{hash}.txt");
         _fs.FileExists(filePath).Should().BeTrue();
@@ -48,30 +48,30 @@ public sealed class PasteStoreTests {
     }
 
     [Fact]
-    public void RetrievePastedText_ShouldReturnContent() {
+    public async Task RetrievePastedText_ShouldReturnContent() {
         var sut = CreateSut();
         var hash = sut.HashPastedText("retrieved content");
-        sut.StorePastedText(hash, "retrieved content");
+        await sut.StorePastedText(hash, "retrieved content");
 
-        var result = sut.RetrievePastedText(hash);
+        var result = await sut.RetrievePastedText(hash);
         result.Should().Be("retrieved content");
     }
 
     [Fact]
-    public void RetrievePastedText_WithNonExistentHash_ShouldReturnNull() {
+    public async Task RetrievePastedText_WithNonExistentHash_ShouldReturnNull() {
         var sut = CreateSut();
-        var result = sut.RetrievePastedText("nonexistent0000");
+        var result = await sut.RetrievePastedText("nonexistent0000");
         result.Should().BeNull();
     }
 
     [Fact]
-    public void StorePastedText_SameHash_ShouldOverwriteSafely() {
+    public async Task StorePastedText_SameHash_ShouldOverwriteSafely() {
         var sut = CreateSut();
         var hash = sut.HashPastedText("original");
-        sut.StorePastedText(hash, "original");
-        sut.StorePastedText(hash, "updated");
+        await sut.StorePastedText(hash, "original");
+        await sut.StorePastedText(hash, "updated");
 
-        var result = sut.RetrievePastedText(hash);
+        var result = await sut.RetrievePastedText(hash);
         result.Should().Be("updated");
     }
 }

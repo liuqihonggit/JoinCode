@@ -28,7 +28,7 @@ public sealed class GuiPreferencesStore {
             if (!_fs.FileExists(_filePath))
                 return new GuiPreferences();
 
-            var json = BclFileIO.Instance.ReadAllText(_filePath);
+            var json = _fs.ReadAllText(_filePath).GetAwaiter().GetResult();
             return RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiPreferences)
                 ?? new GuiPreferences();
         } catch (Exception) {
@@ -45,6 +45,6 @@ public sealed class GuiPreferencesStore {
             _fs.CreateDirectory(dir);
 
         var json = RelaxedJsonSerializer.Serialize(preferences, GuiJsonContext.Default);
-        _fs.WriteAllText(_filePath, json);
+        _fs.WriteAllText(_filePath, json).GetAwaiter().GetResult();
     }
 }

@@ -40,6 +40,10 @@ public sealed class SyncDisposeOnAsyncDisposableRule : AnalyzerRuleBase<SyncDisp
             || SymbolEqualityComparer.Default.Equals(receiverType, iasyncDisposableType);
         if (!implementsIAsyncDisposable) return;
 
+        var implementsIDisposable = receiverType.AllInterfaces.Contains(idisposableType, SymbolEqualityComparer.Default)
+            || SymbolEqualityComparer.Default.Equals(receiverType, idisposableType);
+        if (implementsIDisposable) return;
+
         if (IsInsideDisposeMethod(invocation)) return;
         if (IsInsideLambda(invocation)) return;
 

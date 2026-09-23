@@ -180,6 +180,10 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
         if (!IsErrorLine(line, "CS4014")) return visited;
         if (node.Expression is AwaitExpressionSyntax) return visited;
         if (node.Expression is not InvocationExpressionSyntax) return visited;
+        // 跳过 lambda 内的裸语句（由 VisitSimpleLambdaExpressionGpression 处理）
+        if (node.Ancestors().OfType<SimpleLambdaExpressionSyntax>().Any()
+            || node.Ancestors().OfType<ParenthesizedLambdaExpressionSyntax>().Any())
+            return visited;
 
         ExpressionSyntax newExpr;
         if (IsInNoAsyncContext(node)) {
@@ -200,6 +204,10 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
         if (!IsErrorLine(line, "CS0029"))
             return base.VisitVariableDeclarator(node);
 
+        // 跳过数组类型的变量（如 var paths = new[] { validPath, invalidPath }）
+        if (node.Parent is VariableDeclarationSyntax decl && decl.Type.IsKind(SyntaxKind.ArrayType))
+            return base.VisitVariableDeclarator(node);
+
         var initializer = node.Initializer;
         if (initializer is null) return base.VisitVariableDeclarator(node);
         var value = initializer.Value;
@@ -218,6 +226,38 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
         }
         FixedCount++;
         return node.WithInitializer(initializer.WithValue(newExpr));
+    }
+
+    /// <summary>
+    /// 处理 CS4034：lambda 内有 await 但 lambda 未标记 async → 给 lambda 加 async 修饰符
+    /// </summary>
+    public override SyntaxNode? VisitSimpleLambdaExpression(SimpleLambdaExpressionSyntax node) {
+        var visited = (SimpleLambdaExpressionSyntax?)base.VisitSimpleLambdaExpression(node);
+        if (visited is null) return null;
+        return TryAddAsyncToLambda(node, visited);
+    }
+
+    /// <summary>
+    /// 处理 CS4034：parenthesized lambda 内有 await 但 lambda 未标记 async → 给 lambda 加 async 修饰符
+    /// </summary>
+    public override SyntaxNode? VisitParenthesizedLambdaExpression(ParenthesizedLambdaExpressionSyntax node) {
+        var visited = (ParenthesizedLambdaExpressionSyntax?)base.VisitParenthesizedLambdaExpression(node);
+        if (visited is null) return null;
+        return TryAddAsyncToLambda(node, visited);
+    }
+
+    private SyntaxNode TryAddAsyncToLambda(SyntaxNode originalLambda, SyntaxNode visitedLambda) {
+        if (originalLambda.DescendantNodes().OfType<InvocationExpressionSyntax>()
+            .Any(inv => IsErrorLine(inv.GetLocation().GetLineSpan().StartLinePosition.Line + 1, "CS4014"))) {
+            var asyncKeyword = SyntaxFactory.Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(SyntaxFactory.Space);
+            FixedCount++;
+            return visitedLambda switch {
+                SimpleLambdaExpressionSyntax sl => sl.WithAsyncKeyword(asyncKeyword),
+                ParenthesizedLambdaExpressionSyntax pl => pl.WithAsyncKeyword(asyncKeyword),
+                _ => visitedLambda
+            };
+        }
+        return visitedLambda;
     }
 
     /// <summary>

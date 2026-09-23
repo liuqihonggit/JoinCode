@@ -3,8 +3,7 @@ namespace JccAuditCli;
 /// <summary>
 /// .GetAwaiter().GetResult() 分析器 — 用 AST 遍历所有函数体，检测哪些包含 .GetAwaiter().GetResult()。
 /// 检测逻辑共享 GetAwaiterPatternDetector（与修复器同一套判定），同检同换。
-/// 判断"直接包含的函数体"（lambda 或方法）是否 async，而非外层方法。
-/// 只检测，不修改。
+/// 输出详细分类表格，区分哪些可安全改 async、哪些不能改。
 /// </summary>
 public static class GetAwaiterAnalyzer {
 
@@ -17,8 +16,7 @@ public static class GetAwaiterAnalyzer {
         var csFiles = EnumerateCsFiles(rootPath).ToList();
         Console.WriteLine($"  找到 {csFiles.Count} 个 .cs 文件");
 
-        int syncCount = 0, asyncCount = 0, fixableCount = 0;
-        var results = new List<(string file, int line, string funcName, string innerExpr, bool isAsync, bool isFixable, string skipReason)>();
+        var results = new List<(string file, int line, string funcName, string funcType, string access, string returnType, string riskLevel, string reason, string innerExpr)>();
 
         foreach (var file in csFiles) {
             if (ct.IsCancellationRequested) break;
@@ -28,67 +26,76 @@ public static class GetAwaiterAnalyzer {
             var tree = CSharpSyntaxTree.ParseText(text, path: file);
             var root = await tree.GetRootAsync(ct).ConfigureAwait(false);
 
-            // 遍历所有 InvocationExpression 节点，用共享检测器判断
             foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>()) {
                 if (ct.IsCancellationRequested) break;
 
-                // 共享检测逻辑 — 与修复器调用同一套判定
                 if (!GetAwaiterPatternDetector.IsGetAwaiterGetResultPattern(invocation)) continue;
 
-                // 判断直接包含的函数体（lambda 或方法）是否 async
-                var isAsync = GetAwaiterPatternDetector.IsInAsyncContext(invocation);
-                var isFixable = GetAwaiterPatternDetector.IsFixableViolation(invocation);
+                var enclosing = GetAwaiterPatternDetector.GetEnclosingFunction(invocation);
                 var funcName = GetAwaiterPatternDetector.GetEnclosingFunctionName(invocation);
                 var lineNum = text.Lines.GetLineFromPosition(invocation.SpanStart).LineNumber + 1;
                 var innerExpr = GetAwaiterPatternDetector.ExtractInnerExpression(invocation)?.ToString().Trim() ?? "?";
+                var (riskLevel, reason) = GetAwaiterPatternDetector.GetRiskLevel(invocation);
 
-                // 获取跳过原因（如果不可修复）
-                var skipReason = string.Empty;
-                if (!isFixable) {
-                    if (GetAwaiterPatternDetector.IsInMainMethod(invocation)) skipReason = "Main方法";
-                    else if (GetAwaiterPatternDetector.IsInPropertyGetter(invocation)) skipReason = "属性getter";
-                    else if (isAsync) skipReason = "已是异步";
+                var funcType = enclosing switch {
+                    LambdaExpressionSyntax => "lambda",
+                    AnonymousMethodExpressionSyntax => "anonymous",
+                    MethodDeclarationSyntax => "方法",
+                    _ => "?"
+                };
+
+                var access = "?";
+                var returnType = "?";
+                if (enclosing is MethodDeclarationSyntax method) {
+                    access = GetAwaiterPatternDetector.GetAccessibility(method);
+                    returnType = GetAwaiterPatternDetector.GetReturnType(method);
+                } else if (enclosing is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax) {
+                    access = "lambda";
+                    returnType = "委托";
                 }
 
-                if (isAsync) asyncCount++; else syncCount++;
-                if (isFixable) fixableCount++;
-                results.Add((file, lineNum, funcName, innerExpr, isAsync, isFixable, skipReason));
+                results.Add((file, lineNum, funcName, funcType, access, returnType, riskLevel, reason, innerExpr));
             }
         }
 
-        // 输出报告
+        // 输出汇总
+        var byRisk = results.GroupBy(r => r.riskLevel).ToDictionary(g => g.Key, g => g.Count());
         Console.WriteLine();
         Console.WriteLine("=== .GetAwaiter().GetResult() 分析报告 ===");
-        Console.WriteLine($"  同步函数体中: {syncCount} 处");
-        Console.WriteLine($"  异步函数体中: {asyncCount} 处");
-        Console.WriteLine($"  可修复（同步函数体且不在跳过列表）: {fixableCount} 处");
-        Console.WriteLine($"  总计: {syncCount + asyncCount} 处");
+        Console.WriteLine($"  总计: {results.Count} 处");
+        Console.WriteLine($"  不能改: {byRisk.GetValueOrDefault("不能改", 0)} 处");
+        Console.WriteLine($"  高风险: {byRisk.GetValueOrDefault("高风险", 0)} 处");
+        Console.WriteLine($"  中风险: {byRisk.GetValueOrDefault("中风险", 0)} 处");
 
-        if (results.Count > 0) {
-            Console.WriteLine();
-            Console.WriteLine("  --- 明细 ---");
-            foreach (var r in results.OrderBy(r => r.file).ThenBy(r => r.line)) {
-                var relPath = Path.GetRelativePath(rootPath, r.file);
-                var tag = r.isFixable ? "[可修复]" : $"[跳过:{r.skipReason}]";
-                var funcType = r.isAsync ? "异步" : "同步";
-                Console.WriteLine($"    {tag} {relPath}:{r.line}  {funcType} {r.funcName}  →  {r.innerExpr}.GetAwaiter().GetResult()");
-            }
+        // 输出表格
+        Console.WriteLine();
+        Console.WriteLine("  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐");
+        Console.WriteLine("  │ 风险   │ 类型   │ 可访问性  │ 返回类型      │ 函数名                    │ 文件:行                    │ 原因                 │");
+        Console.WriteLine("  ├────────────────────────────────────────────────────────────────────────────────────────────────┤");
+
+        foreach (var r in results.OrderBy(r => r.riskLevel != "不能改").ThenBy(r => r.riskLevel != "高风险").ThenBy(r => r.file).ThenBy(r => r.line)) {
+            var relPath = Path.GetRelativePath(rootPath, r.file);
+            var location = $"{relPath}:{r.line}";
+            Console.WriteLine($"  │ {r.riskLevel,-6} │ {r.funcType,-6} │ {r.access,-9} │ {r.returnType,-13} │ {r.funcName,-25} │ {location,-26} │ {r.reason,-20} │");
         }
 
-        return fixableCount;
+        Console.WriteLine("  └────────────────────────────────────────────────────────────────────────────────────────────────┘");
+
+        // 统计可安全改的（中风险 private 方法）
+        var safeCount = results.Count(r => r.riskLevel == "中风险");
+        Console.WriteLine();
+        Console.WriteLine($"  可安全改（中风险 private 方法）: {safeCount} 处");
+        Console.WriteLine($"  需评估（高风险）: {byRisk.GetValueOrDefault("高风险", 0)} 处");
+        Console.WriteLine($"  不能改: {byRisk.GetValueOrDefault("不能改", 0)} 处");
+
+        return results.Count;
     }
 
-    /// <summary>
-    /// 遍历目录下所有 .cs 文件，排除生成代码和构建产物。
-    /// </summary>
     private static IEnumerable<string> EnumerateCsFiles(string rootPath) {
         return Directory.EnumerateFiles(rootPath, "*.cs", SearchOption.AllDirectories)
             .Where(f => !ShouldSkipFile(f));
     }
 
-    /// <summary>
-    /// 跳过生成代码和构建产物。
-    /// </summary>
     private static bool ShouldSkipFile(string filePath) {
         var normalized = filePath.Replace('\\', '/');
         if (normalized.Contains("/artifacts/")) return true;

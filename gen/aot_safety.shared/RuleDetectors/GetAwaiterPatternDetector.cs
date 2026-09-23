@@ -112,4 +112,60 @@ public static class GetAwaiterPatternDetector {
         if (IsInAsyncContext(node)) return false;
         return true;
     }
+
+    /// <summary>
+    /// 判断是否在构造函数中（构造函数不能 async）。
+    /// </summary>
+    public static bool IsInConstructor(SyntaxNode node) {
+        return node.Ancestors().OfType<ConstructorDeclarationSyntax>().Any();
+    }
+
+    /// <summary>
+    /// 获取方法的可访问性。
+    /// </summary>
+    public static string GetAccessibility(MethodDeclarationSyntax? method) {
+        if (method is null) return "?";
+        if (method.Modifiers.Any(SyntaxKind.PublicKeyword)) return "public";
+        if (method.Modifiers.Any(SyntaxKind.InternalKeyword)) return "internal";
+        if (method.Modifiers.Any(SyntaxKind.ProtectedKeyword)) return "protected";
+        if (method.Modifiers.Any(SyntaxKind.PrivateKeyword)) return "private";
+        return "internal";
+    }
+
+    /// <summary>
+    /// 获取方法的返回类型文本。
+    /// </summary>
+    public static string GetReturnType(MethodDeclarationSyntax? method) {
+        return method?.ReturnType?.ToString() ?? "?";
+    }
+
+    /// <summary>
+    /// 获取风险等级和原因。
+    /// 不能改: 构造函数/属性getter/Main
+    /// 高风险: public/internal/protected 方法（异步传染范围大）
+    /// 中风险: private 方法（调用方少但仍需改）
+    /// 高风险: lambda（委托类型变更）
+    /// </summary>
+    public static (string level, string reason) GetRiskLevel(SyntaxNode node) {
+        if (IsInConstructor(node)) return ("不能改", "构造函数不能async");
+        if (IsInPropertyGetter(node)) return ("不能改", "属性getter不能async");
+        if (IsInMainMethod(node)) return ("不能改", "Main入口");
+
+        var enclosing = GetEnclosingFunction(node);
+        if (enclosing is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax)
+            return ("高风险", "lambda改async变委托类型");
+
+        if (enclosing is MethodDeclarationSyntax method) {
+            var access = GetAccessibility(method);
+            return access switch {
+                "public" => ("高风险", "public方法异步传染范围大"),
+                "internal" => ("高风险", "internal方法异步传染范围大"),
+                "protected" => ("高风险", "protected方法异步传染范围大"),
+                "private" => ("中风险", "private方法需改调用方"),
+                _ => ("中风险", "需改调用方")
+            };
+        }
+
+        return ("未知", "");
+    }
 }

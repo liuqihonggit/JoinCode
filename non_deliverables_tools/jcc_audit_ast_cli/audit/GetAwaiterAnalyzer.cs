@@ -1,9 +1,9 @@
 namespace JccAuditCli;
 
 /// <summary>
-/// .GetAwaiter().GetResult() 分析器 — 用 AST 遍历所有方法节点，检测哪些方法包含 .GetAwaiter().GetResult()。
+/// .GetAwaiter().GetResult() 分析器 — 用 AST 遍历所有函数体，检测哪些包含 .GetAwaiter().GetResult()。
 /// 检测逻辑共享 GetAwaiterPatternDetector（与修复器同一套判定），同检同换。
-/// 分类: 同步方法（非 async）vs 异步方法（async），并标注哪些可修复。
+/// 判断"直接包含的函数体"（lambda 或方法）是否 async，而非外层方法。
 /// 只检测，不修改。
 /// </summary>
 public static class GetAwaiterAnalyzer {
@@ -12,13 +12,13 @@ public static class GetAwaiterAnalyzer {
     /// 分析指定目录下所有 .cs 文件中的 .GetAwaiter().GetResult() 使用。
     /// </summary>
     public static async Task<int> AnalyzeAsync(string rootPath, CancellationToken ct) {
-        Console.WriteLine("  遍历所有 .cs 文件，AST 解析方法节点...");
+        Console.WriteLine("  遍历所有 .cs 文件，AST 解析函数节点...");
 
         var csFiles = EnumerateCsFiles(rootPath).ToList();
         Console.WriteLine($"  找到 {csFiles.Count} 个 .cs 文件");
 
         int syncCount = 0, asyncCount = 0, fixableCount = 0;
-        var results = new List<(string file, int line, string method, string innerExpr, bool isAsync, bool isFixable, string skipReason)>();
+        var results = new List<(string file, int line, string funcName, string innerExpr, bool isAsync, bool isFixable, string skipReason)>();
 
         foreach (var file in csFiles) {
             if (ct.IsCancellationRequested) break;
@@ -35,10 +35,10 @@ public static class GetAwaiterAnalyzer {
                 // 共享检测逻辑 — 与修复器调用同一套判定
                 if (!GetAwaiterPatternDetector.IsGetAwaiterGetResultPattern(invocation)) continue;
 
-                var isAsync = GetAwaiterPatternDetector.IsInAsyncMethod(invocation);
+                // 判断直接包含的函数体（lambda 或方法）是否 async
+                var isAsync = GetAwaiterPatternDetector.IsInAsyncContext(invocation);
                 var isFixable = GetAwaiterPatternDetector.IsFixableViolation(invocation);
-                var method = GetAwaiterPatternDetector.GetEnclosingMethod(invocation);
-                var methodName = method?.Identifier.ValueText ?? "?";
+                var funcName = GetAwaiterPatternDetector.GetEnclosingFunctionName(invocation);
                 var lineNum = text.Lines.GetLineFromPosition(invocation.SpanStart).LineNumber + 1;
                 var innerExpr = GetAwaiterPatternDetector.ExtractInnerExpression(invocation)?.ToString().Trim() ?? "?";
 
@@ -47,22 +47,21 @@ public static class GetAwaiterAnalyzer {
                 if (!isFixable) {
                     if (GetAwaiterPatternDetector.IsInMainMethod(invocation)) skipReason = "Main方法";
                     else if (GetAwaiterPatternDetector.IsInPropertyGetter(invocation)) skipReason = "属性getter";
-                    else if (GetAwaiterPatternDetector.IsInLambda(invocation)) skipReason = "lambda";
-                    else if (!isAsync) skipReason = "同步方法";
+                    else if (isAsync) skipReason = "已是异步";
                 }
 
                 if (isAsync) asyncCount++; else syncCount++;
                 if (isFixable) fixableCount++;
-                results.Add((file, lineNum, methodName, innerExpr, isAsync, isFixable, skipReason));
+                results.Add((file, lineNum, funcName, innerExpr, isAsync, isFixable, skipReason));
             }
         }
 
         // 输出报告
         Console.WriteLine();
         Console.WriteLine("=== .GetAwaiter().GetResult() 分析报告 ===");
-        Console.WriteLine($"  同步方法中: {syncCount} 处");
-        Console.WriteLine($"  异步方法中: {asyncCount} 处");
-        Console.WriteLine($"  可修复（异步方法中且不在跳过列表）: {fixableCount} 处");
+        Console.WriteLine($"  同步函数体中: {syncCount} 处");
+        Console.WriteLine($"  异步函数体中: {asyncCount} 处");
+        Console.WriteLine($"  可修复（同步函数体且不在跳过列表）: {fixableCount} 处");
         Console.WriteLine($"  总计: {syncCount + asyncCount} 处");
 
         if (results.Count > 0) {
@@ -71,8 +70,8 @@ public static class GetAwaiterAnalyzer {
             foreach (var r in results.OrderBy(r => r.file).ThenBy(r => r.line)) {
                 var relPath = Path.GetRelativePath(rootPath, r.file);
                 var tag = r.isFixable ? "[可修复]" : $"[跳过:{r.skipReason}]";
-                var methodType = r.isAsync ? "异步" : "同步";
-                Console.WriteLine($"    {tag} {relPath}:{r.line}  {methodType} {r.method}()  →  {r.innerExpr}.GetAwaiter().GetResult()");
+                var funcType = r.isAsync ? "异步" : "同步";
+                Console.WriteLine($"    {tag} {relPath}:{r.line}  {funcType} {r.funcName}  →  {r.innerExpr}.GetAwaiter().GetResult()");
             }
         }
 

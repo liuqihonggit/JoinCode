@@ -62,6 +62,10 @@ public static class Program {
             return await RunFixGetAwaiterGetResultCommand(args[1..]).ConfigureAwait(false);
         }
 
+        if (args[0] == "fix-jcc3016") {
+            return await RunFixJcc3016Command(args[1..]).ConfigureAwait(false);
+        }
+
         if (args[0] == "fix-disposable-async") {
             return await RunFixDisposableDirectionCommand(args[1..], FixDirection.Async).ConfigureAwait(false);
         }
@@ -304,6 +308,7 @@ public static class Program {
         Console.WriteLine("  jcc-audit replace <csproj-or-slnx> [选项]       AST 批量替换（应用 CodeFix）");
         Console.WriteLine("  jcc-audit strip-bom <directory> [选项]          移除 .cs 文件 UTF-8 BOM");
         Console.WriteLine("  jcc-audit sync-async <slnx> [选项]              async/await 同步化（移除 async，改签名）");
+        Console.WriteLine("  jcc-audit fix-jcc3016 <slnx|sln|csproj> [选项]  JCC3016 检测+修复（共享检测器）");
         Console.WriteLine();
         Console.WriteLine("=== 统计组（Stats）— 信息查询排行 ===");
         Console.WriteLine("  jcc-audit top-files <directory> [选项]          大文件排行");
@@ -723,6 +728,45 @@ public static class Program {
             Console.WriteLine($"修复文件: {fixedFiles}");
             Console.WriteLine($"修复问题: {fixedIssues}");
             Console.WriteLine($"跳过文件: {skipped}");
+
+            return fixedIssues > 0 ? (dryRun ? 3 : 0) : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("扫描超时（10 分钟限制）。");
+            return 2;
+        }
+    }
+
+    /// <summary>
+    /// fix-jcc3016 模式：用共享检测器（SyncMethodAsyncCallDetector）检测 JCC3016 违规，自动加 .GetAwaiter().GetResult()
+    /// 检测逻辑与分析器完全一致（共享同一份代码），确保检测和修复不脱节。
+    /// </summary>
+    private static async Task<int> RunFixJcc3016Command(string[] args) {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
+            Console.WriteLine("用法: jcc-audit fix-jcc3016 <slnx|sln|csproj> [--dry-run]");
+            Console.WriteLine();
+            Console.WriteLine("检测: SyncMethodAsyncCallDetector.IsViolation()（与分析器共享同一套逻辑）");
+            Console.WriteLine("修复: invocation → invocation.GetAwaiter().GetResult()");
+            Console.WriteLine("跳过: artifacts/obj/bin 生成代码 / bcl_bridge / 分析器代码");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+
+        Console.WriteLine("=== JccAuditCli fix-jcc3016 ===");
+        Console.WriteLine($"解决方案: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+
+        try {
+            var (fixedFiles, fixedIssues, skipped) = await AnalyzerDrivenFixer.FixAsync(targetPath, dryRun, cts.Token).ConfigureAwait(false);
+
+            Console.WriteLine();
+            Console.WriteLine("=== fix-jcc3016 报告 ===");
+            Console.WriteLine($"修复文件: {fixedFiles}");
+            Console.WriteLine($"修复问题: {fixedIssues}");
+            Console.WriteLine($"跳过: {skipped}");
 
             return fixedIssues > 0 ? (dryRun ? 3 : 0) : 0;
         } catch (OperationCanceledException) {

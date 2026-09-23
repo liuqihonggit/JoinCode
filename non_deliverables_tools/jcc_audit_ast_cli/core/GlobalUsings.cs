@@ -1,4 +1,6 @@
 global using IO.FileSystem;
+global using AotSafety.Shared;
+global using AotSafety.Shared.RuleDetectors;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;
 global using Microsoft.CodeAnalysis.CSharp.Syntax;

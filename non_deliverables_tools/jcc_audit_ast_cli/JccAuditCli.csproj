@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)lib/structura/Structura.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)gen/aot_safety.shared/AotSafety.Shared.csproj" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="$(MicrosoftCodeAnalysisVersion)" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="$(MicrosoftCodeAnalysisVersion)" />
     <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />

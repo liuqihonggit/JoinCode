@@ -9,6 +9,12 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(MicrosoftCodeAnalysisVersion)" PrivateAssets="all" />
   </ItemGroup>
 
+  <!-- 共享检测逻辑：直接编译进分析器 DLL（避免分析器加载时找不到依赖 DLL） -->
+  <ItemGroup>
+    <Compile Include="$(RepoRoot)gen/aot_safety.shared/AotSafetyHelpers.cs" Link="Shared\AotSafetyHelpers.cs" />
+    <Compile Include="$(RepoRoot)gen/aot_safety.shared/RuleDetectors\SyncMethodAsyncCallDetector.cs" Link="Shared\RuleDetectors\SyncMethodAsyncCallDetector.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
     <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />

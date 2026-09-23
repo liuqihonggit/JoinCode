@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/gen/">
+    <Project Path="../../gen/aot_safety.shared/AotSafety.Shared.csproj" />
     <Project Path="../../gen/aot_safety.generator/AotSafety.Generator.csproj" />
     <Project Path="../../gen/app_module.generator/AppModule.Generator.csproj" />
     <Project Path="../../gen/code_fixes/CodeFixes.csproj" />

@@ -1,8 +1,9 @@
 namespace JccAuditCli;
 
 /// <summary>
-/// GetAwaiter().GetResult() 分析器 — 用 AST 遍历所有方法节点，检测哪些方法包含 .GetAwaiter().GetResult()。
-/// 分类: sync 方法（非 async）vs async 方法，输出报告。
+/// .GetAwaiter().GetResult() 分析器 — 用 AST 遍历所有方法节点，检测哪些方法包含 .GetAwaiter().GetResult()。
+/// 检测逻辑共享 GetAwaiterPatternDetector（与修复器同一套判定），同检同换。
+/// 分类: 同步方法（非 async）vs 异步方法（async），并标注哪些可修复。
 /// 只检测，不修改。
 /// </summary>
 public static class GetAwaiterAnalyzer {
@@ -10,17 +11,14 @@ public static class GetAwaiterAnalyzer {
     /// <summary>
     /// 分析指定目录下所有 .cs 文件中的 .GetAwaiter().GetResult() 使用。
     /// </summary>
-    /// <param name="rootPath">项目根目录。</param>
-    /// <param name=",ct">取消令牌。</param>
-    /// <returns>sync 方法中的数量（0 表示无问题）。</returns>
     public static async Task<int> AnalyzeAsync(string rootPath, CancellationToken ct) {
         Console.WriteLine("  遍历所有 .cs 文件，AST 解析方法节点...");
 
         var csFiles = EnumerateCsFiles(rootPath).ToList();
         Console.WriteLine($"  找到 {csFiles.Count} 个 .cs 文件");
 
-        int syncCount = 0, asyncCount = 0;
-        var syncResults = new List<(string file, int line, string method, string innerExpr)>();
+        int syncCount = 0, asyncCount = 0, fixableCount = 0;
+        var results = new List<(string file, int line, string method, string innerExpr, bool isAsync, bool isFixable, string skipReason)>();
 
         foreach (var file in csFiles) {
             if (ct.IsCancellationRequested) break;
@@ -30,29 +28,32 @@ public static class GetAwaiterAnalyzer {
             var tree = CSharpSyntaxTree.ParseText(text, path: file);
             var root = await tree.GetRootAsync(ct).ConfigureAwait(false);
 
-            // 遍历所有 MethodDeclarationSyntax 节点
-            foreach (var method in root.DescendantNodes().OfType<MethodDeclarationSyntax>()) {
+            // 遍历所有 InvocationExpression 节点，用共享检测器判断
+            foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>()) {
                 if (ct.IsCancellationRequested) break;
 
-                var isAsync = method.Modifiers.Any(SyntaxKind.AsyncKeyword);
-                var methodName = method.Identifier.ValueText;
+                // 共享检测逻辑 — 与修复器调用同一套判定
+                if (!GetAwaiterPatternDetector.IsGetAwaiterGetResultPattern(invocation)) continue;
 
-                // 在方法体内搜索 .GetAwaiter().GetResult() 模式
-                var calls = method.DescendantNodes()
-                    .OfType<InvocationExpressionSyntax>()
-                    .Where(IsGetAwaiterGetResultPattern);
+                var isAsync = GetAwaiterPatternDetector.IsInAsyncMethod(invocation);
+                var isFixable = GetAwaiterPatternDetector.IsFixableViolation(invocation);
+                var method = GetAwaiterPatternDetector.GetEnclosingMethod(invocation);
+                var methodName = method?.Identifier.ValueText ?? "?";
+                var lineNum = text.Lines.GetLineFromPosition(invocation.SpanStart).LineNumber + 1;
+                var innerExpr = GetAwaiterPatternDetector.ExtractInnerExpression(invocation)?.ToString().Trim() ?? "?";
 
-                foreach (var call in calls) {
-                    var lineNum = text.Lines.GetLineFromPosition(call.SpanStart).LineNumber + 1;
-                    var innerExpr = ExtractInnerExpression(call);
-
-                    if (isAsync) {
-                        asyncCount++;
-                    } else {
-                        syncCount++;
-                        syncResults.Add((file, lineNum, methodName, innerExpr));
-                    }
+                // 获取跳过原因（如果不可修复）
+                var skipReason = string.Empty;
+                if (!isFixable) {
+                    if (GetAwaiterPatternDetector.IsInMainMethod(invocation)) skipReason = "Main方法";
+                    else if (GetAwaiterPatternDetector.IsInPropertyGetter(invocation)) skipReason = "属性getter";
+                    else if (GetAwaiterPatternDetector.IsInLambda(invocation)) skipReason = "lambda";
+                    else if (!isAsync) skipReason = "同步方法";
                 }
+
+                if (isAsync) asyncCount++; else syncCount++;
+                if (isFixable) fixableCount++;
+                results.Add((file, lineNum, methodName, innerExpr, isAsync, isFixable, skipReason));
             }
         }
 
@@ -61,42 +62,21 @@ public static class GetAwaiterAnalyzer {
         Console.WriteLine("=== .GetAwaiter().GetResult() 分析报告 ===");
         Console.WriteLine($"  同步方法中: {syncCount} 处");
         Console.WriteLine($"  异步方法中: {asyncCount} 处");
+        Console.WriteLine($"  可修复（异步方法中且不在跳过列表）: {fixableCount} 处");
         Console.WriteLine($"  总计: {syncCount + asyncCount} 处");
 
-        if (syncCount > 0) {
+        if (results.Count > 0) {
             Console.WriteLine();
-            Console.WriteLine("  --- 同步方法中的 .GetAwaiter().GetResult()（可考虑改 异步 + await）---");
-            foreach (var (file, line, method, innerExpr) in syncResults.OrderBy(r => r.file).ThenBy(r => r.line)) {
-                var relPath = Path.GetRelativePath(rootPath, file);
-                Console.WriteLine($"    [同步] {relPath}:{line}  {method}()  →  {innerExpr}.GetAwaiter().GetResult()");
+            Console.WriteLine("  --- 明细 ---");
+            foreach (var r in results.OrderBy(r => r.file).ThenBy(r => r.line)) {
+                var relPath = Path.GetRelativePath(rootPath, r.file);
+                var tag = r.isFixable ? "[可修复]" : $"[跳过:{r.skipReason}]";
+                var methodType = r.isAsync ? "异步" : "同步";
+                Console.WriteLine($"    {tag} {relPath}:{r.line}  {methodType} {r.method}()  →  {r.innerExpr}.GetAwaiter().GetResult()");
             }
         }
 
-        return syncCount;
-    }
-
-    /// <summary>
-    /// 检测 invocation 是否是 expr.GetAwaiter().GetResult() 模式。
-    /// </summary>
-    private static bool IsGetAwaiterGetResultPattern(InvocationExpressionSyntax node) {
-        // node.Expression: MemberAccessExpression, Name = "GetResult"
-        if (node.Expression is not MemberAccessExpressionSyntax getResultAccess) return false;
-        if (getResultAccess.Name.Identifier.ValueText != "GetResult") return false;
-        // getResultAccess.Expression: InvocationExpression, calling "GetAwaiter"
-        if (getResultAccess.Expression is not InvocationExpressionSyntax getAwaiterInvocation) return false;
-        if (getAwaiterInvocation.Expression is not MemberAccessExpressionSyntax getAwaiterAccess) return false;
-        if (getAwaiterAccess.Name.Identifier.ValueText != "GetAwaiter") return false;
-        return true;
-    }
-
-    /// <summary>
-    /// 提取 .GetAwaiter().GetResult() 的内部表达式（即被等待的表达式）。
-    /// </summary>
-    private static string ExtractInnerExpression(InvocationExpressionSyntax node) {
-        if (node.Expression is not MemberAccessExpressionSyntax getResultAccess) return "?";
-        if (getResultAccess.Expression is not InvocationExpressionSyntax getAwaiterInvocation) return "?";
-        if (getAwaiterInvocation.Expression is not MemberAccessExpressionSyntax getAwaiterAccess) return "?";
-        return getAwaiterAccess.Expression.ToString().Trim();
+        return fixableCount;
     }
 
     /// <summary>

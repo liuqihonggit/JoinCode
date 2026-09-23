@@ -1,62 +1,61 @@
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.MSBuild;
-
 namespace JccAuditCli;
 
 /// <summary>
-/// 修复 .GetAwaiter().GetResult() 违规 — 替换为 await + ConfigureAwait(false)
+/// 修复 .GetAwaiter().GetResult() 违规 — 在异步方法中替换为 await + ConfigureAwait(false)。
+/// 文件遍历方式（不依赖 MSBuildWorkspace），AST 解析每个 .cs 文件。
+/// 检测逻辑共享 GetAwaiterPatternDetector（与分析器同一套判定），同检同换。
 /// </summary>
 public static class GetAwaiterFixer {
     /// <summary>
-    /// 修复解决方案中所有 .GetAwaiter().GetResult() 违规
+    /// 修复指定目录下所有 .cs 文件中，可修复的 .GetAwaiter().GetResult()。
+    /// 可修复判定: GetAwaiterPatternDetector.IsFixableViolation()（与检测器共享）。
     /// </summary>
-    public static async Task<(int fixedFiles, int fixedIssues, int skipped)> FixAllAsync(string solutionPath, bool dryRun, CancellationToken ct) {
-        var workspace = MSBuildWorkspace.Create();
+    public static async Task<(int fixedFiles, int fixedIssues, int skipped)> FixAllAsync(
+        string rootPath, bool dryRun, CancellationToken ct) {
 
-        var solution = await workspace.OpenSolutionAsync(solutionPath, cancellationToken: ct).ConfigureAwait(false);
+        Console.WriteLine("  遍历所有 .cs 文件，AST 解析方法节点...");
 
-        var fixedFiles = 0;
-        var fixedIssues = 0;
-        var skipped = 0;
+        var csFiles = EnumerateCsFiles(rootPath).ToList();
+        Console.WriteLine($"  找到 {csFiles.Count} 个 .cs 文件");
 
-        foreach (var project in solution.Projects) {
+        int fixedFiles = 0, fixedIssues = 0, skipped = 0;
+
+        foreach (var filePath in csFiles) {
             if (ct.IsCancellationRequested) break;
 
-            foreach (var document in project.Documents) {
-                if (ct.IsCancellationRequested) break;
+            var sourceText = await File.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
+            var text = SourceText.From(sourceText);
+            var tree = CSharpSyntaxTree.ParseText(text, path: filePath);
+            var root = await tree.GetRootAsync(ct).ConfigureAwait(false);
 
-                var filePath = document.FilePath;
-                if (filePath is null) continue;
-                if (ShouldSkipFile(filePath)) {
-                    skipped++;
-                    continue;
+            var isTestFile = IsTestFile(filePath);
+            var rewriter = new GetAwaiterRewriter(isTestFile);
+            var newRoot = rewriter.Visit(root);
+
+            if (newRoot != root && rewriter.FixedCount > 0) {
+                fixedFiles++;
+                fixedIssues += rewriter.FixedCount;
+
+                if (!dryRun) {
+                    var newText = newRoot.ToFullString();
+                    await File.WriteAllTextAsync(filePath, newText, ct).ConfigureAwait(false);
                 }
 
-                var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
-                if (root is null) continue;
-
-                var isTestFile = IsTestFile(filePath);
-                var rewriter = new GetAwaiterRewriter(isTestFile);
-                var newRoot = rewriter.Visit(root);
-
-                if (newRoot != root && rewriter.FixedCount > 0) {
-                    fixedFiles++;
-                    fixedIssues += rewriter.FixedCount;
-
-                    if (!dryRun) {
-                        var newDoc = document.WithSyntaxRoot(newRoot);
-                        var text = await newDoc.GetTextAsync(ct).ConfigureAwait(false);
-                        await File.WriteAllTextAsync(filePath, text.ToString(), ct).ConfigureAwait(false);
-                    }
-
-                    Console.WriteLine($"  {Path.GetFileName(filePath)}: {rewriter.FixedCount} 处修复");
-                }
+                Console.WriteLine($"  {Path.GetRelativePath(rootPath, filePath)}: {rewriter.FixedCount} 处修复");
             }
         }
 
         return (fixedFiles, fixedIssues, skipped);
+    }
+
+    private static bool IsTestFile(string filePath) {
+        var normalized = filePath.Replace('\\', '/');
+        return normalized.Contains(".tests/") || normalized.Contains("/test/");
+    }
+
+    private static IEnumerable<string> EnumerateCsFiles(string rootPath) {
+        return Directory.EnumerateFiles(rootPath, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !ShouldSkipFile(f));
     }
 
     private static bool ShouldSkipFile(string filePath) {
@@ -64,21 +63,19 @@ public static class GetAwaiterFixer {
         if (normalized.Contains("/artifacts/")) return true;
         if (normalized.Contains("/obj/")) return true;
         if (normalized.Contains("/bin/")) return true;
+        if (normalized.Contains("/.xxx/")) return true;
+        if (normalized.Contains("/.git/")) return true;
         if (normalized.Contains("/bcl_bridge/")) return true;
-        if (normalized.EndsWith("SyncFileReader.cs", StringComparison.Ordinal)) return true;
-        if (normalized.EndsWith("Program.cs", StringComparison.Ordinal) && normalized.Contains("/tui/")) return true;
         if (normalized.Contains("/aot_safety.generator/")) return true;
+        if (normalized.Contains("/aot_safety.shared/")) return true;
+        if (normalized.EndsWith("SyncFileReader.cs", StringComparison.Ordinal)) return true;
         return false;
-    }
-
-    private static bool IsTestFile(string filePath) {
-        var normalized = filePath.Replace('\\', '/');
-        return normalized.Contains(".tests/") || normalized.Contains("/test/");
     }
 }
 
 /// <summary>
-/// SyntaxRewriter — 查找并替换 .GetAwaiter().GetResult() 模式
+/// SyntaxRewriter — 查找并替换 .GetAwaiter().GetResult() 模式。
+/// 检测逻辑共享 GetAwaiterPatternDetector.IsFixableViolation()（与检测器同一套判定）。
 /// </summary>
 internal class GetAwaiterRewriter : CSharpSyntaxRewriter {
     private readonly bool _isTestFile;
@@ -93,33 +90,13 @@ internal class GetAwaiterRewriter : CSharpSyntaxRewriter {
     }
 
     public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
-        // 检测 pattern: expr.GetAwaiter().GetResult()
-        var innerExpr = TryExtractGetAwaiterPattern(node);
+        // 共享检测逻辑 — 与检测器调用同一套判定（同检同换）
+        if (!GetAwaiterPatternDetector.IsFixableViolation(node))
+            return base.VisitInvocationExpression(node);
+
+        // 提取内部表达式（共享检测器）
+        var innerExpr = GetAwaiterPatternDetector.ExtractInnerExpression(node);
         if (innerExpr is null)
-            return base.VisitInvocationExpression(node);
-
-        // 跳过：在 Main 方法中（AGENTS.md 例外）
-        if (IsInMainMethod(node))
-            return base.VisitInvocationExpression(node);
-
-        // 跳过：在属性 getter 中（AGENTS.md 例外）
-        if (IsInPropertyGetter(node))
-            return base.VisitInvocationExpression(node);
-
-        // 跳过：在 lambda 中（改 async lambda 会改变委托类型）
-        if (IsInLambda(node))
-            return base.VisitInvocationExpression(node);
-
-        // 核心守卫：只在已 async 的方法中替换，避免改变返回类型导致级联错误
-        if (!IsInAsyncMethod(node))
-            return base.VisitInvocationExpression(node);
-
-        // 跳过：在 Main 方法中
-        if (IsInMainMethod(node))
-            return base.VisitInvocationExpression(node);
-
-        // 跳过：在属性 getter 中（AGENTS.md 例外）
-        if (IsInPropertyGetter(node))
             return base.VisitInvocationExpression(node);
 
         // 创建 await 表达式
@@ -127,70 +104,6 @@ internal class GetAwaiterRewriter : CSharpSyntaxRewriter {
         FixedCount++;
 
         return awaitExpr;
-    }
-
-    /// <summary>
-    /// 检测 expr.GetAwaiter().GetResult() 模式，返回 expr
-    /// </summary>
-    private static ExpressionSyntax? TryExtractGetAwaiterPattern(InvocationExpressionSyntax node) {
-        // node.Expression 应该是 MemberAccessExpression，Name = "GetResult"
-        if (node.Expression is not MemberAccessExpressionSyntax getResultAccess)
-            return null;
-        if (getResultAccess.Name.Identifier.ValueText != "GetResult")
-            return null;
-
-        // getResultAccess.Expression 应该是 InvocationExpression，调用 "GetAwaiter"
-        if (getResultAccess.Expression is not InvocationExpressionSyntax getAwaiterInvocation)
-            return null;
-        if (getAwaiterInvocation.Expression is not MemberAccessExpressionSyntax getAwaiterAccess)
-            return null;
-        if (getAwaiterAccess.Name.Identifier.ValueText != "GetAwaiter")
-            return null;
-
-        // 返回 GetAwaiter 的接收者（即需要 await 的表达式）
-        return getAwaiterAccess.Expression;
-    }
-
-    private static bool IsInMainMethod(SyntaxNode node) {
-        var current = node.Parent;
-        while (current is not null) {
-            if (current is MethodDeclarationSyntax method) {
-                if (method.Identifier.ValueText == "Main")
-                    return true;
-            }
-            current = current.Parent;
-        }
-        return false;
-    }
-
-    private static bool IsInPropertyGetter(SyntaxNode node) {
-        var current = node.Parent;
-        while (current is not null) {
-            if (current is AccessorDeclarationSyntax accessor && accessor.Kind() == SyntaxKind.GetAccessorDeclaration)
-                return true;
-            current = current.Parent;
-        }
-        return false;
-    }
-
-    private static bool IsInLambda(SyntaxNode node) {
-        var current = node.Parent;
-        while (current is not null) {
-            if (current is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax)
-                return true;
-            current = current.Parent;
-        }
-        return false;
-    }
-
-    private static bool IsInAsyncMethod(SyntaxNode node) {
-        var current = node.Parent;
-        while (current is not null) {
-            if (current is MethodDeclarationSyntax method)
-                return method.Modifiers.Any(SyntaxKind.AsyncKeyword);
-            current = current.Parent;
-        }
-        return false;
     }
 
     private ExpressionSyntax CreateAwaitExpression(ExpressionSyntax innerExpr, InvocationExpressionSyntax originalNode) {

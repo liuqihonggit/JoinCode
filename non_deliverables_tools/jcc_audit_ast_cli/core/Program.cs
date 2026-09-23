@@ -708,10 +708,10 @@ public static class Program {
 
     private static async Task<int> RunFixGetAwaiterGetResultCommand(string[] args) {
         if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
-            Console.WriteLine("用法: jcc-audit fix-getawaiter-getresult <slnx> [--dry-run]");
+            Console.WriteLine("用法: jcc-audit fix-getawaiter-getresult <项目根目录> [--dry-run]");
             Console.WriteLine();
-            Console.WriteLine("修复: .GetAwaiter().GetResult() → await ... .ConfigureAwait(false)");
-            Console.WriteLine("跳过: SyncFileReader / Main 入口 / 属性 getter / 分析器代码 / bcl_bridge");
+            Console.WriteLine("修复: 异步方法中 .GetAwaiter().GetResult() → await ... .ConfigureAwait(false)");
+            Console.WriteLine("跳过: 同步方法 / SyncFileReader / Main 入口 / 属性 getter / lambda / 分析器代码");
             return 0;
         }
 
@@ -719,7 +719,7 @@ public static class Program {
         var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
 
         Console.WriteLine("=== JccAuditCli fix-getawaiter-getresult ===");
-        Console.WriteLine($"解决方案: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"项目根目录: {Path.GetFullPath(targetPath)}");
         Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));

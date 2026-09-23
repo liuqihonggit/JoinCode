@@ -13,6 +13,7 @@
   <ItemGroup>
     <Compile Include="$(RepoRoot)gen/aot_safety.shared/AotSafetyHelpers.cs" Link="Shared\AotSafetyHelpers.cs" />
     <Compile Include="$(RepoRoot)gen/aot_safety.shared/RuleDetectors\SyncMethodAsyncCallDetector.cs" Link="Shared\RuleDetectors\SyncMethodAsyncCallDetector.cs" />
+    <Compile Include="$(RepoRoot)gen/aot_safety.shared/RuleDetectors\GetAwaiterPatternDetector.cs" Link="Shared\RuleDetectors\GetAwaiterPatternDetector.cs" />
   </ItemGroup>
 
   <ItemGroup>

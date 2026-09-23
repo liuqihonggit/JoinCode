@@ -755,7 +755,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         _mockServerConfigDir = _fs.CombinePath(Path.GetTempPath(), $"jcc_mock_cfg_{Guid.NewGuid():N}");
         _fs.CreateDirectory(_mockServerConfigDir);
         var filePath = _fs.CombinePath(_mockServerConfigDir, "mockserver.json");
-        _fs.WriteAllText(filePath, sb.ToString());
+        _fs.WriteAllText(filePath, sb.ToString()).GetAwaiter().GetResult();
 
         _logger.LogInformation("[DualRoleRunner] MockServer 配置文件: {Path}", filePath);
         return filePath;
@@ -1150,7 +1150,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
 
         var fileName = $"turn_{turnIndex:D3}.txt";
         var filePath = _fs.CombinePath(_dumpDir, fileName);
-        _fs.WriteAllText(filePath, sb.ToString());
+        _fs.WriteAllText(filePath, sb.ToString()).GetAwaiter().GetResult();
 
         _logger.LogInformation("[DualRoleRunner] 已转储轮次 {Turn}: {Path}", turnIndex, filePath);
     }

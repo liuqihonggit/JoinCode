@@ -334,7 +334,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
             var dict = _records.ToDictionary();
             var json = JsonSerializer.Serialize(dict, ToolHealthJsonContext.Default.DictionaryStringToolHealthRecord);
-            _fs.WriteAllText(_configPath, json);
+            _fs.WriteAllText(_configPath, json).GetAwaiter().GetResult();
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "保存工具健康记录失败");
         }

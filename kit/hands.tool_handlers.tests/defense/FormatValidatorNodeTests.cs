@@ -23,10 +23,10 @@ public class FormatValidatorNodeTests {
     }
 
     [Fact]
-    public void ValidateKeywordSectionsEdit_KeywordFileNoAgent_ReturnsNull() {
+    public async Task ValidateKeywordSectionsEdit_KeywordFileNoAgent_ReturnsNull() {
         var node = new FormatValidatorNode(_fs);
         var path = Path.Combine(Path.GetTempPath(), $"keyword-sections_{Guid.NewGuid():N}.json");
-        _fs.WriteAllText(path, "[]");
+        await _fs.WriteAllText(path, "[]");
 
         var result = node.ValidateKeywordSectionsEdit(path);
 
@@ -77,7 +77,7 @@ public class FormatValidatorNodeTests {
 
     private string CreateFile(string content) {
         var path = Path.Combine(Path.GetTempPath(), $"validator_test_{Guid.NewGuid():N}.txt");
-        _fs.WriteAllText(path, content);
+        _fs.WriteAllText(path, content).GetAwaiter().GetResult();
         return path;
     }
 }

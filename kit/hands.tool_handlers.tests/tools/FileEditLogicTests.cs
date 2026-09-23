@@ -191,7 +191,7 @@ public class FileEditLogicTests {
 
     private string CreateFile(string content) {
         var filePath = $"/test/test_{Guid.NewGuid():N}.txt";
-        _fs.WriteAllText(filePath, content);
+        _fs.WriteAllText(filePath, content).GetAwaiter().GetResult();
         return filePath;
     }
 

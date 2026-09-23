@@ -37,7 +37,7 @@ public class FileBackupNodeTests {
 
     private string CreateFile(string content) {
         var path = Path.Combine(Path.GetTempPath(), $"backup_test_{Guid.NewGuid():N}.txt");
-        _fs.WriteAllText(path, content);
+        _fs.WriteAllText(path, content).GetAwaiter().GetResult();
         return path;
     }
 }

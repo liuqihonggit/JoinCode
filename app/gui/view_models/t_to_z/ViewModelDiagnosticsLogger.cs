@@ -9,7 +9,7 @@ internal static class ViewModelDiagnosticsLogger {
             System.IO.Directory.CreateDirectory(dir);
             SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "persist_debug.log"),
-                $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
+                $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}").GetAwaiter().GetResult();
         } catch (Exception writeEx) {
             System.Console.Error.WriteLine($"无法写入诊断日志: {writeEx.Message}");
         }
@@ -22,7 +22,7 @@ internal static class ViewModelDiagnosticsLogger {
             System.IO.Directory.CreateDirectory(dir);
             SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "send_error.log"),
-                $"[{DateTime.Now:HH:mm:ss}] {ex}{Environment.NewLine}");
+                $"[{DateTime.Now:HH:mm:ss}] {ex}{Environment.NewLine}").GetAwaiter().GetResult();
         } catch (Exception writeEx) {
             System.Console.Error.WriteLine($"无法写入错误日志: {writeEx.Message}");
         }

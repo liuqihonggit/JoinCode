@@ -180,7 +180,7 @@ public class BriefLogicTests {
 
     private string CreateFile(string content, string fileName) {
         var filePath = $"/test/{fileName}";
-        _fs.WriteAllText(filePath, content);
+        _fs.WriteAllText(filePath, content).GetAwaiter().GetResult();
         return filePath;
     }
 }

@@ -268,7 +268,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         var errorLog = Cli.Output.XdgPathResolver.GetErrorLogPath();
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
         try {
-            SafeFileIO.WriteAllText(errorLog, errorContent);
+            SafeFileIO.WriteAllText(errorLog, errorContent).GetAwaiter().GetResult();
         } catch (Exception logEx) {
             logger?.LogWarning(logEx, "写入错误日志失败");
         }

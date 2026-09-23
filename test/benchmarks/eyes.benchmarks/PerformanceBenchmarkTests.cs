@@ -123,7 +123,7 @@ public sealed class PerformanceBenchmarkTests : IDisposable {
             sb.AppendLine($"public static class Helper_{i} {{");
             sb.AppendLine($"    public static void Process() {{ }}");
             sb.AppendLine("}");
-            _fs.WriteAllText(Path.Combine(_workspaceRoot, $"Service_{i}.cs"), sb.ToString());
+            _fs.WriteAllText(Path.Combine(_workspaceRoot, $"Service_{i}.cs"), sb.ToString()).GetAwaiter().GetResult();
         }
     }
 }

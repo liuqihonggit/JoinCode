@@ -227,7 +227,7 @@ public sealed class MemoryCommand : ChatCommandBase {
         if (dir is not null && !fs.DirectoryExists(dir))
             DirectoryHelper.EnsureDirectoryExists(fs, dir);
         if (!fs.FileExists(path))
-            fs.WriteAllText(path, "");
+            fs.WriteAllText(path, "").GetAwaiter().GetResult();
     }
 
     private static async Task AddMemoryAsync(ChatCommandContext context, string[] args) {

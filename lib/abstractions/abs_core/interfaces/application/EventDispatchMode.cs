@@ -31,17 +31,18 @@ public enum EventDispatchMode {
 /// </summary>
 public static class EventDispatcher {
     /// <summary>
-    /// Emit：同步触发不等监听器（fire-and-forget）
-    /// <para>对齐 DSH emit：不 await，异常吞掉（调用方自行处理）</para>
+    /// Emit：触发所有监听器，返回 Task 列表由调用方决定消费方式
+    /// <para>对齐 DSH emit：调用方可选 Task.WhenAll 并行等待 / 串行 await / _ = 显式 fire-and-forget</para>
     /// </summary>
-    public static Task EmitAsync<T>(
+    public static IReadOnlyList<Task> Emit<T>(
         IReadOnlyList<Func<T, CancellationToken, Task>> handlers,
         T arg,
         CancellationToken ct) {
+        var tasks = new Task[handlers.Count];
         for (var i = 0; i < handlers.Count; i++) {
-            _ = handlers[i](arg, ct);
+            tasks[i] = handlers[i](arg, ct);
         }
-        return Task.CompletedTask;
+        return tasks;
     }
 
     /// <summary>
@@ -119,7 +120,7 @@ public static class EventDispatcher {
         T arg,
         CancellationToken ct) {
         return mode switch {
-            EventDispatchMode.Emit => EmitAsync(handlers, arg, ct),
+            EventDispatchMode.Emit => Task.WhenAll(Emit(handlers, arg, ct)),
             EventDispatchMode.Parallel => ParallelAsync(handlers, arg, ct),
             EventDispatchMode.Serial => SerialAsync(handlers, arg, ct),
             _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "[INF-EVENT-DISPATCH] Bail/Waterfall 需专用方法，不支持通用 DispatchAsync"),

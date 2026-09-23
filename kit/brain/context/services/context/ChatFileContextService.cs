@@ -68,7 +68,7 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
                 }
             }
 
-            _fs.WriteAllText(filePath, sb.ToString());
+            _fs.WriteAllText(filePath, sb.ToString()).GetAwaiter().GetResult();
             _logger?.LogInformation("对话消息列表已转储: {FilePath} ({Count} 条消息)", filePath, messages.Count);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "转储对话消息列表失败");

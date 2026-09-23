@@ -42,7 +42,7 @@ internal static class Program {
             System.IO.Directory.CreateDirectory(dir);
             SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "run.log"),
-                $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n");
+                $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n").GetAwaiter().GetResult();
         } catch (Exception logEx) { Console.Error.WriteLine($"[diag] WriteDiag failed: {logEx.Message}"); }
     }
 

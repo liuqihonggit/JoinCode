@@ -168,7 +168,7 @@ class Program {
             var dir = System.IO.Path.GetDirectoryName(errorLog);
             if (dir is not null && !System.IO.Directory.Exists(dir))
                 System.IO.Directory.CreateDirectory(dir);
-            SafeFileIO.WriteAllText(errorLog, errorContent);
+            SafeFileIO.WriteAllText(errorLog, errorContent).GetAwaiter().GetResult();
         } catch (Exception logEx) {
             Diag.WriteLine($"[MAIN] WriteErrorLog 失败: {logEx.GetType().Name}: {logEx.Message}");
             logger?.LogWarning(logEx, "写入错误日志失败");
@@ -376,7 +376,7 @@ class Program {
             sb.AppendLine("  }");
             sb.AppendLine("}");
 
-            SafeFileIO.WriteAllText(jsonPath, sb.ToString());
+            SafeFileIO.WriteAllText(jsonPath, sb.ToString()).GetAwaiter().GetResult();
         } catch (Exception jsonEx) { Diag.WriteError("[CrashDump] 写入 JSON 快照失败", jsonEx); }
 
         // 2. 人类可读文本快照
@@ -404,7 +404,7 @@ class Program {
                 txt.AppendLine();
             }
 
-            SafeFileIO.WriteAllText(txtPath, txt.ToString());
+            SafeFileIO.WriteAllText(txtPath, txt.ToString()).GetAwaiter().GetResult();
         } catch (Exception txtEx) { Diag.WriteError("[CrashDump] 写入文本快照失败", txtEx); }
 
         // 3. stderr 输出（仅 UnhandledException，避免 pipe 阻塞）

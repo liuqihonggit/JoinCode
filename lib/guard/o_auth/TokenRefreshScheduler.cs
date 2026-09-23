@@ -76,12 +76,12 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
     }
 
     /// <inheritdoc />
-    public Task StartMonitoringAsync(string provider, OAuthToken token, CancellationToken cancellationToken = default) {
+    public async Task StartMonitoringAsync(string provider, OAuthToken token, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(provider);
         ArgumentNullException.ThrowIfNull(token);
 
         // 停止现有的监控
-        StopMonitoringAsync(provider);
+        await StopMonitoringAsync(provider).ConfigureAwait(false);
 
         // 计算刷新时间（过期前 buffer 时间）
         var refreshTime = token.ExpiresAt - _refreshBuffer;
@@ -91,7 +91,7 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
             // Token 即将过期或已过期，立即触发刷新
             _logger?.LogWarning("Token for {Provider} is about to expire or already expired, triggering immediate refresh", provider);
             TriggerRefresh(provider, token);
-            return Task.CompletedTask;
+            return;
         }
 
         // 创建定时器
@@ -113,8 +113,6 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
         _logger?.LogInformation(
             "Started monitoring token for {Provider}, will refresh in {Delay} (at {RefreshTime})",
             provider, delay, refreshTime);
-
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />

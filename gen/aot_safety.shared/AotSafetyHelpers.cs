@@ -1,4 +1,4 @@
-namespace AotSafety.Generator;
+namespace AotSafety.Shared;
 
 /// <summary>
 /// AOT 安全分析器共享辅助方法 — 供所有规则类调用。
@@ -696,6 +696,30 @@ public static class AotSafetyHelpers {
     public static bool ReturnsTaskLike(IMethodSymbol? method) {
         if (method is null) return false;
         return IsTaskLikeType(method.ReturnType);
+    }
+
+    /// <summary>
+    /// 判断方法是否返回 Task-like 类型或含 Task 的集合（IReadOnlyList&lt;Task&gt;、Task[]、IEnumerable&lt;Task&gt; 等）。
+    /// </summary>
+    public static bool ReturnsTaskOrTaskCollection(IMethodSymbol? method) {
+        if (method is null) return false;
+        if (IsTaskLikeType(method.ReturnType)) return true;
+        return IsTaskCollectionType(method.ReturnType);
+    }
+
+    /// <summary>
+    /// 判断类型是否为含 Task 的集合（数组/泛型集合，元素类型为 Task-like）。
+    /// </summary>
+    public static bool IsTaskCollectionType(ITypeSymbol? type) {
+        if (type is null) return false;
+
+        if (type is IArrayTypeSymbol array)
+            return IsTaskLikeType(array.ElementType);
+
+        if (type is INamedTypeSymbol named && named.IsGenericType && named.TypeArguments.Length == 1)
+            return IsTaskLikeType(named.TypeArguments[0]);
+
+        return false;
     }
 
     /// <summary>

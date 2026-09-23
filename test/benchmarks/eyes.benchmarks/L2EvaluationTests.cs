@@ -38,7 +38,7 @@ public sealed class L2EvaluationTests : IDisposable {
                     public bool ValidateUser() => UserId > 0 && !string.IsNullOrEmpty(UserName);
                 }
             }
-            """);
+            """).GetAwaiter().GetResult();
         _fs.WriteAllText(Path.Combine(_workspaceRoot, "OrderService.cs"), """
             namespace MyApp.Services {
                 public class OrderService {
@@ -50,7 +50,7 @@ public sealed class L2EvaluationTests : IDisposable {
                     }
                 }
             }
-            """);
+            """).GetAwaiter().GetResult();
         _fs.WriteAllText(Path.Combine(_workspaceRoot, "Repository.cs"), """
             using System.Collections.Generic;
             public interface IRepository<T> {
@@ -63,7 +63,7 @@ public sealed class L2EvaluationTests : IDisposable {
                 public IEnumerable<T> GetAll() => [];
                 public void Save(T entity) { }
             }
-            """);
+            """).GetAwaiter().GetResult();
         _fs.WriteAllText(Path.Combine(_workspaceRoot, "Calculator.cs"), """
             public class Calculator {
                 public int Compute(int a, int b) { return Helper.Square(a) + Helper.Square(b); }
@@ -72,14 +72,14 @@ public sealed class L2EvaluationTests : IDisposable {
             public static class Helper {
                 public static int Square(int x) => x * x;
             }
-            """);
+            """).GetAwaiter().GetResult();
         _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
             public class Controller {
                 private readonly UserService _svc;
                 public Controller(UserService svc) { _svc = svc; }
                 public string Handle() { return _svc.GetName(); }
             }
-            """);
+            """).GetAwaiter().GetResult();
 
         var options = new CodeIndexOptions { WorkspaceRoot = _workspaceRoot };
         _indexer.BuildIndexAsync(options, CancellationToken.None).GetAwaiter().GetResult();

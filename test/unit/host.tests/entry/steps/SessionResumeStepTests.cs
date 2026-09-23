@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Entry.Tests;
+namespace JoinCode.Entry.Tests;
 
 
 /// <summary>
@@ -36,7 +36,7 @@ public class SessionResumeStepTests {
 
         var json = JsonSerializer.Serialize(data, CliIndentedJsonContext.Default.SessionData);
         var path = Path.Combine(SessionsDir, $"{sessionId}.json");
-        fs.WriteAllText(path, json);
+        fs.WriteAllText(path, json).GetAwaiter().GetResult();
         return path;
     }
 

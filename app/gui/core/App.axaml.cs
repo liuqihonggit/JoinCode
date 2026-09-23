@@ -70,7 +70,7 @@ public sealed partial class App : Application {
             Directory.CreateDirectory(dir);
             SafeFileIO.AppendAllText(
                 Path.Combine(dir, "startup_timing.log"),
-                $"{DateTime.Now:HH:mm:ss.fff} {message}\n");
+                $"{DateTime.Now:HH:mm:ss.fff} {message}\n").GetAwaiter().GetResult();
         } catch (Exception logEx) {
             Console.Error.WriteLine($"[diag] timing log failed: {logEx.Message}");
         }
@@ -83,7 +83,7 @@ public sealed partial class App : Application {
             Directory.CreateDirectory(dir);
             SafeFileIO.WriteAllText(
                 Path.Combine(dir, $"crash_{DateTime.Now:yyyyMMdd_HHmmss}.log"),
-                $"{DateTime.Now:O}\n{ex}");
+                $"{DateTime.Now:O}\n{ex}").GetAwaiter().GetResult();
         } catch (Exception logEx) {
             // 崩溃日志文件写入失败时，退回标准错误流，保证崩溃原因不被完全吞掉
             Console.Error.WriteLine($"[crash] {ex} | [log-fail] {logEx}");

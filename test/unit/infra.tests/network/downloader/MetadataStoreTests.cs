@@ -58,8 +58,8 @@ public sealed class MetadataStoreTests {
     // === 删除 ===
 
     [Fact]
-    public void Delete_ExistingFile_RemovesIt() {
-        _store.Save(FilePath, BuildMetadata("https://example.com", 100));
+    public async Task Delete_ExistingFile_RemovesIt() {
+        await _store.Save(FilePath, BuildMetadata("https://example.com", 100));
         var metaPath = MetadataStore.GetMetadataPath(FilePath);
         _fs.FileExists(metaPath).Should().BeTrue();
 

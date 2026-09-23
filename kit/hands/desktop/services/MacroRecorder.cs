@@ -106,7 +106,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var json = RelaxedJsonSerializer.Serialize(macro, MacroJsonContext.Default);
-        _fileSystem.WriteAllText(filePath, json);
+        _fileSystem.WriteAllText(filePath, json).GetAwaiter().GetResult();
         _logger?.LogInformation("保存宏到: {Path}", filePath);
     }
 

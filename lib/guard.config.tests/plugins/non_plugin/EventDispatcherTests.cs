@@ -13,7 +13,7 @@ public sealed class EventDispatcherTests {
     }
 
     [Fact]
-    public async Task EmitAsync_FireAndForget_DoesNotAwaitOrder() {
+    public async Task Emit_AllHandlersTriggered() {
         var order = new List<int>();
         var handlers = new Func<string, CancellationToken, Task>[]
         {
@@ -21,14 +21,14 @@ public sealed class EventDispatcherTests {
             Handler<string>(_ => order.Add(2)),
             Handler<string>(_ => order.Add(3)),
         };
-        await EventDispatcher.EmitAsync(handlers, "x", default);
+        await Task.WhenAll(EventDispatcher.Emit(handlers, "x", default));
         Assert.Equal(new[] { 1, 2, 3 }, order);
     }
 
     [Fact]
-    public async Task EmitAsync_EmptyHandlers_Completes() {
+    public async Task Emit_EmptyHandlers_Completes() {
         var handlers = Array.Empty<Func<string, CancellationToken, Task>>();
-        await EventDispatcher.EmitAsync(handlers, "x", default);
+        await Task.WhenAll(EventDispatcher.Emit(handlers, "x", default));
     }
 
     [Fact]

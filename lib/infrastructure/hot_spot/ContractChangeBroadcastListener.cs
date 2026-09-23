@@ -11,7 +11,7 @@ public sealed class ContractChangeBroadcastListener : IFileWriteListener {
     private readonly IContractChangeNotificationRouter _router;
     private readonly string _captainId;
     private readonly ILogger<ContractChangeBroadcastListener>? _logger;
-    private readonly ConcurrentBag<Task> _pendingBroadcasts = new();
+    private Task _pendingBroadcasts = Task.CompletedTask;
 
     /// <summary>
     /// 构造函数 — 注入广播器、热文件检测器、热点跟踪器、通知路由器和队长 ID
@@ -52,14 +52,14 @@ public sealed class ContractChangeBroadcastListener : IFileWriteListener {
 
         var notification = $"队长改热文件 {e.FilePath} 契约变更，请停止契约修改，系统将在你完成后自动 rebase 同步主干";
         _router.EnqueueNotifications(dependentWorkers, notification);
-        _pendingBroadcasts.Add(BroadcastAsync(e.FilePath, dependentWorkers));
+        _pendingBroadcasts = Task.WhenAll(_pendingBroadcasts, BroadcastAsync(e.FilePath, dependentWorkers));
         _logger?.LogInformation("[ContractBroadcast] 队长改热文件 {FilePath}，广播通知 {Count} 个 Worker", e.FilePath, dependentWorkers.Count);
     }
 
     /// <summary>
     /// 等待所有 pending 广播任务完成 — 调用方可选 await 以确保广播送达
     /// </summary>
-    public Task WaitForPendingBroadcastsAsync() => Task.WhenAll(_pendingBroadcasts);
+    public Task WaitForPendingBroadcastsAsync() => _pendingBroadcasts;
 
     private async Task BroadcastAsync(string filePath, IReadOnlyList<string> workers) {
         try {

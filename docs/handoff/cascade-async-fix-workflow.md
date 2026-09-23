@@ -1,178 +1,175 @@
-# .GetAwaiter().GetResult() → async + await 递归级联修复流程
+# 级联异步修复工作流交接文档
 
-## 概述
+> 最后更新: 2026-09-24
 
-将同步 private 方法中的 `.GetAwaiter().GetResult()` 改为 `async + await`，并用 `CascadeAsyncFixer` 递归处理所有级联编译错误（CS4014/CS0029/CS1503/CS1929/CS0019）。
+## 目标
 
-**核心原则**：具体问题，具体分析。遇到错误就回退工具修改部分，修复 CLI 工具进行递归级联。工具不行就撤回内容，再改工具，让工具丰富。
+将同步 private 方法中的 `.GetAwaiter().GetResult()` 改为 `async + await`，用 ast_cli 工具递归处理所有级联编译错误，最终逐个重新启用分析器（JCC3017/JCC3019）修复违规，推送到 PR #276。
 
-## 修复流程
-
-### 第一步：初始修复（GetAwaiterFixer）
-
-```
-jcc-audit fix-getawaiter-getresult <项目根目录> [--dry-run] [--cascade <slnx>]
-```
-
-`GetAwaiterFixer` 遍历所有 .cs 文件，AST 解析每个方法节点：
-1. 检测 private + 非 async 方法直接体内的 `.GetAwaiter().GetResult()`（用 `GetAwaiterPatternDetector.IsFixableViolation` 共享检测逻辑）
-2. 给方法加 `async` 修饰符 + 改返回类型（`void→Task`, `T→Task<T>`）
-3. 替换 `.GetAwaiter().GetResult()` → `await expr.ConfigureAwait(false)`
-
-**检测逻辑共享**：`GetAwaiterPatternDetector`（在 `gen/aot_safety.shared/RuleDetectors/`），分析器和 ast_cli 调用同一套判定，同检同换。
-
-### 第二步：级联修复（CascadeAsyncFixer）
-
-初始修复后，调用方会报编译错误（方法签名变了）。`CascadeAsyncFixer` 用状态机递归处理：
-
-```
-状态机流转：
-  Initial → Building → ParsingErrors →
-    (无错误) → Done
-    (有错误) → Fixing → Verifying →
-      (修复了) → Building (继续循环)
-      (未修复) → Failed (报告剩余错误)
-```
-
-**编译错误驱动**：每轮运行 `dotnet build`，解析错误输出，按错误类型决策修复策略。
-
-## 状态机设计
-
-### 状态枚举
-
-| 状态 | 说明 |
-|------|------|
-| `Initial` | 初始状态，检查迭代上限 |
-| `Building` | 运行 `dotnet build`，捕获输出 |
-| `ParsingErrors` | 解析编译错误（CS4014/CS0029/CS1503/CS1929/CS0019） |
-| `Fixing` | 按文件分组，按方法范围修复错误 |
-| `Verifying` | 重新编译验证修复结果 |
-| `Done` | 完成（无错误） |
-| `Failed` | 失败（有未修复错误，需手动处理） |
-
-### 修复策略（按错误类型决策）
-
-| 错误码 | 含义 | 策略 |
-|--------|------|------|
-| CS4014 | 未 await 的 Task | `AddAwait`（加 await） |
-| CS0029 | 类型不匹配 | `AddAsync`（改 async + 加 await） |
-| CS1503 | 类型转换失败 | `AddAsync`（改 async + 加 await） |
-| CS1929 | 方法不存在（过度修复） | `RevertToSync`（回退为 .GetAwaiter().GetResult()） |
-| CS0019 | 运算符不适用（Lazy 约束） | `RevertToSync`（回退为 .GetAwaiter().GetResult()） |
-
-## 跳过规则
-
-### 1. using 声明中的调用
-
-```csharp
-// 跳过 — using 声明中的调用不加 await（结果类型是 IDisposable 不是 Task）
-using var scope = TempFileScope.Create();  // 不加 await
-```
-
-**原因**：`using var x = Create()` 中 `Create()` 返回 `IDisposable`，加 await 会报 CS1929（`IDisposable` 不包含 `GetAwaiter`）。
-
-**检测**：`IsInUsingDeclaration(node)` — 检查祖先中是否有 `LocalDeclarationStatementSyntax` 且带 `UsingKeyword`。
-
-### 2. Lazy&lt;T&gt; 约束的方法
-
-```csharp
-// 跳过 — Lazy<T> 约束的方法不能改 async
-private string Detect() => ...;  // 不能改 async，因为 Lazy<T> 需要 Func<T>
-private readonly Lazy<string> _lazy = new(Detect);
-```
-
-**原因**：`Lazy<T>` 构造函数需要 `Func<T>`，改 async 后返回 `Task<T>`，类型不匹配报 CS0019。
-
-**检测**：`DetectLazyConstrainedMethods(root)` — 遍历 `ObjectCreationExpressionSyntax`，找 `new Lazy<...>(MethodName)` 模式，收集方法名集合。
-
-### 3. 构造函数
-
-构造函数不能加 `async`，但可以修复方法组参数（如 `new Thread(ScanLoop)` → `new Thread(() => ScanLoop().GetAwaiter().GetResult())`）。
-
-## 回退策略
-
-当加 await 后编译报 CS1929/CS0019，说明该调用不适合改 async+await。回退为 `.GetAwaiter().GetResult()`：
-
-1. 解析 CS1929/CS0019 错误行号
-2. 在 `CascadeRewriter` 中，这些行号的调用用 `SyntaxHelpers.CreateGetAwaiterGetResult` 替代 `CreateAwaitExpression`
-3. 重新编译验证
-
-## 共享组件
-
-### SyntaxHelpers（`gen/aot_safety.shared/SyntaxHelpers.cs`）
-
-所有 fixer 共享的 trivia/格式处理：
-- `CreateAwaitExpression` — 创建 `await expr.ConfigureAwait(false)`
-- `CreateGetAwaiterGetResult` — 创建 `expr.GetAwaiter().GetResult()`
-- `AddAsyncModifier` — 给方法加 async 修饰符
-- `TransformReturnType` — 转换返回类型（void→Task, T→Task<T>）
-- `PreserveTrivia` — 保留原始 trivia
-
-**核心原则**：内部表达式去掉所有 trivia，leading/trailing trivia 由最终表达式统一设置，避免缩进翻倍。
-
-### GetAwaiterPatternDetector（`gen/aot_safety.shared/RuleDetectors/`）
-
-检测和修复共享同一套判定逻辑（同检同换）：
-- `IsFixableViolation` — 判断是否是可修复的 .GetAwaiter().GetResult() 违规
-- `IsInAsyncContext` — 判断直接包含的函数体（lambda/方法）是否 async
-- `GetEnclosingFunction` — 获取直接包含的函数体（不是外层方法）
-
-### FileFilter（`non_deliverables_tools/jcc_audit_ast_cli/core/`）
-
-共享文件过滤：
-- `ShouldSkipFile` — 两级排除（通用 bin/obj/.xxx/.git + 修复器额外 bcl_bridge/aot_safety.generator）
-- `IsTestFile` — 判断是否是测试文件
-- `EnumerateCsFiles` — 遍历 .cs 文件
-
-## 使用方法
+## 循环调试手法（核心流程）
 
 ### 完整修复流程
 
-```bash
-# 1. 先 dry-run 预览
-dotnet run --project non_deliverables_tools/jcc_audit_ast_cli -- fix-getawaiter-getresult . --dry-run
-
-# 2. 实际修复 + 级联
-dotnet run --project non_deliverables_tools/jcc_audit_ast_cli -- fix-getawaiter-getresult . --cascade build/sln/JoinCode.slnx
-
-# 3. 全量编译验证
-dotnet build build/sln/JoinCode.slnx
+```
+1. fix-getawaiter-getresult .          → 初始修复 51 处（只改 private 方法）
+2. fix-from-build-errors slnx          → 第1轮级联修复
+3. fix-from-build-errors slnx          → 第2轮...直到收敛（修复0处）
+4. dotnet build slnx > log.txt 2>&1    → 编译验证，完整日志落盘
+5. grep "error CS" log.txt | sort -u   → 分析剩余错误
+6. 增强工具覆盖未处理场景 → commit 工具 → goto 2
 ```
 
-### 仅分析（不修复）
+### 自动循环脚本
 
 ```bash
-dotnet run --project non_deliverables_tools/jcc_audit_ast_cli -- analyze-getawaiter .
+# 初始修复
+dotnet artifacts/bin/JccAuditCli/Debug/net10.0/jcc-audit.dll fix-getawaiter-getresult .
+
+# 自动循环最多10轮
+for i in $(seq 1 10); do
+  echo "=== 第 $i 轮 ==="
+  dotnet artifacts/bin/JccAuditCli/Debug/net10.0/jcc-audit.dll fix-from-build-errors build/sln/JoinCode.slnx 2>&1 | grep -E "修复文件|修复问题|发现"
+done
 ```
 
-输出详细分类表格：不能改 / 高风险 / 中风险。
+### 编译验证纪律
 
-## 已知限制
+```bash
+# 编译日志必须完整保存不过滤，先落盘再分析
+dotnet build build/sln/JoinCode.slnx --no-restore > build_log.txt 2>&1
+echo "退出码: $?"
+grep -c "error CS" build_log.txt
+grep "error CS" build_log.txt | grep -oP "error CS\d+" | sort | uniq -c | sort -rn
+```
 
-1. **无语义模型** — ast_cli 不加载 MSBuildWorkspace（104 项目超时），无法用 `GetSymbolInfo` 判断返回类型。改用编译错误驱动：先尝试加 await，编译报错再回退。
-2. **方法组转换** — `new Thread(ScanLoop)` 不是 invocation 表达式，需 `VisitArgument` 特殊处理。
-3. **构造函数** — 不能加 async，只修复方法组参数。
-4. **lambda 委托类型** — 改 async lambda 会变委托类型（`Func<T>` → `Func<Task<T>>`），跳过。
-5. **属性 getter / Main** — 不能改 async，跳过。
+## 工具增强历程
 
-## 遇到新错误类型的处理流程
+### BuildErrorFixer.cs Visit 方法清单
 
-1. **回退当前改动**：`git checkout -- <受影响文件>`
-2. **分析错误类型**：查看 `dotnet build` 输出的新错误码
-3. **增强工具**：
-   - 在 `ParseCascadeErrors` 的正则中添加新错误码
-   - 在 `CascadeRewriter` 中添加对应的修复策略
-   - 如果是跳过场景，添加对应的跳过检测方法
-4. **重新运行**：`fix-getawaiter-getresult . --cascade build/sln/JoinCode.slnx`
-5. **验证**：全量编译通过后提交
+| Visit 方法 | 处理错误码 | 场景 | 修复方式 |
+|-----------|-----------|------|---------|
+| `VisitExpressionStatement` | CS4014 | 裸语句调用未 await | 加 await 或 .GetAwaiter().GetResult() |
+| `VisitVariableDeclarator` | CS0029 | 变量声明 Task<T>→T | 加 await 或 .GetAwaiter().GetResult() |
+| `VisitSwitchExpressionArm` | CS0029 | switch 表达式 arm | .GetAwaiter().GetResult() |
+| `VisitBinaryExpression` | CS0019 | `??` 运算符 | .GetAwaiter().GetResult() 或 ?.GetAwaiter().GetResult() |
+| `VisitArgument` | CS1503 | 方法组转换/参数不匹配 | lambda 包装或 .GetAwaiter().GetResult() |
+| `VisitAssignmentExpression` | CS0029 | 赋值表达式 | 加 await 或 .GetAwaiter().GetResult() |
+| `VisitReturnStatement` | CS0029 | return 语句 | .GetAwaiter().GetResult() |
+| `VisitSimpleLambdaExpression` | CS4034 | lambda 内 await 但无 async | 给 lambda 加 async 修饰符 |
+| `VisitParenthesizedLambdaExpression` | CS4034 | 同上 | 同上 |
+| `VisitMethodDeclaration` | — | 给 private 方法加 async | 改返回类型 void→Task, T→Task<T> |
 
-## 文件位置
+### 关键守卫逻辑
 
-| 文件 | 说明 |
-|------|------|
-| `non_deliverables_tools/jcc_audit_ast_cli/fixers/CascadeAsyncFixer.cs` | 状态机级联修复器 |
-| `non_deliverables_tools/jcc_audit_ast_cli/fixers/GetAwaiterFixer.cs` | 初始修复器（private 方法改 async） |
-| `non_deliverables_tools/jcc_audit_ast_cli/audit/GetAwaiterAnalyzer.cs` | 分析器（输出分类表格） |
-| `gen/aot_safety.shared/SyntaxHelpers.cs` | 共享 trivia/格式处理 |
-| `gen/aot_safety.shared/RuleDetectors/GetAwaiterPatternDetector.cs` | 共享检测逻辑 |
-| `non_deliverables_tools/jcc_audit_ast_cli/core/FileFilter.cs` | 共享文件过滤 |
+1. **`IsInNoAsyncContext`** — 检测构造函数/属性 getter/public/internal 方法，用 .GetAwaiter().GetResult() 代替 await
+2. **`IsTestMethod`** — 检测 [Fact]/[Theory] 特性，测试方法虽 public 但可改 async（避免 xUnit1031）
+3. **`VisitExpressionStatement` 跳过 lambda 内裸语句** — 由 VisitSimpleLambdaExpression 处理
+4. **`VisitVariableDeclarator` 跳过数组类型变量** — `var paths = new[] { ... }` 不加 .GetAwaiter().GetResult()
+5. **`VisitBinaryExpression` IdentifierName 用 `?.`** — `pathResult2?.GetAwaiter().GetResult()` 避免空引用
+
+### 正则收集错误码
+
+```csharp
+@"^(.+?)\((\d+),(\d+)\):\s*error\s+(CS4014|CS0029|CS1503|CS1061|CS0019)"
+```
+
+## 已知问题与解决方案
+
+### 1. 工具改动被 git checkout 回滚
+
+**问题**: `git checkout -- .` 会回滚所有未提交改动，包括工具改动
+**解决**: 工具改好先 commit，然后才批量修改/回滚生产代码
+```bash
+# 正确流程
+dotnet build tool.csproj → git add tool → git commit → git checkout -- app/ kit/ lib/
+# 错误流程
+git checkout -- .  # 工具改动也回滚了！
+```
+
+### 2. 异步传播过度修复
+
+**问题**: `fix-from-build-errors` 给非 Task 变量加 .GetAwaiter().GetResult()，给 lambda 内加 await 但没给 lambda 加 async
+**解决**:
+- `VisitExpressionStatement` 限定 CS4014，跳过 lambda 内裸语句
+- `VisitVariableDeclarator` 限定 CS0029，跳过数组类型变量
+- 添加 `VisitSimpleLambdaExpression`/`VisitParenthesizedLambdaExpression` 给 lambda 加 async
+
+### 3. switch 表达式 arm 未覆盖
+
+**问题**: `AgentMemoryScope.Local => GetLocalAgentMemoryDir(dirName)` 返回 Task<string> 但需要 string
+**解决**: 添加 `VisitSwitchExpressionArm` 处理 CS0029
+
+### 4. `??` 运算符未覆盖
+
+**问题**: `pathResult ?? pathResult2` 中 pathResult2 是 Task<string?>，?? 运算符类型不匹配
+**解决**: 添加 `VisitBinaryExpression` 处理 CS0019，IdentifierName 用 `?.GetAwaiter().GetResult()`
+
+### 5. xUnit1031 测试方法中禁止阻塞
+
+**问题**: 工具在测试方法中用 .GetAwaiter().GetResult()，xUnit 分析器禁止
+**解决**: `IsInNoAsyncContext` 排除 [Fact]/[Theory] 测试方法，测试方法可改 async
+
+## 测试流程
+
+### 单元测试验证工具行为
+
+用文件内容作为单元测试输入字符串，断言工具输出，禁止加 Console.WriteLine 调试输出。
+
+```csharp
+// 示例：验证 VisitSwitchExpressionArm 处理 switch 表达式 arm
+var source = """
+    public string GetDir(string scope) {
+        return scope switch {
+            "local" => GetLocalDir(),
+            _ => throw new ArgumentOutOfRangeException()
+        };
+    }
+    private async Task<string> GetLocalDir() { return ""; }
+    """;
+var errorMap = new Dictionary<int, string> { [3] = "CS0029" };
+var rewriter = new UnawaitedVariableRewriter(errorMap, isTestFile: false);
+var tree = CSharpSyntaxTree.ParseText(source);
+var root = tree.GetRoot();
+var newRoot = rewriter.Visit(root);
+Assert.True(rewriter.FixedCount > 0);
+Assert.Contains(".GetAwaiter().GetResult()", newRoot.ToFullString());
+```
+
+### 编译验证流程
+
+1. `dotnet build build/sln/JoinCode.slnx --no-restore > log.txt 2>&1` — 完整日志落盘
+2. `grep -c "error CS" log.txt` — 统计错误数
+3. `grep "error CS" log.txt | sort -u` — 查看去重错误
+4. `grep "error CS" log.txt | grep -oP "error CS\d+" | sort | uniq -c | sort -rn` — 统计错误类型分布
+
+## 当前状态（2026-09-24）
+
+### 已 commit 的工具改动
+
+1. `d0ba3d889` — VisitSwitchExpressionArm/VisitBinaryExpression + 限定错误码 + CS0019 正则
+2. `96485672c` — lambda async + 数组变量跳过 + lambda 内裸语句跳过
+
+### 待完成
+
+1. **运行完整修复流程** — fix-getawaiter-getresult + fix-from-build-errors 多轮
+2. **处理剩余 6 个错误** — CS4034(lambda async) + CS1660(lambda→AgentBase) + CS0826/CS1061(测试文件数组)
+3. **全量编译通过后 commit 生产代码**
+4. **JCC3017 重新启用 + 修复违规**
+5. **JCC3019 重新启用 + 修复违规**
+6. **推送修复到 PR #276**
+
+### 工具命令速查
+
+```bash
+# 工具路径
+TOOL=artifacts/bin/JccAuditCli/Debug/net10.0/jcc-audit.dll
+
+# 初始修复 .GetAwaiter().GetResult() → async + await
+dotnet $TOOL fix-getawaiter-getresult .
+
+# 编译错误驱动修复（CS4014/CS0029/CS1503/CS1061/CS0019）
+dotnet $TOOL fix-from-build-errors build/sln/JoinCode.slnx
+
+# 分析 .GetAwaiter().GetResult() 分布
+dotnet $TOOL analyze-getawaiter .
+```

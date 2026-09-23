@@ -170,12 +170,15 @@ public static class Program {
         var json = JsonSerializer.Serialize(report, AuditReportContext.Default.AuditReport);
 
         // 默认日志：未指定 --output 时自动生成 audit-report-{时间戳}.json
-        if (string.IsNullOrEmpty(outputPath)) {
+        var outputWasDefaulted = string.IsNullOrEmpty(outputPath);
+        if (outputWasDefaulted) {
             var ts = DateTime.Now.ToString("yyyyMMdd-HHmmss");
             outputPath = $"audit-report-{ts}.json";
         }
+        var fullOutputPath = Path.GetFullPath(outputPath);
         await SafeFileIO.WriteAllTextAsync(outputPath, json);
-        Console.WriteLine($"报告已写入: {outputPath}");
+        Console.WriteLine($"[日志路径] 报告已写入: {fullOutputPath}{(outputWasDefaulted ? " (自动生成)" : "")}");
+        Console.WriteLine($"[日志路径] AI 可读取此文件获取完整诊断报告");
 
         if (format == "text") {
             PrintTextReport(report);

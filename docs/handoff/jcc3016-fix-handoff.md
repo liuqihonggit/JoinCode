@@ -1,7 +1,8 @@
 # JCC3016 修复工作交接文档
 
 > 创建时间: 2026-09-23
-> 状态: JCC3016 已启用，9 个违规待修复，fix-jcc3016 CLI 待重构
+> 最后更新: 2026-09-23
+> 状态: JCC3016 已修复并提交，GetAwaiterPatternDetector 共享检测逻辑已就位，待修复 ast_cli 和语法分析器项目位置
 
 ## 1. 任务背景
 
@@ -188,9 +189,72 @@ invocation → invocation.GetAwaiter().GetResult()
 - `gen/aot_safety.generator/rules/concurrency/TaskVariableUnusedRule.cs` (JCC3019)
 
 ### ast_cli
-- `non_deliverables_tools/jcc_audit_ast_cli/core/Program.cs` — fix-jcc3016 命令入口
-- `non_deliverables_tools/jcc_audit_ast_cli/fixers/AnalyzerDrivenFixer.cs` — 修复器（待重构）
+- `non_deliverables_tools/jcc_audit_ast_cli/core/Program.cs` — fix-jcc3016 / analyze-getawaiter / fix-getawaiter-getresult 命令入口
+- `non_deliverables_tools/jcc_audit_ast_cli/fixers/AnalyzerDrivenFixer.cs` — JCC3016 修复器（dotnet build 输出驱动）
+- `non_deliverables_tools/jcc_audit_ast_cli/fixers/GetAwaiterFixer.cs` — .GetAwaiter().GetResult() 修复器（文件遍历）
+- `non_deliverables_tools/jcc_audit_ast_cli/audit/GetAwaiterAnalyzer.cs` — .GetAwaiter().GetResult() 分析器（文件遍历）
 
 ### slnx
 - `build/sln/Generators.slnx`
 - `build/sln/JoinCode.slnx`
+
+---
+
+## 11. GetAwaiterPatternDetector 共享检测逻辑（2026-09-23 新增）
+
+### 修改内容
+
+用户指出检测逻辑写错：**应判断直接包含的函数体（lambda 本身）是否 async，而非外层方法**。
+
+之前 `IsInAsyncMethod` 向上查找最近的 `MethodDeclarationSyntax`，导致 async 方法内的同步 lambda 被错误归类为"异步"。修正后 `IsInAsyncContext` 查找最近的函数体（lambda/anonymous/method），判断该函数体自身的 async 修饰符。
+
+### 修正前后对比
+
+| 位置 | 修正前 | 修正后 |
+|------|--------|--------|
+| TuiModeRunner:339 (async方法内同步lambda) | 异步方法中（跳过） | **同步函数体中（可修复）** |
+| BridgeMainCommand:189 (async方法内同步lambda) | 异步方法中（跳过） | **同步函数体中（可修复）** |
+
+### 共享检测器 API
+
+`gen/aot_safety.shared/RuleDetectors/GetAwaiterPatternDetector.cs`:
+- `IsGetAwaiterGetResultPattern(node)` — 纯模式匹配
+- `ExtractInnerExpression(node)` — 提取内部表达式
+- `GetEnclosingFunction(node)` — 获取直接包含的函数体（lambda/anonymous/method）
+- `IsInAsyncContext(node)` — 判断直接包含体是否 async（**非外层方法**）
+- `IsFixableViolation(node)` — 可修复判定（同步函数体 + 不在 Main/属性getter 跳过列表）
+- `ShouldSkip(node)` — 跳过 Main/属性getter（**不跳过 lambda**）
+
+### 同检同换原则
+
+检测器（`GetAwaiterAnalyzer`）和修复器（`GetAwaiterFixer`）**共享同一套 `IsFixableViolation` 判定**，禁止双套实现导致脱节。
+
+### 当前检测结果
+
+- 93 处 `.GetAwaiter().GetResult()`
+  - 同步函数体中: 93 处
+  - 异步函数体中: 0 处
+  - 可修复: 86 处（跳过 Main 3 处 + 属性 getter 4 处 + SyncFileReader 文件级跳过）
+  - 7 处之前被错误归到"异步"的 lambda 现在正确归类为"同步"
+
+### 已提交 commit
+
+| commit | 内容 |
+|--------|------|
+| 7b5e2807c | fix-jcc3016 dotnet build 输出驱动 + 修复全部 JCC3016 违规 |
+| c67bbc685 | analyze-getawaiter 命令 |
+| 0871dc1d8 | GetAwaiterPatternDetector 共享检测逻辑 |
+| 50aa31880 | 修正检测逻辑：判断直接包含的函数体而非外层方法 |
+
+## 12. 后续待完成：修复 ast_cli 和语法分析器项目位置
+
+用户要求"修复好整个工程的 ast_cli 和语法分析器项目位置"。当前状态：
+
+- `gen/aot_safety.generator/` — 分析器工程，用 Compile Include 包含 shared 源码
+- `gen/aot_safety.shared/` — 共享检测逻辑工程
+- `non_deliverables_tools/jcc_audit_ast_cli/` — ast_cli 工具
+
+待确认问题：
+1. ast_cli 项目位置是否需从 `non_deliverables_tools/` 移到其他目录？
+2. 语法分析器（generator）项目结构是否需调整？
+3. 共享工程（shared）与 generator/ast_cli 的引用关系是否需优化？

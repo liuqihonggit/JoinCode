@@ -149,11 +149,23 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
         // public/internal 方法可能实现接口，改返回类型会导致 CS0738
         var method = node.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault();
         if (method is not null) {
+            // 测试方法虽然 public，但可以改 async（xUnit 支持 async Task 测试方法）
+            // 避免 xUnit1031：测试方法中禁止 .GetAwaiter().GetResult()
+            if (IsTestMethod(method)) return false;
             if (method.Modifiers.Any(SyntaxKind.PublicKeyword)
                 || method.Modifiers.Any(SyntaxKind.InternalKeyword))
                 return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// 判断方法是否为 xUnit 测试方法（[Fact]/[Theory]）
+    /// </summary>
+    private static bool IsTestMethod(MethodDeclarationSyntax method) {
+        return method.AttributeLists
+            .SelectMany(al => al.Attributes)
+            .Any(a => a.Name.ToString() is "Fact" or "Theory");
     }
 
     /// <summary>

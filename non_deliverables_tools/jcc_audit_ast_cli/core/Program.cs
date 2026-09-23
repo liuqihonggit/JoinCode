@@ -169,17 +169,16 @@ public static class Program {
         // 输出结果
         var json = JsonSerializer.Serialize(report, AuditReportContext.Default.AuditReport);
 
-        if (!string.IsNullOrEmpty(outputPath)) {
-            await SafeFileIO.WriteAllTextAsync(outputPath, json);
-            Console.WriteLine($"报告已写入: {outputPath}");
+        // 默认日志：未指定 --output 时自动生成 audit-report-{时间戳}.json
+        if (string.IsNullOrEmpty(outputPath)) {
+            var ts = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            outputPath = $"audit-report-{ts}.json";
         }
+        await SafeFileIO.WriteAllTextAsync(outputPath, json);
+        Console.WriteLine($"报告已写入: {outputPath}");
 
         if (format == "text") {
             PrintTextReport(report);
-        } else {
-            // JSON 格式输出到控制台
-            Console.WriteLine();
-            Console.WriteLine(json);
         }
 
         // 返回退出码：有 Warning 则返回 3，有 Error 则返回 4，无诊断返回 0

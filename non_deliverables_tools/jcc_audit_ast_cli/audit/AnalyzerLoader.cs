@@ -12,6 +12,7 @@ public static class AnalyzerLoader {
     public static List<DiagnosticAnalyzer> LoadAnalyzers(string analyzerDirectory, string? filter = null) {
         var analyzers = new List<DiagnosticAnalyzer>();
 
+        analyzerDirectory = Path.GetFullPath(analyzerDirectory);
         if (!Directory.Exists(analyzerDirectory)) {
             Console.Error.WriteLine($"分析器目录不存在: {analyzerDirectory}");
             return analyzers;

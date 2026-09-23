@@ -66,6 +66,10 @@ public static class Program {
             return await RunFixJcc3016Command(args[1..]).ConfigureAwait(false);
         }
 
+        if (args[0] == "analyze-getawaiter") {
+            return await RunAnalyzeGetAwaiterCommand(args[1..]).ConfigureAwait(false);
+        }
+
         if (args[0] == "fix-disposable-async") {
             return await RunFixDisposableDirectionCommand(args[1..], FixDirection.Async).ConfigureAwait(false);
         }
@@ -776,7 +780,43 @@ public static class Program {
     }
 
     /// <summary>
-    /// fix-disposable-async / fix-disposable-sync 模式：IDisposable ↔ IAsyncDisposable 双向转换
+    /// analyze-getawaiter 模式：AST 遍历所有方法，检测 .GetAwaiter().GetResult() 在同步/异步方法中的分布
+    /// </summary>
+    private static async Task<int> RunAnalyzeGetAwaiterCommand(string[] args) {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
+            Console.WriteLine("用法: jcc-audit analyze-getawaiter <项目根目录>");
+            Console.WriteLine();
+            Console.WriteLine("检测: AST 遍历所有方法节点，找 .GetAwaiter().GetResult() 调用");
+            Console.WriteLine("分类: 同步方法（非 async）vs 异步方法（async）");
+            Console.WriteLine("输出: 报告（只检测，不修改）");
+            return 0;
+        }
+
+        var rootPath = args[0];
+
+        Console.WriteLine("=== JccAuditCli analyze-getawaiter ===");
+        Console.WriteLine($"项目根目录: {Path.GetFullPath(rootPath)}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
+        try {
+            var syncCount = await GetAwaiterAnalyzer.AnalyzeAsync(rootPath, cts.Token).ConfigureAwait(false);
+
+            Console.WriteLine();
+            if (syncCount > 0) {
+                Console.WriteLine($"发现 {syncCount} 处同步方法中的 .GetAwaiter().GetResult()，可考虑改为异步 + await。");
+            } else {
+                Console.WriteLine("未发现同步方法中的 .GetAwaiter().GetResult()。");
+            }
+
+            return syncCount > 0 ? 1 : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("扫描超时（5 分钟限制）。");
+            return 2;
+        }
+    }
+
+    /// <summary>
     /// </summary>
     private static async Task<int> RunFixDisposableDirectionCommand(string[] args, FixDirection direction) {
         var dirName = direction == FixDirection.Async ? "async" : "sync";

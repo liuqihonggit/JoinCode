@@ -145,14 +145,14 @@ public sealed class BoundedUUIDSet : IAsyncDisposable {
     /// 异步清空集合
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    public async Task ClearAsync(CancellationToken ct = default) {
+    public Task ClearAsync(CancellationToken ct = default) {
         using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         Array.Clear(_buffer, 0, _buffer.Length);
         _set.Clear();
         _head = 0;
         _count = 0;
-
+        return Task.CompletedTask;
     }
 
     /// <summary>

@@ -58,7 +58,7 @@ public sealed class SshSession : ISshSession {
 
             _stateMachine.TransitionTo(SshConnectionState.Connecting);
 
-            var startInfo = BuildSshProcessStartInfo(forwardArgs: null);
+            var startInfo = await BuildSshProcessStartInfoAsync(forwardArgs: null).ConfigureAwait(false);
 
             _sshProcess = Process.Start(startInfo);
             if (_sshProcess == null) {
@@ -170,7 +170,7 @@ public sealed class SshSession : ISshSession {
             SkipArgumentValidation = true,
         });
 
-        AddAuthArgs(startInfo);
+        await AddAuthArgsAsync(startInfo).ConfigureAwait(false);
 
         var sw = Stopwatch.StartNew();
         using var process = Process.Start(startInfo);
@@ -327,7 +327,7 @@ public sealed class SshSession : ISshSession {
                     _sshProcess = null;
                 }
 
-                var startInfo = BuildSshProcessStartInfo(forwardArgs: null);
+                var startInfo = await BuildSshProcessStartInfoAsync(forwardArgs: null).ConfigureAwait(false);
                 _sshProcess = Process.Start(startInfo);
 
                 if (_sshProcess != null && !_sshProcess.HasExited) {
@@ -349,7 +349,7 @@ public sealed class SshSession : ISshSession {
         _stateMachine.ForceTransitionTo(SshConnectionState.Error);
     }
 
-    private ProcessStartInfo BuildSshProcessStartInfo(string? forwardArgs) {
+    private async Task<ProcessStartInfo> BuildSshProcessStartInfoAsync(string? forwardArgs) {
         var argList = new List<string>(BuildSshArgList());
         if (forwardArgs != null) {
             argList.Add(forwardArgs);
@@ -364,7 +364,7 @@ public sealed class SshSession : ISshSession {
             SkipArgumentValidation = true,
         });
 
-        AddAuthArgs(startInfo);
+        await AddAuthArgsAsync(startInfo).ConfigureAwait(false);
         return startInfo;
     }
 
@@ -396,7 +396,7 @@ public sealed class SshSession : ISshSession {
         return args;
     }
 
-    private void AddAuthArgs(ProcessStartInfo startInfo) {
+    private async Task AddAuthArgsAsync(ProcessStartInfo startInfo) {
         switch (Config.AuthMethod) {
             case SshAuthMethod.PrivateKey when Config.PrivateKey != null:
             var keyFile = Path.Combine(
@@ -404,7 +404,7 @@ public sealed class SshSession : ISshSession {
                 AppDataConstants.AppDataFolder, "ssh", $"key_{SessionId}");
 
             _fs.CreateDirectory(Path.GetDirectoryName(keyFile)!);
-            _fs.WriteAllText(keyFile, Config.PrivateKey);
+            await _fs.WriteAllText(keyFile, Config.PrivateKey).ConfigureAwait(false);
             startInfo.ArgumentList.Add("-i");
             startInfo.ArgumentList.Add(keyFile);
             break;

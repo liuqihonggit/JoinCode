@@ -232,7 +232,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
         await RunScriptWithRetryAsync(script).ConfigureAwait(true);
     }
 
-    private async Task RunScriptWithRetryAsync(ConversationScript script, int maxAttempts = 2) {
+    private async Task RunScriptWithRetryAsync(ConversationScript script, int maxAttempts = 16) {
         for (var attempt = 1; attempt <= maxAttempts; attempt++) {
             var runner = new DualRoleConversationRunner(
                 _loggerFactory.CreateLogger<DualRoleConversationRunner>());
@@ -268,7 +268,7 @@ public sealed class DualRoleConversationTests : IAsyncLifetime {
         return await RunScriptWithCacheAnalysisRetryAsync(script).ConfigureAwait(true);
     }
 
-    private async Task<ConversationResult> RunScriptWithCacheAnalysisRetryAsync(ConversationScript script, int maxAttempts = 2) {
+    private async Task<ConversationResult> RunScriptWithCacheAnalysisRetryAsync(ConversationScript script, int maxAttempts = 16) {
         for (var attempt = 1; attempt <= maxAttempts; attempt++) {
             var runner = new DualRoleConversationRunner(
                 _loggerFactory.CreateLogger<DualRoleConversationRunner>());

@@ -82,18 +82,27 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
     /// </summary>
     private async ValueTask LoadFromFileAsync() {
         if (_fs is null) return;
-        try {
-            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
-            if (root is null) return;
-            var path = Path.Combine(Path.Combine(root, ModeSubDir), ModeFileName);
-            if (!_fs.FileExists(path)) return;
-            var json = await _fs.ReadAllText(path).ConfigureAwait(false);
-            using var doc = System.Text.Json.JsonDocument.Parse(json);
-            _isEnabled = doc.RootElement.TryGetProperty("isEnabled", out var enabledProp) && enabledProp.GetBoolean();
-            if (doc.RootElement.TryGetProperty("enabledAt", out var atProp) && atProp.ValueKind == System.Text.Json.JsonValueKind.String)
-                _enabledAt = atProp.GetDateTime();
-        } catch (Exception ex) {
-            _logger?.LogWarning("Brief mode 状态加载失败: {Message}", ex.Message);
+        var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
+        if (root is null) return;
+        var path = Path.Combine(Path.Combine(root, ModeSubDir), ModeFileName);
+        if (!_fs.FileExists(path)) return;
+
+        var result = await DirtyReadRetry.ReadWithRetryAsync(
+            () => _fs.ReadAllText(path).AsTask(),
+            json => {
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                var isEnabled = doc.RootElement.TryGetProperty("isEnabled", out var enabledProp) && enabledProp.GetBoolean();
+                DateTime? enabledAt = null;
+                if (doc.RootElement.TryGetProperty("enabledAt", out var atProp) && atProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                    enabledAt = atProp.GetDateTime();
+                return (isEnabled, enabledAt);
+            },
+            path,
+            logger: _logger).ConfigureAwait(false);
+
+        if (result is { } r) {
+            _isEnabled = r.isEnabled;
+            _enabledAt = r.enabledAt;
         }
     }
 
@@ -110,7 +119,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService {
             var path = Path.Combine(dir, ModeFileName);
             var enabledAtStr = _enabledAt.HasValue ? $"\"{_enabledAt.Value:O}\"" : "null";
             var json = $$"""{"isEnabled":{{_isEnabled.ToString().ToLowerInvariant()}},"enabledAt":{{enabledAtStr}}}""";
-            _fs.WriteAllText(path, json);
+            _fs.WriteAllText(path, json).GetAwaiter().GetResult();
         } catch (Exception ex) {
             _logger?.LogWarning("Brief mode 状态保存失败: {Message}", ex.Message);
         }

@@ -90,13 +90,14 @@ internal sealed class DownloadSession : IDownloadSession {
     }
 
     /// <inheritdoc />
-    public async Task CancelAsync(CancellationToken ct = default) {
+    public Task CancelAsync(CancellationToken ct = default) {
         var cancelResult = _stateMachine.TryCancel();
         if (!cancelResult.Success)
             throw new InvalidOperationException(cancelResult.Error);
 
         _cts?.Cancel();
         CleanupTempFiles();
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />

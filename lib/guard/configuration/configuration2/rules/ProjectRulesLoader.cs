@@ -156,14 +156,13 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
     }
 
     private async Task<(string Path, string? Content)?> TryReadFileAsync(string fullPath, CancellationToken cancellationToken) {
-        try {
-            if (!_fs.FileExists(fullPath)) return null;
-            var content = await _fs.ReadAllTextAsync(fullPath, cancellationToken).ConfigureAwait(false);
-            return (fullPath, content);
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "读取规则文件失败: {Path}", fullPath);
-            return null;
-        }
+        if (!_fs.FileExists(fullPath)) return null;
+        return await DirtyReadRetry.ReadWithRetryAsync(
+            () => _fs.ReadAllTextAsync(fullPath, cancellationToken),
+            content => (fullPath, (string?)content),
+            fullPath,
+            logger: _logger,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<List<(string Path, string Content)>> LoadRulesFromDirectoryRecursiveAsync(string baseDirPath, string currentDirPath, CancellationToken cancellationToken) {
@@ -204,14 +203,13 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
     }
 
     private async Task<(string Path, string? Content)?> TryReadRuleFileAsync(string filePath, CancellationToken cancellationToken) {
-        try {
-            if (!_fs.FileExists(filePath)) return null;
-            var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            return (filePath, content);
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "读取规则文件失败: {Path}", filePath);
-            return null;
-        }
+        if (!_fs.FileExists(filePath)) return null;
+        return await DirtyReadRetry.ReadWithRetryAsync(
+            () => _fs.ReadAllTextAsync(filePath, cancellationToken),
+            content => (filePath, (string?)content),
+            filePath,
+            logger: _logger,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

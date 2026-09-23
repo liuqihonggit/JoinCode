@@ -22,13 +22,13 @@ public sealed class StreamingConcurrentToolE2ETests : CoverageTestBase {
                             new MockToolCallScript
                             {
                                 ToolName = "Read",
-                                Arguments = "{\"file_path\":\"D:\\3\\\\JoinCode\\\\README.md\",\"limit\":5}",
+                                Arguments = new { file_path = @"D:\3\JoinCode\README.md", limit = 5 },
                                 ToolResult = "# JoinCode\nAI coding assistant..."
                             },
                             new MockToolCallScript
                             {
                                 ToolName = "Grep",
-                                Arguments = "{\"pattern\":\"JoinCode\",\"path\":\"D:\\\\JoinCode\\\\README.md\",\"output_mode\":\"content\"}",
+                                Arguments = new { pattern = "JoinCode", path = @"D:\JoinCode\README.md", output_mode = "content" },
                                 ToolResult = "1:# JoinCode"
                             }
                         ],
@@ -64,13 +64,13 @@ public sealed class StreamingConcurrentToolE2ETests : CoverageTestBase {
                             new MockToolCallScript
                             {
                                 ToolName = "Write",
-                                Arguments = "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\e2e_streaming_1.txt\",\"content\":\"test1\"}",
+                                Arguments = new { file_path = @"D:\JoinCode\.x\e2e_streaming_1.txt", content = "test1" },
                                 ToolResult = "File written successfully"
                             },
                             new MockToolCallScript
                             {
                                 ToolName = "Write",
-                                Arguments = "{\"file_path\":\"D:\\\\JoinCode\\\\.x\\\\e2e_streaming_2.txt\",\"content\":\"test2\"}",
+                                Arguments = new { file_path = @"D:\JoinCode\.x\e2e_streaming_2.txt", content = "test2" },
                                 ToolResult = "File written successfully"
                             }
                         ],

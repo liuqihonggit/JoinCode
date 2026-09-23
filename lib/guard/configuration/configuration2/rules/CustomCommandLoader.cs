@@ -110,20 +110,17 @@ public sealed partial class CustomCommandLoader {
     }
 
     private async Task<CustomCommand?> TryReadCommandFileAsync(string filePath, int baseDirLength, CancellationToken cancellationToken) {
-        try {
-            if (!_fs.FileExists(filePath)) return null;
-            var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(content)) return null;
+        if (!_fs.FileExists(filePath)) return null;
+        var relativePath = filePath.Length > baseDirLength
+            ? filePath[baseDirLength..]
+            : Path.GetFileName(filePath);
 
-            var relativePath = filePath.Length > baseDirLength
-                ? filePath[baseDirLength..]
-                : Path.GetFileName(filePath);
-
-            return ParseCommandFile(relativePath, content, filePath);
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "读取自定义命令文件失败: {Path}", filePath);
-            return null;
-        }
+        return await DirtyReadRetry.ReadWithRetryAsync(
+            () => _fs.ReadAllTextAsync(filePath, cancellationToken),
+            content => string.IsNullOrWhiteSpace(content) ? null : ParseCommandFile(relativePath, content, filePath),
+            filePath,
+            logger: _logger,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     internal static CustomCommand? ParseCommandFile(string relativePath, string content, string sourcePath) {

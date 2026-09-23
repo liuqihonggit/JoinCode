@@ -28,7 +28,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
     /// </summary>
     [Fact]
     public async Task NonInteractiveMode_ShouldCompleteWithoutTimeout() {
-        var configPath = WriteSimpleMockServerConfig();
+        var configPath = await WriteSimpleMockServerConfigAsync();
         await StartMockServerAsync(configPath).ConfigureAwait(true);
 
         var exePath = ResolveJccExePath();
@@ -48,7 +48,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
     /// </summary>
     [Fact]
     public async Task NonInteractiveMode_MockServerShouldReceiveRequest() {
-        var configPath = WriteSimpleMockServerConfig();
+        var configPath = await WriteSimpleMockServerConfigAsync();
         await StartMockServerAsync(configPath).ConfigureAwait(true);
 
         var exePath = ResolveJccExePath();
@@ -75,7 +75,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
         int timeoutSeconds = 60) {
         var stateDir = Path.Combine(Path.GetTempPath(), $"jcc_stream_e2e_{Guid.NewGuid():N}");
         Directory.CreateDirectory(stateDir);
-        E2eSettingsJsonHelper.WriteSettingsJsonToStateDir(stateDir);
+        await E2eSettingsJsonHelper.WriteSettingsJsonToStateDirAsync(stateDir);
 
         var args = $"--trust --await {awaitSeconds} -p \"{prompt}\"";
 
@@ -189,7 +189,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
         }
     }
 
-    private static string WriteSimpleMockServerConfig() {
+    private static async Task<string> WriteSimpleMockServerConfigAsync() {
         var configDir = Path.Combine(Path.GetTempPath(), $"jcc_stream_mock_{Guid.NewGuid():N}");
         Directory.CreateDirectory(configDir);
 
@@ -206,7 +206,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime {
             """;
 
         var configPath = Path.Combine(configDir, "stream_test.json");
-        IO.FileSystem.SafeFileIO.WriteAllText(configPath, configContent);
+        await IO.FileSystem.SafeFileIO.WriteAllText(configPath, configContent);
         return configPath;
     }
 

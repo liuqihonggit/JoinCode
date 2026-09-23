@@ -446,4 +446,28 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0087](0087-batch-replace-csharp-source-rules.md) | 批量替换 | 必须先在单文件验证 → 才能推广到全部位置 |
 | [0080](0080-manual-exe-testing-guide.md) | 测试执行 | 手动测试规范 + 全局测试命令 + 卡死排查 + throw 探针法 + 子智能体禁止全量测试 |
 | [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 工具统一入口 | ⛔ 禁止系统/宿主 gh/rg，统一用 `jcc rg` / `jcc mcp_call gh_*` / `jcc gh` |
+| [0090](0090-jcc-gh-cli-subcommand.md) | jcc gh CLI 子命令 | 扁平元动词 + schema 驱动参数绑定 |
+| [0091](0091-actor-duplex-inplace-upgrade.md) | Actor 全双工改造 | 直接改 ActorBase，无后向兼容 |
+| [0092](0092-worktree-path-inconsistency-fix.md) | Worktree 路径一致性 | 中间件幂等 + Guard 路径锁定 |
+| [0093](0093-resource-management-exception-style.md) | 资源管理与异常风格 | using var / DisposeSafe / 释放函数禁止超时 |
+| [0094](0094-github-verbose-output.md) | GitHub 工具精简输出 | verbose 完整模式，默认精简 |
+| [0095](0095-unified-path-normalizer.md) | 统一路径归一化 | PathNormalizer 消除路径格式差异 |
+| [0096](0096-shell-path-error-auto-retry.md) | Shell 路径处理 | 去掉执行前自动转换 + 执行后失败重试 |
+| [0097](0097-workflow-checkpoint-resume.md) | Workflow 断点续跑 | DAG 模式原子保存快照，启动时跳过已完成步骤 |
+| [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 | Actor 串行 + EffectScope + 弱引用事件 |
+| [0099](0099-native-dll-plugin-system.md) | Native DLL 插件 | NativeLibrary.Load + UnmanagedCallersOnly |
+| [0100](0100-console-actor-serialize-io.md) | ConsoleActor 串行化 | 消除 Console I/O 并发竞态 |
+| [0101](0101-file-watcher-unified-actor.md) | 文件监控 Actor 化 | 统一 Actor 化文件监控 |
+| [0104](0104-write-defense-extract-public-node.md) | 写入防御链公共化 | 一切皆为 node/插件 |
+| [0105](0105-desktop-scene-orchestration.md) | 桌面情景模式编排 | 场景菜单 + 工具链路推荐 + 状态持久化 |
+| [0106](0106-subagent-stall-defense-in-depth.md) | 子代理卡死防护 | 纵深防御体系 |
+| [0107](0107-file-mailbox-lock-replace-mutex.md) | 文件邮箱锁替代 Mutex | Actor 邮箱模型 + Agent 发现 |
+| [0108](0108-dispose-consistency-analyzer-rules.md) | Dispose 一致性分析器 | JCC9103/9104/9107 规则 + OnDispose 间接层消除 |
+| [0109](0109-window-shake-notification-and-bot-name.md) | 窗口震动通知 | 子代理 bot 中文名 |
+| [0110](0110-platform-bot-adapter-pattern.md) | 平台机器人适配器 | IPlatformBotAdapter 抽象 QQ/飞书/Discord |
+| [0111](0111-unified-messaging-channel-mailboxhub-upgrade.md) | 统一消息通道 | MailboxHub 四通道路由 + 聊天室统一表达 |
+| [0112](0112-dispose-fire-and-forget-ban-continuewith-to-await.md) | Dispose 释放规范 | 禁止 fire-and-forget + ContinueWith→await |
 | [0113](0113-mtp-perturbation-bash-defense.md) | MTP 扰动防御 | Agent 层 BashDefense node 链兜住 MTP 单字符扰动，不依赖供应商关 MTP |
+| [0114](0114-config-template-source-generator.md) | 配置模板源码生成器 | 源码生成器驱动配置模板 |
+| [0115](0115-typed-decision-abstraction-layer.md) | 类型化决策抽象层 | ITypedDecision 统一决策类型 |
+| [0116](0116-getawaiter-getresult-allowed-scenarios.md) | .GetAwaiter().GetResult() 允许场景 + Entity BCL 双向继承 | 构造函数/Lazy<T>/ThreadStart/同步委托中允许；Entity 保留 IDisposable+IAsyncDisposable 双接口学 BCL Stream 模式 |

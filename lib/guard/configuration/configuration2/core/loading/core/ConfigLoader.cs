@@ -113,7 +113,7 @@ public class ConfigLoader {
             var config = _settingsMapper.ToWorkflowConfig(settings);
 
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
-            _settingsMapper.ApplyEnvOverrides(config, settings);
+            await _settingsMapper.ApplyEnvOverridesAsync(config, settings).ConfigureAwait(false);
 
             // Step 5: 统一 API Key 解析（auth.json → Provider 专属变量）— auth.json 已在 Step 1 预读
             config.Provider.ApiKey = await ResolveApiKeyAsync(
@@ -244,13 +244,11 @@ public class ConfigLoader {
     private static async Task<Dictionary<string, string>?> LoadAuthFileAsync(IFileSystem fs, CancellationToken cancellationToken, AppDataPaths? paths = null) {
         var authPath = (paths ?? AppDataConstants.Paths).AuthFilePath;
         if (!fs.FileExists(authPath)) return null;
-        try {
-            var json = await fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
-            return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
-        } catch (Exception ex) {
-            Diag.WriteLifecycle($"[WARN] auth.json 解析失败: {authPath} | 错误: {ex.Message}");
-            return null;
-        }
+        return await DirtyReadRetry.ReadWithRetryAsync(
+            () => fs.ReadAllTextAsync(authPath, cancellationToken),
+            json => RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString),
+            authPath,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -410,24 +408,25 @@ public class ConfigLoader {
         if (!fs.FileExists(globalPath))
             return null;
 
-        try {
-            var json = await fs.ReadAllTextAsync(globalPath, cancellationToken).ConfigureAwait(false);
-            var data = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringJsonElement);
-            if (data is not null && data.TryGetValue(key, out var element)) {
-                return element.ValueKind switch {
-                    JsonValueKind.String => element.GetString(),
-                    JsonValueKind.Number => element.GetRawText(),
-                    JsonValueKind.True => "true",
-                    JsonValueKind.False => "false",
-                    JsonValueKind.Null => null,
-                    _ => element.GetRawText(),
-                };
-            }
-        } catch (Exception ex) {
-            logger?.LogWarning(ex, "Failed to load setting from global.json");
-        }
-
-        return null;
+        return await DirtyReadRetry.ReadWithRetryAsync(
+            () => fs.ReadAllTextAsync(globalPath, cancellationToken),
+            json => {
+                var data = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringJsonElement);
+                if (data is not null && data.TryGetValue(key, out var element)) {
+                    return element.ValueKind switch {
+                        JsonValueKind.String => element.GetString(),
+                        JsonValueKind.Number => element.GetRawText(),
+                        JsonValueKind.True => "true",
+                        JsonValueKind.False => "false",
+                        JsonValueKind.Null => null,
+                        _ => element.GetRawText(),
+                    };
+                }
+                return null;
+            },
+            globalPath,
+            logger: logger,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

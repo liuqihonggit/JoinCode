@@ -48,11 +48,12 @@ public class AsyncLockDiagnosisTests : IDisposable {
     }
 
     [Fact]
-    public async Task DumpAll_空闲锁显示空闲() {
+    public Task DumpAll_空闲锁显示空闲() {
         using var lk = new AsyncLock("idle-lock");
         var dump = LockRegistry.DumpAll();
         dump.Should().Contain("idle-lock");
         dump.Should().Contain("空闲", "未获取的锁应显示空闲");
+        return Task.CompletedTask;
     }
 
     [Fact]
@@ -189,7 +190,7 @@ public class AsyncLockDiagnosisTests : IDisposable {
     }
 
     [Fact]
-    public async Task 死锁检测_两个线程互相等待时自动检测() {
+    public Task 死锁检测_两个线程互相等待时自动检测() {
         var originalWaitThreshold = LockRegistry.WaitTimeoutThreshold;
         LockRegistry.WaitTimeoutThreshold = TimeSpan.FromMilliseconds(100);
         LockRegistry.StartBackgroundScan(TimeSpan.FromMilliseconds(50));
@@ -234,6 +235,7 @@ public class AsyncLockDiagnosisTests : IDisposable {
         LockRegistry.StopBackgroundScan();
         LockRegistry.WaitTimeoutThreshold = originalWaitThreshold;
         LockRegistry.DiagnosticSink = null;
+        return Task.CompletedTask;
     }
 
     /// <summary>

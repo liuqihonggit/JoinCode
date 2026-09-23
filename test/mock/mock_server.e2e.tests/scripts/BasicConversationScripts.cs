@@ -59,7 +59,7 @@ public static class BasicConversationScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = "{\"command\":\"cd\"}",
+                            Arguments = new { command = "cd" },
                             ToolResult = "/home/user/project"
                         }
                     ],

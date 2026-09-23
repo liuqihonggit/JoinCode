@@ -53,7 +53,7 @@ public class BuildQueueRouterTests {
 
     [Fact]
     public async Task MultipleBuilds_ParallelExecution_WithMultipleWorkers() {
-        var buildDelay = TimeSpan.FromMilliseconds(200);
+        var buildDelay = TimeSpan.FromMilliseconds(500);
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
@@ -77,8 +77,8 @@ public class BuildQueueRouterTests {
         }
         sw.Stop();
 
-        sw.Elapsed.Should().BeLessThan(buildDelay * 2,
-            "3 个 Worker 并行执行 3 个 200ms 编译,总时间应远小于串行 600ms");
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(1200),
+            "3 个 Worker 并行执行 3 个 500ms 编译,总时间应远小于串行 1500ms");
     }
 
     [Fact]

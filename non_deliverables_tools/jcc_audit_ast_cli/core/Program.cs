@@ -62,6 +62,18 @@ public static class Program {
             return await RunFixGetAwaiterGetResultCommand(args[1..]).ConfigureAwait(false);
         }
 
+        if (args[0] == "fix-disposable-async") {
+            return await RunFixDisposableDirectionCommand(args[1..], FixDirection.Async).ConfigureAwait(false);
+        }
+
+        if (args[0] == "fix-disposable-sync") {
+            return await RunFixDisposableDirectionCommand(args[1..], FixDirection.Sync).ConfigureAwait(false);
+        }
+
+        if (args[0] == "sync-async") {
+            return await RunSyncAsyncCommand(args[1..]).ConfigureAwait(false);
+        }
+
         // 默认: 审计模式（直接传 slnx/csproj 路径）
         return await RunAuditCommand(args);
     }
@@ -291,6 +303,7 @@ public static class Program {
         Console.WriteLine("=== 修复组（Fix）— 修改源码文件 ===");
         Console.WriteLine("  jcc-audit replace <csproj-or-slnx> [选项]       AST 批量替换（应用 CodeFix）");
         Console.WriteLine("  jcc-audit strip-bom <directory> [选项]          移除 .cs 文件 UTF-8 BOM");
+        Console.WriteLine("  jcc-audit sync-async <slnx> [选项]              async/await 同步化（移除 async，改签名）");
         Console.WriteLine();
         Console.WriteLine("=== 统计组（Stats）— 信息查询排行 ===");
         Console.WriteLine("  jcc-audit top-files <directory> [选项]          大文件排行");
@@ -714,6 +727,121 @@ public static class Program {
             return fixedIssues > 0 ? (dryRun ? 3 : 0) : 0;
         } catch (OperationCanceledException) {
             Console.Error.WriteLine("扫描超时（10 分钟限制）。");
+            return 2;
+        }
+    }
+
+    /// <summary>
+    /// fix-disposable-async / fix-disposable-sync 模式：IDisposable ↔ IAsyncDisposable 双向转换
+    /// </summary>
+    private static async Task<int> RunFixDisposableDirectionCommand(string[] args, FixDirection direction) {
+        var dirName = direction == FixDirection.Async ? "async" : "sync";
+        var dirDesc = direction == FixDirection.Async
+            ? "IDisposable → IAsyncDisposable (异步化)"
+            : "IAsyncDisposable → IDisposable (同步化)";
+
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
+            Console.WriteLine($"用法: jcc-audit fix-disposable-{dirName} <slnx> --target-type <TypeName> [--dry-run]");
+            Console.WriteLine();
+            Console.WriteLine($"方向: {dirDesc}");
+            Console.WriteLine("改动:");
+            Console.WriteLine("  1. 接口声明: IDisposable ↔ IAsyncDisposable");
+            Console.WriteLine("  2. 方法签名: void Dispose() ↔ ValueTask DisposeAsync()");
+            Console.WriteLine("  3. 调用点:   Dispose() ↔ await DisposeAsync()");
+            Console.WriteLine("  4. using 声明: using var ↔ await using var");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var targetType = GetArgValue(args, "--target-type") ?? string.Empty;
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+
+        if (string.IsNullOrEmpty(targetType)) {
+            Console.Error.WriteLine("必须指定 --target-type <TypeName>。");
+            return 1;
+        }
+
+        Console.WriteLine($"=== JccAuditCli fix-disposable-{dirName} ===");
+        Console.WriteLine($"解决方案: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"目标类型: {targetType}");
+        Console.WriteLine($"方向:     {dirDesc}");
+        Console.WriteLine($"模式:     {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+
+        try {
+            var report = await DisposableDirectionFixer.FixAsync(targetPath, targetType, direction, dryRun, cts.Token).ConfigureAwait(false);
+            report.PrintSummary();
+
+            return report.TotalChanges > 0 ? (dryRun ? 3 : 0) : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("扫描超时（10 分钟限制）。");
+            return 2;
+        }
+    }
+
+    /// <summary>
+    /// sync-async 模式：把 async/await 同步化（移除 async 关键字，改方法签名，await → .GetAwaiter().GetResult()）
+    /// </summary>
+    private static async Task<int> RunSyncAsyncCommand(string[] args) {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal) || args.Contains("-h", StringComparer.Ordinal)) {
+            Console.WriteLine("用法: jcc-audit sync-async <slnx> [--dry-run] [--exclude <dir>]... [--include <dir>]...");
+            Console.WriteLine();
+            Console.WriteLine("同步化转换:");
+            Console.WriteLine("  1. async Task<T> Method() → T Method()（移除 async，改返回类型）");
+            Console.WriteLine("  2. async Task Method() → void Method()");
+            Console.WriteLine("  3. await expr → expr.GetAwaiter().GetResult()（外部库方法）");
+            Console.WriteLine("  4. await Method() → Method()（源码内 async 方法，签名已改）");
+            Console.WriteLine("  5. return Task.CompletedTask → 移除");
+            Console.WriteLine("  6. return Task.FromResult(x) → return x");
+            Console.WriteLine("  7. await using → using, await foreach → foreach");
+            Console.WriteLine();
+            Console.WriteLine("选项:");
+            Console.WriteLine("  --dry-run              仅预览，不实际写入文件");
+            Console.WriteLine("  --exclude <dir>        排除目录（可多次指定，如 --exclude app/gui）");
+            Console.WriteLine("  --include <dir>        只处理指定目录（可多次指定，如 --include lib/abstractions）");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+        var excludes = new List<string>();
+        var includes = new List<string>();
+        for (var i = 0; i < args.Length - 1; i++) {
+            if (args[i] == "--exclude" && i + 1 < args.Length)
+                excludes.Add(args[i + 1]);
+            if (args[i] == "--include" && i + 1 < args.Length)
+                includes.Add(args[i + 1]);
+        }
+
+        if (string.IsNullOrEmpty(targetPath)) {
+            Console.Error.WriteLine("必须指定解决方案路径。");
+            return 1;
+        }
+
+        Console.WriteLine("=== JccAuditCli sync-async ===");
+        Console.WriteLine($"解决方案: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+        if (excludes.Count > 0)
+            Console.WriteLine($"排除: {string.Join(", ", excludes)}");
+        if (includes.Count > 0)
+            Console.WriteLine($"只处理: {string.Join(", ", includes)}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(15));
+
+        try {
+            var (fixedFiles, fixedMethods, fixedAwaits, skipped) = await SyncAsyncFixer.SyncAllAsync(targetPath, dryRun, excludes.ToArray(), includes.ToArray(), cts.Token).ConfigureAwait(false);
+
+            Console.WriteLine();
+            Console.WriteLine("=== sync-async 报告 ===");
+            Console.WriteLine($"修复文件: {fixedFiles}");
+            Console.WriteLine($"修复方法: {fixedMethods}");
+            Console.WriteLine($"修复 await: {fixedAwaits}");
+            Console.WriteLine($"跳过文件: {skipped}");
+
+            return fixedMethods + fixedAwaits > 0 ? (dryRun ? 3 : 0) : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("扫描超时（15 分钟限制）。");
             return 2;
         }
     }

@@ -145,6 +145,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
             ExpectedDiagnostics =
             {
                 new DiagnosticResult("JCC3006", DiagnosticSeverity.Warning).WithLocation(0).WithArguments(".Result"),
+                new DiagnosticResult("JCC3017", DiagnosticSeverity.Warning).WithSpan(4, 16, 4, 27).WithArguments("MethodAsync"),
             },
         };
 
@@ -171,6 +172,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
             ExpectedDiagnostics =
             {
                 new DiagnosticResult("JCC3006", DiagnosticSeverity.Warning).WithLocation(0).WithArguments(".Wait()"),
+                new DiagnosticResult("JCC3017", DiagnosticSeverity.Warning).WithSpan(4, 16, 4, 27).WithArguments("MethodAsync"),
             },
         };
 
@@ -483,6 +485,288 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
             {
                 new DiagnosticResult("JCC1005", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("System.Threading.Tasks"),
             },
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task BareAsyncCall_Discarded_ReportsJCC3015() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task MethodAsync()
+                    {
+                        {|#0:SomeAsync()|};
+                    }
+
+                    Task SomeAsync() => Task.CompletedTask;
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC3015", DiagnosticSeverity.Error).WithLocation(0).WithArguments("TestClass.SomeAsync"),
+                new DiagnosticResult("JCC3017", DiagnosticSeverity.Warning).WithSpan(4, 16, 4, 27).WithArguments("MethodAsync"),
+            },
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task AwaitedAsyncCall_NoJCC3015() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task MethodAsync()
+                    {
+                        await SomeAsync();
+                    }
+
+                    Task SomeAsync() => Task.CompletedTask;
+                }
+                """,
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task DiscardAssignment_NoJCC3015() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task MethodAsync()
+                    {
+                        _ = SomeAsync();
+                    }
+
+                    Task SomeAsync() => Task.CompletedTask;
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC3017", DiagnosticSeverity.Warning).WithSpan(4, 16, 4, 27).WithArguments("MethodAsync"),
+            },
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SyncMethodAsyncCall_ReportsJCC3016() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    void Method()
+                    {
+                        {|#0:SomeAsync()|};
+                    }
+
+                    Task SomeAsync() => Task.CompletedTask;
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC3016", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("Method", "TestClass.SomeAsync"),
+            },
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task AsyncMethodWithoutAwait_ReportsJCC3017() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task {|#0:MethodAsync|}()
+                    {
+                        var x = 42;
+                    }
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC3017", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("MethodAsync"),
+            },
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task AsyncMethodWithAwait_NoJCC3017() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task MethodAsync()
+                    {
+                        await Task.Delay(1);
+                    }
+                }
+                """,
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task TaskVariableUnused_ReportsJCC3019() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    void Method()
+                    {
+                        var t = {|#0:SomeAsync()|};
+                    }
+
+                    Task SomeAsync() => Task.CompletedTask;
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC3019", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("t", "TestClass.SomeAsync"),
+            },
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task TaskVariableAwaited_NoJCC3019() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task MethodAsync()
+                    {
+                        var t = SomeAsync();
+                        await t;
+                    }
+
+                    Task SomeAsync() => Task.CompletedTask;
+                }
+                """,
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task AsyncMethodWithAwaitUsing_NoJCC3017() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task MethodAsync()
+                    {
+                        await using var x = new Dummy();
+                    }
+                }
+                class Dummy : IAsyncDisposable
+                {
+                    public ValueTask DisposeAsync() => default;
+                }
+                """,
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SyncMethodReturnsTaskRun_ReportsJCC3020() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    Task _field;
+                    public Task StartAsync()
+                    {
+                        return _field = {|#0:Task.Run(() => LoopAsync())|};
+                    }
+                    async Task LoopAsync() { await Task.Delay(1); }
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC3020", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("StartAsync"),
+            },
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SyncMethodReturnsValueTaskWithTaskRun_ReportsJCC3020() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    Task _field;
+                    public ValueTask StartAsync()
+                    {
+                        return new ValueTask(_field = {|#0:Task.Run(() => LoopAsync())|});
+                    }
+                    async Task LoopAsync() { await Task.Delay(1); }
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC3020", DiagnosticSeverity.Warning).WithLocation(0).WithArguments("StartAsync"),
+            },
+        };
+
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SyncMethodStoreFieldReturnCompleted_NoJCC3020() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    Task _field;
+                    public Task StartAsync()
+                    {
+                        _field = Task.Run(() => LoopAsync());
+                        return Task.CompletedTask;
+                    }
+                    async Task LoopAsync() { await Task.Delay(1); }
+                }
+                """,
         };
 
         await test.RunAsync().ConfigureAwait(true);

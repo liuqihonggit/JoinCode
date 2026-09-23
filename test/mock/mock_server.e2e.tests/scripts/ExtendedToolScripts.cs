@@ -23,7 +23,7 @@ public static class ExtendedToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "task_list",
-                            Arguments = "{}"
+                            Arguments = new { }
                         }
                     ],
                     FollowUpText = "当前没有任务。"
@@ -56,7 +56,7 @@ public static class ExtendedToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "task_get",
-                            Arguments = """{"task_id":"test-task-001"}"""
+                            Arguments = new { task_id = "test-task-001" }
                         }
                     ],
                     FollowUpText = "任务不存在。"
@@ -89,7 +89,7 @@ public static class ExtendedToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "task_stop",
-                            Arguments = """{"task_id":"test-task-001"}"""
+                            Arguments = new { task_id = "test-task-001" }
                         }
                     ],
                     FollowUpText = "任务已停止。"
@@ -122,7 +122,7 @@ public static class ExtendedToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "task_update",
-                            Arguments = """{"task_id":"test-task-001","status":"completed"}"""
+                            Arguments = new { task_id = "test-task-001", status = "completed" }
                         }
                     ],
                     FollowUpText = "任务状态已更新为 completed。"
@@ -155,7 +155,7 @@ public static class ExtendedToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "cron_create",
-                            Arguments = """{"name":"test-cron","schedule":"*/5 * * * *","prompt":"定期检查","timezone":"UTC"}"""
+                            Arguments = new { name = "test-cron", schedule = "*/5 * * * *", prompt = "定期检查", timezone = "UTC" }
                         }
                     ],
                     FollowUpText = "定时任务 'test-cron' 已创建。"
@@ -188,7 +188,7 @@ public static class ExtendedToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "cron_delete",
-                            Arguments = """{"task_id":"test-cron-001"}"""
+                            Arguments = new { task_id = "test-cron-001" }
                         }
                     ],
                     FollowUpText = "定时任务已删除。"
@@ -221,7 +221,7 @@ public static class ExtendedToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "ask_user_question",
-                            Arguments = """{"question":"你确定要删除这个文件吗？","options":[{"label":"是","description":"确认删除"},{"label":"否","description":"取消操作"}]}"""
+                            Arguments = new { question = "你确定要删除这个文件吗？", options = new[] { new { label = "是", description = "确认删除" }, new { label = "否", description = "取消操作" } } }
                         }
                     ],
                     FollowUpText = "等待你的回答..."
@@ -254,7 +254,7 @@ public static class ExtendedToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "web_fetch",
-                            Arguments = """{"url":"https://example.com/data.json"}"""
+                            Arguments = new { url = "https://example.com/data.json" }
                         }
                     ],
                     FollowUpText = "网络资源获取完成。"
@@ -287,7 +287,7 @@ public static class ExtendedToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "complete_step",
-                            Arguments = """{"step":"1. 初始化","result":"初始化完成","evidence":[{"kind":"auto","summary":"系统就绪"}]}"""
+                            Arguments = new { step = "1. 初始化", result = "初始化完成", evidence = new[] { new { kind = "auto", summary = "系统就绪" } } }
                         }
                     ],
                     FollowUpText = "步骤一已完成。"
@@ -321,7 +321,7 @@ public static class ExtendedToolScripts {
                         new MockToolCallScript
                         {
                             ToolName = "task_output",
-                            Arguments = """{"task_id":"test-task-001","output_type":"all","max_lines":100}"""
+                            Arguments = new { task_id = "test-task-001", output_type = "all", max_lines = 100 }
                         }
                     ],
                     FollowUpText = "任务 test-task-001 不存在或无输出。"

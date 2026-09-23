@@ -26,7 +26,7 @@ public static class CompleteStepScripts {
                         new MockToolCallScript
                         {
                             ToolName = "complete_step",
-                            Arguments = """{"step":"1. 分析需求","result":"需求分析完成，确定了功能范围","evidence":[{"kind":"manual","summary":"需求文档已审阅"}]}"""
+                            Arguments = new { step = "1. 分析需求", result = "需求分析完成，确定了功能范围", evidence = new[] { new { kind = "manual", summary = "需求文档已审阅" } } }
                         }
                     ],
                     FollowUpText = "第一步已完成：需求分析。"
@@ -60,7 +60,7 @@ public static class CompleteStepScripts {
                         new MockToolCallScript
                         {
                             ToolName = "complete_step",
-                            Arguments = """{"step":"1. 创建项目结构","result":"项目目录已创建","evidence":[{"kind":"files","summary":"创建了src和tests目录"}]}"""
+                            Arguments = new { step = "1. 创建项目结构", result = "项目目录已创建", evidence = new[] { new { kind = "files", summary = "创建了src和tests目录" } } }
                         }
                     ],
                     FollowUpText = "第一步完成。现在执行第二步。"
@@ -83,7 +83,7 @@ public static class CompleteStepScripts {
                         new MockToolCallScript
                         {
                             ToolName = "complete_step",
-                            Arguments = """{"step":"2. 编写核心代码","result":"核心模块已实现","evidence":[{"kind":"verification","summary":"单元测试全部通过","command":"dotnet test"}]}"""
+                            Arguments = new { step = "2. 编写核心代码", result = "核心模块已实现", evidence = new[] { new { kind = "verification", summary = "单元测试全部通过", command = "dotnet test" } } }
                         }
                     ],
                     FollowUpText = "第二步也完成了。项目前两个步骤均已签收。"
@@ -120,7 +120,7 @@ public static class SsrfGuardScripts {
                         new MockToolCallScript
                         {
                             ToolName = "web_fetch",
-                            Arguments = """{"url":"https://example.com/api/data"}"""
+                            Arguments = new { url = "https://example.com/api/data", prompt = "提取页面内容" }
                         }
                     ],
                     FollowUpText = "网页内容已获取。"
@@ -181,7 +181,7 @@ public static class SessionControllerScripts {
                         new MockToolCallScript
                         {
                             ToolName = "read",
-                            Arguments = """{"file_path":"jcc.runtimeconfig.json"}"""
+                            Arguments = new { file_path = "jcc.runtimeconfig.json" }
                         }
                     ],
                     FollowUpText = "文件读取完成。配置文件包含运行时设置。"
@@ -296,7 +296,7 @@ public static class DualModelScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = """{"command":"find . -name '*.cs' | head -5"}"""
+                            Arguments = new { command = "find . -name '*.cs' | head -5" }
                         }
                     ],
                     FollowUpText = "项目包含 5 个 C# 文件。代码质量分析：整体结构清晰，命名规范，建议增加单元测试覆盖率。"
@@ -331,12 +331,12 @@ public static class DualModelScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = """{"command":"grep -r 'TODO' src/"}"""
+                            Arguments = new { command = "grep -r 'TODO' src/" }
                         },
                         new MockToolCallScript
                         {
                             ToolName = "read",
-                            Arguments = """{"file_path":"src/Program.cs"}"""
+                            Arguments = new { file_path = "src/Program.cs" }
                         }
                     ],
                     FollowUpText = "安全检查完成：1) 发现 3 个 TODO 标记需要处理；2) Program.cs 入口点无异常。建议处理所有 TODO 项。"
@@ -413,7 +413,7 @@ public static class EventStreamScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = """{"command":"ls Alpha/"}"""
+                            Arguments = new { command = "ls Alpha/" }
                         }
                     ],
                     FollowUpText = "Alpha 项目包含 src、tests、docs 目录。"
@@ -460,7 +460,7 @@ public static class EventStreamScripts {
                         new MockToolCallScript
                         {
                             ToolName = "bash",
-                            Arguments = """{"command":"find . -name '*.cs' -type f"}"""
+                            Arguments = new { command = "find . -name '*.cs' -type f" }
                         }
                     ],
                     FollowUpText = "找到了 42 个 C# 文件。"

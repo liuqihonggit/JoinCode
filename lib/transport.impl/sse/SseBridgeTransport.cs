@@ -33,12 +33,13 @@ public sealed class SseBridgeTransport : IBridgeTransport {
     /// 启动 SSE 连接并开始接收循环
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task StartAsync(CancellationToken cancellationToken = default) {
+    public Task StartAsync(CancellationToken cancellationToken = default) {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         _receiveTask = ReceiveSseLoopAsync(_cts.Token);
 
         _logger?.LogDebug("[SseBridgeTransport] 已启动 SSE 连接");
+        return Task.CompletedTask;
     }
 
     /// <summary>

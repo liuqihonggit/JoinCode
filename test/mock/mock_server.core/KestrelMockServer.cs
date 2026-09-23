@@ -132,7 +132,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
                 }
             }
 
-            DumpConversationToFile(requestIndex, body, cacheStats);
+            await DumpConversationToFileAsync(requestIndex, body, cacheStats);
 
             var releaser = await _lock.TryLockAsync(ctx.RequestAborted).ConfigureAwait(true)
                 ?? throw new TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -343,7 +343,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
         _lock.Dispose();
     }
 
-    private void DumpConversationToFile(int requestIndex, string body, CacheStats cacheStats) {
+    private async Task DumpConversationToFileAsync(int requestIndex, string body, CacheStats cacheStats) {
         try {
             var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss_fff");
             var fileName = $"req_{requestIndex:D4}_{timestamp}.txt";
@@ -414,7 +414,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
             sb.AppendLine(body);
             sb.AppendLine("</raw-body>");
 
-            IO.FileSystem.SafeFileIO.WriteAllText(filePath, sb.ToString());
+            await IO.FileSystem.SafeFileIO.WriteAllText(filePath, sb.ToString());
             Console.WriteLine($"[{_serverName}]   Dumped: {filePath}");
         } catch (Exception ex) {
             Console.WriteLine($"[{_serverName}]   Dump failed: {ex.Message}");

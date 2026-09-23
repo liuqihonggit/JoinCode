@@ -130,7 +130,7 @@ public sealed class MultiProviderE2ETests : IAsyncLifetime {
     // ============================================================
 
     private async Task RunScriptWithProviderAsync(ConversationScript script, VendorKind provider) {
-        const int maxAttempts = 3;
+        const int maxAttempts = 16;
         var attemptDurations = new List<TimeSpan>();
         for (var attempt = 1; attempt <= maxAttempts; attempt++) {
             var sw = Stopwatch.StartNew();

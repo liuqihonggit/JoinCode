@@ -203,7 +203,7 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
         }
     }
 
-    private async Task CreateSymlinksAsync(string gitRoot, string worktreePath, IReadOnlyList<string> directories) {
+    private Task CreateSymlinksAsync(string gitRoot, string worktreePath, IReadOnlyList<string> directories) {
         foreach (var dir in directories) {
             try {
                 var sourcePath = _fs.CombinePath(gitRoot, dir);
@@ -223,6 +223,7 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
                 _logger?.LogWarning(ex, "创建符号链接失败: {Directory}", dir);
             }
         }
+        return Task.CompletedTask;
     }
 
     /// <summary>

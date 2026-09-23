@@ -67,11 +67,12 @@ public sealed class MeshTransport : ITransportTopology {
     public string GetPeerPipeName(string peerPid) => $"{_basePipeName}-{peerPid}";
 
     /// <inheritdoc/>
-    public async ValueTask StartAsync(CancellationToken ct = default) {
+    public ValueTask StartAsync(CancellationToken ct = default) {
         ThrowIfDisposed();
         Interlocked.Exchange(ref _started, 1);
         _logger?.LogInformation("MeshTransport: started on pipe {Pipe} (pid={Pid})", MyPipeName, ProcessId);
         _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(MyPipeName, HandlePeerConnectionAsync, _cts.Token));
+        return ValueTask.CompletedTask;
     }
 
     /// <inheritdoc/>

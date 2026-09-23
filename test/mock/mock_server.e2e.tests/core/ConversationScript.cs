@@ -93,8 +93,16 @@ public sealed class MockResponseScript {
 
 public sealed class MockToolCallScript {
     public required string ToolName { get; init; }
-    public required string Arguments { get; init; }
+    /// <summary>工具参数 — 优先用匿名对象（类型安全），向后兼容手写 JSON 字符串</summary>
+    public required object Arguments { get; init; }
     public string? ToolResult { get; init; }
+
+    /// <summary>将 Arguments 序列化为 JSON 字符串。string 直接用，其他类型用 JsonSerializer。</summary>
+    public string ArgumentsToJson() => Arguments switch {
+        null => "{}",
+        string s => s,
+        _ => System.Text.Json.JsonSerializer.Serialize(Arguments)
+    };
 }
 
 public sealed class OutputAssert {

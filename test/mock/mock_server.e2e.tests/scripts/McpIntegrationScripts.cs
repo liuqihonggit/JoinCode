@@ -27,7 +27,7 @@ public static class McpIntegrationScripts {
                         new MockToolCallScript
                         {
                             ToolName = "mcp_connect",
-                            Arguments = """{"connection_name":"mock","endpoint":"http://localhost:{MCP_MOCK_PORT}/mcp","transport_type":"http"}"""
+                            Arguments = new { connection_name = "mock", endpoint = "http://localhost:{MCP_MOCK_PORT}/mcp", transport_type = "http" }
                         }
                     ],
                     FollowUpText = "已连接MCP服务器。"
@@ -50,7 +50,7 @@ public static class McpIntegrationScripts {
                         new MockToolCallScript
                         {
                             ToolName = "mcp_call_tool",
-                            Arguments = """{"connection_name":"mock","tool_name":"echo","arguments_json":"{\"message\":\"hello mcp\"}"}"""
+                            Arguments = new { connection_name = "mock", tool_name = "echo", arguments_json = """{"message":"hello mcp"}""" }
                         }
                     ],
                     FollowUpText = "echo工具调用完成,返回了hello mcp。"

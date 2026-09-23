@@ -219,40 +219,14 @@ public static class AnalyzerDrivenFixer {
     /// 保留原始 invocation 的 leading/trailing trivia。
     /// </summary>
     private static ExpressionSyntax CreateGetAwaiterGetResult(InvocationExpressionSyntax invocation) {
-        var getAwaiterAccess = SyntaxFactory.MemberAccessExpression(
-            SyntaxKind.SimpleMemberAccessExpression,
-            invocation.WithoutTrailingTrivia(),
-            SyntaxFactory.Token(SyntaxKind.DotToken),
-            SyntaxFactory.IdentifierName("GetAwaiter"));
-
-        var getAwaiterCall = SyntaxFactory.InvocationExpression(getAwaiterAccess);
-
-        var getResultAccess = SyntaxFactory.MemberAccessExpression(
-            SyntaxKind.SimpleMemberAccessExpression,
-            getAwaiterCall,
-            SyntaxFactory.Token(SyntaxKind.DotToken),
-            SyntaxFactory.IdentifierName("GetResult"));
-
-        var getResultCall = SyntaxFactory.InvocationExpression(getResultAccess);
-
-        return getResultCall
-            .WithLeadingTrivia(invocation.GetLeadingTrivia())
-            .WithTrailingTrivia(invocation.GetTrailingTrivia());
+        return SyntaxHelpers.CreateGetAwaiterGetResult(invocation, invocation);
     }
 
     /// <summary>
     /// 跳过生成代码和构建产物
     /// </summary>
     private static bool ShouldSkipFile(string? filePath) {
-        if (string.IsNullOrEmpty(filePath)) return true;
-        var normalized = filePath.Replace('\\', '/');
-        if (normalized.Contains("/artifacts/")) return true;
-        if (normalized.Contains("/obj/")) return true;
-        if (normalized.Contains("/bin/")) return true;
-        if (normalized.Contains("/bcl_bridge/")) return true;
-        if (normalized.Contains("/aot_safety.generator/")) return true;
-        if (normalized.Contains("/aot_safety.shared/")) return true;
-        return false;
+        return FileFilter.ShouldSkipFile(filePath);
     }
 
     /// <summary>

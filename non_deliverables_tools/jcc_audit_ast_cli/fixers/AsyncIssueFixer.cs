@@ -227,9 +227,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
                 .WithTrailingTrivia(invocation.GetTrailingTrivia());
         }
 
-        return CreateAwait(newInvocation)
-            .WithLeadingTrivia(invocation.GetLeadingTrivia())
-            .WithTrailingTrivia(invocation.GetTrailingTrivia());
+        return SyntaxHelpers.CreateAwaitExpression(newInvocation, invocation, _isTestFile);
     }
 
     /// <summary>
@@ -257,7 +255,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         var value = initializer.Value;
         if (IsAlreadyAwaited(value)) return null;
         if (!ReturnsTaskOrValueTask(value)) return null;
-        var awaited = CreateAwait(value).WithTriviaFrom(value);
+        var awaited = SyntaxHelpers.CreateAwaitExpression(value, value, _isTestFile);
         return declarator.WithInitializer(initializer.WithValue(awaited));
     }
 
@@ -269,7 +267,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         var value = assignment.Right;
         if (IsAlreadyAwaited(value)) return null;
         if (!ReturnsTaskOrValueTask(value)) return null;
-        var awaited = CreateAwait(value).WithTriviaFrom(value);
+        var awaited = SyntaxHelpers.CreateAwaitExpression(value, value, _isTestFile);
         return assignment.WithRight(awaited);
     }
 
@@ -281,7 +279,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         if (expr is not InvocationExpressionSyntax invocation) return null;
         if (IsAlreadyAwaited(invocation)) return null;
         if (!ReturnsTaskOrValueTask(invocation)) return null;
-        var awaited = CreateAwait(invocation).WithTriviaFrom(invocation);
+        var awaited = SyntaxHelpers.CreateAwaitExpression(invocation, invocation, _isTestFile);
         return stmt.WithExpression(awaited);
     }
 
@@ -296,7 +294,7 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         var innerCall = shouldAccess.Expression;
         if (IsAlreadyAwaited(innerCall)) return null;
         if (!ReturnsTaskOrValueTask(innerCall)) return null;
-        var awaitedInner = CreateAwait(innerCall).WithTriviaFrom(innerCall);
+        var awaitedInner = SyntaxHelpers.CreateAwaitExpression(innerCall, innerCall, _isTestFile);
         var parenthesized = SyntaxFactory.ParenthesizedExpression(awaitedInner);
         var newInner = inner.ReplaceNode(innerCall, parenthesized);
         // 去掉最外层 await — .Should().Be() 返回 AndConstraint 不是 Task，不需要 await
@@ -359,26 +357,4 @@ internal class AsyncIssueRewriter : CSharpSyntaxRewriter {
         return node.Parent is AwaitExpressionSyntax;
     }
 
-    /// <summary>
-    /// 创建 await 表达式。库代码加 ConfigureAwait(false)，测试代码不加。
-    /// </summary>
-    private AwaitExpressionSyntax CreateAwait(ExpressionSyntax expression) {
-        var awaitToken = SyntaxFactory.Token(SyntaxKind.AwaitKeyword)
-            .WithTrailingTrivia(SyntaxFactory.Whitespace(" "));
-        var awaitedExpr = expression;
-        if (!_isTestFile) {
-            var configureAwait = SyntaxFactory.InvocationExpression(
-                SyntaxFactory.MemberAccessExpression(
-                    SyntaxKind.SimpleMemberAccessExpression,
-                    expression,
-                    SyntaxFactory.Token(SyntaxKind.DotToken),
-                    SyntaxFactory.IdentifierName("ConfigureAwait")),
-                SyntaxFactory.ArgumentList(
-                    SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(
-                            SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression)))));
-            awaitedExpr = configureAwait;
-        }
-        return SyntaxFactory.AwaitExpression(awaitToken, awaitedExpr);
-    }
 }

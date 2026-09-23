@@ -13,7 +13,7 @@ public static class GetAwaiterAnalyzer {
     public static async Task<int> AnalyzeAsync(string rootPath, CancellationToken ct) {
         Console.WriteLine("  遍历所有 .cs 文件，AST 解析函数节点...");
 
-        var csFiles = EnumerateCsFiles(rootPath).ToList();
+        var csFiles = FileFilter.EnumerateCsFiles(rootPath).ToList();
         Console.WriteLine($"  找到 {csFiles.Count} 个 .cs 文件");
 
         var results = new List<(string file, int line, string funcName, string funcType, string access, string returnType, string riskLevel, string reason, string innerExpr)>();
@@ -89,23 +89,5 @@ public static class GetAwaiterAnalyzer {
         Console.WriteLine($"  不能改: {byRisk.GetValueOrDefault("不能改", 0)} 处");
 
         return results.Count;
-    }
-
-    private static IEnumerable<string> EnumerateCsFiles(string rootPath) {
-        return Directory.EnumerateFiles(rootPath, "*.cs", SearchOption.AllDirectories)
-            .Where(f => !ShouldSkipFile(f));
-    }
-
-    private static bool ShouldSkipFile(string filePath) {
-        var normalized = filePath.Replace('\\', '/');
-        if (normalized.Contains("/artifacts/")) return true;
-        if (normalized.Contains("/obj/")) return true;
-        if (normalized.Contains("/bin/")) return true;
-        if (normalized.Contains("/.xxx/")) return true;
-        if (normalized.Contains("/.git/")) return true;
-        if (normalized.Contains("/bcl_bridge/")) return true;
-        if (normalized.Contains("/aot_safety.generator/")) return true;
-        if (normalized.Contains("/aot_safety.shared/")) return true;
-        return false;
     }
 }

@@ -12,6 +12,11 @@ public static class AnalyzerLoader {
     public static List<DiagnosticAnalyzer> LoadAnalyzers(string analyzerDirectory, string? filter = null) {
         var analyzers = new List<DiagnosticAnalyzer>();
 
+        var resolvedDir = Path.GetFullPath(analyzerDirectory);
+        if (!string.Equals(analyzerDirectory, resolvedDir, StringComparison.Ordinal)) {
+            Console.WriteLine($"  [路径提示] 相对路径已转为绝对路径: {analyzerDirectory} -> {resolvedDir}");
+        }
+        analyzerDirectory = resolvedDir;
         if (!Directory.Exists(analyzerDirectory)) {
             Console.Error.WriteLine($"分析器目录不存在: {analyzerDirectory}");
             return analyzers;

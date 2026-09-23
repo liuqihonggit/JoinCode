@@ -15,8 +15,6 @@ public static class FileLineCounter {
     /// </summary>
     public const int DefaultThreshold = 200;
 
-    private static readonly string[] ExcludedDirectories = new[] { "bin", "obj", ".xxx", ".git", ".vs", "artifacts", "node_modules" };
-
     /// <summary>
     /// 扫描指定目录下所有 .cs 文件，返回行数最高的 Top N
     /// </summary>
@@ -92,30 +90,6 @@ public static class FileLineCounter {
     /// 判断是否应跳过该文件
     /// </summary>
     private static bool ShouldSkipFile(string filePath, bool skipTests) {
-        var segments = filePath.Split('\\', '/');
-
-        foreach (var segment in segments) {
-            if (ExcludedDirectories.Contains(segment, StringComparer.OrdinalIgnoreCase))
-                return true;
-        }
-
-        if (skipTests) {
-            if (filePath.Contains("\\tests\\", StringComparison.Ordinal) ||
-                filePath.Contains("/tests/", StringComparison.Ordinal) ||
-                filePath.Contains("MockServer", StringComparison.Ordinal) ||
-                filePath.Contains(".Tests.", StringComparison.Ordinal) ||
-                filePath.Contains(".E2E.", StringComparison.Ordinal) ||
-                filePath.Contains(".Benchmarks.", StringComparison.Ordinal)) {
-                return true;
-            }
-        }
-
-        if (filePath.EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase) ||
-            filePath.EndsWith(".Generated.cs", StringComparison.OrdinalIgnoreCase) ||
-            filePath.Contains(".g.cs", StringComparison.Ordinal)) {
-            return true;
-        }
-
-        return false;
+        return FileFilter.ShouldSkipFile(filePath, skipTests);
     }
 }

@@ -3,7 +3,7 @@
   <PropertyGroup>
     <ProjectType>generator</ProjectType>
     <EnforceExtendedAnalyzerRules>false</EnforceExtendedAnalyzerRules>
-    <NoWarn>$(NoWarn);RS2007</NoWarn>
+    <NoWarn>$(NoWarn);RS2007;NETSDK1210</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

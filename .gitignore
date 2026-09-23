@@ -496,3 +496,4 @@ libs/Terminal.Gui/.nuget/
 # Runtime dumps (screenshots, crash logs, test artifacts) — 不跟踪
 dumps/
 build_log.txt
+sync_dry_run.txt

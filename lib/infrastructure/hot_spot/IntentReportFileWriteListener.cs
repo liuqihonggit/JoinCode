@@ -10,7 +10,6 @@ public sealed class IntentReportFileWriteListener : IFileWriteListener {
     private readonly IHotFileDetector _hotFileDetector;
     private readonly string _captainId;
     private readonly ILogger<IntentReportFileWriteListener>? _logger;
-    private Task _pendingReports = Task.CompletedTask;
 
     /// <summary>
     /// 构造文件写入监听器
@@ -49,14 +48,9 @@ public sealed class IntentReportFileWriteListener : IFileWriteListener {
             ReportedAt = DateTimeOffset.UtcNow,
         };
 
-        _pendingReports = Task.WhenAll(_pendingReports, ReportAsync(workerId, fileIntent));
+        _ = ReportAsync(workerId, fileIntent);
         _logger?.LogDebug("[IntentReport] {AgentId} 改 {FilePath} → {Intent} (HotFile={IsHotFile})", e.AgentId, e.FilePath, intent, isHotFile);
     }
-
-    /// <summary>
-    /// 等待所有 pending 上报任务完成 — 调用方可选 await 以确保上报落盘
-    /// </summary>
-    public Task WaitForPendingReportsAsync() => _pendingReports;
 
     private async Task ReportAsync(string workerId, FileModifyIntent intent) {
         try {

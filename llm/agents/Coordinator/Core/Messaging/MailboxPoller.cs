@@ -10,7 +10,6 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
     private readonly IMailboxMessageSink? _messageSink;
     private readonly ILogger<MailboxPoller>? _logger;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _pollingAgents;
-    private Task _pendingPolling = Task.CompletedTask;
     private readonly TimeSpan _pollInterval;
     private int _isDisposed;
 
@@ -54,15 +53,10 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
             return;
         }
 
-        _pendingPolling = Task.WhenAll(_pendingPolling, PollLoopAsync(agentId, sessionId, cts.Token));
+        _ = PollLoopAsync(agentId, sessionId, cts.Token);
 
         _logger?.LogInformation("Mailbox polling started for {AgentId} in session {SessionId}", agentId, sessionId);
     }
-
-    /// <summary>
-    /// 等待所有 pending 轮询任务完成 — 调用方可选 await 以确保轮询落定
-    /// </summary>
-    public Task WaitForPendingPollingAsync() => _pendingPolling;
 
     /// <summary>
     /// 停止指定 Agent 在指定会话下的邮箱轮询

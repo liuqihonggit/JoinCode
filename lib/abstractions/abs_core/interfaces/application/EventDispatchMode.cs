@@ -31,20 +31,17 @@ public enum EventDispatchMode {
 /// </summary>
 public static class EventDispatcher {
     /// <summary>
-    /// Emit：触发所有监听器，返回 WhenAll 组合 Task
-    /// <para>对齐 DSH emit：调用方决定是否 await（await=等待全部完成，不 await=fire-and-forget）</para>
-    /// <para>异常不丢失：WhenAll 聚合所有监听器异常，未 await 时通过 UnobservedTaskException 兜底</para>
+    /// Emit：同步触发不等监听器（fire-and-forget）
+    /// <para>对齐 DSH emit：不 await，异常吞掉（调用方自行处理）</para>
     /// </summary>
     public static Task EmitAsync<T>(
         IReadOnlyList<Func<T, CancellationToken, Task>> handlers,
         T arg,
         CancellationToken ct) {
-        if (handlers.Count == 0) return Task.CompletedTask;
-        var tasks = new Task[handlers.Count];
         for (var i = 0; i < handlers.Count; i++) {
-            tasks[i] = handlers[i](arg, ct);
+            _ = handlers[i](arg, ct);
         }
-        return Task.WhenAll(tasks);
+        return Task.CompletedTask;
     }
 
     /// <summary>

@@ -12,7 +12,6 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     private readonly ILogger? _logger;
     private readonly ITeammateMailboxService? _mailboxService;
     private readonly MessageDedupTracker _dedup = new();
-    private Task _pendingUnregisters = Task.CompletedTask;
 
     /// <summary>
     /// 构造进程内邮箱实例
@@ -48,13 +47,8 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     /// <param name="agentId">Agent 标识</param>
     public void UnregisterAgent(string agentId) {
         _dedup.Clear(agentId);
-        _pendingUnregisters = Task.WhenAll(_pendingUnregisters, UnregisterAgentAsync(agentId, CancellationToken.None).AsTask());
+        _ = UnregisterAgentAsync(agentId, CancellationToken.None);
     }
-
-    /// <summary>
-    /// 等待所有 pending 注销任务完成 — 调用方可选 await 以确保注销落定
-    /// </summary>
-    public Task WaitForPendingUnregistersAsync() => _pendingUnregisters;
 
     /// <summary>
     /// 向指定 Agent 投递消息 — tell 异步，不等待响应。

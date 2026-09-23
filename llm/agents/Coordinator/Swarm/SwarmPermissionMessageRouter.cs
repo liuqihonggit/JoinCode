@@ -10,7 +10,6 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
     private readonly ILogger<SwarmPermissionMessageRouter>? _logger;
     private CancellationTokenSource? _cts;
     private Task? _routingTask;
-    private Task _pendingWorkerRouting = Task.CompletedTask;
 
     /// <summary>
     /// 初始化 Swarm 权限消息路由器
@@ -70,13 +69,8 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity {
     /// </summary>
     /// <param name="workerAgentId">Worker 智能体标识</param>
     public void StartWorkerResponseRouting(string workerAgentId) {
-        _pendingWorkerRouting = Task.WhenAll(_pendingWorkerRouting, RouteWorkerResponsesAsync(workerAgentId));
+        _ = RouteWorkerResponsesAsync(workerAgentId);
     }
-
-    /// <summary>
-    /// 等待所有 pending Worker 路由任务完成 — 调用方可选 await 以确保路由落定
-    /// </summary>
-    public Task WaitForPendingWorkerRoutingAsync() => _pendingWorkerRouting;
 
     private async Task RouteMessagesAsync(string coordinatorAgentId, CancellationToken ct) {
         try {

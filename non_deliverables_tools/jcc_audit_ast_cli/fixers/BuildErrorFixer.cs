@@ -115,9 +115,7 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
         if (varName.StartsWith("task", StringComparison.OrdinalIgnoreCase))
             return base.VisitVariableDeclarator(node);
 
-        var awaitToken = SyntaxFactory.Token(SyntaxKind.AwaitKeyword)
-            .WithTrailingTrivia(SyntaxFactory.Whitespace(" "));
-        var awaited = SyntaxFactory.AwaitExpression(awaitToken, value);
+        var awaited = SyntaxHelpers.CreateAwaitExpression(value, value, isTestFile: true);
         FixedCount++;
         return node.WithInitializer(initializer.WithValue(awaited));
     }

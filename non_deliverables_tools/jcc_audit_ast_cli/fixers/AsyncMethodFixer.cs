@@ -92,17 +92,11 @@ internal class AsyncMethodRewriter : CSharpSyntaxRewriter {
         if (!hasAwait)
             return base.VisitMethodDeclaration(node);
 
-        // 添加 async 修饰符（带 trailing whitespace 防止与返回类型合并）
-        var asyncModifier = SyntaxFactory.Token(SyntaxKind.AsyncKeyword)
-            .WithTrailingTrivia(SyntaxFactory.Whitespace(" "));
-        var newModifiers = node.Modifiers.Add(asyncModifier);
+        // 添加 async 修饰符 + 调整返回类型（共享 SyntaxHelpers）
+        var newNode = SyntaxHelpers.AddAsyncModifier(node);
+        var newReturnType = SyntaxHelpers.TransformReturnType(node.ReturnType);
 
-        // 调整返回类型（保留原始 leading trivia）
-        var newReturnType = WrapInTask(node.ReturnType);
-
-        var newNode = node
-            .WithModifiers(newModifiers)
-            .WithReturnType(newReturnType);
+        newNode = newNode.WithReturnType(newReturnType);
 
         FixedMethods++;
         return newNode;
@@ -147,30 +141,4 @@ internal class AsyncMethodRewriter : CSharpSyntaxRewriter {
     /// 将返回类型包装为 Task{T}，void → Task
     /// 跳过已经是 Task/ValueTask 的类型
     /// </summary>
-    private static TypeSyntax WrapInTask(TypeSyntax returnType) {
-        var name = returnType.ToString();
-
-        // 已经是 Task 或 ValueTask，不需要包装
-        if (name.StartsWith("Task", StringComparison.Ordinal) ||
-            name.StartsWith("ValueTask", StringComparison.Ordinal) ||
-            name.StartsWith("System.Threading.Tasks.Task", StringComparison.Ordinal))
-            return returnType;
-
-        // 保留原始 leading trivia（方法修饰符与返回类型之间的空格）
-        var leadingTrivia = returnType.GetLeadingTrivia();
-
-        // void → Task
-        if (name == "void")
-            return SyntaxFactory.IdentifierName("Task")
-                .WithLeadingTrivia(leadingTrivia)
-                .WithTrailingTrivia(returnType.GetTrailingTrivia());
-
-        // T → Task<T>
-        return SyntaxFactory.GenericName(
-            SyntaxFactory.Identifier("Task"),
-            SyntaxFactory.TypeArgumentList(
-                SyntaxFactory.SingletonSeparatedList(returnType)))
-            .WithLeadingTrivia(leadingTrivia)
-            .WithTrailingTrivia(returnType.GetTrailingTrivia());
-    }
 }

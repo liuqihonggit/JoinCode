@@ -11,7 +11,7 @@ public static class BomStripper {
     public static readonly byte[] Utf8Bom = [0xEF, 0xBB, 0xBF];
 
     /// <summary>
-    /// 排除目录名（路径任一段匹配则跳过）：bin/obj/.xxx/.git/.vs/artifacts/node_modules
+    /// 排除目录名（委托 FileFilter 统一管理）
     /// </summary>
     public static readonly string[] ExcludedDirectories = new[] { "bin", "obj", ".xxx", ".git", ".vs", "artifacts", "node_modules", ".nuget" };
 
@@ -136,30 +136,6 @@ public static class BomStripper {
     /// 判断是否应跳过该文件
     /// </summary>
     private static bool ShouldSkipFile(string filePath, bool skipTests) {
-        var segments = filePath.Split('\\', '/');
-
-        foreach (var segment in segments) {
-            if (ExcludedDirectories.Contains(segment, StringComparer.OrdinalIgnoreCase))
-                return true;
-        }
-
-        if (skipTests) {
-            if (filePath.Contains("\\tests\\", StringComparison.Ordinal) ||
-                filePath.Contains("/tests/", StringComparison.Ordinal) ||
-                filePath.Contains("MockServer", StringComparison.Ordinal) ||
-                filePath.Contains(".Tests.", StringComparison.Ordinal) ||
-                filePath.Contains(".E2E.", StringComparison.Ordinal) ||
-                filePath.Contains(".Benchmarks.", StringComparison.Ordinal)) {
-                return true;
-            }
-        }
-
-        if (filePath.EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase) ||
-            filePath.EndsWith(".Generated.cs", StringComparison.OrdinalIgnoreCase) ||
-            filePath.Contains(".g.cs", StringComparison.Ordinal)) {
-            return true;
-        }
-
-        return false;
+        return FileFilter.ShouldSkipFile(filePath, skipTests);
     }
 }

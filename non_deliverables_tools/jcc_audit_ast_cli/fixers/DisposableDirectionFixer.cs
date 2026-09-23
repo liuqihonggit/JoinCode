@@ -60,18 +60,11 @@ public static class DisposableDirectionFixer {
     }
 
     private static bool ShouldSkipFile(string filePath) {
-        var normalized = filePath.Replace('\\', '/');
-        if (normalized.Contains("/artifacts/")) return true;
-        if (normalized.Contains("/obj/")) return true;
-        if (normalized.Contains("/bin/")) return true;
-        if (normalized.Contains("/bcl_bridge/")) return true;
-        if (normalized.Contains("/aot_safety.generator/")) return true;
-        return false;
+        return FileFilter.ShouldSkipFile(filePath);
     }
 
     private static bool IsTestFile(string filePath) {
-        var normalized = filePath.Replace('\\', '/');
-        return normalized.Contains(".tests/") || normalized.Contains("/test/");
+        return FileFilter.IsTestFile(filePath);
     }
 }
 
@@ -393,35 +386,14 @@ internal class DisposableDirectionRewriter : CSharpSyntaxRewriter {
 
         var disposeAsyncAccess = SyntaxFactory.MemberAccessExpression(
             SyntaxKind.SimpleMemberAccessExpression,
-            ma.Expression.WithoutTrailingTrivia(),
+            ma.Expression.WithoutTrivia(),
+            SyntaxFactory.Token(SyntaxKind.DotToken),
             SyntaxFactory.IdentifierName("DisposeAsync"));
 
         var disposeAsyncCall = SyntaxFactory.InvocationExpression(disposeAsyncAccess,
             SyntaxFactory.ArgumentList());
 
-        // 加 .ConfigureAwait(false)（测试代码不加）
-        ExpressionSyntax awaited;
-        if (_isTestFile) {
-            awaited = disposeAsyncCall;
-        } else {
-            var configureAwait = SyntaxFactory.InvocationExpression(
-                SyntaxFactory.MemberAccessExpression(
-                    SyntaxKind.SimpleMemberAccessExpression,
-                    disposeAsyncCall,
-                    SyntaxFactory.IdentifierName("ConfigureAwait")),
-                SyntaxFactory.ArgumentList(
-                    SyntaxFactory.SingletonSeparatedList(
-                        SyntaxFactory.Argument(
-                            SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression)))));
-            awaited = configureAwait;
-        }
-
-        var awaitKeyword = SyntaxFactory.Token(SyntaxKind.AwaitKeyword).WithTrailingTrivia(SyntaxFactory.Space);
-        var awaitExpr = SyntaxFactory.AwaitExpression(awaitKeyword, awaited);
-
-        return awaitExpr
-            .WithLeadingTrivia(node.GetLeadingTrivia())
-            .WithTrailingTrivia(node.GetTrailingTrivia());
+        return SyntaxHelpers.CreateAwaitExpression(disposeAsyncCall, node, _isTestFile);
     }
 
     /// <summary>检测 await expr.DisposeAsync() 模式，返回内层 DisposeAsync 调用</summary>
@@ -467,15 +439,14 @@ internal class DisposableDirectionRewriter : CSharpSyntaxRewriter {
 
         var disposeAccess = SyntaxFactory.MemberAccessExpression(
             SyntaxKind.SimpleMemberAccessExpression,
-            ma.Expression.WithoutTrailingTrivia(),
+            ma.Expression.WithoutTrivia(),
+            SyntaxFactory.Token(SyntaxKind.DotToken),
             SyntaxFactory.IdentifierName("Dispose"));
 
         var disposeCall = SyntaxFactory.InvocationExpression(disposeAccess,
             SyntaxFactory.ArgumentList());
 
-        return disposeCall
-            .WithLeadingTrivia(disposeAsyncCall.GetLeadingTrivia())
-            .WithTrailingTrivia(disposeAsyncCall.GetTrailingTrivia());
+        return SyntaxHelpers.PreserveTrivia(disposeCall, disposeAsyncCall);
     }
 
     // --- using 声明改写 ---

@@ -133,9 +133,7 @@ internal class SyncAsyncRewriter : CSharpSyntaxRewriter {
         FixedAwaits++;
         var visitedInner = (ExpressionSyntax)base.VisitAwaitExpression(node)!;
         var getResult = CreateGetAwaiterGetResult(innerExpr);
-        return getResult
-            .WithLeadingTrivia(node.GetLeadingTrivia())
-            .WithTrailingTrivia(node.GetTrailingTrivia());
+        return SyntaxHelpers.PreserveTrivia(getResult, node);
     }
 
     public override SyntaxNode? VisitReturnStatement(ReturnStatementSyntax node) {
@@ -227,19 +225,7 @@ internal class SyncAsyncRewriter : CSharpSyntaxRewriter {
     }
 
     private static ExpressionSyntax CreateGetAwaiterGetResult(ExpressionSyntax expr) {
-        var getAwaiterAccess = SyntaxFactory.MemberAccessExpression(
-            SyntaxKind.SimpleMemberAccessExpression,
-            expr.WithoutTrailingTrivia(),
-            SyntaxFactory.IdentifierName("GetAwaiter"));
-
-        var getAwaiterCall = SyntaxFactory.InvocationExpression(getAwaiterAccess, SyntaxFactory.ArgumentList());
-
-        var getResultAccess = SyntaxFactory.MemberAccessExpression(
-            SyntaxKind.SimpleMemberAccessExpression,
-            getAwaiterCall,
-            SyntaxFactory.IdentifierName("GetResult"));
-
-        return SyntaxFactory.InvocationExpression(getResultAccess, SyntaxFactory.ArgumentList());
+        return SyntaxHelpers.CreateGetAwaiterGetResult(expr, expr);
     }
 
     private ExpressionSyntax? TryTransformReturnExpression(ExpressionSyntax expr) {

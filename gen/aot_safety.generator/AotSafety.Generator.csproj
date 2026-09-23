@@ -10,10 +10,10 @@
   </ItemGroup>
 
   <!-- 共享检测逻辑：直接编译进分析器 DLL（避免分析器加载时找不到依赖 DLL） -->
+  <!-- 通配符包含：新增检测器自动包含，无需手动添加 Compile Include -->
   <ItemGroup>
     <Compile Include="$(RepoRoot)gen/aot_safety.shared/AotSafetyHelpers.cs" Link="Shared\AotSafetyHelpers.cs" />
-    <Compile Include="$(RepoRoot)gen/aot_safety.shared/RuleDetectors\SyncMethodAsyncCallDetector.cs" Link="Shared\RuleDetectors\SyncMethodAsyncCallDetector.cs" />
-    <Compile Include="$(RepoRoot)gen/aot_safety.shared/RuleDetectors\GetAwaiterPatternDetector.cs" Link="Shared\RuleDetectors\GetAwaiterPatternDetector.cs" />
+    <Compile Include="$(RepoRoot)gen/aot_safety.shared/RuleDetectors/*.cs" Link="Shared\RuleDetectors\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

@@ -248,13 +248,44 @@ invocation → invocation.GetAwaiter().GetResult()
 
 ## 12. 后续待完成：修复 ast_cli 和语法分析器项目位置
 
-用户要求"修复好整个工程的 ast_cli 和语法分析器项目位置"。当前状态：
+### 引用关系优化（已完成）
 
-- `gen/aot_safety.generator/` — 分析器工程，用 Compile Include 包含 shared 源码
-- `gen/aot_safety.shared/` — 共享检测逻辑工程
-- `non_deliverables_tools/jcc_audit_ast_cli/` — ast_cli 工具
+用户要求"优化引用关系"。已优化：
 
-待确认问题：
-1. ast_cli 项目位置是否需从 `non_deliverables_tools/` 移到其他目录？
-2. 语法分析器（generator）项目结构是否需调整？
-3. 共享工程（shared）与 generator/ast_cli 的引用关系是否需优化？
+**优化前**（generator 硬编码每个 shared 源文件）：
+```xml
+<Compile Include=".../AotSafetyHelpers.cs" />
+<Compile Include=".../SyncMethodAsyncCallDetector.cs" />
+<Compile Include=".../GetAwaiterPatternDetector.cs" />
+```
+每新增检测器需手动添加 Compile Include，容易遗漏。
+
+**优化后**（generator 通配符自动包含 RuleDetectors 目录）：
+```xml
+<Compile Include=".../AotSafetyHelpers.cs" />
+<Compile Include=".../RuleDetectors/*.cs" />
+```
+新增检测器自动包含，无需手动修改 csproj。
+
+### 当前引用关系（最终）
+
+```
+gen/aot_safety.shared/           ← 共享检测逻辑（独立 csproj）
+├── AotSafetyHelpers.cs
+├── GlobalUsings.cs
+└── RuleDetectors/
+    ├── SyncMethodAsyncCallDetector.cs
+    └── GetAwaiterPatternDetector.cs
+
+gen/aot_safety.generator/        ← 分析器工程
+├── Compile Include: shared/AotSafetyHelpers.cs + shared/RuleDetectors/*.cs（通配符）
+└── 不用 ProjectReference（分析器 DLL 不能有外部依赖）
+
+non_deliverables_tools/jcc_audit_ast_cli/  ← ast_cli 工具
+└── ProjectReference: shared（正常引用，运行时有依赖解析）
+```
+
+**约束**：
+- generator 必须用 Compile Include（分析器 DLL 不能有外部 DLL 依赖，加载时 FileNotFoundException）
+- ast_cli 用 ProjectReference（不是分析器，运行时正常解析依赖）
+- shared 的 GlobalUsings.cs 不被 generator 包含（generator 有自己的 GlobalUsings.cs）

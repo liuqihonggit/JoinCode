@@ -32,7 +32,8 @@ public static class GetAwaiterFixer {
             var root = await tree.GetRootAsync(ct).ConfigureAwait(false);
 
             var isTestFile = FileFilter.IsTestFile(filePath);
-            var rewriter = new GetAwaiterRewriter(isTestFile);
+            var skipMethods = DetectLazyConstrainedAndPropagated(root);
+            var rewriter = new GetAwaiterRewriter(isTestFile, skipMethods);
             var newRoot = rewriter.Visit(root);
 
             if (newRoot != root && rewriter.FixedCount > 0) {
@@ -50,6 +51,42 @@ public static class GetAwaiterFixer {
 
         return (fixedFiles, fixedIssues, skipped);
     }
+
+    /// <summary>
+    /// 检测 Lazy&lt;T&gt; 约束的方法 + 传播到被调用的 private 方法。
+    /// 传播规则：如果 Lazy 约束方法 A 调用 private 方法 B，则 B 也跳过（A 不能 await B）。
+    /// </summary>
+    private static HashSet<string> DetectLazyConstrainedAndPropagated(SyntaxNode root) {
+        var skipMethods = new HashSet<string>(StringComparer.Ordinal);
+
+        // 1. 检测直接 Lazy 约束的方法名
+        foreach (var creation in root.DescendantNodes().OfType<ObjectCreationExpressionSyntax>()) {
+            var typeText = creation.Type.ToString();
+            if (!typeText.StartsWith("Lazy<", StringComparison.Ordinal) &&
+                !typeText.StartsWith("System.Lazy<", StringComparison.Ordinal))
+                continue;
+
+            var args = creation.ArgumentList?.Arguments;
+            if (args is null || args.Value.Count == 0) continue;
+
+            if (args.Value[0].Expression is IdentifierNameSyntax id)
+                skipMethods.Add(id.Identifier.ValueText);
+        }
+
+        if (skipMethods.Count == 0) return skipMethods;
+
+        // 2. 传播：遍历 Lazy 约束方法的体，收集被调用的方法名
+        foreach (var method in root.DescendantNodes().OfType<MethodDeclarationSyntax>()) {
+            if (!skipMethods.Contains(method.Identifier.ValueText)) continue;
+
+            foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>()) {
+                if (inv.Expression is IdentifierNameSyntax calledId)
+                    skipMethods.Add(calledId.Identifier.ValueText);
+            }
+        }
+
+        return skipMethods;
+    }
 }
 
 /// <summary>
@@ -59,6 +96,7 @@ public static class GetAwaiterFixer {
 /// </summary>
 internal class GetAwaiterRewriter : CSharpSyntaxRewriter {
     private readonly bool _isTestFile;
+    private readonly HashSet<string> _skipMethods;
     private readonly Stack<bool> _contextStack = new();
     private bool _inTargetMethod;
 
@@ -67,17 +105,23 @@ internal class GetAwaiterRewriter : CSharpSyntaxRewriter {
     /// </summary>
     public int FixedCount { get; private set; }
 
-    internal GetAwaiterRewriter(bool isTestFile) {
+    internal GetAwaiterRewriter(bool isTestFile, HashSet<string> skipMethods) {
         _isTestFile = isTestFile;
+        _skipMethods = skipMethods;
     }
 
     /// <summary>
     /// 判断方法是否是修复目标：private + 非 async + 方法直接体内有可修复的 violation。
     /// "直接体内"指 GetEnclosingFunction 返回的是该方法本身（不是 lambda）。
+    /// 跳过 Lazy&lt;T&gt; 约束传播的方法（不能改 async，因为调用方不能 await）。
     /// </summary>
-    private static bool IsTargetMethod(MethodDeclarationSyntax node) {
+    private bool IsTargetMethod(MethodDeclarationSyntax node) {
         if (!node.Modifiers.Any(SyntaxKind.PrivateKeyword)) return false;
         if (node.Modifiers.Any(SyntaxKind.AsyncKeyword)) return false;
+        if (_skipMethods.Contains(node.Identifier.ValueText)) {
+            Console.WriteLine($"    跳过 Lazy<T> 约束传播方法: {node.Identifier.ValueText}");
+            return false;
+        }
         return node.DescendantNodes()
             .OfType<InvocationExpressionSyntax>()
             .Any(inv => GetAwaiterPatternDetector.IsFixableViolation(inv)

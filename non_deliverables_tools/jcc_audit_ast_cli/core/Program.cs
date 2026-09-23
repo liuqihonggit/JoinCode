@@ -82,6 +82,10 @@ public static class Program {
             return await RunSyncAsyncCommand(args[1..]).ConfigureAwait(false);
         }
 
+        if (args[0] == "cascade-fix") {
+            return await RunCascadeFixCommand(args[1..]).ConfigureAwait(false);
+        }
+
         // 默认: 审计模式（直接传 slnx/csproj 路径）
         return await RunAuditCommand(args);
     }
@@ -708,21 +712,26 @@ public static class Program {
 
     private static async Task<int> RunFixGetAwaiterGetResultCommand(string[] args) {
         if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
-            Console.WriteLine("用法: jcc-audit fix-getawaiter-getresult <项目根目录> [--dry-run]");
+            Console.WriteLine("用法: jcc-audit fix-getawaiter-getresult <项目根目录> [--dry-run] [--cascade <slnx>]");
             Console.WriteLine();
-            Console.WriteLine("修复: 异步方法中 .GetAwaiter().GetResult() → await ... .ConfigureAwait(false)");
-            Console.WriteLine("跳过: 同步方法 / SyncFileReader / Main 入口 / 属性 getter / lambda / 分析器代码");
+            Console.WriteLine("修复: 同步 private 方法中 .GetAwaiter().GetResult() → async + await ... .ConfigureAwait(false)");
+            Console.WriteLine("跳过: public/lambda/Main/属性getter/分析器代码");
+            Console.WriteLine("--cascade <slnx>: 修复后递归处理级联错误（CS4014/CS0029/CS1503），编译错误驱动");
             return 0;
         }
 
         var targetPath = args[0];
         var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+        var cascadeIdx = Array.IndexOf(args, "--cascade");
+        var slnPath = cascadeIdx >= 0 && cascadeIdx + 1 < args.Length ? args[cascadeIdx + 1] : null;
 
         Console.WriteLine("=== JccAuditCli fix-getawaiter-getresult ===");
         Console.WriteLine($"项目根目录: {Path.GetFullPath(targetPath)}");
         Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+        if (slnPath is not null)
+            Console.WriteLine($"级联修复: 启用（{slnPath}）");
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
 
         try {
             var (fixedFiles, fixedIssues, skipped) = await GetAwaiterFixer.FixAllAsync(targetPath, dryRun, cts.Token).ConfigureAwait(false);
@@ -733,17 +742,61 @@ public static class Program {
             Console.WriteLine($"修复问题: {fixedIssues}");
             Console.WriteLine($"跳过文件: {skipped}");
 
+            if (slnPath is not null && !dryRun && fixedIssues > 0) {
+                Console.WriteLine();
+                Console.WriteLine("=== 级联修复（编译错误驱动递归）===");
+                var (iterations, cascadeFixed) = await CascadeAsyncFixer.FixCascadeAsync(
+                    slnPath, maxIterations: 20, dryRun: false, cts.Token).ConfigureAwait(false);
+                Console.WriteLine($"级联迭代: {iterations}");
+                Console.WriteLine($"级联修复: {cascadeFixed} 处");
+            }
+
             return fixedIssues > 0 ? (dryRun ? 3 : 0) : 0;
         } catch (OperationCanceledException) {
-            Console.Error.WriteLine("扫描超时（10 分钟限制）。");
+            Console.Error.WriteLine("扫描超时（30 分钟限制）。");
             return 2;
         }
     }
 
     /// <summary>
-    /// fix-jcc3016 模式：用共享检测器（SyncMethodAsyncCallDetector）检测 JCC3016 违规，自动加 .GetAwaiter().GetResult()
-    /// 检测逻辑与分析器完全一致（共享同一份代码），确保检测和修复不脱节。
+    /// cascade-fix 模式：单独运行级联修复器，处理初始修复后的编译错误。
+    /// 用法: jcc-audit cascade-fix &lt;slnx&gt; [--dry-run] [--max-iterations N]
     /// </summary>
+    private static async Task<int> RunCascadeFixCommand(string[] args) {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
+            Console.WriteLine("用法: jcc-audit cascade-fix <slnx> [--dry-run] [--max-iterations N]");
+            Console.WriteLine();
+            Console.WriteLine("单独运行级联修复器，处理编译错误（CS4014/CS0029/CS1503/CS1929/CS0019）");
+            Console.WriteLine("状态机驱动：dotnet build → 解析错误 → 修复 → 重新编译，直到无错误");
+            return 0;
+        }
+
+        var slnPath = args[0];
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+        var maxIterIdx = Array.IndexOf(args, "--max-iterations");
+        var maxIterations = maxIterIdx >= 0 && maxIterIdx + 1 < args.Length
+            ? int.Parse(args[maxIterIdx + 1])
+            : 20;
+
+        Console.WriteLine("=== JccAuditCli cascade-fix ===");
+        Console.WriteLine($"解决方案: {Path.GetFullPath(slnPath)}");
+        Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+
+        try {
+            var (iterations, cascadeFixed) = await CascadeAsyncFixer.FixCascadeAsync(
+                slnPath, maxIterations, dryRun, cts.Token).ConfigureAwait(false);
+            Console.WriteLine();
+            Console.WriteLine("=== cascade-fix 报告 ===");
+            Console.WriteLine($"迭代次数: {iterations}");
+            Console.WriteLine($"修复总数: {cascadeFixed} 处");
+            return cascadeFixed > 0 ? (dryRun ? 3 : 0) : 0;
+        } catch (OperationCanceledException) {
+            Console.Error.WriteLine("超时（30 分钟限制）。");
+            return 2;
+        }
+    }
     private static async Task<int> RunFixJcc3016Command(string[] args) {
         if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
             Console.WriteLine("用法: jcc-audit fix-jcc3016 <slnx|sln|csproj> [--dry-run]");

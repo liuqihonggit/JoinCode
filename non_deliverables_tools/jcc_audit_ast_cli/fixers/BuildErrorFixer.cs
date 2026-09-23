@@ -213,8 +213,9 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
     /// 当参数是 IdentifierNameSyntax（方法名引用）且在错误行，包装为 lambda。
     /// </summary>
     /// <summary>
-    /// 处理 CS1503 方法组转换：new Thread(ScanLoop) → new Thread(() => ScanLoop().GetAwaiter().GetResult())
-    /// 只在 CS1503 错误行处理（其他错误码的 IdentifierNameSyntax 是变量引用不是方法组）
+    /// 处理 CS1503 方法组转换和变量类型不匹配：
+    /// - ObjectCreationExpression 参数（如 new Thread(ScanLoop)）→ 方法组，包装为 lambda
+    /// - InvocationExpression 参数（如 ShouldCache(result)）→ 变量，加 .GetAwaiter().GetResult()
     /// </summary>
     public override SyntaxNode? VisitArgument(ArgumentSyntax node) {
         var visited = (ArgumentSyntax?)base.VisitArgument(node);
@@ -224,19 +225,42 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
         if (!IsErrorLine(line, "CS1503")) return visited;
         if (node.Expression is not IdentifierNameSyntax identifier) return visited;
 
-        // 包装为 lambda: () => Identifier().GetAwaiter().GetResult()
-        var invocation = SyntaxFactory.InvocationExpression(identifier);
-        var getAwaiterGetResult = SyntaxHelpers.CreateGetAwaiterGetResult(invocation, node);
-        var lambda = SyntaxFactory.ParenthesizedLambdaExpression(
-            SyntaxFactory.ParameterList(),
-            getAwaiterGetResult);
+        var isObjectCreation = node.Parent?.Parent is ObjectCreationExpressionSyntax;
 
-        FixedCount++;
-        return visited.WithExpression(lambda);
+        if (isObjectCreation) {
+            // 方法组转换: new Thread(ScanLoop) → new Thread(() => ScanLoop().GetAwaiter().GetResult())
+            var invocation = SyntaxFactory.InvocationExpression(identifier);
+            var getAwaiterGetResult = SyntaxHelpers.CreateGetAwaiterGetResult(invocation, node);
+            var lambda = SyntaxFactory.ParenthesizedLambdaExpression(
+                SyntaxFactory.ParameterList(),
+                getAwaiterGetResult);
+            FixedCount++;
+            return visited.WithExpression(lambda);
+        } else {
+            // 变量类型不匹配: ShouldCache(result) → ShouldCache(result.GetAwaiter().GetResult())
+            var memberAccess = SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                identifier,
+                SyntaxFactory.Token(SyntaxKind.DotToken),
+                SyntaxFactory.IdentifierName("GetAwaiter"));
+            var getAwaiterCall = SyntaxFactory.InvocationExpression(memberAccess, SyntaxFactory.ArgumentList());
+            var getResultAccess = SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression,
+                getAwaiterCall,
+                SyntaxFactory.Token(SyntaxKind.DotToken),
+                SyntaxFactory.IdentifierName("GetResult"));
+            var getResultCall = SyntaxFactory.InvocationExpression(getResultAccess, SyntaxFactory.ArgumentList());
+            var newExpr = getResultCall
+                .WithLeadingTrivia(node.GetLeadingTrivia())
+                .WithTrailingTrivia(node.GetTrailingTrivia());
+            FixedCount++;
+            return visited.WithExpression(newExpr);
+        }
     }
 
     /// <summary>
-    /// 处理 CS0029 赋值表达式：x = SomeAsync() → x = await SomeAsync() 或 x = SomeAsync().GetAwaiter().GetResult()
+    /// 处理 CS0029 赋值表达式：x = SomeAsync() 或 x = result → 加 await/.GetAwaiter().GetResult()
+    /// 支持右侧是 InvocationExpression（方法调用）或 IdentifierName（变量引用）
     /// </summary>
     public override SyntaxNode? VisitAssignmentExpression(AssignmentExpressionSyntax node) {
         var visited = (AssignmentExpressionSyntax?)base.VisitAssignmentExpression(node);
@@ -245,15 +269,61 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
         var line = node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
         if (!IsErrorLine(line, "CS0029")) return visited;
         if (node.Right is AwaitExpressionSyntax) return visited;
+
+        // 右侧是变量引用（如 ParseCache[command] = result）→ result.GetAwaiter().GetResult()
+        if (node.Right is IdentifierNameSyntax varId) {
+            var newExpr = CreateGetAwaiterGetResultFromIdentifier(varId);
+            FixedCount++;
+            return visited.WithRight(newExpr);
+        }
+
+        // 右侧是方法调用（如 x = SomeAsync()）→ await SomeAsync() 或 SomeAsync().GetAwaiter().GetResult()
         if (node.Right is not InvocationExpressionSyntax invocation) return visited;
 
-        ExpressionSyntax newExpr;
+        ExpressionSyntax awaitExpr;
         if (IsInNoAsyncContext(node)) {
-            newExpr = SyntaxHelpers.CreateGetAwaiterGetResult(invocation, invocation);
+            awaitExpr = SyntaxHelpers.CreateGetAwaiterGetResult(invocation, invocation);
         } else {
-            newExpr = SyntaxHelpers.CreateAwaitExpression(invocation, invocation, _isTestFile);
+            awaitExpr = SyntaxHelpers.CreateAwaitExpression(invocation, invocation, _isTestFile);
         }
         FixedCount++;
-        return visited.WithRight(newExpr);
+        return visited.WithRight(awaitExpr);
+    }
+
+    /// <summary>
+    /// 处理 CS0029 return 语句：return result → return result.GetAwaiter().GetResult()
+    /// </summary>
+    public override SyntaxNode? VisitReturnStatement(ReturnStatementSyntax node) {
+        var visited = (ReturnStatementSyntax?)base.VisitReturnStatement(node);
+        if (visited is null) return null;
+
+        var line = node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
+        if (!IsErrorLine(line, "CS0029")) return visited;
+        if (node.Expression is not IdentifierNameSyntax varId) return visited;
+
+        var newExpr = CreateGetAwaiterGetResultFromIdentifier(varId);
+        FixedCount++;
+        return visited.WithExpression(newExpr);
+    }
+
+    /// <summary>
+    /// 从标识符创建 expr.GetAwaiter().GetResult() 表达式
+    /// </summary>
+    private static ExpressionSyntax CreateGetAwaiterGetResultFromIdentifier(IdentifierNameSyntax identifier) {
+        var memberAccess = SyntaxFactory.MemberAccessExpression(
+            SyntaxKind.SimpleMemberAccessExpression,
+            identifier,
+            SyntaxFactory.Token(SyntaxKind.DotToken),
+            SyntaxFactory.IdentifierName("GetAwaiter"));
+        var getAwaiterCall = SyntaxFactory.InvocationExpression(memberAccess, SyntaxFactory.ArgumentList());
+        var getResultAccess = SyntaxFactory.MemberAccessExpression(
+            SyntaxKind.SimpleMemberAccessExpression,
+            getAwaiterCall,
+            SyntaxFactory.Token(SyntaxKind.DotToken),
+            SyntaxFactory.IdentifierName("GetResult"));
+        var getResultCall = SyntaxFactory.InvocationExpression(getResultAccess, SyntaxFactory.ArgumentList());
+        return getResultCall
+            .WithLeadingTrivia(identifier.GetLeadingTrivia())
+            .WithTrailingTrivia(identifier.GetTrailingTrivia());
     }
 }

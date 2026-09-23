@@ -71,7 +71,7 @@ public static class BuildErrorFixer {
 
         var errors = new List<BuildError>();
         var regex = new System.Text.RegularExpressions.Regex(
-            @"^(.+?)\((\d+),(\d+)\):\s*error\s+(CS4014|CS0029|CS1503|CS1061)",
+            @"^(.+?)\((\d+),(\d+)\):\s*error\s+(CS4014|CS0029|CS1503|CS1061|CS0019)",
             System.Text.RegularExpressions.RegexOptions.Multiline);
 
         foreach (System.Text.RegularExpressions.Match m in regex.Matches(output)) {
@@ -177,7 +177,7 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
         if (visited is null) return null;
 
         var line = node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
-        if (!IsErrorLine(line)) return visited;
+        if (!IsErrorLine(line, "CS4014")) return visited;
         if (node.Expression is AwaitExpressionSyntax) return visited;
         if (node.Expression is not InvocationExpressionSyntax) return visited;
 
@@ -192,12 +192,12 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
     }
 
     /// <summary>
-    /// 处理 CS0029/CS1503：变量声明加 await
+    /// 处理 CS0029：变量声明加 await
     /// 不能 async 的上下文用 .GetAwaiter().GetResult() 代替 await
     /// </summary>
     public override SyntaxNode? VisitVariableDeclarator(VariableDeclaratorSyntax node) {
         var line = node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
-        if (!IsErrorLine(line))
+        if (!IsErrorLine(line, "CS0029"))
             return base.VisitVariableDeclarator(node);
 
         var initializer = node.Initializer;
@@ -218,6 +218,53 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
         }
         FixedCount++;
         return node.WithInitializer(initializer.WithValue(newExpr));
+    }
+
+    /// <summary>
+    /// 处理 CS0029：switch 表达式 arm 中的方法调用返回 Task<T> 但需要 T
+    /// 在不能 async 的上下文用 .GetAwaiter().GetResult() 代替 await
+    /// </summary>
+    public override SyntaxNode? VisitSwitchExpressionArm(SwitchExpressionArmSyntax node) {
+        var visited = (SwitchExpressionArmSyntax?)base.VisitSwitchExpressionArm(node);
+        if (visited is null) return null;
+
+        var line = node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
+        if (!IsErrorLine(line, "CS0029")) return visited;
+        if (node.Expression is AwaitExpressionSyntax) return visited;
+        if (node.Expression is not InvocationExpressionSyntax invocation) return visited;
+
+        var newExpr = SyntaxHelpers.CreateGetAwaiterGetResult(invocation, invocation);
+        FixedCount++;
+        return visited.WithExpression(newExpr);
+    }
+
+    /// <summary>
+    /// 处理 CS0019：?? 运算符右操作数返回 Task<T> 但需要 T
+    /// pathResult ?? pathResult2 → pathResult ?? pathResult2?.GetAwaiter().GetResult()
+    /// </summary>
+    public override SyntaxNode? VisitBinaryExpression(BinaryExpressionSyntax node) {
+        var visited = (BinaryExpressionSyntax?)base.VisitBinaryExpression(node);
+        if (visited is null) return null;
+
+        if (!node.IsKind(SyntaxKind.CoalesceExpression)) return visited;
+
+        var line = node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
+        if (!IsErrorLine(line, "CS0019")) return visited;
+
+        var target = node.Right;
+        if (target is not (InvocationExpressionSyntax or IdentifierNameSyntax)) return visited;
+
+        ExpressionSyntax newRight;
+        if (target is IdentifierNameSyntax idName) {
+            var name = idName.Identifier.ValueText;
+            newRight = SyntaxFactory.ParseExpression($"{name}?.GetAwaiter().GetResult()")
+                .WithLeadingTrivia(target.GetLeadingTrivia())
+                .WithTrailingTrivia(target.GetTrailingTrivia());
+        } else {
+            newRight = SyntaxHelpers.CreateGetAwaiterGetResult(target, target);
+        }
+        FixedCount++;
+        return visited.WithRight(newRight);
     }
 
     /// <summary>

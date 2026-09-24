@@ -325,22 +325,20 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                 return [];
             }
 
-            var grouped = searchResult.Items
+            var results = searchResult.Items
                 .GroupBy(s => s.FilePath)
                 .Take(opts.MaxResults)
-                .ToList();
-
-            var results = grouped.Select(group => new CodeReference {
-                ReferencePath = description,
-                ResolvedPath = group.Key,
-                MatchType = ReferenceMatchType.Exact,
-                RelevanceScore = 0.9,
-                FileMatches = group
-                    .Select(s => FileMatch.Create(
-                        s.FilePath, ReferenceMatchType.Exact, 0.9,
-                        $"CodeIndex: {s.Kind} {s.Name}"))
-                    .ToList()
-            }).ToList();
+                .Select(group => new CodeReference {
+                    ReferencePath = description,
+                    ResolvedPath = group.Key,
+                    MatchType = ReferenceMatchType.Exact,
+                    RelevanceScore = 0.9,
+                    FileMatches = group
+                        .Select(s => FileMatch.Create(
+                            s.FilePath, ReferenceMatchType.Exact, 0.9,
+                            $"CodeIndex: {s.Kind} {s.Name}"))
+                        .ToList()
+                }).ToList();
 
             return results;
         } catch (Exception ex) {

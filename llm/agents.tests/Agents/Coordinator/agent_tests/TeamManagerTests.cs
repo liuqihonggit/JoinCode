@@ -363,9 +363,8 @@ public class TeamManagerTests : IAsyncLifetime {
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public Task DisposeAsync() {
-        _teamManager.DisposeSafe();
-        return Task.CompletedTask;
+    public async Task DisposeAsync() {
+        await _teamManager.DisposeSafeAsync();
     }
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

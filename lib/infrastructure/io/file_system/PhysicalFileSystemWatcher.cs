@@ -149,4 +149,12 @@ public sealed class PhysicalFileSystemWatcher : IFileSystemWatcher {
 
         _debounce.Dispose();
     }
+
+    /// <summary>
+    /// 异步释放内部 FileSystemWatcher 与防抖跟踪器资源
+    /// </summary>
+    public ValueTask DisposeAsync() {
+        Dispose();
+        return ValueTask.CompletedTask;
+    }
 }

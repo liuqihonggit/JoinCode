@@ -65,7 +65,7 @@ public sealed record PastContextSection {
 /// 记忆搜索历史服务接口
 /// 管理搜索历史记录，并支持从历史对话记忆中检索相关上下文
 /// </summary>
-public interface IMemorySearchHistoryService : IDisposable {
+public interface IMemorySearchHistoryService : IAsyncDisposable {
     /// <summary>
     /// 记录一次搜索
     /// </summary>

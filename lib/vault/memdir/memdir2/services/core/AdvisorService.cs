@@ -65,4 +65,12 @@ public sealed partial class AdvisorService : ConfigPersistentServiceBase<string>
     /// 清除顾问模型设置
     /// </summary>
     public void ClearAdvisorModel() => SetValue(NoneValue);
+
+    /// <summary>
+    /// 异步释放资源 — 委托给同步 Dispose
+    /// </summary>
+    public ValueTask DisposeAsync() {
+        Dispose();
+        return ValueTask.CompletedTask;
+    }
 }

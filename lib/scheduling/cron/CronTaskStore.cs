@@ -65,7 +65,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     /// </summary>
     public void SetSessionId(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
-        _watcher?.Dispose();
+        _ = _watcher?.DisposeAsync();
         _watcher = null;
         var sessionDir = Path.Combine(_baseDir, sessionId);
         _filePath = Path.Combine(sessionDir, AppDataConstants.ScheduledTasksFileName);
@@ -318,7 +318,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     /// </summary>
     public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _watcher?.Dispose();
+        if (_watcher is not null) await _watcher.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

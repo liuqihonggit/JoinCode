@@ -220,4 +220,12 @@ internal sealed class IOExecutionLease : IIOExecutionLease {
         _releaser?.Dispose();
         _service.Release(OperationType);
     }
+
+    /// <summary>
+    /// 异步释放许可，归还并发槽
+    /// </summary>
+    public ValueTask DisposeAsync() {
+        Dispose();
+        return ValueTask.CompletedTask;
+    }
 }

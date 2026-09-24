@@ -167,4 +167,12 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher {
         _debounce.Dispose();
         _fs.UnregisterWatcher(this);
     }
+
+    /// <summary>
+    /// 异步释放监视器资源，从文件系统注销自身
+    /// </summary>
+    public ValueTask DisposeAsync() {
+        Dispose();
+        return ValueTask.CompletedTask;
+    }
 }

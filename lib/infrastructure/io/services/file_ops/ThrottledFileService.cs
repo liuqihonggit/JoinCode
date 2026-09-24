@@ -36,7 +36,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         int? offset = null,
         int? limit = null,
         CancellationToken cancellationToken = default) {
-        using var lease = await _throttleService.AcquireAsync(IOOperationType.Read, cancellationToken)
+        await using var lease = await _throttleService.AcquireAsync(IOOperationType.Read, cancellationToken)
             .ConfigureAwait(false);
 
         await using var span = _telemetryService?.StartSpan("file.read", TelemetrySpanKind.Server);
@@ -85,7 +85,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         string filePath,
         string content,
         CancellationToken cancellationToken = default) {
-        using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
+        await using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
         await using var span = _telemetryService?.StartSpan("file.write", TelemetrySpanKind.Server);
@@ -140,7 +140,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         string newString,
         bool replaceAll = false,
         CancellationToken cancellationToken = default) {
-        using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
+        await using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
         await using var span = _telemetryService?.StartSpan("file.edit", TelemetrySpanKind.Server);
@@ -206,7 +206,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     public async Task<FileLineEditResult> EditByLineRangeAsync(
         LineRangeEditRequest request,
         CancellationToken cancellationToken = default) {
-        using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
+        await using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
         await using var span = _telemetryService?.StartSpan("file.edit_line_range", TelemetrySpanKind.Server);
@@ -268,7 +268,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     public async Task<bool> DeleteFileAsync(
         string filePath,
         CancellationToken cancellationToken = default) {
-        using var lease = await _throttleService.AcquireAsync(IOOperationType.Delete, cancellationToken)
+        await using var lease = await _throttleService.AcquireAsync(IOOperationType.Delete, cancellationToken)
             .ConfigureAwait(false);
 
         _logger?.LogDebug("Deleting file: {FilePath}", filePath);
@@ -295,7 +295,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         string directoryPath,
         bool recursive = false,
         CancellationToken cancellationToken = default) {
-        using var lease = await _throttleService.AcquireAsync(IOOperationType.Read, cancellationToken)
+        await using var lease = await _throttleService.AcquireAsync(IOOperationType.Read, cancellationToken)
             .ConfigureAwait(false);
 
         _logger?.LogDebug("Listing directory: {DirectoryPath}", directoryPath);
@@ -365,7 +365,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
 
     /// <inheritdoc />
     public async Task<bool> CopyFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default) {
-        using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
+        await using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
         try {
@@ -384,7 +384,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
 
     /// <inheritdoc />
     public async Task<bool> MoveFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default) {
-        using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
+        await using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
         try {
@@ -476,7 +476,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
 
     /// <inheritdoc />
     public async Task<FileMetadataResult> ReadFileWithMetadataAsync(string filePath, CancellationToken cancellationToken = default) {
-        using var lease = await _throttleService.AcquireAsync(IOOperationType.Read, cancellationToken).ConfigureAwait(false);
+        await using var lease = await _throttleService.AcquireAsync(IOOperationType.Read, cancellationToken).ConfigureAwait(false);
         var normalizedPath = NormalizePath(filePath);
         try {
             if (!_fs.FileExists(normalizedPath))
@@ -500,7 +500,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
 
     /// <inheritdoc />
     public async Task<FileWriteResult> WriteFileWithEncodingAsync(string filePath, string content, Encoding? encoding = null, string? lineEndings = null, CancellationToken cancellationToken = default) {
-        using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken).ConfigureAwait(false);
+        await using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken).ConfigureAwait(false);
         var normalizedPath = NormalizePath(filePath);
         try {
             var effectiveEncoding = encoding ?? Encoding.UTF8;

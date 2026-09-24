@@ -4,7 +4,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Swarm 权限同步桥接口 — 在 Leader 与 Worker 之间同步权限状态
 /// </summary>
-public interface ISwarmPermissionBridge : IDisposable {
+public interface ISwarmPermissionBridge : IAsyncDisposable {
     /// <summary>
     /// 异步同步指定智能体的权限配置
     /// </summary>

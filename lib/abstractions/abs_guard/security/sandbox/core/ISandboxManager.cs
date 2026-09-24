@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.Security.Sandbox;
 
-public interface ISandboxManager : IDisposable {
+public interface ISandboxManager : IAsyncDisposable {
     /// <summary>获取当前活跃的沙箱提供器。</summary>
     ISandboxProvider? ActiveProvider { get; }
     /// <summary>获取活跃沙箱类型。</summary>

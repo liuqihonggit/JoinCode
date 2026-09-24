@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.Brain.Context.Hierarchy;
 
-public interface IContextHierarchy : IDisposable {
+public interface IContextHierarchy : IAsyncDisposable {
     /// <summary>获取或设置 Token 阈值。</summary>
     int TokenThreshold { get; set; }
 

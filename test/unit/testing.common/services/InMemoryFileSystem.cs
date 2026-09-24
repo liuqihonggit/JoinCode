@@ -695,5 +695,11 @@ public sealed class InMemoryFileSystem : IFileSystem {
         public void MarkInternalWrite(string filePath) { }
         /// <summary>释放资源</summary>
         public void Dispose() { }
+
+        /// <summary>异步释放资源 — 委托给同步 Dispose</summary>
+        public ValueTask DisposeAsync() {
+            Dispose();
+            return ValueTask.CompletedTask;
+        }
     }
 }

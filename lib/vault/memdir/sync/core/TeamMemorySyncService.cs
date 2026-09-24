@@ -217,7 +217,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         if (!_isRunning) return;
 
         _syncTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        _watcher?.Dispose();
+        _ = _watcher?.DisposeAsync();
         _watcher = null;
         _isRunning = false;
         _logger?.LogInformation(L.T(StringKey.VaultLogSyncStopped));
@@ -388,7 +388,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _disposeCts.Cancel();
         _syncTimer.Dispose();
-        _watcher?.Dispose();
+        if (_watcher is not null) await _watcher.DisposeAsync().ConfigureAwait(false);
         await _transfer.DisposeAsync().ConfigureAwait(false);
         await DisposeBaseAsync().ConfigureAwait(false);
         _disposeCts.Dispose();

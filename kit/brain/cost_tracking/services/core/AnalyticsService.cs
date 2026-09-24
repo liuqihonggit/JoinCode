@@ -258,14 +258,17 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <param name="limit">返回条数上限</param>
     /// <returns>按时间降序排列的事件列表</returns>
     public List<AnalyticsEvent> GetEventHistory(AnalyticsEventType? type = null, int limit = WorkflowConstants.Analytics.DefaultEventHistoryLimit) {
-        IEnumerable<AnalyticsEvent> events = type.HasValue && _byType.TryGetValue(type.Value, out var typedList)
+        var list = type.HasValue && _byType.TryGetValue(type.Value, out var typedList)
             ? typedList
             : _events;
 
-        return events
-            .OrderByDescending(e => e.Timestamp)
-            .Take(limit)
-            .ToList();
+        if (list.Count == 0) return new List<AnalyticsEvent>();
+        var take = Math.Min(limit, list.Count);
+        var result = new List<AnalyticsEvent>(take);
+        for (var i = list.Count - 1; i >= 0 && result.Count < take; i--) {
+            result.Add(list[i]);
+        }
+        return result;
     }
 
     /// <summary>
@@ -304,11 +307,12 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>缩进格式化的 JSON 字符串</returns>
     public async Task<string> ExportDataAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default) {
-        var events = (startDate.HasValue || endDate.HasValue)
-            ? GetEventsInRange(startDate, endDate)
-            : _events;
-
-        var data = events.OrderBy(e => e.Timestamp).ToList();
+        List<AnalyticsEvent> data;
+        if (startDate.HasValue || endDate.HasValue) {
+            data = GetEventsInRange(startDate, endDate).OrderBy(e => e.Timestamp).ToList();
+        } else {
+            data = _events.ToList();
+        }
 
         var export = new AnalyticsExportData {
             ExportTime = _clock.GetUtcNow(),
@@ -324,23 +328,34 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     #region Private Methods
 
     /// <summary>
-    /// 原子添加事件到三个索引(_events + _byType + _byDate),无锁并行检索安全
+    /// 原子添加事件到三个索引(_events + _byType + _byDate),无锁并行检索安全。
+    /// <para>所有列表按 Timestamp 升序排序存储(二分法插入),制造排序条件提升检索效率。</para>
     /// </summary>
     private void AddEventToIndices(AnalyticsEvent e) {
-        ImmutableInterlocked.Update(ref _events, static (list, ev) => list.Add(ev), e);
+        ImmutableInterlocked.Update(ref _events, static (list, ev) => InsertByTime(list, ev), e);
         ImmutableInterlocked.Update(ref _byType, static (dict, ev) => {
             var list = dict.GetValueOrDefault(ev.Type) ?? ImmutableList<AnalyticsEvent>.Empty;
-            return dict.SetItem(ev.Type, list.Add(ev));
+            return dict.SetItem(ev.Type, InsertByTime(list, ev));
         }, e);
         ImmutableInterlocked.Update(ref _byDate, static (dict, ev) => {
             var date = ev.Timestamp.Date;
             var list = dict.GetValueOrDefault(date) ?? ImmutableList<AnalyticsEvent>.Empty;
-            return dict.SetItem(date, list.Add(ev));
+            return dict.SetItem(date, InsertByTime(list, ev));
         }, e);
     }
 
+    private static readonly IComparer<AnalyticsEvent> s_timeComparer = Comparer<AnalyticsEvent>.Create(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
+
+    /// <summary>O(log n) 二分法插入到按 Timestamp 排序的列表。事件几乎按时间顺序到达时插入末尾 O(1)。</summary>
+    private static ImmutableList<AnalyticsEvent> InsertByTime(ImmutableList<AnalyticsEvent> list, AnalyticsEvent e) {
+        var index = list.BinarySearch(e, s_timeComparer);
+        if (index < 0) index = ~index;
+        return list.Insert(index, e);
+    }
+
     /// <summary>
-    /// 从 _events 快照重建 _byType + _byDate 索引 — ClearHistory/TrimEventsIfNeeded 后调用
+    /// 从 _events 快照重建 _byType + _byDate 索引 — ClearHistory/TrimEventsIfNeeded 后调用。
+    /// <para>_events 已按 Timestamp 升序存储,遍历时按顺序 Add 到桶内,桶内自动保持 Timestamp 升序。</para>
     /// </summary>
     private void RebuildIndices() {
         var snapshot = _events;

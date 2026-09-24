@@ -27,7 +27,7 @@ public class NativePluginHostE2ETests {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布,请先执行: dotnet publish tools/SampleNativePlugin -c Release -o tools/SampleNativePlugin/publish");
 
-        using var host = new NativePluginHost(dllPath!, "sample-echo", Fs);
+        await using var host = new NativePluginHost(dllPath!, "sample-echo", Fs);
 
         host.Load().IsSuccess.Should().BeTrue();
         host.IsLoaded.Should().BeTrue();
@@ -46,7 +46,7 @@ public class NativePluginHostE2ETests {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布");
 
-        using var host = new NativePluginHost(dllPath!, "sample-ping", Fs);
+        await using var host = new NativePluginHost(dllPath!, "sample-ping", Fs);
 
         host.Load().IsSuccess.Should().BeTrue();
 
@@ -62,7 +62,7 @@ public class NativePluginHostE2ETests {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布");
 
-        using var host = new NativePluginHost(dllPath!, "sample-unknown", Fs);
+        await using var host = new NativePluginHost(dllPath!, "sample-unknown", Fs);
 
         host.Load().IsSuccess.Should().BeTrue();
 
@@ -78,7 +78,7 @@ public class NativePluginHostE2ETests {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布");
 
-        using var host = new NativePluginHost(dllPath!, "sample-idempotent", Fs);
+        await using var host = new NativePluginHost(dllPath!, "sample-idempotent", Fs);
 
         var first = host.Load();
         var second = host.Load();
@@ -90,11 +90,11 @@ public class NativePluginHostE2ETests {
     }
 
     [Fact]
-    public void Invoke_BeforeLoad_ReturnsNotLoaded() {
+    public async Task Invoke_BeforeLoad_ReturnsNotLoaded() {
         var dllPath = FindNativeDll();
         Skip.If(dllPath is null, "Native DLL 未发布");
 
-        using var host = new NativePluginHost(dllPath!, "sample-notloaded", Fs);
+        await using var host = new NativePluginHost(dllPath!, "sample-notloaded", Fs);
 
         var result = host.Invoke("""{"method":"ping"}""");
         result.IsSuccess.Should().BeFalse();
@@ -102,8 +102,8 @@ public class NativePluginHostE2ETests {
     }
 
     [Fact]
-    public void NonExistentDll_ReturnsFail() {
-        using var host = new NativePluginHost("C:/nonexistent/plugin.dll", "nonexistent", Fs);
+    public async Task NonExistentDll_ReturnsFail() {
+        await using var host = new NativePluginHost("C:/nonexistent/plugin.dll", "nonexistent", Fs);
 
         var result = host.Load();
         result.IsSuccess.Should().BeFalse();

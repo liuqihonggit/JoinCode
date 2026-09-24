@@ -6,6 +6,11 @@ namespace JccAuditCli;
 public static class BuildErrorFixer {
 
     /// <summary>
+    /// 本修复器能处理的编译错误码集合（唯一数据源，regex 与展示文本均委托此集合）。
+    /// </summary>
+    private static readonly string[] HandledErrorCodes = ["CS4014", "CS0029", "CS1503", "CS1061", "CS0019"];
+
+    /// <summary>
     /// 运行 dotnet build 获取错误，在错误位置加 await
     /// </summary>
     public static async Task<(int FixedFiles, int FixedIssues)> FixFromBuildErrorsAsync(
@@ -13,11 +18,11 @@ public static class BuildErrorFixer {
 
         var errors = await CollectBuildErrorsAsync(solutionPath, ct);
         if (errors.Count == 0) {
-            Console.WriteLine("没有 CS4014/CS0029/CS1503/CS1061 错误。");
+            Console.WriteLine($"没有 {string.Join("/", HandledErrorCodes)} 错误。");
             return (0, 0);
         }
 
-        Console.WriteLine($"发现 {errors.Count} 个 CS4014/CS0029/CS1503/CS1061 错误。");
+        Console.WriteLine($"发现 {errors.Count} 个 {string.Join("/", HandledErrorCodes)} 错误。");
 
         var byFile = errors.GroupBy(e => e.FilePath, StringComparer.OrdinalIgnoreCase);
         var fixedFiles = 0;
@@ -25,14 +30,14 @@ public static class BuildErrorFixer {
 
         foreach (var group in byFile) {
             ct.ThrowIfCancellationRequested();
-            var errorMap = group.GroupBy(e => e.Line).ToDictionary(g => g.Key, g => g.First().ErrorCode);
+            var errorMatcher = new ErrorLineMatcher(group.Select(e => (e.Line, e.ErrorCode)));
             var isTestFile = FileFilter.IsTestFile(group.Key);
 
             var source = await File.ReadAllTextAsync(group.Key, ct);
             var tree = CSharpSyntaxTree.ParseText(source, path: group.Key);
             var root = await tree.GetRootAsync(ct);
 
-            var rewriter = new UnawaitedVariableRewriter(errorMap, isTestFile);
+            var rewriter = new UnawaitedVariableRewriter(errorMatcher, isTestFile);
             var newRoot = rewriter.Visit(root);
 
             if (rewriter.FixedCount == 0) continue;
@@ -58,20 +63,24 @@ public static class BuildErrorFixer {
     private static async Task<List<BuildError>> CollectBuildErrorsAsync(string solutionPath, CancellationToken ct) {
         var slnFullPath = Path.GetFullPath(solutionPath);
         var psi = new System.Diagnostics.ProcessStartInfo {
-            FileName = "cmd",
-            Arguments = $"/c dotnet build \"{slnFullPath}\" --no-restore 2>&1",
+            FileName = "dotnet",
+            Arguments = $"build \"{slnFullPath}\" --no-restore",
             UseShellExecute = false,
             RedirectStandardOutput = true,
-            StandardOutputEncoding = System.Text.Encoding.UTF8
+            RedirectStandardError = true,
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8
         };
 
         using var process = System.Diagnostics.Process.Start(psi)!;
-        var output = await process.StandardOutput.ReadToEndAsync(ct);
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+        var stderrTask = process.StandardError.ReadToEndAsync(ct);
         await process.WaitForExitAsync(ct);
+        var output = await stdoutTask + Environment.NewLine + await stderrTask;
 
         var errors = new List<BuildError>();
         var regex = new System.Text.RegularExpressions.Regex(
-            @"^(.+?)\((\d+),(\d+)\):\s*error\s+(CS4014|CS0029|CS1503|CS1061|CS0019)",
+            @"^(.+?)\((\d+),(\d+)\):\s*error\s+(" + string.Join("|", HandledErrorCodes) + @")",
             System.Text.RegularExpressions.RegexOptions.Multiline);
 
         foreach (System.Text.RegularExpressions.Match m in regex.Matches(output)) {
@@ -94,7 +103,7 @@ public static class BuildErrorFixer {
 /// 在指定行加 await — 处理 CS4014(裸语句)/CS0029(变量声明)/CS1503(参数)
 /// </summary>
 internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
-    private readonly Dictionary<int, string> _errorMap;
+    private readonly ErrorLineMatcher _errorMatcher;
     private readonly bool _isTestFile;
 
     /// <summary>
@@ -102,13 +111,13 @@ internal class UnawaitedVariableRewriter : CSharpSyntaxRewriter {
     /// </summary>
     public int FixedCount { get; private set; }
 
-    internal UnawaitedVariableRewriter(Dictionary<int, string> errorMap, bool isTestFile) {
-        _errorMap = errorMap;
+    internal UnawaitedVariableRewriter(ErrorLineMatcher errorMatcher, bool isTestFile) {
+        _errorMatcher = errorMatcher;
         _isTestFile = isTestFile;
     }
 
-    private bool IsErrorLine(int line) => _errorMap.ContainsKey(line);
-    private bool IsErrorLine(int line, string code) => _errorMap.TryGetValue(line, out var c) && c == code;
+    private bool IsErrorLine(int line) => _errorMatcher.Contains(line);
+    private bool IsErrorLine(int line, string code) => _errorMatcher.Contains(line, code);
 
     public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node) {
         var hasErrorInMethod = node.DescendantNodes()

@@ -254,7 +254,7 @@ internal enum CascadeFixState {
 /// </summary>
 internal class CascadeRewriter : CSharpSyntaxRewriter {
     private readonly bool _isTestFile;
-    private readonly HashSet<int> _errorLines;
+    private readonly ErrorLineMatcher _errorMatcher;
     private readonly HashSet<string> _lazyConstrainedMethods;
     private readonly bool _hasMethodGroupError;
     private readonly HashSet<int> _revertLines;
@@ -271,7 +271,7 @@ internal class CascadeRewriter : CSharpSyntaxRewriter {
         bool isTestFile,
         HashSet<string> lazyConstrainedMethods) {
         _isTestFile = isTestFile;
-        _errorLines = new HashSet<int>(errors.Select(e => e.Line));
+        _errorMatcher = new ErrorLineMatcher(errors.Select(e => (e.Line, e.Code)));
         _lazyConstrainedMethods = lazyConstrainedMethods;
         _hasMethodGroupError = errors.Any(e => e.Message.Contains("方法组"));
         // CS1929/CS0019 错误行 → 需要回退为 .GetAwaiter().GetResult()
@@ -282,7 +282,7 @@ internal class CascadeRewriter : CSharpSyntaxRewriter {
     private bool IsTargetRange(SyntaxNode node) {
         var start = node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
         var end = node.GetLocation().GetLineSpan().EndLinePosition.Line + 1;
-        return _errorLines.Any(line => line >= start && line <= end);
+        return _errorMatcher.IntersectsRange(start, end);
     }
 
     /// <summary>
@@ -406,7 +406,7 @@ internal class CascadeRewriter : CSharpSyntaxRewriter {
         if (node.Expression is not IdentifierNameSyntax identifier) return visited;
 
         var line = node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
-        if (!_errorLines.Contains(line)) return visited;
+        if (!_errorMatcher.Contains(line)) return visited;
 
         // 包装为 lambda: () => Identifier().GetAwaiter().GetResult()
         var invocation = SyntaxFactory.InvocationExpression(identifier);

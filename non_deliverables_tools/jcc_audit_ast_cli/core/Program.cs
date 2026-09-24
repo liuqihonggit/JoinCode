@@ -78,6 +78,10 @@ public static class Program {
             return await RunFixDisposableDirectionCommand(args[1..], FixDirection.Sync).ConfigureAwait(false);
         }
 
+        if (args[0] == "fix-jcc9103") {
+            return await RunFixJcc9103Command(args[1..]).ConfigureAwait(false);
+        }
+
         if (args[0] == "sync-async") {
             return await RunSyncAsyncCommand(args[1..]).ConfigureAwait(false);
         }
@@ -918,6 +922,113 @@ public static class Program {
             Console.Error.WriteLine("扫描超时（10 分钟限制）。");
             return 2;
         }
+    }
+
+    /// <summary>
+    /// fix-jcc9103 模式：批量移除同时实现 IDisposable+IAsyncDisposable 类型中的 IDisposable
+    /// </summary>
+    private static async Task<int> RunFixJcc9103Command(string[] args) {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal)) {
+            Console.WriteLine("用法: jcc-audit fix-jcc9103 <slnx|audit-report.json> [--dry-run] [--analyzer-dir <dir>]");
+            Console.WriteLine();
+            Console.WriteLine("功能: 批量修复 JCC9103 违规 — 从同时实现 IDisposable+IAsyncDisposable 的类型中移除 IDisposable");
+            Console.WriteLine("输入: .slnx 文件（先审计再修复）或 audit-report.json（直接用已有报告）");
+            Console.WriteLine("改动: 仅移除基列表中的 IDisposable，保留 Dispose() 方法不变");
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+        var analyzerDir = GetArgValue(args, "--analyzer-dir") ?? string.Empty;
+
+        Console.WriteLine("=== JccAuditCli fix-jcc9103 ===");
+        Console.WriteLine($"目标: {targetPath}");
+        Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+
+        // 收集待修复文件列表
+        List<string> filesToFix;
+
+        var ext = Path.GetExtension(targetPath).ToLowerInvariant();
+        if (ext == ".json") {
+            // 从审计报告读取 JCC9103 违规文件列表
+            filesToFix = ExtractJcc9103FilesFromReport(targetPath);
+            Console.WriteLine($"从报告提取 JCC9103 违规文件: {filesToFix.Count}");
+        } else if (ext == ".slnx" || ext == ".sln") {
+            // 先审计再提取
+            var projectRoot = FindProjectRoot(targetPath);
+            if (string.IsNullOrEmpty(analyzerDir)) {
+                analyzerDir = AnalyzerLoader.FindAnalyzerDirectory(projectRoot);
+            }
+            if (string.IsNullOrEmpty(analyzerDir)) {
+                Console.Error.WriteLine("未找到分析器 DLL。请先用 build.ps1 构建项目，或用 --analyzer-dir 指定路径。");
+                return 1;
+            }
+            var analyzers = AnalyzerLoader.LoadAnalyzers(analyzerDir, "JCC9103");
+            if (analyzers.Count == 0) {
+                Console.Error.WriteLine("未加载到分析器。");
+                return 1;
+            }
+            Console.WriteLine($"已加载 {analyzers.Count} 个分析器，开始审计...");
+            var engine = new AuditEngine(analyzers);
+            using var auditCts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+            var report = await engine.AuditSolutionAsync(targetPath, false, auditCts.Token).ConfigureAwait(false);
+            filesToFix = ExtractFilesFromAuditReport(report);
+            Console.WriteLine($"审计完成，JCC9103 违规文件: {filesToFix.Count}");
+        } else {
+            Console.Error.WriteLine($"不支持的文件类型: {ext}。请提供 .slnx 或 .json 文件。");
+            return 1;
+        }
+
+        if (filesToFix.Count == 0) {
+            Console.WriteLine("无 JCC9103 违规，无需修复。");
+            return 0;
+        }
+
+        // 执行批量修复
+        using var fixCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        var fixReport = await DualDisposableFixer.FixAsync(filesToFix, dryRun, fixCts.Token).ConfigureAwait(false);
+        fixReport.PrintSummary();
+
+        return fixReport.TotalChanges > 0 ? (dryRun ? 3 : 0) : 0;
+    }
+
+    /// <summary>
+    /// 从审计报告 JSON 提取 JCC9103 违规文件列表
+    /// </summary>
+    private static List<string> ExtractJcc9103FilesFromReport(string reportPath) {
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try {
+            var json = File.ReadAllText(reportPath);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("Projects", out var projects)) return files.ToList();
+            foreach (var project in projects.EnumerateArray()) {
+                if (!project.TryGetProperty("Diagnostics", out var diags)) continue;
+                foreach (var diag in diags.EnumerateArray()) {
+                    if (!diag.TryGetProperty("RuleId", out var ruleId) || ruleId.GetString() != "JCC9103") continue;
+                    if (!diag.TryGetProperty("FilePath", out var fp)) continue;
+                    var path = fp.GetString();
+                    if (!string.IsNullOrEmpty(path))
+                        files.Add(path);
+                }
+            }
+        } catch (Exception ex) {
+            Console.Error.WriteLine($"解析报告失败: {ex.Message}");
+        }
+        return files.ToList();
+    }
+
+    /// <summary>
+    /// 从 AuditReport 对象提取 JCC9103 违规文件列表
+    /// </summary>
+    private static List<string> ExtractFilesFromAuditReport(AuditReport report) {
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var project in report.Projects) {
+            foreach (var diag in project.Diagnostics) {
+                if (diag.RuleId == "JCC9103" && !string.IsNullOrEmpty(diag.FilePath))
+                    files.Add(diag.FilePath);
+            }
+        }
+        return files.ToList();
     }
 
     /// <summary>

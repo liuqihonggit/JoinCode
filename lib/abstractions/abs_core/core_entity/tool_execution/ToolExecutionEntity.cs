@@ -122,7 +122,7 @@ public sealed class ToolExecutionEntityRegistry : MapRegistry<ObjectId, ToolExec
     internal bool Remove(ObjectId id) => RemoveCore(id);
 
     /// <summary>生命周期状态转换 — 更新实体属性并同步次级索引</summary>
-    internal void TransitionLifecycle(ObjectId id, EntityLifecycle newState) {
+    public void TransitionLifecycle(ObjectId id, EntityLifecycle newState) {
         var entity = Get(id);
         if (entity is null) return;
         var oldState = entity.LifecycleState;

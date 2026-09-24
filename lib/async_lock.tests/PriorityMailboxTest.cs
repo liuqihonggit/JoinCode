@@ -209,7 +209,7 @@ public class PriorityMailboxTest {
         actor.SetGate(gateTcs);
 
         await actor.SendAsync(1, MessagePriority.High);
-        await Task.Delay(100);
+        await WaitUntilAsync(() => actor.MailboxCountByPriority(MessagePriority.High) == 0, TimeSpan.FromSeconds(5));
 
         await actor.SendAsync(2, MessagePriority.High);
 

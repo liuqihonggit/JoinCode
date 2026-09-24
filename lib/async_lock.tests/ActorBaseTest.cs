@@ -179,7 +179,7 @@ public class ActorBaseTest {
         await using var actor = new TestActor(bp) { Gate = new() };
 
         await actor.SendAsync("first");
-        await Task.Delay(50);
+        await WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromSeconds(5));
 
         await actor.SendAsync("second");
 

@@ -28,7 +28,8 @@ public sealed class CrossChannelVisibilityE2ETests {
                 await namedPipe.RegisterAgentAsync(agentId);
             await hub.RegisterAgentAsync(agentId, kind, role: role);
         }
-        await Task.Delay(100);
+        await inProcess.WaitForCommandsDrainedAsync();
+        await namedPipe.WaitForCommandsDrainedAsync();
     }
 
     [Fact]

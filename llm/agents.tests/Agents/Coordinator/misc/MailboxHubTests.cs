@@ -256,7 +256,7 @@ public sealed class MailboxHubTests {
 
         var message = CreateMessage(to: "agent1");
         await namedPipeMailbox.TellAsync("agent1", message);
-        await Task.Delay(100);
+        await namedPipeMailbox.WaitForCommandsDrainedAsync();
 
         var received = new List<CoordinatorMessage>();
         await foreach (var msg in hub.ReceiveAsync("agent1", CancellationToken.None)) {

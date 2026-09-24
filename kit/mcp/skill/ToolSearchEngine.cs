@@ -57,34 +57,24 @@ public sealed class ToolSearchEngine {
 
         var category = segments[0].Trim();
         if (segments.Length == 1) {
-            var toolsInCategory = _deferredTools
+            var names = _deferredTools
                 .Where(t => string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            if (toolsInCategory.Count == 0)
-                return null;
-
-            var names = toolsInCategory
                 .OrderBy(t => t.GroupName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(t => t.Name)
                 .ToList();
-            return new ToolSearchResult(names);
+            return names.Count > 0 ? new ToolSearchResult(names) : null;
         }
 
         var groupName = segments[1].Trim();
         if (segments.Length == 2) {
-            var toolsInGroup = _deferredTools
+            var names = _deferredTools
                 .Where(t => string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(t.GroupName, groupName, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            if (toolsInGroup.Count == 0)
-                return null;
-
-            var names = toolsInGroup
                 .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(t => t.Name)
                 .ToList();
-            return new ToolSearchResult(names);
+            return names.Count > 0 ? new ToolSearchResult(names) : null;
         }
 
         var toolName = segments[2].Trim();

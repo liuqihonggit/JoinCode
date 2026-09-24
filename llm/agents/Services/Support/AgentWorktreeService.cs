@@ -14,7 +14,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     private readonly IFileSystem _fs;
     private readonly WorktreeOptions _defaultOptions;
     private readonly ITelemetryService? _telemetryService;
-    private readonly Dictionary<string, AgentWorktreeSession> _sessions = new();
+    private ImmutableDictionary<string, AgentWorktreeSession> _sessions = ImmutableDictionary<string, AgentWorktreeSession>.Empty;
     private readonly WorktreeSessionActor _sessionActor;
     private readonly MiddlewarePipeline<WorktreeCreateContext>? _createPipeline;
     private int _disposed;
@@ -206,16 +206,16 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>所有 worktree 会话集合</returns>
     public async Task<IEnumerable<AgentWorktreeSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default) {
-        var reply = new TaskCompletionSource<IReadOnlyList<AgentWorktreeSession>>();
+        var reply = new TaskCompletionSource<IEnumerable<AgentWorktreeSession>>();
         await _sessionActor.SendAsync(new GetAllSessionsCmd(reply), cancellationToken).ConfigureAwait(false);
         return await _sessionActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 获取所有会话的内部实现 — 由 Actor Consumer 串行调用，无需锁
+    /// 获取所有会话的内部实现 — 由 Actor Consumer 串行调用，无需锁。返回不可变引用,无需拷贝。
     /// </summary>
-    private IReadOnlyList<AgentWorktreeSession> GetAllSessionsInternal()
-        => _sessions.Values.ToList();
+    private IEnumerable<AgentWorktreeSession> GetAllSessionsInternal()
+        => _sessions.Values;
 
     /// <summary>
     /// 清理过期的临时 worktree，按最后写入时间与未提交/未推送检查筛选
@@ -415,7 +415,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// 保存会话的内部实现 — 由 Actor Consumer 串行调用，无需锁
     /// </summary>
     private async Task SaveSessionInternalAsync(AgentWorktreeSession session) {
-        _sessions[session.AgentId] = session;
+        _sessions = _sessions.SetItem(session.AgentId, session);
         await PersistActiveWorktreeSessionAsync(session).ConfigureAwait(false);
     }
 
@@ -433,7 +433,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// 移除会话的内部实现 — 由 Actor Consumer 串行调用，无需锁
     /// </summary>
     private async Task RemoveSessionInternalAsync(string agentId) {
-        _sessions.Remove(agentId);
+        _sessions = _sessions.Remove(agentId);
         await ClearActiveWorktreeSessionAsync().ConfigureAwait(false);
     }
 

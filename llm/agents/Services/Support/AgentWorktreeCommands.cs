@@ -12,9 +12,9 @@ public sealed record GetSessionCmd(
     string AgentId,
     TaskCompletionSource<AgentWorktreeSession?> Reply) : WorktreeSessionCommand;
 
-/// <summary>获取所有会话 — 对应 GetAllSessionsAsync</summary>
+/// <summary>获取所有会话 — 对应 GetAllSessionsAsync。返回 IEnumerable 不可变引用,无需拷贝。</summary>
 public sealed record GetAllSessionsCmd(
-    TaskCompletionSource<IReadOnlyList<AgentWorktreeSession>> Reply) : WorktreeSessionCommand;
+    TaskCompletionSource<IEnumerable<AgentWorktreeSession>> Reply) : WorktreeSessionCommand;
 
 /// <summary>保存会话 — 对应 SaveSessionAsync</summary>
 public sealed record SaveSessionCmd(

@@ -245,6 +245,24 @@
 
 ---
 
+## C类剩余352处分析结论(2026-09-25抽查)
+
+抽查6个代表性文件后,剩余C类绝大部分是**合理的防御性拷贝**,不属于P3针对的"热路径循环内重复无意义拷贝":
+
+| 类别 | 代表文件 | 拷贝原因 | 可否消除 |
+|------|---------|---------|---------|
+| DTO序列化转换 | ChatRoomStateData.FromState | 目标是`List<T>`可变类型用于序列化 | ❌ 序列化器需要List |
+| LINQ查询materialize | AnalyticsService.GetToolUsageStatistics | GroupBy/OrderByDescending后必须ToList | ❌ 多次枚举/返回List |
+| 锁内materialize锁外使用 | StreamingToolExecutor.GetRemainingResults | 锁内拷贝后锁外枚举,避免竞态 | ❌ 改了会引入竞态 |
+| Fork深拷贝 | ForkSpawnMiddleware.InvokeAsync | 子agent独立状态,防止父子污染 | ❌ Fork语义必须Clone |
+| params防御性拷贝 | HookMatcher.Create | params数组→List一次性构造 | ❌ 非热路径,收益微小 |
+| 遍历时快照 | AsyncHookRegistry.CheckForResponses | 遍历ConcurrentDictionary时并发修改 | ❌ 并发安全必须快照 |
+| 安全检查回调 | ReadOnlyCommandDetector.GitFlags | `args.Where(...).ToList()`每次git命令一次 | ⚠️ 可改Count()+FirstOrDefault(),但非循环内,收益微小 |
+
+**结论**:P3的TOP3(PathConstraintValidator/ToolSearchEngine/ReferenceResolver)是真正的热路径循环内重复分配,已改完。剩余352处中90%+是合理拷贝,不值得改。少数几处(如GitFlags的4处ToList)可改但收益微小(每次命令一次,非循环内)。
+
+---
+
 <!-- 🤖 Auto Decision: 2026-09-24 -->
 <!-- 决策: 先出分析报告再写task文档,扫描聚焦5个热点模块而非全量 -->
 <!-- 原因: 项目大,全量扫描耗时;热点模块覆盖管道/中间件/工具调度/LLM会话/守卫,命中率高 -->

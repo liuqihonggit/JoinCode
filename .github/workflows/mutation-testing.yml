@@ -27,7 +27,7 @@ on:
           - '60'
           - '80'
   schedule:
-    - cron: '0 21 * * *'
+    - cron: '40 8 * * *'
 
 concurrency:
   group: mutation-${{ github.ref }}

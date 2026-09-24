@@ -22,14 +22,14 @@ public sealed class FileChatRoomStoreTests : IDisposable {
             MaxMessageCount = maxMessageCount,
         };
         for (var i = 0; i < messageCount; i++) {
-            state.Messages[$"msg_{i:D4}"] = new TeamMessage {
+            state = state.TryAddMessage(new TeamMessage {
                 MessageId = $"msg_{i:D4}",
                 TeamId = teamId,
                 SenderId = "sender",
                 Content = $"消息 {i}",
                 MessageType = "text",
                 Timestamp = DateTime.UtcNow.AddSeconds(i),
-            };
+            }).State;
         }
         return state;
     }
@@ -37,11 +37,10 @@ public sealed class FileChatRoomStoreTests : IDisposable {
     [Fact]
     public async Task SaveAsync_LoadAsync_RoundTrip() {
         var state = CreateState("team_001", messageCount: 3);
-        state.SessionId = "session1";
-        state.Members.Add("agent1");
-        state.Members.Add("agent2");
-        state.MemberDetails["agent1"] = new TeamMemberInfo { AgentId = "agent1", Role = "owner", JoinedAt = DateTime.UtcNow };
-        state.AllowedPaths["/tmp"] = new TeamAllowedPath { Path = "/tmp", AccessLevel = AccessLevel.Write };
+        state = state with { SessionId = "session1" };
+        state = state with { Members = state.Members.Add("agent1").Add("agent2") };
+        state = state with { MemberDetails = state.MemberDetails.Add("agent1", new TeamMemberInfo { AgentId = "agent1", Role = "owner", JoinedAt = DateTime.UtcNow }) };
+        state = state with { AllowedPaths = state.AllowedPaths.Add("/tmp", new TeamAllowedPath { Path = "/tmp", AccessLevel = AccessLevel.Write }) };
 
         await _store.SaveAsync("team_001", state);
         var loaded = await _store.LoadAsync("team_001");

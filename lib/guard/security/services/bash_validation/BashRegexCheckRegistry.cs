@@ -354,8 +354,8 @@ public static class BashRegexCheckRegistry {
 
                 var hasFlagCharsInside = Regex.IsMatch(insideQuote, @"^-+[a-zA-Z0-9$`]");
 
-                var hasFlagCharsContinuing = Regex.IsMatch(insideQuote, @"^-+$") &&
-                    charAfterQuote.HasValue &&
+                var hasFlagCharsContinuing = charAfterQuote.HasValue &&
+                    Regex.IsMatch(insideQuote, @"^-+$") &&
                     Regex.IsMatch(charAfterQuote.GetValueOrDefault().ToString(), @"[a-zA-Z0-9\\${`-]");
 
                 var hasFlagCharsInNextQuote = (insideQuote == "" || Regex.IsMatch(insideQuote, @"^-+$")) &&

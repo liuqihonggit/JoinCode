@@ -6,7 +6,7 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue), ServiceLifetime.Singleton)]
 public sealed partial class AgentInputForwardQueue : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue {
-    private readonly ConcurrentDictionary<string, Channel<string>> _queues;
+    private volatile ImmutableDictionary<string, Channel<string>> _queues = ImmutableDictionary<string, Channel<string>>.Empty;
     private readonly ILogger? _logger;
 
     /// <summary>
@@ -14,7 +14,6 @@ public sealed partial class AgentInputForwardQueue : ServiceEntity, JoinCode.Abs
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
     public AgentInputForwardQueue(ILogger? logger = null) {
-        _queues = new ConcurrentDictionary<string, Channel<string>>();
         _logger = logger;
     }
 
@@ -23,16 +22,37 @@ public sealed partial class AgentInputForwardQueue : ServiceEntity, JoinCode.Abs
     /// </summary>
     public void Register(string agentId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        _queues[agentId] = Channel.CreateUnbounded<string>();
+        SetQueue(agentId, Channel.CreateUnbounded<string>());
     }
 
     /// <summary>
     /// 注销子代理的输入转发队列
     /// </summary>
     public void Unregister(string agentId) {
-        if (_queues.TryRemove(agentId, out var channel)) {
+        if (TryRemoveQueue(agentId, out var channel)) {
             channel.Writer.TryComplete();
         }
+    }
+
+    private void SetQueue(string key, Channel<string> value) {
+        var current = _queues;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _queues, updated, current) == current) return;
+            current = _queues;
+        }
+    }
+
+    private bool TryRemoveQueue(string key, out Channel<string> value) {
+        value = null!;
+        var current = _queues;
+        while (current.ContainsKey(key)) {
+            value = current[key];
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _queues, updated, current) == current) return true;
+            current = _queues;
+        }
+        return false;
     }
 
     /// <summary>

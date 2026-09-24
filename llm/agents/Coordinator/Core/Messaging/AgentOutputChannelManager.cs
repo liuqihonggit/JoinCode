@@ -9,7 +9,7 @@ namespace Core.Agents.Coordinator.Core.Messaging;
 public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager {
     private readonly System.Threading.Channels.Channel<JoinCode.Abstractions.Interfaces.AgentOutputChunk> _outputChannel =
         System.Threading.Channels.Channel.CreateUnbounded<JoinCode.Abstractions.Interfaces.AgentOutputChunk>();
-    private readonly ConcurrentDictionary<string, string?> _activeAgents = new();
+    private volatile ImmutableDictionary<string, string?> _activeAgents = ImmutableDictionary<string, string?>.Empty;
     private volatile string? _displayModeTarget;
     private readonly ILogger? _logger;
 
@@ -26,14 +26,14 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
     /// </summary>
     public void Register(string agentId, string? displayName) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        _activeAgents[agentId] = displayName;
+        SetActiveAgent(agentId, displayName);
     }
 
     /// <summary>
     /// 注销 Agent
     /// </summary>
     public void Unregister(string agentId) {
-        _activeAgents.TryRemove(agentId, out _);
+        TryRemoveActiveAgent(agentId, out _);
     }
 
     /// <summary>
@@ -87,5 +87,26 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
     public bool ShouldDisplay(string agentId) {
         var target = _displayModeTarget;
         return target is null || string.Equals(target, agentId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void SetActiveAgent(string key, string? value) {
+        var current = _activeAgents;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _activeAgents, updated, current) == current) return;
+            current = _activeAgents;
+        }
+    }
+
+    private bool TryRemoveActiveAgent(string key, out string? value) {
+        value = null!;
+        var current = _activeAgents;
+        while (current.ContainsKey(key)) {
+            value = current[key];
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _activeAgents, updated, current) == current) return true;
+            current = _activeAgents;
+        }
+        return false;
     }
 }

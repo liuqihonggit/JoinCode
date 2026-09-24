@@ -9,7 +9,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
     private readonly IMailbox _messageBroker;
     private readonly IMailboxMessageSink? _messageSink;
     private readonly ILogger<MailboxPoller>? _logger;
-    private readonly ConcurrentDictionary<string, CancellationTokenSource> _pollingAgents;
+    private volatile ImmutableDictionary<string, CancellationTokenSource> _pollingAgents = ImmutableDictionary<string, CancellationTokenSource>.Empty;
     private readonly TimeSpan _pollInterval;
     private int _isDisposed;
 
@@ -30,7 +30,6 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
         _mailboxService = mailboxService ?? throw new ArgumentNullException(nameof(mailboxService));
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));
         _logger = logger;
-        _pollingAgents = new ConcurrentDictionary<string, CancellationTokenSource>();
         _pollInterval = pollInterval ?? TimeSpan.FromMilliseconds(500);
         _messageSink = messageSink;
     }
@@ -48,7 +47,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
         }
 
         var cts = new CancellationTokenSource();
-        if (!_pollingAgents.TryAdd(key, cts)) {
+        if (!TryAddPollingAgent(key, cts)) {
             cts.Dispose();
             return;
         }
@@ -65,7 +64,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
     /// <param name="sessionId">会话标识</param>
     public void StopPolling(string agentId, string sessionId) {
         var key = GetPollingKey(agentId, sessionId);
-        if (_pollingAgents.TryRemove(key, out var cts)) {
+        if (TryRemovePollingAgent(key, out var cts)) {
             cts.Cancel();
             cts.Dispose();
             _logger?.LogInformation("Mailbox polling stopped for {AgentId} in session {SessionId}", agentId, sessionId);
@@ -118,6 +117,28 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
         return $"{sessionId}:{agentId}";
     }
 
+    private bool TryAddPollingAgent(string key, CancellationTokenSource value) {
+        var current = _pollingAgents;
+        while (!current.ContainsKey(key)) {
+            var updated = current.Add(key, value);
+            if (Interlocked.CompareExchange(ref _pollingAgents, updated, current) == current) return true;
+            current = _pollingAgents;
+        }
+        return false;
+    }
+
+    private bool TryRemovePollingAgent(string key, out CancellationTokenSource value) {
+        value = null!;
+        var current = _pollingAgents;
+        while (current.ContainsKey(key)) {
+            value = current[key];
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _pollingAgents, updated, current) == current) return true;
+            current = _pollingAgents;
+        }
+        return false;
+    }
+
     /// <summary>
     /// 异步释放轮询器，取消所有活跃轮询任务并清理资源
     /// </summary>
@@ -133,7 +154,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable {
                 TaskContinuationOptions.ExecuteSynchronously));
         }
 
-        _pollingAgents.Clear();
+        Interlocked.Exchange(ref _pollingAgents, ImmutableDictionary<string, CancellationTokenSource>.Empty);
         return tasks.Count == 0 ? ValueTask.CompletedTask : new ValueTask(Task.WhenAll(tasks));
     }
 }

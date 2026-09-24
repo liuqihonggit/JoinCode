@@ -47,7 +47,7 @@ public sealed record TeamInfo {
     /// <summary>
     /// 成员列表
     /// </summary>
-    public IReadOnlyList<string> Members { get; init; } = Array.Empty<string>();
+    public IReadOnlyCollection<string> Members { get; init; } = Array.Empty<string>();
 
     /// <summary>
     /// 成员详细信息

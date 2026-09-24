@@ -396,7 +396,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
     }
 
     /// <summary>获取远程客户端和已知的工具规格</summary>
-    private (IMcpClient? Client, List<ToolSpec>? PreviousSpecs) GetClientAndSpecs(string clientId)
+    private (IMcpClient? Client, IReadOnlyList<ToolSpec>? PreviousSpecs) GetClientAndSpecs(string clientId)
         => (_clients.GetClient(clientId), _toolSpecCache.GetSpecs(clientId));
 
     /// <summary>

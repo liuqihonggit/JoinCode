@@ -68,7 +68,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
 
         var executionEntity = ToolExecutionEntityFactory.Create(
             toolName, toolUseId: null, spanId: span?.SpanId, arguments: arguments);
-        executionEntity.LifecycleState = EntityLifecycle.Active;
+        ToolExecutionEntity.Registry.TransitionLifecycle(executionEntity.ObjectId, EntityLifecycle.Active);
         executionEntity.StartedAt = DateTime.UtcNow;
         span?.SetTag("entity.object_id", executionEntity.UniqueId);
 
@@ -105,7 +105,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         } catch (OperationCanceledException) {
             _logger.LogInformation(L.T(StringKey.ToolExecCancelledLog, toolName));
             span?.SetStatus(TelemetryStatusCode.Error, "Cancelled");
-            executionEntity.LifecycleState = EntityLifecycle.Completed;
+            ToolExecutionEntity.Registry.TransitionLifecycle(executionEntity.ObjectId, EntityLifecycle.Completed);
             executionEntity.CompletedAt = DateTime.UtcNow;
             executionEntity.IsError = true;
             throw;
@@ -114,7 +114,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             span?.RecordException(ex);
             Diag.WriteError($"[ToolExec] Tool={toolName}", ex);
             var exceptionError = CreateErrorResult($"Error executing tool '{toolName}': {ex.Message}");
-            executionEntity.LifecycleState = EntityLifecycle.Completed;
+            ToolExecutionEntity.Registry.TransitionLifecycle(executionEntity.ObjectId, EntityLifecycle.Completed);
             executionEntity.CompletedAt = DateTime.UtcNow;
             executionEntity.IsError = true;
             RaiseToolExecutionCompleted(toolName, exceptionError, arguments, ex.Message);
@@ -192,7 +192,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
     private static void CompleteExecutionEntity(ToolExecutionContext context) {
         var entity = context.ExecutionEntity!;
         entity.CompletedAt = DateTime.UtcNow;
-        entity.LifecycleState = EntityLifecycle.Completed;
+        ToolExecutionEntity.Registry.TransitionLifecycle(entity.ObjectId, EntityLifecycle.Completed);
         entity.IsError = context.Result?.IsError ?? true;
         entity.ResultSummary = context.Result?
             .Content?.FirstOrDefault(c => c.Type == ToolContentType.Text)?

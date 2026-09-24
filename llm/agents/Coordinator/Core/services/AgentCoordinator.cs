@@ -18,7 +18,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly ISwarmPermissionBridge? _permissionBridge;
     private readonly TeammateReconnectDispatcher _reconnectDispatcher;
 
-    private readonly ConcurrentDictionary<string, AgentExecutionContext> _executionContexts;
+    private volatile ImmutableDictionary<string, AgentExecutionContext> _executionContexts = ImmutableDictionary<string, AgentExecutionContext>.Empty;
     private readonly Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
     private readonly SecretaryRegistry _secretaryRegistry;
     private readonly MiddlewarePipeline<AgentDisposeContext> _disposePipeline;
@@ -70,7 +70,6 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _forkManager = forkManager;
         _permissionBridge = permission?.PermissionBridge;
         _reconnectDispatcher = new TeammateReconnectDispatcher(team?.ReconnectService, _logger);
-        _executionContexts = new ConcurrentDictionary<string, AgentExecutionContext>();
         _secretaryRegistry = new SecretaryRegistry((task, opts, ct) => SpawnSubAgentAsync(task, opts, ct), _logger);
 
         var spawnLimit = Math.Max(1, (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentSpawns);
@@ -140,7 +139,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
                     _agentStartTimer.Record(ctx.AgentId, ctx.SpawnedAt);
                 }
                 if (ctx.ExecutionContext is not null) {
-                    _executionContexts[ctx.AgentId] = ctx.ExecutionContext;
+                    SetExecutionContext(ctx.AgentId, ctx.ExecutionContext);
                 }
             }
 
@@ -198,7 +197,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
                 SpawnedAt = _clock.GetUtcNow(),
                 RetryCount = 0
             };
-            _executionContexts[agent.ObjectId.UniqueId] = context;
+            SetExecutionContext(agent.ObjectId.UniqueId, context);
         }
 
         context.LastExecutionStart = _clock.GetUtcNow();
@@ -366,7 +365,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         };
         await _disposePipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
 
-        _executionContexts.TryRemove(agentId, out _);
+        TryRemoveExecutionContext(agentId, out _);
         _agentStartTimer.Remove(agentId);
     }
 
@@ -759,6 +758,27 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     #endregion
 
     #region 私有方法
+
+    private void SetExecutionContext(string key, AgentExecutionContext value) {
+        var current = _executionContexts;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _executionContexts, updated, current) == current) return;
+            current = _executionContexts;
+        }
+    }
+
+    private bool TryRemoveExecutionContext(string key, out AgentExecutionContext value) {
+        value = null!;
+        var current = _executionContexts;
+        while (current.TryGetValue(key, out var existing)) {
+            value = existing;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _executionContexts, updated, current) == current) return true;
+            current = _executionContexts;
+        }
+        return false;
+    }
 
     /// <summary>
     /// 重连已断开的队友 — 委托给 TeammateReconnectDispatcher

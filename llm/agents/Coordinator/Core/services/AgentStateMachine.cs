@@ -10,7 +10,7 @@ public sealed partial class AgentStateMachine {
     private static readonly FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> Transitions = CreateTransitionTable();
 
     private readonly ILogger? _logger;
-    private readonly ConcurrentDictionary<string, AgentStateContext> _states;
+    private volatile ImmutableDictionary<string, AgentStateContext> _states = ImmutableDictionary<string, AgentStateContext>.Empty;
     private readonly IClockService _clock;
 
     /// <summary>Agent 状态变更事件，参数携带 Agent ID 与新旧状态</summary>
@@ -24,7 +24,6 @@ public sealed partial class AgentStateMachine {
     public AgentStateMachine(ILogger? logger = null, IClockService? clock = null) {
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _states = new ConcurrentDictionary<string, AgentStateContext>();
     }
 
     /// <summary>
@@ -32,8 +31,8 @@ public sealed partial class AgentStateMachine {
     /// </summary>
     public void RegisterAgent(string agentId, string task, SubAgentOptions? options = null) {
         var now = _clock.GetUtcNow();
-        var context = new AgentStateContext(agentId, task, options, now, _clock);
-        _states[agentId] = context;
+        var context = new AgentStateContext(agentId, task, options, now, _clock); // escapes into _states via SetState
+        SetState(agentId, context);
         _logger?.LogDebug("[AgentStateMachine] Agent {AgentId} 已注册，初始状态: {State}", agentId, context.CurrentState);
     }
 
@@ -163,7 +162,28 @@ public sealed partial class AgentStateMachine {
     /// 移除Agent状态
     /// </summary>
     public bool RemoveAgent(string agentId) {
-        return _states.TryRemove(agentId, out _);
+        return TryRemoveState(agentId, out _);
+    }
+
+    private void SetState(string key, AgentStateContext value) {
+        var current = _states;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _states, updated, current) == current) return;
+            current = _states;
+        }
+    }
+
+    private bool TryRemoveState(string key, out AgentStateContext value) {
+        value = null!;
+        var current = _states;
+        while (current.ContainsKey(key)) {
+            value = current[key];
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _states, updated, current) == current) return true;
+            current = _states;
+        }
+        return false;
     }
 
     private static bool IsFinalState(TaskExecutionStatus state) {

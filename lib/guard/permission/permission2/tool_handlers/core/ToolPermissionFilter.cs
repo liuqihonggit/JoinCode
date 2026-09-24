@@ -64,7 +64,7 @@ public sealed partial class ToolDenyRule {
 /// </summary>
 [Register(typeof(IToolPermissionFilter), ServiceLifetime.Singleton)]
 public sealed partial class ToolPermissionFilter : ServiceEntity, IToolPermissionFilter {
-    private readonly ConcurrentDictionary<string, ToolDenyRule> _denyRules;
+    private volatile ImmutableDictionary<string, ToolDenyRule> _denyRules = ImmutableDictionary<string, ToolDenyRule>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<ToolPermissionFilter>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
@@ -74,7 +74,6 @@ public sealed partial class ToolPermissionFilter : ServiceEntity, IToolPermissio
     /// <param name="logger">日志记录器</param>
     /// <param name="telemetryService">遥测服务,可选</param>
     public ToolPermissionFilter(ILogger<ToolPermissionFilter>? logger = null, ITelemetryService? telemetryService = null) {
-        _denyRules = new ConcurrentDictionary<string, ToolDenyRule>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
         _telemetryService = telemetryService;
     }
@@ -99,8 +98,7 @@ public sealed partial class ToolPermissionFilter : ServiceEntity, IToolPermissio
 
     /// <inheritdoc />
     public bool IsToolDenied(string toolName, string? permissionMode = null) {
-        foreach (var rule in _denyRules.Values) {
-            if (!string.IsNullOrEmpty(rule.PermissionMode) &&
+        foreach (var rule in _denyRules.Values) {            if (!string.IsNullOrEmpty(rule.PermissionMode) &&
                 !string.Equals(rule.PermissionMode, permissionMode, StringComparison.OrdinalIgnoreCase)) {
                 continue;
             }
@@ -131,7 +129,12 @@ public sealed partial class ToolPermissionFilter : ServiceEntity, IToolPermissio
     /// <inheritdoc />
     public void AddDenyRule(ToolDenyRule rule) {
         ArgumentNullException.ThrowIfNull(rule);
-        _denyRules[rule.RuleName] = rule;
+        var current = _denyRules;
+        while (true) {
+            var updated = current.SetItem(rule.RuleName, rule);
+            if (Interlocked.CompareExchange(ref _denyRules, updated, current) == current) break;
+            current = _denyRules;
+        }
         _logger?.LogInformation("[ToolPermissionFilter] 添加拒绝规则: {RuleName} (模式: {Pattern})",
             rule.RuleName, rule.ToolPattern);
     }
@@ -140,8 +143,14 @@ public sealed partial class ToolPermissionFilter : ServiceEntity, IToolPermissio
     public void RemoveDenyRule(string ruleName) {
         ArgumentException.ThrowIfNullOrWhiteSpace(ruleName);
 
-        if (_denyRules.TryRemove(ruleName, out _)) {
-            _logger?.LogInformation("[ToolPermissionFilter] 移除拒绝规则: {RuleName}", ruleName);
+        var current = _denyRules;
+        while (current.ContainsKey(ruleName)) {
+            var updated = current.Remove(ruleName);
+            if (Interlocked.CompareExchange(ref _denyRules, updated, current) == current) {
+                _logger?.LogInformation("[ToolPermissionFilter] 移除拒绝规则: {RuleName}", ruleName);
+                return;
+            }
+            current = _denyRules;
         }
     }
 

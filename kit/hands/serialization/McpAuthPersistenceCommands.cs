@@ -18,9 +18,9 @@ public sealed record LoadAuthCmd(
     string AuthName,
     TaskCompletionSource<AuthConfigEntry?> Reply) : McpAuthPersistenceCommand;
 
-/// <summary>列出全部认证条目 — 对应 ListAsync</summary>
+/// <summary>列出全部认证条目 — 对应 ListAsync。返回以 Name 为 key 的只读字典。</summary>
 public sealed record ListAuthCmd(
-    TaskCompletionSource<IReadOnlyList<AuthConfigEntry>> Reply) : McpAuthPersistenceCommand;
+    TaskCompletionSource<IReadOnlyDictionary<string, AuthConfigEntry>> Reply) : McpAuthPersistenceCommand;
 
 /// <summary>移除认证条目 — 对应 RemoveAsync</summary>
 public sealed record RemoveAuthCmd(

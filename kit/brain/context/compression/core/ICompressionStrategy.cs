@@ -93,8 +93,8 @@ public abstract class CompressionStrategyBase : ICompressionStrategy {
     /// <param name="contentType">内容类型</param>
     /// <returns>是否可以处理</returns>
     public virtual bool CanHandle(string content, ContentType contentType) {
-        return SupportedContentTypes.Contains(contentType) &&
-               !string.IsNullOrEmpty(content) &&
+        return !string.IsNullOrEmpty(content) &&
+               SupportedContentTypes.Contains(contentType) &&
                content.Length >= GetMinLengthThreshold();
     }
 

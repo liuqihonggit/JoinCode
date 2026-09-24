@@ -58,8 +58,8 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
     private readonly AsyncLock _lock = new();
     private readonly IFileSystem _fs;
     private readonly ILogger<HookConfigurationManager>? _logger;
-    private readonly ConcurrentDictionary<HookSource, IHookConfigurationProvider> _providers;
-    private readonly ConcurrentDictionary<string, HookConfigurationGroup> _cache;
+    private volatile ImmutableDictionary<HookSource, IHookConfigurationProvider> _providers = ImmutableDictionary<HookSource, IHookConfigurationProvider>.Empty;
+    private volatile ImmutableDictionary<string, HookConfigurationGroup> _cache = ImmutableDictionary<string, HookConfigurationGroup>.Empty;
 
     private const string CacheKey = "all_hooks";
     private int _disposed;
@@ -75,15 +75,18 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
 
         _fs = fs;
         _logger = logger;
-        _providers = new ConcurrentDictionary<HookSource, IHookConfigurationProvider>();
-        _cache = new ConcurrentDictionary<string, HookConfigurationGroup>();
     }
 
     /// <summary>
     /// 注册配置提供者
     /// </summary>
     public void RegisterProvider(HookSource source, IHookConfigurationProvider provider) {
-        _providers[source] = provider;
+        var current = _providers;
+        while (true) {
+            var updated = current.SetItem(source, provider);
+            if (Interlocked.CompareExchange(ref _providers, updated, current) == current) break;
+            current = _providers;
+        }
         _logger?.LogDebug("Registered hook configuration provider for source: {Source}", source);
     }
 
@@ -128,7 +131,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
             }
         }
 
-        _cache[CacheKey] = group;
+        Interlocked.Exchange(ref _cache, _cache.SetItem(CacheKey, group));
         return group;
 
     }
@@ -168,7 +171,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         await provider.AddHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
-        _cache.Clear();
+        Interlocked.Exchange(ref _cache, ImmutableDictionary<string, HookConfigurationGroup>.Empty);
 
         _logger?.LogInformation(
             "Added hook to {Source} for event {Event}: {HookDisplay}",
@@ -196,7 +199,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         await provider.RemoveHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
-        _cache.Clear();
+        Interlocked.Exchange(ref _cache, ImmutableDictionary<string, HookConfigurationGroup>.Empty);
 
         _logger?.LogInformation(
             "Removed hook from {Source} for event {Event}: {HookDisplay}",
@@ -208,7 +211,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
 
     /// <inheritdoc />
     public Task InvalidateCacheAsync(CancellationToken cancellationToken = default) {
-        _cache.Clear();
+        Interlocked.Exchange(ref _cache, ImmutableDictionary<string, HookConfigurationGroup>.Empty);
         _logger?.LogDebug("Hook configuration cache invalidated");
         return Task.CompletedTask;
     }

@@ -91,8 +91,26 @@ public sealed class PlanEntity : Entity {
 /// Plan 注册器 — 基于 MapRegistry
 /// </summary>
 public sealed class PlanEntityRegistry : MapRegistry<ObjectId, PlanEntity> {
+    private readonly SecondaryIndex<ObjectId, PlanEntity, PlanStatus> _byStatus;
+
+    /// <summary>构造 PlanEntityRegistry，初始化次级索引</summary>
+    public PlanEntityRegistry() {
+        _byStatus = CreateIndex(p => p.Status);
+    }
+
     internal void Add(ObjectId id, PlanEntity plan) => AddCore(id, plan);
     internal bool Remove(ObjectId id) => RemoveCore(id);
-    /// <summary>按状态获取计划实体列表。</summary>
-    public IEnumerable<PlanEntity> GetByStatus(PlanStatus status) => Where(p => p.Status == status);
+
+    /// <summary>状态转换 — 更新 PlanEntity.Status 并同步次级索引</summary>
+    public void TransitionStatus(ObjectId id, PlanStatus newState) {
+        var entity = Get(id);
+        if (entity is null) return;
+        var oldState = entity.Status;
+        if (oldState == newState) return;
+        entity.Status = newState;
+        Reindex(_byStatus, id, oldState, newState);
+    }
+
+    /// <summary>按状态获取计划实体列表（O(1) 索引查找）。</summary>
+    public IEnumerable<PlanEntity> GetByStatus(PlanStatus status) => _byStatus.GetValues(status, AsDictionary());
 }

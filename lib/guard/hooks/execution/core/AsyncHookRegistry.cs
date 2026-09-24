@@ -237,10 +237,10 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
         var responses = new List<AsyncHookResponse>();
         var toRemove = new List<string>();
 
-        var hooks = GetAll().ToList();
+        var hooks = AsDictionary();
         _logger?.LogDebug("Checking {Count} async hooks for responses", hooks.Count);
 
-        foreach (var hook in hooks) {
+        foreach (var hook in hooks.Values) {
             try {
                 if (await ProcessHookAsync(hook, responses, cancellationToken).ConfigureAwait(false)) {
                     toRemove.Add(hook.ProcessId);
@@ -359,7 +359,7 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
 
     /// <inheritdoc />
     public async Task FinalizeAllAsync(CancellationToken cancellationToken = default) {
-        var hooks = GetAll().ToList();
+        var hooks = AsDictionary().Values;
 
         var tasks = hooks
             .Select(async hook => {

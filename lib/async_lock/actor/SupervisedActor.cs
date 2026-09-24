@@ -219,7 +219,7 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
     }
 
     /// <summary>获取所有子 Actor 句柄</summary>
-    protected IReadOnlyCollection<ChildActorHandle> GetChildren() => _children.Values.ToArray();
+    protected IReadOnlyList<ChildActorHandle> GetChildren() => _children.Values.ToArray();
 
     /// <summary>按 ID 获取子 Actor 句柄</summary>
     protected ChildActorHandle? GetChild(string childId) =>

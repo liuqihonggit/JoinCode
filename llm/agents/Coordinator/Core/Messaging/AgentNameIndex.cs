@@ -6,32 +6,32 @@ namespace Core.Agents.Coordinator.Core.Messaging;
 /// 注销时仅移除属于该 agentId 的键（同名子代理不误删）
 /// </summary>
 internal sealed class AgentNameIndex {
-    private readonly ConcurrentDictionary<string, string> _index = new(StringComparer.OrdinalIgnoreCase);
+    private volatile ImmutableDictionary<string, string> _index = ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 注册子代理的多个名称键到 agentId
     /// </summary>
     internal void Register(string agentId, string name, string task, string? displayName) {
-        _index[agentId] = agentId;
+        SetIndex(agentId, agentId);
         if (!string.IsNullOrEmpty(name))
-            _index[name] = agentId;
+            SetIndex(name, agentId);
         if (!string.IsNullOrEmpty(task))
-            _index[task] = agentId;
+            SetIndex(task, agentId);
         if (!string.IsNullOrEmpty(displayName))
-            _index[displayName] = agentId;
+            SetIndex(displayName, agentId);
     }
 
     /// <summary>
     /// 注销子代理的名称键 — 仅移除属于该 agentId 的键
     /// </summary>
     internal void Unregister(string agentId, string name, string task, string? displayName) {
-        _index.TryRemove(new KeyValuePair<string, string>(agentId, agentId));
+        TryRemoveIndexIfMatch(agentId, agentId);
         if (!string.IsNullOrEmpty(name))
-            _index.TryRemove(new KeyValuePair<string, string>(name, agentId));
+            TryRemoveIndexIfMatch(name, agentId);
         if (!string.IsNullOrEmpty(task))
-            _index.TryRemove(new KeyValuePair<string, string>(task, agentId));
+            TryRemoveIndexIfMatch(task, agentId);
         if (!string.IsNullOrEmpty(displayName))
-            _index.TryRemove(new KeyValuePair<string, string>(displayName, agentId));
+            TryRemoveIndexIfMatch(displayName, agentId);
     }
 
     /// <summary>
@@ -39,5 +39,24 @@ internal sealed class AgentNameIndex {
     /// </summary>
     internal string? Find(string name) {
         return _index.TryGetValue(name, out var agentId) ? agentId : null;
+    }
+
+    private void SetIndex(string key, string value) {
+        var current = _index;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _index, updated, current) == current) return;
+            current = _index;
+        }
+    }
+
+    private bool TryRemoveIndexIfMatch(string key, string expectedValue) {
+        var current = _index;
+        while (current.TryGetValue(key, out var existing) && string.Equals(existing, expectedValue, StringComparison.Ordinal)) {
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _index, updated, current) == current) return true;
+            current = _index;
+        }
+        return false;
     }
 }

@@ -5,7 +5,7 @@ namespace Core.CostTracking;
 /// 从 CostTracker 提取,统一管理模型定价的设置、查询、成本计算
 /// </summary>
 internal sealed class ModelPricing {
-    private readonly ConcurrentDictionary<string, ModelCostInfo> _modelCosts = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, ModelCostInfo> _modelCosts = ImmutableDictionary<string, ModelCostInfo>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private readonly ModelPricingTable _pricingTable;
     private readonly ILogger? _logger;
 
@@ -18,11 +18,16 @@ internal sealed class ModelPricing {
 
     /// <summary>设置模型定价 — 覆盖默认定价表</summary>
     public void Set(string model, decimal promptCostPer1K, decimal completionCostPer1K) {
-        _modelCosts[model] = new ModelCostInfo {
+        var entry = new ModelCostInfo {
             Model = model,
             PromptCostPer1KTokens = promptCostPer1K,
             CompletionCostPer1KTokens = completionCostPer1K
         };
+        while (true) {
+            var current = _modelCosts;
+            var updated = current.SetItem(model, entry);
+            if (Interlocked.CompareExchange(ref _modelCosts, updated, current) == current) break;
+        }
 
         _logger?.LogInformation("[CostTracker] 设置模型定价 - {Model}: Prompt ${PromptCost}/1K, Completion ${CompletionCost}/1K",
             model, promptCostPer1K, completionCostPer1K);

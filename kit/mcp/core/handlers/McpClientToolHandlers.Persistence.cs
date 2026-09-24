@@ -9,7 +9,7 @@ namespace McpToolDispatch;
 public sealed partial class McpClientToolHandlers {
     private readonly IFileSystem? _persistenceFs;
     private readonly string? _stateFilePath;
-    private readonly ConcurrentDictionary<string, McpConnectionEntry> _connectionConfigs = new();
+    private ImmutableDictionary<string, McpConnectionEntry> _connectionConfigs = ImmutableDictionary<string, McpConnectionEntry>.Empty;
     private readonly Task? _restoreTask;
     private readonly CancellationTokenSource? _restoreCts;
     private volatile bool _isRestoring;

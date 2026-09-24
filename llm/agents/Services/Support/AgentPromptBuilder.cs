@@ -160,8 +160,8 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
 
         if (definition.Tools is { Count: > 0 } tools && definition.DisallowedTools is { Count: > 0 } disallowedTools) {
             var denySet = new HashSet<string>(disallowedTools);
-            var effectiveTools = tools.Where(t => !denySet.Contains(t)).ToList();
-            return effectiveTools.Count == 0 ? "无" : string.Join(", ", effectiveTools);
+        var effectiveTools = tools.Where(t => !denySet.Contains(t));
+        return !effectiveTools.Any() ? "无" : string.Join(", ", effectiveTools);
         }
 
         if (definition.Tools is { Count: > 0 } toolsOnly) return string.Join(", ", toolsOnly);

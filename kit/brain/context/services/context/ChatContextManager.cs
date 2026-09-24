@@ -84,15 +84,35 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable 
 
     private readonly SystemPromptStore _promptStore = new();
     private readonly List<ToolSpec> _currentToolSpecs = [];
-    private readonly ConcurrentDictionary<string, AppendOnlyLog> Logs = new();
+    private ImmutableDictionary<string, AppendOnlyLog> Logs = ImmutableDictionary<string, AppendOnlyLog>.Empty;
 
     /// <summary>当前会话的对话日志 — 按 SessionId 隔离，切换会话时自动分桶</summary>
-    private AppendOnlyLog Log => Logs.GetOrAdd(_sessionId, _ => new AppendOnlyLog());
+    private AppendOnlyLog Log => GetOrAddLog(_sessionId);
+
+    private AppendOnlyLog GetOrAddLog(string sessionId) {
+        if (Logs.TryGetValue(sessionId, out var existing)) return existing;
+        var newLog = new AppendOnlyLog();
+        while (true) {
+            var current = Logs;
+            if (current.TryGetValue(sessionId, out existing)) return existing;
+            var updated = current.Add(sessionId, newLog);
+            if (Interlocked.CompareExchange(ref Logs, updated, current) == current) return newLog;
+        }
+    }
 
     /// <summary>缓存破坏检测器 — 按 agentId 隔离，主代理(null)和子代理互不干扰基线</summary>
-    private readonly ConcurrentDictionary<string, CacheBreakDetector> _cacheBreakDetectorsByAgent = new();
-    private CacheBreakDetector GetCacheBreakDetector(string? agentId)
-        => _cacheBreakDetectorsByAgent.GetOrAdd(agentId ?? "main", _ => new CacheBreakDetector());
+    private ImmutableDictionary<string, CacheBreakDetector> _cacheBreakDetectorsByAgent = ImmutableDictionary<string, CacheBreakDetector>.Empty;
+    private CacheBreakDetector GetCacheBreakDetector(string? agentId) {
+        var key = agentId ?? "main";
+        if (_cacheBreakDetectorsByAgent.TryGetValue(key, out var existing)) return existing;
+        var newDetector = new CacheBreakDetector();
+        while (true) {
+            var current = _cacheBreakDetectorsByAgent;
+            if (current.TryGetValue(key, out existing)) return existing;
+            var updated = current.Add(key, newDetector);
+            if (Interlocked.CompareExchange(ref _cacheBreakDetectorsByAgent, updated, current) == current) return newDetector;
+        }
+    }
 
     private readonly DiscoveredToolSet _discoveredTools = new();
     private readonly List<DeferredToolInfo> _deferredTools = [];

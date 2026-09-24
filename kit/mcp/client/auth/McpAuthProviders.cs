@@ -184,6 +184,8 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable {
     private readonly McpAuthContext _authContext = new();
     private string? _pendingStepUpScope;
     private int _disposed;
+    private volatile bool _needsStepUpCache;
+    private volatile bool _needsStepUpCacheValid;
 
     /// <summary>认证类型 — 固定为 OAuth2。</summary>
     public McpAuthType AuthType => McpAuthType.OAuth2;
@@ -197,13 +199,20 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable {
     /// <summary>是否需要 Step-Up 认证 — 当前 scope 不包含待提升 scope 时为 true。</summary>
     public bool NeedsStepUp {
         get {
-            if (string.IsNullOrEmpty(_pendingStepUpScope)) return false;
-            var currentScopes = new HashSet<string>(
-                _authContext.Scope?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [],
-                StringComparer.Ordinal);
-            return _pendingStepUpScope.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Any(s => !currentScopes.Contains(s));
+            if (_needsStepUpCacheValid) return _needsStepUpCache;
+            _needsStepUpCache = ComputeNeedsStepUp();
+            _needsStepUpCacheValid = true;
+            return _needsStepUpCache;
         }
+    }
+
+    private bool ComputeNeedsStepUp() {
+        if (string.IsNullOrEmpty(_pendingStepUpScope)) return false;
+        var currentScopes = new HashSet<string>(
+            _authContext.Scope?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [],
+            StringComparer.Ordinal);
+        return _pendingStepUpScope.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Any(s => !currentScopes.Contains(s));
     }
 
     /// <summary>
@@ -255,12 +264,14 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable {
     public void MarkStepUpPending(string scope) {
         ArgumentException.ThrowIfNullOrEmpty(scope);
         _pendingStepUpScope = scope;
+        _needsStepUpCacheValid = false;
         _logger?.LogInformation("Step-Up 认证待处理，所需 scope: {Scope}", scope);
     }
 
     /// <summary>清除 Step-Up 待处理状态 — 令牌保存后调用。</summary>
     public void ClearStepUpPending() {
         _pendingStepUpScope = null;
+        _needsStepUpCacheValid = false;
     }
 
     /// <summary>
@@ -287,6 +298,7 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable {
             _authContext.AccessToken = tokenResponse.AccessToken;
             _authContext.RefreshToken = tokenResponse.RefreshToken;
             _authContext.Scope = tokenResponse.Scope ?? _authContext.Scope;
+            _needsStepUpCacheValid = false;
 
             if (tokenResponse.ExpiresIn > 0) {
                 _authContext.ExpiresAt = _clock.GetUtcNow().AddSeconds(tokenResponse.ExpiresIn);

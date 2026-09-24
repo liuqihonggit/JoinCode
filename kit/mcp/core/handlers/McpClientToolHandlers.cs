@@ -133,13 +133,13 @@ public partial class McpClientToolHandlers : ServiceEntity {
                     return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
                 }
                 _clients[connection_name] = client;
-                _connectionConfigs[connection_name] = new McpConnectionEntry {
+                Interlocked.Exchange(ref _connectionConfigs, _connectionConfigs.SetItem(connection_name, new McpConnectionEntry {
                     Name = connection_name,
                     Endpoint = endpoint,
                     TransportType = transport_type,
                     UseOAuth = use_oauth,
                     AuthName = auth_name
-                };
+                }));
             }
 
             if (_deps.ElicitationHandler is not null) {
@@ -201,7 +201,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
 
             await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
             _clients.Remove(connection_name);
-            _connectionConfigs.TryRemove(connection_name, out _);
+            Interlocked.Exchange(ref _connectionConfigs, _connectionConfigs.Remove(connection_name));
 
             if (_deps.ToolRegistry is not null) {
                 await _deps.ToolRegistry.UnregisterRemoteClientAsync(connection_name, cancellationToken).ConfigureAwait(false);
@@ -238,7 +238,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
             if (_clients.TryGetValue(connection_name, out var client)) {
                 await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
                 _clients.Remove(connection_name);
-                _connectionConfigs.TryRemove(connection_name, out _);
+                Interlocked.Exchange(ref _connectionConfigs, _connectionConfigs.Remove(connection_name));
 
                 if (_deps.ToolRegistry is not null) {
                     await _deps.ToolRegistry.UnregisterRemoteClientAsync(connection_name, cancellationToken).ConfigureAwait(false);

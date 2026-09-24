@@ -15,7 +15,7 @@ internal sealed record SwitchProviderCmd(SandboxType Type, CancellationToken Ct,
 /// 状态由 Consumer 线程独占写入，外部通过 volatile 读取。
 /// </summary>
 internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
-    private readonly ConcurrentDictionary<SandboxType, ISandboxProvider> _providers;
+    private volatile ImmutableDictionary<SandboxType, ISandboxProvider> _providers = ImmutableDictionary<SandboxType, ISandboxProvider>.Empty;
     private readonly ILogger<SandboxManager>? _logger;
 
     private volatile ISandboxProvider? _activeProvider;
@@ -26,14 +26,17 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
     /// 构造沙箱生命周期 Actor。
     /// </summary>
     /// <param name="providers">沙箱提供者字典。</param>
-    /// <param name="logger">日志记录器，可选。</param>
+    /// <param name="logger">日志记录器,可选。</param>
     public SandboxLifecycleActor(
-        ConcurrentDictionary<SandboxType, ISandboxProvider> providers,
+        ImmutableDictionary<SandboxType, ISandboxProvider> providers,
         ILogger<SandboxManager>? logger)
         : base() {
         _providers = providers;
         _logger = logger;
     }
+
+    /// <summary>更新沙箱提供者字典快照 — 由 SandboxManager 在 AddProvider/RemoveProvider 时调用。</summary>
+    internal void UpdateProviders(ImmutableDictionary<SandboxType, ISandboxProvider> providers) => _providers = providers;
 
     /// <summary>获取当前活跃的沙箱提供者。</summary>
     public ISandboxProvider? ActiveProvider => _activeProvider;

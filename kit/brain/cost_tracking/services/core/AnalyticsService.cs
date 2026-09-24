@@ -5,8 +5,10 @@ namespace Core.CostTracking;
 /// </summary>
 [Register(typeof(IAnalyticsService), ServiceLifetime.Singleton)]
 public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService, IDisposable {
-    private readonly ConcurrentQueue<AnalyticsEvent> _events = new();
-    private readonly ConcurrentDictionary<string, ITelemetrySpan> _agentSpans = new();
+    private ImmutableList<AnalyticsEvent> _events = ImmutableList<AnalyticsEvent>.Empty;
+    private ImmutableDictionary<AnalyticsEventType, ImmutableList<AnalyticsEvent>> _byType = ImmutableDictionary<AnalyticsEventType, ImmutableList<AnalyticsEvent>>.Empty;
+    private ImmutableDictionary<DateTime, ImmutableList<AnalyticsEvent>> _byDate = ImmutableDictionary<DateTime, ImmutableList<AnalyticsEvent>>.Empty;
+    private ImmutableDictionary<string, ITelemetrySpan> _agentSpans = ImmutableDictionary<string, ITelemetrySpan>.Empty;
     private readonly ILogger<AnalyticsService>? _logger;
     private readonly IFileOperationService? _fileOperationService;
     private readonly string? _storagePath;
@@ -61,7 +63,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
             Timestamp = _clock.GetUtcNow()
         };
 
-        _events.Enqueue(analyticsEvent);
+        AddEventToIndices(analyticsEvent);
 
         _logger?.LogDebug("[Analytics] 事件: {EventType} - {EventName}", type, name);
 
@@ -142,7 +144,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
                 span.SetTag("agent.session_id", sessionId);
             }
             var spanKey = $"{agentName}:{sessionId ?? string.Empty}";
-            _agentSpans[spanKey] = span;
+            ImmutableInterlocked.Update(ref _agentSpans, static (d, arg) => d.SetItem(arg.key, arg.span), (key: spanKey, span));
         }
     }
 
@@ -167,7 +169,8 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
 
         if (_telemetryService != null) {
             var spanKey = $"{agentName}:{sessionId ?? string.Empty}";
-            if (_agentSpans.TryRemove(spanKey, out var span)) {
+            if (_agentSpans.TryGetValue(spanKey, out var span)) {
+                ImmutableInterlocked.Update(ref _agentSpans, static (d, k) => d.Remove(k), spanKey);
                 span.SetStatus(success ? TelemetryStatusCode.Ok : TelemetryStatusCode.Error);
                 span.SetTag("agent.duration_ms", durationMs);
                 await span.DisposeAsync().ConfigureAwait(false);
@@ -186,11 +189,8 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     public List<ToolUsageStatistics> GetToolUsageStatistics(int? days = null) {
         var cutoffDate = days.HasValue ? _clock.GetUtcNow().AddDays(-days.Value) : DateTime.MinValue;
 
-        var toolEvents = _events
-            .Where(e => (e.Type == AnalyticsEventType.ToolCall ||
-                        e.Type == AnalyticsEventType.ToolSuccess ||
-                        e.Type == AnalyticsEventType.ToolError) &&
-                        e.Timestamp >= cutoffDate)
+        var toolEvents = GetToolEvents()
+            .Where(e => e.Timestamp >= cutoffDate)
             .ToList();
 
         var grouped = toolEvents
@@ -217,7 +217,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     public UsageStatisticsReport GetUsageReport(int? days = null) {
         var cutoffDate = days.HasValue ? _clock.GetUtcNow().AddDays(-days.Value) : DateTime.MinValue;
 
-        var events = _events.Where(e => e.Timestamp >= cutoffDate).ToList();
+        var events = GetEventsSince(cutoffDate).ToList();
         var toolEvents = events.Where(e => e.Type == AnalyticsEventType.ToolCall ||
                                           e.Type == AnalyticsEventType.ToolSuccess ||
                                           e.Type == AnalyticsEventType.ToolError).ToList();
@@ -258,16 +258,17 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <param name="limit">返回条数上限</param>
     /// <returns>按时间降序排列的事件列表</returns>
     public List<AnalyticsEvent> GetEventHistory(AnalyticsEventType? type = null, int limit = WorkflowConstants.Analytics.DefaultEventHistoryLimit) {
-        var events = _events.AsEnumerable();
+        var list = type.HasValue && _byType.TryGetValue(type.Value, out var typedList)
+            ? typedList
+            : _events;
 
-        if (type.HasValue) {
-            events = events.Where(e => e.Type == type.Value);
+        if (list.Count == 0) return new List<AnalyticsEvent>();
+        var take = Math.Min(limit, list.Count);
+        var result = new List<AnalyticsEvent>(take);
+        for (var i = list.Count - 1; i >= 0 && result.Count < take; i--) {
+            result.Add(list[i]);
         }
-
-        return events
-            .OrderByDescending(e => e.Timestamp)
-            .Take(limit)
-            .ToList();
+        return result;
     }
 
     /// <summary>
@@ -278,20 +279,18 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         if (olderThanDays.HasValue) {
             var cutoffDate = _clock.GetUtcNow().AddDays(-olderThanDays.Value);
 
-            var newEvents = new ConcurrentQueue<AnalyticsEvent>();
-            foreach (var e in _events.Where(e => e.Timestamp >= cutoffDate)) {
-                newEvents.Enqueue(e);
-            }
-
-            while (_events.TryDequeue(out _)) { }
-
-            foreach (var e in newEvents) {
-                _events.Enqueue(e);
-            }
+            ImmutableInterlocked.Update(ref _events, static (list, cutoff) => {
+                var builder = ImmutableList.CreateBuilder<AnalyticsEvent>();
+                foreach (var e in list) if (e.Timestamp >= cutoff) builder.Add(e);
+                return builder.ToImmutable();
+            }, cutoffDate);
+            RebuildIndices();
 
             _logger?.LogInformation("已清除 {Days} 天前的分析数据", olderThanDays.Value);
         } else {
-            while (_events.TryDequeue(out _)) { }
+            Interlocked.Exchange(ref _events, ImmutableList<AnalyticsEvent>.Empty);
+            Interlocked.Exchange(ref _byType, ImmutableDictionary<AnalyticsEventType, ImmutableList<AnalyticsEvent>>.Empty);
+            Interlocked.Exchange(ref _byDate, ImmutableDictionary<DateTime, ImmutableList<AnalyticsEvent>>.Empty);
             _logger?.LogInformation("已清除所有分析数据");
         }
 
@@ -308,17 +307,12 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>缩进格式化的 JSON 字符串</returns>
     public async Task<string> ExportDataAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default) {
-        var events = _events.AsEnumerable();
-
-        if (startDate.HasValue) {
-            events = events.Where(e => e.Timestamp >= startDate.Value);
+        List<AnalyticsEvent> data;
+        if (startDate.HasValue || endDate.HasValue) {
+            data = GetEventsInRange(startDate, endDate).OrderBy(e => e.Timestamp).ToList();
+        } else {
+            data = _events.ToList();
         }
-
-        if (endDate.HasValue) {
-            events = events.Where(e => e.Timestamp <= endDate.Value);
-        }
-
-        var data = events.OrderBy(e => e.Timestamp).ToList();
 
         var export = new AnalyticsExportData {
             ExportTime = _clock.GetUtcNow(),
@@ -333,10 +327,105 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
 
     #region Private Methods
 
-    private void TrimEventsIfNeeded() {
-        const int maxEvents = WorkflowConstants.Analytics.MaxEvents;
+    /// <summary>
+    /// 原子添加事件到三个索引(_events + _byType + _byDate),无锁并行检索安全。
+    /// <para>所有列表按 Timestamp 升序排序存储(二分法插入),制造排序条件提升检索效率。</para>
+    /// </summary>
+    private void AddEventToIndices(AnalyticsEvent e) {
+        ImmutableInterlocked.Update(ref _events, static (list, ev) => InsertByTime(list, ev), e);
+        ImmutableInterlocked.Update(ref _byType, static (dict, ev) => {
+            var list = dict.GetValueOrDefault(ev.Type) ?? ImmutableList<AnalyticsEvent>.Empty;
+            return dict.SetItem(ev.Type, InsertByTime(list, ev));
+        }, e);
+        ImmutableInterlocked.Update(ref _byDate, static (dict, ev) => {
+            var date = ev.Timestamp.Date;
+            var list = dict.GetValueOrDefault(date) ?? ImmutableList<AnalyticsEvent>.Empty;
+            return dict.SetItem(date, InsertByTime(list, ev));
+        }, e);
+    }
 
-        while (_events.Count > maxEvents && _events.TryDequeue(out _)) { }
+    private static readonly IComparer<AnalyticsEvent> s_timeComparer = Comparer<AnalyticsEvent>.Create(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
+
+    /// <summary>O(log n) 二分法插入到按 Timestamp 排序的列表。事件几乎按时间顺序到达时插入末尾 O(1)。</summary>
+    private static ImmutableList<AnalyticsEvent> InsertByTime(ImmutableList<AnalyticsEvent> list, AnalyticsEvent e) {
+        var index = list.BinarySearch(e, s_timeComparer);
+        if (index < 0) index = ~index;
+        return list.Insert(index, e);
+    }
+
+    /// <summary>
+    /// 从 _events 快照重建 _byType + _byDate 索引 — ClearHistory/TrimEventsIfNeeded 后调用。
+    /// <para>_events 已按 Timestamp 升序存储,遍历时按顺序 Add 到桶内,桶内自动保持 Timestamp 升序。</para>
+    /// </summary>
+    private void RebuildIndices() {
+        var snapshot = _events;
+        var byTypeBuilder = ImmutableDictionary.CreateBuilder<AnalyticsEventType, ImmutableList<AnalyticsEvent>>();
+        var byDateBuilder = ImmutableDictionary.CreateBuilder<DateTime, ImmutableList<AnalyticsEvent>>();
+        foreach (var e in snapshot) {
+            byTypeBuilder[e.Type] = (byTypeBuilder.GetValueOrDefault(e.Type) ?? ImmutableList<AnalyticsEvent>.Empty).Add(e);
+            var date = e.Timestamp.Date;
+            byDateBuilder[date] = (byDateBuilder.GetValueOrDefault(date) ?? ImmutableList<AnalyticsEvent>.Empty).Add(e);
+        }
+        Interlocked.Exchange(ref _byType, byTypeBuilder.ToImmutable());
+        Interlocked.Exchange(ref _byDate, byDateBuilder.ToImmutable());
+    }
+
+    /// <summary>
+    /// 用 _byType 索引 O(1) 查找工具事件,避免全量扫描 — 并行检索安全
+    /// </summary>
+    private IEnumerable<AnalyticsEvent> GetToolEvents() {
+        foreach (var type in s_toolEventTypes) {
+            if (_byType.TryGetValue(type, out var list)) {
+                foreach (var e in list) yield return e;
+            }
+        }
+    }
+
+    private static readonly AnalyticsEventType[] s_toolEventTypes = [
+        AnalyticsEventType.ToolCall,
+        AnalyticsEventType.ToolSuccess,
+        AnalyticsEventType.ToolError
+    ];
+
+    /// <summary>
+    /// 用 _byDate 索引按日期分桶查找 cutoff 之后的事件,避免全量扫描 — 并行检索安全
+    /// </summary>
+    private IEnumerable<AnalyticsEvent> GetEventsSince(DateTime cutoff) {
+        foreach (var kvp in _byDate) {
+            if (kvp.Key < cutoff.Date) continue;
+            foreach (var e in kvp.Value) {
+                if (e.Timestamp >= cutoff) yield return e;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 用 _byDate 索引按日期范围查找事件,避免全量扫描 — 并行检索安全
+    /// </summary>
+    private IEnumerable<AnalyticsEvent> GetEventsInRange(DateTime? start, DateTime? end) {
+        var startDate = start?.Date ?? DateTime.MinValue;
+        var endDate = end?.Date ?? DateTime.MaxValue;
+        foreach (var kvp in _byDate) {
+            if (kvp.Key < startDate || kvp.Key > endDate) continue;
+            foreach (var e in kvp.Value) {
+                if ((start is null || e.Timestamp >= start.Value) &&
+                    (end is null || e.Timestamp <= end.Value))
+                    yield return e;
+            }
+        }
+    }
+
+    private void TrimEventsIfNeeded() {
+        var maxEvents = WorkflowConstants.Analytics.MaxEvents;
+        var trimmed = new StrongBox<bool>();
+
+        ImmutableInterlocked.Update(ref _events, static (list, arg) => {
+            if (list.Count <= arg.max) return list;
+            arg.trimmed.Value = true;
+            return list.RemoveRange(0, list.Count - arg.max);
+        }, (max: maxEvents, trimmed));
+
+        if (trimmed.Value) RebuildIndices();
     }
 
     private async Task SaveHistoryAsync(CancellationToken cancellationToken = default) {
@@ -368,7 +457,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
 
             if (events != null) {
                 foreach (var e in events.OrderBy(e => e.Timestamp)) {
-                    _events.Enqueue(e);
+                    AddEventToIndices(e);
                 }
 
                 _logger?.LogInformation("已加载 {Count} 条历史分析数据", events.Count);

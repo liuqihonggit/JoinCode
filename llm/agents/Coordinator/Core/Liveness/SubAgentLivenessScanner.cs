@@ -47,7 +47,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
     private readonly SubAgentLivenessOptions _options;
     private readonly ILogger? _logger;
     private readonly Func<DateTimeOffset> _clock;
-    private readonly ConcurrentDictionary<string, SubAgentIdleDetector> _detectors = new();
+    private volatile ImmutableDictionary<string, SubAgentIdleDetector> _detectors = ImmutableDictionary<string, SubAgentIdleDetector>.Empty;
     private readonly SubAgentChainStallDetector _chainDetector;
     private readonly PeriodicTimer? _scanTimer;
     private volatile bool _stopping;
@@ -97,7 +97,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
     private void OnStateChanged(object? sender, AgentStateChangedEventArgs e) {
         // 终态时清理检测器
         if (e.NewState.IsTerminal()) {
-            if (_detectors.TryRemove(e.AgentId, out _))
+            if (TryRemoveDetector(e.AgentId, out _))
                 _logger?.LogDebug("[SubAgentLivenessScanner] Agent {AgentId} 进入终态 {State}，清理检测器", e.AgentId, e.NewState);
             return;
         }
@@ -162,7 +162,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
             var sessionId = GetSessionId(agent);
             var hasGrandchildren = sessionsWithActiveChildren.Contains(sessionId);
 
-            var detector = _detectors.GetOrAdd(agentId, _ => new SubAgentIdleDetector(
+            var detector = GetOrAddDetector(agentId, _ => new SubAgentIdleDetector(
                 TimeSpan.FromSeconds(_options.IdleThresholdSeconds),
                 TimeSpan.FromSeconds(_options.ConfirmationWindowSeconds),
                 _clock));
@@ -232,6 +232,30 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
         return agent is AgentBase ab ? ab.Context?.ParentAgentId : null;
     }
 
+    private SubAgentIdleDetector GetOrAddDetector(string key, Func<string, SubAgentIdleDetector> factory) {
+        var current = _detectors;
+        if (current.TryGetValue(key, out var existing)) return existing;
+        var value = factory(key);
+        while (true) {
+            if (current.TryGetValue(key, out existing)) return existing;
+            var updated = current.Add(key, value);
+            if (Interlocked.CompareExchange(ref _detectors, updated, current) == current) return value;
+            current = _detectors;
+        }
+    }
+
+    private bool TryRemoveDetector(string key, out SubAgentIdleDetector value) {
+        value = null!;
+        var current = _detectors;
+        while (current.ContainsKey(key)) {
+            value = current[key];
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _detectors, updated, current) == current) return true;
+            current = _detectors;
+        }
+        return false;
+    }
+
     /// <summary>
     /// 释放扫描器资源 — 设 _stopping 标志 + Dispose timer，PeriodicTimer.Dispose 让 WaitForNextTickAsync 返回 false，循环安全退出
     /// </summary>
@@ -242,7 +266,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
         _stateMachine.StateChanged -= OnStateChanged;
         _stopping = true;
         _scanTimer?.Dispose();
-        _detectors.Clear();
+        Interlocked.Exchange(ref _detectors, ImmutableDictionary<string, SubAgentIdleDetector>.Empty);
         return ValueTask.CompletedTask;
     }
 }

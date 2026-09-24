@@ -128,9 +128,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
     public CostStatistics GetSessionStatistics(string sessionId) {
         if (!_store.TryGetSessionRecords(sessionId, out var records))
             return new CostStatistics();
-        lock (records) {
-            return CalculateStatistics(new List<TokenUsageRecord>(records));
-        }
+        return CalculateStatistics(records);
     }
 
     /// <summary>
@@ -216,7 +214,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
 
     private decimal CalculateCost(string model, int promptTokens, int completionTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0) => _pricing.CalculateCost(model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens);
 
-    private CostStatistics CalculateStatistics(List<TokenUsageRecord> records) {
+    private CostStatistics CalculateStatistics(IReadOnlyList<TokenUsageRecord> records) {
         if (records.Count == 0) {
             return new CostStatistics();
         }

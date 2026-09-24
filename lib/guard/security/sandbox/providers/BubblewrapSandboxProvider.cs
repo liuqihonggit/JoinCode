@@ -7,6 +7,8 @@ namespace Core.Security.Sandbox.Providers;
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase {
     private readonly IProcessService _processService;
+    private volatile bool _isAvailableCache;
+    private volatile bool _isAvailableProbed;
 
     /// <summary>沙箱类型 — Bubblewrap</summary>
     public override SandboxType SandboxType => SandboxType.Bubblewrap;
@@ -36,21 +38,23 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase {
     /// </summary>
     public override bool IsAvailable {
         get {
-            if (!OperatingSystem.IsLinux()) {
-                return false;
-            }
+            if (_isAvailableProbed) return _isAvailableCache;
+            _isAvailableCache = ProbeIsAvailable();
+            _isAvailableProbed = true;
+            return _isAvailableCache;
+        }
+    }
 
-            try {
-                var path = Environment.GetEnvironmentVariable("PATH") ?? "";
-                foreach (var dir in path.Split(':', StringSplitOptions.RemoveEmptyEntries)) {
-                    if (Fs.FileExists(Path.Combine(dir, "bwrap"))) {
-                        return true;
-                    }
-                }
-                return false;
-            } catch {
-                return false;
+    private bool ProbeIsAvailable() {
+        if (!OperatingSystem.IsLinux()) return false;
+        try {
+            var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+            foreach (var dir in path.Split(':', StringSplitOptions.RemoveEmptyEntries)) {
+                if (Fs.FileExists(Path.Combine(dir, "bwrap"))) return true;
             }
+            return false;
+        } catch {
+            return false;
         }
     }
 

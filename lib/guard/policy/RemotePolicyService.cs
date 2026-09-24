@@ -9,8 +9,38 @@ namespace Core.Policy;
 public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<PolicyRule>, JoinCode.Abstractions.Interfaces.IRemotePolicyService {
     private static readonly PolicyJsonContext JsonContext = PolicyJsonContext.Default;
 
-    private readonly ConcurrentDictionary<string, int> _usageCounters = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, DateTime> _windowStartTimes = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, int> _usageCounters = ImmutableDictionary<string, int>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, DateTime> _windowStartTimes = ImmutableDictionary<string, DateTime>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>原子递增计数器 — 无锁 CAS 循环</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void IncrementCounter(string key) {
+        while (true) {
+            var current = _usageCounters;
+            var updated = current.SetItem(key, current.GetValueOrDefault(key, 0) + 1);
+            if (Interlocked.CompareExchange(ref _usageCounters, updated, current) == current) return;
+        }
+    }
+
+    /// <summary>原子设置计数器 — 无锁 CAS 循环</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SetCounter(string key, int value) {
+        while (true) {
+            var current = _usageCounters;
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _usageCounters, updated, current) == current) return;
+        }
+    }
+
+    /// <summary>原子设置窗口开始时间 — 无锁 CAS 循环</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SetWindowStart(string key, DateTime value) {
+        while (true) {
+            var current = _windowStartTimes;
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _windowStartTimes, updated, current) == current) return;
+        }
+    }
 
     /// <inheritdoc/>
     protected override string MetricsPrefix => "policy.remote";
@@ -150,7 +180,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
             };
         }
 
-        _usageCounters.AddOrUpdate(counterKey, 1, (_, v) => v + 1);
+        IncrementCounter(counterKey);
 
         return new PolicyEvaluationResult {
             RuleId = rule.RuleId,
@@ -203,8 +233,8 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
 
         if (!_windowStartTimes.TryGetValue(windowKey, out var windowStart) ||
             now - windowStart >= rule.Window.Value) {
-            _windowStartTimes[windowKey] = now;
-            _usageCounters[counterKey] = 1;
+            SetWindowStart(windowKey, now);
+            SetCounter(counterKey, 1);
 
             return new PolicyEvaluationResult {
                 RuleId = rule.RuleId,
@@ -228,7 +258,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
             };
         }
 
-        _usageCounters.AddOrUpdate(counterKey, 1, (_, v) => v + 1);
+        IncrementCounter(counterKey);
 
         return new PolicyEvaluationResult {
             RuleId = rule.RuleId,

@@ -5,8 +5,8 @@ namespace McpProtocol;
 /// 支持 stdio 行协议与 LSP 风格 Content-Length 框架协议两种传输形态。
 /// </summary>
 public class McpServer {
-    private readonly ConcurrentDictionary<string, IResourceHandler> _resources = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, IPromptHandler> _prompts = new(StringComparer.Ordinal);
+    private ImmutableDictionary<string, IResourceHandler> _resources = ImmutableDictionary<string, IResourceHandler>.Empty;
+    private ImmutableDictionary<string, IPromptHandler> _prompts = ImmutableDictionary<string, IPromptHandler>.Empty;
     private readonly string _serverName;
     private readonly string _serverVersion;
     private readonly string? _instructions;
@@ -41,7 +41,11 @@ public class McpServer {
     /// <param name="handler">资源处理器实例</param>
     public void RegisterResourceHandler(IResourceHandler handler) {
         ArgumentNullException.ThrowIfNull(handler);
-        _resources[handler.Uri] = handler;
+        while (true) {
+            var current = _resources;
+            var updated = current.SetItem(handler.Uri, handler);
+            if (Interlocked.CompareExchange(ref _resources, updated, current) == current) return;
+        }
     }
 
     /// <summary>
@@ -50,7 +54,11 @@ public class McpServer {
     /// <param name="handler">提示处理器实例</param>
     public void RegisterPromptHandler(IPromptHandler handler) {
         ArgumentNullException.ThrowIfNull(handler);
-        _prompts[handler.Name] = handler;
+        while (true) {
+            var current = _prompts;
+            var updated = current.SetItem(handler.Name, handler);
+            if (Interlocked.CompareExchange(ref _prompts, updated, current) == current) return;
+        }
     }
 
     /// <summary>

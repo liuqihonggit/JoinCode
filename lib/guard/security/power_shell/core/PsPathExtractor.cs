@@ -55,7 +55,7 @@ public static partial class PsPathExtractor {
                 : PsElementType.Other;
 
             // 检查参数元素类型是否安全
-            if (!SafePathElementTypes.Contains(elementType) && elementType != PsElementType.Parameter) {
+            if (elementType != PsElementType.Parameter && !SafePathElementTypes.Contains(elementType)) {
                 hasUnvalidatablePathArg = true;
             }
 

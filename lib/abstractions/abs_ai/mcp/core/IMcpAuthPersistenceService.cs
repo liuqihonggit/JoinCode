@@ -6,8 +6,8 @@ public interface IMcpAuthPersistenceService {
     Task SaveAsync(string authName, string authType, string serializedData, CancellationToken ct = default);
     /// <summary>异步按名称加载认证配置。</summary>
     Task<AuthConfigEntry?> LoadAsync(string authName, CancellationToken ct = default);
-    /// <summary>异步列出所有认证配置。</summary>
-    Task<IReadOnlyList<AuthConfigEntry>> ListAsync(CancellationToken ct = default);
+    /// <summary>异步列出所有认证配置 — 返回以 Name 为 key 的只读字典,消费者可 O(1) 查找。</summary>
+    Task<IReadOnlyDictionary<string, AuthConfigEntry>> ListAsync(CancellationToken ct = default);
     /// <summary>异步按名称移除认证配置。</summary>
     Task RemoveAsync(string authName, CancellationToken ct = default);
 }

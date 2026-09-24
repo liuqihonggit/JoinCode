@@ -54,7 +54,7 @@ internal sealed class TeamMessageDispatcher {
     /// <summary>
     /// 判断成员是否为管理员或群主
     /// </summary>
-    public static bool IsAdminOrOwner(string agentId, Dictionary<string, TeamMemberInfo>? details, TeamInfo? team) {
+    public static bool IsAdminOrOwner(string agentId, IReadOnlyDictionary<string, TeamMemberInfo>? details, TeamInfo? team) {
         if (agentId == team?.LeadAgentId) return true;
         if (details is not null && details.TryGetValue(agentId, out var md)) {
             return md.Role is "admin" or "owner";

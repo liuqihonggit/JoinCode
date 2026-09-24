@@ -6,7 +6,7 @@ namespace Core.Configuration;
 /// </summary>
 [Register(typeof(IConfigurationService), ServiceLifetime.Singleton)]
 public sealed partial class ConfigurationService : ServiceEntity, IConfigurationService {
-    private readonly ConcurrentDictionary<string, string> _configurations = new();
+    private ImmutableDictionary<string, string> _configurations = ImmutableDictionary<string, string>.Empty;
     private readonly IFileSystem _fs;
     private readonly IRemoteSettingsService? _remoteSettingsService;
     private readonly IConfigChangeNotifier? _configChangeNotifier;
@@ -48,7 +48,11 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
                 : await ConfigLoader.LoadSettingFromSettingsJsonAsync(key, _fs, cancellationToken, _logger).ConfigureAwait(false);
 
             if (diskValue is not null) {
-                _configurations[key] = diskValue;
+                while (true) {
+                    var current = _configurations;
+                    var updated = current.SetItem(key, diskValue);
+                    if (Interlocked.CompareExchange(ref _configurations, updated, current) == current) break;
+                }
                 return diskValue;
             }
         } catch (Exception ex) {
@@ -80,7 +84,11 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         // 获取旧值用于变更通知
         var oldValue = _configurations.TryGetValue(key, out var existing) ? existing : null;
 
-        _configurations[key] = value;
+        while (true) {
+            var current = _configurations;
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _configurations, updated, current) == current) break;
+        }
 
         // 按存储源分流持久化 — 对齐 TS: global → saveGlobalConfig, settings → updateSettingsForSource
         try {
@@ -109,7 +117,12 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
     public async Task<bool> RemoveAsync(string key, CancellationToken cancellationToken = default) {
         var oldValue = _configurations.TryGetValue(key, out var existing) ? existing : null;
 
-        _configurations.TryRemove(key, out _);
+        while (true) {
+            var current = _configurations;
+            if (!current.ContainsKey(key)) break;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _configurations, updated, current) == current) break;
+        }
 
         try {
             // 对齐 TS markInternalWrite — 写入前标记内部写

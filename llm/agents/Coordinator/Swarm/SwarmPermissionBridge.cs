@@ -126,7 +126,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     private readonly ILogger<SwarmPermissionBridge>? _logger;
     private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
-    private readonly ConcurrentDictionary<string, PermissionSyncState> _permissionStates;
+    private volatile ImmutableDictionary<string, PermissionSyncState> _permissionStates = ImmutableDictionary<string, PermissionSyncState>.Empty;
     private readonly AsyncLock _lock = new();
     private bool _disposed;
 
@@ -154,7 +154,6 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _telemetryService = telemetryService;
-        _permissionStates = new ConcurrentDictionary<string, PermissionSyncState>();
     }
 
     /// <summary>
@@ -188,7 +187,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
                 DeniedTools = request.DeniedTools?.ToArray() ?? Array.Empty<string>()
             };
 
-            _permissionStates[agentId] = newState;
+            SetPermissionState(agentId, newState);
 
             var changes = BuildChanges(previousState, newState);
 
@@ -249,7 +248,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
         using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             await _permissionManager.RemoveRuleAsync(agentId, ct).ConfigureAwait(false);
 
-            _permissionStates.TryRemove(agentId, out _);
+            TryRemovePermissionState(agentId, out _);
 
             PermissionChanged?.Invoke(this, new PermissionSyncEventArgs {
                 AgentId = agentId,
@@ -283,6 +282,27 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
         }
 
         return changes;
+    }
+
+    private void SetPermissionState(string key, PermissionSyncState value) {
+        var current = _permissionStates;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _permissionStates, updated, current) == current) return;
+            current = _permissionStates;
+        }
+    }
+
+    private bool TryRemovePermissionState(string key, out PermissionSyncState value) {
+        value = null!;
+        var current = _permissionStates;
+        while (current.TryGetValue(key, out var existing)) {
+            value = existing;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _permissionStates, updated, current) == current) return true;
+            current = _permissionStates;
+        }
+        return false;
     }
 
     /// <summary>释放资源 — 释放权限同步锁</summary>

@@ -73,8 +73,8 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
     private readonly IMailbox _messageBroker;
     private readonly ILogger<SwarmPermissionCallbackService>? _logger;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    private readonly ConcurrentDictionary<string, SwarmPermissionCallback> _pendingCallbacks;
-    private readonly ConcurrentDictionary<string, SwarmPermissionRequest> _pendingRequests;
+    private volatile ImmutableDictionary<string, SwarmPermissionCallback> _pendingCallbacks = ImmutableDictionary<string, SwarmPermissionCallback>.Empty;
+    private volatile ImmutableDictionary<string, SwarmPermissionRequest> _pendingRequests = ImmutableDictionary<string, SwarmPermissionRequest>.Empty;
 
     /// <summary>
     /// 初始化 Swarm 权限回调服务
@@ -89,8 +89,6 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));
         _logger = logger;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
-        _pendingCallbacks = new ConcurrentDictionary<string, SwarmPermissionCallback>();
-        _pendingRequests = new ConcurrentDictionary<string, SwarmPermissionRequest>();
     }
 
     /// <summary>
@@ -117,7 +115,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
             PermissionSuggestions = suggestions
         };
 
-        _pendingRequests[request.Id] = request;
+        SetPendingRequest(request.Id, request);
 
         _logger?.LogDebug("创建权限请求: RequestId={RequestId}, Tool={ToolName}", request.Id, toolName);
 
@@ -165,7 +163,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
     /// </summary>
     /// <param name="callback">权限回调</param>
     public void RegisterPermissionCallback(SwarmPermissionCallback callback) {
-        _pendingCallbacks[callback.RequestId] = callback;
+        SetPendingCallback(callback.RequestId, callback);
 
         _logger?.LogDebug("注册权限回调: RequestId={RequestId}", callback.RequestId);
     }
@@ -185,12 +183,12 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
         Dictionary<string, JsonElement>? updatedInput,
         List<PermissionUpdate>? permissionUpdates,
         string? feedback) {
-        if (!_pendingCallbacks.TryRemove(requestId, out var callback)) {
+        if (!TryRemovePendingCallback(requestId, out var callback)) {
             _logger?.LogWarning("未找到权限回调: RequestId={RequestId}", requestId);
             return;
         }
 
-        _pendingRequests.TryRemove(requestId, out _);
+        TryRemovePendingRequest(requestId, out _);
 
         _logger?.LogInformation(
             "处理权限响应: RequestId={RequestId}, Allowed={Allowed}",
@@ -253,4 +251,46 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
     /// 当前待处理权限请求的数量
     /// </summary>
     public int PendingRequestCount => _pendingRequests.Count;
+
+    private void SetPendingCallback(string key, SwarmPermissionCallback value) {
+        var current = _pendingCallbacks;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _pendingCallbacks, updated, current) == current) return;
+            current = _pendingCallbacks;
+        }
+    }
+
+    private void SetPendingRequest(string key, SwarmPermissionRequest value) {
+        var current = _pendingRequests;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _pendingRequests, updated, current) == current) return;
+            current = _pendingRequests;
+        }
+    }
+
+    private bool TryRemovePendingCallback(string key, out SwarmPermissionCallback value) {
+        value = null!;
+        var current = _pendingCallbacks;
+        while (current.TryGetValue(key, out var existing)) {
+            value = existing;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _pendingCallbacks, updated, current) == current) return true;
+            current = _pendingCallbacks;
+        }
+        return false;
+    }
+
+    private bool TryRemovePendingRequest(string key, out SwarmPermissionRequest value) {
+        value = null!;
+        var current = _pendingRequests;
+        while (current.TryGetValue(key, out var existing)) {
+            value = existing;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _pendingRequests, updated, current) == current) return true;
+            current = _pendingRequests;
+        }
+        return false;
+    }
 }

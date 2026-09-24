@@ -22,6 +22,8 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     private string? _resolvedAuthorizationUrl;
     private string? _resolvedTokenUrl; // 对齐 TS ClaudeAuthProvider._pendingStepUpScope
     private int _disposed;
+    private volatile bool _needsStepUpCache;
+    private volatile bool _needsStepUpCacheValid;
 
     /// <summary>
     /// 认证类型 — 固定为 OAuth2
@@ -44,13 +46,20 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     /// </summary>
     public bool NeedsStepUp {
         get {
-            if (string.IsNullOrEmpty(_pendingStepUpScope)) return false;
-            var currentScopes = new HashSet<string>(
-                _authContext.Scope?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [],
-                StringComparer.Ordinal);
-            return _pendingStepUpScope.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Any(s => !currentScopes.Contains(s));
+            if (_needsStepUpCacheValid) return _needsStepUpCache;
+            _needsStepUpCache = ComputeNeedsStepUp();
+            _needsStepUpCacheValid = true;
+            return _needsStepUpCache;
         }
+    }
+
+    private bool ComputeNeedsStepUp() {
+        if (string.IsNullOrEmpty(_pendingStepUpScope)) return false;
+        var currentScopes = new HashSet<string>(
+            _authContext.Scope?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [],
+            StringComparer.Ordinal);
+        return _pendingStepUpScope.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Any(s => !currentScopes.Contains(s));
     }
 
     /// <summary>
@@ -59,6 +68,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     public void MarkStepUpPending(string scope) {
         ArgumentException.ThrowIfNullOrEmpty(scope);
         _pendingStepUpScope = scope;
+        _needsStepUpCacheValid = false;
         _logger?.LogInformation("Step-Up 认证待处理，所需 scope: {Scope}", scope);
     }
 
@@ -67,6 +77,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     /// </summary>
     public void ClearStepUpPending() {
         _pendingStepUpScope = null;
+        _needsStepUpCacheValid = false;
     }
 
     /// <summary>
@@ -346,6 +357,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     }
 
     private void UpdateAuthContext(global::JoinCode.Abstractions.Models.OAuth.OAuth2TokenResponse tokenResponse) {
+        _needsStepUpCacheValid = false;
         _authContext = new McpAuthContext {
             AccessToken = tokenResponse.AccessToken,
             RefreshToken = tokenResponse.RefreshToken ?? _authContext.RefreshToken,
@@ -397,11 +409,12 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
                 return false;
             }
 
-            _authContext = new McpAuthContext {
-                AccessToken = storage.AccessToken,
-                RefreshToken = storage.RefreshToken,
-                ExpiresAt = storage.ExpiresAt
-            };
+        _needsStepUpCacheValid = false;
+        _authContext = new McpAuthContext {
+            AccessToken = storage.AccessToken,
+            RefreshToken = storage.RefreshToken,
+            ExpiresAt = storage.ExpiresAt
+        };
 
             return true;
         } catch (Exception ex) {

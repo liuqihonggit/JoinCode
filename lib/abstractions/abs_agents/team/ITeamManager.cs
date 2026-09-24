@@ -91,7 +91,7 @@ public interface ITeamManager : IAsyncDisposable {
     /// <summary>
     /// 获取团队成员
     /// </summary>
-    Task<IReadOnlyList<string>> GetTeamMembersAsync(
+    Task<IReadOnlyCollection<string>> GetTeamMembersAsync(
         string teamId,
         CancellationToken cancellationToken = default);
 
@@ -145,7 +145,7 @@ public interface ITeamManager : IAsyncDisposable {
     /// <summary>
     /// 获取团队允许路径
     /// </summary>
-    Task<IReadOnlyList<TeamAllowedPath>> GetTeamAllowedPathsAsync(
+    Task<IReadOnlyCollection<TeamAllowedPath>> GetTeamAllowedPathsAsync(
         string teamId,
         CancellationToken cancellationToken = default);
 

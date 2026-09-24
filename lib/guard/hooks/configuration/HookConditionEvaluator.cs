@@ -34,7 +34,19 @@ public interface IHookConditionEvaluator {
 public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditionEvaluator {
     private readonly ILogger<HookConditionEvaluator>? _logger;
 
-    private static readonly ConcurrentDictionary<string, Regex> ConditionPatternCache = new(StringComparer.Ordinal);
+    private static ImmutableDictionary<string, Regex> ConditionPatternCache = ImmutableDictionary<string, Regex>.Empty;
+
+    /// <summary>无锁 CAS 获取或添加缓存的 Regex</summary>
+    private static Regex GetOrAddRegex(ref ImmutableDictionary<string, Regex> cache, string pattern) {
+        if (cache.TryGetValue(pattern, out var existing)) return existing;
+        var regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        while (true) {
+            var current = cache;
+            if (current.TryGetValue(pattern, out existing)) return existing;
+            var updated = current.Add(pattern, regex);
+            if (Interlocked.CompareExchange(ref cache, updated, current) == current) return regex;
+        }
+    }
 
     /// <summary>
     /// 构造函数 — 注入可选的日志记录器
@@ -217,7 +229,7 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
 
         if (pattern.Contains("^") || pattern.Contains("$") || pattern.Contains(".*")) {
             try {
-                var regex = ConditionPatternCache.GetOrAdd(pattern, static p => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled));
+                var regex = GetOrAddRegex(ref ConditionPatternCache, pattern);
                 return regex.IsMatch(value);
             } catch (Exception ex) {
                 _logger?.LogWarning(ex, "评估正则模式 {Pattern} 失败", pattern);

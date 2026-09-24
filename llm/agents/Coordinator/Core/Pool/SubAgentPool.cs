@@ -20,7 +20,7 @@ internal sealed class PooledAgent {
 /// </para>
 /// </summary>
 public sealed partial class SubAgentPool : IAsyncDisposable {
-    private readonly ConcurrentDictionary<string, PooledAgent> _pool = new();
+    private volatile ImmutableDictionary<string, PooledAgent> _pool = ImmutableDictionary<string, PooledAgent>.Empty;
     private readonly SubAgentLivenessOptions _options;
     private readonly ILogger? _logger;
     private readonly Func<DateTimeOffset> _clock;
@@ -80,7 +80,7 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
             OriginalTask = agent.Task,
         };
 
-        if (_pool.TryAdd(agent.ObjectId.UniqueId, entry)) {
+        if (TryAddPool(agent.ObjectId.UniqueId, entry)) {
             _logger?.LogDebug("[SubAgentPool] Agent {AgentId} 回池（{Count}/{Max}）",
                 agent.ObjectId.UniqueId, _pool.Count, _options.PoolMaxSize);
             return true;
@@ -115,7 +115,7 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
 
         if (best is null) return null;
 
-        if (_pool.TryRemove(best.Agent.ObjectId.UniqueId, out _)) {
+        if (TryRemovePool(best.Agent.ObjectId.UniqueId, out _)) {
             _logger?.LogDebug("[SubAgentPool] Agent {AgentId} 被抢塞，相关性: {Score:F2}",
                 best.Agent.ObjectId.UniqueId, bestScore);
             return best.Agent;
@@ -128,7 +128,7 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
     /// 从池中移除并 Dispose 指定代理
     /// </summary>
     public async Task<bool> Remove(string agentId) {
-        if (_pool.TryRemove(agentId, out var entry)) {
+        if (TryRemovePool(agentId, out var entry)) {
             _logger?.LogDebug("[SubAgentPool] Agent {AgentId} 从池中移除并 Dispose", agentId);
             await entry.Agent.DisposeAsync().ConfigureAwait(false);
             return true;
@@ -165,7 +165,7 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
                 foreach (var (id, entry) in _pool) {
                     var idleSeconds = (now - entry.ReturnedAt).TotalSeconds;
                     if (idleSeconds > _options.PoolIdleTimeoutSeconds) {
-                        if (_pool.TryRemove(id, out var removed)) {
+                        if (TryRemovePool(id, out var removed)) {
                             await removed.Agent.DisposeAsync().ConfigureAwait(false);
                             _logger?.LogDebug("[SubAgentPool] Agent {AgentId} 空闲超时（{Seconds:F0}s）已 Dispose",
                                 id, idleSeconds);
@@ -190,8 +190,30 @@ public sealed partial class SubAgentPool : IAsyncDisposable {
 
         foreach (var (_, entry) in _pool)
             entry.Agent.Dispose();
-        _pool.Clear();
+        Interlocked.Exchange(ref _pool, ImmutableDictionary<string, PooledAgent>.Empty);
 
         return ValueTask.CompletedTask;
+    }
+
+    private bool TryAddPool(string key, PooledAgent value) {
+        var current = _pool;
+        while (!current.ContainsKey(key)) {
+            var updated = current.Add(key, value);
+            if (Interlocked.CompareExchange(ref _pool, updated, current) == current) return true;
+            current = _pool;
+        }
+        return false;
+    }
+
+    private bool TryRemovePool(string key, out PooledAgent value) {
+        value = null!;
+        var current = _pool;
+        while (current.TryGetValue(key, out var existing)) {
+            value = existing;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _pool, updated, current) == current) return true;
+            current = _pool;
+        }
+        return false;
     }
 }

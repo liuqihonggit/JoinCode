@@ -75,7 +75,7 @@ internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit> {
             try {
                 var msg = RelaxedJsonSerializer.Deserialize(line, MailboxJsonContext.Default.CoordinatorMessage);
                 if (msg is null) continue;
-                if (messageIds.Contains(msg.MessageId) && !msg.IsRead) {
+                if (!msg.IsRead && messageIds.Contains(msg.MessageId)) {
                     msg.IsRead = true;
                     modified = true;
                 }

@@ -30,7 +30,7 @@ public sealed class ToolExecutionEntityRegistryTests {
     [Fact]
     public async Task GetActive_ReturnsActiveEntity() {
         await using var entity = new ToolExecutionEntity("bash");
-        entity.LifecycleState = EntityLifecycle.Active;
+        ToolExecutionEntity.Registry.TransitionLifecycle(entity.ObjectId, EntityLifecycle.Active);
         ToolExecutionEntity.Registry.GetActive().Should().Contain(entity);
     }
 
@@ -43,7 +43,7 @@ public sealed class ToolExecutionEntityRegistryTests {
     [Fact]
     public async Task GetCompleted_ReturnsCompletedEntity() {
         await using var entity = new ToolExecutionEntity("bash");
-        entity.LifecycleState = EntityLifecycle.Completed;
+        ToolExecutionEntity.Registry.TransitionLifecycle(entity.ObjectId, EntityLifecycle.Completed);
         ToolExecutionEntity.Registry.GetCompleted().Should().Contain(entity);
     }
 

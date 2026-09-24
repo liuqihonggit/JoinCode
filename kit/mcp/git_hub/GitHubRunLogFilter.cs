@@ -98,9 +98,9 @@ internal static class GitHubRunLogFilter {
     /// <summary>
     /// 对日志行列表应用标记过滤
     /// </summary>
-    public static List<string> ApplyFilter(List<string> lines, FrozenSet<string>? markers) {
+    public static IEnumerable<string> ApplyFilter(List<string> lines, FrozenSet<string>? markers) {
         if (markers is null) return lines;
-        return lines.Where(l => markers.Any(m => l.Contains(m, StringComparison.OrdinalIgnoreCase))).ToList();
+        return lines.Where(l => markers.Any(m => l.Contains(m, StringComparison.OrdinalIgnoreCase)));
     }
 
     /// <summary>

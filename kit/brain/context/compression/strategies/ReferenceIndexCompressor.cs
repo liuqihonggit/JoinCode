@@ -59,7 +59,7 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase {
         result.AppendLine($"总计: {entries.Count} 个引用 | 显示: {selectedEntries.Count} 个重要引用");
         result.AppendLine();
 
-        var groupedByFile = selectedEntries.GroupBy(e => e.FilePath).ToList();
+        var groupedByFile = selectedEntries.GroupBy(e => e.FilePath);
 
         foreach (var fileGroup in groupedByFile) {
             cancellationToken.ThrowIfCancellationRequested();

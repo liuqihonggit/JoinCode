@@ -140,8 +140,7 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
             var idx = _strategy.Select(children.Count, msg);
             idx = Math.Clamp(idx, 0, children.Count - 1);
 
-            var workers = children.ToArray();
-            var worker = workers[idx];
+            var worker = children[idx];
             if (worker.Instance is not null) {
                 await deliver(msg, worker.Instance).ConfigureAwait(false);
                 TryPublish(new RouterEvent<TMessage>(worker.Id, msg, idx));
@@ -156,7 +155,7 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
     }
 
     /// <summary>获取所有子 Actor 句柄</summary>
-    protected IReadOnlyCollection<ChildActorHandle> GetChildren() => _children.Values.ToArray();
+    protected IReadOnlyList<ChildActorHandle> GetChildren() => _children.Values.ToArray();
 
     /// <summary>Dispose 时级联停止所有子 Actor</summary>
     public override async ValueTask DisposeAsync() {

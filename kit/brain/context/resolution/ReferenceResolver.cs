@@ -325,22 +325,20 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                 return [];
             }
 
-            var grouped = searchResult.Items
+            var results = searchResult.Items
                 .GroupBy(s => s.FilePath)
                 .Take(opts.MaxResults)
-                .ToList();
-
-            var results = grouped.Select(group => new CodeReference {
-                ReferencePath = description,
-                ResolvedPath = group.Key,
-                MatchType = ReferenceMatchType.Exact,
-                RelevanceScore = 0.9,
-                FileMatches = group
-                    .Select(s => FileMatch.Create(
-                        s.FilePath, ReferenceMatchType.Exact, 0.9,
-                        $"CodeIndex: {s.Kind} {s.Name}"))
-                    .ToList()
-            }).ToList();
+                .Select(group => new CodeReference {
+                    ReferencePath = description,
+                    ResolvedPath = group.Key,
+                    MatchType = ReferenceMatchType.Exact,
+                    RelevanceScore = 0.9,
+                    FileMatches = group
+                        .Select(s => FileMatch.Create(
+                            s.FilePath, ReferenceMatchType.Exact, 0.9,
+                            $"CodeIndex: {s.Kind} {s.Name}"))
+                        .ToList()
+                }).ToList();
 
             return results;
         } catch (Exception ex) {
@@ -658,7 +656,16 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     }
 
     private static List<string> ExtractKeywords(string relativePath) {
-        var parts = relativePath.Split(['/', '\\', '.', '_', '-'], StringSplitOptions.RemoveEmptyEntries);
+        var span = relativePath.AsSpan();
+        var parts = new List<string>();
+        var start = 0;
+        for (var i = 0; i < span.Length; i++) {
+            if (span[i] is '/' or '\\' or '.' or '_' or '-') {
+                if (i > start) parts.Add(span[start..i].ToString());
+                start = i + 1;
+            }
+        }
+        if (start < span.Length) parts.Add(span[start..].ToString());
 
         return parts
             .SelectMany(part => new[] { part }.Concat(SplitCamelCase(part)))
@@ -704,10 +711,8 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
             return 0.8;
         }
 
-        // 计算相似度 - 需要小写版本
-        var fileNameLower = fileName.ToLowerInvariant();
-        var queryLower = query.ToLowerInvariant();
-        return CalculateSimilarity(fileNameLower, queryLower);
+        // 计算相似度 — 用 Span + char.ToLowerInvariant 避免两次 ToLowerInvariant 字符串分配
+        return CalculateSimilarity(fileName.AsSpan(), query.AsSpan());
     }
 
     /// <summary>
@@ -724,15 +729,15 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         return false;
     }
 
-    private static double CalculateSimilarity(string s1, string s2) {
-        if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2)) {
+    private static double CalculateSimilarity(ReadOnlySpan<char> s1, ReadOnlySpan<char> s2) {
+        if (s1.IsEmpty || s2.IsEmpty) {
             return 0.0;
         }
 
         var longer = s1.Length > s2.Length ? s1 : s2;
         var shorter = s1.Length > s2.Length ? s2 : s1;
 
-        if (longer.Length == 0) {
+        if (longer.IsEmpty) {
             return 1.0;
         }
 
@@ -740,13 +745,14 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         return (longer.Length - distance) / (double)longer.Length;
     }
 
-    private static int CalculateLevenshteinDistance(string s1, string s2) {
+    private static int CalculateLevenshteinDistance(ReadOnlySpan<char> s1, ReadOnlySpan<char> s2) {
         var n = s1.Length;
         var m = s2.Length;
-        var d = new int[n + 1, m + 1];
 
         if (n == 0) return m;
         if (m == 0) return n;
+
+        var d = new int[n + 1, m + 1];
 
         for (var i = 0; i <= n; i++) {
             d[i, 0] = i;
@@ -758,7 +764,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
 
         for (var i = 1; i <= n; i++) {
             for (var j = 1; j <= m; j++) {
-                var cost = (s2[j - 1] == s1[i - 1]) ? 0 : 1;
+                var cost = char.ToLowerInvariant(s2[j - 1]) == char.ToLowerInvariant(s1[i - 1]) ? 0 : 1;
 
                 d[i, j] = Math.Min(
                     Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),

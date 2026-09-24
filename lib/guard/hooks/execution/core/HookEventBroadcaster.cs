@@ -51,8 +51,8 @@ public interface IHookEventBroadcaster {
 /// </summary>
 [Register(typeof(IHookEventBroadcaster), ServiceLifetime.Singleton)]
 public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroadcaster {
-    private readonly ConcurrentBag<Action<HookExecutionEvent>> _handlers = new();
-    private readonly ConcurrentQueue<HookExecutionEvent> _pendingEvents = new();
+    private ImmutableArray<Action<HookExecutionEvent>> _handlers = ImmutableArray<Action<HookExecutionEvent>>.Empty;
+    private ImmutableArray<HookExecutionEvent> _pendingEvents = ImmutableArray<HookExecutionEvent>.Empty;
     private readonly ILogger<HookEventBroadcaster>? _logger;
 
     private const int MaxPendingEvents = 100;
@@ -73,10 +73,11 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
 
     /// <inheritdoc />
     public void RegisterHandler(Action<HookExecutionEvent> handler) {
-        _handlers.Add(handler);
+        ImmutableInterlocked.Update(ref _handlers, static (h, hd) => h.Add(hd), handler);
 
-        // 处理挂起的事件
-        while (_pendingEvents.TryDequeue(out var pendingEvent)) {
+        // 原子取出挂起事件,交给新 handler 处理
+        var pending = Interlocked.Exchange(ref _pendingEvents, ImmutableArray<HookExecutionEvent>.Empty);
+        foreach (var pendingEvent in pending) {
             try {
                 handler(pendingEvent);
             } catch (Exception ex) {
@@ -87,17 +88,12 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
 
     /// <inheritdoc />
     public void UnregisterHandler(Action<HookExecutionEvent> handler) {
-        // ConcurrentBag 不支持直接移除，需要重新创建
-        var newHandlers = new ConcurrentBag<Action<HookExecutionEvent>>(
-            _handlers.Where(h => h != handler));
-
-        while (!_handlers.IsEmpty) {
-            _handlers.TryTake(out _);
-        }
-
-        foreach (var h in newHandlers) {
-            _handlers.Add(h);
-        }
+        ImmutableInterlocked.Update(ref _handlers, static (h, hd) => {
+            if (h.IsDefaultOrEmpty) return h;
+            var builder = ImmutableArray.CreateBuilder<Action<HookExecutionEvent>>(h.Length);
+            foreach (var x in h) if (x != hd) builder.Add(x);
+            return builder.MoveToImmutable();
+        }, handler);
     }
 
     /// <inheritdoc />
@@ -170,13 +166,8 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
 
     /// <inheritdoc />
     public void Clear() {
-        while (!_handlers.IsEmpty) {
-            _handlers.TryTake(out _);
-        }
-
-        while (!_pendingEvents.IsEmpty) {
-            _pendingEvents.TryDequeue(out _);
-        }
+        Interlocked.Exchange(ref _handlers, ImmutableArray<Action<HookExecutionEvent>>.Empty);
+        Interlocked.Exchange(ref _pendingEvents, ImmutableArray<HookExecutionEvent>.Empty);
 
         _allEventsEnabled = false;
     }
@@ -190,19 +181,20 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
     }
 
     private void Emit(HookExecutionEvent evt) {
-        if (_handlers.IsEmpty) {
-            // 没有处理器，暂存事件
-            _pendingEvents.Enqueue(evt);
-
-            // 限制挂起事件数量
-            while (_pendingEvents.Count > MaxPendingEvents) {
-                _pendingEvents.TryDequeue(out _);
-            }
+        var handlers = _handlers;
+        if (handlers.IsDefaultOrEmpty) {
+            // 没有处理器，暂存事件(限制挂起数量,丢弃最老的)
+            ImmutableInterlocked.Update(ref _pendingEvents, static (list, e) => {
+                var newList = list.Add(e);
+                return newList.Length > MaxPendingEvents
+                    ? newList.RemoveRange(0, newList.Length - MaxPendingEvents)
+                    : newList;
+            }, evt);
 
             return;
         }
 
-        foreach (var handler in _handlers) {
+        foreach (var handler in handlers) {
             try {
                 handler(evt);
             } catch (Exception ex) {

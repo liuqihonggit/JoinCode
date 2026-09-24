@@ -349,14 +349,14 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
             a.Equals("-r", StringComparison.OrdinalIgnoreCase) ||
             a.Equals("-R", StringComparison.OrdinalIgnoreCase) ||
             a.Equals("/s", StringComparison.OrdinalIgnoreCase) ||
-            a.Contains('r', StringComparison.OrdinalIgnoreCase) && a.StartsWith('-'));
+            a.StartsWith('-') && a.Contains('r', StringComparison.OrdinalIgnoreCase));
 
         var hasForce = command.Arguments.Any(a =>
             a.Equals("-force", StringComparison.OrdinalIgnoreCase) ||
             a.Equals("-f", StringComparison.OrdinalIgnoreCase) ||
             a.Equals("/f", StringComparison.OrdinalIgnoreCase) ||
             a.Equals("/q", StringComparison.OrdinalIgnoreCase) ||
-            a.Contains('f', StringComparison.OrdinalIgnoreCase) && a.StartsWith('-'));
+            a.StartsWith('-') && a.Contains('f', StringComparison.OrdinalIgnoreCase));
 
         if (hasRecurse && hasForce) {
             // 检查是否针对根目录 — 如果是则 Forbidden，否则 Critical

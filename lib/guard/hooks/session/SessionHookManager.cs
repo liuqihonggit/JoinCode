@@ -58,59 +58,47 @@ public sealed record SessionHookEntry {
 /// 会话钩子存储
 /// </summary>
 public sealed partial class SessionHookStore {
-    /// <summary>
-    /// 按事件存储的钩子
-    /// </summary>
-    public ConcurrentDictionary<HookEvent, ConcurrentBag<SessionHookEntry>> Hooks { get; } = new();
+    private ImmutableDictionary<HookEvent, ImmutableList<SessionHookEntry>> _hooks = ImmutableDictionary<HookEvent, ImmutableList<SessionHookEntry>>.Empty;
 
     /// <summary>
     /// 添加钩子
     /// </summary>
     public void AddHook(HookEvent hookEvent, SessionHookEntry entry) {
-        var bag = Hooks.GetOrAdd(hookEvent, _ => new ConcurrentBag<SessionHookEntry>());
-        bag.Add(entry);
+        ImmutableInterlocked.Update(ref _hooks, static (dict, arg) => {
+            var list = dict.GetValueOrDefault(arg.hookEvent) ?? ImmutableList<SessionHookEntry>.Empty;
+            return dict.SetItem(arg.hookEvent, list.Add(arg.entry));
+        }, (hookEvent, entry));
     }
 
     /// <summary>
     /// 移除钩子
     /// </summary>
     public void RemoveHook(HookEvent hookEvent, Func<SessionHookEntry, bool> predicate) {
-        if (!Hooks.TryGetValue(hookEvent, out var bag)) {
-            return;
-        }
-
-        // ConcurrentBag 不支持直接移除，需要重新创建
-        var newBag = new ConcurrentBag<SessionHookEntry>(
-            bag.Where(e => !predicate(e)));
-
-        Hooks[hookEvent] = newBag;
+        ImmutableInterlocked.Update(ref _hooks, static (dict, arg) => {
+            if (!dict.TryGetValue(arg.hookEvent, out var list)) return dict;
+            var newList = list.RemoveAll(new Predicate<SessionHookEntry>(arg.predicate));
+            return newList.IsEmpty ? dict.Remove(arg.hookEvent) : dict.SetItem(arg.hookEvent, newList);
+        }, (hookEvent, predicate));
     }
 
     /// <summary>
-    /// 获取事件的钩子
+    /// 获取事件的钩子 — 返回不可变引用,无需拷贝
     /// </summary>
-    public List<SessionHookEntry> GetHooks(HookEvent hookEvent) {
-        if (!Hooks.TryGetValue(hookEvent, out var bag)) {
-            return new List<SessionHookEntry>();
-        }
-
-        return bag.ToList();
+    public IReadOnlyList<SessionHookEntry> GetHooks(HookEvent hookEvent) {
+        return _hooks.GetValueOrDefault(hookEvent) ?? (IReadOnlyList<SessionHookEntry>)[];
     }
 
     /// <summary>
-    /// 获取所有钩子
+    /// 获取所有钩子 — 返回不可变引用视图,无需逐项拷贝
     /// </summary>
-    public Dictionary<HookEvent, List<SessionHookEntry>> GetAllHooks() {
-        return Hooks.ToDictionary(
-            kvp => kvp.Key,
-            kvp => kvp.Value.ToList());
-    }
+    public IReadOnlyDictionary<HookEvent, IReadOnlyList<SessionHookEntry>> GetAllHooks()
+        => _hooks.ToImmutableDictionary(kvp => kvp.Key, kvp => (IReadOnlyList<SessionHookEntry>)kvp.Value);
 
     /// <summary>
     /// 清除所有钩子
     /// </summary>
     public void Clear() {
-        Hooks.Clear();
+        _hooks = ImmutableDictionary<HookEvent, ImmutableList<SessionHookEntry>>.Empty;
     }
 }
 

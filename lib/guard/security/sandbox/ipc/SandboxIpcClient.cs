@@ -11,7 +11,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
     private readonly Func<int, Task>? _onSatelliteStarted;
     private IInteractiveProcess? _process;
     private int _requestCounter;
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<SandboxIpcResponse>> _pendingRequests = new();
+    private volatile ImmutableDictionary<string, TaskCompletionSource<SandboxIpcResponse>> _pendingRequests = ImmutableDictionary<string, TaskCompletionSource<SandboxIpcResponse>>.Empty;
     private readonly AsyncLock _startLock = new();
     private Task? _readLoopTask;
     private CancellationTokenSource? _readCts;
@@ -159,7 +159,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
 
     private async Task<SandboxIpcResponse> SendRequestAsync(SandboxIpcRequest request, CancellationToken ct) {
         var tcs = new TaskCompletionSource<SandboxIpcResponse>();
-        _pendingRequests[request.RequestId] = tcs;
+        SetPendingRequest(request.RequestId, tcs);
 
         try {
             var json = JsonSerializer.Serialize(request, SandboxIpcJsonContext.Default.SandboxIpcRequest);
@@ -176,7 +176,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
                 throw new TimeoutException("[GRD002] IPC 请求超时 (60s)，卫星进程未响应");
             }
         } finally {
-            _pendingRequests.TryRemove(request.RequestId, out _);
+            TryRemovePendingRequest(request.RequestId);
         }
     }
 
@@ -210,7 +210,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
 
                 try {
                     var response = RelaxedJsonSerializer.Deserialize(line, SandboxIpcJsonContext.Default.SandboxIpcResponse);
-                    if (response is not null && _pendingRequests.TryRemove(response.RequestId, out var tcs)) {
+                    if (response is not null && TryRemovePendingRequest(response.RequestId, out var tcs)) {
                         tcs.SetResult(response);
                     }
                 } catch (Exception ex) {
@@ -260,5 +260,35 @@ public sealed class SandboxIpcClient : IAsyncDisposable {
             },
             this,
             TaskContinuationOptions.ExecuteSynchronously));
+    }
+
+    private void SetPendingRequest(string requestId, TaskCompletionSource<SandboxIpcResponse> tcs) {
+        var current = _pendingRequests;
+        while (true) {
+            var updated = current.SetItem(requestId, tcs);
+            if (Interlocked.CompareExchange(ref _pendingRequests, updated, current) == current) return;
+            current = _pendingRequests;
+        }
+    }
+
+    private bool TryRemovePendingRequest(string requestId, out TaskCompletionSource<SandboxIpcResponse> tcs) {
+        tcs = null!;
+        var current = _pendingRequests;
+        while (current.ContainsKey(requestId)) {
+            tcs = current[requestId];
+            var updated = current.Remove(requestId);
+            if (Interlocked.CompareExchange(ref _pendingRequests, updated, current) == current) return true;
+            current = _pendingRequests;
+        }
+        return false;
+    }
+
+    private void TryRemovePendingRequest(string requestId) {
+        var current = _pendingRequests;
+        while (current.ContainsKey(requestId)) {
+            var updated = current.Remove(requestId);
+            if (Interlocked.CompareExchange(ref _pendingRequests, updated, current) == current) return;
+            current = _pendingRequests;
+        }
     }
 }

@@ -8,7 +8,7 @@ namespace Core.Permission;
 public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDisposable {
     private readonly PermissionChecker _permissionChecker;
     private readonly ILogger<PermissionManager>? _logger;
-    private readonly ConcurrentDictionary<string, DateTimeOffset> _approvedTools;
+    private volatile ImmutableDictionary<string, DateTimeOffset> _approvedTools = ImmutableDictionary<string, DateTimeOffset>.Empty;
     private readonly AsyncLock _modeLock = new();
     private readonly PermissionConfig _config;
     private readonly TimeProvider _timeProvider;
@@ -34,7 +34,6 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _permissionChecker = permissionChecker;
         _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
-        _approvedTools = new ConcurrentDictionary<string, DateTimeOffset>();
         _currentMode = PermissionMode.Auto;
         _ = InitializeModeAsync(fs);
     }
@@ -141,7 +140,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var expirationTime = _timeProvider.GetUtcNow().Add(duration);
-        _approvedTools.AddOrUpdate(toolName, expirationTime, (_, _) => expirationTime);
+        SetApprovedTool(toolName, expirationTime);
 
         _logger?.LogInformation("工具已临时批准: Tool={ToolName}, Expiration={Expiration}",
             toolName, expirationTime);
@@ -152,7 +151,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     /// </summary>
     /// <param name="toolName">工具名称</param>
     public void RemoveTemporaryApproval(string toolName) {
-        _approvedTools.TryRemove(toolName, out _);
+        TryRemoveApprovedTool(toolName);
         _logger?.LogInformation("工具临时批准已移除: Tool={ToolName}", toolName);
     }
 
@@ -177,11 +176,15 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     public void CleanupExpiredCache() {
         var now = _timeProvider.GetUtcNow();
 
-        var expiredTools = _approvedTools
+        var current = _approvedTools;
+        var expiredTools = current
             .Where(kvp => kvp.Value <= now)
             .Select(kvp => kvp.Key)
             .ToList();
-        expiredTools.ForEach(tool => _approvedTools.TryRemove(tool, out _));
+
+        foreach (var tool in expiredTools) {
+            TryRemoveApprovedTool(tool);
+        }
 
         if (expiredTools.Count > 0) {
             _logger?.LogDebug("已清理过期临时批准: {ToolCount}", expiredTools.Count);
@@ -243,7 +246,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _disposed = true;
 
         _modeLock.Dispose();
-        _approvedTools.Clear();
+        Interlocked.Exchange(ref _approvedTools, ImmutableDictionary<string, DateTimeOffset>.Empty);
 
         GC.SuppressFinalize(this);
     }
@@ -307,11 +310,30 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         }
 
         if (_timeProvider.GetUtcNow() > expirationTime) {
-            _approvedTools.TryRemove(toolName, out _);
+            TryRemoveApprovedTool(toolName);
             return false;
         }
 
         return true;
+    }
+
+    private void SetApprovedTool(string toolName, DateTimeOffset expirationTime) {
+        var current = _approvedTools;
+        while (true) {
+            var updated = current.SetItem(toolName, expirationTime);
+            if (Interlocked.CompareExchange(ref _approvedTools, updated, current) == current) return;
+            current = _approvedTools;
+        }
+    }
+
+    private bool TryRemoveApprovedTool(string toolName) {
+        var current = _approvedTools;
+        while (current.TryGetValue(toolName, out _)) {
+            var updated = current.Remove(toolName);
+            if (Interlocked.CompareExchange(ref _approvedTools, updated, current) == current) return true;
+            current = _approvedTools;
+        }
+        return false;
     }
 
     #endregion

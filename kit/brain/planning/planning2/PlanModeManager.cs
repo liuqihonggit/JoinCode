@@ -21,7 +21,7 @@ public sealed record GetPlanHistoryCmd(
 /// </summary>
 [Register(typeof(IPlanModeManager), ServiceLifetime.Singleton)]
 public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable {
-    private readonly ConcurrentDictionary<string, PlanState> _plans = new();
+    private ImmutableDictionary<string, PlanState> _plans = ImmutableDictionary<string, PlanState>.Empty;
     private readonly List<PlanState> _planHistory = new();
     private readonly PlanHistoryActor _actor;
     private readonly ITelemetryService? _telemetryService;
@@ -69,7 +69,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// 待审批请求的等待字典 — 对齐 TS awaitingLeaderApproval
     /// key: requestId, value: TaskCompletionSource（审批响应到达时 SetResult）
     /// </summary>
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<PlanApprovalResponseMessage>> _pendingApprovals = new();
+    private ImmutableDictionary<string, TaskCompletionSource<PlanApprovalResponseMessage>> _pendingApprovals = ImmutableDictionary<string, TaskCompletionSource<PlanApprovalResponseMessage>>.Empty;
 
     /// <summary>
     /// 初始化计划模式管理器
@@ -179,7 +179,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
             LastUpdatedAt = _clock.GetUtcNow()
         };
 
-        _plans[planId] = plan;
+        while (true) {
+            var current = _plans;
+            var updated = current.SetItem(planId, plan);
+            if (Interlocked.CompareExchange(ref _plans, updated, current) == current) break;
+        }
         CurrentPlanId = planId;
 
         // 对齐 TS handlePlanModeTransition: 进入plan时清除退出通知标志
@@ -249,7 +253,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
             // 注册等待 — 对齐 TS setAwaitingPlanApproval
             var tcs = new TaskCompletionSource<PlanApprovalResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
-            _pendingApprovals[requestId] = tcs;
+            while (true) {
+                var current = _pendingApprovals;
+                var updated = current.SetItem(requestId, tcs);
+                if (Interlocked.CompareExchange(ref _pendingApprovals, updated, current) == current) break;
+            }
 
             try {
                 // 发送审批请求
@@ -269,8 +277,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
                     ApprovalRequestId = requestId
                 };
             } catch {
-                // 发送失败时清理等待
-                _pendingApprovals.TryRemove(requestId, out _);
+                while (true) {
+                    var current = _pendingApprovals;
+                    var updated = current.Remove(requestId);
+                    if (Interlocked.CompareExchange(ref _pendingApprovals, updated, current) == current) break;
+                }
                 throw;
             }
         }
@@ -727,7 +738,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     private async Task LoadActivePlanStateFromFileAsync(CancellationToken cancellationToken) {
         var state = await _fileStore.LoadActivePlanStateAsync(cancellationToken).ConfigureAwait(false);
         if (state?.Plan is not null && state.CurrentPlanId is not null) {
-            _plans[state.CurrentPlanId] = state.Plan;
+            while (true) {
+                var current = _plans;
+                var updated = current.SetItem(state.CurrentPlanId, state.Plan);
+                if (Interlocked.CompareExchange(ref _plans, updated, current) == current) break;
+            }
             var sessionState = CurrentSessionState();
             sessionState.CurrentPlanId = state.CurrentPlanId;
             if (state.CurrentSessionSlug is not null)
@@ -757,7 +772,15 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// </summary>
     public async Task HandlePlanApprovalResponseAsync(PlanApprovalResponseMessage response, CancellationToken cancellationToken = default) {
         // 查找匹配的等待请求
-        if (!_pendingApprovals.TryRemove(response.RequestId, out var tcs)) {
+        TaskCompletionSource<PlanApprovalResponseMessage>? tcs = null;
+        while (true) {
+            var current = _pendingApprovals;
+            if (!current.TryGetValue(response.RequestId, out tcs)) break;
+            var updated = current.Remove(response.RequestId);
+            if (Interlocked.CompareExchange(ref _pendingApprovals, updated, current) == current) break;
+        }
+
+        if (tcs is null) {
             _telemetryService?.RecordCount("plan.approval.orphan_response", [], "count", "Plan approval response without pending request");
             return;
         }

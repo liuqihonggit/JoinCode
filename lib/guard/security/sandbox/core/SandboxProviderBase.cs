@@ -9,7 +9,7 @@ public abstract class SandboxProviderBase : ISandboxProvider {
     private protected readonly ILogger? Logger;
     private protected readonly IClockService Clock;
     private protected readonly ITelemetryService? TelemetryService;
-    private readonly ConcurrentDictionary<string, SandboxInfo> _sandboxes = new();
+    private volatile ImmutableDictionary<string, SandboxInfo> _sandboxes = ImmutableDictionary<string, SandboxInfo>.Empty;
     private int _disposed;
 
     /// <inheritdoc/>
@@ -17,7 +17,7 @@ public abstract class SandboxProviderBase : ISandboxProvider {
     /// <inheritdoc/>
     public abstract SandboxCapabilities Capabilities { get; }
     /// <inheritdoc/>
-    public IReadOnlyCollection<SandboxInfo> ActiveSandboxes => (IReadOnlyCollection<SandboxInfo>)_sandboxes.Values;
+    public IEnumerable<SandboxInfo> ActiveSandboxes => _sandboxes.Values;
 
     /// <summary>
     /// 初始化沙箱提供器基类
@@ -56,7 +56,7 @@ public abstract class SandboxProviderBase : ISandboxProvider {
 
         await OnCreateAsync(info, options, ct).ConfigureAwait(false);
 
-        _sandboxes[sandboxId] = info;
+        SetSandbox(sandboxId, info);
 
         Logger?.LogInformation("[Sandbox:{Type}] 创建沙箱 - Id: {Id}, 路径: {Root}, 受限: {Restricted}",
             SandboxType, sandboxId, rootPath, info.IsRestricted);
@@ -68,7 +68,7 @@ public abstract class SandboxProviderBase : ISandboxProvider {
 
     /// <inheritdoc/>
     public async Task DestroySandboxAsync(string sandboxId, CancellationToken ct = default) {
-        if (!_sandboxes.TryRemove(sandboxId, out var info)) {
+        if (!TryRemoveSandbox(sandboxId, out var info)) {
             Logger?.LogWarning("[Sandbox:{Type}] 沙箱 '{Id}' 不存在", SandboxType, sandboxId);
             return;
         }
@@ -125,11 +125,33 @@ public abstract class SandboxProviderBase : ISandboxProvider {
     /// </summary>
     public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
-        var tasks = new List<Task>(_sandboxes.Count);
-        foreach (var sandboxId in _sandboxes.Keys) {
+        var snapshot = _sandboxes;
+        var tasks = new List<Task>(snapshot.Count);
+        foreach (var sandboxId in snapshot.Keys) {
             tasks.Add(DestroySandboxAsync(sandboxId));
         }
         return new ValueTask(Task.WhenAll(tasks));
+    }
+
+    private void SetSandbox(string sandboxId, SandboxInfo info) {
+        var current = _sandboxes;
+        while (true) {
+            var updated = current.SetItem(sandboxId, info);
+            if (Interlocked.CompareExchange(ref _sandboxes, updated, current) == current) return;
+            current = _sandboxes;
+        }
+    }
+
+    private bool TryRemoveSandbox(string sandboxId, out SandboxInfo info) {
+        info = null!;
+        var current = _sandboxes;
+        while (current.ContainsKey(sandboxId)) {
+            info = current[sandboxId];
+            var updated = current.Remove(sandboxId);
+            if (Interlocked.CompareExchange(ref _sandboxes, updated, current) == current) return true;
+            current = _sandboxes;
+        }
+        return false;
     }
 
     private protected virtual SandboxType DetermineEffectiveType(SandboxType requestedType) {

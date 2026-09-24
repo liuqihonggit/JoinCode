@@ -1,4 +1,5 @@
 global using static Tools.Handlers.FileToolHandlers;
+global using System.Collections.Immutable;
 global using Core.Configuration;
 global using Core.Hooks.Execution.Interception;
 global using Core.Hooks.Execution.Interception.Defense;

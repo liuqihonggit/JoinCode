@@ -218,7 +218,7 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
 
     /// <summary>注册别名（不覆盖已存在的项，不标记为 Canonical）</summary>
     public void RegisterAlias(TKey alias, TValue value) {
-        ImmutableInterlocked.Update(ref _items, d => d.Add(alias, value));
+        ImmutableInterlocked.Update(ref _items, d => d.ContainsKey(alias) ? d : d.Add(alias, value));
         SyncIndicesAdd(alias, value);
     }
 

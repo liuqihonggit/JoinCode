@@ -3,11 +3,57 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 通用字典注册器基类 — 内部 ImmutableDictionary + 无锁 CAS，对外暴露 IEnumerable（遍历器）+ IReadOnlyDictionary（字典视图）
 /// 可选 Canonical/Alias 跟踪 — 子类需要区分正式名和别名时启用
+/// 可选次级索引 — 子类通过 CreateIndex 声明，注册/注销自动同步，O(1) 按属性查找
 /// </summary>
 public class MapRegistry<TKey, TValue> where TKey : notnull {
     private ImmutableDictionary<TKey, TValue> _items;
     private ImmutableHashSet<TKey> _canonicalKeys;
     private readonly bool _trackCanonical;
+    private ImmutableList<ISecondaryIndex> _indices = ImmutableList<ISecondaryIndex>.Empty;
+
+    /// <summary>次级索引类型擦除接口 — 基类统一调用 Add/Remove 同步</summary>
+    private interface ISecondaryIndex {
+        /// <summary>注册时同步添加到索引</summary>
+        void Add(TKey key, TValue value);
+        /// <summary>注销时同步从索引移除</summary>
+        void Remove(TKey key, TValue value);
+    }
+
+    /// <summary>次级索引桥接器 — 包装 SecondaryIndex 并实现 ISecondaryIndex</summary>
+    private sealed class SecondaryIndexBox<TProperty> : ISecondaryIndex where TProperty : notnull {
+        internal readonly SecondaryIndex<TKey, TValue, TProperty> Inner;
+        internal SecondaryIndexBox(Func<TValue, TProperty> selector, IEqualityComparer<TProperty>? comparer)
+            => Inner = new SecondaryIndex<TKey, TValue, TProperty>(selector, comparer);
+        void ISecondaryIndex.Add(TKey key, TValue value) => Inner.Add(key, value);
+        void ISecondaryIndex.Remove(TKey key, TValue value) => Inner.Remove(key, value);
+    }
+
+    /// <summary>
+    /// 创建次级索引 — 子类在构造时调用，按 TValue 属性建立 O(1) 查找索引
+    /// 注册/注销时基类自动同步，查询时通过 index.GetValues(property, AsDictionary()) 获取
+    /// </summary>
+    /// <typeparam name="TProperty">索引属性类型</typeparam>
+    /// <param name="selector">属性选择器</param>
+    /// <param name="comparer">属性相等比较器（可选）</param>
+    protected SecondaryIndex<TKey, TValue, TProperty> CreateIndex<TProperty>(
+        Func<TValue, TProperty> selector,
+        IEqualityComparer<TProperty>? comparer = null) where TProperty : notnull {
+        var box = new SecondaryIndexBox<TProperty>(selector, comparer);
+        foreach (var kvp in Volatile.Read(ref _items))
+            box.Inner.Add(kvp.Key, kvp.Value);
+        ImmutableInterlocked.Update(ref _indices, list => list.Add(box));
+        return box.Inner;
+    }
+
+    private void SyncIndicesAdd(TKey key, TValue value) {
+        foreach (var index in Volatile.Read(ref _indices))
+            index.Add(key, value);
+    }
+
+    private void SyncIndicesRemove(TKey key, TValue value) {
+        foreach (var index in Volatile.Read(ref _indices))
+            index.Remove(key, value);
+    }
 
     /// <summary>当前注册项总数</summary>
     public int Count => Volatile.Read(ref _items).Count;
@@ -25,23 +71,39 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
     /// <summary>注册项（已存在则不覆盖）</summary>
     protected void AddCore(TKey key, TValue value) {
         ImmutableInterlocked.Update(ref _items, d => d.Add(key, value));
+        SyncIndicesAdd(key, value);
     }
 
     /// <summary>注册或更新项</summary>
     protected void AddOrUpdateCore(TKey key, TValue value) {
-        ImmutableInterlocked.Update(ref _items, d => d.SetItem(key, value));
+        var old = default(TValue);
+        var hadOld = false;
+        ImmutableInterlocked.Update(ref _items, d => {
+            if (d.TryGetValue(key, out var v)) {
+                old = v;
+                hadOld = true;
+            }
+            return d.SetItem(key, value);
+        });
+        if (hadOld)
+            SyncIndicesRemove(key, old!);
+        SyncIndicesAdd(key, value);
     }
 
     /// <summary>注销项</summary>
     protected bool RemoveCore(TKey key) {
+        var captured = default(TValue);
         var removed = false;
         ImmutableInterlocked.Update(ref _items, d => {
-            if (d.ContainsKey(key)) {
+            if (d.TryGetValue(key, out var v)) {
+                captured = v;
                 removed = true;
                 return d.Remove(key);
             }
             return d;
         });
+        if (removed)
+            SyncIndicesRemove(key, captured!);
         return removed;
     }
 
@@ -58,6 +120,8 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
             return d;
         });
         value = captured;
+        if (removed)
+            SyncIndicesRemove(key, captured!);
         return removed;
     }
 
@@ -110,7 +174,18 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
 
     /// <summary>注册项（含 Canonical 标记）</summary>
     public void Register(TKey key, TValue value, bool isCanonical = true) {
-        ImmutableInterlocked.Update(ref _items, d => d.SetItem(key, value));
+        var old = default(TValue);
+        var hadOld = false;
+        ImmutableInterlocked.Update(ref _items, d => {
+            if (d.TryGetValue(key, out var v)) {
+                old = v;
+                hadOld = true;
+            }
+            return d.SetItem(key, value);
+        });
+        if (hadOld)
+            SyncIndicesRemove(key, old!);
+        SyncIndicesAdd(key, value);
         if (isCanonical && _trackCanonical)
             ImmutableInterlocked.Update(ref _canonicalKeys, s => s.Add(key));
     }
@@ -118,20 +193,26 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
     /// <summary>注册别名（不覆盖已存在的项，不标记为 Canonical）</summary>
     public void RegisterAlias(TKey alias, TValue value) {
         ImmutableInterlocked.Update(ref _items, d => d.Add(alias, value));
+        SyncIndicesAdd(alias, value);
     }
 
     /// <summary>注销项（公开方法，同时移除 Canonical 标记）</summary>
     public bool Unregister(TKey key) {
+        var captured = default(TValue);
         var removed = false;
         ImmutableInterlocked.Update(ref _items, d => {
-            if (d.ContainsKey(key)) {
+            if (d.TryGetValue(key, out var v)) {
+                captured = v;
                 removed = true;
                 return d.Remove(key);
             }
             return d;
         });
-        if (_trackCanonical && removed)
-            ImmutableInterlocked.Update(ref _canonicalKeys, s => s.Remove(key));
+        if (removed) {
+            SyncIndicesRemove(key, captured!);
+            if (_trackCanonical)
+                ImmutableInterlocked.Update(ref _canonicalKeys, s => s.Remove(key));
+        }
         return removed;
     }
 

@@ -7,7 +7,7 @@ namespace Core.Security.Sandbox.Providers;
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 public sealed partial class ProcessSandboxProvider : SandboxProviderBase {
     private readonly IProcessService _processService;
-    private readonly ConcurrentDictionary<string, WindowsJobObjectSandbox> _jobObjects = new();
+    private volatile ImmutableDictionary<string, WindowsJobObjectSandbox> _jobObjects = ImmutableDictionary<string, WindowsJobObjectSandbox>.Empty;
 
     /// <summary>
     /// 沙箱类型 — 始终为 <see cref="SandboxType.Process"/>
@@ -58,7 +58,7 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase {
     }
 
     private protected override async Task OnDestroyAsync(SandboxInfo info, CancellationToken ct) {
-        if (OperatingSystem.IsWindows() && _jobObjects.TryRemove(info.SandboxId, out var jobObject)) {
+        if (TryRemoveJobObject(info.SandboxId, out var jobObject)) {
             jobObject.TerminateAllProcesses();
             jobObject.Dispose();
             Logger?.LogInformation("[Sandbox:Process] JobObject 已销毁 - Id: {Id}", info.SandboxId);
@@ -120,7 +120,7 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase {
         int? cpuLimit = options.CpuLimitPercent > 0 ? options.CpuLimitPercent : null;
 
         jobObject.CreateJobObject(memoryLimit, cpuLimit);
-        _jobObjects[info.SandboxId] = jobObject;
+        SetJobObject(info.SandboxId, jobObject);
 
         Logger?.LogInformation("[Sandbox:Process] Windows JobObject 已创建 - Id: {Id}, 内存限制: {MemMb}MB, CPU限制: {CpuPct}%",
             info.SandboxId, options.MemoryLimitMb, options.CpuLimitPercent);
@@ -155,5 +155,26 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase {
     public override Task<ProviderExecutionResult?> ExecuteAsync(string sandboxId, string command, string? workingDirectory, int timeoutMs, CancellationToken ct) {
         return ExecuteInSandboxAsync(sandboxId, command, workingDirectory, timeoutMs, ct)
             .ContinueWith(t => (ProviderExecutionResult?)t.Result, ct);
+    }
+
+    private void SetJobObject(string sandboxId, WindowsJobObjectSandbox jobObject) {
+        var current = _jobObjects;
+        while (true) {
+            var updated = current.SetItem(sandboxId, jobObject);
+            if (Interlocked.CompareExchange(ref _jobObjects, updated, current) == current) return;
+            current = _jobObjects;
+        }
+    }
+
+    private bool TryRemoveJobObject(string sandboxId, out WindowsJobObjectSandbox jobObject) {
+        jobObject = null!;
+        var current = _jobObjects;
+        while (current.ContainsKey(sandboxId)) {
+            jobObject = current[sandboxId];
+            var updated = current.Remove(sandboxId);
+            if (Interlocked.CompareExchange(ref _jobObjects, updated, current) == current) return true;
+            current = _jobObjects;
+        }
+        return false;
     }
 }

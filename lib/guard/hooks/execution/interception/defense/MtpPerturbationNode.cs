@@ -48,7 +48,7 @@ public sealed class MtpPerturbationNode {
     private const int AnomalyThreshold = 3;
     private const int LengthDeviationThreshold = 2;
 
-    private readonly ConcurrentQueue<PerturbationRecord> _recentRecords = new();
+    private volatile ImmutableList<PerturbationRecord> _recentRecords = ImmutableList<PerturbationRecord>.Empty;
     private volatile bool _isAdaptiveTriggered;
 
     /// <summary>
@@ -79,8 +79,7 @@ public sealed class MtpPerturbationNode {
         var isAnomaly = DetectAnomaly(features, exitCode, stderr);
         var record = new PerturbationRecord(features, isAnomaly, command);
 
-        _recentRecords.Enqueue(record);
-        TrimQueue();
+        EnqueueRecord(record);
 
         var report = AnalyzeRecentRecords();
         if (report.ShouldTriggerAdaptive)
@@ -93,14 +92,14 @@ public sealed class MtpPerturbationNode {
     /// 分析最近记录，检测是否应触发自适应开关。
     /// </summary>
     public PerturbationReport AnalyzeRecentRecords() {
-        var recent = _recentRecords.ToArray();
+        var recent = _recentRecords;
         var consecutiveAnomalies = CountConsecutiveAnomalies(recent);
-        var lastCommand = recent.Length > 0 ? recent[^1].Command : null;
+        var lastCommand = recent.Count > 0 ? recent[^1].Command : null;
 
         return new PerturbationReport(
             ShouldTriggerAdaptive: consecutiveAnomalies >= AnomalyThreshold,
             ConsecutiveAnomalies: consecutiveAnomalies,
-            TotalRecords: recent.Length,
+            TotalRecords: recent.Count,
             LastCommand: lastCommand);
     }
 
@@ -145,9 +144,9 @@ public sealed class MtpPerturbationNode {
     /// <summary>
     /// 计算最近记录中连续异常的次数（从最新往前数）。
     /// </summary>
-    private static int CountConsecutiveAnomalies(PerturbationRecord[] records) {
+    private static int CountConsecutiveAnomalies(ImmutableList<PerturbationRecord> records) {
         var count = 0;
-        for (var i = records.Length - 1; i >= 0; i--) {
+        for (var i = records.Count - 1; i >= 0; i--) {
             if (!records[i].IsAnomaly)
                 break;
             count++;
@@ -156,11 +155,18 @@ public sealed class MtpPerturbationNode {
     }
 
     /// <summary>
-    /// 修剪队列到最大长度。
+    /// 入队记录并修剪到最大长度。
     /// </summary>
-    private void TrimQueue() {
-        while (_recentRecords.Count > MaxRecords)
-            _recentRecords.TryDequeue(out _);
+    private void EnqueueRecord(PerturbationRecord record) {
+        var current = _recentRecords;
+        while (true) {
+            var updated = current.Add(record);
+            if (updated.Count > MaxRecords) {
+                updated = updated.RemoveRange(0, updated.Count - MaxRecords);
+            }
+            if (Interlocked.CompareExchange(ref _recentRecords, updated, current) == current) return;
+            current = _recentRecords;
+        }
     }
 
     private sealed record PerturbationRecord(

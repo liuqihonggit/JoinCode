@@ -6,12 +6,12 @@ namespace Core.Security.Sandbox;
 /// </summary>
 [Register(typeof(ISandboxManager), ServiceLifetime.Singleton)]
 public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDisposable {
-    private readonly ConcurrentDictionary<SandboxType, ISandboxProvider> _providers;
+    private volatile ImmutableDictionary<SandboxType, ISandboxProvider> _providers = ImmutableDictionary<SandboxType, ISandboxProvider>.Empty;
     private readonly SandboxLifecycleActor _lifecycleActor;
     private readonly ILogger<SandboxManager>? _logger;
     private readonly IFileSystem _fs;
     private readonly SandboxIpcClient? _ipcClient;
-    private readonly ConcurrentDictionary<string, SandboxActiveExecution> _activeExecutions = new();
+    private volatile ImmutableDictionary<string, SandboxActiveExecution> _activeExecutions = ImmutableDictionary<string, SandboxActiveExecution>.Empty;
 
     /// <summary>
     /// 初始化沙箱管理器实例
@@ -24,10 +24,9 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         _fs = fs;
         _ipcClient = ipcClient;
         _logger = logger;
-        _providers = new ConcurrentDictionary<SandboxType, ISandboxProvider>(
-            providers
-                .Where(p => p.IsAvailable)
-                .ToDictionary(p => p.SandboxType, p => p));
+        _providers = providers
+            .Where(p => p.IsAvailable)
+            .ToImmutableDictionary(p => p.SandboxType, p => p);
 
         _lifecycleActor = new SandboxLifecycleActor(_providers, _logger);
 
@@ -40,22 +39,35 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     public bool AddProvider(ISandboxProvider provider) {
         ArgumentNullException.ThrowIfNull(provider);
         if (!provider.IsAvailable) return false;
-        var added = _providers.TryAdd(provider.SandboxType, provider);
-        if (added) {
-            _logger?.LogInformation("[SandboxManager] 插件注册沙箱类型: {Type}", provider.SandboxType.ToValue());
+        var current = _providers;
+        if (current.ContainsKey(provider.SandboxType)) return false;
+        while (true) {
+            var updated = current.Add(provider.SandboxType, provider);
+            if (Interlocked.CompareExchange(ref _providers, updated, current) == current) {
+                _lifecycleActor.UpdateProviders(updated);
+                _logger?.LogInformation("[SandboxManager] 插件注册沙箱类型: {Type}", provider.SandboxType.ToValue());
+                return true;
+            }
+            current = _providers;
+            if (current.ContainsKey(provider.SandboxType)) return false;
         }
-        return added;
     }
 
     /// <summary>
     /// 运行时移除沙箱提供器 — 插件卸载时调用
     /// </summary>
     public bool RemoveProvider(SandboxType type) {
-        var removed = _providers.TryRemove(type, out _);
-        if (removed) {
-            _logger?.LogInformation("[SandboxManager] 插件移除沙箱类型: {Type}", type.ToValue());
+        var current = _providers;
+        while (current.ContainsKey(type)) {
+            var updated = current.Remove(type);
+            if (Interlocked.CompareExchange(ref _providers, updated, current) == current) {
+                _lifecycleActor.UpdateProviders(updated);
+                _logger?.LogInformation("[SandboxManager] 插件移除沙箱类型: {Type}", type.ToValue());
+                return true;
+            }
+            current = _providers;
         }
-        return removed;
+        return false;
     }
 
     /// <inheritdoc/>
@@ -126,7 +138,6 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             if (fallbackType == targetType || !_providers.ContainsKey(fallbackType)) {
                 continue;
             }
-
             try {
                 var fallbackOptions = new SandboxOptions {
                     Type = fallbackType,
@@ -229,7 +240,6 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         _logger?.LogWarning("[SandboxManager] 沙箱 '{Id}' 不存在，返回原路径", sandboxId);
         return Path.GetFullPath(path);
     }
-
     private (ISandboxProvider Provider, bool FallbackUsed) ResolveProviderWithFallback(SandboxType type) {
         if (type == SandboxType.None) {
             var envType = Environment.GetEnvironmentVariable(JccEnvVar.SandboxMode.ToValue());
@@ -500,7 +510,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             ConfiguredTimeout = configuredTimeout,
             OriginalCommand = command
         };
-        _activeExecutions[executionId] = execution;
+        SetExecution(executionId, execution);
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(configuredTimeout);
@@ -516,7 +526,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
                 await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
 
                 stopwatch.Stop();
-                _activeExecutions.TryRemove(executionId, out _);
+                TryRemoveExecution(executionId);
 
                 return new AbstractionsSandboxExecutionResult {
                     State = process.HasExited && process.ExitCode == 0
@@ -582,8 +592,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             };
         }
 
-        if (action.Equals("stop", StringComparison.OrdinalIgnoreCase)) {
-            _logger?.LogInformation("[SandboxManager] LLM 决定强行停止执行 - ExecutionId: {Id}", executionId);
+        if (action.Equals("stop", StringComparison.OrdinalIgnoreCase)) {            _logger?.LogInformation("[SandboxManager] LLM 决定强行停止执行 - ExecutionId: {Id}", executionId);
             ForceStopExecution(executionId);
 
             return new AbstractionsSandboxExecutionResult {
@@ -608,7 +617,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
                 await Task.Run(() => execution.Process.WaitForExit(), waitCts.Token).ConfigureAwait(false);
 
                 execution.Stopwatch.Stop();
-                _activeExecutions.TryRemove(executionId, out _);
+                TryRemoveExecution(executionId);
 
                 return new AbstractionsSandboxExecutionResult {
                     State = execution.Process.HasExited && execution.Process.ExitCode == 0
@@ -644,7 +653,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     }
 
     private void ForceStopExecution(string executionId) {
-        if (!_activeExecutions.TryRemove(executionId, out var execution)) {
+        if (!TryRemoveExecution(executionId, out var execution)) {
             return;
         }
 
@@ -657,6 +666,36 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         }
 
         execution.Stopwatch.Stop();
+    }
+
+    private void SetExecution(string executionId, SandboxActiveExecution execution) {
+        var current = _activeExecutions;
+        while (true) {
+            var updated = current.SetItem(executionId, execution);
+            if (Interlocked.CompareExchange(ref _activeExecutions, updated, current) == current) return;
+            current = _activeExecutions;
+        }
+    }
+
+    private void TryRemoveExecution(string executionId) {
+        var current = _activeExecutions;
+        while (current.ContainsKey(executionId)) {
+            var updated = current.Remove(executionId);
+            if (Interlocked.CompareExchange(ref _activeExecutions, updated, current) == current) return;
+            current = _activeExecutions;
+        }
+    }
+
+    private bool TryRemoveExecution(string executionId, out SandboxActiveExecution execution) {
+        execution = null!;
+        var current = _activeExecutions;
+        while (current.ContainsKey(executionId)) {
+            execution = current[executionId];
+            var updated = current.Remove(executionId);
+            if (Interlocked.CompareExchange(ref _activeExecutions, updated, current) == current) return true;
+            current = _activeExecutions;
+        }
+        return false;
     }
 
     /// <summary>异步释放资源 — 异步释放生命周期 Actor 并完成基类异步释放。</summary>

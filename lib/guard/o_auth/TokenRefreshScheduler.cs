@@ -54,7 +54,7 @@ public sealed partial class TokenRefreshEventArgs : EventArgs {
 public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefreshScheduler, IDisposable {
     private readonly ILogger<TokenRefreshScheduler>? _logger;
     private readonly IClockService _clock;
-    private readonly ConcurrentDictionary<string, TokenMonitor> _monitors = new();
+    private volatile ImmutableDictionary<string, TokenMonitor> _monitors = ImmutableDictionary<string, TokenMonitor>.Empty;
     private readonly TimeSpan _refreshBuffer;
     private bool _disposed;
 
@@ -107,7 +107,7 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
             Token = token
         };
 
-        _monitors[provider] = monitor;
+        SetMonitor(provider, monitor);
         timer.Start();
 
         _logger?.LogInformation(
@@ -117,7 +117,7 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
 
     /// <inheritdoc />
     public Task StopMonitoringAsync(string provider, CancellationToken cancellationToken = default) {
-        if (_monitors.TryRemove(provider, out var monitor)) {
+        if (TryRemoveMonitor(provider, out var monitor)) {
             monitor.Timer.Stop();
             monitor.Timer.Dispose();
             _logger?.LogInformation("Stopped monitoring token for {Provider}", provider);
@@ -139,7 +139,7 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
         });
 
         // 移除监控
-        _monitors.TryRemove(provider, out _);
+        TryRemoveMonitor(provider, out _);
     }
 
     /// <inheritdoc />
@@ -147,13 +147,37 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
         if (_disposed) return;
         _disposed = true;
 
-        foreach (var monitor in _monitors.Values) {
+        var snapshot = _monitors;
+        foreach (var monitor in snapshot.Values) {
             monitor.Timer.Stop();
             monitor.Timer.Dispose();
         }
 
-        _monitors.Clear();
+        Interlocked.Exchange(ref _monitors, ImmutableDictionary<string, TokenMonitor>.Empty);
         base.Dispose();
+    }
+
+    private void SetMonitor(string provider, TokenMonitor monitor) {
+        var current = _monitors;
+        while (true) {
+            var updated = current.SetItem(provider, monitor);
+            if (Interlocked.CompareExchange(ref _monitors, updated, current) == current) return;
+            current = _monitors;
+        }
+    }
+
+    private bool TryRemoveMonitor(string provider, out TokenMonitor monitor) {
+        monitor = null!;
+        var current = _monitors;
+        while (current.ContainsKey(provider)) {
+            monitor = current[provider];
+            var updated = current.Remove(provider);
+            if (Interlocked.CompareExchange(ref _monitors, updated, current) == current) {
+                return true;
+            }
+            current = _monitors;
+        }
+        return false;
     }
 }
 

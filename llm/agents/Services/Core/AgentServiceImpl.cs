@@ -19,6 +19,15 @@ public sealed record AgentServiceDependencies(
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService), ServiceLifetime.Singleton)]
 public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable {
 
+    /// <summary>
+    /// 子代理运行时状态聚合 — 将同一 agent 的完成源、取消令牌、进度跟踪器收拢为单一不可变记录，
+    /// 消除原先 3 个 ConcurrentDictionary 分散维护同一 agent 状态的冗余拷贝。
+    /// </summary>
+    private sealed record AgentRuntimeState(
+        TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>? CompletionSource = null,
+        ProgressTracker? ProgressTracker = null,
+        CancellationTokenSource? BackgroundCts = null);
+
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider _definitionProvider;
     private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry _roleRegistry;
@@ -34,10 +43,9 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
     private readonly Infrastructure.Pipeline.MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>> _completionSources;
-    private readonly ConcurrentDictionary<string, CancellationTokenSource> _backgroundCts;
+    [SuppressMessage("Style", "IDE0044:添加 readonly 修饰符", Justification = "ImmutableInterlocked.Update 通过 ref 写入,helper 方法隐藏了写入")]
+    private ImmutableDictionary<string, AgentRuntimeState> _runtimeStates = ImmutableDictionary<string, AgentRuntimeState>.Empty;
     private readonly Coordinator.Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
-    private readonly ConcurrentDictionary<string, ProgressTracker> _progressTrackers;
     private readonly Coordinator.Core.Messaging.AgentNameIndex _agentNameIndex = new();
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
@@ -73,10 +81,22 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _logger = logger;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
-        _completionSources = new ConcurrentDictionary<string, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>>();
-        _backgroundCts = new ConcurrentDictionary<string, CancellationTokenSource>();
-        _progressTrackers = new ConcurrentDictionary<string, ProgressTracker>();
     }
+
+    /// <summary>
+    /// 原子更新指定 agent 的运行时状态 — 无锁 CAS 循环，updater 接收当前状态返回新状态。
+    /// </summary>
+    private void UpdateRuntimeState(string agentId, Func<AgentRuntimeState, AgentRuntimeState> updater)
+        => ImmutableInterlocked.Update(ref _runtimeStates, static (dict, arg) => {
+            var current = dict.TryGetValue(arg.agentId, out var existing) ? existing : new AgentRuntimeState();
+            return dict.SetItem(arg.agentId, arg.updater(current));
+        }, (agentId, updater));
+
+    /// <summary>
+    /// 读取指定 agent 的运行时状态快照 — 不可变引用，无需拷贝。
+    /// </summary>
+    private AgentRuntimeState? GetRuntimeState(string agentId)
+        => _runtimeStates.TryGetValue(agentId, out var state) ? state : null;
 
     /// <summary>
     /// 子智能体初始化结果 — SpawnAgentAsync / RunAgentStreamAsync 共享
@@ -99,7 +119,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             throw new InvalidOperationException("[AGT008] 中间件管道未创建 Agent");
 
         StartWorkerPermissionResponseRouting(context.Agent.ObjectId.UniqueId);
-        _progressTrackers[context.Agent.ObjectId.UniqueId] = context.ProgressTracker;
+        UpdateRuntimeState(context.Agent.ObjectId.UniqueId, s => s with { ProgressTracker = context.ProgressTracker });
 
         return new SubAgentInitResult(context.Agent, context.SystemPrompt, context.Definition);
     }
@@ -116,7 +136,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         var init = await InitializeSubAgentAsync(options, cancellationToken).ConfigureAwait(false);
 
         var tcs = new TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>();
-        _completionSources[init.SubAgent.ObjectId.UniqueId] = tcs;
+        UpdateRuntimeState(init.SubAgent.ObjectId.UniqueId, s => s with { CompletionSource = tcs });
         _agentStartTimer.Record(init.SubAgent.ObjectId.UniqueId, _clock.GetUtcNow());
         _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
         if (init.SubAgent is AgentBase baseAgent) {
@@ -131,7 +151,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         if (runInBackground) {
             var backgroundCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _backgroundCts[init.SubAgent.ObjectId.UniqueId] = backgroundCts;
+            UpdateRuntimeState(init.SubAgent.ObjectId.UniqueId, s => s with { BackgroundCts = backgroundCts });
 
             _ = RunBackgroundAgentAsync(init.SubAgent, tcs, backgroundCts.Token).WaitAsync(TimeSpan.FromSeconds(10), backgroundCts.Token).ConfigureAwait(false);
 
@@ -147,8 +167,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             FireAgentCompleted(init.SubAgent, agentResult);
             return MapToAgentInfo(init.SubAgent, lifecycleResult);
         } catch (Exception ex) {
-            _completionSources.TryRemove(init.SubAgent.ObjectId.UniqueId, out var failedTcs);
-            failedTcs?.TrySetException(ex);
+            GetRuntimeState(init.SubAgent.ObjectId.UniqueId)?.CompletionSource?.TrySetException(ex);
+            UpdateRuntimeState(init.SubAgent.ObjectId.UniqueId, s => s with { CompletionSource = null });
             throw;
         }
     }
@@ -207,8 +227,9 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             Error = errorMessage
         };
 
-        if (_completionSources.TryRemove(init.SubAgent.ObjectId.UniqueId, out var tcs)) {
-            tcs.SetResult(agentResult);
+        if (GetRuntimeState(init.SubAgent.ObjectId.UniqueId)?.CompletionSource is { } completionTcs) {
+            completionTcs.SetResult(agentResult);
+            UpdateRuntimeState(init.SubAgent.ObjectId.UniqueId, s => s with { CompletionSource = null });
         }
 
         FireAgentCompleted(init.SubAgent, agentResult);
@@ -223,8 +244,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     public async Task<JoinCode.Abstractions.Interfaces.AgentResult> WaitForAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
-        if (_completionSources.TryGetValue(agentId, out var tcs)) {
-            return await tcs.Task.ConfigureAwait(false);
+        if (GetRuntimeState(agentId)?.CompletionSource is { } waitTcs) {
+            return await waitTcs.Task.ConfigureAwait(false);
         }
 
         var result = await _lifecycleManager.GetResultAsync(agentId, cancellationToken).ConfigureAwait(false);
@@ -264,9 +285,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     public async Task<bool> StopAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
-        if (_backgroundCts.TryRemove(agentId, out var backgroundCts)) {
+        if (GetRuntimeState(agentId)?.BackgroundCts is { } backgroundCts) {
             await backgroundCts.CancelAsync().ConfigureAwait(false);
             backgroundCts.Dispose();
+            UpdateRuntimeState(agentId, s => s with { BackgroundCts = null });
         }
 
         await CleanupMcpServersIfNeededAsync(agentId, cancellationToken).ConfigureAwait(false);
@@ -345,7 +367,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     public Task<JoinCode.Abstractions.Interfaces.AgentProgress?> GetAgentProgressAsync(string agentId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
-        if (_progressTrackers.TryGetValue(agentId, out var tracker))
+        if (GetRuntimeState(agentId)?.ProgressTracker is { } tracker)
             return Task.FromResult<JoinCode.Abstractions.Interfaces.AgentProgress?>(tracker.ToProgress());
 
         return Task.FromResult<JoinCode.Abstractions.Interfaces.AgentProgress?>(null);
@@ -424,12 +446,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         await AppendTranscriptEntryAsync(subAgent.ObjectId.UniqueId, "user", options.NewPrompt, cancellationToken).ConfigureAwait(false);
 
         var tcs = new TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>();
-        _completionSources[subAgent.ObjectId.UniqueId] = tcs;
+        UpdateRuntimeState(subAgent.ObjectId.UniqueId, s => s with { CompletionSource = tcs });
         _agentStartTimer.Record(subAgent.ObjectId.UniqueId, _clock.GetUtcNow());
 
         if (options.RunInBackground) {
             var backgroundCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _backgroundCts[subAgent.ObjectId.UniqueId] = backgroundCts;
+            UpdateRuntimeState(subAgent.ObjectId.UniqueId, s => s with { BackgroundCts = backgroundCts });
 
             _ = RunBackgroundAgentAsync(subAgent, tcs, backgroundCts.Token).WaitAsync(TimeSpan.FromSeconds(10), backgroundCts.Token).ConfigureAwait(false);
 
@@ -612,8 +634,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
             FireAgentCompleted(subAgent, agentResult);
         } finally {
-            _backgroundCts.TryRemove(subAgent.ObjectId.UniqueId, out var cts);
-            cts?.Dispose();
+            GetRuntimeState(subAgent.ObjectId.UniqueId)?.BackgroundCts?.Dispose();
+            UpdateRuntimeState(subAgent.ObjectId.UniqueId, s => s with { BackgroundCts = null });
         }
     }
 
@@ -624,14 +646,13 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             UnregisterAgentNameIndex(subAgent);
             var status = result.Success ? AgentStatus.Completed : AgentStatus.Failed;
 
-            if (_progressTrackers.TryGetValue(subAgent.ObjectId.UniqueId, out var tracker)) {
-                if (concreteAgent.Context is not null)
-                    tracker.RecordTokenUsage(concreteAgent.Context.TokenUsage.TotalTokens);
-            }
+            var runtimeState = GetRuntimeState(subAgent.ObjectId.UniqueId);
+            if (runtimeState?.ProgressTracker is { } tracker && concreteAgent.Context is not null)
+                tracker.RecordTokenUsage(concreteAgent.Context.TokenUsage.TotalTokens);
 
             var durationMs = _agentStartTimer.TryRemoveDurationMs(subAgent.ObjectId.UniqueId, _clock.GetUtcNow());
 
-            var toolUseCount = _progressTrackers.TryGetValue(subAgent.ObjectId.UniqueId, out var t) ? t.ToolUseCount : (int?)null;
+            var toolUseCount = runtimeState?.ProgressTracker?.ToolUseCount;
             var tokenCount = concreteAgent.Context?.TokenUsage.TotalTokens;
 
             AgentCompleted?.Invoke(this, new JoinCode.Abstractions.Interfaces.AgentCompletedEventArgs {
@@ -778,11 +799,11 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             }
         }
 
-        foreach (var kvp in _backgroundCts) {
-            kvp.Value.Cancel();
-            kvp.Value.Dispose();
+        foreach (var kvp in _runtimeStates) {
+            kvp.Value.BackgroundCts?.Cancel();
+            kvp.Value.BackgroundCts?.Dispose();
         }
-        _backgroundCts.Clear();
+        Interlocked.Exchange(ref _runtimeStates, ImmutableDictionary<string, AgentRuntimeState>.Empty);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

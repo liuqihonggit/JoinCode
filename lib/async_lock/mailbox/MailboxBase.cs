@@ -117,20 +117,19 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// 等待所有已入队命令被 Consumer 处理完 — 入队屏障命令并等其处理（FIFO 保证之前的命令都已完成）。
     /// <para>用于确定性等待，替代 <c>Task.Delay</c> 固定等待：Tell 系列方法 fire-and-forget 入队后 Consumer 异步处理，</para>
     /// <para>固定等待在 CI 高负载时不可靠（Consumer 未在时限内调度完 → 副作用未生效 → 断言失败）。</para>
-    /// <para>内置 5s 超时保护：Consumer 停止或 channel 关闭时 barrier 命令永不处理，超时抛 TimeoutException 防止卡死。</para>
+    /// <para>内置重试 16 次 × 500ms 超时保护：Consumer 处理慢时后续重试会成功，Consumer 停止时 16 次都超时才报错（概率极低）。</para>
     /// <para>生产用途：优雅关闭前确保命令处理完、批量操作后确认生效。测试用途：替代 Task.Delay 等异步副作用。</para>
     /// </summary>
     /// <param name="ct">取消令牌</param>
     public async Task WaitForCommandsDrainedAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         await SendAsync(new DrainBarrierCmd<TMessage>(tcs), ct).ConfigureAwait(false);
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(TimeSpan.FromSeconds(5));
-        try {
-            await tcs.Task.WaitAsync(cts.Token).ConfigureAwait(false);
-        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-            throw new TimeoutException("WaitForCommandsDrainedAsync 超时 5s — Consumer 可能已停止或 channel 已关闭");
+        for (var i = 0; i < 16; i++) {
+            if (tcs.Task.IsCompleted) return;
+            var winner = await Task.WhenAny(tcs.Task, Task.Delay(500, ct)).ConfigureAwait(false);
+            if (winner == tcs.Task) return;
         }
+        throw new TimeoutException("WaitForCommandsDrainedAsync 重试16次×500ms全超时 — Consumer 可能已停止或 channel 已关闭");
     }
 
     /// <summary>

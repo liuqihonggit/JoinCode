@@ -43,7 +43,6 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
     private readonly Infrastructure.Pipeline.MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
-    [SuppressMessage("Style", "IDE0044:添加 readonly 修饰符", Justification = "ImmutableInterlocked.Update 通过 ref 写入,helper 方法隐藏了写入")]
     private ImmutableDictionary<string, AgentRuntimeState> _runtimeStates = ImmutableDictionary<string, AgentRuntimeState>.Empty;
     private readonly Coordinator.Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
     private readonly Coordinator.Core.Messaging.AgentNameIndex _agentNameIndex = new();
@@ -85,12 +84,17 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
     /// <summary>
     /// 原子更新指定 agent 的运行时状态 — 无锁 CAS 循环，updater 接收当前状态返回新状态。
+    /// 用 Interlocked.CompareExchange 而非 ImmutableInterlocked.Update,使 Roslyn IDE0044 分析器识别 ref 写入。
     /// </summary>
-    private void UpdateRuntimeState(string agentId, Func<AgentRuntimeState, AgentRuntimeState> updater)
-        => ImmutableInterlocked.Update(ref _runtimeStates, static (dict, arg) => {
-            var current = dict.TryGetValue(arg.agentId, out var existing) ? existing : new AgentRuntimeState();
-            return dict.SetItem(arg.agentId, arg.updater(current));
-        }, (agentId, updater));
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void UpdateRuntimeState(string agentId, Func<AgentRuntimeState, AgentRuntimeState> updater) {
+        while (true) {
+            var snapshot = _runtimeStates;
+            var current = snapshot.TryGetValue(agentId, out var existing) ? existing : new AgentRuntimeState();
+            var updated = snapshot.SetItem(agentId, updater(current));
+            if (Interlocked.CompareExchange(ref _runtimeStates, updated, snapshot) == snapshot) return;
+        }
+    }
 
     /// <summary>
     /// 读取指定 agent 的运行时状态快照 — 不可变引用，无需拷贝。

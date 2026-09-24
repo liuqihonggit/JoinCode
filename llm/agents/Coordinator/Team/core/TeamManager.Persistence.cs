@@ -40,16 +40,15 @@ public sealed partial class TeamManager {
                     var room = new ChatRoomState { Info = team };
 
                     if (data.TeamMembers is not null && data.TeamMembers.TryGetValue(team.TeamId, out var memberList)) {
-                        room.Members = new HashSet<string>(memberList);
+                        room = room with { Members = memberList.ToImmutableHashSet() };
                     }
 
                     if (data.TeamMessages is not null && data.TeamMessages.TryGetValue(team.TeamId, out var msgList)) {
-                        room.Messages = new ConcurrentDictionary<string, TeamMessage>(
-                            msgList.Select(m => new KeyValuePair<string, TeamMessage>(m.MessageId, m)));
+                        room = room with { Messages = msgList.ToImmutableDictionary(m => m.MessageId) };
                     }
 
                     if (data.TeamMemberDetails is not null && data.TeamMemberDetails.TryGetValue(team.TeamId, out var detailList)) {
-                        room.MemberDetails = detailList.ToDictionary(m => m.AgentId, m => m);
+                        room = room with { MemberDetails = detailList.ToImmutableDictionary(m => m.AgentId) };
                     }
 
                     _registry.AddRoom(team.TeamId, room);

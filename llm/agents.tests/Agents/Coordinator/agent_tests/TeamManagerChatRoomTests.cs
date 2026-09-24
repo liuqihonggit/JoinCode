@@ -163,7 +163,8 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         var registry = (TeamRegistry)registryField!.GetValue(_teamManager)!;
         var rooms = registry.SnapshotRooms();
-        rooms[teamId].Messages.TryAdd(notice.MessageId, notice);
+        var room = rooms[teamId];
+        registry.UpdateRoom(teamId, room with { Messages = room.Messages.Add(notice.MessageId, notice) });
 
         await InvokePersistTeamMessageAsync(teamId, notice, CancellationToken.None);
 
@@ -225,7 +226,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         var registry = (TeamRegistry)registryField!.GetValue(_teamManager)!;
         var rooms = registry.SnapshotRooms();
         if (rooms.TryGetValue(teamId, out var room)) {
-            room.SessionId = sessionId;
+            registry.UpdateRoom(teamId, room with { SessionId = sessionId });
         }
     }
 
@@ -235,7 +236,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         var registry = (TeamRegistry)registryField!.GetValue(_teamManager)!;
         var rooms = registry.SnapshotRooms();
         if (rooms.TryGetValue(teamId, out var room) && room.MemberDetails.TryGetValue(agentId, out var info)) {
-            room.MemberDetails[agentId] = info with { Role = role };
+            registry.UpdateRoom(teamId, room with { MemberDetails = room.MemberDetails.SetItem(agentId, info with { Role = role }) });
         }
     }
 

@@ -5,25 +5,26 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// <para>对标 QQ 群数据模型：群信息 + 成员 + 消息 + 会话 + 路径权限 + 成员详情。</para>
 /// <para>内存控制：MaxMessageCount 限制消息数，超过时标记 NeedsCleanup 提示用户清理，不强制删除。</para>
 /// <para>按需加载：配合 IChatRoomStore 实现懒加载，默认不载入全部房间。</para>
+/// <para>不可变 record + 不可变集合，修改通过 with 表达式返回新实例，并行检索安全。</para>
 /// </summary>
-public sealed class ChatRoomState {
+public sealed record ChatRoomState {
     /// <summary>团队/聊天室信息</summary>
-    public TeamInfo Info { get; set; } = null!;
+    public TeamInfo Info { get; init; } = null!;
 
-    /// <summary>成员 ID 集合</summary>
-    public HashSet<string> Members { get; set; } = new();
+    /// <summary>成员 ID 集合（不可变，O(1) 包含查询）</summary>
+    public ImmutableHashSet<string> Members { get; init; } = ImmutableHashSet<string>.Empty;
 
-    /// <summary>消息字典（MessageId → Message），用 MessageId 去重 — ADR 0109 决策10。</summary>
-    public ConcurrentDictionary<string, TeamMessage> Messages { get; set; } = new();
+    /// <summary>消息字典（MessageId → Message），用 MessageId 去重 — ADR 0109 决策10。不可变，修改通过 with 返回新实例。</summary>
+    public ImmutableDictionary<string, TeamMessage> Messages { get; init; } = ImmutableDictionary<string, TeamMessage>.Empty;
 
     /// <summary>会话 ID（文件邮箱需要）</summary>
-    public string? SessionId { get; set; }
+    public string? SessionId { get; init; }
 
-    /// <summary>团队级允许路径</summary>
-    public Dictionary<string, TeamAllowedPath> AllowedPaths { get; set; } = new();
+    /// <summary>团队级允许路径（不可变，Path → TeamAllowedPath）</summary>
+    public ImmutableDictionary<string, TeamAllowedPath> AllowedPaths { get; init; } = ImmutableDictionary<string, TeamAllowedPath>.Empty;
 
-    /// <summary>成员详情（AgentId → TeamMemberInfo）</summary>
-    public Dictionary<string, TeamMemberInfo> MemberDetails { get; set; } = new();
+    /// <summary>成员详情（AgentId → TeamMemberInfo，不可变）</summary>
+    public ImmutableDictionary<string, TeamMemberInfo> MemberDetails { get; init; } = ImmutableDictionary<string, TeamMemberInfo>.Empty;
 
     /// <summary>最大消息保留数（默认 1000，对标 QQ 本地缓存）— ADR 0109 决策13。</summary>
     public int MaxMessageCount { get; init; } = 1000;
@@ -40,21 +41,23 @@ public sealed class ChatRoomState {
         : null;
 
     /// <summary>
-    /// 添加消息 — 用 MessageId 去重，重复消息不插入。
+    /// 尝试添加消息 — 用 MessageId 去重，重复消息不插入。
     /// <para>超过 MaxMessageCount 时不强制删除，仅标记 <see cref="NeedsCleanup"/>。</para>
     /// </summary>
     /// <param name="message">消息</param>
-    /// <returns>true=新消息已插入；false=重复消息未插入</returns>
-    public bool AddMessage(TeamMessage message)
-        => Messages.TryAdd(message.MessageId, message);
+    /// <returns>(新状态, true=新消息已插入 / false=重复消息未插入)</returns>
+    public (ChatRoomState State, bool Added) TryAddMessage(TeamMessage message)
+        => Messages.ContainsKey(message.MessageId)
+            ? (this, false)
+            : (this with { Messages = Messages.Add(message.MessageId, message) }, true);
 
     /// <summary>
     /// 清理旧消息 — 删除超过 <see cref="MaxMessageCount"/> 的最旧消息。
     /// <para>用户主动调用，或系统提示后用户确认清理。</para>
     /// </summary>
-    /// <returns>清理的消息数</returns>
-    public int CleanupOldMessages() {
-        if (Messages.Count <= MaxMessageCount) return 0;
+    /// <returns>(新状态, 清理的消息数)</returns>
+    public (ChatRoomState State, int RemovedCount) CleanupOldMessages() {
+        if (Messages.Count <= MaxMessageCount) return (this, 0);
 
         var toRemove = Messages.Count - MaxMessageCount;
         var oldest = Messages.Values
@@ -63,11 +66,7 @@ public sealed class ChatRoomState {
             .Select(m => m.MessageId)
             .ToList();
 
-        var removed = 0;
-        foreach (var msgId in oldest) {
-            if (Messages.TryRemove(msgId, out _)) removed++;
-        }
-        return removed;
+        return (this with { Messages = Messages.RemoveRange(oldest) }, oldest.Count);
     }
 
     /// <summary>

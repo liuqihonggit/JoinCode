@@ -28,10 +28,10 @@ public sealed class ChatRoomStateTests {
         var state = CreateState();
         var msg = CreateMessage("msg1");
 
-        var result = state.AddMessage(msg);
+        var (newState, added) = state.TryAddMessage(msg);
 
-        result.Should().BeTrue();
-        state.MessageCount.Should().Be(1);
+        added.Should().BeTrue();
+        newState.MessageCount.Should().Be(1);
     }
 
     [Fact]
@@ -39,18 +39,18 @@ public sealed class ChatRoomStateTests {
         var state = CreateState();
         var msg = CreateMessage("msg1");
 
-        state.AddMessage(msg);
-        var result = state.AddMessage(msg);
+        state = state.TryAddMessage(msg).State;
+        var (newState, added) = state.TryAddMessage(msg);
 
-        result.Should().BeFalse();
-        state.MessageCount.Should().Be(1);
+        added.Should().BeFalse();
+        newState.MessageCount.Should().Be(1);
     }
 
     [Fact]
     public void NeedsCleanup_BelowMax_ReturnsFalse() {
         var state = CreateState(maxMessageCount: 5);
         for (var i = 0; i < 5; i++) {
-            state.AddMessage(CreateMessage($"msg{i}"));
+            state = state.TryAddMessage(CreateMessage($"msg{i}")).State;
         }
 
         state.NeedsCleanup.Should().BeFalse();
@@ -60,7 +60,7 @@ public sealed class ChatRoomStateTests {
     public void NeedsCleanup_AboveMax_ReturnsTrue() {
         var state = CreateState(maxMessageCount: 5);
         for (var i = 0; i < 6; i++) {
-            state.AddMessage(CreateMessage($"msg{i}"));
+            state = state.TryAddMessage(CreateMessage($"msg{i}")).State;
         }
 
         state.NeedsCleanup.Should().BeTrue();
@@ -71,26 +71,26 @@ public sealed class ChatRoomStateTests {
         var baseTime = new DateTime(2026, 1, 1);
         var state = CreateState(maxMessageCount: 3);
         for (var i = 0; i < 5; i++) {
-            state.AddMessage(CreateMessage($"msg{i}", baseTime.AddMinutes(i)));
+            state = state.TryAddMessage(CreateMessage($"msg{i}", baseTime.AddMinutes(i))).State;
         }
 
-        var removed = state.CleanupOldMessages();
+        var (newState, removed) = state.CleanupOldMessages();
 
         removed.Should().Be(2);
-        state.MessageCount.Should().Be(3);
-        state.Messages.Should().NotContainKey("msg0");
-        state.Messages.Should().NotContainKey("msg1");
-        state.Messages.Should().ContainKey("msg2");
-        state.Messages.Should().ContainKey("msg3");
-        state.Messages.Should().ContainKey("msg4");
+        newState.MessageCount.Should().Be(3);
+        newState.Messages.Should().NotContainKey("msg0");
+        newState.Messages.Should().NotContainKey("msg1");
+        newState.Messages.Should().ContainKey("msg2");
+        newState.Messages.Should().ContainKey("msg3");
+        newState.Messages.Should().ContainKey("msg4");
     }
 
     [Fact]
     public void CleanupOldMessages_BelowMax_ReturnsZero() {
         var state = CreateState(maxMessageCount: 10);
-        state.AddMessage(CreateMessage("msg1"));
+        state = state.TryAddMessage(CreateMessage("msg1")).State;
 
-        var removed = state.CleanupOldMessages();
+        var (_, removed) = state.CleanupOldMessages();
 
         removed.Should().Be(0);
     }
@@ -99,8 +99,8 @@ public sealed class ChatRoomStateTests {
     public void GetMessages_ReturnsByTimestampDescending() {
         var baseTime = new DateTime(2026, 1, 1);
         var state = CreateState();
-        state.AddMessage(CreateMessage("old", baseTime));
-        state.AddMessage(CreateMessage("new", baseTime.AddHours(1)));
+        state = state.TryAddMessage(CreateMessage("old", baseTime)).State;
+        state = state.TryAddMessage(CreateMessage("new", baseTime.AddHours(1))).State;
 
         var messages = state.GetMessages();
 
@@ -112,7 +112,7 @@ public sealed class ChatRoomStateTests {
     public void GetMessages_WithLimit_ReturnsLimitedCount() {
         var state = CreateState();
         for (var i = 0; i < 10; i++) {
-            state.AddMessage(CreateMessage($"msg{i}", DateTime.UtcNow.AddMinutes(i)));
+            state = state.TryAddMessage(CreateMessage($"msg{i}", DateTime.UtcNow.AddMinutes(i))).State;
         }
 
         var messages = state.GetMessages(limit: 3);
@@ -123,9 +123,9 @@ public sealed class ChatRoomStateTests {
     [Fact]
     public void GetMessages_WithVisibility_FiltersByVisibility() {
         var state = CreateState();
-        state.AddMessage(CreateMessage("public1", visibility: MessageVisibility.Public));
-        state.AddMessage(CreateMessage("system1", visibility: MessageVisibility.System));
-        state.AddMessage(CreateMessage("admin1", visibility: MessageVisibility.AdminOnly));
+        state = state.TryAddMessage(CreateMessage("public1", visibility: MessageVisibility.Public)).State;
+        state = state.TryAddMessage(CreateMessage("system1", visibility: MessageVisibility.System)).State;
+        state = state.TryAddMessage(CreateMessage("admin1", visibility: MessageVisibility.AdminOnly)).State;
 
         var publicMsgs = state.GetMessages(MessageVisibility.Public);
         var systemMsgs = state.GetMessages(MessageVisibility.System);
@@ -147,9 +147,9 @@ public sealed class ChatRoomStateTests {
     public void LastMessageAt_WithMessages_ReturnsLatestTimestamp() {
         var baseTime = new DateTime(2026, 1, 1);
         var state = CreateState();
-        state.AddMessage(CreateMessage("old", baseTime));
-        state.AddMessage(CreateMessage("new", baseTime.AddHours(2)));
-        state.AddMessage(CreateMessage("mid", baseTime.AddHours(1)));
+        state = state.TryAddMessage(CreateMessage("old", baseTime)).State;
+        state = state.TryAddMessage(CreateMessage("new", baseTime.AddHours(2))).State;
+        state = state.TryAddMessage(CreateMessage("mid", baseTime.AddHours(1))).State;
 
         state.LastMessageAt.Should().Be(baseTime.AddHours(2));
     }

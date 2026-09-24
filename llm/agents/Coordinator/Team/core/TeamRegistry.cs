@@ -47,6 +47,13 @@ internal sealed class TeamRegistry {
         => _agentToTeam.TryGetValue(agentId, out teamId);
 
     /// <summary>
+    /// 更新团队房间内容（不更新 sessionId/teamName 索引，因为这两个字段不变）— 原子 SetItem。
+    /// <para>用于修改房间内部状态（加消息/改成员/改路径等），比 AddRoom 轻量（跳过索引更新）。</para>
+    /// </summary>
+    public void UpdateRoom(string teamId, ChatRoomState room)
+        => ImmutableInterlocked.Update(ref _rooms, static (dict, arg) => dict.SetItem(arg.teamId, arg.room), (teamId, room));
+
+    /// <summary>
     /// 添加或覆盖团队房间 — 原子 SetItem,同步更新冗余查询索引。
     /// </summary>
     public void AddRoom(string teamId, ChatRoomState room) {
@@ -54,15 +61,17 @@ internal sealed class TeamRegistry {
 
         ImmutableInterlocked.Update(ref _rooms, static (dict, arg) => dict.SetItem(arg.teamId, arg.room), (teamId, room));
 
-        if (oldRoom is not null && oldRoom.SessionId != room.SessionId)
-            ImmutableInterlocked.Update(ref _bySessionId, static (dict, oldSid) => dict.Remove(oldSid), oldRoom.SessionId!);
-        ImmutableInterlocked.Update(ref _bySessionId, static (dict, arg) => dict.SetItem(arg.sid, arg.teamId), (sid: room.SessionId!, teamId));
+        if (oldRoom is not null && oldRoom.SessionId is not null && oldRoom.SessionId != room.SessionId)
+            ImmutableInterlocked.Update(ref _bySessionId, static (dict, oldSid) => dict.Remove(oldSid), oldRoom.SessionId);
+        if (room.SessionId is not null)
+            ImmutableInterlocked.Update(ref _bySessionId, static (dict, arg) => dict.SetItem(arg.sid, arg.teamId), (sid: room.SessionId, teamId));
 
         var oldNameKey = oldRoom?.Info.TeamName.ToLowerInvariant();
         var newNameKey = room.Info.TeamName.ToLowerInvariant();
         if (oldNameKey is not null && oldNameKey != newNameKey)
             ImmutableInterlocked.Update(ref _byTeamName, static (dict, oldKey) => dict.Remove(oldKey), oldNameKey);
-        ImmutableInterlocked.Update(ref _byTeamName, static (dict, arg) => dict.SetItem(arg.nameKey, arg.teamId), (nameKey: newNameKey!, teamId));
+        if (newNameKey is not null)
+            ImmutableInterlocked.Update(ref _byTeamName, static (dict, arg) => dict.SetItem(arg.nameKey, arg.teamId), (nameKey: newNameKey, teamId));
     }
 
     /// <summary>
@@ -72,8 +81,11 @@ internal sealed class TeamRegistry {
         var snapshot = _rooms;
         if (!snapshot.TryGetValue(teamId, out removedRoom)) return false;
         ImmutableInterlocked.Update(ref _rooms, static (dict, id) => dict.Remove(id), teamId);
-        ImmutableInterlocked.Update(ref _bySessionId, static (dict, sid) => dict.Remove(sid), removedRoom.SessionId!);
-        ImmutableInterlocked.Update(ref _byTeamName, static (dict, nameKey) => dict.Remove(nameKey), removedRoom.Info.TeamName.ToLowerInvariant()!);
+        if (removedRoom.SessionId is not null)
+            ImmutableInterlocked.Update(ref _bySessionId, static (dict, sid) => dict.Remove(sid), removedRoom.SessionId);
+        var nameKey = removedRoom.Info.TeamName.ToLowerInvariant();
+        if (nameKey is not null)
+            ImmutableInterlocked.Update(ref _byTeamName, static (dict, nk) => dict.Remove(nk), nameKey);
         foreach (var member in removedRoom.Members) {
             ImmutableInterlocked.Update(ref _agentToTeam, static (dict, m) => dict.Remove(m), member);
         }

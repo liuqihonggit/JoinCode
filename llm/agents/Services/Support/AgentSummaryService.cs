@@ -191,13 +191,13 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
         var weekStart = today.AddDays(-(int)today.DayOfWeek);
 
         var executions = _executions.Values;
-        var runningExecutions = executions.Where(e => e.Status == TaskExecutionStatus.Running).ToList();
+        var runningExecutions = executions.Where(e => e.Status == TaskExecutionStatus.Running);
 
         return new SystemStatistics {
             TotalAgents = executions.Select(e => e.AgentName).Distinct().Count(),
             ActiveAgents = runningExecutions.Select(e => e.AgentName).Distinct().Count(),
             TotalExecutions = _executions.Count,
-            RunningExecutions = runningExecutions.Count,
+            RunningExecutions = runningExecutions.Count(),
             TodayExecutions = executions.Count(e => e.CreatedAt.Date == today),
             WeekExecutions = executions.Count(e => e.CreatedAt >= weekStart)
         };

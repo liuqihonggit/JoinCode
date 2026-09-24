@@ -83,7 +83,7 @@ public class LspToolHandlers {
             response.AppendLine(L.T(StringKey.FoundReferencesCountLsp, locations.Count));
             response.AppendLine();
 
-            var grouped = locations.GroupBy(l => l.Uri).ToList();
+            var grouped = locations.GroupBy(l => l.Uri);
 
             foreach (var group in grouped) {
                 var fileUri = group.Key;

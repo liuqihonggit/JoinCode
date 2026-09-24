@@ -214,13 +214,13 @@
 - [x] P4-D9: RemotePolicyService双字典无锁化 (commit 1064d75b3)
 - [x] P4-A类扩散: kit/mcp全部无锁化 (commits cdcc53f55/22ccfa0ba)
 - [x] P4-A类扩散: kit/brain全部无锁化 (commit fc3f3cabc)
-- [x] P4-A类扩散: lib/guard全部37处无锁化 (commits 81cd565c3/a89d360fe/7441aeda8)
+- [x] P4-A类扩散: lib/guard全部37处无锁化 (commits 81cd565c3/a89d360fe/7441aeda8/130910fcb)
+- [x] P4-A类扩散: llm/agents全部22处无锁化 (commit 895504ced)
 
 ## 进行中
-- [ ] P4-A类扩散: llm/agents(40+处) — lib/guard已完成(37处)
+- 无
 
 ## 待办
-- [ ] P4-A类扩散: llm/agents(40+处)
 - [ ] P4-B类扩散: 73处直接转换属性→消费者处理
 - [ ] D-6/D-8: 评估是否需要改造
 

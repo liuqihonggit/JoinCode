@@ -240,7 +240,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.FoundReferencesCount, references.Count));
             sb.AppendLine();
 
-            var grouped = references.GroupBy(r => r.FilePath).ToList();
+            var grouped = references.GroupBy(r => r.FilePath);
 
             foreach (var group in grouped) {
                 sb.AppendLine($"{ObjectSymbol.File.ToValue()} {group.Key}");

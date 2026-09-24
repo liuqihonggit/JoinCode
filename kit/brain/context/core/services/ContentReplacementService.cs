@@ -417,7 +417,7 @@ public sealed partial class ContentReplacementService : ServiceEntity, IContentR
         }
 
         // 选择要持久化的结果 — 对齐 TS selectFreshToReplace: 按大小降序贪心选择
-        var sorted = eligible.OrderByDescending(f => f.Size).ToList();
+        var sorted = eligible.OrderByDescending(f => f.Size);
         var remaining = frozenSize + freshSize;
         var toPersist = new List<(string ToolCallId, string Content)>();
 

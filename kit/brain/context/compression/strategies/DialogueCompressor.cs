@@ -99,8 +99,8 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase {
 
         var result = new StringBuilder();
 
-        var roundsToSummarize = rounds.Take(rounds.Count - options.DialogueRoundsToPreserve).ToList();
-        var roundsToPreserve = rounds.Skip(rounds.Count - options.DialogueRoundsToPreserve).ToList();
+        var roundsToSummarize = rounds.Take(rounds.Count - options.DialogueRoundsToPreserve);
+        var roundsToPreserve = rounds.Skip(rounds.Count - options.DialogueRoundsToPreserve);
         var messagesToSummarize = roundsToSummarize.SelectMany(r => r.Messages).ToList();
         var messagesToPreserve = roundsToPreserve.SelectMany(r => r.Messages).ToList();
 

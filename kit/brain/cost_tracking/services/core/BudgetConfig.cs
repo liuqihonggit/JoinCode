@@ -62,8 +62,7 @@ public sealed class BudgetConfig {
             }
         }
 
-        var sortedThresholds = AlertThresholds.OrderBy(t => t).ToList();
-        if (!AlertThresholds.SequenceEqual(sortedThresholds)) {
+        if (!AlertThresholds.SequenceEqual(AlertThresholds.OrderBy(t => t))) {
             return "告警阈值应该按升序排列";
         }
 

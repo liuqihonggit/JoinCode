@@ -177,9 +177,9 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
         ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
 
         var statuses = await _teamManager.GetTeammateStatusesAsync(teamId, cancellationToken).ConfigureAwait(false);
-        var disconnected = statuses.Where(s => !s.IsActive).ToList();
+        var disconnected = statuses.Where(s => !s.IsActive);
 
-        if (disconnected.Count == 0) {
+        if (!disconnected.Any()) {
             _logger?.LogDebug("No disconnected teammates in team {TeamId}", teamId);
             return new JoinCode.Abstractions.Interfaces.ReconnectResult {
                 AgentId = "all",

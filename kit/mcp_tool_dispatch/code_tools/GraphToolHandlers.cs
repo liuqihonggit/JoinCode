@@ -126,7 +126,7 @@ public sealed class GraphToolHandlers {
             sb.AppendLine($"Detected {dead.Count} potentially dead code entries:");
             sb.AppendLine();
 
-            var grouped = dead.GroupBy(d => d.FilePath).ToList();
+            var grouped = dead.GroupBy(d => d.FilePath);
             foreach (var group in grouped) {
                 sb.AppendLine($"File: {group.Key}");
                 foreach (var entry in group.OrderBy(e => e.Line))

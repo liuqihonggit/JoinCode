@@ -138,7 +138,7 @@ public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHook
             Reason = reason
         };
 
-        var sortedHooks = _hooks.Values.OrderBy(h => h.Priority).ToList();
+        var sortedHooks = _hooks.Values.OrderBy(h => h.Priority);
 
         foreach (var hook in sortedHooks) {
             ct.ThrowIfCancellationRequested();

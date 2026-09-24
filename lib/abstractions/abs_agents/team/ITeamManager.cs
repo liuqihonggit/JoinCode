@@ -91,7 +91,7 @@ public interface ITeamManager : IAsyncDisposable {
     /// <summary>
     /// 获取团队成员
     /// </summary>
-    Task<IReadOnlyList<string>> GetTeamMembersAsync(
+    Task<IReadOnlyCollection<string>> GetTeamMembersAsync(
         string teamId,
         CancellationToken cancellationToken = default);
 

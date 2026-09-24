@@ -147,7 +147,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
             return ToolResultBuilder.Error().WithText("Shell 执行类型必须指定 Command").Build();
 
         var command = ReplacePlaceholders(execution.Command, arguments);
-        var args = execution.Args?.Select(a => ReplacePlaceholders(a, arguments)).ToArray() ?? [];
+        var args = (execution.Args ?? []).Select(a => ReplacePlaceholders(a, arguments));
 
         using var process = new System.Diagnostics.Process();
         process.StartInfo = new System.Diagnostics.ProcessStartInfo {

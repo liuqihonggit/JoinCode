@@ -31,7 +31,7 @@ internal static class ExecutionStatisticsCalculator {
     /// <returns>执行统计信息</returns>
     public static ExecutionStatistics BuildStatistics(IReadOnlyDictionary<string, AgentExecutionContext> executionContexts) {
         var contexts = executionContexts.Values;
-        var completedContexts = contexts.Where(c => c.Outcome != AgentOutcome.Pending).ToList();
+        var completedContexts = contexts.Where(c => c.Outcome != AgentOutcome.Pending);
 
         return new ExecutionStatistics {
             TotalAgents = executionContexts.Count,

@@ -231,16 +231,14 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
         }
 
         var indicesToRemove = options.Strategy switch {
-            SnipStrategy.OldestFirst => removableIndices.OrderBy(i => i).ToList(),
+            SnipStrategy.OldestFirst => removableIndices.OrderBy(i => i),
             SnipStrategy.LargestFirst => removableIndices
                 .OrderByDescending(i => EstimateMessageTokens(history[i]))
-                .ThenBy(i => i)
-                .ToList(),
+                .ThenBy(i => i),
             SnipStrategy.LeastRelevant => removableIndices
                 .OrderBy(i => GetMessageRelevanceScore(history[i]))
-                .ThenBy(i => i)
-                .ToList(),
-            _ => removableIndices.OrderBy(i => i).ToList()
+                .ThenBy(i => i),
+            _ => removableIndices.OrderBy(i => i)
         };
 
         var result = new List<int>();

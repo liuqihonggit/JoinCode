@@ -147,9 +147,9 @@ public class ToolScoreDebugToolHandlers {
 
         var tableText = builder.Build().TrimEnd();
 
-        var blacklisted = allRecords.Keys.Where(k => _monitor.IsBlacklisted(k)).ToList();
-        if (blacklisted.Count > 0) {
-            tableText += Environment.NewLine + Environment.NewLine + $"黑名单工具: {string.Join(", ", blacklisted)}";
+        var blacklistedText = string.Join(", ", allRecords.Keys.Where(k => _monitor.IsBlacklisted(k)));
+        if (blacklistedText.Length > 0) {
+            tableText += Environment.NewLine + Environment.NewLine + $"黑名单工具: {blacklistedText}";
         }
 
         return ToolResultBuilder.Success().WithText(tableText).Build();

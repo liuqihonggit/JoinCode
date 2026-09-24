@@ -149,8 +149,8 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         // Active member 安全检查（对齐 TS TeamDeleteTool）
         {
-            var activeMembers = room.MemberDetails.Values.Where(m => m.IsActive).ToList();
-            if (activeMembers.Count > 0) {
+            var activeMembers = room.MemberDetails.Values.Where(m => m.IsActive);
+            if (activeMembers.Any()) {
                 var activeNames = string.Join(", ", activeMembers.Select(m => m.AgentId));
                 return OperationResult<TeamInfo?>.Fail($"团队仍有活跃成员: {activeNames}，请先优雅关闭所有队友再删除团队");
             }
@@ -269,15 +269,15 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// </summary>
     /// <param name="teamId">团队标识</param>
     /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>成员标识只读列表</returns>
-    public Task<IReadOnlyList<string>> GetTeamMembersAsync(
+    /// <returns>成员标识只读集合</returns>
+    public Task<IReadOnlyCollection<string>> GetTeamMembersAsync(
         string teamId,
         CancellationToken cancellationToken = default) {
         if (!_registry.TryGetRoom(teamId, out var room)) {
-            return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+            return Task.FromResult<IReadOnlyCollection<string>>(Array.Empty<string>());
         }
 
-        return Task.FromResult<IReadOnlyList<string>>(room.Members.ToList());
+        return Task.FromResult<IReadOnlyCollection<string>>(room.Members);
     }
 
     /// <summary>

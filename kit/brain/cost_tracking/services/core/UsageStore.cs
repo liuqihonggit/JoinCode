@@ -40,31 +40,31 @@ internal sealed class UsageStore {
         }, (date: dateKey, record));
     }
 
-    /// <summary>尝试获取会话记录;存在则返回 true — O(1) 字典查找</summary>
-    public bool TryGetSessionRecords(string sessionId, out List<TokenUsageRecord> records) {
+    /// <summary>尝试获取会话记录;存在则返回 true — O(1) 字典查找,返回不可变引用无需拷贝</summary>
+    public bool TryGetSessionRecords(string sessionId, out IReadOnlyList<TokenUsageRecord> records) {
         if (_bySessionId.TryGetValue(sessionId, out var list)) {
-            records = [.. list];
+            records = list;
             return list.Count > 0;
         }
-        records = [];
+        records = Array.Empty<TokenUsageRecord>();
         return false;
     }
 
-    /// <summary>获取全部用量记录快照</summary>
-    public List<TokenUsageRecord> GetAllSnapshot() => [.. _usageRecords];
+    /// <summary>获取全部用量记录快照 — 返回不可变引用,无需拷贝</summary>
+    public IReadOnlyList<TokenUsageRecord> GetAllSnapshot() => _usageRecords;
 
-    /// <summary>获取指定日期的记录 — O(1) 字典查找</summary>
-    public List<TokenUsageRecord> GetRecordsByDate(DateTime date) {
-        return _byDate.TryGetValue(date.Date, out var list) ? [.. list] : [];
+    /// <summary>获取指定日期的记录 — O(1) 字典查找,返回不可变引用</summary>
+    public IReadOnlyList<TokenUsageRecord> GetRecordsByDate(DateTime date) {
+        return _byDate.TryGetValue(date.Date, out var list) ? list : Array.Empty<TokenUsageRecord>();
     }
 
     /// <summary>获取指定时间区间的记录 — O(天数) 遍历日期范围,每天 O(1) 查找</summary>
-    public List<TokenUsageRecord> GetRecordsByDateRange(DateTime start, DateTime end) {
-        var result = new List<TokenUsageRecord>();
+    public IReadOnlyList<TokenUsageRecord> GetRecordsByDateRange(DateTime start, DateTime end) {
+        var builder = ImmutableList.CreateBuilder<TokenUsageRecord>();
         for (var date = start.Date; date <= end.Date; date = date.AddDays(1)) {
-            if (_byDate.TryGetValue(date, out var list)) result.AddRange(list);
+            if (_byDate.TryGetValue(date, out var list)) builder.AddRange(list);
         }
-        return result;
+        return builder.ToImmutable();
     }
 
     /// <summary>全部记录的总成本 — O(天数) 遍历日期成本汇总</summary>

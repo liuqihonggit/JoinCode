@@ -72,7 +72,7 @@
 
 | # | 位置 | 问题 | 改造方向 | 状态 |
 |---|------|------|---------|------|
-| A-1 | `lib/guard/hooks/session/SessionHookManager.cs:64,83` | `ConcurrentDictionary<HookEvent,ConcurrentBag>` + 重建bag反模式 | `volatile ImmutableDictionary<HookEvent,ImmutableList<SessionHookEntry>>` + `Interlocked.Exchange`,AddHook/RemoveHook构建新ImmutableList原子替换 | ⬜ |
+| A-1 | `lib/guard/hooks/session/SessionHookManager.cs:64,83` | `ConcurrentDictionary<HookEvent,ConcurrentBag>` + 重建bag反模式 | `volatile ImmutableDictionary<HookEvent,ImmutableList<SessionHookEntry>>` + `Interlocked.Exchange`,AddHook/RemoveHook构建新ImmutableList原子替换 | ✅ P2已完成 |
 | A-2 | `kit/brain/cost_tracking/services/core/UsageStore.cs:8,9,29` | `ConcurrentBag`+`ConcurrentDictionary<string,List>`+`lock(existing){existing.Add(record);}` | `volatile ImmutableList<TokenUsageRecord>` + `Interlocked.Exchange`,session索引改为查询时按SessionId过滤(委托消费) | ✅ P2已完成 |
 | A-3 | `llm/agents/Coordinator/Team/core/TeamRegistry.cs:10-13` | 4个ConcurrentDictionary(_rooms/_agentToTeam/_sessionIndex/_nameIndex)维护派生索引,手动一致性 | `volatile ImmutableDictionary<string,ChatRoomState>` 唯一数据源,FindRoomBySessionId/FindTeamByName改为遍历过滤(委托消费) | ⬜ |
 | A-4 | `llm/agents/Services/Core/AgentServiceImpl.cs:37-40` | 3个ConcurrentDictionary(_completionSources/_backgroundCts/_progressTrackers)以agentId为key,状态分散 | `volatile ImmutableDictionary<string,AgentRuntimeState>` 单一状态对象(AgentRuntimeState聚合Tcs+Cts+Tracker) | ⬜ |
@@ -182,7 +182,7 @@
 | D-4 | `kit/mcp/remote/core/` RemoteClientRegistry.cs:8 + RemoteReconnectCtsRegistry.cs:8 + RemoteToolSpecCache.cs:8 | 3字典分散同一client状态(连接/重连CTS/工具规格) | `volatile ImmutableDictionary<string,RemoteClientState>` 单一状态对象 | ⬜ |
 | D-5 | `llm/agents/Coordinator/Core/Lifecycle/AgentLifecycleManager.cs:12-13` | _subAgents+_results双字典以agentId为key | `volatile ImmutableDictionary<string,AgentEntry>` 单一状态对象(AgentEntry聚合Agent+Result?) | ⬜ |
 | D-6 | `llm/agents/Coordinator/Team/core/TeamRegistry.cs:18,29` | `Rooms=>_rooms.Values`与`SnapshotRooms()=>_rooms.ToDictionary()`重复暴露同一_rooms(语义不一致) | 配合D-1统一为唯一数据源 | ⬜ |
-| D-7 | `lib/guard/hooks/session/SessionHookManager.cs:64,123` | 两层ConcurrentDictionary嵌套,同一session的hook数据分散 | 配合A-1改造 | ⬜ |
+| D-7 | `lib/guard/hooks/session/SessionHookManager.cs:64,123` | 两层ConcurrentDictionary嵌套,同一session的hook数据分散 | 配合A-1改造 | ✅ P2内层已完成 |
 | D-8 | `lib/guard/security/sandbox/core/SandboxManager.cs:9,14` | _providers+_activeExecutions两个ConcurrentDictionary不同维度 | 评估是否可合并 | ⬜ |
 | D-9 | `lib/guard/policy/RemotePolicyService.cs:12-13` | _usageCounters+_windowStartTimes两个ConcurrentDictionary以ruleId为key | 单一RateLimitState对象 | ⬜ |
 

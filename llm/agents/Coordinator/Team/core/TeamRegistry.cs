@@ -3,14 +3,12 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// 团队注册表 — 成对管理团队房间(ChatRoomState)与 agent→team 映射，
 /// 提供按 teamId / agentId / sessionId / teamName 的查询入口。
-/// <para>sessionId 与 teamName 索引字典提供 O(1) 查找,替代原 O(n) 线性扫描。</para>
-/// <para>TryRemoveRoom 内聚清理 agent 映射与索引,保证一致性,调用方无需手动清理。</para>
+/// <para>唯一数据源 _rooms(ImmutableDictionary),sessionId/teamName 查询改为遍历过滤(委托消费),消除派生索引一致性维护。</para>
+/// <para>TryRemoveRoom 内聚清理 agent 映射,保证一致性,调用方无需手动清理。</para>
 /// </summary>
 internal sealed class TeamRegistry {
-    private readonly ConcurrentDictionary<string, ChatRoomState> _rooms = new();
-    private readonly ConcurrentDictionary<string, string> _agentToTeam = new();
-    private readonly ConcurrentDictionary<string, string> _sessionIndex = new();
-    private readonly ConcurrentDictionary<string, string> _nameIndex = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableDictionary<string, ChatRoomState> _rooms = ImmutableDictionary<string, ChatRoomState>.Empty;
+    private ImmutableDictionary<string, string> _agentToTeam = ImmutableDictionary<string, string>.Empty;
 
     /// <summary>
     /// 所有团队房间视图 — 用于遍历查询（不要在此视图上做写操作）。
@@ -29,10 +27,10 @@ internal sealed class TeamRegistry {
         => _rooms.ToDictionary();
 
     /// <summary>
-    /// agent→team 映射快照 — 用于持久化序列化。
+    /// agent→team 映射快照 — 用于持久化序列化。返回不可变引用,无需拷贝。
     /// </summary>
     public IReadOnlyDictionary<string, string> SnapshotAgentToTeam()
-        => new Dictionary<string, string>(_agentToTeam);
+        => _agentToTeam;
 
     /// <summary>
     /// 查找指定团队房间。
@@ -47,27 +45,22 @@ internal sealed class TeamRegistry {
         => _agentToTeam.TryGetValue(agentId, out teamId);
 
     /// <summary>
-    /// 添加或覆盖团队房间,同时维护 sessionId/teamName 索引。
+    /// 添加或覆盖团队房间 — 原子 SetItem,派生索引由查询时遍历维护,无需手动更新。
     /// </summary>
     public void AddRoom(string teamId, ChatRoomState room) {
-        if (_rooms.TryGetValue(teamId, out var oldRoom)) {
-            RemoveIndices(oldRoom);
-        }
-        _rooms[teamId] = room;
-        AddIndices(teamId, room);
+        ImmutableInterlocked.Update(ref _rooms, static (dict, arg) => dict.SetItem(arg.teamId, arg.room), (teamId, room));
     }
 
     /// <summary>
-    /// 移除团队房间,同时清理 agent 映射与索引,保证无孤儿映射。
+    /// 移除团队房间,同时清理 agent 映射,保证无孤儿映射。
     /// </summary>
     public bool TryRemoveRoom(string teamId, [MaybeNullWhen(false)] out ChatRoomState removedRoom) {
-        if (!_rooms.TryRemove(teamId, out removedRoom))
-            return false;
-
+        var snapshot = _rooms;
+        if (!snapshot.TryGetValue(teamId, out removedRoom)) return false;
+        ImmutableInterlocked.Update(ref _rooms, static (dict, id) => dict.Remove(id), teamId);
         foreach (var member in removedRoom.Members) {
-            _agentToTeam.TryRemove(member, out _);
+            ImmutableInterlocked.Update(ref _agentToTeam, static (dict, m) => dict.Remove(m), member);
         }
-        RemoveIndices(removedRoom);
         return true;
     }
 
@@ -75,39 +68,34 @@ internal sealed class TeamRegistry {
     /// 注册 agent→team 映射。
     /// </summary>
     public void RegisterAgentToTeam(string agentId, string teamId)
-        => _agentToTeam[agentId] = teamId;
+        => ImmutableInterlocked.Update(ref _agentToTeam, static (dict, arg) => dict.SetItem(arg.agentId, arg.teamId), (agentId, teamId));
 
     /// <summary>
     /// 注销 agent→team 映射。
     /// </summary>
-    public bool UnregisterAgentFromTeam(string agentId)
-        => _agentToTeam.TryRemove(agentId, out _);
-
-    /// <summary>
-    /// 按 sessionId 查找团队房间 — O(1) 索引查找。
-    /// </summary>
-    public ChatRoomState? FindRoomBySessionId(string sessionId)
-        => _sessionIndex.TryGetValue(sessionId, out var teamId) && _rooms.TryGetValue(teamId, out var room)
-            ? room
-            : null;
-
-    /// <summary>
-    /// 按团队名称查找团队信息 — O(1) 索引查找（忽略大小写）。
-    /// </summary>
-    public TeamInfo? FindTeamByName(string teamName)
-        => _nameIndex.TryGetValue(teamName, out var teamId) && _rooms.TryGetValue(teamId, out var room)
-            ? room.Info
-            : null;
-
-    private void AddIndices(string teamId, ChatRoomState room) {
-        if (room.SessionId is not null)
-            _sessionIndex[room.SessionId] = teamId;
-        _nameIndex[room.Info.TeamName] = teamId;
+    public bool UnregisterAgentFromTeam(string agentId) {
+        var existed = _agentToTeam.ContainsKey(agentId);
+        if (existed) ImmutableInterlocked.Update(ref _agentToTeam, static (dict, id) => dict.Remove(id), agentId);
+        return existed;
     }
 
-    private void RemoveIndices(ChatRoomState room) {
-        if (room.SessionId is not null)
-            _sessionIndex.TryRemove(room.SessionId, out _);
-        _nameIndex.TryRemove(room.Info.TeamName, out _);
+    /// <summary>
+    /// 按 sessionId 查找团队房间 — 遍历唯一数据源过滤(委托消费)。
+    /// </summary>
+    public ChatRoomState? FindRoomBySessionId(string sessionId) {
+        foreach (var kvp in _rooms) {
+            if (kvp.Value.SessionId == sessionId) return kvp.Value;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 按团队名称查找团队信息 — 遍历唯一数据源过滤(委托消费,忽略大小写)。
+    /// </summary>
+    public TeamInfo? FindTeamByName(string teamName) {
+        foreach (var kvp in _rooms) {
+            if (string.Equals(kvp.Value.Info.TeamName, teamName, StringComparison.OrdinalIgnoreCase)) return kvp.Value.Info;
+        }
+        return null;
     }
 }

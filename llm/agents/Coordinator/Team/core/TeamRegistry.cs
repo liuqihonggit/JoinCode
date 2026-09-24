@@ -23,10 +23,10 @@ internal sealed class TeamRegistry {
     public int Count => _rooms.Count;
 
     /// <summary>
-    /// 团队房间快照 — 用于持久化序列化。值为引用类型，修改快照中的 room 会反映到原注册表。
+    /// 团队房间快照 — 用于持久化序列化。返回不可变引用,无需拷贝。
     /// </summary>
-    public Dictionary<string, ChatRoomState> SnapshotRooms()
-        => _rooms.ToDictionary();
+    public IReadOnlyDictionary<string, ChatRoomState> SnapshotRooms()
+        => _rooms;
 
     /// <summary>
     /// agent→team 映射快照 — 用于持久化序列化。返回不可变引用,无需拷贝。

@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 加一个共同属性只改此处，不需要改所有子类
 /// SessionId 为空表示自身即会话根（如 Session 实体），否则为所属会话的 ObjectId
 /// </summary>
-public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity {
+public abstract class Entity : IAsyncDisposable, ICloneableEntity {
     /// <summary>获取对象标识。</summary>
     public ObjectId ObjectId { get; }
     /// <summary>所属会话 ObjectId — 空表示自身即会话根，所有 Entity 不跨会话</summary>

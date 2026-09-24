@@ -98,10 +98,9 @@ public sealed class AgentDiscoveryServiceTests : IAsyncDisposable {
         agent.LastHeartbeat.Should().Be(laterTime);
     }
 
-    public ValueTask DisposeAsync() {
-        if (_disposed) return ValueTask.CompletedTask;
+    public async ValueTask DisposeAsync() {
+        if (_disposed) return;
         _disposed = true;
-        _service.DisposeSafe();
-        return ValueTask.CompletedTask;
+        await _service.DisposeSafeAsync();
     }
 }

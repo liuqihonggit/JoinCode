@@ -26,7 +26,7 @@ public sealed class EditorModeServicePersistenceTests {
 
         // Act: 触发 fire-and-forget 持久化，然后立即 Dispose
         service.SetMode(EditorMode.Vim);
-        service.Dispose();
+        await service.DisposeAsync();
 
         // Assert: Dispose 后 _disposeCts 已取消，后续 SetMode 不会崩溃
         // PersistAsync 中的 WaitAsync 会因 ct 取消抛出 OperationCanceledException，被静默捕获
@@ -50,13 +50,13 @@ public sealed class EditorModeServicePersistenceTests {
         var service = new EditorModeService(configMock.Object);
 
         // Act: Dispose 后再调用 SetMode（内部会使用已取消的 _disposeCts.Token）
-        service.Dispose();
+        await service.DisposeAsync();
 
         // SetMode 内部 fire-and-forget 调用 PersistAsync(_disposeCts.Token)
         // 注意: 当前实现中 Dispose 后访问 _disposeCts.Token 会抛 ObjectDisposedException
         // 这是已知的设计缺陷——Dispose 后不应再调用 SetMode
         // 此处验证 Dispose 前的 SetMode 不崩溃
-        using var service2 = new EditorModeService(configMock.Object);
+        await using var service2 = new EditorModeService(configMock.Object);
         service2.SetMode(EditorMode.Vim);
 
         // 等待 fire-and-forget 任务完成（信号量在 SetAsync 调用时释放）

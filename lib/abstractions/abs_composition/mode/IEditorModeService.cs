@@ -5,7 +5,7 @@ public enum EditorMode {
     [EnumValue("vim")] Vim
 }
 
-public interface IEditorModeService : IDisposable {
+public interface IEditorModeService : IAsyncDisposable {
     /// <summary>获取当前编辑模式。</summary>
     EditorMode CurrentMode { get; }
     /// <summary>设置编辑模式。</summary>

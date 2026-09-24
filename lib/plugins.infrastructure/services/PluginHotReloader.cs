@@ -187,7 +187,7 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
                     break;
                 }
 
-                StopWatcherCore();
+                await StopWatcherCoreAsync().ConfigureAwait(false);
                 cmd.Tcs.TrySetResult();
                 break;
             }
@@ -236,10 +236,10 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
         _telemetryService?.RecordCount("plugin.hotreload.count", new Dictionary<string, string> { ["reason"] = reason.ToString(), ["success"] = true.ToString() }, "count", "Plugin hot reload count");
     }
 
-    private void StopWatcherCore() {
+    private async ValueTask StopWatcherCoreAsync() {
         if (_watcher is not null) {
             _watcher.EnableRaisingEvents = false;
-            _watcher.Dispose();
+            await _watcher.DisposeAsync().ConfigureAwait(false);
             _watcher = null;
         }
 
@@ -287,8 +287,8 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
     /// <summary>
     /// 异步释放 — 停止监控并释放资源
     /// </summary>
-    public override ValueTask DisposeAsync() {
-        StopWatcherCore();
-        return base.DisposeAsync();
+    public override async ValueTask DisposeAsync() {
+        await StopWatcherCoreAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

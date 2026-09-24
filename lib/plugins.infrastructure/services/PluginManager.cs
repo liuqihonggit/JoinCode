@@ -481,7 +481,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 var nativeHost = (NativePluginHost)host;
                 await CleanupPluginServicesAsync(pluginName, ct).ConfigureAwait(false);
                 await nativeHost.UnloadAsync().ConfigureAwait(false);
-                nativeHost.Dispose();
+                await nativeHost.DisposeAsync().ConfigureAwait(false);
                 RecordPluginMetrics("native", "unload", true);
                 return PluginUnloadResult.Success(pluginName, TimeSpan.Zero);
             }
@@ -534,7 +534,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         foreach (var pluginName in nativePluginNames) {
             if (_plugins.TryRemove(pluginName, out var host) && host is NativePluginHost nativeHost) {
                 await nativeHost.UnloadAsync().ConfigureAwait(false);
-                nativeHost.Dispose();
+                await nativeHost.DisposeAsync().ConfigureAwait(false);
                 results.Add(PluginUnloadResult.Success(pluginName, TimeSpan.Zero));
             }
         }
@@ -834,7 +834,8 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         var nativePluginNames = _plugins.Where(p => p.Value.PluginType == PluginKind.Native).Select(p => p.Key).ToList();
         foreach (var pluginName in nativePluginNames) {
             if (_plugins.TryRemove(pluginName, out var host) && host is NativePluginHost nativeHost) {
-                try { await nativeHost.UnloadAsync().ConfigureAwait(false); nativeHost.Dispose(); } catch (Exception ex) { _logger?.LogError(ex, "释放 native 插件时出错: {PluginName}", pluginName); }
+                try {                 await nativeHost.UnloadAsync().ConfigureAwait(false);
+                await nativeHost.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { _logger?.LogError(ex, "释放 native 插件时出错: {PluginName}", pluginName); }
             }
         }
 

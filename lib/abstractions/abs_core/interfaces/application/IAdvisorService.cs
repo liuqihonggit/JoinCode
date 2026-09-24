@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface IAdvisorService : IDisposable {
+public interface IAdvisorService : IAsyncDisposable {
     /// <summary>获取顾问模型标识。</summary>
     string? AdvisorModel { get; }
     /// <summary>设置顾问模型。</summary>

@@ -202,7 +202,7 @@ public sealed partial class MainViewModel {
     public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
-        _modelConfigWatcher?.Dispose();
+        if (_modelConfigWatcher is not null) await _modelConfigWatcher.DisposeAsync().ConfigureAwait(false);
         _modelConfigWatcher = null;
         _sendCts?.Cancel();
         _sendCts?.Dispose();

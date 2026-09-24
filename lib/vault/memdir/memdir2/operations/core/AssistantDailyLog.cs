@@ -116,7 +116,7 @@ public sealed record DailyLogFile {
 /// 助手日志服务接口
 /// 管理助手每日日志的追加式记录与查询
 /// </summary>
-public interface IAssistantDailyLogService : IDisposable {
+public interface IAssistantDailyLogService : IAsyncDisposable {
     /// <summary>
     /// 追加一条日志到今日日志
     /// </summary>

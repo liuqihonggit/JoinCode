@@ -7,7 +7,7 @@ namespace Core.Plugins;
 /// <para>卸载: plugin_unload + NativeLibrary.Free</para>
 /// <para>线程安全: 非线程安全,调用方需自行同步(Actor 模式下单线程访问)</para>
 /// </summary>
-public sealed unsafe class NativePluginHost : IDisposable, IPluginHost {
+public sealed unsafe class NativePluginHost : IPluginHost {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int PluginLoadDelegate(byte* configPtr, int configLen);
 
@@ -173,6 +173,12 @@ public sealed unsafe class NativePluginHost : IDisposable, IPluginHost {
     public void Dispose() {
         Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>异步释放 — 卸载插件 + 释放 native handle</summary>
+    public ValueTask DisposeAsync() {
+        Dispose();
+        return ValueTask.CompletedTask;
     }
 
     private void Dispose(bool disposing) {

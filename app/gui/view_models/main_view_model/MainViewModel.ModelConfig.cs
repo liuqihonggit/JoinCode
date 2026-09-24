@@ -71,7 +71,7 @@ public sealed partial class MainViewModel {
         if (string.IsNullOrEmpty(dir) || !_fileSystem.DirectoryExists(dir))
             return;
 
-        _modelConfigWatcher?.Dispose();
+        _ = _modelConfigWatcher?.DisposeAsync();
         _modelConfigWatcher = _fileSystem.Watch(dir, System.IO.Path.GetFileName(path));
         _modelConfigWatcher.NotifyFilter = System.IO.NotifyFilters.FileName | System.IO.NotifyFilters.LastWrite;
         _modelConfigWatcher.DebounceInterval = TimeSpan.FromSeconds(1);

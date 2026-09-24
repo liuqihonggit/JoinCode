@@ -99,8 +99,8 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
             _internalWrites.Remove(key);
     }
 
-    private ValueTask StartWatcherCoreAsync(string path, string? filter, TimeSpan debounceInterval, bool includeSubdirectories, NotifyFilters notifyFilter) {
-        _watcher?.Dispose();
+    private async ValueTask StartWatcherCoreAsync(string path, string? filter, TimeSpan debounceInterval, bool includeSubdirectories, NotifyFilters notifyFilter) {
+        if (_watcher is not null) await _watcher.DisposeAsync().ConfigureAwait(false);
         _watcher = FileSystem.Watch(path, filter ?? "*.*");
         _watcher.IncludeSubdirectories = includeSubdirectories;
         _watcher.NotifyFilter = notifyFilter;
@@ -110,19 +110,17 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
         _watcher.DebouncedCreated += OnWatcherChanged;
         _watcher.DebouncedDeleted += OnWatcherChanged;
         _watcher.DebouncedRenamed += OnWatcherRenamed;
-        return ValueTask.CompletedTask;
     }
 
-    private ValueTask StopWatcherCoreAsync() {
+    private async ValueTask StopWatcherCoreAsync() {
         if (_watcher is null)
-            return ValueTask.CompletedTask;
+            return;
         _watcher.DebouncedChanged -= OnWatcherChanged;
         _watcher.DebouncedCreated -= OnWatcherChanged;
         _watcher.DebouncedDeleted -= OnWatcherChanged;
         _watcher.DebouncedRenamed -= OnWatcherRenamed;
-        _watcher.Dispose();
+        await _watcher.DisposeAsync().ConfigureAwait(false);
         _watcher = null;
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>watcher 变更事件 → 投递 FileChangedCmd 到邮箱(不访问状态,可从任意线程调用)</summary>
@@ -136,10 +134,10 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
     /// <summary>
     /// 释放 Actor — 先发停止命令让 Consumer 停 watcher,再等待 Consumer 退出,最后 fallback 释放。
     /// </summary>
-    public override ValueTask DisposeAsync() {
+    public override async ValueTask DisposeAsync() {
         TrySend(new FileWatcherStopCmd());
-        _watcher?.Dispose();
+        if (_watcher is not null) await _watcher.DisposeAsync().ConfigureAwait(false);
         _watcher = null;
-        return base.DisposeAsync();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

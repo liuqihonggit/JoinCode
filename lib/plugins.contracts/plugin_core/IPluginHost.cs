@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>统一字典前: _workflowPlugins + _externalPlugins + _nativePlugins 三个 ConcurrentDictionary</para>
 /// <para>统一字典后: _plugins (ConcurrentDictionary&lt;string, IPluginHost&gt;),按 PluginType 分发</para>
 /// </summary>
-public interface IPluginHost : IDisposable {
+public interface IPluginHost : IAsyncDisposable {
     /// <summary>插件名称 — 唯一标识,跨三种 Host 一致</summary>
     string PluginName { get; }
 

@@ -59,4 +59,12 @@ public sealed partial class EditorModeService : ConfigPersistentServiceBase<Edit
         SetValue(newMode);
         return newMode;
     }
+
+    /// <summary>
+    /// 异步释放资源 — 委托给同步 Dispose
+    /// </summary>
+    public ValueTask DisposeAsync() {
+        Dispose();
+        return ValueTask.CompletedTask;
+    }
 }

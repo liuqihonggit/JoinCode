@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>生产环境: PhysicalFileSystemWatcher (委托给 System.IO.FileSystemWatcher)</para>
 /// <para>测试环境: InMemoryFileSystemWatcher (文件操作触发事件)</para>
 /// </summary>
-public interface IFileSystemWatcher : IDisposable {
+public interface IFileSystemWatcher : IAsyncDisposable {
     /// <summary>获取或设置要监视的目录路径</summary>
     string Path { get; set; }
 

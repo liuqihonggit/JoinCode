@@ -1,6 +1,6 @@
 namespace Core.Tests.Services.SystemPower;
 
-public sealed class PreventSleepServiceTests : IDisposable {
+public sealed class PreventSleepServiceTests : IAsyncDisposable {
     private readonly PreventSleepService _service;
     private bool _disposed;
 
@@ -8,10 +8,10 @@ public sealed class PreventSleepServiceTests : IDisposable {
         _service = new PreventSleepService();
     }
 
-    public void Dispose() {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
-        _service.DisposeSafe();
+        await _service.DisposeSafeAsync();
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class PreventSleepServiceTests : IDisposable {
     public async Task Dispose_AllowsSleep() {
         await _service.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(true);
 
-        _service.DisposeSafe();
+        await _service.DisposeSafeAsync();
 
         _service.IsSleepPrevented.Should().BeFalse();
     }

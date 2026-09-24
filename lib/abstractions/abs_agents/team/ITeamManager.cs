@@ -42,7 +42,7 @@ public sealed record TeammateStatus {
 /// <summary>
 /// 团队管理器接口
 /// </summary>
-public interface ITeamManager : IDisposable {
+public interface ITeamManager : IAsyncDisposable {
     /// <summary>
     /// 创建团队
     /// </summary>

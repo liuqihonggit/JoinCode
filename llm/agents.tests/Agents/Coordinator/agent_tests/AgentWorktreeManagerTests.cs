@@ -361,9 +361,8 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public Task DisposeAsync() {
-        _manager.DisposeSafe();
-        return Task.CompletedTask;
+    public async Task DisposeAsync() {
+        await _manager.DisposeSafeAsync();
     }
 
     private static async Task WaitVerificationAsync(Action verify, TimeSpan perRetryTimeout) {

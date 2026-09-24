@@ -4,7 +4,7 @@ namespace Core.Skills.Plugin;
 /// <summary>
 /// 插件技能桥接接口 — 管理插件技能的注册、注销和查询
 /// </summary>
-public interface IPluginSkillBridge : IDisposable {
+public interface IPluginSkillBridge : IAsyncDisposable {
     /// <summary>注册插件技能 — 返回撤销函数(可逆效应)</summary>
     /// <param name="pluginName">插件名称</param>
     /// <param name="cancellationToken">取消令牌</param>

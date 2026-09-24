@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 角色通过 Role 属性区分：Coordinator（协调者）或 Executor（执行者）
 /// 只声明行为能力：执行/暂停/恢复/取消/重置
 /// </summary>
-public interface IAgent : IDisposable {
+public interface IAgent : IAsyncDisposable {
     /// <summary>获取对象标识。</summary>
     ObjectId ObjectId { get; }
     /// <summary>获取代理名称。</summary>

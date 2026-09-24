@@ -114,6 +114,12 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
         Stop();
     }
+
+    /// <summary>异步释放资源 — 委托给同步 Dispose</summary>
+    public ValueTask DisposeAsync() {
+        Dispose();
+        return ValueTask.CompletedTask;
+    }
 }
 
 /// <summary>

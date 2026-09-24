@@ -38,7 +38,7 @@ public interface IIOThrottleService {
 /// <summary>
 /// IO 执行许可 - 使用 using 语句自动释放资源
 /// </summary>
-public interface IIOExecutionLease : IDisposable {
+public interface IIOExecutionLease : IAsyncDisposable {
     /// <summary>
     /// 获取许可的时间戳
     /// </summary>

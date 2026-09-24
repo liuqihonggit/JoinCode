@@ -706,18 +706,24 @@ public sealed partial class ReadOnlyCommandDetector {
     /// git remote show 危险回调 — 位置参数必须是字母数字远程名
     /// </summary>
     private static bool CheckGitRemoteShowDangerous(string command, IReadOnlyList<string> args) {
-        var positionArgs = args.Where(a => !a.StartsWith('-')).ToList();
-        if (positionArgs.Count != 1) return true;
-        return !Regex.IsMatch(positionArgs[0], @"^[a-zA-Z0-9_-]+$");
+        string? firstPositionArg = null;
+        var positionArgCount = 0;
+        foreach (var a in args) {
+            if (!a.StartsWith('-')) {
+                positionArgCount++;
+                if (positionArgCount == 1) firstPositionArg = a;
+                else break;
+            }
+        }
+        if (positionArgCount != 1) return true;
+        return !Regex.IsMatch(firstPositionArg!, @"^[a-zA-Z0-9_-]+$");
     }
 
     /// <summary>
     /// git remote 危险回调 — 仅允许裸命令或 -v/--verbose，阻止任何位置参数
     /// </summary>
     private static bool CheckGitRemoteDangerous(string command, IReadOnlyList<string> args) {
-        var nonFlagArgs = args.Where(a => !a.StartsWith('-')).ToList();
-        if (nonFlagArgs.Count > 0) return true;
-        return false;
+        return args.Any(a => !a.StartsWith('-'));
     }
 
     /// <summary>
@@ -727,8 +733,7 @@ public sealed partial class ReadOnlyCommandDetector {
         var hasList = args.Any(a => a.Equals("-l", StringComparison.OrdinalIgnoreCase) ||
                                      a.Equals("--list", StringComparison.OrdinalIgnoreCase));
         if (!hasList) {
-            var positionArgs = args.Where(a => !a.StartsWith('-')).ToList();
-            if (positionArgs.Count > 0) return true;
+            if (args.Any(a => !a.StartsWith('-'))) return true;
         }
         return false;
     }
@@ -749,8 +754,7 @@ public sealed partial class ReadOnlyCommandDetector {
                                      a.Equals("--merged", StringComparison.OrdinalIgnoreCase) ||
                                      a.Equals("--no-merged", StringComparison.OrdinalIgnoreCase));
         if (!hasList) {
-            var positionArgs = args.Where(a => !a.StartsWith('-')).ToList();
-            if (positionArgs.Count > 0) return true;
+            if (args.Any(a => !a.StartsWith('-'))) return true;
         }
         return false;
     }

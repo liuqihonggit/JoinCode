@@ -441,7 +441,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             && args[0].Equals("diff", StringComparison.OrdinalIgnoreCase)
             && args.Any(a => a.Equals("--no-index", StringComparison.OrdinalIgnoreCase))) {
             // git diff --no-index: 提取前2个非标志路径
-            var paths = FilterOutFlags(args.Skip(1).ToList());
+            var paths = FilterOutFlags(SliceFrom(args, 1));
             return paths.Take(2).ToList();
         }
 
@@ -458,8 +458,8 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         var hasDelete = args.Any(a => a is "-d" or "--delete");
         var skipCount = hasDelete ? 1 : 2;
 
-        var nonFlagArgs = args.Where(a => !a.StartsWith('-')).ToList();
-        return nonFlagArgs.Skip(skipCount).ToList();
+        var nonFlagArgs = args.Where(a => !a.StartsWith('-')).Skip(skipCount).ToList();
+        return nonFlagArgs;
     }
 
     #endregion
@@ -648,34 +648,35 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     private static (string Command, IReadOnlyList<string> Args) StripSafeWrappers(
         string command, IReadOnlyList<string> args) {
         var currentCmd = command;
-        var currentArgs = args.ToList();
+        var currentArgs = args;
+        var offset = 0;
 
-        // 循环剥离包装命令
-        while (currentArgs.Count > 0 && SafeWrapperCommands.Contains(currentCmd)) {
+        // 循环剥离包装命令 — 用 offset 索引替代 Skip+ToList 消除循环内 O(n) 拷贝
+        while (offset < currentArgs.Count && SafeWrapperCommands.Contains(currentCmd)) {
             switch (currentCmd.ToLowerInvariant()) {
                 case "time":
                 case "nohup":
                 // 直接剥离，支持 -- 定界符
-                if (currentArgs.Count > 0 && currentArgs[0] == "--") {
-                    currentArgs = currentArgs.Skip(1).ToList();
+                if (offset < currentArgs.Count && currentArgs[offset] == "--") {
+                    offset++;
                 }
 
-                if (currentArgs.Count > 0) {
-                    currentCmd = currentArgs[0];
-                    currentArgs = currentArgs.Skip(1).ToList();
+                if (offset < currentArgs.Count) {
+                    currentCmd = currentArgs[offset];
+                    offset++;
                 }
 
                 break;
 
                 case "timeout":
                 // 跳过 timeout 的 GNU 标志，找到 duration 参数后的命令
-                var timeoutIdx = SkipTimeoutFlags(currentArgs);
+                var timeoutIdx = SkipTimeoutFlags(currentArgs, offset);
                 if (timeoutIdx >= 0 && timeoutIdx + 1 < currentArgs.Count) {
                     currentCmd = currentArgs[timeoutIdx + 1];
-                    currentArgs = currentArgs.Skip(timeoutIdx + 2).ToList();
+                    offset = timeoutIdx + 2;
                 } else {
                     // 无法解析，返回原始
-                    return (currentCmd, currentArgs);
+                    return (currentCmd, SliceFrom(currentArgs, offset));
                 }
 
                 break;
@@ -683,61 +684,75 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
                 case "nice":
                 // nice cmd / nice -N cmd / nice -n N cmd
                 var niceIdx = 0;
-                if (currentArgs.Count > 0 && currentArgs[0].StartsWith("-")
-                    && !currentArgs[0].Equals("--", StringComparison.Ordinal)) {
-                    if (currentArgs[0] == "-n" && currentArgs.Count > 1) {
+                var remaining = currentArgs.Count - offset;
+                if (remaining > 0 && currentArgs[offset].StartsWith("-")
+                    && !currentArgs[offset].Equals("--", StringComparison.Ordinal)) {
+                    if (currentArgs[offset] == "-n" && remaining > 1) {
                         niceIdx = 2;
                     } else {
                         niceIdx = 1;
                     }
                 }
 
-                if (niceIdx + 1 <= currentArgs.Count && niceIdx < currentArgs.Count) {
-                    currentCmd = currentArgs[niceIdx];
-                    currentArgs = currentArgs.Skip(niceIdx + 1).ToList();
+                if (niceIdx + 1 <= remaining && niceIdx < remaining) {
+                    currentCmd = currentArgs[offset + niceIdx];
+                    offset += niceIdx + 1;
                 } else {
-                    return (currentCmd, currentArgs);
+                    return (currentCmd, SliceFrom(currentArgs, offset));
                 }
 
                 break;
 
                 case "stdbuf":
                 // 跳过 -i/-o/-e 标志
-                var stdbufIdx = SkipStdbufFlags(currentArgs);
+                var stdbufIdx = SkipStdbufFlags(currentArgs, offset);
                 if (stdbufIdx < currentArgs.Count) {
                     currentCmd = currentArgs[stdbufIdx];
-                    currentArgs = currentArgs.Skip(stdbufIdx + 1).ToList();
+                    offset = stdbufIdx + 1;
                 } else {
-                    return (currentCmd, currentArgs);
+                    return (currentCmd, SliceFrom(currentArgs, offset));
                 }
 
                 break;
 
                 case "env":
                 // 跳过 VAR=val 和安全标志
-                var envIdx = SkipEnvFlags(currentArgs);
+                var envIdx = SkipEnvFlags(currentArgs, offset);
                 if (envIdx < currentArgs.Count) {
                     currentCmd = currentArgs[envIdx];
-                    currentArgs = currentArgs.Skip(envIdx + 1).ToList();
+                    offset = envIdx + 1;
                 } else {
-                    return (currentCmd, currentArgs);
+                    return (currentCmd, SliceFrom(currentArgs, offset));
                 }
 
                 break;
 
                 default:
-                return (currentCmd, currentArgs);
+                return (currentCmd, SliceFrom(currentArgs, offset));
             }
         }
 
-        return (currentCmd, currentArgs);
+        return (currentCmd, SliceFrom(currentArgs, offset));
+    }
+
+    /// <summary>
+    /// 从指定位置切片返回不可变列表 — 消除 Skip+ToList 拷贝
+    /// </summary>
+    private static IReadOnlyList<string> SliceFrom(IReadOnlyList<string> list, int start) {
+        if (start == 0) return list;
+        if (start >= list.Count) return Array.Empty<string>();
+        var result = new string[list.Count - start];
+        for (var i = 0; i < result.Length; i++) {
+            result[i] = list[start + i];
+        }
+        return result;
     }
 
     /// <summary>
     /// 跳过 timeout 的 GNU 标志 — 对齐 TS skipTimeoutFlags
     /// </summary>
-    private static int SkipTimeoutFlags(IReadOnlyList<string> args) {
-        var i = 0;
+    private static int SkipTimeoutFlags(IReadOnlyList<string> args, int start) {
+        var i = start;
         while (i < args.Count) {
             var arg = args[i];
 
@@ -766,8 +781,8 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 跳过 stdbuf 的 -i/-o/-e 标志 — 对齐 TS skipStdbufFlags
     /// </summary>
-    private static int SkipStdbufFlags(IReadOnlyList<string> args) {
-        var i = 0;
+    private static int SkipStdbufFlags(IReadOnlyList<string> args, int start) {
+        var i = start;
         while (i < args.Count) {
             var arg = args[i];
 
@@ -802,8 +817,8 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 跳过 env 的 VAR=val 和安全标志 — 对齐 TS skipEnvFlags
     /// </summary>
-    private static int SkipEnvFlags(IReadOnlyList<string> args) {
-        var i = 0;
+    private static int SkipEnvFlags(IReadOnlyList<string> args, int start) {
+        var i = start;
         while (i < args.Count) {
             var arg = args[i];
 
@@ -930,7 +945,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             return (string.Empty, Array.Empty<string>());
         }
 
-        return (parts[0], parts.Skip(1).ToList());
+        return (parts[0], SliceFrom(parts, 1));
     }
 
     /// <summary>

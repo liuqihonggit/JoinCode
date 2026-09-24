@@ -324,7 +324,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return OperationResult<TeamInfo?>.Ok(room.Info);
         }
 
-        room = room with { Messages = room.Messages.Add(message.MessageId, message) };
+        room = room.TryAddMessage(message).State;
         room = TouchRoomActivity(teamId, room);
 
         await _messageDispatcher.PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
@@ -381,7 +381,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return OperationResult<TeamInfo?>.Ok(room.Info);
         }
 
-        room = room with { Messages = room.Messages.Add(message.MessageId, message) };
+        room = room.TryAddMessage(message).State;
         _registry.UpdateRoom(teamId, room);
 
         await _messageDispatcher.PersistDirectMessageToMailboxAsync(targetAgentId, senderId, content, messageType ?? "direct", teamId, cancellationToken).ConfigureAwait(false);
@@ -458,7 +458,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return OperationResult<TeamInfo?>.Ok(room.Info);
         }
 
-        room = room with { Messages = room.Messages.Add(message.MessageId, message) };
+        room = room.TryAddMessage(message).State;
         room = TouchRoomActivity(teamId, room);
 
         await _messageDispatcher.PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
@@ -670,15 +670,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             Visibility = MessageVisibility.Hidden,
             RevokeReason = reason ?? "撤回",
         };
-        var newMessages = room.Messages.SetItem(messageId, revokedMsg);
+        room = room.ReplaceMessage(messageId, revokedMsg);
 
         var notice = SystemNoticeFactory.Create(SystemNoticeKind.MessageRevoked, teamId, revokerId);
-        var noticeAdded = !newMessages.ContainsKey(notice.MessageId);
+        var noticeAdded = !room.Messages.ContainsKey(notice.MessageId);
         if (noticeAdded) {
-            newMessages = newMessages.Add(notice.MessageId, notice);
+            room = room.TryAddMessage(notice).State;
         }
 
-        room = room with { Messages = newMessages };
         room = TouchRoomActivity(teamId, room);
 
         if (noticeAdded) {

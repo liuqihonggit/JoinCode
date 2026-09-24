@@ -25,25 +25,27 @@ public sealed class ChatRoomStateData {
     /// <summary>最大消息保留数</summary>
     public int MaxMessageCount { get; set; } = 1000;
 
-    /// <summary>从 ChatRoomState 创建可序列化 DTO</summary>
+    /// <summary>从 ChatRoomState 创建可序列化 DTO — 消息列表从 MessagesByTime 读取(已按时间排序)</summary>
     public static ChatRoomStateData FromState(ChatRoomState state) => new() {
         Info = state.Info,
         Members = [.. state.Members],
-        Messages = [.. state.Messages.Values],
+        Messages = [.. state.MessagesByTime],
         SessionId = state.SessionId,
         AllowedPaths = [.. state.AllowedPaths.Values],
         MemberDetails = [.. state.MemberDetails.Values],
         MaxMessageCount = state.MaxMessageCount,
     };
 
-    /// <summary>从 DTO 恢复 ChatRoomState（不可变集合）</summary>
-    public ChatRoomState ToState() => new() {
-        Info = Info,
-        Members = Members.ToImmutableHashSet(),
-        Messages = Messages.ToImmutableDictionary(m => m.MessageId),
-        SessionId = SessionId,
-        AllowedPaths = AllowedPaths.ToImmutableDictionary(p => p.Path),
-        MemberDetails = MemberDetails.ToImmutableDictionary(m => m.AgentId),
-        MaxMessageCount = MaxMessageCount,
-    };
+    /// <summary>从 DTO 恢复 ChatRoomState（不可变集合 + WithMessages 构建双索引）</summary>
+    public ChatRoomState ToState() {
+        var state = new ChatRoomState {
+            Info = Info,
+            Members = Members.ToImmutableHashSet(),
+            SessionId = SessionId,
+            AllowedPaths = AllowedPaths.ToImmutableDictionary(p => p.Path),
+            MemberDetails = MemberDetails.ToImmutableDictionary(m => m.AgentId),
+            MaxMessageCount = MaxMessageCount,
+        };
+        return state.WithMessages(Messages);
+    }
 }

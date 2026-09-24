@@ -44,7 +44,7 @@ public sealed partial class TeamManager {
                     }
 
                     if (data.TeamMessages is not null && data.TeamMessages.TryGetValue(team.TeamId, out var msgList)) {
-                        room = room with { Messages = msgList.ToImmutableDictionary(m => m.MessageId) };
+                        room = room.WithMessages(msgList);
                     }
 
                     if (data.TeamMemberDetails is not null && data.TeamMemberDetails.TryGetValue(team.TeamId, out var detailList)) {

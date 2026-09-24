@@ -164,7 +164,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime {
         var registry = (TeamRegistry)registryField!.GetValue(_teamManager)!;
         var rooms = registry.SnapshotRooms();
         var room = rooms[teamId];
-        registry.UpdateRoom(teamId, room with { Messages = room.Messages.Add(notice.MessageId, notice) });
+        registry.UpdateRoom(teamId, room.TryAddMessage(notice).State);
 
         await InvokePersistTeamMessageAsync(teamId, notice, CancellationToken.None);
 

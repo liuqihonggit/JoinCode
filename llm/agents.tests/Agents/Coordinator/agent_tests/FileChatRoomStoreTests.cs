@@ -22,14 +22,14 @@ public sealed class FileChatRoomStoreTests : IDisposable {
             MaxMessageCount = maxMessageCount,
         };
         for (var i = 0; i < messageCount; i++) {
-            state = state with { Messages = state.Messages.Add($"msg_{i:D4}", new TeamMessage {
+            state = state.TryAddMessage(new TeamMessage {
                 MessageId = $"msg_{i:D4}",
                 TeamId = teamId,
                 SenderId = "sender",
                 Content = $"消息 {i}",
                 MessageType = "text",
                 Timestamp = DateTime.UtcNow.AddSeconds(i),
-            }) };
+            }).State;
         }
         return state;
     }

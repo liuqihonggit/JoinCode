@@ -171,7 +171,7 @@ public sealed partial class TelemetryService : ITelemetryService {
         _listener.Dispose();
         _activitySource.Dispose();
         _meter.Dispose();
-        return new ValueTask(Task.WhenAll(_activeSpans.Values.ToList().Select(span => span.DisposeAsync().AsTask())));
+        return new ValueTask(Task.WhenAll(_activeSpans.Values.Select(span => span.DisposeAsync().AsTask())));
     }
 
     private static ActivityKind MapActivityKind(TelemetrySpanKind kind) => kind switch {

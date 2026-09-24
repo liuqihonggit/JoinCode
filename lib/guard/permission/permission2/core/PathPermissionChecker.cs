@@ -525,7 +525,7 @@ public sealed partial class PathPermissionChecker : ServiceEntity, IPathPermissi
 
         // 纯文件名匹配: 模式不含 / 且不以 * 开头 — 对齐 TS ignore 库的文件名匹配
         // 例: ".env" 匹配 "/c/projects/myapp/.env"
-        if (!normalizedPattern.Contains('/') && !normalizedPattern.StartsWith('*')) {
+        if (!normalizedPattern.StartsWith('*') && !normalizedPattern.Contains('/')) {
             var lastSlash = posixPath.LastIndexOf('/');
             var fileName = lastSlash >= 0 ? posixPath[(lastSlash + 1)..] : posixPath;
             if (string.Equals(fileName, normalizedPattern, StringComparison.OrdinalIgnoreCase))

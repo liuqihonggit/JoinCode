@@ -517,7 +517,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             }
 
             // 跳过带参数的标志
-            if (flagsWithArgs.Contains(arg) && i + 1 < args.Count) {
+            if (i + 1 < args.Count && flagsWithArgs.Contains(arg)) {
                 i += 2;
                 continue;
             }
@@ -646,7 +646,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         var currentArgs = args.ToList();
 
         // 循环剥离包装命令
-        while (SafeWrapperCommands.Contains(currentCmd) && currentArgs.Count > 0) {
+        while (currentArgs.Count > 0 && SafeWrapperCommands.Contains(currentCmd)) {
             switch (currentCmd.ToLowerInvariant()) {
                 case "time":
                 case "nohup":
@@ -803,7 +803,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             var arg = args[i];
 
             // VAR=val 形式
-            if (arg.Contains('=') && !arg.StartsWith('-')) {
+            if (!arg.StartsWith('-') && arg.Contains('=')) {
                 i++;
                 continue;
             }

@@ -149,6 +149,30 @@ public class MailboxBaseTest {
         mailbox.IsAgentHighWatermark("agent-1").Should().BeTrue();
     }
 
+    /// <summary>WaitForCommandsDrainedAsync 应确保之前入队的命令已被 Consumer 处理完</summary>
+    [Fact]
+    public async Task WaitForCommandsDrainedAsync_确保之前命令已处理完() {
+        await using var mailbox = new TestMailbox();
+        await mailbox.RegisterAgentAsync("agent-1");
+        await mailbox.WaitForCommandsDrainedAsync();
+
+        await mailbox.TellAsync("agent-1", "msg-1");
+        await mailbox.TellAsync("agent-1", "msg-2");
+        await mailbox.WaitForCommandsDrainedAsync();
+
+        mailbox.GetAgentMessageCount("agent-1").Should().Be(2, "两条 Tell 命令应已处理完并投递到 agent channel");
+    }
+
+    /// <summary>无命令时 WaitForCommandsDrainedAsync 应快速返回（屏障命令被 Consumer 立即处理）</summary>
+    [Fact]
+    public async Task WaitForCommandsDrainedAsync_无命令时快速返回() {
+        await using var mailbox = new TestMailbox();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        await mailbox.WaitForCommandsDrainedAsync();
+        sw.Stop();
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(2), "无命令时屏障命令应立即被 Consumer 处理");
+    }
+
     private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan timeout) {
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline) {

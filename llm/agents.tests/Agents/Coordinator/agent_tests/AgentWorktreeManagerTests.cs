@@ -253,13 +253,10 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
 
         await _manager.CreateWorktreeAsync(agentId).ConfigureAwait(true);
 
-        // Hook 是 fire-and-forget (Task.Run)，等待一小段时间
-        await Task.Delay(100).ConfigureAwait(true);
-
-        _hookOrchestratorMock.Verify(x => x.ExecuteHooksAsync(
+        await WaitVerificationAsync(() => _hookOrchestratorMock.Verify(x => x.ExecuteHooksAsync(
             HookEvent.WorktreeCreate,
             It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(),
-            It.IsAny<string?>(), It.IsAny<string?>(), default), Times.AtLeastOnce);
+            It.IsAny<string?>(), It.IsAny<string?>(), default), Times.AtLeastOnce), TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -282,12 +279,10 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
         await _manager.CreateWorktreeAsync(agentId).ConfigureAwait(true);
         await _manager.ForceRemoveWorktreeAsync(agentId).ConfigureAwait(true);
 
-        await Task.Delay(100).ConfigureAwait(true);
-
-        _hookOrchestratorMock.Verify(x => x.ExecuteHooksAsync(
+        await WaitVerificationAsync(() => _hookOrchestratorMock.Verify(x => x.ExecuteHooksAsync(
             HookEvent.WorktreeRemove,
             It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(),
-            It.IsAny<string?>(), It.IsAny<string?>(), default), Times.AtLeastOnce);
+            It.IsAny<string?>(), It.IsAny<string?>(), default), Times.AtLeastOnce), TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -369,5 +364,14 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
     public Task DisposeAsync() {
         _manager.DisposeSafe();
         return Task.CompletedTask;
+    }
+
+    private static async Task WaitVerificationAsync(Action verify, TimeSpan timeout) {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline) {
+            try { verify(); return; } catch (MockException) { Console.WriteLine("Hook 尚未调用,继续轮询"); }
+            await Task.Delay(10);
+        }
+        verify();
     }
 }

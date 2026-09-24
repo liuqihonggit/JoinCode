@@ -26,6 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="JccAuditCli.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="tests\**" />
     <None Remove="tests\**" />
   </ItemGroup>

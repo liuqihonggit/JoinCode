@@ -28,7 +28,8 @@ public sealed class CrossChannelVisibilityE2ETests {
                 await namedPipe.RegisterAgentAsync(agentId);
             await hub.RegisterAgentAsync(agentId, kind, role: role);
         }
-        await Task.Delay(100);
+        await inProcess.WaitForCommandsDrainedAsync();
+        await namedPipe.WaitForCommandsDrainedAsync();
     }
 
     [Fact]
@@ -54,7 +55,8 @@ public sealed class CrossChannelVisibilityE2ETests {
         };
 
         await hub.BroadcastAsync(message, MessageVisibility.AdminOnly);
-        await Task.Delay(200);
+        await inProcessMailbox.WaitForCommandsDrainedAsync();
+        await namedPipeMailbox.WaitForCommandsDrainedAsync();
 
         var adminInProcMsgs = await ReceiveWithTimeoutAsync(hub.ReceiveAsync("admin_inproc", CancellationToken.None));
         var adminPipeMsgs = await ReceiveWithTimeoutAsync(hub.ReceiveAsync("admin_pipe", CancellationToken.None));
@@ -91,7 +93,8 @@ public sealed class CrossChannelVisibilityE2ETests {
         };
 
         await hub.BroadcastAsync(message, MessageVisibility.Private);
-        await Task.Delay(200);
+        await inProcessMailbox.WaitForCommandsDrainedAsync();
+        await namedPipeMailbox.WaitForCommandsDrainedAsync();
 
         var agentBMsgs = await ReceiveWithTimeoutAsync(hub.ReceiveAsync("agent_b", CancellationToken.None));
         var agentCMsgs = await ReceiveWithTimeoutAsync(hub.ReceiveAsync("agent_c", CancellationToken.None));
@@ -122,7 +125,8 @@ public sealed class CrossChannelVisibilityE2ETests {
         };
 
         await hub.BroadcastAsync(message, MessageVisibility.Hidden);
-        await Task.Delay(200);
+        await inProcessMailbox.WaitForCommandsDrainedAsync();
+        await namedPipeMailbox.WaitForCommandsDrainedAsync();
 
         var agentAMsgs = await ReceiveWithTimeoutAsync(hub.ReceiveAsync("agent_a", CancellationToken.None));
         var agentBMsgs = await ReceiveWithTimeoutAsync(hub.ReceiveAsync("agent_b", CancellationToken.None));
@@ -152,7 +156,8 @@ public sealed class CrossChannelVisibilityE2ETests {
         };
 
         await hub.BroadcastAsync(message, MessageVisibility.Public);
-        await Task.Delay(200);
+        await inProcessMailbox.WaitForCommandsDrainedAsync();
+        await namedPipeMailbox.WaitForCommandsDrainedAsync();
 
         var inProcMsgs = await ReceiveWithTimeoutAsync(hub.ReceiveAsync("agent_inproc", CancellationToken.None));
         var pipeMsgs = await ReceiveWithTimeoutAsync(hub.ReceiveAsync("agent_pipe", CancellationToken.None));
@@ -184,7 +189,8 @@ public sealed class CrossChannelVisibilityE2ETests {
         };
 
         await hub.BroadcastAsync(message, MessageVisibility.System);
-        await Task.Delay(200);
+        await inProcessMailbox.WaitForCommandsDrainedAsync();
+        await namedPipeMailbox.WaitForCommandsDrainedAsync();
 
         var inProcMsgs = await ReceiveWithTimeoutAsync(hub.ReceiveAsync("agent_inproc", CancellationToken.None));
         var pipeMsgs = await ReceiveWithTimeoutAsync(hub.ReceiveAsync("agent_pipe", CancellationToken.None));

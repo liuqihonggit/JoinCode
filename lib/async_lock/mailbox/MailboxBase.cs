@@ -30,6 +30,13 @@ public sealed record RegisterAgentCmd<TMessage>(string AgentId, string? SessionI
 public sealed record UnregisterAgentCmd<TMessage>(string AgentId) : MailboxCmd<TMessage>;
 
 /// <summary>
+/// 排空屏障命令 — 入队后等 Consumer 处理到此命令，FIFO 保证之前所有命令已处理完。
+/// <para>用于确定性等待（替代 Task.Delay 固定等待 fire-and-forget 入队后的异步副作用）。</para>
+/// <para>生产用途：优雅关闭前确保命令处理完、批量操作后确认生效。测试用途：替代 Task.Delay。</para>
+/// </summary>
+public sealed record DrainBarrierCmd<TMessage>(TaskCompletionSource Tcs) : MailboxCmd<TMessage>;
+
+/// <summary>
 /// 邮箱事件基类 — 通过 OutputAsync 输出，外部可订阅监控。
 /// </summary>
 /// <typeparam name="TMessage">消息类型</typeparam>
@@ -107,6 +114,25 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
         => SendAsync(new BroadcastCmd<TMessage>(message, excludeAgentId), ct);
 
     /// <summary>
+    /// 等待所有已入队命令被 Consumer 处理完 — 入队屏障命令并等其处理（FIFO 保证之前的命令都已完成）。
+    /// <para>用于确定性等待，替代 <c>Task.Delay</c> 固定等待：Tell 系列方法 fire-and-forget 入队后 Consumer 异步处理，</para>
+    /// <para>固定等待在 CI 高负载时不可靠（Consumer 未在时限内调度完 → 副作用未生效 → 断言失败）。</para>
+    /// <para>内置重试 16 次 × 500ms 超时保护：Consumer 处理慢时后续重试会成功，Consumer 停止时 16 次都超时才报错（概率极低）。</para>
+    /// <para>生产用途：优雅关闭前确保命令处理完、批量操作后确认生效。测试用途：替代 Task.Delay 等异步副作用。</para>
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    public async Task WaitForCommandsDrainedAsync(CancellationToken ct = default) {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await SendAsync(new DrainBarrierCmd<TMessage>(tcs), ct).ConfigureAwait(false);
+        for (var i = 0; i < 16; i++) {
+            if (tcs.Task.IsCompleted) return;
+            var winner = await Task.WhenAny(tcs.Task, Task.Delay(500, ct)).ConfigureAwait(false);
+            if (winner == tcs.Task) return;
+        }
+        throw new TimeoutException("WaitForCommandsDrainedAsync 重试16次×500ms全超时 — Consumer 可能已停止或 channel 已关闭");
+    }
+
+    /// <summary>
     /// 注册 Agent 邮箱 — 创建对应的有界 Channel。
     /// </summary>
     /// <param name="agentId">Agent 标识</param>
@@ -182,6 +208,9 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
             break;
             case UnregisterAgentCmd<TMessage> unregister:
             HandleUnregisterAgent(unregister.AgentId);
+            break;
+            case DrainBarrierCmd<TMessage> barrier:
+            barrier.Tcs.TrySetResult();
             break;
             default:
             throw new InvalidOperationException($"Unknown mailbox command: {cmd?.GetType().Name}");

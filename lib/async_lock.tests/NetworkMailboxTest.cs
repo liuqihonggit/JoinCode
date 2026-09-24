@@ -29,7 +29,7 @@ public class NetworkMailboxTest {
         var msg = new CoordinatorMessage { FromAgentId = "sender", ToAgentId = "agent-1", MessageType = "text", Content = "hello" };
 
         await mailbox.TellAsync("agent-1", msg);
-        await Task.Delay(100);
+        await mailbox.WaitForCommandsDrainedAsync();
 
         adapter.SentMessages.Should().ContainSingle(m => m.targetId == "agent-1" && m.text == "hello");
     }
@@ -48,7 +48,7 @@ public class NetworkMailboxTest {
         var msg = new CoordinatorMessage { FromAgentId = "sender", ToAgentId = "all", MessageType = "text", Content = "broadcast" };
 
         await mailbox.TellBroadcastAsync(msg, excludeAgentId: null);
-        await Task.Delay(100);
+        await mailbox.WaitForCommandsDrainedAsync();
 
         adapter.SentMessages.Should().HaveCount(2, "应向两个Agent各发送一次");
     }
@@ -67,7 +67,7 @@ public class NetworkMailboxTest {
         var msg = new CoordinatorMessage { FromAgentId = "sender", ToAgentId = "all", MessageType = "text", Content = "broadcast" };
 
         await mailbox.TellBroadcastAsync(msg, excludeAgentId: "agent-1");
-        await Task.Delay(100);
+        await mailbox.WaitForCommandsDrainedAsync();
 
         adapter.SentMessages.Should().ContainSingle(m => m.targetId == "agent-2");
     }

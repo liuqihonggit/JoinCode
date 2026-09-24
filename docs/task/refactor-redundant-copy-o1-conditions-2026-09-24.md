@@ -181,9 +181,9 @@
 | D-3 | `kit/brain/cost_tracking/services/core/UsageStore.cs:8-9` | ConcurrentBag+ConcurrentDictionary重复持有同一记录 | `volatile ImmutableList<TokenUsageRecord>` 唯一数据源,TryGetSessionRecords改为按SessionId过滤 | ✅ P2已完成 |
 | D-4 | `kit/mcp/remote/core/` RemoteClientRegistry.cs:8 + RemoteReconnectCtsRegistry.cs:8 + RemoteToolSpecCache.cs:8 | 3字典分散同一client状态(连接/重连CTS/工具规格) | `volatile ImmutableDictionary<string,RemoteClientState>` 单一状态对象 | ✅ 各自无锁化(保留3类关注点分离) |
 | D-5 | `llm/agents/Coordinator/Core/Lifecycle/AgentLifecycleManager.cs:12-13` | _subAgents+_results双字典以agentId为key | `volatile ImmutableDictionary<string,AgentEntry>` 单一状态对象(AgentEntry聚合Agent+Result?) | ✅ |
-| D-6 | `llm/agents/Coordinator/Team/core/TeamRegistry.cs:18,29` | `Rooms=>_rooms.Values`与`SnapshotRooms()=>_rooms.ToDictionary()`重复暴露同一_rooms(语义不一致) | 配合D-1统一为唯一数据源 | ⬜ |
+| D-6 | `llm/agents/Coordinator/Team/core/TeamRegistry.cs:18,29` | `Rooms=>_rooms.Values`与`SnapshotRooms()=>_rooms.ToDictionary()`重复暴露同一_rooms(语义不一致) | 配合D-1统一为唯一数据源 | ✅ P2改造后Rooms返回_rooms.Values、SnapshotRooms返回_rooms引用,语义已统一,无需额外改动 |
 | D-7 | `lib/guard/hooks/session/SessionHookManager.cs:64,123` | 两层ConcurrentDictionary嵌套,同一session的hook数据分散 | 配合A-1改造 | ✅ P2内层已完成 |
-| D-8 | `lib/guard/security/sandbox/core/SandboxManager.cs:9,14` | _providers+_activeExecutions两个ConcurrentDictionary不同维度 | 评估是否可合并 | ⬜ |
+| D-8 | `lib/guard/security/sandbox/core/SandboxManager.cs:9,14` | _providers+_activeExecutions两个ConcurrentDictionary不同维度 | 评估是否可合并 | ✅ 不合并:3字典key空间不同(SandboxType/string executionId/string sandboxId)+生命周期不同(插件级/命令级/沙箱会话级),各自无锁化已最优 |
 | D-9 | `lib/guard/policy/RemotePolicyService.cs:12-13` | _usageCounters+_windowStartTimes两个ConcurrentDictionary以ruleId为key | 单一RateLimitState对象 | ✅ 各自无锁化(保留2字典因key空间不同) |
 
 ---
@@ -216,13 +216,32 @@
 - [x] P4-A类扩散: kit/brain全部无锁化 (commit fc3f3cabc)
 - [x] P4-A类扩散: lib/guard全部37处无锁化 (commits 81cd565c3/a89d360fe/7441aeda8/130910fcb)
 - [x] P4-A类扩散: llm/agents全部22处无锁化 (commit 895504ced)
+- [x] P4-B类扩散: 18处消除冗余ToList/ToArray,61处保留 (commit fdffc5cde)
 
 ## 进行中
 - 无
 
 ## 待办
-- [ ] P4-B类扩散: 73处直接转换属性→消费者处理
-- [ ] D-6/D-8: 评估是否需要改造
+- 无(全部改造完成)
+
+---
+
+## 改造总结
+
+| 阶段 | 改造内容 | 提交数 | 测试验证 |
+|------|---------|--------|---------|
+| P0 | 改造点4(10处&&顺序) | 1 | 1864测试全绿 |
+| P1 | 改造点3(10处属性O(1)化) | 1 | 707测试全绿 |
+| P2 | 改造点2核心架构(4处无锁化+不可变) | 5 | 295+753+614+614测试全绿 |
+| O(1)索引 | UsageStore+TeamRegistry冗余索引 | 2 | 295+614测试全绿 |
+| P3 | 热路径Span改造(3处,1处跳过) | 3 | 466+215+784测试全绿 |
+| P4-D类 | D-4/D-5/D-9无锁化 | 3 | 215+614+7测试全绿 |
+| P4-A类扩散 | kit/mcp+kit/brain+lib/guard+llm/agents全部无锁化 | 8 | 215+784+295+466+1889+614测试全绿 |
+| 检索效率 | ActiveSandboxes消除ToArray+SandboxManager O(1)索引 | 1 | 1889测试全绿 |
+| P4-B类扩散 | 18处消除冗余ToList/ToArray,61处保留 | 1 | 1908测试全绿 |
+| D-6/D-8评估 | 评估结论:无需改动 | 0 | 无 |
+
+**总计**:25个commit,改造点1/2/3/4全部完成,A/B/C/D四类全部处理,测试全绿。
 
 ---
 

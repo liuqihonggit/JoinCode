@@ -165,17 +165,45 @@ public class CommandRegistryTests {
         _registry.GetCommand("legacy").Should().NotBeNull();
     }
 
+    [Fact]
+    public void Register_AliasCollidingWithCommandName_ShouldNotThrow() {
+        var branchCmd = new TestChatCommand("branch", "Branch command");
+        var forkCmd = new TestChatCommand("fork", "Fork command", aliases: ["branch"]);
+
+        _registry.Register(branchCmd);
+
+        var act = () => _registry.Register(forkCmd);
+
+        act.Should().NotThrow();
+        _registry.GetCommand("branch").Should().BeSameAs(branchCmd);
+        _registry.GetCommand("fork").Should().BeSameAs(forkCmd);
+    }
+
+    [Fact]
+    public void Register_AliasCollidingWithAlias_ShouldNotThrow() {
+        var cmd1 = new TestChatCommand("cmd1", "First", aliases: ["shared-alias"]);
+        var cmd2 = new TestChatCommand("cmd2", "Second", aliases: ["shared-alias"]);
+
+        _registry.Register(cmd1);
+
+        var act = () => _registry.Register(cmd2);
+
+        act.Should().NotThrow();
+        _registry.GetCommand("shared-alias").Should().BeSameAs(cmd1);
+    }
+
     private sealed class TestChatCommand : IChatCommand {
         public string Name { get; }
         public string Description { get; }
         public string Usage => $"/{Name}";
-        public string[] Aliases => Array.Empty<string>();
+        public string[] Aliases { get; }
         public string ArgumentHint => string.Empty;
         public bool IsHidden => false;
 
-        public TestChatCommand(string name, string description) {
+        public TestChatCommand(string name, string description, string[]? aliases = null) {
             Name = name;
             Description = description;
+            Aliases = aliases ?? Array.Empty<string>();
         }
 
         public Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {

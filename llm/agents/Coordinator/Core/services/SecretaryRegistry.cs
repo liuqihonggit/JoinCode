@@ -4,7 +4,7 @@ namespace Core.Agents.Coordinator;
 /// 队长秘书注册表 — 管理队长与秘书的映射关系，确保每队长仅 spawn 一次秘书
 /// </summary>
 internal sealed class SecretaryRegistry {
-    private readonly ConcurrentDictionary<string, string> _secretaries = new(StringComparer.Ordinal);
+    private volatile ImmutableDictionary<string, string> _secretaries = ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.Ordinal);
     private readonly Func<string, SubAgentOptions, CancellationToken, Task<IAgent>> _spawnFunc;
     private readonly ILogger? _logger;
 
@@ -53,7 +53,7 @@ internal sealed class SecretaryRegistry {
 
         var secretary = await _spawnFunc("等待队长指令", secretaryOptions, cancellationToken).ConfigureAwait(false);
         var secretaryId = secretary.ObjectId.UniqueId;
-        _secretaries[ownerId] = secretaryId;
+        SetSecretary(ownerId, secretaryId);
         _logger?.LogInformation("{Prefix} 队长 {OwnerId} 的秘书已 spawn: {SecretaryId}", AgentCoordinatorConstants.LogMessages.AgentCoordinatorPrefix, ownerId, secretaryId);
         return secretaryId;
     }
@@ -62,4 +62,13 @@ internal sealed class SecretaryRegistry {
     /// 获取队长的秘书 agentId（已 spawn 则返回，未 spawn 则 null）
     /// </summary>
     public string? GetSecretaryId(string ownerId) => _secretaries.TryGetValue(ownerId, out var id) ? id : null;
+
+    private void SetSecretary(string key, string value) {
+        var current = _secretaries;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _secretaries, updated, current) == current) return;
+            current = _secretaries;
+        }
+    }
 }

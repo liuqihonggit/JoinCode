@@ -7,7 +7,7 @@ namespace Core.Agents.Coordinator;
 public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentMcpServerManager {
     private readonly IRemoteClientManager _remoteClientManager;
     private readonly ILogger<AgentMcpServerManager>? _logger;
-    private readonly ConcurrentDictionary<string, List<string>> _agentClients = new(StringComparer.Ordinal);
+    private volatile ImmutableDictionary<string, List<string>> _agentClients = ImmutableDictionary<string, List<string>>.Empty.WithComparers(StringComparer.Ordinal);
     private readonly IMcpAuthConfigProvider? _authConfigProvider;
     private readonly IMcpClientFactory? _mcpClientFactory;
 
@@ -75,7 +75,7 @@ public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abst
                 ? new List<string>(effectiveParentClientIds)
                 : new List<string>();
             if (clientIds.Count > 0)
-                _agentClients[agentDefinition.DisplayId] = clientIds;
+                SetAgentClients(agentDefinition.DisplayId, clientIds);
             return result;
         }
 
@@ -113,7 +113,7 @@ public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abst
         allClientIds.AddRange(newlyCreatedClientIds);
 
         if (allClientIds.Count > 0)
-            _agentClients[agentDefinition.DisplayId] = allClientIds;
+            SetAgentClients(agentDefinition.DisplayId, allClientIds);
 
         result.ConnectedServers = connectedServers;
         result.ToolNames = allToolNames;
@@ -126,7 +126,7 @@ public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abst
     /// <param name="agentId">目标 Agent 标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     public async Task CleanupAgentMcpServersAsync(string agentId, CancellationToken cancellationToken = default) {
-        if (!_agentClients.TryRemove(agentId, out var clientIds))
+        if (!TryRemoveAgentClients(agentId, out var clientIds))
             return;
 
         foreach (var clientId in clientIds) {
@@ -137,6 +137,27 @@ public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abst
                 _logger?.LogWarning(ex, "清理 Agent '{AgentId}' 的 MCP 客户端 '{ClientId}' 失败", agentId, clientId);
             }
         }
+    }
+
+    private void SetAgentClients(string key, List<string> value) {
+        var current = _agentClients;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _agentClients, updated, current) == current) return;
+            current = _agentClients;
+        }
+    }
+
+    private bool TryRemoveAgentClients(string key, out List<string> value) {
+        value = null!;
+        var current = _agentClients;
+        while (current.ContainsKey(key)) {
+            value = current[key];
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _agentClients, updated, current) == current) return true;
+            current = _agentClients;
+        }
+        return false;
     }
 
     private async Task<(string? ClientId, bool IsNewlyCreated)> ConnectMcpServerAsync(

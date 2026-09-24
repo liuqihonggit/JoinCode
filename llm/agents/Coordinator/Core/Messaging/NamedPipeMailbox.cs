@@ -11,7 +11,7 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(NamedPipeMailbox), ServiceLifetime.Singleton)]
 public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMessage, TransportFrame> {
     private readonly NamedPipeTransport _transport;
-    private readonly ConcurrentDictionary<string, string> _agentToProcess;
+    private volatile ImmutableDictionary<string, string> _agentToProcess = ImmutableDictionary<string, string>.Empty;
     private readonly ILogger<NamedPipeMailbox>? _logger;
 
     /// <summary>
@@ -32,7 +32,6 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
             outputCapacity: 128) {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _logger = logger;
-        _agentToProcess = new ConcurrentDictionary<string, string>();
     }
 
     /// <summary>传输层实例 — 外部可访问用于主机选举订阅。</summary>
@@ -91,7 +90,7 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
     /// 注册 Agent — 本地注册 + 通知主机路由表更新。
     /// </summary>
     public new ValueTask RegisterAgentAsync(string agentId, string? sessionId = null, CancellationToken ct = default) {
-        _agentToProcess[agentId] = _transport.ProcessId;
+        SetAgentProcess(agentId, _transport.ProcessId);
         return base.RegisterAgentAsync(agentId, sessionId, ct);
     }
 
@@ -122,11 +121,29 @@ public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMess
         if (message is null) return ValueTask.CompletedTask;
 
         if (message.ToAgentId is not null) {
-            _agentToProcess.TryAdd(message.ToAgentId, frame.SourceProcessId);
+            TryAddAgentProcess(message.ToAgentId, frame.SourceProcessId);
             DeliverToAgent(message.ToAgentId, message);
         }
 
         return ValueTask.CompletedTask;
+    }
+
+    private void SetAgentProcess(string key, string value) {
+        var current = _agentToProcess;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _agentToProcess, updated, current) == current) return;
+            current = _agentToProcess;
+        }
+    }
+
+    private void TryAddAgentProcess(string key, string value) {
+        var current = _agentToProcess;
+        while (!current.ContainsKey(key)) {
+            var updated = current.Add(key, value);
+            if (Interlocked.CompareExchange(ref _agentToProcess, updated, current) == current) return;
+            current = _agentToProcess;
+        }
     }
 
     /// <summary>

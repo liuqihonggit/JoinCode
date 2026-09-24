@@ -14,8 +14,8 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    private readonly ConcurrentDictionary<string, AgentExecutionSummary> _executions = new();
-    private readonly ConcurrentDictionary<string, AgentMetricsAccumulator> _metrics = new();
+    private volatile ImmutableDictionary<string, AgentExecutionSummary> _executions = ImmutableDictionary<string, AgentExecutionSummary>.Empty;
+    private volatile ImmutableDictionary<string, AgentMetricsAccumulator> _metrics = ImmutableDictionary<string, AgentMetricsAccumulator>.Empty;
     private readonly ILogger<AgentSummaryService>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
@@ -34,11 +34,9 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
             }
         };
 
-        _executions[executionId] = summary;
+        SetExecution(executionId, summary);
 
-        _metrics.AddOrUpdate(agentName,
-            _ => new AgentMetricsAccumulator { FirstExecutionAt = _clock.GetUtcNow() },
-            (_, existing) => existing);
+        GetOrAddMetric(agentName, _ => new AgentMetricsAccumulator { FirstExecutionAt = _clock.GetUtcNow() });
 
         _logger?.LogInformation("开始跟踪代理执行 {ExecutionId}: {AgentName}", executionId, agentName);
 
@@ -50,11 +48,11 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
     /// <inheritdoc />
     public void UpdateExecution(string executionId, TaskExecutionStatus status, string? resultSummary = null) {
         if (_executions.TryGetValue(executionId, out var summary)) {
-            _executions[executionId] = summary with {
+            SetExecution(executionId, summary with {
                 Status = status,
                 ResultSummary = resultSummary ?? summary.ResultSummary,
                 LastUpdatedAt = _clock.GetUtcNow()
-            };
+            });
 
             _logger?.LogDebug("更新执行状态 {ExecutionId}: {Status}", executionId, status);
         }
@@ -69,7 +67,7 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
                     errorMessage != null ? TaskExecutionStatus.Failed :
                     TaskExecutionStatus.Cancelled;
 
-        _executions[executionId] = summary with {
+        SetExecution(executionId, summary with {
             Status = status,
             ResultSummary = resultSummary ?? summary.ResultSummary,
             ErrorMessage = errorMessage,
@@ -77,7 +75,7 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
             Metrics = summary.Metrics with {
                 CompletedAt = completedAt
             }
-        };
+        });
 
         if (_metrics.TryGetValue(summary.AgentName, out var accumulator)) {
             accumulator.TotalExecutions++;
@@ -102,39 +100,39 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
     /// <inheritdoc />
     public void RecordToolCall(string executionId, string toolName) {
         if (_executions.TryGetValue(executionId, out var summary)) {
-            _executions[executionId] = summary with {
+            SetExecution(executionId, summary with {
                 Metrics = summary.Metrics with {
                     ToolCallsCount = summary.Metrics.ToolCallsCount + 1
                 },
                 LastUpdatedAt = _clock.GetUtcNow()
-            };
+            });
         }
     }
 
     /// <inheritdoc />
     public void RecordMessage(string executionId, bool sent) {
         if (_executions.TryGetValue(executionId, out var summary)) {
-            _executions[executionId] = summary with {
+            SetExecution(executionId, summary with {
                 Metrics = summary.Metrics with {
                     MessagesSent = sent ? summary.Metrics.MessagesSent + 1 : summary.Metrics.MessagesSent,
                     MessagesReceived = !sent ? summary.Metrics.MessagesReceived + 1 : summary.Metrics.MessagesReceived
                 },
                 LastUpdatedAt = _clock.GetUtcNow()
-            };
+            });
         }
     }
 
     /// <inheritdoc />
     public void RecordStep(string executionId, bool succeeded) {
         if (_executions.TryGetValue(executionId, out var summary)) {
-            _executions[executionId] = summary with {
+            SetExecution(executionId, summary with {
                 Metrics = summary.Metrics with {
                     StepsExecuted = summary.Metrics.StepsExecuted + 1,
                     StepsSucceeded = succeeded ? summary.Metrics.StepsSucceeded + 1 : summary.Metrics.StepsSucceeded,
                     StepsFailed = !succeeded ? summary.Metrics.StepsFailed + 1 : summary.Metrics.StepsFailed
                 },
                 LastUpdatedAt = _clock.GetUtcNow()
-            };
+            });
         }
     }
 
@@ -223,7 +221,7 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
                 .ToList();
 
             foreach (var key in keysToRemove) {
-                _executions.TryRemove(key, out _);
+                TryRemoveExecution(key, out _);
             }
 
             _logger?.LogInformation("已清除 {Count} 条历史记录（早于 {Days} 天）", keysToRemove.Count, olderThanDays.Value);
@@ -234,10 +232,42 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
                 .ToList();
 
             foreach (var key in keysToRemove) {
-                _executions.TryRemove(key, out _);
+                TryRemoveExecution(key, out _);
             }
 
             _logger?.LogInformation("已清除 {Count} 条历史记录", keysToRemove.Count);
+        }
+    }
+
+    private void SetExecution(string key, AgentExecutionSummary value) {
+        var current = _executions;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _executions, updated, current) == current) return;
+            current = _executions;
+        }
+    }
+
+    private bool TryRemoveExecution(string key, out AgentExecutionSummary value) {
+        value = null!;
+        var current = _executions;
+        while (current.TryGetValue(key, out var existing)) {
+            value = existing;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _executions, updated, current) == current) return true;
+            current = _executions;
+        }
+        return false;
+    }
+
+    private void GetOrAddMetric(string key, Func<string, AgentMetricsAccumulator> factory) {
+        var current = _metrics;
+        if (current.ContainsKey(key)) return;
+        var value = factory(key);
+        while (!current.ContainsKey(key)) {
+            var updated = current.Add(key, value);
+            if (Interlocked.CompareExchange(ref _metrics, updated, current) == current) return;
+            current = _metrics;
         }
     }
 

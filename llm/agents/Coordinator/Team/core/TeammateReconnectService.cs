@@ -10,7 +10,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
     private readonly ITeamManager _teamManager;
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly ILogger<TeammateReconnectService>? _logger;
-    private readonly ConcurrentDictionary<string, int> _reconnectAttempts = new(StringComparer.Ordinal);
+    private volatile ImmutableDictionary<string, int> _reconnectAttempts = ImmutableDictionary<string, int>.Empty.WithComparers(StringComparer.Ordinal);
 
     /// <summary>
     /// 初始化 Teammate 重连服务
@@ -100,10 +100,10 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
         var attemptKey = $"{teamId}:{agentId}";
-        var attempt = _reconnectAttempts.AddOrUpdate(attemptKey, 1, (_, v) => v + 1);
+        var attempt = IncrementReconnectAttempt(attemptKey);
 
         if (attempt > MaxReconnectAttempts) {
-            _reconnectAttempts.TryRemove(attemptKey, out _);
+            TryRemoveReconnectAttempt(attemptKey, out _);
             _logger?.LogWarning("Max reconnect attempts ({Max}) exceeded for agent {AgentId} in team {TeamId}",
                 MaxReconnectAttempts, agentId, teamId);
 
@@ -136,7 +136,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
 
             await _teamManager.SetMemberActiveAsync(teamId, agentId, true, cancellationToken).ConfigureAwait(false);
 
-            _reconnectAttempts.TryRemove(attemptKey, out _);
+            TryRemoveReconnectAttempt(attemptKey, out _);
 
             _logger?.LogInformation("Teammate {AgentId} reconnected successfully on attempt {Attempt}",
                 agentId, attempt);
@@ -147,7 +147,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
                 AttemptCount = attempt
             };
         } catch (OperationCanceledException) {
-            _reconnectAttempts.TryRemove(attemptKey, out _);
+            TryRemoveReconnectAttempt(attemptKey, out _);
             return new JoinCode.Abstractions.Interfaces.ReconnectResult {
                 AgentId = agentId,
                 Status = JoinCode.Abstractions.Interfaces.ReconnectStatus.Cancelled,
@@ -206,5 +206,26 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
             Status = worstStatus,
             AttemptCount = totalAttempts
         };
+    }
+
+    private int IncrementReconnectAttempt(string key) {
+        while (true) {
+            var current = _reconnectAttempts;
+            var newValue = current.TryGetValue(key, out var existing) ? existing + 1 : 1;
+            var updated = current.SetItem(key, newValue);
+            if (Interlocked.CompareExchange(ref _reconnectAttempts, updated, current) == current) return newValue;
+        }
+    }
+
+    private bool TryRemoveReconnectAttempt(string key, out int value) {
+        value = default;
+        var current = _reconnectAttempts;
+        while (current.ContainsKey(key)) {
+            value = current[key];
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _reconnectAttempts, updated, current) == current) return true;
+            current = _reconnectAttempts;
+        }
+        return false;
     }
 }

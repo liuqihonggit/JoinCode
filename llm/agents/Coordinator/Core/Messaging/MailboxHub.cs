@@ -11,7 +11,7 @@ namespace Core.Agents.Coordinator;
 public sealed partial class MailboxHub {
     private readonly IMailbox _inProcess;
     private readonly ITeammateMailboxService? _fileMailbox;
-    private readonly ConcurrentDictionary<MailboxKind, MailboxBase<CoordinatorMessage>> _extraChannels;
+    private volatile ImmutableDictionary<MailboxKind, MailboxBase<CoordinatorMessage>> _extraChannels = ImmutableDictionary<MailboxKind, MailboxBase<CoordinatorMessage>>.Empty;
     private readonly AgentChannelRegistry _agentChannels;
     private readonly ILogger<MailboxHub>? _logger;
 
@@ -27,7 +27,6 @@ public sealed partial class MailboxHub {
         ILogger<MailboxHub>? logger = null) {
         _inProcess = inProcess ?? throw new ArgumentNullException(nameof(inProcess));
         _fileMailbox = fileMailbox;
-        _extraChannels = new ConcurrentDictionary<MailboxKind, MailboxBase<CoordinatorMessage>>();
         _agentChannels = new AgentChannelRegistry();
         _logger = logger;
     }
@@ -42,8 +41,17 @@ public sealed partial class MailboxHub {
         ArgumentNullException.ThrowIfNull(mailbox);
         if (kind is MailboxKind.InProcess or MailboxKind.File)
             throw new ArgumentException($"Channel {kind} is managed by constructor, use RegisterChannel only for NamedPipe/Network", nameof(kind));
-        _extraChannels[kind] = mailbox;
+        SetExtraChannel(kind, mailbox);
         _logger?.LogInformation("MailboxHub: registered channel {Kind}", kind);
+    }
+
+    private void SetExtraChannel(MailboxKind key, MailboxBase<CoordinatorMessage> value) {
+        var current = _extraChannels;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _extraChannels, updated, current) == current) return;
+            current = _extraChannels;
+        }
     }
 
     /// <summary>指定通道是否已注册。</summary>

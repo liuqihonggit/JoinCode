@@ -18,7 +18,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
     private readonly SubAgentLivenessOptions _options;
     private readonly ILogger? _logger;
     private readonly Func<DateTimeOffset> _clock;
-    private readonly ConcurrentDictionary<string, DateTimeOffset> _activationTimes = new();
+    private volatile ImmutableDictionary<string, DateTimeOffset> _activationTimes = ImmutableDictionary<string, DateTimeOffset>.Empty;
     private bool _disposed;
 
     /// <summary>
@@ -64,7 +64,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
     public void MarkRecovered(string agentId) {
         _logger?.LogInformation("[SubAgentStallDefense] Agent {AgentId} 已恢复，清除激活记录", agentId);
         _scanner.MarkRecovered(agentId);
-        _activationTimes.TryRemove(agentId, out _);
+        TryRemoveActivationTime(agentId, out _);
     }
 
     /// <summary>
@@ -90,7 +90,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
             }
 
             // L3 激活
-            _activationTimes[agentId] = _clock();
+            SetActivationTime(agentId, _clock());
             _logger?.LogInformation("[SubAgentStallDefense] Agent {AgentId} 触发 L3 激活", agentId);
             var activationResult = await _activator.ActivateAsync(agentId, _options.IdleThresholdSeconds).ConfigureAwait(false);
 
@@ -127,7 +127,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
                 agentId, _options.ActivationRecoverySeconds);
 
             var result = await _compactor.CompactProgressiveAsync(agentId).ConfigureAwait(false);
-            _activationTimes.TryRemove(agentId, out _);
+            TryRemoveActivationTime(agentId, out _);
         } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogError(ex, "[SubAgentStallDefense] WaitForRecoveryAsync 异常: {AgentId}", agentId);
         }
@@ -168,7 +168,28 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable {
         _logger?.LogInformation("[SubAgentStallDefense] 纵深防御体系停止，清理 {Count} 个激活记录", _activationTimes.Count);
         _scanner.AgentStalled -= OnAgentStalled;
         _scanner.ChainStalled -= OnChainStalled;
-        _activationTimes.Clear();
+        Interlocked.Exchange(ref _activationTimes, ImmutableDictionary<string, DateTimeOffset>.Empty);
         return _scanner.DisposeAsync();
+    }
+
+    private void SetActivationTime(string key, DateTimeOffset value) {
+        var current = _activationTimes;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _activationTimes, updated, current) == current) return;
+            current = _activationTimes;
+        }
+    }
+
+    private bool TryRemoveActivationTime(string key, out DateTimeOffset value) {
+        value = default;
+        var current = _activationTimes;
+        while (current.ContainsKey(key)) {
+            value = current[key];
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _activationTimes, updated, current) == current) return true;
+            current = _activationTimes;
+        }
+        return false;
     }
 }

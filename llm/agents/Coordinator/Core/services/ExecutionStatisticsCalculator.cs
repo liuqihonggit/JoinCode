@@ -29,7 +29,7 @@ internal static class ExecutionStatisticsCalculator {
     /// </summary>
     /// <param name="executionContexts">Agent ID 到执行上下文的映射</param>
     /// <returns>执行统计信息</returns>
-    public static ExecutionStatistics BuildStatistics(ConcurrentDictionary<string, AgentExecutionContext> executionContexts) {
+    public static ExecutionStatistics BuildStatistics(IReadOnlyDictionary<string, AgentExecutionContext> executionContexts) {
         var contexts = executionContexts.Values;
         var completedContexts = contexts.Where(c => c.Outcome != AgentOutcome.Pending).ToList();
 

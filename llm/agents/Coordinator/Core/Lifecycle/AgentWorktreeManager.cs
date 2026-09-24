@@ -10,8 +10,8 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     private readonly IHookOrchestrator? _hookOrchestrator;
     private readonly ILogger? _logger;
     private readonly IClockService _clock;
-    private static readonly ConcurrentDictionary<string, AgentWorktreeSession> s_worktreeSessions = new();
-    private readonly ConcurrentDictionary<string, WorktreeLifecycleGuard> _lifecycleGuards;
+    private static volatile ImmutableDictionary<string, AgentWorktreeSession> s_worktreeSessions = ImmutableDictionary<string, AgentWorktreeSession>.Empty;
+    private volatile ImmutableDictionary<string, WorktreeLifecycleGuard> _lifecycleGuards = ImmutableDictionary<string, WorktreeLifecycleGuard>.Empty;
     private readonly bool _enableWorktreeIsolation;
     private readonly IFileOperationService? _fileOperationService;
     private readonly IGitCommandRunner? _gitRunner;
@@ -50,7 +50,6 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         _clock = clock ?? SystemClockService.Instance;
         var configEnabled = workflowConfig?.EnableWorktreeIsolation ?? enableWorktreeIsolation;
         _enableWorktreeIsolation = configEnabled && worktreeService != null;
-        _lifecycleGuards = new ConcurrentDictionary<string, WorktreeLifecycleGuard>();
         _fileOperationService = fileOperationService;
         _gitRunner = gitRunner;
         _fileSystem = fileSystem;
@@ -78,7 +77,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
                         Existed = false,
                         HookBased = true
                     };
-                    s_worktreeSessions[agentId] = session;
+                    SetWorktreeSession(agentId, session);
                     _logger?.LogInformation("Hook-based worktree created for agent {AgentId} at: {Path}", agentId, hookPath);
                     FireWorktreeCreated(agentId, hookPath, session.BranchName);
                     return true;
@@ -87,7 +86,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
 
             var worktreeResult = await _worktreeService.CreateAgentWorktreeAsync(agentId, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (worktreeResult.Success && worktreeResult.Session != null) {
-                s_worktreeSessions[agentId] = worktreeResult.Session;
+                SetWorktreeSession(agentId, worktreeResult.Session);
                 RegisterLifecycleGuard(agentId, worktreeResult.Session.WorktreePath, worktreeResult.Session.GitRootPath, worktreeResult.Session.BranchName);
                 _logger?.LogInformation(
                 AgentCoordinatorConstants.LogMessages.CreateWorktree,
@@ -119,7 +118,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         try {
             var worktreeResult = await _worktreeService.CreateAgentWorktreeAsync(agentId, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (worktreeResult.Success && worktreeResult.Session is not null) {
-                s_worktreeSessions[agentId] = worktreeResult.Session;
+                SetWorktreeSession(agentId, worktreeResult.Session);
                 RegisterLifecycleGuard(agentId, worktreeResult.Session.WorktreePath, worktreeResult.Session.GitRootPath, worktreeResult.Session.BranchName);
                 _logger?.LogInformation(
                     AgentCoordinatorConstants.LogMessages.CreateWorktree,
@@ -191,7 +190,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         }
 
         // 状态1: 定位 session(内存优先,跨进程从磁盘重建)
-        s_worktreeSessions.TryRemove(agentId, out var session);
+        TryRemoveWorktreeSession(agentId, out var session);
         session ??= await ReconstructSessionFromDiskAsync(agentId, cancellationToken).ConfigureAwait(false);
         if (session is null) {
             return WorktreeCleanupDetail.NoSession;
@@ -371,8 +370,8 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     private void RegisterLifecycleGuard(string agentId, string worktreePath, string mainPath, string? branchName) {
         if (_fileOperationService is null) return;
         try {
-            var guard = new WorktreeLifecycleGuard(worktreePath, mainPath, _fileOperationService, _gitRunner, branchName, _logger);
-            _lifecycleGuards[agentId] = guard;
+            var guard = new WorktreeLifecycleGuard(worktreePath, mainPath, _fileOperationService, _gitRunner, branchName, _logger); // escapes — 所有权转移至 _lifecycleGuards 字典
+            SetLifecycleGuard(agentId, guard);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "创建 WorktreeLifecycleGuard 失败: {AgentId}", agentId);
         }
@@ -383,14 +382,14 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     /// service 也失败时(跨进程 session 不共享)用 _gitRunner 直接执行 git worktree remove + branch -D。
     /// </summary>
     private async Task<bool> RemoveWorktreeViaGuardAsync(string agentId, AgentWorktreeSession session, CancellationToken cancellationToken) {
-        if (_lifecycleGuards.TryRemove(agentId, out var guard)) {
+        if (TryRemoveLifecycleGuard(agentId, out var guard)) {
             var result = await guard.ReleaseAsync(force: true, cancellationToken).ConfigureAwait(false);
             if (!result.Success) {
                 _logger?.LogWarning("Guard 释放 worktree 失败: {Reason} {Error}", result.Reason, result.ErrorMessage);
             }
+            await guard.DisposeAsync().ConfigureAwait(false);
             return result.Success;
         }
-
         if (_worktreeService is not null) {
             var cleanupResult = await _worktreeService.RemoveAgentWorktreeAsync(agentId, force: true, cancellationToken).ConfigureAwait(false);
             if (cleanupResult.Success) {
@@ -440,7 +439,49 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
 
     /// <summary>释放资源 — 仅清理实例级 lifecycleGuards,不清空 static s_worktreeSessions(跨实例共享)</summary>
     public override void Dispose() {
-        _lifecycleGuards.Clear();
+        Interlocked.Exchange(ref _lifecycleGuards, ImmutableDictionary<string, WorktreeLifecycleGuard>.Empty);
         base.Dispose();
+    }
+
+    private static void SetWorktreeSession(string key, AgentWorktreeSession value) {
+        var current = s_worktreeSessions;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref s_worktreeSessions, updated, current) == current) return;
+            current = s_worktreeSessions;
+        }
+    }
+
+    private static bool TryRemoveWorktreeSession(string key, out AgentWorktreeSession value) {
+        value = null!;
+        var current = s_worktreeSessions;
+        while (current.TryGetValue(key, out var existing)) {
+            value = existing;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref s_worktreeSessions, updated, current) == current) return true;
+            current = s_worktreeSessions;
+        }
+        return false;
+    }
+
+    private void SetLifecycleGuard(string key, WorktreeLifecycleGuard value) {
+        var current = _lifecycleGuards;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _lifecycleGuards, updated, current) == current) return;
+            current = _lifecycleGuards;
+        }
+    }
+
+    private bool TryRemoveLifecycleGuard(string key, out WorktreeLifecycleGuard value) {
+        value = null!;
+        var current = _lifecycleGuards;
+        while (current.TryGetValue(key, out var existing)) {
+            value = existing;
+            var updated = current.Remove(key);
+            if (Interlocked.CompareExchange(ref _lifecycleGuards, updated, current) == current) return true;
+            current = _lifecycleGuards;
+        }
+        return false;
     }
 }

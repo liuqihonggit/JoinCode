@@ -12,8 +12,8 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     private readonly ILogger<TeammateMailboxService>? _logger;
     private readonly IClockService _clock;
     private readonly bool _crossProcess;
-    private readonly ConcurrentDictionary<string, MailboxActor> _actors;
-    private readonly ConcurrentDictionary<string, MailboxReadCursor> _cursors;
+    private volatile ImmutableDictionary<string, MailboxActor> _actors = ImmutableDictionary<string, MailboxActor>.Empty;
+    private volatile ImmutableDictionary<string, MailboxReadCursor> _cursors = ImmutableDictionary<string, MailboxReadCursor>.Empty;
     private int _messageCounter;
 
     /// <summary>
@@ -39,9 +39,6 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _crossProcess = crossProcess;
-
-        _actors = new ConcurrentDictionary<string, MailboxActor>();
-        _cursors = new ConcurrentDictionary<string, MailboxReadCursor>();
     }
 
     /// <summary>
@@ -135,13 +132,11 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         var lines = await _fs.ReadAllLinesAsync(filePath, ct).ConfigureAwait(false);
         var lastLineIndex = lines.Length;
         var cursorKey = GetCursorKey(agentId, sessionId);
-        _cursors.AddOrUpdate(cursorKey,
-            _ => new MailboxReadCursor {
-                AgentId = agentId,
-                SessionId = sessionId,
-                LastReadLineIndex = lastLineIndex
-            },
-            (_, existing) => existing with { LastReadLineIndex = lastLineIndex });
+        SetCursor(cursorKey, new MailboxReadCursor {
+            AgentId = agentId,
+            SessionId = sessionId,
+            LastReadLineIndex = lastLineIndex
+        });
     }
 
     /// <summary>
@@ -178,7 +173,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             LastReadLineIndex = 0
         };
 
-        _cursors[cursorKey] = cursor;
+        SetCursor(cursorKey, cursor);
         return ValueTask.FromResult(cursor);
     }
 
@@ -223,7 +218,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
 
     private MailboxActor GetOrCreateActor(string sessionId, string agentId) {
         var key = GetCursorKey(agentId, sessionId);
-        return _actors.GetOrAdd(key, _ => {
+        return GetOrAddActor(key, _ => {
             var filePath = GetMailboxFilePath(sessionId, agentId);
             return new MailboxActor(_fs, filePath, _crossProcess, _logger);
         });
@@ -264,7 +259,29 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         foreach (var actor in _actors.Values) {
             await actor.DisposeAsync().ConfigureAwait(false);
         }
-        _actors.Clear();
+        Interlocked.Exchange(ref _actors, ImmutableDictionary<string, MailboxActor>.Empty);
         await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    private void SetCursor(string key, MailboxReadCursor value) {
+        var current = _cursors;
+        while (true) {
+            var updated = current.SetItem(key, value);
+            if (Interlocked.CompareExchange(ref _cursors, updated, current) == current) return;
+            current = _cursors;
+        }
+    }
+
+    private MailboxActor GetOrAddActor(string key, Func<string, MailboxActor> factory) {
+        var current = _actors;
+        if (current.TryGetValue(key, out var existing)) return existing;
+        var value = factory(key);
+        while (true) {
+            if (current.TryGetValue(key, out existing)) return existing;
+            var updated = current.Add(key, value);
+            var prev = Interlocked.CompareExchange(ref _actors, updated, current);
+            if (prev == current) return value;
+            current = prev;
+        }
     }
 }

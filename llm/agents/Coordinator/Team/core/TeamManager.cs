@@ -103,7 +103,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             TeamName = teamName,
             Description = description,
             LeadAgentId = leadAgentId,
-            Members = members.ToList(),
+            Members = members,
             MemberDetails = memberDetails.Values.ToList(),
             CreatedAt = _clock.GetUtcNow(),
             LastActivityAt = _clock.GetUtcNow()
@@ -495,7 +495,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private ChatRoomState UpdateRoomMembers(string teamId, ChatRoomState room) {
         var newRoom = room with {
             Info = room.Info with {
-                Members = [.. room.Members],
+                Members = room.Members,
                 MemberDetails = [.. room.MemberDetails.Values],
                 LastActivityAt = _clock.GetUtcNow()
             }

@@ -55,11 +55,11 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     /// 异步列出全部 MCP 认证条目。
     /// </summary>
     /// <param name="ct">取消令牌。</param>
-    /// <returns>认证条目只读列表；若无任何条目则返回空列表。</returns>
-    public async Task<IReadOnlyList<AuthConfigEntry>> ListAsync(CancellationToken ct = default) {
-        if (_configService == null) return Array.Empty<AuthConfigEntry>();
+    /// <returns>以 Name 为 key 的只读字典；若无任何条目则返回空字典。</returns>
+    public async Task<IReadOnlyDictionary<string, AuthConfigEntry>> ListAsync(CancellationToken ct = default) {
+        if (_configService == null) return ImmutableDictionary<string, AuthConfigEntry>.Empty;
 
-        var reply = new TaskCompletionSource<IReadOnlyList<AuthConfigEntry>>();
+        var reply = new TaskCompletionSource<IReadOnlyDictionary<string, AuthConfigEntry>>();
         await _actor.SendAsync(new ListAuthCmd(reply), ct).ConfigureAwait(false);
         return await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
@@ -97,8 +97,8 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
         return entries.TryGetValue(authName, out var entry) ? entry : null;
     }
 
-    private async Task<IReadOnlyList<AuthConfigEntry>> ListInternalAsync(CancellationToken ct)
-        => (await LoadEntriesAsync(ct).ConfigureAwait(false)).Values.ToList();
+    private async Task<IReadOnlyDictionary<string, AuthConfigEntry>> ListInternalAsync(CancellationToken ct)
+        => await LoadEntriesAsync(ct).ConfigureAwait(false);
 
     private async Task RemoveInternalAsync(string authName, CancellationToken ct) {
         var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);

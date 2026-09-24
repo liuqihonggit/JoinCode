@@ -1,0 +1,60 @@
+name: CI GUI Daily
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 20 * * *'
+
+concurrency:
+  group: gui-daily
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  Configuration: Release
+
+jobs:
+  gui-tests:
+    name: GUI Unit Tests
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: 'global.json'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Build
+        run: dotnet build test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj -c Release --nologo
+
+      - name: Test
+        run: >
+          dotnet test test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=JoinCodeGui.trx"
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gui-test-results
+          path: '**/JoinCodeGui.trx'
+          retention-days: 7

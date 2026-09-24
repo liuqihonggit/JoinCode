@@ -40,10 +40,28 @@ public sealed class BuildEntity : Entity {
 }
 
 public sealed class BuildEntityRegistry : MapRegistry<ObjectId, BuildEntity> {
+    private readonly SecondaryIndex<ObjectId, BuildEntity, TaskExecutionStatus> _byStatus;
+
+    /// <summary>构造 BuildEntityRegistry，初始化次级索引</summary>
+    public BuildEntityRegistry() {
+        _byStatus = CreateIndex(b => b.Status);
+    }
+
     internal void Add(ObjectId id, BuildEntity build) => AddCore(id, build);
     internal bool Remove(ObjectId id) => RemoveCore(id);
-    /// <summary>按执行状态获取构建实体集合。</summary>
-    public IEnumerable<BuildEntity> GetByStatus(TaskExecutionStatus status) => Where(b => b.Status == status);
+
+    /// <summary>状态转换 — 更新 BuildEntity.Status 并同步次级索引</summary>
+    public void TransitionStatus(ObjectId id, TaskExecutionStatus newState) {
+        var entity = Get(id);
+        if (entity is null) return;
+        var oldState = entity.Status;
+        if (oldState == newState) return;
+        entity.Status = newState;
+        Reindex(_byStatus, id, oldState, newState);
+    }
+
+    /// <summary>按执行状态获取构建实体集合（O(1) 索引查找）。</summary>
+    public IEnumerable<BuildEntity> GetByStatus(TaskExecutionStatus status) => _byStatus.GetValues(status, AsDictionary());
 }
 
 /// <summary>
@@ -156,10 +174,28 @@ public sealed class ShellTaskEntity : Entity {
 }
 
 public sealed class ShellTaskEntityRegistry : MapRegistry<ObjectId, ShellTaskEntity> {
+    private readonly SecondaryIndex<ObjectId, ShellTaskEntity, TaskExecutionStatus> _byStatus;
+
+    /// <summary>构造 ShellTaskEntityRegistry，初始化次级索引</summary>
+    public ShellTaskEntityRegistry() {
+        _byStatus = CreateIndex(t => t.Status);
+    }
+
     internal void Add(ObjectId id, ShellTaskEntity task) => AddCore(id, task);
     internal bool Remove(ObjectId id) => RemoveCore(id);
-    /// <summary>按执行状态获取 Shell 任务实体集合。</summary>
-    public IEnumerable<ShellTaskEntity> GetByStatus(TaskExecutionStatus status) => Where(t => t.Status == status);
+
+    /// <summary>状态转换 — 更新 ShellTaskEntity.Status 并同步次级索引</summary>
+    public void TransitionStatus(ObjectId id, TaskExecutionStatus newState) {
+        var entity = Get(id);
+        if (entity is null) return;
+        var oldState = entity.Status;
+        if (oldState == newState) return;
+        entity.Status = newState;
+        Reindex(_byStatus, id, oldState, newState);
+    }
+
+    /// <summary>按执行状态获取 Shell 任务实体集合（O(1) 索引查找）。</summary>
+    public IEnumerable<ShellTaskEntity> GetByStatus(TaskExecutionStatus status) => _byStatus.GetValues(status, AsDictionary());
 }
 
 /// <summary>
@@ -198,10 +234,28 @@ public sealed class PermissionRequestEntity : Entity {
 }
 
 public sealed class PermissionRequestEntityRegistry : MapRegistry<ObjectId, PermissionRequestEntity> {
+    private readonly SecondaryIndex<ObjectId, PermissionRequestEntity, TaskExecutionStatus> _byStatus;
+
+    /// <summary>构造 PermissionRequestEntityRegistry，初始化次级索引</summary>
+    public PermissionRequestEntityRegistry() {
+        _byStatus = CreateIndex(r => r.Status);
+    }
+
     internal void Add(ObjectId id, PermissionRequestEntity request) => AddCore(id, request);
     internal bool Remove(ObjectId id) => RemoveCore(id);
-    /// <summary>获取所有待处理的权限请求。</summary>
-    public IEnumerable<PermissionRequestEntity> GetPending() => Where(r => r.Status == TaskExecutionStatus.Pending);
+
+    /// <summary>状态转换 — 更新 PermissionRequestEntity.Status 并同步次级索引</summary>
+    public void TransitionStatus(ObjectId id, TaskExecutionStatus newState) {
+        var entity = Get(id);
+        if (entity is null) return;
+        var oldState = entity.Status;
+        if (oldState == newState) return;
+        entity.Status = newState;
+        Reindex(_byStatus, id, oldState, newState);
+    }
+
+    /// <summary>获取所有待处理的权限请求（O(1) 索引查找）。</summary>
+    public IEnumerable<PermissionRequestEntity> GetPending() => _byStatus.GetValues(TaskExecutionStatus.Pending, AsDictionary());
 }
 
 /// <summary>
@@ -240,8 +294,26 @@ public sealed class NotificationEntity : Entity {
 }
 
 public sealed class NotificationEntityRegistry : MapRegistry<ObjectId, NotificationEntity> {
+    private readonly SecondaryIndex<ObjectId, NotificationEntity, bool> _byIsRead;
+
+    /// <summary>构造 NotificationEntityRegistry，初始化次级索引</summary>
+    public NotificationEntityRegistry() {
+        _byIsRead = CreateIndex(n => n.IsRead);
+    }
+
     internal void Add(ObjectId id, NotificationEntity notification) => AddCore(id, notification);
     internal bool Remove(ObjectId id) => RemoveCore(id);
-    /// <summary>获取所有未读通知。</summary>
-    public IEnumerable<NotificationEntity> GetUnread() => Where(n => !n.IsRead);
+
+    /// <summary>状态转换 — 更新 NotificationEntity.IsRead 并同步次级索引</summary>
+    public void TransitionIsRead(ObjectId id, bool newIsRead) {
+        var entity = Get(id);
+        if (entity is null) return;
+        var oldIsRead = entity.IsRead;
+        if (oldIsRead == newIsRead) return;
+        entity.IsRead = newIsRead;
+        Reindex(_byIsRead, id, oldIsRead, newIsRead);
+    }
+
+    /// <summary>获取所有未读通知（O(1) 索引查找）。</summary>
+    public IEnumerable<NotificationEntity> GetUnread() => _byIsRead.GetValues(false, AsDictionary());
 }

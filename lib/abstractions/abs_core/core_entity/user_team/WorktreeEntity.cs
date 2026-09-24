@@ -47,10 +47,28 @@ public enum WorktreeEntityStatus {
 }
 
 public sealed class WorktreeEntityRegistry : MapRegistry<ObjectId, WorktreeEntity> {
+    private readonly SecondaryIndex<ObjectId, WorktreeEntity, WorktreeEntityStatus> _byStatus;
+
+    /// <summary>构造 WorktreeEntityRegistry，初始化次级索引</summary>
+    public WorktreeEntityRegistry() {
+        _byStatus = CreateIndex(w => w.Status);
+    }
+
     internal void Add(ObjectId id, WorktreeEntity worktree) => AddCore(id, worktree);
     internal bool Remove(ObjectId id) => RemoveCore(id);
-    /// <summary>获取处于活跃状态的 worktree 实体列表。</summary>
-    public IEnumerable<WorktreeEntity> GetActive() => Where(w => w.Status == WorktreeEntityStatus.Active);
-    /// <summary>获取处于过期状态的 worktree 实体列表。</summary>
-    public IEnumerable<WorktreeEntity> GetStale() => Where(w => w.Status == WorktreeEntityStatus.Stale);
+
+    /// <summary>状态转换 — 更新 WorktreeEntity.Status 并同步次级索引</summary>
+    public void TransitionStatus(ObjectId id, WorktreeEntityStatus newState) {
+        var entity = Get(id);
+        if (entity is null) return;
+        var oldState = entity.Status;
+        if (oldState == newState) return;
+        entity.Status = newState;
+        Reindex(_byStatus, id, oldState, newState);
+    }
+
+    /// <summary>获取处于活跃状态的 worktree 实体列表（O(1) 索引查找）。</summary>
+    public IEnumerable<WorktreeEntity> GetActive() => _byStatus.GetValues(WorktreeEntityStatus.Active, AsDictionary());
+    /// <summary>获取处于过期状态的 worktree 实体列表（O(1) 索引查找）。</summary>
+    public IEnumerable<WorktreeEntity> GetStale() => _byStatus.GetValues(WorktreeEntityStatus.Stale, AsDictionary());
 }

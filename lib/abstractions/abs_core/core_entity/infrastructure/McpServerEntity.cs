@@ -52,8 +52,26 @@ public sealed class McpServerEntity : Entity {
 /// McpServer 注册器 — 基于 MapRegistry
 /// </summary>
 public sealed class McpServerEntityRegistry : MapRegistry<ObjectId, McpServerEntity> {
+    private readonly SecondaryIndex<ObjectId, McpServerEntity, McpConnectionStatus> _byStatus;
+
+    /// <summary>构造 McpServerEntityRegistry，初始化次级索引</summary>
+    public McpServerEntityRegistry() {
+        _byStatus = CreateIndex(s => s.Status);
+    }
+
     internal void Add(ObjectId id, McpServerEntity server) => AddCore(id, server);
     internal bool Remove(ObjectId id) => RemoveCore(id);
-    /// <summary>按连接状态获取 MCP 服务器实体集合。</summary>
-    public IEnumerable<McpServerEntity> GetByStatus(McpConnectionStatus status) => Where(s => s.Status == status);
+
+    /// <summary>状态转换 — 更新 McpServerEntity.Status 并同步次级索引</summary>
+    public void TransitionStatus(ObjectId id, McpConnectionStatus newState) {
+        var entity = Get(id);
+        if (entity is null) return;
+        var oldState = entity.Status;
+        if (oldState == newState) return;
+        entity.Status = newState;
+        Reindex(_byStatus, id, oldState, newState);
+    }
+
+    /// <summary>按连接状态获取 MCP 服务器实体集合（O(1) 索引查找）。</summary>
+    public IEnumerable<McpServerEntity> GetByStatus(McpConnectionStatus status) => _byStatus.GetValues(status, AsDictionary());
 }

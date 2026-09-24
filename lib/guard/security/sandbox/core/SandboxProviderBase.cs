@@ -17,7 +17,7 @@ public abstract class SandboxProviderBase : ISandboxProvider {
     /// <inheritdoc/>
     public abstract SandboxCapabilities Capabilities { get; }
     /// <inheritdoc/>
-    public IReadOnlyCollection<SandboxInfo> ActiveSandboxes => _sandboxes.Values.ToArray();
+    public IEnumerable<SandboxInfo> ActiveSandboxes => _sandboxes.Values;
 
     /// <summary>
     /// 初始化沙箱提供器基类

@@ -12,6 +12,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     private readonly IFileSystem _fs;
     private readonly SandboxIpcClient? _ipcClient;
     private volatile ImmutableDictionary<string, SandboxActiveExecution> _activeExecutions = ImmutableDictionary<string, SandboxActiveExecution>.Empty;
+    private volatile ImmutableDictionary<string, ISandboxProvider> _sandboxToProvider = ImmutableDictionary<string, ISandboxProvider>.Empty;
 
     /// <summary>
     /// 初始化沙箱管理器实例
@@ -202,16 +203,18 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             DockerImage = options.DockerImage,
             EnvironmentOverrides = options.EnvironmentOverrides
         };
-        return await provider.CreateSandboxAsync(effectiveOptions, ct).ConfigureAwait(false);
+        var info = await provider.CreateSandboxAsync(effectiveOptions, ct).ConfigureAwait(false);
+        SetSandboxToProvider(info.SandboxId, provider);
+        return info;
     }
 
     /// <inheritdoc/>
     public async Task DestroySandboxAsync(string sandboxId, CancellationToken ct = default) {
-        foreach (var provider in _providers.Values) {
-            if (provider.GetSandboxInfo(sandboxId) is not null) {
-                await provider.DestroySandboxAsync(sandboxId, ct).ConfigureAwait(false);
-                return;
-            }
+        var provider = ResolveProviderBySandboxId(sandboxId);
+        if (provider is not null) {
+            await provider.DestroySandboxAsync(sandboxId, ct).ConfigureAwait(false);
+            TryRemoveSandboxToProvider(sandboxId);
+            return;
         }
 
         _logger?.LogWarning("[SandboxManager] 沙箱 '{Id}' 不存在于任何 Provider 中", sandboxId);
@@ -219,26 +222,37 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
 
     /// <inheritdoc/>
     public SandboxInfo? GetSandboxInfo(string sandboxId) {
-        foreach (var provider in _providers.Values) {
-            var info = provider.GetSandboxInfo(sandboxId);
-            if (info is not null) {
-                return info;
-            }
-        }
-
-        return null;
+        var provider = ResolveProviderBySandboxId(sandboxId);
+        return provider?.GetSandboxInfo(sandboxId);
     }
 
     /// <inheritdoc/>
     public string ResolvePath(string path, string sandboxId) {
-        foreach (var provider in _providers.Values) {
-            if (provider.GetSandboxInfo(sandboxId) is not null) {
-                return provider.ResolvePath(path, sandboxId);
-            }
+        var provider = ResolveProviderBySandboxId(sandboxId);
+        if (provider is not null) {
+            return provider.ResolvePath(path, sandboxId);
         }
 
         _logger?.LogWarning("[SandboxManager] 沙箱 '{Id}' 不存在，返回原路径", sandboxId);
         return Path.GetFullPath(path);
+    }
+
+    /// <summary>
+    /// O(1)查找sandboxId对应的provider — 先查冗余索引,miss时fallback线性遍历并补建索引。
+    /// </summary>
+    private ISandboxProvider? ResolveProviderBySandboxId(string sandboxId) {
+        if (_sandboxToProvider.TryGetValue(sandboxId, out var provider)) {
+            return provider;
+        }
+
+        foreach (var p in _providers.Values) {
+            if (p.GetSandboxInfo(sandboxId) is not null) {
+                SetSandboxToProvider(sandboxId, p);
+                return p;
+            }
+        }
+
+        return null;
     }
     private (ISandboxProvider Provider, bool FallbackUsed) ResolveProviderWithFallback(SandboxType type) {
         if (type == SandboxType.None) {
@@ -696,6 +710,24 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             current = _activeExecutions;
         }
         return false;
+    }
+
+    private void SetSandboxToProvider(string sandboxId, ISandboxProvider provider) {
+        var current = _sandboxToProvider;
+        while (true) {
+            var updated = current.SetItem(sandboxId, provider);
+            if (Interlocked.CompareExchange(ref _sandboxToProvider, updated, current) == current) return;
+            current = _sandboxToProvider;
+        }
+    }
+
+    private void TryRemoveSandboxToProvider(string sandboxId) {
+        var current = _sandboxToProvider;
+        while (current.ContainsKey(sandboxId)) {
+            var updated = current.Remove(sandboxId);
+            if (Interlocked.CompareExchange(ref _sandboxToProvider, updated, current) == current) return;
+            current = _sandboxToProvider;
+        }
     }
 
     /// <summary>异步释放资源 — 异步释放生命周期 Actor 并完成基类异步释放。</summary>

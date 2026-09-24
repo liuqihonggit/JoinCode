@@ -5,8 +5,8 @@ namespace Core.CostTracking;
 /// </summary>
 [Register(typeof(IAnalyticsService), ServiceLifetime.Singleton)]
 public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService, IDisposable {
-    private readonly ConcurrentQueue<AnalyticsEvent> _events = new();
-    private readonly ConcurrentDictionary<string, ITelemetrySpan> _agentSpans = new();
+    private ImmutableList<AnalyticsEvent> _events = ImmutableList<AnalyticsEvent>.Empty;
+    private ImmutableDictionary<string, ITelemetrySpan> _agentSpans = ImmutableDictionary<string, ITelemetrySpan>.Empty;
     private readonly ILogger<AnalyticsService>? _logger;
     private readonly IFileOperationService? _fileOperationService;
     private readonly string? _storagePath;
@@ -61,7 +61,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
             Timestamp = _clock.GetUtcNow()
         };
 
-        _events.Enqueue(analyticsEvent);
+        ImmutableInterlocked.Update(ref _events, static (list, e) => list.Add(e), analyticsEvent);
 
         _logger?.LogDebug("[Analytics] 事件: {EventType} - {EventName}", type, name);
 
@@ -142,7 +142,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
                 span.SetTag("agent.session_id", sessionId);
             }
             var spanKey = $"{agentName}:{sessionId ?? string.Empty}";
-            _agentSpans[spanKey] = span;
+            ImmutableInterlocked.Update(ref _agentSpans, static (d, arg) => d.SetItem(arg.key, arg.span), (key: spanKey, span));
         }
     }
 
@@ -167,7 +167,8 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
 
         if (_telemetryService != null) {
             var spanKey = $"{agentName}:{sessionId ?? string.Empty}";
-            if (_agentSpans.TryRemove(spanKey, out var span)) {
+            if (_agentSpans.TryGetValue(spanKey, out var span)) {
+                ImmutableInterlocked.Update(ref _agentSpans, static (d, k) => d.Remove(k), spanKey);
                 span.SetStatus(success ? TelemetryStatusCode.Ok : TelemetryStatusCode.Error);
                 span.SetTag("agent.duration_ms", durationMs);
                 await span.DisposeAsync().ConfigureAwait(false);
@@ -278,20 +279,15 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         if (olderThanDays.HasValue) {
             var cutoffDate = _clock.GetUtcNow().AddDays(-olderThanDays.Value);
 
-            var newEvents = new ConcurrentQueue<AnalyticsEvent>();
-            foreach (var e in _events.Where(e => e.Timestamp >= cutoffDate)) {
-                newEvents.Enqueue(e);
-            }
-
-            while (_events.TryDequeue(out _)) { }
-
-            foreach (var e in newEvents) {
-                _events.Enqueue(e);
-            }
+            ImmutableInterlocked.Update(ref _events, static (list, cutoff) => {
+                var builder = ImmutableList.CreateBuilder<AnalyticsEvent>();
+                foreach (var e in list) if (e.Timestamp >= cutoff) builder.Add(e);
+                return builder.ToImmutable();
+            }, cutoffDate);
 
             _logger?.LogInformation("已清除 {Days} 天前的分析数据", olderThanDays.Value);
         } else {
-            while (_events.TryDequeue(out _)) { }
+            Interlocked.Exchange(ref _events, ImmutableList<AnalyticsEvent>.Empty);
             _logger?.LogInformation("已清除所有分析数据");
         }
 
@@ -334,9 +330,10 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     #region Private Methods
 
     private void TrimEventsIfNeeded() {
-        const int maxEvents = WorkflowConstants.Analytics.MaxEvents;
+        var maxEvents = WorkflowConstants.Analytics.MaxEvents;
 
-        while (_events.Count > maxEvents && _events.TryDequeue(out _)) { }
+        ImmutableInterlocked.Update(ref _events, static (list, max) =>
+            list.Count > max ? list.RemoveRange(0, list.Count - max) : list, maxEvents);
     }
 
     private async Task SaveHistoryAsync(CancellationToken cancellationToken = default) {
@@ -368,7 +365,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
 
             if (events != null) {
                 foreach (var e in events.OrderBy(e => e.Timestamp)) {
-                    _events.Enqueue(e);
+                    ImmutableInterlocked.Update(ref _events, static (list, ev) => list.Add(ev), e);
                 }
 
                 _logger?.LogInformation("已加载 {Count} 条历史分析数据", events.Count);

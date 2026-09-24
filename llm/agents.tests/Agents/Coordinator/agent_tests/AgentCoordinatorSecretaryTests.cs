@@ -121,9 +121,8 @@ public class AgentCoordinatorSecretaryTests : IAsyncLifetime {
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public Task DisposeAsync() {
-        _coordinator.DisposeSafe();
-        return Task.CompletedTask;
+    public async Task DisposeAsync() {
+        await _coordinator.DisposeSafeAsync();
     }
 }
 

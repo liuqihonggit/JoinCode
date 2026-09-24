@@ -139,7 +139,7 @@ public sealed class WindowShakeCoordinatorTests {
         configMock.Setup(x => x.GetAsync("windowShakeEnabled", It.IsAny<CancellationToken>()))
             .ReturnsAsync("true");
         await using var coordinator = new WindowShakeCoordinator(configService: configMock.Object);
-        coordinator.DisposeSafe();
+        await coordinator.DisposeSafeAsync();
 
         configMock.VerifyRemove(x => x.SettingChanged -= It.IsAny<EventHandler<SettingChangeEventArgs>>(), Times.Once);
     }

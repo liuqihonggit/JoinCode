@@ -55,6 +55,19 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
             index.Remove(key, value);
     }
 
+    /// <summary>
+    /// 更新次级索引 — TValue 的被索引属性变化时调用，同步迁移 key 到新属性值桶
+    /// </summary>
+    /// <typeparam name="TProperty">索引属性类型</typeparam>
+    /// <param name="index">次级索引实例</param>
+    /// <param name="key">项的键</param>
+    /// <param name="oldValue">变更前的旧值（用于定位旧桶）</param>
+    /// <param name="newValue">变更后的新值（用于定位新桶）</param>
+    protected static void Reindex<TProperty>(
+        SecondaryIndex<TKey, TValue, TProperty> index,
+        TKey key, TValue oldValue, TValue newValue) where TProperty : notnull
+        => index.Update(key, oldValue, newValue);
+
     /// <summary>当前注册项总数</summary>
     public int Count => Volatile.Read(ref _items).Count;
 

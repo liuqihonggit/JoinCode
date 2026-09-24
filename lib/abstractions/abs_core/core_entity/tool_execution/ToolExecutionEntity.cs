@@ -106,16 +106,24 @@ public class ToolExecutionEntity : Entity {
 
 /// <summary>
 /// 工具执行实体全局注册器 — 基于 MapRegistry，统一查询所有工具执行的生命周期
+/// GetByToolName 用次级索引 O(1) 查找（ToolName 不可变），GetActive/GetCompleted/GetTimedOut 保持 O(n) 遍历（LifecycleState 可变/IsTimedOut 动态）
 /// </summary>
 public sealed class ToolExecutionEntityRegistry : MapRegistry<ObjectId, ToolExecutionEntity> {
+    private readonly SecondaryIndex<ObjectId, ToolExecutionEntity, string> _byToolName;
+
+    /// <summary>构造 ToolExecutionEntityRegistry，初始化次级索引</summary>
+    public ToolExecutionEntityRegistry() {
+        _byToolName = CreateIndex(e => e.ToolName, StringComparer.OrdinalIgnoreCase);
+    }
+
     internal void Add(ObjectId id, ToolExecutionEntity entity) => AddCore(id, entity);
     internal bool Remove(ObjectId id) => RemoveCore(id);
-    /// <summary>获取所有处于活跃状态的工具执行实体。</summary>
+    /// <summary>获取所有处于活跃状态的工具执行实体（LifecycleState 可变，O(n) 遍历）。</summary>
     public IEnumerable<ToolExecutionEntity> GetActive() => Where(e => e.LifecycleState == EntityLifecycle.Active);
-    /// <summary>获取所有已完成状态的工具执行实体。</summary>
+    /// <summary>获取所有已完成状态的工具执行实体（LifecycleState 可变，O(n) 遍历）。</summary>
     public IEnumerable<ToolExecutionEntity> GetCompleted() => Where(e => e.LifecycleState == EntityLifecycle.Completed);
-    /// <summary>获取所有超时的工具执行实体。</summary>
+    /// <summary>获取所有超时的工具执行实体（IsTimedOut 动态计算，O(n) 遍历）。</summary>
     public IEnumerable<ToolExecutionEntity> GetTimedOut() => Where(e => e.IsTimedOut);
-    /// <summary>按工具名称获取工具执行实体列表。</summary>
-    public IEnumerable<ToolExecutionEntity> GetByToolName(string toolName) => Where(e => string.Equals(e.ToolName, toolName, StringComparison.OrdinalIgnoreCase));
+    /// <summary>按工具名称获取工具执行实体列表（ToolName 不可变，O(1) 索引查找）。</summary>
+    public IEnumerable<ToolExecutionEntity> GetByToolName(string toolName) => _byToolName.GetValues(toolName, AsDictionary());
 }

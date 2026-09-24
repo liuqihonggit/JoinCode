@@ -227,7 +227,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
 
         await act.Should().NotThrowAsync<ObjectDisposedException>().ConfigureAwait(true);
 
-        await Task.Delay(200).ConfigureAwait(true);
+        await WaitUntilAsync(() => _manager.InputCount == 0, TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -313,7 +313,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
             return r;
         });
 
-        await Task.Delay(300).ConfigureAwait(true);
+        await WaitUntilAsync(() => _manager.InputCount == 0, TimeSpan.FromSeconds(2));
         secondForkCompleted.Should().BeFalse("第二个 fork 应被阻塞 — 后台 fork 仍持有信号量");
 
         var completedSecond = await secondForkTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
@@ -380,5 +380,23 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
 
     public async Task DisposeAsync() {
         await _manager.DisposeSafeAsync();
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout) {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (!condition()) {
+            if (DateTimeOffset.UtcNow > deadline)
+                throw new TimeoutException($"等待条件超时({timeout.TotalSeconds:F0}s)");
+            await Task.Delay(10);
+        }
+    }
+
+    private static async Task WaitUntilAsync(Func<Task<bool>> predicate, TimeSpan timeout) {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline) {
+            if (await predicate()) return;
+            await Task.Delay(10);
+        }
+        throw new TimeoutException($"等待条件超时({timeout.TotalSeconds:F0}s)");
     }
 }

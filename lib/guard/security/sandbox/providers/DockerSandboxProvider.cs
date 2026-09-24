@@ -7,7 +7,7 @@ namespace Core.Security.Sandbox.Providers;
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 public sealed partial class DockerSandboxProvider : SandboxProviderBase {
     private readonly IProcessService _processService;
-    private readonly ConcurrentDictionary<string, string> _containerIds = new();
+    private ImmutableDictionary<string, string> _containerIds = ImmutableDictionary<string, string>.Empty;
     private volatile bool _isAvailableCache;
     private volatile bool _isAvailableProbed;
 
@@ -106,7 +106,11 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase {
         }
 
         var containerId = result.StandardOutput.Trim();
-        _containerIds[info.SandboxId] = containerId;
+        while (true) {
+            var current = _containerIds;
+            var updated = current.SetItem(info.SandboxId, containerId);
+            if (Interlocked.CompareExchange(ref _containerIds, updated, current) == current) break;
+        }
 
         Logger?.LogInformation("[Sandbox:Docker] 容器已创建: {ContainerId}, 镜像: {Image}", containerId, image);
 
@@ -114,7 +118,15 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase {
     }
 
     private protected override async Task OnDestroyAsync(SandboxInfo info, CancellationToken ct) {
-        if (_containerIds.TryRemove(info.SandboxId, out var containerId)) {
+        string? containerId = null;
+        while (true) {
+            var current = _containerIds;
+            if (!current.TryGetValue(info.SandboxId, out containerId)) break;
+            var updated = current.Remove(info.SandboxId);
+            if (Interlocked.CompareExchange(ref _containerIds, updated, current) == current) break;
+        }
+
+        if (containerId is not null) {
             try {
                 await _processService.ExecuteAsync(new ProcessOptions {
                     FileName = "docker",

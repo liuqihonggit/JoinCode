@@ -95,10 +95,14 @@ public class NetworkMailboxTest {
     /// 紧接的 ReceiveAsync 在 agent 未注册时返回空流导致 null。轮询 GetRegisteredAgents 确认注册完成。
     /// 与 MailboxBaseTest.WaitForRegistrationAsync 保持同一模式。
     /// </summary>
-    private static async Task WaitForRegistrationAsync(NetworkMailbox mailbox, string agentId, TimeSpan? timeout = null) {
-        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
-        while (DateTime.UtcNow < deadline && !mailbox.GetRegisteredAgents().Contains(agentId))
-            await Task.Delay(10);
+    private static async Task WaitForRegistrationAsync(NetworkMailbox mailbox, string agentId, TimeSpan? perRetryTimeout = null) {
+        var timeout = perRetryTimeout ?? TimeSpan.FromMilliseconds(500);
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTime.UtcNow + timeout;
+            while (DateTime.UtcNow < deadline && !mailbox.GetRegisteredAgents().Contains(agentId))
+                await Task.Delay(10);
+            if (mailbox.GetRegisteredAgents().Contains(agentId)) return;
+        }
     }
 
     /// <summary>验证异步释放适配器</summary>

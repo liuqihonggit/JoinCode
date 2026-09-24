@@ -11,7 +11,7 @@ public class ActorBaseTest {
         await actor.SendAsync("hello");
         await actor.SendAsync("world");
 
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 2, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 2, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedCommands.Should().Equal("hello", "world");
     }
@@ -21,7 +21,7 @@ public class ActorBaseTest {
     public async Task TrySend_CommandProcessed_ReturnsTrue() {
         await using var actor = new TestActor();
         actor.TrySend("test").Should().BeTrue();
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
         actor.ProcessedCommands.Should().Contain("test");
     }
 
@@ -32,7 +32,7 @@ public class ActorBaseTest {
         for (var i = 0; i < 100; i++)
             await actor.SendAsync($"msg-{i}");
 
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 100, TimeSpan.FromSeconds(10));
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 100, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedCommands.Should().HaveCount(100);
         for (var i = 0; i < 100; i++)
@@ -48,7 +48,7 @@ public class ActorBaseTest {
             .ToArray();
 
         await Task.WhenAll(tasks);
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 500, TimeSpan.FromSeconds(10));
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 500, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedCommands.Should().HaveCount(500);
     }
@@ -60,7 +60,7 @@ public class ActorBaseTest {
         await actor.SendAsync("throw");
         await actor.SendAsync("normal");
 
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedCommands.Should().Contain("normal");
         actor.ErrorCount.Should().Be(1);
@@ -91,7 +91,7 @@ public class ActorBaseTest {
         await using var actor = new TestActor();
         await actor.SendAsync("hello");
 
-        await WaitUntilAsync(() => actor.OutputCount >= 1, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.OutputCount >= 1, TimeSpan.FromMilliseconds(500));
 
         var output = await actor.OutputAsync().FirstOrDefaultAsync();
         output.Should().Be("processed-hello");
@@ -106,7 +106,7 @@ public class ActorBaseTest {
             .ToArray();
 
         await Task.WhenAll(tasks);
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 100, TimeSpan.FromSeconds(10));
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 100, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedCommands.Should().HaveCount(100);
     }
@@ -116,7 +116,7 @@ public class ActorBaseTest {
     public async Task DisposeAsync_WaitsForConsumerExit() {
         var actor = new TestActor();
         await actor.SendAsync("test");
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
 
         await actor.DisposeAsync();
         await actor.ConsumerTask.WaitAsync(TimeSpan.FromSeconds(5));
@@ -145,7 +145,7 @@ public class ActorBaseTest {
         actor.OutputCount.Should().Be(0);
 
         await actor.SendAsync("test");
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
 
         actor.OutputCount.Should().Be(1);
     }
@@ -165,7 +165,7 @@ public class ActorBaseTest {
     public async Task OutputAsync_SingleConsumer_ReceivesAllMessages() {
         await using var actor = new TestActor();
         await actor.SendAsync("test");
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
 
         var consumer = actor.OutputAsync().GetAsyncEnumerator();
         (await consumer.MoveNextAsync()).Should().BeTrue();
@@ -179,7 +179,7 @@ public class ActorBaseTest {
         await using var actor = new TestActor(bp) { Gate = new() };
 
         await actor.SendAsync("first");
-        await WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.InputCount == 0, TimeSpan.FromMilliseconds(500));
 
         await actor.SendAsync("second");
 
@@ -193,7 +193,7 @@ public class ActorBaseTest {
         await using IActor<string> actor = new TestActor();
         await actor.SendAsync("via-interface");
         var concrete = (TestActor)actor;
-        await WaitUntilAsync(() => concrete.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => concrete.ProcessedCommands.Count >= 1, TimeSpan.FromMilliseconds(500));
         concrete.ProcessedCommands.Should().Contain("via-interface");
     }
 
@@ -206,13 +206,15 @@ public class ActorBaseTest {
         actor.TrySend("test").Should().BeTrue();
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout) {
-        var sw = Stopwatch.StartNew();
-        while (sw.Elapsed < timeout) {
-            if (condition()) return;
-            await Task.Delay(10);
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
+            while (DateTimeOffset.UtcNow < deadline) {
+                if (condition()) return;
+                await Task.Delay(10);
+            }
         }
-        throw new TimeoutException($"Condition not met within {timeout}");
+        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 }
 

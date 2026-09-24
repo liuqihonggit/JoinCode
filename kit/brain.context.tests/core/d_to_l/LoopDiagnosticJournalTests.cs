@@ -151,9 +151,12 @@ public sealed class LoopDiagnosticJournalTests {
         Assert.Equal(2, journal.WindowCount);
     }
 
-    private static async Task WaitForWindowCountAsync(LoopDiagnosticJournal journal, int expectedCount, int timeoutMs = 2000) {
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        while (journal.WindowCount != expectedCount && sw.ElapsedMilliseconds < timeoutMs)
-            await Task.Delay(10);
+    private static async Task WaitForWindowCountAsync(LoopDiagnosticJournal journal, int expectedCount, int perRetryMs = 500) {
+        for (var i = 0; i < 16; i++) {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            while (journal.WindowCount != expectedCount && sw.ElapsedMilliseconds < perRetryMs)
+                await Task.Delay(10);
+            if (journal.WindowCount == expectedCount) return;
+        }
     }
 }

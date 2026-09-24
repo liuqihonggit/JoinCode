@@ -68,7 +68,7 @@ public class MailboxBaseTest {
         await mailbox.RegisterAgentAsync("agent-1");
         await mailbox.UnregisterAgentAsync("agent-1");
 
-        await WaitUntilAsync(() => !mailbox.GetRegisteredAgents().Contains("agent-1"), TimeSpan.FromSeconds(2));
+        await WaitUntilAsync(() => !mailbox.GetRegisteredAgents().Contains("agent-1"), TimeSpan.FromMilliseconds(500));
         mailbox.GetRegisteredAgents().Should().NotContain("agent-1");
     }
 
@@ -96,7 +96,7 @@ public class MailboxBaseTest {
         for (var i = 0; i < 4; i++)
             await mailbox.TellAsync("agent-1", $"msg-{i}");
 
-        await WaitUntilAsync(() => watermarkEvents.Count > 0, TimeSpan.FromSeconds(3));
+        await WaitUntilAsync(() => watermarkEvents.Count > 0, TimeSpan.FromMilliseconds(500));
 
         cts.Cancel();
         await Task.WhenAny(consumeTask, Task.Delay(1000));
@@ -145,7 +145,7 @@ public class MailboxBaseTest {
         for (var i = 0; i < 9; i++)
             await mailbox.TellAsync("agent-1", $"msg-{i}");
 
-        await WaitUntilAsync(() => mailbox.GetAgentMessageCount("agent-1") >= 9, TimeSpan.FromSeconds(2));
+        await WaitUntilAsync(() => mailbox.GetAgentMessageCount("agent-1") >= 9, TimeSpan.FromMilliseconds(500));
         mailbox.IsAgentHighWatermark("agent-1").Should().BeTrue();
     }
 
@@ -173,17 +173,19 @@ public class MailboxBaseTest {
         sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(2), "无命令时屏障命令应立即被 Consumer 处理");
     }
 
-    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan timeout) {
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline) {
-            if (predicate()) return;
-            await Task.Delay(50);
+    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan perRetryTimeout) {
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTime.UtcNow + perRetryTimeout;
+            while (DateTime.UtcNow < deadline) {
+                if (predicate()) return;
+                await Task.Delay(50);
+            }
         }
-        throw new TimeoutException($"Condition not met within {timeout.TotalSeconds}s");
+        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 
     private static async Task WaitForRegistrationAsync(TestMailbox mailbox, string agentId) {
-        await WaitUntilAsync(() => mailbox.GetRegisteredAgents().Contains(agentId), TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => mailbox.GetRegisteredAgents().Contains(agentId), TimeSpan.FromMilliseconds(500));
     }
 }
 

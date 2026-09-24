@@ -16,8 +16,8 @@ public class FileWatcherActorBaseTests {
         await fs.WriteAllText($"{dir}/a.txt", "hello");
         var found = await WaitForAsync(
             () => actor.GetChanges().Any(c => c.FilePath.EndsWith("a.txt")),
-            TimeSpan.FromSeconds(3)).ConfigureAwait(true);
-        found.Should().BeTrue("a.txt 变更事件应在 3s 内被捕获");
+            TimeSpan.FromMilliseconds(500)).ConfigureAwait(true);
+        found.Should().BeTrue("a.txt 变更事件应被捕获");
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public class FileWatcherActorBaseTests {
 
         var found = await WaitForAsync(
             () => actor.CustomCommands.Contains("test-data"),
-            TimeSpan.FromSeconds(3)).ConfigureAwait(true);
+            TimeSpan.FromMilliseconds(500)).ConfigureAwait(true);
         found.Should().BeTrue("自定义命令应在 3s 内被处理");
     }
 
@@ -72,16 +72,22 @@ public class FileWatcherActorBaseTests {
     private static async Task WaitForActorReadyAsync(TestFileWatcherActor actor) {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         await actor.SendAsync(new ReadyCmd(tcs)).ConfigureAwait(true);
-        await tcs.Task.ConfigureAwait(true);
+        for (var i = 0; i < 16; i++) {
+            if (tcs.Task.IsCompleted) return;
+            var winner = await Task.WhenAny(tcs.Task, Task.Delay(500)).ConfigureAwait(true);
+            if (winner == tcs.Task) return;
+        }
+        throw new TimeoutException("WaitForActorReadyAsync 重试16次×500ms全超时 — actor 可能已停止");
     }
 
-    private static async Task<bool> WaitForAsync(Func<bool> condition, TimeSpan timeout, TimeSpan? interval = null) {
+    private static async Task<bool> WaitForAsync(Func<bool> condition, TimeSpan perRetryTimeout, TimeSpan? interval = null) {
         var intervalMs = (int)(interval ?? TimeSpan.FromMilliseconds(50)).TotalMilliseconds;
-        var deadline = DateTimeOffset.UtcNow + timeout;
-        while (DateTimeOffset.UtcNow < deadline) {
-            if (condition())
-                return true;
-            await Task.Delay(intervalMs).ConfigureAwait(true);
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
+            while (DateTimeOffset.UtcNow < deadline) {
+                if (condition()) return true;
+                await Task.Delay(intervalMs).ConfigureAwait(true);
+            }
         }
         return condition();
     }

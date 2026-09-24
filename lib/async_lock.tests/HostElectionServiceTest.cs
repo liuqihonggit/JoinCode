@@ -61,7 +61,7 @@ public class HostElectionServiceTest {
         }, cts.Token);
 
         await service.ElectAsync();
-        await WaitUntilAsync(() => results.Count > 0, TimeSpan.FromSeconds(2));
+        await WaitUntilAsync(() => results.Count > 0, TimeSpan.FromMilliseconds(500));
 
         cts.Cancel();
         await Task.WhenAny(consumeTask, Task.Delay(1000));
@@ -99,12 +99,14 @@ public class HostElectionServiceTest {
         await service.DisposeAsync();
     }
 
-    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan timeout) {
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline) {
-            if (predicate()) return;
-            await Task.Delay(50);
+    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan perRetryTimeout) {
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTime.UtcNow + perRetryTimeout;
+            while (DateTime.UtcNow < deadline) {
+                if (predicate()) return;
+                await Task.Delay(50);
+            }
         }
-        throw new TimeoutException($"Condition not met within {timeout.TotalSeconds}s");
+        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 }

@@ -3,12 +3,14 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// 团队注册表 — 成对管理团队房间(ChatRoomState)与 agent→team 映射，
 /// 提供按 teamId / agentId / sessionId / teamName 的查询入口。
-/// <para>唯一数据源 _rooms(ImmutableDictionary),sessionId/teamName 查询改为遍历过滤(委托消费),消除派生索引一致性维护。</para>
-/// <para>TryRemoveRoom 内聚清理 agent 映射,保证一致性,调用方无需手动清理。</para>
+/// <para>唯一数据源 _rooms(ImmutableDictionary) + 2 个冗余查询索引 _bySessionId/_byTeamName(O(1)查询),写入时同步更新,读取时验证一致性。</para>
+/// <para>TryRemoveRoom 内聚清理 agent 映射 + 冗余索引,保证一致性,调用方无需手动清理。</para>
 /// </summary>
 internal sealed class TeamRegistry {
     private ImmutableDictionary<string, ChatRoomState> _rooms = ImmutableDictionary<string, ChatRoomState>.Empty;
     private ImmutableDictionary<string, string> _agentToTeam = ImmutableDictionary<string, string>.Empty;
+    private ImmutableDictionary<string, string> _bySessionId = ImmutableDictionary<string, string>.Empty;
+    private ImmutableDictionary<string, string> _byTeamName = ImmutableDictionary<string, string>.Empty;
 
     /// <summary>
     /// 所有团队房间视图 — 用于遍历查询（不要在此视图上做写操作）。
@@ -45,19 +47,33 @@ internal sealed class TeamRegistry {
         => _agentToTeam.TryGetValue(agentId, out teamId);
 
     /// <summary>
-    /// 添加或覆盖团队房间 — 原子 SetItem,派生索引由查询时遍历维护,无需手动更新。
+    /// 添加或覆盖团队房间 — 原子 SetItem,同步更新冗余查询索引。
     /// </summary>
     public void AddRoom(string teamId, ChatRoomState room) {
+        var oldRoom = _rooms.TryGetValue(teamId, out var existing) ? existing : null;
+
         ImmutableInterlocked.Update(ref _rooms, static (dict, arg) => dict.SetItem(arg.teamId, arg.room), (teamId, room));
+
+        if (oldRoom is not null && oldRoom.SessionId != room.SessionId)
+            ImmutableInterlocked.Update(ref _bySessionId, static (dict, oldSid) => dict.Remove(oldSid), oldRoom.SessionId!);
+        ImmutableInterlocked.Update(ref _bySessionId, static (dict, arg) => dict.SetItem(arg.sid, arg.teamId), (sid: room.SessionId!, teamId));
+
+        var oldNameKey = oldRoom?.Info.TeamName.ToLowerInvariant();
+        var newNameKey = room.Info.TeamName.ToLowerInvariant();
+        if (oldNameKey is not null && oldNameKey != newNameKey)
+            ImmutableInterlocked.Update(ref _byTeamName, static (dict, oldKey) => dict.Remove(oldKey), oldNameKey);
+        ImmutableInterlocked.Update(ref _byTeamName, static (dict, arg) => dict.SetItem(arg.nameKey, arg.teamId), (nameKey: newNameKey!, teamId));
     }
 
     /// <summary>
-    /// 移除团队房间,同时清理 agent 映射,保证无孤儿映射。
+    /// 移除团队房间,同时清理 agent 映射 + 冗余查询索引,保证无孤儿映射。
     /// </summary>
     public bool TryRemoveRoom(string teamId, [MaybeNullWhen(false)] out ChatRoomState removedRoom) {
         var snapshot = _rooms;
         if (!snapshot.TryGetValue(teamId, out removedRoom)) return false;
         ImmutableInterlocked.Update(ref _rooms, static (dict, id) => dict.Remove(id), teamId);
+        ImmutableInterlocked.Update(ref _bySessionId, static (dict, sid) => dict.Remove(sid), removedRoom.SessionId!);
+        ImmutableInterlocked.Update(ref _byTeamName, static (dict, nameKey) => dict.Remove(nameKey), removedRoom.Info.TeamName.ToLowerInvariant()!);
         foreach (var member in removedRoom.Members) {
             ImmutableInterlocked.Update(ref _agentToTeam, static (dict, m) => dict.Remove(m), member);
         }
@@ -80,22 +96,24 @@ internal sealed class TeamRegistry {
     }
 
     /// <summary>
-    /// 按 sessionId 查找团队房间 — 遍历唯一数据源过滤(委托消费)。
+    /// 按 sessionId 查找团队房间 — O(1) 冗余索引查找 + 一致性验证。
     /// </summary>
     public ChatRoomState? FindRoomBySessionId(string sessionId) {
-        foreach (var kvp in _rooms) {
-            if (kvp.Value.SessionId == sessionId) return kvp.Value;
-        }
+        if (_bySessionId.TryGetValue(sessionId, out var teamId)
+            && _rooms.TryGetValue(teamId, out var room)
+            && room.SessionId == sessionId)
+            return room;
         return null;
     }
 
     /// <summary>
-    /// 按团队名称查找团队信息 — 遍历唯一数据源过滤(委托消费,忽略大小写)。
+    /// 按团队名称查找团队信息 — O(1) 冗余索引查找(忽略大小写)。
     /// </summary>
     public TeamInfo? FindTeamByName(string teamName) {
-        foreach (var kvp in _rooms) {
-            if (string.Equals(kvp.Value.Info.TeamName, teamName, StringComparison.OrdinalIgnoreCase)) return kvp.Value.Info;
-        }
+        var nameKey = teamName.ToLowerInvariant();
+        if (_byTeamName.TryGetValue(nameKey, out var teamId)
+            && _rooms.TryGetValue(teamId, out var room))
+            return room.Info;
         return null;
     }
 }

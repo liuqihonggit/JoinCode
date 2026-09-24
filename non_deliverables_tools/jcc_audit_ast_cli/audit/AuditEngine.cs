@@ -17,14 +17,17 @@ public sealed class AuditEngine {
     /// 审计解决方案中的所有项目
     /// 支持 .sln（MSBuildWorkspace 原生）和 .slnx（手动解析后逐个加载）
     /// </summary>
-    public async Task<AuditReport> AuditSolutionAsync(string solutionPath, bool skipTests = false, CancellationToken ct = default) {
+    /// <param name="useFastLoader">使用快速加载器（ProjectCollection 并行 + 预编译 DLL 引用），跳过 MSBuildWorkspace</param>
+    public async Task<AuditReport> AuditSolutionAsync(string solutionPath, bool skipTests = false, CancellationToken ct = default, bool useFastLoader = false) {
         var totalSw = System.Diagnostics.Stopwatch.StartNew();
-        Console.WriteLine($"正在加载解决方案: {solutionPath}");
+        Console.WriteLine($"正在加载解决方案: {solutionPath}{(useFastLoader ? " (快速模式)" : "")}");
 
         var ext = Path.GetExtension(solutionPath).ToLowerInvariant();
 
         if (ext == ".slnx") {
-            return await AuditSlnxAsync(solutionPath, skipTests, ct);
+            return useFastLoader
+                ? await AuditSlnxFastAsync(solutionPath, skipTests, ct)
+                : await AuditSlnxAsync(solutionPath, skipTests, ct);
         }
 
         // .sln 格式：使用 MSBuildWorkspace 原生加载
@@ -59,6 +62,120 @@ public sealed class AuditEngine {
             TotalProjects = projectResults.Count,
             TotalDiagnostics = projectResults.Sum(r => r.TotalDiagnostics),
             Projects = projectResults,
+        };
+    }
+
+    /// <summary>
+    /// 快速审计 .slnx：用 ProjectCollection 并行加载 + 预编译 DLL 引用 + 直接 CSharpCompilation
+    /// 跳过 MSBuildWorkspace 开销
+    /// </summary>
+    private async Task<AuditReport> AuditSlnxFastAsync(string slnxPath, bool skipTests, CancellationToken ct) {
+        var totalSw = System.Diagnostics.Stopwatch.StartNew();
+        var projectPaths = await SlnxParser.ParseProjectPaths(slnxPath).ConfigureAwait(false);
+        Console.WriteLine($"  .slnx 包含 {projectPaths.Count} 个项目");
+
+        var filteredPaths = projectPaths
+            .Where(p => !p.Contains("Generator", StringComparison.Ordinal))
+            .Where(p => !skipTests || !IsTestProjectPath(p))
+            .ToList();
+
+        // 用 FastProjectLoader 并行加载 + 创建 Compilation
+        var compilations = await FastProjectLoader.LoadCompilationsAsync(filteredPaths, ct).ConfigureAwait(false);
+
+        // 并行分析每个 Compilation
+        var analyzeSw = System.Diagnostics.Stopwatch.StartNew();
+        var projectResults = new ConcurrentBag<ProjectAuditResult>();
+        var analyzedCount = 0;
+        var analyzeSemaphore = new SemaphoreSlim(MaxConcurrency);
+
+        var analyzeTasks = compilations.Select(async item => {
+            await analyzeSemaphore.WaitAsync(ct).ConfigureAwait(false);
+            try {
+                using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                projectCts.CancelAfter(TimeSpan.FromSeconds(120));
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var result = await AnalyzeCompilationAsync(item.Name, item.FilePath, item.Compilation, projectCts.Token);
+                sw.Stop();
+
+                var count = Interlocked.Increment(ref analyzedCount);
+                Console.WriteLine($"  [{count}/{compilations.Count}] {item.Name} - {result.TotalDiagnostics} 条诊断 ({sw.Elapsed.TotalSeconds:F1}s)");
+                projectResults.Add(result);
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                var count = Interlocked.Increment(ref analyzedCount);
+                Console.Error.WriteLine($"  [{count}/{compilations.Count}] 项目超时: {item.Name}");
+                projectResults.Add(new ProjectAuditResult { ProjectName = item.Name, ProjectPath = item.FilePath });
+            } catch (Exception ex) {
+                var count = Interlocked.Increment(ref analyzedCount);
+                Console.Error.WriteLine($"  [{count}/{compilations.Count}] 项目失败: {item.Name} - {ex.Message}");
+                projectResults.Add(new ProjectAuditResult { ProjectName = item.Name, ProjectPath = item.FilePath });
+            } finally {
+                analyzeSemaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(analyzeTasks).ConfigureAwait(false);
+        analyzeSemaphore.Dispose();
+        analyzeSw.Stop();
+        Console.WriteLine($"  [统计] 分析完成，耗时: {analyzeSw.Elapsed.TotalSeconds:F1}s");
+
+        var results = projectResults.ToList();
+        totalSw.Stop();
+        Console.WriteLine($"[统计] 快速审计完成，耗时: {totalSw.Elapsed.TotalSeconds:F1}s");
+
+        return new AuditReport {
+            TargetPath = slnxPath,
+            Timestamp = DateTime.UtcNow,
+            TotalProjects = results.Count,
+            TotalDiagnostics = results.Sum(r => r.TotalDiagnostics),
+            Projects = results,
+        };
+    }
+
+    /// <summary>
+    /// 分析单个 CSharpCompilation（核心逻辑，与 AuditProjectCoreAsync 类似但直接用 Compilation）
+    /// </summary>
+    private async Task<ProjectAuditResult> AnalyzeCompilationAsync(string name, string filePath, CSharpCompilation compilation, CancellationToken ct) {
+        // 清除 NoWarn 对 JCC 规则的抑制
+        var specificOptions = compilation.Options.SpecificDiagnosticOptions;
+        var modifiedOptions = new Dictionary<string, ReportDiagnostic>(specificOptions);
+        foreach (var kvp in specificOptions) {
+            if (kvp.Key.StartsWith("JCC", StringComparison.Ordinal) && kvp.Value == ReportDiagnostic.Suppress) {
+                modifiedOptions[kvp.Key] = ReportDiagnostic.Warn;
+            }
+        }
+        var newOptions = compilation.Options.WithSpecificDiagnosticOptions(
+            modifiedOptions.ToImmutableDictionary());
+        compilation = compilation.WithOptions(newOptions);
+
+        // 添加分析器并获取诊断
+        var compilationWithAnalyzers = compilation.WithAnalyzers(_analyzers.ToImmutableArray());
+        var allDiagnostics = await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(ct).ConfigureAwait(false);
+        var diagnostics = allDiagnostics
+            .Where(d => d.Id.StartsWith("JCC", StringComparison.Ordinal))
+            .ToList();
+
+        var auditDiagnostics = diagnostics.Select(d => {
+            var lineSpan = d.Location.GetLineSpan();
+            return new AuditDiagnostic {
+                RuleId = d.Id,
+                Severity = d.Severity.ToString(),
+                Message = d.GetMessage(),
+                FilePath = lineSpan.Path,
+                Line = lineSpan.StartLinePosition.Line + 1,
+                Column = lineSpan.StartLinePosition.Character + 1,
+                Category = d.Descriptor.Category,
+            };
+        }).ToList();
+
+        return new ProjectAuditResult {
+            ProjectName = name,
+            ProjectPath = filePath,
+            TotalDiagnostics = auditDiagnostics.Count,
+            WarningCount = auditDiagnostics.Count(d => d.Severity == "Warning"),
+            ErrorCount = auditDiagnostics.Count(d => d.Severity == "Error"),
+            InfoCount = auditDiagnostics.Count(d => d.Severity == "Info" || d.Severity == "Hidden"),
+            Diagnostics = auditDiagnostics,
         };
     }
 
@@ -124,7 +241,7 @@ public sealed class AuditEngine {
             }
         }
         loadSw.Stop();
-        Console.WriteLine($"  项目加载完成 ({projects.Count}/{filteredPaths.Count})，耗时: {loadSw.Elapsed.TotalSeconds:F1}s");
+        Console.WriteLine($"  [统计] 项目加载完成 ({projects.Count}/{filteredPaths.Count})，耗时: {loadSw.Elapsed.TotalSeconds:F1}s");
 
         // 阶段2：并行编译+分析
         var projectResults = await ProcessProjectsParallelAsync(projects, ct);

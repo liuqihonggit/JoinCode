@@ -100,6 +100,7 @@ public static class Program {
         var format = GetArgValue(args, "--format") ?? "json";
         var filter = GetArgValue(args, "--filter") ?? string.Empty;
         var skipTests = args.Contains("--skip-tests", StringComparer.Ordinal);
+        var useFastLoader = args.Contains("--fast", StringComparer.Ordinal);
 
         // 确定项目根目录（用于搜索分析器 DLL）
         var projectRoot = FindProjectRoot(targetPath);
@@ -135,7 +136,7 @@ public static class Program {
 
         try {
             if (ext == ".slnx" || ext == ".sln") {
-                report = await engine.AuditSolutionAsync(targetPath, skipTests, cts.Token);
+                report = await engine.AuditSolutionAsync(targetPath, skipTests, cts.Token, useFastLoader);
             } else if (ext == ".csproj") {
                 report = await engine.AuditProjectAsync(targetPath, cts.Token);
             } else {

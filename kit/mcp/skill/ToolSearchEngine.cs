@@ -5,6 +5,7 @@ namespace McpClient;
 /// </summary>
 public sealed class ToolSearchEngine {
     private readonly List<DeferredToolInfo> _deferredTools;
+    private readonly List<string[]> _namePartsList;
 
     /// <summary>
     /// 初始化 <see cref="ToolSearchEngine"/> 实例
@@ -12,6 +13,7 @@ public sealed class ToolSearchEngine {
     /// <param name="deferredTools">延迟加载的工具信息列表（可选）</param>
     public ToolSearchEngine(IReadOnlyList<DeferredToolInfo> deferredTools) {
         _deferredTools = deferredTools != null ? [.. deferredTools] : [];
+        _namePartsList = _deferredTools.Select(t => t.Name.Split('.', '_')).ToList();
     }
 
     /// <summary>
@@ -137,10 +139,10 @@ public sealed class ToolSearchEngine {
 
         var scored = new List<(DeferredToolInfo Tool, int Score)>();
 
-        foreach (var tool in _deferredTools) {
-            var score = ComputeScore(tool, terms);
+        for (var i = 0; i < _deferredTools.Count; i++) {
+            var score = ComputeScore(_deferredTools[i], _namePartsList[i], terms);
             if (score > 0)
-                scored.Add((tool, score));
+                scored.Add((_deferredTools[i], score));
         }
 
         var results = scored
@@ -152,24 +154,23 @@ public sealed class ToolSearchEngine {
         return new ToolSearchResult(results);
     }
 
-    private static int ComputeScore(DeferredToolInfo tool, string[] terms) {
+    private static int ComputeScore(DeferredToolInfo tool, string[] nameParts, string[] terms) {
         var score = 0;
-        var nameParts = tool.Name.Split('.', '_');
+        var nameSpan = tool.Name.AsSpan();
 
         foreach (var term in terms) {
             var isRequired = term.StartsWith('+');
-            var normalizedTerm = isRequired ? term[1..] : term;
-
-            if (string.IsNullOrEmpty(normalizedTerm))
+            var normalizedTerm = isRequired ? term.AsSpan(1) : term.AsSpan();
+            if (normalizedTerm.IsEmpty)
                 continue;
 
-            if (tool.Name.Equals(normalizedTerm, StringComparison.OrdinalIgnoreCase)) {
+            if (nameSpan.Equals(normalizedTerm, StringComparison.OrdinalIgnoreCase)) {
                 score += tool.IsMcp ? 12 : 10;
-            } else if (tool.Name.Contains(normalizedTerm, StringComparison.OrdinalIgnoreCase)) {
+            } else if (nameSpan.Contains(normalizedTerm, StringComparison.OrdinalIgnoreCase)) {
                 score += tool.IsMcp ? 6 : 5;
-            } else if (nameParts.Any(p => p.Equals(normalizedTerm, StringComparison.OrdinalIgnoreCase))) {
+            } else if (MatchesAnyPart(nameParts, normalizedTerm)) {
                 score += tool.IsMcp ? 6 : 5;
-            } else if (tool.Description != null && tool.Description.Contains(normalizedTerm, StringComparison.OrdinalIgnoreCase)) {
+            } else if (tool.Description != null && tool.Description.AsSpan().Contains(normalizedTerm, StringComparison.OrdinalIgnoreCase)) {
                 score += 2;
             } else if (isRequired) {
                 return 0;
@@ -177,5 +178,13 @@ public sealed class ToolSearchEngine {
         }
 
         return score;
+    }
+
+    private static bool MatchesAnyPart(string[] parts, ReadOnlySpan<char> term) {
+        foreach (var p in parts) {
+            if (p.AsSpan().Equals(term, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 }

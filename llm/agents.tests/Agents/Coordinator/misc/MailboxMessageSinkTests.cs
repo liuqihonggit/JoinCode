@@ -8,7 +8,7 @@ public sealed class MailboxMessageSinkTests {
     public async Task DeliverAsync_CallsDeliverInboundAsync_MessageReachesChannel() {
         await using var mailbox = new InProcessMailbox();
         mailbox.RegisterAgent("agent1");
-        await Task.Delay(100);
+        await mailbox.WaitForCommandsDrainedAsync();
         var sink = new MailboxMessageSink(mailbox);
         var msg = new AgentMsg { FromAgentId = "sender", ToAgentId = "agent1", MessageType = "text", Content = "hello" };
 

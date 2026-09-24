@@ -52,47 +52,62 @@ internal static class PlanSlugGenerator {
         "vulture", "walrus", "wolverine", "zebra"
      };
 
-    private static readonly ConcurrentDictionary<string, string> SlugCache = new();
+    private static ImmutableDictionary<string, string> SlugCache = ImmutableDictionary<string, string>.Empty;
 
     /// <summary>
     /// 对齐 TS getPlanSlug(): 获取或生成 session 级别的 slug 缓存
     /// </summary>
     public static string GetOrCreateSlug(string sessionId, IFileSystem fs, ILogger? logger = null) {
-        return SlugCache.GetOrAdd(sessionId, (id, fileSystem) => {
-            var slug = GenerateWordSlug();
+        if (SlugCache.TryGetValue(sessionId, out var existing)) return existing;
 
-            try {
-                var plansDir = GetPlansDirectory();
-                fileSystem.CreateDirectory(plansDir);
+        var slug = GenerateSlugInternal(fs, logger);
 
-                for (var i = 0; i < MaxSlugRetries; i++) {
-                    var filePath = Path.Combine(plansDir, $"{slug}.md");
-                    if (!fileSystem.FileExists(filePath)) {
-                        return slug;
-                    }
-                    slug = GenerateWordSlug();
+        while (true) {
+            var current = SlugCache;
+            if (current.TryGetValue(sessionId, out existing)) return existing;
+            var updated = current.Add(sessionId, slug);
+            if (Interlocked.CompareExchange(ref SlugCache, updated, current) == current) return slug;
+        }
+    }
+
+    private static string GenerateSlugInternal(IFileSystem fs, ILogger? logger) {
+        var slug = GenerateWordSlug();
+
+        try {
+            var plansDir = GetPlansDirectory();
+            fs.CreateDirectory(plansDir);
+
+            for (var i = 0; i < MaxSlugRetries; i++) {
+                var filePath = Path.Combine(plansDir, $"{slug}.md");
+                if (!fs.FileExists(filePath)) {
+                    return slug;
                 }
-            } catch (Exception ex) {
-                // 目录创建失败时直接返回 slug，不检查文件冲突
-                logger?.LogWarning("计划 slug 目录检查失败: {Error}", ex.Message);
+                slug = GenerateWordSlug();
             }
+        } catch (Exception ex) {
+            logger?.LogWarning("计划 slug 目录检查失败: {Error}", ex.Message);
+        }
 
-            return slug;
-        }, fs);
+        return slug;
     }
 
     /// <summary>
     /// 对齐 TS clearPlanSlug(): 清除指定 session 的 slug 缓存
     /// </summary>
     public static void ClearSlug(string sessionId) {
-        SlugCache.TryRemove(sessionId, out _);
+        while (true) {
+            var current = SlugCache;
+            if (!current.ContainsKey(sessionId)) return;
+            var updated = current.Remove(sessionId);
+            if (Interlocked.CompareExchange(ref SlugCache, updated, current) == current) return;
+        }
     }
 
     /// <summary>
     /// 对齐 TS clearAllPlanSlugs(): 清除所有 slug 缓存
     /// </summary>
     public static void ClearAllSlugs() {
-        SlugCache.Clear();
+        Interlocked.Exchange(ref SlugCache, ImmutableDictionary<string, string>.Empty);
     }
 
     /// <summary>

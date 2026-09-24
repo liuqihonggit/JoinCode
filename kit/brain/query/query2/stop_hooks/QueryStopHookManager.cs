@@ -108,7 +108,7 @@ public sealed partial class StopHookResult {
 /// </summary>
 [Register(typeof(IQueryStopHookManager), ServiceLifetime.Singleton)]
 public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHookManager {
-    private readonly ConcurrentDictionary<string, IQueryStopHook> _hooks;
+    private ImmutableDictionary<string, IQueryStopHook> _hooks = ImmutableDictionary<string, IQueryStopHook>.Empty;
     private readonly ILogger<QueryStopHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
@@ -118,7 +118,6 @@ public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHook
     /// <param name="logger">日志记录器</param>
     /// <param name="telemetryService">遥测服务</param>
     public QueryStopHookManager(ILogger<QueryStopHookManager>? logger = null, ITelemetryService? telemetryService = null) {
-        _hooks = new ConcurrentDictionary<string, IQueryStopHook>(StringComparer.Ordinal);
         _logger = logger;
         _telemetryService = telemetryService;
     }
@@ -166,7 +165,11 @@ public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHook
     /// <param name="hook">停止 Hook 实例</param>
     public void RegisterStopHook(IQueryStopHook hook) {
         ArgumentNullException.ThrowIfNull(hook);
-        _hooks[hook.Name] = hook;
+        while (true) {
+            var current = _hooks;
+            var updated = current.SetItem(hook.Name, hook);
+            if (Interlocked.CompareExchange(ref _hooks, updated, current) == current) break;
+        }
         _logger?.LogDebug("[QueryStopHookManager] Registered stop hook: {HookName} (Priority: {Priority})", hook.Name, hook.Priority);
     }
 
@@ -176,7 +179,12 @@ public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHook
     /// <param name="hookName">Hook 名称</param>
     public void UnregisterStopHook(string hookName) {
         ArgumentNullException.ThrowIfNull(hookName);
-        _hooks.TryRemove(hookName, out _);
+        while (true) {
+            var current = _hooks;
+            if (!current.ContainsKey(hookName)) break;
+            var updated = current.Remove(hookName);
+            if (Interlocked.CompareExchange(ref _hooks, updated, current) == current) break;
+        }
         _logger?.LogDebug("[QueryStopHookManager] Unregistered stop hook: {HookName}", hookName);
     }
 

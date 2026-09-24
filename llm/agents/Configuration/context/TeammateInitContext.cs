@@ -21,7 +21,7 @@ public sealed class TeammateInitContext {
     /// <summary>Leader Agent 标识（可选）</summary>
     public string? LeadAgentId { get; init; }
     /// <summary>团队允许访问的路径及访问级别列表</summary>
-    public IReadOnlyList<TeamAllowedPath> AllowedPaths { get; init; } = [];
+    public IReadOnlyCollection<TeamAllowedPath> AllowedPaths { get; init; } = [];
     /// <summary>队友加入团队的时间戳（UTC）</summary>
     public DateTime JoinedAt { get; init; } = DateTime.UtcNow;
 

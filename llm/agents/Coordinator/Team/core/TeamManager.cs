@@ -552,14 +552,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <param name="teamId">团队标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>允许路径只读列表</returns>
-    public Task<IReadOnlyList<TeamAllowedPath>> GetTeamAllowedPathsAsync(
+    public Task<IReadOnlyCollection<TeamAllowedPath>> GetTeamAllowedPathsAsync(
         string teamId,
         CancellationToken cancellationToken = default) {
         if (!_registry.TryGetRoom(teamId, out var room)) {
-            return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(Array.Empty<TeamAllowedPath>());
+            return Task.FromResult<IReadOnlyCollection<TeamAllowedPath>>(Array.Empty<TeamAllowedPath>());
         }
 
-        return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(room.AllowedPaths.Values.ToList());
+        return Task.FromResult<IReadOnlyCollection<TeamAllowedPath>>((IReadOnlyCollection<TeamAllowedPath>)room.AllowedPaths.Values);
     }
 
     /// <summary>

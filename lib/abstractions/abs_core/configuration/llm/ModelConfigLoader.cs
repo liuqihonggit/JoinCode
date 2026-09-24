@@ -9,6 +9,7 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
     private volatile ModelConfigRoot _config;
     private FrozenDictionary<string, ModelItemConfig> _modelById;
     private FrozenDictionary<string, string> _aliasToModelId;
+    private FrozenDictionary<string, ModelEntry[]> _modelsByProvider = FrozenDictionary<string, ModelEntry[]>.Empty;
 
     public ModelConfigLoader() {
         _config = new ModelConfigRoot();
@@ -28,6 +29,7 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
         _config = config;
         _modelById = BuildModelById(config);
         _aliasToModelId = BuildAliasToModelId(config);
+        _modelsByProvider = BuildModelsByProvider(config);
     }
 
     private static FrozenDictionary<string, ModelItemConfig> BuildModelById(ModelConfigRoot config) {
@@ -69,16 +71,21 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
 
     /// <summary>获取指定供应商的所有模型条目。</summary>
     public ModelEntry[] GetModels(string providerName) {
-        var providerConfig = GetProviderConfig(providerName);
-        if (providerConfig is null)
-            return [];
+        return _modelsByProvider.GetValueOrDefault(providerName) ?? [];
+    }
 
-        var entries = new ModelEntry[providerConfig.Models.Count];
-        for (var i = 0; i < providerConfig.Models.Count; i++) {
-            var m = providerConfig.Models[i];
-            entries[i] = new ModelEntry(m.Id, m.DisplayName, m.ContextWindow, m.Description);
+    private static FrozenDictionary<string, ModelEntry[]> BuildModelsByProvider(ModelConfigRoot config) {
+        var dict = new Dictionary<string, ModelEntry[]>(StringComparer.OrdinalIgnoreCase);
+        foreach (var provider in config.Providers) {
+            var models = provider.Value.Models;
+            var entries = new ModelEntry[models.Count];
+            for (var i = 0; i < models.Count; i++) {
+                var m = models[i];
+                entries[i] = new ModelEntry(m.Id, m.DisplayName, m.ContextWindow, m.Description);
+            }
+            dict[provider.Key] = entries;
         }
-        return entries;
+        return dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>解析别名到模型 ID。</summary>

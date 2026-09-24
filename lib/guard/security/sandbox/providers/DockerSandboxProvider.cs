@@ -8,6 +8,8 @@ namespace Core.Security.Sandbox.Providers;
 public sealed partial class DockerSandboxProvider : SandboxProviderBase {
     private readonly IProcessService _processService;
     private readonly ConcurrentDictionary<string, string> _containerIds = new();
+    private volatile bool _isAvailableCache;
+    private volatile bool _isAvailableProbed;
 
     /// <summary>沙箱类型为 Docker</summary>
     public override SandboxType SandboxType => SandboxType.Docker;
@@ -37,19 +39,24 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase {
     /// </summary>
     public override bool IsAvailable {
         get {
-            try {
-                var path = Environment.GetEnvironmentVariable("PATH") ?? "";
-                var separator = OperatingSystem.IsWindows() ? ';' : ':';
-                foreach (var dir in path.Split(separator, StringSplitOptions.RemoveEmptyEntries)) {
-                    var exePath = Path.Combine(dir, OperatingSystem.IsWindows() ? "docker.exe" : "docker");
-                    if (Fs.FileExists(exePath)) {
-                        return true;
-                    }
-                }
-                return false;
-            } catch {
-                return false;
+            if (_isAvailableProbed) return _isAvailableCache;
+            _isAvailableCache = ProbeIsAvailable();
+            _isAvailableProbed = true;
+            return _isAvailableCache;
+        }
+    }
+
+    private bool ProbeIsAvailable() {
+        try {
+            var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+            var separator = OperatingSystem.IsWindows() ? ';' : ':';
+            foreach (var dir in path.Split(separator, StringSplitOptions.RemoveEmptyEntries)) {
+                var exePath = Path.Combine(dir, OperatingSystem.IsWindows() ? "docker.exe" : "docker");
+                if (Fs.FileExists(exePath)) return true;
             }
+            return false;
+        } catch {
+            return false;
         }
     }
 

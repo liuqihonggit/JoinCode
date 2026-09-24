@@ -17,7 +17,7 @@
 | 优先级 | 改造项 | 理由 | 状态 |
 |--------|--------|------|------|
 | **P0 立即** | 改造点4全部10处 | 零风险零语义变化,改动量极小,收益明确 | ✅ 完成(1864测试通过) |
-| **P1 高收益** | 改造点3全部10处 | 改动小(加缓存字段),`AvailableModels`影响界面性能 | ⬜ 待办 |
+| **P1 高收益** | 改造点3全部10处 | 改动小(加缓存字段),`AvailableModels`影响界面性能 | ✅ 完成(707测试通过) |
 | **P2 核心架构** | 改造点2 D类+对应A类(TeamRegistry/UsageStore/SessionHookManager/AgentServiceImpl) | 同时消除锁+可变+重复数据源,但涉及并发语义,需谨慎+TDD | ⬜ 待办 |
 | **P3 热路径** | 改造点2 C类TOP5(TeamManager/PathConstraintValidator/ReferenceResolver/ToolSearchEngine) | 热路径性能,Span改造需逐处验证 | ⬜ 待办 |
 | **P4 扩散** | 改造点2 B类+剩余A/C类 | 跟随P2改造模式扩散,工作量最大 | ⬜ 待办 |
@@ -204,12 +204,12 @@
 - [x] 内存泄露(改造点1,用户确认已完成)
 - [x] 扫描分析报告生成(2026-09-24)
 - [x] P0: 改造点4全部10处(交换&&两侧) — 10处已改,编译0警告0错误,测试1864全绿
+- [x] P1: 改造点3全部10处(加缓存字段) — IsAvailable lazy 2处 + AvailableModels根因层缓存6处 + NeedsStepUp缓存+失效点 2处,编译0警告,测试707全绿
 
 ## 进行中
-- [ ] (待用户确认后开始P1)
+- [ ] (待用户确认后开始P2)
 
 ## 待办
-- [ ] P1: 改造点3全部10处(加缓存字段)
 - [ ] P2: 改造点2 D类+对应A类(TeamRegistry/UsageStore/SessionHookManager/AgentServiceImpl)
 - [ ] P3: 改造点2 C类TOP5(热路径Span改造)
 - [ ] P4: 改造点2 B类+剩余A/C类(扩散)

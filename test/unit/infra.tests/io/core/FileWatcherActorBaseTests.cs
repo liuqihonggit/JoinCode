@@ -31,7 +31,8 @@ public class FileWatcherActorBaseTests {
 
         actor.MarkInternalWrite($"{dir}/b.txt");
         await fs.WriteAllText($"{dir}/b.txt", "data");
-        await Task.Delay(300);
+        await Task.Delay(100);
+        await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
         var changes = actor.GetChanges();
         changes.Any(c => c.FilePath.EndsWith("b.txt")).Should().BeFalse();
@@ -61,7 +62,8 @@ public class FileWatcherActorBaseTests {
         await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
         await fs.WriteAllText($"{dir}/c.txt", "after-stop");
-        await Task.Delay(300);
+        await Task.Delay(100);
+        await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
         var changes = actor.GetChanges();
         changes.Any(c => c.FilePath.EndsWith("c.txt")).Should().BeFalse();

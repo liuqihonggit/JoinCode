@@ -82,23 +82,17 @@ public sealed partial class SessionHookStore {
     }
 
     /// <summary>
-    /// 获取事件的钩子
+    /// 获取事件的钩子 — 返回不可变引用,无需拷贝
     /// </summary>
-    public List<SessionHookEntry> GetHooks(HookEvent hookEvent) {
-        var list = _hooks.GetValueOrDefault(hookEvent);
-        return list is null ? [] : [.. list];
+    public IReadOnlyList<SessionHookEntry> GetHooks(HookEvent hookEvent) {
+        return _hooks.GetValueOrDefault(hookEvent) ?? (IReadOnlyList<SessionHookEntry>)[];
     }
 
     /// <summary>
-    /// 获取所有钩子
+    /// 获取所有钩子 — 返回不可变引用视图,无需逐项拷贝
     /// </summary>
-    public Dictionary<HookEvent, List<SessionHookEntry>> GetAllHooks() {
-        var result = new Dictionary<HookEvent, List<SessionHookEntry>>();
-        foreach (var kvp in _hooks) {
-            result[kvp.Key] = [.. kvp.Value];
-        }
-        return result;
-    }
+    public IReadOnlyDictionary<HookEvent, IReadOnlyList<SessionHookEntry>> GetAllHooks()
+        => _hooks.ToImmutableDictionary(kvp => kvp.Key, kvp => (IReadOnlyList<SessionHookEntry>)kvp.Value);
 
     /// <summary>
     /// 清除所有钩子

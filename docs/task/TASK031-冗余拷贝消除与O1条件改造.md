@@ -423,6 +423,23 @@
 
 ---
 
+## 前缀缓存并发缺陷修复(2026-09-25)
+
+### 缺陷1: ImmutablePrefix内部状态竞态(已修复 commit 242a8a108)
+
+- **问题**: `_toolSpecs`(Dictionary)/`_toolSpecsOrder`(List)/`_fingerprintCache`无锁保护,多线程并发AddTool/RemoveTool竞态
+- **修复**: 改为`ImmutableDictionary`+`ImmutableList`+`ImmutableInterlocked.Update` CAS原子更新,`_fingerprintCache`改`volatile string?`
+- **验证**: 10个ImmutablePrefix稳定排序守卫测试全绿
+
+### 缺陷2: CacheBreakDetector多agent覆盖基线(已修复,无需额外改动)
+
+- **ADR 0056 D9描述**: 单实例全局状态,多agent并发互相覆盖基线
+- **现状**: `ChatContextManager._cacheBreakDetectorsByAgent`(ImmutableDictionary+CAS)已按agentId隔离,每个agent拥有独立CacheBreakDetector实例,实例内状态(_hasPreviousCacheHit/_prevCacheReadTokens等)不会跨agent共享
+- **测试**: `CacheBreakMonitorTests.CheckCacheBreakAsync_MultiAgent_BaselinesIsolated`验证agent-a(基线10000)与agent-b(基线3000)互不干扰,agent-a降幅7500正确报ServerSideRouting
+- **结论**: 此缺陷在P4-A类扩散kit/brain无锁化(commit 90674a6d4)中已修复,无需额外改动
+
+---
+
 ## C类剩余352处分析结论(2026-09-25抽查)
 
 抽查6个代表性文件后,剩余C类绝大部分是**合理的防御性拷贝**,不属于P3针对的"热路径循环内重复无意义拷贝":

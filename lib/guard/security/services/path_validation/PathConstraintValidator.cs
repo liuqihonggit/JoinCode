@@ -106,6 +106,11 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         @"D:\", @"E:\");
 
     /// <summary>
+    /// 预归一化危险路径 — Replace('\\','/')+TrimEnd('/') 在静态初始化时一次性计算,消除循环内重复分配
+    /// </summary>
+    private static readonly string[] DangerousRemovalPathsNormalized = [.. DangerousRemovalPaths.Select(d => d.Replace('\\', '/').TrimEnd('/'))];
+
+    /// <summary>
     /// 安全包装命令集合 — 对齐 TS stripSafeWrappers
     /// </summary>
     private static readonly FrozenSet<string> SafeWrapperCommands = FrozenSet.Create(
@@ -870,19 +875,29 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
 
     /// <summary>
     /// 检查是否为危险删除路径 — 对齐 TS isDangerousRemovalPath
+    /// 预归一化危险路径 + stackalloc Span 归一化输入,零堆分配(原每次调用 60 次分配)
     /// </summary>
     private static bool IsDangerousRemovalPath(string absolutePath) {
         if (string.IsNullOrEmpty(absolutePath)) {
             return false;
         }
 
-        var normalized = absolutePath.Replace('\\', '/').TrimEnd('/');
+        Span<char> normalized = stackalloc char[absolutePath.Length];
+        var source = absolutePath.AsSpan();
+        for (var i = 0; i < source.Length; i++)
+            normalized[i] = source[i] == '\\' ? '/' : source[i];
+        var normalizedSpan = normalized.TrimEnd('/');
 
-        return DangerousRemovalPaths.Any(dangerous => {
-            var normalizedDangerous = dangerous.Replace('\\', '/').TrimEnd('/');
-            return string.Equals(normalized, normalizedDangerous, StringComparison.OrdinalIgnoreCase)
-                || normalized.StartsWith(normalizedDangerous + "/", StringComparison.OrdinalIgnoreCase);
-        });
+        foreach (var dangerous in DangerousRemovalPathsNormalized) {
+            var dangerousSpan = dangerous.AsSpan();
+            if (normalizedSpan.Equals(dangerousSpan, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (normalizedSpan.Length > dangerousSpan.Length
+                && normalizedSpan.StartsWith(dangerousSpan, StringComparison.OrdinalIgnoreCase)
+                && normalizedSpan[dangerousSpan.Length] == '/')
+                return true;
+        }
+        return false;
     }
 
     /// <summary>

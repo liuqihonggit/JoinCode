@@ -95,57 +95,40 @@ public static class FastProjectLoader {
             .Select(path => CSharpSyntaxTree.ParseText(File.ReadAllText(path), path: path))
             .ToArray();
 
-        // 提取引用（PackageReference + ProjectReference + 预编译 DLL）
+        // 提取引用：优先用 .deps.json（完整 transitive 依赖），回退到手动解析
         var metadataReferences = new List<MetadataReference>();
-
-        // PackageReference → 从 nuget 缓存加载 DLL
         var nugetRoot = FindNugetRoot(projectDir);
-        foreach (var pkg in msbuildProject.GetItems("PackageReference")) {
-            var pkgName = pkg.EvaluatedInclude;
-            var pkgVersion = pkg.GetMetadataValue("Version");
-            var dllPath = FindPackageDll(nugetRoot, pkgName, pkgVersion);
-            if (dllPath is not null) {
-                try {
-                    metadataReferences.Add(MetadataReference.CreateFromFile(dllPath));
-                } catch (Exception ex) {
-                    Console.Error.WriteLine($"  加载包引用失败: {pkgName} - {ex.Message}");
+
+        // 尝试从 .deps.json 加载完整引用
+        var depsReferences = LoadReferencesFromDepsJson(msbuildProject, projectDir, nugetRoot);
+        if (depsReferences.Count > 0) {
+            metadataReferences.AddRange(depsReferences);
+        } else {
+            // 回退：手动解析 PackageReference + ProjectReference
+            foreach (var pkg in msbuildProject.GetItems("PackageReference")) {
+                var pkgName = pkg.EvaluatedInclude;
+                var pkgVersion = pkg.GetMetadataValue("Version");
+                var dllPath = FindPackageDll(nugetRoot, pkgName, pkgVersion);
+                if (dllPath is not null) {
+                    try { metadataReferences.Add(MetadataReference.CreateFromFile(dllPath)); }
+                    catch (Exception ex) { Console.Error.WriteLine($"  加载包引用失败: {pkgName} - {ex.Message}"); }
+                }
+            }
+            foreach (var projRef in msbuildProject.GetItems("ProjectReference")) {
+                var refName = Path.GetFileNameWithoutExtension(projRef.EvaluatedInclude);
+                var dllPath = FindProjectOutputDll(refName);
+                if (dllPath is not null) {
+                    try { metadataReferences.Add(MetadataReference.CreateFromFile(dllPath)); }
+                    catch (Exception ex) { Console.Error.WriteLine($"  加载项目引用失败: {refName} - {ex.Message}"); }
                 }
             }
         }
 
-        // ProjectReference → 从 artifacts/bin 加载预编译 DLL
-        foreach (var projRef in msbuildProject.GetItems("ProjectReference")) {
-            var refPath = projRef.EvaluatedInclude;
-            var refName = Path.GetFileNameWithoutExtension(refPath);
-            var dllPath = FindProjectOutputDll(refName);
-            if (dllPath is not null) {
-                try {
-                    metadataReferences.Add(MetadataReference.CreateFromFile(dllPath));
-                } catch (Exception ex) {
-                    Console.Error.WriteLine($"  加载项目引用失败: {refName} - {ex.Message}");
-                }
-            }
-        }
-
-        // 添加基础引用（System.Private.CoreLib 包含 IDisposable/IAsyncDisposable 等实际定义）
+        // 添加基础引用：所有 .NET 运行时框架 DLL
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
-        var coreAssemblies = new[] {
-            "System.Private.CoreLib.dll",  // 实际类型定义
-            "System.Runtime.dll",          // type forwarder
-            "System.Collections.dll",
-            "System.Linq.dll",
-            "System.Threading.dll",
-            "System.Threading.Tasks.dll",
-            "System.IO.dll",
-            "System.Text.Encoding.dll",
-            "System.Reflection.dll",
-            "System.Runtime.InteropServices.dll",
-            "netstandard.dll",
-        };
-        foreach (var asm in coreAssemblies) {
-            var path = Path.Combine(runtimeDir, asm);
-            if (File.Exists(path))
-                metadataReferences.Add(MetadataReference.CreateFromFile(path));
+        foreach (var frameworkDll in Directory.GetFiles(runtimeDir, "*.dll")) {
+            try { metadataReferences.Add(MetadataReference.CreateFromFile(frameworkDll)); }
+            catch (Exception ex) { Console.Error.WriteLine($"  加载框架引用失败: {frameworkDll} - {ex.Message}"); }
         }
 
         // 编译选项
@@ -168,6 +151,91 @@ public static class FastProjectLoader {
             syntaxTrees,
             metadataReferences,
             compilationOptions);
+    }
+
+    /// <summary>
+    /// 从 .deps.json 加载完整 transitive 依赖引用
+    /// </summary>
+    private static List<MetadataReference> LoadReferencesFromDepsJson(
+        Microsoft.Build.Evaluation.Project msbuildProject, string projectDir, string? nugetRoot) {
+        var references = new List<MetadataReference>();
+        var assemblyName = msbuildProject.GetPropertyValue("AssemblyName") ?? Path.GetFileNameWithoutExtension(projectDir);
+        var repoRoot = FindRepoRoot();
+
+        var depsPath = FindDepsJson(assemblyName, repoRoot);
+        if (depsPath is null || !File.Exists(depsPath)) return references;
+
+        ParseDepsJson(depsPath, nugetRoot, assemblyName, references);
+
+        // 添加 ProjectReference 的预编译 DLL
+        foreach (var projRef in msbuildProject.GetItems("ProjectReference")) {
+            var refName = Path.GetFileNameWithoutExtension(projRef.EvaluatedInclude);
+            var dllPath = FindProjectOutputDll(refName);
+            if (dllPath is null) continue;
+            try { references.Add(MetadataReference.CreateFromFile(dllPath)); }
+            catch (Exception ex) { Console.Error.WriteLine($"  加载项目引用失败: {dllPath} - {ex.Message}"); }
+        }
+
+        return references;
+    }
+
+    /// <summary>
+    /// 解析 .deps.json 的 targets 节点，提取包引用
+    /// </summary>
+    private static void ParseDepsJson(string depsPath, string? nugetRoot, string assemblyName, List<MetadataReference> references) {
+        if (nugetRoot is null) return;
+        try {
+            var json = File.ReadAllText(depsPath);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("targets", out var targets)) return;
+
+            foreach (var target in targets.EnumerateObject()) {
+                ExtractPackageReferences(target.Value, nugetRoot, assemblyName, references);
+                break; // 只取第一个 target
+            }
+        } catch (Exception ex) {
+            Console.Error.WriteLine($"  解析 .deps.json 失败: {depsPath} - {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 从 target 节点提取包引用
+    /// </summary>
+    private static void ExtractPackageReferences(JsonElement targetValue, string nugetRoot, string assemblyName, List<MetadataReference> references) {
+        foreach (var pkg in targetValue.EnumerateObject()) {
+            var parts = pkg.Name.Split('/');
+            var pkgName = parts[0];
+            var version = parts.Length > 1 ? parts[1] : "";
+            if (pkgName == assemblyName) continue;
+
+            AddRuntimeReferences(pkg.Value, nugetRoot, pkgName, version, "runtime", references);
+            AddRuntimeReferences(pkg.Value, nugetRoot, pkgName, version, "compile", references);
+        }
+    }
+
+    /// <summary>
+    /// 添加 runtime/compile 节点中的 DLL 引用
+    /// </summary>
+    private static void AddRuntimeReferences(JsonElement pkgValue, string nugetRoot, string pkgName, string version, string property, List<MetadataReference> references) {
+        if (!pkgValue.TryGetProperty(property, out var runtime)) return;
+        foreach (var rt in runtime.EnumerateObject()) {
+            var fullPath = Path.Combine(nugetRoot, pkgName.ToLowerInvariant(), version, rt.Name);
+            if (!File.Exists(fullPath)) continue;
+            try { references.Add(MetadataReference.CreateFromFile(fullPath)); }
+            catch (Exception ex) { Console.Error.WriteLine($"  加载引用失败: {fullPath} - {ex.Message}"); }
+        }
+    }
+
+    /// <summary>
+    /// 查找 .deps.json 文件
+    /// </summary>
+    private static string? FindDepsJson(string assemblyName, string repoRoot) {
+        var artifactsBin = Path.Combine(repoRoot, "artifacts", "bin");
+        if (!Directory.Exists(artifactsBin)) return null;
+        var depsFiles = Directory.GetFiles(artifactsBin, $"{assemblyName}.deps.json", SearchOption.AllDirectories);
+        return depsFiles.FirstOrDefault(d => d.Contains("Debug", StringComparison.OrdinalIgnoreCase) &&
+                                               d.Contains("net10.0", StringComparison.OrdinalIgnoreCase))
+               ?? depsFiles.FirstOrDefault();
     }
 
     /// <summary>
@@ -214,16 +282,30 @@ public static class FastProjectLoader {
     }
 
     /// <summary>
-    /// 在 artifacts/bin 中查找项目输出 DLL
+    /// 在 artifacts/bin 中查找项目输出 DLL（按目录名匹配，不按 DLL 名）
     /// </summary>
     private static string? FindProjectOutputDll(string projectName) {
         var artifactsBin = Path.Combine(FindRepoRoot(), "artifacts", "bin");
         if (!Directory.Exists(artifactsBin)) return null;
 
-        var dlls = Directory.GetFiles(artifactsBin, $"{projectName}.dll", SearchOption.AllDirectories);
-        var preferred = dlls.FirstOrDefault(d => d.Contains("Debug", StringComparison.OrdinalIgnoreCase) &&
-                                                   d.Contains("net10.0", StringComparison.OrdinalIgnoreCase));
-        return preferred ?? dlls.FirstOrDefault();
+        // 优先按目录名匹配：artifacts/bin/{projectName}/Debug/net10.0/*.dll
+        var projectBinDir = Path.Combine(artifactsBin, projectName, "Debug", "net10.0");
+        if (Directory.Exists(projectBinDir)) {
+            // 找主 DLL（与目录名同名或 JoinCode.{projectName}.dll）
+            var dlls = Directory.GetFiles(projectBinDir, "*.dll");
+            var preferred = dlls.FirstOrDefault(d => Path.GetFileNameWithoutExtension(d) == projectName)
+                ?? dlls.FirstOrDefault(d => Path.GetFileNameWithoutExtension(d) == $"JoinCode.{projectName}")
+                ?? dlls.FirstOrDefault(d => !Path.GetFileNameWithoutExtension(d).StartsWith("System", StringComparison.OrdinalIgnoreCase));
+            if (preferred is not null) return preferred;
+        }
+
+        // 回退：全局搜索 {projectName}.dll 或 JoinCode.{projectName}.dll
+        var allDlls = Directory.GetFiles(artifactsBin, $"{projectName}.dll", SearchOption.AllDirectories);
+        if (allDlls.Length > 0) return allDlls[0];
+        var joinCodeDlls = Directory.GetFiles(artifactsBin, $"JoinCode.{projectName}.dll", SearchOption.AllDirectories);
+        return joinCodeDlls.FirstOrDefault(d => d.Contains("Debug", StringComparison.OrdinalIgnoreCase) &&
+                                                   d.Contains("net10.0", StringComparison.OrdinalIgnoreCase))
+               ?? joinCodeDlls.FirstOrDefault();
     }
 
     /// <summary>

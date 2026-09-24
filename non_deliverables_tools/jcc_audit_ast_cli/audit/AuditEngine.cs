@@ -155,20 +155,30 @@ public sealed class AuditEngine {
     /// 分析单个 CSharpCompilation（核心逻辑，与 AuditProjectCoreAsync 类似但直接用 Compilation）
     /// </summary>
     private async Task<ProjectAuditResult> AnalyzeCompilationAsync(string name, string filePath, CSharpCompilation compilation, CancellationToken ct) {
-        // 清除 NoWarn 对 JCC 规则的抑制
+        // 清除 NoWarn 对 JCC 规则的抑制（仅当存在被抑制的 JCC 规则时才创建新 Compilation）
         var specificOptions = compilation.Options.SpecificDiagnosticOptions;
-        var modifiedOptions = new Dictionary<string, ReportDiagnostic>(specificOptions);
-        foreach (var kvp in specificOptions) {
-            if (kvp.Key.StartsWith("JCC", StringComparison.Ordinal) && kvp.Value == ReportDiagnostic.Suppress) {
-                modifiedOptions[kvp.Key] = ReportDiagnostic.Warn;
+        var hasSuppressedJcc = specificOptions.Any(kvp =>
+            kvp.Key.StartsWith("JCC", StringComparison.Ordinal) && kvp.Value == ReportDiagnostic.Suppress);
+        if (hasSuppressedJcc) {
+            var modifiedOptions = new Dictionary<string, ReportDiagnostic>(specificOptions);
+            foreach (var kvp in specificOptions) {
+                if (kvp.Key.StartsWith("JCC", StringComparison.Ordinal) && kvp.Value == ReportDiagnostic.Suppress) {
+                    modifiedOptions[kvp.Key] = ReportDiagnostic.Warn;
+                }
             }
+            compilation = compilation.WithOptions(compilation.Options.WithSpecificDiagnosticOptions(
+                modifiedOptions.ToImmutableDictionary()));
         }
-        var newOptions = compilation.Options.WithSpecificDiagnosticOptions(
-            modifiedOptions.ToImmutableDictionary());
-        compilation = compilation.WithOptions(newOptions);
 
-        // 添加分析器并获取诊断
-        var compilationWithAnalyzers = compilation.WithAnalyzers(_analyzers.ToImmutableArray());
+        // 添加分析器并获取诊断（启用并发分析）
+        var analyzerOptions = new CompilationWithAnalyzersOptions(
+            new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty),
+            onAnalyzerException: null,
+            concurrentAnalysis: true,
+            logAnalyzerExecutionTime: false);
+        var compilationWithAnalyzers = compilation.WithAnalyzers(
+            _analyzers.ToImmutableArray(),
+            analyzerOptions);
         var allDiagnostics = await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(ct).ConfigureAwait(false);
         var diagnostics = allDiagnostics
             .Where(d => d.Id.StartsWith("JCC", StringComparison.Ordinal))

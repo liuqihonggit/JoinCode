@@ -6,7 +6,7 @@ namespace McpClient;
 /// </summary>
 public sealed partial class McpChannelNotificationHandler {
     private readonly ILogger<McpChannelNotificationHandler>? _logger;
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<ChannelPermissionResponse>> _pendingRequests = new();
+    private ImmutableDictionary<string, TaskCompletionSource<ChannelPermissionResponse>> _pendingRequests = ImmutableDictionary<string, TaskCompletionSource<ChannelPermissionResponse>>.Empty;
 
     /// <summary>接收到 Channel 消息时触发</summary>
     public event EventHandler<McpChannelMessageEventArgs>? ChannelMessageReceived;
@@ -139,7 +139,11 @@ public sealed partial class McpChannelNotificationHandler {
                 Behavior = behavior,
                 FromServer = serverName
             });
-            _pendingRequests.TryRemove(requestId, out _);
+            while (true) {
+                var current = _pendingRequests;
+                var updated = current.Remove(requestId);
+                if (Interlocked.CompareExchange(ref _pendingRequests, updated, current) == current) break;
+            }
         }
 
         PermissionResponseReceived?.Invoke(this, new McpChannelPermissionResponseEventArgs {
@@ -158,13 +162,21 @@ public sealed partial class McpChannelNotificationHandler {
     /// <returns>权限响应；超时或取消时返回 null</returns>
     public async Task<ChannelPermissionResponse?> WaitForPermissionResponseAsync(string requestId, TimeSpan timeout, CancellationToken cancellationToken = default) {
         var tcs = new TaskCompletionSource<ChannelPermissionResponse>();
-        _pendingRequests[requestId] = tcs;
+        while (true) {
+            var current = _pendingRequests;
+            var updated = current.SetItem(requestId, tcs);
+            if (Interlocked.CompareExchange(ref _pendingRequests, updated, current) == current) break;
+        }
 
         try {
             using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, timeout);
             return await tcs.Task.WaitAsync(cts.Token).ConfigureAwait(false);
         } catch {
-            _pendingRequests.TryRemove(requestId, out _);
+            while (true) {
+                var current = _pendingRequests;
+                var updated = current.Remove(requestId);
+                if (Interlocked.CompareExchange(ref _pendingRequests, updated, current) == current) break;
+            }
             return null;
         }
     }

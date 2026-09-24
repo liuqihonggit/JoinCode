@@ -2,10 +2,10 @@ namespace McpToolRegistry;
 
 /// <summary>
 /// 远程客户端注册表 — 管理客户端的注册、注销、查询、清空
-/// 持有以 clientId 为 key 的客户端字典，提供所有客户端生命周期操作
+/// 持有以 clientId 为 key 的不可变字典，无锁 CAS 更新
 /// </summary>
 internal sealed class RemoteClientRegistry {
-    private readonly ConcurrentDictionary<string, McpClientEntry> _clients = new();
+    private ImmutableDictionary<string, McpClientEntry> _clients = ImmutableDictionary<string, McpClientEntry>.Empty;
     private readonly IClockService _clock;
 
     /// <summary>初始化 <see cref="RemoteClientRegistry"/> 实例</summary>
@@ -25,7 +25,12 @@ internal sealed class RemoteClientRegistry {
             Client = client,
             RegisteredAt = _clock.GetUtcNow()
         };
-        return _clients.TryAdd(clientId, entry);
+        while (true) {
+            var current = _clients;
+            if (current.ContainsKey(clientId)) return false;
+            var updated = current.Add(clientId, entry);
+            if (Interlocked.CompareExchange(ref _clients, updated, current) == current) return true;
+        }
     }
 
     /// <summary>获取客户端（未找到返回 null）</summary>
@@ -41,18 +46,21 @@ internal sealed class RemoteClientRegistry {
 
     /// <summary>注销客户端（DisposeAsync 客户端 + 移除记录），返回是否找到</summary>
     public async Task<bool> TryRemoveAsync(string clientId) {
-        if (_clients.TryGetValue(clientId, out var entry)) {
-            await entry.Client.DisposeAsync().ConfigureAwait(false);
-            _clients.TryRemove(clientId, out _);
-            return true;
+        while (true) {
+            var current = _clients;
+            if (!current.TryGetValue(clientId, out var entry)) return false;
+            var updated = current.Remove(clientId);
+            if (Interlocked.CompareExchange(ref _clients, updated, current) == current) {
+                await entry.Client.DisposeAsync().ConfigureAwait(false);
+                return true;
+            }
         }
-        return false;
     }
 
-    /// <summary>清空所有客户端（逐个 DisposeAsync 后清空字典）</summary>
+    /// <summary>清空所有客户端（逐个 DisposeAsync 后原子替换为空字典）</summary>
     public async Task ClearAllAsync() {
-        await Task.WhenAll(_clients.Values
+        var snapshot = Interlocked.Exchange(ref _clients, ImmutableDictionary<string, McpClientEntry>.Empty);
+        await Task.WhenAll(snapshot.Values
             .Select(entry => entry.Client.DisposeAsync().AsTask())).ConfigureAwait(false);
-        _clients.Clear();
     }
 }

@@ -79,6 +79,7 @@ global using Structura.Collections;
 global using System.Buffers;
 global using System.Collections.Concurrent;
 global using System.Collections.Frozen;
+global using System.Collections.Immutable;
 global using System.ComponentModel.DataAnnotations;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;

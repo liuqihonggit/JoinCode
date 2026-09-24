@@ -5,8 +5,7 @@ namespace Core.CostTracking;
 /// 从 CostTracker 提取,统一管理用量记录的添加、查询、加载、保存与重置
 /// </summary>
 internal sealed class UsageStore {
-    private readonly ConcurrentBag<TokenUsageRecord> _usageRecords = new();
-    private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex = new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableList<TokenUsageRecord> _usageRecords = ImmutableList<TokenUsageRecord>.Empty;
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
     private readonly ILogger? _logger;
@@ -18,39 +17,69 @@ internal sealed class UsageStore {
         _logger = logger;
     }
 
-    /// <summary>添加用量记录 — 同时更新会话索引</summary>
+    /// <summary>添加用量记录 — 无锁原子追加到不可变列表</summary>
     public void Add(TokenUsageRecord record) {
-        _usageRecords.Add(record);
-
-        var sessionKey = record.SessionId;
-        _sessionIndex.AddOrUpdate(
-            sessionKey,
-            _ => [record],
-            (_, existing) => { lock (existing) { existing.Add(record); } return existing; });
+        ImmutableInterlocked.Update(ref _usageRecords, static (list, r) => list.Add(r), record);
     }
 
     /// <summary>尝试获取会话记录;存在则返回 true</summary>
-    public bool TryGetSessionRecords(string sessionId, out List<TokenUsageRecord> records) => _sessionIndex.TryGetValue(sessionId, out records!);
+    public bool TryGetSessionRecords(string sessionId, out List<TokenUsageRecord> records) {
+        var snapshot = _usageRecords;
+        var found = new List<TokenUsageRecord>();
+        foreach (var r in snapshot) {
+            if (string.Equals(r.SessionId, sessionId, StringComparison.OrdinalIgnoreCase)) {
+                found.Add(r);
+            }
+        }
+        records = found;
+        return found.Count > 0;
+    }
 
     /// <summary>获取全部用量记录快照</summary>
-    public List<TokenUsageRecord> GetAllSnapshot() => _usageRecords.ToList();
+    public List<TokenUsageRecord> GetAllSnapshot() => [.. _usageRecords];
 
     /// <summary>获取指定日期的记录</summary>
-    public List<TokenUsageRecord> GetRecordsByDate(DateTime date) => _usageRecords.Where(r => r.Timestamp.Date == date).ToList();
+    public List<TokenUsageRecord> GetRecordsByDate(DateTime date) {
+        var result = new List<TokenUsageRecord>();
+        foreach (var r in _usageRecords) {
+            if (r.Timestamp.Date == date) result.Add(r);
+        }
+        return result;
+    }
 
     /// <summary>获取指定时间区间的记录</summary>
-    public List<TokenUsageRecord> GetRecordsByDateRange(DateTime start, DateTime end) => _usageRecords.Where(r => r.Timestamp >= start && r.Timestamp <= end).ToList();
+    public List<TokenUsageRecord> GetRecordsByDateRange(DateTime start, DateTime end) {
+        var result = new List<TokenUsageRecord>();
+        foreach (var r in _usageRecords) {
+            if (r.Timestamp >= start && r.Timestamp <= end) result.Add(r);
+        }
+        return result;
+    }
 
     /// <summary>全部记录的总成本</summary>
-    public decimal SumCost() => _usageRecords.Sum(r => r.CostUsd);
+    public decimal SumCost() {
+        var sum = 0m;
+        foreach (var r in _usageRecords) sum += r.CostUsd;
+        return sum;
+    }
 
     /// <summary>指定日期的总成本</summary>
-    public decimal SumCostByDate(DateTime date) => _usageRecords.Where(r => r.Timestamp.Date == date).Sum(r => r.CostUsd);
+    public decimal SumCostByDate(DateTime date) {
+        var sum = 0m;
+        foreach (var r in _usageRecords) {
+            if (r.Timestamp.Date == date) sum += r.CostUsd;
+        }
+        return sum;
+    }
 
     /// <summary>指定月份的总成本</summary>
     public decimal SumCostByMonth(DateTime now) {
         var startOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        return _usageRecords.Where(r => r.Timestamp >= startOfMonth).Sum(r => r.CostUsd);
+        var sum = 0m;
+        foreach (var r in _usageRecords) {
+            if (r.Timestamp >= startOfMonth) sum += r.CostUsd;
+        }
+        return sum;
     }
 
     /// <summary>从文件加载历史用量记录</summary>
@@ -99,7 +128,6 @@ internal sealed class UsageStore {
 
     /// <summary>清空全部用量记录与会话索引</summary>
     public void Reset() {
-        while (_usageRecords.TryTake(out _)) { }
-        _sessionIndex.Clear();
+        _usageRecords = ImmutableList<TokenUsageRecord>.Empty;
     }
 }

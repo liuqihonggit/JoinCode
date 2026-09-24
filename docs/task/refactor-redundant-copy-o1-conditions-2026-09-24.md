@@ -18,9 +18,9 @@
 |--------|--------|------|------|
 | **P0 立即** | 改造点4全部10处 | 零风险零语义变化,改动量极小,收益明确 | ✅ 完成(1864测试通过) |
 | **P1 高收益** | 改造点3全部10处 | 改动小(加缓存字段),`AvailableModels`影响界面性能 | ✅ 完成(707测试通过) |
-| **P2 核心架构** | 改造点2 D类+对应A类(TeamRegistry/UsageStore/SessionHookManager/AgentServiceImpl) | 同时消除锁+可变+重复数据源,但涉及并发语义,需谨慎+TDD | ⬜ 待办 |
-| **P3 热路径** | 改造点2 C类TOP5(TeamManager/PathConstraintValidator/ReferenceResolver/ToolSearchEngine) | 热路径性能,Span改造需逐处验证 | ⬜ 待办 |
-| **P4 扩散** | 改造点2 B类+剩余A/C类 | 跟随P2改造模式扩散,工作量最大 | ⬜ 待办 |
+| **P2 核心架构** | 改造点2 D类+对应A类(TeamRegistry/UsageStore/SessionHookManager/AgentServiceImpl) | 同时消除锁+可变+重复数据源,但涉及并发语义,需谨慎+TDD | ✅ 已完成 |
+| **P3 热路径** | 改造点2 C类TOP3(PathConstraintValidator/ToolSearchEngine/ReferenceResolver) | 热路径性能,Span改造需逐处验证 | ✅ 完成(TeamManager经分析已由编译器优化,跳过) |
+| **P4 扩散** | 改造点2 B类+剩余A/C类+D类剩余 | 跟随P2改造模式扩散,工作量最大 | 🔄 进行中(D-4/D-5/D-9优先) |
 
 ---
 
@@ -75,7 +75,7 @@
 | A-1 | `lib/guard/hooks/session/SessionHookManager.cs:64,83` | `ConcurrentDictionary<HookEvent,ConcurrentBag>` + 重建bag反模式 | `volatile ImmutableDictionary<HookEvent,ImmutableList<SessionHookEntry>>` + `Interlocked.Exchange`,AddHook/RemoveHook构建新ImmutableList原子替换 | ✅ P2已完成 |
 | A-2 | `kit/brain/cost_tracking/services/core/UsageStore.cs:8,9,29` | `ConcurrentBag`+`ConcurrentDictionary<string,List>`+`lock(existing){existing.Add(record);}` | `volatile ImmutableList<TokenUsageRecord>` + `Interlocked.Exchange`,session索引改为查询时按SessionId过滤(委托消费) | ✅ P2已完成 |
 | A-3 | `llm/agents/Coordinator/Team/core/TeamRegistry.cs:10-13` | 4个ConcurrentDictionary(_rooms/_agentToTeam/_sessionIndex/_nameIndex)维护派生索引,手动一致性 | `volatile ImmutableDictionary<string,ChatRoomState>` 唯一数据源,FindRoomBySessionId/FindTeamByName改为遍历过滤(委托消费) | ✅ P2已完成 |
-| A-4 | `llm/agents/Services/Core/AgentServiceImpl.cs:37-40` | 3个ConcurrentDictionary(_completionSources/_backgroundCts/_progressTrackers)以agentId为key,状态分散 | `volatile ImmutableDictionary<string,AgentRuntimeState>` 单一状态对象(AgentRuntimeState聚合Tcs+Cts+Tracker) | ⬜ |
+| A-4 | `llm/agents/Services/Core/AgentServiceImpl.cs:37-40` | 3个ConcurrentDictionary(_completionSources/_backgroundCts/_progressTrackers)以agentId为key,状态分散 | `volatile ImmutableDictionary<string,AgentRuntimeState>` 单一状态对象(AgentRuntimeState聚合Tcs+Cts+Tracker) | ✅ P2已完成 |
 | A-5 | `kit/brain/planning/planning2/PlanModeManager.cs:24,25,72` | `ConcurrentDictionary _plans`+可变`List<PlanState> _planHistory`字段+`ConcurrentDictionary _pendingApprovals` | `volatile ImmutableDictionary<string,PlanState>` + `volatile ImmutableList<PlanState>` | ⬜ |
 
 ### A类 其余命中(按模块)
@@ -177,7 +177,7 @@
 | # | 位置 | 问题 | 改造方向 | 状态 |
 |---|------|------|---------|------|
 | D-1 | `llm/agents/Coordinator/Team/core/TeamRegistry.cs:10-13` | 4个ConcurrentDictionary维护同一房间数据派生索引 | `volatile ImmutableDictionary<string,ChatRoomState>` 唯一数据源,查询时按SessionId/TeamName过滤(委托消费) | ✅ P2已完成 |
-| D-2 | `llm/agents/Services/Core/AgentServiceImpl.cs:37-40` | 3个ConcurrentDictionary分散同一agent运行时状态 | `volatile ImmutableDictionary<string,AgentRuntimeState>` 单一状态对象 | ⬜ |
+| D-2 | `llm/agents/Services/Core/AgentServiceImpl.cs:37-40` | 3个ConcurrentDictionary分散同一agent运行时状态 | `volatile ImmutableDictionary<string,AgentRuntimeState>` 单一状态对象 | ✅ |
 | D-3 | `kit/brain/cost_tracking/services/core/UsageStore.cs:8-9` | ConcurrentBag+ConcurrentDictionary重复持有同一记录 | `volatile ImmutableList<TokenUsageRecord>` 唯一数据源,TryGetSessionRecords改为按SessionId过滤 | ✅ P2已完成 |
 | D-4 | `kit/mcp/remote/core/` RemoteClientRegistry.cs:8 + RemoteReconnectCtsRegistry.cs:8 + RemoteToolSpecCache.cs:8 | 3字典分散同一client状态(连接/重连CTS/工具规格) | `volatile ImmutableDictionary<string,RemoteClientState>` 单一状态对象 | ⬜ |
 | D-5 | `llm/agents/Coordinator/Core/Lifecycle/AgentLifecycleManager.cs:12-13` | _subAgents+_results双字典以agentId为key | `volatile ImmutableDictionary<string,AgentEntry>` 单一状态对象(AgentEntry聚合Agent+Result?) | ⬜ |
@@ -203,16 +203,22 @@
 ## 已完成
 - [x] 内存泄露(改造点1,用户确认已完成)
 - [x] 扫描分析报告生成(2026-09-24)
-- [x] P0: 改造点4全部10处(交换&&两侧) — 10处已改,编译0警告0错误,测试1864全绿
-- [x] P1: 改造点3全部10处(加缓存字段) — IsAvailable lazy 2处 + AvailableModels根因层缓存6处 + NeedsStepUp缓存+失效点 2处,编译0警告,测试707全绿
+- [x] P0: 改造点4全部10处(交换&&两侧) — 10处已改,编译0警告0错误,测试1864全绿 (commit 984931844)
+- [x] P1: 改造点3全部10处(加缓存字段) — IsAvailable lazy 2处 + AvailableModels根因层缓存6处 + NeedsStepUp缓存+失效点 2处,编译0警告,测试707全绿 (commit b30a7279b)
+- [x] P2: 改造点2 D类+对应A类 — UsageStore/SessionHookStore/TeamRegistry/AgentServiceImpl全部无锁化+不可变,测试全绿 (commits a8a5274ee/563020111/54fb97b1f/a27cc7170/856421803)
+- [x] O(1)冗余索引: UsageStore 3字典索引 + TeamRegistry 2字典索引,查询O(1),测试全绿 (commits d3e74b4e7/b160d8320)
+- [x] P3: 改造点2 C类TOP3 Span改造 — PathConstraintValidator(stackalloc预归一化) + ToolSearchEngine(预缓存nameParts) + ReferenceResolver(ExtractKeywords+Levenshtein Span),测试全绿 (commits 7a19f8fb1/6524b6abd/f151c1893)
+  - TeamManager经分析:插值字符串已由.NET 6+编译器优化为DefaultInterpolatedStringHandler,无需Span改造
 
 ## 进行中
-- [ ] (待用户确认后开始P2)
+- [ ] P4: 改造点2 B类+剩余A/C类+D类剩余(D-4/D-5/D-9优先,然后按模块扩散)
 
 ## 待办
-- [ ] P2: 改造点2 D类+对应A类(TeamRegistry/UsageStore/SessionHookManager/AgentServiceImpl)
-- [ ] P3: 改造点2 C类TOP5(热路径Span改造)
-- [ ] P4: 改造点2 B类+剩余A/C类(扩散)
+- [ ] P4-D4: RemoteClientRegistry+RemoteReconnectCtsRegistry+RemoteToolSpecCache 3字典→1 ImmutableDictionary
+- [ ] P4-D5: AgentLifecycleManager _subAgents+_results→1 ImmutableDictionary
+- [ ] P4-D9: RemotePolicyService _usageCounters+_windowStartTimes→1 RateLimitState
+- [ ] P4-A类扩散: kit/mcp剩余(12处) + kit/brain(16处) + lib/guard(37处) + llm/agents(40+处)
+- [ ] P4-B类扩散: 73处直接转换属性→消费者处理
 
 ---
 

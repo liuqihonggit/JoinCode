@@ -5,7 +5,10 @@ namespace JccAuditCli;
 /// 跳过 MSBuildWorkspace 开销，预计加载时间从 87s 降到 5-10s
 /// </summary>
 public static class FastProjectLoader {
-    private const int MaxConcurrency = 8;
+    private static readonly int MaxConcurrency = Math.Min(Environment.ProcessorCount, 16);
+
+    /// <summary>全局 MetadataReference 缓存：相同 DLL 路径只创建一次</summary>
+    private static readonly ConcurrentDictionary<string, MetadataReference> _refCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// 并行加载所有 csproj 并创建 CSharpCompilation
@@ -75,6 +78,84 @@ public static class FastProjectLoader {
     }
 
     /// <summary>
+    /// 并行加载 + 创建 Compilation，通过 Channel 流式输出（流水线模式：消费者可提前开始分析）
+    /// </summary>
+    public static async Task LoadCompilationsToChannelAsync(
+        IReadOnlyList<string> projectPaths,
+        System.Threading.Channels.ChannelWriter<(string Name, string FilePath, CSharpCompilation Compilation)> writer,
+        CancellationToken ct = default) {
+        var loadSw = System.Diagnostics.Stopwatch.StartNew();
+
+        // 阶段1：并行加载 MSBuild 项目
+        var msbuildProjects = new ConcurrentBag<(string Path, Microsoft.Build.Evaluation.Project Project)>();
+        var loadedCount = 0;
+        var loadSemaphore = new SemaphoreSlim(MaxConcurrency);
+
+        var loadTasks = projectPaths.Select(async projectPath => {
+            await loadSemaphore.WaitAsync(ct).ConfigureAwait(false);
+            try {
+                var pc = new Microsoft.Build.Evaluation.ProjectCollection();
+                var project = pc.LoadProject(projectPath);
+                msbuildProjects.Add((projectPath, project));
+                var count = Interlocked.Increment(ref loadedCount);
+                if (count % 10 == 0)
+                    Console.WriteLine($"  [加载 {count}/{projectPaths.Count}]...");
+            } catch (Exception ex) {
+                Console.Error.WriteLine($"  加载项目失败: {Path.GetFileName(projectPath)} - {ex.Message}");
+            } finally {
+                loadSemaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(loadTasks).ConfigureAwait(false);
+        loadSemaphore.Dispose();
+        loadSw.Stop();
+        Console.WriteLine($"  [统计] MSBuild 项目加载完成 ({msbuildProjects.Count}/{projectPaths.Count})，耗时: {loadSw.Elapsed.TotalSeconds:F1}s");
+
+        // 阶段2：并行创建 Compilation，完成后立即写入 Channel（消费者可提前开始分析）
+        var compileSw = System.Diagnostics.Stopwatch.StartNew();
+        var compiledCount = 0;
+        var compileSemaphore = new SemaphoreSlim(MaxConcurrency);
+
+        var compileTasks = msbuildProjects.Select(async item => {
+            await compileSemaphore.WaitAsync(ct).ConfigureAwait(false);
+            try {
+                var compilation = CreateCompilation(item.Project, item.Path);
+                if (compilation is not null) {
+                    var name = item.Project.GetPropertyValue("AssemblyName") ?? Path.GetFileNameWithoutExtension(item.Path);
+                    await writer.WriteAsync((name, item.Path, compilation), ct).ConfigureAwait(false);
+                }
+                var count = Interlocked.Increment(ref compiledCount);
+                if (count % 10 == 0)
+                    Console.WriteLine($"  [编译 {count}/{msbuildProjects.Count}]...");
+            } catch (Exception ex) {
+                Console.Error.WriteLine($"  创建 Compilation 失败: {Path.GetFileName(item.Path)} - {ex.Message}");
+                Interlocked.Increment(ref compiledCount);
+            } finally {
+                compileSemaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(compileTasks).ConfigureAwait(false);
+        compileSemaphore.Dispose();
+        writer.TryComplete();
+        compileSw.Stop();
+        Console.WriteLine($"  [统计] Compilation 创建完成，耗时: {compileSw.Elapsed.TotalSeconds:F1}s");
+    }
+
+    /// <summary>从缓存获取或创建 MetadataReference（相同 DLL 路径只创建一次）</summary>
+    private static MetadataReference? GetOrCreateReference(string dllPath) {
+        if (_refCache.TryGetValue(dllPath, out var cached)) return cached;
+        try {
+            var reference = MetadataReference.CreateFromFile(dllPath);
+            _refCache.TryAdd(dllPath, reference);
+            return reference;
+        } catch {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// 从 MSBuild 项目创建 CSharpCompilation
     /// </summary>
     private static CSharpCompilation? CreateCompilation(Microsoft.Build.Evaluation.Project msbuildProject, string projectPath) {
@@ -104,31 +185,14 @@ public static class FastProjectLoader {
         if (depsReferences.Count > 0) {
             metadataReferences.AddRange(depsReferences);
         } else {
-            // 回退：手动解析 PackageReference + ProjectReference
-            foreach (var pkg in msbuildProject.GetItems("PackageReference")) {
-                var pkgName = pkg.EvaluatedInclude;
-                var pkgVersion = pkg.GetMetadataValue("Version");
-                var dllPath = FindPackageDll(nugetRoot, pkgName, pkgVersion);
-                if (dllPath is not null) {
-                    try { metadataReferences.Add(MetadataReference.CreateFromFile(dllPath)); }
-                    catch (Exception ex) { Console.Error.WriteLine($"  加载包引用失败: {pkgName} - {ex.Message}"); }
-                }
-            }
-            foreach (var projRef in msbuildProject.GetItems("ProjectReference")) {
-                var refName = Path.GetFileNameWithoutExtension(projRef.EvaluatedInclude);
-                var dllPath = FindProjectOutputDll(refName);
-                if (dllPath is not null) {
-                    try { metadataReferences.Add(MetadataReference.CreateFromFile(dllPath)); }
-                    catch (Exception ex) { Console.Error.WriteLine($"  加载项目引用失败: {refName} - {ex.Message}"); }
-                }
-            }
+            AddManualReferences(msbuildProject, nugetRoot, metadataReferences);
         }
 
-        // 添加基础引用：所有 .NET 运行时框架 DLL
+        // 添加基础引用：所有 .NET 运行时框架 DLL（缓存后只创建一次）
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
         foreach (var frameworkDll in Directory.GetFiles(runtimeDir, "*.dll")) {
-            try { metadataReferences.Add(MetadataReference.CreateFromFile(frameworkDll)); }
-            catch (Exception ex) { Console.Error.WriteLine($"  加载框架引用失败: {frameworkDll} - {ex.Message}"); }
+            var reference = GetOrCreateReference(frameworkDll);
+            if (reference is not null) metadataReferences.Add(reference);
         }
 
         // 编译选项
@@ -153,6 +217,27 @@ public static class FastProjectLoader {
             compilationOptions);
     }
 
+    /// <summary>手动解析 PackageReference + ProjectReference 添加引用</summary>
+    private static void AddManualReferences(Microsoft.Build.Evaluation.Project msbuildProject, string? nugetRoot, List<MetadataReference> metadataReferences) {
+        foreach (var pkg in msbuildProject.GetItems("PackageReference")) {
+            var pkgName = pkg.EvaluatedInclude;
+            var pkgVersion = pkg.GetMetadataValue("Version");
+            var dllPath = FindPackageDll(nugetRoot, pkgName, pkgVersion);
+            if (dllPath is null) continue;
+            var reference = GetOrCreateReference(dllPath);
+            if (reference is not null) metadataReferences.Add(reference);
+            else Console.Error.WriteLine($"  加载包引用失败: {pkgName}");
+        }
+        foreach (var projRef in msbuildProject.GetItems("ProjectReference")) {
+            var refName = Path.GetFileNameWithoutExtension(projRef.EvaluatedInclude);
+            var dllPath = FindProjectOutputDll(refName);
+            if (dllPath is null) continue;
+            var reference = GetOrCreateReference(dllPath);
+            if (reference is not null) metadataReferences.Add(reference);
+            else Console.Error.WriteLine($"  加载项目引用失败: {refName}");
+        }
+    }
+
     /// <summary>
     /// 从 .deps.json 加载完整 transitive 依赖引用
     /// </summary>
@@ -172,8 +257,9 @@ public static class FastProjectLoader {
             var refName = Path.GetFileNameWithoutExtension(projRef.EvaluatedInclude);
             var dllPath = FindProjectOutputDll(refName);
             if (dllPath is null) continue;
-            try { references.Add(MetadataReference.CreateFromFile(dllPath)); }
-            catch (Exception ex) { Console.Error.WriteLine($"  加载项目引用失败: {dllPath} - {ex.Message}"); }
+            var reference = GetOrCreateReference(dllPath);
+            if (reference is not null) references.Add(reference);
+            else Console.Error.WriteLine($"  加载项目引用失败: {dllPath}");
         }
 
         return references;
@@ -221,8 +307,8 @@ public static class FastProjectLoader {
         foreach (var rt in runtime.EnumerateObject()) {
             var fullPath = Path.Combine(nugetRoot, pkgName.ToLowerInvariant(), version, rt.Name);
             if (!File.Exists(fullPath)) continue;
-            try { references.Add(MetadataReference.CreateFromFile(fullPath)); }
-            catch (Exception ex) { Console.Error.WriteLine($"  加载引用失败: {fullPath} - {ex.Message}"); }
+            var reference = GetOrCreateReference(fullPath);
+            if (reference is not null) references.Add(reference);
         }
     }
 

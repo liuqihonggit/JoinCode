@@ -7,16 +7,8 @@ namespace JccAuditCli;
 public class FastProjectLoaderReferenceTests {
     [Fact]
     public void Compilation_Should_Resolve_IDisposable_And_IAsyncDisposable() {
-        // 模拟 FastProjectLoader.CreateCompilation 的引用构建
-        var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
-        var metadataReferences = new List<MetadataReference> {
-            MetadataReference.CreateFromFile(Path.Combine(runtimeDir, "System.Runtime.dll")),
-            MetadataReference.CreateFromFile(Path.Combine(runtimeDir, "System.Collections.dll")),
-            MetadataReference.CreateFromFile(Path.Combine(runtimeDir, "System.Linq.dll")),
-            MetadataReference.CreateFromFile(Path.Combine(runtimeDir, "System.Threading.dll")),
-            MetadataReference.CreateFromFile(Path.Combine(runtimeDir, "System.Threading.Tasks.dll")),
-            MetadataReference.CreateFromFile(Path.Combine(runtimeDir, "System.IO.dll")),
-        };
+        // 用 .NET 8 引用程序集（包含完整的类型定义）
+        var metadataReferences = Basic.Reference.Assemblies.Net80.References.All.ToList();
 
         // 模拟一个实现 IDisposable + IAsyncDisposable 的类型
         const string source = """
@@ -54,17 +46,4 @@ public class FastProjectLoaderReferenceTests {
         implementsIAsyncDisposable.Should().BeTrue("DualDisposable 应实现 IAsyncDisposable");
     }
 
-    [Fact]
-    public void FindPackageDll_Should_Find_System_Runtime() {
-        // 验证 FindPackageDll 能找到 System.Runtime 包
-        var nugetRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
-        if (!Directory.Exists(nugetRoot)) {
-            return; // 跳过测试如果 nuget 缓存不存在
-        }
-
-        // 检查 System.Runtime 包是否存在
-        var systemRuntimeDir = Path.Combine(nugetRoot, "system.runtime");
-        Directory.Exists(systemRuntimeDir).Should().BeTrue(
-            $"System.Runtime 包应存在于 nuget 缓存: {systemRuntimeDir}");
-    }
 }

@@ -5,7 +5,7 @@ namespace JccAuditCli;
 /// </summary>
 public sealed class AuditEngine {
     private readonly List<DiagnosticAnalyzer> _analyzers;
-    private const int MaxConcurrency = 8;
+    private static readonly int MaxConcurrency = Math.Min(Environment.ProcessorCount, 16);
 
     /// <summary>构造审计引擎。</summary>
     /// <param name="analyzers">诊断分析器列表。</param>
@@ -79,80 +79,60 @@ public sealed class AuditEngine {
             .Where(p => !skipTests || !IsTestProjectPath(p))
             .ToList();
 
-        // 用 FastProjectLoader 并行加载 + 创建 Compilation
-        var compilations = await FastProjectLoader.LoadCompilationsAsync(filteredPaths, ct).ConfigureAwait(false);
+        // 流水线：用 Channel 连接编译创建 → 分析，重叠执行
+        var channel = System.Threading.Channels.Channel.CreateBounded<(string Name, string FilePath, CSharpCompilation Compilation)>(
+            new System.Threading.Channels.BoundedChannelOptions(MaxConcurrency) { SingleReader = false, SingleWriter = false });
 
-        // 并行分析每个 Compilation
+        // 启动编译创建生产者（后台并行加载 + 创建 Compilation，完成后写入 Channel）
+        var loadTask = Task.Run(async () => {
+            await FastProjectLoader.LoadCompilationsToChannelAsync(filteredPaths, channel.Writer, ct).ConfigureAwait(false);
+        }, ct);
+
+        // 并行消费：分析 + Disposable 检测同时进行
         var analyzeSw = System.Diagnostics.Stopwatch.StartNew();
         var projectResults = new ConcurrentBag<ProjectAuditResult>();
-        var analyzedCount = 0;
-        var analyzeSemaphore = new SemaphoreSlim(MaxConcurrency);
-
-        var analyzeTasks = compilations.Select(async item => {
-            await analyzeSemaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                projectCts.CancelAfter(TimeSpan.FromSeconds(120));
-
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = await AnalyzeCompilationAsync(item.Name, item.FilePath, item.Compilation, projectCts.Token);
-                sw.Stop();
-
-                var count = Interlocked.Increment(ref analyzedCount);
-                Console.WriteLine($"  [{count}/{compilations.Count}] {item.Name} - {result.TotalDiagnostics} 条诊断 ({sw.Elapsed.TotalSeconds:F1}s)");
-                projectResults.Add(result);
-            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-                var count = Interlocked.Increment(ref analyzedCount);
-                Console.Error.WriteLine($"  [{count}/{compilations.Count}] 项目超时: {item.Name}");
-                projectResults.Add(new ProjectAuditResult { ProjectName = item.Name, ProjectPath = item.FilePath });
-            } catch (Exception ex) {
-                var count = Interlocked.Increment(ref analyzedCount);
-                Console.Error.WriteLine($"  [{count}/{compilations.Count}] 项目失败: {item.Name} - {ex.Message}");
-                projectResults.Add(new ProjectAuditResult { ProjectName = item.Name, ProjectPath = item.FilePath });
-            } finally {
-                analyzeSemaphore.Release();
-            }
-        });
-
-        await Task.WhenAll(analyzeTasks).ConfigureAwait(false);
-        analyzeSemaphore.Dispose();
-        analyzeSw.Stop();
-        Console.WriteLine($"  [统计] 分析完成，耗时: {analyzeSw.Elapsed.TotalSeconds:F1}s");
-
-        // IDisposable/IAsyncDisposable 一致性检测（与非快速模式对齐）
-        var disposableSw = System.Diagnostics.Stopwatch.StartNew();
         var disposableIssues = new ConcurrentBag<DisposableConsistencyInfo>();
-        var disposableCount = 0;
-        var disposableSemaphore = new SemaphoreSlim(MaxConcurrency);
+        var processedCount = 0;
 
-        var disposableTasks = compilations.Select(async item => {
-            await disposableSemaphore.WaitAsync(ct).ConfigureAwait(false);
-            try {
-                var issues = DisposableConsistencyChecker.Extract(item.Compilation);
-                foreach (var issue in issues)
-                    disposableIssues.Add(issue);
-                var count = Interlocked.Increment(ref disposableCount);
-                if (count % 20 == 0)
-                    Console.WriteLine($"  [Disposable {count}/{compilations.Count}]...");
-            } catch (Exception ex) {
-                Console.Error.WriteLine($"  Disposable 检测失败: {item.Name} - {ex.Message}");
-                Interlocked.Increment(ref disposableCount);
-            } finally {
-                disposableSemaphore.Release();
+        var consumerTasks = Enumerable.Range(0, MaxConcurrency).Select(async _ => {
+            await foreach (var item in channel.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
+                try {
+                    using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    projectCts.CancelAfter(TimeSpan.FromSeconds(120));
+
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    var result = await AnalyzeCompilationAsync(item.Name, item.FilePath, item.Compilation, projectCts.Token);
+                    sw.Stop();
+
+                    var issues = DisposableConsistencyChecker.Extract(item.Compilation);
+                    foreach (var issue in issues)
+                        disposableIssues.Add(issue);
+
+                    var count = Interlocked.Increment(ref processedCount);
+                    Console.WriteLine($"  [{count}/{filteredPaths.Count}] {item.Name} - {result.TotalDiagnostics} 条诊断 ({sw.Elapsed.TotalSeconds:F1}s)");
+                    projectResults.Add(result);
+                } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                    var count = Interlocked.Increment(ref processedCount);
+                    Console.Error.WriteLine($"  [{count}/{filteredPaths.Count}] 项目超时: {item.Name}");
+                    projectResults.Add(new ProjectAuditResult { ProjectName = item.Name, ProjectPath = item.FilePath });
+                } catch (Exception ex) {
+                    var count = Interlocked.Increment(ref processedCount);
+                    Console.Error.WriteLine($"  [{count}/{filteredPaths.Count}] 项目失败: {item.Name} - {ex.Message}");
+                    projectResults.Add(new ProjectAuditResult { ProjectName = item.Name, ProjectPath = item.FilePath });
+                }
             }
-        });
+        }).ToList(); // ToList 立即启动所有消费者任务
 
-        await Task.WhenAll(disposableTasks).ConfigureAwait(false);
-        disposableSemaphore.Dispose();
-        disposableSw.Stop();
+        await loadTask.ConfigureAwait(false);
+        await Task.WhenAll(consumerTasks).ConfigureAwait(false);
+        analyzeSw.Stop();
+        Console.WriteLine($"  [统计] 分析+Disposable 检测完成，耗时: {analyzeSw.Elapsed.TotalSeconds:F1}s");
 
         var disposableIssueList = disposableIssues.ToList();
         if (disposableIssueList.Count > 0) {
             var jcc9102 = disposableIssueList.Count(d => d.RuleId == "JCC9102");
             var jcc9103 = disposableIssueList.Count(d => d.RuleId == "JCC9103");
-            Console.WriteLine($"  [统计] Disposable 一致性检测完成: {disposableIssueList.Count} 处 (JCC9102={jcc9102}, JCC9103={jcc9103})，耗时: {disposableSw.Elapsed.TotalSeconds:F1}s");
-        } else {
-            Console.WriteLine($"  [统计] Disposable 一致性检测完成: 0 处，耗时: {disposableSw.Elapsed.TotalSeconds:F1}s");
+            Console.WriteLine($"  [统计] Disposable 一致性问题: {disposableIssueList.Count} 处 (JCC9102={jcc9102}, JCC9103={jcc9103})");
         }
 
         var disposableResults = BuildDisposableAuditResults(disposableIssueList);
@@ -667,9 +647,10 @@ public sealed class AuditEngine {
     /// 判断项目路径是否为测试项目
     /// </summary>
     private static bool IsTestProjectPath(string projectPath) {
-        return projectPath.Contains("\\tests\\", StringComparison.Ordinal) ||
-               projectPath.Contains("/tests/", StringComparison.Ordinal) ||
-               projectPath.Contains("MockServer", StringComparison.Ordinal);
+        var fileName = Path.GetFileNameWithoutExtension(projectPath);
+        return IsTestProject(fileName) ||
+               projectPath.Contains("\\tests\\", StringComparison.Ordinal) ||
+               projectPath.Contains("/tests/", StringComparison.Ordinal);
     }
 
     /// <summary>

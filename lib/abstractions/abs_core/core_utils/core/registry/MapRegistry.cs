@@ -68,6 +68,19 @@ public class MapRegistry<TKey, TValue> where TKey : notnull {
         TKey key, TValue oldValue, TValue newValue) where TProperty : notnull
         => index.Update(key, oldValue, newValue);
 
+    /// <summary>
+    /// 更新次级索引（按属性值） — TValue 的被索引属性在原对象上变化时调用
+    /// </summary>
+    /// <typeparam name="TProperty">索引属性类型</typeparam>
+    /// <param name="index">次级索引实例</param>
+    /// <param name="key">项的键</param>
+    /// <param name="oldProperty">变更前的旧属性值</param>
+    /// <param name="newProperty">变更后的新属性值</param>
+    protected static void Reindex<TProperty>(
+        SecondaryIndex<TKey, TValue, TProperty> index,
+        TKey key, TProperty oldProperty, TProperty newProperty) where TProperty : notnull
+        => index.UpdateProperty(key, oldProperty, newProperty);
+
     /// <summary>当前注册项总数</summary>
     public int Count => Volatile.Read(ref _items).Count;
 

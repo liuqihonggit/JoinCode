@@ -110,18 +110,31 @@ public class ToolExecutionEntity : Entity {
 /// </summary>
 public sealed class ToolExecutionEntityRegistry : MapRegistry<ObjectId, ToolExecutionEntity> {
     private readonly SecondaryIndex<ObjectId, ToolExecutionEntity, string> _byToolName;
+    private readonly SecondaryIndex<ObjectId, ToolExecutionEntity, EntityLifecycle> _byLifecycle;
 
     /// <summary>构造 ToolExecutionEntityRegistry，初始化次级索引</summary>
     public ToolExecutionEntityRegistry() {
         _byToolName = CreateIndex(e => e.ToolName, StringComparer.OrdinalIgnoreCase);
+        _byLifecycle = CreateIndex(e => e.LifecycleState);
     }
 
     internal void Add(ObjectId id, ToolExecutionEntity entity) => AddCore(id, entity);
     internal bool Remove(ObjectId id) => RemoveCore(id);
-    /// <summary>获取所有处于活跃状态的工具执行实体（LifecycleState 可变，O(n) 遍历）。</summary>
-    public IEnumerable<ToolExecutionEntity> GetActive() => Where(e => e.LifecycleState == EntityLifecycle.Active);
-    /// <summary>获取所有已完成状态的工具执行实体（LifecycleState 可变，O(n) 遍历）。</summary>
-    public IEnumerable<ToolExecutionEntity> GetCompleted() => Where(e => e.LifecycleState == EntityLifecycle.Completed);
+
+    /// <summary>生命周期状态转换 — 更新实体属性并同步次级索引</summary>
+    internal void TransitionLifecycle(ObjectId id, EntityLifecycle newState) {
+        var entity = Get(id);
+        if (entity is null) return;
+        var oldState = entity.LifecycleState;
+        if (oldState == newState) return;
+        entity.LifecycleState = newState;
+        Reindex(_byLifecycle, id, oldState, newState);
+    }
+
+    /// <summary>获取所有处于活跃状态的工具执行实体（O(1) 索引查找）。</summary>
+    public IEnumerable<ToolExecutionEntity> GetActive() => _byLifecycle.GetValues(EntityLifecycle.Active, AsDictionary());
+    /// <summary>获取所有已完成状态的工具执行实体（O(1) 索引查找）。</summary>
+    public IEnumerable<ToolExecutionEntity> GetCompleted() => _byLifecycle.GetValues(EntityLifecycle.Completed, AsDictionary());
     /// <summary>获取所有超时的工具执行实体（IsTimedOut 动态计算，O(n) 遍历）。</summary>
     public IEnumerable<ToolExecutionEntity> GetTimedOut() => Where(e => e.IsTimedOut);
     /// <summary>按工具名称获取工具执行实体列表（ToolName 不可变，O(1) 索引查找）。</summary>

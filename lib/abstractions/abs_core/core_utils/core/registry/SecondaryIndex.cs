@@ -39,10 +39,23 @@ public sealed class SecondaryIndex<TKey, TValue, TProperty>
         });
     }
 
-    /// <summary>更新时同步迁移（属性变化时调用）</summary>
+    /// <summary>更新时同步迁移（属性变化时调用，传入旧值和新值对象）</summary>
     internal void Update(TKey key, TValue oldValue, TValue newValue) {
         Remove(key, oldValue);
         Add(key, newValue);
+    }
+
+    /// <summary>按属性值更新索引 — 可变属性变化时调用，从旧属性桶迁移到新属性桶</summary>
+    internal void UpdateProperty(TKey key, TProperty oldProperty, TProperty newProperty) {
+        if (EqualityComparer<TProperty>.Default.Equals(oldProperty, newProperty)) return;
+        ImmutableInterlocked.Update(ref _index, d => {
+            if (d.TryGetValue(oldProperty, out var oldSet)) {
+                var newOldSet = oldSet.Remove(key);
+                d = newOldSet.IsEmpty ? d.Remove(oldProperty) : d.SetItem(oldProperty, newOldSet);
+            }
+            var newSet = d.GetValueOrDefault(newProperty) ?? ImmutableHashSet<TKey>.Empty;
+            return d.SetItem(newProperty, newSet.Add(key));
+        });
     }
 
     /// <summary>O(1) 查询：返回指定属性值对应的所有 key</summary>

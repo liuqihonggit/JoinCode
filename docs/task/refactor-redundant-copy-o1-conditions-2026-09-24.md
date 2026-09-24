@@ -179,12 +179,12 @@
 | D-1 | `llm/agents/Coordinator/Team/core/TeamRegistry.cs:10-13` | 4个ConcurrentDictionary维护同一房间数据派生索引 | `volatile ImmutableDictionary<string,ChatRoomState>` 唯一数据源,查询时按SessionId/TeamName过滤(委托消费) | ✅ P2已完成 |
 | D-2 | `llm/agents/Services/Core/AgentServiceImpl.cs:37-40` | 3个ConcurrentDictionary分散同一agent运行时状态 | `volatile ImmutableDictionary<string,AgentRuntimeState>` 单一状态对象 | ✅ |
 | D-3 | `kit/brain/cost_tracking/services/core/UsageStore.cs:8-9` | ConcurrentBag+ConcurrentDictionary重复持有同一记录 | `volatile ImmutableList<TokenUsageRecord>` 唯一数据源,TryGetSessionRecords改为按SessionId过滤 | ✅ P2已完成 |
-| D-4 | `kit/mcp/remote/core/` RemoteClientRegistry.cs:8 + RemoteReconnectCtsRegistry.cs:8 + RemoteToolSpecCache.cs:8 | 3字典分散同一client状态(连接/重连CTS/工具规格) | `volatile ImmutableDictionary<string,RemoteClientState>` 单一状态对象 | ⬜ |
-| D-5 | `llm/agents/Coordinator/Core/Lifecycle/AgentLifecycleManager.cs:12-13` | _subAgents+_results双字典以agentId为key | `volatile ImmutableDictionary<string,AgentEntry>` 单一状态对象(AgentEntry聚合Agent+Result?) | ⬜ |
+| D-4 | `kit/mcp/remote/core/` RemoteClientRegistry.cs:8 + RemoteReconnectCtsRegistry.cs:8 + RemoteToolSpecCache.cs:8 | 3字典分散同一client状态(连接/重连CTS/工具规格) | `volatile ImmutableDictionary<string,RemoteClientState>` 单一状态对象 | ✅ 各自无锁化(保留3类关注点分离) |
+| D-5 | `llm/agents/Coordinator/Core/Lifecycle/AgentLifecycleManager.cs:12-13` | _subAgents+_results双字典以agentId为key | `volatile ImmutableDictionary<string,AgentEntry>` 单一状态对象(AgentEntry聚合Agent+Result?) | ✅ |
 | D-6 | `llm/agents/Coordinator/Team/core/TeamRegistry.cs:18,29` | `Rooms=>_rooms.Values`与`SnapshotRooms()=>_rooms.ToDictionary()`重复暴露同一_rooms(语义不一致) | 配合D-1统一为唯一数据源 | ⬜ |
 | D-7 | `lib/guard/hooks/session/SessionHookManager.cs:64,123` | 两层ConcurrentDictionary嵌套,同一session的hook数据分散 | 配合A-1改造 | ✅ P2内层已完成 |
 | D-8 | `lib/guard/security/sandbox/core/SandboxManager.cs:9,14` | _providers+_activeExecutions两个ConcurrentDictionary不同维度 | 评估是否可合并 | ⬜ |
-| D-9 | `lib/guard/policy/RemotePolicyService.cs:12-13` | _usageCounters+_windowStartTimes两个ConcurrentDictionary以ruleId为key | 单一RateLimitState对象 | ⬜ |
+| D-9 | `lib/guard/policy/RemotePolicyService.cs:12-13` | _usageCounters+_windowStartTimes两个ConcurrentDictionary以ruleId为key | 单一RateLimitState对象 | ✅ 各自无锁化(保留2字典因key空间不同) |
 
 ---
 
@@ -209,16 +209,17 @@
 - [x] O(1)冗余索引: UsageStore 3字典索引 + TeamRegistry 2字典索引,查询O(1),测试全绿 (commits d3e74b4e7/b160d8320)
 - [x] P3: 改造点2 C类TOP3 Span改造 — PathConstraintValidator(stackalloc预归一化) + ToolSearchEngine(预缓存nameParts) + ReferenceResolver(ExtractKeywords+Levenshtein Span),测试全绿 (commits 7a19f8fb1/6524b6abd/f151c1893)
   - TeamManager经分析:插值字符串已由.NET 6+编译器优化为DefaultInterpolatedStringHandler,无需Span改造
+- [x] P4-D4: RemoteClientRegistry/RemoteReconnectCtsRegistry/RemoteToolSpecCache各自无锁化 (commit b71b3350c)
+- [x] P4-D5: AgentLifecycleManager双字典合并为单一ImmutableDictionary (commit dc52e0cf5)
+- [x] P4-D9: RemotePolicyService双字典无锁化 (commit 1064d75b3)
 
 ## 进行中
-- [ ] P4: 改造点2 B类+剩余A/C类+D类剩余(D-4/D-5/D-9优先,然后按模块扩散)
+- [ ] P4-A类扩散: 按模块逐步无锁化(kit/mcp→kit/brain→lib/guard→llm/agents)
 
 ## 待办
-- [ ] P4-D4: RemoteClientRegistry+RemoteReconnectCtsRegistry+RemoteToolSpecCache 3字典→1 ImmutableDictionary
-- [ ] P4-D5: AgentLifecycleManager _subAgents+_results→1 ImmutableDictionary
-- [ ] P4-D9: RemotePolicyService _usageCounters+_windowStartTimes→1 RateLimitState
-- [ ] P4-A类扩散: kit/mcp剩余(12处) + kit/brain(16处) + lib/guard(37处) + llm/agents(40+处)
+- [ ] P4-A类扩散: kit/mcp剩余(9处) + kit/brain(16处) + lib/guard(37处) + llm/agents(40+处)
 - [ ] P4-B类扩散: 73处直接转换属性→消费者处理
+- [ ] D-6/D-8: 评估是否需要改造
 
 ---
 

@@ -16,7 +16,7 @@ public class PriorityMailboxTest {
 
         _ = actor.StartConsumerAsync();
         gateTcs.SetResult();
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedOrder.Should().Equal(2, 1, 3);
     }
@@ -33,7 +33,7 @@ public class PriorityMailboxTest {
 
         _ = actor.StartConsumerAsync();
         gateTcs.SetResult();
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedOrder.Should().Equal(2, 1, 3);
     }
@@ -50,7 +50,7 @@ public class PriorityMailboxTest {
 
         _ = actor.StartConsumerAsync();
         gateTcs.SetResult();
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedOrder.Should().Equal(2, 1, 3);
     }
@@ -67,7 +67,7 @@ public class PriorityMailboxTest {
 
         _ = actor.StartConsumerAsync();
         gateTcs.SetResult();
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 5, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 5, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedOrder.Should().Equal(1, 2, 3, 4, 5);
     }
@@ -87,7 +87,7 @@ public class PriorityMailboxTest {
 
         _ = actor.StartConsumerAsync();
         gateTcs.SetResult();
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 6, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 6, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedOrder.IndexOf(30).Should().BeLessThan(actor.ProcessedOrder.IndexOf(10));
         actor.ProcessedOrder.IndexOf(30).Should().BeLessThan(actor.ProcessedOrder.IndexOf(20));
@@ -104,7 +104,7 @@ public class PriorityMailboxTest {
         await actor.SendAsync(2, MessagePriority.Normal);
         await actor.SendAsync(3, MessagePriority.Low);
 
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromMilliseconds(500));
         actor.MailboxCount.Should().Be(0);
     }
 
@@ -137,7 +137,7 @@ public class PriorityMailboxTest {
 
         actor.TrySend(42, MessagePriority.High).Should().BeTrue();
 
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 1, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 1, TimeSpan.FromMilliseconds(500));
         actor.ProcessedOrder.Should().Contain(42);
     }
 
@@ -149,13 +149,13 @@ public class PriorityMailboxTest {
         actor.SetGate(gateTcs);
 
         actor.TrySend(1, MessagePriority.High).Should().BeTrue();
-        await WaitUntilAsync(() => actor.MailboxCountByPriority(MessagePriority.High) == 0, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.MailboxCountByPriority(MessagePriority.High) == 0, TimeSpan.FromMilliseconds(500));
 
         actor.TrySend(2, MessagePriority.High).Should().BeTrue();
         actor.TrySend(3, MessagePriority.High).Should().BeFalse();
 
         gateTcs.SetResult();
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 1, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 1, TimeSpan.FromMilliseconds(500));
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public class PriorityMailboxTest {
         actor.IsHighWatermark(MessagePriority.Low).Should().BeFalse();
 
         gateTcs.SetResult();
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 2, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 2, TimeSpan.FromMilliseconds(500));
     }
 
     [Fact]
@@ -195,7 +195,7 @@ public class PriorityMailboxTest {
         events.Should().Contain(e => e.Level == WatermarkLevel.High);
 
         gateTcs.SetResult();
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 4, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 4, TimeSpan.FromMilliseconds(500));
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public class PriorityMailboxTest {
         actor.SetGate(gateTcs);
 
         await actor.SendAsync(1, MessagePriority.High);
-        await WaitUntilAsync(() => actor.MailboxCountByPriority(MessagePriority.High) == 0, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.MailboxCountByPriority(MessagePriority.High) == 0, TimeSpan.FromMilliseconds(500));
 
         await actor.SendAsync(2, MessagePriority.High);
 
@@ -217,7 +217,7 @@ public class PriorityMailboxTest {
         await act.Should().ThrowAsync<TimeoutException>();
 
         gateTcs.SetResult();
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 2, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 2, TimeSpan.FromMilliseconds(500));
     }
 
     [Fact]
@@ -245,7 +245,7 @@ public class PriorityMailboxTest {
         gateTcs.SetResult();
 
         var expected = producerCount * messagesPerProducer;
-        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= expected, TimeSpan.FromSeconds(10));
+        await WaitUntilAsync(() => actor.ProcessedOrder.Count >= expected, TimeSpan.FromMilliseconds(500));
 
         actor.ProcessedOrder.Should().HaveCount(expected);
         var expectedSet = Enumerable.Range(0, producerCount)
@@ -254,13 +254,15 @@ public class PriorityMailboxTest {
         actor.ProcessedOrder.ToHashSet().Should().BeEquivalentTo(expectedSet);
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout) {
-        var deadline = DateTimeOffset.UtcNow + timeout;
-        while (!condition()) {
-            if (DateTimeOffset.UtcNow > deadline)
-                throw new TimeoutException($"等待条件超时({timeout.TotalSeconds:F0}s)");
-            await Task.Delay(10);
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
+            while (DateTimeOffset.UtcNow < deadline) {
+                if (condition()) return;
+                await Task.Delay(10);
+            }
         }
+        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 }
 

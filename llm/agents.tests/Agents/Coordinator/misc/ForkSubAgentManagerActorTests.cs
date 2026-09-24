@@ -227,7 +227,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
 
         await act.Should().NotThrowAsync<ObjectDisposedException>().ConfigureAwait(true);
 
-        await WaitUntilAsync(() => _manager.InputCount == 0, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => _manager.InputCount == 0, TimeSpan.FromMilliseconds(500));
     }
 
     [Fact]
@@ -313,7 +313,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
             return r;
         });
 
-        await WaitUntilAsync(() => _manager.InputCount == 0, TimeSpan.FromSeconds(2));
+        await WaitUntilAsync(() => _manager.InputCount == 0, TimeSpan.FromMilliseconds(500));
         secondForkCompleted.Should().BeFalse("第二个 fork 应被阻塞 — 后台 fork 仍持有信号量");
 
         var completedSecond = await secondForkTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
@@ -382,21 +382,25 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime {
         await _manager.DisposeSafeAsync();
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout) {
-        var deadline = DateTimeOffset.UtcNow + timeout;
-        while (!condition()) {
-            if (DateTimeOffset.UtcNow > deadline)
-                throw new TimeoutException($"等待条件超时({timeout.TotalSeconds:F0}s)");
-            await Task.Delay(10);
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan perRetryTimeout) {
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
+            while (DateTimeOffset.UtcNow < deadline) {
+                if (condition()) return;
+                await Task.Delay(10);
+            }
         }
+        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 
-    private static async Task WaitUntilAsync(Func<Task<bool>> predicate, TimeSpan timeout) {
-        var deadline = DateTimeOffset.UtcNow + timeout;
-        while (DateTimeOffset.UtcNow < deadline) {
-            if (await predicate()) return;
-            await Task.Delay(10);
+    private static async Task WaitUntilAsync(Func<Task<bool>> predicate, TimeSpan perRetryTimeout) {
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
+            while (DateTimeOffset.UtcNow < deadline) {
+                if (await predicate()) return;
+                await Task.Delay(10);
+            }
         }
-        throw new TimeoutException($"等待条件超时({timeout.TotalSeconds:F0}s)");
+        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 }

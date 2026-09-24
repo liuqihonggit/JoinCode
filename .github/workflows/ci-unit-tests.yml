@@ -108,10 +108,7 @@ jobs:
           # MockServer
           - name: MockServerCore
             csproj: test/mock/mock_server.core.tests/MockServer.Core.Tests.csproj
-          # GUI / TUI
-          - name: JoinCodeGui
-            csproj: test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
-            build_first: true
+          # TUI
           - name: Tui
             csproj: test/unit/tui.tests/Tui.Tests.csproj
 

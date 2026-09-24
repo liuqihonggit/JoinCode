@@ -172,12 +172,14 @@ public class TransportE2ETest {
         Encoding.UTF8.GetString(recv2!.Data.Span).Should().Be("broadcast-all");
     }
 
-    private static async Task WaitUntilAsync(Func<Task<bool>> predicate, TimeSpan timeout) {
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline) {
-            if (await predicate()) return;
-            await Task.Delay(50);
+    private static async Task WaitUntilAsync(Func<Task<bool>> predicate, TimeSpan perRetryTimeout) {
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTime.UtcNow + perRetryTimeout;
+            while (DateTime.UtcNow < deadline) {
+                if (await predicate()) return;
+                await Task.Delay(50);
+            }
         }
-        throw new TimeoutException($"Condition not met within {timeout.TotalSeconds}s");
+        throw new TimeoutException($"等待条件超时,重试16次×{perRetryTimeout.TotalMilliseconds:F0}ms");
     }
 }

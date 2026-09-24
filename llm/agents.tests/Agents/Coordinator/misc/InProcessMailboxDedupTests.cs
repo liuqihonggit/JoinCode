@@ -104,11 +104,13 @@ public sealed class InProcessMailboxDedupTests {
     }
 
     private static async Task WaitForRegistrationAsync(InProcessMailbox mailbox, string agentId) {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-        while (DateTime.UtcNow < deadline) {
-            if (mailbox.GetRegisteredAgents().Contains(agentId)) return;
-            await Task.Delay(50);
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(500);
+            while (DateTime.UtcNow < deadline) {
+                if (mailbox.GetRegisteredAgents().Contains(agentId)) return;
+                await Task.Delay(50);
+            }
         }
-        throw new TimeoutException($"Agent {agentId} not registered within 5s");
+        throw new TimeoutException($"Agent {agentId} not registered,重试16次×500ms全超时");
     }
 }

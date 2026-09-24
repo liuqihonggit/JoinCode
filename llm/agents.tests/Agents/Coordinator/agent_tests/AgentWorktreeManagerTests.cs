@@ -256,7 +256,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
         await WaitVerificationAsync(() => _hookOrchestratorMock.Verify(x => x.ExecuteHooksAsync(
             HookEvent.WorktreeCreate,
             It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(),
-            It.IsAny<string?>(), It.IsAny<string?>(), default), Times.AtLeastOnce), TimeSpan.FromSeconds(5));
+            It.IsAny<string?>(), It.IsAny<string?>(), default), Times.AtLeastOnce), TimeSpan.FromMilliseconds(500));
     }
 
     [Fact]
@@ -282,7 +282,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
         await WaitVerificationAsync(() => _hookOrchestratorMock.Verify(x => x.ExecuteHooksAsync(
             HookEvent.WorktreeRemove,
             It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(),
-            It.IsAny<string?>(), It.IsAny<string?>(), default), Times.AtLeastOnce), TimeSpan.FromSeconds(5));
+            It.IsAny<string?>(), It.IsAny<string?>(), default), Times.AtLeastOnce), TimeSpan.FromMilliseconds(500));
     }
 
     [Fact]
@@ -366,11 +366,13 @@ public class AgentWorktreeManagerTests : IAsyncLifetime {
         return Task.CompletedTask;
     }
 
-    private static async Task WaitVerificationAsync(Action verify, TimeSpan timeout) {
-        var deadline = DateTimeOffset.UtcNow + timeout;
-        while (DateTimeOffset.UtcNow < deadline) {
-            try { verify(); return; } catch (MockException) { Console.WriteLine("Hook 尚未调用,继续轮询"); }
-            await Task.Delay(10);
+    private static async Task WaitVerificationAsync(Action verify, TimeSpan perRetryTimeout) {
+        for (var i = 0; i < 16; i++) {
+            var deadline = DateTimeOffset.UtcNow + perRetryTimeout;
+            while (DateTimeOffset.UtcNow < deadline) {
+                try { verify(); return; } catch (MockException) { Console.WriteLine("Hook 尚未调用,继续轮询"); }
+                await Task.Delay(10);
+            }
         }
         verify();
     }

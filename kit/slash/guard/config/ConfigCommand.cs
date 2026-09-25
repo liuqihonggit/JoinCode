@@ -5,7 +5,7 @@ namespace JoinCode.ChatCommands;
 /// 支持获取、设置、列出、移除配置项,提供已知配置项的元数据描述
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Config, Description = "管理配置设置", Usage = "/config [get|set|list|remove] [key] [value]", Category = ChatCommandCategory.Config, ArgumentHint = "[get|set|list|remove]")]
-[ChatCommandArg("action", Type = "string", Description = "配置操作", Enum = new[] { "get", "set", "list", "remove" })]
+[ChatCommandArg("action", Type = "string", Description = "配置操作", Enum = [ConfigActionEnumConstants.Get, ConfigActionEnumConstants.Set, ConfigActionEnumConstants.List, ConfigActionEnumConstants.Remove])]
 [ChatCommandArg("key", Type = "string", Description = "配置键名")]
 [ChatCommandArg("value", Type = "string", Description = "配置值（set 操作时需要）")]
 public sealed class ConfigCommand : ChatCommandBase {

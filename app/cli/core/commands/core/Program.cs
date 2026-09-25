@@ -246,8 +246,8 @@ class Program {
     /// <para>BUG#6: --format 有效值 text/json/ndjson</para>
     /// </summary>
     private static string? ValidateEnumArgs(string[] args) {
-        var validPermissionModes = new[] { "plan", "auto", "ask", "bypass" };
-        var validFormats = new[] { "text", "json", "ndjson" };
+        var validPermissionModes = new[] { PermissionModeEnumConstants.Plan, PermissionModeEnumConstants.Auto, PermissionModeEnumConstants.Ask, PermissionModeEnumConstants.Bypass };
+        var validFormats = new[] { OutputFormatEnumConstants.Text, OutputFormatEnumConstants.Json, OutputFormatEnumConstants.Ndjson };
 
         for (var i = 0; i < args.Length - 1; i++) {
             if (args[i] == JccCliArgEnumConstants.PermissionMode) {

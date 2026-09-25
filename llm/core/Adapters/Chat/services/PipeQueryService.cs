@@ -129,7 +129,7 @@ public sealed partial class PipeQueryService : IQueryService {
         var messages = chatHistory.Select(ConvertToMessage).ToList();
 
         return new ChatRequest {
-            Model = settings?.ExtensionData?.TryGetValue("model", out var model) == true && model.ValueKind == JsonValueKind.String ? model.GetString() ?? "gpt-4" : "gpt-4",
+            Model = settings?.ExtensionData?.TryGetValue("model", out var model) == true && model.ValueKind == JsonValueKind.String ? model.GetString() ?? DefaultModelCatalog.FallbackModel : DefaultModelCatalog.FallbackModel, // P1-⑥ 委托统一数据源
             Messages = messages,
             Stream = stream,
             Temperature = settings?.Temperature,

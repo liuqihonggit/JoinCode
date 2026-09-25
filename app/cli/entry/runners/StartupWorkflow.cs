@@ -233,11 +233,11 @@ internal sealed class StartupWorkflow {
     }
 
     private string BuildDefaultSettingsTemplate() {
-        var defaultModel = _modelConfigLoader?.GetDefaultModelId("deepseek") ?? "deepseek-chat";
+        var defaultModel = _modelConfigLoader?.GetDefaultModelId(VendorKind.DeepSeek.ToValue()) ?? DefaultModelCatalog.GetDefaultModel(VendorKind.DeepSeek); // P1-⑤⑥ 委托枚举+统一数据源
         var sb = new StringBuilder();
         sb.AppendLine("{");
         sb.AppendLine("  // LLM Provider: deepseek | openai | anthropic | azure | agnes");
-        sb.AppendLine("  \"provider\": \"deepseek\",");
+        sb.AppendLine($"  \"provider\": \"{VendorKind.DeepSeek.ToValue()}\","); // P1-⑤ 委托枚举
         sb.AppendLine();
         sb.AppendLine("  // 模型 ID，可用 /model 命令切换");
         sb.AppendLine($"  \"model\": \"{defaultModel}\",");

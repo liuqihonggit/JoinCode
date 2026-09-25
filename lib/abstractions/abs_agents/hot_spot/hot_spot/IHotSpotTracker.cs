@@ -29,5 +29,5 @@ public interface IHotSpotTracker {
     /// <summary>
     /// 会话结束清空所有统计
     /// </summary>
-    void Clear();
+    Task ClearAsync();
 }

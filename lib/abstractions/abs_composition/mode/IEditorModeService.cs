@@ -7,9 +7,9 @@ public enum EditorMode {
 
 public interface IEditorModeService : IAsyncDisposable {
     /// <summary>获取当前编辑模式。</summary>
-    EditorMode CurrentMode { get; }
+    Task<EditorMode> GetCurrentModeAsync();
     /// <summary>设置编辑模式。</summary>
     void SetMode(EditorMode mode);
     /// <summary>切换编辑模式。</summary>
-    EditorMode Toggle();
+    Task<EditorMode> ToggleAsync();
 }

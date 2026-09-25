@@ -49,11 +49,9 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable {
     /// <summary>
     /// 当前配置值（首次访问时延迟初始化）
     /// </summary>
-    protected TValue Value {
-        get {
-            EnsureInitialized();
-            return _value;
-        }
+    protected async Task<TValue> GetValueAsync() {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+        return _value;
     }
 
     /// <summary>
@@ -66,14 +64,14 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable {
             _ = PersistAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
     }
 
-    private void EnsureInitialized() {
+    private async Task EnsureInitializedAsync() {
         if (_initialized) return;
         if (Volatile.Read(ref _disposed) == 1) return;
-        var guard = _initLock.TryLock();
+        var guard = await _initLock.TryLockAsync().ConfigureAwait(false);
         if (guard is null) return;
         using (guard) {
             if (_initialized) return;
-            try { InitializeAsync().GetAwaiter().GetResult(); } catch (Exception ex) { _logger?.LogWarning(ex, "{TypeName}: 初始化失败", GetType().Name); }
+            try { await InitializeAsync().ConfigureAwait(false); } catch (Exception ex) { _logger?.LogWarning(ex, "{TypeName}: 初始化失败", GetType().Name); }
             _initialized = true;
         }
     }

@@ -14,16 +14,16 @@ public sealed class AdvisorCommand(IModelConfigLoader? modelConfigLoader = null)
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var advisorService = ChatCommandBase.GetService<IAdvisorService>(context);
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (advisorService is null)
-            return Task.FromResult(ChatCommandResult.Continue());
+            return ChatCommandResult.Continue();
 
         if (string.IsNullOrEmpty(args)) {
-            if (advisorService.IsAdvisorEnabled) {
-                TerminalHelper.WriteLine(L.T(StringKey.HostAdvisorModelLabel, advisorService.AdvisorModel));
+            if (await advisorService.GetIsAdvisorEnabledAsync().ConfigureAwait(false)) {
+                TerminalHelper.WriteLine(L.T(StringKey.HostAdvisorModelLabel, await advisorService.GetAdvisorModelAsync().ConfigureAwait(false)));
                 TerminalHelper.WriteLine(L.T(StringKey.HostAdvisorReviewMsg));
             } else {
                 TerminalHelper.WriteLine(L.T(StringKey.HostAdvisorDisabled));
@@ -48,6 +48,6 @@ public sealed class AdvisorCommand(IModelConfigLoader? modelConfigLoader = null)
             TerminalHelper.WriteLine(L.T(StringKey.HostAdvisorReviewMsg));
         }
 
-        return Task.FromResult(ChatCommandResult.Continue());
+        return ChatCommandResult.Continue();
     }
 }

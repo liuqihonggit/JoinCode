@@ -256,13 +256,13 @@ public sealed class NamedPipeTransport : ITransportTopology {
         _slaveClient = null;
         _acceptTask = null;
         _slaveReceiveTask = null;
-        Cleanup(conns, slaveClient, _election, _cts);
+        await CleanupAsync(conns, slaveClient, _election, _cts).ConfigureAwait(false);
     }
 
-    private static void Cleanup(IAsyncDisposable[] conns, NamedPipeClientStream? slaveClient, HostElectionService election, CancellationTokenSource cts) {
-        foreach (var conn in conns) conn.DisposeAsync().AsTask().Wait();
-        slaveClient?.DisposeAsync().AsTask().Wait();
-        election.DisposeAsync().AsTask().Wait();
+    private static async Task CleanupAsync(IAsyncDisposable[] conns, NamedPipeClientStream? slaveClient, HostElectionService election, CancellationTokenSource cts) {
+        foreach (var conn in conns) await conn.DisposeAsync().ConfigureAwait(false);
+        if (slaveClient is not null) await slaveClient.DisposeAsync().ConfigureAwait(false);
+        await election.DisposeAsync().ConfigureAwait(false);
         cts.Dispose();
     }
 }

@@ -43,7 +43,10 @@ public sealed partial class MainViewModel {
     /// <summary>当前是否连接 Mock 引擎（驱动状态提示与 Mock 徽标显隐）</summary>
     public bool IsMockConnection => _session is PlaceholderChatSession;
 
-    partial void OnSelectedConnectionChanged(ConnectionOptionItem? value) {
+    partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
+        => _ = OnSelectedConnectionChangedAsync(value);
+
+    private async Task OnSelectedConnectionChangedAsync(ConnectionOptionItem? value) {
         ViewModelDiagnosticsLogger.WriteDebug($"OnSelectedConnectionChanged: id={value?.Id} refresh={_gate.RefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
         if (value is null || _gate.RefreshingConfig)
             return;
@@ -53,7 +56,7 @@ public sealed partial class MainViewModel {
         StatusText = _realSession is not null
             ? $"已连接真实引擎 {value.DisplayText}"
             : $"已选择供应商 {value.DisplayText}（引擎加载中…）";
-        try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); ViewModelDiagnosticsLogger.WriteDebug($"SetVendorAsync ok: id={value.Id}"); } catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); ViewModelDiagnosticsLogger.WriteDebug($"SetVendorAsync FAIL: {ex.Message}"); }
+        try { await _session.SetVendorAsync(value.Id).WaitAsync(Timeout); ViewModelDiagnosticsLogger.WriteDebug($"SetVendorAsync ok: id={value.Id}"); } catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); ViewModelDiagnosticsLogger.WriteDebug($"SetVendorAsync FAIL: {ex.Message}"); }
 
         RefreshModelOptions();
         OnPropertyChanged(nameof(IsMockConnection));

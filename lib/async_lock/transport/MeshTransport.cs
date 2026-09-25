@@ -205,12 +205,12 @@ public sealed class MeshTransport : ITransportTopology {
 
         if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);
         _acceptTask = null;
-        Cleanup(conns, _cts);
+        await CleanupAsync(conns, _cts).ConfigureAwait(false);
     }
 
-    private static void Cleanup(IAsyncDisposable[] conns, CancellationTokenSource cts) {
+    private static async Task CleanupAsync(IAsyncDisposable[] conns, CancellationTokenSource cts) {
         foreach (var conn in conns) {
-            conn.DisposeAsync().AsTask().Wait();
+            await conn.DisposeAsync().ConfigureAwait(false);
         }
         cts.Dispose();
     }

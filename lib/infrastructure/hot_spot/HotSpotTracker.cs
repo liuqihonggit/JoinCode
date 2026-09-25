@@ -108,11 +108,11 @@ public sealed class HotSpotTracker : IHotSpotTracker {
     /// <summary>
     /// 清空所有意图记录，移除所有 Worker 的上报
     /// </summary>
-    public void Clear() {
+    public async Task ClearAsync() {
         var allIntents = _intentCollector.GetAllIntents();
         var workers = allIntents.Select(i => i.WorkerId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         foreach (var worker in workers) {
-            _intentCollector.RemoveWorkerAsync(worker).Wait();
+            await _intentCollector.RemoveWorkerAsync(worker).ConfigureAwait(false);
         }
     }
 }

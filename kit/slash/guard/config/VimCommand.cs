@@ -74,11 +74,11 @@ public sealed class VimCommand : ToggleCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>表示异步操作完成的任务</returns>
-    protected override Task OnToggleAsync(ChatCommandContext context) {
+    protected override async Task OnToggleAsync(ChatCommandContext context) {
         var vimEngine = GetService<IVimEngine>(context);
         var editorModeService = GetService<IEditorModeService>(context);
 
-        var currentMode = editorModeService?.CurrentMode ?? EditorMode.Normal;
+        var currentMode = editorModeService is not null ? await editorModeService.GetCurrentModeAsync().ConfigureAwait(false) : EditorMode.Normal;
         var newMode = currentMode == EditorMode.Vim ? EditorMode.Normal : EditorMode.Vim;
 
         if (newMode == EditorMode.Vim) {
@@ -92,7 +92,7 @@ public sealed class VimCommand : ToggleCommandBase {
             TerminalHelper.WriteLine("编辑模式: Normal (标准 readline 键绑定)");
         }
 
-        return Task.CompletedTask;
+        return;
     }
 
     /// <summary>

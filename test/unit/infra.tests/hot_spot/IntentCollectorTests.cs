@@ -143,7 +143,7 @@ public sealed class IntentCollectorTests
         var allIntents = _sut.GetAllIntents();
         allIntents.Should().HaveCount(workerCount * intentsPerWorker);
 
-        for (int j = 0; j < intentsPerWorker; j++)
+        for (var j = 0; j < intentsPerWorker; j++)
         {
             _sut.GetIntents($"file-{j}.cs").Should().HaveCount(workerCount);
         }

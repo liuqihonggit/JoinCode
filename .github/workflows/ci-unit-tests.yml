@@ -103,10 +103,8 @@ jobs:
             csproj: test/unit/hands.tests/Hands.Tests.csproj
           - name: McpIntervention
             csproj: test/unit/mcp.tests/Mcp.UniqueTests.csproj
-            build_first: true
           - name: McpToolDispatchHealth
             csproj: test/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj
-            build_first: true
           # MockServer
           - name: MockServerCore
             csproj: test/mock/mock_server.core.tests/MockServer.Core.Tests.csproj
@@ -121,7 +119,7 @@ jobs:
       - name: Test - ${{ matrix.name }}
         run: >
           dotnet test ${{ matrix.csproj }}
-          -c Release ${{ matrix.build_first != true && '--no-build' || '--no-restore' }} --nologo
+          -c Release --no-build --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=${{ matrix.name }}.trx"

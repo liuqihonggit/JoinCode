@@ -33,23 +33,8 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         ["模型"] = ["models", "model", "Models"]
     }.ToFrozenDictionary();
 
-    // 文件扩展名映射
-    private static readonly FrozenDictionary<string, string[]> ExtensionPatterns = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase) {
-        [".cs"] = ["*.cs"],
-        [".ts"] = ["*.ts", "*.tsx"],
-        [".js"] = ["*.js", "*.jsx"],
-        [".py"] = ["*.py"],
-        [".java"] = ["*.java"],
-        [".go"] = ["*.go"],
-        [".rs"] = ["*.rs"],
-        [".cpp"] = ["*.cpp", "*.cc", "*.cxx"],
-        [".c"] = ["*.c"],
-        [".h"] = ["*.h", "*.hpp"],
-        [".md"] = ["*.md"],
-        [".json"] = ["*.json"],
-        [".xml"] = ["*.xml"],
-        [".yaml"] = ["*.yaml", "*.yml"]
-    }.ToFrozenDictionary();
+    // 文件扩展名映射 — 委托 LanguageMapCatalog 单一数据源
+    private static readonly IReadOnlyDictionary<string, string[]> ExtensionPatterns = LanguageMapCatalog.ExtensionToGlobs;
 
     /// <summary>
     /// 构造函数

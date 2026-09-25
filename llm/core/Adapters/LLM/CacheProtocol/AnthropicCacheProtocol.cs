@@ -1,9 +1,9 @@
 namespace Api.LLM.CacheProtocol;
 
 internal enum CacheScope {
-    None,
-    Org,
-    Global
+    [EnumValue("none")] None,
+    [EnumValue("org")] Org,
+    [EnumValue("global")] Global
 }
 
 internal sealed class AnthropicCacheProtocol : CacheProtocol {

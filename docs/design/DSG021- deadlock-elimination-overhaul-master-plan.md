@@ -349,8 +349,8 @@
 | 批1 | 同步阻塞异步全部 Actor 化(9处 .Wait()/.GetResult()) | 9处 | 高(死锁消除) |
 | 批2 | 无界通道全部有界背压(24处) | 24处 | 中(OOM 消除) |
 | 批3 | fire-and-forget 改 Tell+Actor 监督(10处) | 10处 | 中(异常可观测) |
-| 批4 | ConcurrentDictionary 全部改 Immutable+CAS(253处) | 253处 | 高(GC 压力,需基准验证) |
-| 批5 | InMemoryIndexStore 去递归锁+server/code_index 遗留锁 | 3处 | 低(最小改动) |
+| 批4 | ConcurrentDictionary 全部改 Immutable+CAS(253处) + InMemoryIndexStore 拆分为7个不可变Store(SymbolStore/CallEdgeStore/DependencyEdgeStore/FileTrackingStore/ProjectStore/ProjectRefStore/NuGetRefStore),每个持有单一不可变数据源,跨实体操作最终一致性 | 253处+13字典 | 高(GC 压力,需基准验证) |
+| 批5 | ✅ InMemoryIndexStore 去递归锁+server/code_index 遗留锁 | 3处 | 低(最小改动) | commit 461b10a68 |
 | 批6 | 属性字段约束(71处违规:聚合/查找/物化/字典暴露/字段暴露/副作用) | 71处 | 中(封装) |
 | 批7 | 检索优化(10处线性→O(1)) | 10处 | 低 |
 | **合计** | | **~520处** | |

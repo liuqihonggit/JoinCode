@@ -415,8 +415,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             .Select(p => p.TrimEnd('/', '\\'))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // 强制加入 bin/obj/.git/.x (用户明确要求跳过 bin/obj)
-        foreach (var forced in new[] { "bin", "obj", ".git", ".x" }) {
+        // 强制加入 bin/obj/.git/.x (用户明确要求跳过 bin/obj) — 委托 CodeIndexExcludedDirCatalog
+        foreach (var forced in CodeIndexExcludedDirCatalog.DefaultExcludedDirs) {
             excludes.Add(forced);
         }
 

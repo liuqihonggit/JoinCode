@@ -11,7 +11,12 @@ public static class BedrockModelHelper {
     /// Bedrock 跨区域推理前缀列表 — 对齐 TS 原版 BEDROCK_REGION_PREFIXES
     /// <para>us: 美国区域, eu: 欧洲区域, apac: 亚太区域, global: 全球</para>
     /// </summary>
-    public static readonly string[] RegionPrefixes = ["us", "eu", "apac", "global"];
+    public static readonly string[] RegionPrefixes = [
+        BedrockRegionPrefixEnumConstants.Us,
+        BedrockRegionPrefixEnumConstants.Eu,
+        BedrockRegionPrefixEnumConstants.Apac,
+        BedrockRegionPrefixEnumConstants.Global,
+    ];
 
     /// <summary>
     /// 判断模型 ID 是否是 Bedrock foundation model — 对齐 TS 原版 isFoundationModel

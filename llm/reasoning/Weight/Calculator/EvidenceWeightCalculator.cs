@@ -5,14 +5,14 @@ namespace JoinCode.Reasoning.Weight.Calculator;
 /// 来源可信度(30%) + 证据类型(25%) + 验证状态(20%) + 多重佐证(15%) + 时效性(10%)
 /// </summary>
 public sealed class EvidenceWeightCalculator {
-    private static readonly FrozenDictionary<string, double> SourceCredibilityMap = new Dictionary<string, double> {
-        ["政府机构"] = 0.95,
-        ["法院判决"] = 0.90,
-        ["银行系统"] = 0.88,
-        ["公证文件"] = 0.85,
-        ["媒体报道"] = 0.60,
-        ["个人陈述"] = 0.40,
-        ["匿名来源"] = 0.15,
+    private static readonly FrozenDictionary<EvidenceSourceCategory, double> SourceCredibilityMap = new Dictionary<EvidenceSourceCategory, double> {
+        [EvidenceSourceCategory.GovernmentAgency] = 0.95,
+        [EvidenceSourceCategory.CourtJudgment] = 0.90,
+        [EvidenceSourceCategory.BankingSystem] = 0.88,
+        [EvidenceSourceCategory.NotarizedDocument] = 0.85,
+        [EvidenceSourceCategory.MediaReport] = 0.60,
+        [EvidenceSourceCategory.PersonalStatement] = 0.40,
+        [EvidenceSourceCategory.AnonymousSource] = 0.15,
     }.ToFrozenDictionary();
 
     private static readonly FrozenDictionary<EvidenceCategory, double> EvidenceTypeWeightMap = new Dictionary<EvidenceCategory, double> {
@@ -65,7 +65,8 @@ public sealed class EvidenceWeightCalculator {
 
     private static double CalculateSourceCredibility(string? source) {
         if (string.IsNullOrEmpty(source)) return 0.30;
-        return SourceCredibilityMap.GetValueOrDefault(source, 0.30);
+        var category = EvidenceSourceCategoryExtensions.FromValue(source);
+        return category is not null ? SourceCredibilityMap.GetValueOrDefault(category.Value, 0.30) : 0.30;
     }
 
     private static double GetTypeWeight(EvidenceCategory category) {

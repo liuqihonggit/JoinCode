@@ -189,7 +189,7 @@ internal sealed class RunningPluginInstance {
 /// <para>UpdatePlugin 原子替换包版本，旧运行实例标记 stale</para>
 /// <para>审批前置：RunPlugin 前检查 PluginApprovalRegistry（依赖 #3）</para>
 /// <para>NativeAOT 降级：不支持源码求值，只加载已编译 DLL</para>
-/// <para>线程安全：ConcurrentDictionary + lock + Interlocked</para>
+/// <para>线程安全：ConcurrentDictionary + CAS + Interlocked（无锁）</para>
 /// <para>时钟可注入：Func&lt;DateTimeOffset&gt;? clock = null，测试可控、生产用 UtcNow</para>
 /// </summary>
 public sealed class DynamicPluginRegistry {
@@ -198,7 +198,6 @@ public sealed class DynamicPluginRegistry {
     private readonly PluginApprovalRegistry _approval;
     private readonly Func<DateTimeOffset>? _clock;
     private readonly Func<PluginPackage, PluginAlc, FrozenDictionary<string, Func<object?[], object?>>> _loader;
-    private readonly object _runLock = new();
 
     /// <param name="approval">审批注册表（依赖 #3），null 时跳过审批</param>
     /// <param name="clock">时钟注入，null 用 DateTimeOffset.UtcNow</param>
@@ -251,22 +250,24 @@ public sealed class DynamicPluginRegistry {
         if (!_runtime.TryGetPackage(name, out var pkg))
             throw new KeyNotFoundException($"[DYN-RUN-UNDEFINED] 插件 {name} 未定义。");
 
-        lock (_runLock) {
-            if (_runtime.TryGetRunning(name, out var existing))
-                return existing.PackageId;
+        if (_runtime.TryGetRunning(name, out var existing))
+            return existing.PackageId;
 
-            var pending = _approval.PendingRequestFor(name);
-            if (pending is not null && pending.State == ApprovalState.Pending) {
-                throw new InvalidOperationException(
-                    $"[DYN-RUN-PENDING-APPROVAL] 插件 {name} 有待审批请求 {pending.RequestId}，请先审批。");
-            }
-
-            var alc = new PluginAlc($"plugin-{name}-{pkg.PackageId}");
-            var handlers = _loader(pkg, alc);
-            var instance = new RunningPluginInstance(pkg.PackageId, alc, handlers, Now());
-            _runtime.SetRunning(name, instance);
-            return pkg.PackageId;
+        var pending = _approval.PendingRequestFor(name);
+        if (pending is not null && pending.State == ApprovalState.Pending) {
+            throw new InvalidOperationException(
+                $"[DYN-RUN-PENDING-APPROVAL] 插件 {name} 有待审批请求 {pending.RequestId}，请先审批。");
         }
+
+        var alc = new PluginAlc($"plugin-{name}-{pkg.PackageId}");
+        var handlers = _loader(pkg, alc);
+        var instance = new RunningPluginInstance(pkg.PackageId, alc, handlers, Now());
+
+        if (_runtime.TrySetRunningIfAbsent(name, instance, out var winner))
+            return pkg.PackageId;
+
+        alc.Unload();
+        return winner!.PackageId;
     }
 
     /// <summary>

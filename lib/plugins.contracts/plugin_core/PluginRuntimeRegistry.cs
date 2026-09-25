@@ -71,6 +71,27 @@ internal sealed class PluginRuntimeRegistry {
         }
     }
 
+    /// <summary>
+    /// 原子设置运行实例 — 仅当当前无运行实例时成功（CAS 无锁占位）
+    /// <para>成功：返回 true，existing = null</para>
+    /// <para>已有运行实例：返回 false，existing = 当前实例（幂等快速路径）</para>
+    /// <para>插件未定义：返回 false，existing = null</para>
+    /// </summary>
+    public bool TrySetRunningIfAbsent(string name, RunningPluginInstance instance, out RunningPluginInstance? existing) {
+        while (_entries.TryGetValue(name, out var state)) {
+            if (state.RunningInstance is not null) {
+                existing = state.RunningInstance;
+                return false;
+            }
+            if (_entries.TryUpdate(name, state with { RunningInstance = instance, State = DynamicPluginState.Running }, state)) {
+                existing = null;
+                return true;
+            }
+        }
+        existing = null;
+        return false;
+    }
+
     /// <summary>移除运行实例（返回是否找到并移除）</summary>
     public bool TryRemoveRunning(string name, out RunningPluginInstance instance) {
         while (_entries.TryGetValue(name, out var state)) {

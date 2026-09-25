@@ -33,4 +33,10 @@ public interface IAgentLifecycleManager {
     Task<AgentStateReport> GetStateReportAsync(CancellationToken cancellationToken = default);
     /// <summary>异步获取正在运行的 Agent 信息列表。</summary>
     Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>按 ID 获取运行中的 Agent — O(1) 字典查找，避免 GetRunningAgentsAsync + FirstOrDefault 的 O(n) 线性检索</summary>
+    /// <param name="agentId">Agent ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>运行中的 Agent 信息；不存在或非运行状态返回 null</returns>
+    Task<RunningAgentInfo?> GetRunningAgentByIdAsync(string agentId, CancellationToken cancellationToken = default);
 }

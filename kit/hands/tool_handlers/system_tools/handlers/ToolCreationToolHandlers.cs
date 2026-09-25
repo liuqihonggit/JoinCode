@@ -123,10 +123,7 @@ public class ToolCreationToolHandlers {
     public async Task<ToolResult> ShowTemplateAsync(
         [McpToolParameter("模板ID或工具名称", Required = true)] string templateId,
         CancellationToken ct = default) {
-        var templates = await _templateService.ListTemplatesAsync(ct).ConfigureAwait(false);
-        var template = templates.FirstOrDefault(t =>
-            string.Equals(t.Id, templateId, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(t.ToolName, templateId, StringComparison.OrdinalIgnoreCase));
+        var template = await _templateService.FindTemplateAsync(templateId, ct).ConfigureAwait(false);
 
         if (template is null) {
             var diag = BuildTemplateNotFoundDiagnostic(templateId);

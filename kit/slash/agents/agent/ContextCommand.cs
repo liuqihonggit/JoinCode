@@ -28,8 +28,7 @@ public sealed class ContextCommand : ChatCommandBase {
         var provider = context.GetCommandServices().WorkflowConfig?.Provider?.Vendor
             ?? Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue())
             ?? VendorKind.OpenAi.ToValue();
-        var maxTokens = ResolveModelCatalog(context).GetModelsForProvider(provider)
-            .FirstOrDefault(m => m.Id.Equals(currentModel, StringComparison.OrdinalIgnoreCase))?.ContextWindow
+        var maxTokens = ResolveModelCatalog(context).FindModelContextWindow(currentModel, provider)
             ?? 128_000;
 
         var contextData = new ContextData {

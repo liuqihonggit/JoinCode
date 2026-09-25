@@ -202,6 +202,15 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime {
                 _templates = [.. SavedTemplates.Values];
             return Task.FromResult<IReadOnlyList<ToolTemplate>>(_templates);
         }
+
+        public Task<ToolTemplate?> FindTemplateAsync(string templateIdOrToolName, CancellationToken ct = default) {
+            if (_templates.Count == 0 && SavedTemplates.Count > 0)
+                _templates = [.. SavedTemplates.Values];
+            var match = _templates.FirstOrDefault(t =>
+                string.Equals(t.Id, templateIdOrToolName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(t.ToolName, templateIdOrToolName, StringComparison.OrdinalIgnoreCase));
+            return Task.FromResult(match);
+        }
     }
 
     private sealed class MockToolRegistry : IToolRegistry {

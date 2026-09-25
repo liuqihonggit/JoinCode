@@ -8,6 +8,7 @@ namespace Core.Configuration.Providers;
 public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindowResolver {
     private readonly IFastModeService _fastModeService;
     private readonly IProviderDefinitionRegistry _registry;
+    private readonly IModelConfigLoader? _modelConfigLoader;
     private readonly WorkflowConfig? _config;
 
     private const int DefaultContextWindow = 200_000;
@@ -18,10 +19,12 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
     /// <param name="fastModeService">快速模式服务,用于解析当前模型与是否激活快速模式</param>
     /// <param name="registry">Provider 定义注册表,用于查找模型的上下文窗口配置</param>
     /// <param name="config">工作流配置(可选),用于读取当前供应商</param>
-    public ContextWindowResolver(IFastModeService fastModeService, IProviderDefinitionRegistry registry, WorkflowConfig? config = null) {
+    /// <param name="modelConfigLoader">模型配置加载器(可选),用于 O(1) 字典查找模型上下文窗口</param>
+    public ContextWindowResolver(IFastModeService fastModeService, IProviderDefinitionRegistry registry, WorkflowConfig? config = null, IModelConfigLoader? modelConfigLoader = null) {
         _fastModeService = fastModeService;
         _registry = registry;
         _config = config;
+        _modelConfigLoader = modelConfigLoader;
     }
 
     /// <summary>
@@ -40,6 +43,12 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
         // 2. 从 Provider 定义中查找当前模型
         var currentModel = ResolveCurrentModelId();
         var provider = ResolveCurrentProvider();
+
+        if (_modelConfigLoader is not null) {
+            var modelConfig = _modelConfigLoader.FindModel(provider, currentModel);
+            if (modelConfig is not null)
+                return modelConfig.ContextWindow;
+        }
 
         var definition = _registry.TryGet(provider);
         if (definition is not null) {

@@ -42,6 +42,7 @@ global using Microsoft.Extensions.Options;
 global using Services.Lsp;
 global using System.Buffers;
 global using System.Collections.Frozen;
+global using System.Collections.Immutable;
 global using System.ComponentModel.DataAnnotations;
 global using System.Runtime.CompilerServices;
 global using System.Text;

@@ -188,6 +188,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     }
 
     /// <summary>
+    /// 按团队名称获取团队 — O(1) 字典查找，委托到 TeamRegistry.FindTeamByName
+    /// </summary>
+    public Task<TeamInfo?> GetTeamByNameAsync(string teamName, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(teamName);
+        return Task.FromResult(_registry.FindTeamByName(teamName));
+    }
+
+    /// <summary>
     /// 异步向团队添加成员
     /// </summary>
     /// <param name="teamId">团队标识</param>

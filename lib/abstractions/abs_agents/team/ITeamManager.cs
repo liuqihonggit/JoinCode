@@ -73,6 +73,14 @@ public interface ITeamManager : IAsyncDisposable {
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 按团队名称获取团队 — O(1) 字典查找，避免 ListTeamsAsync + FirstOrDefault 的 O(n) 线性检索
+    /// </summary>
+    /// <param name="teamName">团队名称（忽略大小写）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>团队信息；不存在返回 null</returns>
+    Task<TeamInfo?> GetTeamByNameAsync(string teamName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 添加团队成员
     /// </summary>
     Task<OperationResult<TeamInfo?>> AddTeamMemberAsync(

@@ -334,6 +334,22 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
         return Task.FromResult<IEnumerable<RunningAgentInfo>>(result);
     }
 
+    /// <summary>
+    /// 按 ID 获取运行中的 Agent — O(1) 字典查找
+    /// </summary>
+    public Task<RunningAgentInfo?> GetRunningAgentByIdAsync(string agentId, CancellationToken cancellationToken = default) {
+        if (_entries.TryGetValue(agentId, out var entry) && entry.Agent.State == TaskExecutionStatus.Running) {
+            return Task.FromResult<RunningAgentInfo?>(new RunningAgentInfo {
+                Id = entry.Agent.ObjectId.UniqueId,
+                Description = entry.Agent.Task,
+                Role = entry.Agent.Options.Role,
+                Variant = entry.Agent.Options.Variant,
+                StartedAt = entry.Agent.StartedAt
+            });
+        }
+        return Task.FromResult<RunningAgentInfo?>(null);
+    }
+
     private string GenerateAgentId() {
         var counter = Interlocked.Increment(ref _agentCounter);
         return $"agent-{counter:D4}-{Guid.NewGuid().ToString("N")[..8]}";

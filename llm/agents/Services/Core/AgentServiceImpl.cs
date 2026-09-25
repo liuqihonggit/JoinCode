@@ -327,6 +327,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         => _lifecycleManager.GetRunningAgentsAsync(cancellationToken);
 
     /// <summary>
+    /// 按 ID 获取运行中的代理 — 委托到 IAgentLifecycleManager，O(1) 字典查找
+    /// </summary>
+    public Task<RunningAgentInfo?> GetRunningAgentByIdAsync(string agentId, CancellationToken cancellationToken = default)
+        => _lifecycleManager.GetRunningAgentByIdAsync(agentId, cancellationToken);
+
+    /// <summary>
     /// 按名称查找运行中子代理的 ID — O(1) 字典查找
     /// 匹配键: DisplayName → Name → Description → Id（均精确匹配，大小写不敏感）
     /// </summary>

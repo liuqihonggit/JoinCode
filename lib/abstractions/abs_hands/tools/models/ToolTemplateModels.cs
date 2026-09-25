@@ -131,4 +131,12 @@ public interface IToolTemplateService {
     /// 列出可用模板
     /// </summary>
     Task<IReadOnlyList<ToolTemplate>> ListTemplatesAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// 按模板 ID 或工具名称查找模板 — O(1) 字典查找，避免 ListTemplatesAsync + FirstOrDefault 的 O(n) 线性检索
+    /// </summary>
+    /// <param name="templateIdOrToolName">模板 ID 或工具名称（忽略大小写）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>匹配的模板；不存在返回 null</returns>
+    Task<ToolTemplate?> FindTemplateAsync(string templateIdOrToolName, CancellationToken ct = default);
 }

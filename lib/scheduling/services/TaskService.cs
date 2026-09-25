@@ -315,6 +315,19 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         return Task.FromResult<IReadOnlyList<RunningTaskInfo>>(runningTasks);
     }
 
+    /// <inheritdoc/>
+    public Task<RunningTaskInfo?> GetRunningTaskByIdAsync(string taskId, CancellationToken cancellationToken = default) {
+        if (_tasks.TryGetValue(taskId, out var entry) && entry.Item.Status == TaskExecutionStatusEnumConstants.Running) {
+            return Task.FromResult<RunningTaskInfo?>(new RunningTaskInfo {
+                Id = entry.Item.Id,
+                Description = entry.Item.Title,
+                Status = entry.Item.Status,
+                StartedAt = entry.Item.CreatedAt
+            });
+        }
+        return Task.FromResult<RunningTaskInfo?>(null);
+    }
+
     private void RecordTaskMetrics(string operation, TodoPriority? priority = null) {
         var tags = new Dictionary<string, string> { ["operation"] = operation };
         if (priority != null) tags["priority"] = priority.Value.ToValue();

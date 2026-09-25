@@ -676,6 +676,16 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     }
 
     /// <summary>
+    /// 按 ID 获取运行中的 Agent — 委托到 IAgentLifecycleManager，O(1) 字典查找
+    /// </summary>
+    /// <param name="agentId">Agent ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>运行中的 Agent 信息；不存在或非运行状态返回 null</returns>
+    public Task<RunningAgentInfo?> GetRunningAgentByIdAsync(string agentId, CancellationToken cancellationToken = default) {
+        return _lifecycleManager.GetRunningAgentByIdAsync(agentId, cancellationToken);
+    }
+
+    /// <summary>
     /// 获取正在运行或暂停的队友列表
     /// </summary>
     /// <returns>队友信息列表</returns>

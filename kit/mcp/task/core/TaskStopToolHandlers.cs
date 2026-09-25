@@ -41,11 +41,8 @@ public partial class TaskStopToolHandlers {
             return ToolResultBuilder.Error().WithText("Missing required parameter: task_id").Build();
 
         try {
-            var runningTasks = await _taskService.GetRunningTasksAsync(cancellationToken).ConfigureAwait(false);
-            var runningAgents = await _agentCoordinator.GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false);
-
-            var taskMatch = runningTasks.FirstOrDefault(t => t.Id == id);
-            var agentMatch = runningAgents.FirstOrDefault(a => a.Id == id);
+            var taskMatch = await _taskService.GetRunningTaskByIdAsync(id, cancellationToken).ConfigureAwait(false);
+            var agentMatch = await _agentCoordinator.GetRunningAgentByIdAsync(id, cancellationToken).ConfigureAwait(false);
 
             if (taskMatch is null && agentMatch is null)
                 return ToolResultBuilder.Error().WithText($"No task found with ID: {id}").Build();

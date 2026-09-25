@@ -14,7 +14,7 @@ internal sealed class AnthropicCacheProtocol : CacheProtocol {
     /// <summary>解析缓存作用域。</summary>
     /// <param name="hasMcpTools">是否包含 MCP 工具。</param>
     /// <returns>缓存作用域字符串。</returns>
-    public string? ResolveScope(bool hasMcpTools) => hasMcpTools ? "org" : null;
+    public string? ResolveScope(bool hasMcpTools) => hasMcpTools ? CacheScopeEnumConstants.Org : null;
 
     /// <summary>创建缓存控制对象。</summary>
     /// <param name="hasMcpTools">是否包含 MCP 工具。</param>
@@ -23,11 +23,7 @@ internal sealed class AnthropicCacheProtocol : CacheProtocol {
     /// <returns>Anthropic 缓存控制对象。</returns>
     public AnthropicCacheControl CreateCacheControl(bool hasMcpTools, string? ttl = null, CacheScope scope = CacheScope.None) {
         return new AnthropicCacheControl {
-            Scope = scope switch {
-                CacheScope.Global => "global",
-                CacheScope.Org => "org",
-                _ => ResolveScope(hasMcpTools)
-            },
+            Scope = scope == CacheScope.None ? ResolveScope(hasMcpTools) : scope.ToValue(),
             Ttl = ttl
         };
     }

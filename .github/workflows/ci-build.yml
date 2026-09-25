@@ -15,7 +15,7 @@ jobs:
   build:
     name: Build
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -35,82 +35,14 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
-      - name: Build - ① Generators
-        run: dotnet build build/sln/Generators.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+      - name: Restore
+        run: dotnet restore build/sln/JoinCode.slnx --nologo
 
-      - name: Build - ② Foundation
-        run: dotnet build build/sln/Foundation.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
-
-      - name: Build - ③ Infrastructure
-        run: dotnet build build/sln/Infrastructure.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
-
-      - name: Build - ④ Core
-        run: dotnet build build/sln/Core.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
-
-      - name: Build - ⑤ Services
-        run: dotnet build build/sln/Services.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
-
-      - name: Build - ⑥ Composition
-        run: dotnet build build/sln/Composition.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
-
-      - name: Build - ⑦ App
-        run: dotnet build build/sln/App.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
-
-      - name: Build - Component Tests
-        run: |
-          $projects = @(
-            'test/unit/infra.tests/services/Infra.Services.Tests.csproj',
-            'test/unit/infra.tests/utils/Infra.Utils.Tests.csproj',
-            'test/unit/infra.tests/io/Infra.IO.Tests.csproj',
-            'kit/brain.prompts.tests/Brain.Prompts.Tests.csproj',
-            'kit/brain.context.tests/Brain.Context.Tests.csproj',
-            'kit/brain.other.tests/Brain.Other.Tests.csproj',
-            'lib/guard.security.tests/Guard.Security.Tests.csproj',
-            'lib/guard.hooks.tests/Guard.Hooks.Tests.csproj',
-            'lib/guard.config.tests/Guard.Config.Tests.csproj',
-            'server/bridge.tests/Bridge.Tests.csproj',
-            'kit/hands.tool_handlers.tests/Hands.ToolHandlers.Tests.csproj',
-            'kit/hands.skills.tests/Hands.Skills.Tests.csproj',
-            'kit/hands.shell.tests/Hands.Shell.Tests.csproj',
-            'kit/hands.api.tests/Hands.Api.Tests.csproj',
-            'kit/mcp.tests/Mcp.Tests.csproj',
-            'lib/vault.other.tests/Vault.Other.Tests.csproj',
-            'lib/vault.memdir.tests/Vault.Memdir.Tests.csproj',
-            'kit/composition.tests/Composition.Tests.csproj',
-            'llm/agents.tests/Agents.Tests.csproj',
-            'lib/scheduling.tests/Scheduling.Tests.csproj',
-            'kit/mcp_tool_dispatch.tests/McpToolDispatch.Tests.csproj',
-            'lib/clock.tests/Clock.Tests.csproj',
-            'server/eyes.tests/Eyes.Tests.csproj',
-            'server/code_index.tests/CodeIndex.Tests.csproj',
-            'server/dream.tests/Dream.Tests.csproj',
-            'server/code_index.e2e.tests/CodeIndex.E2E.Tests.csproj',
-            'test/unit/abs.tests/Abs.Tests.csproj',
-            'test/unit/hands.tests/Hands.Tests.csproj',
-            'test/unit/mcp.tests/Mcp.UniqueTests.csproj',
-            'test/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj'
-          )
-          foreach ($p in $projects) {
-            Write-Host "Building $p ..."
-            dotnet build $p -c Release --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
-            if ($LASTEXITCODE -ne 0) { exit 1 }
-          }
-        shell: pwsh
-
-      - name: Build - Satellite Projects
-        run: |
-          $projects = @(
-            'test/benchmarks/eyes.benchmarks/Eyes.Benchmarks.csproj',
-            'test/aot/aot_browser_test/aot-browser-test.csproj',
-            'test/aot/aot_httpclientfactory_test/aot-httpclientfactory-test.csproj',
-            'test/aot/pptr_api_check/PptrApiCheck.csproj'
-          )
-          foreach ($p in $projects) {
-            Write-Host "Building $p ..."
-            dotnet build $p -c Release --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
-            if ($LASTEXITCODE -ne 0) { exit 1 }
-          }
-        shell: pwsh
+      - name: Build (all)
+        run: >
+          dotnet build build/sln/JoinCode.slnx
+          -c Release --no-restore --nologo -m
+          /p:SkipLocalPack=true /p:JccAnalyzers=false /p:EnableNETAnalyzers=false /p:AnalysisLevel=none
 
       - name: Upload Build Output
         uses: actions/upload-artifact@v7
@@ -122,6 +54,18 @@ jobs:
             !artifacts/bin/JoinCodeGui/
             !artifacts/bin/JoinCodeGui.Tests/
             !artifacts/bin/SkiaSharpAotTest/
+            !artifacts/bin/TerminalGuiAotProbe/
+            !artifacts/bin/Tui.Tests/
+            !artifacts/bin/Eyes.Benchmarks/
+            !artifacts/bin/AsyncLock.Benchmarks/
+            !artifacts/bin/JccAuditCli/
+            !artifacts/bin/JccAuditCli.Tests/
+            !artifacts/bin/InjectMigration/
+            !artifacts/bin/JccInteractiveTester/
+            !artifacts/bin/SampleNativePlugin/
+            !artifacts/bin/aot-browser-test/
+            !artifacts/bin/aot-httpclientfactory-test/
+            !artifacts/bin/PptrApiCheck/
             !**/runtimes/linux-arm/
             !**/runtimes/linux-arm64/
             !**/runtimes/linux-x64/

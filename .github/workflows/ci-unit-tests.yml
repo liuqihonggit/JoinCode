@@ -121,7 +121,7 @@ jobs:
       - name: Test - ${{ matrix.name }}
         run: >
           dotnet test ${{ matrix.csproj }}
-          -c Release ${{ matrix.build_first != true && '--no-build' || '' }} --nologo
+          -c Release ${{ matrix.build_first != true && '--no-build' || '--no-restore' }} --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=${{ matrix.name }}.trx"

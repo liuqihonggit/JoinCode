@@ -11,6 +11,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     private readonly string _templatesDir;
     private readonly CancellationTokenSource _disposeCts = new();
     private volatile List<ToolTemplate> _cache = [];
+    private volatile ImmutableDictionary<string, ToolTemplate> _byKey = ImmutableDictionary<string, ToolTemplate>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
 
     /// <summary>
@@ -67,11 +68,13 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
             var templates = results.Where(r => r is not null).Cast<ToolTemplate>().ToList();
 
             _cache = templates;
+            _byKey = BuildTemplateIndex(templates);
             _logger?.LogInformation("已加载 {Count} 个工具模板", templates.Count);
             return templates;
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "加载工具模板失败");
             _cache = [];
+            _byKey = ImmutableDictionary<string, ToolTemplate>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
             return _cache;
         }
     }
@@ -119,6 +122,26 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     /// <returns>工具模板只读列表</returns>
     public Task<IReadOnlyList<ToolTemplate>> ListTemplatesAsync(CancellationToken ct = default) {
         return Task.FromResult<IReadOnlyList<ToolTemplate>>(_cache);
+    }
+
+    /// <summary>
+    /// 按模板 ID 或工具名称查找模板 — O(1) 字典查找
+    /// </summary>
+    /// <param name="templateIdOrToolName">模板 ID 或工具名称（忽略大小写）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>匹配的模板；不存在返回 null</returns>
+    public Task<ToolTemplate?> FindTemplateAsync(string templateIdOrToolName, CancellationToken ct = default) {
+        ArgumentException.ThrowIfNullOrWhiteSpace(templateIdOrToolName);
+        return Task.FromResult(_byKey.GetValueOrDefault(templateIdOrToolName));
+    }
+
+    private static ImmutableDictionary<string, ToolTemplate> BuildTemplateIndex(List<ToolTemplate> templates) {
+        var builder = ImmutableDictionary.CreateBuilder<string, ToolTemplate>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in templates) {
+            builder[t.Id] = t;
+            builder[t.ToolName] = t;
+        }
+        return builder.ToImmutable();
     }
 
     private async Task<ToolResult> ExecuteTemplateAsync(

@@ -10,6 +10,9 @@ public sealed partial class MainViewModel {
     /// <summary>Assistant 消息计数器（CanRegenerate O(1) 查找，由 OnMessagesChanged 维护）</summary>
     private int _assistantMessageCount;
 
+    /// <summary>会话累计字符数计数器（TotalChars O(1) 查找，由 OnMessagesChanged/OnMessagePropertyChanged 维护）</summary>
+    private int _totalChars;
+
     /// <summary>
     /// UI 消息列表硬上限（G4 内存防护）— 长会话/批量恢复历史时防止集合无限增长。
     /// 仅裁剪显示层，引擎上下文由 /compact 机制管理；TUI 端对应 OutputView 的 2048 行环形缓冲。
@@ -25,8 +28,8 @@ public sealed partial class MainViewModel {
     /// <summary>是否有消息（驱动空状态引导与清空按钮）</summary>
     public bool HasMessages => Messages.Count > 0;
 
-    /// <summary>会话累计字符数（含输入与回复，粗略 token 估算用）</summary>
-    public int TotalChars => Messages.Sum(m => m.Content.Length);
+    /// <summary>会话累计字符数（含输入与回复，粗略 token 估算用） — O(1) 计数器维护</summary>
+    public int TotalChars => _totalChars;
 
     /// <summary>估算 token 数（中文约 1.6 字符/token，英文约 4 字符/token，取保守下限 4）</summary>
     public int EstimatedTokens => TotalChars / 4;
@@ -74,11 +77,14 @@ public sealed partial class MainViewModel {
     }
 
     private void OnMessagesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) {
-        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset) {
             _assistantMessageCount = Messages.Count(m => m.Role == MessageRole.Assistant);
-        else {
+            _totalChars = Messages.Sum(m => m.Content.Length);
+        } else {
             AdjustAssistantCount(e.OldItems, -1);
             AdjustAssistantCount(e.NewItems, 1);
+            AdjustTotalChars(e.OldItems, -1);
+            AdjustTotalChars(e.NewItems, 1);
         }
 
         // G4 内存防护：超出上限裁剪最旧消息。RemoveAt 触发的 Remove 事件同步重入本处理器，
@@ -109,9 +115,21 @@ public sealed partial class MainViewModel {
                 _assistantMessageCount += delta;
     }
 
-    /// <summary>单条消息属性变化（流式输出 Content 变化）时刷新 AllMessagesText</summary>
+    private void AdjustTotalChars(System.Collections.IList? items, int delta) {
+        if (items is null)
+            return;
+        foreach (ChatUiMessage m in items)
+            _totalChars += delta * m.Content.Length;
+    }
+
+    /// <summary>单条消息属性变化（流式输出 Content 变化）时刷新 AllMessagesText 和 TotalChars</summary>
     private void OnMessagePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) {
-        if (e.PropertyName is nameof(ChatUiMessage.Content) or nameof(ChatUiMessage.ToolResultText))
+        if (e.PropertyName is nameof(ChatUiMessage.Content)) {
+            _totalChars = Messages.Sum(m => m.Content.Length);
+            OnPropertyChanged(nameof(TotalChars));
+            OnPropertyChanged(nameof(EstimatedTokens));
+            OnPropertyChanged(nameof(AllMessagesText));
+        } else if (e.PropertyName is nameof(ChatUiMessage.ToolResultText))
             OnPropertyChanged(nameof(AllMessagesText));
     }
 

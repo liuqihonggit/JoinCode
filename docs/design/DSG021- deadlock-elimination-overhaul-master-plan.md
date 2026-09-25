@@ -174,9 +174,18 @@
 - [ ] 16处字段直接暴露 → 查询函数(P3)
 - [ ] 3处属性副作用 → 方法(P4)
 
-### 批次5:检索优化(方向2低风险)
+### 批次5:检索优化(方向2低风险) ✅
 
-- [ ] M9: 10处线性检索 → O(1) 字典查找
+- [x] M9: 10处线性检索 → O(1) 字典查找
+  - #1 CrashSnapshotStore: 添加 ConcurrentDictionary<Guid, CrashSnapshot> 索引，GetById O(1)
+  - #2 ContextWindowResolver: 添加可选 IModelConfigLoader 参数，优先 O(1) 字典查找
+  - #3 ContextCommand: IModelCatalog.FindModelContextWindow O(1) 字典查找
+  - #4/#5 HookConfigurationManager: 跳过(列表太短1-3个+每次从磁盘加载，建字典无收益)
+  - #6 SkillService: IMcpSkillProvider.TryGetSkillAsync O(1) 字典查找
+  - #7 ToolCreationToolHandlers: ToolTemplateService 添加 ImmutableDictionary 双键索引(Id+ToolName)
+  - #8 TeammateReconnectService: ITeamManager.GetTeamByNameAsync O(1) 字典查找
+  - #9 TaskStopToolHandlers(task): ITaskService.GetRunningTaskByIdAsync O(1) 字典查找
+  - #10 TaskStopToolHandlers(agent): IAgentService.GetRunningAgentByIdAsync O(1) 字典查找
 
 ### 批次6:单数据源(方向3,待其他人报告补充)
 

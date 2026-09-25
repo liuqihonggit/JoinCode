@@ -78,6 +78,14 @@ public interface IAgentService {
     Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 按 ID 获取运行中的代理 — O(1) 字典查找，避免 GetRunningAgentsAsync + FirstOrDefault 的 O(n) 线性检索
+    /// </summary>
+    /// <param name="agentId">代理 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>运行中的代理信息；不存在或非运行状态返回 null</returns>
+    Task<RunningAgentInfo?> GetRunningAgentByIdAsync(string agentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 按名称查找运行中子代理的 ID — O(1) 字典查找
     /// 匹配键: DisplayName → Name → Description → Id（均精确匹配，大小写不敏感）
     /// 几百个子代理场景下用 map 替代遍历，路由性能 O(1)

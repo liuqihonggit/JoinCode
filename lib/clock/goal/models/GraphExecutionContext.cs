@@ -52,6 +52,12 @@ public sealed class GraphExecutionContext {
     /// <summary>节点执行状态（按节点 ID 索引，合并重试计数与完成/失败标记）</summary>
     public ConcurrentDictionary<string, NodeExecutionState> NodeStates { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>已完成节点计数器（CompletedCount O(1) 查找，由 MarkNodeCompleted/MarkNodeFailed/ResetNodeState/SetRetryCount 维护）</summary>
+    private int _completedCount;
+
+    /// <summary>失败节点计数器（FailedCount O(1) 查找，同上维护）</summary>
+    private int _failedCount;
+
     /// <summary>判断节点是否已完成</summary>
     public bool IsNodeCompleted(string nodeId) =>
         NodeStates.TryGetValue(nodeId, out var state) && state.Status == NodeStatus.Completed;
@@ -68,34 +74,60 @@ public sealed class GraphExecutionContext {
     public int GetRetryCount(string nodeId) =>
         NodeStates.TryGetValue(nodeId, out var state) ? state.RetryCount : 0;
 
-    /// <summary>已完成节点数量</summary>
-    public int CompletedCount => NodeStates.Count(static kvp => kvp.Value.Status == NodeStatus.Completed);
+    /// <summary>已完成节点数量 — O(1) 计数器维护</summary>
+    public int CompletedCount => Volatile.Read(ref _completedCount);
 
-    /// <summary>失败节点数量</summary>
-    public int FailedCount => NodeStates.Count(static kvp => kvp.Value.Status == NodeStatus.Failed);
+    /// <summary>失败节点数量 — O(1) 计数器维护</summary>
+    public int FailedCount => Volatile.Read(ref _failedCount);
 
     /// <summary>标记节点完成（保留已有重试计数）</summary>
     public void MarkNodeCompleted(string nodeId) {
         NodeStates.AddOrUpdate(nodeId,
-            new NodeExecutionState { Status = NodeStatus.Completed },
-            (_, existing) => existing with { Status = NodeStatus.Completed });
+            _ => { Interlocked.Increment(ref _completedCount); return new NodeExecutionState { Status = NodeStatus.Completed }; },
+            (_, existing) => {
+                if (existing.Status != NodeStatus.Completed) {
+                    Interlocked.Increment(ref _completedCount);
+                    if (existing.Status == NodeStatus.Failed)
+                        Interlocked.Decrement(ref _failedCount);
+                }
+                return existing with { Status = NodeStatus.Completed };
+            });
     }
 
     /// <summary>标记节点失败（保留已有重试计数）</summary>
     public void MarkNodeFailed(string nodeId) {
         NodeStates.AddOrUpdate(nodeId,
-            new NodeExecutionState { Status = NodeStatus.Failed },
-            (_, existing) => existing with { Status = NodeStatus.Failed });
+            _ => { Interlocked.Increment(ref _failedCount); return new NodeExecutionState { Status = NodeStatus.Failed }; },
+            (_, existing) => {
+                if (existing.Status != NodeStatus.Failed) {
+                    Interlocked.Increment(ref _failedCount);
+                    if (existing.Status == NodeStatus.Completed)
+                        Interlocked.Decrement(ref _completedCount);
+                }
+                return existing with { Status = NodeStatus.Failed };
+            });
     }
 
     /// <summary>重置节点状态（移除记录，回到初始）</summary>
     public void ResetNodeState(string nodeId) {
-        NodeStates.TryRemove(nodeId, out _);
+        if (NodeStates.TryRemove(nodeId, out var existing)) {
+            if (existing.Status == NodeStatus.Completed)
+                Interlocked.Decrement(ref _completedCount);
+            else if (existing.Status == NodeStatus.Failed)
+                Interlocked.Decrement(ref _failedCount);
+        }
     }
 
     /// <summary>设置节点重试次数（状态置为 Pending）</summary>
     public void SetRetryCount(string nodeId, int count) {
-        NodeStates[nodeId] = new NodeExecutionState { Status = NodeStatus.Pending, RetryCount = count };
+        var newState = new NodeExecutionState { Status = NodeStatus.Pending, RetryCount = count };
+        if (NodeStates.TryGetValue(nodeId, out var existing)) {
+            if (existing.Status == NodeStatus.Completed)
+                Interlocked.Decrement(ref _completedCount);
+            else if (existing.Status == NodeStatus.Failed)
+                Interlocked.Decrement(ref _failedCount);
+        }
+        NodeStates[nodeId] = newState;
     }
 
     /// <summary>

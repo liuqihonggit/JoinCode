@@ -10,6 +10,14 @@ public interface IModelCatalog {
     ModelEntry[] GetModelsForProvider(string provider);
 
     /// <summary>
+    /// 按模型 ID 查找上下文窗口大小 — O(1) 字典查找，避免 GetModelsForProvider + FirstOrDefault 的 O(n) 线性检索
+    /// </summary>
+    /// <param name="modelId">模型 ID</param>
+    /// <param name="provider">供应商标识</param>
+    /// <returns>上下文窗口大小；不存在返回 null</returns>
+    int? FindModelContextWindow(string modelId, string provider);
+
+    /// <summary>
     /// 解析模型别名
     /// </summary>
     string? ResolveAlias(string input, string provider);

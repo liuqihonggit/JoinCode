@@ -85,4 +85,12 @@ public interface ITaskService : IAsyncDisposable {
     /// 获取所有正在运行的任务
     /// </summary>
     Task<IReadOnlyList<RunningTaskInfo>> GetRunningTasksAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 按 ID 获取运行中的任务 — O(1) 字典查找，避免 GetRunningTasksAsync + FirstOrDefault 的 O(n) 线性检索
+    /// </summary>
+    /// <param name="taskId">任务 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>运行中的任务信息；不存在或非运行状态返回 null</returns>
+    Task<RunningTaskInfo?> GetRunningTaskByIdAsync(string taskId, CancellationToken cancellationToken = default);
 }

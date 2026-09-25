@@ -48,6 +48,27 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     }
 
     /// <summary>
+    /// 按模型 ID 查找上下文窗口大小 — O(1) 字典查找
+    /// </summary>
+    public int? FindModelContextWindow(string modelId, string provider) {
+        if (_modelConfigLoader is not null) {
+            var model = _modelConfigLoader.FindModel(provider, modelId);
+            if (model is not null)
+                return model.ContextWindow;
+        }
+
+        var definition = _registry.TryGet(provider);
+        if (definition is not null) {
+            foreach (var m in definition.AvailableModels) {
+                if (m.Id.Equals(modelId, StringComparison.OrdinalIgnoreCase))
+                    return m.ContextWindow;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// 解析模型别名,将用户输入的别名转换为对应供应商下的标准模型 ID
     /// </summary>
     /// <param name="input">用户输入的模型别名</param>

@@ -351,6 +351,20 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
         }).ToList();
     }
 
+    /// <inheritdoc />
+    public async Task<RunningTaskInfo?> GetRunningTaskByIdAsync(string taskId, CancellationToken cancellationToken = default) {
+        var task = await GetTaskAsync(taskId, cancellationToken).ConfigureAwait(false);
+        if (task is not null && task.Status == TaskExecutionStatusEnumConstants.Running) {
+            return new RunningTaskInfo {
+                Id = task.Id,
+                Description = task.Title,
+                Status = task.Status,
+                StartedAt = task.CreatedAt
+            };
+        }
+        return null;
+    }
+
     /// <summary>
     /// 重置任务列表（保留高水位标记）
     /// </summary>

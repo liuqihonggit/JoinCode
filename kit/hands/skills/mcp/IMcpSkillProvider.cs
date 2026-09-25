@@ -13,6 +13,14 @@ public interface IMcpSkillProvider : IAsyncDisposable {
     Task<IReadOnlyList<SkillDefinition>> GetMcpSkillsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 按名称异步获取单个 MCP 技能定义 — O(1) 字典查找，避免 GetMcpSkillsAsync + FirstOrDefault 的 O(n) 线性检索
+    /// </summary>
+    /// <param name="skillName">技能名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>技能定义；不存在则返回 null</returns>
+    Task<SkillDefinition?> TryGetSkillAsync(string skillName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 异步执行 MCP 远程技能
     /// </summary>
     /// <param name="skillName">技能名称</param>

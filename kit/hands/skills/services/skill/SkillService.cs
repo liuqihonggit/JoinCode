@@ -160,8 +160,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
 
         // 查找 MCP 远程技能
         if (_mcpSkillProvider is not null && _mcpSkillProvider.IsSkillAvailable(skillName)) {
-            var mcpSkills = await _mcpSkillProvider.GetMcpSkillsAsync(cancellationToken).ConfigureAwait(false);
-            return mcpSkills.FirstOrDefault(s => string.Equals(s.Name, skillName, StringComparison.OrdinalIgnoreCase));
+            return await _mcpSkillProvider.TryGetSkillAsync(skillName, cancellationToken).ConfigureAwait(false);
         }
 
         return null;

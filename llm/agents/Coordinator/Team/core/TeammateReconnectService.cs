@@ -38,8 +38,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
         string teamName, string? agentName = null, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(teamName);
 
-        var teams = await _teamManager.ListTeamsAsync(cancellationToken).ConfigureAwait(false);
-        var team = teams.FirstOrDefault(t => string.Equals(t.TeamName, teamName, StringComparison.OrdinalIgnoreCase));
+        var team = await _teamManager.GetTeamByNameAsync(teamName, cancellationToken).ConfigureAwait(false);
         if (team is null) {
             _logger?.LogWarning("Team '{TeamName}' not found for context restoration", teamName);
             return null;

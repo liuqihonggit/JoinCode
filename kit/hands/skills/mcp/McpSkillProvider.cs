@@ -82,6 +82,22 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider {
     }
 
     /// <summary>
+    /// 按名称异步获取单个 MCP 技能定义 — O(1) 字典查找
+    /// </summary>
+    /// <param name="skillName">技能名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>技能定义；不存在则返回 null</returns>
+    public async Task<SkillDefinition?> TryGetSkillAsync(string skillName, CancellationToken cancellationToken = default) {
+        ArgumentException.ThrowIfNullOrEmpty(skillName);
+
+        if (_mcpSkills.Count == 0) {
+            await RefreshAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return _mcpSkills.GetValueOrDefault(skillName);
+    }
+
+    /// <summary>
     /// 异步执行 MCP 远程技能 — 通过适配器转发到对应 MCP 客户端
     /// </summary>
     /// <param name="skillName">技能名称</param>

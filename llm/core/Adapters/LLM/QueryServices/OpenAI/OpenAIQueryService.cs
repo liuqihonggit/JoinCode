@@ -32,7 +32,7 @@ public class OpenAIQueryService : QueryServiceBase {
 
         // 两阶段工具加载: 非流式检测 tool_description_request → 发送第二次请求
         var firstContent = response.Choices.FirstOrDefault()?.Message?.Content?.Text ?? string.Empty;
-        if (firstContent.Contains("tool_description_request") && kernel != null) {
+        if (kernel != null && firstContent.Contains("tool_description_request")) {
             Logger?.LogDebug("[WIRE {CallId}] 非流式收到 tool_description_request, 发送第二次请求", CallTrace.CurrentId);
             var secondRequest = CreateSecondRequestWithDescriptions(request, firstContent, kernel);
             var secondResponse = await SendRequestAsync(secondRequest, cancellationToken).ConfigureAwait(false);

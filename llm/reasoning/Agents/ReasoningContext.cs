@@ -50,8 +50,8 @@ public sealed class ReasoningContext {
         var visibleSourceIds = GetVisibleSourceIds(cone);
 
         return AllItems
-            .Where(item => visibleSourceIds.Contains(item.Id) ||
-                          item.State is DataState.Assumption or DataState.PendingEvidence);
+            .Where(item => item.State is DataState.Assumption or DataState.PendingEvidence ||
+                          visibleSourceIds.Contains(item.Id));
     }
 
     /// <summary>

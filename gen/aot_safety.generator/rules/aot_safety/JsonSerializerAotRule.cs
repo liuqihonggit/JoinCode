@@ -168,7 +168,7 @@ public sealed class JsonSerializerAotRule : IAnalyzerRule {
         foreach (var arg in invocation.ArgumentList.Arguments) {
             var argSymbol = ctx.SemanticModel.GetSymbolInfo(arg.Expression, ctx.CancellationToken).Symbol;
             if (argSymbol is IPropertySymbol property) {
-                if (IsJsonSerializerOptionsType(property.ContainingType) && property.Name == "TypeInfoResolver")
+                if (property.Name == "TypeInfoResolver" && IsJsonSerializerOptionsType(property.ContainingType))
                     return true;
             }
             if (argSymbol is ILocalSymbol local && IsJsonSerializerOptionsType(local.Type))

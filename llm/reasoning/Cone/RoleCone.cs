@@ -69,9 +69,9 @@ public sealed class RoleCone {
         if (!AllFragments.TryGetValue(fragmentId, out var fragment))
             return null;
 
-        if (string.IsNullOrEmpty(fragment.ExpandCondition) ||
-            fragment.ExpandCondition.Contains(triggerCondition, StringComparison.OrdinalIgnoreCase) ||
-            triggerCondition == "*") {
+        if (triggerCondition == "*" ||
+            string.IsNullOrEmpty(fragment.ExpandCondition) ||
+            fragment.ExpandCondition.Contains(triggerCondition, StringComparison.OrdinalIgnoreCase)) {
             fragment.IsExpanded = true;
             if (!ActiveFragmentIds.Contains(fragmentId)) {
                 ActiveFragmentIds.Add(fragmentId);
